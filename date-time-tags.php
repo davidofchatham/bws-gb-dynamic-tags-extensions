@@ -12,10 +12,12 @@
  * - Graceful failure with partial information display
  * 
  * @package BWS_Dynamic_Tags
- * @version 3.1.1
- * 
+ * @version 3.1.3
+ *
  * Changelog:
- * 3.1.1 - Fixed timezone handling to prevent date shifting: DateTime objects now parse dates in WP timezone instead of server timezone (UTC), preventing off-by-one-day errors
+ * 3.1.3 - Enhanced timezone handling with noon safety buffer for date-only fields; added comprehensive documentation explaining timezone issues; improved format validation
+ * 3.1.2 - Added F j, Y, g:i A format support; relaxed ACF format verification to trust field configuration
+ * 3.1.1 - Added timezone-aware datetime parsing using WordPress timezone; improved format matching for time-only fields
  * 3.1.0 - Added time_only support for range tag; fixed multi-day same-month ranges (Day–Day, Year format); improved date parsing priority (ACF config first); fixed time-only display removing "Time: " prefix for actual time-only requests
  * 3.0.5 - Removed redundant extract_date function (use remove_time instead)
  * 3.0.4 - Improved remove_time utility to clean up trailing commas/separators after time removal
@@ -30,10 +32,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Prevent duplicate loading
-if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V311_LOADED' ) ) {
+if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V313_LOADED' ) ) {
     return;
 }
-define( 'BWS_ACF_DATE_TIME_TAGS_V311_LOADED', true );
+define( 'BWS_ACF_DATE_TIME_TAGS_V313_LOADED', true );
 
 // ===============================================
 // TAG REGISTRATIONS
@@ -746,6 +748,7 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
  * 2. For date-only fields, set time to noon (12:00) instead of midnight (00:00)
  *    Even if timezone issues occur, noon provides a safety buffer against crossing day boundaries
  *
+ * @since 3.1.3 - Added noon safety buffer for date-only fields and comprehensive documentation
  * @since 3.1.1 - Added timezone handling to prevent date shifting
  * @param mixed $date_value Date value from ACF
  * @param string $field_key ACF field key
@@ -784,14 +787,18 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
     }
     
     // Second attempt: Common format fallbacks
-    $common_formats = [ 
-        // Date + Time formats
-        'm/d/Y g:i A', 'd/m/Y g:i A', 'm/d/Y H:i:s', 'd/m/Y H:i:s',
-        'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d g:i A',
+    $common_formats = [
+        // Date + Time formats (most specific first)
+        'F j, Y, g:i A', 'F j, Y, h:i A', // Full month name formats with comma
+        'F j, Y g:i A', 'F j, Y h:i A',   // Full month name without comma before time
+        'm/d/Y h:i A', 'd/m/Y h:i A',     // 12-hour with leading zeros
+        'm/d/Y g:i A', 'd/m/Y g:i A',     // 12-hour without leading zeros
+        'm/d/Y H:i:s', 'd/m/Y H:i:s',     // 24-hour
+        'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d h:i A', 'Y-m-d g:i A',
         // Date only formats
         'Y-m-d', 'Ymd', 'm/d/Y', 'd/m/Y', 'F j, Y',
         // Time only formats
-        'H:i:s', 'g:i A', 'g:i a', 'H:i',
+        'h:i A', 'g:i A', 'h:i a', 'g:i a', 'H:i:s', 'H:i',
         // ISO formats
         'c', DATE_ATOM, DATE_RFC3339,
     ];
