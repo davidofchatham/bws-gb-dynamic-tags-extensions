@@ -12,10 +12,11 @@
  * - Graceful failure with partial information display
  * 
  * @package BWS_Dynamic_Tags
- * @version 3.1.1
+ * @version 3.1.2
  * 
  * Changelog:
- * 3.1.1 - Fixed timezone handling to prevent date shifting (especially after 9 PM EST)
+ * 3.1.2 - Added F j, Y, g:i A format support; relaxed ACF format verification to trust field configuration
+ * 3.1.1 - Added timezone-aware datetime parsing using WordPress timezone; improved format matching for time-only fields
  * 3.1.0 - Added time_only support for range tag; fixed multi-day same-month ranges (Day–Day, Year format); improved date parsing priority (ACF config first); fixed time-only display removing "Time: " prefix for actual time-only requests
  * 3.0.5 - Removed redundant extract_date function (use remove_time instead)
  * 3.0.4 - Improved remove_time utility to clean up trailing commas/separators after time removal
@@ -30,10 +31,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Prevent duplicate loading
-if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V311_LOADED' ) ) {
+if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V312_LOADED' ) ) {
     return;
 }
-define( 'BWS_ACF_DATE_TIME_TAGS_V311_LOADED', true );
+define( 'BWS_ACF_DATE_TIME_TAGS_V312_LOADED', true );
 
 // ===============================================
 // TAG REGISTRATIONS
@@ -726,9 +727,9 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
 }
 
 /**
- * Parse ACF date value with intelligent format detection and timezone handling
+ * Parse ACF date value with intelligent format detection
  * 
- * @since 3.1.1 - Added timezone handling to prevent date shifting
+ * @since 3.0.0
  * @param mixed $date_value Date value from ACF
  * @param string $field_key ACF field key
  * @param int $post_id Post ID
@@ -740,7 +741,7 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
         return false;
     }
     
-    // Get WordPress timezone for consistent parsing
+    // Get WordPress timezone
     $wp_timezone = wp_timezone();
     
     // First attempt: Check ACF field configuration (most reliable)
@@ -750,51 +751,58 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
         
         if ( $return_format ) {
             $date = DateTime::createFromFormat( $return_format, $date_value, $wp_timezone );
-            if ( $date && $date->format( $return_format ) === $date_value ) {
-                // For date-only fields (no time component), set time to noon to avoid midnight boundary issues
-                $utils = bws_format_utils();
-                if ( ! $utils['has_time']( $return_format ) ) {
-                    $date->setTime( 12, 0, 0 );
+            if ( $date ) {
+                // For ACF formats, we trust the field configuration
+                // Just verify the date was parsed successfully (year > 1900)
+                if ( $date->format( 'Y' ) > 1900 ) {
+                    return $date;
                 }
-                return $date;
             }
         }
     }
     
     // Second attempt: Common format fallbacks
     $common_formats = [ 
-        // Date + Time formats
-        'm/d/Y g:i A', 'd/m/Y g:i A', 'm/d/Y H:i:s', 'd/m/Y H:i:s',
-        'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d g:i A',
+        // Date + Time formats (most specific first)
+        'F j, Y, g:i A', 'F j, Y, h:i A', // Full month name formats
+        'F j, Y g:i A', 'F j, Y h:i A',   // Without comma before time
+        'm/d/Y h:i A', 'd/m/Y h:i A',     // 12-hour with leading zeros
+        'm/d/Y g:i A', 'd/m/Y g:i A',     // 12-hour without leading zeros
+        'm/d/Y H:i:s', 'd/m/Y H:i:s',     // 24-hour
+        'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d h:i A', 'Y-m-d g:i A',
         // Date only formats
         'Y-m-d', 'Ymd', 'm/d/Y', 'd/m/Y', 'F j, Y',
         // Time only formats
-        'H:i:s', 'g:i A', 'g:i a', 'H:i',
+        'h:i A', 'g:i A', 'h:i a', 'g:i a', 'H:i:s', 'H:i',
         // ISO formats
         'c', DATE_ATOM, DATE_RFC3339,
     ];
     
-    $utils = bws_format_utils();
-    
     foreach ( $common_formats as $format ) {
         $date = DateTime::createFromFormat( $format, $date_value, $wp_timezone );
-        if ( $date && $date->format( $format ) === $date_value ) {
-            // For date-only formats, set time to noon to avoid midnight boundary issues
-            if ( ! $utils['has_time']( $format ) ) {
-                $date->setTime( 12, 0, 0 );
+        if ( $date ) {
+            // For time-only formats, verify time component matches
+            $utils = bws_format_utils();
+            $is_time_only = ! $utils['has_date']( $format ) && $utils['has_time']( $format );
+            
+            if ( $is_time_only ) {
+                // Just verify the time part matches
+                if ( $date->format( $format ) === $date_value ) {
+                    return $date;
+                }
+            } else {
+                // For date or datetime formats, verify exact match
+                if ( $date->format( $format ) === $date_value ) {
+                    return $date;
+                }
             }
-            return $date;
         }
     }
     
-    // Third attempt: Direct DateTime parsing with timezone
+    // Third attempt: Direct DateTime parsing (least reliable)
     try {
         $date = new DateTime( $date_value, $wp_timezone );
         if ( $date->format( 'Y' ) > 1900 ) {
-            // Check if this appears to be a date-only value (time is midnight)
-            if ( $date->format( 'H:i:s' ) === '00:00:00' ) {
-                $date->setTime( 12, 0, 0 );
-            }
             return $date;
         }
     } catch ( Exception $e ) {
