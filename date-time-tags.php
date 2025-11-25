@@ -12,9 +12,10 @@
  * - Graceful failure with partial information display
  * 
  * @package BWS_Dynamic_Tags
- * @version 3.1.2
- * 
+ * @version 3.1.3
+ *
  * Changelog:
+ * 3.1.3 - Enhanced timezone handling with noon safety buffer for date-only fields; added comprehensive documentation explaining timezone issues; improved format validation
  * 3.1.2 - Added F j, Y, g:i A format support; relaxed ACF format verification to trust field configuration
  * 3.1.1 - Added timezone-aware datetime parsing using WordPress timezone; improved format matching for time-only fields
  * 3.1.0 - Added time_only support for range tag; fixed multi-day same-month ranges (Day–Day, Year format); improved date parsing priority (ACF config first); fixed time-only display removing "Time: " prefix for actual time-only requests
@@ -31,10 +32,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Prevent duplicate loading
-if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V312_LOADED' ) ) {
+if ( defined( 'BWS_ACF_DATE_TIME_TAGS_V313_LOADED' ) ) {
     return;
 }
-define( 'BWS_ACF_DATE_TIME_TAGS_V312_LOADED', true );
+define( 'BWS_ACF_DATE_TIME_TAGS_V313_LOADED', true );
 
 // ===============================================
 // TAG REGISTRATIONS
@@ -727,9 +728,28 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
 }
 
 /**
- * Parse ACF date value with intelligent format detection
- * 
- * @since 3.0.0
+ * Parse ACF date value with intelligent format detection and timezone handling
+ *
+ * CRITICAL TIMEZONE HANDLING:
+ * ACF date fields store plain strings like "2025-01-16" without timezone info.
+ * When creating DateTime objects, PHP needs a timezone context to interpret these strings.
+ *
+ * THE PROBLEM WITHOUT TIMEZONE HANDLING:
+ * - PHP defaults to server timezone (often UTC) when parsing date strings
+ * - DateTime("2025-01-16") becomes "2025-01-16 00:00:00 UTC"
+ * - getTimestamp() converts to Unix timestamp (seconds since epoch in UTC)
+ * - wp_date() then converts that UTC timestamp to WP timezone (e.g., EST = UTC-5)
+ * - Result: "2025-01-16 00:00:00 UTC" displays as "2025-01-15 19:00:00 EST"
+ * - You get WRONG DATES (off by one day, especially noticeable late at night)
+ *
+ * THE SOLUTION:
+ * 1. Pass wp_timezone() when creating DateTime objects so dates are parsed in WP timezone
+ *    "2025-01-16" now means "2025-01-16 in my site's timezone", not "2025-01-16 UTC"
+ * 2. For date-only fields, set time to noon (12:00) instead of midnight (00:00)
+ *    Even if timezone issues occur, noon provides a safety buffer against crossing day boundaries
+ *
+ * @since 3.1.3 - Added noon safety buffer for date-only fields and comprehensive documentation
+ * @since 3.1.1 - Added timezone handling to prevent date shifting
  * @param mixed $date_value Date value from ACF
  * @param string $field_key ACF field key
  * @param int $post_id Post ID
@@ -740,8 +760,9 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
     if ( empty( $date_value ) ) {
         return false;
     }
-    
-    // Get WordPress timezone
+
+    // Get WordPress timezone - CRITICAL for correct date interpretation
+    // Without this, dates get parsed in server timezone (often UTC) causing date shifts
     $wp_timezone = wp_timezone();
     
     // First attempt: Check ACF field configuration (most reliable)
@@ -750,22 +771,26 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
         $return_format = $field_object['return_format'] ?? null;
         
         if ( $return_format ) {
+            // Parse date in WP timezone - prevents "2025-01-16" from being interpreted as UTC
             $date = DateTime::createFromFormat( $return_format, $date_value, $wp_timezone );
-            if ( $date ) {
-                // For ACF formats, we trust the field configuration
-                // Just verify the date was parsed successfully (year > 1900)
-                if ( $date->format( 'Y' ) > 1900 ) {
-                    return $date;
+            if ( $date && $date->format( $return_format ) === $date_value ) {
+                // For date-only fields, set to noon instead of midnight
+                // This prevents day-boundary crossing if any timezone issues occur
+                // (max timezone offset is ±12 hours, so noon can't cross into another day)
+                $utils = bws_format_utils();
+                if ( ! $utils['has_time']( $return_format ) ) {
+                    $date->setTime( 12, 0, 0 );
                 }
+                return $date;
             }
         }
     }
     
     // Second attempt: Common format fallbacks
-    $common_formats = [ 
+    $common_formats = [
         // Date + Time formats (most specific first)
-        'F j, Y, g:i A', 'F j, Y, h:i A', // Full month name formats
-        'F j, Y g:i A', 'F j, Y h:i A',   // Without comma before time
+        'F j, Y, g:i A', 'F j, Y, h:i A', // Full month name formats with comma
+        'F j, Y g:i A', 'F j, Y h:i A',   // Full month name without comma before time
         'm/d/Y h:i A', 'd/m/Y h:i A',     // 12-hour with leading zeros
         'm/d/Y g:i A', 'd/m/Y g:i A',     // 12-hour without leading zeros
         'm/d/Y H:i:s', 'd/m/Y H:i:s',     // 24-hour
@@ -778,31 +803,29 @@ function bws_parse_acf_date_value( $date_value, $field_key = '', $post_id = 0 ) 
         'c', DATE_ATOM, DATE_RFC3339,
     ];
     
+    $utils = bws_format_utils();
+
     foreach ( $common_formats as $format ) {
+        // Parse with WP timezone for consistent date interpretation
         $date = DateTime::createFromFormat( $format, $date_value, $wp_timezone );
-        if ( $date ) {
-            // For time-only formats, verify time component matches
-            $utils = bws_format_utils();
-            $is_time_only = ! $utils['has_date']( $format ) && $utils['has_time']( $format );
-            
-            if ( $is_time_only ) {
-                // Just verify the time part matches
-                if ( $date->format( $format ) === $date_value ) {
-                    return $date;
-                }
-            } else {
-                // For date or datetime formats, verify exact match
-                if ( $date->format( $format ) === $date_value ) {
-                    return $date;
-                }
+        if ( $date && $date->format( $format ) === $date_value ) {
+            // For date-only formats, set to noon as safety buffer against day-boundary issues
+            if ( ! $utils['has_time']( $format ) ) {
+                $date->setTime( 12, 0, 0 );
             }
+            return $date;
         }
     }
     
-    // Third attempt: Direct DateTime parsing (least reliable)
+    // Third attempt: Direct DateTime parsing
     try {
+        // Use WP timezone for parsing - critical for correct date interpretation
         $date = new DateTime( $date_value, $wp_timezone );
         if ( $date->format( 'Y' ) > 1900 ) {
+            // If time is midnight, likely a date-only value - set to noon for safety
+            if ( $date->format( 'H:i:s' ) === '00:00:00' ) {
+                $date->setTime( 12, 0, 0 );
+            }
             return $date;
         }
     } catch ( Exception $e ) {
