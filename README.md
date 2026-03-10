@@ -1,0 +1,1 @@
+WordPress plugin that extends **GenerateBlocks** with custom dynamic tags for ACF (Advanced Custom Fields) integration. Provides dynamic content insertion for post content, taxonomy terms, and date/time fields. 
