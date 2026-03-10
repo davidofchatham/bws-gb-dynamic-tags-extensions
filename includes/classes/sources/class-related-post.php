@@ -1,0 +1,66 @@
+<?php
+/**
+ * Related Post source - resolves to the first post in an ACF relationship/post_object field.
+ *
+ * @package BWS_Dynamic_Tags
+ * @since 1.0.0
+ */
+
+namespace BWS\DynamicTags\Sources;
+
+use BWS\DynamicTags\AbstractSource;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class RelatedPost extends AbstractSource {
+
+	public function get_source_key(): string {
+		return 'related_post';
+	}
+
+	public function get_source_label(): string {
+		return __( 'Related Post (ACF)', 'generateblocks' );
+	}
+
+	public function resolve_post_id( array $options, $instance ) {
+		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
+			return false;
+		}
+
+		$current_post_id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
+
+		// Prefer 'rel' (new dedicated option); fall back to legacy 'key' (old 'meta' support).
+		if ( ! empty( $options['rel'] ) ) {
+			$rel_field_key = $options['rel'];
+		} elseif ( ! empty( $options['key'] ) ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				_doing_it_wrong(
+					'BWS Related Post source',
+					__( 'The "key" option for relationship field resolution is deprecated. Use the "Relationship Field Key" (rel) option instead.', 'generateblocks' ),
+					'4.1.0'
+				);
+			}
+			$rel_field_key = $options['key'];
+		} else {
+			$rel_field_key = '';
+		}
+
+		if ( ! $current_post_id || empty( $rel_field_key ) ) {
+			return false;
+		}
+
+		$related_posts = bws_get_related_posts_data( $current_post_id, $rel_field_key );
+
+		if ( empty( $related_posts ) ) {
+			return false;
+		}
+
+		return bws_extract_post_id( $related_posts[0] );
+	}
+
+	public function get_source_options(): array {
+		return array(); // Relationship field key is provided via the 'rel' custom option on each tag.
+	}
+}
