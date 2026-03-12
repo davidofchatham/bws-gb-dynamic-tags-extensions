@@ -118,8 +118,9 @@ class SettingsPage {
 		}
 
 		// Diagnostics: checked = true, unchecked = false.
-		$sanitized['diagnostics']['benchmark_logging'] = ! empty( $input['diagnostics']['benchmark_logging'] );
-		$sanitized['diagnostics']['benchmark_page']    = ! empty( $input['diagnostics']['benchmark_page'] );
+		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
+		$sanitized['diagnostics']['benchmark_page']       = ! empty( $input['diagnostics']['benchmark_page'] );
+		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
 
 		return $sanitized;
 	}
@@ -142,6 +143,16 @@ class SettingsPage {
 	public static function is_benchmark_page_enabled(): bool {
 		$settings = self::get_settings();
 		return $settings['diagnostics']['benchmark_page'] ?? false;
+	}
+
+	/**
+	 * Check if source registration logging is enabled.
+	 *
+	 * @return bool
+	 */
+	public static function is_registration_logging_enabled(): bool {
+		$settings = self::get_settings();
+		return $settings['diagnostics']['registration_logging'] ?? false;
 	}
 
 	/**
@@ -702,6 +713,25 @@ class SettingsPage {
 								</label>
 								<p class="description">
 									<?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for testing post content processing performance.', 'generateblocks' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr class="bws-tag-row">
+							<td class="bws-tag-checkbox">
+								<input
+									type="checkbox"
+									id="bws-diag-registration-logging"
+									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
+									value="1"
+									<?php checked( self::is_registration_logging_enabled() ); ?>
+								/>
+							</td>
+							<td>
+								<label for="bws-diag-registration-logging">
+									<?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log. Disable after confirming external sources are loading correctly.', 'generateblocks' ); ?>
 								</p>
 							</td>
 						</tr>
