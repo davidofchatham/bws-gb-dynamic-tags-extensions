@@ -109,6 +109,16 @@ abstract class AbstractSource implements SourceInterface {
 	}
 
 	/**
+	 * Get supports to exclude when generating post-context direct tags for this source.
+	 *
+	 * @since 1.3.0
+	 * @return string[]
+	 */
+	public function get_excluded_supports(): array {
+		return [];
+	}
+
+	/**
 	 * Get sanitized fallback text from options.
 	 *
 	 * @param array $options Tag options.

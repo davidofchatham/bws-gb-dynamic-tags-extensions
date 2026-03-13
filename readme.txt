@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,10 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.3.0 =
+* Added fallback text option to custom_text template (post, term, and try_ variants)
+* Added get_excluded_supports() to SourceInterface/AbstractSource for external sources to suppress inapplicable GB supports (e.g. post selector) on their tags
 
 = 1.2.0 =
 * Refactored to source × template architecture

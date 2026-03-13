@@ -191,12 +191,18 @@ function bws_term_description_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_term_custom_text_core( $term_id, $options, $instance ) {
+	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+
 	if ( ! $term_id ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
 	}
 	$term = bws_get_validated_term( $term_id );
 	if ( ! $term ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
 	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( empty( $key ) ) {
@@ -217,7 +223,13 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
 		}
 	}
 	if ( '' === $value ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+				$fallback,
+				array_merge( $options, array( 'id' => $term_id ) ),
+				$instance
+			)
+			: '';
 	}
 	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
 		$value,

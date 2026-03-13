@@ -182,10 +182,15 @@ class TagTemplateRegistry {
 					// post ID override (set by the GB source selector). Media-type tags intentionally
 					// omit 'source' — for those, $options['id'] is the fallback attachment ID and
 					// must not be used for post resolution.
+					// get_excluded_supports() lets a source strip supports irrelevant to its ID
+					// resolution strategy (e.g. a source with its own detector can exclude 'source').
 					$cf              = $tpl['core_fn'] ?? null;
 					$options_fn_name = $tpl['options_fn'] ?? null;
 					$effective_gb_type  = $tpl['gb_type'] ?? $source->get_gb_type();
-					$effective_supports = $tpl['supports'] ?? [];
+					$excluded_supports  = $source->get_excluded_supports();
+					$effective_supports = $excluded_supports
+						? array_values( array_diff( $tpl['supports'] ?? [], $excluded_supports ) )
+						: $tpl['supports'] ?? [];
 					$has_source_support = in_array( 'source', $effective_supports, true );
 				}
 
@@ -574,6 +579,12 @@ class TagTemplateRegistry {
 			$esrc   = $effective_sources;
 
 			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $ctypes, $psk, $esrc ) {
+				// Strip fallback_text from opts used in slot evaluation so it doesn't short-circuit
+				// the try_ chain — a slot returning fallback_text would look like a real value and
+				// prevent later slots from being tried. Apply fallback_text only after all slots fail.
+				$fallback  = sanitize_text_field( $opts['fallback_text'] ?? '' );
+				$eval_opts = array_diff_key( $opts, array( 'fallback_text' => null ) );
+
 				// Default source is 'post'; overridden per slot by src_N or auto-detection.
 				$last_entry = $esrc['post'] ?? null;
 				$last_key   = null;
@@ -613,7 +624,7 @@ class TagTemplateRegistry {
 					// Select appropriate core function for this context type.
 					$fn = ( 'term' === $ctx && $tcf ) ? $tcf : $cf;
 
-					$base_id = $entry['source']->resolve_id( $opts, $inst );
+					$base_id = $entry['source']->resolve_id( $eval_opts, $inst );
 					if ( ! $base_id ) {
 						continue;
 					}
@@ -645,16 +656,21 @@ class TagTemplateRegistry {
 						if ( empty( $slot_key ) ) {
 							continue; // No key available for this slot — skip.
 						}
-						$slot_opts        = $opts;
+						$slot_opts        = $eval_opts;
 						$slot_opts['key'] = $slot_key;
 						$result = $fn( $entity_id, $slot_opts, $inst );
 					} else {
-						$result = $fn( $entity_id, $opts, $inst );
+						$result = $fn( $entity_id, $eval_opts, $inst );
 					}
 
 					if ( ! empty( $result ) ) {
 						return $result;
 					}
+				}
+
+				// All slots exhausted — apply fallback_text if set.
+				if ( '' !== $fallback ) {
+					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
 				}
 
 				return '';

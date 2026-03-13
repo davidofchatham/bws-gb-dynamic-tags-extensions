@@ -143,4 +143,19 @@ interface SourceInterface {
 	 * @return bool
 	 */
 	public function related_variant_default_enabled(): bool;
+
+	/**
+	 * Get supports to exclude when generating tags for this source.
+	 *
+	 * Allows a source to strip supports that are not applicable to its ID resolution
+	 * strategy. For example, a source that resolves its own post ID (rather than using
+	 * GB's post selector) can return ['source'] to hide the post picker UI.
+	 *
+	 * Only applied to post-context direct tags. Term-context tags and related-variant
+	 * tags always manage their supports independently.
+	 *
+	 * @since 1.3.0
+	 * @return string[] Supports to strip from template supports arrays.
+	 */
+	public function get_excluded_supports(): array;
 }

@@ -91,7 +91,7 @@ function bws_register_post_content_tag_templates() {
 		'title'                => 'Custom Text',
 		'gb_type'              => null,
 		'supports'             => array( 'meta', 'link', 'source' ),
-		'options_fn'           => null,
+		'options_fn'           => 'bws_get_custom_text_options',
 		'core_fn'              => 'bws_post_custom_text_core',
 		'context_types'        => array( 'post', 'term' ),
 		'term_core_fn'         => 'bws_term_custom_text_core',
@@ -99,6 +99,26 @@ function bws_register_post_content_tag_templates() {
 		'supports_try'         => true,
 		'try_per_slot_key'     => true,
 	) );
+}
+
+// ===============================================
+// OPTIONS FUNCTIONS
+// ===============================================
+
+/**
+ * Options for the custom_text tag template.
+ *
+ * @since 1.3.0
+ * @return array
+ */
+function bws_get_custom_text_options() {
+	return array(
+		'fallback_text' => array(
+			'type'  => 'text',
+			'label' => __( 'Fallback Text', 'generateblocks' ),
+			'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
+		),
+	);
 }
 
 // ===============================================
@@ -233,8 +253,12 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 		return '[Custom Field]';
 	}
 
+	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+
 	if ( ! $post_id ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
 	}
 
 	$key = sanitize_text_field( $options['key'] ?? '' );
@@ -263,7 +287,13 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 	}
 
 	if ( null === $value ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+				$fallback,
+				array_merge( $options, array( 'id' => $post_id ) ),
+				$instance
+			)
+			: '';
 	}
 
 	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
