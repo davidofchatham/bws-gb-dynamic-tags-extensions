@@ -286,7 +286,7 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 		}
 	}
 
-	if ( null === $value ) {
+	if ( null === $value || '' === $value ) {
 		return '' !== $fallback
 			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
 				$fallback,
