@@ -19,23 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 abstract class AbstractSource implements SourceInterface {
 
-	/**
-	 * Default resolve_id() delegates to legacy resolve_post_id() for backward compatibility.
-	 *
-	 * Concrete sources that still implement resolve_post_id() will have it called via this wrapper.
-	 * New sources (e.g. TaxonomyTermSource) override resolve_id() directly.
-	 *
-	 * @param array  $options  Tag options.
-	 * @param object $instance Block instance.
-	 * @return int|string|false
-	 */
-	public function resolve_id( array $options, $instance ) {
-		if ( method_exists( $this, 'resolve_post_id' ) ) {
-			return $this->resolve_post_id( $options, $instance );
-		}
-		return false;
-	}
-
 	public function get_tag_prefix(): string {
 		return $this->get_source_key();
 	}

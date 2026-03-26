@@ -204,25 +204,35 @@ class SettingsPage {
 	 * (when applicable), or it is individually disabled.
 	 * Defaults to true (all tags enabled unless explicitly disabled).
 	 *
-	 * @param string $tag_name   Tag name.
-	 * @param string $source_key Source key this tag belongs to.
+	 * @param string              $tag_name    Tag name.
+	 * @param string              $source_key  Source key (for deprecated-tag callers).
+	 * @param SourceInterface|null $source_obj  Source object (for generation callers; bypasses _registered_tags for default resolution).
+	 * @param bool                $is_related  Whether this is a related-variant tag (used with $source_obj).
+	 * @param bool|null           $tag_default Per-template default override (used with $source_obj; null defers to source default).
 	 * @return bool
 	 */
-	public static function is_tag_enabled( string $tag_name, string $source_key = '' ): bool {
-		// If source is specified and disabled, tag is disabled.
-		if ( $source_key && ! self::is_source_enabled( $source_key ) ) {
+	public static function is_tag_enabled(
+		string $tag_name,
+		string $source_key = '',
+		?SourceInterface $source_obj = null,
+		bool $is_related = false,
+		?bool $tag_default = null
+	): bool {
+		// Resolve source key from object when not passed directly.
+		$sk = $source_key ?: ( $source_obj ? $source_obj->get_source_key() : '' );
+
+		// If source is disabled, tag is disabled.
+		if ( $sk && ! self::is_source_enabled( $sk ) ) {
 			return false;
 		}
 
 		// If tag belongs to a related variant group and that group is disabled, tag is disabled.
-		if ( $source_key ) {
-			$source = SourceRegistry::get_source( $source_key );
-			if ( $source && $source->has_related_variant() ) {
-				$related_prefix = $source->get_related_tag_prefix() . '_';
-				if ( str_starts_with( $tag_name, $related_prefix ) ) {
-					if ( ! self::is_related_variant_enabled( $source_key ) ) {
-						return false;
-					}
+		$src_obj = $source_obj ?? ( $sk ? SourceRegistry::get_source( $sk ) : null );
+		if ( $src_obj && $src_obj->has_related_variant() ) {
+			$related_prefix = $src_obj->get_related_tag_prefix() . '_';
+			if ( str_starts_with( $tag_name, $related_prefix ) ) {
+				if ( ! self::is_related_variant_enabled( $sk ) ) {
+					return false;
 				}
 			}
 		}
@@ -232,15 +242,26 @@ class SettingsPage {
 			return (bool) $settings['tags'][ $tag_name ];
 		}
 
-		// No saved preference — fall through to per-tag and source-level defaults.
-		$info = self::$_registered_tags[ $tag_name ] ?? null;
-		if ( $info ) {
-			[ $src, $is_related, $tag_default ] = $info;
+		// No saved preference. If source context was passed inline, resolve default from it
+		// directly without requiring _registered_tags to be populated first.
+		if ( null !== $source_obj ) {
 			if ( null !== $tag_default ) {
 				return $tag_default;
 			}
+			return $is_related
+				? $source_obj->related_variant_default_enabled()
+				: $source_obj->source_default_enabled();
+		}
+
+		// Fall back to _registered_tags (used by deprecated-tag callers and try_ tags).
+		$info = self::$_registered_tags[ $tag_name ] ?? null;
+		if ( $info ) {
+			[ $src, $rel, $def ] = $info;
+			if ( null !== $def ) {
+				return $def;
+			}
 			if ( $src ) {
-				return $is_related
+				return $rel
 					? $src->related_variant_default_enabled()
 					: $src->source_default_enabled();
 			}

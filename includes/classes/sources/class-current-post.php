@@ -62,11 +62,7 @@ class CurrentPost extends AbstractSource {
 		return 'related';
 	}
 
-	/**
-	 * Legacy method name kept for backward compat with existing tag callbacks.
-	 * AbstractSource::resolve_id() delegates here automatically.
-	 */
-	public function resolve_post_id( array $options, $instance ) {
+	public function resolve_id( array $options, $instance ) {
 		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
 			return false;
 		}

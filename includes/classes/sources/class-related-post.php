@@ -24,7 +24,7 @@ class RelatedPost extends AbstractSource {
 		return __( 'Related Post (ACF)', 'generateblocks' );
 	}
 
-	public function resolve_post_id( array $options, $instance ) {
+	public function resolve_id( array $options, $instance ) {
 		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
 			return false;
 		}

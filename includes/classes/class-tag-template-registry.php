@@ -159,11 +159,10 @@ class TagTemplateRegistry {
 				}
 				$existing[] = $tag_name;
 
-				// Register tag→source mapping (must precede is_tag_enabled check).
 				$tag_default = self::compute_tag_default( $tpl, $source->get_tag_prefix() );
 				SettingsPage::register_tag_source( $tag_name, $source, false, $tag_default );
 
-				if ( ! SettingsPage::is_tag_enabled( $tag_name ) ) {
+				if ( ! SettingsPage::is_tag_enabled( $tag_name, '', $source, false, $tag_default ) ) {
 					continue;
 				}
 
@@ -224,42 +223,9 @@ class TagTemplateRegistry {
 				$sk  = $source->get_source_key();
 
 				if ( $gef && is_callable( $gef ) ) {
-					// Case 1 — sub-entity iteration (e.g. post → terms in taxonomy).
-					$callback = static function ( $o, $b, $i ) use ( $sk, $cf, $gef ) {
-						$src     = SourceRegistry::get_source( $sk );
-						$post_id = $src ? $src->resolve_id( $o, $i ) : false;
-						if ( ! $post_id ) {
-							return '';
-						}
-						$entities = $gef( $post_id, $o );
-						if ( empty( $entities ) ) {
-							return '';
-						}
-						$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
-						$sep     = $o['sep'] ?? ', ';
-						$slice   = array_slice( $entities, 0, $limit );
-						$results = [];
-						foreach ( $slice as $entity ) {
-							$val = $cf( $entity->term_id, $o, $i );
-							if ( '' !== $val ) {
-								$results[] = $val;
-							}
-						}
-						return implode( $sep, $results );
-					};
+					$callback = self::make_entities_callback( $sk, $cf, $gef );
 				} else {
-					// Case 0 — standard single-entity direct tag.
-					$callback = static function ( $o, $b, $i ) use ( $sk, $cf, $has_source_support ) {
-						$src = SourceRegistry::get_source( $sk );
-						// Strip 'id' from opts before resolving entity so attachment IDs don't pollute
-						// resolution on media-type post tags. For term-type tags has_source_support=true,
-						// so id is preserved (used as term ID by the GB source selector).
-						$resolve_opts = $has_source_support ? $o : array_diff_key( $o, [ 'id' => null ] );
-						$entity_id    = $src ? $src->resolve_id( $resolve_opts, $i ) : false;
-						// Condition seam: a future filter here can return false to suppress output.
-						// apply_filters( 'bws_dynamic_tag_condition', $entity_id, $sk, $o, $i )
-						return $cf( $entity_id, $o, $i );
-					};
+					$callback = self::make_direct_callback( $sk, $cf, $has_source_support );
 				}
 
 				self::register_gb_tag(
@@ -305,11 +271,10 @@ class TagTemplateRegistry {
 				}
 				$existing[] = $tag_name;
 
-				// Register tag→source mapping (must precede is_tag_enabled check).
 				$tag_default = self::compute_tag_default( $tpl, $source->get_related_tag_prefix() );
 				SettingsPage::register_tag_source( $tag_name, $source, true, $tag_default );
 
-				if ( ! SettingsPage::is_tag_enabled( $tag_name ) ) {
+				if ( ! SettingsPage::is_tag_enabled( $tag_name, '', $source, true, $tag_default ) ) {
 					continue;
 				}
 
@@ -346,93 +311,11 @@ class TagTemplateRegistry {
 				$sk = $source->get_source_key();
 
 				if ( $gef && is_callable( $gef ) ) {
-					// Case 1 (related) — resolve one related post, then iterate sub-entities.
-					$callback = static function ( $o, $b, $i ) use ( $sk, $cf, $gef ) {
-						$src     = SourceRegistry::get_source( $sk );
-						$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-						if ( ! $base_id ) {
-							return '';
-						}
-						$rel_key = $o['rel'] ?? '';
-						if ( empty( $rel_key ) ) {
-							return '';
-						}
-						$acf_id  = $src->format_id_for_acf( $base_id );
-						$related = bws_get_related_posts_data( $acf_id, $rel_key );
-						$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
-						if ( ! $post_id ) {
-							return '';
-						}
-						$entities = $gef( $post_id, $o );
-						if ( empty( $entities ) ) {
-							return '';
-						}
-						$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
-						$sep     = $o['sep'] ?? ', ';
-						$slice   = array_slice( $entities, 0, $limit );
-						$results = [];
-						foreach ( $slice as $entity ) {
-							$val = $cf( $entity->term_id, $o, $i );
-							if ( '' !== $val ) {
-								$results[] = $val;
-							}
-						}
-						return implode( $sep, $results );
-					};
+					$callback = self::make_related_entities_callback( $sk, $cf, $gef );
 				} elseif ( $supports_list ) {
-					// Case 2 — iterate multiple related posts (list mode).
-					$callback = static function ( $o, $b, $i ) use ( $sk, $cf ) {
-						$src     = SourceRegistry::get_source( $sk );
-						$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-						if ( ! $base_id ) {
-							return $cf( false, $o, $i );
-						}
-						$rel_key = $o['rel'] ?? '';
-						if ( empty( $rel_key ) ) {
-							return $cf( false, $o, $i );
-						}
-						$acf_id  = $src->format_id_for_acf( $base_id );
-						$related = bws_get_related_posts_data( $acf_id, $rel_key );
-						if ( empty( $related ) ) {
-							return $cf( false, $o, $i );
-						}
-						$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
-						$sep     = $o['sep'] ?? ', ';
-						$slice   = array_slice( $related, 0, $limit );
-						$results = [];
-						foreach ( $slice as $rel_item ) {
-							$post_id = bws_extract_post_id( $rel_item );
-							if ( ! $post_id ) {
-								continue;
-							}
-							$val = $cf( $post_id, $o, $i );
-							if ( '' !== $val ) {
-								$results[] = $val;
-							}
-						}
-						// Condition seam: a future filter here can return false to suppress output.
-						// apply_filters( 'bws_dynamic_tag_condition', $results, $sk, $o, $i )
-						return empty( $results ) ? $cf( false, $o, $i ) : implode( $sep, $results );
-					};
+					$callback = self::make_related_list_callback( $sk, $cf );
 				} else {
-					// Standard single related post.
-					$callback = static function ( $o, $b, $i ) use ( $sk, $cf ) {
-						$src     = SourceRegistry::get_source( $sk );
-						$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-						if ( ! $base_id ) {
-							return $cf( false, $o, $i );
-						}
-						$rel_key = $o['rel'] ?? '';
-						if ( empty( $rel_key ) ) {
-							return $cf( false, $o, $i );
-						}
-						$acf_id  = $src->format_id_for_acf( $base_id );
-						$related = bws_get_related_posts_data( $acf_id, $rel_key );
-						$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
-						// Condition seam: a future filter here can return false to suppress output.
-						// apply_filters( 'bws_dynamic_tag_condition', $post_id, $sk, $o, $i )
-						return $cf( $post_id ?: false, $o, $i );
-					};
+					$callback = self::make_related_single_callback( $sk, $cf );
 				}
 
 				self::register_gb_tag(
@@ -456,6 +339,160 @@ class TagTemplateRegistry {
 	 */
 	public static function get_templates(): array {
 		return self::$templates;
+	}
+
+	// ===
+	// Callback factories
+	// ===
+
+	/**
+	 * Direct single-entity callback.
+	 * Resolves the source entity ID and calls the core function.
+	 */
+	private static function make_direct_callback( string $sk, callable $cf, bool $has_source_support ): callable {
+		return static function ( $o, $b, $i ) use ( $sk, $cf, $has_source_support ) {
+			$src = SourceRegistry::get_source( $sk );
+			// Strip 'id' from opts before resolving entity so attachment IDs don't pollute
+			// resolution on media-type post tags. For term-type tags has_source_support=true,
+			// so id is preserved (used as term ID by the GB source selector).
+			$resolve_opts = $has_source_support ? $o : array_diff_key( $o, [ 'id' => null ] );
+			$entity_id    = $src ? $src->resolve_id( $resolve_opts, $i ) : false;
+			// Condition seam: a future filter here can return false to suppress output.
+			// apply_filters( 'bws_dynamic_tag_condition', $entity_id, $sk, $o, $i )
+			return $cf( $entity_id, $o, $i );
+		};
+	}
+
+	/**
+	 * Direct sub-entity iteration callback (e.g. post -> terms in taxonomy).
+	 * Resolves the source entity ID, fetches sub-entities via get_entities_fn, iterates them.
+	 */
+	private static function make_entities_callback( string $sk, callable $cf, callable $gef ): callable {
+		return static function ( $o, $b, $i ) use ( $sk, $cf, $gef ) {
+			$src     = SourceRegistry::get_source( $sk );
+			$post_id = $src ? $src->resolve_id( $o, $i ) : false;
+			if ( ! $post_id ) {
+				return '';
+			}
+			$entities = $gef( $post_id, $o );
+			if ( empty( $entities ) ) {
+				return '';
+			}
+			$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
+			$sep     = $o['sep'] ?? ', ';
+			$slice   = array_slice( $entities, 0, $limit );
+			$results = [];
+			foreach ( $slice as $entity ) {
+				$val = $cf( $entity->term_id, $o, $i );
+				if ( '' !== $val ) {
+					$results[] = $val;
+				}
+			}
+			return implode( $sep, $results );
+		};
+	}
+
+	/**
+	 * Related-variant single post callback.
+	 * Resolves base ID, traverses one ACF relationship hop, calls core function.
+	 */
+	private static function make_related_single_callback( string $sk, callable $cf ): callable {
+		return static function ( $o, $b, $i ) use ( $sk, $cf ) {
+			$src     = SourceRegistry::get_source( $sk );
+			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
+			if ( ! $base_id ) {
+				return $cf( false, $o, $i );
+			}
+			$rel_key = $o['rel'] ?? '';
+			if ( empty( $rel_key ) ) {
+				return $cf( false, $o, $i );
+			}
+			$acf_id  = $src->format_id_for_acf( $base_id );
+			$related = bws_get_related_posts_data( $acf_id, $rel_key );
+			$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
+			// Condition seam: a future filter here can return false to suppress output.
+			// apply_filters( 'bws_dynamic_tag_condition', $post_id, $sk, $o, $i )
+			return $cf( $post_id ?: false, $o, $i );
+		};
+	}
+
+	/**
+	 * Related-variant list-mode callback.
+	 * Resolves base ID, traverses relationship, iterates multiple related posts.
+	 */
+	private static function make_related_list_callback( string $sk, callable $cf ): callable {
+		return static function ( $o, $b, $i ) use ( $sk, $cf ) {
+			$src     = SourceRegistry::get_source( $sk );
+			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
+			if ( ! $base_id ) {
+				return $cf( false, $o, $i );
+			}
+			$rel_key = $o['rel'] ?? '';
+			if ( empty( $rel_key ) ) {
+				return $cf( false, $o, $i );
+			}
+			$acf_id  = $src->format_id_for_acf( $base_id );
+			$related = bws_get_related_posts_data( $acf_id, $rel_key );
+			if ( empty( $related ) ) {
+				return $cf( false, $o, $i );
+			}
+			$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
+			$sep     = $o['sep'] ?? ', ';
+			$slice   = array_slice( $related, 0, $limit );
+			$results = [];
+			foreach ( $slice as $rel_item ) {
+				$post_id = bws_extract_post_id( $rel_item );
+				if ( ! $post_id ) {
+					continue;
+				}
+				$val = $cf( $post_id, $o, $i );
+				if ( '' !== $val ) {
+					$results[] = $val;
+				}
+			}
+			// Condition seam: a future filter here can return false to suppress output.
+			// apply_filters( 'bws_dynamic_tag_condition', $results, $sk, $o, $i )
+			return empty( $results ) ? $cf( false, $o, $i ) : implode( $sep, $results );
+		};
+	}
+
+	/**
+	 * Related-variant sub-entity iteration callback.
+	 * Resolves base ID, traverses one ACF hop to a post, then iterates sub-entities (e.g. terms).
+	 */
+	private static function make_related_entities_callback( string $sk, callable $cf, callable $gef ): callable {
+		return static function ( $o, $b, $i ) use ( $sk, $cf, $gef ) {
+			$src     = SourceRegistry::get_source( $sk );
+			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
+			if ( ! $base_id ) {
+				return '';
+			}
+			$rel_key = $o['rel'] ?? '';
+			if ( empty( $rel_key ) ) {
+				return '';
+			}
+			$acf_id  = $src->format_id_for_acf( $base_id );
+			$related = bws_get_related_posts_data( $acf_id, $rel_key );
+			$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
+			if ( ! $post_id ) {
+				return '';
+			}
+			$entities = $gef( $post_id, $o );
+			if ( empty( $entities ) ) {
+				return '';
+			}
+			$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
+			$sep     = $o['sep'] ?? ', ';
+			$slice   = array_slice( $entities, 0, $limit );
+			$results = [];
+			foreach ( $slice as $entity ) {
+				$val = $cf( $entity->term_id, $o, $i );
+				if ( '' !== $val ) {
+					$results[] = $val;
+				}
+			}
+			return implode( $sep, $results );
+		};
 	}
 
 	// ===

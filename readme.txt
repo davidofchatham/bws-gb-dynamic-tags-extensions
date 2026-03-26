@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,12 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.3.2 =
+* Refactor: extract 5 named callback factory methods from TagTemplateRegistry::generate_all_tags() (C3)
+* Refactor: decouple SettingsPage::is_tag_enabled() from _registered_tags during tag generation — source context now passed inline (C2)
+* Refactor: standardize resolve_id() on CurrentPost and RelatedPost sources; remove AbstractSource compat shim (C5)
+* Convert PHP source files to LF line endings
 
 = 1.3.1 =
 * Fix custom_text fallback text not triggering when ACF returns empty string for a blank registered field
