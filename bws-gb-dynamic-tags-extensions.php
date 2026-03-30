@@ -2,7 +2,7 @@
 /**
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Description: Extends GenerateBlocks with custom dynamic tags for ACF integration, providing dynamic content from multiple post sources, date/time formatting, and taxonomy terms.
- * Version: 1.3.2
+ * Version: 1.3.3
  * Requires at least: 6.0
  * Requires PHP: 8.1
  * Author: Bridge Web Solutions
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.3.2' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.3.3' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -98,6 +98,28 @@ function bws_dynamic_tags_register_all() {
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
 }
+
+/**
+ * Enqueue block editor assets.
+ *
+ * Loads conditional option visibility JS when the block editor is active.
+ * Only runs when GenerateBlocks is available.
+ *
+ * @since 1.4.0
+ */
+function bws_dynamic_tags_enqueue_editor_assets() {
+	if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
+		return;
+	}
+	wp_enqueue_script(
+		'bws-dynamic-tags-conditional-options',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-conditional-options.js',
+		array( 'wp-hooks' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+}
+add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 
 // Initialize on plugins_loaded to ensure GenerateBlocks is available.
 add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );

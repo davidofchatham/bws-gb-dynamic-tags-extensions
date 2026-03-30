@@ -523,11 +523,13 @@ class TagTemplateRegistry {
 			return;
 		}
 
-		// Build source select options for src_N dropdowns.
-		$src_options = array( array( 'value' => '', 'label' => __( '— None —', 'generateblocks' ) ) );
-		foreach ( $effective_sources as $src_id => $entry ) {
-			$src_options[] = array( 'value' => $src_id, 'label' => $entry['label'] );
-		}
+		// Sources eligible for try_ slot selection: exclude any source that requires its own
+		// global relationship options (e.g. SecondRelatedPost uses 'rel'/'rel_2' at the tag
+		// level, not per-slot, so it cannot participate in the slot-based source system).
+		$try_slot_sources = array_filter(
+			$effective_sources,
+			static fn( $entry ) => empty( $entry['source']->get_source_options() )
+		);
 
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? array() );
@@ -559,30 +561,101 @@ class TagTemplateRegistry {
 			$context_types = $tpl['context_types'] ?? array( 'post' );
 
 			// --- Build options array ---
+
+			// Source IDs whose related variant requires a relationship field (rel_N).
+			// Computed from try_slot_sources only (SecondRelatedPost already excluded).
+			$related_src_ids = array_keys( array_filter(
+				$try_slot_sources,
+				static fn( $e ) => $e['is_related']
+			) );
+
+			// Slot 1 source options: no inherit entry — slot 1 must have an explicit source.
+			// First entry is the visual default (post context direct source where available).
+			$src_options_base = array();
+			foreach ( $try_slot_sources as $src_id => $entry ) {
+				$src_options_base[] = array( 'value' => $src_id, 'label' => $entry['label'] );
+			}
+
 			$options = array();
-			for ( $n = 1; $n <= 3; $n++ ) {
-				if ( $per_slot_key ) {
-					$options[ "key_{$n}" ] = array(
-						'type'        => 'text',
-						'label'       => sprintf( __( 'Meta Key %d', 'generateblocks' ), $n ),
-						'help'        => $n === 1
-							? __( 'ACF or meta field key for this slot.', 'generateblocks' )
-							: __( 'ACF or meta field key for this slot. Leave blank to fall through from the previous slot.', 'generateblocks' ),
-						'placeholder' => 'field_name',
+			for ( $n = 1; $n <= 5; $n++ ) {
+				$prev = $n - 1;
+
+				// Slots 1–2 always visible. Slots 3–5 appear when the previous slot is
+				// configured: its source was changed, a field key was entered, or a relationship
+				// field was set (rel_N set implies a related source is active or will be used).
+				// show_if_any = OR logic; show_if = AND logic (both in editor-conditional-options.js).
+				if ( $n <= 2 ) {
+					$slot_trigger = array();
+				} elseif ( $per_slot_key ) {
+					$slot_trigger = array(
+						'show_if_any' => array(
+							"src_{$prev}" => 'not_empty',
+							"key_{$prev}" => 'not_empty',
+							"rel_{$prev}" => 'not_empty',
+						),
 					);
-				};
-				$options[ "src_{$n}" ] = array(
-					'type'    => 'select',
-					'label'   => sprintf( __( 'Source %d', 'generateblocks' ), $n ),
-					'help'    => __( 'Defaults to Post if blank. If blank and a relationship field is set, defaults to Related Post.', 'generateblocks' ),
-					'options' => $src_options,
+				} else {
+					$slot_trigger = array( 'show_if_any' => array( "src_{$prev}" => 'not_empty', "rel_{$prev}" => 'not_empty' ) );
+				}
+
+				// Source select: slot 1 uses the base list; slots 2+ prepend the inherit entry.
+				if ( $n === 1 ) {
+					$src_opts = $src_options_base;
+					$src_help = __( 'Source for this slot.', 'generateblocks' );
+				} else {
+					$src_opts = array_merge(
+						array( array(
+							'value' => '',
+							/* translators: %d: previous slot number */
+							'label' => sprintf( __( '— Same as Slot %d —', 'generateblocks' ), $prev ),
+						) ),
+						$src_options_base
+					);
+					$src_help = __( "Leave as 'Same as…' to inherit the previous slot's source.", 'generateblocks' );
+				}
+
+				// src_N — always first within the slot.
+				$options[ "src_{$n}" ] = array_merge(
+					array(
+						'type'    => 'select',
+						'label'   => sprintf( __( 'Source %d', 'generateblocks' ), $n ),
+						'help'    => $src_help,
+						'options' => $src_opts,
+					),
+					$slot_trigger
 				);
-				$options[ "rel_{$n}" ] = array(
-					'type'        => 'text',
-					'label'       => sprintf( __( 'Relationship Field %d', 'generateblocks' ), $n ),
-					'help'        => __( 'ACF relationship field key. When set without a source, automatically uses Related Post.', 'generateblocks' ),
-					'placeholder' => 'related_post',
-				);
+
+				// rel_N — shown when src_N is a relationship-type source, or when the previous
+				// slot had a relationship field set (carry-forward: user may want a different rel key).
+				// Slot-level gating is not duplicated: hidden slots cannot set src_N to a related source.
+				if ( ! empty( $related_src_ids ) ) {
+					if ( $n === 1 ) {
+						$rel_visibility = array( 'show_if' => array( "src_{$n}" => $related_src_ids ) );
+					} else {
+						$rel_visibility = array( 'show_if_any' => array( "src_{$n}" => $related_src_ids, "rel_{$prev}" => 'not_empty' ) );
+					}
+					$options[ "rel_{$n}" ] = array_merge( array(
+						'type'        => 'text',
+						'label'       => sprintf( __( 'Relationship Field %d', 'generateblocks' ), $n ),
+						'help'        => __( 'ACF relationship field key. Leave blank to inherit from the previous slot.', 'generateblocks' ),
+						'placeholder' => 'related_post',
+					), $rel_visibility );
+				}
+
+				// key_N — per-slot-key templates only; same slot trigger as src_N.
+				if ( $per_slot_key ) {
+					$options[ "key_{$n}" ] = array_merge(
+						array(
+							'type'        => 'text',
+							'label'       => sprintf( __( 'Meta Key %d', 'generateblocks' ), $n ),
+							'help'        => $n === 1
+								? __( 'ACF or meta field key for this slot.', 'generateblocks' )
+								: __( 'Leave blank to use the same key as the previous slot.', 'generateblocks' ),
+							'placeholder' => 'field_name',
+						),
+						$slot_trigger
+					);
+				}
 			}
 
 			// Merge template's standard options.
@@ -609,11 +682,11 @@ class TagTemplateRegistry {
 			$gb_type = 'try';
 
 			// Capture values for closure.
-			$cf     = $core_fn;
-			$tcf    = $term_core_fn;
+			$cf    = $core_fn;
+			$tcf   = $term_core_fn;
 			$ctypes = $context_types;
-			$psk    = $per_slot_key;
-			$esrc   = $effective_sources;
+			$psk   = $per_slot_key;
+			$esrc  = $try_slot_sources; // Only slot-eligible sources in the callback.
 
 			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $ctypes, $psk, $esrc ) {
 				// Strip fallback_text from opts used in slot evaluation so it doesn't short-circuit
@@ -622,30 +695,43 @@ class TagTemplateRegistry {
 				$fallback  = sanitize_text_field( $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, array( 'fallback_text' => null ) );
 
-				// Default source is 'post'; overridden per slot by src_N or auto-detection.
-				$last_entry = $esrc['post'] ?? null;
-				$last_key   = null;
+				// Slot state carries forward when a slot's src/key/rel is left blank (inherit).
+				// Slot 1 defaults to the first eligible source (typically 'post').
+				reset( $esrc );
+				$first_src_id = key( $esrc );
+				$last_entry   = $first_src_id ? ( $esrc[ $first_src_id ] ?? null ) : null;
+				$last_key     = null;
+				$last_rel     = null;
 
-				foreach ( array( 1, 2, 3 ) as $n ) {
+				foreach ( range( 1, 5 ) as $n ) {
 					$src_key      = $opts[ "src_{$n}" ] ?? '';
 					$rel_for_slot = $opts[ "rel_{$n}" ] ?? '';
 
+					// Skip slot if it contributes no new configuration — all of src, rel, and key
+					// (for per-slot-key templates) are blank. An unset slot would produce the same
+					// result as the previous slot, so there is nothing new to try.
+					if ( $n > 1 ) {
+						$has_new_config = ! empty( $src_key )
+							|| ! empty( $rel_for_slot )
+							|| ( $psk && ! empty( $opts[ "key_{$n}" ] ?? '' ) );
+						if ( ! $has_new_config ) {
+							continue;
+						}
+					}
+
 					if ( ! empty( $src_key ) ) {
-						// Explicit source — update last_entry for fall-through.
+						// Explicit source — update last_entry for carry-forward.
 						$entry = $esrc[ $src_key ] ?? null;
 						if ( ! $entry ) {
-							continue; // Unknown source key — skip slot.
+							continue; // Unknown or excluded source key — skip slot.
 						}
 						$last_entry = $entry;
-					} elseif ( ! empty( $rel_for_slot ) ) {
-						// rel_N set without src_N → auto-detect 'related' source.
-						$entry = $esrc['related'] ?? null;
-						if ( ! $entry ) {
-							continue; // No related source available — skip slot.
-						}
-						// Don't update $last_entry — this was inferred, not explicitly set.
+					} elseif ( ! empty( $rel_for_slot ) && isset( $esrc['related'] ) ) {
+						// rel_N set without src_N — auto-select the related post source.
+						$entry      = $esrc['related'];
+						$last_entry = $entry;
 					} else {
-						// Fall through to $last_entry (defaults to 'post' for the first slot).
+						// Blank src_N = inherit ('Same as…') — carry forward last_entry.
 						$entry = $last_entry;
 						if ( ! $entry ) {
 							continue;
@@ -667,9 +753,13 @@ class TagTemplateRegistry {
 					}
 
 					if ( $entry['is_related'] ) {
-						$rel_key = $rel_for_slot;
+						// Use this slot's rel key, or carry forward last_rel if blank.
+						if ( ! empty( $rel_for_slot ) ) {
+							$last_rel = $rel_for_slot;
+						}
+						$rel_key = $last_rel;
 						if ( empty( $rel_key ) ) {
-							continue;
+							continue; // No relationship key available — skip slot.
 						}
 						$acf_id    = $entry['source']->format_id_for_acf( $base_id );
 						$related   = bws_get_related_posts_data( $acf_id, $rel_key );
@@ -683,15 +773,15 @@ class TagTemplateRegistry {
 					}
 
 					if ( $psk ) {
-						// Inject slot-specific key into opts, with fall-through from previous slot.
+						// Use this slot's key, or carry forward last_key if blank.
 						$slot_key = $opts[ "key_{$n}" ] ?? '';
 						if ( ! empty( $slot_key ) ) {
 							$last_key = $slot_key;
 						} else {
-							$slot_key = $last_key; // Fall through from previous slot.
+							$slot_key = $last_key;
 						}
 						if ( empty( $slot_key ) ) {
-							continue; // No key available for this slot — skip.
+							continue; // No field key available — skip slot.
 						}
 						$slot_opts        = $eval_opts;
 						$slot_opts['key'] = $slot_key;

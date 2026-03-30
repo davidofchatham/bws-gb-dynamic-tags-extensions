@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,10 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.3.3 =
+* Add conditional field visibility system: `show_if` (AND) and `show_if_any` (OR) properties on PHP option definitions, evaluated by new `assets/js/editor-conditional-options.js` via the `generateblocks.editor.tagSpecificControls` filter
+* Redesign try_* tags: 5 slots (was 3), source-first field order (src_N → rel_N → key_N), slots 1–2 always visible with slots 3–5 revealed progressively, "Same as Slot N" inherit option on slots 2+, relationship field gated on related source selection or previous slot's rel being set, auto-detect related source when rel_N set without src_N
 
 = 1.3.2 =
 * Refactor: extract 5 named callback factory methods from TagTemplateRegistry::generate_all_tags() (C3)
