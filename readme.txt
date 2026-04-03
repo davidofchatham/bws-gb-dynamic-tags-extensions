@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.3.3
+Stable tag: 1.4.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,11 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.4.0 =
+* Extend content template with Content Type option: choose between post content/description (default) or a custom ACF/meta field, with conditional Meta Key input and fallback text support
+* Add try_content tag: per-slot type selection allows mixing content types across fallback slots (e.g. try a custom field, fall back to post content)
+* Suppress term_content direct tag (content is not meaningful as a term direct tag; term_description is used instead via try_content)
 
 = 1.3.3 =
 * Add conditional field visibility system: `show_if` (AND) and `show_if_any` (OR) properties on PHP option definitions, evaluated by new `assets/js/editor-conditional-options.js` via the `generateblocks.editor.tagSpecificControls` filter
