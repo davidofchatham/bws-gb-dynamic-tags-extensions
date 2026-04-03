@@ -9,6 +9,7 @@
  * @since 1.0.0
  * @since 1.2.0 Added defaults for tag prefix, context type, and related variant methods.
  * @since 1.2.0 Added format_id_for_acf(), source_default_enabled(), related_variant_default_enabled().
+ * @since 1.4.1 Added tag_default_enabled().
  */
 
 namespace BWS\DynamicTags;
@@ -89,6 +90,18 @@ abstract class AbstractSource implements SourceInterface {
 	 */
 	public function related_variant_default_enabled(): bool {
 		return true;
+	}
+
+	/**
+	 * Whether individual tags from this source are enabled by default.
+	 * Distinct from source_default_enabled(), which controls the source toggle default.
+	 * Delegates to source_default_enabled() so existing sources need no override.
+	 *
+	 * @since 1.4.1
+	 * @return bool
+	 */
+	public function tag_default_enabled(): bool {
+		return $this->source_default_enabled();
 	}
 
 	/**

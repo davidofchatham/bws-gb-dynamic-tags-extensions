@@ -187,14 +187,19 @@ class SettingsPage {
 	/**
 	 * Check if a source is enabled.
 	 *
-	 * Defaults to true (all sources enabled unless explicitly disabled).
+	 * Defaults to the source's `source_default_enabled()` return value; true if source not found.
 	 *
+	 * @since 1.4.1
 	 * @param string $source_key Source key.
 	 * @return bool
 	 */
 	public static function is_source_enabled( string $source_key ): bool {
 		$settings = self::get_settings();
-		return $settings['sources'][ $source_key ] ?? true;
+		if ( isset( $settings['sources'][ $source_key ] ) ) {
+			return (bool) $settings['sources'][ $source_key ];
+		}
+		$source = SourceRegistry::get_source( $source_key );
+		return $source ? $source->source_default_enabled() : true;
 	}
 
 	/**
@@ -250,7 +255,7 @@ class SettingsPage {
 			}
 			return $is_related
 				? $source_obj->related_variant_default_enabled()
-				: $source_obj->source_default_enabled();
+				: $source_obj->tag_default_enabled();
 		}
 
 		// Fall back to _registered_tags (used by deprecated-tag callers and try_ tags).
@@ -263,7 +268,7 @@ class SettingsPage {
 			if ( $src ) {
 				return $rel
 					? $src->related_variant_default_enabled()
-					: $src->source_default_enabled();
+					: $src->tag_default_enabled();
 			}
 		}
 
@@ -307,7 +312,7 @@ class SettingsPage {
 			if ( $src ) {
 				return $is_related
 					? $src->related_variant_default_enabled()
-					: $src->source_default_enabled();
+					: $src->tag_default_enabled();
 			}
 		}
 		return true;

@@ -6,6 +6,7 @@
  * @since 1.0.0
  * @since 1.2.0 Renamed resolve_post_id() to resolve_id(); added tag prefix, context type, and related variant methods.
  * @since 1.2.0 Added format_id_for_acf(), source_default_enabled(), related_variant_default_enabled().
+ * @since 1.4.1 Added tag_default_enabled().
  */
 
 namespace BWS\DynamicTags;
@@ -143,6 +144,18 @@ interface SourceInterface {
 	 * @return bool
 	 */
 	public function related_variant_default_enabled(): bool;
+
+	/**
+	 * Whether individual tags from this source are enabled by default in admin settings
+	 * (when the source toggle itself is on and no per-tag setting has been saved).
+	 *
+	 * Distinct from source_default_enabled(), which controls the source toggle default.
+	 * Defaults to source_default_enabled() so existing sources require no override.
+	 *
+	 * @since 1.4.1
+	 * @return bool
+	 */
+	public function tag_default_enabled(): bool;
 
 	/**
 	 * Get supports to exclude when generating tags for this source.
