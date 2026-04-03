@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -38,6 +38,10 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 * Remove GB source picker from related_post_* tags (related variants always traverse from current post via rel; source selector was non-functional there)
 * Remove GB source picker from second_related_post_* tags (traversal always from current post via rel+rel_2)
 * Add Supports column to tag-matrix.md sources tables and tag matrix tables
+* Add tag_default_enabled() to SourceInterface/AbstractSource: separates source toggle default (source_default_enabled) from per-tag default when source is on
+* Fix is_source_enabled() to respect source_default_enabled() instead of hardcoding true
+* Flip second_related_post_ tags to enabled-by-default when source is on (source toggle remains opt-in)
+* Add post_term_related_post_ source: 3-hop traversal from current post → taxonomy term → term's related post (11 templates, source opt-in)
 
 = 1.4.0 =
 * Extend content template with Content Type option: choose between post content/description (default) or a custom ACF/meta field, with conditional Meta Key input and fallback text support
