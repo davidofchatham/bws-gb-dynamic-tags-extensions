@@ -22,6 +22,12 @@ silently skipped at registration time. The collision check queries
 `GenerateBlocks_Register_Dynamic_Tag::get_tags()` dynamically, so any tag already registered by
 GB or another plugin is automatically avoided.
 
+**Supports column** (in source tables and tag matrices): lists the GB `supports` values that
+control which editor controls appear for a tag. Values are `source` (entity picker), `link`,
+`meta` (field key input), `image-size`. The source table's Supports column shows what the source
+adds or removes from the template's base supports (`+source always` / `−source` / `as-is`).
+The matrix Supports column shows the template's base array before any source modifier is applied.
+
 ---
 
 ## Sources
@@ -33,21 +39,21 @@ Sources are grouped by their **starting context** — what entity provides the i
 These sources resolve to a post. Use them in post loops, single-post templates, and anywhere a
 post is in scope.
 
-| Source key | Tag prefix | Traversal | Registered by | Notes |
-|---|---|---|---|---|
-| `post` | `post_` | Current post (direct) | Built-in | |
-| `related_post` | `related_post_` | Current post → related post (ACF rel field on post) | Built-in | Requires `rel` option |
-| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Built-in | Requires `rel` + `rel_2`; opt-in |
-| `portal` | `portal_` | Current post (portal context) | `bws-portal-system` | External; registered via `bws_dynamic_tags_register_sources` hook |
+| Source key | Tag prefix | Traversal | Supports | Registered by | Notes |
+|---|---|---|---|---|---|
+| `post` | `post_` | Current post (direct) | Template as-is | Built-in | |
+| `related_post` | `related_post_` | Current post → related post (ACF rel field on post) | Template − `source` | Built-in | Requires `rel` option |
+| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `rel` + `rel_2`; opt-in |
+| `portal` | `portal_` | Current post (portal context) | Template as-is | `bws-portal-system` | External; registered via `bws_dynamic_tags_register_sources` hook |
 
 ### Term-context sources
 
 These sources resolve to a term. Use them on archive pages and in term loops.
 
-| Source key | Tag prefix | Traversal | Registered by | Notes |
-|---|---|---|---|---|
-| `term` | `term_` | Current term (direct) | Built-in | Archive pages + term loops |
-| `term_related_post` | `term_related_post_` | Current term → related post (ACF rel field on term) | Built-in | Requires `rel` option on the term entity; opt-in. ⚠️ Starts from term context — see note. |
+| Source key | Tag prefix | Traversal | Supports | Registered by | Notes |
+|---|---|---|---|---|---|
+| `term` | `term_` | Current term (direct) | Template + `source` (always) | Built-in | Archive pages + term loops |
+| `term_related_post` | `term_related_post_` | Current term → related post (ACF rel field on term) | Template − `source` | Built-in | Requires `rel` option on the term entity; opt-in. ⚠️ Starts from term context — see note. |
 
 > ⚠️ **`term_related_post_` vs the planned `post_term_related_post_`:** Both involve a term's
 > related post, but they start from different contexts. `term_related_post_` starts on an **archive
@@ -62,24 +68,24 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 The row label is the **template key**. The full tag name is `{prefix}{template_key}`,
 e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
-| Template | `post_` | `related_post_` | `second_related_post_` | `portal_` |
-|---|---|---|---|---|
-| **title** | GB | ✅ | ☐ | ☐ |
-| **content** | ✅ | ✅ | ☐ | ☐ |
-| **excerpt** | GB | ✅ | ☐ | ☐ |
-| **permalink** | GB | ✅ | ☐ | ☐ |
-| **custom_text** | ✅ | ✅ | ☐ | ☐ |
-| **featured_image** | ✅ | ✅ | ☐ | ☐ |
-| **custom_image** | ✅ | ✅ | ☐ | ☐ |
-| **custom_date_single** | ✅ | ☐ | ☐ | ☐ |
-| **custom_date_range** | ✅ | ☐ | ☐ | ☐ |
-| **custom_datetime_single** | ✅ | ☐ | ☐ | ☐ |
-| **custom_datetime_range** | ✅ | ☐ | ☐ | ☐ |
-| **term_title** | ✅ | ✅ | ☐ | ☐ |
-| **term_permalink** | ✅ | ✅ | ☐ | ☐ |
-| **term_description** | ✅ | ✅ | ☐ | ☐ |
-| **term_custom_text** | ✅ | ✅ | ☐ | ☐ |
-| **term_custom_image** | ✅ | ✅ | ☐ | ☐ |
+| Template | Supports | `post_` | `related_post_` | `second_related_post_` | `portal_` |
+|---|---|---|---|---|---|
+| **title** | `link`, `source` | GB | ✅ | ☐ | ☐ |
+| **content** | `source` | ✅ | ✅ | ☐ | ☐ |
+| **excerpt** | `source` | GB | ✅ | ☐ | ☐ |
+| **permalink** | `source` | GB | ✅ | ☐ | ☐ |
+| **custom_text** | `meta`, `link`, `source` | ✅ | ✅ | ☐ | ☐ |
+| **featured_image** | `image-size` | ✅ | ✅ | ☐ | ☐ |
+| **custom_image** | `image-size` | ✅ | ✅ | ☐ | ☐ |
+| **custom_date_single** | `source` | ✅ | ☐ | ☐ | ☐ |
+| **custom_date_range** | `source` | ✅ | ☐ | ☐ | ☐ |
+| **custom_datetime_single** | `source` | ✅ | ☐ | ☐ | ☐ |
+| **custom_datetime_range** | `source` | ✅ | ☐ | ☐ | ☐ |
+| **term_title** | `link`, `source` | ✅ | ✅ | ☐ | ☐ |
+| **term_permalink** | `source` | ✅ | ✅ | ☐ | ☐ |
+| **term_description** | `source` | ✅ | ✅ | ☐ | ☐ |
+| **term_custom_text** | `meta`, `source` | ✅ | ✅ | ☐ | ☐ |
+| **term_custom_image** | `image-size`, `source` | ✅ | ✅ | ☐ | ☐ |
 
 `description` is not listed — it is a term-context-only template with no post-context implementation.
 
@@ -87,20 +93,20 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
 ## Tag Matrix — Term-context sources
 
-| Template | `term_` | `term_related_post_` |
-|---|---|---|
-| **title** | ✅ | ☐ |
-| **content** | — | ☐ |
-| **excerpt** | — | ☐ |
-| **permalink** | ✅ | ☐ |
-| **description** | ✅ | — |
-| **custom_text** | ✅ | ☐ |
-| **featured_image** | — | ☐ |
-| **custom_image** | ✅ | ☐ |
-| **custom_date_single** | ☐ | ☐ |
-| **custom_date_range** | ☐ | ☐ |
-| **custom_datetime_single** | ☐ | ☐ |
-| **custom_datetime_range** | ☐ | ☐ |
+| Template | Supports | `term_` | `term_related_post_` |
+|---|---|---|---|
+| **title** | `link`, `source` | ✅ | ☐ |
+| **content** | `source` | — | ☐ |
+| **excerpt** | `source` | — | ☐ |
+| **permalink** | `source` | ✅ | ☐ |
+| **description** | — | ✅ | — |
+| **custom_text** | `meta`, `link`, `source` | ✅ | ☐ |
+| **featured_image** | `image-size` | — | ☐ |
+| **custom_image** | `image-size` | ✅ | ☐ |
+| **custom_date_single** | `source` | ☐ | ☐ |
+| **custom_date_range** | `source` | ☐ | ☐ |
+| **custom_datetime_single** | `source` | ☐ | ☐ |
+| **custom_datetime_range** | `source` | ☐ | ☐ |
 
 `term_*` (term-extraction) templates are not listed — they extract terms FROM a post and have no
 meaning in a term-context source.

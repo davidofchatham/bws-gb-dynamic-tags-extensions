@@ -34,6 +34,11 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 
 == Changelog ==
 
+= 1.4.1 =
+* Remove GB source picker from related_post_* tags (related variants always traverse from current post via rel; source selector was non-functional there)
+* Remove GB source picker from second_related_post_* tags (traversal always from current post via rel+rel_2)
+* Add Supports column to tag-matrix.md sources tables and tag matrix tables
+
 = 1.4.0 =
 * Extend content template with Content Type option: choose between post content/description (default) or a custom ACF/meta field, with conditional Meta Key input and fallback text support
 * Add try_content tag: per-slot type selection allows mixing content types across fallback slots (e.g. try a custom field, fall back to post content)

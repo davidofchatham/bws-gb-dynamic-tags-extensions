@@ -41,6 +41,17 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	/**
+	 * Exclude 'source' support — traversal always starts from the current post via rel/rel_2,
+	 * so the GB post picker has no role here.
+	 *
+	 * @since 1.4.1
+	 * @return string[]
+	 */
+	public function get_excluded_supports(): array {
+		return [ 'source' ];
+	}
+
+	/**
 	 * Resolve to the second-degree related post via two ACF relationship hops.
 	 *
 	 * @param array  $options  Tag options ('rel' = first hop field, 'rel_2' = second hop field).

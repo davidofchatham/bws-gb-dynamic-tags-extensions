@@ -318,11 +318,16 @@ class TagTemplateRegistry {
 					$callback = self::make_related_single_callback( $sk, $cf );
 				}
 
+				// Related variants never show the source selector — the traversal always
+				// starts from the current context entity via 'rel'. Strip 'source' from
+				// whatever the template declares.
+				$related_supports = array_values( array_diff( $tpl['supports'] ?? [], [ 'source' ] ) );
+
 				self::register_gb_tag(
 					$source->get_related_title_prefix() . ' ' . $tpl['title'],
 					$tag_name,
 					$tpl['gb_type'] ?? $source->get_related_gb_type(),
-					$tpl['supports'] ?? [],
+					$related_supports,
 					$options,
 					$callback
 				);
