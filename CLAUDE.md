@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WordPress plugin that extends **GenerateBlocks** with custom dynamic tags for ACF (Advanced Custom Fields) integration. Provides dynamic content insertion for post content, taxonomy terms, and date/time fields. Pure PHP — no build system, no dependencies beyond WordPress/GenerateBlocks/ACF.
 
-**Version**: 3.1.3 (latest in date-time-tags.php)
+**Version**: 1.4.0
 
 ## Architecture
 

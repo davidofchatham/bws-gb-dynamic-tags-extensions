@@ -558,6 +558,7 @@ class TagTemplateRegistry {
 			}
 
 			$per_slot_key  = ! empty( $tpl['try_per_slot_key'] );
+			$per_slot_type = ! empty( $tpl['try_per_slot_type'] );
 			$context_types = $tpl['context_types'] ?? array( 'post' );
 
 			// --- Build options array ---
@@ -592,6 +593,15 @@ class TagTemplateRegistry {
 							"src_{$prev}" => 'not_empty',
 							"key_{$prev}" => 'not_empty',
 							"rel_{$prev}" => 'not_empty',
+						),
+					);
+				} elseif ( $per_slot_type ) {
+					$slot_trigger = array(
+						'show_if_any' => array(
+							"src_{$prev}"  => 'not_empty',
+							"type_{$prev}" => 'not_empty',
+							"key_{$prev}"  => 'not_empty',
+							"rel_{$prev}"  => 'not_empty',
 						),
 					);
 				} else {
@@ -656,6 +666,34 @@ class TagTemplateRegistry {
 						$slot_trigger
 					);
 				}
+
+				// type_N + key_N — per-slot-type templates only.
+				if ( $per_slot_type ) {
+					$type_options = array(
+						array( 'value' => '',             'label' => __( 'Content / Description', 'generateblocks' ) ),
+						array( 'value' => 'custom_field', 'label' => __( 'Custom Field', 'generateblocks' ) ),
+					);
+					$options[ "type_{$n}" ] = array_merge(
+						array(
+							'type'    => 'select',
+							'label'   => sprintf( __( 'Content Type %d', 'generateblocks' ), $n ),
+							'options' => $type_options,
+						),
+						$slot_trigger
+					);
+					// key_N is shown only when type_N is explicitly set to 'custom_field'.
+					$options[ "key_{$n}" ] = array_merge(
+						array(
+							'type'        => 'text',
+							'label'       => sprintf( __( 'Meta Key %d', 'generateblocks' ), $n ),
+							'help'        => $n === 1
+								? __( 'ACF or meta field key for this slot.', 'generateblocks' )
+								: __( 'Leave blank to use the same key as the previous slot.', 'generateblocks' ),
+							'placeholder' => 'field_name',
+						),
+						array( 'show_if' => array( "type_{$n}" => 'custom_field' ) )
+					);
+				}
 			}
 
 			// Merge template's standard options.
@@ -666,6 +704,11 @@ class TagTemplateRegistry {
 			// For per-slot-key templates, remove primary field key option (replaced by key_N).
 			if ( $per_slot_key ) {
 				unset( $tpl_options['field_key'], $tpl_options['meta_key'] );
+			}
+
+			// For per-slot-type templates, remove shared type/key options (replaced by type_N/key_N).
+			if ( $per_slot_type ) {
+				unset( $tpl_options['type'], $tpl_options['key'] );
 			}
 
 			$options = array_merge( $options, $tpl_options );
@@ -687,8 +730,11 @@ class TagTemplateRegistry {
 			$ctypes = $context_types;
 			$psk   = $per_slot_key;
 			$esrc  = $try_slot_sources; // Only slot-eligible sources in the callback.
+			$pst        = $per_slot_type;
+			$cf_custom  = 'bws_post_custom_text_core';
+			$tcf_custom = 'bws_term_custom_text_core';
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $ctypes, $psk, $esrc ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $ctypes, $psk, $pst, $cf_custom, $tcf_custom, $esrc ) {
 				// Strip fallback_text from opts used in slot evaluation so it doesn't short-circuit
 				// the try_ chain — a slot returning fallback_text would look like a real value and
 				// prevent later slots from being tried. Apply fallback_text only after all slots fail.
@@ -702,6 +748,7 @@ class TagTemplateRegistry {
 				$last_entry   = $first_src_id ? ( $esrc[ $first_src_id ] ?? null ) : null;
 				$last_key     = null;
 				$last_rel     = null;
+				$last_type    = ''; // '' = content/description (default).
 
 				foreach ( range( 1, 5 ) as $n ) {
 					$src_key      = $opts[ "src_{$n}" ] ?? '';
@@ -713,7 +760,9 @@ class TagTemplateRegistry {
 					if ( $n > 1 ) {
 						$has_new_config = ! empty( $src_key )
 							|| ! empty( $rel_for_slot )
-							|| ( $psk && ! empty( $opts[ "key_{$n}" ] ?? '' ) );
+							|| ( $psk && ! empty( $opts[ "key_{$n}" ] ?? '' ) )
+							|| ( $pst && ! empty( $opts[ "type_{$n}" ] ?? '' ) )
+							|| ( $pst && ! empty( $opts[ "key_{$n}" ] ?? '' ) );
 						if ( ! $has_new_config ) {
 							continue;
 						}
@@ -744,6 +793,8 @@ class TagTemplateRegistry {
 						continue;
 					}
 
+					// For $pst templates, dispatch happens inside the elseif branch below; $fn is used only
+					// for standard (non-psk, non-pst) templates in the final else.
 					// Select appropriate core function for this context type.
 					$fn = ( 'term' === $ctx && $tcf ) ? $tcf : $cf;
 
@@ -773,7 +824,7 @@ class TagTemplateRegistry {
 					}
 
 					if ( $psk ) {
-						// Use this slot's key, or carry forward last_key if blank.
+						// Per-slot-key: use this slot's key, or carry forward last_key.
 						$slot_key = $opts[ "key_{$n}" ] ?? '';
 						if ( ! empty( $slot_key ) ) {
 							$last_key = $slot_key;
@@ -786,6 +837,36 @@ class TagTemplateRegistry {
 						$slot_opts        = $eval_opts;
 						$slot_opts['key'] = $slot_key;
 						$result = $fn( $entity_id, $slot_opts, $inst );
+					} elseif ( $pst ) {
+						// Per-slot-type: use this slot's type (carry forward) and dispatch to
+						// the appropriate core function for this type × context combination.
+						$slot_type = $opts[ "type_{$n}" ] ?? '';
+						if ( ! empty( $slot_type ) ) {
+							$last_type = $slot_type;
+						} else {
+							$slot_type = $last_type;
+						}
+
+						if ( 'custom_field' === $slot_type ) {
+							// Custom field: also carry forward key_N.
+							$slot_key = $opts[ "key_{$n}" ] ?? '';
+							if ( ! empty( $slot_key ) ) {
+								$last_key = $slot_key;
+							} else {
+								$slot_key = $last_key;
+							}
+							if ( empty( $slot_key ) ) {
+								continue; // No field key — skip slot.
+							}
+							$dispatch_fn      = ( 'term' === $ctx && $tcf_custom ) ? $tcf_custom : $cf_custom;
+							$slot_opts        = $eval_opts;
+							$slot_opts['key'] = $slot_key;
+							$result = $dispatch_fn( $entity_id, $slot_opts, $inst );
+						} else {
+							// Content/description type — use the template's own core functions.
+							$dispatch_fn = ( 'term' === $ctx && $tcf ) ? $tcf : $cf;
+							$result = $dispatch_fn( $entity_id, $eval_opts, $inst );
+						}
 					} else {
 						$result = $fn( $entity_id, $eval_opts, $inst );
 					}

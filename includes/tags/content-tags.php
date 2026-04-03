@@ -36,15 +36,21 @@ function bws_register_post_content_tag_templates() {
 		'supports_try'  => true,
 	) );
 
-	// content: post sources only. Terms don't have post content.
+	// content: post sources only for direct tags (excluded_direct_source_keys suppresses
+	// term_content, which would be a confusing alias for term_description).
+	// term_core_fn is set so try_content can dispatch term-context slots to description.
 	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'content',
-		'title'         => 'Content',
-		'gb_type'       => null,
-		'supports'      => array( 'source' ),
-		'options_fn'    => null,
-		'core_fn'       => 'bws_post_content_core',
-		'context_types' => array( 'post' ),
+		'key'                         => 'content',
+		'title'                       => 'Content',
+		'gb_type'                     => null,
+		'supports'                    => array( 'source' ),
+		'options_fn'                  => 'bws_get_content_options',
+		'core_fn'                     => 'bws_post_content_core',
+		'context_types'               => array( 'post', 'term' ),
+		'term_core_fn'                => 'bws_term_description_core',
+		'excluded_direct_source_keys' => array( 'term' ),
+		'supports_try'                => true,
+		'try_per_slot_type'           => true,
 	) );
 
 	// excerpt: post sources only. Term descriptions are handled by the 'description' template.
@@ -106,6 +112,38 @@ function bws_register_post_content_tag_templates() {
 // ===============================================
 
 /**
+ * Options for the content tag template.
+ *
+ * @since 1.4.0
+ * @return array
+ */
+function bws_get_content_options() {
+	return array(
+		'type' => array(
+			'type'    => 'select',
+			'label'   => __( 'Content Type', 'generateblocks' ),
+			// No 'default' key — '' is the visual default; nothing serialized when unchanged.
+			'options' => array(
+				array( 'value' => '',             'label' => __( 'Content / Description', 'generateblocks' ) ),
+				array( 'value' => 'custom_field', 'label' => __( 'Custom Field', 'generateblocks' ) ),
+			),
+		),
+		'key' => array(
+			'type'        => 'text',
+			'label'       => __( 'Meta Key', 'generateblocks' ),
+			'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+			'placeholder' => 'field_name',
+			'show_if'     => array( 'type' => 'custom_field' ),
+		),
+		'fallback_text' => array(
+			'type'  => 'text',
+			'label' => __( 'Fallback Text', 'generateblocks' ),
+			'help'  => __( 'Text to display if content is empty or not found.', 'generateblocks' ),
+		),
+	);
+}
+
+/**
  * Options for the custom_text tag template.
  *
  * @since 1.3.0
@@ -135,13 +173,69 @@ function bws_get_custom_text_options() {
  * @return string
  */
 function bws_post_content_core( $post_id, $options, $instance ) {
-	// Return placeholder in admin/REST context (editor preview) regardless of post_id.
+	$type = $options['type'] ?? '';
+
+	// REST placeholder — show type-appropriate hint in editor preview.
 	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-		return '[Post Content Placeholder]';
+		return 'custom_field' === $type ? '[Custom Field]' : '[Post Content Placeholder]';
 	}
 
+	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+
+	// --- Custom field branch ---
+	if ( 'custom_field' === $type ) {
+		if ( ! $post_id ) {
+			return '' !== $fallback
+				? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+				: '';
+		}
+
+		$key = sanitize_text_field( $options['key'] ?? '' );
+
+		if ( empty( $key ) || ! bws_is_valid_meta_key( $key ) ) {
+			return '' !== $fallback
+				? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+				: '';
+		}
+
+		$value = null;
+
+		if ( function_exists( 'get_field' ) ) {
+			$raw = get_field( $key, $post_id );
+			if ( is_scalar( $raw ) && null !== $raw && false !== $raw ) {
+				$value = (string) $raw;
+			}
+		}
+
+		if ( null === $value ) {
+			$meta = get_post_meta( $post_id, $key, true );
+			if ( is_scalar( $meta ) && '' !== $meta ) {
+				$value = (string) $meta;
+			}
+		}
+
+		if ( null === $value || '' === $value ) {
+			return '' !== $fallback
+				? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+					$fallback,
+					array_merge( $options, array( 'id' => $post_id ) ),
+					$instance
+				)
+				: '';
+		}
+
+		return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+			$value,
+			array_merge( $options, array( 'id' => $post_id ) ),
+			$instance
+		);
+	}
+
+	// --- Default content branch ---
 	if ( ! $post_id ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
 	}
 
 	// Skip during GB query loop setup phase (no real iteration yet).
@@ -152,7 +246,9 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 	$content = bws_process_post_content( $post_id );
 
 	if ( empty( $content ) ) {
-		return '';
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
 	}
 
 	return bws_safe_content_output( $content, $options, $instance );
