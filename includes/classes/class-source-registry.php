@@ -125,6 +125,7 @@ class SourceRegistry {
 		self::register_source( new Sources\CurrentPost() );
 		self::register_source( new Sources\TaxonomyTerm() );
 		self::register_source( new Sources\SecondRelatedPost() );
+		self::register_source( new Sources\PostTermRelatedPost() );
 
 		$count_before = count( self::$sources );
 
