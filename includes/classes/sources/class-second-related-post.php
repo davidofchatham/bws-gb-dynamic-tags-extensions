@@ -5,7 +5,8 @@
  * Hop 1: current post → 'rel'  field → first related post (mid).
  * Hop 2: mid post     → 'rel_2' field → first second-degree related post.
  *
- * All tags from this source are opt-in (source_default_enabled() returns false).
+ * The source toggle is off by default (source_default_enabled() = false). When the source is
+ * enabled, all individual tags are on by default (tag_default_enabled() = true).
  * No related-variant is available from this source (has_related_variant() = false).
  *
  * @package BWS_Dynamic_Tags
@@ -31,13 +32,25 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * All second-related-post tags are opt-in — two-hop traversal is an advanced feature.
+	 * Source toggle is off by default — two-hop traversal is an advanced feature.
+	 * When enabled, all tags are on by default (see tag_default_enabled()).
 	 *
 	 * @since 1.2.0
 	 * @return bool
 	 */
 	public function source_default_enabled(): bool {
 		return false;
+	}
+
+	/**
+	 * Individual tags are enabled by default when the source is on.
+	 * The source itself is opt-in (off by default); once enabled, no per-tag setup needed.
+	 *
+	 * @since 1.4.1
+	 * @return bool
+	 */
+	public function tag_default_enabled(): bool {
+		return true;
 	}
 
 	/**

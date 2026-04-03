@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Get related posts from ACF relationship or post object field.
  *
  * @since 1.0.0
- * @param int    $post_id   Source post ID.
+ * @param int|string $entity_id ACF-compatible entity ID: post ID (int) or term entity string ("term_N").
  * @param string $field_key ACF field key.
  * @return array Array of related posts.
  */
@@ -235,7 +235,7 @@ function bws_get_relationship_field_options() {
 		'rel' => array(
 			'type'        => 'text',
 			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
-			'help'        => __( 'ACF relationship or post object field key that links to the related post.', 'generateblocks' ),
+			'help'        => __( 'Relationship or post object field key that links to the related post.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
 		),
 	);
