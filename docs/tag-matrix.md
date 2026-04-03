@@ -44,6 +44,7 @@ post is in scope.
 | `post` | `post_` | Current post (direct) | Template as-is | Built-in | |
 | `related_post` | `related_post_` | Current post → related post (ACF rel field on post) | Template − `source` | Built-in | Requires `rel` option |
 | `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `rel` + `rel_2`; opt-in |
+| `post_term_related_post` | `post_term_related_post_` | Current post → post's term (via `taxonomy`) → term's related post (via `rel` on term). First term only. | Template − `source` | Built-in | Requires `taxonomy` + `rel`; opt-in. |
 | `portal` | `portal_` | Current post (portal context) | Template as-is | `bws-portal-system` | External; registered via `bws_dynamic_tags_register_sources` hook |
 
 ### Term-context sources
@@ -55,11 +56,11 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 | `term` | `term_` | Current term (direct) | Template + `source` (always) | Built-in | Archive pages + term loops |
 | `term_related_post` | `term_related_post_` | Current term → related post (ACF rel field on term) | Template − `source` | Built-in | Requires `rel` option on the term entity; opt-in. ⚠️ Starts from term context — see note. |
 
-> ⚠️ **`term_related_post_` vs the planned `post_term_related_post_`:** Both involve a term's
-> related post, but they start from different contexts. `term_related_post_` starts on an **archive
-> or term loop page** (current term is already in scope). The planned `post_term_related_post_`
-> starts from a **current post**, resolves the post's term via `taxonomy`, then hops to that term's
-> related post via `rel` — a 3-hop traversal from post context. See Potential future sources.
+> ⚠️ **`term_related_post_` vs `post_term_related_post_`:** Both involve a term's related post,
+> but they start from different contexts. `term_related_post_` starts on an **archive or term loop
+> page** (current term is already in scope). `post_term_related_post_` starts from a **current
+> post**, resolves the post's term via `taxonomy`, then hops to that term's related post via `rel` —
+> a 3-hop traversal from post context. See Post-context sources above.
 
 ---
 
@@ -68,24 +69,24 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 The row label is the **template key**. The full tag name is `{prefix}{template_key}`,
 e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
-| Template | Supports | `post_` | `related_post_` | `second_related_post_` | `portal_` |
-|---|---|---|---|---|---|
-| **title** | `link`, `source` | GB | ✅ | ☐ | ☐ |
-| **content** | `source` | ✅ | ✅ | ☐ | ☐ |
-| **excerpt** | `source` | GB | ✅ | ☐ | ☐ |
-| **permalink** | `source` | GB | ✅ | ☐ | ☐ |
-| **custom_text** | `meta`, `link`, `source` | ✅ | ✅ | ☐ | ☐ |
-| **featured_image** | `image-size` | ✅ | ✅ | ☐ | ☐ |
-| **custom_image** | `image-size` | ✅ | ✅ | ☐ | ☐ |
-| **custom_date_single** | `source` | ✅ | ☐ | ☐ | ☐ |
-| **custom_date_range** | `source` | ✅ | ☐ | ☐ | ☐ |
-| **custom_datetime_single** | `source` | ✅ | ☐ | ☐ | ☐ |
-| **custom_datetime_range** | `source` | ✅ | ☐ | ☐ | ☐ |
-| **term_title** | `link`, `source` | ✅ | ✅ | ☐ | ☐ |
-| **term_permalink** | `source` | ✅ | ✅ | ☐ | ☐ |
-| **term_description** | `source` | ✅ | ✅ | ☐ | ☐ |
-| **term_custom_text** | `meta`, `source` | ✅ | ✅ | ☐ | ☐ |
-| **term_custom_image** | `image-size`, `source` | ✅ | ✅ | ☐ | ☐ |
+| Template | Supports | `post_` | `related_post_` | `second_related_post_` | `post_term_related_post_` | `portal_` |
+|---|---|---|---|---|---|---|
+| **title** | `link`, `source` | GB | ✅ | ☐ | ✅ | ☐ |
+| **content** | `source` | ✅ | ✅ | ☐ | ✅ | ☐ |
+| **excerpt** | `source` | GB | ✅ | ☐ | ✅ | ☐ |
+| **permalink** | `source` | GB | ✅ | ☐ | ✅ | ☐ |
+| **custom_text** | `meta`, `link`, `source` | ✅ | ✅ | ☐ | ✅ | ☐ |
+| **featured_image** | `image-size` | ✅ | ✅ | ☐ | ✅ | ☐ |
+| **custom_image** | `image-size` | ✅ | ✅ | ☐ | ✅ | ☐ |
+| **custom_date_single** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
+| **custom_date_range** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
+| **custom_datetime_single** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
+| **custom_datetime_range** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
+| **term_title** | `link`, `source` | ✅ | ✅ | ☐ | — | ☐ |
+| **term_permalink** | `source` | ✅ | ✅ | ☐ | — | ☐ |
+| **term_description** | `source` | ✅ | ✅ | ☐ | — | ☐ |
+| **term_custom_text** | `meta`, `source` | ✅ | ✅ | ☐ | — | ☐ |
+| **term_custom_image** | `image-size`, `source` | ✅ | ✅ | ☐ | — | ☐ |
 
 `description` is not listed — it is a term-context-only template with no post-context implementation.
 
@@ -119,12 +120,15 @@ Resolution order for each cell (first match wins):
 
 1. Explicit admin setting saved by the user
 2. `default_enabled_map` on the template (keyed by source prefix without trailing `_`)
-3. `source_default_enabled()` / `related_variant_default_enabled()` on the source class
+3. `tag_default_enabled()` / `related_variant_default_enabled()` on the source class
 4. Fallback: `true` (enabled)
+
+The source toggle itself defaults to `source_default_enabled()` on the source class (true for all built-in sources except `second_related_post` and `post_term_related_post`).
 
 Drivers of the ☐ cells above:
 
-- **`second_related_post_` (all)** — `source_default_enabled() = false`
+- **`second_related_post_` (all)** — source off by default (`source_default_enabled() = false`); tags ✅ when source enabled (`tag_default_enabled() = true`)
+- **`post_term_related_post_` (all)** — source off by default (`source_default_enabled() = false`); tags ✅ when source enabled (`tag_default_enabled() = true`)
 - **`term_related_post_` (all)** — `related_variant_default_enabled() = false` on TaxonomyTerm
 - **date/datetime × `related_post_` and `term_`** — `default_enabled_map: [related_post => false, term => false]` on each date template
 - **`portal_` (all)** — external source; assumed opt-in pending portal plugin declaration
@@ -178,6 +182,7 @@ output. Missing required options cause the tag to return empty string (no error)
 | All `related_post_` variants | `rel` — ACF relationship/post_object field key | Identifies which relationship field to traverse |
 | All `term_related_post_` variants | `rel` — ACF relationship/post_object field key on the term entity | Traverses from current term to related post |
 | All `second_related_post_` variants | `rel` + `rel_2` — two ACF relationship field keys | First hop (`rel`) then second hop (`rel_2`) |
+| All `post_term_related_post_` variants | `taxonomy` — taxonomy slug; `rel` — relationship field key on the term entity | First term in the taxonomy is used; the `rel` field is on the term, not the post. |
 | `content` (all sources, `type = custom_field`) | `key` — ACF or meta field key | Required when Content Type is set to Custom Field |
 | `custom_text` (all sources) | `key` — ACF or meta field key | Via GB's `meta` support |
 | `custom_image` (all sources) | `field_key` — ACF image field key | |
@@ -228,7 +233,6 @@ with additional columns when implemented.
 
 | Source key | Tag prefix | Description | Status |
 |---|---|---|---|
-| `post_term_related_post` | `post_term_related_post_` | **3-hop from post context**: current post → post's term (via `taxonomy`) → term's related post (via `rel` on term). Distinct from `term_related_post_` which starts from current term context. | Planned |
 | `ancestor_post` | `ancestor_` | WP top-level ancestor (hierarchical post types) | To be considered |
 | `parent_post` | `parent_` | WP parent post (hierarchical post types) | Planned |
 | `sibling_post` | `sibling_` | WP same-level, same-parent posts (hierarchical post types) | To be considered |

@@ -132,6 +132,7 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
 | `source_default_enabled(): bool` | Direct tags on/off by default | `true` | Set to `false` for advanced/experimental sources where all tags should be opt-in. |
+| `tag_default_enabled(): bool` | Per-tag on/off when source toggle is active | `source_default_enabled()` | Override to `true` when `source_default_enabled() = false` but all tags should be on by default once the source is enabled (e.g. `SecondRelatedPost`, `PostTermRelatedPost`). |
 | `related_variant_default_enabled(): bool` | Related-variant tags on/off by default | `true` | Set to `false` when the related-variant traversal is a new/advanced feature users must explicitly enable. |
 
 ### Related variants
@@ -352,9 +353,9 @@ Plugin tags automatically appear in the settings page when:
 3. Manually registered tags use `SettingsPage::is_tag_enabled( 'tag_name', 'source_key' )` to check the toggle
 
 **Default-enabled behaviour:**
-- Tags from sources where `source_default_enabled()` returns `true` (the default) are enabled on first install without any settings saved.
-- Tags from sources where `source_default_enabled()` returns `false` are hidden from the GB editor until the user enables them in admin settings.
-- Individual templates can override the source-level default via `default_enabled_map` in the template definition.
+- The source toggle defaults to `source_default_enabled()` on the source class (`true` for all built-in sources except `SecondRelatedPost` and `PostTermRelatedPost`).
+- Individual tag defaults within an enabled source are controlled by `tag_default_enabled()` (defaults to `source_default_enabled()`). Override `tag_default_enabled()` independently when the source should be opt-in but all its tags should be on once enabled.
+- Individual templates can override the per-tag default via `default_enabled_map` in the template definition.
 
 Settings are stored in `bws_dynamic_tags_settings` under the `'tags'` key.
 
