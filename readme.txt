@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,9 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.4.2 =
+* Fix datetime fallback: bws_handle_date_time_fallback() now returns empty string when fallback_text is unset, enabling standard "required to render" block behavior; previously returned hardcoded "Date TBA" / "Time TBA" / "Date/time TBA" strings unconditionally
 
 = 1.4.1 =
 * Remove GB source picker from related_post_* tags (related variants always traverse from current post via rel; source selector was non-functional there)

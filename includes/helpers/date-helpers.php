@@ -824,19 +824,10 @@ function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_cu
  */
 if ( ! function_exists( 'bws_handle_date_time_fallback' ) ) {
 function bws_handle_date_time_fallback( $options, $instance, $tag_type ) {
-    $fallback_text = $options['fallback_text'] ?? '';
+    $fallback_text = sanitize_text_field( $options['fallback_text'] ?? '' );
 
     if ( empty( $fallback_text ) ) {
-        $date_only = ! empty( $options['date_only'] );
-        $time_only = ! empty( $options['time_only'] );
-
-        if ( $time_only ) {
-            $fallback_text = __( 'Time TBA', 'generateblocks' );
-        } elseif ( $date_only ) {
-            $fallback_text = __( 'Date TBA', 'generateblocks' );
-        } else {
-            $fallback_text = __( 'Date/time TBA', 'generateblocks' );
-        }
+        return '';
     }
 
     return GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback_text, $options, $instance );
