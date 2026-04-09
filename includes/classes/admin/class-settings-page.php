@@ -86,10 +86,9 @@ class SettingsPage {
 	 */
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
-			'sources'          => array(),
-			'related_variants' => array(),
-			'tags'             => array(),
-			'diagnostics'      => array(),
+			'sources'     => array(),
+			'tags'        => array(),
+			'diagnostics' => array(),
 		);
 
 		$groups = self::get_tag_groups();
@@ -99,14 +98,7 @@ class SettingsPage {
 			$sanitized['sources'][ $source_key ] = ! empty( $input['sources'][ $source_key ] );
 		}
 
-		// Related variants: only for sources that have a related variant sub-group.
-		foreach ( $groups as $source_key => $group ) {
-			if ( ! empty( $group['has_related_variant'] ) ) {
-				$sanitized['related_variants'][ $source_key ] = ! empty( $input['related_variants'][ $source_key ] );
-			}
-		}
-
-		// Tags (direct + related): checked = true, unchecked = false.
+		// Tags: checked = true, unchecked = false.
 		$tag_map = self::get_tag_source_map();
 		foreach ( array_keys( $tag_map ) as $tag_name ) {
 			$sanitized['tags'][ $tag_name ] = ! empty( $input['tags'][ $tag_name ] );
@@ -231,17 +223,6 @@ class SettingsPage {
 			return false;
 		}
 
-		// If tag belongs to a related variant group and that group is disabled, tag is disabled.
-		$src_obj = $source_obj ?? ( $sk ? SourceRegistry::get_source( $sk ) : null );
-		if ( $src_obj && $src_obj->has_related_variant() ) {
-			$related_prefix = $src_obj->get_related_tag_prefix() . '_';
-			if ( str_starts_with( $tag_name, $related_prefix ) ) {
-				if ( ! self::is_related_variant_enabled( $sk ) ) {
-					return false;
-				}
-			}
-		}
-
 		$settings = self::get_settings();
 		if ( isset( $settings['tags'][ $tag_name ] ) ) {
 			return (bool) $settings['tags'][ $tag_name ];
@@ -253,9 +234,7 @@ class SettingsPage {
 			if ( null !== $tag_default ) {
 				return $tag_default;
 			}
-			return $is_related
-				? $source_obj->related_variant_default_enabled()
-				: $source_obj->tag_default_enabled();
+			return $source_obj->tag_default_enabled();
 		}
 
 		// Fall back to _registered_tags (used by deprecated-tag callers and try_ tags).
@@ -266,30 +245,11 @@ class SettingsPage {
 				return $def;
 			}
 			if ( $src ) {
-				return $rel
-					? $src->related_variant_default_enabled()
-					: $src->tag_default_enabled();
+				return $src->tag_default_enabled();
 			}
 		}
 
 		return true;
-	}
-
-	/**
-	 * Check if related variant tags are enabled for a source.
-	 *
-	 * Defaults to true for the 'post' source (backward compat — existing related_post_* tags
-	 * are enabled by default). Defaults to false for all other sources (external sources start
-	 * with related variants off).
-	 *
-	 * @param string $source_key Source key.
-	 * @return bool
-	 */
-	public static function is_related_variant_enabled( string $source_key ): bool {
-		$settings = self::get_settings();
-		$source   = SourceRegistry::get_source( $source_key );
-		$default  = $source ? $source->related_variant_default_enabled() : ( 'post' === $source_key );
-		return $settings['related_variants'][ $source_key ] ?? $default;
 	}
 
 	/**
@@ -310,9 +270,7 @@ class SettingsPage {
 				return $tag_default;
 			}
 			if ( $src ) {
-				return $is_related
-					? $src->related_variant_default_enabled()
-					: $src->tag_default_enabled();
+				return $src->tag_default_enabled();
 			}
 		}
 		return true;
@@ -327,10 +285,8 @@ class SettingsPage {
 	 *
 	 * @return array {
 	 *     source_key => [
-	 *         'label'               => string,
-	 *         'has_related_variant' => bool,
-	 *         'tags'                => [ tag_name => label ],   // direct tags
-	 *         'related_tags'        => [ tag_name => label ],   // related variant tags
+	 *         'label' => string,
+	 *         'tags'  => [ tag_name => label ],
 	 *     ]
 	 * }
 	 */
@@ -352,10 +308,8 @@ class SettingsPage {
 			$source_context = $source->get_context_type();
 
 			$groups[ $sk ] = array(
-				'label'               => $source->get_title_prefix(),
-				'has_related_variant' => $source->has_related_variant(),
-				'tags'                => array(),
-				'related_tags'        => array(),
+				'label' => $source->get_title_prefix(),
+				'tags'  => array(),
 			);
 
 			// --- Direct tags ---
@@ -401,72 +355,32 @@ class SettingsPage {
 				$groups[ $sk ]['tags'][ $tag_name ] = $source->get_title_prefix() . ' ' . $tpl['title'];
 			}
 
-			// --- Related variant tags ---
-			if ( ! $source->has_related_variant() ) {
-				continue;
-			}
-
-			foreach ( $templates as $tpl ) {
-				if ( in_array( $sk, $tpl['excluded_source_keys'] ?? array(), true ) ) {
-					continue;
-				}
-
-				// Related variants always resolve to a post; only 'post'-context templates apply.
-				$supported_contexts = $tpl['context_types'] ?? array( 'post' );
-				if ( ! in_array( 'post', $supported_contexts, true ) ) {
-					continue;
-				}
-
-				$tag_name = $source->get_related_tag_prefix() . '_' . $tpl['key'];
-
-				if ( in_array( $tag_name, $computed, true ) ) {
-					continue;
-				}
-				$computed[] = $tag_name;
-
-				$cf = $tpl['core_fn'] ?? null;
-				if ( ! $cf ) {
-					continue;
-				}
-
-				$groups[ $sk ]['related_tags'][ $tag_name ] = $source->get_related_title_prefix() . ' ' . $tpl['title'];
-			}
 		}
 
 		// --- Deprecated wrappers ---
 		// These are registered via bws_register_deprecated_tags() (not the template system).
 		// Appended to their respective source groups.
 		$deprecated = array(
-			'post'  => array(
-				'tags'         => array(
-					'current_post_featured_image' => __( 'current_post_featured_image (Deprecated)', 'generateblocks' ),
-					'current_post_meta_image'     => __( 'current_post_meta_image (Deprecated)', 'generateblocks' ),
-					'post_acf_date_time_single'   => __( 'post_acf_date_time_single (Deprecated)', 'generateblocks' ),
-					'post_acf_date_time_range'    => __( 'post_acf_date_time_range (Deprecated)', 'generateblocks' ),
-				),
-				'related_tags' => array(
-					'related_post_meta_image' => __( 'related_post_meta_image (Deprecated)', 'generateblocks' ),
-					'related_post_url'        => __( 'related_post_url (Deprecated)', 'generateblocks' ),
-				),
+			'post' => array(
+				'current_post_featured_image' => __( 'current_post_featured_image (Deprecated)', 'generateblocks' ),
+				'current_post_meta_image'     => __( 'current_post_meta_image (Deprecated)', 'generateblocks' ),
+				'post_acf_date_time_single'   => __( 'post_acf_date_time_single (Deprecated)', 'generateblocks' ),
+				'post_acf_date_time_range'    => __( 'post_acf_date_time_range (Deprecated)', 'generateblocks' ),
+				'related_post_meta_image'     => __( 'related_post_meta_image (Deprecated)', 'generateblocks' ),
+				'related_post_url'            => __( 'related_post_url (Deprecated)', 'generateblocks' ),
 			),
-			'term'  => array(
-				'tags'         => array(
-					'term_name'        => __( 'term_name (Deprecated)', 'generateblocks' ),
-					'term_field_image' => __( 'term_field_image (Deprecated)', 'generateblocks' ),
-				),
-				'related_tags' => array(),
+			'term' => array(
+				'term_name'        => __( 'term_name (Deprecated)', 'generateblocks' ),
+				'term_field_image' => __( 'term_field_image (Deprecated)', 'generateblocks' ),
 			),
 		);
 
-		foreach ( $deprecated as $sk => $dep ) {
+		foreach ( $deprecated as $sk => $tags ) {
 			if ( ! isset( $groups[ $sk ] ) ) {
 				continue;
 			}
-			foreach ( $dep['tags'] as $tag_name => $label ) {
+			foreach ( $tags as $tag_name => $label ) {
 				$groups[ $sk ]['tags'][ $tag_name ] = $label;
-			}
-			foreach ( $dep['related_tags'] as $tag_name => $label ) {
-				$groups[ $sk ]['related_tags'][ $tag_name ] = $label;
 			}
 		}
 
@@ -478,12 +392,7 @@ class SettingsPage {
 				continue;
 			}
 			// Match built-in label style: tag name + " (Deprecated)".
-			$label = $tag . ' (Deprecated)';
-			if ( ! empty( $entry['is_related'] ) ) {
-				$groups[ $sk ]['related_tags'][ $tag ] = $label;
-			} else {
-				$groups[ $sk ]['tags'][ $tag ] = $label;
-			}
+			$groups[ $sk ]['tags'][ $tag ] = $tag . ' (Deprecated)';
 		}
 
 		return $groups;
@@ -523,9 +432,6 @@ class SettingsPage {
 			foreach ( array_keys( $group['tags'] ) as $tag_name ) {
 				$map[ $tag_name ] = $source_key;
 			}
-			foreach ( array_keys( $group['related_tags'] ) as $tag_name ) {
-				$map[ $tag_name ] = $source_key;
-			}
 		}
 
 		return $map;
@@ -552,10 +458,8 @@ class SettingsPage {
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
 				<?php foreach ( $groups as $source_key => $group ) :
-					$source_enabled  = self::is_source_enabled( $source_key );
-					$source_id       = 'bws-source-' . esc_attr( $source_key );
-					$has_related     = ! empty( $group['has_related_variant'] );
-					$related_enabled = $has_related ? self::is_related_variant_enabled( $source_key ) : false;
+					$source_enabled = self::is_source_enabled( $source_key );
+					$source_id      = 'bws-source-' . esc_attr( $source_key );
 				?>
 				<div class="bws-tag-group" data-source="<?php echo esc_attr( $source_key ); ?>">
 					<h2 class="bws-source-header">
@@ -602,61 +506,6 @@ class SettingsPage {
 						<?php endforeach; ?>
 						</tbody>
 					</table>
-					<?php endif; ?>
-
-					<?php if ( $has_related && ! empty( $group['related_tags'] ) ) :
-						$rv_toggle_id = 'bws-related-variants-' . esc_attr( $source_key );
-						/* translators: %s: Source label, e.g. "Post" */
-						$rv_label     = sprintf( __( '%s Related Variants', 'generateblocks' ), $group['label'] );
-						$rv_disabled  = ! $source_enabled || ! $related_enabled;
-					?>
-					<div class="bws-related-variant-section <?php echo $source_enabled ? '' : 'bws-disabled'; ?>"
-						data-source="<?php echo esc_attr( $source_key ); ?>">
-						<h3 class="bws-related-variant-header">
-							<label for="<?php echo $rv_toggle_id; ?>">
-								<input
-									type="checkbox"
-									id="<?php echo $rv_toggle_id; ?>"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[related_variants][<?php echo esc_attr( $source_key ); ?>]"
-									value="1"
-									class="bws-related-variant-toggle"
-									data-source="<?php echo esc_attr( $source_key ); ?>"
-									<?php checked( $related_enabled ); ?>
-									<?php disabled( ! $source_enabled ); ?>
-								/>
-								<?php echo esc_html( $rv_label ); ?>
-							</label>
-						</h3>
-
-						<table class="bws-tags-table bws-related-tags widefat" data-source="<?php echo esc_attr( $source_key ); ?>">
-							<tbody>
-							<?php foreach ( $group['related_tags'] as $tag_name => $tag_label ) :
-								$tag_enabled = isset( $settings['tags'][ $tag_name ] ) ? (bool) $settings['tags'][ $tag_name ] : self::get_tag_default( $tag_name );
-								$tag_id      = 'bws-tag-' . esc_attr( $tag_name );
-							?>
-								<tr class="bws-tag-row <?php echo $rv_disabled ? 'bws-disabled' : ''; ?>">
-									<td class="bws-tag-checkbox">
-										<input
-											type="checkbox"
-											id="<?php echo $tag_id; ?>"
-											name="<?php echo esc_attr( self::OPTION_NAME ); ?>[tags][<?php echo esc_attr( $tag_name ); ?>]"
-											value="1"
-											class="bws-tag-toggle"
-											<?php checked( $tag_enabled ); ?>
-											<?php disabled( $rv_disabled ); ?>
-										/>
-									</td>
-									<td>
-										<label for="<?php echo $tag_id; ?>">
-											<?php echo esc_html( $tag_label ); ?>
-										</label>
-										<code class="bws-tag-name"><?php echo esc_html( $tag_name ); ?></code>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-							</tbody>
-						</table>
-					</div>
 					<?php endif; ?>
 
 				</div>
@@ -812,40 +661,16 @@ class SettingsPage {
 			.bws-dynamic-tags-settings .bws-tag-row.bws-disabled label {
 				cursor: default;
 			}
-			.bws-dynamic-tags-settings .bws-related-variant-section {
-				margin-left: 20px;
-				margin-top: 8px;
-			}
-			.bws-dynamic-tags-settings .bws-related-variant-header {
-				margin: 0 0 4px;
-				padding: 8px 12px;
-				background: #f6f7f7;
-				border: 1px solid #c3c4c7;
-				border-bottom: none;
-				font-size: 13px;
-				font-weight: normal;
-			}
-			.bws-dynamic-tags-settings .bws-related-variant-header label {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				cursor: pointer;
-				font-weight: 500;
-			}
-			.bws-dynamic-tags-settings .bws-related-variant-section.bws-disabled .bws-related-variant-header {
-				opacity: 0.5;
-			}
 		</style>
 
 		<script>
 			( function() {
-				// Source master toggle: controls direct tags + related variant section.
+				// Source master toggle: controls direct tag rows.
 				document.querySelectorAll( '.bws-source-toggle' ).forEach( function( toggle ) {
 					toggle.addEventListener( 'change', function() {
 						var source  = this.dataset.source;
 						var enabled = this.checked;
 
-						// Toggle direct tag rows.
 						var directTable = document.querySelector( '.bws-direct-tags[data-source="' + source + '"]' );
 						if ( directTable ) {
 							directTable.querySelectorAll( '.bws-tag-row' ).forEach( function( row ) {
@@ -859,58 +684,6 @@ class SettingsPage {
 								}
 							} );
 						}
-
-						// Toggle related variant section.
-						var rvSection = document.querySelector( '.bws-related-variant-section[data-source="' + source + '"]' );
-						if ( rvSection ) {
-							var rvToggle = rvSection.querySelector( '.bws-related-variant-toggle' );
-
-							if ( enabled ) {
-								rvSection.classList.remove( 'bws-disabled' );
-								if ( rvToggle ) rvToggle.disabled = false;
-							} else {
-								rvSection.classList.add( 'bws-disabled' );
-								if ( rvToggle ) rvToggle.disabled = true;
-							}
-
-							// Related tag rows depend on both source AND related variant toggle state.
-							var rvEnabled = enabled && rvToggle && rvToggle.checked;
-							var rvTable   = rvSection.querySelector( '.bws-related-tags' );
-							if ( rvTable ) {
-								rvTable.querySelectorAll( '.bws-tag-row' ).forEach( function( row ) {
-									var cb = row.querySelector( '.bws-tag-toggle' );
-									if ( rvEnabled ) {
-										row.classList.remove( 'bws-disabled' );
-										cb.disabled = false;
-									} else {
-										row.classList.add( 'bws-disabled' );
-										cb.disabled = true;
-									}
-								} );
-							}
-						}
-					} );
-				} );
-
-				// Related variant sub-group toggle: controls related tag rows only.
-				document.querySelectorAll( '.bws-related-variant-toggle' ).forEach( function( toggle ) {
-					toggle.addEventListener( 'change', function() {
-						var source  = this.dataset.source;
-						var enabled = this.checked;
-
-						var rvTable = document.querySelector( '.bws-related-tags[data-source="' + source + '"]' );
-						if ( ! rvTable ) return;
-
-						rvTable.querySelectorAll( '.bws-tag-row' ).forEach( function( row ) {
-							var cb = row.querySelector( '.bws-tag-toggle' );
-							if ( enabled ) {
-								row.classList.remove( 'bws-disabled' );
-								cb.disabled = false;
-							} else {
-								row.classList.add( 'bws-disabled' );
-								cb.disabled = true;
-							}
-						} );
 					} );
 				} );
 			} )();

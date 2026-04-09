@@ -43,8 +43,8 @@ post is in scope.
 |---|---|---|---|---|---|
 | `post` | `post_` | Current post (direct) | Template as-is | Built-in | |
 | `related_post` | `related_post_` | Current post → related post (ACF rel field on post) | Template − `source` | Built-in | Requires `rel` option |
-| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `rel` + `rel_2`; opt-in |
-| `post_term_related_post` | `post_term_related_post_` | Current post → post's term (via `taxonomy`) → term's related post (via `rel` on term). First term only. | Template − `source` | Built-in | Requires `taxonomy` + `rel`; opt-in. |
+| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `rel` + `rel_2` |
+| `post_term_related_post` | `post_term_related_post_` | Current post → post's term (via `taxonomy`) → term's related post (via `rel` on term). First term only. | Template − `source` | Built-in | Requires `taxonomy` + `rel` |
 | `portal` | `portal_` | Current post (portal context) | Template as-is | `bws-portal-system` | External; registered via `bws_dynamic_tags_register_sources` hook |
 
 ### Term-context sources
@@ -54,7 +54,7 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 | Source key | Tag prefix | Traversal | Supports | Registered by | Notes |
 |---|---|---|---|---|---|
 | `term` | `term_` | Current term (direct) | Template + `source` (always) | Built-in | Archive pages + term loops |
-| `term_related_post` | `term_related_post_` | Current term → related post (ACF rel field on term) | Template − `source` | Built-in | Requires `rel` option on the term entity; opt-in. ⚠️ Starts from term context — see note. |
+| `term_related_post` | `term_related_post_` | Current term → related post (ACF rel field on term) | Template − `source` | Built-in | Requires `rel` option on the term entity. ⚠️ Starts from term context — see note. |
 
 > ⚠️ **`term_related_post_` vs `post_term_related_post_`:** Both involve a term's related post,
 > but they start from different contexts. `term_related_post_` starts on an **archive or term loop
@@ -69,24 +69,24 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 The row label is the **template key**. The full tag name is `{prefix}{template_key}`,
 e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
-| Template | Supports | `post_` | `related_post_` | `second_related_post_` | `post_term_related_post_` | `portal_` |
-|---|---|---|---|---|---|---|
-| **title** | `link`, `source` | GB | ✅ | ☐ | ✅ | ☐ |
-| **content** | `source` | ✅ | ✅ | ☐ | ✅ | ☐ |
-| **excerpt** | `source` | GB | ✅ | ☐ | ✅ | ☐ |
-| **permalink** | `source` | GB | ✅ | ☐ | ✅ | ☐ |
-| **custom_text** | `meta`, `link`, `source` | ✅ | ✅ | ☐ | ✅ | ☐ |
-| **featured_image** | `image-size` | ✅ | ✅ | ☐ | ✅ | ☐ |
-| **custom_image** | `image-size` | ✅ | ✅ | ☐ | ✅ | ☐ |
-| **custom_date_single** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
-| **custom_date_range** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
-| **custom_datetime_single** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
-| **custom_datetime_range** | `source` | ✅ | ☐ | ☐ | ✅ | ☐ |
-| **term_title** | `link`, `source` | ✅ | ✅ | ☐ | — | ☐ |
-| **term_permalink** | `source` | ✅ | ✅ | ☐ | — | ☐ |
-| **term_description** | `source` | ✅ | ✅ | ☐ | — | ☐ |
-| **term_custom_text** | `meta`, `source` | ✅ | ✅ | ☐ | — | ☐ |
-| **term_custom_image** | `image-size`, `source` | ✅ | ✅ | ☐ | — | ☐ |
+| Template | Supports | Options | `post_` | `related_post_` | `second_related_post_` | `post_term_related_post_` | `portal_` |
+|---|---|---|---|---|---|---|---|
+| **title** | `link`, `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
+| **content** | `source` | `type`, `key`, `fallback_text` | ✅ | ✅ | ✅ | ✅ | ☐ |
+| **excerpt** | `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
+| **permalink** | `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
+| **custom_text** | `meta`, `link`, `source` | `key`, `fallback_text` | ✅ | ✅ | ✅ | ✅ | ☐ |
+| **featured_image** | `image-size` | `return_type` | ✅ | ✅ | ✅ | ✅ | ☐ |
+| **custom_image** | `image-size` | `field_key`, `return_type` | ✅ | ✅ | ✅ | ✅ | ☐ |
+| **custom_date_single** | `source` | `date_time_field`, `format_type`, `custom_format`, `omit_current_year`, `fallback_text` | ✅ | ☐ | ✅ | ✅ | ☐ |
+| **custom_date_range** | `source` | `start_field`, `end_field`, `format_type`, `custom_format`, `omit_current_year`, `separator`, `fallback_text` | ✅ | ☐ | ✅ | ✅ | ☐ |
+| **custom_datetime_single** | `source` | `date_time_field`, `time_field`, `format_type`, `custom_format`, `date_only`, `time_only`, `smart_time`, `omit_current_year`, `fallback_text` | ✅ | ☐ | ✅ | ✅ | ☐ |
+| **custom_datetime_range** | `source` | `start_field`, `start_time_field`, `end_field`, `end_time_field`, `format_type`, `custom_format`, `date_only`, `time_only`, `smart_time`, `omit_current_year`, `separator`, `date_time_separator`, `fallback_text` | ✅ | ☐ | ✅ | ✅ | ☐ |
+| **term_title** | `link`, `source` | `taxonomy`, `fallback_text` | ✅ | ✅ | ✅ | — | ☐ |
+| **term_permalink** | `source` | `taxonomy`, `fallback_text` | ✅ | ✅ | ✅ | — | ☐ |
+| **term_description** | `source` | `taxonomy`, `fallback_text` | ✅ | ✅ | ✅ | — | ☐ |
+| **term_custom_text** | `meta`, `source` | `taxonomy`, `key`, `fallback_text` | ✅ | ✅ | ✅ | — | ☐ |
+| **term_custom_image** | `image-size`, `source` | `taxonomy`, `field_key`, `return_type` | ✅ | ✅ | ✅ | — | ☐ |
 
 `description` is not listed — it is a term-context-only template with no post-context implementation.
 
@@ -94,20 +94,20 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
 ## Tag Matrix — Term-context sources
 
-| Template | Supports | `term_` | `term_related_post_` |
-|---|---|---|---|
-| **title** | `link`, `source` | ✅ | ☐ |
-| **content** | `source` | — | ☐ |
-| **excerpt** | `source` | — | ☐ |
-| **permalink** | `source` | ✅ | ☐ |
-| **description** | — | ✅ | — |
-| **custom_text** | `meta`, `link`, `source` | ✅ | ☐ |
-| **featured_image** | `image-size` | — | ☐ |
-| **custom_image** | `image-size` | ✅ | ☐ |
-| **custom_date_single** | `source` | ☐ | ☐ |
-| **custom_date_range** | `source` | ☐ | ☐ |
-| **custom_datetime_single** | `source` | ☐ | ☐ |
-| **custom_datetime_range** | `source` | ☐ | ☐ |
+| Template | Supports | Options | `term_` | `term_related_post_` |
+|---|---|---|---|---|
+| **title** | `link`, `source` | — | ✅ | ✅ |
+| **content** | `source` | `type`, `key`, `fallback_text` | — | ✅ |
+| **excerpt** | `source` | — | — | ✅ |
+| **permalink** | `source` | — | ✅ | ✅ |
+| **description** | — | — | ✅ | — |
+| **custom_text** | `meta`, `link`, `source` | `key`, `fallback_text` | ✅ | ✅ |
+| **featured_image** | `image-size` | `return_type` | — | ✅ |
+| **custom_image** | `image-size` | `field_key`, `return_type` | ✅ | ✅ |
+| **custom_date_single** | `source` | `date_time_field`, `format_type`, `custom_format`, `omit_current_year`, `fallback_text` | ☐ | ☐ |
+| **custom_date_range** | `source` | `start_field`, `end_field`, `format_type`, `custom_format`, `omit_current_year`, `separator`, `fallback_text` | ☐ | ☐ |
+| **custom_datetime_single** | `source` | `date_time_field`, `time_field`, `format_type`, `custom_format`, `date_only`, `time_only`, `smart_time`, `omit_current_year`, `fallback_text` | ☐ | ☐ |
+| **custom_datetime_range** | `source` | `start_field`, `start_time_field`, `end_field`, `end_time_field`, `format_type`, `custom_format`, `date_only`, `time_only`, `smart_time`, `omit_current_year`, `separator`, `date_time_separator`, `fallback_text` | ☐ | ☐ |
 
 `term_*` (term-extraction) templates are not listed — they extract terms FROM a post and have no
 meaning in a term-context source.
@@ -123,14 +123,12 @@ Resolution order for each cell (first match wins):
 3. `tag_default_enabled()` / `related_variant_default_enabled()` on the source class
 4. Fallback: `true` (enabled)
 
-The source toggle itself defaults to `source_default_enabled()` on the source class (true for all built-in sources except `second_related_post` and `post_term_related_post`).
+The source toggle itself defaults to `source_default_enabled()` on the source class (true for all built-in sources).
 
 Drivers of the ☐ cells above:
 
-- **`second_related_post_` (all)** — source off by default (`source_default_enabled() = false`); tags ✅ when source enabled (`tag_default_enabled() = true`)
-- **`post_term_related_post_` (all)** — source off by default (`source_default_enabled() = false`); tags ✅ when source enabled (`tag_default_enabled() = true`)
-- **`term_related_post_` (all)** — `related_variant_default_enabled() = false` on TaxonomyTerm
 - **date/datetime × `related_post_` and `term_`** — `default_enabled_map: [related_post => false, term => false]` on each date template
+- **date/datetime × `second_related_post_`** — `default_enabled_map` on each date template does not include `second_related_post`; these are ✅ per `tag_default_enabled() = true` on the source
 - **`portal_` (all)** — external source; assumed opt-in pending portal plugin declaration
 
 ---
@@ -242,6 +240,82 @@ with additional columns when implemented.
 Each new post-context source adds a column to the post-context matrix. Each new term-context source
 adds a column to the term-context matrix. Default-enabled status is set per source via
 `source_default_enabled()` and `related_variant_default_enabled()` on the source class.
+
+---
+
+## Potential future templates
+
+These template types require their own option sets and formatting logic that `combine_text` cannot
+replicate. Each would add a row to all applicable source matrices under the `format_` prefix.
+
+| Template key | Tag prefix | Description | Status |
+|---|---|---|---|
+| `format_number` | `format_number` | Format a raw numeric field: decimal places, thousands separator, currency symbol + position, optional prefix/suffix | To be considered |
+| `format_phone` | `format_phone` | Format a raw stored phone number string with regional pattern and optional country code | To be considered |
+
+The `format_` prefix distinguishes these from plain `text` output — they require structured option sets
+to produce correctly formatted display strings. Image tags are excluded: multiple return formats are
+already built into image tag mechanics.
+
+---
+
+## Template key renaming tracker
+
+Tracks planned template key renames and consolidations. When a template key changes, the generated
+tag names for all sources change with it. Deprecated wrappers are registered via `DeprecatedTagRegistry`
+for each old tag name and appear in the editor picker under the "Deprecated" group. Status values
+match the option renaming tracker below.
+
+| Current key | New key | Old tag example | New tag example | Status | Notes |
+|---|---|---|---|---|---|
+| `custom_text` | `text` | `post_custom_text` | `post_text` | Approved | Removes `meta` from supports; own `key` input replaces GB pass-through. Deprecated wrappers for all source variants. |
+| `custom_image` | `image` | `post_custom_image` | `post_image` | Approved | `field_key` option stays (must not be `key` on media-type tags — GB `alter_replacement()` collision). Deprecated wrappers for all source variants. |
+| `custom_date_single` | `date_single` | `post_custom_date_single` | `post_date_single` | Approved — defer until after loop sources | Rename only; gains `mode` option (date/datetime/time) when merged with datetime template. Loop plan updated in same pass. |
+| `custom_date_range` | `date_range` | `post_custom_date_range` | `post_date_range` | Approved — defer until after loop sources | Rename only; gains `mode` option when merged with datetime template. |
+| `custom_datetime_single` | *(merged into `date_single`)* | `post_custom_datetime_single` | `post_date_single mode:datetime` | Approved — defer until after loop sources | Datetime templates merged into date templates via `mode` option. Deprecated wrappers for all `custom_datetime_*` source variants. Loop core functions updated in same pass. |
+| `custom_datetime_range` | *(merged into `date_range`)* | `post_custom_datetime_range` | `post_date_range mode:datetime` | Approved — defer until after loop sources | Same. |
+
+**Deprecation wrapper scope:** For each renamed template key, one deprecated wrapper is registered
+per source that produced a tag with the old name — e.g. `post_custom_text`, `related_post_custom_text`,
+`term_custom_text`, `post_term_related_post_custom_text`, etc. The `option_renames` field on each
+wrapper carries any option key renames that apply (see option renaming tracker below) so the
+conversion utility can rewrite both tag name and option names in one pass.
+
+---
+
+## Option name renaming tracker
+
+Tracks proposed renames from the naming pass. Status values: **Approved** (decision made, not yet
+implemented), **Under consideration** (needs more research or discussion), **Pending** (not yet
+looked at).
+
+Scope notation: `[image]` = image tags only; no scope = applies to all templates that have the option.
+
+| Current name | Proposed name | Scope | Status | Notes |
+|---|---|---|---|---|
+| `fallback_text` | `fallback` | all text templates | Approved | Aligns with GB Pro `loop_item`; shorter; no per-tag conflict |
+| `fallback_url` | `fallback` | image templates | Approved | Same key as `fallback_text` rename; no template has both simultaneously |
+| `separator` | `range_sep`? | date range | Under consideration | Proposed name `range_sep`; pending: assess alongside `date_time_separator` and format field logic before finalising |
+| `return_type` | `key` | image templates | Approved | Aligns with GB's own `featured_image` and `media` pattern (`key:url`, `key:alt`, etc.); no native processing conflict confirmed |
+| `field_key` | `field` | image templates | Approved | Required for coherence: `key` on image tags = return type (GB convention); ACF field must use a different name. `from:field` on image tags signals "use the `field` option", vs `from:key` on text/content/date tags. |
+| `type` (source selector) | `from` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `from` only appears when overriding. `_content`: unset=post content, `from:key`, `from:title`, `from:excerpt`. `_text`: unset=ACF field (uses `key`), `from:title`. `_image` (post sources): unset=featured image, `from:field` (not `from:key` — `key` on image tags means return type per GB convention). `_image` (term sources): `from` not offered — always ACF field. Note: `from:key` is never written on `_text` since ACF is its default. |
+| value `custom_field` | `key` / `field` | `from` option | Approved | `from:key` on text/content/date — "use the `key` option as the field name". `from:field` on image — "use the `field` option as the ACF field". Two values because image tags reserve `key` for return type (GB convention). Not applicable to `_text` (ACF is its unset default). |
+| `type_N` (try_ slots) | `from_N` | try_ templates | Approved — shim required | Read as `$options["from_{$n}"] ?? $options["type_{$n}"] ?? ''` until a migrator handles existing saved tags |
+| `omit_current_year` | `show_current_year` | date/datetime | Approved — defer until after loop sources | Flip boolean so unset = omit current year (default smart behavior); set = always show year. Parallels `show_midnight` — both follow "show [the thing normally suppressed]" pattern. Fixes `default:true` serialization problem. |
+| `date_time_separator` | `sep`? | date single + range | Under consideration | May only apply when assembling from separate date+time fields with no combined format string; assess whether this option is needed at all once format field logic is finalised |
+| `mode` (new option) | — | date/datetime | Approved | Mode selector for consolidated date templates: unset=datetime (primary default), `mode:date`, `mode:time`. Controls output filtering regardless of ACF return format or manual format string — `mode:date` strips time from output even if the stored value and format include it; `mode:time` strips date. Fully supersedes `date_only` and `time_only` flags. Secondary time fields hidden only when `mode:date`; condition is `mode: 'not:date'` (unset counts as not-date). |
+| `date_time_field` | `key` | date single | Approved — defer until after loop sources | Primary field key; holds date, datetime, or time value per `mode`. Consistent with all non-image templates. |
+| `time_field` | `time_key` | date single | Approved — defer until after loop sources | Secondary time field for when date+time are split across separate ACF fields; hidden when `mode:date`. |
+| `start_field` | `start_key` | date range | Approved — defer until after loop sources | Primary start field key; consistent with `key` rename. |
+| `end_field` | `end_key` | date range | Approved — defer until after loop sources | Primary end field key. |
+| `start_time_field` | `start_time_key` | date range | Approved — defer until after loop sources | Secondary start time field; hidden when `mode:date`. |
+| `end_time_field` | `end_time_key` | date range | Approved — defer until after loop sources | Secondary end time field; hidden when `mode:date`. |
+| `format_type` + `custom_format` | `format` | date/datetime | Pending — hold for consolidation | Interacts with new mode select (date/datetime/time); assess together |
+| `smart_time` | *(split)* | datetime | Approved — defer until after loop sources | Split into two: AM/PM consolidation becomes always-on (ungated, like month/year date redundancy removal); midnight display becomes `show_midnight` option (unset=hide midnight, set=show midnight; shown only for datetime/time modes). `smart_time` option eliminated entirely. |
+| `show_midnight` (new option) | — | date/datetime | Approved — defer until after loop sources | Unset = hide 00:00 times from output (default smart behavior); set = display midnight explicitly. Shown only when `mode` ∈ `[datetime, time]`. Pairs with `show_year` in following the same opt-in pattern for verbose display. |
+| `date_only` | *(eliminated)* | datetime | Approved — defer until after loop sources | Replaced by `mode:date`; `mode` also filters output, not just field selection |
+| `time_only` | *(eliminated)* | datetime | Approved — defer until after loop sources | Replaced by `mode:time`; `mode` also filters output, not just field selection |
+| `taxonomy` | `tax` | term extraction | Approved | Aligns with GB's `tax` (used by `term_list`); consistency reduces risk if GB ever registers conflicting tag names |
 
 ---
 

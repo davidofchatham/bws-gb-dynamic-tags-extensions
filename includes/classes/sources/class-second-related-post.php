@@ -5,9 +5,8 @@
  * Hop 1: current post → 'rel'  field → first related post (mid).
  * Hop 2: mid post     → 'rel_2' field → first second-degree related post.
  *
- * The source toggle is off by default (source_default_enabled() = false). When the source is
+ * The source is enabled by default (source_default_enabled() = true). When the source is
  * enabled, all individual tags are on by default (tag_default_enabled() = true).
- * No related-variant is available from this source (has_related_variant() = false).
  *
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
@@ -32,14 +31,13 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Source toggle is off by default — two-hop traversal is an advanced feature.
-	 * When enabled, all tags are on by default (see tag_default_enabled()).
+	 * Source is enabled by default for discoverability.
 	 *
 	 * @since 1.2.0
 	 * @return bool
 	 */
 	public function source_default_enabled(): bool {
-		return false;
+		return true;
 	}
 
 	/**
@@ -61,7 +59,11 @@ class SecondRelatedPost extends AbstractSource {
 	 * @return string[]
 	 */
 	public function get_excluded_supports(): array {
-		return [ 'source' ];
+		return array( 'source', 'link' );
+	}
+
+	public function needs_relationship_field(): bool {
+		return true;
 	}
 
 	/**

@@ -131,18 +131,15 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
-| `source_default_enabled(): bool` | Direct tags on/off by default | `true` | Set to `false` for advanced/experimental sources where all tags should be opt-in. |
-| `tag_default_enabled(): bool` | Per-tag on/off when source toggle is active | `source_default_enabled()` | Override to `true` when `source_default_enabled() = false` but all tags should be on by default once the source is enabled (e.g. `SecondRelatedPost`, `PostTermRelatedPost`). |
-| `related_variant_default_enabled(): bool` | Related-variant tags on/off by default | `true` | Set to `false` when the related-variant traversal is a new/advanced feature users must explicitly enable. |
+| `source_default_enabled(): bool` | Source toggle on/off by default | `true` | Set to `false` for advanced/experimental sources where all tags should be opt-in. All built-in sources default to `true` as of v1.5.0. |
+| `tag_default_enabled(): bool` | Per-tag on/off when source toggle is active | `source_default_enabled()` | Override independently when the source is opt-in but all its tags should be on once enabled. |
 
-### Related variants
+### Traversal
 
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
-| `has_related_variant(): bool` | Whether source supports related-post traversal | `false` | Set to `true` to generate `{prefix}_related_post_*` tags. |
-| `get_related_tag_prefix(): string` | Related variant tag prefix | `{tag_prefix}_related_post` | Override for custom prefix (e.g. TaxonomyTerm uses `term_related_post`). |
-| `get_related_title_prefix(): string` | Related variant label prefix | `{title_prefix} Related Post` | |
-| `get_related_gb_type(): string` | GB type for related-variant tags | `'related'` | |
+| `needs_relationship_field(): bool` | Whether this source requires a `rel` option to resolve | `false` | Return `true` for traversal sources (e.g. `RelatedPost`, `TermRelatedPost`, `SecondRelatedPost`). Signals the try-tag machinery to carry forward `$last_rel`. |
+| `get_ui_group(): string` | Admin matrix group for this source | `get_context_type()` | Override when the source should appear in a different group than its context type. `TermRelatedPost` returns `'term'` even though its `context_type` is `'post'`. |
 
 ### Options
 
@@ -353,7 +350,7 @@ Plugin tags automatically appear in the settings page when:
 3. Manually registered tags use `SettingsPage::is_tag_enabled( 'tag_name', 'source_key' )` to check the toggle
 
 **Default-enabled behaviour:**
-- The source toggle defaults to `source_default_enabled()` on the source class (`true` for all built-in sources except `SecondRelatedPost` and `PostTermRelatedPost`).
+- The source toggle defaults to `source_default_enabled()` on the source class (`true` for all built-in sources as of v1.5.0).
 - Individual tag defaults within an enabled source are controlled by `tag_default_enabled()` (defaults to `source_default_enabled()`). Override `tag_default_enabled()` independently when the source should be opt-in but all its tags should be on once enabled.
 - Individual templates can override the per-tag default via `default_enabled_map` in the template definition.
 
@@ -427,6 +424,6 @@ function portal_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `supports` | array | — | GB supports array. Defaults to `[]`. |
 | `options` | array | — | GB options array. Omit if no options. |
 | `callback` | callable\|string | Yes | PHP callable that handles tag output. |
-| `is_related` | bool | — | Set `true` to list under the related-tags group in settings. Defaults to `false`. |
+| `is_related` | bool | — | Reserved for internal routing. Defaults to `false`. |
 | `since` | string | — | Version string passed to `bws_deprecated_tag_notice()`. |
 | `description` | string | — | Overrides the auto-generated GB tag description. Auto-default: `'Deprecated — use "new_tag" instead.'` |

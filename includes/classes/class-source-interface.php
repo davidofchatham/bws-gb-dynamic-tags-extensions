@@ -7,6 +7,7 @@
  * @since 1.2.0 Renamed resolve_post_id() to resolve_id(); added tag prefix, context type, and related variant methods.
  * @since 1.2.0 Added format_id_for_acf(), source_default_enabled(), related_variant_default_enabled().
  * @since 1.4.1 Added tag_default_enabled().
+ * @since 1.5.0 Removed related-variant methods; added needs_relationship_field(), get_ui_group().
  */
 
 namespace BWS\DynamicTags;
@@ -76,46 +77,11 @@ interface SourceInterface {
 	public function get_context_type(): string;
 
 	/**
-	 * Whether this source supports related-variant tag generation.
-	 *
-	 * @return bool
-	 */
-	public function has_related_variant(): bool;
-
-	/**
-	 * Get the tag name prefix for related-variant tags.
-	 *
-	 * @return string e.g. 'related_post', 'portal_related_post'.
-	 */
-	public function get_related_tag_prefix(): string;
-
-	/**
-	 * Get the human-readable title prefix for related-variant tags.
-	 *
-	 * @return string e.g. 'Related Post', 'Portal Related Post'.
-	 */
-	public function get_related_title_prefix(): string;
-
-	/**
-	 * Get the GenerateBlocks tag type for related-variant tags.
-	 *
-	 * @return string e.g. 'related'.
-	 */
-	public function get_related_gb_type(): string;
-
-	/**
 	 * Get the effective source identifier for try_ tag src_N option values (direct).
 	 *
 	 * @return string Single-word identifier, e.g. 'post', 'portal'.
 	 */
 	public function get_effective_source_id(): string;
-
-	/**
-	 * Get the effective source identifier for try_ tag src_N option values (related variant).
-	 *
-	 * @return string e.g. 'related', 'portal_related'.
-	 */
-	public function get_related_effective_source_id(): string;
 
 	/**
 	 * Format the resolved entity ID for use as an ACF object_id parameter.
@@ -138,14 +104,6 @@ interface SourceInterface {
 	public function source_default_enabled(): bool;
 
 	/**
-	 * Whether related-variant tags from this source are enabled by default in admin settings.
-	 *
-	 * @since 1.2.0
-	 * @return bool
-	 */
-	public function related_variant_default_enabled(): bool;
-
-	/**
 	 * Whether individual tags from this source are enabled by default in admin settings
 	 * (when the source toggle itself is on and no per-tag setting has been saved).
 	 *
@@ -164,11 +122,28 @@ interface SourceInterface {
 	 * strategy. For example, a source that resolves its own post ID (rather than using
 	 * GB's post selector) can return ['source'] to hide the post picker UI.
 	 *
-	 * Only applied to post-context direct tags. Term-context tags and related-variant
-	 * tags always manage their supports independently.
+	 * Only applied to post-context direct tags.
 	 *
 	 * @since 1.3.0
 	 * @return string[] Supports to strip from template supports arrays.
 	 */
 	public function get_excluded_supports(): array;
+
+	/**
+	 * Whether this source requires a relationship field option to resolve.
+	 * Traversal sources (RelatedPost, TermRelatedPost, etc.) return true.
+	 *
+	 * @since 1.5.0
+	 * @return bool
+	 */
+	public function needs_relationship_field(): bool;
+
+	/**
+	 * Returns the UI group key this source belongs to in the admin matrix.
+	 * Defaults to get_context_type(). Override if the source should appear in a different group.
+	 *
+	 * @since 1.5.0
+	 * @return string
+	 */
+	public function get_ui_group(): string;
 }

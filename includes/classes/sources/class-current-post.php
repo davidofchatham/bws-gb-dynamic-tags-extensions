@@ -38,28 +38,8 @@ class CurrentPost extends AbstractSource {
 		return 'post';
 	}
 
-	public function has_related_variant(): bool {
-		return true;
-	}
-
-	public function get_related_tag_prefix(): string {
-		return 'related_post';
-	}
-
-	public function get_related_title_prefix(): string {
-		return __( 'Related Post', 'generateblocks' );
-	}
-
-	public function get_related_gb_type(): string {
-		return 'related';
-	}
-
 	public function get_effective_source_id(): string {
 		return 'post';
-	}
-
-	public function get_related_effective_source_id(): string {
-		return 'related';
 	}
 
 	public function resolve_id( array $options, $instance ) {

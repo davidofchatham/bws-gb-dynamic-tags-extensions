@@ -3,7 +3,7 @@ Contributors: bridgewebsolutions
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.1
-Stable tag: 1.4.2
+Stable tag: 1.5.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -33,6 +33,17 @@ Extends GenerateBlocks Pro with custom dynamic tags powered by Advanced Custom F
 3. Ensure GenerateBlocks Pro and ACF are active
 
 == Changelog ==
+
+= 1.5.0 =
+* Pattern B: RelatedPost and TermRelatedPost promoted to standalone source classes; removes related-variant mechanism (~240 lines)
+* New: TermRelatedPost source (Term → Rel. Post) — term context, post resolution, enabled by default
+* Add needs_relationship_field() and get_ui_group() to SourceInterface/AbstractSource
+* Remove has_related_variant() and 5 related-variant methods from SourceInterface/AbstractSource (breaking change for external sources)
+* SecondRelatedPost and PostTermRelatedPost: source toggle now enabled by default (discoverability)
+* All traversal sources now exclude 'link' support
+* try_ tags: traversal moved into source resolve_id(); $last_rel carry-forward preserved
+* Fix: inject relationship field option on traversal-source direct tags (RelatedPost, TermRelatedPost) — was missing after related-variant block removal
+* Fix: disabled sources no longer appear as options in try_ slot source dropdowns
 
 = 1.4.2 =
 * Fix datetime fallback: bws_handle_date_time_fallback() now returns empty string when fallback_text is unset, enabling standard "required to render" block behavior; previously returned hardcoded "Date TBA" / "Time TBA" / "Date/time TBA" strings unconditionally

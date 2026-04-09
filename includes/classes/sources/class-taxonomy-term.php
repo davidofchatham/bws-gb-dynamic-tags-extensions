@@ -4,7 +4,7 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.2.0
- * @since 1.2.0 Added format_id_for_acf(), has_related_variant() support, related variant prefixes, related_variant_default_enabled().
+ * @since 1.2.0 Added format_id_for_acf().
  */
 
 namespace BWS\DynamicTags\Sources;
@@ -41,18 +41,6 @@ class TaxonomyTerm extends AbstractSource {
 		return 'term';
 	}
 
-	public function has_related_variant(): bool {
-		return true;
-	}
-
-	public function get_related_tag_prefix(): string {
-		return 'term_related_post';
-	}
-
-	public function get_related_title_prefix(): string {
-		return __( 'Term Related Post', 'generateblocks' );
-	}
-
 	/**
 	 * Format term ID as ACF object_id for relationship field traversal.
 	 *
@@ -64,16 +52,6 @@ class TaxonomyTerm extends AbstractSource {
 	 */
 	public function format_id_for_acf( $id ) {
 		return 'term_' . $id;
-	}
-
-	/**
-	 * Term-related-post variant tags are opt-in (new traversal type).
-	 *
-	 * @since 1.2.0
-	 * @return bool
-	 */
-	public function related_variant_default_enabled(): bool {
-		return false;
 	}
 
 	/**

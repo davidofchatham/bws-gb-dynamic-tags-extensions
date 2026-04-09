@@ -34,14 +34,13 @@ class PostTermRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Source toggle is off by default — 3-hop traversal is an advanced feature.
-	 * When enabled, all tags are on by default (see tag_default_enabled()).
+	 * Source is enabled by default for discoverability.
 	 *
 	 * @since 1.4.1
 	 * @return bool
 	 */
 	public function source_default_enabled(): bool {
-		return false;
+		return true;
 	}
 
 	/**
@@ -62,7 +61,11 @@ class PostTermRelatedPost extends AbstractSource {
 	 * @return string[]
 	 */
 	public function get_excluded_supports(): array {
-		return [ 'source' ];
+		return array( 'source', 'link' );
+	}
+
+	public function needs_relationship_field(): bool {
+		return true;
 	}
 
 	/**

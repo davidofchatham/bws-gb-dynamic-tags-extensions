@@ -198,8 +198,16 @@ class TagTemplateRegistry {
 				}
 
 				$options = [];
+				// Traversal sources with no source-level options need the relationship field
+				// injected here (e.g. RelatedPost, TermRelatedPost). Sources that already include
+				// 'rel' in get_source_options() (e.g. SecondRelatedPost) are skipped.
+				if ( $source->needs_relationship_field()
+					&& empty( $source->get_source_options() )
+					&& function_exists( 'bws_get_relationship_field_options' ) ) {
+					$options = bws_get_relationship_field_options();
+				}
 				if ( ! empty( $options_fn_name ) && is_callable( $options_fn_name ) ) {
-					$options = call_user_func( $options_fn_name );
+					$options = array_merge( $options, call_user_func( $options_fn_name ) );
 				}
 				$options = array_merge( $options, $source->get_source_options() );
 
@@ -233,101 +241,6 @@ class TagTemplateRegistry {
 					$tag_name,
 					$effective_gb_type,
 					$effective_supports,
-					$options,
-					$callback
-				);
-			}
-
-			// ===
-			// Related-variant tags
-			// ===
-
-			if ( ! $source->has_related_variant() ) {
-				continue;
-			}
-
-			if ( ! SettingsPage::is_related_variant_enabled( $source->get_source_key() ) ) {
-				continue;
-			}
-
-			foreach ( self::$templates as $tpl ) {
-				// All-variant exclusion check (excludes both direct and related).
-				if ( in_array( $source->get_source_key(), $tpl['excluded_source_keys'] ?? [], true ) ) {
-					continue;
-				}
-
-				// Related variants always resolve to a post (via relationship traversal),
-				// so only templates that support 'post' context apply. Skips term-only
-				// templates like 'description' (which has core_fn = null).
-				$supported_contexts = $tpl['context_types'] ?? [ 'post' ];
-				if ( ! in_array( 'post', $supported_contexts, true ) ) {
-					continue;
-				}
-
-				$tag_name = $source->get_related_tag_prefix() . '_' . $tpl['key'];
-
-				if ( in_array( $tag_name, $existing, true ) ) {
-					continue;
-				}
-				$existing[] = $tag_name;
-
-				$tag_default = self::compute_tag_default( $tpl, $source->get_related_tag_prefix() );
-				SettingsPage::register_tag_source( $tag_name, $source, true, $tag_default );
-
-				if ( ! SettingsPage::is_tag_enabled( $tag_name, '', $source, true, $tag_default ) ) {
-					continue;
-				}
-
-				$cf = $tpl['core_fn'] ?? null;
-				if ( ! $cf ) {
-					continue;
-				}
-
-				// Related variant always gets relationship field options first, then template options.
-				$options = array_merge(
-					bws_get_relationship_field_options(),
-					! empty( $tpl['options_fn'] ) && is_callable( $tpl['options_fn'] )
-						? call_user_func( $tpl['options_fn'] ) : [],
-					$source->get_source_options()
-				);
-
-				// List mode options for templates that support multi-result output.
-				$supports_list = ! empty( $tpl['supports_list'] );
-				$gef           = $tpl['get_entities_fn'] ?? null;
-				if ( $supports_list ) {
-					$options['limit'] = array(
-						'type'  => 'number',
-						'label' => __( 'Limit', 'generateblocks' ),
-						'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
-					);
-					$options['sep'] = array(
-						'type'        => 'text',
-						'label'       => __( 'Separator', 'generateblocks' ),
-						'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
-						'placeholder' => ', ',
-					);
-				}
-
-				$sk = $source->get_source_key();
-
-				if ( $gef && is_callable( $gef ) ) {
-					$callback = self::make_related_entities_callback( $sk, $cf, $gef );
-				} elseif ( $supports_list ) {
-					$callback = self::make_related_list_callback( $sk, $cf );
-				} else {
-					$callback = self::make_related_single_callback( $sk, $cf );
-				}
-
-				// Related variants never show the source selector — the traversal always
-				// starts from the current context entity via 'rel'. Strip 'source' from
-				// whatever the template declares.
-				$related_supports = array_values( array_diff( $tpl['supports'] ?? [], [ 'source' ] ) );
-
-				self::register_gb_tag(
-					$source->get_related_title_prefix() . ' ' . $tpl['title'],
-					$tag_name,
-					$tpl['gb_type'] ?? $source->get_related_gb_type(),
-					$related_supports,
 					$options,
 					$callback
 				);
@@ -397,109 +310,6 @@ class TagTemplateRegistry {
 		};
 	}
 
-	/**
-	 * Related-variant single post callback.
-	 * Resolves base ID, traverses one ACF relationship hop, calls core function.
-	 */
-	private static function make_related_single_callback( string $sk, callable $cf ): callable {
-		return static function ( $o, $b, $i ) use ( $sk, $cf ) {
-			$src     = SourceRegistry::get_source( $sk );
-			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-			if ( ! $base_id ) {
-				return $cf( false, $o, $i );
-			}
-			$rel_key = $o['rel'] ?? '';
-			if ( empty( $rel_key ) ) {
-				return $cf( false, $o, $i );
-			}
-			$acf_id  = $src->format_id_for_acf( $base_id );
-			$related = bws_get_related_posts_data( $acf_id, $rel_key );
-			$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
-			// Condition seam: a future filter here can return false to suppress output.
-			// apply_filters( 'bws_dynamic_tag_condition', $post_id, $sk, $o, $i )
-			return $cf( $post_id ?: false, $o, $i );
-		};
-	}
-
-	/**
-	 * Related-variant list-mode callback.
-	 * Resolves base ID, traverses relationship, iterates multiple related posts.
-	 */
-	private static function make_related_list_callback( string $sk, callable $cf ): callable {
-		return static function ( $o, $b, $i ) use ( $sk, $cf ) {
-			$src     = SourceRegistry::get_source( $sk );
-			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-			if ( ! $base_id ) {
-				return $cf( false, $o, $i );
-			}
-			$rel_key = $o['rel'] ?? '';
-			if ( empty( $rel_key ) ) {
-				return $cf( false, $o, $i );
-			}
-			$acf_id  = $src->format_id_for_acf( $base_id );
-			$related = bws_get_related_posts_data( $acf_id, $rel_key );
-			if ( empty( $related ) ) {
-				return $cf( false, $o, $i );
-			}
-			$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
-			$sep     = $o['sep'] ?? ', ';
-			$slice   = array_slice( $related, 0, $limit );
-			$results = [];
-			foreach ( $slice as $rel_item ) {
-				$post_id = bws_extract_post_id( $rel_item );
-				if ( ! $post_id ) {
-					continue;
-				}
-				$val = $cf( $post_id, $o, $i );
-				if ( '' !== $val ) {
-					$results[] = $val;
-				}
-			}
-			// Condition seam: a future filter here can return false to suppress output.
-			// apply_filters( 'bws_dynamic_tag_condition', $results, $sk, $o, $i )
-			return empty( $results ) ? $cf( false, $o, $i ) : implode( $sep, $results );
-		};
-	}
-
-	/**
-	 * Related-variant sub-entity iteration callback.
-	 * Resolves base ID, traverses one ACF hop to a post, then iterates sub-entities (e.g. terms).
-	 */
-	private static function make_related_entities_callback( string $sk, callable $cf, callable $gef ): callable {
-		return static function ( $o, $b, $i ) use ( $sk, $cf, $gef ) {
-			$src     = SourceRegistry::get_source( $sk );
-			$base_id = $src ? $src->resolve_id( $o, $i ) : false;
-			if ( ! $base_id ) {
-				return '';
-			}
-			$rel_key = $o['rel'] ?? '';
-			if ( empty( $rel_key ) ) {
-				return '';
-			}
-			$acf_id  = $src->format_id_for_acf( $base_id );
-			$related = bws_get_related_posts_data( $acf_id, $rel_key );
-			$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
-			if ( ! $post_id ) {
-				return '';
-			}
-			$entities = $gef( $post_id, $o );
-			if ( empty( $entities ) ) {
-				return '';
-			}
-			$limit   = max( 1, (int) ( $o['limit'] ?? 1 ) );
-			$sep     = $o['sep'] ?? ', ';
-			$slice   = array_slice( $entities, 0, $limit );
-			$results = [];
-			foreach ( $slice as $entity ) {
-				$val = $cf( $entity->term_id, $o, $i );
-				if ( '' !== $val ) {
-					$results[] = $val;
-				}
-			}
-			return implode( $sep, $results );
-		};
-	}
-
 	// ===
 	// Try-tag generation
 	// ===
@@ -531,9 +341,11 @@ class TagTemplateRegistry {
 		// Sources eligible for try_ slot selection: exclude any source that requires its own
 		// global relationship options (e.g. SecondRelatedPost uses 'rel'/'rel_2' at the tag
 		// level, not per-slot, so it cannot participate in the slot-based source system).
+		// Also exclude disabled sources — no point offering a source slot the user has turned off.
 		$try_slot_sources = array_filter(
 			$effective_sources,
 			static fn( $entry ) => empty( $entry['source']->get_source_options() )
+				&& SourceRegistry::is_source_enabled( $entry['source']->get_source_key() )
 		);
 
 		// Snapshot existing tags for dup-check.
@@ -572,7 +384,7 @@ class TagTemplateRegistry {
 			// Computed from try_slot_sources only (SecondRelatedPost already excluded).
 			$related_src_ids = array_keys( array_filter(
 				$try_slot_sources,
-				static fn( $e ) => $e['is_related']
+				static fn( $e ) => $e['needs_rel']
 			) );
 
 			// Slot 1 source options: no inherit entry — slot 1 must have an explicit source.
@@ -803,26 +615,16 @@ class TagTemplateRegistry {
 					// Select appropriate core function for this context type.
 					$fn = ( 'term' === $ctx && $tcf ) ? $tcf : $cf;
 
-					$base_id = $entry['source']->resolve_id( $eval_opts, $inst );
-					if ( ! $base_id ) {
-						continue;
-					}
-
-					if ( $entry['is_related'] ) {
-						// Use this slot's rel key, or carry forward last_rel if blank.
+					if ( $entry['needs_rel'] ) {
 						if ( ! empty( $rel_for_slot ) ) {
 							$last_rel = $rel_for_slot;
 						}
-						$rel_key = $last_rel;
-						if ( empty( $rel_key ) ) {
-							continue; // No relationship key available — skip slot.
+						if ( empty( $last_rel ) ) {
+							continue; // No rel available for this slot.
 						}
-						$acf_id    = $entry['source']->format_id_for_acf( $base_id );
-						$related   = bws_get_related_posts_data( $acf_id, $rel_key );
-						$entity_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
-					} else {
-						$entity_id = $base_id;
+						$eval_opts['rel'] = $last_rel; // Inject for resolve_id().
 					}
+					$entity_id = $entry['source']->resolve_id( $eval_opts, $inst );
 
 					if ( ! $entity_id ) {
 						continue;

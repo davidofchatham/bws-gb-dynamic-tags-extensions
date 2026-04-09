@@ -21,7 +21,31 @@ class RelatedPost extends AbstractSource {
 	}
 
 	public function get_source_label(): string {
-		return __( 'Related Post (ACF)', 'generateblocks' );
+		return __( 'Post → Rel. Post', 'generateblocks' );
+	}
+
+	public function get_tag_prefix(): string {
+		return 'related_post';
+	}
+
+	public function get_title_prefix(): string {
+		return __( 'Post → Rel. Post', 'generateblocks' );
+	}
+
+	public function get_gb_type(): string {
+		return 'related';
+	}
+
+	public function get_excluded_supports(): array {
+		return array( 'source', 'link' );
+	}
+
+	public function get_effective_source_id(): string {
+		return 'related';
+	}
+
+	public function needs_relationship_field(): bool {
+		return true;
 	}
 
 	public function resolve_id( array $options, $instance ) {

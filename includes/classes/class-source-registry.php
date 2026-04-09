@@ -68,43 +68,28 @@ class SourceRegistry {
 	}
 
 	/**
-	 * Get all resolvable "effective sources" — direct sources plus their related variants.
+	 * Get all resolvable "effective sources" — a flat map of every registered source.
 	 *
-	 * Returns a flat map keyed by single-word effective source ID (e.g., 'post', 'related',
-	 * 'term') used as `src_N` option values in try_ tags. Only currently-enabled related
-	 * variants appear as selectable sources.
+	 * Returns a flat map keyed by effective source ID (e.g., 'post', 'related', 'term')
+	 * used as `src_N` option values in try_ tags. Each source maps to exactly one entry.
 	 *
 	 * @return array {
 	 *     effective_source_id => [
-	 *         'source'     => SourceInterface,
-	 *         'is_related' => bool,
-	 *         'label'      => string,
+	 *         'source'    => SourceInterface,
+	 *         'needs_rel' => bool,
+	 *         'label'     => string,
 	 *     ]
 	 * }
 	 */
 	public static function get_effective_sources(): array {
 		$effective = array();
-
 		foreach ( self::get_all_sources() as $source ) {
-			// Direct source.
 			$effective[ $source->get_effective_source_id() ] = array(
-				'source'     => $source,
-				'is_related' => false,
-				'label'      => $source->get_title_prefix(),
+				'source'    => $source,
+				'needs_rel' => $source->needs_relationship_field(),
+				'label'     => $source->get_title_prefix(),
 			);
-
-			// Related variant (only if source supports it and variants are enabled in settings).
-			if ( $source->has_related_variant()
-				&& Admin\SettingsPage::is_related_variant_enabled( $source->get_source_key() )
-			) {
-				$effective[ $source->get_related_effective_source_id() ] = array(
-					'source'     => $source,
-					'is_related' => true,
-					'label'      => $source->get_related_title_prefix(),
-				);
-			}
 		}
-
 		return $effective;
 	}
 
@@ -123,9 +108,13 @@ class SourceRegistry {
 
 		// Register built-in sources.
 		self::register_source( new Sources\CurrentPost() );
-		self::register_source( new Sources\TaxonomyTerm() );
+		// Post → Rel. Post: promoted to standalone source (Pattern B).
+		self::register_source( new Sources\RelatedPost() );
 		self::register_source( new Sources\SecondRelatedPost() );
 		self::register_source( new Sources\PostTermRelatedPost() );
+		self::register_source( new Sources\TaxonomyTerm() );
+		// Term → Rel. Post: new standalone source (Pattern B).
+		self::register_source( new Sources\TermRelatedPost() );
 
 		$count_before = count( self::$sources );
 
