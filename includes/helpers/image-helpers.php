@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! function_exists( 'bws_get_image_return_type_options' ) ) {
 function bws_get_image_return_type_options() {
 	return array(
-		'return_type' => array(
+		'as' => array(
 			'type'    => 'select',
 			'label'   => __( 'Return Type', 'generateblocks' ),
 			'default' => 'url',
@@ -57,10 +57,10 @@ function bws_get_meta_image_options() {
 }
 
 /**
- * Get custom image field options for the custom_image template (field_key + return type).
+ * Get custom image field options for the custom_image template (key + return type).
  *
- * Uses 'field_key' (not legacy 'meta_key') as the option key for template-generated tags.
- * The bws_custom_image_core() callback accepts both names for backward compat.
+ * Uses 'key' as the option key for template-generated tags.
+ * The bws_custom_image_core() callback accepts 'key', 'field_key', and 'meta_key' for backward compat.
  *
  * @since 1.2.0
  * @return array
@@ -69,7 +69,7 @@ if ( ! function_exists( 'bws_get_meta_and_return_type_options' ) ) {
 function bws_get_meta_and_return_type_options() {
 	return array_merge(
 		array(
-			'field_key' => array(
+			'key' => array(
 				'type'        => 'text',
 				'label'       => __( 'Meta Key', 'generateblocks' ),
 				'help'        => __( 'Enter the meta key for the image field (ACF or standard meta).', 'generateblocks' ),

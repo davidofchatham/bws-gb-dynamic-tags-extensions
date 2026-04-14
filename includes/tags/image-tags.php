@@ -103,12 +103,12 @@ add_filter( 'generateblocks_dynamic_tag_id', 'bws_override_media_ids_for_post_co
  *
  * @since 1.2.0
  * @param int|false $post_id  Resolved post ID.
- * @param array     $options  Tag options (return_type, size, id=fallback attachment).
+ * @param array     $options  Tag options (as, size, id=fallback attachment).
  * @param object    $instance Block instance.
  * @return string
  */
 function bws_featured_image_core( $post_id, $options, $instance ) {
-	$return_type       = $options['return_type'] ?? 'url';
+	$return_type       = $options['as'] ?? $options['return_type'] ?? 'url';
 	$image_size        = $options['size'] ?? 'full';
 	$fallback_media_id = $options['id'] ?? '';
 
@@ -130,18 +130,17 @@ function bws_featured_image_core( $post_id, $options, $instance ) {
 /**
  * Custom image core — shared by template-generated and legacy callbacks.
  *
- * Accepts 'field_key' (template option name) with fallback to 'meta_key' (legacy name).
+ * Accepts 'key' (template option name) with fallbacks to 'field_key' and 'meta_key' (legacy names).
  *
  * @since 1.2.0
  * @param int|false $post_id  Resolved post ID.
- * @param array     $options  Tag options (field_key/meta_key, return_type, size, id=fallback attachment).
+ * @param array     $options  Tag options (key/field_key/meta_key, as, size, id=fallback attachment).
  * @param object    $instance Block instance.
  * @return string
  */
 function bws_custom_image_core( $post_id, $options, $instance ) {
-	// Accept 'field_key' (new template option name) or 'meta_key' (legacy name).
-	$field_key         = sanitize_text_field( $options['field_key'] ?? $options['meta_key'] ?? '' );
-	$return_type       = sanitize_text_field( $options['return_type'] ?? 'url' );
+	$field_key         = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
+	$return_type       = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
 	$image_size        = sanitize_text_field( $options['size'] ?? 'full' );
 	$fallback_media_id = absint( $options['id'] ?? 0 );
 

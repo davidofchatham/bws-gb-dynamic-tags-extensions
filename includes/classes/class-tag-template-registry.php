@@ -520,7 +520,7 @@ class TagTemplateRegistry {
 
 			// For per-slot-key templates, remove primary field key option (replaced by key_N).
 			if ( $per_slot_key ) {
-				unset( $tpl_options['field_key'], $tpl_options['meta_key'] );
+				unset( $tpl_options['key'], $tpl_options['field_key'], $tpl_options['meta_key'] );
 			}
 
 			// For per-slot-type templates, remove shared type/key options (replaced by type_N/key_N).

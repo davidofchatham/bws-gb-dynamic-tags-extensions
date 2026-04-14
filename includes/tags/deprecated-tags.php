@@ -259,7 +259,11 @@ function bws_deprecated_related_post_meta_image_callback( $options, $block, $ins
 		$related = bws_get_related_posts_data( $base_id, $rel_key );
 		$post_id = ! empty( $related ) ? bws_extract_post_id( $related[0] ) : false;
 	}
-	return bws_custom_image_core( $post_id, $options, $instance );
+	// In this deprecated tag, 'key' was the relationship field; image field was 'meta_key'.
+	// Unset 'key' so bws_custom_image_core falls through to 'meta_key' for the image field.
+	$image_options = $options;
+	unset( $image_options['key'] );
+	return bws_custom_image_core( $post_id, $image_options, $instance );
 }
 
 /**

@@ -92,7 +92,7 @@ function bws_register_taxonomy_term_extraction_templates() {
 	) );
 
 	// term_custom_image (post-context): ACF/meta image field on a term of a post.
-	// gb_type 'media' enables return_type / size / fallback attachment selector in GB editor.
+	// gb_type 'media' enables as / size / fallback attachment selector in GB editor.
 	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
 		'key'                  => 'term_custom_image',
 		'title'                => 'Term Custom Image',
@@ -251,13 +251,13 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.
- * @param array     $options  Tag options (key/field_key, return_type, size, fallback_url).
+ * @param array     $options  Tag options (key/field_key, as, size, fallback_url).
  * @param object    $instance Block instance.
  * @return string
  */
 function bws_term_custom_image_core( $term_id, $options, $instance ) {
 	$field_key    = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
-	$return_type  = sanitize_text_field( $options['return_type'] ?? 'url' );
+	$return_type  = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
 	$image_size   = sanitize_text_field( $options['size'] ?? 'full' );
 	$fallback_url = esc_url_raw( $options['fallback_url'] ?? '' );
 

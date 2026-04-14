@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! function_exists( 'bws_get_term_image_field_options' ) ) {
 function bws_get_term_image_field_options() {
 	return array(
-		'field_key' => array(
+		'key' => array(
 			'type'        => 'text',
 			'label'       => __( 'Meta Field Key', 'generateblocks' ),
 			'help'        => __( 'Enter the meta field key for the image field (ACF or standard term meta).', 'generateblocks' ),
@@ -331,7 +331,7 @@ function bws_post_term_image_options(): array {
 			'help'        => __( 'Enter the taxonomy slug to retrieve terms from (e.g. category, post_tag, or a custom taxonomy slug).', 'generateblocks' ),
 			'placeholder' => __( 'category', 'generateblocks' ),
 		),
-		'field_key' => array(
+		'key' => array(
 			'type'        => 'text',
 			'label'       => __( 'Image Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF or term meta field key for the image field on the term.', 'generateblocks' ),
