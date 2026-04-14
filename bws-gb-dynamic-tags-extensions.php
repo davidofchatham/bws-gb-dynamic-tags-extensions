@@ -75,6 +75,7 @@ function bws_dynamic_tags_init() {
  * rather than via add_action('init') to avoid re-hooking inside an init callback.
  */
 function bws_dynamic_tags_register_all() {
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/base-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/content-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/image-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/date-tags.php';
@@ -82,8 +83,11 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/taxonomy-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
 
+	// Register base (source-agnostic) tags: text, content, title, permalink.
+	bws_register_base_tags();
+
 	// Register tag templates (order = GB editor display order within each gb_type group).
-	bws_register_post_content_tag_templates();           // title, content, excerpt, permalink, description, custom_text
+	bws_register_post_content_tag_templates();           // title, content, permalink, description, custom_text
 	bws_register_image_tag_templates();                  // featured_image, custom_image
 	bws_register_date_tag_templates();                   // custom_date_single, custom_date_range
 	bws_register_datetime_tag_templates();               // custom_datetime_single, custom_datetime_range

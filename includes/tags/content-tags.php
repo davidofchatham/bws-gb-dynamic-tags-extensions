@@ -2,8 +2,10 @@
 /**
  * Post content core functions and tag template registration.
  *
- * Post content tags (title, content, excerpt, permalink, description, custom_text)
+ * Post content tags (title, content, permalink, description, custom_text)
  * are registered via the template system (TagTemplateRegistry::generate_all_tags()).
+ * The `excerpt` template was removed in v1.6.0; excerpt output is now the `from:excerpt`
+ * branch of the base `content` tag registered in base-tags.php.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -51,17 +53,6 @@ function bws_register_post_content_tag_templates() {
 		'excluded_direct_source_keys' => array( 'term' ),
 		'supports_try'                => true,
 		'try_per_slot_type'           => true,
-	) );
-
-	// excerpt: post sources only. Term descriptions are handled by the 'description' template.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'excerpt',
-		'title'         => 'Excerpt',
-		'gb_type'       => null,
-		'supports'      => array( 'source' ),
-		'options_fn'    => null,
-		'core_fn'       => 'bws_post_excerpt_core',
-		'context_types' => array( 'post' ),
 	) );
 
 	// permalink: post and term sources.

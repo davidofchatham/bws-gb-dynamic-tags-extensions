@@ -119,7 +119,7 @@ class SecondRelatedPost extends AbstractSource {
 	 */
 	public function get_traversal_options(): array {
 		return array(
-			'ref' => array(
+			'ref1' => array(
 				'type'        => 'text',
 				'label'       => __( 'First traverse by meta key:', 'generateblocks' ),
 				'help'        => __( 'ACF relationship or post object field key (first hop).', 'generateblocks' ),
