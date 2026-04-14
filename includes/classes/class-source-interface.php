@@ -8,6 +8,7 @@
  * @since 1.2.0 Added format_id_for_acf(), source_default_enabled(), related_variant_default_enabled().
  * @since 1.4.1 Added tag_default_enabled().
  * @since 1.5.0 Removed related-variant methods; added needs_relationship_field(), get_ui_group().
+ * @since 1.6.0 Removed get_title_prefix(); added get_traversal_options().
  */
 
 namespace BWS\DynamicTags;
@@ -54,13 +55,6 @@ interface SourceInterface {
 	 * @return string e.g. 'post', 'term', 'portal'.
 	 */
 	public function get_tag_prefix(): string;
-
-	/**
-	 * Get the human-readable title prefix for tag display names.
-	 *
-	 * @return string e.g. 'Post', 'Term', 'Portal'.
-	 */
-	public function get_title_prefix(): string;
 
 	/**
 	 * Get the GenerateBlocks tag type for direct tags from this source.
@@ -146,4 +140,18 @@ interface SourceInterface {
 	 * @return string
 	 */
 	public function get_ui_group(): string;
+
+	/**
+	 * Get the option definitions required by this source's traversal.
+	 *
+	 * Used by the base tag dispatcher and try_ constructor to inject traversal
+	 * sub-options when a via value routes to this source. Sources with no
+	 * traversal (CurrentPost, TaxonomyTerm) return an empty array.
+	 *
+	 * Option keys follow the base tag naming convention: 'ref', 'ref2', 'tax'.
+	 *
+	 * @since 1.6.0
+	 * @return array Option definitions in GenerateBlocks format.
+	 */
+	public function get_traversal_options(): array;
 }

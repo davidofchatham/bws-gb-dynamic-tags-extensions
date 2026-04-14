@@ -11,6 +11,7 @@
  * @since 1.2.0 Added format_id_for_acf(), source_default_enabled(), related_variant_default_enabled().
  * @since 1.4.1 Added tag_default_enabled().
  * @since 1.5.0 Removed related-variant method defaults; added needs_relationship_field(), get_ui_group().
+ * @since 1.6.0 Removed get_title_prefix(); added get_traversal_options().
  */
 
 namespace BWS\DynamicTags;
@@ -23,10 +24,6 @@ abstract class AbstractSource implements SourceInterface {
 
 	public function get_tag_prefix(): string {
 		return $this->get_source_key();
-	}
-
-	public function get_title_prefix(): string {
-		return $this->get_source_label();
 	}
 
 	public function get_gb_type(): string {
@@ -99,6 +96,16 @@ abstract class AbstractSource implements SourceInterface {
 	 */
 	public function get_ui_group(): string {
 		return $this->get_context_type();
+	}
+
+	/**
+	 * Default: no traversal options. Traversal sources override this.
+	 *
+	 * @since 1.6.0
+	 * @return array
+	 */
+	public function get_traversal_options(): array {
+		return array();
 	}
 
 	/**

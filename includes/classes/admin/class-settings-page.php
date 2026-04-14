@@ -308,7 +308,7 @@ class SettingsPage {
 			$source_context = $source->get_context_type();
 
 			$groups[ $sk ] = array(
-				'label' => $source->get_title_prefix(),
+				'label' => $source->get_source_label(),
 				'tags'  => array(),
 			);
 
@@ -352,7 +352,7 @@ class SettingsPage {
 					continue;
 				}
 
-				$groups[ $sk ]['tags'][ $tag_name ] = $source->get_title_prefix() . ' ' . $tpl['title'];
+				$groups[ $sk ]['tags'][ $tag_name ] = $source->get_source_label() . ' ' . $tpl['title'];
 			}
 
 		}

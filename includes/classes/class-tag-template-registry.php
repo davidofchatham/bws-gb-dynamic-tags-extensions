@@ -237,7 +237,7 @@ class TagTemplateRegistry {
 				}
 
 				self::register_gb_tag(
-					$source->get_title_prefix() . ' ' . $tpl['title'],
+					$source->get_source_label() . ' ' . $tpl['title'],
 					$tag_name,
 					$effective_gb_type,
 					$effective_supports,

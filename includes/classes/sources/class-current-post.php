@@ -30,10 +30,6 @@ class CurrentPost extends AbstractSource {
 		return 'post';
 	}
 
-	public function get_title_prefix(): string {
-		return __( 'Post', 'generateblocks' );
-	}
-
 	public function get_gb_type(): string {
 		return 'post';
 	}

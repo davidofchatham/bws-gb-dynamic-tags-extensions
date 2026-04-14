@@ -38,10 +38,6 @@ class TermRelatedPost extends AbstractSource {
 		return 'term_related_post';
 	}
 
-	public function get_title_prefix(): string {
-		return __( 'Term → Rel. Post', 'generateblocks' );
-	}
-
 	public function get_gb_type(): string {
 		return 'term';
 	}
@@ -100,5 +96,22 @@ class TermRelatedPost extends AbstractSource {
 
 	public function get_source_options(): array {
 		return array();
+	}
+
+	/**
+	 * Traversal options for the base tag via-dispatch system.
+	 *
+	 * @since 1.6.0
+	 * @return array
+	 */
+	public function get_traversal_options(): array {
+		return array(
+			'ref' => array(
+				'type'        => 'text',
+				'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
+				'help'        => __( 'ACF relationship or post object field key on the term that links to the related post.', 'generateblocks' ),
+				'placeholder' => 'related_posts',
+			),
+		);
 	}
 }

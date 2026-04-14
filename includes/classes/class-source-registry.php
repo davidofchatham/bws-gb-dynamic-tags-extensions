@@ -87,7 +87,7 @@ class SourceRegistry {
 			$effective[ $source->get_effective_source_id() ] = array(
 				'source'    => $source,
 				'needs_rel' => $source->needs_relationship_field(),
-				'label'     => $source->get_title_prefix(),
+				'label'     => $source->get_source_label(),
 			);
 		}
 		return $effective;

@@ -29,10 +29,6 @@ class TaxonomyTerm extends AbstractSource {
 		return 'term';
 	}
 
-	public function get_title_prefix(): string {
-		return __( 'Term', 'generateblocks' );
-	}
-
 	public function get_gb_type(): string {
 		return 'term';
 	}

@@ -27,7 +27,7 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	public function get_source_label(): string {
-		return __( 'Second Related Post (ACF)', 'generateblocks' );
+		return __( 'Ref/Rel Field → 2nd Ref/Rel Field', 'generateblocks' );
 	}
 
 	/**
@@ -108,6 +108,29 @@ class SecondRelatedPost extends AbstractSource {
 		return array_merge(
 			bws_get_relationship_field_options(),        // 'rel'   — first hop
 			bws_get_second_relationship_field_options()  // 'rel_2' — second hop
+		);
+	}
+
+	/**
+	 * Traversal options for the base tag via-dispatch system (two-hop chain).
+	 *
+	 * @since 1.6.0
+	 * @return array
+	 */
+	public function get_traversal_options(): array {
+		return array(
+			'ref' => array(
+				'type'        => 'text',
+				'label'       => __( 'First traverse by meta key:', 'generateblocks' ),
+				'help'        => __( 'ACF relationship or post object field key (first hop).', 'generateblocks' ),
+				'placeholder' => 'related_posts',
+			),
+			'ref2' => array(
+				'type'        => 'text',
+				'label'       => __( 'Then traverse by meta key:', 'generateblocks' ),
+				'help'        => __( 'ACF relationship or post object field key on the first related post (second hop).', 'generateblocks' ),
+				'placeholder' => 'related_posts',
+			),
 		);
 	}
 }

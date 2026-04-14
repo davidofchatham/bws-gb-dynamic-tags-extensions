@@ -20,6 +20,8 @@
  *   'not_empty'       — other option has any non-empty value
  *   'empty'           — other option is blank/unset
  *   'not:value'       — other option does NOT equal 'value'
+ *   'in:v1,v2,...'    — other option equals any value in the comma-separated list
+ *   'not_in:v1,v2,..' — other option equals none of the values in the list
  *   ['a', 'b', ...]   — other option equals any value in the array (OR match)
  *   'value'           — other option equals 'value' exactly
  *
@@ -57,6 +59,14 @@
 		}
 		if ( String( condValue ).indexOf( 'not:' ) === 0 ) {
 			return String( current ) !== String( condValue.substring( 4 ) );
+		}
+		if ( String( condValue ).indexOf( 'in:' ) === 0 ) {
+			var inValues = condValue.substring( 3 ).split( ',' );
+			return inValues.some( function ( v ) { return String( current ) === v; } );
+		}
+		if ( String( condValue ).indexOf( 'not_in:' ) === 0 ) {
+			var notInValues = condValue.substring( 7 ).split( ',' );
+			return notInValues.every( function ( v ) { return String( current ) !== v; } );
 		}
 		return String( current ) === String( condValue );
 	}
