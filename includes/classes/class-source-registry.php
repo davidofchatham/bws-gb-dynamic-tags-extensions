@@ -58,13 +58,21 @@ class SourceRegistry {
 	}
 
 	/**
-	 * Check if a source is enabled in admin settings.
+	 * Check if a source is enabled.
 	 *
+	 * Term-context sources are gated on the term_ modifier toggle.
+	 * All other sources are always enabled.
+	 *
+	 * @since 1.6.0 Delegates term-context check to is_modifier_enabled('term').
 	 * @param string $key Source key.
 	 * @return bool
 	 */
 	public static function is_source_enabled( string $key ): bool {
-		return Admin\SettingsPage::is_source_enabled( $key );
+		$source = self::get_source( $key );
+		if ( $source && 'term' === $source->get_context_type() ) {
+			return Admin\SettingsPage::is_modifier_enabled( 'term' );
+		}
+		return true;
 	}
 
 	/**

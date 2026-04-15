@@ -2,20 +2,25 @@
 /**
  * Admin Settings Page for BWS Dynamic Tag Extensions.
  *
- * Provides hierarchical toggles for sources and individual tags
- * under the GenerateBlocks submenu.
+ * Settings schema (v1.6.0):
+ *   {
+ *     modifiers:   { term: bool, try: bool },
+ *     deprecated:  { [old_tag_name]: bool },
+ *     diagnostics: { benchmark_logging: bool, benchmark_page: bool, registration_logging: bool },
+ *   }
+ *
+ * Removed in v1.6.0: source×template matrix, source enable/disable controls,
+ * register_tag_source(), get_tag_groups(), is_tag_enabled(), is_source_enabled(),
+ * default_enabled_map resolution logic.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
- * @since 1.2.0 Added register_tag_source(), updated is_tag_enabled() with tag-level defaults.
+ * @since 1.6.0 Simplified to modifier-toggle + deprecated-section model.
  */
 
 namespace BWS\DynamicTags\Admin;
 
 use BWS\DynamicTags\DeprecatedTagRegistry;
-use BWS\DynamicTags\SourceInterface;
-use BWS\DynamicTags\SourceRegistry;
-use BWS\DynamicTags\TagTemplateRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -29,14 +34,9 @@ class SettingsPage {
 	/** @var array|null Cached settings. */
 	private static ?array $settings = null;
 
-	/**
-	 * Tag registration map: tag_name => [ SourceInterface, is_related, ?bool tag_default ].
-	 * Populated by TagTemplateRegistry during generate_all_tags().
-	 *
-	 * @since 1.2.0
-	 * @var array<string, array{0: SourceInterface, 1: bool, 2: ?bool}>
-	 */
-	private static array $_registered_tags = [];
+	// ===============================================
+	// INITIALIZATION
+	// ===============================================
 
 	/**
 	 * Initialize admin hooks.
@@ -44,6 +44,7 @@ class SettingsPage {
 	public static function init(): void {
 		add_action( 'admin_menu', array( static::class, 'add_menu_page' ), 20 );
 		add_action( 'admin_init', array( static::class, 'register_settings' ) );
+		add_action( 'wp_ajax_bws_convert_deprecated_tag', array( TagConverter::class, 'ajax_handler' ) );
 	}
 
 	/**
@@ -75,46 +76,93 @@ class SettingsPage {
 		);
 	}
 
+	// ===============================================
+	// SETTINGS SCHEMA + SANITIZE
+	// ===============================================
+
 	/**
 	 * Sanitize settings on save.
 	 *
-	 * Unchecked checkboxes are absent from POST data, so we compare against
-	 * the full list of known sources/tags to correctly set false values.
-	 *
-	 * @param array $input Raw settings input.
+	 * @param array $input Raw POST input.
 	 * @return array Sanitized settings.
 	 */
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
-			'sources'     => array(),
-			'tags'        => array(),
+			'modifiers'   => array(),
+			'deprecated'  => array(),
 			'diagnostics' => array(),
 		);
 
-		$groups = self::get_tag_groups();
+		// Modifier toggles.
+		$sanitized['modifiers']['term'] = ! empty( $input['modifiers']['term'] );
+		$sanitized['modifiers']['try']  = ! empty( $input['modifiers']['try'] );
 
-		// Sources: checked = true, unchecked = false.
-		foreach ( array_keys( $groups ) as $source_key ) {
-			$sanitized['sources'][ $source_key ] = ! empty( $input['sources'][ $source_key ] );
+		// Deprecated tag enable/disable checkboxes.
+		foreach ( DeprecatedTagRegistry::get_all() as $entry ) {
+			$tag_name = $entry['old_tag'] ?? '';
+			if ( '' === $tag_name ) {
+				continue;
+			}
+			$sanitized['deprecated'][ $tag_name ] = ! empty( $input['deprecated'][ $tag_name ] );
 		}
 
-		// Tags: checked = true, unchecked = false.
-		$tag_map = self::get_tag_source_map();
-		foreach ( array_keys( $tag_map ) as $tag_name ) {
-			$sanitized['tags'][ $tag_name ] = ! empty( $input['tags'][ $tag_name ] );
-		}
-
-		// Try tags: individual tag enables (not tied to a source).
-		foreach ( array_keys( self::get_try_tag_names() ) as $tag_name ) {
-			$sanitized['tags'][ $tag_name ] = ! empty( $input['tags'][ $tag_name ] );
-		}
-
-		// Diagnostics: checked = true, unchecked = false.
+		// Diagnostics.
 		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
 		$sanitized['diagnostics']['benchmark_page']       = ! empty( $input['diagnostics']['benchmark_page'] );
 		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
 
 		return $sanitized;
+	}
+
+	// ===============================================
+	// SETTINGS ACCESSORS
+	// ===============================================
+
+	/**
+	 * Get settings (cached).
+	 *
+	 * @return array
+	 */
+	public static function get_settings(): array {
+		if ( null === self::$settings ) {
+			self::$settings = get_option( self::OPTION_NAME, array() );
+		}
+		return self::$settings;
+	}
+
+	/**
+	 * Check if a modifier group is enabled.
+	 *
+	 * Supported modifiers: 'term', 'try'.
+	 * Defaults to true when no saved preference exists.
+	 *
+	 * @since 1.6.0
+	 * @param string $modifier Modifier key ('term' or 'try').
+	 * @return bool
+	 */
+	public static function is_modifier_enabled( string $modifier ): bool {
+		$settings = self::get_settings();
+		if ( isset( $settings['modifiers'][ $modifier ] ) ) {
+			return (bool) $settings['modifiers'][ $modifier ];
+		}
+		return true; // Default on.
+	}
+
+	/**
+	 * Check if a deprecated tag is enabled.
+	 *
+	 * Returns true when no saved preference exists (default on).
+	 *
+	 * @since 1.6.0
+	 * @param string $tag_name Deprecated GB tag name.
+	 * @return bool
+	 */
+	public static function is_deprecated_tag_enabled( string $tag_name ): bool {
+		$settings = self::get_settings();
+		if ( isset( $settings['deprecated'][ $tag_name ] ) ) {
+			return (bool) $settings['deprecated'][ $tag_name ];
+		}
+		return true; // Default on.
 	}
 
 	/**
@@ -147,295 +195,9 @@ class SettingsPage {
 		return $settings['diagnostics']['registration_logging'] ?? false;
 	}
 
-	/**
-	 * Get settings (cached).
-	 *
-	 * @return array
-	 */
-	public static function get_settings(): array {
-		if ( null === self::$settings ) {
-			self::$settings = get_option( self::OPTION_NAME, array() );
-		}
-		return self::$settings;
-	}
-
-	/**
-	 * Register a tag with its source metadata for default-enabled resolution.
-	 *
-	 * Called by TagTemplateRegistry immediately before is_tag_enabled() during
-	 * generate_all_tags(). The fourth argument carries the per-template default
-	 * from default_enabled_map; null defers to the source-level default.
-	 *
-	 * @since 1.2.0
-	 * @param string          $tag_name    Full tag name.
-	 * @param SourceInterface $source      Source object.
-	 * @param bool            $is_related  Whether this is a related-variant tag.
-	 * @param ?bool           $tag_default Per-template default override (null = use source default).
-	 */
-	public static function register_tag_source( string $tag_name, SourceInterface $source, bool $is_related, ?bool $tag_default = null ): void {
-		self::$_registered_tags[ $tag_name ] = [ $source, $is_related, $tag_default ];
-	}
-
-	/**
-	 * Check if a source is enabled.
-	 *
-	 * Defaults to the source's `source_default_enabled()` return value; true if source not found.
-	 *
-	 * @since 1.4.1
-	 * @param string $source_key Source key.
-	 * @return bool
-	 */
-	public static function is_source_enabled( string $source_key ): bool {
-		$settings = self::get_settings();
-		if ( isset( $settings['sources'][ $source_key ] ) ) {
-			return (bool) $settings['sources'][ $source_key ];
-		}
-		$source = SourceRegistry::get_source( $source_key );
-		return $source ? $source->source_default_enabled() : true;
-	}
-
-	/**
-	 * Check if a tag is enabled.
-	 *
-	 * A tag is disabled if its source is disabled, its related variant group is disabled
-	 * (when applicable), or it is individually disabled.
-	 * Defaults to true (all tags enabled unless explicitly disabled).
-	 *
-	 * @param string              $tag_name    Tag name.
-	 * @param string              $source_key  Source key (for deprecated-tag callers).
-	 * @param SourceInterface|null $source_obj  Source object (for generation callers; bypasses _registered_tags for default resolution).
-	 * @param bool                $is_related  Whether this is a related-variant tag (used with $source_obj).
-	 * @param bool|null           $tag_default Per-template default override (used with $source_obj; null defers to source default).
-	 * @return bool
-	 */
-	public static function is_tag_enabled(
-		string $tag_name,
-		string $source_key = '',
-		?SourceInterface $source_obj = null,
-		bool $is_related = false,
-		?bool $tag_default = null
-	): bool {
-		// Resolve source key from object when not passed directly.
-		$sk = $source_key ?: ( $source_obj ? $source_obj->get_source_key() : '' );
-
-		// If source is disabled, tag is disabled.
-		if ( $sk && ! self::is_source_enabled( $sk ) ) {
-			return false;
-		}
-
-		$settings = self::get_settings();
-		if ( isset( $settings['tags'][ $tag_name ] ) ) {
-			return (bool) $settings['tags'][ $tag_name ];
-		}
-
-		// No saved preference. If source context was passed inline, resolve default from it
-		// directly without requiring _registered_tags to be populated first.
-		if ( null !== $source_obj ) {
-			if ( null !== $tag_default ) {
-				return $tag_default;
-			}
-			return $source_obj->tag_default_enabled();
-		}
-
-		// Fall back to _registered_tags (used by deprecated-tag callers and try_ tags).
-		$info = self::$_registered_tags[ $tag_name ] ?? null;
-		if ( $info ) {
-			[ $src, $rel, $def ] = $info;
-			if ( null !== $def ) {
-				return $def;
-			}
-			if ( $src ) {
-				return $src->tag_default_enabled();
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Get the default enabled state for a tag from the registered tag map.
-	 *
-	 * Used by render_page() to correctly pre-check new opt-in tags before the
-	 * user has ever visited the settings page.
-	 *
-	 * @since 1.2.0
-	 * @param string $tag_name Tag name.
-	 * @return bool
-	 */
-	private static function get_tag_default( string $tag_name ): bool {
-		$info = self::$_registered_tags[ $tag_name ] ?? null;
-		if ( $info ) {
-			[ $src, $is_related, $tag_default ] = $info;
-			if ( null !== $tag_default ) {
-				return $tag_default;
-			}
-			if ( $src ) {
-				return $src->tag_default_enabled();
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Get tag metadata grouped by source for the settings UI.
-	 *
-	 * Dynamically computed from registered sources and template registry. Mirrors the logic of
-	 * TagTemplateRegistry::generate_all_tags() to determine what tags each source would produce,
-	 * without actually registering them.
-	 *
-	 * @return array {
-	 *     source_key => [
-	 *         'label' => string,
-	 *         'tags'  => [ tag_name => label ],
-	 *     ]
-	 * }
-	 */
-	public static function get_tag_groups(): array {
-		$groups = array();
-
-		$sources   = SourceRegistry::get_all_sources();
-		$templates = TagTemplateRegistry::get_templates();
-
-		// Known GB built-in tag names that our templates would otherwise generate.
-		// These are always skipped by generate_all_tags() dup-check.
-		$skip_names = array( 'post_title', 'post_excerpt', 'post_permalink' );
-
-		// Track computed names to prevent cross-source duplicates (mirrors generate_all_tags logic).
-		$computed = $skip_names;
-
-		foreach ( $sources as $source ) {
-			$sk             = $source->get_source_key();
-			$source_context = $source->get_context_type();
-
-			$groups[ $sk ] = array(
-				'label' => $source->get_source_label(),
-				'tags'  => array(),
-			);
-
-			// --- Direct tags ---
-			foreach ( $templates as $tpl ) {
-				$supported_contexts = $tpl['context_types'] ?? array( 'post' );
-				if ( ! in_array( $source_context, $supported_contexts, true ) ) {
-					continue;
-				}
-
-				if ( 'term' === $source_context && ! empty( $tpl['term_requires_gb_pro'] ) ) {
-					if ( ! class_exists( 'GenerateBlocks_Pro_Dynamic_Tags_Register' ) ) {
-						continue;
-					}
-				}
-
-				if ( in_array(
-					$sk,
-					array_merge(
-						$tpl['excluded_source_keys'] ?? array(),
-						$tpl['excluded_direct_source_keys'] ?? array()
-					),
-					true
-				) ) {
-					continue;
-				}
-
-				$tag_name = $source->get_tag_prefix() . '_' . $tpl['key'];
-
-				if ( in_array( $tag_name, $computed, true ) ) {
-					continue;
-				}
-				$computed[] = $tag_name;
-
-				// Skip if no usable core function for this context.
-				$cf = ( 'term' === $source_context )
-					? ( $tpl['term_core_fn'] ?? null )
-					: ( $tpl['core_fn'] ?? null );
-
-				if ( ! $cf ) {
-					continue;
-				}
-
-				$groups[ $sk ]['tags'][ $tag_name ] = $source->get_source_label() . ' ' . $tpl['title'];
-			}
-
-		}
-
-		// --- Deprecated wrappers ---
-		// These are registered via bws_register_deprecated_tags() (not the template system).
-		// Appended to their respective source groups.
-		$deprecated = array(
-			'post' => array(
-				'current_post_featured_image' => __( 'current_post_featured_image (Deprecated)', 'generateblocks' ),
-				'current_post_meta_image'     => __( 'current_post_meta_image (Deprecated)', 'generateblocks' ),
-				'post_acf_date_time_single'   => __( 'post_acf_date_time_single (Deprecated)', 'generateblocks' ),
-				'post_acf_date_time_range'    => __( 'post_acf_date_time_range (Deprecated)', 'generateblocks' ),
-				'related_post_meta_image'     => __( 'related_post_meta_image (Deprecated)', 'generateblocks' ),
-				'related_post_url'            => __( 'related_post_url (Deprecated)', 'generateblocks' ),
-			),
-			'term' => array(
-				'term_name'        => __( 'term_name (Deprecated)', 'generateblocks' ),
-				'term_field_image' => __( 'term_field_image (Deprecated)', 'generateblocks' ),
-			),
-		);
-
-		foreach ( $deprecated as $sk => $tags ) {
-			if ( ! isset( $groups[ $sk ] ) ) {
-				continue;
-			}
-			foreach ( $tags as $tag_name => $label ) {
-				$groups[ $sk ]['tags'][ $tag_name ] = $label;
-			}
-		}
-
-		// External deprecated wrappers registered via DeprecatedTagRegistry.
-		foreach ( DeprecatedTagRegistry::get_all() as $entry ) {
-			$sk  = $entry['source_key'] ?? '';
-			$tag = $entry['old_tag'] ?? '';
-			if ( ! $sk || ! $tag || ! isset( $groups[ $sk ] ) ) {
-				continue;
-			}
-			// Match built-in label style: tag name + " (Deprecated)".
-			$groups[ $sk ]['tags'][ $tag ] = $tag . ' (Deprecated)';
-		}
-
-		return $groups;
-	}
-
-	/**
-	 * Get try_ tag names and labels, in template registration order.
-	 *
-	 * These are source-independent fallback-chain tags (try_featured_image, try_title, etc.)
-	 * generated by TagTemplateRegistry::generate_try_tags(). Each defaults to enabled.
-	 *
-	 * @return array tag_name => label
-	 */
-	public static function get_try_tag_names(): array {
-		$try_tags = array();
-		foreach ( TagTemplateRegistry::get_templates() as $tpl ) {
-			if ( empty( $tpl['supports_try'] ) ) {
-				continue;
-			}
-			$tag_name = 'try_' . $tpl['key'];
-			/* translators: %s: tag title e.g. "Featured Image" */
-			$try_tags[ $tag_name ] = sprintf( __( 'Try %s', 'generateblocks' ), $tpl['title'] );
-		}
-		return $try_tags;
-	}
-
-	/**
-	 * Get flat tag → source mapping (direct + related tags).
-	 *
-	 * @return array tag_name => source_key
-	 */
-	public static function get_tag_source_map(): array {
-		$map    = array();
-		$groups = self::get_tag_groups();
-
-		foreach ( $groups as $source_key => $group ) {
-			foreach ( array_keys( $group['tags'] ) as $tag_name ) {
-				$map[ $tag_name ] = $source_key;
-			}
-		}
-
-		return $map;
-	}
+	// ===============================================
+	// RENDER
+	// ===============================================
 
 	/**
 	 * Render the settings page.
@@ -445,100 +207,134 @@ class SettingsPage {
 			return;
 		}
 
-		$settings = self::get_settings();
-		$groups   = self::get_tag_groups();
+		$settings           = self::get_settings();
+		$deprecated_entries = DeprecatedTagRegistry::get_all();
+		$has_deprecated     = ! empty( $deprecated_entries );
+		$convert_nonce      = wp_create_nonce( 'bws_convert_tag' );
 		?>
 		<div class="wrap bws-dynamic-tags-settings">
 			<h1><?php echo esc_html__( 'BWS Dynamic Tag Extensions', 'generateblocks' ); ?></h1>
 			<p class="description">
-				<?php echo esc_html__( 'Enable or disable tag sources and individual tags. Disabled tags will not appear in the GenerateBlocks editor.', 'generateblocks' ); ?>
+				<?php echo esc_html__( 'Enable or disable modifier tag groups and manage deprecated tag migration.', 'generateblocks' ); ?>
 			</p>
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
-				<?php foreach ( $groups as $source_key => $group ) :
-					$source_enabled = self::is_source_enabled( $source_key );
-					$source_id      = 'bws-source-' . esc_attr( $source_key );
-				?>
-				<div class="bws-tag-group" data-source="<?php echo esc_attr( $source_key ); ?>">
-					<h2 class="bws-source-header">
-						<label for="<?php echo $source_id; ?>">
-							<input
-								type="checkbox"
-								id="<?php echo $source_id; ?>"
-								name="<?php echo esc_attr( self::OPTION_NAME ); ?>[sources][<?php echo esc_attr( $source_key ); ?>]"
-								value="1"
-								class="bws-source-toggle"
-								data-source="<?php echo esc_attr( $source_key ); ?>"
-								<?php checked( $source_enabled ); ?>
-							/>
-							<?php echo esc_html( $group['label'] ); ?>
-						</label>
-					</h2>
-
-					<?php if ( ! empty( $group['tags'] ) ) : ?>
-					<table class="bws-tags-table bws-direct-tags widefat" data-source="<?php echo esc_attr( $source_key ); ?>">
-						<tbody>
-						<?php foreach ( $group['tags'] as $tag_name => $tag_label ) :
-							$tag_enabled = isset( $settings['tags'][ $tag_name ] ) ? (bool) $settings['tags'][ $tag_name ] : self::get_tag_default( $tag_name );
-							$tag_id      = 'bws-tag-' . esc_attr( $tag_name );
-						?>
-							<tr class="bws-tag-row <?php echo $source_enabled ? '' : 'bws-disabled'; ?>">
-								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="<?php echo $tag_id; ?>"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[tags][<?php echo esc_attr( $tag_name ); ?>]"
-										value="1"
-										class="bws-tag-toggle"
-										<?php checked( $tag_enabled ); ?>
-										<?php disabled( ! $source_enabled ); ?>
-									/>
-								</td>
-								<td>
-									<label for="<?php echo $tag_id; ?>">
-										<?php echo esc_html( $tag_label ); ?>
-									</label>
-									<code class="bws-tag-name"><?php echo esc_html( $tag_name ); ?></code>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-					<?php endif; ?>
-
-				</div>
-				<?php endforeach; ?>
-
-				<?php $try_tag_names = self::get_try_tag_names();
-				if ( ! empty( $try_tag_names ) ) : ?>
+				<?php /* ── Modifier Groups ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-source-header">
-						<?php esc_html_e( 'Try Tags (Fallback Chain)', 'generateblocks' ); ?>
+						<?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?>
 					</h2>
 					<table class="bws-tags-table widefat">
 						<tbody>
-						<?php foreach ( $try_tag_names as $tag_name => $tag_label ) :
-							$tag_enabled = isset( $settings['tags'][ $tag_name ] ) ? (bool) $settings['tags'][ $tag_name ] : self::get_tag_default( $tag_name );
-							$tag_id      = 'bws-tag-' . esc_attr( $tag_name );
-						?>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
 									<input
 										type="checkbox"
-										id="<?php echo $tag_id; ?>"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[tags][<?php echo esc_attr( $tag_name ); ?>]"
+										id="bws-modifier-term"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][term]"
 										value="1"
-										class="bws-tag-toggle"
-										<?php checked( $tag_enabled ); ?>
+										<?php checked( self::is_modifier_enabled( 'term' ) ); ?>
 									/>
 								</td>
 								<td>
-									<label for="<?php echo $tag_id; ?>">
-										<?php echo esc_html( $tag_label ); ?>
+									<label for="bws-modifier-term">
+										<?php esc_html_e( 'term_ tags', 'generateblocks' ); ?>
+									</label>
+									<code class="bws-tag-name">term_</code>
+									<p class="description">
+										<?php esc_html_e( 'Term-context tags (term_text, term_image, term_title, etc.). Disable to remove them from the tag picker.', 'generateblocks' ); ?>
+									</p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input
+										type="checkbox"
+										id="bws-modifier-try"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
+										value="1"
+										<?php checked( self::is_modifier_enabled( 'try' ) ); ?>
+									/>
+								</td>
+								<td>
+									<label for="bws-modifier-try">
+										<?php esc_html_e( 'try_ tags', 'generateblocks' ); ?>
+									</label>
+									<code class="bws-tag-name">try_</code>
+									<p class="description">
+										<?php esc_html_e( 'Fallback-chain tags (try_text, try_image, etc.). Disable to remove them from the tag picker.', 'generateblocks' ); ?>
+									</p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Deprecated Tags ── */ ?>
+				<?php if ( $has_deprecated ) : ?>
+				<div class="bws-tag-group" id="bws-deprecated-section">
+					<h2 class="bws-source-header">
+						<?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?>
+					</h2>
+					<p class="description" style="padding: 8px 12px; margin: 0; background: #fff; border: 1px solid #c3c4c7; border-top: none; border-bottom: none;">
+						<?php esc_html_e( 'These tags still work but have been replaced. Use the Convert button to migrate saved post content to the current tag format.', 'generateblocks' ); ?>
+					</p>
+					<table class="bws-tags-table bws-deprecated-table widefat">
+						<tbody>
+						<?php foreach ( $deprecated_entries as $entry ) :
+							$tag_name   = $entry['old_tag'] ?? '';
+							$new_tag    = $entry['new_tag'] ?? '';
+							$since      = $entry['since']   ?? '';
+							if ( '' === $tag_name ) {
+								continue;
+							}
+							$enabled = isset( $settings['deprecated'][ $tag_name ] )
+								? (bool) $settings['deprecated'][ $tag_name ]
+								: true;
+							$cb_id = 'bws-dep-' . esc_attr( $tag_name );
+						?>
+							<tr class="bws-tag-row" data-tag="<?php echo esc_attr( $tag_name ); ?>">
+								<td class="bws-tag-checkbox">
+									<input
+										type="checkbox"
+										id="<?php echo $cb_id; ?>"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $tag_name ); ?>]"
+										value="1"
+										<?php checked( $enabled ); ?>
+									/>
+								</td>
+								<td>
+									<label for="<?php echo $cb_id; ?>">
+										<?php echo esc_html( $entry['title'] ?? $tag_name ); ?>
 									</label>
 									<code class="bws-tag-name"><?php echo esc_html( $tag_name ); ?></code>
+									<?php if ( $new_tag ) : ?>
+									<span class="bws-dep-arrow">→</span>
+									<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $new_tag ); ?></code>
+									<?php endif; ?>
+									<?php if ( $since ) : ?>
+									<span class="bws-dep-since">
+										<?php
+										echo esc_html(
+											/* translators: %s: plugin version number */
+											sprintf( __( '(since %s)', 'generateblocks' ), $since )
+										);
+										?>
+									</span>
+									<?php endif; ?>
+								</td>
+								<td class="bws-convert-cell">
+									<button
+										type="button"
+										class="button bws-convert-btn"
+										data-tag="<?php echo esc_attr( $tag_name ); ?>"
+										data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
+									>
+										<?php esc_html_e( 'Convert', 'generateblocks' ); ?>
+									</button>
+									<span class="bws-convert-result" aria-live="polite"></span>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -547,74 +343,75 @@ class SettingsPage {
 				</div>
 				<?php endif; ?>
 
+				<?php /* ── Diagnostics ── */ ?>
 				<div class="bws-tag-group">
-				<h2 class="bws-source-header" style="border-bottom:1px solid #c3c4c7">
-					<?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?>
-				</h2>
-				<table class="bws-tags-table widefat">
-					<tbody>
-						<tr class="bws-tag-row">
-							<td class="bws-tag-checkbox">
-								<input
-									type="checkbox"
-									id="bws-diag-benchmark-logging"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_logging]"
-									value="1"
-									<?php checked( self::is_benchmark_logging_enabled() ); ?>
-								/>
-							</td>
-							<td>
-								<label for="bws-diag-benchmark-logging">
-									<?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?>
-								</label>
-								<p class="description">
-									<?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log. Active even when WP_DEBUG is off.', 'generateblocks' ); ?>
-								</p>
-							</td>
-						</tr>
-						<tr class="bws-tag-row">
-							<td class="bws-tag-checkbox">
-								<input
-									type="checkbox"
-									id="bws-diag-benchmark-page"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_page]"
-									value="1"
-									<?php checked( self::is_benchmark_page_enabled() ); ?>
-								/>
-							</td>
-							<td>
-								<label for="bws-diag-benchmark-page">
-									<?php esc_html_e( 'Enable benchmark admin page', 'generateblocks' ); ?>
-								</label>
-								<p class="description">
-									<?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for testing post content processing performance.', 'generateblocks' ); ?>
-								</p>
-							</td>
-						</tr>
-						<tr class="bws-tag-row">
-							<td class="bws-tag-checkbox">
-								<input
-									type="checkbox"
-									id="bws-diag-registration-logging"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
-									value="1"
-									<?php checked( self::is_registration_logging_enabled() ); ?>
-								/>
-							</td>
-							<td>
-								<label for="bws-diag-registration-logging">
-									<?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?>
-								</label>
-								<p class="description">
-									<?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log. Disable after confirming external sources are loading correctly.', 'generateblocks' ); ?>
-								</p>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
+					<h2 class="bws-source-header" style="border-bottom:1px solid #c3c4c7">
+						<?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?>
+					</h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input
+										type="checkbox"
+										id="bws-diag-benchmark-logging"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_logging]"
+										value="1"
+										<?php checked( self::is_benchmark_logging_enabled() ); ?>
+									/>
+								</td>
+								<td>
+									<label for="bws-diag-benchmark-logging">
+										<?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?>
+									</label>
+									<p class="description">
+										<?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log. Active even when WP_DEBUG is off.', 'generateblocks' ); ?>
+									</p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input
+										type="checkbox"
+										id="bws-diag-benchmark-page"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_page]"
+										value="1"
+										<?php checked( self::is_benchmark_page_enabled() ); ?>
+									/>
+								</td>
+								<td>
+									<label for="bws-diag-benchmark-page">
+										<?php esc_html_e( 'Enable benchmark admin page', 'generateblocks' ); ?>
+									</label>
+									<p class="description">
+										<?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for testing post content processing performance.', 'generateblocks' ); ?>
+									</p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input
+										type="checkbox"
+										id="bws-diag-registration-logging"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
+										value="1"
+										<?php checked( self::is_registration_logging_enabled() ); ?>
+									/>
+								</td>
+								<td>
+									<label for="bws-diag-registration-logging">
+										<?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?>
+									</label>
+									<p class="description">
+										<?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log. Disable after confirming external sources are loading correctly.', 'generateblocks' ); ?>
+									</p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 
-			<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
+				<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
 			</form>
 		</div>
 
@@ -629,13 +426,6 @@ class SettingsPage {
 				border: 1px solid #c3c4c7;
 				border-bottom: none;
 				font-size: 14px;
-			}
-			.bws-dynamic-tags-settings .bws-source-header label {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				cursor: pointer;
-				font-weight: 600;
 			}
 			.bws-dynamic-tags-settings .bws-tags-table {
 				border-top: none;
@@ -655,35 +445,76 @@ class SettingsPage {
 				font-size: 12px;
 				color: #787c82;
 			}
-			.bws-dynamic-tags-settings .bws-tag-row.bws-disabled {
-				opacity: 0.5;
+			.bws-dynamic-tags-settings .bws-new-tag {
+				color: #2271b1;
 			}
-			.bws-dynamic-tags-settings .bws-tag-row.bws-disabled label {
-				cursor: default;
+			.bws-dynamic-tags-settings .bws-dep-arrow {
+				margin-left: 6px;
+				color: #787c82;
+			}
+			.bws-dynamic-tags-settings .bws-dep-since {
+				margin-left: 8px;
+				font-size: 12px;
+				color: #a0a0a0;
+			}
+			.bws-dynamic-tags-settings .bws-deprecated-table .bws-convert-cell {
+				width: 200px;
+				white-space: nowrap;
+			}
+			.bws-dynamic-tags-settings .bws-convert-result {
+				margin-left: 8px;
+				font-size: 13px;
+			}
+			.bws-dynamic-tags-settings .bws-convert-result.success {
+				color: #00a32a;
+			}
+			.bws-dynamic-tags-settings .bws-convert-result.error {
+				color: #d63638;
 			}
 		</style>
 
 		<script>
 			( function() {
-				// Source master toggle: controls direct tag rows.
-				document.querySelectorAll( '.bws-source-toggle' ).forEach( function( toggle ) {
-					toggle.addEventListener( 'change', function() {
-						var source  = this.dataset.source;
-						var enabled = this.checked;
+				var ajaxUrl  = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
 
-						var directTable = document.querySelector( '.bws-direct-tags[data-source="' + source + '"]' );
-						if ( directTable ) {
-							directTable.querySelectorAll( '.bws-tag-row' ).forEach( function( row ) {
-								var cb = row.querySelector( '.bws-tag-toggle' );
-								if ( enabled ) {
-									row.classList.remove( 'bws-disabled' );
-									cb.disabled = false;
+				document.querySelectorAll( '.bws-convert-btn' ).forEach( function( btn ) {
+					btn.addEventListener( 'click', function() {
+						var tagName = this.dataset.tag;
+						var nonce   = this.dataset.nonce;
+						var result  = this.parentNode.querySelector( '.bws-convert-result' );
+
+						btn.disabled  = true;
+						result.textContent = <?php echo wp_json_encode( __( 'Converting…', 'generateblocks' ) ); ?>;
+						result.className   = 'bws-convert-result';
+
+						var data = new FormData();
+						data.append( 'action',   'bws_convert_deprecated_tag' );
+						data.append( 'nonce',    nonce );
+						data.append( 'tag_name', tagName );
+
+						fetch( ajaxUrl, { method: 'POST', body: data } )
+							.then( function( r ) { return r.json(); } )
+							.then( function( json ) {
+								if ( json.success ) {
+									var count = json.data.count;
+									result.textContent = count === 1
+										? <?php echo wp_json_encode( __( 'Updated 1 post.', 'generateblocks' ) ); ?>
+										: count.toString() + ' ' + <?php echo wp_json_encode( __( 'posts updated.', 'generateblocks' ) ); ?>;
+									result.className = 'bws-convert-result success';
 								} else {
-									row.classList.add( 'bws-disabled' );
-									cb.disabled = true;
+									result.textContent = ( json.data && json.data.message )
+										? json.data.message
+										: <?php echo wp_json_encode( __( 'Conversion failed.', 'generateblocks' ) ); ?>;
+									result.className = 'bws-convert-result error';
 								}
+							} )
+							.catch( function() {
+								result.textContent = <?php echo wp_json_encode( __( 'Request error.', 'generateblocks' ) ); ?>;
+								result.className   = 'bws-convert-result error';
+							} )
+							.finally( function() {
+								btn.disabled = false;
 							} );
-						}
 					} );
 				} );
 			} )();

@@ -315,7 +315,7 @@ class TagTemplateRegistry {
 			}
 			$existing[] = $tag_name;
 
-			if ( ! SettingsPage::is_tag_enabled( $tag_name ) ) {
+			if ( ! SettingsPage::is_modifier_enabled( 'try' ) ) {
 				continue;
 			}
 
@@ -648,11 +648,12 @@ class TagTemplateRegistry {
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
 		foreach ( SourceRegistry::get_all_sources() as $source ) {
-			if ( ! SettingsPage::is_source_enabled( $source->get_source_key() ) ) {
+			$source_context = $source->get_context_type(); // 'post' | 'term'
+
+			// Gate term-context sources on the term_ modifier toggle.
+			if ( 'term' === $source_context && ! SettingsPage::is_modifier_enabled( 'term' ) ) {
 				continue;
 			}
-
-			$source_context = $source->get_context_type(); // 'post' | 'term'
 
 			// ===
 			// Direct tags
@@ -691,13 +692,6 @@ class TagTemplateRegistry {
 					continue;
 				}
 				$existing[] = $tag_name;
-
-				$tag_default = self::compute_tag_default( $tpl, $source->get_tag_prefix() );
-				SettingsPage::register_tag_source( $tag_name, $source, false, $tag_default );
-
-				if ( ! SettingsPage::is_tag_enabled( $tag_name, '', $source, false, $tag_default ) ) {
-					continue;
-				}
 
 				// Determine effective core fn, options fn, gb_type, and supports based on context.
 				if ( 'term' === $source_context ) {
@@ -874,7 +868,7 @@ class TagTemplateRegistry {
 		// Sources eligible for try_ slot selection: exclude any source that requires its own
 		// global relationship options (e.g. SecondRelatedPost uses 'rel'/'rel_2' at the tag
 		// level, not per-slot, so it cannot participate in the slot-based source system).
-		// Also exclude disabled sources — no point offering a source slot the user has turned off.
+		// Also exclude term-context sources when the term_ modifier is disabled.
 		$try_slot_sources = array_filter(
 			$effective_sources,
 			static fn( $entry ) => empty( $entry['source']->get_source_options() )
@@ -896,7 +890,7 @@ class TagTemplateRegistry {
 			}
 			$existing[] = $tag_name;
 
-			if ( ! SettingsPage::is_tag_enabled( $tag_name ) ) {
+			if ( ! SettingsPage::is_modifier_enabled( 'try' ) ) {
 				continue;
 			}
 

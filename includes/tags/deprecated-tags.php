@@ -42,7 +42,7 @@ function bws_register_deprecated_tags() {
 	$registered = true;
 
 	// current_post_featured_image → post_featured_image.
-	if ( SettingsPage::is_tag_enabled( 'current_post_featured_image', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'current_post_featured_image' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Post Featured Image (Deprecated)', 'generateblocks' ),
@@ -57,7 +57,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// current_post_meta_image → post_custom_image.
-	if ( SettingsPage::is_tag_enabled( 'current_post_meta_image', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'current_post_meta_image' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Post Custom Image (Deprecated)', 'generateblocks' ),
@@ -75,7 +75,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// related_post_meta_image → related_post_custom_image.
-	if ( SettingsPage::is_tag_enabled( 'related_post_meta_image', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'related_post_meta_image' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Related Post Custom Image (Deprecated)', 'generateblocks' ),
@@ -93,7 +93,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// related_post_url → related_post_permalink.
-	if ( SettingsPage::is_tag_enabled( 'related_post_url', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'related_post_url' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Related Post Permalink (Deprecated)', 'generateblocks' ),
@@ -107,7 +107,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// post_acf_date_time_single → post_acf_datetime_single.
-	if ( SettingsPage::is_tag_enabled( 'post_acf_date_time_single', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'post_acf_date_time_single' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Post ACF Date/Time (Deprecated)', 'generateblocks' ),
@@ -122,7 +122,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// post_acf_date_time_range → post_acf_datetime_range.
-	if ( SettingsPage::is_tag_enabled( 'post_acf_date_time_range', 'post' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'post_acf_date_time_range' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Post ACF Date/Time Range (Deprecated)', 'generateblocks' ),
@@ -137,7 +137,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// term_name → term_title.
-	if ( SettingsPage::is_tag_enabled( 'term_name', 'term' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'term_name' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Term Name (Deprecated)', 'generateblocks' ),
@@ -151,7 +151,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// term_field_image → term_custom_image.
-	if ( SettingsPage::is_tag_enabled( 'term_field_image', 'term' ) ) {
+	if ( SettingsPage::is_deprecated_tag_enabled( 'term_field_image' ) ) {
 		new GenerateBlocks_Register_Dynamic_Tag(
 			array(
 				'title'       => __( 'Term Field Image (Deprecated)', 'generateblocks' ),
@@ -171,8 +171,7 @@ function bws_register_deprecated_tags() {
 	// External deprecated tag wrappers registered via DeprecatedTagRegistry.
 	foreach ( \BWS\DynamicTags\DeprecatedTagRegistry::get_all() as $entry ) {
 		$old_tag = $entry['old_tag'] ?? '';
-		$sk      = $entry['source_key'] ?? '';
-		if ( ! $old_tag || ! SettingsPage::is_tag_enabled( $old_tag, $sk ) ) {
+		if ( ! $old_tag || ! SettingsPage::is_deprecated_tag_enabled( $old_tag ) ) {
 			continue;
 		}
 		$gb_args = array(
