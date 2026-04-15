@@ -457,9 +457,12 @@ function bws_build_single_format( $options, $result, $include_date, $include_tim
     elseif ( $result['formats']['combined_format'] ) {
         $format = $result['formats']['combined_format'];
     }
-    // Fallback
+    // Fallback: use WordPress date/time format settings.
     else {
-        $format = $include_time ? 'F j, Y g:i A' : 'F j, Y';
+        $date_fmt = get_option( 'date_format', 'F j, Y' );
+        $format   = $include_time
+            ? $date_fmt . ' ' . get_option( 'time_format', 'g:i A' )
+            : $date_fmt;
     }
 
     // Apply date/time only filters
@@ -507,9 +510,12 @@ function bws_build_range_format( $options, $start_result, $end_result, $include_
     elseif ( $start_result['formats']['combined_format'] ) {
         $format = $start_result['formats']['combined_format'];
     }
-    // Fallback
+    // Fallback: use WordPress date/time format settings.
     else {
-        $format = $include_time ? 'F j, Y g:i A' : 'F j, Y';
+        $date_fmt = get_option( 'date_format', 'F j, Y' );
+        $format   = $include_time
+            ? $date_fmt . ' ' . get_option( 'time_format', 'g:i A' )
+            : $date_fmt;
     }
 
     // Apply date-only filter if requested

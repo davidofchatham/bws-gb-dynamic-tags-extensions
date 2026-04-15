@@ -7,7 +7,7 @@
  * resolves from the current loop entity; named values dispatch to the appropriate
  * source class with option keys remapped for each traversal type.
  *
- * Registered tags: text, content, title, permalink
+ * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
  *
  * Via dispatch table (post context):
  *   ''        → CurrentPost (no traversal; current loop entity)
@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use BWS\DynamicTags\SourceRegistry;
 
 /**
- * Register the four base dynamic tags.
+ * Register all base dynamic tags.
  *
  * @since 1.6.0
  */
@@ -133,41 +133,132 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// title — entity title/name; zero custom options; supports_list
+	// title — entity title/name; via traversal like text/content
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
 		'title'    => __( 'Title / Name', 'generateblocks' ),
 		'tag'      => 'title',
 		'type'     => 'cross-source',
-		'supports' => array( 'source', 'link' ),
-		'options'  => array(
-			'limit' => array(
-				'type'  => 'number',
-				'label' => __( 'Limit', 'generateblocks' ),
-				'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
-			),
-			'sep'   => array(
-				'type'        => 'text',
-				'label'       => __( 'Separator', 'generateblocks' ),
-				'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
-				'placeholder' => ', ',
-			),
+		'supports' => array(),
+		'options'  => array_merge(
+			$via_opt,
+			$traversal_opts,
+			array(
+				'limit' => array(
+					'type'  => 'number',
+					'label' => __( 'Limit', 'generateblocks' ),
+					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+				),
+				'sep'   => array(
+					'type'        => 'text',
+					'label'       => __( 'Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+				),
+			)
 		),
 		'return'   => 'bws_base_title_callback',
 	) );
 
 	// =========================================================
-	// permalink — post/entity URL; zero custom options
+	// permalink — post/entity URL; via traversal like text/content
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
 		'title'    => __( 'Permalink', 'generateblocks' ),
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
-		'supports' => array( 'source' ),
-		'options'  => array(),
+		'supports' => array(),
+		'options'  => array_merge(
+			$via_opt,
+			$traversal_opts
+		),
 		'return'   => 'bws_base_permalink_callback',
+	) );
+
+	// =========================================================
+	// image — featured or ACF/meta field image; gb_type 'media'
+	// `as` is first and always serialized (default:'url' causes
+	// GB to write as:url even when the user has not changed it).
+	// `from:featured` is hidden when via is unset — traversal to
+	// another post is the only context where featured is useful.
+	// =========================================================
+
+	new GenerateBlocks_Register_Dynamic_Tag( array(
+		'title'    => __( 'Image', 'generateblocks' ),
+		'tag'      => 'image',
+		'type'     => 'media',
+		'supports' => array(),
+		'options'  => array_merge(
+			array(
+				'as' => array(
+					'type'    => 'select',
+					'label'   => __( 'Return type:', 'generateblocks' ),
+					'default' => 'url',
+					'options' => array(
+						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
+						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
+						array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+						array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
+						array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
+					),
+				),
+			),
+			$via_opt,
+			$traversal_opts,
+			array(
+				'from' => array(
+					'type'    => 'select',
+					'label'   => __( 'Get image from:', 'generateblocks' ),
+					'options' => array(
+						array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
+						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+					),
+					'show_if' => array( 'via' => 'in:ref,ref_ref,tax_ref' ),
+				),
+				'key'  => array(
+					'type'        => 'text',
+					'label'       => __( 'Field Key', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+					'placeholder' => 'image_field',
+					'show_if'     => array( 'from' => 'not:featured' ),
+				),
+				'size' => array(
+					'type'        => 'text',
+					'label'       => __( 'Image Size', 'generateblocks' ),
+					'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
+					'placeholder' => 'full',
+				),
+			)
+		),
+		'return'   => 'bws_base_image_callback',
+	) );
+
+	// =========================================================
+	// datetime_single — single date/time field(s) with mode switch
+	// =========================================================
+
+	new GenerateBlocks_Register_Dynamic_Tag( array(
+		'title'    => __( 'Date / Time', 'generateblocks' ),
+		'tag'      => 'datetime_single',
+		'type'     => 'cross-source',
+		'supports' => array(),
+		'options'  => bws_get_base_datetime_single_options(),
+		'return'   => 'bws_base_datetime_single_callback',
+	) );
+
+	// =========================================================
+	// datetime_range — start/end date/time range with mode switch
+	// =========================================================
+
+	new GenerateBlocks_Register_Dynamic_Tag( array(
+		'title'    => __( 'Date / Time Range', 'generateblocks' ),
+		'tag'      => 'datetime_range',
+		'type'     => 'cross-source',
+		'supports' => array(),
+		'options'  => bws_get_base_datetime_range_options(),
+		'return'   => 'bws_base_datetime_range_callback',
 	) );
 }
 
@@ -418,26 +509,51 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `title` base tag.
  *
- * Zero custom options. Resolves entity from GB's native source support
- * (source support passes post ID via $options['id']).
+ * Dispatches entity resolution via the `via` option (same traversal
+ * mechanism as text/content/permalink). Unset `via` resolves the current entity.
  *
  * @since 1.6.0
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
-	$source  = SourceRegistry::get_source( 'post' );
-	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
+	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_title_core( $post_id, $options, $instance );
 }
 
 /**
  * Callback for the `permalink` base tag.
  *
- * Zero custom options. Resolves entity from GB's native source support.
+ * Dispatches entity resolution via the `via` option (same traversal
+ * mechanism as text/content). Unset `via` resolves the current entity.
  *
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
-	$source  = SourceRegistry::get_source( 'post' );
-	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
+	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_permalink_core( $post_id, $options, $instance );
+}
+
+/**
+ * Callback for the `image` base tag.
+ *
+ * Dispatches entity resolution via the `via` option, then calls the
+ * appropriate core function based on `from`:
+ *   from unset / from:'' → bws_custom_image_core() (reads key + size options)
+ *   from:featured        → bws_featured_image_core()
+ *
+ * The `from` option is only shown in the editor when `via` is set (traversal
+ * to another post). When `via` is unset the image is always a custom field
+ * on the current entity.
+ *
+ * @since 1.6.0
+ */
+function bws_base_image_callback( $options, $block, $instance ): string {
+	$from    = $options['from'] ?? '';
+	$post_id = bws_resolve_post_by_via( $options, $instance );
+
+	if ( 'featured' === $from ) {
+		return bws_featured_image_core( $post_id, $options, $instance );
+	}
+
+	// Default: custom field image (reads $options['key'] and $options['size']).
+	return bws_custom_image_core( $post_id, $options, $instance );
 }

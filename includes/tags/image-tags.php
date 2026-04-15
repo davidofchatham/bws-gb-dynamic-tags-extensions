@@ -72,6 +72,7 @@ function bws_override_media_ids_for_post_context( $id, $options, $instance ) {
 	$tag_name = $options['tag_name'] ?? '';
 
 	$post_context_media_tags = array(
+		'image',
 		'post_featured_image',
 		'related_post_featured_image',
 		'post_custom_image',

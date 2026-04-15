@@ -78,12 +78,11 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/base-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/content-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/image-tags.php';
-	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/date-tags.php';
-	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php'; // merged: includes date-only templates
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/taxonomy-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
 
-	// Register base (source-agnostic) tags: text, content, title, permalink.
+	// Register base (source-agnostic) tags: text, content, title, permalink, image, datetime_single, datetime_range.
 	bws_register_base_tags();
 
 	// Register tag templates (order = GB editor display order within each gb_type group).
