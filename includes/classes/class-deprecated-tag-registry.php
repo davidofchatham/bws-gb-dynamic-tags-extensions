@@ -174,8 +174,8 @@ class DeprecatedTagRegistry {
 	 *   1. format_type + custom_format → format (collapse or drop).
 	 *   2. date_only → as:date (inject + drop key).
 	 *   3. time_only → as:time (inject + drop key).
-	 *   4. smart_time → drop; if absent and time output is possible, inject show_midnight:1.
-	 *   5. omit_current_year → drop; if absent, inject show_current_year:1.
+	 *   4. smart_time → drop; if absent and time output is possible, inject show_midnight:true.
+	 *   5. omit_current_year → drop; if absent, inject show_current_year:true.
 	 *
 	 * @since 1.6.0
 	 * @param array $options Options array after renames have been applied.
@@ -211,7 +211,7 @@ class DeprecatedTagRegistry {
 			unset( $options['smart_time'] );
 			// Do NOT inject show_midnight (smart_time presence means user opted in; drop it).
 		} elseif ( $has_time_output ) {
-			$options['show_midnight'] = '1';
+			$options['show_midnight'] = 'true';
 		}
 
 		// 5. omit_current_year → show_current_year (inverted boolean).
@@ -220,7 +220,7 @@ class DeprecatedTagRegistry {
 			unset( $options['omit_current_year'] );
 		} else {
 			// omit_current_year was absent (false) → show_current_year is true.
-			$options['show_current_year'] = '1';
+			$options['show_current_year'] = 'true';
 		}
 
 		return $options;
