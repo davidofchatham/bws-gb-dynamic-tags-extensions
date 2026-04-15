@@ -394,67 +394,76 @@ function bws_get_datetime_range_options() {
  * @since 1.6.0
  * @return array
  */
-function bws_get_base_datetime_single_options(): array {
-	$via_opt        = bws_base_via_option();
-	$traversal_opts = bws_base_traversal_options();
+/**
+ * Template-specific options for the datetime_single modifier template.
+ *
+ * Returns only the field-key and formatting options — no via or traversal sub-options.
+ * Used by register_modifier_template() in bws_register_base_tags() and as trailing
+ * options in generate_base_try_tags() for try_datetime_single.
+ *
+ * @since 1.6.0
+ * @return array
+ */
+function bws_get_datetime_single_template_options(): array {
+	return array(
+		'key'               => array(
+			'type'        => 'text',
+			'label'       => __( 'Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
+			'placeholder' => 'event_date',
+		),
+		'key2'              => array(
+			'type'        => 'text',
+			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
+			'placeholder' => 'event_time',
+		),
+		'as'                => array(
+			'type'    => 'select',
+			'label'   => __( 'Show:', 'generateblocks' ),
+			'options' => array(
+				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
+				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
+				array( 'value' => 'time', 'label' => __( 'Time only', 'generateblocks' ) ),
+			),
+		),
+		'format'            => array(
+			'type'        => 'text',
+			'label'       => __( 'Format', 'generateblocks' ),
+			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
+			'placeholder' => 'F j, Y g:i A',
+		),
+		'time_sep'          => array(
+			'type'        => 'text',
+			'label'       => __( 'Date/Time Separator', 'generateblocks' ),
+			'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
+			'placeholder' => ', ',
+			'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
+		),
+		'show_current_year' => array(
+			'type'  => 'checkbox',
+			'label' => __( 'Show current year', 'generateblocks' ),
+			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
+		),
+		'show_midnight'     => array(
+			'type'  => 'checkbox',
+			'label' => __( 'Show time at midnight', 'generateblocks' ),
+			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
+		),
+		'fallback'          => array(
+			'type'        => 'text',
+			'label'       => __( 'Fallback Text', 'generateblocks' ),
+			'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
+			'placeholder' => 'Date/time TBA',
+		),
+	);
+}
 
+function bws_get_base_datetime_single_options(): array {
 	return array_merge(
-		$via_opt,
-		$traversal_opts,
-		array(
-			'key'               => array(
-				'type'        => 'text',
-				'label'       => __( 'Date / Time Field', 'generateblocks' ),
-				'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
-				'placeholder' => 'event_date',
-			),
-			'key2'              => array(
-				'type'        => 'text',
-				'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
-				'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
-				'placeholder' => 'event_time',
-			),
-			'as'                => array(
-				'type'    => 'select',
-				'label'   => __( 'Show:', 'generateblocks' ),
-				'options' => array(
-					array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
-					array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
-					array( 'value' => 'time', 'label' => __( 'Time only', 'generateblocks' ) ),
-				),
-			),
-			'format'            => array(
-				'type'        => 'text',
-				'label'       => __( 'Format', 'generateblocks' ),
-				'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
-				'placeholder' => 'F j, Y g:i A',
-			),
-			'time_sep'          => array(
-				'type'        => 'text',
-				'label'       => __( 'Date/Time Separator', 'generateblocks' ),
-				'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
-				'placeholder' => ', ',
-				// Show only when no custom format is set (format handles layout itself)
-				// and the output includes both date and time (as is not date or time).
-				'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
-			),
-			'show_current_year' => array(
-				'type'  => 'checkbox',
-				'label' => __( 'Show current year', 'generateblocks' ),
-				'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
-			),
-			'show_midnight'     => array(
-				'type'  => 'checkbox',
-				'label' => __( 'Show time at midnight', 'generateblocks' ),
-				'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
-			),
-			'fallback'          => array(
-				'type'        => 'text',
-				'label'       => __( 'Fallback Text', 'generateblocks' ),
-				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
-				'placeholder' => 'Date/time TBA',
-			),
-		)
+		bws_base_via_option(),
+		bws_base_traversal_options(),
+		bws_get_datetime_single_template_options()
 	);
 }
 
@@ -467,83 +476,93 @@ function bws_get_base_datetime_single_options(): array {
  * @since 1.6.0
  * @return array
  */
-function bws_get_base_datetime_range_options(): array {
-	$via_opt        = bws_base_via_option();
-	$traversal_opts = bws_base_traversal_options();
+/**
+ * Template-specific options for the datetime_range modifier template.
+ *
+ * Returns only the field-key and formatting options — no via or traversal sub-options.
+ * Mirrors bws_get_datetime_single_template_options() with range-specific fields.
+ *
+ * @since 1.6.0
+ * @return array
+ */
+function bws_get_datetime_range_template_options(): array {
+	return array(
+		'key'               => array(
+			'type'        => 'text',
+			'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
+			'placeholder' => 'start_date',
+		),
+		'key2'              => array(
+			'type'        => 'text',
+			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
+			'placeholder' => 'start_time',
+		),
+		'end'               => array(
+			'type'        => 'text',
+			'label'       => __( 'End Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
+			'placeholder' => 'end_date',
+		),
+		'end2'              => array(
+			'type'        => 'text',
+			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
+			'placeholder' => 'end_time',
+		),
+		'as'                => array(
+			'type'    => 'select',
+			'label'   => __( 'Show:', 'generateblocks' ),
+			'options' => array(
+				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
+				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
+				array( 'value' => 'time', 'label' => __( 'Time only', 'generateblocks' ) ),
+			),
+		),
+		'format'            => array(
+			'type'        => 'text',
+			'label'       => __( 'Format', 'generateblocks' ),
+			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
+			'placeholder' => 'F j, Y g:i A',
+		),
+		'time_sep'          => array(
+			'type'        => 'text',
+			'label'       => __( 'Date/Time Separator', 'generateblocks' ),
+			'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
+			'placeholder' => ', ',
+			'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
+		),
+		'range_sep'         => array(
+			'type'        => 'text',
+			'label'       => __( 'Range Separator', 'generateblocks' ),
+			'help'        => __( 'Text between start and end dates. Default: –', 'generateblocks' ),
+			'placeholder' => '–',
+		),
+		'show_current_year' => array(
+			'type'  => 'checkbox',
+			'label' => __( 'Show current year', 'generateblocks' ),
+			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
+		),
+		'show_midnight'     => array(
+			'type'  => 'checkbox',
+			'label' => __( 'Show time at midnight', 'generateblocks' ),
+			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
+		),
+		'fallback'          => array(
+			'type'        => 'text',
+			'label'       => __( 'Fallback Text', 'generateblocks' ),
+			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
+			'placeholder' => 'Date TBA',
+		),
+	);
+}
 
+function bws_get_base_datetime_range_options(): array {
 	return array_merge(
-		$via_opt,
-		$traversal_opts,
-		array(
-			'key'               => array(
-				'type'        => 'text',
-				'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
-				'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
-				'placeholder' => 'start_date',
-			),
-			'key2'              => array(
-				'type'        => 'text',
-				'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
-				'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
-				'placeholder' => 'start_time',
-			),
-			'end'               => array(
-				'type'        => 'text',
-				'label'       => __( 'End Date / Time Field', 'generateblocks' ),
-				'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
-				'placeholder' => 'end_date',
-			),
-			'end2'              => array(
-				'type'        => 'text',
-				'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
-				'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
-				'placeholder' => 'end_time',
-			),
-			'as'                => array(
-				'type'    => 'select',
-				'label'   => __( 'Show:', 'generateblocks' ),
-				'options' => array(
-					array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
-					array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
-					array( 'value' => 'time', 'label' => __( 'Time only', 'generateblocks' ) ),
-				),
-			),
-			'format'            => array(
-				'type'        => 'text',
-				'label'       => __( 'Format', 'generateblocks' ),
-				'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
-				'placeholder' => 'F j, Y g:i A',
-			),
-			'time_sep'          => array(
-				'type'        => 'text',
-				'label'       => __( 'Date/Time Separator', 'generateblocks' ),
-				'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
-				'placeholder' => ', ',
-				'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
-			),
-			'range_sep'         => array(
-				'type'        => 'text',
-				'label'       => __( 'Range Separator', 'generateblocks' ),
-				'help'        => __( 'Text between start and end dates. Default: –', 'generateblocks' ),
-				'placeholder' => '–',
-			),
-			'show_current_year' => array(
-				'type'  => 'checkbox',
-				'label' => __( 'Show current year', 'generateblocks' ),
-				'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
-			),
-			'show_midnight'     => array(
-				'type'  => 'checkbox',
-				'label' => __( 'Show time at midnight', 'generateblocks' ),
-				'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
-			),
-			'fallback'          => array(
-				'type'        => 'text',
-				'label'       => __( 'Fallback Text', 'generateblocks' ),
-				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-				'placeholder' => 'Date TBA',
-			),
-		)
+		bws_base_via_option(),
+		bws_base_traversal_options(),
+		bws_get_datetime_range_template_options()
 	);
 }
 
@@ -977,27 +996,61 @@ function bws_base_map_datetime_range_options( array $options ): array {
 /**
  * Callback for the `datetime_single` base tag.
  *
- * Dispatches entity resolution via the `via` option, remaps base tag option
- * keys to legacy core function keys, then delegates to bws_datetime_single_core().
+ * Dispatches entity resolution via the `via` option:
+ *   via:tax  → iterate taxonomy terms; return first non-empty date value.
+ *   via:post → resolve post entity; delegate to bws_datetime_single_core().
+ * Remaps base tag option keys to legacy core function keys before dispatching.
  *
  * @since 1.6.0
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
+	$via    = $options['via'] ?? '';
+	$mapped = bws_base_map_datetime_options( $options );
+
+	if ( 'tax' === $via ) {
+		$terms = function_exists( 'bws_get_terms_by_via' )
+			? bws_get_terms_by_via( $options, $instance )
+			: [];
+		foreach ( $terms as $term ) {
+			$result = bws_term_datetime_single_core( $term->term_id, $mapped, $instance );
+			if ( '' !== $result ) {
+				return $result;
+			}
+		}
+		return '';
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
-	$mapped  = bws_base_map_datetime_options( $options );
 	return bws_datetime_single_core( $post_id, $mapped, $instance );
 }
 
 /**
  * Callback for the `datetime_range` base tag.
  *
- * Dispatches entity resolution via the `via` option, remaps base tag option
- * keys to legacy core function keys, then delegates to bws_datetime_range_core().
+ * Dispatches entity resolution via the `via` option:
+ *   via:tax  → iterate taxonomy terms; return first non-empty range value.
+ *   via:post → resolve post entity; delegate to bws_datetime_range_core().
+ * Remaps base tag option keys to legacy core function keys before dispatching.
  *
  * @since 1.6.0
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
+	$via    = $options['via'] ?? '';
+	$mapped = bws_base_map_datetime_range_options( $options );
+
+	if ( 'tax' === $via ) {
+		$terms = function_exists( 'bws_get_terms_by_via' )
+			? bws_get_terms_by_via( $options, $instance )
+			: [];
+		foreach ( $terms as $term ) {
+			$result = bws_term_datetime_range_core( $term->term_id, $mapped, $instance );
+			if ( '' !== $result ) {
+				return $result;
+			}
+		}
+		return '';
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
-	$mapped  = bws_base_map_datetime_range_options( $options );
 	return bws_datetime_range_core( $post_id, $mapped, $instance );
 }

@@ -95,7 +95,15 @@ function bws_dynamic_tags_register_all() {
 	// Generate all source × template combinations (direct + related variants).
 	\BWS\DynamicTags\TagTemplateRegistry::generate_all_tags();
 
-	// Generate try_ fallback-chain tags (Phase 7).
+	// Generate try_ fallback-chain tags from modifier templates (base-tag system, v1.6.0).
+	// Runs BEFORE generate_try_tags() so that shared names (try_title, try_content, try_permalink,
+	// try_datetime_single, try_datetime_range) are claimed by the new sN-via system. The N×M
+	// generate_try_tags() call below then skips those names via dup-check and only registers
+	// names that have no modifier-template equivalent (try_custom_text, try_custom_image, etc.).
+	\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
+
+	// Generate try_ fallback-chain tags from N×M templates (legacy system, Phase 7).
+	// Remaining N×M try_ names not yet registered above are generated here.
 	\BWS\DynamicTags\TagTemplateRegistry::generate_try_tags();
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).

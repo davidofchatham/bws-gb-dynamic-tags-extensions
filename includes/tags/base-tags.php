@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use BWS\DynamicTags\SourceRegistry;
+use BWS\DynamicTags\TagTemplateRegistry;
 
 /**
  * Register all base dynamic tags.
@@ -260,6 +261,206 @@ function bws_register_base_tags(): void {
 		'options'  => bws_get_base_datetime_range_options(),
 		'return'   => 'bws_base_datetime_range_callback',
 	) );
+
+	// =========================================================
+	// Register modifier templates for the term_ constructor.
+	//
+	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates
+	// and consumed by both register_modifier() (generates term_* GB tags)
+	// and generate_base_try_tags() (generates try_* GB tags).
+	//
+	// 'options' — template-specific trailing options (appended after via + traversal
+	//             sub-options in non-image modifier tags; used as trailing options in
+	//             try_ tags after per-slot sN-* options).
+	// 'term_fn'  — fn($term_id, $opts, $inst) for the direct term-entity path.
+	// 'post_fn'  — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
+	// 'try_core_fn'  — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
+	// 'try_term_fn'  — fn($term_id, $opts, $inst) for try_ via:tax slot dispatch.
+	// =========================================================
+
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'              => 'text',
+		'title'            => __( 'Text Fields', 'generateblocks' ),
+		'options'          => array(
+			'key'      => array(
+				'type'        => 'text',
+				'label'       => __( 'Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'placeholder' => 'field_name',
+			),
+			'fallback' => array(
+				'type'  => 'text',
+				'label' => __( 'Fallback Text', 'generateblocks' ),
+				'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
+			),
+		),
+		'term_fn'          => 'bws_term_custom_text_core',
+		'post_fn'          => 'bws_post_custom_text_core',
+		'try_core_fn'      => 'bws_post_custom_text_core',
+		'try_term_fn'      => 'bws_term_custom_text_core',
+		'supports_try'     => true,
+		'try_per_slot_key' => true,
+		'is_image'         => false,
+	) );
+
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'          => 'content',
+		'title'        => __( 'Content', 'generateblocks' ),
+		'options'      => array(
+			'fallback' => array(
+				'type'  => 'text',
+				'label' => __( 'Fallback Text', 'generateblocks' ),
+				'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
+			),
+		),
+		'term_fn'      => 'bws_term_description_core',
+		'post_fn'      => 'bws_post_content_core',
+		'try_core_fn'  => 'bws_post_content_core',
+		'try_term_fn'  => 'bws_term_description_core',
+		'supports_try' => true,
+		'is_image'     => false,
+	) );
+
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'          => 'title',
+		'title'        => __( 'Title / Name', 'generateblocks' ),
+		'options'      => array(),
+		'term_fn'      => 'bws_term_title_core',
+		'post_fn'      => 'bws_post_title_core',
+		'try_core_fn'  => 'bws_post_title_core',
+		'try_term_fn'  => 'bws_term_title_core',
+		'supports_try' => true,
+		'is_image'     => false,
+	) );
+
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'          => 'permalink',
+		'title'        => __( 'Permalink', 'generateblocks' ),
+		'options'      => array(),
+		'term_fn'      => 'bws_term_permalink_core',
+		'post_fn'      => 'bws_post_permalink_core',
+		'try_core_fn'  => 'bws_post_permalink_core',
+		'try_term_fn'  => 'bws_term_permalink_core',
+		'supports_try' => true,
+		'is_image'     => false,
+	) );
+
+	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
+	// 'options' here is used only by generate_base_try_tags() as trailing options after sN-key slots.
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'              => 'image',
+		'title'            => __( 'Image', 'generateblocks' ),
+		'options'          => array(
+			'as'   => array(
+				'type'    => 'select',
+				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'default' => 'url',
+				'options' => array(
+					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
+					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
+					array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+					array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
+					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
+				),
+			),
+			'size' => array(
+				'type'        => 'text',
+				'label'       => __( 'Image Size', 'generateblocks' ),
+				'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
+				'placeholder' => 'full',
+			),
+		),
+		'term_fn'          => 'bws_term_custom_image_core',
+		'post_fn'          => 'bws_custom_image_core',
+		'try_core_fn'      => 'bws_custom_image_core',
+		'try_term_fn'      => 'bws_term_custom_image_core',
+		'supports_try'     => true,
+		'try_per_slot_key' => true,
+		'is_image'         => true,
+	) );
+
+	// datetime_single and datetime_range: closures needed to remap base tag option keys
+	// (key, key2, as, format…) to the legacy keys expected by bws_datetime_*_core().
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'          => 'datetime_single',
+		'title'        => __( 'Date / Time', 'generateblocks' ),
+		'options'      => function_exists( 'bws_get_datetime_single_template_options' )
+			? bws_get_datetime_single_template_options()
+			: array(),
+		'term_fn'      => static function ( $term_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_options' )
+				? bws_base_map_datetime_options( $opts )
+				: $opts;
+			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
+		},
+		'post_fn'      => static function ( $post_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_options' )
+				? bws_base_map_datetime_options( $opts )
+				: $opts;
+			return bws_datetime_single_core( $post_id, $mapped, $inst );
+		},
+		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_options' )
+				? bws_base_map_datetime_options( $opts )
+				: $opts;
+			return bws_datetime_single_core( $post_id, $mapped, $inst );
+		},
+		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_options' )
+				? bws_base_map_datetime_options( $opts )
+				: $opts;
+			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
+		},
+		'supports_try' => true,
+		'is_image'     => false,
+	) );
+
+	TagTemplateRegistry::register_modifier_template( array(
+		'key'          => 'datetime_range',
+		'title'        => __( 'Date / Time Range', 'generateblocks' ),
+		'options'      => function_exists( 'bws_get_datetime_range_template_options' )
+			? bws_get_datetime_range_template_options()
+			: array(),
+		'term_fn'      => static function ( $term_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
+				? bws_base_map_datetime_range_options( $opts )
+				: $opts;
+			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
+		},
+		'post_fn'      => static function ( $post_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
+				? bws_base_map_datetime_range_options( $opts )
+				: $opts;
+			return bws_datetime_range_core( $post_id, $mapped, $inst );
+		},
+		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
+				? bws_base_map_datetime_range_options( $opts )
+				: $opts;
+			return bws_datetime_range_core( $post_id, $mapped, $inst );
+		},
+		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
+			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
+				? bws_base_map_datetime_range_options( $opts )
+				: $opts;
+			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
+		},
+		'supports_try' => true,
+		'is_image'     => false,
+	) );
+
+	// =========================================================
+	// Generate term_ modifier tags (term_text, term_image, etc.)
+	// =========================================================
+
+	TagTemplateRegistry::register_modifier( array(
+		'prefix'               => 'term',
+		'gb_type'              => 'term',
+		'modifier_label'       => '',
+		'traversal_source_key' => 'term_related_post',
+		'base_source_key'      => 'term',
+		'excluded_supports'    => array(),
+	) );
 }
 
 // ===============================================
@@ -277,6 +478,7 @@ function bws_register_base_tags(): void {
  * @return array Single-entry array keyed 'via'.
  */
 function bws_base_via_option(): array {
+	$taxonomy_term  = SourceRegistry::get_source( 'term' );
 	$related_post   = SourceRegistry::get_source( 'related_post' );
 	$second_related = SourceRegistry::get_source( 'second_related_post' );
 	$post_term_rel  = SourceRegistry::get_source( 'post_term_related_post' );
@@ -298,6 +500,12 @@ function bws_base_via_option(): array {
 					'label' => $second_related
 						? $second_related->get_source_label()
 						: __( 'Ref/Rel Field → 2nd Ref/Rel Field', 'generateblocks' ),
+				),
+				array(
+					'value' => 'tax',
+					'label' => $taxonomy_term
+						? $taxonomy_term->get_source_label()
+						: __( 'Taxonomy Term', 'generateblocks' ),
 				),
 				array(
 					'value' => 'tax_ref',
@@ -353,13 +561,13 @@ function bws_base_traversal_options(): array {
 			'placeholder' => 'related_posts',
 			'show_if'     => array( 'via' => 'ref_ref' ),
 		),
-		// PostTermRelatedPost — taxonomy hop (only for via:tax_ref).
+		// TaxonomyTerm hop (via:tax) or PostTermRelatedPost taxonomy hop (via:tax_ref).
 		'tax'  => array(
 			'type'        => 'text',
-			'label'       => __( 'First traverse by taxonomy:', 'generateblocks' ),
+			'label'       => __( 'Traverse by taxonomy:', 'generateblocks' ),
 			'help'        => __( 'Taxonomy slug used to find the post\'s first term (e.g. category, post_tag).', 'generateblocks' ),
 			'placeholder' => 'category',
-			'show_if'     => array( 'via' => 'tax_ref' ),
+			'show_if'     => array( 'via' => 'in:tax,tax_ref' ),
 		),
 	);
 }
@@ -427,6 +635,36 @@ function bws_resolve_post_by_via( array $options, $instance ) {
 	}
 }
 
+/**
+ * Get taxonomy terms for the current post via the `tax` traversal option.
+ *
+ * Used by base tag callbacks and generate_base_try_tags() when via='tax'. Returns
+ * WP_Term objects for the current loop post in the taxonomy specified by $options['tax'].
+ *
+ * @since 1.6.0
+ * @param array  $options  Tag options; reads 'tax' (taxonomy slug).
+ * @param object $instance Block instance (unused; reserved for future context detection).
+ * @return WP_Term[]
+ */
+function bws_get_terms_by_via( array $options, $instance ): array {
+	$tax = sanitize_key( $options['tax'] ?? '' );
+	if ( empty( $tax ) ) {
+		return [];
+	}
+
+	$post_id = get_the_ID();
+	if ( ! $post_id ) {
+		return [];
+	}
+
+	$terms = get_the_terms( $post_id, $tax );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return [];
+	}
+
+	return array_values( $terms );
+}
+
 // ===============================================
 // SHARED OPTION HELPER
 // ===============================================
@@ -457,16 +695,37 @@ function bws_base_map_options( array $options ): array {
  * Callback for the `text` base tag.
  *
  * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on `from`:
- *   from unset / from:key → bws_post_custom_text_core()
- *   from:title            → bws_post_title_core()
+ * appropriate core function based on context and `from`:
+ *
+ * via:tax  + from unset   → bws_term_custom_text_core() (per-term; limit/sep applied)
+ * via:tax  + from:title   → bws_term_title_core()        (per-term; limit/sep applied)
+ * via:post + from unset   → bws_post_custom_text_core()
+ * via:post + from:title   → bws_post_title_core()
  *
  * @since 1.6.0
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
-	$from    = $options['from'] ?? '';
+	$via  = $options['via'] ?? '';
+	$from = $options['from'] ?? '';
+	$opts = bws_base_map_options( $options );
+
+	if ( 'tax' === $via ) {
+		$terms  = bws_get_terms_by_via( $options, $instance );
+		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$sep    = $options['sep'] ?? ', ';
+		$out    = [];
+		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
+			$result = 'title' === $from
+				? bws_term_title_core( $term->term_id, $opts, $instance )
+				: bws_term_custom_text_core( $term->term_id, $opts, $instance );
+			if ( '' !== $result ) {
+				$out[] = $result;
+			}
+		}
+		return implode( $sep, $out );
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
-	$opts    = bws_base_map_options( $options );
 
 	if ( 'title' === $from ) {
 		return bws_post_title_core( $post_id, $opts, $instance );
@@ -480,17 +739,35 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * Callback for the `content` base tag.
  *
  * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on `from`:
- *   from unset    → bws_post_content_core() (full post content)
- *   from:excerpt  → bws_post_excerpt_core()
- *   from:key      → bws_post_content_core() with type:custom_field injected
+ * appropriate core function based on context and `from`:
+ *
+ * via:tax  + from unset   → bws_term_description_core() (term description; first non-empty)
+ * via:tax  + from:key     → bws_term_custom_text_core()  (term WYSIWYG field)
+ * via:post + from unset   → bws_post_content_core()     (full post content)
+ * via:post + from:excerpt → bws_post_excerpt_core()
+ * via:post + from:key     → bws_post_content_core() with type:custom_field injected
  *
  * @since 1.6.0
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
-	$from    = $options['from'] ?? '';
+	$via  = $options['via'] ?? '';
+	$from = $options['from'] ?? '';
+	$opts = bws_base_map_options( $options );
+
+	if ( 'tax' === $via ) {
+		$terms = bws_get_terms_by_via( $options, $instance );
+		foreach ( $terms as $term ) {
+			$result = 'key' === $from
+				? bws_term_custom_text_core( $term->term_id, $opts, $instance )
+				: bws_term_description_core( $term->term_id, $opts, $instance );
+			if ( '' !== $result ) {
+				return $result;
+			}
+		}
+		return '';
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
-	$opts    = bws_base_map_options( $options );
 
 	if ( 'excerpt' === $from ) {
 		return bws_post_excerpt_core( $post_id, $opts, $instance );
@@ -509,12 +786,28 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `title` base tag.
  *
- * Dispatches entity resolution via the `via` option (same traversal
- * mechanism as text/content/permalink). Unset `via` resolves the current entity.
+ * Dispatches entity resolution via the `via` option.
+ * via:tax resolves taxonomy terms for the current post; limit/sep applied.
  *
  * @since 1.6.0
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
+	$via = $options['via'] ?? '';
+
+	if ( 'tax' === $via ) {
+		$terms  = bws_get_terms_by_via( $options, $instance );
+		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$sep    = $options['sep'] ?? ', ';
+		$out    = [];
+		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
+			$result = bws_term_title_core( $term->term_id, $options, $instance );
+			if ( '' !== $result ) {
+				$out[] = $result;
+			}
+		}
+		return implode( $sep, $out );
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_title_core( $post_id, $options, $instance );
 }
@@ -522,12 +815,25 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `permalink` base tag.
  *
- * Dispatches entity resolution via the `via` option (same traversal
- * mechanism as text/content). Unset `via` resolves the current entity.
+ * Dispatches entity resolution via the `via` option.
+ * via:tax resolves taxonomy terms; returns first non-empty term URL.
  *
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
+	$via = $options['via'] ?? '';
+
+	if ( 'tax' === $via ) {
+		$terms = bws_get_terms_by_via( $options, $instance );
+		foreach ( $terms as $term ) {
+			$result = bws_term_permalink_core( $term->term_id, $options, $instance );
+			if ( '' !== $result ) {
+				return $result;
+			}
+		}
+		return '';
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_permalink_core( $post_id, $options, $instance );
 }
@@ -536,18 +842,32 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * Callback for the `image` base tag.
  *
  * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on `from`:
- *   from unset / from:'' → bws_custom_image_core() (reads key + size options)
- *   from:featured        → bws_featured_image_core()
+ * appropriate core function based on context and `from`:
  *
- * The `from` option is only shown in the editor when `via` is set (traversal
- * to another post). When `via` is unset the image is always a custom field
- * on the current entity.
+ * via:tax  → bws_term_custom_image_core() (first non-empty; terms have no featured image)
+ * via:post + from unset   → bws_custom_image_core()
+ * via:post + from:featured → bws_featured_image_core()
+ *
+ * The `from` option is only shown in the editor when `via` is set to a post traversal
+ * (in:ref,ref_ref,tax_ref). For via:tax the image is always a term custom field.
  *
  * @since 1.6.0
  */
 function bws_base_image_callback( $options, $block, $instance ): string {
-	$from    = $options['from'] ?? '';
+	$via  = $options['via'] ?? '';
+	$from = $options['from'] ?? '';
+
+	if ( 'tax' === $via ) {
+		$terms = bws_get_terms_by_via( $options, $instance );
+		foreach ( $terms as $term ) {
+			$result = bws_term_custom_image_core( $term->term_id, $options, $instance );
+			if ( '' !== $result ) {
+				return $result;
+			}
+		}
+		return '';
+	}
+
 	$post_id = bws_resolve_post_by_via( $options, $instance );
 
 	if ( 'featured' === $from ) {

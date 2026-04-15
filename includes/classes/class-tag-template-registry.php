@@ -23,6 +23,25 @@ class TagTemplateRegistry {
 	/** @var array[] Registered template configs, in registration order. */
 	private static array $templates = [];
 
+	/**
+	 * @var array[] Modifier template descriptors used by register_modifier() (term_ constructor)
+	 *              and generate_base_try_tags() (try_ constructor).
+	 *
+	 * Each entry shape:
+	 *   key              string    Template key (e.g. 'text', 'image').
+	 *   title            string    Display title fragment (e.g. 'Text Fields').
+	 *   options          array     Template-specific options excluding via/traversal sub-options.
+	 *   term_fn          callable  fn($term_id, $opts, $inst): string — term-entity handler.
+	 *   post_fn          callable  fn($post_id, $opts, $inst): string — post-entity handler (term_ via:'ref').
+	 *   try_core_fn      callable  fn($post_id, $opts, $inst): string — try_ post-slot handler.
+	 *   try_term_fn      callable|null  fn($term_id, $opts, $inst): string — try_ via:tax slot handler.
+	 *   supports_try     bool      Whether this template generates a try_ tag.
+	 *   try_per_slot_key bool      Each try_ slot gets its own sN-key.
+	 *   try_per_slot_from bool     Each try_ slot gets its own sN-from.
+	 *   is_image         bool      Image template — special as/size options, no from in modifier.
+	 */
+	private static array $modifier_templates = [];
+
 	// ===
 	// Registration
 	// ===
@@ -60,6 +79,520 @@ class TagTemplateRegistry {
 	 */
 	public static function register_template( array $config ): void {
 		self::$templates[] = $config;
+	}
+
+	/**
+	 * Register a base template descriptor for use by modifier + try_ constructors.
+	 *
+	 * Called once per base template (from bws_register_base_tags()) after the GB tag is registered.
+	 * Stores metadata needed by register_modifier() and generate_base_try_tags().
+	 *
+	 * @since 1.6.0
+	 */
+	public static function register_modifier_template( array $config ): void {
+		self::$modifier_templates[] = $config;
+	}
+
+	/**
+	 * Get all registered modifier templates (read-only).
+	 *
+	 * @since 1.6.0
+	 * @return array[]
+	 */
+	public static function get_modifier_templates(): array {
+		return self::$modifier_templates;
+	}
+
+	/**
+	 * Register a context modifier group (e.g. the term_ modifier).
+	 *
+	 * Generates one GB tag per modifier template: prefix + '_' + template_key.
+	 * The modifier entity is resolved by the base_source_key source (via unset) or by the
+	 * traversal_source_key source (via:'ref'). Modifier tags include 'source' support unless
+	 * excluded_supports contains 'source'.
+	 *
+	 * @since 1.6.0
+	 *
+	 * @param array $config {
+	 *     @type string $prefix               Tag prefix, e.g. 'term' → produces 'term_text'.
+	 *     @type string $gb_type              GB type for all modifier tags, e.g. 'term'.
+	 *     @type string $modifier_label       Parenthetical appended to the tag title, e.g. 'term-based'.
+	 *     @type string $traversal_source_key Source key for the 'ref' traversal (e.g. 'term_related_post').
+	 *     @type string $base_source_key      Source key for direct entity resolution (e.g. 'term').
+	 *     @type array  $excluded_supports    Supports to exclude; omit to keep 'source' (GB entity picker).
+	 * }
+	 */
+	public static function register_modifier( array $config ): void {
+		if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
+			return;
+		}
+
+		$prefix            = $config['prefix']               ?? '';
+		$gb_type           = $config['gb_type']              ?? 'post';
+		$modifier_label    = $config['modifier_label']        ?? '';
+		$traversal_src_key = $config['traversal_source_key'] ?? '';
+		$base_src_key      = $config['base_source_key']      ?? '';
+		$excl              = $config['excluded_supports']     ?? [];
+
+		// Include 'source' support (GB entity picker) unless explicitly excluded.
+		$base_supports = in_array( 'source', $excl, true ) ? [] : [ 'source' ];
+
+		// Snapshot existing tags for dup-check.
+		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+
+		// Build via dropdown for modifier tags: two entries (current entity, ref traversal).
+		$traversal_src = $traversal_src_key ? SourceRegistry::get_source( $traversal_src_key ) : null;
+		$via_opt       = array(
+			'via' => array(
+				'type'    => 'select',
+				'label'   => __( 'Locate source via:', 'generateblocks' ),
+				'options' => array(
+					array( 'value' => '',    'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
+					array(
+						'value' => 'ref',
+						'label' => $traversal_src
+							? $traversal_src->get_source_label()
+							: __( 'Ref/Rel Field', 'generateblocks' ),
+					),
+				),
+			),
+		);
+
+		// Traversal sub-options from the traversal source's get_traversal_options().
+		// Each option gets a show_if binding it to via:'ref'.
+		$traversal_opts = [];
+		if ( $traversal_src ) {
+			foreach ( $traversal_src->get_traversal_options() as $opt_key => $opt_def ) {
+				$traversal_opts[ $opt_key ] = array_merge( $opt_def, [ 'show_if' => [ 'via' => 'ref' ] ] );
+			}
+		}
+
+		foreach ( self::$modifier_templates as $tpl ) {
+			$tag_name = $prefix . '_' . $tpl['key'];
+
+			if ( in_array( $tag_name, $existing, true ) ) {
+				continue;
+			}
+			$existing[] = $tag_name;
+
+			$term_fn  = $tpl['term_fn'];
+			$post_fn  = $tpl['post_fn'];
+			$is_image = ! empty( $tpl['is_image'] );
+
+			if ( $is_image ) {
+				// Image modifier: as first (always serialized) + via + ref + key + size.
+				// No 'from' option — terms have no featured image concept.
+				$options = array_merge(
+					array(
+						'as' => array(
+							'type'    => 'select',
+							'label'   => __( 'Return image as:', 'generateblocks' ),
+							'default' => 'url',
+							'options' => array(
+								array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
+								array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
+								array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+								array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
+								array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
+							),
+						),
+					),
+					$via_opt,
+					$traversal_opts,
+					array(
+						'key'  => array(
+							'type'        => 'text',
+							'label'       => __( 'Field Key', 'generateblocks' ),
+							'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+							'placeholder' => 'image_field',
+						),
+						'size' => array(
+							'type'        => 'text',
+							'label'       => __( 'Image Size', 'generateblocks' ),
+							'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
+							'placeholder' => 'full',
+						),
+					)
+				);
+			} else {
+				$options = array_merge( $via_opt, $traversal_opts, $tpl['options'] ?? [] );
+			}
+
+			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn );
+
+			// Title: plain label when in its own gb_type group (modifier tags appear under their
+			// own group in GB's picker, identified by gb_type). No cross-source parenthetical needed
+			// because the type already distinguishes the group.
+			$title = $modifier_label
+				? ( $tpl['title'] ?? $tag_name ) . ' (' . $modifier_label . ')'
+				: ( $tpl['title'] ?? $tag_name );
+
+			self::register_gb_tag( $title, $tag_name, $gb_type, $base_supports, $options, $callback );
+		}
+	}
+
+	/**
+	 * Build a modifier tag callback that dispatches to term_fn (via unset) or post_fn (via:'ref').
+	 *
+	 * @since 1.6.0
+	 */
+	private static function make_modifier_callback(
+		string $base_src_key,
+		string $traversal_src_key,
+		callable $term_fn,
+		callable $post_fn
+	): callable {
+		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn ) {
+			$via = $opts['via'] ?? '';
+
+			if ( 'ref' === $via ) {
+				// Traversal from modifier entity (term) → related post.
+				// get_traversal_options() exposes 'ref'; resolve_id() expects 'rel' internally.
+				$source = SourceRegistry::get_source( $traversal_src_key );
+				if ( ! $source ) {
+					return '';
+				}
+				$mapped        = $opts;
+				$mapped['rel'] = $opts['ref'] ?? '';
+				$entity_id     = $source->resolve_id( $mapped, $inst );
+				return $post_fn( $entity_id, $opts, $inst );
+			}
+
+			// Via unset — resolve entity directly (e.g. TaxonomyTerm via GB term picker + context).
+			$source    = SourceRegistry::get_source( $base_src_key );
+			$entity_id = $source ? $source->resolve_id( $opts, $inst ) : false;
+			return $term_fn( $entity_id, $opts, $inst );
+		};
+	}
+
+	/**
+	 * Generate try_ fallback-chain tags from modifier templates (base-tag system).
+	 *
+	 * One try_ tag per eligible modifier template (supports_try = true).
+	 * Each tag accepts up to five source slots; each slot specifies a traversal
+	 * method via sN-via and returns the first non-empty result across all slots.
+	 * Tags are registered with GB type 'first-available'.
+	 *
+	 * Via options per slot:
+	 *   ''        Current post context (no traversal).
+	 *   'ref'     Post → Related Post (requires sN-ref relationship field key).
+	 *   'ref_ref' Post → Related → Related (requires sN-ref1 + sN-ref2).
+	 *   'tax'     Post → Taxonomy Term (requires sN-tax; calls try_term_fn).
+	 *   'tax_ref' Post → Term → Related Post (deferred: Issue #18).
+	 *
+	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
+	 * For try_per_slot_key templates, sN-key carries the field key per slot.
+	 * For try_per_slot_from templates, sN-from carries the source-type selector per slot.
+	 *
+	 * @since 1.6.0
+	 */
+	public static function generate_base_try_tags(): void {
+		if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
+			return;
+		}
+
+		// Snapshot existing tags for dup-check.
+		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+
+		// Via dropdown options shared across all slots.
+		$via_options = [
+			[ 'value' => '',        'label' => __( 'Current Post', 'generateblocks' ) ],
+			[ 'value' => 'ref',     'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
+			[ 'value' => 'ref_ref', 'label' => __( '2nd Related Post (ref → ref)', 'generateblocks' ) ],
+			[ 'value' => 'tax',     'label' => __( 'Taxonomy Term (tax)', 'generateblocks' ) ],
+			[ 'value' => 'tax_ref', 'label' => __( 'Term → Related Post (deferred)', 'generateblocks' ) ],
+		];
+
+		foreach ( self::$modifier_templates as $tpl ) {
+			if ( empty( $tpl['supports_try'] ) ) {
+				continue;
+			}
+
+			$tag_name = 'try_' . $tpl['key'];
+
+			if ( in_array( $tag_name, $existing, true ) ) {
+				continue;
+			}
+			$existing[] = $tag_name;
+
+			if ( ! SettingsPage::is_tag_enabled( $tag_name ) ) {
+				continue;
+			}
+
+			$try_core_fn  = $tpl['try_core_fn'] ?? null;
+			$try_term_fn  = $tpl['try_term_fn'] ?? null;
+			$per_slot_key = ! empty( $tpl['try_per_slot_key'] );
+			$per_slot_from = ! empty( $tpl['try_per_slot_from'] );
+			$is_image     = ! empty( $tpl['is_image'] );
+			$tpl_options  = $tpl['options'] ?? [];
+
+			if ( ! $try_core_fn ) {
+				continue;
+			}
+
+			// --- Build per-slot options ---
+			$options = [];
+
+			for ( $n = 1; $n <= 5; $n++ ) {
+				$prev = $n - 1;
+
+				// Slot trigger: slots 3-5 appear when any of the prior slot's config options are set.
+				// sN-via is always the slot's primary control and carries the trigger.
+				// Sub-options (sN-ref, sN-tax, etc.) use only their own via-based show_if.
+				if ( $n <= 2 ) {
+					$slot_trigger = [];
+				} else {
+					$prev_any = [
+						"s{$prev}-via"  => 'not_empty',
+						"s{$prev}-ref"  => 'not_empty',
+						"s{$prev}-ref1" => 'not_empty',
+						"s{$prev}-tax"  => 'not_empty',
+					];
+					if ( $per_slot_key || $per_slot_from ) {
+						$prev_any["s{$prev}-key"] = 'not_empty';
+					}
+					if ( $per_slot_from ) {
+						$prev_any["s{$prev}-from"] = 'not_empty';
+					}
+					$slot_trigger = [ 'show_if_any' => $prev_any ];
+				}
+
+				// sN-via — always first; governs which sub-options appear.
+				$options[ "s{$n}-via" ] = array_merge(
+					[
+						'type'    => 'select',
+						/* translators: %d: slot number */
+						'label'   => sprintf( __( 'Slot %d: Source', 'generateblocks' ), $n ),
+						'options' => $via_options,
+					],
+					$slot_trigger
+				);
+
+				// sN-ref — single relationship field key (via = 'ref').
+				$options[ "s{$n}-ref" ] = [
+					'type'        => 'text',
+					/* translators: %d: slot number */
+					'label'       => sprintf( __( 'Slot %d: Relationship Field', 'generateblocks' ), $n ),
+					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
+					'placeholder' => 'related_post',
+					'show_if'     => [ "s{$n}-via" => 'ref' ],
+				];
+
+				// sN-ref1 / sN-ref2 — two-hop relationship field keys (via = 'ref_ref').
+				$options[ "s{$n}-ref1" ] = [
+					'type'        => 'text',
+					/* translators: %d: slot number */
+					'label'       => sprintf( __( 'Slot %d: 1st Relationship Field', 'generateblocks' ), $n ),
+					'help'        => __( 'First ACF relationship field key (Post → Related 1).', 'generateblocks' ),
+					'placeholder' => 'related_post',
+					'show_if'     => [ "s{$n}-via" => 'ref_ref' ],
+				];
+				$options[ "s{$n}-ref2" ] = [
+					'type'        => 'text',
+					/* translators: %d: slot number */
+					'label'       => sprintf( __( 'Slot %d: 2nd Relationship Field', 'generateblocks' ), $n ),
+					'help'        => __( 'Second ACF relationship field key (Related 1 → Related 2).', 'generateblocks' ),
+					'placeholder' => 'related_post_2',
+					'show_if'     => [ "s{$n}-via" => 'ref_ref' ],
+				];
+
+				// sN-tax — taxonomy key (via = 'tax').
+				$options[ "s{$n}-tax" ] = [
+					'type'        => 'text',
+					/* translators: %d: slot number */
+					'label'       => sprintf( __( 'Slot %d: Taxonomy', 'generateblocks' ), $n ),
+					'help'        => __( 'Taxonomy key (e.g. category, post_tag).', 'generateblocks' ),
+					'placeholder' => 'category',
+					'show_if'     => [ "s{$n}-via" => 'tax' ],
+				];
+
+				// sN-from — per-slot source type (try_per_slot_from templates only).
+				if ( $per_slot_from && ! empty( $tpl_options['from']['options'] ) ) {
+					$options[ "s{$n}-from" ] = array_merge(
+						[
+							'type'    => 'select',
+							/* translators: %d: slot number */
+							'label'   => sprintf( __( 'Slot %d: Source Type', 'generateblocks' ), $n ),
+							'options' => $tpl_options['from']['options'],
+						],
+						$slot_trigger
+					);
+				}
+
+				// sN-key — per-slot field key.
+				// try_per_slot_key: always shown within slot (same trigger as sN-via).
+				// try_per_slot_from: shown only when sN-from = 'key' (custom-field mode).
+				if ( $per_slot_key ) {
+					$options[ "s{$n}-key" ] = array_merge(
+						[
+							'type'        => 'text',
+							/* translators: %d: slot number */
+							'label'       => sprintf( __( 'Slot %d: Field Key', 'generateblocks' ), $n ),
+							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+							'placeholder' => 'field_name',
+						],
+						$slot_trigger
+					);
+				} elseif ( $per_slot_from ) {
+					$options[ "s{$n}-key" ] = array_merge(
+						[
+							'type'        => 'text',
+							/* translators: %d: slot number */
+							'label'       => sprintf( __( 'Slot %d: Field Key', 'generateblocks' ), $n ),
+							'help'        => __( 'ACF or meta field key. Required when Source Type is Custom Field.', 'generateblocks' ),
+							'placeholder' => 'field_name',
+						],
+						[ 'show_if' => [ "s{$n}-from" => 'key' ] ]
+					);
+				}
+			}
+
+			// Append template-level trailing options (fallback_text, image size, etc.).
+			// Strip options replaced by per-slot equivalents.
+			$trailing_opts = $tpl_options;
+			if ( $per_slot_key ) {
+				unset( $trailing_opts['key'] );
+			}
+			if ( $per_slot_from ) {
+				unset( $trailing_opts['from'], $trailing_opts['key'] );
+			}
+			$options = array_merge( $options, $trailing_opts );
+
+			// --- Build callback ---
+			$cf  = $try_core_fn;
+			$tcf = $try_term_fn;
+			$psk = $per_slot_key;
+			$psf = $per_slot_from;
+
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psf ) {
+				$fallback  = sanitize_text_field( $opts['fallback_text'] ?? '' );
+				$eval_opts = array_diff_key( $opts, [ 'fallback_text' => null ] );
+
+				// Carry-forward state across slots.
+				$last_via  = ''; // '' = current post context.
+				$last_ref  = '';
+				$last_ref1 = '';
+				$last_ref2 = '';
+				$last_tax  = '';
+				$last_key  = '';
+				$last_from = '';
+
+				foreach ( range( 1, 5 ) as $n ) {
+					$via_raw  = $opts[ "s{$n}-via" ]  ?? '';
+					$ref_raw  = $opts[ "s{$n}-ref" ]  ?? '';
+					$ref1_raw = $opts[ "s{$n}-ref1" ] ?? '';
+					$ref2_raw = $opts[ "s{$n}-ref2" ] ?? '';
+					$tax_raw  = $opts[ "s{$n}-tax" ]  ?? '';
+					$key_raw  = $opts[ "s{$n}-key" ]  ?? '';
+					$from_raw = $opts[ "s{$n}-from" ] ?? '';
+
+					// Skip slot if it contributes no new configuration relative to the previous slot.
+					if ( $n > 1 ) {
+						$has_new = '' !== $via_raw
+							|| '' !== $ref_raw
+							|| '' !== $ref1_raw
+							|| '' !== $ref2_raw
+							|| '' !== $tax_raw
+							|| ( ( $psk || $psf ) && '' !== $key_raw )
+							|| ( $psf && '' !== $from_raw );
+						if ( ! $has_new ) {
+							continue;
+						}
+					}
+
+					// Update carry-forward values.
+					if ( '' !== $via_raw )  { $last_via  = $via_raw;  }
+					if ( '' !== $ref_raw )  { $last_ref  = $ref_raw;  }
+					if ( '' !== $ref1_raw ) { $last_ref1 = $ref1_raw; }
+					if ( '' !== $ref2_raw ) { $last_ref2 = $ref2_raw; }
+					if ( '' !== $tax_raw )  { $last_tax  = $tax_raw;  }
+					if ( '' !== $key_raw )  { $last_key  = $key_raw;  }
+					if ( '' !== $from_raw ) { $last_from = $from_raw; }
+
+					// Build slot-specific options (injected into core fn call).
+					$slot_opts = $eval_opts;
+
+					if ( $psk ) {
+						if ( empty( $last_key ) ) {
+							continue; // No field key available — skip slot.
+						}
+						$slot_opts['key'] = $last_key;
+					}
+
+					if ( $psf ) {
+						$slot_opts['from'] = $last_from;
+						if ( 'key' === $last_from ) {
+							if ( empty( $last_key ) ) {
+								continue; // Custom-field mode but no key — skip slot.
+							}
+							$slot_opts['key'] = $last_key;
+						}
+					}
+
+					$current_via = $last_via;
+
+					// Dispatch based on via.
+					if ( 'tax' === $current_via ) {
+						// Post → Term path: iterate terms, call try_term_fn.
+						if ( ! $tcf ) {
+							continue; // Template has no term handler.
+						}
+						$via_opts = array_merge( $slot_opts, [ 'via' => 'tax', 'tax' => $last_tax ] );
+						$terms    = function_exists( 'bws_get_terms_by_via' )
+							? bws_get_terms_by_via( $via_opts, $inst )
+							: [];
+						foreach ( $terms as $term ) {
+							$result = $tcf( $term->term_id, $slot_opts, $inst );
+							if ( '' !== $result && false !== $result ) {
+								return $result;
+							}
+						}
+						continue; // All terms empty — try next slot.
+					}
+
+					// Post-based paths: '' | 'ref' | 'ref_ref' | 'tax_ref'.
+					$via_opts = array_merge( $slot_opts, [
+						'via'  => $current_via,
+						'ref'  => $last_ref,
+						'ref1' => $last_ref1,
+						'ref2' => $last_ref2,
+						'tax'  => $last_tax,
+					] );
+					if ( function_exists( 'bws_resolve_post_by_via' ) ) {
+						$post_id = bws_resolve_post_by_via( $via_opts, $inst );
+					} elseif ( '' === $current_via ) {
+						$post_id = get_the_ID();
+					} else {
+						$post_id = false;
+					}
+
+					if ( ! $post_id ) {
+						continue;
+					}
+
+					$result = $cf( $post_id, $slot_opts, $inst );
+					if ( '' !== $result && false !== $result ) {
+						return $result;
+					}
+				}
+
+				// All slots exhausted — apply fallback_text.
+				if ( '' !== $fallback ) {
+					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
+				}
+
+				return '';
+			};
+
+			/* translators: %s: tag title e.g. "Text Fields" */
+			$title = sprintf( __( 'Try %s', 'generateblocks' ), $tpl['title'] ?? $tag_name );
+
+			// Supports: image-size for image templates; none for others.
+			// 'source' and 'meta' are never included — slot selectors replace them.
+			$supports = $is_image ? [ 'image-size' ] : [];
+
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback );
+		}
 	}
 
 	/**
