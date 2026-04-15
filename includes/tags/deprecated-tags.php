@@ -177,7 +177,7 @@ function bws_register_deprecated_tags() {
 		$gb_args = array(
 			'title'       => $entry['title'] ?? $old_tag,
 			'tag'         => $old_tag,
-			'type'        => $entry['gb_type'] ?? $sk,
+			'type'        => $entry['gb_type'] ?? 'deprecated',
 			'supports'    => $entry['supports'] ?? array(),
 			'description' => $entry['description']
 							?? sprintf(
