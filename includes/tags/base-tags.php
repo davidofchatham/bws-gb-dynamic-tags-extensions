@@ -3,17 +3,19 @@
  * Base (source-agnostic) dynamic tag registrations.
  *
  * Registers one GB tag per content template. Entity traversal is selected at
- * render time via the `via` option rather than at registration time. Unset `via`
- * resolves from the current loop entity; named values dispatch to the appropriate
- * source class with option keys remapped for each traversal type.
+ * render time via the `source` option rather than at registration time. Unset
+ * `source` resolves from the current loop entity; named values dispatch to the
+ * appropriate source class.
  *
  * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
  *
- * Via dispatch table (post context):
- *   ''        → CurrentPost (no traversal; current loop entity)
- *   'ref'     → RelatedPost (single ACF relationship/post_object hop; option key: ref)
- *   'ref_ref' → SecondRelatedPost (two-hop; option keys: ref1, ref2)
- *   'tax_ref' → PostTermRelatedPost (taxonomy → ACF rel hop; option keys: tax, ref)
+ * Source dispatch table (post context):
+ *   ''    → CurrentPost (no traversal; current loop entity)
+ *   'ref' → RelatedPost (single ACF relationship/post_object hop; sub-option: ref)
+ *
+ * srcTerm modifier (applied after source resolution):
+ *   When `srcTerm` is set, the resolved entity's first matching taxonomy term
+ *   (via the `tax` sub-option) is used as the final entity.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.6.0
@@ -42,7 +44,7 @@ function bws_register_base_tags(): void {
 	}
 	$registered = true;
 
-	$via_opt        = bws_base_via_option();
+	$source_opt     = bws_base_source_option();
 	$traversal_opts = bws_base_traversal_options();
 
 	// =========================================================
@@ -55,10 +57,10 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => array_merge(
-			$via_opt,
+			$source_opt,
 			$traversal_opts,
 			array(
-				'from'     => array(
+				'use'      => array(
 					'type'    => 'select',
 					'label'   => __( 'Get text from:', 'generateblocks' ),
 					'options' => array(
@@ -71,7 +73,7 @@ function bws_register_base_tags(): void {
 					'label'       => __( 'Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'from' => 'not:title' ),
+					'show_if'     => array( 'use' => 'not:title' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -104,10 +106,10 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => array_merge(
-			$via_opt,
+			$source_opt,
 			$traversal_opts,
 			array(
-				'from'     => array(
+				'use'      => array(
 					'type'    => 'select',
 					'label'   => __( 'Get content from:', 'generateblocks' ),
 					'options' => array(
@@ -121,7 +123,7 @@ function bws_register_base_tags(): void {
 					'label'       => __( 'Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'from' => 'key' ),
+					'show_if'     => array( 'use' => 'key' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -134,7 +136,7 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// title — entity title/name; via traversal like text/content
+	// title — entity title/name; source traversal + srcTerm
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
@@ -143,7 +145,7 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => array_merge(
-			$via_opt,
+			$source_opt,
 			$traversal_opts,
 			array(
 				'limit' => array(
@@ -163,7 +165,7 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// permalink — post/entity URL; via traversal like text/content
+	// permalink — post/entity URL; source traversal + srcTerm
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
@@ -172,18 +174,18 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => array_merge(
-			$via_opt,
+			$source_opt,
 			$traversal_opts
 		),
 		'return'   => 'bws_base_permalink_callback',
 	) );
 
 	// =========================================================
-	// image — featured or ACF/meta field image; gb_type 'media'
-	// `as` is first and always serialized (default:'url' causes
-	// GB to write as:url even when the user has not changed it).
-	// `from:featured` is hidden when via is unset — traversal to
-	// another post is the only context where featured is useful.
+	// image — featured or ACF/meta field image; type 'media'
+	// (custom image controls step will change type to cross-source
+	// and replace size/fallback with custom JS components.)
+	// `as` is first and always serialized (default:'url' intentional).
+	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
@@ -206,24 +208,24 @@ function bws_register_base_tags(): void {
 					),
 				),
 			),
-			$via_opt,
+			$source_opt,
 			$traversal_opts,
 			array(
-				'from' => array(
+				'use'  => array(
 					'type'    => 'select',
 					'label'   => __( 'Get image from:', 'generateblocks' ),
 					'options' => array(
 						array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 					),
-					'show_if' => array( 'via' => 'in:ref,ref_ref,tax_ref' ),
+					'show_if' => array( 'srcTerm' => 'empty' ),
 				),
 				'key'  => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
 					'placeholder' => 'image_field',
-					'show_if'     => array( 'from' => 'not:featured' ),
+					'show_if'     => array( 'use' => 'not:featured' ),
 				),
 				'size' => array(
 					'type'        => 'text',
@@ -269,13 +271,13 @@ function bws_register_base_tags(): void {
 	// and consumed by both register_modifier() (generates term_* GB tags)
 	// and generate_base_try_tags() (generates try_* GB tags).
 	//
-	// 'options' — template-specific trailing options (appended after via + traversal
-	//             sub-options in non-image modifier tags; used as trailing options in
-	//             try_ tags after per-slot sN-* options).
-	// 'term_fn'  — fn($term_id, $opts, $inst) for the direct term-entity path.
-	// 'post_fn'  — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
+	// 'options'      — template-specific trailing options (appended after source +
+	//                  traversal sub-options in non-image modifier tags; used as
+	//                  trailing options in try_ tags after per-slot N-* options).
+	// 'term_fn'      — fn($term_id, $opts, $inst) for the direct term-entity path.
+	// 'post_fn'      — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
 	// 'try_core_fn'  — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
-	// 'try_term_fn'  — fn($term_id, $opts, $inst) for try_ via:tax slot dispatch.
+	// 'try_term_fn'  — fn($term_id, $opts, $inst) for try_ srcTerm slot dispatch.
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -346,7 +348,7 @@ function bws_register_base_tags(): void {
 	) );
 
 	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
-	// 'options' here is used only by generate_base_try_tags() as trailing options after sN-key slots.
+	// 'options' here is used only by generate_base_try_tags() as trailing options after N-key slots.
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'              => 'image',
 		'title'            => __( 'Image', 'generateblocks' ),
@@ -379,8 +381,6 @@ function bws_register_base_tags(): void {
 		'is_image'         => true,
 	) );
 
-	// datetime_single and datetime_range: closures needed to remap base tag option keys
-	// (key, key2, as, format…) to the legacy keys expected by bws_datetime_*_core().
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'          => 'datetime_single',
 		'title'        => __( 'Date / Time', 'generateblocks' ),
@@ -464,54 +464,33 @@ function bws_register_base_tags(): void {
 }
 
 // ===============================================
-// VIA OPTION + TRAVERSAL SUB-OPTIONS
+// SOURCE OPTION + TRAVERSAL SUB-OPTIONS
 // ===============================================
 
 /**
- * Build the via dropdown option definition.
+ * Build the source dropdown option definition.
  *
  * Labels are pulled from the source registry so they stay in sync with
- * source label changes. Each via value corresponds to one traversal type
- * in bws_resolve_post_by_via().
+ * source label changes. The selected value dispatches entity resolution
+ * in bws_resolve_post_by_source().
  *
  * @since 1.6.0
- * @return array Single-entry array keyed 'via'.
+ * @return array Single-entry array keyed 'source'.
  */
-function bws_base_via_option(): array {
-	$taxonomy_term  = SourceRegistry::get_source( 'term' );
-	$related_post   = SourceRegistry::get_source( 'related_post' );
-	$second_related = SourceRegistry::get_source( 'second_related_post' );
-	$post_term_rel  = SourceRegistry::get_source( 'post_term_related_post' );
+function bws_base_source_option(): array {
+	$related_post = SourceRegistry::get_source( 'related_post' );
 
 	return array(
-		'via' => array(
+		'source' => array(
 			'type'    => 'select',
-			'label'   => __( 'Locate source via:', 'generateblocks' ),
+			'label'   => __( 'Source:', 'generateblocks' ),
 			'options' => array(
-				array( 'value' => '',        'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
+				array( 'value' => '',    'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
 				array(
 					'value' => 'ref',
 					'label' => $related_post
 						? $related_post->get_source_label()
 						: __( 'Ref/Rel Field', 'generateblocks' ),
-				),
-				array(
-					'value' => 'ref_ref',
-					'label' => $second_related
-						? $second_related->get_source_label()
-						: __( 'Ref/Rel Field → 2nd Ref/Rel Field', 'generateblocks' ),
-				),
-				array(
-					'value' => 'tax',
-					'label' => $taxonomy_term
-						? $taxonomy_term->get_source_label()
-						: __( 'Taxonomy Term', 'generateblocks' ),
-				),
-				array(
-					'value' => 'tax_ref',
-					'label' => $post_term_rel
-						? $post_term_rel->get_source_label()
-						: __( 'Term → Ref/Rel Field', 'generateblocks' ),
 				),
 			),
 		),
@@ -519,83 +498,60 @@ function bws_base_via_option(): array {
 }
 
 /**
- * Build traversal sub-option definitions for the via dispatch.
+ * Build traversal sub-option definitions for the source dispatch.
  *
- * Each sub-option carries a show_if condition tied to the via value(s) that need it.
- * Keys follow the base tag naming convention (ref, ref1, ref2, tax) and are remapped
- * to source-internal keys (rel, rel_2, taxonomy) inside bws_resolve_post_by_via().
- *
- * Option key   via value(s)     Source used
- * ----------   ------------     -----------
- * ref          ref, tax_ref     RelatedPost (single hop) or PostTermRelatedPost (rel hop on term)
- * ref1         ref_ref          SecondRelatedPost (first hop)
- * ref2         ref_ref          SecondRelatedPost (second hop)
- * tax          tax_ref          PostTermRelatedPost (taxonomy hop)
+ * `ref` — shown when source:ref; the relationship field key for the hop.
+ * `srcTerm` — checkbox; when set, the resolved entity's taxonomy term is used
+ *             as the final entity instead of the post itself.
+ * `tax` — shown when srcTerm is set; the taxonomy slug to get the term from.
  *
  * @since 1.6.0
  * @return array Option definitions keyed by option name.
  */
 function bws_base_traversal_options(): array {
 	return array(
-		// Shared by via:ref (RelatedPost) and via:tax_ref (PostTermRelatedPost rel hop).
-		'ref'  => array(
+		'ref'     => array(
 			'type'        => 'text',
 			'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
-			'show_if'     => array( 'via' => 'in:ref,tax_ref' ),
+			'show_if'     => array( 'source' => 'ref' ),
 		),
-		// SecondRelatedPost — first hop (only for via:ref_ref).
-		'ref1' => array(
-			'type'        => 'text',
-			'label'       => __( 'First traverse by meta key:', 'generateblocks' ),
-			'help'        => __( 'ACF relationship or post object field key (first hop).', 'generateblocks' ),
-			'placeholder' => 'related_posts',
-			'show_if'     => array( 'via' => 'ref_ref' ),
+		'srcTerm' => array(
+			'type'  => 'checkbox',
+			'label' => __( 'Get from taxonomy term?', 'generateblocks' ),
+			'help'  => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
 		),
-		// SecondRelatedPost — second hop (only for via:ref_ref).
-		'ref2' => array(
+		'tax'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Then traverse by meta key:', 'generateblocks' ),
-			'help'        => __( 'ACF relationship or post object field key on the first related post (second hop).', 'generateblocks' ),
-			'placeholder' => 'related_posts',
-			'show_if'     => array( 'via' => 'ref_ref' ),
-		),
-		// TaxonomyTerm hop (via:tax) or PostTermRelatedPost taxonomy hop (via:tax_ref).
-		'tax'  => array(
-			'type'        => 'text',
-			'label'       => __( 'Traverse by taxonomy:', 'generateblocks' ),
-			'help'        => __( 'Taxonomy slug used to find the post\'s first term (e.g. category, post_tag).', 'generateblocks' ),
+			'label'       => __( 'Taxonomy:', 'generateblocks' ),
+			'help'        => __( 'Taxonomy slug (e.g. category, post_tag).', 'generateblocks' ),
 			'placeholder' => 'category',
-			'show_if'     => array( 'via' => 'in:tax,tax_ref' ),
+			'show_if'     => array( 'srcTerm' => 'not_empty' ),
 		),
 	);
 }
 
 // ===============================================
-// VIA DISPATCH
+// SOURCE DISPATCH
 // ===============================================
 
 /**
- * Resolve the target post ID from the `via` option.
+ * Resolve the target post ID from the `source` option.
  *
- * Reads $options['via'] and dispatches to the appropriate source class,
- * remapping base-tag option keys to the internal keys each source's
- * resolve_id() method expects.
+ * Reads $options['source'] and dispatches to the appropriate source class.
+ * `ref` maps the base-tag option key 'ref' to the internal key 'rel' that
+ * RelatedPost::resolve_id() expects.
  *
  * @since 1.6.0
  * @param array  $options  Tag options from GenerateBlocks.
  * @param object $instance Block instance.
  * @return int|false Resolved post ID, or false if unresolvable.
  */
-function bws_resolve_post_by_via( array $options, $instance ) {
-	$via = $options['via'] ?? '';
-
-	switch ( $via ) {
+function bws_resolve_post_by_source( array $options, $instance ) {
+	switch ( $options['source'] ?? '' ) {
 
 		case 'ref':
-			// RelatedPost: one ACF relationship/post_object hop.
-			// Base tag key 'ref' → internal key 'rel'.
 			$source = SourceRegistry::get_source( 'related_post' );
 			if ( ! $source ) {
 				return false;
@@ -604,56 +560,26 @@ function bws_resolve_post_by_via( array $options, $instance ) {
 			$mapped['rel'] = $options['ref'] ?? '';
 			return $source->resolve_id( $mapped, $instance );
 
-		case 'ref_ref':
-			// SecondRelatedPost: two ACF relationship hops.
-			// Base tag keys 'ref1'/'ref2' → internal keys 'rel'/'rel_2'.
-			$source = SourceRegistry::get_source( 'second_related_post' );
-			if ( ! $source ) {
-				return false;
-			}
-			$mapped          = $options;
-			$mapped['rel']   = $options['ref1'] ?? '';
-			$mapped['rel_2'] = $options['ref2'] ?? '';
-			return $source->resolve_id( $mapped, $instance );
-
-		case 'tax_ref':
-			// PostTermRelatedPost: post → first term in taxonomy → ACF rel field on term.
-			// Base tag keys 'tax'/'ref' → internal keys 'taxonomy'/'rel'.
-			$source = SourceRegistry::get_source( 'post_term_related_post' );
-			if ( ! $source ) {
-				return false;
-			}
-			$mapped             = $options;
-			$mapped['taxonomy'] = $options['tax'] ?? '';
-			$mapped['rel']      = $options['ref'] ?? '';
-			return $source->resolve_id( $mapped, $instance );
-
 		default:
-			// Empty via — current loop entity (CurrentPost).
 			$source = SourceRegistry::get_source( 'post' );
 			return $source ? $source->resolve_id( $options, $instance ) : false;
 	}
 }
 
 /**
- * Get taxonomy terms for the current post via the `tax` traversal option.
+ * Get taxonomy terms for a resolved post via the `srcTerm`/`tax` options.
  *
- * Used by base tag callbacks and generate_base_try_tags() when via='tax'. Returns
- * WP_Term objects for the current loop post in the taxonomy specified by $options['tax'].
+ * Called by base tag callbacks when `srcTerm` is set. The post is already
+ * resolved via bws_resolve_post_by_source(); this function performs the
+ * final hop from that post to its taxonomy terms.
  *
  * @since 1.6.0
- * @param array  $options  Tag options; reads 'tax' (taxonomy slug).
- * @param object $instance Block instance (unused; reserved for future context detection).
+ * @param int    $post_id Resolved post ID.
+ * @param string $tax     Taxonomy slug from $options['tax'].
  * @return WP_Term[]
  */
-function bws_get_terms_by_via( array $options, $instance ): array {
-	$tax = sanitize_key( $options['tax'] ?? '' );
-	if ( empty( $tax ) ) {
-		return [];
-	}
-
-	$post_id = get_the_ID();
-	if ( ! $post_id ) {
+function bws_get_srcterm_terms( int $post_id, string $tax ): array {
+	if ( ! $post_id || '' === $tax ) {
 		return [];
 	}
 
@@ -694,28 +620,31 @@ function bws_base_map_options( array $options ): array {
 /**
  * Callback for the `text` base tag.
  *
- * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on context and `from`:
+ * Resolves entity via `source`, applies srcTerm hop when set, then
+ * dispatches to the appropriate core function based on `use`:
  *
- * via:tax  + from unset   → bws_term_custom_text_core() (per-term; limit/sep applied)
- * via:tax  + from:title   → bws_term_title_core()        (per-term; limit/sep applied)
- * via:post + from unset   → bws_post_custom_text_core()
- * via:post + from:title   → bws_post_title_core()
+ * srcTerm + use unset   → bws_term_custom_text_core() (per-term; limit/sep applied)
+ * srcTerm + use:title   → bws_term_title_core()        (per-term; limit/sep applied)
+ * post    + use unset   → bws_post_custom_text_core()
+ * post    + use:title   → bws_post_title_core()
  *
  * @since 1.6.0
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
-	$via  = $options['via'] ?? '';
-	$from = $options['from'] ?? '';
-	$opts = bws_base_map_options( $options );
+	$use      = $options['use'] ?? '';
+	$src_term = ! empty( $options['srcTerm'] );
+	$opts     = bws_base_map_options( $options );
 
-	if ( 'tax' === $via ) {
-		$terms  = bws_get_terms_by_via( $options, $instance );
+	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	if ( $src_term ) {
+		$tax    = sanitize_key( $options['tax'] ?? '' );
+		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
 		$out    = [];
 		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$result = 'title' === $from
+			$result = 'title' === $use
 				? bws_term_title_core( $term->term_id, $opts, $instance )
 				: bws_term_custom_text_core( $term->term_id, $opts, $instance );
 			if ( '' !== $result ) {
@@ -725,39 +654,39 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return implode( $sep, $out );
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
-
-	if ( 'title' === $from ) {
+	if ( 'title' === $use ) {
 		return bws_post_title_core( $post_id, $opts, $instance );
 	}
 
-	// Default: custom field (from unset = key mode).
 	return bws_post_custom_text_core( $post_id, $opts, $instance );
 }
 
 /**
  * Callback for the `content` base tag.
  *
- * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on context and `from`:
+ * Resolves entity via `source`, applies srcTerm hop when set, then
+ * dispatches based on `use`:
  *
- * via:tax  + from unset   → bws_term_description_core() (term description; first non-empty)
- * via:tax  + from:key     → bws_term_custom_text_core()  (term WYSIWYG field)
- * via:post + from unset   → bws_post_content_core()     (full post content)
- * via:post + from:excerpt → bws_post_excerpt_core()
- * via:post + from:key     → bws_post_content_core() with type:custom_field injected
+ * srcTerm + use unset   → bws_term_description_core() (first non-empty term)
+ * srcTerm + use:key     → bws_term_custom_text_core()  (term WYSIWYG field)
+ * post    + use unset   → bws_post_content_core()
+ * post    + use:excerpt → bws_post_excerpt_core()
+ * post    + use:key     → bws_post_content_core() with type:custom_field
  *
  * @since 1.6.0
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
-	$via  = $options['via'] ?? '';
-	$from = $options['from'] ?? '';
-	$opts = bws_base_map_options( $options );
+	$use      = $options['use'] ?? '';
+	$src_term = ! empty( $options['srcTerm'] );
+	$opts     = bws_base_map_options( $options );
 
-	if ( 'tax' === $via ) {
-		$terms = bws_get_terms_by_via( $options, $instance );
+	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	if ( $src_term ) {
+		$tax   = sanitize_key( $options['tax'] ?? '' );
+		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
-			$result = 'key' === $from
+			$result = 'key' === $use
 				? bws_term_custom_text_core( $term->term_id, $opts, $instance )
 				: bws_term_description_core( $term->term_id, $opts, $instance );
 			if ( '' !== $result ) {
@@ -767,35 +696,34 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
-
-	if ( 'excerpt' === $from ) {
+	if ( 'excerpt' === $use ) {
 		return bws_post_excerpt_core( $post_id, $opts, $instance );
 	}
 
-	if ( 'key' === $from ) {
-		// Reuse bws_post_content_core()'s custom field branch (reads type + key options).
+	if ( 'key' === $use ) {
 		$opts['type'] = 'custom_field';
 		return bws_post_content_core( $post_id, $opts, $instance );
 	}
 
-	// Default: full post content.
 	return bws_post_content_core( $post_id, $opts, $instance );
 }
 
 /**
  * Callback for the `title` base tag.
  *
- * Dispatches entity resolution via the `via` option.
- * via:tax resolves taxonomy terms for the current post; limit/sep applied.
+ * Resolves entity via `source`, applies srcTerm hop when set.
+ * srcTerm iterates terms with limit/sep applied.
  *
  * @since 1.6.0
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
-	$via = $options['via'] ?? '';
+	$src_term = ! empty( $options['srcTerm'] );
 
-	if ( 'tax' === $via ) {
-		$terms  = bws_get_terms_by_via( $options, $instance );
+	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	if ( $src_term ) {
+		$tax    = sanitize_key( $options['tax'] ?? '' );
+		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
 		$out    = [];
@@ -808,23 +736,25 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		return implode( $sep, $out );
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_title_core( $post_id, $options, $instance );
 }
 
 /**
  * Callback for the `permalink` base tag.
  *
- * Dispatches entity resolution via the `via` option.
- * via:tax resolves taxonomy terms; returns first non-empty term URL.
+ * Resolves entity via `source`, applies srcTerm hop when set.
+ * srcTerm returns first non-empty term URL.
  *
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
-	$via = $options['via'] ?? '';
+	$src_term = ! empty( $options['srcTerm'] );
 
-	if ( 'tax' === $via ) {
-		$terms = bws_get_terms_by_via( $options, $instance );
+	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	if ( $src_term ) {
+		$tax   = sanitize_key( $options['tax'] ?? '' );
+		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
 			$result = bws_term_permalink_core( $term->term_id, $options, $instance );
 			if ( '' !== $result ) {
@@ -834,31 +764,33 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
 	return bws_post_permalink_core( $post_id, $options, $instance );
 }
 
 /**
  * Callback for the `image` base tag.
  *
- * Dispatches entity resolution via the `via` option, then calls the
- * appropriate core function based on context and `from`:
+ * Resolves entity via `source`, applies srcTerm hop when set, then
+ * dispatches based on `use`:
  *
- * via:tax  → bws_term_custom_image_core() (first non-empty; terms have no featured image)
- * via:post + from unset   → bws_custom_image_core()
- * via:post + from:featured → bws_featured_image_core()
+ * srcTerm              → bws_term_custom_image_core() (first non-empty term)
+ * post + use unset     → bws_custom_image_core()
+ * post + use:featured  → bws_featured_image_core()
  *
- * The `from` option is only shown in the editor when `via` is set to a post traversal
- * (in:ref,ref_ref,tax_ref). For via:tax the image is always a term custom field.
+ * `use:featured` is hidden in the editor when srcTerm is set (terms have no
+ * featured image), so that branch is unreachable in normal usage.
  *
  * @since 1.6.0
  */
 function bws_base_image_callback( $options, $block, $instance ): string {
-	$via  = $options['via'] ?? '';
-	$from = $options['from'] ?? '';
+	$use      = $options['use'] ?? '';
+	$src_term = ! empty( $options['srcTerm'] );
 
-	if ( 'tax' === $via ) {
-		$terms = bws_get_terms_by_via( $options, $instance );
+	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	if ( $src_term ) {
+		$tax   = sanitize_key( $options['tax'] ?? '' );
+		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
 			$result = bws_term_custom_image_core( $term->term_id, $options, $instance );
 			if ( '' !== $result ) {
@@ -868,12 +800,9 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
-
-	if ( 'featured' === $from ) {
+	if ( 'featured' === $use ) {
 		return bws_featured_image_core( $post_id, $options, $instance );
 	}
 
-	// Default: custom field image (reads $options['key'] and $options['size']).
 	return bws_custom_image_core( $post_id, $options, $instance );
 }

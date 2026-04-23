@@ -20,16 +20,16 @@
  *             'options'        => portal_get_text_options(),
  *             'callback'       => 'portal_deprecated_post_meta_callback',
  *             'since'          => '2.0.0',
- *             'via_inject'     => '',
+ *             'source_inject'  => '',
  *             'option_renames' => array( 'field_key' => 'key' ),
  *             'value_renames'  => array(),
- *             'fixed_options'  => array( 'from' => 'key' ),
+ *             'fixed_options'  => array( 'use' => 'key' ),
  *         ) );
  *     } );
  *
  * @package BWS_Dynamic_Tags
  * @since 1.3.0
- * @since 1.6.0 Added via_inject, option_renames, value_renames, fixed_options, datetime_transforms;
+ * @since 1.6.0 Added source_inject, option_renames, value_renames, fixed_options, datetime_transforms;
  *              enforced gb_type: 'deprecated'; removed $is_related; added transform_options().
  */
 
@@ -62,8 +62,8 @@ class DeprecatedTagRegistry {
 	 *     @type callable|string $callback             PHP callable that handles tag output.
 	 *     @type string          $since                Version when old_tag was deprecated (for _doing_it_wrong notice).
 	 *     @type string          $description          Override the auto-generated GB tag description (optional).
-	 *     @type string          $via_inject           Abbreviation to inject as the `via` option on conversion.
-	 *                                                 Empty string omits `via` (correct for current-entity sources).
+	 *     @type string          $source_inject        Value to inject as the `source` option on conversion.
+	 *                                                 Empty string omits `source` (correct for current-entity sources).
 	 *     @type array           $option_renames       Map of old option key → new option key.
 	 *     @type array           $value_renames        Map of (post-rename) option key → [old value => new value].
 	 *                                                 Applied after option_renames so keys are already in new form.
@@ -96,7 +96,7 @@ class DeprecatedTagRegistry {
 	 *   2. Apply option_renames (old key → new key).
 	 *   3. Apply value_renames (new key → old value → new value).
 	 *   4. Apply special-case datetime transforms (when datetime_transforms is true).
-	 *   5. Inject via_inject (non-empty → add via option).
+	 *   5. Inject source_inject (non-empty → add source option).
 	 *   6. Inject fixed_options (always-on key/value pairs).
 	 *   7. Serialize into {{new_tag ...}} string.
 	 *
@@ -143,10 +143,10 @@ class DeprecatedTagRegistry {
 			$options = self::apply_datetime_transforms( $options );
 		}
 
-		// Step 5: Inject via_inject.
-		$via_inject = $entry['via_inject'] ?? '';
-		if ( $via_inject !== '' ) {
-			$options['via'] = $via_inject;
+		// Step 5: Inject source_inject.
+		$source_inject = $entry['source_inject'] ?? '';
+		if ( $source_inject !== '' ) {
+			$options['source'] = $source_inject;
 		}
 
 		// Step 6: Inject fixed_options.

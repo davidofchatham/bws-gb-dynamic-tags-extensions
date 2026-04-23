@@ -461,7 +461,7 @@ function bws_get_datetime_single_template_options(): array {
 
 function bws_get_base_datetime_single_options(): array {
 	return array_merge(
-		bws_base_via_option(),
+		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_single_template_options()
 	);
@@ -560,7 +560,7 @@ function bws_get_datetime_range_template_options(): array {
 
 function bws_get_base_datetime_range_options(): array {
 	return array_merge(
-		bws_base_via_option(),
+		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_range_template_options()
 	);
@@ -996,20 +996,23 @@ function bws_base_map_datetime_range_options( array $options ): array {
 /**
  * Callback for the `datetime_single` base tag.
  *
- * Dispatches entity resolution via the `via` option:
- *   via:tax  → iterate taxonomy terms; return first non-empty date value.
- *   via:post → resolve post entity; delegate to bws_datetime_single_core().
+ * Resolves entity via `source`, applies srcTerm hop when set, then
+ * delegates to bws_datetime_single_core() or bws_term_datetime_single_core().
  * Remaps base tag option keys to legacy core function keys before dispatching.
  *
  * @since 1.6.0
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
-	$via    = $options['via'] ?? '';
-	$mapped = bws_base_map_datetime_options( $options );
+	$src_term = ! empty( $options['srcTerm'] );
+	$mapped   = bws_base_map_datetime_options( $options );
 
-	if ( 'tax' === $via ) {
-		$terms = function_exists( 'bws_get_terms_by_via' )
-			? bws_get_terms_by_via( $options, $instance )
+	if ( $src_term ) {
+		$post_id = function_exists( 'bws_resolve_post_by_source' )
+			? bws_resolve_post_by_source( $options, $instance )
+			: get_the_ID();
+		$tax   = sanitize_key( $options['tax'] ?? '' );
+		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
+			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
 		foreach ( $terms as $term ) {
 			$result = bws_term_datetime_single_core( $term->term_id, $mapped, $instance );
@@ -1020,27 +1023,32 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		return '';
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
+	$post_id = function_exists( 'bws_resolve_post_by_source' )
+		? bws_resolve_post_by_source( $options, $instance )
+		: get_the_ID();
 	return bws_datetime_single_core( $post_id, $mapped, $instance );
 }
 
 /**
  * Callback for the `datetime_range` base tag.
  *
- * Dispatches entity resolution via the `via` option:
- *   via:tax  → iterate taxonomy terms; return first non-empty range value.
- *   via:post → resolve post entity; delegate to bws_datetime_range_core().
+ * Resolves entity via `source`, applies srcTerm hop when set, then
+ * delegates to bws_datetime_range_core() or bws_term_datetime_range_core().
  * Remaps base tag option keys to legacy core function keys before dispatching.
  *
  * @since 1.6.0
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
-	$via    = $options['via'] ?? '';
-	$mapped = bws_base_map_datetime_range_options( $options );
+	$src_term = ! empty( $options['srcTerm'] );
+	$mapped   = bws_base_map_datetime_range_options( $options );
 
-	if ( 'tax' === $via ) {
-		$terms = function_exists( 'bws_get_terms_by_via' )
-			? bws_get_terms_by_via( $options, $instance )
+	if ( $src_term ) {
+		$post_id = function_exists( 'bws_resolve_post_by_source' )
+			? bws_resolve_post_by_source( $options, $instance )
+			: get_the_ID();
+		$tax   = sanitize_key( $options['tax'] ?? '' );
+		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
+			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
 		foreach ( $terms as $term ) {
 			$result = bws_term_datetime_range_core( $term->term_id, $mapped, $instance );
@@ -1051,6 +1059,8 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		return '';
 	}
 
-	$post_id = bws_resolve_post_by_via( $options, $instance );
+	$post_id = function_exists( 'bws_resolve_post_by_source' )
+		? bws_resolve_post_by_source( $options, $instance )
+		: get_the_ID();
 	return bws_datetime_range_core( $post_id, $mapped, $instance );
 }

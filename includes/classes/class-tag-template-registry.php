@@ -140,12 +140,12 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Build via dropdown for modifier tags: two entries (current entity, ref traversal).
+		// Build source dropdown for modifier tags: two entries (current entity, ref traversal).
 		$traversal_src = $traversal_src_key ? SourceRegistry::get_source( $traversal_src_key ) : null;
-		$via_opt       = array(
-			'via' => array(
+		$source_opt    = array(
+			'source' => array(
 				'type'    => 'select',
-				'label'   => __( 'Locate source via:', 'generateblocks' ),
+				'label'   => __( 'Source:', 'generateblocks' ),
 				'options' => array(
 					array( 'value' => '',    'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
 					array(
@@ -159,11 +159,11 @@ class TagTemplateRegistry {
 		);
 
 		// Traversal sub-options from the traversal source's get_traversal_options().
-		// Each option gets a show_if binding it to via:'ref'.
+		// Each option gets a show_if binding it to source:'ref'.
 		$traversal_opts = [];
 		if ( $traversal_src ) {
 			foreach ( $traversal_src->get_traversal_options() as $opt_key => $opt_def ) {
-				$traversal_opts[ $opt_key ] = array_merge( $opt_def, [ 'show_if' => [ 'via' => 'ref' ] ] );
+				$traversal_opts[ $opt_key ] = array_merge( $opt_def, [ 'show_if' => [ 'source' => 'ref' ] ] );
 			}
 		}
 
@@ -180,8 +180,8 @@ class TagTemplateRegistry {
 			$is_image = ! empty( $tpl['is_image'] );
 
 			if ( $is_image ) {
-				// Image modifier: as first (always serialized) + via + ref + key + size.
-				// No 'from' option — terms have no featured image concept.
+				// Image modifier: as first (always serialized) + source + ref + key + size.
+				// No 'use' option — terms have no featured image concept.
 				$options = array_merge(
 					array(
 						'as' => array(
@@ -197,7 +197,7 @@ class TagTemplateRegistry {
 							),
 						),
 					),
-					$via_opt,
+					$source_opt,
 					$traversal_opts,
 					array(
 						'key'  => array(
@@ -215,7 +215,7 @@ class TagTemplateRegistry {
 					)
 				);
 			} else {
-				$options = array_merge( $via_opt, $traversal_opts, $tpl['options'] ?? [] );
+				$options = array_merge( $source_opt, $traversal_opts, $tpl['options'] ?? [] );
 			}
 
 			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn );
@@ -243,24 +243,24 @@ class TagTemplateRegistry {
 		callable $post_fn
 	): callable {
 		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn ) {
-			$via = $opts['via'] ?? '';
+			$source = $opts['source'] ?? '';
 
-			if ( 'ref' === $via ) {
+			if ( 'ref' === $source ) {
 				// Traversal from modifier entity (term) → related post.
 				// get_traversal_options() exposes 'ref'; resolve_id() expects 'rel' internally.
-				$source = SourceRegistry::get_source( $traversal_src_key );
-				if ( ! $source ) {
+				$src = SourceRegistry::get_source( $traversal_src_key );
+				if ( ! $src ) {
 					return '';
 				}
 				$mapped        = $opts;
 				$mapped['rel'] = $opts['ref'] ?? '';
-				$entity_id     = $source->resolve_id( $mapped, $inst );
+				$entity_id     = $src->resolve_id( $mapped, $inst );
 				return $post_fn( $entity_id, $opts, $inst );
 			}
 
-			// Via unset — resolve entity directly (e.g. TaxonomyTerm via GB term picker + context).
-			$source    = SourceRegistry::get_source( $base_src_key );
-			$entity_id = $source ? $source->resolve_id( $opts, $inst ) : false;
+			// Source unset — resolve entity directly (e.g. TaxonomyTerm via GB term picker + context).
+			$src       = SourceRegistry::get_source( $base_src_key );
+			$entity_id = $src ? $src->resolve_id( $opts, $inst ) : false;
 			return $term_fn( $entity_id, $opts, $inst );
 		};
 	}
@@ -269,20 +269,27 @@ class TagTemplateRegistry {
 	 * Generate try_ fallback-chain tags from modifier templates (base-tag system).
 	 *
 	 * One try_ tag per eligible modifier template (supports_try = true).
-	 * Each tag accepts up to five source slots; each slot specifies a traversal
-	 * method via sN-via and returns the first non-empty result across all slots.
+	 * Each tag accepts up to five source slots; each slot specifies a source
+	 * traversal and returns the first non-empty result across all slots.
 	 * Tags are registered with GB type 'first-available'.
 	 *
-	 * Via options per slot:
-	 *   ''        Current post context (no traversal).
-	 *   'ref'     Post → Related Post (requires sN-ref relationship field key).
-	 *   'ref_ref' Post → Related → Related (requires sN-ref1 + sN-ref2).
-	 *   'tax'     Post → Taxonomy Term (requires sN-tax; calls try_term_fn).
-	 *   'tax_ref' Post → Term → Related Post (deferred: Issue #18).
+	 * Source options per slot:
+	 *   ''    Current post context (no traversal).
+	 *   'ref' Post → Related Post (requires N-ref relationship field key).
+	 *
+	 * srcTerm modifier per slot (N-srcTerm checkbox + N-tax):
+	 *   When set, the resolved post's first matching term is used as the entity.
+	 *   Uses try_term_fn for dispatch; no srcTerm carry-forward between slots.
+	 *
+	 * Slot option naming:
+	 *   Slot 1 source: 'source'; slots 2–5: 'N-src'.
+	 *   Slot 1 use:    'use';    slots 2–5: 'N-use'.
+	 *   All slots: 'N-ref', 'N-srcTerm', 'N-tax', 'N-key'.
 	 *
 	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
-	 * For try_per_slot_key templates, sN-key carries the field key per slot.
-	 * For try_per_slot_from templates, sN-from carries the source-type selector per slot.
+	 * srcTerm does NOT carry forward — each slot independently chooses entity type.
+	 * For try_per_slot_key templates, N-key carries the field key per slot.
+	 * For try_per_slot_use templates, N-use carries the source-type selector per slot.
 	 *
 	 * @since 1.6.0
 	 */
@@ -294,13 +301,10 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Via dropdown options shared across all slots.
-		$via_options = [
-			[ 'value' => '',        'label' => __( 'Current Post', 'generateblocks' ) ],
-			[ 'value' => 'ref',     'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
-			[ 'value' => 'ref_ref', 'label' => __( '2nd Related Post (ref → ref)', 'generateblocks' ) ],
-			[ 'value' => 'tax',     'label' => __( 'Taxonomy Term (tax)', 'generateblocks' ) ],
-			[ 'value' => 'tax_ref', 'label' => __( 'Term → Related Post (deferred)', 'generateblocks' ) ],
+		// Source dropdown options shared across all slots.
+		$source_options = [
+			[ 'value' => '',    'label' => __( 'Current Post', 'generateblocks' ) ],
+			[ 'value' => 'ref', 'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
 		];
 
 		foreach ( self::$modifier_templates as $tpl ) {
@@ -322,7 +326,7 @@ class TagTemplateRegistry {
 			$try_core_fn  = $tpl['try_core_fn'] ?? null;
 			$try_term_fn  = $tpl['try_term_fn'] ?? null;
 			$per_slot_key = ! empty( $tpl['try_per_slot_key'] );
-			$per_slot_from = ! empty( $tpl['try_per_slot_from'] );
+			$per_slot_use = ! empty( $tpl['try_per_slot_use'] );
 			$is_image     = ! empty( $tpl['is_image'] );
 			$tpl_options  = $tpl['options'] ?? [];
 
@@ -334,96 +338,91 @@ class TagTemplateRegistry {
 			$options = [];
 
 			for ( $n = 1; $n <= 5; $n++ ) {
-				$prev = $n - 1;
+				$prev    = $n - 1;
+				$src_key = ( 1 === $n ) ? 'source'  : "{$n}-src";
+				$use_key = ( 1 === $n ) ? 'use'     : "{$n}-use";
 
-				// Slot trigger: slots 3-5 appear when any of the prior slot's config options are set.
-				// sN-via is always the slot's primary control and carries the trigger.
-				// Sub-options (sN-ref, sN-tax, etc.) use only their own via-based show_if.
+				// Slot trigger: slots 3-5 appear when any of the prior slot's options are set.
+				// The source key is always the slot's primary control and carries the trigger.
 				if ( $n <= 2 ) {
 					$slot_trigger = [];
 				} else {
+					$prev_src = ( 1 === $prev ) ? 'source'  : "{$prev}-src";
 					$prev_any = [
-						"s{$prev}-via"  => 'not_empty',
-						"s{$prev}-ref"  => 'not_empty',
-						"s{$prev}-ref1" => 'not_empty',
-						"s{$prev}-tax"  => 'not_empty',
+						$prev_src         => 'not_empty',
+						"{$prev}-ref"     => 'not_empty',
+						"{$prev}-srcTerm" => 'not_empty',
 					];
-					if ( $per_slot_key || $per_slot_from ) {
-						$prev_any["s{$prev}-key"] = 'not_empty';
+					if ( $per_slot_key || $per_slot_use ) {
+						$prev_any["{$prev}-key"] = 'not_empty';
 					}
-					if ( $per_slot_from ) {
-						$prev_any["s{$prev}-from"] = 'not_empty';
+					if ( $per_slot_use ) {
+						$prev_use = ( 1 === $prev ) ? 'use' : "{$prev}-use";
+						$prev_any[ $prev_use ] = 'not_empty';
 					}
 					$slot_trigger = [ 'show_if_any' => $prev_any ];
 				}
 
-				// sN-via — always first; governs which sub-options appear.
-				$options[ "s{$n}-via" ] = array_merge(
+				// Source selector — always first; governs which sub-options appear.
+				$options[ $src_key ] = array_merge(
 					[
 						'type'    => 'select',
 						/* translators: %d: slot number */
 						'label'   => sprintf( __( 'Slot %d: Source', 'generateblocks' ), $n ),
-						'options' => $via_options,
+						'options' => $source_options,
 					],
 					$slot_trigger
 				);
 
-				// sN-ref — single relationship field key (via = 'ref').
-				$options[ "s{$n}-ref" ] = [
+				// N-ref — relationship field key (source = 'ref').
+				$options[ "{$n}-ref" ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
 					'label'       => sprintf( __( 'Slot %d: Relationship Field', 'generateblocks' ), $n ),
 					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
 					'placeholder' => 'related_post',
-					'show_if'     => [ "s{$n}-via" => 'ref' ],
+					'show_if'     => [ $src_key => 'ref' ],
 				];
 
-				// sN-ref1 / sN-ref2 — two-hop relationship field keys (via = 'ref_ref').
-				$options[ "s{$n}-ref1" ] = [
-					'type'        => 'text',
-					/* translators: %d: slot number */
-					'label'       => sprintf( __( 'Slot %d: 1st Relationship Field', 'generateblocks' ), $n ),
-					'help'        => __( 'First ACF relationship field key (Post → Related 1).', 'generateblocks' ),
-					'placeholder' => 'related_post',
-					'show_if'     => [ "s{$n}-via" => 'ref_ref' ],
-				];
-				$options[ "s{$n}-ref2" ] = [
-					'type'        => 'text',
-					/* translators: %d: slot number */
-					'label'       => sprintf( __( 'Slot %d: 2nd Relationship Field', 'generateblocks' ), $n ),
-					'help'        => __( 'Second ACF relationship field key (Related 1 → Related 2).', 'generateblocks' ),
-					'placeholder' => 'related_post_2',
-					'show_if'     => [ "s{$n}-via" => 'ref_ref' ],
-				];
+				// N-srcTerm — term hop modifier (no carry-forward).
+				$options[ "{$n}-srcTerm" ] = array_merge(
+					[
+						'type'  => 'checkbox',
+						/* translators: %d: slot number */
+						'label' => sprintf( __( 'Slot %d: Get from taxonomy term?', 'generateblocks' ), $n ),
+						'help'  => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
+					],
+					$slot_trigger
+				);
 
-				// sN-tax — taxonomy key (via = 'tax').
-				$options[ "s{$n}-tax" ] = [
+				// N-tax — taxonomy slug (shown when N-srcTerm set).
+				$options[ "{$n}-tax" ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
 					'label'       => sprintf( __( 'Slot %d: Taxonomy', 'generateblocks' ), $n ),
-					'help'        => __( 'Taxonomy key (e.g. category, post_tag).', 'generateblocks' ),
+					'help'        => __( 'Taxonomy slug (e.g. category, post_tag).', 'generateblocks' ),
 					'placeholder' => 'category',
-					'show_if'     => [ "s{$n}-via" => 'tax' ],
+					'show_if'     => [ "{$n}-srcTerm" => 'not_empty' ],
 				];
 
-				// sN-from — per-slot source type (try_per_slot_from templates only).
-				if ( $per_slot_from && ! empty( $tpl_options['from']['options'] ) ) {
-					$options[ "s{$n}-from" ] = array_merge(
+				// N-use — per-slot source type (try_per_slot_use templates only).
+				if ( $per_slot_use && ! empty( $tpl_options['use']['options'] ) ) {
+					$options[ $use_key ] = array_merge(
 						[
 							'type'    => 'select',
 							/* translators: %d: slot number */
 							'label'   => sprintf( __( 'Slot %d: Source Type', 'generateblocks' ), $n ),
-							'options' => $tpl_options['from']['options'],
+							'options' => $tpl_options['use']['options'],
 						],
 						$slot_trigger
 					);
 				}
 
-				// sN-key — per-slot field key.
-				// try_per_slot_key: always shown within slot (same trigger as sN-via).
-				// try_per_slot_from: shown only when sN-from = 'key' (custom-field mode).
+				// N-key — per-slot field key.
+				// try_per_slot_key: always shown within slot (same trigger as source key).
+				// try_per_slot_use: shown only when N-use = 'key' (custom-field mode).
 				if ( $per_slot_key ) {
-					$options[ "s{$n}-key" ] = array_merge(
+					$options[ "{$n}-key" ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
@@ -433,8 +432,8 @@ class TagTemplateRegistry {
 						],
 						$slot_trigger
 					);
-				} elseif ( $per_slot_from ) {
-					$options[ "s{$n}-key" ] = array_merge(
+				} elseif ( $per_slot_use ) {
+					$options[ "{$n}-key" ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
@@ -442,19 +441,19 @@ class TagTemplateRegistry {
 							'help'        => __( 'ACF or meta field key. Required when Source Type is Custom Field.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
-						[ 'show_if' => [ "s{$n}-from" => 'key' ] ]
+						[ 'show_if' => [ $use_key => 'key' ] ]
 					);
 				}
 			}
 
-			// Append template-level trailing options (fallback_text, image size, etc.).
+			// Append template-level trailing options (fallback, image size, etc.).
 			// Strip options replaced by per-slot equivalents.
 			$trailing_opts = $tpl_options;
 			if ( $per_slot_key ) {
 				unset( $trailing_opts['key'] );
 			}
-			if ( $per_slot_from ) {
-				unset( $trailing_opts['from'], $trailing_opts['key'] );
+			if ( $per_slot_use ) {
+				unset( $trailing_opts['use'], $trailing_opts['key'] );
 			}
 			$options = array_merge( $options, $trailing_opts );
 
@@ -462,52 +461,49 @@ class TagTemplateRegistry {
 			$cf  = $try_core_fn;
 			$tcf = $try_term_fn;
 			$psk = $per_slot_key;
-			$psf = $per_slot_from;
+			$psu = $per_slot_use;
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psf ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu ) {
 				$fallback  = sanitize_text_field( $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, [ 'fallback_text' => null ] );
 
 				// Carry-forward state across slots.
-				$last_via  = ''; // '' = current post context.
-				$last_ref  = '';
-				$last_ref1 = '';
-				$last_ref2 = '';
-				$last_tax  = '';
-				$last_key  = '';
-				$last_from = '';
+				$last_src = '';  // '' = current post context.
+				$last_ref = '';
+				$last_tax = '';
+				$last_key = '';
+				$last_use = '';
 
 				foreach ( range( 1, 5 ) as $n ) {
-					$via_raw  = $opts[ "s{$n}-via" ]  ?? '';
-					$ref_raw  = $opts[ "s{$n}-ref" ]  ?? '';
-					$ref1_raw = $opts[ "s{$n}-ref1" ] ?? '';
-					$ref2_raw = $opts[ "s{$n}-ref2" ] ?? '';
-					$tax_raw  = $opts[ "s{$n}-tax" ]  ?? '';
-					$key_raw  = $opts[ "s{$n}-key" ]  ?? '';
-					$from_raw = $opts[ "s{$n}-from" ] ?? '';
+					$src_k = ( 1 === $n ) ? 'source' : "{$n}-src";
+					$use_k = ( 1 === $n ) ? 'use'    : "{$n}-use";
+
+					$src_raw = $opts[ $src_k ]          ?? '';
+					$ref_raw = $opts[ "{$n}-ref" ]      ?? '';
+					$stm_raw = $opts[ "{$n}-srcTerm" ]  ?? '';
+					$tax_raw = $opts[ "{$n}-tax" ]      ?? '';
+					$key_raw = $opts[ "{$n}-key" ]      ?? '';
+					$use_raw = $opts[ $use_k ]          ?? '';
 
 					// Skip slot if it contributes no new configuration relative to the previous slot.
 					if ( $n > 1 ) {
-						$has_new = '' !== $via_raw
+						$has_new = '' !== $src_raw
 							|| '' !== $ref_raw
-							|| '' !== $ref1_raw
-							|| '' !== $ref2_raw
+							|| '' !== $stm_raw
 							|| '' !== $tax_raw
-							|| ( ( $psk || $psf ) && '' !== $key_raw )
-							|| ( $psf && '' !== $from_raw );
+							|| ( ( $psk || $psu ) && '' !== $key_raw )
+							|| ( $psu && '' !== $use_raw );
 						if ( ! $has_new ) {
 							continue;
 						}
 					}
 
-					// Update carry-forward values.
-					if ( '' !== $via_raw )  { $last_via  = $via_raw;  }
-					if ( '' !== $ref_raw )  { $last_ref  = $ref_raw;  }
-					if ( '' !== $ref1_raw ) { $last_ref1 = $ref1_raw; }
-					if ( '' !== $ref2_raw ) { $last_ref2 = $ref2_raw; }
-					if ( '' !== $tax_raw )  { $last_tax  = $tax_raw;  }
-					if ( '' !== $key_raw )  { $last_key  = $key_raw;  }
-					if ( '' !== $from_raw ) { $last_from = $from_raw; }
+					// Update carry-forward values (srcTerm does NOT carry forward).
+					if ( '' !== $src_raw ) { $last_src = $src_raw; }
+					if ( '' !== $ref_raw ) { $last_ref = $ref_raw; }
+					if ( '' !== $tax_raw ) { $last_tax = $tax_raw; }
+					if ( '' !== $key_raw ) { $last_key = $key_raw; }
+					if ( '' !== $use_raw ) { $last_use = $use_raw; }
 
 					// Build slot-specific options (injected into core fn call).
 					$slot_opts = $eval_opts;
@@ -519,9 +515,9 @@ class TagTemplateRegistry {
 						$slot_opts['key'] = $last_key;
 					}
 
-					if ( $psf ) {
-						$slot_opts['from'] = $last_from;
-						if ( 'key' === $last_from ) {
+					if ( $psu ) {
+						$slot_opts['use'] = $last_use;
+						if ( 'key' === $last_use ) {
 							if ( empty( $last_key ) ) {
 								continue; // Custom-field mode but no key — skip slot.
 							}
@@ -529,42 +525,36 @@ class TagTemplateRegistry {
 						}
 					}
 
-					$current_via = $last_via;
-
-					// Dispatch based on via.
-					if ( 'tax' === $current_via ) {
-						// Post → Term path: iterate terms, call try_term_fn.
-						if ( ! $tcf ) {
-							continue; // Template has no term handler.
-						}
-						$via_opts = array_merge( $slot_opts, [ 'via' => 'tax', 'tax' => $last_tax ] );
-						$terms    = function_exists( 'bws_get_terms_by_via' )
-							? bws_get_terms_by_via( $via_opts, $inst )
-							: [];
-						foreach ( $terms as $term ) {
-							$result = $tcf( $term->term_id, $slot_opts, $inst );
-							if ( '' !== $result && false !== $result ) {
-								return $result;
+					// srcTerm dispatch: resolve post → get terms → call try_term_fn.
+					// srcTerm is read from this slot only (no carry-forward).
+					if ( '' !== $stm_raw && $tcf ) {
+						$src_opts = array_merge( $slot_opts, [
+							'source' => $last_src,
+							'ref'    => $last_ref,
+						] );
+						$post_id = function_exists( 'bws_resolve_post_by_source' )
+							? bws_resolve_post_by_source( $src_opts, $inst )
+							: get_the_ID();
+						if ( $post_id && function_exists( 'bws_get_srcterm_terms' ) ) {
+							$terms = bws_get_srcterm_terms( (int) $post_id, sanitize_key( $last_tax ) );
+							foreach ( $terms as $term ) {
+								$result = $tcf( $term->term_id, $slot_opts, $inst );
+								if ( '' !== $result && false !== $result ) {
+									return $result;
+								}
 							}
 						}
 						continue; // All terms empty — try next slot.
 					}
 
-					// Post-based paths: '' | 'ref' | 'ref_ref' | 'tax_ref'.
-					$via_opts = array_merge( $slot_opts, [
-						'via'  => $current_via,
-						'ref'  => $last_ref,
-						'ref1' => $last_ref1,
-						'ref2' => $last_ref2,
-						'tax'  => $last_tax,
+					// Post-based paths: '' | 'ref'.
+					$src_opts = array_merge( $slot_opts, [
+						'source' => $last_src,
+						'ref'    => $last_ref,
 					] );
-					if ( function_exists( 'bws_resolve_post_by_via' ) ) {
-						$post_id = bws_resolve_post_by_via( $via_opts, $inst );
-					} elseif ( '' === $current_via ) {
-						$post_id = get_the_ID();
-					} else {
-						$post_id = false;
-					}
+					$post_id = function_exists( 'bws_resolve_post_by_source' )
+						? bws_resolve_post_by_source( $src_opts, $inst )
+						: ( '' === $last_src ? get_the_ID() : false );
 
 					if ( ! $post_id ) {
 						continue;
