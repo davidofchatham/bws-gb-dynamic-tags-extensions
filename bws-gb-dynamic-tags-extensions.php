@@ -129,6 +129,13 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-image-controls',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 

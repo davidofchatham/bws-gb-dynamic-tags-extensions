@@ -64,8 +64,8 @@ function bws_register_base_tags(): void {
 					'type'    => 'select',
 					'label'   => __( 'Get text from:', 'generateblocks' ),
 					'options' => array(
-						array( 'value' => '',      'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
-						array( 'value' => 'title', 'label' => __( 'Title / Name', 'generateblocks' ) ),
+						array( 'value' => '',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 					),
 				),
 				'key'      => array(
@@ -82,12 +82,12 @@ function bws_register_base_tags(): void {
 				),
 				'limit'    => array(
 					'type'  => 'number',
-					'label' => __( 'Limit', 'generateblocks' ),
+					'label' => __( 'Result Limit', 'generateblocks' ),
 					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
 				),
 				'sep'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Separator', 'generateblocks' ),
+					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
 				),
@@ -113,9 +113,9 @@ function bws_register_base_tags(): void {
 					'type'    => 'select',
 					'label'   => __( 'Get content from:', 'generateblocks' ),
 					'options' => array(
-						array( 'value' => '',        'label' => __( 'Post Content', 'generateblocks' ) ),
+						array( 'value' => '',        'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
-						array( 'value' => 'key',     'label' => __( 'Custom Field (WYSIWYG)', 'generateblocks' ) ),
+						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
 					),
 				),
 				'key'      => array(
@@ -181,21 +181,20 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
-	// image — featured or ACF/meta field image; type 'media'
-	// (custom image controls step will change type to cross-source
-	// and replace size/fallback with custom JS components.)
+	// image — custom field or featured image; type 'cross-source'.
 	// `as` is first and always serialized (default:'url' intentional).
+	// `size` and `fallback` use custom JS controls (image-tag-controls.js).
 	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
 		'title'    => __( 'Image', 'generateblocks' ),
 		'tag'      => 'image',
-		'type'     => 'media',
+		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => array_merge(
 			array(
-				'as' => array(
+				'as'   => array(
 					'type'    => 'select',
 					'label'   => __( 'Return type:', 'generateblocks' ),
 					'default' => 'url',
@@ -207,31 +206,33 @@ function bws_register_base_tags(): void {
 						array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 					),
 				),
+				'size' => array(
+					'type'  => 'bws-img-size',
+					'label' => __( 'Image Size', 'generateblocks' ),
+				),
 			),
 			$source_opt,
 			$traversal_opts,
 			array(
-				'use'  => array(
+				'use'      => array(
 					'type'    => 'select',
 					'label'   => __( 'Get image from:', 'generateblocks' ),
 					'options' => array(
-						array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
+						array( 'value' => '',         'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 					),
 					'show_if' => array( 'srcTerm' => 'empty' ),
 				),
-				'key'  => array(
+				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
 					'placeholder' => 'image_field',
 					'show_if'     => array( 'use' => 'not:featured' ),
 				),
-				'size' => array(
-					'type'        => 'text',
-					'label'       => __( 'Image Size', 'generateblocks' ),
-					'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
-					'placeholder' => 'full',
+				'fallback' => array(
+					'type'  => 'bws-media-picker',
+					'label' => __( 'Fallback Image', 'generateblocks' ),
 				),
 			)
 		),
@@ -348,12 +349,13 @@ function bws_register_base_tags(): void {
 	) );
 
 	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
-	// 'options' here is used only by generate_base_try_tags() as trailing options after N-key slots.
+	// 'options' here used by generate_base_try_tags() as trailing options after N-* slots.
+	// 'use' included so generate_base_try_tags() reads its options for per-slot use selectors.
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'              => 'image',
-		'title'            => __( 'Image', 'generateblocks' ),
-		'options'          => array(
-			'as'   => array(
+		'key'                   => 'image',
+		'title'                 => __( 'Image', 'generateblocks' ),
+		'options'               => array(
+			'as'       => array(
 				'type'    => 'select',
 				'label'   => __( 'Return image as:', 'generateblocks' ),
 				'default' => 'url',
@@ -365,20 +367,32 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
 			),
-			'size' => array(
-				'type'        => 'text',
-				'label'       => __( 'Image Size', 'generateblocks' ),
-				'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
-				'placeholder' => 'full',
+			'size'     => array(
+				'type'  => 'bws-img-size',
+				'label' => __( 'Image Size', 'generateblocks' ),
+			),
+			'use'      => array(
+				'type'    => 'select',
+				'label'   => __( 'Get image from:', 'generateblocks' ),
+				'options' => array(
+					array( 'value' => '',         'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+				),
+			),
+			'fallback' => array(
+				'type'  => 'bws-media-picker',
+				'label' => __( 'Fallback Image', 'generateblocks' ),
 			),
 		),
-		'term_fn'          => 'bws_term_custom_image_core',
-		'post_fn'          => 'bws_custom_image_core',
-		'try_core_fn'      => 'bws_custom_image_core',
-		'try_term_fn'      => 'bws_term_custom_image_core',
-		'supports_try'     => true,
-		'try_per_slot_key' => true,
-		'is_image'         => true,
+		'term_fn'               => 'bws_term_custom_image_core',
+		'post_fn'               => 'bws_custom_image_core',
+		'try_core_fn'           => 'bws_custom_image_core',
+		'try_term_fn'           => 'bws_term_custom_image_core',
+		'supports_try'          => true,
+		'try_per_slot_key'      => true,
+		'try_per_slot_use'      => true,
+		'try_use_no_key_values' => array( 'featured' ),
+		'is_image'              => true,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(

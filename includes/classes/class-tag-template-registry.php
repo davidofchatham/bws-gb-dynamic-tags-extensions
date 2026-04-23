@@ -36,9 +36,10 @@ class TagTemplateRegistry {
 	 *   try_core_fn      callable  fn($post_id, $opts, $inst): string — try_ post-slot handler.
 	 *   try_term_fn      callable|null  fn($term_id, $opts, $inst): string — try_ via:tax slot handler.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
-	 *   try_per_slot_key bool      Each try_ slot gets its own sN-key.
-	 *   try_per_slot_from bool     Each try_ slot gets its own sN-from.
-	 *   is_image         bool      Image template — special as/size options, no from in modifier.
+	 *   try_per_slot_key      bool     Each try_ slot gets its own N-key.
+	 *   try_per_slot_use      bool     Each try_ slot gets its own use/N-use selector.
+	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
+	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
 	 */
 	private static array $modifier_templates = [];
 
@@ -180,11 +181,11 @@ class TagTemplateRegistry {
 			$is_image = ! empty( $tpl['is_image'] );
 
 			if ( $is_image ) {
-				// Image modifier: as first (always serialized) + source + ref + key + size.
-				// No 'use' option — terms have no featured image concept.
+				// Image modifier: as (serialized) + size + source + traversal + use (ref only) + key + fallback.
+				// `use:featured` shown only when source:ref — term entities have no featured image.
 				$options = array_merge(
 					array(
-						'as' => array(
+						'as'   => array(
 							'type'    => 'select',
 							'label'   => __( 'Return image as:', 'generateblocks' ),
 							'default' => 'url',
@@ -196,21 +197,33 @@ class TagTemplateRegistry {
 								array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 							),
 						),
+						'size' => array(
+							'type'  => 'bws-img-size',
+							'label' => __( 'Image Size', 'generateblocks' ),
+						),
 					),
 					$source_opt,
 					$traversal_opts,
 					array(
-						'key'  => array(
+						'use'      => array(
+							'type'    => 'select',
+							'label'   => __( 'Get image from:', 'generateblocks' ),
+							'options' => array(
+								array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
+								array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+							),
+							'show_if' => array( 'source' => 'ref' ),
+						),
+						'key'      => array(
 							'type'        => 'text',
 							'label'       => __( 'Field Key', 'generateblocks' ),
 							'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
 							'placeholder' => 'image_field',
+							'show_if'     => array( 'use' => 'not:featured' ),
 						),
-						'size' => array(
-							'type'        => 'text',
-							'label'       => __( 'Image Size', 'generateblocks' ),
-							'help'        => __( 'WordPress image size slug. Default: full.', 'generateblocks' ),
-							'placeholder' => 'full',
+						'fallback' => array(
+							'type'  => 'bws-media-picker',
+							'label' => __( 'Fallback Image', 'generateblocks' ),
 						),
 					)
 				);
@@ -327,7 +340,7 @@ class TagTemplateRegistry {
 			$try_term_fn  = $tpl['try_term_fn'] ?? null;
 			$per_slot_key = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use = ! empty( $tpl['try_per_slot_use'] );
-			$is_image     = ! empty( $tpl['is_image'] );
+			$no_key_uses  = $tpl['try_use_no_key_values'] ?? [];
 			$tpl_options  = $tpl['options'] ?? [];
 
 			if ( ! $try_core_fn ) {
@@ -462,10 +475,11 @@ class TagTemplateRegistry {
 			$tcf = $try_term_fn;
 			$psk = $per_slot_key;
 			$psu = $per_slot_use;
+			$nku = $no_key_uses;
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu ) {
-				$fallback  = sanitize_text_field( $opts['fallback_text'] ?? '' );
-				$eval_opts = array_diff_key( $opts, [ 'fallback_text' => null ] );
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku ) {
+				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
+				$eval_opts = array_diff_key( $opts, [ 'fallback' => null, 'fallback_text' => null ] );
 
 				// Carry-forward state across slots.
 				$last_src = '';  // '' = current post context.
@@ -509,10 +523,14 @@ class TagTemplateRegistry {
 					$slot_opts = $eval_opts;
 
 					if ( $psk ) {
-						if ( empty( $last_key ) ) {
-							continue; // No field key available — skip slot.
+						// When psu is also active, certain use values (e.g. 'featured') don't need a key.
+						$in_no_key_mode = $psu && in_array( $last_use, $nku, true );
+						if ( ! $in_no_key_mode && empty( $last_key ) ) {
+							continue; // No field key — skip slot.
 						}
-						$slot_opts['key'] = $last_key;
+						if ( ! empty( $last_key ) ) {
+							$slot_opts['key'] = $last_key;
+						}
 					}
 
 					if ( $psu ) {
@@ -577,9 +595,8 @@ class TagTemplateRegistry {
 			/* translators: %s: tag title e.g. "Text Fields" */
 			$title = sprintf( __( 'Try %s', 'generateblocks' ), $tpl['title'] ?? $tag_name );
 
-			// Supports: image-size for image templates; none for others.
-			// 'source' and 'meta' are never included — slot selectors replace them.
-			$supports = $is_image ? [ 'image-size' ] : [];
+			// No native supports — all controls registered as custom options.
+			$supports = [];
 
 			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback );
 		}
