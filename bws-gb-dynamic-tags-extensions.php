@@ -106,6 +106,9 @@ function bws_dynamic_tags_register_all() {
 	// Remaining N×M try_ names not yet registered above are generated here.
 	\BWS\DynamicTags\TagTemplateRegistry::generate_try_tags();
 
+	// Populate DeprecatedTagRegistry with N×M wrappers (must run before bws_register_deprecated_tags).
+	bws_register_v1_deprecated_tag_wrappers();
+
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
 }

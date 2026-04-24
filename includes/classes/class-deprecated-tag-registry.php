@@ -98,7 +98,7 @@ class DeprecatedTagRegistry {
 	public static function has_migration_path( string $old_tag ): bool {
 		foreach ( self::$entries as $entry ) {
 			if ( ( $entry['old_tag'] ?? '' ) === $old_tag ) {
-				return true;
+				return ! empty( $entry['new_tag'] );
 			}
 		}
 		return false;
