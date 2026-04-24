@@ -30,7 +30,7 @@ class PostTermRelatedPost extends AbstractSource {
 	}
 
 	public function get_source_label(): string {
-		return __( 'Term → Ref/Rel Field', 'generateblocks' );
+		return __( 'Post → Term → Rel. Post', 'generateblocks' );
 	}
 
 	/**
@@ -126,26 +126,4 @@ class PostTermRelatedPost extends AbstractSource {
 		);
 	}
 
-	/**
-	 * Traversal options for the base tag via-dispatch system (tax → ref chain).
-	 *
-	 * @since 1.6.0
-	 * @return array
-	 */
-	public function get_traversal_options(): array {
-		return array(
-			'tax' => array(
-				'type'        => 'text',
-				'label'       => __( 'First traverse by taxonomy:', 'generateblocks' ),
-				'help'        => __( 'Taxonomy slug used to find the post\'s term (e.g. category, post_tag). The first term is used.', 'generateblocks' ),
-				'placeholder' => 'category',
-			),
-			'ref' => array(
-				'type'        => 'text',
-				'label'       => __( 'Then traverse by meta key:', 'generateblocks' ),
-				'help'        => __( 'ACF relationship or post object field key on the term that links to the related post.', 'generateblocks' ),
-				'placeholder' => 'related_posts',
-			),
-		);
-	}
 }

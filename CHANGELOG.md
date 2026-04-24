@@ -12,6 +12,7 @@
 - Tag converter utility (admin) with `TagConverter` class and settings page integration
 - Modifier toggle controls in admin settings page (term_, try_ enable/disable)
 - Deprecated tags section in admin settings page
+- `DeprecatedTagRegistry::has_migration_path( string $old_tag ): bool` for converter and admin UI use
 
 ### Changed
 - `via`/`from` option renamed to `source`; `from` (field selector) renamed to `use` across all base tags and modifier callbacks
@@ -20,6 +21,8 @@
 - `term_image` modifier: `use:featured` gated behind `source:ref` (term entities have no featured image)
 - `show_if` / `show_if_any` support added to `editor-conditional-options.js` (OR conditions)
 - `SourceInterface` and `AbstractSource` cleanup: removed related-variant methods post Pattern B
+- `get_traversal_options()` removed from `SourceInterface`, `AbstractSource`, and all source classes; `register_modifier()` now hardcodes standardized `ref` traversal sub-option (Q8 resolution)
+- `SecondRelatedPost` label: "Post → 2nd Rel. Post"; `PostTermRelatedPost` label: "Post → Term → Rel. Post"
 
 ### Fixed
 - `DeprecatedTagRegistry` loop: undefined `$sk` variable

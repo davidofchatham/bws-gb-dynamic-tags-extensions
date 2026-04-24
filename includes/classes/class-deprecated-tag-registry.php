@@ -89,6 +89,22 @@ class DeprecatedTagRegistry {
 	}
 
 	/**
+	 * Check whether a given deprecated tag name has a registered migration path.
+	 *
+	 * @since 1.6.0
+	 * @param string $old_tag The deprecated tag name to look up.
+	 * @return bool True if a migration entry exists.
+	 */
+	public static function has_migration_path( string $old_tag ): bool {
+		foreach ( self::$entries as $entry ) {
+			if ( ( $entry['old_tag'] ?? '' ) === $old_tag ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Transform a raw deprecated tag string into the migrated new-format tag string.
 	 *
 	 * Applies in order:

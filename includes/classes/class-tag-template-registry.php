@@ -159,13 +159,18 @@ class TagTemplateRegistry {
 			),
 		);
 
-		// Traversal sub-options from the traversal source's get_traversal_options().
-		// Each option gets a show_if binding it to source:'ref'.
-		$traversal_opts = [];
+		// Traversal sub-option: relationship field key shown when source:'ref'.
+		$traversal_opts = array();
 		if ( $traversal_src ) {
-			foreach ( $traversal_src->get_traversal_options() as $opt_key => $opt_def ) {
-				$traversal_opts[ $opt_key ] = array_merge( $opt_def, [ 'show_if' => [ 'source' => 'ref' ] ] );
-			}
+			$traversal_opts = array(
+				'ref' => array(
+					'type'        => 'text',
+					'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
+					'help'        => __( 'ACF relationship or post object field key on the entity that links to the related post.', 'generateblocks' ),
+					'placeholder' => 'related_posts',
+					'show_if'     => array( 'source' => 'ref' ),
+				),
+			);
 		}
 
 		foreach ( self::$modifier_templates as $tpl ) {
@@ -260,7 +265,7 @@ class TagTemplateRegistry {
 
 			if ( 'ref' === $source ) {
 				// Traversal from modifier entity (term) → related post.
-				// get_traversal_options() exposes 'ref'; resolve_id() expects 'rel' internally.
+				// register_modifier() hardcodes 'ref' option; resolve_id() expects 'rel' internally.
 				$src = SourceRegistry::get_source( $traversal_src_key );
 				if ( ! $src ) {
 					return '';

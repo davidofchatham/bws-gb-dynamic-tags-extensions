@@ -84,20 +84,4 @@ class RelatedPost extends AbstractSource {
 		return array(); // Relationship field key is provided via the 'rel' custom option on each tag.
 	}
 
-	/**
-	 * Traversal options for the base tag via-dispatch system.
-	 *
-	 * @since 1.6.0
-	 * @return array
-	 */
-	public function get_traversal_options(): array {
-		return array(
-			'ref' => array(
-				'type'        => 'text',
-				'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
-				'help'        => __( 'ACF relationship or post object field key that links to the related post.', 'generateblocks' ),
-				'placeholder' => 'related_posts',
-			),
-		);
-	}
 }
