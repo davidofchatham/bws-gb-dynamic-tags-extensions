@@ -139,8 +139,25 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-editor-preview',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-preview-context.js',
+		array( 'wp-hooks' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
+
+// Disable caching for editor preview requests so preview labels stay live.
+add_filter(
+	'generateblocks_dynamic_tags_replacement_cache_duration',
+	function( $duration, $content, $context ) {
+		return empty( $context['bwsEditorPreview'] ) ? $duration : 0;
+	},
+	10,
+	3
+);
 
 // Initialize on plugins_loaded to ensure GenerateBlocks is available.
 add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );

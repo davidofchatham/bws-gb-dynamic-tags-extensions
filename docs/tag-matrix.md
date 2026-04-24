@@ -27,8 +27,8 @@ silently skipped at registration time. The collision check queries
 GB or another plugin is automatically avoided.
 
 **Supports column** (in source tables and tag matrices): lists the GB `supports` values that
-control which editor controls appear for a tag. Values are `source` (entity picker), `link`,
-`meta` (field key input), `image-size`. The source table's Supports column shows what the source
+control which editor controls appear for a tag. Values include `source` (entity picker), `link`,
+`meta` (field key input), `image-size`, `taxonomy` (taxonomy picker). The source table's Supports column shows what the source
 adds or removes from the template's base supports (`+source always` / `−source` / `as-is`).
 The matrix Supports column shows the template's base array before any source modifier is applied.
 
@@ -40,8 +40,8 @@ Sources are grouped by their **starting context** — what entity provides the i
 
 > **Planned architecture note:** In the current N×M model, each source has a tag prefix that
 > appears in every registered tag name. In the planned source-agnostic architecture, sources map
-> to `via` option values on base tags (e.g. `via:ref` for a related post traversal). The "Tag prefix" column
-> reflects current implementation; `via` values are listed in the Architecture overview section of
+> to `source` option values on base tags (e.g. `source:ref` for a related post traversal). The "Tag prefix" column
+> reflects current implementation; `source` values are listed in the Architecture overview section of
 > the consolidation plan.
 
 ### Post-context sources
@@ -72,40 +72,17 @@ These sources resolve to a term. Use them on archive pages and in term loops.
 > post**, resolves the post's term via `tax`, then hops to that term's related post via `ref` —
 > a 3-hop traversal from post context. See Post-context sources above.
 
-### Traversal registry and `via` values (planned architecture)
+### Source traversal options (revised architecture)
 
-In the source-agnostic architecture, the `via` option names a **traversal** — a chain of relationship
-hops applied to the current base entity. Traversal names are composed left-to-right,
-underscore-separated, using relationship type indicators:
+Base tags drop native `supports: ['source']` — no clean `show_if` path for the `ref` sub-option when using GB's native source selector (`dynamicSource` inaccessible from `tagSpecificControls` filter). The `source` option is registered as a plain PHP `select` in the standard `options` array; existing `editor-conditional-options.js` handles all `show_if` conditions for sub-options. No new JS required for `source` itself. A richer custom combobox (icons, labels, entity search) is a UI enhancement — deferred.
 
-- `ref` — reference/relational field hop (one hop via a reference field; option key: `ref`, or `ref1`/`ref2` in multi-hop)
-- `tax` — taxonomy term association (hop to a term; requires `HasTaxonomy` on base entity)
-- `parent`, `child`, etc. — future WP hierarchy traversals
+The selected value serializes as `source:ref` in the tag string. PHP callbacks read `$options['source']` and dispatch accordingly.
 
-When the same type appears more than once in a chain, its associated options get a numeric hop
-counter (e.g. `via:ref_ref` → options `ref1`, `ref2`). Single-occurrence traversal options are
-unnumbered (e.g. `via:tax_ref` → options `tax`, `ref`).
+See [Source options](#source-options).
 
-`get_title_prefix()` is a **N×M-model artifact** and is removed in Step 2. Traversal labels come
-from the traversal registry (a static `via` → label map), used in two places:
+`try_` tags use the same custom source selector for all slots. Slot 1 option name: `source`; slots 2+ use `N-src`. Slot 2+ prepends "Same as Previous Source" (unset). See [Try_ tags](#try_-tags).
 
-- **`via` option dropdown** — label for each selectable value in the base tag's traversal selector
-- **Preview label segment** — the string inside `[…]` produced by `bws_build_preview_label()`
-
-| `via` value | Traversal chain | Label | Required options | Notes |
-|---|---|---|---|---|
-| unset / `''` | direct (current entity) | Current (no traversal) | — | Default; never serialized. Preview label emits nothing for unset `via` (no source segment). |
-| `'ref'` | reference/relational field hop | `Reference/Relational Field` | `ref` | |
-| `'ref_ref'` | reference/relational field hop × 2 | `Ref/Rel Field → 2nd Ref/Rel Field` ⚠️ | `ref1`, `ref2` | see label fix below |
-| `'tax'` | entity → taxonomy term | `Term` | `tax` | `HasTaxonomy` required on base entity |
-| `'tax_ref'` | entity → term → reference/relational field | `Term → Ref/Rel Field` ⚠️ | `tax`, `ref` | `HasTaxonomy` required; see label fix below |
-
-> **Portal source:** The portal plugin is a **context modifier**, not a traversal. It registers its own tag group externally (via `bws_dynamic_tags_register_sources` hook) with its own base tags. Those base tags support the same `via` traversals (`ref`, `ref_ref`, `tax_ref`) as standard base tags — portal is the starting context, not a hop. `portal` and `portal_rp` do not appear as `via` values. Deprecated wrappers for `portal_*` tags are handled by the portal plugin itself.
-
-⚠️ **Pending traversal label fixes (prerequisite for Step 2):**
-- `ref_ref` label: traversal registry must return `'Ref/Rel Field → 2nd Ref/Rel Field'`. Replaces `SecondRelatedPost.get_source_label()` which currently returns `'Second Related Post (ACF)'`.
-- `tax_ref` label: traversal registry must return `'Term → Ref/Rel Field'`. Replaces `PostTermRelatedPost.get_source_label()` which currently returns `'Post → Term → Related Post'`.
-- **Unset `via` label (SETTLED):** "Current (no traversal)". Parenthetical explains no configuration is needed. Never serialized. Preview label emits nothing for unset `via` — no source segment. See consolidation plan Q6 (CLOSED).
+> **Portal source:** The portal plugin is a **context modifier**, not a traversal hop. It registers its own tag group externally (via `bws_dynamic_tags_register_sources` PHP hook and `generateblocks.editor.tagSpecificControls` JS filter). Portal is the starting context — `portal` does not appear as a `source` value on standard base tags. Deprecated wrappers for `portal_*` tags are registered with this plugin and should also be handled by the migrator.
 
 ---
 
@@ -117,7 +94,7 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 | Template | Supports | Options | `post_` | `related_post_` | `second_related_post_` | `post_term_related_post_` | `portal_` |
 |---|---|---|---|---|---|---|---|
 | **title** | `link`, `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
-| **content** | `source` | `from`, `key`, `fallback` | ✅ | ✅ | ✅ | ✅ | ☐ |
+| **content** | `source` | `use`, `key`, `fallback` | ✅ | ✅ | ✅ | ✅ | ☐ |
 | **excerpt** † | `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
 | **permalink** | `source` | — | GB | ✅ | ✅ | ✅ | ☐ |
 | **custom_text** | `meta`, `link`, `source` | `key`, `fallback` | ✅ | ✅ | ✅ | ✅ | ☐ |
@@ -133,7 +110,7 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 
 `description` is not listed — it is a term-context-only template with no post-context implementation.
 
-† `excerpt` is approved for consolidation into `content` as `from:excerpt`. `featured_image` and `custom_image` are approved for consolidation into `image` (`from` unset = meta field (uses `key`); `from:featured` = Featured Image). See template key renaming tracker.
+† `excerpt` is approved for consolidation into `content` as `use:excerpt`. `featured_image` and `custom_image` are approved for consolidation into `image` (`use` unset = meta field (uses `key`); `use:featured` = Featured Image). See template key renaming tracker.
 
 ---
 
@@ -142,7 +119,7 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 | Template | Supports | Options | `term_` | `term_related_post_` |
 |---|---|---|---|---|
 | **title** | `link`, `source` | — | ✅ | ✅ |
-| **content** | `source` | `from`, `key`, `fallback` | — | ✅ |
+| **content** | `source` | `use`, `key`, `fallback` | — | ✅ |
 | **excerpt** † | `source` | — | — | ✅ |
 | **permalink** | `source` | — | ✅ | ✅ |
 | **description** † | — | — | ✅ | — |
@@ -155,7 +132,7 @@ e.g. `related_post_custom_text` = `related_post_` + `custom_text`.
 `term_*` (term-extraction) templates are not listed — they extract terms FROM a post and have no
 meaning in a term-context source.
 
-† `excerpt` is approved for consolidation into `content` as `from:excerpt`. `featured_image` and `custom_image` are approved for consolidation into `image` (`from` unset = meta field; `from:featured` = Featured Image). `description` is approved for consolidation into `content` — for term-context, `content` with `from` unset outputs the term description; no `fixed_options` needed. See template key renaming tracker.
+† `excerpt` is approved for consolidation into `content` as `use:excerpt`. `featured_image` and `custom_image` are approved for consolidation into `image` (`use` unset = meta field; `use:featured` = Featured Image). `description` is approved for consolidation into `content` — for term-context, `content` with `use` unset outputs the term description; no `fixed_options` needed. See template key renaming tracker.
 
 ---
 
@@ -164,7 +141,7 @@ meaning in a term-context source.
 > **Planned architecture note:** The resolution order below applies to the current N×M model where
 > each source×template combination produces a separately-registered tag. In the planned
 > source-agnostic architecture, per-source-tag defaults are eliminated — there is one tag
-> registration per template, and all `via` values are always available. The `default_enabled_map`
+> registration per template, and all `source` values are always available. The `default_enabled_map`
 > mechanism becomes obsolete.
 
 Resolution order for each cell in the current model (first match wins):
@@ -190,43 +167,31 @@ Drivers of the ☐ cells above:
 and returns the first non-empty result. The user configures which traversal each slot uses at the
 tag instance level — there is no source prefix in the tag name.
 
-Slots use the prefix `sN-` where N is the slot number (s1–s5). Each slot's options are prefixed
-accordingly: `s1-via`, `s1-key`, `s1-ref`, etc. Slots s3–s5 are hidden in the editor until the
-previous slot is configured.
+### Per-slot controls
 
-The `sN-` prefix was confirmed safe: GB's `parse_options()` splits on `|` and `:` only; hyphens
-in option keys are treated as plain characters.
+Each slot exposes up to three controls:
 
-**Traversal option naming within a slot:** When a traversal type appears only once in the slot's
-`sN-via` value, its options are unnumbered: `s1-ref`, `s1-tax`. When the same traversal type
-repeats (e.g. `via:ref_ref`, `via:tax_ref_ref_tax`), options for each occurrence carry a
-numeric counter: `s1-ref1`, `s1-ref2`, `s1-tax1`, `s1-tax2`. The numeric counter is the hop
-counter within the traversal chain; the `sN-` prefix is the slot counter. These are different
-scopes, separated by the hyphen. Example:
+1. **Source** — Custom selector (same control as base tags). Slot 1 option name: `source`; slots 2+: `N-src`. Slot 1 default: current entity (not serialized). Slots 2+ default: "Same as Previous Source" (unset/inherit). `ref` sub-option shown when source = `ref`.
 
-```
-{{try_text s1-via:tax_ref_ref_tax|s1-tax1:category|s1-ref1:field_a|s1-ref2:field_b|s1-tax2:tag|s1-key:body_text|s2-via:ref|s2-ref:field_a|s2-key:body_text}}
-```
+2. **Field key** (text, image, datetime templates with per-slot key) — Slot 1: must be set for the slot to produce output. Slots 2+: "Same as Previous Field" (unset/inherit). Label adapts to template: "Same Text Field", "Same Image Field", "Same Date-Time Field", etc.
 
-**Per-slot `sN-from`** is available on templates that support mode selection per slot, allowing each
-slot to draw from a different content type — e.g. "try ACF/meta field, fall back to post content".
+3. **`srcTerm`** — Slots 2+: "Same as Previous" (unset/inherit). Shown below source selector when applicable (hidden for term-context entities). `tax` sub-option shown when `srcTerm` is set. See [Secondary, conditional options](#secondary-conditional-options).
+
+**Progressive disclosure:** Slot N+1 is hidden until at least one of slot N's three controls is set to a non-default value. Within a slot, sub-controls (e.g. `ref` key, `tax`) appear only when their parent control is active.
+
+**Per-slot `use`** is available on templates that support content mode selection per slot (e.g. "try ACF/meta field, fall back to post content").
 
 ### Available try_ tags
 
-| Tag name | Based on template | Per-slot `sN-key`? | Per-slot `sN-from`? | Notes |
+| Tag name | Based on template | Per-slot field key? | Per-slot `use`? | Notes |
 |---|---|---|---|---|
-| `try_content` | `content` | No | **Yes** | Each slot can be Content/Description or ACF/Custom Field |
+| `try_content` | `content` | No | **Yes** | Each slot: Content/Description or ACF/Custom Field |
 | `try_title` | `title` | No | No | |
 | `try_permalink` | `permalink` | No | No | |
 | `try_text` | `text` | **Yes** | No | Each slot's field key can differ |
-| `try_image` | `image` | **Yes** | **Yes** | `sN-from` unset = ACF/meta field (uses `sN-key`); `sN-from:featured` = Featured Image. |
+| `try_image` | `image` | **Yes** | **Yes** | `use` unset = ACF/meta field (uses per-slot key); `use:featured` = Featured Image |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `start_key`/`end_key` across slots |
-
-Templates without `supports_try`: `description` (long-form prose; no meaningful "first non-empty"
-logic). `excerpt` is excluded as it consolidates into `content`; use `try_content` with
-`sN-from:excerpt` for excerpt fallback chains. `featured_image` is excluded as it consolidates into
-`image`; use `try_image` with `sN-from:featured` for featured image slots.
 
 ---
 
@@ -241,7 +206,7 @@ output. Missing required options cause the tag to return empty string (no error)
 | All `term_related_post_` variants | `ref` — reference/relational field key on the term entity | Traverses from current term to related post |
 | All `second_related_post_` variants | `ref1` + `ref2` — two reference field keys (legacy: `rel` + `rel_2`) | First hop (`ref1`) then second hop (`ref2`) |
 | All `post_term_related_post_` variants | `tax` — taxonomy slug; `ref` — reference field key on the term entity | First term in the taxonomy is used; the `ref` field is on the term, not the post. |
-| `content` (all sources, `from:key`) | `key` — ACF or meta field key | Required when `from` is set to `key` |
+| `content` (all sources, `use:key`) | `key` — ACF or meta field key | Required when `use` is set to `key` |
 | `custom_text` (all sources) | `key` — ACF or meta field key | Via GB's `meta` support |
 | `custom_image` (all sources) | `key` — meta image field key | |
 | `datetime_single` (all sources) | `key` — date, datetime, or time field key | |
@@ -284,12 +249,12 @@ posts for traversal sources (`related_post_`, `term_related_post_`, etc.).
 
 ## Potential future traversals
 
-These WP hierarchy relationships are candidates for `via` values in the traversal registry (see
-[Traversal registry and `via` values](#traversal-registry-and-via-values-planned-architecture)
+These WP hierarchy relationships are candidates for `source` values in the traversal registry (see
+[Traversal registry and `source` values](#traversal-registry-and-via-values-planned-architecture)
 above). They do **not** create new source classes or new matrix columns — they are additional
-`via` options selectable on the existing base tags.
+`source` options selectable on the existing base tags.
 
-| `via` value | Traversal | Description | Status |
+| `source` value | Traversal | Description | Status |
 |---|---|---|---|
 | `parent` | current post → WP parent post | Hierarchical post types | Planned |
 | `ancestor` | current post → WP top-level ancestor | Hierarchical post types | To be considered |
@@ -324,11 +289,11 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `content` | `'cross-source'` | |
 | `title` | `'cross-source'` | Bare `title` confirmed safe — no GB/GB Pro tag starts with `title` and `title` does not start with any registered GB/GB Pro tag name (verified 2026-04-13). Zero options; shares internal pipeline with `text from:title`. |
 | `permalink` | `'cross-source'` | Zero options in current scope. |
-| `image` | `'media'` | Media picker for fallback; `via` option coexists — type governs UI chrome only |
+| `image` | `'cross-source'` | Custom image controls in scope for this plan phase: `as` + `size` (combobox) + `fallback` (media picker) registered via JS filter. No `'media'` type — all controls custom. See `custom-image-controls.md`. |
 | `datetime_single` | `'cross-source'` | |
 | `datetime_range` | `'cross-source'` | |
 
-The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `via` unset = user-selected term (never serialized); `via:'ref'` = term→related post traversal. `term_image` uses GB type `'term'` (not `'media'`), so `as` and `size` must be registered as custom options (GB's native media controls require `'media'` type). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `source` unset = user-selected term (never serialized); `source:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
 
 **try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
 
@@ -344,20 +309,20 @@ for each old tag name and appear in the editor picker under the "Deprecated" gro
 match the option renaming tracker below.
 
 In the source-agnostic architecture, the "New tag" column shows the single registered base tag.
-Each per-source old tag becomes a deprecated wrapper with `via_inject` set to the source's `via`
-value (see §Source `via` values above) and `option_renames` as listed below.
+Each per-source old tag becomes a deprecated wrapper with `source_inject` set to the source's `source`
+value (see §Source `source` values above) and `option_renames` as listed below.
 
-| Current key | New key | Old tag example | New tag (base) | `via_inject` | `option_renames` | Status | Notes |
+| Current key | New key | Old tag example | New tag (base) | `source_inject` | `option_renames` | Status | Notes |
 |---|---|---|---|---|---|---|---|
-| `excerpt` | *(folded into `content`)* | `post_excerpt` | `{{content from:excerpt}}` | source abbrev. | none; `fixed_options: ['from' => 'excerpt']` | Approved | `from:excerpt` added as third value on `content`'s `from` option. `bws_post_excerpt_core()` retained as internal function. GB's `post_excerpt` is not a conflict (never registered by us). |
-| `featured_image` | *(folded into `image`)* | `post_featured_image` | `{{image from:featured}}` | source abbrev. | `as → as` (no rename); `fixed_options: ['from' => 'featured']` | Approved | Deprecated wrappers inject `from:featured` — unset now means ACF/meta field (custom image). `image-size` support carried over. |
-| `custom_text` | `text` | `post_custom_text` | `{{text}}` | source abbrev. | `fallback_text → fallback`, `type → from` | Approved | Removes `meta` from supports; own `key` input replaces GB pass-through. |
-| `custom_image` | *(folded into `image`)* | `post_custom_image` | `{{image key:…}}` | source abbrev. | `fallback_url → fallback`, `return_type → as`, `field_key → key` | Approved | No `fixed_options` or `type → from` rename needed — `custom_image` never had a `type` option, and `from` unset is now the ACF/meta field default. Term-source `image` variants also default to ACF/meta field — no featured image concept applies to terms. |
+| `excerpt` | *(folded into `content`)* | `post_excerpt` | `{{content from:excerpt}}` | source abbrev. | none; `fixed_options: ['from' => 'excerpt']` | Approved | `use:excerpt` added as third value on `content`'s `use` option. `bws_post_excerpt_core()` retained as internal function. GB's `post_excerpt` is not a conflict (never registered by us). |
+| `featured_image` | *(folded into `image`)* | `post_featured_image` | `{{image from:featured}}` | source abbrev. | `as → as` (no rename); `fixed_options: ['from' => 'featured']` | Approved | Deprecated wrappers inject `use:featured` — unset now means ACF/meta field (custom image). `image-size` support carried over. |
+| `custom_text` | `text` | `post_custom_text` | `{{text}}` | source abbrev. | `fallback_text → fallback`, `type → use` | Approved | Removes `meta` from supports; own `key` input replaces GB pass-through. |
+| `custom_image` | *(folded into `image`)* | `post_custom_image` | `{{image key:…}}` | source abbrev. | `fallback_url → fallback`, `return_type → as`, `field_key → key` | Approved | No `fixed_options` or `type → use` rename needed — `custom_image` never had a `type` option, and `use` unset is now the ACF/meta field default. Term-source `image` variants also default to ACF/meta field — no featured image concept applies to terms. |
 | `custom_date_single` | `datetime_single` | `post_custom_date_single` | `{{datetime_single as:date}}` | source abbrev. | see §Date-time option names; `fixed_options: ['as' => 'date']` | Approved | Merged with datetime_single via `as` option. |
 | `custom_date_range` | `datetime_range` | `post_custom_date_range` | `{{datetime_range as:date}}` | source abbrev. | see §Date-time option names; `fixed_options: ['as' => 'date']` | Approved | Merged with datetime_range via `as` option. |
 | `custom_datetime_single` | *(merged into `datetime_single`)* | `post_custom_datetime_single` | `{{datetime_single}}` | source abbrev. | see §Date-time option names | Approved | Default mode (unset) = datetime. |
 | `custom_datetime_range` | *(merged into `datetime_range`)* | `post_custom_datetime_range` | `{{datetime_range}}` | source abbrev. | see §Date-time option names | Approved | |
-| `description` | *(folded into `content`)* | `term_description` | `{{content}}` | source abbrev. | none | Approved | Term-context only — no post-context variant exists. `content` with `from` unset for a term entity outputs term description; no `fixed_options` needed. `bws_term_description_core()` retained as internal function. |
+| `description` | *(folded into `content`)* | `term_description` | `{{content}}` | source abbrev. | none | Approved | Term-context only — no post-context variant exists. `content` with `use` unset for a term entity outputs term description; no `fixed_options` needed. `bws_term_description_core()` retained as internal function. |
 
 ---
 
@@ -378,6 +343,114 @@ value (see §Source `via` values above) and `option_renames` as listed below.
 
 ---
 
+## Editor preview label schema
+
+When a base tag can't resolve in the editor (no relationship configured, archive template, wrong post type), the callback returns a structured preview label instead of empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/content-helpers.php`.
+
+**Scope:** `text`, `content`, `title`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely.
+
+Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
+
+### Assembly
+
+```
+[{field part} from {context part}]   — both present
+[{field part}]                        — field only
+[{context part}]                      — context only (e.g. title, permalink)
+[⚠ {warning}]                        — misconfigured: replaces entire label
+```
+
+Fallback appended when set: ` · fallback: "{value}"`.
+
+### Context part
+
+Space-joined segments. The `→` separator precedes the term-hop segment only.
+
+| Condition | Segment |
+|---|---|
+| Modifier tag (e.g. `term_`, `views_`) | Modifier `label` value (e.g. `Term`, `Views`) |
+| `source:ref` + `ref:X` set | `Ref (X)` |
+| `source:ref` + `ref` unset | *(triggers warning — see below)* |
+| `srcTerm` + `tax:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
+| `srcTerm` + `tax` unset | *(triggers warning — see below)* |
+| No modifier, `source` unset, no `srcTerm` | *(omit — no `from` clause)* |
+
+### Field part
+
+Template-specific. Missing required input triggers a warning instead of the field part.
+
+| Template | Condition | Field part |
+|---|---|---|
+| `text` | `key:X` set | `Text Field (X)` |
+| `text` | `use:title` | `Title` |
+| `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
+| `content` | `use:key` + `key:X` | `Content Field (X)` |
+| `content` | `use:excerpt` | `Excerpt` |
+| `content` | `use` unset | `Content` |
+| `content` | `use:key` + `key` unset | *(missing — triggers warning)* |
+| `image` (`as:alt`) | `key:X` set | `Image Field (X) Alt Text` |
+| `image` (`as:alt`) | `use:featured` | `Featured Image Alt Text` |
+| `image` (`as:caption`) | `key:X` set | `Image Field (X) Caption` |
+| `image` (`as:caption`) | `use:featured` | `Featured Image Caption` |
+| `title` | — | `Title` (always) |
+| `datetime_` | — | *(see datetime section below)* |
+
+### Warnings
+
+Warnings replace the **entire** label. Collect all missing required items; join with `, `; last two items use ` or `.
+
+| Missing items | Warning |
+|---|---|
+| `ref` only | `⚠ No ref key set` |
+| `key` only | `⚠ No meta key set` |
+| `tax` only | `⚠ No taxonomy set` |
+| `ref` + `key` | `⚠ No ref key or meta key set` |
+| `ref` + `tax` | `⚠ No ref key or taxonomy set` |
+| `tax` + `key` | `⚠ No taxonomy or meta key set` |
+| `ref` + `tax` + `key` | `⚠ No ref key, taxonomy, or meta key set` |
+
+### Datetime preview
+
+Datetime tags compute a live preview from the current time rather than a static label. The `as` option controls label prefix and range-end offset. The preview value is formatted using the same formatter and options (`format`, `timeSep`, `rangeSep`, etc.) the tag uses at render time.
+
+| `as` | Single prefix | Range prefix | Range end offset |
+|---|---|---|---|
+| unset | `Date-Time` | `Date-Time Range` | +1 day |
+| `date` | `Date` | `Date Range` | +1 day |
+| `time` | `Time` | `Time Range` | +1 hour |
+
+```
+[{prefix} like "{formatted value}" from {context part}]
+[{prefix} like "{formatted value}"]   — no context
+```
+
+### Examples
+
+| Tag | Preview label |
+|---|---|
+| `{{text key:body_text}}` | `[Text Field (body_text)]` |
+| `{{text source:ref\|ref:rel_post\|key:body_text}}` | `[Text Field (body_text) from Ref (rel_post)]` |
+| `{{text use:title}}` | `[Title]` |
+| `{{text source:ref\|ref:rel_post\|use:title}}` | `[Title from Ref (rel_post)]` |
+| `{{text srcTerm\|tax:category\|key:body_text}}` | `[Text Field (body_text) from Category Term]` |
+| `{{text source:ref\|ref:rel_post\|srcTerm\|tax:category\|key:body_text}}` | `[Text Field (body_text) from Ref (rel_post) → Category Term]` |
+| `{{text}}` | `[⚠ No meta key set]` |
+| `{{text srcTerm\|key:body_text}}` | `[⚠ No taxonomy set]` |
+| `{{text source:ref\|srcTerm\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
+| `{{term_text key:body_text}}` | `[Text Field (body_text) from Term]` |
+| `{{term_text source:ref\|ref:rel_post\|key:body_text}}` | `[Text Field (body_text) from Term Ref (rel_post)]` |
+| `{{title source:ref\|ref:rel_post}}` | `[Title from Ref (rel_post)]` |
+| `{{content}}` | `[Content]` |
+| `{{content use:excerpt}}` | `[Excerpt]` |
+| `{{image as:alt\|key:hero}}` | `[Image Field (hero) Alt Text]` |
+| `{{image as:url\|key:hero}}` | *(no label — excluded)* |
+| `{{datetime_single as:date}}` | `[Date like "April 24, 2026"]` |
+| `{{datetime_single as:time\|source:ref\|ref:event_date}}` | `[Time like "2:20 PM" from Ref (event_date)]` |
+| `{{datetime_range as:date\|source:ref\|ref:event}}` | `[Date Range like "April 24 – April 25" from Ref (event)]` |
+| `{{text source:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `[Text Field (body_text) from Ref (rel_post) · fallback: "Untitled"]` |
+
+---
+
 ## Option name renaming tracker
 
 Tracks proposed renames from the naming pass. Status values: **Approved** (decision made, not yet
@@ -391,52 +464,127 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 |---|---|---|---|---|
 | `fallback_text` | `fallback` | all text templates | Approved | Aligns with GB Pro `loop_item`; shorter; no per-tag conflict |
 | `fallback_url` | `fallback` | image templates | Approved | Same key as `fallback_text` rename; no template has both simultaneously |
-| `src_N` (try_ slots) | `sN-via` | try_ templates | Approved | try_ uses `sN-` prefix style (e.g. `s1-via`, `s2-via`). Shim: `$options["s{$n}-via"] ?? $options["src_{$n}"] ?? ''`. (`sN-from` and `from_N` were doc-only names, never in PHP.) |
-| `type` (field/mode selector) | `from` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `from` only appears when overriding. `content`: unset=post content/term description, `from:excerpt`, `from:key` (ACF WYSIWYG/content-area field, incl. ACF Extended block editor areas). `text`: unset=ACF/meta field (uses `key`), `from:title`. `image` (post sources): see table below. Note: `from:key` is never written on `text` or `image` (post sources) since ACF/meta field is the unset default for both. Current PHP name is `type`; `field` and `in` were doc-only intermediates, never in PHP. Shim: `$options['from'] ?? $options['type'] ?? ''`. |
-| value `custom_field` | `key` | `from` option | Approved | Selects the ACF/meta field mode: "use the field named in `key`". Supersedes intermediate rename `custom_field` → `meta` (approved but never implemented). Not applicable to `text` (ACF/meta field is its unset default). |
-| `type_N` (try_ slots) | `sN-from` | try_ templates | Approved | try_ uses `sN-` prefix style (e.g. `s1-from`, `s2-from`). New option — `type_N`, `field_N`, `in_N`, `sN-field` were all doc-only names, never in PHP. No shim needed. |
+| `type` (field/mode selector) | `use` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `use` only appears when overriding. `content`: unset=post content/term description, `use:excerpt`, `use:key` (ACF WYSIWYG/content-area field, incl. ACF Extended block editor areas). `text`: unset=ACF/meta field (uses `key`), `use:title`. `image` (post sources): see table below. Note: `use:key` is never written on `text` or `image` (post sources) since ACF/meta field is the unset default for both. Current PHP name is `type`; `field` and `in` were doc-only intermediates, never in PHP. Shim: `$options['from'] ?? $options['type'] ?? ''`. |
+| value `custom_field` | `key` | `use` option | Approved | Selects the ACF/meta field mode: "use the field named in `key`". Supersedes intermediate rename `custom_field` → `meta` (approved but never implemented). Not applicable to `text` (ACF/meta field is its unset default). |
 | `taxonomy` | `tax` | term extraction | Approved | Aligns with GB's `tax` (used by `term_list`); consistency reduces risk if GB ever registers conflicting tag names |
-| `from` (traversal selector) | `via` | all templates | Approved | Traversal selector — names the chain of hops to reach the target entity. Replaces docs-only `from` which itself replaced early proposed `src`. Never implemented in PHP under any name. No shim needed. GB/GB Pro collision check required before implementation. |
-| traversal value `term` | `tax` | `via` option | Approved | Traversal type indicator for taxonomy term hop. Renamed `term` → `tax` for consistency: `via` value now matches the option key it generates (`tax`). Composed values: `term_ref` → `tax_ref`. Migrator: `via:term` → `via:tax`; `via:term_*` → `via:tax_*`. |
-| `rel` | `ref` | all traversals with a single `ref` hop (`via:ref`, `via:tax_ref`) | Approved | Reference/relational field key — the option that stores the field name used to traverse. Renamed from `rel` (option key) and traversal value `rel` → `ref` for vendor-agnostic clarity (2026-04-13). Shim: `$options['ref'] ?? $options['rel'] ?? ''`. |
-| `rel` | `ref1` | `ref_ref` traversal | Approved | First-hop reference field key. Numeric counter because `ref` type repeats. Supersedes intermediate rename `1st_rel` (approved but never implemented). Deprecated wrappers for `second_related_post_*` tags use `option_renames: {rel → ref1, rel_2 → ref2}` and `via_renames: {rel_rel → ref_ref}`. |
-| `rel_2` | `ref2` | `ref_ref` traversal | Approved | Second-hop reference field key. Supersedes intermediate rename `2nd_rel` (approved but never implemented). |
+| `via`/`from` (traversal selector) | `source` | all templates | Approved | Custom source selector option (fully custom JS control, not GB native). Replaces unshipped `via`, docs-only `from`, early proposed `src`. |
+| `via:tax` traversal value | `srcTerm` (boolean) | all templates | Approved | Taxonomy hop formerly modeled as a `via` option value; now boolean toggle `srcTerm`. Allows post-resolution term hop independently of source selection. `tax` option still supplies the taxonomy slug. No tag string migration needed — `via` never shipped. |
+| `rel` | `ref` | `source:ref` traversals (deprecated `related_post_*`, `term_related_post_*`, `post_term_related_post_*`) | Approved | Reference/relational field key — the option that stores the field name used to traverse. Renamed from `rel` for vendor-agnostic clarity (2026-04-13). Shim: `$options['ref'] ?? $options['rel'] ?? ''`. |
+| `rel` | `ref1` | `second_related_post_*` deprecated wrappers | Approved | First-hop reference field key. Numeric counter because `ref` type repeats. Supersedes intermediate rename `1st_rel` (approved but never implemented). `second_related_post` traversal dropped — deprecated wrappers register with no functional equivalent pending architecture revisit. |
+| `rel_2` | `ref2` | `second_related_post_*` deprecated wrappers | Approved | Second-hop reference field key. Supersedes intermediate rename `2nd_rel` (approved but never implemented). See `ref1` row. |
 
-### Image-related option names
+### Multi-source–specific option names
+
+| Current name | Proposed name | Scope | Status | Notes |
+|---|---|---|---|---|
+| `src_N` (try_ slots) | slot 1: `source`; slot N>1: `N-src` | Multi-source templates | Approved | Revised from approved `sN-via`. Slot 1: unprefixed `source` (custom control, aligns with base tag). Slots 2+: numeric prefix (e.g. `2-src`, `3-src`). Shim slot 1: `$options['via'] ?? $options['s1-via'] ?? $options['src_1'] ?? ''`; shim slot N>1: `$options["{$n}-src"] ?? $options["{$n}-via"] ?? $options["s{$n}-via"] ?? $options["src_{$n}"] ?? ''`. (`sN-from` and `from_N` were doc-only names, never in PHP.) |
+| `type_N` (try_ slots) | slot 1: `use`; slot N>1: `N-use` | Multi-source templates | Approved | Revised from approved `sN-from`. Mirrors `source` revision: slot 1 unprefixed, slots 2+ numeric prefix (e.g. `2-use`, `3-use`). New option — `type_N`, `field_N`, `in_N`, `sN-field` were all doc-only names, never in PHP. No shim needed. |
+
+### Image-specific option names
 
 | Current name | Proposed name | Scope | Status | Notes |
 |---|---|---|---|---|
 | `return_type` | `as` | image templates | Implemented | Aligns with datetime `as` option (same role: selects output mode). Callbacks read `$options['as'] ?? $options['return_type']` for backward compat. |
 | `field_key` | `key` | image templates | Implemented | `as` freed up `key` — field name now aligns with GB's own `post_meta`/`term_meta` convention. Callbacks read `$options['key'] ?? $options['field_key'] ?? $options['meta_key']`. |
-| `type` (field/mode selector) | `from` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `from` only appears when overriding. `image` (post sources): unset=ACF/meta field (uses `key`), `from:featured`. `image` (term sources): `from` not offered — always ACF/meta field. Current PHP name is `type`; `field` and `in` were doc-only intermediates. Shim: `$options['from'] ?? $options['type'] ?? ''`. |
+| `type` (field/mode selector) | `use` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `use` only appears when overriding. `image` (post sources): unset=ACF/meta field (uses `key`), `use:featured`. `image` (term sources): `use` not offered — always ACF/meta field. Current PHP name is `type`; `field` and `in` were doc-only intermediates. Shim: `$options['from'] ?? $options['type'] ?? ''`. |
 
-### Date-time–related option names
+### Date-time–specific option names
 
 | Current name | New name | Scope | Status | Notes |
 |---|---|---|---|---|
-| `omit_current_year` | `show_current_year` | date/datetime | Approved | Flip boolean: unset = omit current year (default smart behavior); set = always show year. Fixes `default:true` serialization problem. Converter: if `omit_current_year` absent from old tag, inject `show_current_year:true` to preserve "always show year" behavior; if present, drop it. |
-| `separator` | `range_sep` | datetime_range | Approved | Renamed to `range_sep` (not `sep`) to avoid collision with the list-mode `sep` option — `datetime_range` supports list mode, and `sep` is reserved for the list separator. |
-| `date_time_separator` | `time_sep` | datetime | Approved | Applies only when date and time are assembled separately (separate field keys, or no combined-field format available). Hidden when `format` is set or `as` is `date` or `time`. Show condition: `{ format: 'empty', as: 'not_in:date,time' }` (uses `not_in:` condition type — see `show_if` extension). Default if unset: `', '` (not serialized). |
+| `omit_current_year` | `showCurrentYear` | date/datetime | Approved | Flip boolean: unset = omit current year (default smart behavior); presence = always show year. Fixes `default:true` serialization problem. Revised from `show_current_year` → camelCase to align with GB JS option convention. Shim: `$options['showCurrentYear'] ?? $options['show_current_year'] ?? ''`. Converter: if `omit_current_year` absent from old tag, inject `showCurrentYear` (bare key) to preserve "always show year" behavior; if present, drop it. |
+| `separator` | `rangeSep` | datetime_range | Approved | Renamed to avoid collision with list-mode `sep` — `datetime_range` supports list mode, `sep` reserved for list separator. Revised from `range_sep` → camelCase. Shim: `$options['rangeSep'] ?? $options['range_sep'] ?? $options['separator'] ?? ''`. |
+| `date_time_separator` | `timeSep` | datetime | Approved | Applies only when date and time assembled separately (separate field keys, or no combined-field format). Hidden when `format` set or `as` is `date` or `time`. Show condition: `{ format: 'empty', as: 'not_in:date,time' }`. Default if unset: `', '` (not serialized). Revised from `time_sep` → camelCase. Shim: `$options['timeSep'] ?? $options['time_sep'] ?? $options['date_time_separator'] ?? ''`. |
 | `as` (new option) | — | date/datetime | Approved | Mode selector: unset = datetime (never serialized); `as:date`; `as:time`. Controls output filtering regardless of field format. Replaces `date_only` and `time_only` flags entirely. `as:date` condition in `show_if`: `as: 'not:date'`. |
 | `date_time_field` | `key` | datetime_single | Approved | Primary field key; holds date, datetime, or time value per `as`. Consistent with all non-image templates. |
-| `time_field` | `time_key` | datetime_single | Approved | Secondary time field for when date+time are split across separate meta fields; hidden when `as:date`. |
-| `start_field` | `start_key` | datetime_range | Approved | Primary start field key; consistent with `key` rename. |
-| `end_field` | `end_key` | datetime_range | Approved | Primary end field key. |
-| `start_time_field` | `start_time_key` | datetime_range | Approved | Secondary start time field; hidden when `as:date`. |
-| `end_time_field` | `end_time_key` | datetime_range | Approved | Secondary end time field; hidden when `as:date`. |
-| `format_type` + `custom_format` | `format` | date/datetime | Approved | Single field: empty = auto (use field handler's return format, or WP date/time settings as fallback — no hardcoded default needed); non-empty = custom PHP date format string. Help text: "When unset, the format returned by the field handler is used; if unavailable, your WordPress date and time settings are used." Converter: if `format_type:custom`, rename `custom_format` → `format` and drop `format_type`; otherwise drop both. |
-| `smart_time` | *(eliminated)* | datetime | Approved | AM/PM consolidation becomes always-on (ungated). Midnight suppression becomes the `show_midnight` option. `smart_time` eliminated entirely. Converter: drop `smart_time`; if it was absent and the tag would have produced time output, inject `show_midnight:true` to preserve old "always show midnight" behavior. |
-| `show_midnight` (new option) | — | datetime | Approved | Unset = hide 00:00 times (default smart behavior); set = display midnight explicitly. Shown only when `as` is not `date` (`show_if: { as: 'not:date' }`). |
+| `time_field` | `timeKey` | datetime_single | Approved | Secondary time field for when date+time split across separate meta fields; hidden when `as:date`. Revised from `time_key` → camelCase. Shim: `$options['timeKey'] ?? $options['time_key'] ?? $options['time_field'] ?? ''`. |
+| `start_field` | `startKey` | datetime_range | Approved | Primary start field key. Revised from `start_key` → camelCase. Shim: `$options['startKey'] ?? $options['start_key'] ?? $options['start_field'] ?? ''`. |
+| `end_field` | `endKey` | datetime_range | Approved | Primary end field key. Revised from `end_key` → camelCase. Shim: `$options['endKey'] ?? $options['end_key'] ?? $options['end_field'] ?? ''`. |
+| `start_time_field` | `startTimeKey` | datetime_range | Approved | Secondary start time field; hidden when `as:date`. Revised from `start_time_key` → camelCase. Shim: `$options['startTimeKey'] ?? $options['start_time_key'] ?? $options['start_time_field'] ?? ''`. |
+| `end_time_field` | `endTimeKey` | datetime_range | Approved | Secondary end time field; hidden when `as:date`. Revised from `end_time_key` → camelCase. Shim: `$options['endTimeKey'] ?? $options['end_time_key'] ?? $options['end_time_field'] ?? ''`. |
+| `format_type` + `custom_format` | `format` | date/datetime | Approved | Single field: empty = auto (use field handler's return format, or WP date/time settings as fallback); non-empty = custom PHP date format string. Help text: "When unset, the format returned by the field handler is used; if unavailable, your WordPress date and time settings are used." Converter: if `format_type:custom`, rename `custom_format` → `format` and drop `format_type`; otherwise drop both. |
+| `smart_time` | *(eliminated)* | datetime | Approved | AM/PM consolidation becomes always-on (ungated). Midnight suppression becomes `showMidnight` option. `smart_time` eliminated entirely. Converter: drop `smart_time`; if it was absent and tag would have produced time output, inject `showMidnight` (bare key) to preserve old "always show midnight" behavior. |
+| `show_midnight` (new option) | — | datetime | Approved | Renamed to `showMidnight` — camelCase alignment. Unset = hide 00:00 times (default); presence = display midnight explicitly. Shown only when `as` not `date` (`show_if: { as: 'not:date' }`). |
 | `date_only` | *(eliminated)* | datetime | Approved | Replaced by `as:date`. `custom_date_*` deprecated wrappers inject `as:date` via `fixed_options`. `custom_datetime_*` wrappers with `date_only` set inject `as:date` via converter. |
 | `time_only` | *(eliminated)* | datetime | Approved | Replaced by `as:time`. Converter injects `as:time` when `time_only` is present. |
 
 ---
 
+## Source options
+
+| Option name | Option label | Context | Notes |
+|---|---|---|---|
+| `source` | Source | Base / Slot 1 | Aligns with GB native `source` option name |
+| `N-src` | Source [N] | Slot 2+ | Abbreviated to reduce tag length |
+
+### Source option values
+
+| Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
+|---|---|---|---|---|---|
+| Same as Previous Source | `same` | Current entity — not serialized | Inherit slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
+| Current | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
+| In Reference/Relational Field | `ref` | `ref` | `ref` | `Ref (X)` where X = `ref` field value | Triggers `ref` sub-option |
+| Parent | `parent` | `parent` | `parent` | — | Future |
+| Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
+| Child(ren) | `child` | `child` | `child` | — | Future |
+
+Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref (rel_post)]` for `{{term_content source:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
+
+### Secondary, conditional options
+
+| Option name | Option label | Help text | Shown when | Notes |
+|---|---|---|---|---|
+| `ref` | Ref/Rel Field Meta Key | | `source` = `ref` | ACF relationship/relational field key for the traversal hop |
+| `srcTerm` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) | Boolean; unset by default. Term hop applied after source resolution as final step. |
+| `tax` | Term Taxonomy | [Select/Enter] the taxonomy the term is in. | `srcTerm` is set | Taxonomy slug. Type TBD (text field or selector). |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `source` = `ref` or `child`, or `srcTerm` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
+| `sep` | Result Separator | Separator between results (defaults to “, ”). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
+
+## Field options
+
+| Option name | Option label | Context | Notes |
+|---|---|---|---|
+| `use` | [Text/Image/Content] Field | Base / Slot 1  | |
+| `N-use` | [Text/Image/Content] Field [N] | Slot 2+  | |
+
+#### Field selector option values (where applicable)
+
+| Applicable tags | Option name | Option label | Conditionals | Notes |
+|---|---|---|---|---|
+| `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template; stripped to '' per standard rules for default option |
+| `text`, `image`, `content` | `key` | Meta/Custom Field | Shows/enables meta key field | — |
+| `text` | `title` | Title/Name | Disables meta key field | Term name if source is term |
+| `content` | `content` | Post Content/Term Description | Disables meta key field | Term description if source is term |
+| `content` | `excerpt` | Post Excerpt | Disables meta key field | — |
+| `image` | `featured` | Featured Image | Disables meta key field | — |
+
+### Secondary options
+
+| Applicable tags | Option name | Option label | Context | Notes |
+|---|---|---|---|---|
+| `text`, `image`, `content` | `key` | Field Meta Key | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. |
+| `text`, `image`, `content` | `N-key` | Field [N] Meta Key | Slot 2+ | |
+
+See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-context label for `key`.
+
+## Fallback option
+
+| Applicable tags |  Option type | Notes |
+|---|---|---|
+| `text`, `content`, `title`, `datetime_single`, `datetime_range` | Text field | |
+| `image` | Media library selector → image ID (see `custom-image-controls.md`) | |
+| `permalink` | TBD — can be text field initially | Add page/post selector? |
+
+---
+
 ## Option render order (per template)
 
-Option order as proposed after all approved renames. `[via + source options]` is a placeholder
-for the traversal source selector and any options it exposes (e.g. `ref`, `tax` on traversal
-sources). Template-specific options follow in the order listed below.
+Option order as proposed after all approved renames. `[source options]` is a placeholder for the source selector block and its conditional sub-options (`ref`, `srcTerm`, `tax`; plus `limit`/`sep` for applicable templates). Template-specific options follow in the order listed below.
+
+**Three-group structure (applies to all templates):**
+- **Group 1 — global formatting:** `as`, format options, separators. Not per-slot; applies to the assembled result.
+- **Group 2 — per-slot:** source selector → source secondary options (`ref`, `srcTerm`, `tax`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
+- **Group 3 — global fallback:** `fallback`. Once, after all slots.
 
 Show/hide conditions are noted inline; all other options are always visible.
 
@@ -452,84 +600,45 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ### `text`
 
-| # | Option | Notes |
-|---|---|---|
-| 1 | `[via + source options]` | |
-| 2 | `from` | unset = ACF/meta field; `title` = Post Title |
-| 3 | `key` | ACF/meta field key — shown when `from` is unset |
-| 4 | `fallback` | |
+`[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`) → `fallback`
 
-### `image` — post sources
+### `image`
 
-| # | Option | Notes |
-|---|---|---|
-| 1 | `as` | return type: url / alt / id / caption |
-| 2 | `[via + source options]` | |
-| 3 | `from` | unset = ACF/meta field; `featured` = Featured Image |
-| 4 | `key` | ACF/meta field key — shown when `from` is unset |
+| # | Option label | Option name | Notes |
+|---|---|---|---|
+| 1 | Return As | `as` | return type: `url` / `alt` / `id` / `caption` — always serialized |
+| 2 | Image Size | `size` | image size (URL or ID returns) — see `custom-image-controls.md` |
+| 3 | | `[source options]` | no `limit`/`sep` for image |
+| 4 | | `use` | `key` (unset default in single-slot tags); `featured` | `featured` disabled for term-context entities unless `source` = `ref`. |
+| 5 | | `key` | shown when `use` unset [in single-slot tags] or `use:key` |
+| 6 | | `[fallback option]` | media picker — see `custom-image-controls.md` |
 
-No `fallback` for post sources — media picker fills that role in GB.
-
-**`as` serialization exception:** `as` default (`url`) is always serialized — `{{image as:url|...}}` even when unmodified. Enables copy-paste between image-src and alt-text fields with minimal editing.
-
-### `image` — term sources
-
-| # | Option | Notes |
-|---|---|---|
-| 1 | `as` | return type: url / alt / id / caption |
-| 2 | `[via + source options]` | |
-| 3 | `key` | ACF/meta field key — no `from` offered; always ACF/meta field for term sources |
-| 4 | `fallback` | fallback image URL |
+**`as` serialization exception:** `as` default (`url`) always serialized — `{{image as:url|...}}` even when unmodified. Enables copy-paste between image-src and alt-text fields with minimal editing.
 
 ### `content`
 
-| # | Option | Notes |
-|---|---|---|
-| 1 | `[via + source options]` | |
-| 2 | `from` | unset = Content/Description; `excerpt` = post excerpt / term description; `key` = ACF/Custom Field (WYSIWYG, content area, ACF Extended block editor area) |
-| 3 | `key` | ACF/meta field key — shown when `from:key` |
-| 4 | `fallback` | |
+`[source options]` → `use` (`content` (unset default in single-slot tags); `excerpt`; `key`) → `key` (shown when `use:key`) → `fallback`
 
-### `datetime_single` (covers former `custom_date_single` via `as:date`)
+### `datetime_single` and `datetime_range`
 
-| # | Option | Notes |
-|---|---|---|
-| 1 | `[via + source options]` | |
-| 2 | `key` | primary date/time field key |
-| 3 | `as` | unset = datetime; `date`; `time` |
-| 4 | `time_key` | separate time field — shown when `as` ≠ `date` |
-| 5 | `format` | PHP format string; empty = auto |
-| 6 | `time_sep` | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
-| 7 | `show_midnight` | shown when `as` ≠ `date` |
-| 8 | `show_current_year` | shown when `as` ≠ `time` |
-| 9 | `fallback` | |
+| # | Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
+|---|---|---|---|---|---|
+| 1 | Return As | `as` | ✓ | ✓ | `datetime`; `date`; `time` |
+| 2 | Start & End Separator | `rangeSep` | — | ✓ | separator between start and end values within one result |
+| 3 | Custom Format | `format` | ✓ | ✓ | PHP format string; empty = auto |
+| 4 | Date & Time Separator | `timeSep` | ✓ | ✓ | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| 5 | Show time when stored as midnight? | `showMidnight` | ✓ | ✓ | checkbox, false by default; shown when `as` ≠ `date` |
+| 6 | Show current year in date? | `showCurrentYear` | ✓ | ✓ | checkbox, false by default; shown when `as` ≠ `time` |
+| 7 | | `[source options]` | ✓ | ✓ | `limit`/`sep` included for this template |
+| 8a | Date/Time Field | `key` | ✓ | — | primary date/time field key |
+| 9a | Time Field (Optional) | `timeKey` | ✓ | — | separate time field — shown when `as` ≠ `date` |
+| 8b | Start Date/Time Field | `startKey` | — | ✓ | |
+| 9b | Start Time Field (Optional) | `startTimeKey` | — | ✓ | shown when `as` ≠ `date` |
+| 10 | End Date/Time Field | `endKey` | — | ✓ | |
+| 11 | End Time Field (Optional) | `endTimeKey` | — | ✓ | shown when `as` ≠ `date` |
+| 12 | | `[fallback option]` | ✓ | ✓ | |
 
-When used as a date-only tag (former `custom_date_single`), `as:date` is injected by the deprecated
-wrapper; `time_key`, `show_midnight`, and `time_sep` are therefore hidden.
-
-### `datetime_range` (covers former `custom_date_range` via `as:date`)
-
-| # | Option | Notes |
-|---|---|---|
-| 1 | `[via + source options]` | |
-| 2 | `start_key` | |
-| 3 | `end_key` | |
-| 4 | `as` | unset = datetime; `date`; `time` |
-| 5 | `start_time_key` | shown when `as` ≠ `date` |
-| 6 | `end_time_key` | shown when `as` ≠ `date` |
-| 7 | `range_sep` | separator between start and end values within one result |
-| 8 | `sep` | list separator — shown when `limit > 1` (list mode) |
-| 9 | `format` | PHP format string; empty = auto |
-| 10 | `time_sep` | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
-| 11 | `show_midnight` | shown when `as` ≠ `date` |
-| 12 | `show_current_year` | shown when `as` ≠ `time` |
-| 13 | `fallback` | |
-
-**Design rationale:** `start_key`/`end_key` lead as always-required fields. `as` follows so the user
-sets mode before conditional time-key fields appear below it. `range_sep` precedes `format` because it applies
-with or without custom format. `sep` (list separator) follows `range_sep` — only relevant in list mode.
-`time_sep` follows `format` since it's a supplementary formatting option.
-`show_midnight`, `show_current_year`, and `fallback` close.
+**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (includes `limit`/`sep` for list-mode templates). Field keys close as group 3. `fallback` last.
 
 ---
 

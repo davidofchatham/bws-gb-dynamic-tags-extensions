@@ -735,3 +735,188 @@ function bws_safe_content_output( $content, $options, $instance ) {
 	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $content, $safe_options, $instance );
 }
 }
+
+// ===============================================
+// EDITOR PREVIEW LABELS
+// ===============================================
+
+/**
+ * Build a structured preview label for a tag that can't resolve in the editor.
+ *
+ * Schema: [tag matrix §Editor preview label schema].
+ * Called only when $instance->context['bwsEditorPreview'] is set and
+ * the real tag value is empty.
+ *
+ * @since 1.7.0
+ * @param array  $options  Parsed tag options.
+ * @param string $template Full template name including modifier prefix (e.g. 'term_text', 'text').
+ * @return string Bracket preview label, or '' when template is excluded.
+ */
+if ( ! function_exists( 'bws_build_preview_label' ) ) {
+function bws_build_preview_label( array $options, string $template ): string {
+	// Detect modifier prefix → base template.
+	$modifier_label = '';
+	$base_template  = $template;
+	$modifier_map   = [ 'term_' => 'Term', 'views_' => 'Views' ];
+	foreach ( $modifier_map as $prefix => $label ) {
+		if ( str_starts_with( $template, $prefix ) ) {
+			$modifier_label = $label;
+			$base_template  = substr( $template, strlen( $prefix ) );
+			break;
+		}
+	}
+
+	$source_val = $options['source'] ?? '';
+	$ref        = $options['ref'] ?? '';
+	$src_term   = ! empty( $options['srcTerm'] );
+	$tax        = $options['tax'] ?? '';
+	$key        = $options['key'] ?? '';
+	$use        = $options['use'] ?? '';
+	$as         = $options['as'] ?? '';
+	$fallback   = $options['fallback'] ?? '';
+
+	// Image excluded for output-attribute modes (bracket string silently breaks the element).
+	if ( 'image' === $base_template && ! in_array( $as, [ 'alt', 'caption' ], true ) ) {
+		return '';
+	}
+
+	// Collect missing required items for warning label.
+	$missing = [];
+	if ( 'ref' === $source_val && '' === $ref ) {
+		$missing[] = 'ref key';
+	}
+	if ( $src_term && '' === $tax ) {
+		$missing[] = 'taxonomy';
+	}
+	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
+		$missing[] = 'meta key';
+	} elseif ( 'content' === $base_template && 'key' === $use && '' === $key ) {
+		$missing[] = 'meta key';
+	} elseif ( 'image' === $base_template && 'featured' !== $use && '' === $key ) {
+		$missing[] = 'meta key';
+	}
+
+	if ( ! empty( $missing ) ) {
+		$count = count( $missing );
+		if ( 1 === $count ) {
+			$warning = 'No ' . $missing[0] . ' set';
+		} elseif ( 2 === $count ) {
+			$warning = 'No ' . $missing[0] . ' or ' . $missing[1] . ' set';
+		} else {
+			$last    = array_pop( $missing );
+			$warning = 'No ' . implode( ', ', $missing ) . ', or ' . $last . ' set';
+		}
+		$inner = '⚠ ' . $warning;
+		if ( $fallback ) {
+			$inner .= ' · fallback: "' . $fallback . '"';
+		}
+		return '[' . $inner . ']';
+	}
+
+	// Build context part (space-joined segments).
+	$ctx_segments = [];
+	if ( $modifier_label ) {
+		$ctx_segments[] = $modifier_label;
+	}
+	if ( 'ref' === $source_val && $ref ) {
+		$ctx_segments[] = 'Ref (' . $ref . ')';
+	}
+	if ( $src_term && $tax ) {
+		$tax_obj        = get_taxonomy( $tax );
+		$tax_name       = $tax_obj ? $tax_obj->labels->singular_name : $tax;
+		$ctx_segments[] = '→ ' . $tax_name . ' Term';
+	}
+	$context_part = implode( ' ', $ctx_segments );
+
+	// Datetime templates: live preview using current time.
+	if ( str_starts_with( $base_template, 'datetime_' ) ) {
+		$is_range = 'datetime_range' === $base_template;
+
+		switch ( $as ) {
+			case 'date':
+				$prefix    = $is_range ? 'Date Range' : 'Date';
+				$offset    = DAY_IN_SECONDS;
+				$wp_format = get_option( 'date_format', 'F j, Y' );
+				break;
+			case 'time':
+				$prefix    = $is_range ? 'Time Range' : 'Time';
+				$offset    = HOUR_IN_SECONDS;
+				$wp_format = get_option( 'time_format', 'g:i A' );
+				break;
+			default:
+				$prefix    = $is_range ? 'Date-Time Range' : 'Date-Time';
+				$offset    = DAY_IN_SECONDS;
+				$wp_format = get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i A' );
+		}
+
+		// Respect custom format option if set.
+		$custom_format = $options['format'] ?? $options['custom_format'] ?? '';
+		if ( $custom_format ) {
+			$wp_format = $custom_format;
+		}
+
+		$tz  = wp_timezone();
+		$now = new DateTime( 'now', $tz );
+
+		if ( $is_range ) {
+			$end       = clone $now;
+			$end->modify( '+' . $offset . ' seconds' );
+			$sep       = $options['rangeSep'] ?? $options['range_sep'] ?? $options['separator'] ?? ' – ';
+			$formatted = $now->format( $wp_format ) . $sep . $end->format( $wp_format );
+		} else {
+			$formatted = $now->format( $wp_format );
+		}
+
+		$inner = $prefix . ' like "' . $formatted . '"';
+		if ( $context_part ) {
+			$inner .= ' from ' . $context_part;
+		}
+		if ( $fallback ) {
+			$inner .= ' · fallback: "' . $fallback . '"';
+		}
+		return '[' . $inner . ']';
+	}
+
+	// Build field part (template-specific).
+	$field_part = '';
+	switch ( $base_template ) {
+		case 'text':
+			$field_part = 'title' === $use ? 'Title' : 'Text Field (' . $key . ')';
+			break;
+		case 'content':
+			if ( 'excerpt' === $use ) {
+				$field_part = 'Excerpt';
+			} elseif ( 'key' === $use ) {
+				$field_part = 'Content Field (' . $key . ')';
+			} else {
+				$field_part = 'Content';
+			}
+			break;
+		case 'image':
+			$suffix     = 'alt' === $as ? ' Alt Text' : ' Caption';
+			$field_part = 'featured' === $use
+				? 'Featured Image' . $suffix
+				: 'Image Field (' . $key . ')' . $suffix;
+			break;
+		case 'title':
+			$field_part = 'Title';
+			break;
+	}
+
+	// Assemble final label.
+	if ( $field_part && $context_part ) {
+		$inner = $field_part . ' from ' . $context_part;
+	} elseif ( $field_part ) {
+		$inner = $field_part;
+	} elseif ( $context_part ) {
+		$inner = $context_part;
+	} else {
+		return '';
+	}
+
+	if ( $fallback ) {
+		$inner .= ' · fallback: "' . $fallback . '"';
+	}
+	return '[' . $inner . ']';
+}
+}

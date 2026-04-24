@@ -645,6 +645,10 @@ function bws_base_map_options( array $options ): array {
  * @since 1.6.0
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+	}
+
 	$use      = $options['use'] ?? '';
 	$src_term = ! empty( $options['srcTerm'] );
 	$opts     = bws_base_map_options( $options );
@@ -690,6 +694,10 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+	}
+
 	$use      = $options['use'] ?? '';
 	$src_term = ! empty( $options['srcTerm'] );
 	$opts     = bws_base_map_options( $options );
@@ -731,6 +739,10 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
+
 	$src_term = ! empty( $options['srcTerm'] );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
@@ -797,6 +809,11 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_image_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		// Returns '' for as:url and as:id — attribute values where bracket string breaks the element.
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+	}
+
 	$use      = $options['use'] ?? '';
 	$src_term = ! empty( $options['srcTerm'] );
 

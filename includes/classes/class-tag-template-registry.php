@@ -236,7 +236,7 @@ class TagTemplateRegistry {
 				$options = array_merge( $source_opt, $traversal_opts, $tpl['options'] ?? [] );
 			}
 
-			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn );
+			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name );
 
 			// Title: plain label when in its own gb_type group (modifier tags appear under their
 			// own group in GB's picker, identified by gb_type). No cross-source parenthetical needed
@@ -258,9 +258,14 @@ class TagTemplateRegistry {
 		string $base_src_key,
 		string $traversal_src_key,
 		callable $term_fn,
-		callable $post_fn
+		callable $post_fn,
+		string $tag_name = ''
 	): callable {
-		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn ) {
+		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name ) {
+			if ( $tag_name && ! empty( $inst->context['bwsEditorPreview'] ) ) {
+				return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
+			}
+
 			$source = $opts['source'] ?? '';
 
 			if ( 'ref' === $source ) {

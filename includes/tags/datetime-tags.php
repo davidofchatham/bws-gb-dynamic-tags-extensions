@@ -1003,6 +1003,10 @@ function bws_base_map_datetime_range_options( array $options ): array {
  * @since 1.6.0
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
+	}
+
 	$src_term = ! empty( $options['srcTerm'] );
 	$mapped   = bws_base_map_datetime_options( $options );
 
@@ -1039,6 +1043,10 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  * @since 1.6.0
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
+	}
+
 	$src_term = ! empty( $options['srcTerm'] );
 	$mapped   = bws_base_map_datetime_range_options( $options );
 
