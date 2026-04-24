@@ -99,7 +99,7 @@ function bws_reliable_term_context_detection( $options = array() ) {
 	}
 
 	// Quinary: Check for first term from current post (if taxonomy specified).
-	$taxonomy = $options['taxonomy'] ?? '';
+	$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
 	if ( $taxonomy && ! is_admin() ) {
 		$post_id = get_the_ID();
 		if ( $post_id ) {
@@ -275,7 +275,7 @@ function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_siz
  */
 if ( ! function_exists( 'bws_get_terms_for_post' ) ) {
 function bws_get_terms_for_post( int $post_id, array $options ): array {
-	$taxonomy = $options['taxonomy'] ?? '';
+	$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
 	if ( ! $post_id || ! $taxonomy ) {
 		return array();
 	}
@@ -298,7 +298,7 @@ function bws_get_terms_for_post( int $post_id, array $options ): array {
 if ( ! function_exists( 'bws_post_term_extraction_options' ) ) {
 function bws_post_term_extraction_options(): array {
 	return array(
-		'taxonomy' => array(
+		'tax' => array(
 			'type'        => 'text',
 			'label'       => __( 'Taxonomy', 'generateblocks' ),
 			'help'        => __( 'Enter the taxonomy slug to retrieve terms from (e.g. category, post_tag, or a custom taxonomy slug).', 'generateblocks' ),
@@ -325,7 +325,7 @@ function bws_post_term_extraction_options(): array {
 if ( ! function_exists( 'bws_post_term_image_options' ) ) {
 function bws_post_term_image_options(): array {
 	return array(
-		'taxonomy' => array(
+		'tax' => array(
 			'type'        => 'text',
 			'label'       => __( 'Taxonomy', 'generateblocks' ),
 			'help'        => __( 'Enter the taxonomy slug to retrieve terms from (e.g. category, post_tag, or a custom taxonomy slug).', 'generateblocks' ),

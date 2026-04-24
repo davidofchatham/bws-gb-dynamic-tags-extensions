@@ -1,20 +1,22 @@
 <?php
 /**
- * Taxonomy term core functions.
+ * Taxonomy term core functions and post-context term-extraction templates.
  *
- * Term tags (term_title, term_permalink, term_description, term_custom_text,
- * term_custom_image, term_custom_date_*, term_custom_datetime_*) are registered
- * via the template system (TagTemplateRegistry::generate_all_tags()).
+ * Term modifier tags (term_text, term_title, term_image, etc.) are registered
+ * via TagTemplateRegistry::register_modifier() in base-tags.php.
+ *
+ * Post-context term-extraction templates (post_term_title, post_term_custom_text, etc.)
+ * are registered here via bws_register_taxonomy_term_extraction_templates() and generated
+ * by TagTemplateRegistry::generate_all_tags().
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
+ * @since 1.6.0 `taxonomy` option renamed to `tax` in post-context term-extraction templates.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
-// Term tags (term_title, term_permalink, etc.) are registered via the template system.
 
 // ===============================================
 // TEMPLATE REGISTRATION — POST-CONTEXT TERM EXTRACTION

@@ -81,7 +81,7 @@ class PostTermRelatedPost extends AbstractSource {
 		}
 
 		$post_id  = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
-		$taxonomy = $options['taxonomy'] ?? '';
+		$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
 		$rel      = $options['rel'] ?? '';
 
 		if ( ! $post_id || ! $taxonomy || ! $rel ) {
@@ -111,7 +111,7 @@ class PostTermRelatedPost extends AbstractSource {
 	 */
 	public function get_source_options(): array {
 		return array(
-			'taxonomy' => array(
+			'tax' => array(
 				'type'        => 'text',
 				'label'       => __( 'Taxonomy', 'generateblocks' ),
 				'help'        => __( 'Taxonomy slug used to find the post\'s term (e.g. category, post_tag). The first term is used.', 'generateblocks' ),

@@ -53,7 +53,7 @@ function bws_dynamic_tags_init() {
 	// Load helper functions.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/content-helpers.php';
-	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/date-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
