@@ -1,17 +1,8 @@
 <?php
 /**
- * Date/Time core functions and tag template registration.
+ * Date/Time core functions, option definitions, and base tag callbacks.
  *
- * Covers date-only and full date/time templates for all sources. All four
- * template keys (custom_date_single, custom_date_range, custom_datetime_single,
- * custom_datetime_range) are registered via the template system
- * (TagTemplateRegistry::generate_all_tags()).
- *
- * Also provides option definitions and callbacks for the source-agnostic
- * `datetime_single` and `datetime_range` base tags registered in base-tags.php.
- *
- * Note: date-tags.php content was merged into this file in v1.6.0. The
- * require_once for date-tags.php has been removed from the main plugin file.
+ * Note: date-tags.php content was merged into this file in v1.6.0.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -20,90 +11,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-// ===============================================
-// TEMPLATE REGISTRATIONS
-// ===============================================
-
-/**
- * Register date-only dynamic tag templates.
- *
- * @since 1.2.0
- */
-function bws_register_date_tag_templates() {
-	// Custom date fields work for terms via the 'category_5' ACF object ID format.
-	// term_core_fn handles the format conversion before delegating to the post core function.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                 => 'custom_date_single',
-		'title'               => 'Custom Date',
-		'gb_type'             => null,
-		'supports'            => array( 'source' ),
-		'options_fn'          => 'bws_get_date_single_options',
-		'core_fn'             => 'bws_date_single_core',
-		'context_types'       => array( 'post', 'term' ),
-		'term_core_fn'        => 'bws_term_date_single_core',
-		'supports_try'        => true,
-		'default_enabled_map' => array(
-			'related_post' => false,  // related_post_custom_date_single = opt-in
-			'term'         => false,  // term_custom_date_single = opt-in
-		),
-	) );
-
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                 => 'custom_date_range',
-		'title'               => 'Custom Date Range',
-		'gb_type'             => null,
-		'supports'            => array( 'source' ),
-		'options_fn'          => 'bws_get_date_range_options',
-		'core_fn'             => 'bws_date_range_core',
-		'context_types'       => array( 'post', 'term' ),
-		'term_core_fn'        => 'bws_term_date_range_core',
-		'supports_try'        => true,
-		'default_enabled_map' => array(
-			'related_post' => false,  // related_post_custom_date_range = opt-in
-			'term'         => false,  // term_custom_date_range = opt-in
-		),
-	) );
-}
-
-/**
- * Register datetime dynamic tag templates.
- *
- * @since 1.2.0
- */
-function bws_register_datetime_tag_templates() {
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                 => 'custom_datetime_single',
-		'title'               => 'Custom Date/Time',
-		'gb_type'             => null,
-		'supports'            => array( 'source' ),
-		'options_fn'          => 'bws_get_datetime_single_options',
-		'core_fn'             => 'bws_datetime_single_core',
-		'context_types'       => array( 'post', 'term' ),
-		'term_core_fn'        => 'bws_term_datetime_single_core',
-		'supports_try'        => true,
-		'default_enabled_map' => array(
-			'related_post' => false,  // related_post_custom_datetime_single = opt-in
-			'term'         => false,  // term_custom_datetime_single = opt-in
-		),
-	) );
-
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                 => 'custom_datetime_range',
-		'title'               => 'Custom Date/Time Range',
-		'gb_type'             => null,
-		'supports'            => array( 'source' ),
-		'options_fn'          => 'bws_get_datetime_range_options',
-		'core_fn'             => 'bws_datetime_range_core',
-		'context_types'       => array( 'post', 'term' ),
-		'term_core_fn'        => 'bws_term_datetime_range_core',
-		'supports_try'        => true,
-		'default_enabled_map' => array(
-			'related_post' => false,  // related_post_custom_datetime_range = opt-in
-			'term'         => false,  // term_custom_datetime_range = opt-in
-		),
-	) );
 }
 
 // ===============================================

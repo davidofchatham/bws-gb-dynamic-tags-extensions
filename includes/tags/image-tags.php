@@ -15,46 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use BWS\DynamicTags\Admin\SettingsPage;
 
-// Image tags are registered via the template system (TagTemplateRegistry::generate_all_tags()).
-
-/**
- * Register image dynamic tag templates.
- *
- * @since 1.2.0
- */
-function bws_register_image_tag_templates() {
-	// featured_image: post sources only. No 'source' support — for media-type tags, $options['id']
-	// is the fallback ATTACHMENT ID (media library selector), not a post ID.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'featured_image',
-		'title'         => 'Featured Image',
-		'gb_type'       => 'media',
-		'supports'      => array( 'image-size' ),
-		'options_fn'    => 'bws_get_image_return_type_options',
-		'core_fn'       => 'bws_featured_image_core',
-		'context_types' => array( 'post' ),
-		'supports_try'  => true,
-	) );
-
-	// custom_image: post and term sources.
-	// Post context: gb_type='media', fallback attachment from media library selector.
-	// Term context: generate_all_tags() uses source gb_type='term', adds 'source' support,
-	//   calls term_options_fn for term-specific options (URL fallback, not media library).
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'              => 'custom_image',
-		'title'            => 'Custom Image',
-		'gb_type'          => 'media',
-		'supports'         => array( 'image-size' ),
-		'options_fn'       => 'bws_get_meta_and_return_type_options',
-		'core_fn'          => 'bws_custom_image_core',
-		'context_types'    => array( 'post', 'term' ),
-		'term_core_fn'     => 'bws_term_custom_image_core',
-		'term_options_fn'  => 'bws_get_term_image_and_return_type_options',
-		'supports_try'     => true,
-		'try_per_slot_key' => true,
-	) );
-}
-
 // ===============================================
 // MEDIA ID OVERRIDE FOR POST CONTEXT
 // ===============================================

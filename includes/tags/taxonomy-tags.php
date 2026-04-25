@@ -1,13 +1,9 @@
 <?php
 /**
- * Taxonomy term core functions and post-context term-extraction templates.
+ * Taxonomy term core functions.
  *
  * Term modifier tags (term_text, term_title, term_image, etc.) are registered
  * via TagTemplateRegistry::register_modifier() in base-tags.php.
- *
- * Post-context term-extraction templates (post_term_title, post_term_custom_text, etc.)
- * are registered here via bws_register_taxonomy_term_extraction_templates() and generated
- * by TagTemplateRegistry::generate_all_tags().
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -16,97 +12,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-// ===============================================
-// TEMPLATE REGISTRATION — POST-CONTEXT TERM EXTRACTION
-// ===============================================
-
-/**
- * Register post-context term-extraction tag templates.
- *
- * These templates produce tags like post_term_title, related_post_term_title, etc.
- * They apply to any post-context source (CurrentPost, RelatedPost, Portal, SecondRelatedPost).
- * The get_entities_fn resolves a post ID to WP_Term[] in the specified taxonomy;
- * the core_fn then extracts the requested data from each term object.
- *
- * Complements (does not replace) the existing term-context tags generated via the
- * TaxonomyTerm source (term_title, term_permalink, etc. for archive/loop pages).
- *
- * @since 1.2.0
- */
-function bws_register_taxonomy_term_extraction_templates() {
-	// term_title (post-context): first (or list of) term name(s) from a post in a given taxonomy.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'term_title',
-		'title'                => 'Term Title',
-		'gb_type'              => null,
-		'supports'             => array( 'link', 'source' ),
-		'options_fn'           => 'bws_post_term_extraction_options',
-		'core_fn'              => 'bws_term_title_core',
-		'context_types'        => array( 'post' ),
-		'excluded_source_keys' => array( 'post_term_related_post' ),
-		'get_entities_fn'      => 'bws_get_terms_for_post',
-		'supports_list'   => true,
-	) );
-
-	// term_permalink (post-context): permalink of the first term from a post in a given taxonomy.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'term_permalink',
-		'title'                => 'Term Permalink',
-		'gb_type'              => null,
-		'supports'             => array( 'source' ),
-		'options_fn'           => 'bws_post_term_extraction_options',
-		'core_fn'              => 'bws_term_permalink_core',
-		'context_types'        => array( 'post' ),
-		'excluded_source_keys' => array( 'post_term_related_post' ),
-		'get_entities_fn'      => 'bws_get_terms_for_post',
-		'supports_list'   => false,
-	) );
-
-	// term_description (post-context): description of the first term from a post in a given taxonomy.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'term_description',
-		'title'                => 'Term Description',
-		'gb_type'              => null,
-		'supports'             => array( 'source' ),
-		'options_fn'           => 'bws_post_term_extraction_options',
-		'core_fn'              => 'bws_term_description_core',
-		'context_types'        => array( 'post' ),
-		'excluded_source_keys' => array( 'post_term_related_post' ),
-		'get_entities_fn'      => 'bws_get_terms_for_post',
-		'supports_list'   => false,
-	) );
-
-	// term_custom_text (post-context): ACF/meta text field on a term of a post.
-	// 'meta' support gives the field key selector in the GB editor.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'term_custom_text',
-		'title'                => 'Term Custom Text',
-		'gb_type'              => null,
-		'supports'             => array( 'meta', 'source' ),
-		'options_fn'           => 'bws_post_term_extraction_options',
-		'core_fn'              => 'bws_term_custom_text_core',
-		'context_types'        => array( 'post' ),
-		'excluded_source_keys' => array( 'post_term_related_post' ),
-		'get_entities_fn'      => 'bws_get_terms_for_post',
-		'supports_list'   => true,
-	) );
-
-	// term_custom_image (post-context): ACF/meta image field on a term of a post.
-	// gb_type 'media' enables as / size / fallback attachment selector in GB editor.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'term_custom_image',
-		'title'                => 'Term Custom Image',
-		'gb_type'              => 'media',
-		'supports'             => array( 'image-size', 'source' ),
-		'options_fn'           => 'bws_post_term_image_options',
-		'core_fn'              => 'bws_term_custom_image_core',
-		'context_types'        => array( 'post' ),
-		'excluded_source_keys' => array( 'post_term_related_post' ),
-		'get_entities_fn'      => 'bws_get_terms_for_post',
-		'supports_list'   => false,
-	) );
 }
 
 // ===============================================

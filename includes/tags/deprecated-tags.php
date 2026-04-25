@@ -169,7 +169,7 @@ function bws_register_deprecated_tags() {
 	}
 
 	// External deprecated tag wrappers registered via DeprecatedTagRegistry.
-	// Snapshot GB's registry to skip tags still active (e.g. N×M generated tags pre-C2).
+	// Snapshot GB's registry to skip any tag name already registered.
 	$existing_gb_tags = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? array() );
 	foreach ( \BWS\DynamicTags\DeprecatedTagRegistry::get_all() as $entry ) {
 		$old_tag = $entry['old_tag'] ?? '';
@@ -411,9 +411,7 @@ function bws_make_deprecated_term_extraction_callback( string $old_tag, string $
  * fixed_options, etc.).
  *
  * The bws_register_deprecated_tags() loop skips entries whose old_tag is already
- * registered in GB — so during the N×M transition (C1 applied, C2 not yet applied),
- * these entries are silently ignored. Once C2 removes generate_all_tags(), the
- * deprecated wrappers activate automatically.
+ * registered in GB (dup-check guard).
  *
  * @since 1.6.0
  */

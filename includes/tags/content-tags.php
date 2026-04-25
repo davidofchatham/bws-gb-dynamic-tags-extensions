@@ -1,11 +1,6 @@
 <?php
 /**
- * Post content core functions and tag template registration.
- *
- * Post content tags (title, content, permalink, description, custom_text)
- * are registered via the template system (TagTemplateRegistry::generate_all_tags()).
- * The `excerpt` template was removed in v1.6.0; excerpt output is now the `from:excerpt`
- * branch of the base `content` tag registered in base-tags.php.
+ * Post content core functions.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
@@ -14,88 +9,6 @@
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
-}
-
-/**
- * Register post content dynamic tag templates.
- *
- * Registration order determines GB editor display order within each gb_type group.
- * Covers: title, content, excerpt, permalink, description (term-only), custom_text.
- *
- * @since 1.2.0
- */
-function bws_register_post_content_tag_templates() {
-	// title: post and term sources. Post source skipped by GB dup-check ('post_title' is built-in).
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'title',
-		'title'         => 'Title',
-		'gb_type'       => null,
-		'supports'      => array( 'link', 'source' ),
-		'options_fn'    => null,
-		'core_fn'       => 'bws_post_title_core',
-		'context_types' => array( 'post', 'term' ),
-		'term_core_fn'  => 'bws_term_title_core',
-		'supports_try'  => true,
-	) );
-
-	// content: post sources only for direct tags (excluded_direct_source_keys suppresses
-	// term_content, which would be a confusing alias for term_description).
-	// term_core_fn is set so try_content can dispatch term-context slots to description.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                         => 'content',
-		'title'                       => 'Content',
-		'gb_type'                     => null,
-		'supports'                    => array( 'source' ),
-		'options_fn'                  => 'bws_get_content_options',
-		'core_fn'                     => 'bws_post_content_core',
-		'context_types'               => array( 'post', 'term' ),
-		'term_core_fn'                => 'bws_term_description_core',
-		'excluded_direct_source_keys' => array( 'term' ),
-		'supports_try'                => true,
-		'try_per_slot_type'           => true,
-	) );
-
-	// permalink: post and term sources.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'permalink',
-		'title'         => 'Permalink',
-		'gb_type'       => null,
-		'supports'      => array( 'source' ),
-		'options_fn'    => null,
-		'core_fn'       => 'bws_post_permalink_core',
-		'context_types' => array( 'post', 'term' ),
-		'term_core_fn'  => 'bws_term_permalink_core',
-		'supports_try'  => true,
-	) );
-
-	// description: term sources only. Placed here (after permalink) for correct term tag ordering:
-	// term_title → term_permalink → term_description → term_custom_text → term_custom_image.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'           => 'description',
-		'title'         => 'Description',
-		'gb_type'       => null,
-		'supports'      => array(),
-		'options_fn'    => null,
-		'core_fn'       => null,
-		'context_types' => array( 'term' ),
-		'term_core_fn'  => 'bws_term_description_core',
-	) );
-
-	// custom_text: post and term sources. Unlike GB's built-in post_meta, correctly returns
-	// '0' for zero-value fields. Term variant requires GB Pro.
-	\BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-		'key'                  => 'custom_text',
-		'title'                => 'Custom Text',
-		'gb_type'              => null,
-		'supports'             => array( 'meta', 'link', 'source' ),
-		'options_fn'           => 'bws_get_custom_text_options',
-		'core_fn'              => 'bws_post_custom_text_core',
-		'context_types'        => array( 'post', 'term' ),
-		'term_core_fn'         => 'bws_term_custom_text_core',
-		'term_requires_gb_pro' => true,
-		'supports_try'         => true,
-		'try_per_slot_key'     => true,
-	) );
 }
 
 // ===============================================
