@@ -12,13 +12,17 @@
 - `bws-img-size` (ComboboxControl) and `bws-media-picker` (`wp.media()`) custom editor controls for image tags (`assets/js/image-tag-controls.js`)
 - `show_if` conditions `in:` and `not_in:` added to `editor-conditional-options.js`
 - `srcTerm` modifier option: post→term hop decoupled from source selector (replaces `via:tax` value)
-- Tag converter utility (admin) with `TagConverter` class and settings page integration
+- `TagConverter::list( string $old_tag_name ): array` — scans post content for a deprecated tag and returns matched posts (`post_id`, `post_title`, `edit_url`); LIKE pre-filter + regex secondary check; read-only
+- `TagConverter::convert()` + AJAX handler with dual-action dispatch (`converter_action: list|convert`); convert guards on `has_migration_path()`
+- **List Posts** button in deprecated section (all tags): reveals collapsible list of matched posts with edit links
+- **Convert** button in deprecated section: shown only when `has_migration_path()` is true; hidden for tags with no migration path (`second_related_post_*`, `post_term_related_post_*`, etc.)
 - Modifier toggle controls in admin settings page (term_, try_ enable/disable)
 - Deprecated tags section in admin settings page
 - `DeprecatedTagRegistry::has_migration_path( string $old_tag ): bool` for converter and admin UI use
 
 ### Changed
 - Base tag callbacks (`text`, `content`, `title`, `image`, `datetime_single`, `datetime_range`) and `term_` modifier callbacks: return `bws_build_preview_label()` in editor preview context instead of static REST placeholders (`[Custom Field]`, `[Title]`, etc.)
+- Successful Convert in deprecated section invalidates the cached List Posts panel for that row so a subsequent click re-fetches current data
 - `via`/`from` option renamed to `source`; `from` (field selector) renamed to `use` across all base tags and modifier callbacks
 - `image` base tag type changed from `'media'` to `'cross-source'`; `supports:['image-size']` removed in favor of explicit PHP options
 - `try_image`: per-slot `use` added (`try_per_slot_use`); `psk` key-check skips `use:featured` slots via `try_use_no_key_values`

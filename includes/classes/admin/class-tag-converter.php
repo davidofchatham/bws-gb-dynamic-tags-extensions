@@ -88,10 +88,60 @@ class TagConverter {
 	}
 
 	/**
-	 * AJAX handler for the Convert button on the settings page.
+	 * List posts containing a deprecated tag.
 	 *
-	 * Expects POST fields: nonce, tag_name.
-	 * Returns JSON: { success: true, data: { count: N } } on success.
+	 * Searches all non-trashed, non-auto-draft posts whose content contains the
+	 * deprecated tag name. A secondary regex check eliminates LIKE false-positives
+	 * caused by tag names that are prefixes of other tag names.
+	 *
+	 * @since 1.6.0
+	 * @param string $old_tag_name Deprecated GB tag name to search for.
+	 * @return array{ posts: array<array{post_id: int, post_title: string, edit_url: string}>, total: int }
+	 */
+	public static function list( string $old_tag_name ): array {
+		global $wpdb;
+
+		$like_pattern = '%' . $wpdb->esc_like( '{{' . $old_tag_name ) . '%';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ID, post_title, post_content FROM {$wpdb->posts}
+				 WHERE post_status NOT IN ('auto-draft', 'trash')
+				 AND post_content LIKE %s
+				 ORDER BY post_title ASC",
+				$like_pattern
+			)
+		);
+
+		if ( empty( $rows ) ) {
+			return array( 'posts' => array(), 'total' => 0 );
+		}
+
+		// Secondary filter: confirm the exact tag string is present (LIKE matches prefix variants too).
+		$pattern = '/\{\{' . preg_quote( $old_tag_name, '/' ) . '(?:\s[^}]*)?\}\}/';
+		$matched = array_values( array_filter( $rows, fn( $r ) => (bool) preg_match( $pattern, $r->post_content ) ) );
+		$total   = count( $matched );
+
+		if ( 0 === $total ) {
+			return array( 'posts' => array(), 'total' => 0 );
+		}
+
+		$posts = array_map( fn( $r ) => array(
+			'post_id'    => (int) $r->ID,
+			'post_title' => $r->post_title ?: __( '(no title)', 'generateblocks' ),
+			'edit_url'   => get_edit_post_link( (int) $r->ID, 'raw' ),
+		), $matched );
+
+		return array( 'posts' => $posts, 'total' => $total );
+	}
+
+	/**
+	 * AJAX handler for the List Posts and Convert buttons on the settings page.
+	 *
+	 * Expects POST fields: nonce, tag_name, converter_action ('list' or 'convert').
+	 * List:    returns JSON { success: true, data: { posts: [...], total: N } }
+	 * Convert: returns JSON { success: true, data: { count: N } }
 	 *
 	 * @since 1.6.0
 	 */
@@ -105,7 +155,9 @@ class TagConverter {
 			);
 		}
 
-		$tag_name = sanitize_key( wp_unslash( $_POST['tag_name'] ?? '' ) );
+		$tag_name         = sanitize_key( wp_unslash( $_POST['tag_name'] ?? '' ) );
+		$converter_action = sanitize_key( wp_unslash( $_POST['converter_action'] ?? 'convert' ) );
+
 		if ( '' === $tag_name ) {
 			wp_send_json_error(
 				array( 'message' => __( 'Invalid tag name.', 'generateblocks' ) ),
@@ -113,8 +165,19 @@ class TagConverter {
 			);
 		}
 
-		$count = self::convert( $tag_name );
-		wp_send_json_success( array( 'count' => $count ) );
+		if ( 'list' === $converter_action ) {
+			wp_send_json_success( self::list( $tag_name ) );
+			return;
+		}
+
+		if ( ! DeprecatedTagRegistry::has_migration_path( $tag_name ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'No migration path for this tag.', 'generateblocks' ) ),
+				400
+			);
+		}
+
+		wp_send_json_success( array( 'count' => self::convert( $tag_name ) ) );
 	}
 
 	// ===============================================

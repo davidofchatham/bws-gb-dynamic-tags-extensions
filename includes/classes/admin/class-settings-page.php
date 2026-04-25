@@ -326,15 +326,28 @@ class SettingsPage {
 									<?php endif; ?>
 								</td>
 								<td class="bws-convert-cell">
-									<button
-										type="button"
-										class="button bws-convert-btn"
-										data-tag="<?php echo esc_attr( $tag_name ); ?>"
-										data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
-									>
-										<?php esc_html_e( 'Convert', 'generateblocks' ); ?>
-									</button>
-									<span class="bws-convert-result" aria-live="polite"></span>
+									<div class="bws-convert-actions">
+										<button
+											type="button"
+											class="button bws-list-btn"
+											data-tag="<?php echo esc_attr( $tag_name ); ?>"
+											data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
+										>
+											<?php esc_html_e( 'List Posts', 'generateblocks' ); ?>
+										</button>
+										<?php if ( DeprecatedTagRegistry::has_migration_path( $tag_name ) ) : ?>
+										<button
+											type="button"
+											class="button bws-convert-btn"
+											data-tag="<?php echo esc_attr( $tag_name ); ?>"
+											data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
+										>
+											<?php esc_html_e( 'Convert', 'generateblocks' ); ?>
+										</button>
+										<?php endif; ?>
+										<span class="bws-convert-result" aria-live="polite"></span>
+									</div>
+									<div class="bws-list-result" style="display:none;"></div>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -458,11 +471,15 @@ class SettingsPage {
 				color: #a0a0a0;
 			}
 			.bws-dynamic-tags-settings .bws-deprecated-table .bws-convert-cell {
-				width: 200px;
-				white-space: nowrap;
+				width: 240px;
+			}
+			.bws-dynamic-tags-settings .bws-convert-actions {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				flex-wrap: wrap;
 			}
 			.bws-dynamic-tags-settings .bws-convert-result {
-				margin-left: 8px;
 				font-size: 13px;
 			}
 			.bws-dynamic-tags-settings .bws-convert-result.success {
@@ -471,26 +488,120 @@ class SettingsPage {
 			.bws-dynamic-tags-settings .bws-convert-result.error {
 				color: #d63638;
 			}
+			.bws-dynamic-tags-settings .bws-list-result {
+				margin-top: 8px;
+				padding: 6px 10px;
+				background: #f6f7f7;
+				border: 1px solid #dcdcde;
+				font-size: 13px;
+			}
+			.bws-dynamic-tags-settings .bws-list-count {
+				margin: 0 0 4px;
+				color: #787c82;
+			}
+			.bws-dynamic-tags-settings .bws-post-list {
+				margin: 0;
+				padding: 0 0 0 16px;
+				max-height: 180px;
+				overflow-y: auto;
+			}
+			.bws-dynamic-tags-settings .bws-post-list li {
+				margin: 2px 0;
+			}
+			.bws-dynamic-tags-settings .bws-list-error {
+				color: #d63638;
+			}
 		</style>
 
 		<script>
 			( function() {
-				var ajaxUrl  = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+				var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
 
+				function escHtml( str ) {
+					return String( str )
+						.replace( /&/g, '&amp;' )
+						.replace( /</g, '&lt;' )
+						.replace( />/g, '&gt;' )
+						.replace( /"/g, '&quot;' );
+				}
+
+				// List Posts button.
+				document.querySelectorAll( '.bws-list-btn' ).forEach( function( btn ) {
+					btn.addEventListener( 'click', function() {
+						var tagName = this.dataset.tag;
+						var nonce   = this.dataset.nonce;
+						var cell    = this.closest( 'td' );
+						var panel   = cell.querySelector( '.bws-list-result' );
+
+						// Toggle if results already loaded.
+						if ( panel.dataset.loaded ) {
+							panel.style.display = ( 'none' === panel.style.display ) ? 'block' : 'none';
+							return;
+						}
+
+						btn.disabled = true;
+						panel.innerHTML = '<em><?php echo esc_js( __( 'Searching…', 'generateblocks' ) ); ?></em>';
+						panel.style.display = 'block';
+
+						var data = new FormData();
+						data.append( 'action',           'bws_convert_deprecated_tag' );
+						data.append( 'nonce',            nonce );
+						data.append( 'tag_name',         tagName );
+						data.append( 'converter_action', 'list' );
+
+						fetch( ajaxUrl, { method: 'POST', body: data } )
+							.then( function( r ) { return r.json(); } )
+							.then( function( json ) {
+								panel.dataset.loaded = '1';
+								if ( json.success ) {
+									var posts = json.data.posts;
+									var total = json.data.total;
+									if ( 0 === total ) {
+										panel.innerHTML = '<em><?php echo esc_js( __( 'No posts found.', 'generateblocks' ) ); ?></em>';
+										return;
+									}
+									var html = '<p class="bws-list-count">';
+									html += total + ' <?php echo esc_js( __( 'post(s) found:', 'generateblocks' ) ); ?>';
+									html += '</p><ul class="bws-post-list">';
+									posts.forEach( function( p ) {
+										html += '<li><a href="' + escHtml( p.edit_url ) + '" target="_blank">' + escHtml( p.post_title ) + '</a></li>';
+									} );
+									html += '</ul>';
+									panel.innerHTML = html;
+								} else {
+									var msg = ( json.data && json.data.message )
+										? json.data.message
+										: <?php echo wp_json_encode( __( 'Request failed.', 'generateblocks' ) ); ?>;
+									panel.innerHTML = '<em class="bws-list-error">' + escHtml( msg ) + '</em>';
+								}
+							} )
+							.catch( function() {
+								panel.innerHTML = '<em class="bws-list-error"><?php echo esc_js( __( 'Request error.', 'generateblocks' ) ); ?></em>';
+							} )
+							.finally( function() {
+								btn.disabled = false;
+							} );
+					} );
+				} );
+
+				// Convert button.
 				document.querySelectorAll( '.bws-convert-btn' ).forEach( function( btn ) {
 					btn.addEventListener( 'click', function() {
 						var tagName = this.dataset.tag;
 						var nonce   = this.dataset.nonce;
-						var result  = this.parentNode.querySelector( '.bws-convert-result' );
+						var cell    = this.closest( 'td' );
+						var result  = cell.querySelector( '.bws-convert-result' );
+						var panel   = cell.querySelector( '.bws-list-result' );
 
-						btn.disabled  = true;
+						btn.disabled       = true;
 						result.textContent = <?php echo wp_json_encode( __( 'Converting…', 'generateblocks' ) ); ?>;
 						result.className   = 'bws-convert-result';
 
 						var data = new FormData();
-						data.append( 'action',   'bws_convert_deprecated_tag' );
-						data.append( 'nonce',    nonce );
-						data.append( 'tag_name', tagName );
+						data.append( 'action',           'bws_convert_deprecated_tag' );
+						data.append( 'nonce',            nonce );
+						data.append( 'tag_name',         tagName );
+						data.append( 'converter_action', 'convert' );
 
 						fetch( ajaxUrl, { method: 'POST', body: data } )
 							.then( function( r ) { return r.json(); } )
@@ -501,6 +612,12 @@ class SettingsPage {
 										? <?php echo wp_json_encode( __( 'Updated 1 post.', 'generateblocks' ) ); ?>
 										: count.toString() + ' ' + <?php echo wp_json_encode( __( 'posts updated.', 'generateblocks' ) ); ?>;
 									result.className = 'bws-convert-result success';
+									// Invalidate cached list so next List Posts click re-fetches.
+									if ( panel ) {
+										delete panel.dataset.loaded;
+										panel.style.display = 'none';
+										panel.innerHTML = '';
+									}
 								} else {
 									result.textContent = ( json.data && json.data.message )
 										? json.data.message
