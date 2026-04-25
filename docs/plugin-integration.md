@@ -77,35 +77,78 @@ The `$registry` argument passed to the action is available but not needed — `r
 
 ### What happens automatically
 
-Once registered, `TagTemplateRegistry::generate_all_tags()` iterates every enabled source against every template. Because `ExternalSource::get_context_type()` returns `'post'`, all post-context templates automatically produce external-prefixed tags:
+Once registered via `SourceRegistry::register_source()`, the source is available for resolution in tag callbacks and deprecated wrapper registrations.
 
-**Content tags** (text/link type):
-- `external_title`, `external_excerpt`, `external_permalink`, `external_custom_text`
-- `external_post_content` (full rendered block content)
+Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are source-agnostic. Users select the source at the tag level using the **Source** dropdown in the GB editor. However, the built-in source dropdown only exposes sources wired into `bws_base_source_option()` — external sources registered via the hook do **not** automatically appear there.
 
-**Image tags** (media type):
-- `external_featured_image`, `external_custom_image`
+To expose your source to GB editor users, use one of:
 
-**Date/time tags** (opt-in by default):
-- `external_custom_date_single`, `external_custom_date_range`
-- `external_custom_datetime_single`, `external_custom_datetime_range`
-
-**Term-extraction tags** (post-context term data):
-- `external_term_title`, `external_term_permalink`, `external_term_description`
-- `external_term_custom_text`, `external_term_custom_image`
-
-… and any future templates added to the registry.
-
-No manual `GenerateBlocks_Register_Dynamic_Tag` calls are needed for these standard tags.
-
-The external source also:
-- Appears in the admin settings page under its own section
-- Has its tags individually enabled/disabled per the opt-in/opt-out model
-- Respects any `get_source_options()` values on every generated tag
+1. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`views_text`, `views_image`, etc.) backed by your source. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+2. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
+3. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
 ---
 
-## 2. SourceInterface Methods Reference
+## 2. Registering a Context Modifier
+
+A context modifier creates a prefixed group of GB tags (`views_text`, `views_image`, etc.) backed by a specific entity resolution strategy. The built-in `term_` modifier is registered this way; external plugins can register their own.
+
+### Implement and register the source(s)
+
+The modifier needs at least one registered source for direct entity resolution. If the modifier supports a traversal hop (`source:ref`), register a second source for that:
+
+```php
+// Register on bws_dynamic_tags_register_sources (or plugins_loaded priority < 20).
+add_action( 'bws_dynamic_tags_register_sources', function() {
+    // Direct entity resolution (source unset = current context).
+    \BWS\DynamicTags\SourceRegistry::register_source( new ViewsSource() );
+    // Optional: traversal source (source:ref = entity → related post).
+    \BWS\DynamicTags\SourceRegistry::register_source( new ViewsRelatedPostSource() );
+} );
+```
+
+### Call `register_modifier()`
+
+Call `TagTemplateRegistry::register_modifier()` on the `init` hook at priority 21 or later (after `bws_register_base_tags()` runs at priority 20, which populates `$modifier_templates`):
+
+```php
+add_action( 'init', function() {
+    if ( ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+        return;
+    }
+    \BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
+        'prefix'               => 'views',             // Produces views_text, views_image, etc.
+        'gb_type'              => 'post',              // GB type string for all modifier tags.
+        'modifier_label'       => 'views-based',       // Parenthetical in tag title: "Text Fields (views-based)".
+        'base_source_key'      => 'views',             // Source key for unset source (direct resolution).
+        'traversal_source_key' => 'views_related_post', // Source key for source:ref hop. '' = no traversal option.
+        'excluded_supports'    => array(),             // Omit to keep 'source' GB entity picker on all tags.
+    ) );
+}, 21 );
+```
+
+### What gets generated
+
+`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `views_text`, `views_image`, `views_title`).
+
+Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal source (`ref`). Traversal sub-options (`ref` field key, `srcTerm`, `tax`) are included automatically.
+
+If `traversal_source_key` is empty, the Source selector is omitted and the modifier always resolves from the direct entity.
+
+### `register_modifier()` parameter reference
+
+| Key | Type | Required | Notes |
+|-----|------|----------|-------|
+| `prefix` | string | Yes | Tag prefix. Produces `{prefix}_{template_key}` for each template. |
+| `gb_type` | string | Yes | GB tag type string for all generated modifier tags (e.g. `'post'`, `'term'`). |
+| `modifier_label` | string | — | Parenthetical appended to the tag title (e.g. `'term-based'`). Omit for no parenthetical. |
+| `base_source_key` | string | Yes | Source registry key used when `source` is unset (direct resolution). |
+| `traversal_source_key` | string | — | Source registry key used when `source:'ref'`. Empty string omits the traversal option entirely. |
+| `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
+
+---
+
+## 3. SourceInterface Methods Reference
 
 All methods below are available on `AbstractSource` with the listed defaults. Override only what your source needs to customize.
 
@@ -150,13 +193,13 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 ---
 
-## 3. Plugin-Specific Tags (No Built-in Template)
+## 4. Plugin-Specific Tags (No Built-in Template)
 
 If your plugin needs a tag type with no equivalent built-in template, there are two options:
 
 ### Option A: Register a new template (preferred)
 
-Adding a template to `TagTemplateRegistry` auto-generates the tag for all sources, including yours:
+Adding a template to `TagTemplateRegistry` makes it available as a modifier template for all modifier groups, including yours:
 
 ```php
 // In your plugin, at init priority 15 (before generate_all_tags runs at 20):
@@ -179,25 +222,21 @@ add_action( 'init', function() {
 
 ### Option B: Manual GB registration
 
-For truly one-off tags, register directly with GenerateBlocks. Use `SettingsPage::is_tag_enabled()` so the tag respects admin toggles:
+For truly one-off tags, register directly with GenerateBlocks. No admin toggle is available for manually registered tags — they are always active:
 
 ```php
-use BWS\DynamicTags\Admin\SettingsPage;
-
 add_action( 'init', function() {
     if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
         return;
     }
-    if ( SettingsPage::is_tag_enabled( 'external_unique_field', 'external' ) ) {
-        new GenerateBlocks_Register_Dynamic_Tag( array(
-            'title'    => __( 'External Unique Field', 'my-plugin' ),
-            'tag'      => 'external_unique_field',
-            'type'     => 'post',
-            'supports' => array(),                 // Always include supports — never omit
-            'options'  => array(),
-            'return'   => 'my_plugin_unique_field_callback',
-        ) );
-    }
+    new GenerateBlocks_Register_Dynamic_Tag( array(
+        'title'    => __( 'External Unique Field', 'my-plugin' ),
+        'tag'      => 'external_unique_field',
+        'type'     => 'post',
+        'supports' => array(),                 // Always include supports — never omit
+        'options'  => array(),
+        'return'   => 'my_plugin_unique_field_callback',
+    ) );
 }, 20 );
 ```
 
@@ -272,7 +311,7 @@ function my_plugin_content_callback( $options, $block, $instance ) {
 
 ---
 
-## 4. Shared Helpers Available
+## 5. Shared Helpers Available
 
 These functions are available once `bws-gb-dynamic-tags-extensions` is active. All are guarded with `function_exists()` so they won't conflict.
 
@@ -298,7 +337,6 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 |----------|---------|
 | `bws_get_related_posts_data( $post_id, $field_key )` | ACF relationship/post_object field resolution |
 | `bws_extract_post_id( $post_data )` | Extract post ID from various ACF return formats |
-| `bws_extract_text_field( $post_id, $field_name )` | Get text content from post fields or meta |
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
 | `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content |
 
@@ -319,7 +357,7 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_is_query_loop_setup_phase( $instance )` | Returns `true` when GB is setting up a query loop and `postId` is not yet in context. Skip content rendering in this case. |
 | `bws_has_sufficient_memory()` | Returns `true` when memory usage is below 80% of the PHP limit. |
 
-### Date helpers (`includes/helpers/date-helpers.php`)
+### Date helpers (`includes/helpers/datetime-helpers.php`)
 
 | Function | Purpose |
 |----------|---------|
@@ -337,28 +375,25 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_get_validated_term( $term_id )` | Validate and retrieve WP_Term object |
 | `bws_get_term_field_image_data( $term_id, $taxonomy, $field_key, $return_type, $size )` | Image from term ACF/meta field |
 | `bws_get_terms_for_post( $post_id, $options )` | Returns `WP_Term[]` in taxonomy from `$options['taxonomy']` |
-| `bws_post_term_extraction_options()` | Standard `taxonomy` + `fallback_text` options for post-context term templates |
-| `bws_post_term_image_options()` | `taxonomy` + `field_key` options for post-context term image templates |
+| `bws_post_term_extraction_options()` | Standard `tax` + `fallback` options for post-context term templates |
+| `bws_post_term_image_options()` | `tax` + `key` options for post-context term image templates |
 
 ---
 
-## 5. Admin Settings Integration
+## 6. Admin Settings Integration
 
-Plugin tags automatically appear in the settings page when:
-1. The source is registered via the hook
-2. Auto-generated tags respect the per-tag toggles without any additional code
-3. Manually registered tags use `SettingsPage::is_tag_enabled( 'tag_name', 'source_key' )` to check the toggle
+The settings page (v1.6.0+) exposes:
 
-**Default-enabled behaviour:**
-- The source toggle defaults to `source_default_enabled()` on the source class (`true` for all built-in sources as of v1.5.0).
-- Individual tag defaults within an enabled source are controlled by `tag_default_enabled()` (defaults to `source_default_enabled()`). Override `tag_default_enabled()` independently when the source should be opt-in but all its tags should be on once enabled.
-- Individual templates can override the per-tag default via `default_enabled_map` in the template definition.
+- **Modifier group toggles** — `term_` and `try_` can be enabled/disabled. Modifier groups registered by external plugins via `register_modifier()` do not currently appear in the settings page UI unless you add your own settings integration.
+- **Deprecated wrapper toggles** — each entry in `DeprecatedTagRegistry` gets an individual enable/disable checkbox. Use `SettingsPage::is_deprecated_tag_enabled( $tag_name )` to read the current state in your deprecated tag's registration code.
 
-Settings are stored in `bws_dynamic_tags_settings` under the `'tags'` key.
+Base tags and manually registered custom tags (Option B) have no admin toggle — they are always active.
+
+Settings are stored in `bws_dynamic_tags_settings`.
 
 ---
 
-## 6. Registering Deprecated Tag Wrappers
+## 7. Registering Deprecated Tag Wrappers
 
 When an external plugin renames a tag (e.g. `portal_post_meta` → `portal_custom_text`),
 the old name must continue to work in existing content. Use `DeprecatedTagRegistry` to
@@ -372,16 +407,17 @@ Call `DeprecatedTagRegistry::register()` on the `bws_dynamic_tags_register_sourc
 ```php
 add_action( 'bws_dynamic_tags_register_sources', function () {
     \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
-        'old_tag'    => 'portal_post_meta',       // Deprecated GB tag name
-        'new_tag'    => 'portal_custom_text',      // Replacement (shown in notice only)
-        'source_key' => 'portal',                  // Must match a registered SourceInterface key
-        'title'      => 'Portal Post Meta',        // GB editor title
-        'gb_type'    => 'post',                    // GB tag type
-        'supports'   => array( 'source' ),
-        'options'    => portal_get_text_options(),  // Optional — omit if no options
-        'callback'   => 'portal_deprecated_post_meta_callback',
-        'is_related' => false,                     // true = appears under related_tags in UI
-        'since'      => '2.0.0',                   // Version when old tag was deprecated
+        'old_tag'        => 'portal_post_meta',       // Deprecated GB tag name
+        'new_tag'        => 'text',                   // Base tag replacement
+        'title'          => 'Portal Post Meta',        // GB editor title
+        'supports'       => array( 'source' ),
+        'options'        => portal_get_text_options(), // Optional — omit if no options
+        'callback'       => 'portal_deprecated_post_meta_callback',
+        'since'          => '2.0.0',                  // Version when old tag was deprecated
+        'source_inject'  => '',                       // Inject source option on convert; '' = omit
+        'option_renames' => array( 'field_key' => 'key' ), // Old key → new key
+        'value_renames'  => array(),                  // Post-rename key → [old value => new value]
+        'fixed_options'  => array(),                  // Always-injected key/value pairs on convert
     ) );
 } );
 ```
@@ -393,37 +429,86 @@ Your callback must emit a deprecation notice and delegate to the new implementat
 ```php
 function portal_deprecated_post_meta_callback( $options, $block, $instance ) {
     // Emits _doing_it_wrong() when WP_DEBUG is enabled.
-    bws_deprecated_tag_notice( 'portal_post_meta', 'portal_custom_text', '2.0.0' );
+    bws_deprecated_tag_notice( 'portal_post_meta', 'text', '2.0.0' );
 
     $source = \BWS\DynamicTags\SourceRegistry::get_source( 'portal' );
     $id     = $source ? $source->resolve_id( $options, $instance ) : false;
 
-    return portal_custom_text_core( $id, $options, $instance );
+    return portal_text_core( $id, $options, $instance );
 }
 ```
 
 ### What happens automatically
 
 - The old tag is registered with GenerateBlocks so existing content continues to render.
-- The old tag appears in the admin settings page under the `portal` source group with a
-  "(Deprecated)" suffix.
-- The admin toggle respects the same enable/disable flow as all other tags — disabled by
-  default only if the user explicitly turns it off.
+- The old tag appears in the deprecated section of the admin settings page with an individual enable/disable toggle.
 - `bws_deprecated_tag_notice()` fires a `_doing_it_wrong()` notice when `WP_DEBUG` is
   enabled, prompting developers to update their templates.
+- When a `new_tag` and migration fields (`option_renames`, `fixed_options`, etc.) are configured, the **Convert** button on the settings page rewrites matching tag strings in post content.
 
 ### `DeprecatedTagRegistry::register()` parameter reference
 
 | Key | Type | Required | Notes |
 |-----|------|----------|-------|
 | `old_tag` | string | Yes | The deprecated GB tag name. |
-| `new_tag` | string | Yes | Replacement name (only used in the deprecation notice). |
-| `source_key` | string | Yes | Source group key in the settings UI. Must match a registered `SourceInterface` key for the tag to appear in settings. |
-| `title` | string | — | GB editor title. Defaults to the `old_tag` value if omitted. |
-| `gb_type` | string | — | GB tag type. Defaults to `source_key`. Use `'media'` for image tags (required for GB to show the media library controls). |
+| `new_tag` | string | Yes | Replacement tag name — used in the deprecation notice and as the target tag name in `transform_options()`. |
+| `title` | string | — | GB editor title. Defaults to `old_tag` if omitted. |
+| `gb_type` | string | — | GB tag type. Always overwritten to `'deprecated'` internally. |
 | `supports` | array | — | GB supports array. Defaults to `[]`. |
 | `options` | array | — | GB options array. Omit if no options. |
 | `callback` | callable\|string | Yes | PHP callable that handles tag output. |
-| `is_related` | bool | — | Reserved for internal routing. Defaults to `false`. |
 | `since` | string | — | Version string passed to `bws_deprecated_tag_notice()`. |
 | `description` | string | — | Overrides the auto-generated GB tag description. Auto-default: `'Deprecated — use "new_tag" instead.'` |
+| `source_inject` | string | — | `source` option value injected on conversion (e.g. `'ref'` for a related-post traversal source). Empty string omits the `source` option. |
+| `option_renames` | array | — | Map of old option key → new option key applied before serialization. E.g. `['field_key' => 'key']`. |
+| `value_renames` | array | — | Map of (post-rename) option key → `[old value => new value]`. Applied after `option_renames`. |
+| `fixed_options` | array | — | Key/value pairs always injected during conversion regardless of user options. E.g. `['use' => 'excerpt']`. |
+| `datetime_transforms` | bool | — | When `true`, apply the five special-case datetime option transforms during conversion. Default `false`. |
+
+---
+
+## 8. Renaming a Modifier Prefix
+
+When an external plugin renames its context modifier prefix (e.g., from `portal_` to `views_`), existing post content still contains the old tag names. The converter handles migration: for each old tag name that maps to a new one, register a deprecated wrapper and the **Convert** button will rewrite stored tags.
+
+### Pattern
+
+For each template your modifier generates, register one deprecated wrapper mapping the old prefixed name to the new prefixed name:
+
+```php
+add_action( 'bws_dynamic_tags_register_sources', function () {
+    $old_templates = array( 'text', 'image', 'content', 'title', 'permalink',
+                            'datetime_single', 'datetime_range' );
+
+    foreach ( $old_templates as $tpl ) {
+        \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
+            'old_tag'  => 'portal_' . $tpl,   // Old tag name in stored content
+            'new_tag'  => 'views_' . $tpl,    // New tag name after conversion
+            'title'    => 'Portal ' . ucfirst( $tpl ) . ' (Deprecated)',
+            'supports' => array(),
+            'callback' => 'my_plugin_passthrough_callback',
+            'since'    => '3.0.0',
+            // option_renames / fixed_options if any option names also changed
+        ) );
+    }
+} );
+```
+
+The passthrough callback resolves via the **new** modifier's source so the old tag continues to render while the migration is pending:
+
+```php
+function my_plugin_passthrough_callback( $options, $block, $instance ) {
+    bws_deprecated_tag_notice( 'portal_text', 'views_text', '3.0.0' );
+
+    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'views' );
+    $id     = $source ? $source->resolve_id( $options, $instance ) : false;
+
+    return views_text_core( $id, $options, $instance );
+}
+```
+
+### Converter behavior
+
+The **List Posts** button shows every post containing `{{portal_text ...}}` (or whichever `old_tag`). The **Convert** button rewrites those strings to `{{views_text ...}}`, preserving all options (after any `option_renames` and `fixed_options` are applied). Posts whose content does not change after transformation are not updated.
+
+Both buttons operate on one tag name at a time and are available for each deprecated entry that has a `new_tag` set.
