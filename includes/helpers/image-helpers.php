@@ -345,7 +345,7 @@ function bws_get_attachment_id_from_url( $url ) {
  * Handle media fallback from the media selector UI.
  *
  * @since 1.0.0
- * @param int    $fallback_media_id Fallback media ID.
+ * @param mixed  $fallback Fallback attachment URL (bws-media-picker) or numeric ID (legacy).
  * @param string $return_type       Type of data to return.
  * @param string $image_size        Image size.
  * @param array  $options           Tag options.
@@ -353,12 +353,18 @@ function bws_get_attachment_id_from_url( $url ) {
  * @return string
  */
 if ( ! function_exists( 'bws_handle_media_fallback' ) ) {
-function bws_handle_media_fallback( $fallback_media_id, $return_type, $image_size, $options, $instance ) {
-	if ( $fallback_media_id && is_numeric( $fallback_media_id ) ) {
-		$result = bws_get_attachment_data( absint( $fallback_media_id ), $return_type, $image_size );
+function bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance ) {
+	if ( $fallback ) {
+		$id = is_numeric( $fallback )
+			? absint( $fallback )
+			: bws_get_attachment_id_from_url( $fallback );
 
-		if ( ! empty( $result ) ) {
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+		if ( $id ) {
+			$result = bws_get_attachment_data( $id, $return_type, $image_size );
+
+			if ( ! empty( $result ) ) {
+				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+			}
 		}
 	}
 

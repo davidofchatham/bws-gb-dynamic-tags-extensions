@@ -35,11 +35,21 @@
 		var raw = window.generateBlocksInfo && generateBlocksInfo.imageSizes
 			? generateBlocksInfo.imageSizes : [];
 
-		var options = Array.isArray( raw )
-			? raw
-			: Object.keys( raw ).map( function ( slug ) {
+		var options;
+		if ( Array.isArray( raw ) ) {
+			options = raw.map( function ( item ) {
+				if ( typeof item === 'string' ) {
+					return { value: item, label: item };
+				}
+				var v = String( item.value || item.slug || '' );
+				var l = String( item.label || item.name || v );
+				return { value: v, label: l };
+			} );
+		} else {
+			options = Object.keys( raw ).map( function ( slug ) {
 				return { value: slug, label: typeof raw[ slug ] === 'string' ? raw[ slug ] : slug };
 			} );
+		}
 
 		return el( ComboboxControl, {
 			label:    props.label,

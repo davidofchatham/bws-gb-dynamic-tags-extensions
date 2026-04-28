@@ -71,7 +71,7 @@ add_filter( 'generateblocks_dynamic_tag_id', 'bws_override_media_ids_for_post_co
 function bws_featured_image_core( $post_id, $options, $instance ) {
 	$return_type       = $options['as'] ?? $options['return_type'] ?? 'url';
 	$image_size        = $options['size'] ?? 'full';
-	$fallback_media_id = $options['id'] ?? '';
+	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
 
 	if ( $post_id ) {
 		$featured_attachment_id = get_post_thumbnail_id( $post_id );
@@ -103,7 +103,7 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 	$field_key         = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
 	$return_type       = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
 	$image_size        = sanitize_text_field( $options['size'] ?? 'full' );
-	$fallback_media_id = absint( $options['id'] ?? 0 );
+	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
 
 	if ( empty( $field_key ) ) {
 		return bws_handle_media_fallback( $fallback_media_id, $return_type, $image_size, $options, $instance );

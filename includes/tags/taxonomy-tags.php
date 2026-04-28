@@ -166,7 +166,7 @@ function bws_term_custom_image_core( $term_id, $options, $instance ) {
 	$field_key    = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
 	$return_type  = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
 	$image_size   = sanitize_text_field( $options['size'] ?? 'full' );
-	$fallback_url = esc_url_raw( $options['fallback_url'] ?? '' );
+	$fallback_url = esc_url_raw( $options['fallback'] ?? $options['fallback_url'] ?? '' );
 
 	if ( empty( $field_key ) ) {
 		return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );

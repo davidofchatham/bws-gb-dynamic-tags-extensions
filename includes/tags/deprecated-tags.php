@@ -615,8 +615,8 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	$content_renames = array( 'fallback_text' => 'fallback', 'type' => 'use' );
 	$content_values  = array( 'use' => array( 'custom_field' => 'key' ) );
 	$ct_renames      = array( 'fallback_text' => 'fallback' );
-	$fi_renames      = array( 'return_type' => 'as' );
-	$ci_renames      = array( 'return_type' => 'as', 'fallback_url' => 'fallback', 'field_key' => 'key' );
+	$fi_renames      = array( 'return_type' => 'as', 'id' => 'fallback' );
+	$ci_renames      = array( 'return_type' => 'as', 'fallback_url' => 'fallback', 'id' => 'fallback', 'field_key' => 'key' );
 	$cds_renames     = array( 'date_time_field' => 'key', 'fallback_text' => 'fallback' );
 	$cdr_renames     = array( 'start_field' => 'key', 'end_field' => 'end', 'separator' => 'range_sep', 'fallback_text' => 'fallback' );
 	$cdts_renames    = array( 'date_time_field' => 'key', 'time_field' => 'key2', 'fallback_text' => 'fallback' );
@@ -1489,6 +1489,26 @@ function bws_register_option_migrations(): void {
 				/* translators: %s: base tag name */
 				__( '{{%s}}: rel → source:ref|ref (broken converter output)', 'generateblocks' ),
 				$base_tag
+			),
+		) ) );
+	}
+
+	// image, term_image, try_image existed in v1.5.x with type:'media' — GB stored the
+	// attachment ID in the 'id' option. Rename to 'fallback' (v1.6.0 option name).
+	$id_to_fallback = array(
+		'option_renames' => array( 'id' => 'fallback' ),
+	);
+
+	foreach ( array( 'image', 'term_image', 'try_image' ) as $tag ) {
+		$reg::register( array_merge( $id_to_fallback, array(
+			'type'          => 'option',
+			'match_tag'     => $tag,
+			'match_options' => array( 'id' ),
+			'new_tag'       => $tag,
+			'label'         => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: id → fallback (v1.5 media picker → v1.6 custom picker)', 'generateblocks' ),
+				$tag
 			),
 		) ) );
 	}
