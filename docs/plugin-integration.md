@@ -135,6 +135,8 @@ Each modifier tag includes a **Source** selector with two entries: current entit
 
 If `traversal_source_key` is empty, the Source selector is omitted and the modifier always resolves from the direct entity.
 
+**When to provide a custom traversal source vs. reuse built-in `'related_post'`:** The built-in `RelatedPost` source resolves the base post from the GB loop context (`GenerateBlocks_Dynamic_Tags::get_id()`). If your base entity is already the current GB loop post, set `traversal_source_key => 'related_post'` — no custom class needed. If your base entity is resolved through a different context (e.g. user session, query parameter, custom lookup), you must register a custom traversal source that first resolves your entity, then traverses the relationship field. The `views` example above is this case: the base post comes from session context, so `ViewsRelatedPostSource` handles both resolution and traversal.
+
 ### `register_modifier()` parameter reference
 
 | Key | Type | Required | Notes |
@@ -143,7 +145,7 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 | `gb_type` | string | Yes | GB tag type string for all generated modifier tags (e.g. `'post'`, `'term'`). |
 | `modifier_label` | string | — | Parenthetical appended to the tag title (e.g. `'term-based'`). Omit for no parenthetical. |
 | `base_source_key` | string | Yes | Source registry key used when `source` is unset (direct resolution). |
-| `traversal_source_key` | string | — | Source registry key used when `source:'ref'`. Empty string omits the traversal option entirely. |
+| `traversal_source_key` | string | — | Source registry key used when `source:'ref'`. Empty string omits the traversal option entirely. If base entity is a standard GB loop post, the built-in `'related_post'` source can be used directly; otherwise register a custom traversal source. |
 | `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
 
 ---
