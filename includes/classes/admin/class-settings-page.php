@@ -5,21 +5,26 @@
  * Settings schema (v1.6.0):
  *   {
  *     modifiers:   { term: bool, try: bool },
- *     deprecated:  { [old_tag_name]: bool },
+ *     deprecated:  {
+ *       mode_with_path:    'keep'|'suppress'|'disable',
+ *       mode_without_path: 'keep'|'suppress'|'disable',
+ *     },
  *     diagnostics: { benchmark_logging: bool, benchmark_page: bool, registration_logging: bool },
  *   }
  *
- * Removed in v1.6.0: source×template matrix, source enable/disable controls,
- * register_tag_source(), get_tag_groups(), is_tag_enabled(), is_source_enabled(),
- * default_enabled_map resolution logic.
+ * Deprecated tag mode semantics:
+ *   keep     — tags register and execute normally (default).
+ *   suppress — tags register but callbacks return '' (prevents unprocessed tags on frontend).
+ *   disable  — tags are not registered with GB (removed from tag picker).
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
- * @since 1.6.0 Simplified to modifier-toggle + deprecated-section model.
+ * @since 1.6.0 Group-mode deprecated settings; scan + migrate tool; removed per-tag toggles.
  */
 
 namespace BWS\DynamicTags\Admin;
 
+use BWS\DynamicTags\MigrationRegistry;
 use BWS\DynamicTags\DeprecatedTagRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -38,18 +43,14 @@ class SettingsPage {
 	// INITIALIZATION
 	// ===============================================
 
-	/**
-	 * Initialize admin hooks.
-	 */
 	public static function init(): void {
 		add_action( 'admin_menu', array( static::class, 'add_menu_page' ), 20 );
 		add_action( 'admin_init', array( static::class, 'register_settings' ) );
-		add_action( 'wp_ajax_bws_convert_deprecated_tag', array( TagConverter::class, 'ajax_handler' ) );
+		add_action( 'admin_enqueue_scripts', array( static::class, 'enqueue_scripts' ) );
+		add_action( 'wp_ajax_bws_scan_tags', array( TagConverter::class, 'ajax_scan' ) );
+		add_action( 'wp_ajax_bws_migrate_tags', array( TagConverter::class, 'ajax_migrate' ) );
 	}
 
-	/**
-	 * Add submenu page under GenerateBlocks.
-	 */
 	public static function add_menu_page(): void {
 		add_submenu_page(
 			'generateblocks',
@@ -61,9 +62,6 @@ class SettingsPage {
 		);
 	}
 
-	/**
-	 * Register settings with the WP Settings API.
-	 */
 	public static function register_settings(): void {
 		register_setting(
 			'bws_dynamic_tags_settings_group',
@@ -76,16 +74,48 @@ class SettingsPage {
 		);
 	}
 
+	public static function enqueue_scripts( string $hook ): void {
+		if ( false === strpos( $hook, 'bws-dynamic-tags' ) ) {
+			return;
+		}
+		wp_enqueue_script(
+			'bws-admin-tag-scanner',
+			BWS_DYNAMIC_TAGS_URL . 'assets/js/admin-tag-scanner.js',
+			array(),
+			BWS_DYNAMIC_TAGS_VERSION,
+			true
+		);
+		wp_localize_script(
+			'bws-admin-tag-scanner',
+			'bwsTagScanner',
+			array(
+				'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+				'nonce'       => wp_create_nonce( 'bws_convert_tag' ),
+				'batchSize'   => 10,
+				'i18n'        => array(
+					'scanning'       => __( 'Scanning…', 'generateblocks' ),
+					'migrating'      => __( 'Migrating…', 'generateblocks' ),
+					'noIssues'       => __( 'No deprecated tags or option issues found.', 'generateblocks' ),
+					'noRevision'     => __( '⚠ No undo — this post type does not support revisions.', 'generateblocks' ),
+					'migrateAll'     => __( 'Migrate Selected', 'generateblocks' ),
+					'done'           => __( 'Done', 'generateblocks' ),
+					'errorPrefix'    => __( 'Error:', 'generateblocks' ),
+					'tagsMigrated'   => __( 'tags migrated', 'generateblocks' ),
+					'optsMigrated'   => __( 'option fixes applied', 'generateblocks' ),
+					'noChange'       => __( 'No changes needed', 'generateblocks' ),
+					'selectAll'      => __( 'Select all', 'generateblocks' ),
+					'deselectAll'    => __( 'Deselect all', 'generateblocks' ),
+					'progressLabel'  => __( 'Migrating post %1$d of %2$d…', 'generateblocks' ),
+					'bulkDone'       => __( '%d posts processed.', 'generateblocks' ),
+				),
+			)
+		);
+	}
+
 	// ===============================================
 	// SETTINGS SCHEMA + SANITIZE
 	// ===============================================
 
-	/**
-	 * Sanitize settings on save.
-	 *
-	 * @param array $input Raw POST input.
-	 * @return array Sanitized settings.
-	 */
 	public static function sanitize_settings( $input ): array {
 		$sanitized = array(
 			'modifiers'   => array(),
@@ -97,13 +127,11 @@ class SettingsPage {
 		$sanitized['modifiers']['term'] = ! empty( $input['modifiers']['term'] );
 		$sanitized['modifiers']['try']  = ! empty( $input['modifiers']['try'] );
 
-		// Deprecated tag enable/disable checkboxes.
-		foreach ( DeprecatedTagRegistry::get_all() as $entry ) {
-			$tag_name = $entry['old_tag'] ?? '';
-			if ( '' === $tag_name ) {
-				continue;
-			}
-			$sanitized['deprecated'][ $tag_name ] = ! empty( $input['deprecated'][ $tag_name ] );
+		// Deprecated tag group modes.
+		$valid_modes = array( 'keep', 'suppress', 'disable' );
+		foreach ( array( 'mode_with_path', 'mode_without_path' ) as $key ) {
+			$val = sanitize_key( $input['deprecated'][ $key ] ?? 'keep' );
+			$sanitized['deprecated'][ $key ] = in_array( $val, $valid_modes, true ) ? $val : 'keep';
 		}
 
 		// Diagnostics.
@@ -118,11 +146,6 @@ class SettingsPage {
 	// SETTINGS ACCESSORS
 	// ===============================================
 
-	/**
-	 * Get settings (cached).
-	 *
-	 * @return array
-	 */
 	public static function get_settings(): array {
 		if ( null === self::$settings ) {
 			self::$settings = get_option( self::OPTION_NAME, array() );
@@ -130,294 +153,255 @@ class SettingsPage {
 		return self::$settings;
 	}
 
-	/**
-	 * Check if a modifier group is enabled.
-	 *
-	 * Supported modifiers: 'term', 'try'.
-	 * Defaults to true when no saved preference exists.
-	 *
-	 * @since 1.6.0
-	 * @param string $modifier Modifier key ('term' or 'try').
-	 * @return bool
-	 */
 	public static function is_modifier_enabled( string $modifier ): bool {
 		$settings = self::get_settings();
-		if ( isset( $settings['modifiers'][ $modifier ] ) ) {
-			return (bool) $settings['modifiers'][ $modifier ];
-		}
-		return true; // Default on.
+		return isset( $settings['modifiers'][ $modifier ] )
+			? (bool) $settings['modifiers'][ $modifier ]
+			: true;
 	}
 
 	/**
-	 * Check if a deprecated tag is enabled.
+	 * Get the deprecation mode for a tag name.
 	 *
-	 * Returns true when no saved preference exists (default on).
+	 * Looks up which group the tag belongs to (with/without migration path) and returns
+	 * the saved mode for that group. Defaults to 'keep'.
 	 *
 	 * @since 1.6.0
-	 * @param string $tag_name Deprecated GB tag name.
-	 * @return bool
+	 * @param string $tag_name Tag name to look up.
+	 * @return string 'keep', 'suppress', or 'disable'.
+	 */
+	public static function get_deprecated_mode( string $tag_name ): string {
+		$settings = self::get_settings();
+		$group    = MigrationRegistry::has_migration_path( $tag_name ) ? 'mode_with_path' : 'mode_without_path';
+		$mode     = $settings['deprecated'][ $group ] ?? 'keep';
+		return in_array( $mode, array( 'keep', 'suppress', 'disable' ), true ) ? $mode : 'keep';
+	}
+
+	/**
+	 * Whether a deprecated tag should be registered with GenerateBlocks.
+	 *
+	 * @since 1.6.0
+	 * @param string $tag_name Deprecated tag name.
+	 * @return bool False only when mode is 'disable'.
+	 */
+	public static function is_deprecated_tag_registered( string $tag_name ): bool {
+		return 'disable' !== self::get_deprecated_mode( $tag_name );
+	}
+
+	/**
+	 * Whether a deprecated tag callback should suppress its output (return '').
+	 *
+	 * @since 1.6.0
+	 * @param string $tag_name Deprecated tag name.
+	 * @return bool True only when mode is 'suppress'.
+	 */
+	public static function is_deprecated_tag_suppressed( string $tag_name ): bool {
+		return 'suppress' === self::get_deprecated_mode( $tag_name );
+	}
+
+	/**
+	 * Backward-compat alias — returns true when tag is registered (mode != 'disable').
+	 *
+	 * @since 1.0.0
+	 * @deprecated 1.6.0 Use is_deprecated_tag_registered() instead.
 	 */
 	public static function is_deprecated_tag_enabled( string $tag_name ): bool {
-		$settings = self::get_settings();
-		if ( isset( $settings['deprecated'][ $tag_name ] ) ) {
-			return (bool) $settings['deprecated'][ $tag_name ];
-		}
-		return true; // Default on.
+		return self::is_deprecated_tag_registered( $tag_name );
 	}
 
-	/**
-	 * Check if benchmark logging is enabled.
-	 *
-	 * @return bool
-	 */
 	public static function is_benchmark_logging_enabled(): bool {
-		$settings = self::get_settings();
-		return $settings['diagnostics']['benchmark_logging'] ?? false;
+		return (bool) ( self::get_settings()['diagnostics']['benchmark_logging'] ?? false );
 	}
 
-	/**
-	 * Check if the benchmark admin page is enabled.
-	 *
-	 * @return bool
-	 */
 	public static function is_benchmark_page_enabled(): bool {
-		$settings = self::get_settings();
-		return $settings['diagnostics']['benchmark_page'] ?? false;
+		return (bool) ( self::get_settings()['diagnostics']['benchmark_page'] ?? false );
 	}
 
-	/**
-	 * Check if source registration logging is enabled.
-	 *
-	 * @return bool
-	 */
 	public static function is_registration_logging_enabled(): bool {
-		$settings = self::get_settings();
-		return $settings['diagnostics']['registration_logging'] ?? false;
+		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
 	}
 
 	// ===============================================
 	// RENDER
 	// ===============================================
 
-	/**
-	 * Render the settings page.
-	 */
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		$settings           = self::get_settings();
-		$deprecated_entries = DeprecatedTagRegistry::get_all();
-		$has_deprecated     = ! empty( $deprecated_entries );
-		$convert_nonce      = wp_create_nonce( 'bws_convert_tag' );
+		$settings = self::get_settings();
+
+		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
+		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
+
+		// Split registry entries by migration path.
+		$all_entries      = DeprecatedTagRegistry::get_all();
+		$entries_with     = array_values( array_filter( $all_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$entries_without  = array_values( array_filter( $all_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+
+		$mode_options = array(
+			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
+			'suppress' => __( 'Suppress — tags register but output nothing (safe frontend fallback)', 'generateblocks' ),
+			'disable'  => __( 'Disable — tags are removed from GB (use only after migrating all content)', 'generateblocks' ),
+		);
 		?>
 		<div class="wrap bws-dynamic-tags-settings">
-			<h1><?php echo esc_html__( 'BWS Dynamic Tag Extensions', 'generateblocks' ); ?></h1>
-			<p class="description">
-				<?php echo esc_html__( 'Enable or disable modifier tag groups and manage deprecated tag migration.', 'generateblocks' ); ?>
-			</p>
+			<h1><?php esc_html_e( 'BWS Dynamic Tag Extensions', 'generateblocks' ); ?></h1>
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'bws_dynamic_tags_settings_group' ); ?>
 
 				<?php /* ── Modifier Groups ── */ ?>
 				<div class="bws-tag-group">
-					<h2 class="bws-source-header">
-						<?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?>
-					</h2>
+					<h2 class="bws-section-header"><?php esc_html_e( 'Modifier Groups', 'generateblocks' ); ?></h2>
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="bws-modifier-term"
+									<input type="checkbox" id="bws-modifier-term"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][term]"
-										value="1"
-										<?php checked( self::is_modifier_enabled( 'term' ) ); ?>
-									/>
+										value="1" <?php checked( self::is_modifier_enabled( 'term' ) ); ?> />
 								</td>
 								<td>
-									<label for="bws-modifier-term">
-										<?php esc_html_e( 'term_ tags', 'generateblocks' ); ?>
-									</label>
+									<label for="bws-modifier-term"><?php esc_html_e( 'term_ tags', 'generateblocks' ); ?></label>
 									<code class="bws-tag-name">term_</code>
-									<p class="description">
-										<?php esc_html_e( 'Term-context tags (term_text, term_image, term_title, etc.). Disable to remove them from the tag picker.', 'generateblocks' ); ?>
-									</p>
+									<p class="description"><?php esc_html_e( 'Term-context tags (term_text, term_image, term_title, etc.).', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="bws-modifier-try"
+									<input type="checkbox" id="bws-modifier-try"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[modifiers][try]"
-										value="1"
-										<?php checked( self::is_modifier_enabled( 'try' ) ); ?>
-									/>
+										value="1" <?php checked( self::is_modifier_enabled( 'try' ) ); ?> />
 								</td>
 								<td>
-									<label for="bws-modifier-try">
-										<?php esc_html_e( 'try_ tags', 'generateblocks' ); ?>
-									</label>
+									<label for="bws-modifier-try"><?php esc_html_e( 'try_ tags', 'generateblocks' ); ?></label>
 									<code class="bws-tag-name">try_</code>
-									<p class="description">
-										<?php esc_html_e( 'Fallback-chain tags (try_text, try_image, etc.). Disable to remove them from the tag picker.', 'generateblocks' ); ?>
-									</p>
+									<p class="description"><?php esc_html_e( 'Fallback-chain tags (try_text, try_image, etc.).', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
 					</table>
 				</div>
 
-				<?php /* ── Deprecated Tags ── */ ?>
-				<?php if ( $has_deprecated ) : ?>
-				<div class="bws-tag-group" id="bws-deprecated-section">
-					<h2 class="bws-source-header">
-						<?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?>
-					</h2>
-					<p class="description" style="padding: 8px 12px; margin: 0; background: #fff; border: 1px solid #c3c4c7; border-top: none; border-bottom: none;">
-						<?php esc_html_e( 'These tags still work but have been replaced. Use the Convert button to migrate saved post content to the current tag format.', 'generateblocks' ); ?>
+				<?php /* ── Deprecated Tag Mode ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Control how deprecated tags behave. Use the Migration Tool below to find and update content before disabling.', 'generateblocks' ); ?>
 					</p>
-					<table class="bws-tags-table bws-deprecated-table widefat">
-						<tbody>
-						<?php foreach ( $deprecated_entries as $entry ) :
-							$tag_name   = $entry['old_tag'] ?? '';
-							$new_tag    = $entry['new_tag'] ?? '';
-							$since      = $entry['since']   ?? '';
-							if ( '' === $tag_name ) {
-								continue;
-							}
-							$enabled = isset( $settings['deprecated'][ $tag_name ] )
-								? (bool) $settings['deprecated'][ $tag_name ]
-								: true;
-							$cb_id = 'bws-dep-' . esc_attr( $tag_name );
-						?>
-							<tr class="bws-tag-row" data-tag="<?php echo esc_attr( $tag_name ); ?>">
-								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="<?php echo $cb_id; ?>"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $tag_name ); ?>]"
-										value="1"
-										<?php checked( $enabled ); ?>
-									/>
-								</td>
-								<td>
-									<label for="<?php echo $cb_id; ?>">
-										<?php echo esc_html( $entry['title'] ?? $tag_name ); ?>
-									</label>
-									<code class="bws-tag-name"><?php echo esc_html( $tag_name ); ?></code>
-									<?php if ( $new_tag ) : ?>
-									<span class="bws-dep-arrow">→</span>
-									<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $new_tag ); ?></code>
-									<?php endif; ?>
-									<?php if ( $since ) : ?>
-									<span class="bws-dep-since">
-										<?php
-										echo esc_html(
-											/* translators: %s: plugin version number */
-											sprintf( __( '(since %s)', 'generateblocks' ), $since )
-										);
-										?>
-									</span>
-									<?php endif; ?>
-								</td>
-								<td class="bws-convert-cell">
-									<div class="bws-convert-actions">
-										<button
-											type="button"
-											class="button bws-list-btn"
-											data-tag="<?php echo esc_attr( $tag_name ); ?>"
-											data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
-										>
-											<?php esc_html_e( 'List Posts', 'generateblocks' ); ?>
-										</button>
-										<?php if ( DeprecatedTagRegistry::has_migration_path( $tag_name ) ) : ?>
-										<button
-											type="button"
-											class="button bws-convert-btn"
-											data-tag="<?php echo esc_attr( $tag_name ); ?>"
-											data-nonce="<?php echo esc_attr( $convert_nonce ); ?>"
-										>
-											<?php esc_html_e( 'Convert', 'generateblocks' ); ?>
-										</button>
-										<?php endif; ?>
-										<span class="bws-convert-result" aria-live="polite"></span>
-									</div>
-									<div class="bws-list-result" style="display:none;"></div>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
+
+					<?php foreach ( array(
+						array(
+							'key'     => 'mode_with_path',
+							'label'   => __( 'Tags with migration path', 'generateblocks' ),
+							'desc'    => __( 'These deprecated tags can be automatically converted to current equivalents.', 'generateblocks' ),
+							'current' => $mode_with,
+							'entries' => $entries_with,
+						),
+						array(
+							'key'     => 'mode_without_path',
+							'label'   => __( 'Tags without migration path', 'generateblocks' ),
+							'desc'    => __( 'These deprecated tags have no automatic conversion. Manual update required before disabling.', 'generateblocks' ),
+							'current' => $mode_without,
+							'entries' => $entries_without,
+						),
+					) as $group ) : ?>
+
+					<div class="bws-dep-group">
+						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
+						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
+
+						<div class="bws-mode-radios">
+							<?php foreach ( $mode_options as $val => $label ) : ?>
+							<label class="bws-mode-radio-label">
+								<input type="radio"
+									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $group['key'] ); ?>]"
+									value="<?php echo esc_attr( $val ); ?>"
+									<?php checked( $group['current'], $val ); ?> />
+								<?php echo esc_html( $label ); ?>
+							</label>
+							<?php endforeach; ?>
+						</div>
+
+						<?php if ( ! empty( $group['entries'] ) ) : ?>
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of deprecated tags */
+									_n( '%d deprecated tag', '%d deprecated tags', count( $group['entries'] ), 'generateblocks' ),
+									count( $group['entries'] )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $group['entries'] as $entry ) :
+									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
+									$new_tag = $entry['new_tag'] ?? '';
+									$since   = $entry['since']   ?? '';
+									if ( '' === $old_tag ) { continue; }
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<code class="bws-tag-name"><?php echo esc_html( $old_tag ); ?></code>
+											<?php if ( $new_tag ) : ?>
+											<span class="bws-dep-arrow">→</span>
+											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $new_tag ); ?></code>
+											<?php endif; ?>
+											<?php if ( $since ) : ?>
+											<span class="bws-dep-since"><?php echo esc_html( sprintf(
+												/* translators: %s: version */
+												__( '(since %s)', 'generateblocks' ), $since
+											) ); ?></span>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+						<?php endif; ?>
+					</div>
+					<?php endforeach; ?>
 				</div>
-				<?php endif; ?>
 
 				<?php /* ── Diagnostics ── */ ?>
 				<div class="bws-tag-group">
-					<h2 class="bws-source-header" style="border-bottom:1px solid #c3c4c7">
-						<?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?>
-					</h2>
+					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="bws-diag-benchmark-logging"
+									<input type="checkbox" id="bws-diag-benchmark-logging"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_logging]"
-										value="1"
-										<?php checked( self::is_benchmark_logging_enabled() ); ?>
-									/>
+										value="1" <?php checked( self::is_benchmark_logging_enabled() ); ?> />
 								</td>
 								<td>
-									<label for="bws-diag-benchmark-logging">
-										<?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?>
-									</label>
-									<p class="description">
-										<?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log. Active even when WP_DEBUG is off.', 'generateblocks' ); ?>
-									</p>
+									<label for="bws-diag-benchmark-logging"><?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="bws-diag-benchmark-page"
+									<input type="checkbox" id="bws-diag-benchmark-page"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_page]"
-										value="1"
-										<?php checked( self::is_benchmark_page_enabled() ); ?>
-									/>
+										value="1" <?php checked( self::is_benchmark_page_enabled() ); ?> />
 								</td>
 								<td>
-									<label for="bws-diag-benchmark-page">
-										<?php esc_html_e( 'Enable benchmark admin page', 'generateblocks' ); ?>
-									</label>
-									<p class="description">
-										<?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for testing post content processing performance.', 'generateblocks' ); ?>
-									</p>
+									<label for="bws-diag-benchmark-page"><?php esc_html_e( 'Enable benchmark admin page', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for performance testing.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input
-										type="checkbox"
-										id="bws-diag-registration-logging"
+									<input type="checkbox" id="bws-diag-registration-logging"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][registration_logging]"
-										value="1"
-										<?php checked( self::is_registration_logging_enabled() ); ?>
-									/>
+										value="1" <?php checked( self::is_registration_logging_enabled() ); ?> />
 								</td>
 								<td>
-									<label for="bws-diag-registration-logging">
-										<?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?>
-									</label>
-									<p class="description">
-										<?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log. Disable after confirming external sources are loading correctly.', 'generateblocks' ); ?>
-									</p>
+									<label for="bws-diag-registration-logging"><?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
@@ -426,216 +410,130 @@ class SettingsPage {
 
 				<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
 			</form>
+
+			<?php /* ── Migration Tool (outside form — AJAX driven) ── */ ?>
+			<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
+				<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
+				<p class="description bws-section-desc">
+					<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+				</p>
+
+				<div class="bws-scan-controls">
+					<button type="button" id="bws-scan-btn" class="button button-primary">
+						<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
+					</button>
+					<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
+				</div>
+
+				<div id="bws-scan-results" style="display:none;">
+					<div class="bws-results-toolbar">
+						<label>
+							<input type="checkbox" id="bws-select-all" />
+							<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
+						</label>
+						<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
+							<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
+						</button>
+						<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
+							<div class="bws-progress-bar"><div class="bws-progress-fill" id="bws-progress-fill"></div></div>
+							<span id="bws-progress-label"></span>
+						</div>
+					</div>
+					<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
+						<thead>
+							<tr>
+								<th class="bws-cb-col"></th>
+								<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
+								<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
+								<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
+								<th><?php esc_html_e( 'Actions', 'generateblocks' ); ?></th>
+							</tr>
+						</thead>
+						<tbody id="bws-results-tbody"></tbody>
+					</table>
+				</div>
+			</div>
 		</div>
 
 		<style>
-			.bws-dynamic-tags-settings .bws-tag-group {
-				margin-bottom: 24px;
-			}
-			.bws-dynamic-tags-settings .bws-source-header {
-				margin: 0 0 4px;
+			.bws-dynamic-tags-settings .bws-tag-group { margin-bottom: 24px; }
+			.bws-dynamic-tags-settings .bws-section-header {
+				margin: 0 0 0;
 				padding: 10px 12px;
 				background: #f0f0f1;
 				border: 1px solid #c3c4c7;
-				border-bottom: none;
 				font-size: 14px;
 			}
-			.bws-dynamic-tags-settings .bws-tags-table {
+			.bws-dynamic-tags-settings .bws-section-desc {
+				padding: 8px 12px;
+				margin: 0;
+				background: #fff;
+				border: 1px solid #c3c4c7;
+				border-top: none;
+				border-bottom: none;
+			}
+			.bws-dynamic-tags-settings .bws-tags-table { border-top: none; }
+			.bws-dynamic-tags-settings .bws-tag-row td { padding: 6px 12px; vertical-align: middle; }
+			.bws-dynamic-tags-settings .bws-tag-checkbox { width: 30px; }
+			.bws-dynamic-tags-settings .bws-tag-name { margin-left: 4px; font-size: 12px; color: #787c82; }
+			.bws-dynamic-tags-settings .bws-new-tag { color: #2271b1; }
+			.bws-dynamic-tags-settings .bws-dep-arrow { margin: 0 2px; color: #787c82; }
+			.bws-dynamic-tags-settings .bws-dep-since { margin-left: 8px; font-size: 12px; color: #a0a0a0; }
+
+			/* Deprecated group */
+			.bws-dynamic-tags-settings .bws-dep-group {
+				padding: 12px;
+				background: #fff;
+				border: 1px solid #c3c4c7;
 				border-top: none;
 			}
-			.bws-dynamic-tags-settings .bws-tag-row td {
-				padding: 6px 12px;
-				vertical-align: middle;
+			.bws-dynamic-tags-settings .bws-dep-group + .bws-dep-group { border-top: 1px solid #c3c4c7; }
+			.bws-dynamic-tags-settings .bws-dep-group-header { margin: 0 0 4px; font-size: 13px; }
+			.bws-dynamic-tags-settings .bws-mode-radios { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+			.bws-dynamic-tags-settings .bws-mode-radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+			.bws-dynamic-tags-settings .bws-dep-tag-list { margin-top: 8px; }
+			.bws-dynamic-tags-settings .bws-dep-tag-list summary { cursor: pointer; color: #2271b1; font-size: 13px; }
+			.bws-dynamic-tags-settings .bws-ref-table { margin-top: 6px; }
+			.bws-dynamic-tags-settings .bws-ref-table td { padding: 3px 10px; }
+
+			/* Migration tool */
+			.bws-dynamic-tags-settings .bws-migration-tool {
+				background: #fff;
+				border: 1px solid #c3c4c7;
 			}
-			.bws-dynamic-tags-settings .bws-tag-checkbox {
-				width: 30px;
-			}
-			.bws-dynamic-tags-settings .bws-tag-row label {
-				cursor: pointer;
-			}
-			.bws-dynamic-tags-settings .bws-tag-name {
-				margin-left: 8px;
-				font-size: 12px;
-				color: #787c82;
-			}
-			.bws-dynamic-tags-settings .bws-new-tag {
-				color: #2271b1;
-			}
-			.bws-dynamic-tags-settings .bws-dep-arrow {
-				margin-left: 6px;
-				color: #787c82;
-			}
-			.bws-dynamic-tags-settings .bws-dep-since {
-				margin-left: 8px;
-				font-size: 12px;
-				color: #a0a0a0;
-			}
-			.bws-dynamic-tags-settings .bws-deprecated-table .bws-convert-cell {
-				width: 240px;
-			}
-			.bws-dynamic-tags-settings .bws-convert-actions {
+			.bws-dynamic-tags-settings .bws-scan-controls {
 				display: flex;
 				align-items: center;
-				gap: 6px;
+				gap: 12px;
+				padding: 12px;
+				border-bottom: 1px solid #c3c4c7;
+			}
+			.bws-dynamic-tags-settings .bws-scan-status { font-size: 13px; color: #787c82; }
+			.bws-dynamic-tags-settings .bws-results-toolbar {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 8px 12px;
+				background: #f6f7f7;
+				border-bottom: 1px solid #c3c4c7;
 				flex-wrap: wrap;
 			}
-			.bws-dynamic-tags-settings .bws-convert-result {
-				font-size: 13px;
-			}
-			.bws-dynamic-tags-settings .bws-convert-result.success {
-				color: #00a32a;
-			}
-			.bws-dynamic-tags-settings .bws-convert-result.error {
-				color: #d63638;
-			}
-			.bws-dynamic-tags-settings .bws-list-result {
-				margin-top: 8px;
-				padding: 6px 10px;
-				background: #f6f7f7;
-				border: 1px solid #dcdcde;
-				font-size: 13px;
-			}
-			.bws-dynamic-tags-settings .bws-list-count {
-				margin: 0 0 4px;
-				color: #787c82;
-			}
-			.bws-dynamic-tags-settings .bws-post-list {
-				margin: 0;
-				padding: 0 0 0 16px;
-				max-height: 180px;
-				overflow-y: auto;
-			}
-			.bws-dynamic-tags-settings .bws-post-list li {
-				margin: 2px 0;
-			}
-			.bws-dynamic-tags-settings .bws-list-error {
-				color: #d63638;
-			}
+			.bws-dynamic-tags-settings .bws-results-table th,
+			.bws-dynamic-tags-settings .bws-results-table td { padding: 6px 12px; vertical-align: middle; }
+			.bws-dynamic-tags-settings .bws-cb-col { width: 28px; }
+			.bws-dynamic-tags-settings .bws-issue-list { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+			.bws-dynamic-tags-settings .bws-issue-tag { color: #d63638; }
+			.bws-dynamic-tags-settings .bws-issue-opt { color: #996800; }
+			.bws-dynamic-tags-settings .bws-no-revision { font-size: 12px; color: #996800; }
+			.bws-dynamic-tags-settings .bws-row-status { font-size: 12px; margin-left: 6px; }
+			.bws-dynamic-tags-settings .bws-row-status.ok { color: #00a32a; }
+			.bws-dynamic-tags-settings .bws-row-status.err { color: #d63638; }
+
+			/* Progress bar */
+			.bws-dynamic-tags-settings .bws-progress-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
+			.bws-dynamic-tags-settings .bws-progress-bar { flex: 1; height: 8px; background: #dcdcde; border-radius: 4px; overflow: hidden; }
+			.bws-dynamic-tags-settings .bws-progress-fill { height: 100%; background: #2271b1; width: 0; transition: width 0.2s; }
 		</style>
-
-		<script>
-			( function() {
-				var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
-
-				function escHtml( str ) {
-					return String( str )
-						.replace( /&/g, '&amp;' )
-						.replace( /</g, '&lt;' )
-						.replace( />/g, '&gt;' )
-						.replace( /"/g, '&quot;' );
-				}
-
-				// List Posts button.
-				document.querySelectorAll( '.bws-list-btn' ).forEach( function( btn ) {
-					btn.addEventListener( 'click', function() {
-						var tagName = this.dataset.tag;
-						var nonce   = this.dataset.nonce;
-						var cell    = this.closest( 'td' );
-						var panel   = cell.querySelector( '.bws-list-result' );
-
-						// Toggle if results already loaded.
-						if ( panel.dataset.loaded ) {
-							panel.style.display = ( 'none' === panel.style.display ) ? 'block' : 'none';
-							return;
-						}
-
-						btn.disabled = true;
-						panel.innerHTML = '<em><?php echo esc_js( __( 'Searching…', 'generateblocks' ) ); ?></em>';
-						panel.style.display = 'block';
-
-						var data = new FormData();
-						data.append( 'action',           'bws_convert_deprecated_tag' );
-						data.append( 'nonce',            nonce );
-						data.append( 'tag_name',         tagName );
-						data.append( 'converter_action', 'list' );
-
-						fetch( ajaxUrl, { method: 'POST', body: data } )
-							.then( function( r ) { return r.json(); } )
-							.then( function( json ) {
-								panel.dataset.loaded = '1';
-								if ( json.success ) {
-									var posts = json.data.posts;
-									var total = json.data.total;
-									if ( 0 === total ) {
-										panel.innerHTML = '<em><?php echo esc_js( __( 'No posts found.', 'generateblocks' ) ); ?></em>';
-										return;
-									}
-									var html = '<p class="bws-list-count">';
-									html += total + ' <?php echo esc_js( __( 'post(s) found:', 'generateblocks' ) ); ?>';
-									html += '</p><ul class="bws-post-list">';
-									posts.forEach( function( p ) {
-										html += '<li><a href="' + escHtml( p.edit_url ) + '" target="_blank">' + escHtml( p.post_title ) + '</a></li>';
-									} );
-									html += '</ul>';
-									panel.innerHTML = html;
-								} else {
-									var msg = ( json.data && json.data.message )
-										? json.data.message
-										: <?php echo wp_json_encode( __( 'Request failed.', 'generateblocks' ) ); ?>;
-									panel.innerHTML = '<em class="bws-list-error">' + escHtml( msg ) + '</em>';
-								}
-							} )
-							.catch( function() {
-								panel.innerHTML = '<em class="bws-list-error"><?php echo esc_js( __( 'Request error.', 'generateblocks' ) ); ?></em>';
-							} )
-							.finally( function() {
-								btn.disabled = false;
-							} );
-					} );
-				} );
-
-				// Convert button.
-				document.querySelectorAll( '.bws-convert-btn' ).forEach( function( btn ) {
-					btn.addEventListener( 'click', function() {
-						var tagName = this.dataset.tag;
-						var nonce   = this.dataset.nonce;
-						var cell    = this.closest( 'td' );
-						var result  = cell.querySelector( '.bws-convert-result' );
-						var panel   = cell.querySelector( '.bws-list-result' );
-
-						btn.disabled       = true;
-						result.textContent = <?php echo wp_json_encode( __( 'Converting…', 'generateblocks' ) ); ?>;
-						result.className   = 'bws-convert-result';
-
-						var data = new FormData();
-						data.append( 'action',           'bws_convert_deprecated_tag' );
-						data.append( 'nonce',            nonce );
-						data.append( 'tag_name',         tagName );
-						data.append( 'converter_action', 'convert' );
-
-						fetch( ajaxUrl, { method: 'POST', body: data } )
-							.then( function( r ) { return r.json(); } )
-							.then( function( json ) {
-								if ( json.success ) {
-									var count = json.data.count;
-									result.textContent = count === 1
-										? <?php echo wp_json_encode( __( 'Updated 1 post.', 'generateblocks' ) ); ?>
-										: count.toString() + ' ' + <?php echo wp_json_encode( __( 'posts updated.', 'generateblocks' ) ); ?>;
-									result.className = 'bws-convert-result success';
-									// Invalidate cached list so next List Posts click re-fetches.
-									if ( panel ) {
-										delete panel.dataset.loaded;
-										panel.style.display = 'none';
-										panel.innerHTML = '';
-									}
-								} else {
-									result.textContent = ( json.data && json.data.message )
-										? json.data.message
-										: <?php echo wp_json_encode( __( 'Conversion failed.', 'generateblocks' ) ); ?>;
-									result.className = 'bws-convert-result error';
-								}
-							} )
-							.catch( function() {
-								result.textContent = <?php echo wp_json_encode( __( 'Request error.', 'generateblocks' ) ); ?>;
-								result.className   = 'bws-convert-result error';
-							} )
-							.finally( function() {
-								btn.disabled = false;
-							} );
-					} );
-				} );
-			} )();
-		</script>
 		<?php
 	}
 }

@@ -644,7 +644,7 @@ function bws_safe_content_output( $content, $options, $instance ) {
  * Called only when $instance->context['bwsEditorPreview'] is set and
  * the real tag value is empty.
  *
- * @since 1.7.0
+ * @since 1.6.0
  * @param array  $options  Parsed tag options.
  * @param string $template Full template name including modifier prefix (e.g. 'term_text', 'text').
  * @return string Bracket preview label, or '' when template is excluded.

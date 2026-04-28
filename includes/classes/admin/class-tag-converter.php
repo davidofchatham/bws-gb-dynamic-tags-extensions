@@ -1,21 +1,24 @@
 <?php
 /**
- * Converter utility for migrating deprecated tag strings in post content.
+ * Tag migration converter for deprecated tags and option-key migrations.
  *
- * Given a deprecated tag name, scans wp_posts.post_content for occurrences,
- * applies DeprecatedTagRegistry::transform_options() (following the full
- * deprecated chain in a single pass), updates matched posts, and returns
- * the number of posts changed.
- *
- * Triggered via AJAX from the deprecated tag section of the settings page.
+ * Provides:
+ *   - scan()         Finds all posts (no revisions) containing any deprecated tag or
+ *                    base tag with deprecated option keys, grouped by post.
+ *   - migrate_post() Creates a WP revision (when supported), then applies all tag and
+ *                    option migrations to a single post's content.
+ *   - ajax_scan()    AJAX handler for the Scan button.
+ *   - ajax_migrate() AJAX handler for per-post Migrate and paginated bulk Migrate.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.6.0
+ * @since 1.6.0 Unified scan across tag and option migrations; per-post migrate with revision;
+ *              paginated bulk AJAX; removed per-tag list/convert API.
  */
 
 namespace BWS\DynamicTags\Admin;
 
-use BWS\DynamicTags\DeprecatedTagRegistry;
+use BWS\DynamicTags\MigrationRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -24,160 +27,299 @@ if ( ! defined( 'ABSPATH' ) ) {
 class TagConverter {
 
 	// ===============================================
-	// PUBLIC API
+	// SCAN
 	// ===============================================
 
 	/**
-	 * Convert all occurrences of a deprecated tag in post content.
+	 * Scan all non-revision posts for deprecated tags and option migrations.
 	 *
-	 * Searches all non-trashed, non-auto-draft posts whose content contains
-	 * the deprecated tag name pattern. For each match, resolves the full
-	 * deprecated chain in a single pass and writes the migrated tag string.
-	 * Posts whose content does not change after transformation are not updated.
-	 *
-	 * @since 1.6.0
-	 * @param string $old_tag_name Deprecated GB tag name to convert.
-	 * @return int Number of posts whose content was updated.
-	 */
-	public static function convert( string $old_tag_name ): int {
-		global $wpdb;
-
-		// Pre-filter: only load posts that plausibly contain the tag.
-		$like_pattern = '%' . $wpdb->esc_like( '{{' . $old_tag_name ) . '%';
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$posts = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT ID, post_content FROM {$wpdb->posts}
-				 WHERE post_status NOT IN ('auto-draft', 'trash')
-				 AND post_content LIKE %s",
-				$like_pattern
-			)
-		);
-
-		if ( empty( $posts ) ) {
-			return 0;
-		}
-
-		$pattern       = '/\{\{' . preg_quote( $old_tag_name, '/' ) . '(\s[^}]*)?\}\}/';
-		$updated_count = 0;
-
-		foreach ( $posts as $post ) {
-			$new_content = preg_replace_callback(
-				$pattern,
-				static function ( array $matches ) use ( $old_tag_name ): string {
-					return self::resolve_full_chain( $old_tag_name, $matches[0] );
-				},
-				$post->post_content
-			);
-
-			if ( null !== $new_content && $new_content !== $post->post_content ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-				$wpdb->update(
-					$wpdb->posts,
-					array( 'post_content' => $new_content ),
-					array( 'ID' => (int) $post->ID ),
-					array( '%s' ),
-					array( '%d' )
-				);
-				++$updated_count;
-			}
-		}
-
-		return $updated_count;
-	}
-
-	/**
-	 * List posts containing a deprecated tag.
-	 *
-	 * Searches all non-trashed, non-auto-draft posts whose content contains the
-	 * deprecated tag name. A secondary regex check eliminates LIKE false-positives
-	 * caused by tag names that are prefixes of other tag names.
+	 * Returns one result row per post. Each row includes the post's deprecated tag names
+	 * and option migration labels found in the content, plus whether WP revision support
+	 * is available for that post type.
 	 *
 	 * @since 1.6.0
-	 * @param string $old_tag_name Deprecated GB tag name to search for.
-	 * @return array{ posts: array<array{post_id: int, post_title: string, edit_url: string}>, total: int }
+	 * @return array[] {
+	 *   @type int    $post_id              Post ID.
+	 *   @type string $post_title           Post title (or "(no title)").
+	 *   @type string $post_type            Post type slug.
+	 *   @type string $edit_url             Edit link URL.
+	 *   @type bool   $has_revision_support Whether wp_save_post_revision() can snapshot this post.
+	 *   @type array  $deprecated_tags      List of { tag, has_migration } found in content.
+	 *   @type array  $option_migrations    List of { tag, label } for base tags with deprecated option keys.
+	 * }
 	 */
-	public static function list( string $old_tag_name ): array {
+	public static function scan(): array {
 		global $wpdb;
 
-		$like_pattern = '%' . $wpdb->esc_like( '{{' . $old_tag_name ) . '%';
+		$tag_names        = MigrationRegistry::get_deprecated_tag_names();
+		$option_migration_map = MigrationRegistry::get_option_migrations_by_tag();
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$all_scan_names = array_unique( array_merge( $tag_names, array_keys( $option_migration_map ) ) );
+
+		if ( empty( $all_scan_names ) ) {
+			return array();
+		}
+
+		$like_conditions = array();
+		$like_values     = array();
+		foreach ( $all_scan_names as $name ) {
+			$like_conditions[] = 'post_content LIKE %s';
+			$like_values[]     = '%' . $wpdb->esc_like( '{{' . $name ) . '%';
+		}
+
+		$where_likes = implode( ' OR ', $like_conditions );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ID, post_title, post_content FROM {$wpdb->posts}
-				 WHERE post_status NOT IN ('auto-draft', 'trash')
-				 AND post_content LIKE %s
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts}
+				 WHERE post_type != 'revision'
+				 AND post_status NOT IN ('auto-draft', 'trash')
+				 AND ({$where_likes})
 				 ORDER BY post_title ASC",
-				$like_pattern
+				...$like_values
 			)
 		);
 
 		if ( empty( $rows ) ) {
-			return array( 'posts' => array(), 'total' => 0 );
+			return array();
 		}
 
-		// Secondary filter: confirm the exact tag string is present (LIKE matches prefix variants too).
-		$pattern = '/\{\{' . preg_quote( $old_tag_name, '/' ) . '(?:\s[^}]*)?\}\}/';
-		$matched = array_values( array_filter( $rows, fn( $r ) => (bool) preg_match( $pattern, $r->post_content ) ) );
-		$total   = count( $matched );
+		$revision_support_cache = array();
+		$results                = array();
 
-		if ( 0 === $total ) {
-			return array( 'posts' => array(), 'total' => 0 );
+		foreach ( $rows as $row ) {
+			$content = $row->post_content;
+
+			// Deprecated tag names.
+			$deprecated_found = array();
+			foreach ( $tag_names as $tag ) {
+				$pattern = '/\{\{' . preg_quote( $tag, '/' ) . '(?:\s[^}]*)?\}\}/';
+				if ( preg_match( $pattern, $content ) ) {
+					$deprecated_found[] = array(
+						'tag'           => $tag,
+						'has_migration' => MigrationRegistry::has_migration_path( $tag ),
+					);
+				}
+			}
+
+			// Option migrations.
+			$option_migrations_found = array();
+			foreach ( $option_migration_map as $base_tag => $entries ) {
+				$tag_pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(?:\s[^}]*)?\}\}/';
+				preg_match_all( $tag_pattern, $content, $tag_matches );
+
+				foreach ( $tag_matches[0] as $tag_string ) {
+					[ , $options ] = MigrationRegistry::parse_tag_string( $tag_string );
+					$option_keys   = array_keys( $options );
+
+					foreach ( $entries as $entry ) {
+						$required    = $entry['match_options'] ?? array();
+						$all_present = ! empty( $required );
+						foreach ( $required as $key ) {
+							if ( ! in_array( $key, $option_keys, true ) ) {
+								$all_present = false;
+								break;
+							}
+						}
+						if ( $all_present ) {
+							$label           = $entry['label'] ?? $base_tag;
+							$existing_labels = array_column( $option_migrations_found, 'label' );
+							if ( ! in_array( $label, $existing_labels, true ) ) {
+								$option_migrations_found[] = array(
+									'tag'   => $base_tag,
+									'label' => $label,
+								);
+							}
+							break;
+						}
+					}
+				}
+			}
+
+			if ( empty( $deprecated_found ) && empty( $option_migrations_found ) ) {
+				continue; // LIKE false-positive.
+			}
+
+			$post_type = $row->post_type;
+			if ( ! isset( $revision_support_cache[ $post_type ] ) ) {
+				$revision_support_cache[ $post_type ] = post_type_supports( $post_type, 'revisions' )
+					&& ( wp_revisions_to_keep( get_post( (int) $row->ID ) ) !== 0 );
+			}
+
+			$results[] = array(
+				'post_id'              => (int) $row->ID,
+				'post_title'           => $row->post_title ?: __( '(no title)', 'generateblocks' ),
+				'post_type'            => $post_type,
+				'edit_url'             => get_edit_post_link( (int) $row->ID, 'raw' ),
+				'has_revision_support' => $revision_support_cache[ $post_type ],
+				'deprecated_tags'      => $deprecated_found,
+				'option_migrations'    => $option_migrations_found,
+			);
 		}
 
-		$posts = array_map( fn( $r ) => array(
-			'post_id'    => (int) $r->ID,
-			'post_title' => $r->post_title ?: __( '(no title)', 'generateblocks' ),
-			'edit_url'   => get_edit_post_link( (int) $r->ID, 'raw' ),
-		), $matched );
-
-		return array( 'posts' => $posts, 'total' => $total );
+		return $results;
 	}
 
+	// ===============================================
+	// PER-POST MIGRATE
+	// ===============================================
+
 	/**
-	 * AJAX handler for the List Posts and Convert buttons on the settings page.
+	 * Migrate all deprecated tags and option migrations in a single post.
 	 *
-	 * Expects POST fields: nonce, tag_name, converter_action ('list' or 'convert').
-	 * List:    returns JSON { success: true, data: { posts: [...], total: N } }
-	 * Convert: returns JSON { success: true, data: { count: N } }
+	 * 1. Reads current post content.
+	 * 2. Calls wp_save_post_revision() — creates pre-migration snapshot when supported;
+	 *    deduped by WP if content matches last revision.
+	 * 3. Applies all deprecated tag transforms (full chain per match).
+	 * 4. Applies all option migrations.
+	 * 5. Writes directly to wp_posts if content changed (avoids hook side-effects and
+	 *    duplicate revision from wp_update_post).
+	 *
+	 * @since 1.6.0
+	 * @param int $post_id Post ID to migrate.
+	 * @return array {
+	 *   @type bool      $changed       Whether post content was modified.
+	 *   @type int       $tag_count     Deprecated tag replacements made.
+	 *   @type int       $option_count  Option migration replacements made.
+	 *   @type int|false $revision_id   Revision ID, or false if unsupported / not needed.
+	 * }
+	 */
+	public static function migrate_post( int $post_id ): array {
+		global $wpdb;
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return array( 'changed' => false, 'tag_count' => 0, 'option_count' => 0, 'revision_id' => false );
+		}
+
+		$content = $post->post_content;
+
+		// Step 2: Pre-migration snapshot.
+		$revision_id = wp_save_post_revision( $post_id );
+
+		// Step 3: Deprecated tag transforms.
+		$tag_count = 0;
+		foreach ( MigrationRegistry::get_deprecated_tag_names() as $old_tag ) {
+			$pattern = '/\{\{' . preg_quote( $old_tag, '/' ) . '(\s[^}]*)?\}\}/';
+			$content = preg_replace_callback(
+				$pattern,
+				static function ( array $matches ) use ( $old_tag, &$tag_count ): string {
+					$transformed = self::resolve_full_chain( $old_tag, $matches[0] );
+					if ( $transformed !== $matches[0] ) {
+						++$tag_count;
+					}
+					return $transformed;
+				},
+				$content
+			) ?? $content;
+		}
+
+		// Step 4: Option migrations.
+		$option_count = 0;
+		foreach ( MigrationRegistry::get_option_migrations_by_tag() as $base_tag => $entries ) {
+			$pattern = '/\{\{' . preg_quote( $base_tag, '/' ) . '(\s[^}]*)?\}\}/';
+			$content = preg_replace_callback(
+				$pattern,
+				static function ( array $matches ) use ( $base_tag, &$option_count ): string {
+					$transformed = MigrationRegistry::apply_option_migration( $base_tag, $matches[0] );
+					if ( $transformed !== $matches[0] ) {
+						++$option_count;
+					}
+					return $transformed;
+				},
+				$content
+			) ?? $content;
+		}
+
+		// Step 5: Write if changed.
+		$changed = ( $content !== $post->post_content );
+		if ( $changed ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->update(
+				$wpdb->posts,
+				array( 'post_content' => $content ),
+				array( 'ID' => $post_id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+			clean_post_cache( $post_id );
+		}
+
+		return array(
+			'changed'      => $changed,
+			'tag_count'    => $tag_count,
+			'option_count' => $option_count,
+			'revision_id'  => $revision_id,
+		);
+	}
+
+	// ===============================================
+	// AJAX HANDLERS
+	// ===============================================
+
+	/**
+	 * AJAX: scan all posts for deprecated tags and option migrations.
+	 *
+	 * Returns JSON { success: true, data: { posts: [...], total: N } }
 	 *
 	 * @since 1.6.0
 	 */
-	public static function ajax_handler(): void {
+	public static function ajax_scan(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'Permission denied.', 'generateblocks' ) ),
-				403
-			);
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'generateblocks' ) ), 403 );
 		}
 
-		$tag_name         = sanitize_key( wp_unslash( $_POST['tag_name'] ?? '' ) );
-		$converter_action = sanitize_key( wp_unslash( $_POST['converter_action'] ?? 'convert' ) );
+		$posts = self::scan();
+		wp_send_json_success( array( 'posts' => $posts, 'total' => count( $posts ) ) );
+	}
 
-		if ( '' === $tag_name ) {
-			wp_send_json_error(
-				array( 'message' => __( 'Invalid tag name.', 'generateblocks' ) ),
-				400
-			);
+	/**
+	 * AJAX: migrate one or more posts (per-post or paginated bulk batch).
+	 *
+	 * POST fields:
+	 *   nonce    — bws_convert_tag nonce.
+	 *   post_ids — JSON-encoded array of post IDs to migrate in this batch.
+	 *
+	 * Returns JSON { success: true, data: { results: [...], processed: N } }
+	 * Each result: { post_id, changed, tag_count, option_count, has_revision }
+	 *
+	 * @since 1.6.0
+	 */
+	public static function ajax_migrate(): void {
+		check_ajax_referer( 'bws_convert_tag', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'generateblocks' ) ), 403 );
 		}
 
-		if ( 'list' === $converter_action ) {
-			wp_send_json_success( self::list( $tag_name ) );
-			return;
+		$raw_ids  = wp_unslash( $_POST['post_ids'] ?? '[]' );
+		$post_ids = json_decode( $raw_ids, true );
+
+		if ( ! is_array( $post_ids ) || empty( $post_ids ) ) {
+			wp_send_json_error( array( 'message' => __( 'No post IDs provided.', 'generateblocks' ) ), 400 );
 		}
 
-		if ( ! DeprecatedTagRegistry::has_migration_path( $tag_name ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'No migration path for this tag.', 'generateblocks' ) ),
-				400
-			);
+		$results = array();
+		foreach ( $post_ids as $post_id ) {
+			$post_id = (int) $post_id;
+			if ( $post_id <= 0 ) {
+				continue;
+			}
+			$result               = self::migrate_post( $post_id );
+			$result['post_id']    = $post_id;
+			$result['has_revision'] = ( false !== $result['revision_id'] );
+			unset( $result['revision_id'] );
+			$results[] = $result;
 		}
 
-		wp_send_json_success( array( 'count' => self::convert( $tag_name ) ) );
+		wp_send_json_success( array(
+			'results'   => $results,
+			'processed' => count( $results ),
+		) );
 	}
 
 	// ===============================================
@@ -185,40 +327,33 @@ class TagConverter {
 	// ===============================================
 
 	/**
-	 * Resolve the full deprecated chain for a single tag match.
-	 *
-	 * Follows multi-hop chains (A → B → C) in a single pass: after applying
-	 * the transform for old_tag_name, checks whether the resulting new tag
-	 * name is itself deprecated and continues until a non-deprecated target
-	 * is reached or a circular reference is detected.
+	 * Resolve the full deprecated chain for a single tag match (max 10 hops).
 	 *
 	 * @since 1.6.0
 	 * @param string $old_tag_name Starting deprecated tag name.
-	 * @param string $tag_string   Full raw tag string (e.g. `{{old_tag key:val}}`).
+	 * @param string $tag_string   Full raw tag string.
 	 * @return string Final migrated tag string.
 	 */
 	private static function resolve_full_chain( string $old_tag_name, string $tag_string ): string {
 		$seen    = array();
 		$current = $old_tag_name;
 		$string  = $tag_string;
-		$max     = 10; // Guard against pathological chains.
+		$max     = 10;
 
 		while ( $max-- > 0 ) {
 			if ( in_array( $current, $seen, true ) ) {
-				break; // Circular reference guard.
+				break;
 			}
 			$seen[] = $current;
 
-			$transformed = DeprecatedTagRegistry::transform_options( $current, $string );
+			$transformed = MigrationRegistry::transform_tag( $current, $string );
 
-			// transform_options() returns the original string when no entry exists.
 			if ( $transformed === $string ) {
 				break;
 			}
 
 			$string = $transformed;
 
-			// Extract the new tag name from the serialized output.
 			if ( ! preg_match( '/^\{\{(\S+)/', $string, $m ) ) {
 				break;
 			}
@@ -229,13 +364,10 @@ class TagConverter {
 			}
 			$current = $new_tag;
 
-			// Probe whether the new tag is itself in the registry.
-			// transform_options() returns the same string when no entry is found.
-			$probe = DeprecatedTagRegistry::transform_options( $current, $string );
+			$probe = MigrationRegistry::transform_tag( $current, $string );
 			if ( $probe === $string ) {
-				break; // $current is not deprecated; chain ends here.
+				break;
 			}
-			// $current IS also deprecated; the next loop iteration applies its transform.
 		}
 
 		return $string;

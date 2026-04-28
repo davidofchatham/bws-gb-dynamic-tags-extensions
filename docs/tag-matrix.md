@@ -490,22 +490,22 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ### `datetime_single` and `datetime_range`
 
-| # | Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
-|---|---|---|---|---|---|
-| 1 | Return As | `as` | ✓ | ✓ | `datetime`; `date`; `time` |
-| 2 | Start & End Separator | `rangeSep` | — | ✓ | separator between start and end values within one result |
-| 3 | Custom Format | `format` | ✓ | ✓ | PHP format string; empty = auto |
-| 4 | Date & Time Separator | `timeSep` | ✓ | ✓ | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
-| 5 | Show time when stored as midnight? | `showMidnight` | ✓ | ✓ | checkbox, false by default; shown when `as` ≠ `date` |
-| 6 | Show current year in date? | `showCurrentYear` | ✓ | ✓ | checkbox, false by default; shown when `as` ≠ `time` |
-| 7 | | `[source options]` | ✓ | ✓ | `limit`/`sep` included for this template |
-| 8a | Date/Time Field | `key` | ✓ | — | primary date/time field key |
-| 9a | Time Field (Optional) | `timeKey` | ✓ | — | separate time field — shown when `as` ≠ `date` |
-| 8b | Start Date/Time Field | `startKey` | — | ✓ | |
-| 9b | Start Time Field (Optional) | `startTimeKey` | — | ✓ | shown when `as` ≠ `date` |
-| 10 | End Date/Time Field | `endKey` | — | ✓ | |
-| 11 | End Time Field (Optional) | `endTimeKey` | — | ✓ | shown when `as` ≠ `date` |
-| 12 | | `[fallback option]` | ✓ | ✓ | |
+| Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
+|---|---|---|---|---|
+| Return As | `as` | 1 | 1 | `datetime`; `date`; `time` |
+| Start & End Separator | `rangeSep` | — | 2 | separator between start and end values within one result |
+| Custom Format | `format` | 2 | 3 | PHP format string; empty = auto |
+| Date & Time Separator | `timeSep` | 3 | 4 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| Show time when stored as midnight? | `showMidnight` | 4 | 5 | checkbox, false by default; shown when `as` ≠ `date` |
+| Show current year in date? | `showCurrentYear` | 5 | 6 | checkbox, false by default; shown when `as` ≠ `time` |
+| | `[source options]` | 6 | 7 | `limit`/`sep` included for this template |
+| Date/Time Field | `key` | 7 | — | primary date/time field key |
+| Time Field (Optional) | `timeKey` | 8 | — | separate time field — shown when `as` ≠ `date` |
+| Start Date/Time Field | `startKey` | — | 8 | |
+| Start Time Field (Optional) | `startTimeKey` | — | 9 | shown when `as` ≠ `date` |
+| End Date/Time Field | `endKey` | — | 10 | |
+| End Time Field (Optional) | `endTimeKey` | — | 11 | shown when `as` ≠ `date` |
+| | `[fallback option]` | 9 | 12 | |
 
 **Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (includes `limit`/`sep` for list-mode templates). Field keys close as group 3. `fallback` last.
 

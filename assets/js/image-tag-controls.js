@@ -9,7 +9,7 @@
  * One filter registration handles base `image`, `term_image`, and `try_image` tags.
  *
  * @package BWS_Dynamic_Tags
- * @since   1.7.0
+ * @since   1.6.0
  */
 ( function () {
 	'use strict';

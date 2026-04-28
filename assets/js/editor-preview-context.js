@@ -7,7 +7,7 @@
  * when a tag can't resolve in the editor.
  *
  * @package BWS_Dynamic_Tags
- * @since 1.7.0
+ * @since 1.6.0
  */
 wp.hooks.addFilter(
 	'generateblocks.editor.preview.context',

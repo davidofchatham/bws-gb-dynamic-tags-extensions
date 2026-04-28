@@ -231,9 +231,47 @@ function bws_deprecated_tag_notice( string $old_tag, string $new_tag, string $si
 }
 
 /**
+ * Build an editor preview label for a deprecated tag.
+ *
+ * Returns a bracket-format warning string consistent with bws_build_preview_label().
+ * When a MigrationRegistry entry exists, shows the actual migrated tag string using
+ * the current option values. When no migration path exists, shows the old tag name
+ * with a "no replacement" notice.
+ *
+ * @since 1.6.0
+ * @param string      $old_tag          Deprecated tag name.
+ * @param array       $old_options      Parsed options from the old tag (old key format).
+ * @param string|null $new_tag_override When set, display this literal string as the replacement
+ *                                      (used for early deprecated tags not in MigrationRegistry).
+ * @return string Bracket-format preview label.
+ */
+function bws_build_deprecation_preview_label( string $old_tag, array $old_options, ?string $new_tag_override = null ): string {
+	$old_display = '{{' . $old_tag . '}}';
+
+	if ( null !== $new_tag_override ) {
+		return '[⚠ ' . $old_display . ' deprecated — use ' . $new_tag_override . ']';
+	}
+
+	if ( ! \BWS\DynamicTags\MigrationRegistry::has_migration_path( $old_tag ) ) {
+		return '[⚠ ' . $old_display . ' deprecated — no replacement]';
+	}
+
+	$old_str = \BWS\DynamicTags\MigrationRegistry::format_tag_string( $old_tag, $old_options );
+	$new_str = \BWS\DynamicTags\MigrationRegistry::transform_tag( $old_tag, $old_str );
+
+	return '[⚠ ' . $old_display . ' deprecated — use ' . $new_str . ']';
+}
+
+/**
  * current_post_featured_image → post_featured_image.
  */
 function bws_deprecated_current_post_featured_image_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'current_post_featured_image', $options, '{{image}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'current_post_featured_image' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'current_post_featured_image', 'post_featured_image' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -244,6 +282,12 @@ function bws_deprecated_current_post_featured_image_callback( $options, $block, 
  * current_post_meta_image → post_custom_image.
  */
 function bws_deprecated_current_post_meta_image_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'current_post_meta_image', $options, '{{image}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'current_post_meta_image' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'current_post_meta_image', 'post_custom_image' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -254,6 +298,12 @@ function bws_deprecated_current_post_meta_image_callback( $options, $block, $ins
  * related_post_meta_image → related_post_custom_image.
  */
 function bws_deprecated_related_post_meta_image_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'related_post_meta_image', $options, '{{image source:ref|ref:…}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'related_post_meta_image' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'related_post_meta_image', 'related_post_custom_image' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$base_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -274,6 +324,12 @@ function bws_deprecated_related_post_meta_image_callback( $options, $block, $ins
  * related_post_url → related_post_permalink.
  */
 function bws_deprecated_related_post_url_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'related_post_url', $options, '{{permalink source:ref|ref:…}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'related_post_url' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'related_post_url', 'related_post_permalink' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$base_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -290,6 +346,12 @@ function bws_deprecated_related_post_url_callback( $options, $block, $instance )
  * post_acf_date_time_single → post_acf_datetime_single.
  */
 function bws_deprecated_post_acf_date_time_single_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'post_acf_date_time_single', $options, '{{datetime_single}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'post_acf_date_time_single' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'post_acf_date_time_single', 'post_acf_datetime_single' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -300,6 +362,12 @@ function bws_deprecated_post_acf_date_time_single_callback( $options, $block, $i
  * post_acf_date_time_range → post_acf_datetime_range.
  */
 function bws_deprecated_post_acf_date_time_range_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'post_acf_date_time_range', $options, '{{datetime_range}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'post_acf_date_time_range' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'post_acf_date_time_range', 'post_acf_datetime_range' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
 	$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -310,6 +378,12 @@ function bws_deprecated_post_acf_date_time_range_callback( $options, $block, $in
  * term_name → term_title.
  */
 function bws_deprecated_term_name_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'term_name', $options, '{{title}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'term_name' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'term_name', 'term_title' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'term' );
 	$term_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -320,6 +394,12 @@ function bws_deprecated_term_name_callback( $options, $block, $instance ) {
  * term_field_image → term_custom_image.
  */
 function bws_deprecated_term_field_image_callback( $options, $block, $instance ) {
+	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+		return bws_build_deprecation_preview_label( 'term_field_image', $options, '{{image}}' );
+	}
+	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'term_field_image' ) ) {
+		return '';
+	}
 	bws_deprecated_tag_notice( 'term_field_image', 'term_custom_image' );
 	$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'term' );
 	$term_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -329,6 +409,71 @@ function bws_deprecated_term_field_image_callback( $options, $block, $instance )
 // ===============================================
 // CALLBACK FACTORIES — N×M DEPRECATED WRAPPERS
 // ===============================================
+
+/**
+ * Build a callback for deprecated try_ tags (old N×M slot format: src_N/key_N/rel_N).
+ *
+ * Old try_ tags used src_N (source key), key_N (per-slot field key when $slot_key_opt set),
+ * and rel_N (relationship field for related sources). Iterates slots 1–5, returns the first
+ * non-empty result from the resolved entity, or the fallback_text/fallback option.
+ *
+ * @since 1.6.0
+ * @param string      $old_tag      Deprecated tag name (for notice).
+ * @param string      $since        Version deprecated.
+ * @param callable    $core_fn      Core function that accepts (entity_id, options, instance).
+ * @param string      $slot_key_opt Option key the core fn reads for field key (e.g. 'key').
+ *                                  Empty string means no per-slot key injection.
+ * @return callable
+ */
+function bws_make_deprecated_try_callback( string $old_tag, string $since, callable $core_fn, string $slot_key_opt = '' ): callable {
+	return static function ( $options, $block, $instance ) use ( $old_tag, $since, $core_fn, $slot_key_opt ) {
+		if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+			return bws_build_deprecation_preview_label( $old_tag, $options );
+		}
+		if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( $old_tag ) ) {
+			return '';
+		}
+		bws_deprecated_tag_notice( $old_tag, '', $since );
+		$fallback = sanitize_text_field( $options['fallback_text'] ?? $options['fallback'] ?? '' );
+
+		for ( $n = 1; $n <= 5; $n++ ) {
+			$src_val = $options[ "src_{$n}" ] ?? ( 1 === $n ? 'post' : '' );
+			if ( '' === $src_val && $n > 1 ) {
+				break;
+			}
+			$src_val = $src_val ?: 'post';
+
+			$slot_opts = $options;
+
+			// Inject rel_N as 'rel' so related-source resolve_id() finds the relationship field.
+			if ( ! empty( $options[ "rel_{$n}" ] ) ) {
+				$slot_opts['rel'] = $options[ "rel_{$n}" ];
+			}
+
+			$source = \BWS\DynamicTags\SourceRegistry::get_source( $src_val );
+			if ( ! $source ) {
+				continue;
+			}
+
+			$entity_id = $source->resolve_id( $slot_opts, $instance );
+			if ( ! $entity_id ) {
+				continue;
+			}
+
+			// Inject per-slot key into the option the core fn expects.
+			if ( '' !== $slot_key_opt && isset( $options[ "key_{$n}" ] ) ) {
+				$slot_opts[ $slot_key_opt ] = $options[ "key_{$n}" ];
+			}
+
+			$result = $core_fn( $entity_id, $slot_opts, $instance );
+			if ( '' !== (string) $result ) {
+				return $result;
+			}
+		}
+
+		return $fallback;
+	};
+}
 
 /**
  * Build a callback for N×M post-context deprecated tags.
@@ -343,6 +488,12 @@ function bws_deprecated_term_field_image_callback( $options, $block, $instance )
  */
 function bws_make_deprecated_post_callback( string $old_tag, string $new_tag, string $since, string $source_key, callable $core_fn ): callable {
 	return static function ( $options, $block, $instance ) use ( $old_tag, $new_tag, $since, $source_key, $core_fn ) {
+		if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+			return bws_build_deprecation_preview_label( $old_tag, $options );
+		}
+		if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( $old_tag ) ) {
+			return '';
+		}
 		bws_deprecated_tag_notice( $old_tag, $new_tag, $since );
 		$source  = \BWS\DynamicTags\SourceRegistry::get_source( $source_key );
 		$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -362,6 +513,12 @@ function bws_make_deprecated_post_callback( string $old_tag, string $new_tag, st
  */
 function bws_make_deprecated_term_callback( string $old_tag, string $new_tag, string $since, callable $core_fn ): callable {
 	return static function ( $options, $block, $instance ) use ( $old_tag, $new_tag, $since, $core_fn ) {
+		if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+			return bws_build_deprecation_preview_label( $old_tag, $options );
+		}
+		if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( $old_tag ) ) {
+			return '';
+		}
 		bws_deprecated_tag_notice( $old_tag, $new_tag, $since );
 		$source  = \BWS\DynamicTags\SourceRegistry::get_source( 'term' );
 		$term_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -385,6 +542,12 @@ function bws_make_deprecated_term_callback( string $old_tag, string $new_tag, st
  */
 function bws_make_deprecated_term_extraction_callback( string $old_tag, string $new_tag, string $since, string $source_key, callable $term_core_fn ): callable {
 	return static function ( $options, $block, $instance ) use ( $old_tag, $new_tag, $since, $source_key, $term_core_fn ) {
+		if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
+			return bws_build_deprecation_preview_label( $old_tag, $options );
+		}
+		if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( $old_tag ) ) {
+			return '';
+		}
 		bws_deprecated_tag_notice( $old_tag, $new_tag, $since );
 		$source  = \BWS\DynamicTags\SourceRegistry::get_source( $source_key );
 		$post_id = $source ? $source->resolve_id( $options, $instance ) : false;
@@ -458,6 +621,41 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	$cdr_renames     = array( 'start_field' => 'key', 'end_field' => 'end', 'separator' => 'range_sep', 'fallback_text' => 'fallback' );
 	$cdts_renames    = array( 'date_time_field' => 'key', 'time_field' => 'key2', 'fallback_text' => 'fallback' );
 	$cdtr_renames    = array( 'start_field' => 'key', 'start_time_field' => 'key2', 'end_field' => 'end', 'end_time_field' => 'end2', 'separator' => 'range_sep', 'date_time_separator' => 'time_sep', 'fallback_text' => 'fallback' );
+
+	// Related-source renames: adds 'rel' → 'ref' (old relationship field key → new).
+	// Used for all related_post and term_related_post entries which have source_inject:'ref'.
+	$rel_renames      = array( 'rel' => 'ref' );
+	$rel_content_renames = array_merge( $rel_renames, $content_renames );
+	$rel_ct_renames      = array_merge( $rel_renames, $ct_renames );
+	$rel_fi_renames      = array_merge( $rel_renames, $fi_renames );
+	$rel_ci_renames      = array_merge( $rel_renames, $ci_renames );
+	$rel_cds_renames     = array_merge( $rel_renames, $cds_renames );
+	$rel_cdr_renames     = array_merge( $rel_renames, $cdr_renames );
+	$rel_cdts_renames    = array_merge( $rel_renames, $cdts_renames );
+	$rel_cdtr_renames    = array_merge( $rel_renames, $cdtr_renames );
+
+	// try_ slot renames: src_1 dropped (post default); slots 2-5 renamed.
+	// Empty-string new_key = drop the option (handled by MigrationRegistry::run_transform).
+	$try_src_renames  = array(
+		'src_1' => '',      'rel_1' => 'ref',
+		'src_2' => '2-src', 'rel_2' => '2-ref',
+		'src_3' => '3-src', 'rel_3' => '3-ref',
+		'src_4' => '4-src', 'rel_4' => '4-ref',
+		'src_5' => '5-src', 'rel_5' => '5-ref',
+	);
+	$try_src_values   = array(
+		'2-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'3-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'4-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'5-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+	);
+	$try_key_renames  = array( 'key_1' => 'key', 'key_2' => '2-key', 'key_3' => '3-key', 'key_4' => '4-key', 'key_5' => '5-key' );
+	$try_ct_renames   = array_merge( $try_key_renames, $try_src_renames );
+	$try_ci_renames   = array_merge( array( 'return_type' => 'as' ), $try_key_renames, $try_src_renames );
+	$try_cds_renames  = array_merge( $cds_renames,  $try_src_renames );
+	$try_cdr_renames  = array_merge( $cdr_renames,  $try_src_renames );
+	$try_cdts_renames = array_merge( $cdts_renames, $try_src_renames );
+	$try_cdtr_renames = array_merge( $cdtr_renames, $try_src_renames );
 
 	// Shared fixed_options.
 	$fi_fixed      = array( 'use' => 'featured' );
@@ -590,28 +788,39 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'post_term_description',
-		'title'    => __( 'Post Term Description (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $te_opts,
-		'callback' => bws_make_deprecated_term_extraction_callback( 'post_term_description', '', $since, 'post', 'bws_term_description_core' ),
+		'old_tag'       => 'post_term_description',
+		'new_tag'       => 'content',
+		'title'         => __( 'Post Term Description (Deprecated)', 'generateblocks' ),
+		'since'         => $since,
+		'source_inject' => '',
+		'fixed_options' => $srcterm_fixed,
+		'options'       => $te_opts,
+		'callback'      => bws_make_deprecated_term_extraction_callback( 'post_term_description', 'content', $since, 'post', 'bws_term_description_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'post_term_custom_text',
-		'title'    => __( 'Post Term Custom Text (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $te_opts,
-		'callback' => bws_make_deprecated_term_extraction_callback( 'post_term_custom_text', '', $since, 'post', 'bws_term_custom_text_core' ),
+		'old_tag'        => 'post_term_custom_text',
+		'new_tag'        => 'text',
+		'title'          => __( 'Post Term Custom Text (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => '',
+		'option_renames' => $ct_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => $te_opts,
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'post_term_custom_text', 'text', $since, 'post', 'bws_term_custom_text_core' ),
 	) );
 
 	$reg::register( array(
 		'old_tag'        => 'post_term_custom_image',
+		'new_tag'        => 'image',
 		'title'          => __( 'Post Term Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
+		'source_inject'  => '',
+		'option_renames' => $ci_renames,
+		'fixed_options'  => $srcterm_fixed,
 		'options'        => $ti_opts,
-		'callback'       => bws_make_deprecated_term_extraction_callback( 'post_term_custom_image', '', $since, 'post', 'bws_term_custom_image_core' ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'post_term_custom_image', 'image', $since, 'post', 'bws_term_custom_image_core' ),
 	) );
 
 	// ==========================================
@@ -619,13 +828,14 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	// ==========================================
 
 	$reg::register( array(
-		'old_tag'       => 'related_post_title',
-		'new_tag'       => 'title',
-		'title'         => __( 'Related Post Title (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'options'       => $rel_opts,
-		'callback'      => bws_make_deprecated_post_callback( 'related_post_title', 'title', $since, 'related_post', 'bws_post_title_core' ),
+		'old_tag'        => 'related_post_title',
+		'new_tag'        => 'title',
+		'title'          => __( 'Related Post Title (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'options'        => $rel_opts,
+		'callback'       => bws_make_deprecated_post_callback( 'related_post_title', 'title', $since, 'related_post', 'bws_post_title_core' ),
 	) );
 
 	$reg::register( array(
@@ -634,20 +844,21 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'          => __( 'Related Post Content (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
-		'option_renames' => $content_renames,
+		'option_renames' => $rel_content_renames,
 		'value_renames'  => $content_values,
 		'options'        => array_merge( $rel_opts, $content_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'related_post_content', 'content', $since, 'related_post', 'bws_post_content_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'       => 'related_post_permalink',
-		'new_tag'       => 'permalink',
-		'title'         => __( 'Related Post Permalink (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'options'       => $rel_opts,
-		'callback'      => bws_make_deprecated_post_callback( 'related_post_permalink', 'permalink', $since, 'related_post', 'bws_post_permalink_core' ),
+		'old_tag'        => 'related_post_permalink',
+		'new_tag'        => 'permalink',
+		'title'          => __( 'Related Post Permalink (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'options'        => $rel_opts,
+		'callback'       => bws_make_deprecated_post_callback( 'related_post_permalink', 'permalink', $since, 'related_post', 'bws_post_permalink_core' ),
 	) );
 
 	$reg::register( array(
@@ -656,7 +867,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'          => __( 'Related Post Custom Text (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
-		'option_renames' => $ct_renames,
+		'option_renames' => $rel_ct_renames,
 		'options'        => array_merge( $rel_opts, $ct_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'related_post_custom_text', 'text', $since, 'related_post', 'bws_post_custom_text_core' ),
 	) );
@@ -668,7 +879,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
 		'source_inject'  => 'ref',
-		'option_renames' => $fi_renames,
+		'option_renames' => $rel_fi_renames,
 		'fixed_options'  => $fi_fixed,
 		'options'        => array_merge( $rel_opts, $fi_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'related_post_featured_image', 'image', $since, 'related_post', 'bws_featured_image_core' ),
@@ -681,7 +892,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
 		'source_inject'  => 'ref',
-		'option_renames' => $ci_renames,
+		'option_renames' => $rel_ci_renames,
 		'options'        => array_merge( $rel_opts, $ci_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'related_post_custom_image', 'image', $since, 'related_post', 'bws_custom_image_core' ),
 	) );
@@ -692,7 +903,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Related Post Custom Date (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cds_renames,
+		'option_renames'      => $rel_cds_renames,
 		'fixed_options'       => $date_fixed,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cds_opts ),
@@ -705,7 +916,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Related Post Custom Date Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdr_renames,
+		'option_renames'      => $rel_cdr_renames,
 		'fixed_options'       => $date_fixed,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdr_opts ),
@@ -718,7 +929,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Related Post Custom Date/Time (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdts_renames,
+		'option_renames'      => $rel_cdts_renames,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdts_opts ),
 		'callback'            => bws_make_deprecated_post_callback( 'related_post_custom_datetime_single', 'datetime_single', $since, 'related_post', 'bws_datetime_single_core' ),
@@ -730,7 +941,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Related Post Custom Date/Time Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdtr_renames,
+		'option_renames'      => $rel_cdtr_renames,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdtr_opts ),
 		'callback'            => bws_make_deprecated_post_callback( 'related_post_custom_datetime_range', 'datetime_range', $since, 'related_post', 'bws_datetime_range_core' ),
@@ -738,50 +949,64 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	// Related Post → Term extraction.
 	$reg::register( array(
-		'old_tag'       => 'related_post_term_title',
-		'new_tag'       => 'title',
-		'title'         => __( 'Related Post Term Title (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'fixed_options' => $srcterm_fixed,
-		'options'       => array_merge( $rel_opts, $te_opts ),
-		'callback'      => bws_make_deprecated_term_extraction_callback( 'related_post_term_title', 'title', $since, 'related_post', 'bws_term_title_core' ),
+		'old_tag'        => 'related_post_term_title',
+		'new_tag'        => 'title',
+		'title'          => __( 'Related Post Term Title (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_title', 'title', $since, 'related_post', 'bws_term_title_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'       => 'related_post_term_permalink',
-		'new_tag'       => 'permalink',
-		'title'         => __( 'Related Post Term Permalink (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'fixed_options' => $srcterm_fixed,
-		'options'       => array_merge( $rel_opts, $te_opts ),
-		'callback'      => bws_make_deprecated_term_extraction_callback( 'related_post_term_permalink', 'permalink', $since, 'related_post', 'bws_term_permalink_core' ),
+		'old_tag'        => 'related_post_term_permalink',
+		'new_tag'        => 'permalink',
+		'title'          => __( 'Related Post Term Permalink (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_permalink', 'permalink', $since, 'related_post', 'bws_term_permalink_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'related_post_term_description',
-		'title'    => __( 'Related Post Term Description (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => array_merge( $rel_opts, $te_opts ),
-		'callback' => bws_make_deprecated_term_extraction_callback( 'related_post_term_description', '', $since, 'related_post', 'bws_term_description_core' ),
+		'old_tag'        => 'related_post_term_description',
+		'new_tag'        => 'content',
+		'title'          => __( 'Related Post Term Description (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_description', 'content', $since, 'related_post', 'bws_term_description_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'related_post_term_custom_text',
-		'title'    => __( 'Related Post Term Custom Text (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => array_merge( $rel_opts, $te_opts ),
-		'callback' => bws_make_deprecated_term_extraction_callback( 'related_post_term_custom_text', '', $since, 'related_post', 'bws_term_custom_text_core' ),
+		'old_tag'        => 'related_post_term_custom_text',
+		'new_tag'        => 'text',
+		'title'          => __( 'Related Post Term Custom Text (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_ct_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_custom_text', 'text', $since, 'related_post', 'bws_term_custom_text_core' ),
 	) );
 
 	$reg::register( array(
 		'old_tag'        => 'related_post_term_custom_image',
+		'new_tag'        => 'image',
 		'title'          => __( 'Related Post Term Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_ci_renames,
+		'fixed_options'  => $srcterm_fixed,
 		'options'        => array_merge( $rel_opts, $ti_opts ),
-		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_custom_image', '', $since, 'related_post', 'bws_term_custom_image_core' ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'related_post_term_custom_image', 'image', $since, 'related_post', 'bws_term_custom_image_core' ),
 	) );
 
 	// ==========================================
@@ -869,13 +1094,14 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	// ==========================================
 
 	$reg::register( array(
-		'old_tag'       => 'term_related_post_title',
-		'new_tag'       => 'title',
-		'title'         => __( 'Term→Rel. Post Title (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'options'       => $rel_opts,
-		'callback'      => bws_make_deprecated_post_callback( 'term_related_post_title', 'title', $since, 'term_related_post', 'bws_post_title_core' ),
+		'old_tag'        => 'term_related_post_title',
+		'new_tag'        => 'title',
+		'title'          => __( 'Term→Rel. Post Title (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'options'        => $rel_opts,
+		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_title', 'title', $since, 'term_related_post', 'bws_post_title_core' ),
 	) );
 
 	$reg::register( array(
@@ -884,20 +1110,21 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'          => __( 'Term→Rel. Post Content (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
-		'option_renames' => $content_renames,
+		'option_renames' => $rel_content_renames,
 		'value_renames'  => $content_values,
 		'options'        => array_merge( $rel_opts, $content_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_content', 'content', $since, 'term_related_post', 'bws_post_content_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'       => 'term_related_post_permalink',
-		'new_tag'       => 'permalink',
-		'title'         => __( 'Term→Rel. Post Permalink (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'options'       => $rel_opts,
-		'callback'      => bws_make_deprecated_post_callback( 'term_related_post_permalink', 'permalink', $since, 'term_related_post', 'bws_post_permalink_core' ),
+		'old_tag'        => 'term_related_post_permalink',
+		'new_tag'        => 'permalink',
+		'title'          => __( 'Term→Rel. Post Permalink (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'options'        => $rel_opts,
+		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_permalink', 'permalink', $since, 'term_related_post', 'bws_post_permalink_core' ),
 	) );
 
 	$reg::register( array(
@@ -906,7 +1133,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'          => __( 'Term→Rel. Post Custom Text (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
-		'option_renames' => $ct_renames,
+		'option_renames' => $rel_ct_renames,
 		'options'        => array_merge( $rel_opts, $ct_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_custom_text', 'text', $since, 'term_related_post', 'bws_post_custom_text_core' ),
 	) );
@@ -918,7 +1145,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
 		'source_inject'  => 'ref',
-		'option_renames' => $fi_renames,
+		'option_renames' => $rel_fi_renames,
 		'fixed_options'  => $fi_fixed,
 		'options'        => array_merge( $rel_opts, $fi_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_featured_image', 'image', $since, 'term_related_post', 'bws_featured_image_core' ),
@@ -931,7 +1158,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
 		'source_inject'  => 'ref',
-		'option_renames' => $ci_renames,
+		'option_renames' => $rel_ci_renames,
 		'options'        => array_merge( $rel_opts, $ci_opts ),
 		'callback'       => bws_make_deprecated_post_callback( 'term_related_post_custom_image', 'image', $since, 'term_related_post', 'bws_custom_image_core' ),
 	) );
@@ -942,7 +1169,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Term→Rel. Post Custom Date (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cds_renames,
+		'option_renames'      => $rel_cds_renames,
 		'fixed_options'       => $date_fixed,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cds_opts ),
@@ -955,7 +1182,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Term→Rel. Post Custom Date Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdr_renames,
+		'option_renames'      => $rel_cdr_renames,
 		'fixed_options'       => $date_fixed,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdr_opts ),
@@ -968,7 +1195,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Term→Rel. Post Custom Date/Time (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdts_renames,
+		'option_renames'      => $rel_cdts_renames,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdts_opts ),
 		'callback'            => bws_make_deprecated_post_callback( 'term_related_post_custom_datetime_single', 'datetime_single', $since, 'term_related_post', 'bws_datetime_single_core' ),
@@ -980,7 +1207,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'title'               => __( 'Term→Rel. Post Custom Date/Time Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
-		'option_renames'      => $cdtr_renames,
+		'option_renames'      => $rel_cdtr_renames,
 		'datetime_transforms' => true,
 		'options'             => array_merge( $rel_opts, $cdtr_opts ),
 		'callback'            => bws_make_deprecated_post_callback( 'term_related_post_custom_datetime_range', 'datetime_range', $since, 'term_related_post', 'bws_datetime_range_core' ),
@@ -988,50 +1215,64 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	// Term→Rel. Post → Term extraction.
 	$reg::register( array(
-		'old_tag'       => 'term_related_post_term_title',
-		'new_tag'       => 'title',
-		'title'         => __( 'Term→Rel. Post Term Title (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'fixed_options' => $srcterm_fixed,
-		'options'       => array_merge( $rel_opts, $te_opts ),
-		'callback'      => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_title', 'title', $since, 'term_related_post', 'bws_term_title_core' ),
+		'old_tag'        => 'term_related_post_term_title',
+		'new_tag'        => 'title',
+		'title'          => __( 'Term→Rel. Post Term Title (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_title', 'title', $since, 'term_related_post', 'bws_term_title_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'       => 'term_related_post_term_permalink',
-		'new_tag'       => 'permalink',
-		'title'         => __( 'Term→Rel. Post Term Permalink (Deprecated)', 'generateblocks' ),
-		'since'         => $since,
-		'source_inject' => 'ref',
-		'fixed_options' => $srcterm_fixed,
-		'options'       => array_merge( $rel_opts, $te_opts ),
-		'callback'      => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_permalink', 'permalink', $since, 'term_related_post', 'bws_term_permalink_core' ),
+		'old_tag'        => 'term_related_post_term_permalink',
+		'new_tag'        => 'permalink',
+		'title'          => __( 'Term→Rel. Post Term Permalink (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_permalink', 'permalink', $since, 'term_related_post', 'bws_term_permalink_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_related_post_term_description',
-		'title'    => __( 'Term→Rel. Post Term Description (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => array_merge( $rel_opts, $te_opts ),
-		'callback' => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_description', '', $since, 'term_related_post', 'bws_term_description_core' ),
+		'old_tag'        => 'term_related_post_term_description',
+		'new_tag'        => 'content',
+		'title'          => __( 'Term→Rel. Post Term Description (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_description', 'content', $since, 'term_related_post', 'bws_term_description_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_related_post_term_custom_text',
-		'title'    => __( 'Term→Rel. Post Term Custom Text (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => array_merge( $rel_opts, $te_opts ),
-		'callback' => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_custom_text', '', $since, 'term_related_post', 'bws_term_custom_text_core' ),
+		'old_tag'        => 'term_related_post_term_custom_text',
+		'new_tag'        => 'text',
+		'title'          => __( 'Term→Rel. Post Term Custom Text (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_ct_renames,
+		'fixed_options'  => $srcterm_fixed,
+		'options'        => array_merge( $rel_opts, $te_opts ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_custom_text', 'text', $since, 'term_related_post', 'bws_term_custom_text_core' ),
 	) );
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_custom_image',
+		'new_tag'        => 'image',
 		'title'          => __( 'Term→Rel. Post Term Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
+		'source_inject'  => 'ref',
+		'option_renames' => $rel_ci_renames,
+		'fixed_options'  => $srcterm_fixed,
 		'options'        => array_merge( $rel_opts, $ti_opts ),
-		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_custom_image', '', $since, 'term_related_post', 'bws_term_custom_image_core' ),
+		'callback'       => bws_make_deprecated_term_extraction_callback( 'term_related_post_term_custom_image', 'image', $since, 'term_related_post', 'bws_term_custom_image_core' ),
 	) );
 
 	// ==========================================
@@ -1047,51 +1288,208 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_custom_text',
-		'title'    => __( 'Term Custom Text (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $ct_opts,
-		'callback' => bws_make_deprecated_term_callback( 'term_custom_text', '', $since, 'bws_term_custom_text_core' ),
+		'old_tag'        => 'term_custom_text',
+		'new_tag'        => 'text',
+		'title'          => __( 'Term Custom Text (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'source_inject'  => 'term',
+		'option_renames' => $ct_renames,
+		'options'        => $ct_opts,
+		'callback'       => bws_make_deprecated_term_callback( 'term_custom_text', 'text', $since, 'bws_term_custom_text_core' ),
 	) );
 
 	$reg::register( array(
 		'old_tag'        => 'term_custom_image',
+		'new_tag'        => 'image',
 		'title'          => __( 'Term Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
+		'source_inject'  => 'term',
+		'option_renames' => $ci_renames,
 		'options'        => bws_get_term_image_and_return_type_options(),
-		'callback'       => bws_make_deprecated_term_callback( 'term_custom_image', '', $since, 'bws_term_custom_image_core' ),
+		'callback'       => bws_make_deprecated_term_callback( 'term_custom_image', 'image', $since, 'bws_term_custom_image_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_custom_date_single',
-		'title'    => __( 'Term Custom Date (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $cds_opts,
-		'callback' => bws_make_deprecated_term_callback( 'term_custom_date_single', '', $since, 'bws_term_date_single_core' ),
+		'old_tag'             => 'term_custom_date_single',
+		'new_tag'             => 'datetime_single',
+		'title'               => __( 'Term Custom Date (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'source_inject'       => 'term',
+		'option_renames'      => $cds_renames,
+		'fixed_options'       => $date_fixed,
+		'datetime_transforms' => true,
+		'options'             => $cds_opts,
+		'callback'            => bws_make_deprecated_term_callback( 'term_custom_date_single', 'datetime_single', $since, 'bws_term_date_single_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_custom_date_range',
-		'title'    => __( 'Term Custom Date Range (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $cdr_opts,
-		'callback' => bws_make_deprecated_term_callback( 'term_custom_date_range', '', $since, 'bws_term_date_range_core' ),
+		'old_tag'             => 'term_custom_date_range',
+		'new_tag'             => 'datetime_range',
+		'title'               => __( 'Term Custom Date Range (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'source_inject'       => 'term',
+		'option_renames'      => $cdr_renames,
+		'fixed_options'       => $date_fixed,
+		'datetime_transforms' => true,
+		'options'             => $cdr_opts,
+		'callback'            => bws_make_deprecated_term_callback( 'term_custom_date_range', 'datetime_range', $since, 'bws_term_date_range_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_custom_datetime_single',
-		'title'    => __( 'Term Custom Date/Time (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $cdts_opts,
-		'callback' => bws_make_deprecated_term_callback( 'term_custom_datetime_single', '', $since, 'bws_term_datetime_single_core' ),
+		'old_tag'             => 'term_custom_datetime_single',
+		'new_tag'             => 'datetime_single',
+		'title'               => __( 'Term Custom Date/Time (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'source_inject'       => 'term',
+		'option_renames'      => $cdts_renames,
+		'datetime_transforms' => true,
+		'options'             => $cdts_opts,
+		'callback'            => bws_make_deprecated_term_callback( 'term_custom_datetime_single', 'datetime_single', $since, 'bws_term_datetime_single_core' ),
 	) );
 
 	$reg::register( array(
-		'old_tag'  => 'term_custom_datetime_range',
-		'title'    => __( 'Term Custom Date/Time Range (Deprecated)', 'generateblocks' ),
-		'since'    => $since,
-		'options'  => $cdtr_opts,
-		'callback' => bws_make_deprecated_term_callback( 'term_custom_datetime_range', '', $since, 'bws_term_datetime_range_core' ),
+		'old_tag'             => 'term_custom_datetime_range',
+		'new_tag'             => 'datetime_range',
+		'title'               => __( 'Term Custom Date/Time Range (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'source_inject'       => 'term',
+		'option_renames'      => $cdtr_renames,
+		'datetime_transforms' => true,
+		'options'             => $cdtr_opts,
+		'callback'            => bws_make_deprecated_term_callback( 'term_custom_datetime_range', 'datetime_range', $since, 'bws_term_datetime_range_core' ),
 	) );
+
+	// ==========================================
+	// TRY_ DEPRECATED WRAPPERS
+	// Old N×M try_ tags used src_N/key_N/rel_N slot options.
+	// Migration: src_1 dropped (post default); slots 2-5 renamed to N-src/N-ref/N-key.
+	// Value rename: 'related'/'related_post' → 'ref' on N-src keys.
+	// ==========================================
+
+	$reg::register( array(
+		'old_tag'        => 'try_custom_text',
+		'new_tag'        => 'try_text',
+		'title'          => __( 'Try Custom Text (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'option_renames' => $try_ct_renames,
+		'value_renames'  => $try_src_values,
+		'options'        => array(),
+		'callback'       => bws_make_deprecated_try_callback( 'try_custom_text', $since, 'bws_post_custom_text_core', 'key' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'        => 'try_featured_image',
+		'new_tag'        => 'try_image',
+		'title'          => __( 'Try Featured Image (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'option_renames' => $try_src_renames,
+		'value_renames'  => $try_src_values,
+		'fixed_options'  => $fi_fixed,
+		'options'        => array(),
+		'callback'       => bws_make_deprecated_try_callback( 'try_featured_image', $since, 'bws_featured_image_core' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'        => 'try_custom_image',
+		'new_tag'        => 'try_image',
+		'title'          => __( 'Try Custom Image (Deprecated)', 'generateblocks' ),
+		'since'          => $since,
+		'option_renames' => $try_ci_renames,
+		'value_renames'  => $try_src_values,
+		'options'        => array(),
+		'callback'       => bws_make_deprecated_try_callback( 'try_custom_image', $since, 'bws_custom_image_core', 'key' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'             => 'try_custom_date_single',
+		'new_tag'             => 'try_datetime_single',
+		'title'               => __( 'Try Custom Date (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'option_renames'      => $try_cds_renames,
+		'value_renames'       => $try_src_values,
+		'fixed_options'       => $date_fixed,
+		'datetime_transforms' => true,
+		'options'             => array(),
+		'callback'            => bws_make_deprecated_try_callback( 'try_custom_date_single', $since, 'bws_date_single_core' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'             => 'try_custom_date_range',
+		'new_tag'             => 'try_datetime_range',
+		'title'               => __( 'Try Custom Date Range (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'option_renames'      => $try_cdr_renames,
+		'value_renames'       => $try_src_values,
+		'fixed_options'       => $date_fixed,
+		'datetime_transforms' => true,
+		'options'             => array(),
+		'callback'            => bws_make_deprecated_try_callback( 'try_custom_date_range', $since, 'bws_date_range_core' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'             => 'try_custom_datetime_single',
+		'new_tag'             => 'try_datetime_single',
+		'title'               => __( 'Try Custom Date/Time (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'option_renames'      => $try_cdts_renames,
+		'value_renames'       => $try_src_values,
+		'datetime_transforms' => true,
+		'options'             => array(),
+		'callback'            => bws_make_deprecated_try_callback( 'try_custom_datetime_single', $since, 'bws_datetime_single_core' ),
+	) );
+
+	$reg::register( array(
+		'old_tag'             => 'try_custom_datetime_range',
+		'new_tag'             => 'try_datetime_range',
+		'title'               => __( 'Try Custom Date/Time Range (Deprecated)', 'generateblocks' ),
+		'since'               => $since,
+		'option_renames'      => $try_cdtr_renames,
+		'value_renames'       => $try_src_values,
+		'datetime_transforms' => true,
+		'options'             => array(),
+		'callback'            => bws_make_deprecated_try_callback( 'try_custom_datetime_range', $since, 'bws_datetime_range_core' ),
+	) );
+}
+
+// ===============================================
+// OPTION MIGRATIONS (type:'option' registry entries)
+// ===============================================
+
+/**
+ * Register option-key migration entries for base tags with deprecated option names.
+ *
+ * These entries fix posts that were partially migrated by a buggy converter run that
+ * renamed the tag but left old option keys in place (e.g. `rel` instead of `ref`).
+ * Unlike type:'tag' entries, these match on a live base tag name + presence of specific
+ * option keys. The tag name is unchanged; only options are transformed.
+ *
+ * Called from bws_dynamic_tags_register_all() after bws_register_v1_deprecated_tag_wrappers().
+ *
+ * @since 1.6.0
+ */
+function bws_register_option_migrations(): void {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+
+	// Base tags that carry a 'ref' relationship option when source:ref — if 'rel' is present
+	// instead, the tag was converted by the buggy pre-fix converter. Rename rel→ref and ensure
+	// source:ref is injected first.
+	$rel_fix = array(
+		'option_renames' => array( 'rel' => 'ref' ),
+		'source_inject'  => 'ref',
+	);
+
+	foreach ( array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range' ) as $base_tag ) {
+		$reg::register( array_merge( $rel_fix, array(
+			'type'          => 'option',
+			'match_tag'     => $base_tag,
+			'match_options' => array( 'rel' ),
+			'new_tag'       => $base_tag,
+			'label'         => sprintf(
+				/* translators: %s: base tag name */
+				__( '{{%s}}: rel → source:ref|ref (broken converter output)', 'generateblocks' ),
+				$base_tag
+			),
+		) ) );
+	}
 }

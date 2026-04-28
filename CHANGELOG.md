@@ -12,18 +12,21 @@
 - `bws-img-size` (ComboboxControl) and `bws-media-picker` (`wp.media()`) custom editor controls for image tags (`assets/js/image-tag-controls.js`)
 - `show_if` conditions `in:` and `not_in:` added to `editor-conditional-options.js`
 - `srcTerm` modifier option: post→term hop decoupled from source selector (replaces `via:tax` value)
-- `TagConverter::list( string $old_tag_name ): array` — scans post content for a deprecated tag and returns matched posts (`post_id`, `post_title`, `edit_url`); LIKE pre-filter + regex secondary check; read-only
-- `TagConverter::convert()` + AJAX handler with dual-action dispatch (`converter_action: list|convert`); convert guards on `has_migration_path()`
-- **List Posts** button in deprecated section (all tags): reveals collapsible list of matched posts with edit links
-- **Convert** button in deprecated section: shown only when `has_migration_path()` is true; hidden for tags with no migration path (`second_related_post_*`, `post_term_related_post_*`, etc.)
 - Modifier toggle controls in admin settings page (term_, try_ enable/disable)
-- Deprecated tags section in admin settings page
 - `DeprecatedTagRegistry::has_migration_path( string $old_tag ): bool` for converter and admin UI use
+- `MigrationRegistry` (`includes/classes/class-migration-registry.php`): unified transform registry supporting `type:'tag'` (deprecated tag name) and `type:'option'` (live base tag option-key) entries; shared 7-step `run_transform()` pipeline; public `parse_tag_string()`, `format_tag_string()`, `transform_tag()`, `apply_option_migration()`, `get_deprecated_tag_names()`, `get_option_migrations_by_tag()`
+- `bws_register_option_migrations()` in `deprecated-tags.php`: registers `type:'option'` `MigrationRegistry` entries for all base tags carrying a `rel` option key — renames `rel` → `ref` and prepends `source:ref` (fixes broken converter output from the `via`→`source` rename cycle)
+- In-editor deprecated tag preview warnings: all deprecated callbacks check `$instance->context['bwsEditorPreview']` and return `[⚠ {{old_tag}} deprecated — use {{new_tag_with_actual_options}}]`; `bws_build_deprecation_preview_label()` helper calls `MigrationRegistry::transform_tag()` to show actual replacement (early hand-written callbacks use hardcoded display strings)
+- Suppress mode for deprecated tags: callback returns `''` immediately when `SettingsPage::is_deprecated_tag_suppressed()` is true, preventing unprocessed tag strings on the frontend
+- Admin Migration Tool (`includes/classes/admin/class-tag-converter.php`): `scan()` queries all non-revision posts via multi-LIKE SQL then PHP-level regex+parse verification; `migrate_post()` calls `wp_save_post_revision()` for pre-migration snapshot, applies full deprecated tag and option-key transforms, writes via `$wpdb->update()` + `clean_post_cache()` to avoid hook side-effects and duplicate revisions
+- `assets/js/admin-tag-scanner.js`: Scan button → paginated AJAX scan; results table with post title, type, issues list (deprecated tags + option migrations), per-row Migrate button; Select All / Bulk Migrate Selected with progress bar; per-row status shows tag and option fix counts; ⚠ note when post type has no revision support
 
 ### Changed
 - Base tag callbacks (`text`, `content`, `title`, `image`, `datetime_single`, `datetime_range`) and `term_` modifier callbacks: return `bws_build_preview_label()` in editor preview context instead of static REST placeholders (`[Custom Field]`, `[Title]`, etc.)
-- Successful Convert in deprecated section invalidates the cached List Posts panel for that row so a subsequent click re-fetches current data
 - `via`/`from` option renamed to `source`; `from` (field selector) renamed to `use` across all base tags and modifier callbacks
+- `DeprecatedTagRegistry` refactored as thin 4-method facade over `MigrationRegistry`; external callers (e.g. `bws-portal-system`) unchanged; `transform_options()` delegates to `MigrationRegistry::transform_tag()`
+- Admin deprecated tags settings redesigned: per-tag enable/disable replaced by two group-level radio sets — **Has migration path** and **No migration path** — each with three modes: Keep / Suppress / Disable; tag membership stored per-tag, toggled by group; collapsible `<details>` reference lists show tags in each group
+- Migration Tool moved to a separate section outside the settings `<form>`; replaces per-tag List Posts / Convert buttons with a unified post-level scan and migrate workflow
 - `image` base tag type changed from `'media'` to `'cross-source'`; `supports:['image-size']` removed in favor of explicit PHP options
 - `try_image`: per-slot `use` added (`try_per_slot_use`); `psk` key-check skips `use:featured` slots via `try_use_no_key_values`
 - `term_image` modifier: `use:featured` gated behind `source:ref` (term entities have no featured image)
@@ -40,6 +43,8 @@
 - N×M template registration functions from tag files: `bws_register_post_content_tag_templates()`, `bws_register_image_tag_templates()`, `bws_register_date_tag_templates()`, `bws_register_datetime_tag_templates()`, `bws_register_taxonomy_term_extraction_templates()`
 - `$templates` static property from `TagTemplateRegistry`
 - `bws_extract_text_field()`, `bws_extract_url_field()`, `bws_get_link_url()` from `content-helpers.php` (dead code — no callers in active files)
+- `TagConverter::list()` and `TagConverter::convert()` — replaced by unified `scan()` + `migrate_post()` + paginated batch AJAX
+- Per-tag List Posts / Convert buttons in admin deprecated section — replaced by Migration Tool
 
 ### Documentation
 - `docs/deprecated-tags-options.md` (new): migration reference containing all deprecated N×M tag name tables, template key renaming tracker, and option name renaming tracker; moved from `docs/tag-matrix.md`
@@ -52,6 +57,10 @@
 - `DeprecatedTagRegistry` loop: undefined `$sk` variable
 - Datetime converter: boolean injections use `'true'` string, not `'1'`
 - `DeprecatedTagRegistry::has_migration_path()` returned `true` for all entries; now checks `new_tag` non-empty
+- Converter output for related-source tags: `rel` option key was not renamed to `ref` and `source:ref` was not prepended; caused tags like `{{text rel:field|key:val}}` instead of `{{text source:ref|ref:field|key:val}}`; fixed via `MigrationRegistry` `type:'option'` entries registered by `bws_register_option_migrations()`
+- 22 deprecated tag registrations missing `new_tag` (and migration config) caused admin scanner to show them as having no auto-convert path despite approved migration specs: `post_term_description/custom_text/custom_image`, `related_post_term_description/custom_text/custom_image`, `term_related_post_term_description/custom_text/custom_image`, `term_custom_text/image/date_single/date_range/datetime_single/datetime_range`, `try_custom_text/featured_image/custom_image/date_single/date_range/datetime_single/datetime_range`; all now carry `new_tag`, `source_inject`, `option_renames`, `value_renames`, `fixed_options`, and `datetime_transforms` as appropriate
+- `MigrationRegistry::run_transform()`: empty-string `new_key` in `option_renames` now drops the option (unsets without creating new key); enables `src_1 => ''` pattern used by `try_*` slot migrations to suppress the slot-1 source (which defaults to `post`)
+- Scanner falsely counted post revisions as separate posts; `scan()` now excludes `post_type = 'revision'` and `post_status IN ('auto-draft','trash')` at SQL level
 
 ### Deprecated (N×M → base-tag wrappers, Commit C1)
 - 75 N×M source × template generated tag names deprecated with `DeprecatedTagRegistry` entries covering all post-context, term-context, and term-extraction combinations
