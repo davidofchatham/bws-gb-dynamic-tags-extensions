@@ -272,13 +272,13 @@ function bws_register_base_tags(): void {
 	// and consumed by both register_modifier() (generates term_* GB tags)
 	// and generate_base_try_tags() (generates try_* GB tags).
 	//
-	// 'options'      — template-specific trailing options (appended after source +
-	//                  traversal sub-options in non-image modifier tags; used as
-	//                  trailing options in try_ tags after per-slot N-* options).
-	// 'term_fn'      — fn($term_id, $opts, $inst) for the direct term-entity path.
-	// 'post_fn'      — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
-	// 'try_core_fn'  — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
-	// 'try_term_fn'  — fn($term_id, $opts, $inst) for try_ srcTerm slot dispatch.
+	// 'leading_options' — Group 1 options (as, size, format, etc.) prepended before slots in try_ tags.
+	// 'options'         — template-specific options; for try_ tags, keys matching leading_options are
+	//                     stripped so they don't appear twice; remaining keys become Group 3 trailing.
+	// 'term_fn'         — fn($term_id, $opts, $inst) for the direct term-entity path.
+	// 'post_fn'         — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
+	// 'try_core_fn'     — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
+	// 'try_term_fn'     — fn($term_id, $opts, $inst) for try_ srcTerm slot dispatch.
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -349,11 +349,29 @@ function bws_register_base_tags(): void {
 	) );
 
 	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
-	// 'options' here used by generate_base_try_tags() as trailing options after N-* slots.
-	// 'use' included so generate_base_try_tags() reads its options for per-slot use selectors.
+	// generate_base_try_tags(): 'leading_options' (as, size) → slots → trailing from 'options' minus leading/per-slot keys.
+	// 'use' kept in 'options' so generate_base_try_tags() reads its options for per-slot use selectors.
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
+		'leading_options'       => array(
+			'as'   => array(
+				'type'    => 'select',
+				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'default' => 'url',
+				'options' => array(
+					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
+					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
+					array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+					array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
+					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
+				),
+			),
+			'size' => array(
+				'type'  => 'bws-img-size',
+				'label' => __( 'Image Size', 'generateblocks' ),
+			),
+		),
 		'options'               => array(
 			'as'       => array(
 				'type'    => 'select',
@@ -396,9 +414,12 @@ function bws_register_base_tags(): void {
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'          => 'datetime_single',
-		'title'        => __( 'Date / Time', 'generateblocks' ),
-		'options'      => function_exists( 'bws_get_datetime_single_template_options' )
+		'key'             => 'datetime_single',
+		'title'           => __( 'Date / Time', 'generateblocks' ),
+		'leading_options' => function_exists( 'bws_get_datetime_single_leading_options' )
+			? bws_get_datetime_single_leading_options()
+			: array(),
+		'options'         => function_exists( 'bws_get_datetime_single_template_options' )
 			? bws_get_datetime_single_template_options()
 			: array(),
 		'term_fn'      => static function ( $term_id, $opts, $inst ) {
@@ -430,9 +451,12 @@ function bws_register_base_tags(): void {
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'          => 'datetime_range',
-		'title'        => __( 'Date / Time Range', 'generateblocks' ),
-		'options'      => function_exists( 'bws_get_datetime_range_template_options' )
+		'key'             => 'datetime_range',
+		'title'           => __( 'Date / Time Range', 'generateblocks' ),
+		'leading_options' => function_exists( 'bws_get_datetime_range_leading_options' )
+			? bws_get_datetime_range_leading_options()
+			: array(),
+		'options'         => function_exists( 'bws_get_datetime_range_template_options' )
 			? bws_get_datetime_range_template_options()
 			: array(),
 		'term_fn'      => static function ( $term_id, $opts, $inst ) {

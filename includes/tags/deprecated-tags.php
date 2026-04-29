@@ -618,9 +618,9 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	$fi_renames      = array( 'return_type' => 'as', 'id' => 'fallback' );
 	$ci_renames      = array( 'return_type' => 'as', 'fallback_url' => 'fallback', 'id' => 'fallback', 'field_key' => 'key' );
 	$cds_renames     = array( 'date_time_field' => 'key', 'fallback_text' => 'fallback' );
-	$cdr_renames     = array( 'start_field' => 'key', 'end_field' => 'end', 'separator' => 'range_sep', 'fallback_text' => 'fallback' );
-	$cdts_renames    = array( 'date_time_field' => 'key', 'time_field' => 'key2', 'fallback_text' => 'fallback' );
-	$cdtr_renames    = array( 'start_field' => 'key', 'start_time_field' => 'key2', 'end_field' => 'end', 'end_time_field' => 'end2', 'separator' => 'range_sep', 'date_time_separator' => 'time_sep', 'fallback_text' => 'fallback' );
+	$cdr_renames     = array( 'start_field' => 'startKey', 'end_field' => 'endKey', 'separator' => 'rangeSep', 'fallback_text' => 'fallback' );
+	$cdts_renames    = array( 'date_time_field' => 'key', 'time_field' => 'timeKey', 'fallback_text' => 'fallback' );
+	$cdtr_renames    = array( 'start_field' => 'startKey', 'start_time_field' => 'startTimeKey', 'end_field' => 'endKey', 'end_time_field' => 'endTimeKey', 'separator' => 'rangeSep', 'date_time_separator' => 'timeSep', 'fallback_text' => 'fallback' );
 
 	// Related-source renames: adds 'rel' → 'ref' (old relationship field key → new).
 	// Used for all related_post and term_related_post entries which have source_inject:'ref'.

@@ -364,14 +364,14 @@ class MigrationRegistry {
 		if ( array_key_exists( 'smart_time', $options ) ) {
 			unset( $options['smart_time'] );
 		} elseif ( $has_time_output ) {
-			$options['show_midnight'] = 'true';
+			$options['showMidnight'] = 'true';
 		}
 
-		// 5. omit_current_year → show_current_year (inverted boolean).
+		// 5. omit_current_year → showCurrentYear (inverted boolean).
 		if ( array_key_exists( 'omit_current_year', $options ) ) {
 			unset( $options['omit_current_year'] );
 		} else {
-			$options['show_current_year'] = 'true';
+			$options['showCurrentYear'] = 'true';
 		}
 
 		return $options;

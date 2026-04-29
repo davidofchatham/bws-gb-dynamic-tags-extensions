@@ -312,19 +312,22 @@ function bws_get_datetime_range_options() {
  * @return array
  */
 function bws_get_datetime_single_template_options(): array {
+	return array_merge(
+		bws_get_datetime_single_leading_options(),
+		bws_get_datetime_single_field_key_options(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
+				'placeholder' => 'Date/time TBA',
+			),
+		)
+	);
+}
+
+function bws_get_datetime_single_leading_options(): array {
 	return array(
-		'key'               => array(
-			'type'        => 'text',
-			'label'       => __( 'Date / Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
-			'placeholder' => 'event_date',
-		),
-		'key2'              => array(
-			'type'        => 'text',
-			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
-			'placeholder' => 'event_time',
-		),
 		'as'                => array(
 			'type'    => 'select',
 			'label'   => __( 'Show:', 'generateblocks' ),
@@ -340,37 +343,57 @@ function bws_get_datetime_single_template_options(): array {
 			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
 			'placeholder' => 'F j, Y g:i A',
 		),
-		'time_sep'          => array(
+		'timeSep'          => array(
 			'type'        => 'text',
 			'label'       => __( 'Date/Time Separator', 'generateblocks' ),
 			'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
 			'placeholder' => ', ',
 			'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
 		),
-		'show_current_year' => array(
+		'showCurrentYear' => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show current year', 'generateblocks' ),
 			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
 		),
-		'show_midnight'     => array(
+		'showMidnight'    => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show time at midnight', 'generateblocks' ),
 			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
 		),
-		'fallback'          => array(
+	);
+}
+
+function bws_get_datetime_single_field_key_options(): array {
+	return array(
+		'key'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
-			'placeholder' => 'Date/time TBA',
+			'label'       => __( 'Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
+			'placeholder' => 'event_date',
+		),
+		'timeKey' => array(
+			'type'        => 'text',
+			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
+			'placeholder' => 'event_time',
 		),
 	);
 }
 
 function bws_get_base_datetime_single_options(): array {
 	return array_merge(
+		bws_get_datetime_single_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
-		bws_get_datetime_single_template_options()
+		bws_get_datetime_single_field_key_options(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
+				'placeholder' => 'Date/time TBA',
+			),
+		)
 	);
 }
 
@@ -393,31 +416,22 @@ function bws_get_base_datetime_single_options(): array {
  * @return array
  */
 function bws_get_datetime_range_template_options(): array {
+	return array_merge(
+		bws_get_datetime_range_leading_options(),
+		bws_get_datetime_range_field_key_options(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
+				'placeholder' => 'Date TBA',
+			),
+		)
+	);
+}
+
+function bws_get_datetime_range_leading_options(): array {
 	return array(
-		'key'               => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
-			'placeholder' => 'start_date',
-		),
-		'key2'              => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
-			'placeholder' => 'start_time',
-		),
-		'end'               => array(
-			'type'        => 'text',
-			'label'       => __( 'End Date / Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
-			'placeholder' => 'end_date',
-		),
-		'end2'              => array(
-			'type'        => 'text',
-			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
-			'placeholder' => 'end_time',
-		),
 		'as'                => array(
 			'type'    => 'select',
 			'label'   => __( 'Show:', 'generateblocks' ),
@@ -427,49 +441,81 @@ function bws_get_datetime_range_template_options(): array {
 				array( 'value' => 'time', 'label' => __( 'Time only', 'generateblocks' ) ),
 			),
 		),
-		'format'            => array(
+		'rangeSep'        => array(
+			'type'        => 'text',
+			'label'       => __( 'Range Separator', 'generateblocks' ),
+			'help'        => __( 'Text between start and end dates. Default: –', 'generateblocks' ),
+			'placeholder' => '–',
+		),
+		'format'          => array(
 			'type'        => 'text',
 			'label'       => __( 'Format', 'generateblocks' ),
 			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
 			'placeholder' => 'F j, Y g:i A',
 		),
-		'time_sep'          => array(
+		'timeSep'         => array(
 			'type'        => 'text',
 			'label'       => __( 'Date/Time Separator', 'generateblocks' ),
 			'help'        => __( 'Text between date and time when using a separate time field. Default: ", ".', 'generateblocks' ),
 			'placeholder' => ', ',
 			'show_if'     => array( 'format' => 'empty', 'as' => 'not_in:date,time' ),
 		),
-		'range_sep'         => array(
-			'type'        => 'text',
-			'label'       => __( 'Range Separator', 'generateblocks' ),
-			'help'        => __( 'Text between start and end dates. Default: –', 'generateblocks' ),
-			'placeholder' => '–',
-		),
-		'show_current_year' => array(
+		'showCurrentYear' => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show current year', 'generateblocks' ),
 			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
 		),
-		'show_midnight'     => array(
+		'showMidnight'    => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show time at midnight', 'generateblocks' ),
 			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
 		),
-		'fallback'          => array(
+	);
+}
+
+function bws_get_datetime_range_field_key_options(): array {
+	return array(
+		'startKey'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-			'placeholder' => 'Date TBA',
+			'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
+			'placeholder' => 'start_date',
+		),
+		'startTimeKey' => array(
+			'type'        => 'text',
+			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
+			'placeholder' => 'start_time',
+		),
+		'endKey'       => array(
+			'type'        => 'text',
+			'label'       => __( 'End Date / Time Field', 'generateblocks' ),
+			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
+			'placeholder' => 'end_date',
+		),
+		'endTimeKey'   => array(
+			'type'        => 'text',
+			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
+			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
+			'placeholder' => 'end_time',
 		),
 	);
 }
 
 function bws_get_base_datetime_range_options(): array {
 	return array_merge(
+		bws_get_datetime_range_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
-		bws_get_datetime_range_template_options()
+		bws_get_datetime_range_field_key_options(),
+		array(
+			'fallback' => array(
+				'type'        => 'text',
+				'label'       => __( 'Fallback Text', 'generateblocks' ),
+				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
+				'placeholder' => 'Date TBA',
+			),
+		)
 	);
 }
 
@@ -815,9 +861,9 @@ function bws_base_map_datetime_options( array $options ): array {
 		$mapped['date_time_field'] = $options['key'];
 	}
 
-	// key2 → time_field (for single; range overrides this below).
-	if ( isset( $options['key2'] ) && ! isset( $options['time_field'] ) ) {
-		$mapped['time_field'] = $options['key2'];
+	// timeKey → time_field (for single; range overrides this below).
+	if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
+		$mapped['time_field'] = $options['timeKey'];
 	}
 
 	// as → date_only / time_only.
@@ -833,18 +879,18 @@ function bws_base_map_datetime_options( array $options ): array {
 		$mapped['format_type'] = 'auto';
 	}
 
-	// time_sep → date_time_separator (used by bws_parse_combined_date_time()).
-	if ( isset( $options['time_sep'] ) && ! isset( $options['date_time_separator'] ) ) {
-		$mapped['date_time_separator'] = $options['time_sep'];
+	// timeSep → date_time_separator (used by bws_parse_combined_date_time()).
+	if ( isset( $options['timeSep'] ) && ! isset( $options['date_time_separator'] ) ) {
+		$mapped['date_time_separator'] = $options['timeSep'];
 	}
 
-	// show_current_year (true = show) → omit_current_year (true = omit) — inverted.
-	// Absent show_current_year → omit_current_year true (default: omit year).
-	$mapped['omit_current_year'] = empty( $options['show_current_year'] );
+	// showCurrentYear (true = show) → omit_current_year (true = omit) — inverted.
+	// Absent showCurrentYear → omit_current_year true (default: omit year).
+	$mapped['omit_current_year'] = empty( $options['showCurrentYear'] );
 
-	// show_midnight (true = show midnight) → smart_time (true = hide midnight) — inverted.
-	// Absent show_midnight → smart_time true (default: smart-hide midnight).
-	$mapped['smart_time'] = empty( $options['show_midnight'] );
+	// showMidnight (true = show midnight) → smart_time (true = hide midnight) — inverted.
+	// Absent showMidnight → smart_time true (default: smart-hide midnight).
+	$mapped['smart_time'] = empty( $options['showMidnight'] );
 
 	// fallback → fallback_text.
 	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
@@ -872,29 +918,29 @@ function bws_base_map_datetime_range_options( array $options ): array {
 	// Undo single-tag key mappings; range core reads different field names.
 	unset( $mapped['date_time_field'], $mapped['time_field'] );
 
-	// key → start_field.
-	if ( isset( $options['key'] ) && ! isset( $options['start_field'] ) ) {
-		$mapped['start_field'] = $options['key'];
+	// startKey → start_field.
+	if ( isset( $options['startKey'] ) && ! isset( $options['start_field'] ) ) {
+		$mapped['start_field'] = $options['startKey'];
 	}
 
-	// key2 → start_time_field.
-	if ( isset( $options['key2'] ) && ! isset( $options['start_time_field'] ) ) {
-		$mapped['start_time_field'] = $options['key2'];
+	// startTimeKey → start_time_field.
+	if ( isset( $options['startTimeKey'] ) && ! isset( $options['start_time_field'] ) ) {
+		$mapped['start_time_field'] = $options['startTimeKey'];
 	}
 
-	// end → end_field.
-	if ( isset( $options['end'] ) && ! isset( $options['end_field'] ) ) {
-		$mapped['end_field'] = $options['end'];
+	// endKey → end_field.
+	if ( isset( $options['endKey'] ) && ! isset( $options['end_field'] ) ) {
+		$mapped['end_field'] = $options['endKey'];
 	}
 
-	// end2 → end_time_field.
-	if ( isset( $options['end2'] ) && ! isset( $options['end_time_field'] ) ) {
-		$mapped['end_time_field'] = $options['end2'];
+	// endTimeKey → end_time_field.
+	if ( isset( $options['endTimeKey'] ) && ! isset( $options['end_time_field'] ) ) {
+		$mapped['end_time_field'] = $options['endTimeKey'];
 	}
 
-	// range_sep → separator (used by bws_format_date_range()).
-	if ( isset( $options['range_sep'] ) && ! isset( $options['separator'] ) ) {
-		$mapped['separator'] = $options['range_sep'];
+	// rangeSep → separator (used by bws_format_date_range()).
+	if ( isset( $options['rangeSep'] ) && ! isset( $options['separator'] ) ) {
+		$mapped['separator'] = $options['rangeSep'];
 	}
 
 	return $mapped;

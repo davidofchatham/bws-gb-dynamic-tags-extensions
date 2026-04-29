@@ -29,6 +29,7 @@ class TagTemplateRegistry {
 	 *   try_core_fn      callable  fn($post_id, $opts, $inst): string — try_ post-slot handler.
 	 *   try_term_fn      callable|null  fn($term_id, $opts, $inst): string — try_ via:tax slot handler.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
+	 *   leading_options       array    Group 1 options (global formatting: as, size, format, etc.) prepended before slots in try_ tags.
 	 *   try_per_slot_key      bool     Each try_ slot gets its own N-key.
 	 *   try_per_slot_use      bool     Each try_ slot gets its own use/N-use selector.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
@@ -267,6 +268,11 @@ class TagTemplateRegistry {
 	 *   Slot 1 use:    'use';    slots 2–5: 'N-use'.
 	 *   All slots: 'N-ref', 'N-srcTerm', 'N-tax', 'N-key'.
 	 *
+	 * Option order follows the three-group structure from tag-matrix.md:
+	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
+	 *   Group 2 — per-slot options (source, ref, srcTerm, tax, use, key) × 5 slots.
+	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys (field keys, fallback).
+	 *
 	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
 	 * srcTerm does NOT carry forward — each slot independently chooses entity type.
 	 * For try_per_slot_key templates, N-key carries the field key per slot.
@@ -304,19 +310,20 @@ class TagTemplateRegistry {
 				continue;
 			}
 
-			$try_core_fn  = $tpl['try_core_fn'] ?? null;
-			$try_term_fn  = $tpl['try_term_fn'] ?? null;
-			$per_slot_key = ! empty( $tpl['try_per_slot_key'] );
-			$per_slot_use = ! empty( $tpl['try_per_slot_use'] );
-			$no_key_uses  = $tpl['try_use_no_key_values'] ?? [];
-			$tpl_options  = $tpl['options'] ?? [];
+			$try_core_fn     = $tpl['try_core_fn'] ?? null;
+			$try_term_fn     = $tpl['try_term_fn'] ?? null;
+			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
+			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
+			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
+			$tpl_options     = $tpl['options'] ?? [];
+			$leading_options = $tpl['leading_options'] ?? [];
 
 			if ( ! $try_core_fn ) {
 				continue;
 			}
 
-			// --- Build per-slot options ---
-			$options = [];
+			// Group 1 — global formatting (as, size, format, etc.) before all slots.
+			$options = $leading_options;
 
 			for ( $n = 1; $n <= 5; $n++ ) {
 				$prev    = $n - 1;
@@ -427,9 +434,12 @@ class TagTemplateRegistry {
 				}
 			}
 
-			// Append template-level trailing options (fallback, image size, etc.).
-			// Strip options replaced by per-slot equivalents.
+			// Append template-level trailing options (field keys, fallback, etc.).
+			// Strip options already emitted as leading (Group 1) or replaced by per-slot equivalents.
 			$trailing_opts = $tpl_options;
+			foreach ( array_keys( $leading_options ) as $leading_key ) {
+				unset( $trailing_opts[ $leading_key ] );
+			}
 			if ( $per_slot_key ) {
 				unset( $trailing_opts['key'] );
 			}
