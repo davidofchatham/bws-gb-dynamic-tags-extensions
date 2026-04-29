@@ -299,7 +299,7 @@ function bws_deprecated_current_post_meta_image_callback( $options, $block, $ins
  */
 function bws_deprecated_related_post_meta_image_callback( $options, $block, $instance ) {
 	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return bws_build_deprecation_preview_label( 'related_post_meta_image', $options, '{{image source:ref|ref:…}}' );
+		return bws_build_deprecation_preview_label( 'related_post_meta_image', $options, '{{image src:ref|ref:…}}' );
 	}
 	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'related_post_meta_image' ) ) {
 		return '';
@@ -325,7 +325,7 @@ function bws_deprecated_related_post_meta_image_callback( $options, $block, $ins
  */
 function bws_deprecated_related_post_url_callback( $options, $block, $instance ) {
 	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return bws_build_deprecation_preview_label( 'related_post_url', $options, '{{permalink source:ref|ref:…}}' );
+		return bws_build_deprecation_preview_label( 'related_post_url', $options, '{{permalink src:ref|ref:…}}' );
 	}
 	if ( \BWS\DynamicTags\Admin\SettingsPage::is_deprecated_tag_suppressed( 'related_post_url' ) ) {
 		return '';
@@ -1509,6 +1509,29 @@ function bws_register_option_migrations(): void {
 				/* translators: %s: tag name */
 				__( '{{%s}}: id → fallback (v1.5 media picker → v1.6 custom picker)', 'generateblocks' ),
 				$tag
+			),
+		) ) );
+	}
+
+	// C7: 'source' option key renamed to 'src' (v1.6.x). GB unconditionally destructures
+	// 'source' from parsed tag params before spreading into extraTagParams, so any option
+	// named 'source' is silently eaten — the editor control never receives the value.
+	// Matches tags where 'source' is present (e.g. source:ref from prior saves or C5/C6
+	// migration output that used source_inject before it was updated to emit 'src').
+	$source_to_src = array(
+		'option_renames' => array( 'source' => 'src' ),
+	);
+
+	foreach ( array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range' ) as $base_tag ) {
+		$reg::register( array_merge( $source_to_src, array(
+			'type'          => 'option',
+			'match_tag'     => $base_tag,
+			'match_options' => array( 'source' ),
+			'new_tag'       => $base_tag,
+			'label'         => sprintf(
+				/* translators: %s: base tag name */
+				__( '{{%s}}: source → src (GB reserved key conflict fix)', 'generateblocks' ),
+				$base_tag
 			),
 		) ) );
 	}

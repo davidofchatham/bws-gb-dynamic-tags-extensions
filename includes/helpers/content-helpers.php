@@ -663,7 +663,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		}
 	}
 
-	$source_val = $options['source'] ?? '';
+	$source_val = $options['src'] ?? $options['source'] ?? '';
 	$ref        = $options['ref'] ?? '';
 	$src_term   = ! empty( $options['srcTerm'] );
 	$tax        = $options['tax'] ?? '';

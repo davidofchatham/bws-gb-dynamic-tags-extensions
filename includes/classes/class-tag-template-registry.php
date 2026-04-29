@@ -146,7 +146,7 @@ class TagTemplateRegistry {
 
 			if ( $is_image ) {
 				// Image modifier: as (serialized) + size + source + traversal + use (ref only) + key + fallback.
-				// `use:featured` shown only when source:ref — term entities have no featured image.
+				// `use:featured` shown only when src:ref — term entities have no featured image.
 				$options = array_merge(
 					array(
 						'as'   => array(
@@ -225,7 +225,7 @@ class TagTemplateRegistry {
 				return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
 			}
 
-			$source = $opts['source'] ?? '';
+			$source = $opts['src'] ?? $opts['source'] ?? '';
 
 			if ( 'ref' === $source ) {
 				// Traversal from modifier entity (term) → related post.

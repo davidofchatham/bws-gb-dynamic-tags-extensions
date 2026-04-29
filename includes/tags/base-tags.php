@@ -508,28 +508,22 @@ function bws_register_base_tags(): void {
 /**
  * Build the source dropdown option definition.
  *
- * Labels are pulled from the source registry so they stay in sync with
- * source label changes. The selected value dispatches entity resolution
- * in bws_resolve_post_by_source().
+ * Uses option key 'src' (not 'source') because GB's DynamicTagSelect
+ * unconditionally destructures 'source' from parsed tag params before
+ * spreading into extraTagParams, so any option named 'source' is silently
+ * eaten and never reaches the editor controls.
  *
  * @since 1.6.0
- * @return array Single-entry array keyed 'source'.
+ * @return array Single-entry array keyed 'src'.
  */
 function bws_base_source_option(): array {
-	$related_post = SourceRegistry::get_source( 'related_post' );
-
 	return array(
-		'source' => array(
+		'src' => array(
 			'type'    => 'select',
 			'label'   => __( 'Source:', 'generateblocks' ),
 			'options' => array(
-				array( 'value' => '',    'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
-				array(
-					'value' => 'ref',
-					'label' => $related_post
-						? $related_post->get_source_label()
-						: __( 'Ref/Rel Field', 'generateblocks' ),
-				),
+				array( 'value' => '',    'label' => __( 'Current', 'generateblocks' ) ),
+				array( 'value' => 'ref', 'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
 			),
 		),
 	);
@@ -538,7 +532,7 @@ function bws_base_source_option(): array {
 /**
  * Build traversal sub-option definitions for the source dispatch.
  *
- * `ref` — shown when source:ref; the relationship field key for the hop.
+ * `ref` — shown when src:ref; the relationship field key for the hop.
  * `srcTerm` — checkbox; when set, the resolved entity's taxonomy term is used
  *             as the final entity instead of the post itself.
  * `tax` — shown when srcTerm is set; the taxonomy slug to get the term from.
@@ -553,7 +547,7 @@ function bws_base_traversal_options(): array {
 			'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
-			'show_if'     => array( 'source' => 'ref' ),
+			'show_if'     => array( 'src' => 'ref' ),
 		),
 		'srcTerm' => array(
 			'type'  => 'checkbox',
@@ -575,11 +569,12 @@ function bws_base_traversal_options(): array {
 // ===============================================
 
 /**
- * Resolve the target post ID from the `source` option.
+ * Resolve the target post ID from the `src` option.
  *
- * Reads $options['source'] and dispatches to the appropriate source class.
- * `ref` maps the base-tag option key 'ref' to the internal key 'rel' that
- * RelatedPost::resolve_id() expects.
+ * Reads $options['src'] (falls back to $options['source'] for content
+ * migrated before the source→src rename) and dispatches to the appropriate
+ * source class. `ref` maps the base-tag option key 'ref' to the internal
+ * key 'rel' that RelatedPost::resolve_id() expects.
  *
  * @since 1.6.0
  * @param array  $options  Tag options from GenerateBlocks.
@@ -587,7 +582,7 @@ function bws_base_traversal_options(): array {
  * @return int|false Resolved post ID, or false if unresolvable.
  */
 function bws_resolve_post_by_source( array $options, $instance ) {
-	switch ( $options['source'] ?? '' ) {
+	switch ( $options['src'] ?? $options['source'] ?? '' ) {
 
 		case 'ref':
 			$source = SourceRegistry::get_source( 'related_post' );

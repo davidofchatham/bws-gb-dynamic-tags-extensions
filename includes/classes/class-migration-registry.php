@@ -36,7 +36,7 @@ class MigrationRegistry {
 	 *   @type string  $type            Required. 'tag' or 'option'.
 	 *   @type string  $match_tag       Required. Tag name to scan for in post content.
 	 *   @type string  $new_tag         Target tag name. Same as match_tag for 'option' entries.
-	 *   @type string  $source_inject   Value injected as 'source' option (prepended). '' = omit.
+	 *   @type string  $source_inject   Value injected as 'src' option (prepended). '' = omit.
 	 *   @type array   $option_renames  Map old option key → new option key.
 	 *   @type array   $value_renames   Map (post-rename) option key → [ old_val => new_val ].
 	 *   @type array   $fixed_options   Key/value pairs always injected on conversion.
@@ -216,7 +216,7 @@ class MigrationRegistry {
 	 *
 	 * @param string               $tag_name
 	 * @param array<string,string> $options
-	 * @return string e.g. `{{text source:ref|ref:X|key:Y}}`
+	 * @return string e.g. `{{text src:ref|ref:X|key:Y}}`
 	 */
 	public static function format_tag_string( string $tag_name, array $options ): string {
 		return self::serialize_tag_string( $tag_name, $options );
@@ -312,7 +312,7 @@ class MigrationRegistry {
 		// Step 5: Inject source_inject — prepended so it serializes first.
 		$source_inject = $entry['source_inject'] ?? '';
 		if ( '' !== $source_inject ) {
-			$options = array_merge( array( 'source' => $source_inject ), $options );
+			$options = array_merge( array( 'src' => $source_inject ), $options );
 		}
 
 		// Step 6: Inject fixed_options.
@@ -432,7 +432,7 @@ class MigrationRegistry {
 	 *
 	 * @param string               $tag_name
 	 * @param array<string,string> $options
-	 * @return string e.g. `{{text source:ref|ref:X|key:Y}}`
+	 * @return string e.g. `{{text src:ref|ref:X|key:Y}}`
 	 */
 	private static function serialize_tag_string( string $tag_name, array $options ): string {
 		$pairs = array();

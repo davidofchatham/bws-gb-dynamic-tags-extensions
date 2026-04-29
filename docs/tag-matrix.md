@@ -383,7 +383,7 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 
 | Option name | Option label | Context | Notes |
 |---|---|---|---|
-| `source` | Source | Base / Slot 1 | Aligns with GB native `source` option name |
+| `src` | Source | Base / Slot 1 | `source` avoided — GB unconditionally strips it from extraTagParams before our controls can read it |
 | `N-src` | Source [N] | Slot 2+ | Abbreviated to reduce tag length |
 
 ### Source option values
@@ -397,16 +397,16 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 | Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
 | Child(ren) | `child` | `child` | `child` | — | Future |
 
-Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref (rel_post)]` for `{{term_content source:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
+Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref (rel_post)]` for `{{term_content src:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
 
 ### Secondary, conditional options
 
 | Option name | Option label | Help text | Shown when | Notes |
 |---|---|---|---|---|
-| `ref` | Ref/Rel Field Meta Key | | `source` = `ref` | ACF relationship/relational field key for the traversal hop |
+| `ref` | Ref/Rel Field Meta Key | | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
 | `srcTerm` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) | Boolean; unset by default. Term hop applied after source resolution as final step. |
 | `tax` | Term Taxonomy | [Select/Enter] the taxonomy the term is in. | `srcTerm` is set | Taxonomy slug. Type TBD (text field or selector). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `source` = `ref` or `child`, or `srcTerm` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child`, or `srcTerm` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
 | `sep` | Result Separator | Separator between results (defaults to “, ”). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
 
 ## Field options
