@@ -154,29 +154,6 @@ function bws_format_utils() {
 // ===============================================
 
 /**
- * Get ACF field value
- *
- * @since 3.0.0
- * @param int $post_id Post ID
- * @param string $field_key ACF field key
- * @return mixed ACF field value
- */
-if ( ! function_exists( 'bws_get_acf_field_value' ) ) {
-function bws_get_acf_field_value( $post_id, $field_key, $instance = null ) {
-    if ( empty( $field_key ) ) {
-        return null;
-    }
-
-    // ACF term object_id syntax: "{taxonomy}_{term_id}" — route to term meta.
-    if ( is_string( $post_id ) && preg_match( '/^([a-z][a-z0-9_-]*)_(\d+)$/', $post_id, $m ) ) {
-        return bws_read_term_field( $field_key, (int) $m[2], true );
-    }
-
-    return bws_read_field( $field_key, $instance, is_numeric( $post_id ) ? (int) $post_id : false, true );
-}
-}
-
-/**
  * Get ACF field return format
  *
  * @since 3.0.0
@@ -229,12 +206,25 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
         ],
     ];
 
+    // ACF term object_id syntax: "{taxonomy}_{term_id}" — route to term meta.
+    $term_match = is_string( $post_id ) && preg_match( '/^([a-z][a-z0-9_-]*)_(\d+)$/', $post_id, $m );
+    $term_id    = $term_match ? (int) $m[2] : 0;
+    $numeric_id = is_numeric( $post_id ) ? (int) $post_id : false;
+
     // Get primary field value and format
-    $date_value = bws_get_acf_field_value( $post_id, $date_field, $instance );
+    $date_value = $date_field
+        ? ( $term_match
+            ? bws_read_term_field( $date_field, $term_id, true )
+            : bws_read_field( $date_field, $instance, $numeric_id, true ) )
+        : null;
     $date_format = bws_get_acf_return_format( $date_field, $post_id );
 
     // Get time field value and format
-    $time_value = bws_get_acf_field_value( $post_id, $time_field, $instance );
+    $time_value = $time_field
+        ? ( $term_match
+            ? bws_read_term_field( $time_field, $term_id, true )
+            : bws_read_field( $time_field, $instance, $numeric_id, true ) )
+        : null;
     $time_format = bws_get_acf_return_format( $time_field, $post_id );
 
     $utils = bws_format_utils();
