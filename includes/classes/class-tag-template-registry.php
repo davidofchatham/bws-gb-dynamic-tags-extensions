@@ -263,14 +263,17 @@ class TagTemplateRegistry {
 	 *   When set, the resolved post's first matching term is used as the entity.
 	 *   Uses try_term_fn for dispatch; no srcTerm carry-forward between slots.
 	 *
-	 * Slot option naming:
-	 *   Slot 1 source: 'source'; slots 2–5: 'N-src'.
-	 *   Slot 1 use:    'use';    slots 2–5: 'N-use'.
-	 *   All slots: 'N-ref', 'N-srcTerm', 'N-tax', 'N-key'.
+	 * Slot option naming (slot 1 un-prefixed; slots 2–5 use N- prefix):
+	 *   src, 2-src … 5-src   — source selector.
+	 *   ref, 2-ref … 5-ref   — relationship field key (shown when src = 'ref').
+	 *   srcTerm, 2-srcTerm … — term hop modifier (no carry-forward).
+	 *   tax, 2-tax …         — taxonomy slug (shown when srcTerm set).
+	 *   use, 2-use …         — source type (try_per_slot_use templates only).
+	 *   key, 2-key …         — field key (try_per_slot_key / try_per_slot_use templates).
 	 *
 	 * Option order follows the three-group structure from tag-matrix.md:
 	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
-	 *   Group 2 — per-slot options (source, ref, srcTerm, tax, use, key) × 5 slots.
+	 *   Group 2 — per-slot options (src/N-src, ref/N-ref, srcTerm/N-srcTerm, tax/N-tax, use/N-use, key/N-key) × 5 slots.
 	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys (field keys, fallback).
 	 *
 	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
@@ -327,7 +330,7 @@ class TagTemplateRegistry {
 
 			for ( $n = 1; $n <= 5; $n++ ) {
 				$prev    = $n - 1;
-				$src_key = ( 1 === $n ) ? 'source'  : "{$n}-src";
+				$src_key = ( 1 === $n ) ? 'src'     : "{$n}-src";
 				$use_key = ( 1 === $n ) ? 'use'     : "{$n}-use";
 
 				// Slot trigger: slots 3-5 appear when any of the prior slot's options are set.
@@ -335,17 +338,20 @@ class TagTemplateRegistry {
 				if ( $n <= 2 ) {
 					$slot_trigger = [];
 				} else {
-					$prev_src = ( 1 === $prev ) ? 'source'  : "{$prev}-src";
+					$prev_src = ( 1 === $prev ) ? 'src'     : "{$prev}-src";
+					$prev_ref = ( 1 === $prev ) ? 'ref'     : "{$prev}-ref";
+					$prev_stm = ( 1 === $prev ) ? 'srcTerm' : "{$prev}-srcTerm";
 					$prev_any = [
-						$prev_src         => 'not_empty',
-						"{$prev}-ref"     => 'not_empty',
-						"{$prev}-srcTerm" => 'not_empty',
+						$prev_src => 'not_empty',
+						$prev_ref => 'not_empty',
+						$prev_stm => 'not_empty',
 					];
 					if ( $per_slot_key || $per_slot_use ) {
-						$prev_any["{$prev}-key"] = 'not_empty';
+						$prev_key             = ( 1 === $prev ) ? 'key' : "{$prev}-key";
+						$prev_any[ $prev_key ] = 'not_empty';
 					}
 					if ( $per_slot_use ) {
-						$prev_use = ( 1 === $prev ) ? 'use' : "{$prev}-use";
+						$prev_use             = ( 1 === $prev ) ? 'use' : "{$prev}-use";
 						$prev_any[ $prev_use ] = 'not_empty';
 					}
 					$slot_trigger = [ 'show_if_any' => $prev_any ];
@@ -362,8 +368,12 @@ class TagTemplateRegistry {
 					$slot_trigger
 				);
 
-				// N-ref — relationship field key (source = 'ref').
-				$options[ "{$n}-ref" ] = [
+				$ref_key = ( 1 === $n ) ? 'ref'     : "{$n}-ref";
+				$stm_key = ( 1 === $n ) ? 'srcTerm' : "{$n}-srcTerm";
+				$tax_key = ( 1 === $n ) ? 'tax'     : "{$n}-tax";
+
+				// ref — relationship field key (shown when src = 'ref').
+				$options[ $ref_key ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
 					'label'       => sprintf( __( 'Slot %d: Relationship Field', 'generateblocks' ), $n ),
@@ -372,8 +382,8 @@ class TagTemplateRegistry {
 					'show_if'     => [ $src_key => 'ref' ],
 				];
 
-				// N-srcTerm — term hop modifier (no carry-forward).
-				$options[ "{$n}-srcTerm" ] = array_merge(
+				// srcTerm — term hop modifier (no carry-forward).
+				$options[ $stm_key ] = array_merge(
 					[
 						'type'  => 'checkbox',
 						/* translators: %d: slot number */
@@ -383,14 +393,14 @@ class TagTemplateRegistry {
 					$slot_trigger
 				);
 
-				// N-tax — taxonomy slug (shown when N-srcTerm set).
-				$options[ "{$n}-tax" ] = [
+				// tax — taxonomy slug (shown when srcTerm set).
+				$options[ $tax_key ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
 					'label'       => sprintf( __( 'Slot %d: Taxonomy', 'generateblocks' ), $n ),
 					'help'        => __( 'Taxonomy slug (e.g. category, post_tag).', 'generateblocks' ),
 					'placeholder' => 'category',
-					'show_if'     => [ "{$n}-srcTerm" => 'not_empty' ],
+					'show_if'     => [ $stm_key => 'not_empty' ],
 				];
 
 				// N-use — per-slot source type (try_per_slot_use templates only).
@@ -406,11 +416,13 @@ class TagTemplateRegistry {
 					);
 				}
 
-				// N-key — per-slot field key.
+				$key_key = ( 1 === $n ) ? 'key' : "{$n}-key";
+
+				// key — per-slot field key.
 				// try_per_slot_key: always shown within slot (same trigger as source key).
-				// try_per_slot_use: shown only when N-use = 'key' (custom-field mode).
+				// try_per_slot_use: shown only when use = 'key' (custom-field mode).
 				if ( $per_slot_key ) {
-					$options[ "{$n}-key" ] = array_merge(
+					$options[ $key_key ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
@@ -421,7 +433,7 @@ class TagTemplateRegistry {
 						$slot_trigger
 					);
 				} elseif ( $per_slot_use ) {
-					$options[ "{$n}-key" ] = array_merge(
+					$options[ $key_key ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
@@ -467,15 +479,19 @@ class TagTemplateRegistry {
 				$last_use = '';
 
 				foreach ( range( 1, 5 ) as $n ) {
-					$src_k = ( 1 === $n ) ? 'source' : "{$n}-src";
-					$use_k = ( 1 === $n ) ? 'use'    : "{$n}-use";
+					$src_k = ( 1 === $n ) ? 'src'     : "{$n}-src";
+					$ref_k = ( 1 === $n ) ? 'ref'     : "{$n}-ref";
+					$stm_k = ( 1 === $n ) ? 'srcTerm' : "{$n}-srcTerm";
+					$tax_k = ( 1 === $n ) ? 'tax'     : "{$n}-tax";
+					$key_k = ( 1 === $n ) ? 'key'     : "{$n}-key";
+					$use_k = ( 1 === $n ) ? 'use'     : "{$n}-use";
 
-					$src_raw = $opts[ $src_k ]          ?? '';
-					$ref_raw = $opts[ "{$n}-ref" ]      ?? '';
-					$stm_raw = $opts[ "{$n}-srcTerm" ]  ?? '';
-					$tax_raw = $opts[ "{$n}-tax" ]      ?? '';
-					$key_raw = $opts[ "{$n}-key" ]      ?? '';
-					$use_raw = $opts[ $use_k ]          ?? '';
+					$src_raw = $opts[ $src_k ] ?? '';
+					$ref_raw = $opts[ $ref_k ] ?? '';
+					$stm_raw = $opts[ $stm_k ] ?? '';
+					$tax_raw = $opts[ $tax_k ] ?? '';
+					$key_raw = $opts[ $key_k ] ?? '';
+					$use_raw = $opts[ $use_k ] ?? '';
 
 					// Skip slot if it contributes no new configuration relative to the previous slot.
 					if ( $n > 1 ) {
@@ -525,8 +541,8 @@ class TagTemplateRegistry {
 					// srcTerm is read from this slot only (no carry-forward).
 					if ( '' !== $stm_raw && $tcf ) {
 						$src_opts = array_merge( $slot_opts, [
-							'source' => $last_src,
-							'ref'    => $last_ref,
+							'src' => $last_src,
+							'ref' => $last_ref,
 						] );
 						$post_id = function_exists( 'bws_resolve_post_by_source' )
 							? bws_resolve_post_by_source( $src_opts, $inst )
@@ -545,8 +561,8 @@ class TagTemplateRegistry {
 
 					// Post-based paths: '' | 'ref'.
 					$src_opts = array_merge( $slot_opts, [
-						'source' => $last_src,
-						'ref'    => $last_ref,
+						'src' => $last_src,
+						'ref' => $last_ref,
 					] );
 					$post_id = function_exists( 'bws_resolve_post_by_source' )
 						? bws_resolve_post_by_source( $src_opts, $inst )

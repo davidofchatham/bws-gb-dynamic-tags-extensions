@@ -74,7 +74,7 @@ The selected value serializes as `source:ref` in the tag string. PHP callbacks r
 
 See [Source options](#source-options).
 
-`try_` tags use the same custom source selector for all slots. Slot 1 option name: `source`; slots 2+ use `N-src`. Slot 2+ prepends "Same as Previous Source" (unset). See [Try_ tags](#try_-tags).
+`try_` tags use the same custom source selector for all slots. Slot 1 option name: `src`; slots 2+ use `N-src`. Slot 2+ prepends "Same as Previous Source" (unset). See [Try_ tags](#try_-tags).
 
 > **Portal source:** The portal plugin is a **context modifier**, not a traversal hop. It registers its own tag group externally (via `bws_dynamic_tags_register_sources` PHP hook and `generateblocks.editor.tagSpecificControls` JS filter). Portal is the starting context — `portal` does not appear as a `source` value on standard base tags. Deprecated wrappers for `portal_*` tags are registered with this plugin and should also be handled by the migrator.
 
@@ -132,7 +132,7 @@ Each slot exposes up to three controls:
 | `try_text` | `text` | **Yes** | No | Each slot's field key can differ |
 | `try_image` | `image` | **Yes** | **Yes** | `use` unset = ACF/meta field (uses per-slot key); `use:featured` = Featured Image |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
-| `try_datetime_range` | `datetime_range` | No | No | Shared `start_key`/`end_key` across slots |
+| `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
 
 ---
 
