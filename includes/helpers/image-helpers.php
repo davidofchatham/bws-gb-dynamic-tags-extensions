@@ -129,23 +129,20 @@ function bws_get_attachment_data( $attachment_id, $return_type = 'url', $size = 
  * @param string $meta_key    Meta key.
  * @param string $return_type Type of data to return.
  * @param string $size        Image size.
+ * @param object $instance    Block instance (for loop-item context detection).
  * @return string Requested data.
  */
 if ( ! function_exists( 'bws_get_meta_image_data' ) ) {
-function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $size = 'full' ) {
-	if ( ! $post_id || ! get_post( $post_id ) ) {
+function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $size = 'full', $instance = null ) {
+	$is_loop_row = is_object( $instance )
+		&& isset( $instance->context['generateblocks/loopItem'] )
+		&& is_array( $instance->context['generateblocks/loopItem'] );
+
+	if ( ! $is_loop_row && ( ! $post_id || ! get_post( $post_id ) ) ) {
 		return '';
 	}
 
-	$meta_value = null;
-
-	if ( function_exists( 'get_field' ) ) {
-		$meta_value = get_field( $meta_key, $post_id );
-	}
-
-	if ( ! $meta_value ) {
-		$meta_value = get_post_meta( $post_id, $meta_key, true );
-	}
+	$meta_value = bws_read_field( $meta_key, $instance, $post_id, false );
 
 	if ( ! $meta_value ) {
 		return '';

@@ -120,20 +120,8 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
 	if ( empty( $key ) ) {
 		return '';
 	}
-	$acf_object_id = $term->taxonomy . '_' . $term->term_id;
-	$value         = '';
-	if ( function_exists( 'get_field' ) ) {
-		$raw = get_field( $key, $acf_object_id );
-		if ( is_scalar( $raw ) && null !== $raw && false !== $raw ) {
-			$value = (string) $raw;
-		}
-	}
-	if ( '' === $value ) {
-		$meta = get_term_meta( $term->term_id, $key, true );
-		if ( is_scalar( $meta ) && '' !== $meta ) {
-			$value = (string) $meta;
-		}
-	}
+	$raw   = bws_read_term_field( $key, (int) $term->term_id );
+	$value = ( is_scalar( $raw ) && null !== $raw && false !== $raw && '' !== $raw ) ? (string) $raw : '';
 	if ( '' === $value ) {
 		return '' !== $fallback
 			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
@@ -181,7 +169,7 @@ function bws_term_custom_image_core( $term_id, $options, $instance ) {
 		return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );
 	}
 
-	$image_data = bws_get_term_field_image_data( $term->term_id, $term->taxonomy, $field_key, $return_type, $image_size );
+	$image_data = bws_get_term_field_image_data( $term->term_id, $field_key, $return_type, $image_size );
 
 	if ( ! empty( $image_data ) ) {
 		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $image_data, $options, $instance );

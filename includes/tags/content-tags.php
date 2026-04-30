@@ -88,7 +88,11 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 	// --- Custom field branch ---
 	if ( 'custom_field' === $type ) {
-		if ( ! $post_id ) {
+		$is_loop_row = is_object( $instance )
+			&& isset( $instance->context['generateblocks/loopItem'] )
+			&& is_array( $instance->context['generateblocks/loopItem'] );
+
+		if ( ! $post_id && ! $is_loop_row ) {
 			return '' !== $fallback
 				? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
 				: '';
@@ -102,21 +106,8 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 				: '';
 		}
 
-		$value = null;
-
-		if ( function_exists( 'get_field' ) ) {
-			$raw = get_field( $key, $post_id );
-			if ( is_scalar( $raw ) && null !== $raw && false !== $raw ) {
-				$value = (string) $raw;
-			}
-		}
-
-		if ( null === $value ) {
-			$meta = get_post_meta( $post_id, $key, true );
-			if ( is_scalar( $meta ) && '' !== $meta ) {
-				$value = (string) $meta;
-			}
-		}
+		$raw   = bws_read_field( $key, $instance, $post_id );
+		$value = ( is_scalar( $raw ) && null !== $raw && false !== $raw && '' !== $raw ) ? (string) $raw : null;
 
 		if ( null === $value || '' === $value ) {
 			return '' !== $fallback
@@ -255,7 +246,11 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 
 	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
 
-	if ( ! $post_id ) {
+	$is_loop_row = is_object( $instance )
+		&& isset( $instance->context['generateblocks/loopItem'] )
+		&& is_array( $instance->context['generateblocks/loopItem'] );
+
+	if ( ! $post_id && ! $is_loop_row ) {
 		return '' !== $fallback
 			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
 			: '';
@@ -267,24 +262,8 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 		return '';
 	}
 
-	$value = null;
-
-	if ( function_exists( 'get_field' ) ) {
-		$raw = get_field( $key, $post_id );
-		// Accept any scalar value, including integer 0 and string '0'.
-		// Reject null/false (field not found), arrays, and objects.
-		if ( is_scalar( $raw ) && null !== $raw && false !== $raw ) {
-			$value = (string) $raw;
-		}
-	}
-
-	if ( null === $value ) {
-		// Fallback to standard post meta.
-		$meta = get_post_meta( $post_id, $key, true );
-		if ( is_scalar( $meta ) && '' !== $meta ) {
-			$value = (string) $meta;
-		}
-	}
+	$raw   = bws_read_field( $key, $instance, $post_id );
+	$value = ( is_scalar( $raw ) && null !== $raw && false !== $raw && '' !== $raw ) ? (string) $raw : null;
 
 	if ( null === $value || '' === $value ) {
 		return '' !== $fallback

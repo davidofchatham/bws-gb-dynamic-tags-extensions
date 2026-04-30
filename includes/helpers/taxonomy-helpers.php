@@ -143,35 +143,23 @@ function bws_get_validated_term( $term_id ) {
  *
  * @since 1.1.0
  * @param int    $term_id     Term ID.
- * @param string $taxonomy    Taxonomy slug.
  * @param string $field_key   Field key.
  * @param string $return_type Type of data to return.
  * @param string $image_size  Image size.
  * @return string Image data or empty string.
  */
 if ( ! function_exists( 'bws_get_term_field_image_data' ) ) {
-function bws_get_term_field_image_data( $term_id, $taxonomy, $field_key, $return_type = 'url', $image_size = 'full' ) {
-	if ( ! $term_id || ! $taxonomy || ! $field_key ) {
+function bws_get_term_field_image_data( $term_id, $field_key, $return_type = 'url', $image_size = 'full' ) {
+	if ( ! $term_id || ! $field_key ) {
 		return '';
 	}
 
-	$image_value = '';
-
-	// Try ACF field first.
-	if ( function_exists( 'get_field' ) ) {
-		$image_value = get_field( $field_key, $taxonomy . '_' . $term_id );
-	}
-
-	// Fallback to standard term meta.
-	if ( empty( $image_value ) ) {
-		$image_value = get_term_meta( $term_id, $field_key, true );
-	}
+	$image_value = bws_read_term_field( $field_key, (int) $term_id, false );
 
 	if ( empty( $image_value ) ) {
 		return '';
 	}
 
-	// Reuse existing image processing function.
 	return bws_process_meta_image_value( $image_value, $return_type, $image_size );
 }
 }

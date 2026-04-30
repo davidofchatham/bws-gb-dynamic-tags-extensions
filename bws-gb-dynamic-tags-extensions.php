@@ -5,6 +5,7 @@
  * Version: 1.6.0
  * Requires at least: 6.0
  * Requires PHP: 8.1
+ * Requires Plugins: generateblocks-pro (>=2.0.0)
  * Author: Bridge Web Solutions
  * Text Domain: generateblocks
  * Domain Path: /languages

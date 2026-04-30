@@ -77,6 +77,131 @@ function bws_extract_post_id( $post_data ) {
 }
 }
 
+/**
+ * Read a meta/ACF field for a post-like context.
+ *
+ * Routes through GenerateBlocks_Meta_Handler so GB Pro's ACF integration fires
+ * via the generateblocks_get_meta_pre_value filter. Falls back to raw WP meta
+ * functions if Meta_Handler unavailable.
+ *
+ * Branching order:
+ *  1. Mode 2a (loop row resolves to post)  → read post meta on row post
+ *  2. Mode 2b (flat repeater row)          → read $loop_item[$key] directly
+ *  3. $post_id > 0                         → read post meta
+ *  4. Term archive (non-REST)              → read term meta on queried term
+ *  5. null
+ *
+ * @since 1.7.0
+ * @param string         $key         Meta/ACF field key.
+ * @param mixed          $instance    Block instance (WP_Block) — used for context cache.
+ * @param int|false      $post_id     Resolved post ID, or false.
+ * @param bool           $single_only When true (default) coerce arrays/objects to ''. Pass false to preserve raw ACF arrays (e.g. image fields).
+ * @return mixed Field value, '' on miss from Meta_Handler, or null when no context resolved.
+ */
+if ( ! function_exists( 'bws_read_field' ) ) {
+function bws_read_field( string $key, $instance, $post_id, bool $single_only = true ) {
+	// Security guard — block credential/internal-auth fields explicitly.
+	// Underscore-prefixed protected meta is allowed on frontend (matches GB Meta_Handler),
+	// since plugins like Pie Calendar legitimately store data in _-prefixed keys.
+	if ( class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
+		&& in_array( $key, GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS, true )
+	) {
+		return null;
+	}
+
+	// Mode 2 subtype detection — cached on instance context.
+	if ( is_object( $instance ) && isset( $instance->context ) && is_array( $instance->context ) ) {
+		if ( ! isset( $instance->context['bws/loopItemPostId'] ) ) {
+			$loop_item_raw = $instance->context['generateblocks/loopItem'] ?? null;
+			$query_type    = $instance->context['generateblocks/queryType'] ?? '';
+			if ( is_array( $loop_item_raw ) && 'post_meta' === $query_type ) {
+				$candidate   = bws_extract_post_id( $loop_item_raw );
+				$row_post_id = ( $candidate && get_post( $candidate ) ) ? $candidate : false;
+			} else {
+				$row_post_id = false;
+			}
+			$instance->context['bws/loopItemPostId'] = $row_post_id !== false ? $row_post_id : 0;
+		}
+		$loop_item   = $instance->context['generateblocks/loopItem'] ?? null;
+		$row_post_id = $instance->context['bws/loopItemPostId'] ?: false;
+
+		// Mode 2a — row resolves to a post entity.
+		if ( $row_post_id ) {
+			return bws_meta_handler_read( (int) $row_post_id, $key, $single_only, 'get_post_meta' );
+		}
+
+		// Mode 2b — flat repeater row; read directly from row data (no security guard re-applied; row already fetched by GB Pro).
+		if ( is_array( $loop_item ) ) {
+			return $loop_item[ $key ] ?? null;
+		}
+	}
+
+	// Normal post context.
+	if ( is_int( $post_id ) && $post_id > 0 ) {
+		return bws_meta_handler_read( $post_id, $key, $single_only, 'get_post_meta' );
+	}
+	if ( is_numeric( $post_id ) && (int) $post_id > 0 ) {
+		return bws_meta_handler_read( (int) $post_id, $key, $single_only, 'get_post_meta' );
+	}
+
+	// Term archive fallback — non-REST only.
+	if ( ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
+		$queried = get_queried_object();
+		if ( $queried instanceof WP_Term ) {
+			return bws_meta_handler_read( (int) $queried->term_id, $key, $single_only, 'get_term_meta' );
+		}
+	}
+
+	return null;
+}
+}
+
+/**
+ * Read a meta/ACF field for a term context.
+ *
+ * Routes through GenerateBlocks_Meta_Handler. GB Pro builds the "term_{$id}"
+ * ACF key internally — no $taxonomy param needed.
+ *
+ * @since 1.7.0
+ * @param string $key         Meta/ACF field key.
+ * @param int    $term_id     Term ID.
+ * @param bool   $single_only When true (default) coerce arrays/objects to ''. Pass false to preserve raw ACF arrays.
+ * @return mixed Field value, '' on miss, or null if blocked by security guard.
+ */
+if ( ! function_exists( 'bws_read_term_field' ) ) {
+function bws_read_term_field( string $key, int $term_id, bool $single_only = true ) {
+	if ( class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
+		&& in_array( $key, GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS, true )
+	) {
+		return null;
+	}
+	return bws_meta_handler_read( $term_id, $key, $single_only, 'get_term_meta' );
+}
+}
+
+/**
+ * Internal: route a meta read through GenerateBlocks_Meta_Handler with raw WP fallback.
+ *
+ * @since 1.7.0
+ * @param int    $object_id   Post or term ID.
+ * @param string $key         Meta key.
+ * @param bool   $single_only When false, return raw (preserves ACF arrays).
+ * @param string $wp_fn       Fallback WP function: get_post_meta or get_term_meta.
+ * @return mixed
+ */
+if ( ! function_exists( 'bws_meta_handler_read' ) ) {
+function bws_meta_handler_read( int $object_id, string $key, bool $single_only, string $wp_fn ) {
+	if ( class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
+		$value = GenerateBlocks_Meta_Handler::get_meta( $object_id, $key, $single_only, $wp_fn );
+	} else {
+		$value = $wp_fn( $object_id, $key, true );
+	}
+	if ( $single_only && ( is_array( $value ) || is_object( $value ) ) ) {
+		return '';
+	}
+	return $value;
+}
+}
 
 /**
  * Validate meta key format.

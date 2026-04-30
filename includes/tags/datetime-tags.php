@@ -551,7 +551,7 @@ function bws_date_single_core( $post_id, $options, $instance ) {
 		'time_field' => '',
 	) );
 
-	$result = bws_parse_combined_date_time( $post_id, $date_field, '', 'datetime', null, $date_options );
+	$result = bws_parse_combined_date_time( $post_id, $date_field, '', 'datetime', null, $date_options, $instance );
 
 	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
@@ -594,11 +594,11 @@ function bws_date_range_core( $post_id, $options, $instance ) {
 		'end_time_field'   => '',
 	) );
 
-	$start_result = bws_parse_combined_date_time( $post_id, $start_field, '', 'start', null, $date_options );
+	$start_result = bws_parse_combined_date_time( $post_id, $start_field, '', 'start', null, $date_options, $instance );
 
 	$end_result = null;
 	if ( ! empty( $end_field ) ) {
-		$end_result = bws_parse_combined_date_time( $post_id, $end_field, '', 'end', $start_result['date'], $date_options );
+		$end_result = bws_parse_combined_date_time( $post_id, $end_field, '', 'end', $start_result['date'], $date_options, $instance );
 	}
 
 	if ( ! $start_result['date'] ) {
@@ -684,7 +684,7 @@ function bws_datetime_single_core( $post_id, $options, $instance ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
-	$result = bws_parse_combined_date_time( $post_id, $date_time_field, $time_field, 'datetime', null, $options );
+	$result = bws_parse_combined_date_time( $post_id, $date_time_field, $time_field, 'datetime', null, $options, $instance );
 
 	if ( ! $result['date'] && ! $result['time_only'] ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
@@ -735,11 +735,11 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 
-	$start_result = bws_parse_combined_date_time( $post_id, $start_field, $start_time_field, 'start', null, $options );
+	$start_result = bws_parse_combined_date_time( $post_id, $start_field, $start_time_field, 'start', null, $options, $instance );
 
 	$end_result = null;
 	if ( ! empty( $end_field ) || ! empty( $end_time_field ) ) {
-		$end_result = bws_parse_combined_date_time( $post_id, $end_field, $end_time_field, 'end', $start_result['date'], $options );
+		$end_result = bws_parse_combined_date_time( $post_id, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
 	}
 
 	if ( ! $start_result['date'] && ! $end_result ) {
