@@ -101,9 +101,11 @@ class TagTemplateRegistry {
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
 		// Build source dropdown for modifier tags: two entries (current entity, ref traversal).
+		// Option key MUST be 'src' not 'source' — GB's DynamicTagSelect destructures 'source'
+		// before spreading into extraTagParams, silently eating any option named 'source'.
 		$traversal_src = $traversal_src_key ? SourceRegistry::get_source( $traversal_src_key ) : null;
 		$source_opt    = array(
-			'source' => array(
+			'src' => array(
 				'type'    => 'select',
 				'label'   => __( 'Source:', 'generateblocks' ),
 				'options' => array(
@@ -118,7 +120,7 @@ class TagTemplateRegistry {
 			),
 		);
 
-		// Traversal sub-option: relationship field key shown when source:'ref'.
+		// Traversal sub-option: relationship field key shown when src:'ref'.
 		$traversal_opts = array();
 		if ( $traversal_src ) {
 			$traversal_opts = array(
@@ -127,7 +129,7 @@ class TagTemplateRegistry {
 					'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
 					'help'        => __( 'ACF relationship or post object field key on the entity that links to the related post.', 'generateblocks' ),
 					'placeholder' => 'related_posts',
-					'show_if'     => array( 'source' => 'ref' ),
+					'show_if'     => array( 'src' => 'ref' ),
 				),
 			);
 		}
@@ -176,7 +178,7 @@ class TagTemplateRegistry {
 								array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
 								array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 							),
-							'show_if' => array( 'source' => 'ref' ),
+							'show_if' => array( 'src' => 'ref' ),
 						),
 						'key'      => array(
 							'type'        => 'text',
@@ -228,7 +230,7 @@ class TagTemplateRegistry {
 			$source = $opts['src'] ?? $opts['source'] ?? '';
 
 			if ( 'ref' === $source ) {
-				// Traversal from modifier entity (term) → related post.
+				// Traversal from modifier entity → related post.
 				// register_modifier() hardcodes 'ref' option; resolve_id() expects 'rel' internally.
 				$src = SourceRegistry::get_source( $traversal_src_key );
 				if ( ! $src ) {
@@ -240,10 +242,16 @@ class TagTemplateRegistry {
 				return $post_fn( $entity_id, $opts, $inst );
 			}
 
-			// Source unset — resolve entity directly (e.g. TaxonomyTerm via GB term picker + context).
+			// Source unset — resolve entity directly via base source.
+			// Dispatch to term_fn or post_fn based on the base source's context type.
+			// term_ modifier uses TaxonomyTerm (term context); views_ modifier uses PortalSource (post context).
 			$src       = SourceRegistry::get_source( $base_src_key );
-			$entity_id = $src ? $src->resolve_id( $opts, $inst ) : false;
-			return $term_fn( $entity_id, $opts, $inst );
+			if ( ! $src ) {
+				return '';
+			}
+			$entity_id = $src->resolve_id( $opts, $inst );
+			$fn        = 'term' === $src->get_context_type() ? $term_fn : $post_fn;
+			return $fn( $entity_id, $opts, $inst );
 		};
 	}
 
