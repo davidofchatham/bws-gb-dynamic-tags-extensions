@@ -51,17 +51,23 @@ function bws_get_related_posts_data( $post_id, $field_key ) {
 /**
  * Extract post ID from various ACF return formats.
  *
+ * Handles ACF single-post return formats (WP_Post object, numeric ID, assoc
+ * array with 'ID' key) and list return formats (array of any of the above,
+ * such as Relationship/post_object subfield with no max_size limit). For
+ * lists, returns the first entry's ID — caller is responsible for iteration
+ * if multiple are needed.
+ *
  * @since 1.0.0
- * @param mixed $post_data Post data from ACF (WP_Post, int, array).
+ * @param mixed $post_data Post data from ACF.
  * @return int|false Post ID or false.
  */
 if ( ! function_exists( 'bws_extract_post_id' ) ) {
 function bws_extract_post_id( $post_data ) {
-	if ( is_object( $post_data ) && isset( $post_data->ID ) ) {
+	if ( $post_data instanceof WP_Post ) {
 		return $post_data->ID;
 	}
 
-	if ( $post_data instanceof WP_Post ) {
+	if ( is_object( $post_data ) && isset( $post_data->ID ) ) {
 		return $post_data->ID;
 	}
 
@@ -69,8 +75,14 @@ function bws_extract_post_id( $post_data ) {
 		return intval( $post_data );
 	}
 
-	if ( is_array( $post_data ) && isset( $post_data['ID'] ) ) {
-		return $post_data['ID'];
+	if ( is_array( $post_data ) ) {
+		if ( isset( $post_data['ID'] ) ) {
+			return $post_data['ID'];
+		}
+		// List-of-posts (Relationship/post_object subfield): take first entry.
+		if ( ! empty( $post_data ) ) {
+			return bws_extract_post_id( reset( $post_data ) );
+		}
 	}
 
 	return false;

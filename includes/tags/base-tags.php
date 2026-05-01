@@ -590,21 +590,12 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 	if ( 'ref' === $src ) {
 		// Mode 2b: flat repeater row, no row post entity → ref field is a key in the row.
 		if ( $loop['in_loop'] && ! $loop['row_post_id'] && is_array( $loop['loop_item'] ) ) {
-			$raw = $loop['loop_item'][ $ref ] ?? null;
-			// ACF relationship/post_object subfield returns list — take first entry.
-			if ( is_array( $raw ) && ! isset( $raw['ID'] ) && ! empty( $raw ) ) {
-				$raw = reset( $raw );
-			}
-			return bws_extract_post_id( $raw );
+			return bws_extract_post_id( $loop['loop_item'][ $ref ] ?? null );
 		}
 
 		// Mode 2a: resolve ref on row post entity directly.
 		if ( $loop['row_post_id'] ) {
-			$raw = get_post_meta( $loop['row_post_id'], $ref, true );
-			if ( is_array( $raw ) && ! isset( $raw['ID'] ) && ! empty( $raw ) ) {
-				$raw = reset( $raw );
-			}
-			return bws_extract_post_id( $raw );
+			return bws_extract_post_id( get_post_meta( $loop['row_post_id'], $ref, true ) );
 		}
 
 		$source = SourceRegistry::get_source( 'related_post' );
