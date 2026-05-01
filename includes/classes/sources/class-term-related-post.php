@@ -85,8 +85,10 @@ class TermRelatedPost extends AbstractSource {
 			return false;
 		}
 
-		$acf_id = 'term_' . $term_id;
-		$value  = function_exists( 'get_field' ) ? get_field( $rel, $acf_id ) : null;
+		$value = function_exists( 'bws_read_term_field' )
+			? bws_read_term_field( $rel, (int) $term_id, false )
+			: ( function_exists( 'get_field' ) ? get_field( $rel, 'term_' . $term_id ) : null );
+
 		if ( ! $value ) {
 			return false;
 		}
