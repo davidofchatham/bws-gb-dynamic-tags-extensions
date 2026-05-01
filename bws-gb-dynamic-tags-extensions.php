@@ -3,9 +3,9 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Description: Extends GenerateBlocks with custom dynamic tags for ACF integration, providing dynamic content from multiple post sources, date/time formatting, and taxonomy terms.
  * Version: 1.6.0
- * Requires at least: 6.0
+ * Requires at least: 6.5
  * Requires PHP: 8.1
- * Requires Plugins: generateblocks-pro (>=2.0.0)
+ * Requires Plugins: generateblocks-pro
  * Author: Bridge Web Solutions
  * Text Domain: generateblocks
  * Domain Path: /languages
@@ -36,6 +36,15 @@ function bws_dynamic_tags_check_dependencies() {
 		add_action( 'admin_notices', function () {
 			echo '<div class="notice notice-error"><p>';
 			echo esc_html__( 'BWS Dynamic Tag Extensions requires GenerateBlocks Pro with dynamic tag support.', 'generateblocks' );
+			echo '</p></div>';
+		} );
+		return false;
+	}
+	// GB 2.0+ ships GenerateBlocks_Meta_Handler. Field-extraction helpers route through it.
+	if ( ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
+		add_action( 'admin_notices', function () {
+			echo '<div class="notice notice-error"><p>';
+			echo esc_html__( 'BWS Dynamic Tag Extensions requires GenerateBlocks 2.0 or later (Meta_Handler API).', 'generateblocks' );
 			echo '</p></div>';
 		} );
 		return false;
