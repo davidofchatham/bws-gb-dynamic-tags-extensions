@@ -582,21 +582,50 @@ function bws_base_traversal_options(): array {
  * @return int|false Resolved post ID, or false if unresolvable.
  */
 function bws_resolve_post_by_source( array $options, $instance ) {
-	switch ( $options['src'] ?? $options['source'] ?? '' ) {
+	$src = $options['src'] ?? $options['source'] ?? '';
+	$ref = $options['ref'] ?? '';
 
-		case 'ref':
-			$source = SourceRegistry::get_source( 'related_post' );
-			if ( ! $source ) {
-				return false;
+	$loop = bws_get_loop_row_context( $instance );
+
+	if ( 'ref' === $src ) {
+		// Mode 2b: flat repeater row, no row post entity → ref field is a key in the row.
+		if ( $loop['in_loop'] && ! $loop['row_post_id'] && is_array( $loop['loop_item'] ) ) {
+			$raw = $loop['loop_item'][ $ref ] ?? null;
+			// ACF relationship/post_object subfield returns list — take first entry.
+			if ( is_array( $raw ) && ! isset( $raw['ID'] ) && ! empty( $raw ) ) {
+				$raw = reset( $raw );
 			}
-			$mapped        = $options;
-			$mapped['rel'] = $options['ref'] ?? '';
-			return $source->resolve_id( $mapped, $instance );
+			return bws_extract_post_id( $raw );
+		}
 
-		default:
-			$source = SourceRegistry::get_source( 'post' );
-			return $source ? $source->resolve_id( $options, $instance ) : false;
+		// Mode 2a: resolve ref on row post entity directly.
+		if ( $loop['row_post_id'] ) {
+			$raw = get_post_meta( $loop['row_post_id'], $ref, true );
+			if ( is_array( $raw ) && ! isset( $raw['ID'] ) && ! empty( $raw ) ) {
+				$raw = reset( $raw );
+			}
+			return bws_extract_post_id( $raw );
+		}
+
+		$source = SourceRegistry::get_source( 'related_post' );
+		if ( ! $source ) {
+			return false;
+		}
+		$mapped        = $options;
+		$mapped['rel'] = $ref;
+		return $source->resolve_id( $mapped, $instance );
 	}
+
+	// src:'' (current entity)
+	if ( $loop['row_post_id'] ) {
+		return $loop['row_post_id']; // Mode 2a: row entity is the post.
+	}
+	if ( $loop['in_loop'] ) {
+		return false; // Mode 2b with src:'' — no post ID for a flat row.
+	}
+
+	$source = SourceRegistry::get_source( 'post' );
+	return $source ? $source->resolve_id( $options, $instance ) : false;
 }
 
 /**

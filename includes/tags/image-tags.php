@@ -113,9 +113,7 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 		return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
 	}
 
-	$is_loop_row = is_object( $instance )
-		&& isset( $instance->context['generateblocks/loopItem'] )
-		&& is_array( $instance->context['generateblocks/loopItem'] );
+	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
 
 	if ( $post_id || $is_loop_row ) {
 		$result = bws_get_meta_image_data( $post_id, $field_key, $return_type, $image_size, $instance );

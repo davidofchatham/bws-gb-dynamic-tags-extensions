@@ -88,9 +88,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 	// --- Custom field branch ---
 	if ( 'custom_field' === $type ) {
-		$is_loop_row = is_object( $instance )
-			&& isset( $instance->context['generateblocks/loopItem'] )
-			&& is_array( $instance->context['generateblocks/loopItem'] );
+		$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
 
 		if ( ! $post_id && ! $is_loop_row ) {
 			return '' !== $fallback
@@ -246,9 +244,7 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 
 	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
 
-	$is_loop_row = is_object( $instance )
-		&& isset( $instance->context['generateblocks/loopItem'] )
-		&& is_array( $instance->context['generateblocks/loopItem'] );
+	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
 
 	if ( ! $post_id && ! $is_loop_row ) {
 		return '' !== $fallback

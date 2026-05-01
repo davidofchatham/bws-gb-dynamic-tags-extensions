@@ -134,9 +134,7 @@ function bws_get_attachment_data( $attachment_id, $return_type = 'url', $size = 
  */
 if ( ! function_exists( 'bws_get_meta_image_data' ) ) {
 function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $size = 'full', $instance = null ) {
-	$is_loop_row = is_object( $instance )
-		&& isset( $instance->context['generateblocks/loopItem'] )
-		&& is_array( $instance->context['generateblocks/loopItem'] );
+	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
 
 	if ( ! $is_loop_row && ( ! $post_id || ! get_post( $post_id ) ) ) {
 		return '';

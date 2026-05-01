@@ -78,6 +78,65 @@ function bws_extract_post_id( $post_data ) {
 }
 
 /**
+ * Resolve loop-row context from a block instance.
+ *
+ * Inspects $instance->context for GB Pro post_meta loop data and classifies the
+ * row into one of three states. Result cached on $instance->context['bws/loopItemPostId']
+ * so callers paying for `get_post()` only do so once per block render.
+ *
+ * Returned shape:
+ *   [
+ *     'loop_item'   => mixed   // raw row (WP_Post|array|int|null when not in a loop)
+ *     'row_post_id' => int|false // resolved post ID for Mode 2a; false for Mode 2b/none
+ *     'in_loop'     => bool    // true when GB Pro loop row context detected
+ *   ]
+ *
+ * @since 1.7.0
+ * @param mixed $instance Block instance (WP_Block) or anything else.
+ * @return array
+ */
+if ( ! function_exists( 'bws_get_loop_row_context' ) ) {
+function bws_get_loop_row_context( $instance ): array {
+	$out = array(
+		'loop_item'   => null,
+		'row_post_id' => false,
+		'in_loop'     => false,
+	);
+
+	if ( ! is_object( $instance ) || ! isset( $instance->context ) || ! is_array( $instance->context ) ) {
+		return $out;
+	}
+
+	$raw_item = $instance->context['generateblocks/loopItem'] ?? null;
+	$has_item = is_array( $raw_item )
+		|| $raw_item instanceof WP_Post
+		|| is_numeric( $raw_item );
+	if ( ! $has_item ) {
+		return $out;
+	}
+
+	$out['in_loop']   = true;
+	$out['loop_item'] = $raw_item;
+
+	if ( ! isset( $instance->context['bws/loopItemPostId'] ) ) {
+		$query_type = $instance->context['generateblocks/queryType'] ?? '';
+		if ( 'post_meta' === $query_type ) {
+			$candidate   = bws_extract_post_id( $raw_item );
+			$row_post_id = ( $candidate && get_post( $candidate ) ) ? $candidate : false;
+		} else {
+			$row_post_id = false;
+		}
+		$instance->context['bws/loopItemPostId'] = $row_post_id !== false ? $row_post_id : 0;
+	}
+
+	$cached              = (int) $instance->context['bws/loopItemPostId'];
+	$out['row_post_id']  = $cached > 0 ? $cached : false;
+
+	return $out;
+}
+}
+
+/**
  * Read a meta/ACF field for a post-like context.
  *
  * Routes through GenerateBlocks_Meta_Handler so GB Pro's ACF integration fires
@@ -109,30 +168,16 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return null;
 	}
 
-	// Mode 2 subtype detection — cached on instance context.
-	if ( is_object( $instance ) && isset( $instance->context ) && is_array( $instance->context ) ) {
-		if ( ! isset( $instance->context['bws/loopItemPostId'] ) ) {
-			$loop_item_raw = $instance->context['generateblocks/loopItem'] ?? null;
-			$query_type    = $instance->context['generateblocks/queryType'] ?? '';
-			if ( is_array( $loop_item_raw ) && 'post_meta' === $query_type ) {
-				$candidate   = bws_extract_post_id( $loop_item_raw );
-				$row_post_id = ( $candidate && get_post( $candidate ) ) ? $candidate : false;
-			} else {
-				$row_post_id = false;
-			}
-			$instance->context['bws/loopItemPostId'] = $row_post_id !== false ? $row_post_id : 0;
-		}
-		$loop_item   = $instance->context['generateblocks/loopItem'] ?? null;
-		$row_post_id = $instance->context['bws/loopItemPostId'] ?: false;
-
+	// Mode 2 subtype detection.
+	$loop = bws_get_loop_row_context( $instance );
+	if ( $loop['in_loop'] ) {
 		// Mode 2a — row resolves to a post entity.
-		if ( $row_post_id ) {
-			return bws_meta_handler_read( (int) $row_post_id, $key, $single_only, 'get_post_meta' );
+		if ( $loop['row_post_id'] ) {
+			return bws_meta_handler_read( (int) $loop['row_post_id'], $key, $single_only, 'get_post_meta' );
 		}
-
-		// Mode 2b — flat repeater row; read directly from row data (no security guard re-applied; row already fetched by GB Pro).
-		if ( is_array( $loop_item ) ) {
-			return $loop_item[ $key ] ?? null;
+		// Mode 2b — flat repeater row; read directly from row data.
+		if ( is_array( $loop['loop_item'] ) ) {
+			return $loop['loop_item'][ $key ] ?? null;
 		}
 	}
 
