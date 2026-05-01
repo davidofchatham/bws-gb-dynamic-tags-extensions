@@ -887,7 +887,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		}
 		$inner = '⚠ ' . $warning;
 		if ( $fallback ) {
-			$inner .= ' · fallback: “' . $fallback . '”';
+			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
 		return '[' . $inner . ']';
 	}
@@ -898,7 +898,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$ctx_segments[] = $modifier_label;
 	}
 	if ( 'ref' === $source_val && $ref ) {
-		$ctx_segments[] = 'Ref (' . $ref . ')';
+		$ctx_segments[] = "Ref '" . $ref . "'";
 	}
 	if ( $src_term && $tax ) {
 		$tax_obj        = get_taxonomy( $tax );
@@ -951,22 +951,23 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$inner .= ' from ' . $context_part;
 		}
 		if ( $fallback ) {
-			$inner .= ' · fallback: “' . $fallback . '”';
+			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
 		return '[' . $inner . ']';
 	}
 
 	// Build field part (template-specific).
+	// Marker convention: 'X' = literal user-supplied identifier (straight single quotes).
 	$field_part = '';
 	switch ( $base_template ) {
 		case 'text':
-			$field_part = 'title' === $use ? 'Title' : 'Text Field (' . $key . ')';
+			$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
 			break;
 		case 'content':
 			if ( 'excerpt' === $use ) {
 				$field_part = 'Excerpt';
 			} elseif ( 'key' === $use ) {
-				$field_part = 'Content Field (' . $key . ')';
+				$field_part = "'" . $key . "' Content";
 			} else {
 				$field_part = 'Content';
 			}
@@ -975,7 +976,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$suffix     = 'alt' === $as ? ' Alt Text' : ' Caption';
 			$field_part = 'featured' === $use
 				? 'Featured Image' . $suffix
-				: 'Image Field (' . $key . ')' . $suffix;
+				: "'" . $key . "' Image" . $suffix;
 			break;
 		case 'title':
 			$field_part = 'Title';
@@ -994,7 +995,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 
 	if ( $fallback ) {
-		$inner .= ' · fallback: “' . $fallback . '”';
+		$inner .= ' (fallback: “' . $fallback . '”)';
 	}
 	return '[' . $inner . ']';
 }

@@ -273,6 +273,21 @@ When a base tag can't resolve in the editor (no relationship configured, archive
 
 Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
 
+### Marker conventions
+
+| Marker | Meaning |
+|---|---|
+| `[ ]` | Preview placeholder envelope (always wraps full label) |
+| `'X'` | Literal user-supplied identifier (meta key, ref name, taxonomy slug). Straight single quotes |
+| `“X”` | Display value (fallback string, formatted datetime). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
+| `( )` | Auxiliary append — reserved for `(fallback: …)` |
+| `:` | "Category : enumerated list" — used by `Try` enumeration only, never after a preposition |
+| `,` | List item delimiter |
+| ` from ` | Field-to-source binding |
+| ` like ` | Datetime formatted-value preview |
+| `→` | Term-hop traversal arrow |
+| `⚠` | Warning prefix (replaces full label) |
+
 ### Assembly
 
 ```
@@ -282,7 +297,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 [⚠ {warning}]                        — misconfigured: replaces entire label
 ```
 
-Fallback appended when set: ` · fallback: “{value}”` (curly quotes — attribute-safe for `image as:alt`/`as:caption` slots).
+Fallback appended when set: ` (fallback: “{value}”)`.
 
 ### Context part
 
@@ -291,35 +306,35 @@ Space-joined segments. The `→` separator precedes the term-hop segment only.
 | Condition | Segment |
 |---|---|
 | Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
-| `source:ref` + `ref:X` set | `Ref (X)` |
-| `source:ref` + `ref` unset | *(triggers warning — see below)* |
-| `srcTerm` + `tax:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
-| `srcTerm` + `tax` unset | *(triggers warning — see below)* |
-| No modifier, `source` unset, no `srcTerm` | *(omit — no `from` clause)* |
+| `src:ref` + `ref:X` set | `Ref 'X'` |
+| `src:ref` + `ref` unset | *(triggers warning — see below)* |
+| `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
+| `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
+| No modifier, `src` unset, no term-hop | *(omit — no `from` clause)* |
 
 ### Field part
 
-Template-specific. Missing required input triggers a warning instead of the field part.
+Template-specific. Missing required input triggers a warning instead of the field part. Bare key (`text`) vs key + type-noun (`content`, `image`) follows the rule: type-noun appears only when needed to disambiguate from another mode of the same tag.
 
 | Template | Condition | Field part |
 |---|---|---|
-| `text` | `key:X` set | `Text Field (X)` |
+| `text` | `key:X` set | `'X'` (bare key — `text` has only key-mode and title-mode; bare key cannot collide) |
 | `text` | `use:title` | `Title` |
 | `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
-| `content` | `use:key` + `key:X` | `Content Field (X)` |
+| `content` | `use:key` + `key:X` | `'X' Content` (type-noun disambiguates from Excerpt and Content modes) |
 | `content` | `use:excerpt` | `Excerpt` |
 | `content` | `use` unset | `Content` |
 | `content` | `use:key` + `key` unset | *(missing — triggers warning)* |
-| `image` (`as:alt`) | `key:X` set | `Image Field (X) Alt Text` |
+| `image` (`as:alt`) | `key:X` set | `'X' Image Alt Text` |
 | `image` (`as:alt`) | `use:featured` | `Featured Image Alt Text` |
-| `image` (`as:caption`) | `key:X` set | `Image Field (X) Caption` |
+| `image` (`as:caption`) | `key:X` set | `'X' Image Caption` |
 | `image` (`as:caption`) | `use:featured` | `Featured Image Caption` |
 | `title` | — | `Title` (always) |
 | `datetime_` | — | *(see datetime section below)* |
 
 ### Warnings
 
-Warnings replace the **entire** label. Collect all missing required items; join with `, `; last two items use ` or `.
+Warnings replace the **entire** label. Collect all missing required items; join with `, `; last two items use ` or `. Fallback append still applies after the warning.
 
 | Missing items | Warning |
 |---|---|
@@ -350,26 +365,44 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 | Tag | Preview label |
 |---|---|
-| `{{text key:body_text}}` | `[Text Field (body_text)]` |
-| `{{text source:ref\|ref:rel_post\|key:body_text}}` | `[Text Field (body_text) from Ref (rel_post)]` |
+| `{{text key:body_text}}` | `['body_text']` |
+| `{{text src:ref\|ref:rel_post\|key:body_text}}` | `['body_text' from Ref 'rel_post']` |
 | `{{text use:title}}` | `[Title]` |
-| `{{text source:ref\|ref:rel_post\|use:title}}` | `[Title from Ref (rel_post)]` |
-| `{{text srcTerm\|tax:category\|key:body_text}}` | `[Text Field (body_text) from Category Term]` |
-| `{{text source:ref\|ref:rel_post\|srcTerm\|tax:category\|key:body_text}}` | `[Text Field (body_text) from Ref (rel_post) → Category Term]` |
+| `{{text src:ref\|ref:rel_post\|use:title}}` | `[Title from Ref 'rel_post']` |
+| `{{text srcTermIn:category\|key:body_text}}` | `['body_text' from Category Term]` |
+| `{{text src:ref\|ref:rel_post\|srcTermIn:category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` |
 | `{{text}}` | `[⚠ No meta key set]` |
-| `{{text srcTerm\|key:body_text}}` | `[⚠ No taxonomy set]` |
-| `{{text source:ref\|srcTerm\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
-| `{{term_text key:body_text}}` | `[Text Field (body_text) from Term]` |
-| `{{term_text source:ref\|ref:rel_post\|key:body_text}}` | `[Text Field (body_text) from Term Ref (rel_post)]` |
-| `{{title source:ref\|ref:rel_post}}` | `[Title from Ref (rel_post)]` |
+| `{{text srcTermIn\|key:body_text}}` | `[⚠ No taxonomy set]` |
+| `{{text src:ref\|srcTermIn\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
+| `{{term_text key:bio}}` | `['bio' from Term]` |
+| `{{term_text src:ref\|ref:rel_post\|key:bio}}` | `['bio' from Term Ref 'rel_post']` |
+| `{{title src:ref\|ref:rel_post}}` | `[Title from Ref 'rel_post']` |
 | `{{content}}` | `[Content]` |
 | `{{content use:excerpt}}` | `[Excerpt]` |
-| `{{image as:alt\|key:hero}}` | `[Image Field (hero) Alt Text]` |
+| `{{content use:key\|key:body_text}}` | `['body_text' Content]` |
+| `{{content use:key\|key:body_text\|src:ref\|ref:rel_post}}` | `['body_text' Content from Ref 'rel_post']` |
+| `{{image as:alt\|key:hero}}` | `['hero' Image Alt Text]` |
+| `{{image as:caption\|use:featured}}` | `[Featured Image Caption]` |
 | `{{image as:url\|key:hero}}` | *(no label — excluded)* |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
-| `{{datetime_single as:time\|source:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref (event_date)]` |
-| `{{datetime_range as:date\|source:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref (event)]` |
-| `{{text source:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `[Text Field (body_text) from Ref (rel_post) · fallback: “Untitled”]` |
+| `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
+| `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
+| `{{text src:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `['body_text' from Ref 'rel_post' (fallback: “Untitled”)]` |
+
+### try_ tag previews (planned, not yet implemented)
+
+try_ tag callbacks do not yet route through `bws_build_preview_label`. Planned shape collapses repeated source or repeated key across slots; falls back to per-slot enumeration when both vary.
+
+| Slot pattern | Preview shape |
+|---|---|
+| All same source, varying keys | `[Try: 'text_1', 'text_2', 'text_3']` |
+| Same key, varying sources | `[Try 'some_text' from Current, Ref 'rel_post', Term]` |
+| Content tag, varying modes/keys | `[Try Content: Excerpt, 'body_text', 'summary']` |
+| Image, varying keys (uniform `as`) | `[Try Image Alt Text: 'hero', 'thumbnail', 'og_image']` |
+| Datetime, varying keys | `[Try Date 'event_date', 'pub_date' like “April 24, 2026”]` |
+| Mixed (both source and key vary) | per-slot enumeration with hard cap of 3 + `(+N more)` |
+| All slots empty | `[⚠ Try: no slots configured]` |
+| Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no taxonomy]` |
 
 ---
 
