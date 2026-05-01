@@ -887,7 +887,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		}
 		$inner = '⚠ ' . $warning;
 		if ( $fallback ) {
-			$inner .= ' · fallback: "' . $fallback . '"';
+			$inner .= ' · fallback: “' . $fallback . '”';
 		}
 		return '[' . $inner . ']';
 	}
@@ -946,12 +946,12 @@ function bws_build_preview_label( array $options, string $template ): string {
 			$formatted = $now->format( $wp_format );
 		}
 
-		$inner = $prefix . ' like "' . $formatted . '"';
+		$inner = $prefix . ' like “' . $formatted . '”';
 		if ( $context_part ) {
 			$inner .= ' from ' . $context_part;
 		}
 		if ( $fallback ) {
-			$inner .= ' · fallback: "' . $fallback . '"';
+			$inner .= ' · fallback: “' . $fallback . '”';
 		}
 		return '[' . $inner . ']';
 	}
@@ -994,7 +994,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 
 	if ( $fallback ) {
-		$inner .= ' · fallback: "' . $fallback . '"';
+		$inner .= ' · fallback: “' . $fallback . '”';
 	}
 	return '[' . $inner . ']';
 }

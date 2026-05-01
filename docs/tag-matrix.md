@@ -282,7 +282,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 [⚠ {warning}]                        — misconfigured: replaces entire label
 ```
 
-Fallback appended when set: ` · fallback: "{value}"`.
+Fallback appended when set: ` · fallback: “{value}”` (curly quotes — attribute-safe for `image as:alt`/`as:caption` slots).
 
 ### Context part
 
@@ -342,8 +342,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `time` | `Time` | `Time Range` | +1 hour |
 
 ```
-[{prefix} like "{formatted value}" from {context part}]
-[{prefix} like "{formatted value}"]   — no context
+[{prefix} like “{formatted value}” from {context part}]
+[{prefix} like “{formatted value}”]   — no context
 ```
 
 ### Examples
@@ -366,10 +366,10 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{content use:excerpt}}` | `[Excerpt]` |
 | `{{image as:alt\|key:hero}}` | `[Image Field (hero) Alt Text]` |
 | `{{image as:url\|key:hero}}` | *(no label — excluded)* |
-| `{{datetime_single as:date}}` | `[Date like "April 24, 2026"]` |
-| `{{datetime_single as:time\|source:ref\|ref:event_date}}` | `[Time like "2:20 PM" from Ref (event_date)]` |
-| `{{datetime_range as:date\|source:ref\|ref:event}}` | `[Date Range like "April 24 – April 25" from Ref (event)]` |
-| `{{text source:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `[Text Field (body_text) from Ref (rel_post) · fallback: "Untitled"]` |
+| `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
+| `{{datetime_single as:time\|source:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref (event_date)]` |
+| `{{datetime_range as:date\|source:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref (event)]` |
+| `{{text source:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `[Text Field (body_text) from Ref (rel_post) · fallback: “Untitled”]` |
 
 ---
 
