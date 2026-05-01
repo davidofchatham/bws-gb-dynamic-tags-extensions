@@ -576,7 +576,17 @@ class TagTemplateRegistry {
 						? bws_resolve_post_by_source( $src_opts, $inst )
 						: ( '' === $last_src ? get_the_ID() : false );
 
-					if ( ! $post_id ) {
+					// Mode 2b: bws_resolve_post_by_source returns false for src:'' on a flat
+					// repeater row, but core fn can still resolve via $loop_item[$key].
+					// Allow core fn to run when in loop context with src='' and a key set.
+					$in_loop_row = function_exists( 'bws_get_loop_row_context' )
+						&& bws_get_loop_row_context( $inst )['in_loop'];
+					$allow_loop_fallthrough = ! $post_id
+						&& $in_loop_row
+						&& '' === $last_src
+						&& ! empty( $last_key );
+
+					if ( ! $post_id && ! $allow_loop_fallthrough ) {
 						continue;
 					}
 
