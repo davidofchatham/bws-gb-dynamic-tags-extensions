@@ -221,7 +221,7 @@ function bws_register_base_tags(): void {
 						array( 'value' => '',         'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 					),
-					'show_if' => array( 'srcTerm' => 'empty' ),
+					'show_if' => array( 'srcTermIn' => 'empty' ),
 				),
 				'key'      => array(
 					'type'        => 'text',
@@ -533,9 +533,11 @@ function bws_base_source_option(): array {
  * Build traversal sub-option definitions for the source dispatch.
  *
  * `ref` — shown when src:ref; the relationship field key for the hop.
- * `srcTerm` — checkbox; when set, the resolved entity's taxonomy term is used
- *             as the final entity instead of the post itself.
- * `tax` — shown when srcTerm is set; the taxonomy slug to get the term from.
+ * `srcTermIn` — combined control (checkbox + taxonomy ComboboxControl); when a
+ *               taxonomy slug is selected, the resolved entity's taxonomy term
+ *               is used as the final entity instead of the post itself. Empty =
+ *               disabled. Custom JS control (`bws-term-hop`) ensures non-GB-reserved
+ *               serialization. Replaces the prior `srcTerm` + `tax` pair.
  *
  * @since 1.6.0
  * @return array Option definitions keyed by option name.
@@ -549,17 +551,12 @@ function bws_base_traversal_options(): array {
 			'placeholder' => 'related_posts',
 			'show_if'     => array( 'src' => 'ref' ),
 		),
-		'srcTerm' => array(
-			'type'  => 'checkbox',
-			'label' => __( 'Get from taxonomy term?', 'generateblocks' ),
-			'help'  => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
-		),
-		'tax'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Taxonomy:', 'generateblocks' ),
-			'help'        => __( 'Taxonomy slug (e.g. category, post_tag).', 'generateblocks' ),
-			'placeholder' => 'category',
-			'show_if'     => array( 'srcTerm' => 'not_empty' ),
+		'srcTermIn' => array(
+			'type'      => 'bws-term-hop',
+			'label'     => __( 'Get from taxonomy term?', 'generateblocks' ),
+			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
+			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
+			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
 		),
 	);
 }
@@ -688,14 +685,13 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 	}
 
-	$use      = $options['use'] ?? '';
-	$src_term = ! empty( $options['srcTerm'] );
-	$opts     = bws_base_map_options( $options );
+	$use  = $options['use'] ?? '';
+	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$opts = bws_base_map_options( $options );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
-	if ( $src_term ) {
-		$tax    = sanitize_key( $options['tax'] ?? '' );
+	if ( '' !== $tax ) {
 		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
@@ -737,14 +733,13 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
 
-	$use      = $options['use'] ?? '';
-	$src_term = ! empty( $options['srcTerm'] );
-	$opts     = bws_base_map_options( $options );
+	$use  = $options['use'] ?? '';
+	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$opts = bws_base_map_options( $options );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
-	if ( $src_term ) {
-		$tax   = sanitize_key( $options['tax'] ?? '' );
+	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
 			$result = 'key' === $use
@@ -782,12 +777,11 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
 
-	$src_term = ! empty( $options['srcTerm'] );
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
-	if ( $src_term ) {
-		$tax    = sanitize_key( $options['tax'] ?? '' );
+	if ( '' !== $tax ) {
 		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
@@ -813,12 +807,11 @@ function bws_base_title_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
-	$src_term = ! empty( $options['srcTerm'] );
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
-	if ( $src_term ) {
-		$tax   = sanitize_key( $options['tax'] ?? '' );
+	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
 			$result = bws_term_permalink_core( $term->term_id, $options, $instance );
@@ -853,13 +846,12 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 
-	$use      = $options['use'] ?? '';
-	$src_term = ! empty( $options['srcTerm'] );
+	$use = $options['use'] ?? '';
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
-	if ( $src_term ) {
-		$tax   = sanitize_key( $options['tax'] ?? '' );
+	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 		foreach ( $terms as $term ) {
 			$result = bws_term_custom_image_core( $term->term_id, $options, $instance );

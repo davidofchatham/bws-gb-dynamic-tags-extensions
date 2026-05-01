@@ -847,8 +847,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 
 	$source_val = $options['src'] ?? $options['source'] ?? '';
 	$ref        = $options['ref'] ?? '';
-	$src_term   = ! empty( $options['srcTerm'] );
-	$tax        = $options['tax'] ?? '';
+	$tax        = $options['srcTermIn'] ?? $options['tax'] ?? '';
+	$src_term   = '' !== $tax;
 	$key        = $options['key'] ?? '';
 	$use        = $options['use'] ?? '';
 	$as         = $options['as'] ?? '';

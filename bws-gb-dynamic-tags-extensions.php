@@ -138,6 +138,13 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		true
 	);
 	wp_enqueue_script(
+		'bws-dynamic-tags-term-hop-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/term-hop-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-data', 'wp-core-data', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	wp_enqueue_script(
 		'bws-dynamic-tags-editor-preview',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-preview-context.js',
 		array( 'wp-hooks' ),

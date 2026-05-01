@@ -39,6 +39,9 @@ class MigrationRegistry {
 	 *   @type string  $source_inject   Value injected as 'src' option (prepended). '' = omit.
 	 *   @type array   $option_renames  Map old option key → new option key.
 	 *   @type array   $value_renames   Map (post-rename) option key → [ old_val => new_val ].
+	 *   @type array   $combine_options Map new_key → [ 'when_present' => bool_key, 'value_from' => value_key ].
+	 *                                   Combines a presence-flag key + a value key into one new key. Both old
+	 *                                   keys are dropped after combination. Applied before option_renames.
 	 *   @type array   $fixed_options   Key/value pairs always injected on conversion.
 	 *   @type bool    $datetime_transforms When true, apply datetime special-case transforms.
 	 *
@@ -272,12 +275,13 @@ class MigrationRegistry {
 	 *
 	 * Steps:
 	 *   1. Parse tag string into options array.
-	 *   2. Apply option_renames (old key → new key).
-	 *   3. Apply value_renames (post-rename key → old value → new value).
-	 *   4. Apply datetime special-case transforms (opt-in via 'datetime_transforms').
-	 *   5. Inject source_inject — prepended so it serializes first.
-	 *   6. Inject fixed_options (always-on key/value pairs).
-	 *   7. Serialize with new_tag (or match_tag for option-type entries).
+	 *   2. Apply combine_options (presence-flag + value key → single new key).
+	 *   3. Apply option_renames (old key → new key).
+	 *   4. Apply value_renames (post-rename key → old value → new value).
+	 *   5. Apply datetime special-case transforms (opt-in via 'datetime_transforms').
+	 *   6. Inject source_inject — prepended so it serializes first.
+	 *   7. Inject fixed_options (always-on key/value pairs).
+	 *   8. Serialize with new_tag (or match_tag for option-type entries).
 	 *
 	 * @param array  $entry      Migration registry entry.
 	 * @param string $tag_string Full raw tag string.
@@ -287,7 +291,24 @@ class MigrationRegistry {
 		// Step 1: Parse.
 		[ , $options ] = self::parse_tag_string( $tag_string );
 
-		// Step 2: Apply option_renames. Empty-string new_key = drop the option.
+		// Step 2: Apply combine_options. Combines a presence-flag key + a value key into one new key.
+		// If both old keys present and value_from has a non-empty string, emit new_key = that value.
+		// Either old key (or both) always dropped — incomplete configs are silently discarded.
+		foreach ( $entry['combine_options'] ?? array() as $new_key => $spec ) {
+			$bool_key  = $spec['when_present'] ?? '';
+			$value_key = $spec['value_from'] ?? '';
+			if ( '' === $bool_key || '' === $value_key ) {
+				continue;
+			}
+			$has_flag  = array_key_exists( $bool_key, $options );
+			$value     = $options[ $value_key ] ?? '';
+			if ( $has_flag && is_string( $value ) && '' !== trim( $value ) ) {
+				$options[ $new_key ] = $value;
+			}
+			unset( $options[ $bool_key ], $options[ $value_key ] );
+		}
+
+		// Step 3: Apply option_renames. Empty-string new_key = drop the option.
 		foreach ( $entry['option_renames'] ?? array() as $old_key => $new_key ) {
 			if ( array_key_exists( $old_key, $options ) ) {
 				if ( '' !== $new_key ) {
@@ -297,30 +318,30 @@ class MigrationRegistry {
 			}
 		}
 
-		// Step 3: Apply value_renames (keys are in post-rename form).
+		// Step 4: Apply value_renames (keys are in post-rename form).
 		foreach ( $entry['value_renames'] ?? array() as $key => $map ) {
 			if ( isset( $options[ $key ] ) && array_key_exists( $options[ $key ], $map ) ) {
 				$options[ $key ] = $map[ $options[ $key ] ];
 			}
 		}
 
-		// Step 4: Datetime special-case transforms (opt-in per entry).
+		// Step 5: Datetime special-case transforms (opt-in per entry).
 		if ( ! empty( $entry['datetime_transforms'] ) ) {
 			$options = self::apply_datetime_transforms( $options );
 		}
 
-		// Step 5: Inject source_inject — prepended so it serializes first.
+		// Step 6: Inject source_inject — prepended so it serializes first.
 		$source_inject = $entry['source_inject'] ?? '';
 		if ( '' !== $source_inject ) {
 			$options = array_merge( array( 'src' => $source_inject ), $options );
 		}
 
-		// Step 6: Inject fixed_options.
+		// Step 7: Inject fixed_options.
 		foreach ( $entry['fixed_options'] ?? array() as $key => $value ) {
 			$options[ $key ] = $value;
 		}
 
-		// Step 7: Serialize. For 'option' type, new_tag equals match_tag.
+		// Step 8: Serialize. For 'option' type, new_tag equals match_tag.
 		$new_tag = $entry['new_tag'] ?? ( $entry['match_tag'] ?? '' );
 		return self::serialize_tag_string( $new_tag, $options );
 	}

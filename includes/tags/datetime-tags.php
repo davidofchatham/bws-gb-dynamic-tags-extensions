@@ -960,14 +960,13 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
 	}
 
-	$src_term = ! empty( $options['srcTerm'] );
-	$mapped   = bws_base_map_datetime_options( $options );
+	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
+	$mapped = bws_base_map_datetime_options( $options );
 
-	if ( $src_term ) {
+	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )
 			? bws_resolve_post_by_source( $options, $instance )
 			: get_the_ID();
-		$tax   = sanitize_key( $options['tax'] ?? '' );
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
@@ -1000,14 +999,13 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
 	}
 
-	$src_term = ! empty( $options['srcTerm'] );
-	$mapped   = bws_base_map_datetime_range_options( $options );
+	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
+	$mapped = bws_base_map_datetime_range_options( $options );
 
-	if ( $src_term ) {
+	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )
 			? bws_resolve_post_by_source( $options, $instance )
 			: get_the_ID();
-		$tax   = sanitize_key( $options['tax'] ?? '' );
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
