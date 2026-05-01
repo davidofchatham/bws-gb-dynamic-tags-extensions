@@ -92,6 +92,9 @@ function bws_dynamic_tags_register_all() {
 	// Populate DeprecatedTagRegistry with N×M wrappers (must run before bws_register_deprecated_tags).
 	bws_register_v1_deprecated_tag_wrappers();
 
+	// Register migration entries for the eight pre-v1.6 hardcoded deprecated tags.
+	bws_register_early_deprecated_tag_migrations();
+
 	// Register option-key migrations for base tags with deprecated option names.
 	bws_register_option_migrations();
 
