@@ -107,7 +107,7 @@ class TagTemplateRegistry {
 		$source_opt    = array(
 			'src' => array(
 				'type'           => 'select',
-				'label'          => __( 'Source:', 'generateblocks' ),
+				'label'          => __( 'Source', 'generateblocks' ),
 				'options'        => array(
 					array( 'value' => 'current', 'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
 					array(
@@ -127,7 +127,7 @@ class TagTemplateRegistry {
 			$traversal_opts = array(
 				'ref' => array(
 					'type'        => 'text',
-					'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
+					'label'       => __( 'Relationship Field', 'generateblocks' ),
 					'help'        => __( 'ACF relationship or post object field key on the entity that links to the related post.', 'generateblocks' ),
 					'placeholder' => 'related_posts',
 					'show_if'     => array( 'src' => 'ref' ),
@@ -174,7 +174,7 @@ class TagTemplateRegistry {
 					array(
 						'use'      => array(
 							'type'           => 'select',
-							'label'          => __( 'Get image from:', 'generateblocks' ),
+							'label'          => __( 'Image Field', 'generateblocks' ),
 							'options'        => array(
 								array( 'value' => 'key',      'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
 								array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
@@ -304,11 +304,15 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Source dropdown options shared across all slots.
-		$source_options = [
-			[ 'value' => '',    'label' => __( 'Current Post', 'generateblocks' ) ],
-			[ 'value' => 'ref', 'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
+		// Base source dropdown values (slot 1 — first option strip applies).
+		// Slot ≥2 prepends 'same' entry; strip then sets that to '' (= inherit).
+		$base_source_options = [
+			[ 'value' => 'current', 'label' => __( 'Current Post', 'generateblocks' ) ],
+			[ 'value' => 'ref',     'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
 		];
+
+		// Options that take a "Source N: " prefix instead of " N" suffix in slot labels.
+		$prefix_label_keys = [ 'srcTermIn' ];
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -338,128 +342,156 @@ class TagTemplateRegistry {
 				continue;
 			}
 
+			// Per-template use option label (drives slot N "X Field N" labels).
+			$use_label = $tpl_options['use']['label'] ?? __( 'Field', 'generateblocks' );
+
 			// Group 1 — global formatting (as, size, format, etc.) before all slots.
 			$options = $leading_options;
 
 			for ( $n = 1; $n <= 5; $n++ ) {
 				$prev    = $n - 1;
-				$src_key = ( 1 === $n ) ? 'src'     : "{$n}-src";
-				$use_key = ( 1 === $n ) ? 'use'     : "{$n}-use";
+				$src_key = ( 1 === $n ) ? 'src'       : "{$n}-src";
+				$use_key = ( 1 === $n ) ? 'use'       : "{$n}-use";
+				$ref_key = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
+				$stm_key = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
+				$key_key = ( 1 === $n ) ? 'key'       : "{$n}-key";
 
-				// Slot trigger: slots 3-5 appear when any of the prior slot's options are set.
-				// The source key is always the slot's primary control and carries the trigger.
+				// Slot visibility trigger:
+				//   Slot 1 — always visible.
+				//   Slot 2 — always visible (matrix shape: at least two slots configurable up front).
+				//   Slot 3+ — visible when any prior slot's option carries a non-default value.
 				if ( $n <= 2 ) {
 					$slot_trigger = [];
 				} else {
-					$prev_src = ( 1 === $prev ) ? 'src'     : "{$prev}-src";
-					$prev_ref = ( 1 === $prev ) ? 'ref'     : "{$prev}-ref";
-					$prev_stm = ( 1 === $prev ) ? 'srcTerm' : "{$prev}-srcTerm";
+					$prev_src = ( 1 === $prev ) ? 'src'       : "{$prev}-src";
+					$prev_ref = ( 1 === $prev ) ? 'ref'       : "{$prev}-ref";
+					$prev_stm = ( 1 === $prev ) ? 'srcTermIn' : "{$prev}-srcTermIn";
 					$prev_any = [
 						$prev_src => 'not_empty',
 						$prev_ref => 'not_empty',
 						$prev_stm => 'not_empty',
 					];
 					if ( $per_slot_key || $per_slot_use ) {
-						$prev_key             = ( 1 === $prev ) ? 'key' : "{$prev}-key";
+						$prev_key              = ( 1 === $prev ) ? 'key' : "{$prev}-key";
 						$prev_any[ $prev_key ] = 'not_empty';
 					}
 					if ( $per_slot_use ) {
-						$prev_use             = ( 1 === $prev ) ? 'use' : "{$prev}-use";
+						$prev_use              = ( 1 === $prev ) ? 'use' : "{$prev}-use";
 						$prev_any[ $prev_use ] = 'not_empty';
 					}
 					$slot_trigger = [ 'show_if_any' => $prev_any ];
 				}
 
-				// Source selector — always first; governs which sub-options appear.
+				// Source dropdown values: slot 1 = base; slot ≥2 = prepend 'same' inherit row.
+				$slot_src_options = ( 1 === $n )
+					? $base_source_options
+					: array_merge(
+						[ [ 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) ] ],
+						$base_source_options
+					);
+
 				$options[ $src_key ] = array_merge(
 					[
-						'type'    => 'select',
+						'type'           => 'select',
 						/* translators: %d: slot number */
-						'label'   => sprintf( __( 'Slot %d: Source', 'generateblocks' ), $n ),
-						'options' => $source_options,
+						'label'          => sprintf( __( 'Source %d', 'generateblocks' ), $n ),
+						'options'        => $slot_src_options,
+						'_strip_default' => true,
 					],
 					$slot_trigger
 				);
-
-				$ref_key = ( 1 === $n ) ? 'ref'     : "{$n}-ref";
-				$stm_key = ( 1 === $n ) ? 'srcTerm' : "{$n}-srcTerm";
-				$tax_key = ( 1 === $n ) ? 'tax'     : "{$n}-tax";
 
 				// ref — relationship field key (shown when src = 'ref').
 				$options[ $ref_key ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
-					'label'       => sprintf( __( 'Slot %d: Relationship Field', 'generateblocks' ), $n ),
+					'label'       => sprintf( __( 'Relationship Field %d', 'generateblocks' ), $n ),
 					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
 					'placeholder' => 'related_post',
 					'show_if'     => [ $src_key => 'ref' ],
 				];
 
-				// srcTerm — term hop modifier (no carry-forward).
+				// srcTermIn — combined term-hop control (no carry-forward).
+				$srcterm_in_label = sprintf(
+					/* translators: %d: slot number */
+					__( 'Source %d: Get from taxonomy term?', 'generateblocks' ),
+					$n
+				);
+				$srcterm_pick_label = sprintf(
+					/* translators: %d: slot number */
+					__( 'Source %d: Taxonomy', 'generateblocks' ),
+					$n
+				);
 				$options[ $stm_key ] = array_merge(
 					[
-						'type'  => 'checkbox',
-						/* translators: %d: slot number */
-						'label' => sprintf( __( 'Slot %d: Get from taxonomy term?', 'generateblocks' ), $n ),
-						'help'  => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
+						'type'      => 'bws-term-hop',
+						'label'     => $srcterm_in_label,
+						'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
+						'pickLabel' => $srcterm_pick_label,
+						'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
 					],
 					$slot_trigger
 				);
 
-				// tax — taxonomy slug (shown when srcTerm set).
-				$options[ $tax_key ] = [
-					'type'        => 'text',
-					/* translators: %d: slot number */
-					'label'       => sprintf( __( 'Slot %d: Taxonomy', 'generateblocks' ), $n ),
-					'help'        => __( 'Taxonomy slug (e.g. category, post_tag).', 'generateblocks' ),
-					'placeholder' => 'category',
-					'show_if'     => [ $stm_key => 'not_empty' ],
-				];
-
-				// N-use — per-slot source type (try_per_slot_use templates only).
+				// N-use — per-slot field-type selector (try_per_slot_use templates only).
 				if ( $per_slot_use && ! empty( $tpl_options['use']['options'] ) ) {
+					$slot_use_options = ( 1 === $n )
+						? $tpl_options['use']['options']
+						: array_merge(
+							[ [ 'value' => 'same', 'label' => __( 'Same as Previous Field', 'generateblocks' ) ] ],
+							$tpl_options['use']['options']
+						);
+
 					$options[ $use_key ] = array_merge(
 						[
-							'type'    => 'select',
-							/* translators: %d: slot number */
-							'label'   => sprintf( __( 'Slot %d: Source Type', 'generateblocks' ), $n ),
-							'options' => $tpl_options['use']['options'],
+							'type'           => 'select',
+							/* translators: 1: use option label (e.g. "Text Field"), 2: slot number */
+							'label'          => sprintf( '%1$s %2$d', $use_label, $n ),
+							'options'        => $slot_use_options,
+							'_strip_default' => true,
 						],
 						$slot_trigger
 					);
 				}
 
-				$key_key = ( 1 === $n ) ? 'key' : "{$n}-key";
-
 				// key — per-slot field key.
-				// try_per_slot_key: always shown within slot (same trigger as source key).
-				// try_per_slot_use: shown only when use = 'key' (custom-field mode).
-				if ( $per_slot_key ) {
+				// try_per_slot_key (no use): always shown within slot.
+				// try_per_slot_use: shown only when current slot's effective use mode needs a key.
+				//   Effective mode for slot ≥2 includes "same" (inherit) — visibility for inherit
+				//   case is approximated by show_if_any across this slot's use values that need keys.
+				if ( $per_slot_key && ! $per_slot_use ) {
 					$options[ $key_key ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( 'Slot %d: Field Key', 'generateblocks' ), $n ),
+							'label'       => sprintf( __( 'Field Key %d', 'generateblocks' ), $n ),
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
 						$slot_trigger
 					);
 				} elseif ( $per_slot_use ) {
+					// Show key field unless current use is in no-key list ('featured', 'title', 'content', 'excerpt', etc.).
+					// Builds 'show_if' = { use_key => 'not_in:<no-key values>' }.
+					$show_if = [];
+					if ( ! empty( $no_key_uses ) ) {
+						$show_if[ $use_key ] = 'not_in:' . implode( ',', $no_key_uses );
+					}
 					$options[ $key_key ] = array_merge(
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( 'Slot %d: Field Key', 'generateblocks' ), $n ),
-							'help'        => __( 'ACF or meta field key. Required when Source Type is Custom Field.', 'generateblocks' ),
+							'label'       => sprintf( __( 'Field Key %d', 'generateblocks' ), $n ),
+							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
-						[ 'show_if' => [ $use_key => 'key' ] ]
+						$show_if ? [ 'show_if' => $show_if ] : [],
+						$slot_trigger
 					);
 				}
 			}
 
-			// Append template-level trailing options (field keys, fallback, etc.).
+			// Append template-level trailing options (fallback, etc.).
 			// Strip options already emitted as leading (Group 1) or replaced by per-slot equivalents.
 			$trailing_opts = $tpl_options;
 			foreach ( array_keys( $leading_options ) as $leading_key ) {
@@ -479,89 +511,96 @@ class TagTemplateRegistry {
 			$psk = $per_slot_key;
 			$psu = $per_slot_use;
 			$nku = $no_key_uses;
+			// Slot 1 default 'use' token = first option value in template's use definition.
+			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $default_use ) {
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, [ 'fallback' => null, 'fallback_text' => null ] );
 
-				// Carry-forward state across slots.
-				$last_src = '';  // '' = current post context.
+				// Carry-forward state across slots. Canonical tokens stored:
+				// $last_src: 'current' | 'ref' (never empty after slot 1 normalize).
+				// $last_use: per-template default ('key' | 'content') | other tokens.
+				$last_src = 'current';
 				$last_ref = '';
-				$last_tax = '';
 				$last_key = '';
-				$last_use = '';
+				$last_use = ''; // populated from slot 1 default below.
 
 				foreach ( range( 1, 5 ) as $n ) {
-					$src_k = ( 1 === $n ) ? 'src'     : "{$n}-src";
-					$ref_k = ( 1 === $n ) ? 'ref'     : "{$n}-ref";
-					$stm_k = ( 1 === $n ) ? 'srcTerm' : "{$n}-srcTerm";
-					$tax_k = ( 1 === $n ) ? 'tax'     : "{$n}-tax";
-					$key_k = ( 1 === $n ) ? 'key'     : "{$n}-key";
-					$use_k = ( 1 === $n ) ? 'use'     : "{$n}-use";
+					$src_k = ( 1 === $n ) ? 'src'       : "{$n}-src";
+					$ref_k = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
+					$stm_k = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
+					$key_k = ( 1 === $n ) ? 'key'       : "{$n}-key";
+					$use_k = ( 1 === $n ) ? 'use'       : "{$n}-use";
 
 					$src_raw = $opts[ $src_k ] ?? '';
 					$ref_raw = $opts[ $ref_k ] ?? '';
-					$stm_raw = $opts[ $stm_k ] ?? '';
-					$tax_raw = $opts[ $tax_k ] ?? '';
+					$stm_raw = sanitize_key( $opts[ $stm_k ] ?? '' );
 					$key_raw = $opts[ $key_k ] ?? '';
 					$use_raw = $opts[ $use_k ] ?? '';
 
-					// Skip slot if it contributes no new configuration relative to the previous slot.
+					// 'same' is the inherit sentinel for slot ≥2 dropdowns; strip-at-registration
+					// normally renders this as '', but normalize defensively for hand-written tags.
 					if ( $n > 1 ) {
+						if ( 'same' === $src_raw ) { $src_raw = ''; }
+						if ( 'same' === $use_raw ) { $use_raw = ''; }
+					}
+
+					// Slot 1: '' = stripped first-option default (= 'current' for src, per-template for use).
+					// Slot ≥2: '' = 'same' (inherit prior carry-forward).
+					if ( 1 === $n ) {
+						$last_src = ( '' === $src_raw ) ? 'current' : $src_raw;
+						$last_ref = $ref_raw;
+						$last_key = $key_raw;
+						if ( $psu ) {
+							$last_use = ( '' === $use_raw ) ? $default_use : $use_raw;
+						}
+					} else {
+						// Slot ≥2 — skip if entirely empty (no override anywhere).
 						$has_new = '' !== $src_raw
 							|| '' !== $ref_raw
 							|| '' !== $stm_raw
-							|| '' !== $tax_raw
 							|| ( ( $psk || $psu ) && '' !== $key_raw )
 							|| ( $psu && '' !== $use_raw );
 						if ( ! $has_new ) {
 							continue;
 						}
+
+						// Carry-forward semantics: '' = same/inherit, anything else = override.
+						if ( '' !== $src_raw ) { $last_src = $src_raw; }
+						if ( '' !== $ref_raw ) { $last_ref = $ref_raw; }
+						if ( '' !== $key_raw ) { $last_key = $key_raw; }
+						if ( $psu && '' !== $use_raw ) { $last_use = $use_raw; }
 					}
 
-					// Update carry-forward values (srcTerm does NOT carry forward).
-					if ( '' !== $src_raw ) { $last_src = $src_raw; }
-					if ( '' !== $ref_raw ) { $last_ref = $ref_raw; }
-					if ( '' !== $tax_raw ) { $last_tax = $tax_raw; }
-					if ( '' !== $key_raw ) { $last_key = $key_raw; }
-					if ( '' !== $use_raw ) { $last_use = $use_raw; }
+					// Build slot-specific options (merged into core fn call).
+					$slot_opts          = $eval_opts;
+					$slot_opts['src']   = $last_src;
+					$slot_opts['ref']   = $last_ref;
 
-					// Build slot-specific options (injected into core fn call).
-					$slot_opts = $eval_opts;
-
-					if ( $psk ) {
-						// When psu is also active, certain use values (e.g. 'featured') don't need a key.
+					if ( $psk || $psu ) {
 						$in_no_key_mode = $psu && in_array( $last_use, $nku, true );
-						if ( ! $in_no_key_mode && empty( $last_key ) ) {
-							continue; // No field key — skip slot.
+						if ( ! $in_no_key_mode && '' === $last_key ) {
+							continue; // No field key and not in no-key mode — skip slot.
 						}
-						if ( ! empty( $last_key ) ) {
+						if ( '' !== $last_key ) {
 							$slot_opts['key'] = $last_key;
 						}
 					}
 
 					if ( $psu ) {
 						$slot_opts['use'] = $last_use;
-						if ( 'key' === $last_use ) {
-							if ( empty( $last_key ) ) {
-								continue; // Custom-field mode but no key — skip slot.
-							}
-							$slot_opts['key'] = $last_key;
-						}
 					}
 
-					// srcTerm dispatch: resolve post → get terms → call try_term_fn.
-					// srcTerm is read from this slot only (no carry-forward).
+					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
+					// srcTermIn is read from this slot only (no carry-forward).
 					if ( '' !== $stm_raw && $tcf ) {
-						$src_opts = array_merge( $slot_opts, [
-							'src' => $last_src,
-							'ref' => $last_ref,
-						] );
+						$slot_opts['srcTermIn'] = $stm_raw;
 						$post_id = function_exists( 'bws_resolve_post_by_source' )
-							? bws_resolve_post_by_source( $src_opts, $inst )
+							? bws_resolve_post_by_source( $slot_opts, $inst )
 							: get_the_ID();
 						if ( $post_id && function_exists( 'bws_get_srcterm_terms' ) ) {
-							$terms = bws_get_srcterm_terms( (int) $post_id, sanitize_key( $last_tax ) );
+							$terms = bws_get_srcterm_terms( (int) $post_id, $stm_raw );
 							foreach ( $terms as $term ) {
 								$result = $tcf( $term->term_id, $slot_opts, $inst );
 								if ( '' !== $result && false !== $result ) {
@@ -572,24 +611,19 @@ class TagTemplateRegistry {
 						continue; // All terms empty — try next slot.
 					}
 
-					// Post-based paths: '' | 'ref'.
-					$src_opts = array_merge( $slot_opts, [
-						'src' => $last_src,
-						'ref' => $last_ref,
-					] );
+					// Post-based paths: 'current' | 'ref'.
 					$post_id = function_exists( 'bws_resolve_post_by_source' )
-						? bws_resolve_post_by_source( $src_opts, $inst )
-						: ( '' === $last_src ? get_the_ID() : false );
+						? bws_resolve_post_by_source( $slot_opts, $inst )
+						: ( 'current' === $last_src ? get_the_ID() : false );
 
-					// Mode 2b: bws_resolve_post_by_source returns false for src:'' on a flat
+					// Mode 2b: bws_resolve_post_by_source returns false for src:'current' on a flat
 					// repeater row, but core fn can still resolve via $loop_item[$key].
-					// Allow core fn to run when in loop context with src='' and a key set.
 					$in_loop_row = function_exists( 'bws_get_loop_row_context' )
 						&& bws_get_loop_row_context( $inst )['in_loop'];
 					$allow_loop_fallthrough = ! $post_id
 						&& $in_loop_row
-						&& '' === $last_src
-						&& ! empty( $last_key );
+						&& 'current' === $last_src
+						&& '' !== $last_key;
 
 					if ( ! $post_id && ! $allow_loop_fallthrough ) {
 						continue;

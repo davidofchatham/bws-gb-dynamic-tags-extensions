@@ -62,7 +62,7 @@ function bws_register_base_tags(): void {
 			array(
 				'use'      => array(
 					'type'           => 'select',
-					'label'          => __( 'Get text from:', 'generateblocks' ),
+					'label'          => __( 'Text Field', 'generateblocks' ),
 					'options'        => array(
 						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
@@ -112,7 +112,7 @@ function bws_register_base_tags(): void {
 			array(
 				'use'      => array(
 					'type'           => 'select',
-					'label'          => __( 'Get content from:', 'generateblocks' ),
+					'label'          => __( 'Content Field', 'generateblocks' ),
 					'options'        => array(
 						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
@@ -218,7 +218,7 @@ function bws_register_base_tags(): void {
 			array(
 				'use'      => array(
 					'type'           => 'select',
-					'label'          => __( 'Get image from:', 'generateblocks' ),
+					'label'          => __( 'Image Field', 'generateblocks' ),
 					'options'        => array(
 						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
@@ -285,9 +285,18 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'              => 'text',
-		'title'            => __( 'Text Fields', 'generateblocks' ),
-		'options'          => array(
+		'key'                   => 'text',
+		'title'                 => __( 'Text Fields', 'generateblocks' ),
+		'options'               => array(
+			'use'      => array(
+				'type'           => 'select',
+				'label'          => __( 'Text Field', 'generateblocks' ),
+				'options'        => array(
+					array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+				),
+				'_strip_default' => true,
+			),
 			'key'      => array(
 				'type'        => 'text',
 				'label'       => __( 'Field Key', 'generateblocks' ),
@@ -300,31 +309,52 @@ function bws_register_base_tags(): void {
 				'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
 			),
 		),
-		'term_fn'          => 'bws_term_custom_text_core',
-		'post_fn'          => 'bws_post_custom_text_core',
-		'try_core_fn'      => 'bws_post_custom_text_core',
-		'try_term_fn'      => 'bws_term_custom_text_core',
-		'supports_try'     => true,
-		'try_per_slot_key' => true,
-		'is_image'         => false,
+		'term_fn'               => 'bws_term_custom_text_core',
+		'post_fn'               => 'bws_post_custom_text_core',
+		'try_core_fn'           => 'bws_post_custom_text_core',
+		'try_term_fn'           => 'bws_term_custom_text_core',
+		'supports_try'          => true,
+		'try_per_slot_key'      => true,
+		'try_per_slot_use'      => true,
+		'try_use_no_key_values' => array( 'title' ),
+		'is_image'              => false,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'          => 'content',
-		'title'        => __( 'Content', 'generateblocks' ),
-		'options'      => array(
+		'key'                   => 'content',
+		'title'                 => __( 'Content', 'generateblocks' ),
+		'options'               => array(
+			'use'      => array(
+				'type'           => 'select',
+				'label'          => __( 'Content Field', 'generateblocks' ),
+				'options'        => array(
+					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
+					array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+				),
+				'_strip_default' => true,
+			),
+			'key'      => array(
+				'type'        => 'text',
+				'label'       => __( 'Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'placeholder' => 'field_name',
+			),
 			'fallback' => array(
 				'type'  => 'text',
 				'label' => __( 'Fallback Text', 'generateblocks' ),
 				'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
 			),
 		),
-		'term_fn'      => 'bws_term_description_core',
-		'post_fn'      => 'bws_post_content_core',
-		'try_core_fn'  => 'bws_post_content_core',
-		'try_term_fn'  => 'bws_term_description_core',
-		'supports_try' => true,
-		'is_image'     => false,
+		'term_fn'               => 'bws_term_description_core',
+		'post_fn'               => 'bws_post_content_core',
+		'try_core_fn'           => 'bws_post_content_core',
+		'try_term_fn'           => 'bws_term_description_core',
+		'supports_try'          => true,
+		'try_per_slot_key'      => true,
+		'try_per_slot_use'      => true,
+		'try_use_no_key_values' => array( 'content', 'excerpt' ),
+		'is_image'              => false,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -394,7 +424,7 @@ function bws_register_base_tags(): void {
 			),
 			'use'      => array(
 				'type'           => 'select',
-				'label'          => __( 'Get image from:', 'generateblocks' ),
+				'label'          => __( 'Image Field', 'generateblocks' ),
 				'options'        => array(
 					array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
@@ -524,7 +554,7 @@ function bws_base_source_option(): array {
 	return array(
 		'src' => array(
 			'type'           => 'select',
-			'label'          => __( 'Source:', 'generateblocks' ),
+			'label'          => __( 'Source', 'generateblocks' ),
 			'options'        => array(
 				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
 				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
@@ -551,7 +581,7 @@ function bws_base_traversal_options(): array {
 	return array(
 		'ref'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Traverse by meta key:', 'generateblocks' ),
+			'label'       => __( 'Relationship Field', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
 			'show_if'     => array( 'src' => 'ref' ),
