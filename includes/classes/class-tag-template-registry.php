@@ -562,7 +562,15 @@ class TagTemplateRegistry {
 							$last_use = ( '' === $use_raw ) ? $default_use : $use_raw;
 						}
 					} else {
-						// Slot ≥2 — skip if entirely empty (no override anywhere).
+						// Slot ≥2 — when use=same (raw empty under psu), the slot fully inherits
+						// both `use` and `key` from prior carry-forward. UI hides the key field
+						// in this case; discard any stale `key_raw` left over from a prior
+						// explicit-use selection so it doesn't bleed through as an override.
+						if ( $psu && '' === $use_raw ) {
+							$key_raw = '';
+						}
+
+						// Skip slot if entirely empty (no override anywhere).
 						$has_new = '' !== $src_raw
 							|| '' !== $ref_raw
 							|| '' !== $stm_raw
