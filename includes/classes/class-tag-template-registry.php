@@ -471,12 +471,18 @@ class TagTemplateRegistry {
 						$slot_trigger
 					);
 				} elseif ( $per_slot_use ) {
-					// Show key field unless current use is in no-key list ('featured', 'title', 'content', 'excerpt', etc.).
-					// Builds 'show_if' = { use_key => 'not_in:<no-key values>' }.
-					$show_if = [];
-					if ( ! empty( $no_key_uses ) ) {
-						$show_if[ $use_key ] = 'not_in:' . implode( ',', $no_key_uses );
-					}
+					// Slot 1: '' wire = template's first 'use' value (key-mode for text/image, content for content).
+					//   Show key when current 'use' is NOT in no-key list (use === '' implies key-mode for text/image).
+					//   Builds 'show_if' = { use_key => 'not_in:<no-key values>' }.
+					// Slot ≥2: '' wire = 'same' (inherit prior carry-forward — inherits BOTH use AND key).
+					//   Show key only when user explicitly picks a key-needing 'use' value (override mode).
+					//   Same-as-previous keeps key field hidden because the inherited key is reused.
+					$use_values  = array_column( $tpl_options['use']['options'], 'value' );
+					$key_values  = array_values( array_diff( $use_values, $no_key_uses ) );
+					$key_show_if = ( 1 === $n )
+						? ( ! empty( $no_key_uses ) ? [ $use_key => 'not_in:' . implode( ',', $no_key_uses ) ] : [] )
+						: ( ! empty( $key_values ) ? [ $use_key => 'in:' . implode( ',', $key_values ) ] : [] );
+
 					$options[ $key_key ] = array_merge(
 						[
 							'type'        => 'text',
@@ -485,7 +491,7 @@ class TagTemplateRegistry {
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
-						$show_if ? [ 'show_if' => $show_if ] : [],
+						$key_show_if ? [ 'show_if' => $key_show_if ] : [],
 						$slot_trigger
 					);
 				}
