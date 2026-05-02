@@ -56,17 +56,18 @@ function bws_register_base_tags(): void {
 		'tag'      => 'text',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => array_merge(
+		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
 				'use'      => array(
-					'type'    => 'select',
-					'label'   => __( 'Get text from:', 'generateblocks' ),
-					'options' => array(
-						array( 'value' => '',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					'type'           => 'select',
+					'label'          => __( 'Get text from:', 'generateblocks' ),
+					'options'        => array(
+						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 					),
+					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
@@ -92,7 +93,7 @@ function bws_register_base_tags(): void {
 					'placeholder' => ', ',
 				),
 			)
-		),
+		) ),
 		'return'   => 'bws_base_text_callback',
 	) );
 
@@ -105,18 +106,19 @@ function bws_register_base_tags(): void {
 		'tag'      => 'content',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => array_merge(
+		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
 				'use'      => array(
-					'type'    => 'select',
-					'label'   => __( 'Get content from:', 'generateblocks' ),
-					'options' => array(
-						array( 'value' => '',        'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+					'type'           => 'select',
+					'label'          => __( 'Get content from:', 'generateblocks' ),
+					'options'        => array(
+						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 					),
+					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
@@ -131,7 +133,7 @@ function bws_register_base_tags(): void {
 					'help'  => __( 'Text to display if content is empty or not found.', 'generateblocks' ),
 				),
 			)
-		),
+		) ),
 		'return'   => 'bws_base_content_callback',
 	) );
 
@@ -144,7 +146,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'title',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => array_merge(
+		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -160,7 +162,7 @@ function bws_register_base_tags(): void {
 					'placeholder' => ', ',
 				),
 			)
-		),
+		) ),
 		'return'   => 'bws_base_title_callback',
 	) );
 
@@ -173,10 +175,10 @@ function bws_register_base_tags(): void {
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => array_merge(
+		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts
-		),
+		) ),
 		'return'   => 'bws_base_permalink_callback',
 	) );
 
@@ -192,7 +194,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'image',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => array_merge(
+		'options'  => bws_strip_default_select_values( array_merge(
 			array(
 				'as'   => array(
 					'type'    => 'select',
@@ -215,13 +217,14 @@ function bws_register_base_tags(): void {
 			$traversal_opts,
 			array(
 				'use'      => array(
-					'type'    => 'select',
-					'label'   => __( 'Get image from:', 'generateblocks' ),
-					'options' => array(
-						array( 'value' => '',         'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					'type'           => 'select',
+					'label'          => __( 'Get image from:', 'generateblocks' ),
+					'options'        => array(
+						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 					),
-					'show_if' => array( 'srcTermIn' => 'empty' ),
+					'show_if'        => array( 'srcTermIn' => 'empty' ),
+					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
@@ -235,7 +238,7 @@ function bws_register_base_tags(): void {
 					'label' => __( 'Fallback Image', 'generateblocks' ),
 				),
 			)
-		),
+		) ),
 		'return'   => 'bws_base_image_callback',
 	) );
 
@@ -390,12 +393,13 @@ function bws_register_base_tags(): void {
 				'label' => __( 'Image Size', 'generateblocks' ),
 			),
 			'use'      => array(
-				'type'    => 'select',
-				'label'   => __( 'Get image from:', 'generateblocks' ),
-				'options' => array(
-					array( 'value' => '',         'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+				'type'           => 'select',
+				'label'          => __( 'Get image from:', 'generateblocks' ),
+				'options'        => array(
+					array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 				),
+				'_strip_default' => true,
 			),
 			'fallback' => array(
 				'type'  => 'bws-media-picker',
@@ -519,12 +523,13 @@ function bws_register_base_tags(): void {
 function bws_base_source_option(): array {
 	return array(
 		'src' => array(
-			'type'    => 'select',
-			'label'   => __( 'Source:', 'generateblocks' ),
-			'options' => array(
-				array( 'value' => '',    'label' => __( 'Current', 'generateblocks' ) ),
-				array( 'value' => 'ref', 'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
+			'type'           => 'select',
+			'label'          => __( 'Source:', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
+				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
 			),
+			'_strip_default' => true,
 		),
 	);
 }
@@ -579,7 +584,10 @@ function bws_base_traversal_options(): array {
  * @return int|false Resolved post ID, or false if unresolvable.
  */
 function bws_resolve_post_by_source( array $options, $instance ) {
-	$src = $options['src'] ?? $options['source'] ?? '';
+	$src = $options['src'] ?? $options['source'] ?? 'current';
+	if ( '' === $src ) {
+		$src = 'current';
+	}
 	$ref = $options['ref'] ?? '';
 
 	$loop = bws_get_loop_row_context( $instance );
@@ -604,12 +612,12 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 		return $source->resolve_id( $mapped, $instance );
 	}
 
-	// src:'' (current entity)
+	// src:'current' (current entity)
 	if ( $loop['row_post_id'] ) {
 		return $loop['row_post_id']; // Mode 2a: row entity is the post.
 	}
 	if ( $loop['in_loop'] ) {
-		return false; // Mode 2b with src:'' — no post ID for a flat row.
+		return false; // Mode 2b with src:'current' — no post ID for a flat row.
 	}
 
 	$source = SourceRegistry::get_source( 'post' );
@@ -685,7 +693,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 	}
 
-	$use  = $options['use'] ?? '';
+	$use  = $options['use'] ?? 'key';
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
 	$opts = bws_base_map_options( $options );
 
@@ -733,7 +741,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
 
-	$use  = $options['use'] ?? '';
+	$use  = $options['use'] ?? 'content';
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
 	$opts = bws_base_map_options( $options );
 
@@ -846,7 +854,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 
-	$use = $options['use'] ?? '';
+	$use = $options['use'] ?? 'key';
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );

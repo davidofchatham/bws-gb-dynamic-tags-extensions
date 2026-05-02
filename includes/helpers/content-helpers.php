@@ -820,6 +820,33 @@ function bws_safe_content_output( $content, $options, $instance ) {
 // ===============================================
 
 /**
+ * Strip default-marked select options' first-entry value to '' before GB registration.
+ *
+ * Options array entries flagged `_strip_default => true` get their first option's
+ * value flipped to '' so the wire format omits the default token (GB drops empty
+ * values from the serialized tag string). Internal canonical token (e.g. 'current',
+ * 'key', 'content') is preserved in source files for readability; consumers apply
+ * `?? '<canonical>'` to restore it at read time.
+ *
+ * The `_strip_default` marker itself is removed before passing to GB.
+ *
+ * @since 1.7.0
+ * @param array $options Options array as registered in PHP.
+ * @return array Options with strip applied.
+ */
+if ( ! function_exists( 'bws_strip_default_select_values' ) ) {
+function bws_strip_default_select_values( array $options ): array {
+	foreach ( $options as &$opt ) {
+		if ( ! empty( $opt['_strip_default'] ) && isset( $opt['options'][0]['value'] ) ) {
+			$opt['options'][0]['value'] = '';
+		}
+		unset( $opt['_strip_default'] );
+	}
+	return $options;
+}
+}
+
+/**
  * Build a structured preview label for a tag that can't resolve in the editor.
  *
  * Schema: [tag matrix §Editor preview label schema].
@@ -845,14 +872,22 @@ function bws_build_preview_label( array $options, string $template ): string {
 		}
 	}
 
-	$source_val = $options['src'] ?? $options['source'] ?? '';
-	$ref        = $options['ref'] ?? '';
-	$tax        = $options['srcTermIn'] ?? $options['tax'] ?? '';
-	$src_term   = '' !== $tax;
-	$key        = $options['key'] ?? '';
-	$use        = $options['use'] ?? '';
-	$as         = $options['as'] ?? '';
-	$fallback   = $options['fallback'] ?? '';
+	$source_val = $options['src'] ?? $options['source'] ?? 'current';
+	if ( '' === $source_val ) {
+		$source_val = 'current';
+	}
+	$ref      = $options['ref'] ?? '';
+	$tax      = $options['srcTermIn'] ?? $options['tax'] ?? '';
+	$src_term = '' !== $tax;
+	$key      = $options['key'] ?? '';
+	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
+	$use_default  = $use_defaults[ $base_template ] ?? '';
+	$use          = $options['use'] ?? $use_default;
+	if ( '' === $use && '' !== $use_default ) {
+		$use = $use_default;
+	}
+	$as       = $options['as'] ?? '';
+	$fallback = $options['fallback'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string silently breaks the element).
 	if ( 'image' === $base_template && ! in_array( $as, [ 'alt', 'caption' ], true ) ) {

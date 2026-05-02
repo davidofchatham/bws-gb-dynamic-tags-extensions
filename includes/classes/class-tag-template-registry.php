@@ -106,10 +106,10 @@ class TagTemplateRegistry {
 		$traversal_src = $traversal_src_key ? SourceRegistry::get_source( $traversal_src_key ) : null;
 		$source_opt    = array(
 			'src' => array(
-				'type'    => 'select',
-				'label'   => __( 'Source:', 'generateblocks' ),
-				'options' => array(
-					array( 'value' => '',    'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
+				'type'           => 'select',
+				'label'          => __( 'Source:', 'generateblocks' ),
+				'options'        => array(
+					array( 'value' => 'current', 'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
 					array(
 						'value' => 'ref',
 						'label' => $traversal_src
@@ -117,6 +117,7 @@ class TagTemplateRegistry {
 							: __( 'Ref/Rel Field', 'generateblocks' ),
 					),
 				),
+				'_strip_default' => true,
 			),
 		);
 
@@ -172,13 +173,14 @@ class TagTemplateRegistry {
 					$traversal_opts,
 					array(
 						'use'      => array(
-							'type'    => 'select',
-							'label'   => __( 'Get image from:', 'generateblocks' ),
-							'options' => array(
-								array( 'value' => '',         'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
+							'type'           => 'select',
+							'label'          => __( 'Get image from:', 'generateblocks' ),
+							'options'        => array(
+								array( 'value' => 'key',      'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
 								array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 							),
-							'show_if' => array( 'src' => 'ref' ),
+							'show_if'        => array( 'src' => 'ref' ),
+							'_strip_default' => true,
 						),
 						'key'      => array(
 							'type'        => 'text',
@@ -227,7 +229,10 @@ class TagTemplateRegistry {
 				return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
 			}
 
-			$source = $opts['src'] ?? $opts['source'] ?? '';
+			$source = $opts['src'] ?? $opts['source'] ?? 'current';
+			if ( '' === $source ) {
+				$source = 'current';
+			}
 
 			if ( 'ref' === $source ) {
 				// Traversal from modifier entity → related post.
@@ -632,6 +637,9 @@ class TagTemplateRegistry {
 		array $options,
 		callable $callback
 	): void {
+		if ( function_exists( 'bws_strip_default_select_values' ) ) {
+			$options = bws_strip_default_select_values( $options );
+		}
 		new \GenerateBlocks_Register_Dynamic_Tag(
 			[
 				'title'    => $title,
