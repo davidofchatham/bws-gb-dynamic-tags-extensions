@@ -311,8 +311,8 @@ function bws_register_base_tags(): void {
 		),
 		'term_fn'               => 'bws_term_custom_text_core',
 		'post_fn'               => 'bws_post_custom_text_core',
-		'try_core_fn'           => 'bws_post_custom_text_core',
-		'try_term_fn'           => 'bws_term_custom_text_core',
+		'try_core_fn'           => 'bws_try_text_post_dispatch',
+		'try_term_fn'           => 'bws_try_text_term_dispatch',
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
@@ -348,8 +348,8 @@ function bws_register_base_tags(): void {
 		),
 		'term_fn'               => 'bws_term_description_core',
 		'post_fn'               => 'bws_post_content_core',
-		'try_core_fn'           => 'bws_post_content_core',
-		'try_term_fn'           => 'bws_term_description_core',
+		'try_core_fn'           => 'bws_try_content_post_dispatch',
+		'try_term_fn'           => 'bws_try_content_term_dispatch',
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
@@ -438,7 +438,7 @@ function bws_register_base_tags(): void {
 		),
 		'term_fn'               => 'bws_term_custom_image_core',
 		'post_fn'               => 'bws_custom_image_core',
-		'try_core_fn'           => 'bws_custom_image_core',
+		'try_core_fn'           => 'bws_try_image_post_dispatch',
 		'try_term_fn'           => 'bws_term_custom_image_core',
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -904,5 +904,88 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return bws_featured_image_core( $post_id, $options, $instance );
 	}
 
+	return bws_custom_image_core( $post_id, $options, $instance );
+}
+
+// ===============================================
+// TRY DISPATCH WRAPPERS
+// ===============================================
+
+/**
+ * Try-tag post-slot dispatch for `text` template.
+ *
+ * Reads $options['use'] to route between title-mode and custom-field-mode.
+ * Used as `try_core_fn` so each try slot dispatches by its slot-resolved use value.
+ *
+ * @since 1.6.0
+ */
+function bws_try_text_post_dispatch( $post_id, $options, $instance ) {
+	$use = $options['use'] ?? 'key';
+	if ( 'title' === $use ) {
+		return bws_post_title_core( $post_id, $options, $instance );
+	}
+	return bws_post_custom_text_core( $post_id, $options, $instance );
+}
+
+/**
+ * Try-tag srcTermIn-slot dispatch for `text` template.
+ *
+ * @since 1.6.0
+ */
+function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
+	$use = $options['use'] ?? 'key';
+	if ( 'title' === $use ) {
+		return bws_term_title_core( $term_id, $options, $instance );
+	}
+	return bws_term_custom_text_core( $term_id, $options, $instance );
+}
+
+/**
+ * Try-tag post-slot dispatch for `content` template.
+ *
+ * Reads $options['use'] to route between content/excerpt/key modes.
+ *
+ * @since 1.6.0
+ */
+function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
+	$use  = $options['use'] ?? 'content';
+	$opts = bws_base_map_options( $options );
+	if ( 'excerpt' === $use ) {
+		return bws_post_excerpt_core( $post_id, $opts, $instance );
+	}
+	if ( 'key' === $use ) {
+		$opts['type'] = 'custom_field';
+		return bws_post_content_core( $post_id, $opts, $instance );
+	}
+	return bws_post_content_core( $post_id, $opts, $instance );
+}
+
+/**
+ * Try-tag srcTermIn-slot dispatch for `content` template.
+ *
+ * @since 1.6.0
+ */
+function bws_try_content_term_dispatch( $term_id, $options, $instance ) {
+	$use  = $options['use'] ?? 'content';
+	$opts = bws_base_map_options( $options );
+	if ( 'key' === $use ) {
+		return bws_term_custom_text_core( $term_id, $opts, $instance );
+	}
+	// content (default) and excerpt both fall back to term description on terms.
+	return bws_term_description_core( $term_id, $opts, $instance );
+}
+
+/**
+ * Try-tag post-slot dispatch for `image` template.
+ *
+ * Reads $options['use'] to route between featured-image and custom-field modes.
+ *
+ * @since 1.6.0
+ */
+function bws_try_image_post_dispatch( $post_id, $options, $instance ) {
+	$use = $options['use'] ?? 'key';
+	if ( 'featured' === $use ) {
+		return bws_featured_image_core( $post_id, $options, $instance );
+	}
 	return bws_custom_image_core( $post_id, $options, $instance );
 }
