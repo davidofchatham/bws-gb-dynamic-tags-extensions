@@ -453,20 +453,17 @@ function bws_is_query_loop_setup_phase( $instance ) {
 /**
  * Log a debug message for post content processing.
  *
- * Active when WP_DEBUG is true or the benchmark logging setting is on.
+ * Gated solely by the admin "Enable benchmark logging" setting; WP_DEBUG alone
+ * does not enable this output.
  *
  * @since 1.1.0
  * @param string $message Message to log.
  */
 if ( ! function_exists( 'bws_content_debug' ) ) {
 function bws_content_debug( $message ) {
-	$enabled = ( defined( 'WP_DEBUG' ) && WP_DEBUG );
-
-	if ( ! $enabled && class_exists( 'BWS\DynamicTags\Admin\SettingsPage' ) ) {
-		$enabled = \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled();
-	}
-
-	if ( ! $enabled ) {
+	if ( ! class_exists( 'BWS\DynamicTags\Admin\SettingsPage' )
+		|| ! \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled()
+	) {
 		return;
 	}
 
@@ -484,13 +481,9 @@ function bws_content_debug( $message ) {
  */
 if ( ! function_exists( 'bws_content_debug_start' ) ) {
 function bws_content_debug_start( $post_id ) {
-	$enabled = ( defined( 'WP_DEBUG' ) && WP_DEBUG );
-
-	if ( ! $enabled && class_exists( 'BWS\DynamicTags\Admin\SettingsPage' ) ) {
-		$enabled = \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled();
-	}
-
-	if ( ! $enabled ) {
+	if ( ! class_exists( 'BWS\DynamicTags\Admin\SettingsPage' )
+		|| ! \BWS\DynamicTags\Admin\SettingsPage::is_benchmark_logging_enabled()
+	) {
 		return array();
 	}
 
@@ -861,9 +854,14 @@ function bws_strip_default_select_values( array $options ): array {
 if ( ! function_exists( 'bws_build_preview_label' ) ) {
 function bws_build_preview_label( array $options, string $template ): string {
 	// Detect modifier prefix → base template.
+	// Built-in modifier prefixes; external plugins register their own via the
+	// `bws_dynamic_tags_preview_modifier_map` filter (see plugin-integration.md §2).
 	$modifier_label = '';
 	$base_template  = $template;
-	$modifier_map   = [ 'term_' => 'Term', 'views_' => 'Views' ];
+	$modifier_map   = apply_filters(
+		'bws_dynamic_tags_preview_modifier_map',
+		[ 'term_' => 'Term' ]
+	);
 	foreach ( $modifier_map as $prefix => $label ) {
 		if ( str_starts_with( $template, $prefix ) ) {
 			$modifier_label = $label;

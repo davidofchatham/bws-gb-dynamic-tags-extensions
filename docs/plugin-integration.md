@@ -148,6 +148,19 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 | `traversal_source_key` | string | — | Source registry key used when `source:'ref'`. Empty string omits the traversal option entirely. If base entity is a standard GB loop post, the built-in `'related_post'` source can be used directly; otherwise register a custom traversal source. |
 | `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
 
+### Editor preview label registration
+
+`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `[Views Text · Ref 'related_posts']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
+
+```php
+add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
+    $map['views_'] = 'Views';
+    return $map;
+} );
+```
+
+Without this, your modifier tags still render normally — only the editor preview label drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
+
 ---
 
 ## 3. SourceInterface Methods Reference

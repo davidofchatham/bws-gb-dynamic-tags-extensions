@@ -100,39 +100,27 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Build source dropdown for modifier tags: two entries (current entity, ref traversal).
-		// Option key MUST be 'src' not 'source' — GB's DynamicTagSelect destructures 'source'
-		// before spreading into extraTagParams, silently eating any option named 'source'.
-		$traversal_src = $traversal_src_key ? SourceRegistry::get_source( $traversal_src_key ) : null;
-		$source_opt    = array(
-			'src' => array(
-				'type'           => 'select',
-				'label'          => __( 'Source', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'current', 'label' => __( 'Current (no traversal)', 'generateblocks' ) ),
-					array(
-						'value' => 'ref',
-						'label' => $traversal_src
-							? $traversal_src->get_source_label()
-							: __( 'Ref/Rel Field', 'generateblocks' ),
-					),
-				),
-				'_strip_default' => true,
-			),
-		);
+		// Reuse canonical source + traversal definitions from base-tags.php so labels stay
+		// unified across base and modifier tags. Option key 'src' (not 'source') — GB's
+		// DynamicTagSelect destructures 'source' before spreading into extraTagParams.
+		$source_opt     = function_exists( 'bws_base_source_option' )
+			? bws_base_source_option()
+			: array();
+		$traversal_opts = function_exists( 'bws_base_traversal_options' )
+			? bws_base_traversal_options()
+			: array();
 
-		// Traversal sub-option: relationship field key shown when src:'ref'.
-		$traversal_opts = array();
-		if ( $traversal_src ) {
-			$traversal_opts = array(
-				'ref' => array(
-					'type'        => 'text',
-					'label'       => __( 'Relationship Field', 'generateblocks' ),
-					'help'        => __( 'ACF relationship or post object field key on the entity that links to the related post.', 'generateblocks' ),
-					'placeholder' => 'related_posts',
-					'show_if'     => array( 'src' => 'ref' ),
-				),
-			);
+		// Detect term-context base source. Term entities are themselves terms — `srcTermIn`
+		// (term-hop on the resolved post) only makes sense after a post traversal (src=ref),
+		// not when the entity already IS the term (src=current).
+		$base_src_obj         = $base_src_key ? SourceRegistry::get_source( $base_src_key ) : null;
+		$base_is_term_context = $base_src_obj && 'term' === $base_src_obj->get_context_type();
+
+		// For term-context base sources, gate srcTermIn visibility to src=ref only.
+		// Default (post or unknown context): srcTermIn always visible.
+		$tag_traversal_opts = $traversal_opts;
+		if ( $base_is_term_context && isset( $tag_traversal_opts['srcTermIn'] ) ) {
+			$tag_traversal_opts['srcTermIn']['show_if'] = array( 'src' => 'ref' );
 		}
 
 		foreach ( self::$modifier_templates as $tpl ) {
@@ -147,59 +135,27 @@ class TagTemplateRegistry {
 			$post_fn  = $tpl['post_fn'];
 			$is_image = ! empty( $tpl['is_image'] );
 
-			if ( $is_image ) {
-				// Image modifier: as (serialized) + size + source + traversal + use (ref only) + key + fallback.
-				// `use:featured` shown only when src:ref — term entities have no featured image.
-				$options = array_merge(
-					array(
-						'as'   => array(
-							'type'    => 'select',
-							'label'   => __( 'Return image as:', 'generateblocks' ),
-							'default' => 'url',
-							'options' => array(
-								array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
-								array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
-								array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
-								array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
-								array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
-							),
-						),
-						'size' => array(
-							'type'  => 'bws-img-size',
-							'label' => __( 'Image Size', 'generateblocks' ),
-						),
-					),
-					$source_opt,
-					$traversal_opts,
-					array(
-						'use'      => array(
-							'type'           => 'select',
-							'label'          => __( 'Image Field', 'generateblocks' ),
-							'options'        => array(
-								array( 'value' => 'key',      'label' => __( 'Custom field (ACF / meta)', 'generateblocks' ) ),
-								array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
-							),
-							'show_if'        => array( 'src' => 'ref' ),
-							'_strip_default' => true,
-						),
-						'key'      => array(
-							'type'        => 'text',
-							'label'       => __( 'Field Key', 'generateblocks' ),
-							'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
-							'placeholder' => 'image_field',
-							'show_if'     => array( 'use' => 'not:featured' ),
-						),
-						'fallback' => array(
-							'type'  => 'bws-media-picker',
-							'label' => __( 'Fallback Image', 'generateblocks' ),
-						),
-					)
-				);
+			// Inject source + traversal after the leading `as` option so source/traversal sit
+			// between formatting controls and field-selection controls. For non-image templates
+			// (no `as`), source/traversal lead the option list.
+			$tpl_options = $tpl['options'] ?? [];
+			if ( $is_image && isset( $tpl_options['as'] ) ) {
+				$as_opt = [ 'as' => $tpl_options['as'] ];
+				unset( $tpl_options['as'] );
+				$options = array_merge( $as_opt, $source_opt, $tag_traversal_opts, $tpl_options );
 			} else {
-				$options = array_merge( $source_opt, $traversal_opts, $tpl['options'] ?? [] );
+				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
 			}
 
-			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name );
+			// Per-tag supports (do not mutate the shared $base_supports across templates).
+			// Image template adds native 'image-size': GB renders the ComboboxControl, handles
+			// 'size:' parsing/serialization, and strips the 'full' default automatically.
+			$tag_supports = $base_supports;
+			if ( $is_image && ! in_array( 'image-size', $tag_supports, true ) ) {
+				$tag_supports[] = 'image-size';
+			}
+
+			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image );
 
 			// Title: plain label when in its own gb_type group (modifier tags appear under their
 			// own group in GB's picker, identified by gb_type). No cross-source parenthetical needed
@@ -208,7 +164,7 @@ class TagTemplateRegistry {
 				? ( $tpl['title'] ?? $tag_name ) . ' (' . $modifier_label . ')'
 				: ( $tpl['title'] ?? $tag_name );
 
-			self::register_gb_tag( $title, $tag_name, $gb_type, $base_supports, $options, $callback );
+			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback );
 		}
 	}
 
@@ -222,9 +178,10 @@ class TagTemplateRegistry {
 		string $traversal_src_key,
 		callable $term_fn,
 		callable $post_fn,
-		string $tag_name = ''
+		string $tag_name = '',
+		bool $is_image = false
 	): callable {
-		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name ) {
+		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image ) {
 			if ( $tag_name && ! empty( $inst->context['bwsEditorPreview'] ) ) {
 				return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
 			}
@@ -233,6 +190,39 @@ class TagTemplateRegistry {
 			if ( '' === $source ) {
 				$source = 'current';
 			}
+
+			// Image template: post-context paths dispatch by `use` (featured vs custom field).
+			// `post_fn` (= bws_custom_image_core) only handles custom-field path; featured needs bws_featured_image_core.
+			$image_post_dispatch = static function ( $entity_id, $opts, $inst ) use ( $post_fn ) {
+				$use = $opts['use'] ?? '';
+				if ( 'featured' === $use && function_exists( 'bws_featured_image_core' ) ) {
+					return bws_featured_image_core( $entity_id, $opts, $inst );
+				}
+				return $post_fn( $entity_id, $opts, $inst );
+			};
+
+			$srcterm_tax = sanitize_key( $opts['srcTermIn'] ?? '' );
+
+			// srcTermIn dispatch: resolve target post (current or via ref), then call term_fn
+			// against each taxonomy term on that post; first non-empty wins. Mirrors
+			// bws_base_image_callback's term-hop loop. For term-context base sources, the
+			// option is hidden when src=current (UI gating), so this only runs when src=ref.
+			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {
+				if ( ! $post_id || '' === $tax ) {
+					return '';
+				}
+				if ( ! function_exists( 'bws_get_srcterm_terms' ) ) {
+					return '';
+				}
+				$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
+				foreach ( $terms as $term ) {
+					$result = $term_fn( $term->term_id, $opts, $inst );
+					if ( '' !== $result && false !== $result ) {
+						return $result;
+					}
+				}
+				return '';
+			};
 
 			if ( 'ref' === $source ) {
 				// Traversal from modifier entity → related post.
@@ -244,6 +234,13 @@ class TagTemplateRegistry {
 				$mapped        = $opts;
 				$mapped['rel'] = $opts['ref'] ?? '';
 				$entity_id     = $src->resolve_id( $mapped, $inst );
+
+				if ( '' !== $srcterm_tax ) {
+					return $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+				}
+				if ( $is_image ) {
+					return $image_post_dispatch( $entity_id, $opts, $inst );
+				}
 				return $post_fn( $entity_id, $opts, $inst );
 			}
 
@@ -255,8 +252,21 @@ class TagTemplateRegistry {
 				return '';
 			}
 			$entity_id = $src->resolve_id( $opts, $inst );
-			$fn        = 'term' === $src->get_context_type() ? $term_fn : $post_fn;
-			return $fn( $entity_id, $opts, $inst );
+			$context   = $src->get_context_type();
+
+			// srcTermIn at src=current is only meaningful for post-context base sources.
+			// Term-context bases hide the control via show_if=src:ref (UI gating).
+			if ( '' !== $srcterm_tax && 'term' !== $context ) {
+				return $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+			}
+
+			if ( 'term' === $context ) {
+				return $term_fn( $entity_id, $opts, $inst );
+			}
+			if ( $is_image ) {
+				return $image_post_dispatch( $entity_id, $opts, $inst );
+			}
+			return $post_fn( $entity_id, $opts, $inst );
 		};
 	}
 
@@ -307,8 +317,8 @@ class TagTemplateRegistry {
 		// Base source dropdown values (slot 1 — first option strip applies).
 		// Slot ≥2 prepends 'same' entry; strip then sets that to '' (= inherit).
 		$base_source_options = [
-			[ 'value' => 'current', 'label' => __( 'Current Post', 'generateblocks' ) ],
-			[ 'value' => 'ref',     'label' => __( 'Related Post (ref field)', 'generateblocks' ) ],
+			[ 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ],
+			[ 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ],
 		];
 
 		// Options that take a "Source N: " prefix instead of " N" suffix in slot labels.
@@ -660,8 +670,8 @@ class TagTemplateRegistry {
 			/* translators: %s: tag title e.g. "Text Fields" */
 			$title = sprintf( __( 'Try %s', 'generateblocks' ), $tpl['title'] ?? $tag_name );
 
-			// No native supports — all controls registered as custom options.
-			$supports = [];
+			// Image template uses native 'image-size' support; other templates have no native supports.
+			$supports = ! empty( $tpl['is_image'] ) ? [ 'image-size' ] : [];
 
 			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback );
 		}

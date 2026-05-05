@@ -1,12 +1,13 @@
 /**
  * Custom image tag controls for BWS dynamic tags.
  *
- * Registers two custom control types via the generateblocks.editor.tagSpecificControls filter:
+ * Registers one custom control type via the generateblocks.editor.tagSpecificControls filter:
  *
- *   bws-img-size     — ComboboxControl populated from generateBlocksInfo.imageSizes.
  *   bws-media-picker — WP media library picker; stores attachment URL in the option key.
  *
- * One filter registration handles base `image`, `term_image`, and `try_image` tags.
+ * Image size is handled by GenerateBlocks' native 'image-size' support (declared in supports
+ * array on image-template tags), which renders its own ComboboxControl and handles
+ * 'size:' parsing/serialization (default 'full' is stripped automatically).
  *
  * @package BWS_Dynamic_Tags
  * @since   1.6.0
@@ -18,49 +19,10 @@
 		return;
 	}
 
-	var el             = wp.element.createElement;
-	var Fragment       = wp.element.Fragment;
-	var ComboboxControl = wp.components.ComboboxControl;
-	var Button         = wp.components.Button;
-	var BaseControl    = wp.components.BaseControl;
-
-	// --- Image size combobox ---
-
-	function ImageSizeControl( props ) {
-		var ctx      = props.context;
-		var state    = ctx.state || {};
-		var setState = ctx.setState;
-		var key      = props.optionKey;
-
-		var raw = window.generateBlocksInfo && generateBlocksInfo.imageSizes
-			? generateBlocksInfo.imageSizes : [];
-
-		var options;
-		if ( Array.isArray( raw ) ) {
-			options = raw.map( function ( item ) {
-				if ( typeof item === 'string' ) {
-					return { value: item, label: item };
-				}
-				var v = String( item.value || item.slug || '' );
-				var l = String( item.label || item.name || v );
-				return { value: v, label: l };
-			} );
-		} else {
-			options = Object.keys( raw ).map( function ( slug ) {
-				return { value: slug, label: typeof raw[ slug ] === 'string' ? raw[ slug ] : slug };
-			} );
-		}
-
-		return el( ComboboxControl, {
-			label:    props.label,
-			value:    state[ key ] || '',
-			options:  options,
-			onChange: function ( val ) {
-				var upd = {}; upd[ key ] = val || '';
-				setState( Object.assign( {}, state, upd ) );
-			},
-		} );
-	}
+	var el          = wp.element.createElement;
+	var Fragment    = wp.element.Fragment;
+	var Button      = wp.components.Button;
+	var BaseControl = wp.components.BaseControl;
 
 	// --- Media picker ---
 
@@ -109,9 +71,6 @@
 		var cfg = allOptions[ element.key ];
 		if ( ! cfg ) { return element; }
 
-		if ( 'bws-img-size' === cfg.type ) {
-			return el( ImageSizeControl, { key: element.key, optionKey: element.key, label: cfg.label, context: context } );
-		}
 		if ( 'bws-media-picker' === cfg.type ) {
 			return el( MediaPickerControl, { key: element.key, optionKey: element.key, label: cfg.label, context: context } );
 		}

@@ -185,7 +185,8 @@ function bws_register_base_tags(): void {
 	// =========================================================
 	// image — custom field or featured image; type 'cross-source'.
 	// `as` is first and always serialized (default:'url' intentional).
-	// `size` and `fallback` use custom JS controls (image-tag-controls.js).
+	// Image size handled by GB native control via 'image-size' support.
+	// `fallback` uses custom JS control (image-tag-controls.js).
 	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
 
@@ -193,24 +194,20 @@ function bws_register_base_tags(): void {
 		'title'    => __( 'Image', 'generateblocks' ),
 		'tag'      => 'image',
 		'type'     => 'cross-source',
-		'supports' => array(),
+		'supports' => array( 'image-size' ),
 		'options'  => bws_strip_default_select_values( array_merge(
 			array(
-				'as'   => array(
+				'as' => array(
 					'type'    => 'select',
 					'label'   => __( 'Return type:', 'generateblocks' ),
 					'default' => 'url',
 					'options' => array(
 						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
-						array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+						array( 'value' => 'title',   'label' => __( 'Image Title', 'generateblocks' ) ),
 						array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
 						array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 					),
-				),
-				'size' => array(
-					'type'  => 'bws-img-size',
-					'label' => __( 'Image Size', 'generateblocks' ),
 				),
 			),
 			$source_opt,
@@ -388,21 +385,17 @@ function bws_register_base_tags(): void {
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
 		'leading_options'       => array(
-			'as'   => array(
+			'as' => array(
 				'type'    => 'select',
 				'label'   => __( 'Return image as:', 'generateblocks' ),
 				'default' => 'url',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
-					array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+					array( 'value' => 'title',   'label' => __( 'Image Title', 'generateblocks' ) ),
 					array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
-			),
-			'size' => array(
-				'type'  => 'bws-img-size',
-				'label' => __( 'Image Size', 'generateblocks' ),
 			),
 		),
 		'options'               => array(
@@ -413,14 +406,10 @@ function bws_register_base_tags(): void {
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
-					array( 'value' => 'title',   'label' => __( 'Title', 'generateblocks' ) ),
+					array( 'value' => 'title',   'label' => __( 'Image Title', 'generateblocks' ) ),
 					array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
-			),
-			'size'     => array(
-				'type'  => 'bws-img-size',
-				'label' => __( 'Image Size', 'generateblocks' ),
 			),
 			'use'      => array(
 				'type'           => 'select',
@@ -430,6 +419,13 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
+			),
+			'key'      => array(
+				'type'        => 'text',
+				'label'       => __( 'Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+				'placeholder' => 'image_field',
+				'show_if'     => array( 'use' => 'not:featured' ),
 			),
 			'fallback' => array(
 				'type'  => 'bws-media-picker',
@@ -528,7 +524,7 @@ function bws_register_base_tags(): void {
 	TagTemplateRegistry::register_modifier( array(
 		'prefix'               => 'term',
 		'gb_type'              => 'term',
-		'modifier_label'       => '',
+		'modifier_label'       => 'term-based',
 		'traversal_source_key' => 'term_related_post',
 		'base_source_key'      => 'term',
 		'excluded_supports'    => array(),

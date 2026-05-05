@@ -140,7 +140,16 @@ function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $si
 		return '';
 	}
 
-	$meta_value = bws_read_field( $meta_key, $instance, $post_id, false );
+	// Two-pass meta read to handle all image-meta return formats from ACF and other providers.
+	// Pass 1: single_only=true → returns scalar (URL/ID) but coerces array/object to ''.
+	// Pass 2: single_only=false → returns array/object preserved, but GB Meta_Handler::get_value
+	//   returns fallback ('') for plain scalars when an upstream filter (e.g. ACF pre_value)
+	//   populates the value, so we only fall through here when pass 1 yielded nothing.
+	$meta_value = bws_read_field( $meta_key, $instance, $post_id, true );
+
+	if ( '' === $meta_value || null === $meta_value ) {
+		$meta_value = bws_read_field( $meta_key, $instance, $post_id, false );
+	}
 
 	if ( ! $meta_value ) {
 		return '';
