@@ -835,6 +835,11 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		return '';
 	}
 
+	// Permalink excluded — URL context, bracket string breaks <a href>.
+	if ( 'permalink' === $base_template ) {
+		return '';
+	}
+
 	// Per-template defaults (mirrors bws_build_preview_label).
 	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
 	$use_default  = $use_defaults[ $base_template ] ?? '';
@@ -1389,17 +1394,20 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 
 	// Build field part (template-specific).
+	// Convention: template label (Content, Image Alt Text, etc.) leads; mode-value
+	// or quoted user identifier follows after a colon when both are present.
 	// Marker convention: 'X' = literal user-supplied identifier (straight single quotes).
 	$field_part = '';
 	switch ( $base_template ) {
 		case 'text':
+			// Text has no template label by default. Title mode uses bare 'Title'.
 			$field_part = 'title' === $use ? 'Title' : "'" . $key . "'";
 			break;
 		case 'content':
 			if ( 'excerpt' === $use ) {
-				$field_part = 'Excerpt';
+				$field_part = 'Content: Excerpt';
 			} elseif ( 'key' === $use ) {
-				$field_part = "'" . $key . "' Content";
+				$field_part = "Content: '" . $key . "'";
 			} else {
 				$field_part = 'Content';
 			}
@@ -1407,8 +1415,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 		case 'image':
 			$suffix     = 'alt' === $as ? ' Alt Text' : ' Caption';
 			$field_part = 'featured' === $use
-				? 'Featured Image' . $suffix
-				: "'" . $key . "' Image" . $suffix;
+				? 'Image' . $suffix . ': Featured'
+				: 'Image' . $suffix . ": '" . $key . "'";
 			break;
 		case 'title':
 			$field_part = 'Title';

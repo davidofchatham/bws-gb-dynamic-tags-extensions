@@ -126,11 +126,11 @@ Each slot exposes up to three controls:
 
 | Tag name | Based on template | Per-slot field key? | Per-slot `use`? | Notes |
 |---|---|---|---|---|
-| `try_content` | `content` | No | **Yes** | Each slot: Content/Description or ACF/Custom Field |
+| `try_content` | `content` | **Yes** | **Yes** | Each slot: Content/Description, Excerpt, or ACF/Custom Field (with per-slot key when `use:key`) |
 | `try_title` | `title` | No | No | |
 | `try_permalink` | `permalink` | No | No | |
-| `try_text` | `text` | **Yes** | No | Each slot's field key can differ |
-| `try_image` | `image` | **Yes** | **Yes** | `use` unset = ACF/meta field (uses per-slot key); `use:featured` = Featured Image |
+| `try_text` | `text` | **Yes** | **Yes** | Each slot: Title/Name or ACF/Custom Field (with per-slot key when `use:key`) |
+| `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`) |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
 
@@ -269,7 +269,7 @@ Template key renames and option name renames have moved to [`docs/deprecated-tag
 
 When a base tag can't resolve in the editor (no relationship configured, archive template, wrong post type), the callback returns a structured preview label instead of empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/content-helpers.php`.
 
-**Scope:** `text`, `content`, `title`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely.
+**Scope:** `text`, `content`, `title`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`).
 
 Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
 
@@ -281,7 +281,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 | `'X'` | Literal user-supplied identifier (meta key, ref name, taxonomy slug). Straight single quotes |
 | `“X”` | Display value (fallback string, formatted datetime). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
 | `( )` | Auxiliary append — reserved for `(fallback: …)` |
-| `:` | "Category : enumerated list" — used by `Try` enumeration only, never after a preposition |
+| `:` | Separates template label from mode/key (`Content: Excerpt`, `Image Alt Text: 'hero'`, `Try Content: 'a', 'b'`); never after a preposition |
 | `,` | List item delimiter |
 | ` from ` | Field-to-source binding |
 | ` like ` | Datetime formatted-value preview |
@@ -314,21 +314,28 @@ Space-joined segments. The `→` separator precedes the term-hop segment only.
 
 ### Field part
 
-Template-specific. Missing required input triggers a warning instead of the field part. Bare key (`text`) vs key + type-noun (`content`, `image`) follows the rule: type-noun appears only when needed to disambiguate from another mode of the same tag.
+Template-specific. Missing required input triggers a warning instead of the field part.
+
+**Convention** (consistent across base + try_ previews):
+- Template label leads when the template has multiple modes that need disambiguation (`Content`, `Image Alt Text`, `Image Caption`).
+- Mode-value or quoted user identifier follows after a colon (`: Excerpt`, `: 'body_text'`, `: Featured`).
+- Default-mode collapse: when the only configured mode is the template default, drop the colon segment (e.g. `[Content]` for `use:content`).
+- `text` has no template label — bare key (`'X'`) or `Title` is unambiguous on its own.
+- Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`. User identifiers wrapped in straight single quotes.
 
 | Template | Condition | Field part |
 |---|---|---|
-| `text` | `key:X` set | `'X'` (bare key — `text` has only key-mode and title-mode; bare key cannot collide) |
+| `text` | `key:X` set | `'X'` |
 | `text` | `use:title` | `Title` |
 | `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
-| `content` | `use:key` + `key:X` | `'X' Content` (type-noun disambiguates from Excerpt and Content modes) |
-| `content` | `use:excerpt` | `Excerpt` |
-| `content` | `use` unset | `Content` |
+| `content` | `use` unset (default) | `Content` |
+| `content` | `use:excerpt` | `Content: Excerpt` |
+| `content` | `use:key` + `key:X` | `Content: 'X'` |
 | `content` | `use:key` + `key` unset | *(missing — triggers warning)* |
-| `image` (`as:alt`) | `key:X` set | `'X' Image Alt Text` |
-| `image` (`as:alt`) | `use:featured` | `Featured Image Alt Text` |
-| `image` (`as:caption`) | `key:X` set | `'X' Image Caption` |
-| `image` (`as:caption`) | `use:featured` | `Featured Image Caption` |
+| `image` (`as:alt`) | `use:featured` | `Image Alt Text: Featured` |
+| `image` (`as:alt`) | `key:X` set | `Image Alt Text: 'X'` |
+| `image` (`as:caption`) | `use:featured` | `Image Caption: Featured` |
+| `image` (`as:caption`) | `key:X` set | `Image Caption: 'X'` |
 | `title` | — | `Title` (always) |
 | `datetime_` | — | *(see datetime section below)* |
 
@@ -378,31 +385,44 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{term_text src:ref\|ref:rel_post\|key:bio}}` | `['bio' from Term Ref 'rel_post']` |
 | `{{title src:ref\|ref:rel_post}}` | `[Title from Ref 'rel_post']` |
 | `{{content}}` | `[Content]` |
-| `{{content use:excerpt}}` | `[Excerpt]` |
-| `{{content use:key\|key:body_text}}` | `['body_text' Content]` |
-| `{{content use:key\|key:body_text\|src:ref\|ref:rel_post}}` | `['body_text' Content from Ref 'rel_post']` |
-| `{{image as:alt\|key:hero}}` | `['hero' Image Alt Text]` |
-| `{{image as:caption\|use:featured}}` | `[Featured Image Caption]` |
+| `{{content use:excerpt}}` | `[Content: Excerpt]` |
+| `{{content use:key\|key:body_text}}` | `[Content: 'body_text']` |
+| `{{content use:key\|key:body_text\|src:ref\|ref:rel_post}}` | `[Content: 'body_text' from Ref 'rel_post']` |
+| `{{image as:alt\|key:hero}}` | `[Image Alt Text: 'hero']` |
+| `{{image as:caption\|use:featured}}` | `[Image Caption: Featured]` |
 | `{{image as:url\|key:hero}}` | *(no label — excluded)* |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
 | `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
 | `{{text src:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `['body_text' from Ref 'rel_post' (fallback: “Untitled”)]` |
 
-### try_ tag previews (planned, not yet implemented)
+### try_ tag previews
 
-try_ tag callbacks do not yet route through `bws_build_preview_label`. Planned shape collapses repeated source or repeated key across slots; falls back to per-slot enumeration when both vary.
+`bws_build_try_preview_label()` walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's canonical value), then detects uniformity across two dimensions (field-part, source-part) and renders one of four shapes.
 
-| Slot pattern | Preview shape |
-|---|---|
-| All same source, varying keys | `[Try: 'text_1', 'text_2', 'text_3']` |
-| Same key, varying sources | `[Try 'some_text' from Current, Ref 'rel_post', Term]` |
-| Content tag, varying modes/keys | `[Try Content: Excerpt, 'body_text', 'summary']` |
-| Image, varying keys (uniform `as`) | `[Try Image Alt Text: 'hero', 'thumbnail', 'og_image']` |
-| Datetime, varying keys | `[Try Date 'event_date', 'pub_date' like “April 24, 2026”]` |
-| Mixed (both source and key vary) | per-slot enumeration with hard cap of 3 + `(+N more)` |
-| All slots empty | `[⚠ Try: no slots configured]` |
-| Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no taxonomy]` |
+**Conventions** (consistent with base preview labels):
+- Template-name labels: `text` has no label (default). `content`/`image` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name.
+- Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
+- User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
+- `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor.
+- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list.
+- Single slot at template default for `content`/`image` collapses to bare `[Try Content]` / `[Try Image Alt Text]`.
+- Image excluded for `as:url` / `as:id` (bracket string would break HTML attribute). Permalink excluded entirely (URL context).
+
+| Slot pattern | Preview shape (text) | Preview shape (content/image) |
+|---|---|---|
+| Single slot, default mode | `[Try 'body_text']` | `[Try Content]` |
+| Uniform field, uniform source (single distinct slot) | `[Try 'body_text']` | `[Try Content: 'body_text']` |
+| Uniform field, varying sources | `[Try 'body_text' from Current, Ref 'rel_post']` | `[Try Content: 'body_text' from Current, Ref 'rel_post']` |
+| Uniform source, varying fields | `[Try 'a', 'b', 'c']` | `[Try Content: Excerpt, 'body_text', 'summary']` |
+| Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
+| Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
+| All slots empty | `[⚠ Try: no slots configured]` | same |
+| Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
+| Image `as:url` / `as:id` | *(no label — excluded)* | — |
+| `try_permalink` | *(no label — excluded)* | — |
+
+Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
 ---
 
