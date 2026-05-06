@@ -3,6 +3,7 @@
 ## [1.6.0] — Unreleased
 
 ### Added
+- `bws_build_try_preview_label( $options, $base_template )` in `content-helpers.php`: structured editor preview labels for try_ tags. Walks slots 1-5, applies carry-forward, emits `[Try Text: 'a', 'b', Title]`-style summaries with per-slot source segments when source differs from slot 1. Per-slot warnings (`[⚠ Try: slot 2 no key, slot 3 no ref]`); empty-config warning (`[⚠ Try: no slots configured]`); image excluded for `as:url`/`as:id` modes. Helpers `bws_try_preview_prefix`, `bws_try_preview_field_part`, `bws_try_preview_source_part` for shape pieces. Try callback short-circuits on `$inst->context['bwsEditorPreview']` to call this builder.
 - `bws_build_preview_label( $options, $template )` in `content-helpers.php`: structured editor preview labels for unresolvable base and modifier tags (e.g. `[Text Field (body_text) from Ref (rel_post)]`, `[Date like "April 24, 2026"]`, `[⚠ No taxonomy set]`)
 - `assets/js/editor-preview-context.js`: injects `bwsEditorPreview: true` into GB's dynamic tag preview context; activates structured preview labels in block editor
 - `generateblocks_dynamic_tags_replacement_cache_duration` filter: disables GB's REST replacement cache for editor preview requests so labels stay live

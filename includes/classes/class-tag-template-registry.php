@@ -530,7 +530,15 @@ class TagTemplateRegistry {
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $default_use ) {
+			$tpl_key = $tpl['key'];
+
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $default_use, $tpl_key ) {
+				if ( ! empty( $inst->context['bwsEditorPreview'] ) ) {
+					return function_exists( 'bws_build_try_preview_label' )
+						? bws_build_try_preview_label( $opts, $tpl_key )
+						: '';
+				}
+
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, [ 'fallback' => null, 'fallback_text' => null ] );
 
