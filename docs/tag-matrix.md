@@ -112,13 +112,15 @@ tag instance level — there is no source prefix in the tag name.
 
 Each slot exposes up to three controls:
 
-1. **Source** — Custom selector (same control as base tags). Slot 1 option name: `source`; slots 2+: `N-src`. Slot 1 default: current entity (not serialized). Slots 2+ default: "Same as Previous Source" (unset/inherit). `ref` sub-option shown when source = `ref`.
+1. **Source** — Slot 1 option name: `src`; slots 2+: `N-src`. Slot 1 default: `current` (stripped to `''` at registration; not serialized). Slots 2+ default: "Same as Previous Source" (`''` after strip = inherit prior slot's source). Explicit `current` value reachable slot 2+ as override. `ref` sub-option (relationship field key) shown when src = `ref`.
 
-2. **Field key** (text, image, datetime templates with per-slot key) — Slot 1: must be set for the slot to produce output. Slots 2+: "Same as Previous Field" (unset/inherit). Label adapts to template: "Same Text Field", "Same Image Field", "Same Date-Time Field", etc.
+2. **Field key** (text, image, datetime templates with per-slot key) — Slot 1: must be set for the slot to produce output (when `use` mode requires a key). Slots 2+: hidden when slot's `use` is "Same as Previous Field" (inherits both `use` and `key` from prior slot). Visible only when slot's `use` is set to a key-needing mode (e.g. `key` for text/image/content); typing in the field overrides inherited key.
 
-3. **`srcTerm`** — Slots 2+: "Same as Previous" (unset/inherit). Shown below source selector when applicable (hidden for term-context entities). `tax` sub-option shown when `srcTerm` is set. See [Secondary, conditional options](#secondary-conditional-options).
+3. **`use`** (per-slot field-type selector; `try_text`, `try_content`, `try_image`) — Slot 1 option name: `use`; slots 2+: `N-use`. Slot 1 default per template (`key` for text/image, `content` for content). Slots 2+ default: "Same as Previous Field" (`''` after strip = inherit). Explicit mode token (e.g. `title`, `featured`, `excerpt`) reachable slot 2+ as override.
 
-**Progressive disclosure:** Slot N+1 is hidden until at least one of slot N's three controls is set to a non-default value. Within a slot, sub-controls (e.g. `ref` key, `tax`) appear only when their parent control is active.
+4. **`srcTermIn`** — Combined `bws-term-hop` control. Per-slot, no carry-forward (each slot independently chooses term-hop). Slot 1 option name: `srcTermIn`; slots 2+: `N-srcTermIn`. Empty/unset = disabled; slug = enabled with that taxonomy. See [Secondary, conditional options](#secondary-conditional-options).
+
+**Progressive disclosure:** Slot N+1 is hidden until at least one of slot N's controls is set to a non-default value. Within a slot, sub-controls (e.g. `ref` key, `key`) appear only when their parent control is active.
 
 **Per-slot `use`** is available on templates that support content mode selection per slot (e.g. "try ACF/meta field, fall back to post content").
 
@@ -411,12 +413,13 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 | Slot pattern | Preview shape (text) | Preview shape (content/image) |
 |---|---|---|
-| Single slot, default mode | `[Try 'body_text']` | `[Try Content]` |
-| Uniform field, uniform source (single distinct slot) | `[Try 'body_text']` | `[Try Content: 'body_text']` |
+| Single slot, template default (no override) | n/a (text needs key) | `[Try Content]` (content `use:content` default) |
+| Uniform field, uniform source | `[Try 'body_text']` | `[Try Content: 'body_text']` |
 | Uniform field, varying sources | `[Try 'body_text' from Current, Ref 'rel_post']` | `[Try Content: 'body_text' from Current, Ref 'rel_post']` |
 | Uniform source, varying fields | `[Try 'a', 'b', 'c']` | `[Try Content: Excerpt, 'body_text', 'summary']` |
 | Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
 | Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
+| `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
 | Image `as:url` / `as:id` | *(no label — excluded)* | — |
@@ -450,16 +453,15 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 | Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
 | Child(ren) | `child` | `child` | `child` | — | Future |
 
-Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref (rel_post)]` for `{{term_content src:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
+Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content src:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
 
 ### Secondary, conditional options
 
 | Option name | Option label | Help text | Shown when | Notes |
 |---|---|---|---|---|
-| `ref` | Ref/Rel Field Meta Key | | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
-| `srcTerm` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) | Boolean; unset by default. Term hop applied after source resolution as final step. |
-| `tax` | Term Taxonomy | [Select/Enter] the taxonomy the term is in. | `srcTerm` is set | Taxonomy slug. Type TBD (text field or selector). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child`, or `srcTerm` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
+| `ref` | Relationship Field | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
+| `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy. Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child`, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
 | `sep` | Result Separator | Separator between results (defaults to “, ”). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
 
 ## Field options
@@ -501,11 +503,11 @@ See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-cont
 
 ## Option render order (per template)
 
-Option order as proposed after all approved renames. `[source options]` is a placeholder for the source selector block and its conditional sub-options (`ref`, `srcTerm`, `tax`; plus `limit`/`sep` for applicable templates). Template-specific options follow in the order listed below.
+Option order as proposed after all approved renames. `[source options]` is a placeholder for the source selector block and its conditional sub-options (`ref`, `srcTermIn`; plus `limit`/`sep` for applicable templates). Template-specific options follow in the order listed below.
 
 **Three-group structure (applies to all templates):**
 - **Group 1 — global formatting:** `as`, format options, separators. Not per-slot; applies to the assembled result.
-- **Group 2 — per-slot:** source selector → source secondary options (`ref`, `srcTerm`, `tax`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
+- **Group 2 — per-slot:** source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
 - **Group 3 — global fallback:** `fallback`. Once, after all slots.
 
 Show/hide conditions are noted inline; all other options are always visible.
