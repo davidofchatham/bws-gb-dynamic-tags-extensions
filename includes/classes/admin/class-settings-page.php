@@ -221,6 +221,119 @@ class SettingsPage {
 		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
 	}
 
+	/**
+	 * Build a short Approach-A migration target string from a registry entry.
+	 *
+	 * Renders only the static parts of the migration: target tag, source_inject as
+	 * `src:<value>`, and any fixed_options pairs. A trailing ellipsis indicates the
+	 * user's existing options carry over via option_renames (full rename map is
+	 * shown in the Deprecated Options section).
+	 *
+	 * @param array $entry Migration registry entry (tag- or option-type).
+	 * @return string e.g. `{{term_text src:ref|use:featured|…}}` or `{{title}}`
+	 */
+	public static function format_migration_target( array $entry ): string {
+		$new_tag = $entry['new_tag'] ?? ( $entry['match_tag'] ?? '' );
+		if ( '' === $new_tag ) {
+			return '';
+		}
+
+		$pairs = array();
+		$src   = $entry['source_inject'] ?? '';
+		if ( '' !== $src ) {
+			$pairs[] = 'src:' . $src;
+		}
+		foreach ( $entry['fixed_options'] ?? array() as $key => $value ) {
+			if ( '' !== (string) $value ) {
+				$pairs[] = $key . ':' . $value;
+			}
+		}
+
+		// Ellipsis (inside braces) when the entry carries user options via renames/value_renames/combine/datetime.
+		$has_carry = ! empty( $entry['option_renames'] )
+			|| ! empty( $entry['value_renames'] )
+			|| ! empty( $entry['combine_options'] )
+			|| ! empty( $entry['datetime_transforms'] );
+		if ( $has_carry ) {
+			$pairs[] = '…';
+		}
+
+		return empty( $pairs )
+			? '{{' . $new_tag . '}}'
+			: '{{' . $new_tag . ' ' . implode( '|', $pairs ) . '}}';
+	}
+
+	/**
+	 * Group option-type registry entries that share the same transform.
+	 *
+	 * Entries differ only in match_tag are collapsed into a single row keyed by a
+	 * transform signature (option_renames + value_renames + combine_options +
+	 * source_inject + fixed_options + match_options). Old/new option-key lists are
+	 * derived from option_renames + combine_options; reason is the parenthetical
+	 * trailing the first entry's label.
+	 *
+	 * @param array[] $option_entries Registry entries (type:'option').
+	 * @return array[] List of groups: [ 'tags' => string[], 'match_options' => string[],
+	 *                 'old_keys' => string[], 'new_keys' => string[],
+	 *                 'reason' => string, 'sample_entry' => array ].
+	 */
+	public static function group_option_entries_by_transform( array $option_entries ): array {
+		$groups = array();
+		foreach ( $option_entries as $entry ) {
+			$tag = $entry['match_tag'] ?? '';
+			if ( '' === $tag ) {
+				continue;
+			}
+			$signature = md5( wp_json_encode( array(
+				'option_renames'  => $entry['option_renames']  ?? array(),
+				'value_renames'   => $entry['value_renames']   ?? array(),
+				'combine_options' => $entry['combine_options'] ?? array(),
+				'source_inject'   => $entry['source_inject']   ?? '',
+				'fixed_options'   => $entry['fixed_options']   ?? array(),
+				'match_options'   => $entry['match_options']   ?? array(),
+			) ) );
+			if ( ! isset( $groups[ $signature ] ) ) {
+				$label  = $entry['label'] ?? '';
+				$reason = '';
+				if ( preg_match( '/\(([^)]+)\)\s*$/', $label, $m ) ) {
+					$reason = $m[1];
+				}
+
+				// Build old-key and new-key lists from structured fields.
+				$old_keys = array();
+				$new_keys = array();
+				foreach ( $entry['option_renames'] ?? array() as $old => $new ) {
+					$old_keys[] = $old;
+					if ( '' !== $new ) {
+						$new_keys[] = $new;
+					}
+				}
+				foreach ( $entry['combine_options'] ?? array() as $new_key => $spec ) {
+					if ( ! empty( $spec['when_present'] ) ) {
+						$old_keys[] = $spec['when_present'];
+					}
+					if ( ! empty( $spec['value_from'] ) ) {
+						$old_keys[] = $spec['value_from'];
+					}
+					$new_keys[] = $new_key;
+				}
+				$old_keys = array_values( array_unique( $old_keys ) );
+				$new_keys = array_values( array_unique( $new_keys ) );
+
+				$groups[ $signature ] = array(
+					'tags'          => array(),
+					'match_options' => $entry['match_options'] ?? array(),
+					'old_keys'      => $old_keys,
+					'new_keys'      => $new_keys,
+					'reason'        => $reason,
+					'sample_entry'  => $entry,
+				);
+			}
+			$groups[ $signature ]['tags'][] = $tag;
+		}
+		return array_values( $groups );
+	}
+
 	// ===============================================
 	// RENDER
 	// ===============================================
@@ -239,6 +352,9 @@ class SettingsPage {
 		$all_entries      = DeprecatedTagRegistry::get_all();
 		$entries_with     = array_values( array_filter( $all_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
 		$entries_without  = array_values( array_filter( $all_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+
+		// Deprecated option-key entries (separate registry type).
+		$option_entries = MigrationRegistry::get_by_type( 'option' );
 
 		$mode_options = array(
 			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
@@ -341,13 +457,14 @@ class SettingsPage {
 									$new_tag = $entry['new_tag'] ?? '';
 									$since   = $entry['since']   ?? '';
 									if ( '' === $old_tag ) { continue; }
+									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
 								?>
 									<tr class="bws-tag-row">
 										<td>
-											<code class="bws-tag-name"><?php echo esc_html( $old_tag ); ?></code>
-											<?php if ( $new_tag ) : ?>
+											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
+											<?php if ( $target_string ) : ?>
 											<span class="bws-dep-arrow">→</span>
-											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $new_tag ); ?></code>
+											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
 											<?php endif; ?>
 											<?php if ( $since ) : ?>
 											<span class="bws-dep-since"><?php echo esc_html( sprintf(
@@ -364,6 +481,112 @@ class SettingsPage {
 						<?php endif; ?>
 					</div>
 					<?php endforeach; ?>
+				</div>
+
+				<?php /* ── Deprecated Options ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-dep-group">
+						<?php
+						$option_groups = self::group_option_entries_by_transform( $option_entries );
+						?>
+						<?php if ( empty( $option_groups ) ) : ?>
+							<p class="description"><?php esc_html_e( 'No deprecated options registered.', 'generateblocks' ); ?></p>
+						<?php else : ?>
+						<details class="bws-dep-tag-list" open>
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of deprecated option migrations */
+									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $option_groups ), 'generateblocks' ),
+									count( $option_groups )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $option_groups as $group_entry ) :
+									$tags     = array_unique( $group_entry['tags'] );
+									$old_keys = $group_entry['old_keys'];
+									$new_keys = $group_entry['new_keys'];
+									$reason   = $group_entry['reason'];
+									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
+									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<div class="bws-dep-rename">
+												<?php echo $old_html; ?>
+												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
+												<span class="bws-dep-arrow">→</span>
+												<?php endif; ?>
+												<?php echo $new_html; ?>
+												<?php if ( $reason ) : ?>
+												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
+												<?php endif; ?>
+											</div>
+											<?php if ( ! empty( $tags ) ) : ?>
+											<div class="description bws-dep-applies">
+												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
+												<?php
+												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
+												echo implode( ', ', $pieces );
+												?>
+											</div>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+						<?php endif; ?>
+					</div>
+				</div>
+
+				<?php /* ── Migration Tool (AJAX driven) ── */ ?>
+				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-scan-controls">
+						<button type="button" id="bws-scan-btn" class="button button-primary">
+							<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
+						</button>
+						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
+					</div>
+
+					<div id="bws-scan-results" style="display:none;">
+						<div class="bws-results-toolbar">
+							<label>
+								<input type="checkbox" id="bws-select-all" />
+								<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
+							</label>
+							<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
+								<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
+							</button>
+							<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
+								<div class="bws-progress-bar"><div class="bws-progress-fill" id="bws-progress-fill"></div></div>
+								<span id="bws-progress-label"></span>
+							</div>
+						</div>
+						<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
+							<thead>
+								<tr>
+									<th class="bws-cb-col"></th>
+									<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Actions', 'generateblocks' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="bws-results-tbody"></tbody>
+						</table>
+					</div>
 				</div>
 
 				<?php /* ── Diagnostics ── */ ?>
@@ -410,49 +633,6 @@ class SettingsPage {
 
 				<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
 			</form>
-
-			<?php /* ── Migration Tool (outside form — AJAX driven) ── */ ?>
-			<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
-				<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
-				<p class="description bws-section-desc">
-					<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
-				</p>
-
-				<div class="bws-scan-controls">
-					<button type="button" id="bws-scan-btn" class="button button-primary">
-						<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
-					</button>
-					<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
-				</div>
-
-				<div id="bws-scan-results" style="display:none;">
-					<div class="bws-results-toolbar">
-						<label>
-							<input type="checkbox" id="bws-select-all" />
-							<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
-						</label>
-						<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
-							<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
-						</button>
-						<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
-							<div class="bws-progress-bar"><div class="bws-progress-fill" id="bws-progress-fill"></div></div>
-							<span id="bws-progress-label"></span>
-						</div>
-					</div>
-					<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
-						<thead>
-							<tr>
-								<th class="bws-cb-col"></th>
-								<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
-								<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
-								<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
-								<th><?php esc_html_e( 'Actions', 'generateblocks' ); ?></th>
-							</tr>
-						</thead>
-						<tbody id="bws-results-tbody"></tbody>
-					</table>
-				</div>
-			</div>
 		</div>
 
 		<style>
@@ -495,6 +675,11 @@ class SettingsPage {
 			.bws-dynamic-tags-settings .bws-dep-tag-list summary { cursor: pointer; color: #2271b1; font-size: 13px; }
 			.bws-dynamic-tags-settings .bws-ref-table { margin-top: 6px; }
 			.bws-dynamic-tags-settings .bws-ref-table td { padding: 3px 10px; }
+			.bws-dynamic-tags-settings .bws-dep-label { margin: 2px 0 0 4px; font-size: 12px; color: #646970; }
+			.bws-dynamic-tags-settings .bws-dep-applies { margin: 2px 0 0 4px; font-size: 12px; color: #646970; }
+			.bws-dynamic-tags-settings .bws-dep-rename { font-size: 13px; }
+			.bws-dynamic-tags-settings .bws-dep-rename code { font-size: 12px; }
+			.bws-dynamic-tags-settings .bws-dep-reason { margin-left: 6px; color: #646970; font-size: 12px; }
 
 			/* Migration tool */
 			.bws-dynamic-tags-settings .bws-migration-tool {

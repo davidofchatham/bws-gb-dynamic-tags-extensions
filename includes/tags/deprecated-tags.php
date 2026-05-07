@@ -1105,7 +1105,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_title',
-		'new_tag'        => 'title',
+		'new_tag'        => 'term_title',
 		'title'          => __( 'Term→Rel. Post Title (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1116,7 +1116,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_content',
-		'new_tag'        => 'content',
+		'new_tag'        => 'term_content',
 		'title'          => __( 'Term→Rel. Post Content (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1128,7 +1128,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_permalink',
-		'new_tag'        => 'permalink',
+		'new_tag'        => 'term_permalink',
 		'title'          => __( 'Term→Rel. Post Permalink (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1139,7 +1139,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_custom_text',
-		'new_tag'        => 'text',
+		'new_tag'        => 'term_text',
 		'title'          => __( 'Term→Rel. Post Custom Text (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1150,7 +1150,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_featured_image',
-		'new_tag'        => 'image',
+		'new_tag'        => 'term_image',
 		'title'          => __( 'Term→Rel. Post Featured Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
@@ -1163,7 +1163,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_custom_image',
-		'new_tag'        => 'image',
+		'new_tag'        => 'term_image',
 		'title'          => __( 'Term→Rel. Post Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),
@@ -1175,7 +1175,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'             => 'term_related_post_custom_date_single',
-		'new_tag'             => 'datetime_single',
+		'new_tag'             => 'term_datetime_single',
 		'title'               => __( 'Term→Rel. Post Custom Date (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
@@ -1188,7 +1188,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'             => 'term_related_post_custom_date_range',
-		'new_tag'             => 'datetime_range',
+		'new_tag'             => 'term_datetime_range',
 		'title'               => __( 'Term→Rel. Post Custom Date Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
@@ -1201,7 +1201,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'             => 'term_related_post_custom_datetime_single',
-		'new_tag'             => 'datetime_single',
+		'new_tag'             => 'term_datetime_single',
 		'title'               => __( 'Term→Rel. Post Custom Date/Time (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
@@ -1213,7 +1213,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'             => 'term_related_post_custom_datetime_range',
-		'new_tag'             => 'datetime_range',
+		'new_tag'             => 'term_datetime_range',
 		'title'               => __( 'Term→Rel. Post Custom Date/Time Range (Deprecated)', 'generateblocks' ),
 		'since'               => $since,
 		'source_inject'       => 'ref',
@@ -1226,7 +1226,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	// Term→Rel. Post → Term extraction.
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_title',
-		'new_tag'        => 'title',
+		'new_tag'        => 'term_title',
 		'title'          => __( 'Term→Rel. Post Term Title (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1237,7 +1237,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_permalink',
-		'new_tag'        => 'permalink',
+		'new_tag'        => 'term_permalink',
 		'title'          => __( 'Term→Rel. Post Term Permalink (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1248,7 +1248,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_description',
-		'new_tag'        => 'content',
+		'new_tag'        => 'term_content',
 		'title'          => __( 'Term→Rel. Post Term Description (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1259,7 +1259,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_custom_text',
-		'new_tag'        => 'text',
+		'new_tag'        => 'term_text',
 		'title'          => __( 'Term→Rel. Post Term Custom Text (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'source_inject'  => 'ref',
@@ -1270,7 +1270,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'        => 'term_related_post_term_custom_image',
-		'new_tag'        => 'image',
+		'new_tag'        => 'term_image',
 		'title'          => __( 'Term→Rel. Post Term Custom Image (Deprecated)', 'generateblocks' ),
 		'since'          => $since,
 		'supports'       => array( 'image-size' ),

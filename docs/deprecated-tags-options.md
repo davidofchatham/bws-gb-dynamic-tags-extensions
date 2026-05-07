@@ -4,7 +4,9 @@ This document is a **migration reference**. It records the N×M per-source tag n
 replaced by the source-agnostic base tag architecture in v1.6.0, along with all template key
 renames and option renames that drove the deprecated wrapper registrations.
 
-See [`tag-matrix.md`](tag-matrix.md) for the current (v1.6.0+) architecture.
+See [`tag-matrix.md`](tag-matrix.md) for the current (v1.6.0+) architecture, and
+[`gb-constraints.md`](gb-constraints.md) for the GB editor/runtime constraints that
+have forced revisions to several approved renames listed below.
 
 ---
 
@@ -91,8 +93,9 @@ value and `option_renames` as listed below.
 
 Tracks renames from the naming pass. Status values: **Approved** (decision made, not yet
 implemented), **Implemented** (already applied to current files — deprecated wrapper still needed for
-migrating saved tags), **Under consideration** (needs more research or discussion), **Pending** (not yet
-looked at).
+migrating saved tags), **Superseded** (replaced by later rename due to discovered constraint — see
+[`gb-constraints.md`](gb-constraints.md)), **Under consideration** (needs more research or discussion),
+**Pending** (not yet looked at).
 
 Scope notation: `[image]` = image tags only; no scope = applies to all templates that have the option.
 
@@ -103,8 +106,10 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 | `type` (field/mode selector) | `use` | content, text, image | Approved | Each tag defaults to its primary source (unset = default); `use` only appears when overriding. `content`: unset=post content/term description, `use:excerpt`, `use:key` (ACF WYSIWYG/content-area field, incl. ACF Extended block editor areas). `text`: unset=ACF/meta field (uses `key`), `use:title`. `image` (post sources): see table below. Note: `use:key` is never written on `text` or `image` (post sources) since ACF/meta field is the unset default for both. Current PHP name is `type`; `field` and `in` were doc-only intermediates, never in PHP. Shim: `$options['from'] ?? $options['type'] ?? ''`. |
 | value `custom_field` | `key` | `use` option | Approved | Selects the ACF/meta field mode: "use the field named in `key`". Supersedes intermediate rename `custom_field` → `meta` (approved but never implemented). Not applicable to `text` (ACF/meta field is its unset default). |
 | `taxonomy` | `tax` | term extraction | Approved | Aligns with GB's `tax` (used by `term_list`); consistency reduces risk if GB ever registers conflicting tag names |
-| `via`/`from` (traversal selector) | `source` | all templates | Approved | Custom source selector option (fully custom JS control, not GB native). Replaces unshipped `via`, docs-only `from`, early proposed `src`. |
-| `via:tax` traversal value | `srcTerm` (boolean) | all templates | Approved | Taxonomy hop formerly modeled as a `via` option value; now boolean toggle `srcTerm`. Allows post-resolution term hop independently of source selection. `tax` option still supplies the taxonomy slug. No tag string migration needed — `via` never shipped. |
+| `via`/`from` (traversal selector) | `source` | all templates | Superseded | `source` is a GB-reserved option key — destructured out of `extraParams` before custom controls receive it (see [`gb-constraints.md`](gb-constraints.md) Reserved Option Keys). Replaced by `src`; see row below. |
+| `via`/`from` (traversal selector) | `src` | all templates | Implemented | Final name after `source` rejected (GB reserved). Custom JS control. Registered as option migration so saved tags using older names round-trip. |
+| `via:tax` traversal value | `srcTerm` (boolean) | all templates | Superseded | Pair `srcTerm` (bool) + `tax` (slug) collapsed into single `srcTermIn` slug on cross-source base tags after `tax` reserved-key behavior discovered (re-emits only on `'term'` type or `tagSupportsTaxonomy`; silently dropped on cross-source base tags like `text`, `image`). See row below. |
+| `srcTerm` + `tax` pair | `srcTermIn` (slug) | cross-source base tags (e.g. `text`, `image` with `gb_type:'cross-source'`) | Implemented | Single non-reserved key encodes both signals: slug = enabled + slug, empty = disabled. Implemented via `bws-term-hop` custom control type (CheckboxControl + ComboboxControl). Avoids GB dropping `tax` on modal reopen. |
 | `rel` | `ref` | `source:ref` traversals (deprecated `related_post_*`, `term_related_post_*`, `post_term_related_post_*`) | Approved | Reference/relational field key — the option that stores the field name used to traverse. Renamed from `rel` for vendor-agnostic clarity (2026-04-13). Shim: `$options['ref'] ?? $options['rel'] ?? ''`. |
 | `rel` | `ref1` | `second_related_post_*` deprecated wrappers | Approved | First-hop reference field key. Numeric counter because `ref` type repeats. Supersedes intermediate rename `1st_rel` (approved but never implemented). `second_related_post` traversal dropped — deprecated wrappers register with no functional equivalent pending architecture revisit. |
 | `rel_2` | `ref2` | `second_related_post_*` deprecated wrappers | Approved | Second-hop reference field key. Supersedes intermediate rename `2nd_rel` (approved but never implemented). See `ref1` row. |
