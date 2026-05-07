@@ -224,13 +224,16 @@ class SettingsPage {
 	/**
 	 * Build a short Approach-A migration target string from a registry entry.
 	 *
-	 * Renders only the static parts of the migration: target tag, source_inject as
-	 * `src:<value>`, and any fixed_options pairs. A trailing ellipsis indicates the
-	 * user's existing options carry over via option_renames (full rename map is
+	 * Renders only the parts of the migration that are required for the migrated
+	 * tag to reproduce the deprecated tag's default behavior: target tag,
+	 * source_inject as `src:<value>`, fixed_options pairs, and any author-declared
+	 * `required_options` keys (rendered as `<key>:…` placeholders). A trailing
+	 * `…` segment indicates additional user options carry over via option_renames
+	 * / value_renames / combine_options / datetime_transforms (full rename map is
 	 * shown in the Deprecated Options section).
 	 *
 	 * @param array $entry Migration registry entry (tag- or option-type).
-	 * @return string e.g. `{{term_text src:ref|use:featured|…}}` or `{{title}}`
+	 * @return string e.g. `{{title src:ref|srcTermIn:…|…}}` or `{{datetime_single as:date|…}}`
 	 */
 	public static function format_migration_target( array $entry ): string {
 		$new_tag = $entry['new_tag'] ?? ( $entry['match_tag'] ?? '' );
@@ -247,6 +250,12 @@ class SettingsPage {
 			if ( '' !== (string) $value ) {
 				$pairs[] = $key . ':' . $value;
 			}
+		}
+		// Required options: keys whose presence is required for the migrated tag to
+		// reproduce the deprecated tag's default behavior. Author-declared per entry.
+		// Rendered as `<key>:…` placeholders so users see the must-set options.
+		foreach ( $entry['required_options'] ?? array() as $req_key ) {
+			$pairs[] = $req_key . ':…';
 		}
 
 		// Ellipsis (inside braces) when the entry carries user options via renames/value_renames/combine/datetime.

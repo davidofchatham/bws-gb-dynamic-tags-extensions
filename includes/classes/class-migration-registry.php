@@ -43,6 +43,10 @@ class MigrationRegistry {
 	 *                                   Combines a presence-flag key + a value key into one new key. Both old
 	 *                                   keys are dropped after combination. Applied before option_renames.
 	 *   @type array   $fixed_options   Key/value pairs always injected on conversion.
+	 *   @type array   $required_options Option keys (post-rename) required for the migrated
+	 *                                   tag to reproduce the deprecated tag's default behavior.
+	 *                                   Display-only metadata for admin migration preview;
+	 *                                   does not affect transform pipeline.
 	 *   @type bool    $datetime_transforms When true, apply datetime special-case transforms.
 	 *
 	 *   'tag' type only:
