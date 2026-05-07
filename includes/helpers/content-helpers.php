@@ -131,13 +131,19 @@ function bws_get_loop_row_context( $instance ): array {
 	$out['loop_item'] = $raw_item;
 
 	if ( ! isset( $instance->context['bws/loopItemPostId'] ) ) {
+		// Non-array rows (WP_Post / numeric) carry post identity directly under any
+		// queryType — covers standard 'WP_Query' post loops and post-meta relationship
+		// loops that GB Pro materializes into WP_Post instances. Array rows resolve only
+		// under 'post_meta' AND with an explicit 'ID' key, so flat repeater rows
+		// (Mode 2b) don't accidentally extract a post id via list-of-posts fallback.
 		$query_type = $instance->context['generateblocks/queryType'] ?? '';
-		if ( 'post_meta' === $query_type ) {
-			$candidate   = bws_extract_post_id( $raw_item );
-			$row_post_id = ( $candidate && get_post( $candidate ) ) ? $candidate : false;
-		} else {
-			$row_post_id = false;
+		$candidate  = 0;
+		if ( ! is_array( $raw_item ) ) {
+			$candidate = bws_extract_post_id( $raw_item );
+		} elseif ( 'post_meta' === $query_type && isset( $raw_item['ID'] ) ) {
+			$candidate = (int) $raw_item['ID'];
 		}
+		$row_post_id = ( $candidate && get_post( $candidate ) ) ? $candidate : false;
 		$instance->context['bws/loopItemPostId'] = $row_post_id !== false ? $row_post_id : 0;
 	}
 
