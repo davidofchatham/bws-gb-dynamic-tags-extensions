@@ -1278,8 +1278,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( '' === $source_val ) {
 		$source_val = 'current';
 	}
-	$ref      = $options['ref'] ?? '';
-	$tax      = $options['srcTermIn'] ?? $options['tax'] ?? '';
+	$ref = $options['ref'] ?? '';
+	// Term-modifier (`term_*`): read GB's native `tax` (term's own taxonomy, descriptive).
+	// Cross-source base tag: read `srcTermIn` (post→term hop).
+	$is_term_modifier = ( 'Term' === $modifier_label );
+	$tax              = $is_term_modifier
+		? ( $options['tax'] ?? '' )
+		: ( $options['srcTermIn'] ?? '' );
 	$src_term = '' !== $tax;
 	$key      = $options['key'] ?? '';
 	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
@@ -1330,17 +1335,32 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 
 	// Build context part (space-joined segments).
+	// Term-modifier with tax: merge modifier label and taxonomy name into one segment
+	//   ('Benefit Tier Term'), no hop arrow — entity is directly that term.
+	// Term-modifier without tax: bare 'Term' (entity is current term context).
+	// Cross-source base with srcTermIn: append '→ <Tax> Term' as hop segment after
+	//   any modifier/source segments.
 	$ctx_segments = [];
-	if ( $modifier_label ) {
+	$tax_obj      = $src_term ? get_taxonomy( $tax ) : null;
+	$tax_name     = $tax_obj ? $tax_obj->labels->singular_name : $tax;
+
+	if ( $is_term_modifier ) {
+		if ( $src_term ) {
+			$ctx_segments[] = $tax_name . ' Term';
+		} else {
+			$ctx_segments[] = 'Term';
+		}
+	} elseif ( $modifier_label ) {
 		$ctx_segments[] = $modifier_label;
 	}
 	if ( 'ref' === $source_val && $ref ) {
 		$ctx_segments[] = "Ref '" . $ref . "'";
 	}
-	if ( $src_term && $tax ) {
-		$tax_obj        = get_taxonomy( $tax );
-		$tax_name       = $tax_obj ? $tax_obj->labels->singular_name : $tax;
-		$ctx_segments[] = '→ ' . $tax_name . ' Term';
+	if ( $src_term && ! $is_term_modifier ) {
+		// '→' arrow only when this hop segment follows another segment (modifier label
+		// or ref). When standalone (current post → term, no other context), drop arrow.
+		$prefix = empty( $ctx_segments ) ? '' : '→ ';
+		$ctx_segments[] = $prefix . $tax_name . ' Term';
 	}
 	$context_part = implode( ' ', $ctx_segments );
 
