@@ -47,7 +47,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Post Featured Image (Deprecated)', 'generateblocks' ),
 				'tag'         => 'current_post_featured_image',
-				'type'        => 'media',
+				'type'        => 'deprecated',
 				'supports'    => array( 'image-size' ),
 				'description' => __( 'Deprecated — use "Post Featured Image" instead.', 'generateblocks' ),
 				'options'     => bws_get_image_return_type_options(),
@@ -62,7 +62,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Post Custom Image (Deprecated)', 'generateblocks' ),
 				'tag'         => 'current_post_meta_image',
-				'type'        => 'media',
+				'type'        => 'deprecated',
 				'supports'    => array( 'image-size' ),
 				'description' => __( 'Deprecated — use "Post Custom Image" instead.', 'generateblocks' ),
 				'options'     => array_merge(
@@ -80,7 +80,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Related Post Custom Image (Deprecated)', 'generateblocks' ),
 				'tag'         => 'related_post_meta_image',
-				'type'        => 'media',
+				'type'        => 'deprecated',
 				'supports'    => array( 'meta', 'image-size' ),
 				'description' => __( 'Deprecated — use "Related Post Custom Image" instead.', 'generateblocks' ),
 				'options'     => array_merge(
@@ -98,7 +98,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Related Post Permalink (Deprecated)', 'generateblocks' ),
 				'tag'         => 'related_post_url',
-				'type'        => 'related',
+				'type'        => 'deprecated',
 				'supports'    => array( 'meta' ),
 				'description' => __( 'Deprecated — use "Related Post Permalink" instead.', 'generateblocks' ),
 				'return'      => 'bws_deprecated_related_post_url_callback',
@@ -112,7 +112,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Post ACF Date/Time (Deprecated)', 'generateblocks' ),
 				'tag'         => 'post_acf_date_time_single',
-				'type'        => 'post',
+				'type'        => 'deprecated',
 				'supports'    => array( 'source' ),
 				'description' => __( 'Deprecated — use "Post ACF Date/Time" instead.', 'generateblocks' ),
 				'options'     => bws_get_datetime_single_options(),
@@ -127,7 +127,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Post ACF Date/Time Range (Deprecated)', 'generateblocks' ),
 				'tag'         => 'post_acf_date_time_range',
-				'type'        => 'post',
+				'type'        => 'deprecated',
 				'supports'    => array( 'source' ),
 				'description' => __( 'Deprecated — use "Post ACF Date/Time Range" instead.', 'generateblocks' ),
 				'options'     => bws_get_datetime_range_options(),
@@ -142,7 +142,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Term Name (Deprecated)', 'generateblocks' ),
 				'tag'         => 'term_name',
-				'type'        => 'term',
+				'type'        => 'deprecated',
 				'supports'    => array( 'source' ),
 				'description' => __( 'Deprecated — use "Term Title" instead.', 'generateblocks' ),
 				'return'      => 'bws_deprecated_term_name_callback',
@@ -156,7 +156,7 @@ function bws_register_deprecated_tags() {
 			array(
 				'title'       => __( 'Term Field Image (Deprecated)', 'generateblocks' ),
 				'tag'         => 'term_field_image',
-				'type'        => 'term',
+				'type'        => 'deprecated',
 				'supports'    => array( 'source', 'image-size' ),
 				'description' => __( 'Deprecated — use "Term Custom Image" instead.', 'generateblocks' ),
 				'options'     => array_merge(
