@@ -52,6 +52,21 @@ Re-emit conditions:
 - `source` → `src` (registered as option migration)
 - `tax` → `srcTermIn` on cross-source base tags (replaces `srcTerm` + `tax` pair)
 
+## Option Default Serialization
+
+GB editor serializes named default values into the stored tag string even when the user never changed them. A PHP option definition like `'default' => 'none'` results in `{{tag key:none}}` on save, even for untouched options — creating unwieldy tags.
+
+**Rule:** All optional options must use empty string `''` or omit the `default` key entirely. Callbacks read `$options['key'] ?? ''` and treat empty as "not set". Unset/blank options are not serialized.
+
+**Boolean serialization:**
+- `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
+- `false` = option dropped entirely — never appears in the tag string.
+- Design boolean options as presence-flags: unset = false/default, present = true/non-default.
+
+Confirmed via GB source: `parse_options()` only reads keys literally present in the tag string. Options absent from the string are absent from `$options` in the callback.
+
+**Documented exception:** `image`/`term_image` `as:url` is always serialized — see [`tag-matrix.md` §Base tag GB types](tag-matrix.md#base-tag-gb-types-planned-architecture) "`as` serialization exception".
+
 ## Custom Control Types Registered
 
 Via `generateblocks.editor.tagSpecificControls` filter:

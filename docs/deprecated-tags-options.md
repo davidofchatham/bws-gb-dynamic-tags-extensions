@@ -13,7 +13,7 @@ have forced revisions to several approved renames listed below.
 ## Former Tag Matrix — Post-context sources
 
 > **Note (v1.6.0+):** These source prefixes are now **deprecated wrapper registrations** only.
-> Base tags (`text`, `image`, `content`, etc.) handle all sources via the `source` option.
+> Base tags (`text`, `image`, `content`, etc.) handle all sources via the `src` option.
 > All wrappers are registered in `includes/tags/deprecated-tags.php`.
 
 The row label is the **template key**. The full tag name is `{prefix}{template_key}`,
@@ -72,13 +72,13 @@ tag names for all sources change with it. Deprecated wrappers are registered via
 for each old tag name and appear in the editor picker under the "Deprecated" group.
 
 In the source-agnostic architecture, the "New tag" column shows the single registered base tag.
-Each per-source old tag becomes a deprecated wrapper with `source_inject` set to the source's `source`
+Each per-source old tag becomes a deprecated wrapper with `source_inject` set to the source's `src`
 value and `option_renames` as listed below.
 
 | Current key | New key | Old tag example | New tag (base) | `source_inject` | `option_renames` | Status | Notes |
 |---|---|---|---|---|---|---|---|
-| `excerpt` | *(folded into `content`)* | `post_excerpt` | `{{content from:excerpt}}` | source abbrev. | none; `fixed_options: ['from' => 'excerpt']` | Approved | `use:excerpt` added as third value on `content`'s `use` option. `bws_post_excerpt_core()` retained as internal function. GB's `post_excerpt` is not a conflict (never registered by us). |
-| `featured_image` | *(folded into `image`)* | `post_featured_image` | `{{image from:featured}}` | source abbrev. | `as → as` (no rename); `fixed_options: ['from' => 'featured']` | Approved | Deprecated wrappers inject `use:featured` — unset now means ACF/meta field (custom image). `image-size` support carried over. |
+| `excerpt` | *(folded into `content`)* | `post_excerpt` | `{{content use:excerpt}}` | source abbrev. | none; `fixed_options: ['use' => 'excerpt']` | Approved | `use:excerpt` added as third value on `content`'s `use` option. `bws_post_excerpt_core()` retained as internal function. GB's `post_excerpt` is not a conflict (never registered by us). |
+| `featured_image` | *(folded into `image`)* | `post_featured_image` | `{{image use:featured}}` | source abbrev. | `as → as` (no rename); `fixed_options: ['use' => 'featured']` | Approved | Deprecated wrappers inject `use:featured` — unset now means ACF/meta field (custom image). `image-size` support carried over. |
 | `custom_text` | `text` | `post_custom_text` | `{{text}}` | source abbrev. | `fallback_text → fallback`, `type → use` | Approved | Removes `meta` from supports; own `key` input replaces GB pass-through. |
 | `custom_image` | *(folded into `image`)* | `post_custom_image` | `{{image key:…}}` | source abbrev. | `fallback_url → fallback`, `return_type → as`, `field_key → key` | Approved | No `fixed_options` or `type → use` rename needed — `custom_image` never had a `type` option, and `use` unset is now the ACF/meta field default. Term-source `image` variants also default to ACF/meta field — no featured image concept applies to terms. |
 | `custom_date_single` | `datetime_single` | `post_custom_date_single` | `{{datetime_single as:date}}` | source abbrev. | see §Date-time option names; `fixed_options: ['as' => 'date']` | Approved | Merged with datetime_single via `as` option. |
@@ -110,7 +110,7 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 | `via`/`from` (traversal selector) | `src` | all templates | Implemented | Final name after `source` rejected (GB reserved). Custom JS control. Registered as option migration so saved tags using older names round-trip. |
 | `via:tax` traversal value | `srcTerm` (boolean) | all templates | Superseded | Pair `srcTerm` (bool) + `tax` (slug) collapsed into single `srcTermIn` slug on cross-source base tags after `tax` reserved-key behavior discovered (re-emits only on `'term'` type or `tagSupportsTaxonomy`; silently dropped on cross-source base tags like `text`, `image`). See row below. |
 | `srcTerm` + `tax` pair | `srcTermIn` (slug) | cross-source base tags (e.g. `text`, `image` with `gb_type:'cross-source'`) | Implemented | Single non-reserved key encodes both signals: slug = enabled + slug, empty = disabled. Implemented via `bws-term-hop` custom control type (CheckboxControl + ComboboxControl). Avoids GB dropping `tax` on modal reopen. |
-| `rel` | `ref` | `source:ref` traversals (deprecated `related_post_*`, `term_related_post_*`, `post_term_related_post_*`) | Approved | Reference/relational field key — the option that stores the field name used to traverse. Renamed from `rel` for vendor-agnostic clarity (2026-04-13). Shim: `$options['ref'] ?? $options['rel'] ?? ''`. |
+| `rel` | `ref` | `src:ref` traversals (deprecated `related_post_*`, `term_related_post_*`, `post_term_related_post_*`) | Approved | Reference/relational field key — the option that stores the field name used to traverse. Renamed from `rel` for vendor-agnostic clarity (2026-04-13). Shim: `$options['ref'] ?? $options['rel'] ?? ''`. |
 | `rel` | `ref1` | `second_related_post_*` deprecated wrappers | Approved | First-hop reference field key. Numeric counter because `ref` type repeats. Supersedes intermediate rename `1st_rel` (approved but never implemented). `second_related_post` traversal dropped — deprecated wrappers register with no functional equivalent pending architecture revisit. |
 | `rel_2` | `ref2` | `second_related_post_*` deprecated wrappers | Approved | Second-hop reference field key. Supersedes intermediate rename `2nd_rel` (approved but never implemented). See `ref1` row. |
 
@@ -118,8 +118,8 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 
 | Current name | Proposed name | Scope | Status | Notes |
 |---|---|---|---|---|
-| `src_N` (try_ slots) | slot 1: `source`; slot N>1: `N-src` | Multi-source templates | Approved | Revised from approved `sN-via`. Slot 1: unprefixed `source` (custom control, aligns with base tag). Slots 2+: numeric prefix (e.g. `2-src`, `3-src`). Shim slot 1: `$options['via'] ?? $options['s1-via'] ?? $options['src_1'] ?? ''`; shim slot N>1: `$options["{$n}-src"] ?? $options["{$n}-via"] ?? $options["s{$n}-via"] ?? $options["src_{$n}"] ?? ''`. (`sN-from` and `from_N` were doc-only names, never in PHP.) |
-| `type_N` (try_ slots) | slot 1: `use`; slot N>1: `N-use` | Multi-source templates | Approved | Revised from approved `sN-from`. Mirrors `source` revision: slot 1 unprefixed, slots 2+ numeric prefix (e.g. `2-use`, `3-use`). New option — `type_N`, `field_N`, `in_N`, `sN-field` were all doc-only names, never in PHP. No shim needed. |
+| `src_N` (try_ slots) | slot 1: `src`; slot N>1: `N-src` | Multi-source templates | Approved | Revised from approved `sN-via`. Slot 1: unprefixed `src` (custom control, aligns with base tag). Slots 2+: numeric prefix (e.g. `2-src`, `3-src`). Shim slot 1: `$options['src'] ?? $options['via'] ?? $options['s1-via'] ?? $options['src_1'] ?? ''`; shim slot N>1: `$options["{$n}-src"] ?? $options["{$n}-via"] ?? $options["s{$n}-via"] ?? $options["src_{$n}"] ?? ''`. (`sN-from` and `from_N` were doc-only names, never in PHP.) |
+| `type_N` (try_ slots) | slot 1: `use`; slot N>1: `N-use` | Multi-source templates | Approved | Revised from approved `sN-from`. Mirrors `src` revision: slot 1 unprefixed, slots 2+ numeric prefix (e.g. `2-use`, `3-use`). New option — `type_N`, `field_N`, `in_N`, `sN-field` were all doc-only names, never in PHP. No shim needed. |
 
 ### Image-specific option names
 
@@ -148,3 +148,71 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 | `show_midnight` (new option) | — | datetime | Approved | Renamed to `showMidnight` — camelCase alignment. Unset = hide 00:00 times (default); presence = display midnight explicitly. Shown only when `as` not `date` (`show_if: { as: 'not:date' }`). |
 | `date_only` | *(eliminated)* | datetime | Approved | Replaced by `as:date`. `custom_date_*` deprecated wrappers inject `as:date` via `fixed_options`. `custom_datetime_*` wrappers with `date_only` set inject `as:date` via converter. |
 | `time_only` | *(eliminated)* | datetime | Approved | Replaced by `as:time`. Converter injects `as:time` when `time_only` is present. |
+
+---
+
+## Historical N×M source classes
+
+Source classes used by the v1.5 N×M tag-generation model. In v1.6.0+ the N×M loop is gone; these classes back deprecated wrapper callbacks only. New base/modifier tags route through a smaller subset (see [`tag-matrix.md`](tag-matrix.md) §Source classes).
+
+Notation:
+- ☐ — wrapper opt-in by default in former matrix
+- `Template − source` / `Template + source` — GB native `source` support modifier (entity-picker control); historical only
+
+### Post-context sources
+
+| Source key | Tag prefix | Traversal | Supports modifier | Registered by | Notes |
+|---|---|---|---|---|---|
+| `post` | `post_` | Current post (direct) | Template as-is | Built-in | |
+| `related_post` | `related_post_` | Current post → related post (reference field on post) | Template − `source` | Built-in | Requires `ref` option |
+| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `ref1` + `ref2` (legacy: `rel` + `rel_2`) |
+| `post_term_related_post` | `post_term_related_post_` | Current post → post's term (via `tax`) → term's related post (via `ref` on term). First term only. | Template − `source` | Built-in | Requires `tax` + `ref` |
+| `portal` | `portal_` | Current post (portal context) | Template as-is | `bws-portal-system` | External; historical name — modifier prefix renamed `view_` in v1.6.0 |
+
+### Term-context sources
+
+| Source key | Tag prefix | Traversal | Supports modifier | Registered by | Notes |
+|---|---|---|---|---|---|
+| `term` | `term_` | Current term (direct) | Template + `source` (always) | Built-in | Archive pages + term loops |
+| `term_related_post` | `term_related_post_` | Current term → related post (reference field on term) | Template − `source` | Built-in | Requires `ref` option on the term entity |
+
+> ⚠️ **`term_related_post_` vs `post_term_related_post_`:** Both involve a term's related post but start from different contexts. `term_related_post_` starts on an **archive or term loop page** (current term in scope). `post_term_related_post_` starts from a **current post**, resolves the post's term via `tax`, then hops to that term's related post via `ref` — a 3-hop traversal from post context.
+
+---
+
+## Historical required-options table (N×M wrappers)
+
+| Template | Required option(s) | Notes |
+|---|---|---|
+| All `related_post_` variants | `ref` | Identifies which reference field to traverse |
+| All `term_related_post_` variants | `ref` (on term entity) | Traverses from current term to related post |
+| All `second_related_post_` variants | `ref1` + `ref2` (legacy `rel` + `rel_2`) | First hop then second hop |
+| All `post_term_related_post_` variants | `tax` + `ref` (on term) | First term in taxonomy used; `ref` field on term, not post |
+| `custom_text` (all sources) | `key` | Via GB's `meta` support (deprecated wrapper era) |
+| `custom_image` (all sources) | `key` | |
+| `term_*` extraction templates | `tax` | First term of taxonomy on resolved post |
+| `term_custom_text`, `term_custom_image` | `tax` + `key` | |
+
+---
+
+## Historical list-mode applicability (N×M wrappers)
+
+`limit` was applied to the final traversal step — terms for `term_*` extraction; related posts for traversal sources.
+
+| Template | List mode | What was iterated |
+|---|---|---|
+| `title` (traversal sources) | ✅ | Related posts |
+| `content` | ❌ | Long-form prose |
+| `excerpt` (consolidated → `content use:excerpt`) | ❌ | Long-form prose |
+| `permalink` | ❌ | Scalar URL |
+| `description` (consolidated → `content`) | ❌ | Long-form prose |
+| `custom_text` (traversal sources) | ✅ | Related posts |
+| `featured_image` (consolidated → `image use:featured`) | ❌ | Scalar media |
+| `custom_image` (consolidated → `image`) | ❌ | Scalar media |
+| `datetime_single` (traversal sources) | ✅ | Related posts |
+| `datetime_range` (traversal sources) | ✅ | Related posts |
+| `term_title` (all sources) | ✅ | Terms in taxonomy |
+| `term_permalink` | ❌ | Scalar URL |
+| `term_description` (consolidated → `content` term-context) | ❌ | Long-form prose |
+| `term_custom_text` (all sources) | ✅ | Terms in taxonomy |
+| `term_custom_image` | ❌ | Scalar media |

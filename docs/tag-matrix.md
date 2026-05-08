@@ -15,68 +15,64 @@ the option renaming tracker for the transition from old names.
 | Symbol | Meaning |
 |--------|---------|
 | ✅ | Generated, **enabled** by default |
-| ☐ | Generated, **opt-in** (disabled by default in admin settings) |
 | — | Not applicable — template context type does not match source |
 | GB | Not generated — GB (or GB Pro) already registers this tag name; skipped by collision check |
 | ★ | Planned but not yet implemented |
-| † | Template being consolidated into another template — see template key renaming tracker |
 
 Tags generated with GB's built-in `post_title`, `post_excerpt`, and `post_permalink` names are
 silently skipped at registration time. The collision check queries
 `GenerateBlocks_Register_Dynamic_Tag::get_tags()` dynamically, so any tag already registered by
 GB or another plugin is automatically avoided.
 
-**Supports column** (in source tables and tag matrices): lists the GB `supports` values that
-control which editor controls appear for a tag. Values include `source` (entity picker), `link`,
-`meta` (field key input), `image-size`, `taxonomy` (taxonomy picker). The source table's Supports column shows what the source
-adds or removes from the template's base supports (`+source always` / `−source` / `as-is`).
-The matrix Supports column shows the template's base array before any source modifier is applied.
-
 ---
 
-## Sources
+## Sources (v1.6.0+ architecture)
 
-Sources are grouped by their **starting context** — what entity provides the initial ID for the tag.
+Source resolution is split between **`src` option values** (traversal within a base tag), **modifier prefixes** (context-shifting wrappers), and **source classes** (PHP entity resolvers behind both).
 
-### Post-context sources
+### `src` option values
 
-These sources resolve to a post. Use them in post loops, single-post templates, and anywhere a
-post is in scope.
+Traversal selector on every base tag. Serializes as `src:<value>` in the tag string.
 
-| Source key | Tag prefix | Traversal | Supports | Registered by | Notes |
-|---|---|---|---|---|---|
-| `post` | `post_` | Current post (direct) | Template as-is | Built-in | |
-| `related_post` | `related_post_` | Current post → related post (reference field on post) | Template − `source` | Built-in | Requires `ref` option |
-| `second_related_post` | `second_related_post_` | Current post → related post → 2nd related post | Template − `source` | Built-in | Requires `ref1` + `ref2` (legacy: `rel` + `rel_2`) |
-| `post_term_related_post` | `post_term_related_post_` | Current post → post's term (via `tax`) → term's related post (via `ref` on term). First term only. | Template − `source` | Built-in | Requires `tax` + `ref` |
-| `portal` | `portal_` | Current post (portal context) | Template as-is | `bws-portal-system` | External; registered via `bws_dynamic_tags_register_sources` hook |
+| `src` value | Resolves to | Status |
+|---|---|---|
+| unset (default) | Current entity (post or term per template context) | Implemented |
+| `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
+| `parent` | WP parent post | Planned |
+| `ancestor` | WP top-level ancestor | To be considered |
+| `child` | WP child posts (list output) | To be considered |
+| `sibling` | WP same-parent posts (list output) | To be considered |
 
-### Term-context sources
+See [§Source options](#source-options) for label/UI details.
 
-These sources resolve to a term. Use them on archive pages and in term loops.
+### Modifier prefixes
 
-| Source key | Tag prefix | Traversal | Supports | Registered by | Notes |
-|---|---|---|---|---|---|
-| `term` | `term_` | Current term (direct) | Template + `source` (always) | Built-in | Archive pages + term loops |
-| `term_related_post` | `term_related_post_` | Current term → related post (reference field on term) | Template − `source` | Built-in | Requires `ref` option on the term entity. ⚠️ Starts from term context — see note. |
+Modifiers wrap base tag templates with a context-shifting prefix. Registered via `TagTemplateRegistry::register_modifier()`. See [`docs/plugin-integration.md`](plugin-integration.md) §2 for the registration API.
 
-> ⚠️ **`term_related_post_` vs `post_term_related_post_`:** Both involve a term's related post,
-> but they start from different contexts. `term_related_post_` starts on an **archive or term loop
-> page** (current term is already in scope). `post_term_related_post_` starts from a **current
-> post**, resolves the post's term via `tax`, then hops to that term's related post via `ref` —
-> a 3-hop traversal from post context. See Post-context sources above.
+| Prefix | GB type | Modifier label | Starting context | Registered by |
+|---|---|---|---|---|
+| (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
+| `term_` | `'term'` | (term-based) | User-selected term via GB native taxonomy/term picker | Built-in |
+| `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
+| `view_` | `'view-based'` | (View-based) | Portal entity | `bws-portal-system` |
 
-### Source traversal options (revised architecture)
+### Source classes
 
-Base tags drop native `supports: ['source']` — no clean `show_if` path for the `ref` sub-option when using GB's native source selector (`dynamicSource` inaccessible from `tagSpecificControls` filter). The `source` option is registered as a plain PHP `select` in the standard `options` array; existing `editor-conditional-options.js` handles all `show_if` conditions for sub-options. No new JS required for `source` itself. A richer custom combobox (icons, labels, entity search) is a UI enhancement — deferred.
+PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfaced directly in tag names.
 
-The selected value serializes as `source:ref` in the tag string. PHP callbacks read `$options['source']` and dispatch accordingly.
+| Source class | Context | Use |
+|---|---|---|
+| `CurrentPost` | post | base tag callbacks at `src:''` in post context |
+| `RelatedPost` | post | base tag callbacks at `src:ref` in post context |
+| `TaxonomyTerm` | term | term_ modifier base; base tag callbacks when `srcTermIn:<tax>` set |
+| `TermRelatedPost` | post | term_ modifier at `src:ref` |
+| `PortalSource` | post | view_ modifier base (external) |
 
-See [Source options](#source-options).
+`SecondRelatedPost` and `PostTermRelatedPost` retained for deprecated wrapper callbacks only — no `src` value in v1.6.0 model.
 
-`try_` tags use the same custom source selector for all slots. Slot 1 option name: `src`; slots 2+ use `N-src`. Slot 2+ prepends "Same as Previous Source" (unset). See [Try_ tags](#try_-tags).
+### Portal / external modifiers
 
-> **Portal source:** The portal plugin is a **context modifier**, not a traversal hop. It registers its own tag group externally (via `bws_dynamic_tags_register_sources` PHP hook and `generateblocks.editor.tagSpecificControls` JS filter). Portal is the starting context — `portal` does not appear as a `source` value on standard base tags. Deprecated wrappers for `portal_*` tags are registered with this plugin and should also be handled by the migrator.
+The portal plugin is a **context modifier**, not a traversal hop. Registers its own tag group externally (via `bws_dynamic_tags_register_sources` PHP hook + `generateblocks.editor.tagSpecificControls` JS filter). Portal is the starting context — `portal` does not appear as a `src` value on standard base tags. Deprecated wrappers for `portal_*` tags are registered with this plugin and handled by the migrator.
 
 ---
 
@@ -84,7 +80,7 @@ See [Source options](#source-options).
 
 The N×M per-source tag matrices (`post_custom_text`, `related_post_title`, etc.) and the option rename
 trackers have moved to [`docs/deprecated-tags-options.md`](deprecated-tags-options.md). All those tag
-names are now deprecated wrapper registrations — base tags cover all sources via the `source` option.
+names are now deprecated wrapper registrations — base tags cover all sources via the `src` option.
 
 ---
 
@@ -92,13 +88,11 @@ names are now deprecated wrapper registrations — base tags cover all sources v
 
 In v1.6.0 the per-source×template matrix was removed from the admin settings page. Default-enabled state is now controlled at two levels:
 
-**Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. Both groups default to enabled.
+**Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. Both groups default to enabled. Externally registered modifier groups (e.g. `view_`) are not yet surfaced in the toggle UI.
 
-**Deprecated wrapper tags** — each deprecated wrapper has an individual enable/disable toggle in the deprecated tags section of the settings page. Wrappers default to enabled. `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current toggle state.
+**Deprecated wrapper tags** — settings page exposes two group-level radio sets (Has migration path, No migration path); each tag toggles individually but state is keyed off group selection (Keep / Suppress / Disable). `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current state.
 
 **Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are always registered with no admin toggle.
-
-The ☐ cells in the matrices above reflect the former per-source opt-in defaults, preserved here as documentation of which deprecated wrappers were historically opt-in.
 
 ---
 
@@ -124,6 +118,19 @@ Each slot exposes up to three controls:
 
 **Per-slot `use`** is available on templates that support content mode selection per slot (e.g. "try ACF/meta field, fall back to post content").
 
+### Per-slot label scheme
+
+Per-slot controls follow a "Source N: ..." prefix for `srcTermIn` sub-controls and "Field N" / "[Type] Field N" suffix for slot-tied controls. Slot 1 uses bare labels (no slot suffix).
+
+| Control | Slot 1 label | Slot N>1 label |
+|---|---|---|
+| `src` (source selector) | `Source` | `Source N` |
+| `ref` (relationship field) | `Relationship Field` | `Relationship Field N` |
+| `srcTermIn` checkbox | `Get from taxonomy term?` | `Source N: Get from taxonomy term?` |
+| `srcTermIn` taxonomy combobox | `Taxonomy` | `Source N: Taxonomy` |
+| `use` (field-type selector) | `Text Field` / `Content Field` / `Image Field` | `Text Field N` / `Content Field N` / `Image Field N` |
+| `key` (meta key) | `Field Meta Key` | `Field N Meta Key` |
+
 ### Available try_ tags
 
 | Tag name | Based on template | Per-slot field key? | Per-slot `use`? | Notes |
@@ -138,66 +145,51 @@ Each slot exposes up to three controls:
 
 ---
 
-## Options required per template/source combination
+## Options required per template
 
-Some tag variants require specific options to be configured in the GB editor before they produce
-output. Missing required options cause the tag to return empty string (no error).
+Some tag variants require specific options before producing output. Missing required options cause the tag to return empty string (no error).
 
 | Template | Required option(s) | Notes |
 |---|---|---|
-| All `related_post_` variants | `ref` — reference/relational field key | Identifies which reference field to traverse |
-| All `term_related_post_` variants | `ref` — reference/relational field key on the term entity | Traverses from current term to related post |
-| All `second_related_post_` variants | `ref1` + `ref2` — two reference field keys (legacy: `rel` + `rel_2`) | First hop (`ref1`) then second hop (`ref2`) |
-| All `post_term_related_post_` variants | `tax` — taxonomy slug; `ref` — reference field key on the term entity | First term in the taxonomy is used; the `ref` field is on the term, not the post. |
-| `content` (all sources, `use:key`) | `key` — ACF or meta field key | Required when `use` is set to `key` |
-| `custom_text` (all sources) | `key` — ACF or meta field key | Via GB's `meta` support |
-| `custom_image` (all sources) | `key` — meta image field key | |
-| `datetime_single` (all sources) | `key` — date, datetime, or time field key | |
-| `datetime_range` (all sources) | `start_key` — start date/datetime/time field key | `end_key` optional |
-| `term_*` templates (all sources) | `tax` — which taxonomy to look up | Post-context extraction; gets first term of this taxonomy on the resolved post |
-| `term_custom_text` | `tax` + `key` | |
-| `term_custom_image` | `tax` + `key` | |
+| Any base tag at `src:ref` | `ref` — reference/relational field key | Required when `src:ref` selected |
+| Any base/modifier tag with `srcTermIn:<tax>` | `srcTermIn` — taxonomy slug | Slug encodes both "term hop on" and the taxonomy |
+| `text` (`use:key` or unset) | `key` — ACF or meta field key | Default mode reads field at `key` |
+| `content` (`use:key`) | `key` — ACF or meta field key | Required when `use:key` |
+| `image` (`use:key` or unset) | `key` — meta image field key | Default mode reads field at `key` |
+| `datetime_single` | `key` — date/datetime/time field key | |
+| `datetime_range` | `startKey` — start field key | `endKey` optional |
+
+Required-option rules for deprecated N×M wrappers (e.g. `related_post_*`, `term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
 ---
 
 ## List mode (`limit` + `sep`)
 
-Selected templates support outputting multiple results as a delimited list. `limit` defaults to 1
-(single result). When `limit > 1`, results are joined with `sep` (default: `, `).
+Selected templates support outputting multiple results as a delimited list. `limit` defaults to 1 (single result). When `limit > 1`, results are joined with `sep` (default: `, `).
 
-`limit` applies to the **final traversal step**: terms for `term_*` extraction templates; related
-posts for traversal sources (`related_post_`, `term_related_post_`, etc.).
+`limit` applies to the **final traversal step**: terms when `srcTermIn:<tax>` is set; related posts at `src:ref`.
 
 | Template | List mode | What is iterated |
 |---|---|---|
-| `title` (traversal sources) | ✅ | Related posts |
+| `text` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) |
+| `title` | ✅ | Same as above |
 | `content` | ❌ | Long-form prose |
-| `excerpt` † | ❌ | Long-form prose |
 | `permalink` | ❌ | Scalar URL |
-| `description` † | ❌ | Long-form prose |
-| `custom_text` (traversal sources) | ✅ | Related posts |
-| `featured_image` | ❌ | Scalar media |
-| `custom_image` | ❌ | Scalar media |
-| `datetime_single` (traversal sources) | ✅ | Related posts |
-| `datetime_range` (traversal sources) | ✅ | Related posts |
-| `term_title` (all sources) | ✅ | Terms in taxonomy |
-| `term_permalink` | ❌ | Scalar URL |
-| `term_description` | ❌ | Long-form prose |
-| `term_custom_text` (all sources) | ✅ | Terms in taxonomy |
-| `term_custom_image` | ❌ | Scalar media |
+| `image` | ❌ | Scalar media |
+| `datetime_single` | ✅ | Terms or related posts |
+| `datetime_range` | ✅ | Terms or related posts |
 
-† `description` and `excerpt` consolidating into `content` — see template key renaming tracker.
+Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
 
 ---
 
 ## Potential future traversals
 
-These WP hierarchy relationships are candidates for `source` values in the traversal registry (see
-[Traversal registry and `source` values](#traversal-registry-and-via-values-planned-architecture)
-above). They do **not** create new source classes or new matrix columns — they are additional
-`source` options selectable on the existing base tags.
+These WP hierarchy relationships are candidates for `src` values in the traversal registry (see
+[Source options](#source-options) above). They do **not** create new source classes or new matrix columns — they are additional
+`src` option values selectable on the existing base tags.
 
-| `source` value | Traversal | Description | Status |
+| `src` value | Traversal | Description | Status |
 |---|---|---|---|
 | `parent` | current post → WP parent post | Hierarchical post types | Planned |
 | `ancestor` | current post → WP top-level ancestor | Hierarchical post types | To be considered |
@@ -230,13 +222,15 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 |---|---|---|
 | `text` | `'cross-source'` | |
 | `content` | `'cross-source'` | |
-| `title` | `'cross-source'` | Bare `title` confirmed safe — no GB/GB Pro tag starts with `title` and `title` does not start with any registered GB/GB Pro tag name (verified 2026-04-13). Zero options; shares internal pipeline with `text from:title`. |
+| `title` | `'cross-source'` | Zero options; shares internal pipeline with `text use:title`. |
 | `permalink` | `'cross-source'` | Zero options in current scope. |
 | `image` | `'cross-source'` | Custom image controls in scope for this plan phase: `as` + `size` (combobox) + `fallback` (media picker) registered via JS filter. No `'media'` type — all controls custom. See `custom-image-controls.md`. |
 | `datetime_single` | `'cross-source'` | |
 | `datetime_range` | `'cross-source'` | |
 
-The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `source` unset = user-selected term (never serialized); `source:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+
+**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
 
 **try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
 
@@ -252,18 +246,17 @@ Template key renames and option name renames have moved to [`docs/deprecated-tag
 
 ## Base tag title strings
 
-`title` is displayed in the GB tag picker and used as the last-resort editor fallback when a tag can't resolve and no preview label is available. The "Current title (N×M)" column shows the template `title` field as it appears in the current per-source tag registrations. The "Base tag title" column is the proposed title for the single registered base tag in the source-agnostic architecture.
+`title` is displayed in the GB tag picker and used as the last-resort editor fallback when a tag can't resolve and no preview label is available.
 
-| Template key | Current title (N×M) | Base tag title | Term modifier title | Status |
-|---|---|---|---|---|
-| `text` (was `custom_text`) | `'Custom Text'` | `'Text Fields'` | Base title + `'(term-based)'` | Approved |
-| `content` | `'Content'` | `'Content/Description'` | Base title + `'(term-based)'` | Approved |
-| `title` | `'Title'` | `'Title/Name'` | Base title + `'(term-based)'` | Approved |
-| `permalink` | `'Permalink'` | `'Permalink'` | Base title + `'(term-based)'` | Approved |
-| `image` (was `custom_image`) | `'Custom Image'` | `'Image Fields'` | Base title + `'(term-based)'` | Approved |
-| `datetime_single` | `'Custom Date/Time'` | `'Format Date/Time Fields'` | Base title + `'(term-based)'`| Approved |
-| `datetime_range` | `'Custom Date/Time Range'` | `'Format Date/Time Fields as Range'` | Base title + `'(term-based)'` | Approved |
-| `description` | `'Description'` | — | — | Approved — folds into `content` tag |
+| Template key | Base tag title | Term modifier title |
+|---|---|---|
+| `text` | `'Text Fields'` | Base title + `'(term-based)'` |
+| `content` | `'Content/Description'` | Base title + `'(term-based)'` |
+| `title` | `'Title/Name'` | Base title + `'(term-based)'` |
+| `permalink` | `'Permalink'` | Base title + `'(term-based)'` |
+| `image` | `'Image Fields'` | Base title + `'(term-based)'` |
+| `datetime_single` | `'Format Date/Time Fields'` | Base title + `'(term-based)'` |
+| `datetime_range` | `'Format Date/Time Fields as Range'` | Base title + `'(term-based)'` |
 
 ---
 
@@ -448,7 +441,7 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 |---|---|---|---|---|---|
 | Same as Previous Source | `same` | Current entity — not serialized | Inherit slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
 | Current | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
-| In Reference/Relational Field | `ref` | `ref` | `ref` | `Ref (X)` where X = `ref` field value | Triggers `ref` sub-option |
+| In Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
 | Parent | `parent` | `parent` | `parent` | — | Future |
 | Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
 | Child(ren) | `child` | `child` | `child` | — | Future |
@@ -461,7 +454,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy. Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child`, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
 | `sep` | Result Separator | Separator between results (defaults to “, ”). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
 
 ## Field options
@@ -533,7 +526,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 | 1 | Return As | `as` | return type: `url` / `alt` / `id` / `caption` — always serialized |
 | 2 | Image Size | `size` | image size (URL or ID returns) — see `custom-image-controls.md` |
 | 3 | | `[source options]` | no `limit`/`sep` for image |
-| 4 | | `use` | `key` (unset default in single-slot tags); `featured` | `featured` disabled for term-context entities unless `source` = `ref`. |
+| 4 | | `use` | `key` (unset default in single-slot tags); `featured` | `featured` disabled for term-context entities unless `src` = `ref`. |
 | 5 | | `key` | shown when `use` unset [in single-slot tags] or `use:key` |
 | 6 | | `[fallback option]` | media picker — see `custom-image-controls.md` |
 
@@ -570,27 +563,20 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 This is a **living reference**. Update it immediately when any of the following change:
 
-- A new source is added or removed
-- A new template is added or removed
+- A new `src` value, modifier prefix, or source class is added/removed
+- A new base or modifier template is added/removed
 - A default-enabled status changes
-- A required option is added, removed, or renamed
+- A required option is added/removed/renamed
 - List mode support changes for a template
 - A try_ tag is added or its slot behavior changes
 - An option rename moves from "Under consideration" to "Approved" or "Implemented"
 
-**When adding a new source:**
-1. Determine its starting context (post or term) and add a row to the appropriate Sources table.
-2. Add a column to the appropriate Tag Matrix table.
-3. Fill in each cell (✅ / ☐ / — / GB).
-4. Note any required options in the Options table.
-5. Note list-mode applicability.
-6. Remove ★ once released.
+**When adding a new `src` value:** add a row to §Sources `src` option values; document the traversal in §Source classes if a new resolver class is needed; update §Source options + §Secondary, conditional options labels; add a row in §Required options if it brings new required sub-options.
 
-**When adding a new template:**
-1. Add a row to both Tag Matrix tables (with — where context doesn't apply).
-2. Note required options, list-mode support, and whether `supports_try` applies.
-3. If `supports_try = true`, add a row to the Try_ tags table.
-4. Remove ★ once released.
+**When adding a new modifier prefix:** add a row to §Modifier prefixes; update §Base tag GB types if a new GB type string is introduced; document the registration call in [`docs/plugin-integration.md`](plugin-integration.md).
 
-**Deduplication rule:** Other docs (CLAUDE.md, plugin-integration.md, etc.) should reference this
-file rather than maintaining their own source, template, or option name tables.
+**When adding a new template:** add a row to §Base tag GB types and §Base tag title strings; note required options + list-mode support; if `supports_try`, add a row to §Available try_ tags; document option render order in §Option render order.
+
+**Deprecated wrappers:** never edit this doc for N×M deprecated wrappers — those go in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
+
+**Deduplication rule:** Other docs (CLAUDE.md, plugin-integration.md, etc.) should reference this file rather than maintaining their own source, template, or option name tables.

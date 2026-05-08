@@ -95,14 +95,14 @@ A context modifier creates a prefixed group of GB tags (`views_text`, `views_ima
 
 ### Implement and register the source(s)
 
-The modifier needs at least one registered source for direct entity resolution. If the modifier supports a traversal hop (`source:ref`), register a second source for that:
+The modifier needs at least one registered source for direct entity resolution. If the modifier supports a traversal hop (`src:ref`), register a second source for that:
 
 ```php
 // Register on bws_dynamic_tags_register_sources (or plugins_loaded priority < 20).
 add_action( 'bws_dynamic_tags_register_sources', function() {
-    // Direct entity resolution (source unset = current context).
+    // Direct entity resolution (src unset = current context).
     \BWS\DynamicTags\SourceRegistry::register_source( new ViewsSource() );
-    // Optional: traversal source (source:ref = entity → related post).
+    // Optional: traversal source (src:ref = entity → related post).
     \BWS\DynamicTags\SourceRegistry::register_source( new ViewsRelatedPostSource() );
 } );
 ```
@@ -117,11 +117,11 @@ add_action( 'init', function() {
         return;
     }
     \BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
-        'prefix'               => 'views',             // Produces views_text, views_image, etc.
-        'gb_type'              => 'post',              // GB type string for all modifier tags.
-        'modifier_label'       => 'views-based',       // Parenthetical in tag title: "Text Fields (views-based)".
-        'base_source_key'      => 'views',             // Source key for unset source (direct resolution).
-        'traversal_source_key' => 'views_related_post', // Source key for source:ref hop. '' = no traversal option.
+        'prefix'               => 'view',              // Produces view_text, view_image, etc.
+        'gb_type'              => 'view-based',        // GB type string for all modifier tags.
+        'modifier_label'       => 'view-based',        // Parenthetical in tag title: "Text Fields (view-based)".
+        'base_source_key'      => 'view',              // Source key for unset src (direct resolution).
+        'traversal_source_key' => 'view_related_post', // Source key for src:ref hop. '' = no traversal option.
         'excluded_supports'    => array(),             // Omit to keep 'source' GB entity picker on all tags.
     ) );
 }, 21 );
@@ -129,9 +129,9 @@ add_action( 'init', function() {
 
 ### What gets generated
 
-`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `views_text`, `views_image`, `views_title`).
+`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `view_text`, `view_image`, `view_title`).
 
-Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal source (`ref`). Traversal sub-options (`ref` field key, `srcTerm`, `tax`) are included automatically.
+Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal hop (`ref`). Traversal sub-options (`ref` field key + `srcTermIn` term-hop control) are included automatically via `bws_base_traversal_options()`.
 
 If `traversal_source_key` is empty, the Source selector is omitted and the modifier always resolves from the direct entity.
 
@@ -144,17 +144,17 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 | `prefix` | string | Yes | Tag prefix. Produces `{prefix}_{template_key}` for each template. |
 | `gb_type` | string | Yes | GB tag type string for all generated modifier tags (e.g. `'post'`, `'term'`). |
 | `modifier_label` | string | — | Parenthetical appended to the tag title (e.g. `'term-based'`). Omit for no parenthetical. |
-| `base_source_key` | string | Yes | Source registry key used when `source` is unset (direct resolution). |
-| `traversal_source_key` | string | — | Source registry key used when `source:'ref'`. Empty string omits the traversal option entirely. If base entity is a standard GB loop post, the built-in `'related_post'` source can be used directly; otherwise register a custom traversal source. |
+| `base_source_key` | string | Yes | Source registry key used when `src` is unset (direct resolution). |
+| `traversal_source_key` | string | — | Source registry key used when `src:'ref'`. Empty string omits the traversal option entirely. If base entity is a standard GB loop post, the built-in `'related_post'` source can be used directly; otherwise register a custom traversal source. |
 | `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
 
 ### Editor preview label registration
 
-`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `[Views Text · Ref 'related_posts']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
+`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from View Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
 
 ```php
 add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
-    $map['views_'] = 'Views';
+    $map['view_'] = 'View';
     return $map;
 } );
 ```
@@ -174,7 +174,6 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 | `get_source_key(): string` | Registry key + tag prefix | (abstract — must implement) |
 | `get_source_label(): string` | Human label in admin UI | (abstract — must implement) |
 | `get_tag_prefix(): string` | Tag name prefix | `get_source_key()` |
-| `get_title_prefix(): string` | Tag title prefix in GB | `get_source_label()` |
 | `get_gb_type(): string` | GB tag type | `'post'` |
 | `get_context_type(): string` | Which templates apply | `'post'` |
 
@@ -196,7 +195,7 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
-| `needs_relationship_field(): bool` | Whether this source requires a `rel` option to resolve | `false` | Return `true` for traversal sources (e.g. `RelatedPost`, `TermRelatedPost`, `SecondRelatedPost`). Signals the try-tag machinery to carry forward `$last_rel`. |
+| `needs_relationship_field(): bool` | Whether this source requires a `ref` option to resolve | `false` | Return `true` for traversal sources (e.g. `RelatedPost`, `TermRelatedPost`). `SecondRelatedPost` retained internally for deprecated wrappers only — not used in v1.6.0 base/modifier model. Signals the try-tag machinery to carry forward `$last_ref`. |
 | `get_ui_group(): string` | Admin matrix group for this source | `get_context_type()` | Override when the source should appear in a different group than its context type. `TermRelatedPost` returns `'term'` even though its `context_type` is `'post'`. |
 
 ### Options
@@ -212,25 +211,24 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 If your plugin needs a tag type with no equivalent built-in template, there are two options:
 
-### Option A: Register a new template (preferred)
+### Option A: Register a new modifier template (preferred)
 
-Adding a template to `TagTemplateRegistry` makes it available as a modifier template for all modifier groups, including yours:
+Adding a template via `register_modifier_template()` makes it available to all modifier groups (term_, view_, etc.) — `register_modifier()` iterates registered modifier templates and produces one tag per (modifier × template) pair:
 
 ```php
-// In your plugin, at init priority 15 (before generate_all_tags runs at 20):
+// In your plugin, at init priority 15 (before bws_register_base_tags runs at 20):
 add_action( 'init', function() {
     if ( ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
         return;
     }
-    \BWS\DynamicTags\TagTemplateRegistry::register_template( array(
-        'key'           => 'my_field',          // Appended to source prefix → external_my_field
-        'title'         => 'My Field',           // Prepended with source label in GB
-        'gb_type'       => null,                 // null = use source's gb_type ('post')
-        'supports'      => array( 'source' ),
-        'options_fn'    => 'my_plugin_get_my_field_options',
+    \BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
+        'key'           => 'my_field',          // Appended to modifier prefix → term_my_field, view_my_field
+        'title'         => 'My Field',           // Modifier label appended in GB tag picker
+        'gb_type'       => null,                 // null = inherit modifier's gb_type
+        'supports'      => array(),              // Base tags use custom 'src' option, not GB native 'source' support
+        'options'       => array(),              // Or a callable returning option definitions
         'core_fn'       => 'my_plugin_my_field_core',
         'context_types' => array( 'post' ),
-        'supports_try'  => false,
     ) );
 }, 15 );
 ```
@@ -279,20 +277,22 @@ function my_plugin_unique_field_callback( $options, $block, $instance ) {
 
 ### Tags with ACF relationship fields
 
-If a tag needs to traverse an ACF relationship/post_object field, use the standard `rel` option pattern:
+If a tag needs to traverse an ACF relationship/post_object field, prefer the modifier path (`register_modifier()` with a `traversal_source_key`) — the framework handles `src:ref` + `ref` sub-option wiring. For one-off manually registered tags, merge `bws_base_traversal_options()` into options and read `$options['ref']`:
 
 ```php
-// Registration: merge the standard rel option into your options.
-'options' => array_merge( bws_get_relationship_field_options(), $your_other_options ),
+// Registration: merge canonical src + ref options.
+'options' => array_merge( bws_base_traversal_options(), $your_other_options ),
 'supports' => array(),
 
-// Callback: read the relationship field key from $options['rel'].
-$rel_field_key = $options['rel'] ?? '';
-if ( empty( $rel_field_key ) ) {
+// Callback: read ref field key from $options['ref'].
+$ref_field_key = $options['ref'] ?? '';
+if ( empty( $ref_field_key ) ) {
     return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
 }
-$related_posts = bws_get_related_posts_data( $post_id, $rel_field_key );
+$related_posts = bws_get_related_posts_data( $post_id, $ref_field_key );
 ```
+
+The legacy `bws_get_relationship_field_options()` / `bws_get_second_relationship_field_options()` helpers (which emit `rel` / `rel_2` keys) are retained for deprecated wrapper internals only. Do not use them in new tags.
 
 ### Tags that render post content
 
@@ -359,8 +359,9 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 
 | Function | Purpose |
 |----------|---------|
-| `bws_get_relationship_field_options()` | Returns `rel` option for first-hop ACF relationship field. |
-| `bws_get_second_relationship_field_options()` | Returns `rel_2` option for second-hop ACF relationship field. |
+| `bws_get_relationship_field_options()` | **Deprecated-internal only.** Returns `rel` option block; used by `SecondRelatedPost` + deprecated wrapper registrations. New tags should use `bws_base_traversal_options()` (`ref` key). |
+| `bws_get_second_relationship_field_options()` | **Deprecated-internal only.** Returns `rel_2` option block for `SecondRelatedPost` second hop. No replacement in v1.6.0 base/modifier model. |
+| `bws_base_traversal_options()` | Returns canonical `src` + `ref` + `srcTermIn` option block. Use in modifier registrations and any manually registered tag that needs traversal. |
 
 #### Post content processing pipeline
 
@@ -389,7 +390,7 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_reliable_term_context_detection( $options )` | Multi-fallback term ID detection (archive, loop, option) |
 | `bws_get_validated_term( $term_id )` | Validate and retrieve WP_Term object |
 | `bws_get_term_field_image_data( $term_id, $taxonomy, $field_key, $return_type, $size )` | Image from term ACF/meta field |
-| `bws_get_terms_for_post( $post_id, $options )` | Returns `WP_Term[]` in taxonomy from `$options['taxonomy']` |
+| `bws_get_terms_for_post( $post_id, $options )` | Returns `WP_Term[]` in taxonomy from `$options['tax']` (legacy `taxonomy` accepted as fallback) |
 | `bws_post_term_extraction_options()` | Standard `tax` + `fallback` options for post-context term templates |
 | `bws_post_term_image_options()` | `tax` + `key` options for post-context term image templates |
 
@@ -474,7 +475,7 @@ function portal_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `callback` | callable\|string | Yes | PHP callable that handles tag output. |
 | `since` | string | — | Version string passed to `bws_deprecated_tag_notice()`. |
 | `description` | string | — | Overrides the auto-generated GB tag description. Auto-default: `'Deprecated — use "new_tag" instead.'` |
-| `source_inject` | string | — | `source` option value injected on conversion (e.g. `'ref'` for a related-post traversal source). Empty string omits the `source` option. |
+| `source_inject` | string | — | `src` option value injected on conversion (e.g. `'ref'` for a related-post traversal source). Empty string omits the `src` option. |
 | `option_renames` | array | — | Map of old option key → new option key applied before serialization. E.g. `['field_key' => 'key']`. |
 | `value_renames` | array | — | Map of (post-rename) option key → `[old value => new value]`. Applied after `option_renames`. |
 | `fixed_options` | array | — | Key/value pairs always injected during conversion regardless of user options. E.g. `['use' => 'excerpt']`. |
@@ -524,6 +525,8 @@ function my_plugin_passthrough_callback( $options, $block, $instance ) {
 
 ### Converter behavior
 
-The **List Posts** button shows every post containing `{{portal_text ...}}` (or whichever `old_tag`). The **Convert** button rewrites those strings to `{{views_text ...}}`, preserving all options (after any `option_renames` and `fixed_options` are applied). Posts whose content does not change after transformation are not updated.
+The admin **Migration Tool** (separate section on the settings page) scans all non-revision posts for any deprecated tag matching a registered `old_tag`. The results table shows post title + type + per-row issue list (deprecated tags + option migrations). Per-row **Migrate** rewrites stored content via `MigrationRegistry::transform_tag()` — applying `option_renames`, `value_renames`, `combine_options`, `source_inject`, `fixed_options`, `datetime_transforms` in the documented order. **Bulk Migrate Selected** processes the checked rows in sequence with a progress bar.
 
-Both buttons operate on one tag name at a time and are available for each deprecated entry that has a `new_tag` set.
+Posts whose content does not change after transformation are not rewritten. Each migrated post gets a pre-migration `wp_save_post_revision()` snapshot so changes are reversible.
+
+Migration available only for deprecated entries that declare `new_tag` plus at least one of `source_inject`, `option_renames`, or `fixed_options`. `DeprecatedTagRegistry::has_migration_path( $old_tag )` returns whether a path exists.
