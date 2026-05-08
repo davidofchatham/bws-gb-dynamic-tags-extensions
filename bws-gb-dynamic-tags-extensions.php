@@ -9,6 +9,8 @@
  * Author: Bridge Web Solutions
  * Text Domain: generateblocks
  * Domain Path: /languages
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
  * @package BWS_Dynamic_Tags
  */
