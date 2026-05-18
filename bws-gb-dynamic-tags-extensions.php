@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
- * Description: Extends GenerateBlocks with custom dynamic tags for ACF integration, providing dynamic content from multiple post sources, date/time formatting, and taxonomy terms.
+ * Description: Extends GenerateBlocks Pro with advanced tags for both standard and custom field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
  * Version: 1.6.0
  * Requires at least: 6.5
  * Requires PHP: 8.1

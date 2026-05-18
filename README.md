@@ -1,8 +1,10 @@
 # BWS GenerateBlocks Dynamic Tags Extensions
 
-WordPress plugin extending [GenerateBlocks](https://generateblocks.com/) with source-agnostic dynamic tags for custom field data, taxonomy terms, and date/time formatting.
+WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data. `datetime_single` and `datetime_range` offer custom date/time formatting for date/datetime/time fields, and `try_*` tags allow using the first available (populated) field from an editor-selected list of sources/fields.
 
-A single tag (`{{text}}`, `{{image}}`, `{{datetime_single}}`, etc.) handles every traversal via a `src` option (current entity, relationship-field hop, etc.) and an optional `srcTermIn` term-hop. The built-in `term_*` modifier wraps base tags for term-context resolution; external plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
+The base tags (`{{text}}`, `{{image}}`, `{{datetime_single}}`, etc.) are designed to be source-agnostic, currently tested for both post and loop item contexts. A custom `src` option allows using the current entity or one related by a reference/relational field, and the `srcTermIn` toggle and taxonomy selector allows using a taxonomy term applied to the selected source. 
+
+The `term_*` modifier wraps base tags for term-context resolution using GenerateBlock's built-in taxonomy/term selector; external plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
 
 ## try_ tags
 
@@ -11,13 +13,13 @@ A single tag (`{{text}}`, `{{image}}`, `{{datetime_single}}`, etc.) handles ever
 ## Requirements
 
 - WordPress 6.5+
-- GenerateBlocks Pro (hard dependency — declared in plugin header)
+- GenerateBlocks Pro
 - ACF or any plugin hooking `generateblocks_get_meta_pre_value` for custom-field reads (optional)
 
 ## Documentation
 
+- [`CHANGELOG.md`](CHANGELOG.md) — version history
 - [`docs/tag-matrix.md`](docs/tag-matrix.md) — current tag architecture, options, preview-label schema
 - [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md) — N×M historical reference + migration tracker
 - [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (`register_modifier()`, deprecated wrappers)
 - [`docs/gb-constraints.md`](docs/gb-constraints.md) — GB editor/runtime constraint catalog
-- [`CHANGELOG.md`](CHANGELOG.md) — version history
