@@ -60,8 +60,12 @@ class MigrationRegistry {
 	 *   @type string  $gb_type         Always overwritten to 'deprecated' for 'tag' entries.
 	 *
 	 *   'option' type only:
-	 *   @type array   $match_options   Option keys that must ALL be present in the tag string to trigger.
-	 *   @type string  $label           Short description shown in admin UI (e.g. 'rel → ref fix').
+	 *   @type array   $match_options       Option keys that must ALL be present in the tag string to trigger.
+	 *   @type array   $match_any_options   Option keys where ANY presence triggers the entry. Combined
+	 *                                       with `match_options` via AND (both checks must pass). Use this
+	 *                                       when multiple old keys signal the same deprecated state and
+	 *                                       only one needs to be present to warrant migration.
+	 *   @type string  $label               Short description shown in admin UI (e.g. 'rel → ref fix').
 	 * }
 	 */
 	public static function register( array $args ): void {
@@ -180,12 +184,25 @@ class MigrationRegistry {
 				continue;
 			}
 			$required = $entry['match_options'] ?? array();
-			if ( empty( $required ) ) {
+			$any      = $entry['match_any_options'] ?? array();
+			if ( empty( $required ) && empty( $any ) ) {
 				continue;
 			}
 			foreach ( $required as $key ) {
 				if ( ! in_array( $key, $option_keys, true ) ) {
 					continue 2;
+				}
+			}
+			if ( ! empty( $any ) ) {
+				$found = false;
+				foreach ( $any as $key ) {
+					if ( in_array( $key, $option_keys, true ) ) {
+						$found = true;
+						break;
+					}
+				}
+				if ( ! $found ) {
+					continue;
 				}
 			}
 			return $entry;
@@ -194,21 +211,32 @@ class MigrationRegistry {
 	}
 
 	/**
-	 * Apply an option migration to a tag string if a matching entry exists.
+	 * Apply option migrations to a tag string. Loops until no further matching entry fires
+	 * or no change is produced, so overlapping/cascading migrations all apply in one call.
+	 *
+	 * Bounded by a hard iteration cap (16) as a safety against pathological registrations.
 	 *
 	 * @param string $tag_name   Current (live) tag name.
 	 * @param string $tag_string Full raw tag string.
 	 * @return string Migrated string, or original if no matching entry found.
 	 */
 	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
-		[ , $options ] = self::parse_tag_string( $tag_string );
-		$entry         = self::find_option_migration( $tag_name, array_keys( $options ) );
+		$max_iterations = 16;
+		for ( $i = 0; $i < $max_iterations; $i++ ) {
+			[ , $options ] = self::parse_tag_string( $tag_string );
+			$entry         = self::find_option_migration( $tag_name, array_keys( $options ) );
 
-		if ( null === $entry ) {
-			return $tag_string;
+			if ( null === $entry ) {
+				return $tag_string;
+			}
+
+			$next = self::run_transform( $entry, $tag_string );
+			if ( $next === $tag_string ) {
+				return $tag_string;
+			}
+			$tag_string = $next;
 		}
-
-		return self::run_transform( $entry, $tag_string );
+		return $tag_string;
 	}
 
 	// ===============================================
@@ -384,19 +412,22 @@ class MigrationRegistry {
 			unset( $options['time_only'] );
 		}
 
-		// 4. smart_time elimination.
-		$has_time_output = ( ( $options['as'] ?? '' ) !== 'date' );
+		// 4. smart_time → showMidnight (inverted). Definite match only:
+		//    explicit `smart_time:false` (override of old default-true) → new `showMidnight` bare.
+		//    Bare/true and absent are ambiguous (default-serialization era) — drop without injecting.
 		if ( array_key_exists( 'smart_time', $options ) ) {
+			if ( 'false' === $options['smart_time'] ) {
+				$options['showMidnight'] = true;
+			}
 			unset( $options['smart_time'] );
-		} elseif ( $has_time_output ) {
-			$options['showMidnight'] = 'true';
 		}
 
-		// 5. omit_current_year → showCurrentYear (inverted boolean).
+		// 5. omit_current_year → showCurrentYear (inverted). Same definite-match rule as smart_time.
 		if ( array_key_exists( 'omit_current_year', $options ) ) {
+			if ( 'false' === $options['omit_current_year'] ) {
+				$options['showCurrentYear'] = true;
+			}
 			unset( $options['omit_current_year'] );
-		} else {
-			$options['showCurrentYear'] = 'true';
 		}
 
 		return $options;
@@ -453,16 +484,20 @@ class MigrationRegistry {
 	/**
 	 * Serialize a tag name and options array into a GB tag string.
 	 *
-	 * Empty-string values are omitted per GB convention. Key order follows insertion order.
+	 * Empty-string values are omitted per GB convention. PHP `true` values serialize
+	 * as bare keys (no colon) — GB's boolean convention for `true`. Key order follows
+	 * insertion order.
 	 *
-	 * @param string               $tag_name
-	 * @param array<string,string> $options
-	 * @return string e.g. `{{text src:ref|ref:X|key:Y}}`
+	 * @param string                    $tag_name
+	 * @param array<string,string|true> $options
+	 * @return string e.g. `{{text src:ref|ref:X|key:Y|showMidnight}}`
 	 */
 	private static function serialize_tag_string( string $tag_name, array $options ): string {
 		$pairs = array();
 		foreach ( $options as $key => $value ) {
-			if ( '' !== (string) $value ) {
+			if ( true === $value ) {
+				$pairs[] = $key;
+			} elseif ( '' !== (string) $value ) {
 				$pairs[] = $key . ':' . $value;
 			}
 		}

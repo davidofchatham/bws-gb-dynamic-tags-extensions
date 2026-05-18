@@ -1,0 +1,10 @@
+.claude
+.github
+.git
+.gitignore
+.distignore
+*.code-workspace
+docs
+deprecated-files
+CHANGELOG.md
+CLAUDE.md

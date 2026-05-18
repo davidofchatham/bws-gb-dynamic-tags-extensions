@@ -1700,4 +1700,155 @@ function bws_register_option_migrations(): void {
 			),
 		) ) );
 	}
+
+	// Live datetime tags carrying old (pre-v1.6) option keys. Tag name was renamed by a
+	// prior migration pass but datetime field/separator/format/boolean keys were left in
+	// the old form. Same rename maps and datetime_transforms used for type:'tag' entries.
+	$cdts_renames = array( 'date_time_field' => 'key', 'time_field' => 'timeKey', 'fallback_text' => 'fallback' );
+	$cdtr_renames = array(
+		'start_field'         => 'startKey',
+		'start_time_field'    => 'startTimeKey',
+		'end_field'           => 'endKey',
+		'end_time_field'      => 'endTimeKey',
+		'separator'           => 'rangeSep',
+		'date_time_separator' => 'timeSep',
+		'fallback_text'       => 'fallback',
+	);
+
+	// Old key set (any one of these means the tag predates the rename and the datetime
+	// transforms (format_type, date_only, time_only, smart_time, omit_current_year) need
+	// to run too.
+	$datetime_single_old_keys = array(
+		'date_time_field', 'time_field', 'fallback_text',
+		'format_type', 'custom_format', 'date_only', 'time_only',
+		'smart_time', 'omit_current_year',
+	);
+	$datetime_range_old_keys = array(
+		'start_field', 'start_time_field', 'end_field', 'end_time_field',
+		'separator', 'date_time_separator', 'fallback_text',
+		'format_type', 'custom_format', 'date_only', 'time_only',
+		'smart_time', 'omit_current_year',
+	);
+
+	$reg::register( array(
+		'type'                => 'option',
+		'match_tag'           => 'datetime_single',
+		'match_any_options'   => $datetime_single_old_keys,
+		'new_tag'             => 'datetime_single',
+		'option_renames'      => $cdts_renames,
+		'datetime_transforms' => true,
+		'label'               => __( '{{datetime_single}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
+	) );
+
+	$reg::register( array(
+		'type'                => 'option',
+		'match_tag'           => 'datetime_range',
+		'match_any_options'   => $datetime_range_old_keys,
+		'new_tag'             => 'datetime_range',
+		'option_renames'      => $cdtr_renames,
+		'datetime_transforms' => true,
+		'label'               => __( '{{datetime_range}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
+	) );
+
+	// fallback_text → fallback on every base tag (universal rename). Single-key gate;
+	// safe to register as a narrow entry alongside other base-tag entries because the
+	// apply_option_migration loop cascades.
+	foreach ( array( 'text', 'content', 'title', 'permalink', 'image' ) as $base_tag ) {
+		$reg::register( array(
+			'type'           => 'option',
+			'match_tag'      => $base_tag,
+			'match_options'  => array( 'fallback_text' ),
+			'new_tag'        => $base_tag,
+			'option_renames' => array( 'fallback_text' => 'fallback' ),
+			'label'          => sprintf(
+				/* translators: %s: base tag name */
+				__( '{{%s}}: fallback_text → fallback', 'generateblocks' ),
+				$base_tag
+			),
+		) );
+	}
+
+	// via / from → src on base tags. Pre-`source` rename predates `source` → `src` chain
+	// and was not covered by the type:'option' entry that handles `source`. Use match_any
+	// so either key triggers; both rename to `src`.
+	foreach ( array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range' ) as $base_tag ) {
+		$reg::register( array(
+			'type'              => 'option',
+			'match_tag'         => $base_tag,
+			'match_any_options' => array( 'via', 'from' ),
+			'new_tag'           => $base_tag,
+			'option_renames'    => array( 'via' => 'src', 'from' => 'src' ),
+			'label'             => sprintf(
+				/* translators: %s: base tag name */
+				__( '{{%s}}: via/from → src', 'generateblocks' ),
+				$base_tag
+			),
+		) );
+	}
+
+	// content tag: legacy `type:custom_field` + `key:<slug>` → `use:key|key:<slug>`.
+	// The matching type:'tag' migration (post_content → content) applied $content_values
+	// to map value `custom_field` → `key` after renaming `type` → `use`. Replicate for
+	// live `content` tags that already had the tag name but kept old option keys.
+	$reg::register( array(
+		'type'           => 'option',
+		'match_tag'      => 'content',
+		'match_options'  => array( 'type' ),
+		'new_tag'        => 'content',
+		'option_renames' => array( 'type' => 'use' ),
+		'value_renames'  => array( 'use' => array( 'custom_field' => 'key' ) ),
+		'label'          => __( '{{content}}: type → use (value custom_field → key)', 'generateblocks' ),
+	) );
+
+	// image / term_image / try_image: pre-v1.6 keys beyond `id` (already handled above).
+	// `return_type` → `as`, `fallback_url` → `fallback`, `field_key` → `key`.
+	$image_renames    = array( 'return_type' => 'as', 'fallback_url' => 'fallback', 'field_key' => 'key' );
+	$image_match_any  = array( 'return_type', 'fallback_url', 'field_key' );
+	foreach ( array( 'image', 'term_image', 'try_image' ) as $tag ) {
+		$reg::register( array(
+			'type'              => 'option',
+			'match_tag'         => $tag,
+			'match_any_options' => $image_match_any,
+			'new_tag'           => $tag,
+			'option_renames'    => $image_renames,
+			'label'             => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: return_type/fallback_url/field_key → as/fallback/key', 'generateblocks' ),
+				$tag
+			),
+		) );
+	}
+
+	// try_* slot-key renames: src_1 dropped (default), src_2..5 → 2-src..5-src,
+	// rel_N → N-ref, key_N → N-key (slot 1 → bare `key`). Matches any slot key.
+	$try_slot_renames = array(
+		'src_1' => '',      'rel_1' => 'ref',  'key_1' => 'key',
+		'src_2' => '2-src', 'rel_2' => '2-ref', 'key_2' => '2-key',
+		'src_3' => '3-src', 'rel_3' => '3-ref', 'key_3' => '3-key',
+		'src_4' => '4-src', 'rel_4' => '4-ref', 'key_4' => '4-key',
+		'src_5' => '5-src', 'rel_5' => '5-ref', 'key_5' => '5-key',
+	);
+	$try_slot_values  = array(
+		'2-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'3-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'4-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+		'5-src' => array( 'related' => 'ref', 'related_post' => 'ref' ),
+	);
+	$try_slot_match   = array_keys( $try_slot_renames );
+
+	foreach ( array( 'try_text', 'try_content', 'try_title', 'try_permalink', 'try_image', 'try_datetime_single', 'try_datetime_range' ) as $tag ) {
+		$reg::register( array(
+			'type'              => 'option',
+			'match_tag'         => $tag,
+			'match_any_options' => $try_slot_match,
+			'new_tag'           => $tag,
+			'option_renames'    => $try_slot_renames,
+			'value_renames'     => $try_slot_values,
+			'label'             => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: legacy slot keys (src_N/rel_N/key_N) → v1.6 slot syntax', 'generateblocks' ),
+				$tag
+			),
+		) );
+	}
 }

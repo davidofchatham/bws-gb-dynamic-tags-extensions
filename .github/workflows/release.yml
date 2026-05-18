@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes for this version
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NOTES_FILE="${RUNNER_TEMP}/release-notes.md"
+          # Extract content between first ## heading and the next one
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md > "${NOTES_FILE}"
+          echo "notes_path=${NOTES_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release zip
+        id: build
+        run: |
+          PLUGIN_SLUG="bws-gb-dynamic-tags-extensions"
+          VERSION="${{ steps.version.outputs.version }}"
+          STAGING="${RUNNER_TEMP}/${PLUGIN_SLUG}"
+
+          # Copy repo into staging dir, respecting .distignore
+          rsync -a --exclude-from=".distignore" . "${STAGING}/"
+
+          # Zip with plugin slug as top-level directory
+          cd "${RUNNER_TEMP}"
+          zip -r "${PLUGIN_SLUG}-${VERSION}.zip" "${PLUGIN_SLUG}/"
+          echo "zip_path=${RUNNER_TEMP}/${PLUGIN_SLUG}-${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release and upload zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.build.outputs.zip_path }}
+          generate_release_notes: false
+          body_path: ${{ steps.notes.outputs.notes_path }}

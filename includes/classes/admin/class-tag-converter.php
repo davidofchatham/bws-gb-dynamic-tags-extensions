@@ -116,12 +116,23 @@ class TagConverter {
 
 					foreach ( $entries as $entry ) {
 						$required    = $entry['match_options'] ?? array();
-						$all_present = ! empty( $required );
+						$any         = $entry['match_any_options'] ?? array();
+						$all_present = ! empty( $required ) || ! empty( $any );
 						foreach ( $required as $key ) {
 							if ( ! in_array( $key, $option_keys, true ) ) {
 								$all_present = false;
 								break;
 							}
+						}
+						if ( $all_present && ! empty( $any ) ) {
+							$any_present = false;
+							foreach ( $any as $key ) {
+								if ( in_array( $key, $option_keys, true ) ) {
+									$any_present = true;
+									break;
+								}
+							}
+							$all_present = $any_present;
 						}
 						if ( $all_present ) {
 							$label           = $entry['label'] ?? $base_tag;

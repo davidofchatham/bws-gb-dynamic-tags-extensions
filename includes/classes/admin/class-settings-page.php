@@ -289,12 +289,13 @@ class SettingsPage {
 				continue;
 			}
 			$signature = md5( wp_json_encode( array(
-				'option_renames'  => $entry['option_renames']  ?? array(),
-				'value_renames'   => $entry['value_renames']   ?? array(),
-				'combine_options' => $entry['combine_options'] ?? array(),
-				'source_inject'   => $entry['source_inject']   ?? '',
-				'fixed_options'   => $entry['fixed_options']   ?? array(),
-				'match_options'   => $entry['match_options']   ?? array(),
+				'option_renames'    => $entry['option_renames']    ?? array(),
+				'value_renames'     => $entry['value_renames']     ?? array(),
+				'combine_options'   => $entry['combine_options']   ?? array(),
+				'source_inject'     => $entry['source_inject']     ?? '',
+				'fixed_options'     => $entry['fixed_options']     ?? array(),
+				'match_options'     => $entry['match_options']     ?? array(),
+				'match_any_options' => $entry['match_any_options'] ?? array(),
 			) ) );
 			if ( ! isset( $groups[ $signature ] ) ) {
 				$label  = $entry['label'] ?? '';
@@ -325,12 +326,13 @@ class SettingsPage {
 				$new_keys = array_values( array_unique( $new_keys ) );
 
 				$groups[ $signature ] = array(
-					'tags'          => array(),
-					'match_options' => $entry['match_options'] ?? array(),
-					'old_keys'      => $old_keys,
-					'new_keys'      => $new_keys,
-					'reason'        => $reason,
-					'sample_entry'  => $entry,
+					'tags'              => array(),
+					'match_options'     => $entry['match_options']     ?? array(),
+					'match_any_options' => $entry['match_any_options'] ?? array(),
+					'old_keys'          => $old_keys,
+					'new_keys'          => $new_keys,
+					'reason'            => $reason,
+					'sample_entry'      => $entry,
 				);
 			}
 			$groups[ $signature ]['tags'][] = $tag;

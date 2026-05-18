@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.1] — 2026-05-18
+
+### Fixed — Migration pipeline
+- `MigrationRegistry::serialize_tag_string()`: PHP `true` values now serialize as bare keys (e.g. `showMidnight`, not `showMidnight:true`) matching GB's boolean serialization convention
+- `apply_datetime_transforms()`: `smart_time` and `omit_current_year` no longer auto-injected based on absence of old key (old defaults serialized as bare keys, so absence is ambiguous). Only explicit `:false` override maps definitively to new boolean: `smart_time:false` → `showMidnight` bare; `omit_current_year:false` → `showCurrentYear` bare
+- `apply_option_migration()` now loops until stable (cap 16) so overlapping/cascading option-migration entries all apply in one converter call
+- `MigrationRegistry`: added `match_any_options` entry field (OR semantics) alongside existing `match_options` (AND semantics); `find_option_migration()` and scanner in `class-tag-converter.php` honor it; `group_option_entries_by_transform()` includes it in signature + group data
+- Added `type:'option'` `MigrationRegistry` entries for live `datetime_single` and `datetime_range` tags carrying pre-v1.6 option keys (`date_time_field`, `time_field`, `start_field`, `start_time_field`, `end_field`, `end_time_field`, `separator`, `date_time_separator`, `fallback_text`, `format_type`, `custom_format`, `date_only`, `time_only`, `smart_time`, `omit_current_year`) — covers partially-migrated tags where tag name was renamed but option keys were not
+- Added `type:'option'` entries for remaining live base-tag legacy keys: `fallback_text` → `fallback` (text, content, title, permalink, image); `via`/`from` → `src` (all 7 base tags); `type` → `use` + `custom_field` value → `key` (content); `return_type`/`fallback_url`/`field_key` → `as`/`fallback`/`key` (image, term_image, try_image); legacy slot keys `src_N`/`rel_N`/`key_N` → v1.6 slot syntax (all try_ tags)
+
 ## [1.6.0] — 2026-05-18
 
 ### Architecture (v1.5.0 → v1.6.0)
