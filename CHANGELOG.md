@@ -113,6 +113,13 @@
 - `bws_extract_text_field()`, `bws_extract_url_field()`, `bws_get_link_url()` from `content-helpers.php` (dead code — no callers in active files)
 - `TagConverter::list()` and `TagConverter::convert()` — replaced by unified `scan()` + `migrate_post()` + paginated batch AJAX
 - Per-tag List Posts / Convert buttons in admin deprecated section — replaced by Migration Tool
+- "Enable benchmark admin page" diagnostics toggle, `is_benchmark_page_enabled()` accessor, sanitizer entry, and activation-seed key — dead UI; benchmark page never wired up. Stale `benchmark_page` key in saved options is harmless and ignored.
+
+### Added — Activation defaults
+- `register_activation_hook` (`bws_dynamic_tags_activate()`) seeds default settings on fresh activation when no option row exists. Deprecated tag groups (`mode_with_path`, `mode_without_path`) default to `'disable'` so legacy N×M tags are removed from GB out of the box on new installs. Existing installs (option row present) are left untouched.
+
+### Changed — Admin UI polish
+- Deprecated Options reference list collapses by default (matches Deprecated Tags list); `<details open>` → `<details>` in `SettingsPage::render_page()`.
 
 ### Documentation
 - `docs/gb-constraints.md` (promoted from memory): GB editor/runtime constraints catalog (tag prefix rule, custom tag types, supports keys, reserved option keys, custom controls registered) moved from local memory into the tracked project docs. Bidirectionally cross-linked with `docs/deprecated-tags-options.md` so future renames driven by GB constraints have a documented justification path.

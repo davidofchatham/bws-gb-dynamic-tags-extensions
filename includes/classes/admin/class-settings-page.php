@@ -9,7 +9,7 @@
  *       mode_with_path:    'keep'|'suppress'|'disable',
  *       mode_without_path: 'keep'|'suppress'|'disable',
  *     },
- *     diagnostics: { benchmark_logging: bool, benchmark_page: bool, registration_logging: bool },
+ *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
  *   }
  *
  * Deprecated tag mode semantics:
@@ -136,7 +136,6 @@ class SettingsPage {
 
 		// Diagnostics.
 		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
-		$sanitized['diagnostics']['benchmark_page']       = ! empty( $input['diagnostics']['benchmark_page'] );
 		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
 
 		return $sanitized;
@@ -211,10 +210,6 @@ class SettingsPage {
 
 	public static function is_benchmark_logging_enabled(): bool {
 		return (bool) ( self::get_settings()['diagnostics']['benchmark_logging'] ?? false );
-	}
-
-	public static function is_benchmark_page_enabled(): bool {
-		return (bool) ( self::get_settings()['diagnostics']['benchmark_page'] ?? false );
 	}
 
 	public static function is_registration_logging_enabled(): bool {
@@ -492,8 +487,8 @@ class SettingsPage {
 					<?php endforeach; ?>
 				</div>
 
-				<?php /* ── Deprecated Options ── */ ?>
-				<div class="bws-tag-group">
+<!-- 				<?php /* ── Deprecated Options ── */ ?>
+ -->				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
 					<p class="description bws-section-desc">
 						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
@@ -506,7 +501,7 @@ class SettingsPage {
 						<?php if ( empty( $option_groups ) ) : ?>
 							<p class="description"><?php esc_html_e( 'No deprecated options registered.', 'generateblocks' ); ?></p>
 						<?php else : ?>
-						<details class="bws-dep-tag-list" open>
+						<details class="bws-dep-tag-list">
 							<summary><?php
 								echo esc_html( sprintf(
 									/* translators: %d: count of deprecated option migrations */
@@ -612,17 +607,6 @@ class SettingsPage {
 								<td>
 									<label for="bws-diag-benchmark-logging"><?php esc_html_e( 'Enable benchmark logging', 'generateblocks' ); ?></label>
 									<p class="description"><?php esc_html_e( 'Log post content processing time and memory usage to the PHP error log.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-diag-benchmark-page"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][benchmark_page]"
-										value="1" <?php checked( self::is_benchmark_page_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-diag-benchmark-page"><?php esc_html_e( 'Enable benchmark admin page', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Adds a Benchmark submenu under GenerateBlocks for performance testing.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">

@@ -158,3 +158,33 @@ add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_asse
 
 // Initialize on plugins_loaded to ensure GenerateBlocks is available.
 add_action( 'plugins_loaded', 'bws_dynamic_tags_init', 20 );
+
+/**
+ * Seed default settings on fresh activation.
+ *
+ * New installs default deprecated tag groups to 'disable' so legacy N×M tags
+ * are removed from GB out of the box. Existing installs (option row already
+ * present) are left untouched to avoid silently breaking live content.
+ *
+ * @since 1.6.1
+ */
+function bws_dynamic_tags_activate() {
+	if ( null !== get_option( 'bws_dynamic_tags_settings', null ) ) {
+		return;
+	}
+	add_option( 'bws_dynamic_tags_settings', array(
+		'modifiers'   => array(
+			'term' => true,
+			'try'  => true,
+		),
+		'deprecated'  => array(
+			'mode_with_path'    => 'disable',
+			'mode_without_path' => 'disable',
+		),
+		'diagnostics' => array(
+			'benchmark_logging'    => false,
+			'registration_logging' => false,
+		),
+	) );
+}
+register_activation_hook( __FILE__, 'bws_dynamic_tags_activate' );
