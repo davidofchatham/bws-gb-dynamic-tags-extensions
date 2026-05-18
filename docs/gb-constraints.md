@@ -22,7 +22,7 @@ GB does not allow one dynamic tag to start with the same string as another exist
 - Single-word names confirmed working; **hyphenated names also confirmed usable** in the latest GB version (e.g. "select-a-source") — 2026-04-10
 - Can define custom types beyond GB's built-in set
 - Type determines available features:
-  - `media` → built-in media library selector in editor — **planned for removal on all image tags** (see `.claude/plans/custom-image-controls.md`). `type:'media'` blocks source selector; custom controls replace it.
+  - `media` → built-in media library selector in editor. **Not used on any image tag in this plugin** (v1.6.0+): `type:'media'` blocks the source selector. Image tags use `'cross-source'` (or `'term'` for term-modifier image) with a custom `bws-media-picker` control for fallback selection.
   - `post` → standard post context
   - `term` → term context
   - `author` → author context
@@ -33,7 +33,7 @@ post_title, post_excerpt, post_permalink, post_date, featured_image, post_meta, 
 ## Supports Array Options
 link, source, meta, date, image-size, taxonomy, comments, properties, instant-pagination
 
-**Reserved supports key conflict:** `image-size` is a built-in GB supports key that activates GB's native image size control. Do NOT use `image-size` as a custom type name or supports value — use `bws-img-size` or similar prefixed name to avoid activating GB's native rendering.
+**`image-size` supports key:** activates GB's native image size control. GB destructures the reserved `size` key from `extraTagParams` before custom controls receive it, so a custom image-size control cannot read its own stored `size:` value reliably — use GB's native `image-size` support instead. Image tags in this plugin (`image`, `term_image`, `view_image`, `try_image`) declare `image-size` in `supports`; the native control handles parse/serialize and strips the `'full'` default automatically.
 
 ## Reserved Option Keys (extracted from extraTagParams)
 
@@ -54,22 +54,12 @@ Re-emit conditions:
 
 ## Option Default Serialization
 
-GB editor serializes named default values into the stored tag string even when the user never changed them. A PHP option definition like `'default' => 'none'` results in `{{tag key:none}}` on save, even for untouched options — creating unwieldy tags.
+GB editor serializes named default values into the stored tag string even when the user never changed them. A PHP option definition like `'default' => 'none'` results in `{{tag key:none}}` on save, even for untouched options — creating unwieldy tags. Empty-string defaults (`''`) are dropped from the serialized tag.
 
-**Rule:** All optional options must use empty string `''` or omit the `default` key entirely. Callbacks read `$options['key'] ?? ''` and treat empty as "not set". Unset/blank options are not serialized.
+GB's `parse_options()` only reads keys literally present in the tag string. Options absent from the string are absent from `$options` in the callback.
 
 **Boolean serialization:**
 - `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
 - `false` = option dropped entirely — never appears in the tag string.
-- Design boolean options as presence-flags: unset = false/default, present = true/non-default.
 
-Confirmed via GB source: `parse_options()` only reads keys literally present in the tag string. Options absent from the string are absent from `$options` in the callback.
-
-**Documented exception:** `image`/`term_image` `as:url` is always serialized — see [`tag-matrix.md` §Base tag GB types](tag-matrix.md#base-tag-gb-types-planned-architecture) "`as` serialization exception".
-
-## Custom Control Types Registered
-
-Via `generateblocks.editor.tagSpecificControls` filter:
-- `bws-img-size` (ComboboxControl from `generateBlocksInfo.imageSizes`) — `assets/js/image-tag-controls.js`
-- `bws-media-picker` (`wp.media()` modal, persists URL) — `assets/js/image-tag-controls.js`
-- `bws-term-hop` (CheckboxControl + ComboboxControl over public taxonomies via `wp.data` `core`) — `assets/js/term-hop-control.js`. Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help`.
+See [`tag-matrix.md` §Default serialization strategy](tag-matrix.md#default-serialization-strategy) for how this plugin works with the constraint (canonical-token first values, registration-boundary strip, intentional `as` opt-out).

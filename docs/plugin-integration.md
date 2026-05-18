@@ -83,7 +83,7 @@ Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, 
 
 To expose your source to GB editor users, use one of:
 
-1. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`views_text`, `views_image`, etc.) backed by your source. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+1. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
 2. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
 3. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
@@ -91,7 +91,7 @@ To expose your source to GB editor users, use one of:
 
 ## 2. Registering a Context Modifier
 
-A context modifier creates a prefixed group of GB tags (`views_text`, `views_image`, etc.) backed by a specific entity resolution strategy. The built-in `term_` modifier is registered this way; external plugins can register their own.
+A context modifier creates a prefixed group of GB tags (`example_text`, `example_image`, etc.) backed by a specific entity resolution strategy. The built-in `term_` modifier is registered this way; external plugins can register their own.
 
 ### Implement and register the source(s)
 
@@ -101,9 +101,9 @@ The modifier needs at least one registered source for direct entity resolution. 
 // Register on bws_dynamic_tags_register_sources (or plugins_loaded priority < 20).
 add_action( 'bws_dynamic_tags_register_sources', function() {
     // Direct entity resolution (src unset = current context).
-    \BWS\DynamicTags\SourceRegistry::register_source( new ViewsSource() );
+    \BWS\DynamicTags\SourceRegistry::register_source( new ExampleSource() );
     // Optional: traversal source (src:ref = entity → related post).
-    \BWS\DynamicTags\SourceRegistry::register_source( new ViewsRelatedPostSource() );
+    \BWS\DynamicTags\SourceRegistry::register_source( new ExampleRelatedPostSource() );
 } );
 ```
 
@@ -117,25 +117,25 @@ add_action( 'init', function() {
         return;
     }
     \BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
-        'prefix'               => 'view',              // Produces view_text, view_image, etc.
-        'gb_type'              => 'view-based',        // GB type string for all modifier tags.
-        'modifier_label'       => 'view-based',        // Parenthetical in tag title: "Text Fields (view-based)".
-        'base_source_key'      => 'view',              // Source key for unset src (direct resolution).
-        'traversal_source_key' => 'view_related_post', // Source key for src:ref hop. '' = no traversal option.
-        'excluded_supports'    => array(),             // Omit to keep 'source' GB entity picker on all tags.
+        'prefix'               => 'example',              // Produces example_text, example_image, etc.
+        'gb_type'              => 'example-based',        // GB type string for all modifier tags.
+        'modifier_label'       => 'example-based',        // Parenthetical in tag title: "Text Fields (example-based)".
+        'base_source_key'      => 'example',              // Source key for unset src (direct resolution).
+        'traversal_source_key' => 'example_related_post', // Source key for src:ref hop. '' = no traversal option.
+        'excluded_supports'    => array(),                // Omit to keep 'source' GB entity picker on all tags.
     ) );
 }, 21 );
 ```
 
 ### What gets generated
 
-`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `view_text`, `view_image`, `view_title`).
+`register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `example_text`, `example_image`, `example_title`).
 
 Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal hop (`ref`). Traversal sub-options (`ref` field key + `srcTermIn` term-hop control) are included automatically via `bws_base_traversal_options()`.
 
 If `traversal_source_key` is empty, the Source selector is omitted and the modifier always resolves from the direct entity.
 
-**When to provide a custom traversal source vs. reuse built-in `'related_post'`:** The built-in `RelatedPost` source resolves the base post from the GB loop context (`GenerateBlocks_Dynamic_Tags::get_id()`). If your base entity is already the current GB loop post, set `traversal_source_key => 'related_post'` — no custom class needed. If your base entity is resolved through a different context (e.g. user session, query parameter, custom lookup), you must register a custom traversal source that first resolves your entity, then traverses the relationship field. The `views` example above is this case: the base post comes from session context, so `ViewsRelatedPostSource` handles both resolution and traversal.
+**When to provide a custom traversal source vs. reuse built-in `'related_post'`:** The built-in `RelatedPost` source resolves the base post from the GB loop context (`GenerateBlocks_Dynamic_Tags::get_id()`). If your base entity is already the current GB loop post, set `traversal_source_key => 'related_post'` — no custom class needed. If your base entity is resolved through a different context (e.g. user session, query parameter, custom lookup), you must register a custom traversal source that first resolves your entity, then traverses the relationship field. The `example` modifier above illustrates this case: when the base post comes from a non-loop context, a class like `ExampleRelatedPostSource` handles both resolution and traversal.
 
 ### `register_modifier()` parameter reference
 
@@ -150,11 +150,11 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 
 ### Editor preview label registration
 
-`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from View Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
+`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from Example Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
 
 ```php
 add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
-    $map['view_'] = 'View';
+    $map['example_'] = 'Example';
     return $map;
 } );
 ```
@@ -213,7 +213,7 @@ If your plugin needs a tag type with no equivalent built-in template, there are 
 
 ### Option A: Register a new modifier template (preferred)
 
-Adding a template via `register_modifier_template()` makes it available to all modifier groups (term_, view_, etc.) — `register_modifier()` iterates registered modifier templates and produces one tag per (modifier × template) pair:
+Adding a template via `register_modifier_template()` makes it available to all modifier groups (`term_`, plus any external prefix registered via `register_modifier()`) — `register_modifier()` iterates registered modifier templates and produces one tag per (modifier × template) pair:
 
 ```php
 // In your plugin, at init priority 15 (before bws_register_base_tags runs at 20):
@@ -222,7 +222,7 @@ add_action( 'init', function() {
         return;
     }
     \BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
-        'key'           => 'my_field',          // Appended to modifier prefix → term_my_field, view_my_field
+        'key'           => 'my_field',          // Appended to modifier prefix → term_my_field, example_my_field
         'title'         => 'My Field',           // Modifier label appended in GB tag picker
         'gb_type'       => null,                 // null = inherit modifier's gb_type
         'supports'      => array(),              // Base tags use custom 'src' option, not GB native 'source' support
@@ -411,9 +411,7 @@ Settings are stored in `bws_dynamic_tags_settings`.
 
 ## 7. Registering Deprecated Tag Wrappers
 
-When an external plugin renames a tag (e.g. `portal_post_meta` → `portal_custom_text`),
-the old name must continue to work in existing content. Use `DeprecatedTagRegistry` to
-register backward-compatible wrappers that forward to the new implementation.
+When an external plugin renames or retires a tag (e.g. an old per-source tag `oldname_post_meta` being replaced by the base `text` tag), the old name must continue to work in existing content. Use `DeprecatedTagRegistry` to register backward-compatible wrappers that forward to the new implementation.
 
 ### Register a deprecated wrapper
 
@@ -423,12 +421,12 @@ Call `DeprecatedTagRegistry::register()` on the `bws_dynamic_tags_register_sourc
 ```php
 add_action( 'bws_dynamic_tags_register_sources', function () {
     \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
-        'old_tag'        => 'portal_post_meta',       // Deprecated GB tag name
-        'new_tag'        => 'text',                   // Base tag replacement
-        'title'          => 'Portal Post Meta',        // GB editor title
+        'old_tag'        => 'oldname_post_meta',          // Deprecated GB tag name
+        'new_tag'        => 'text',                       // Base tag replacement
+        'title'          => 'Oldname Post Meta',          // GB editor title
         'supports'       => array( 'source' ),
-        'options'        => portal_get_text_options(), // Optional — omit if no options
-        'callback'       => 'portal_deprecated_post_meta_callback',
+        'options'        => oldname_get_text_options(),   // Optional — omit if no options
+        'callback'       => 'oldname_deprecated_post_meta_callback',
         'since'          => '2.0.0',                  // Version when old tag was deprecated
         'source_inject'  => '',                       // Inject source option on convert; '' = omit
         'option_renames' => array( 'field_key' => 'key' ), // Old key → new key
@@ -443,14 +441,14 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 Your callback must emit a deprecation notice and delegate to the new implementation:
 
 ```php
-function portal_deprecated_post_meta_callback( $options, $block, $instance ) {
+function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
     // Emits _doing_it_wrong() when WP_DEBUG is enabled.
-    bws_deprecated_tag_notice( 'portal_post_meta', 'text', '2.0.0' );
+    bws_deprecated_tag_notice( 'oldname_post_meta', 'text', '2.0.0' );
 
-    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'portal' );
+    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'oldname' );
     $id     = $source ? $source->resolve_id( $options, $instance ) : false;
 
-    return portal_text_core( $id, $options, $instance );
+    return oldname_text_core( $id, $options, $instance );
 }
 ```
 
@@ -485,7 +483,7 @@ function portal_deprecated_post_meta_callback( $options, $block, $instance ) {
 
 ## 8. Renaming a Modifier Prefix
 
-When an external plugin renames its context modifier prefix (e.g., from `portal_` to `views_`), existing post content still contains the old tag names. The converter handles migration: for each old tag name that maps to a new one, register a deprecated wrapper and the **Convert** button will rewrite stored tags.
+When an external plugin renames its context modifier prefix (e.g., from `oldname_` to `newname_`), existing post content still contains the old tag names. The converter handles migration: for each old tag name that maps to a new one, register a deprecated wrapper and the **Convert** button will rewrite stored tags.
 
 ### Pattern
 
@@ -498,9 +496,9 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 
     foreach ( $old_templates as $tpl ) {
         \BWS\DynamicTags\DeprecatedTagRegistry::register( array(
-            'old_tag'  => 'portal_' . $tpl,   // Old tag name in stored content
-            'new_tag'  => 'views_' . $tpl,    // New tag name after conversion
-            'title'    => 'Portal ' . ucfirst( $tpl ) . ' (Deprecated)',
+            'old_tag'  => 'oldname_' . $tpl,   // Old tag name in stored content
+            'new_tag'  => 'newname_' . $tpl,   // New tag name after conversion
+            'title'    => 'Oldname ' . ucfirst( $tpl ) . ' (Deprecated)',
             'supports' => array(),
             'callback' => 'my_plugin_passthrough_callback',
             'since'    => '3.0.0',
@@ -514,12 +512,12 @@ The passthrough callback resolves via the **new** modifier's source so the old t
 
 ```php
 function my_plugin_passthrough_callback( $options, $block, $instance ) {
-    bws_deprecated_tag_notice( 'portal_text', 'views_text', '3.0.0' );
+    bws_deprecated_tag_notice( 'oldname_text', 'newname_text', '3.0.0' );
 
-    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'views' );
+    $source = \BWS\DynamicTags\SourceRegistry::get_source( 'newname' );
     $id     = $source ? $source->resolve_id( $options, $instance ) : false;
 
-    return views_text_core( $id, $options, $instance );
+    return newname_text_core( $id, $options, $instance );
 }
 ```
 

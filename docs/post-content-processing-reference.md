@@ -1,769 +1,335 @@
 # Post Content Processing in WordPress Dynamic Tags
 ## Technical Reference & Lessons Learned
 
-**Version:** 1.2.3  
-**Date:** February 2026  
-**Context:** BWS Dynamic Tags for GenerateBlocks/GeneratePress
+**Context:** BWS Dynamic Tags for GenerateBlocks
+
+> **Historical note.** Earlier sections of this document (now at the bottom under [§Pre-Plugin-Integration History](#pre-plugin-integration-history)) record findings from standalone-script versions before this code was packaged as a plugin. The internal version numbers there (`v1.1.0`–`v1.2.3`) refer to those standalone scripts, **not** the plugin's release versions. Content-rendering inside dynamic tags has been the single most difficult area of the codebase to get right; the history block is kept as a record of approaches tried.
+>
+> The sections above the history block describe the **current** (plugin v1.6.0) implementation.
 
 ---
 
 ## Executive Summary
 
-Post content processing in WordPress is complex due to nested block rendering, query loop setup phases, and memory-intensive content filtering. This document captures critical learnings from debugging and optimizing `post_content`, `related_post_content`, and `portal_post_content` dynamic tags.
+Rendering a post's content from inside a dynamic tag is harder than it looks: nested block rendering, GB query loop setup phases, and cross-post CSS inlining all conspire against a naive `do_blocks()` call. The plugin uses a single primary pipeline with one automatic fallback path for low-memory conditions, plus a recursion-protection stack to cut cycles. This document captures the current shape of that pipeline and the constraints driving it.
 
 ---
 
 ## Table of Contents
 
-1. [Core Technical Discoveries](#core-technical-discoveries)
-2. [Processing Modes & Memory Management](#processing-modes--memory-management)
-3. [Recursion & Safety Protection](#recursion--safety-protection)
-4. [Query Loop Context Handling](#query-loop-context-handling)
-5. [Block Instance Structure](#block-instance-structure)
-6. [Best Practices](#best-practices)
-7. [Common Pitfalls](#common-pitfalls)
-8. [Debugging Strategies](#debugging-strategies)
+1. [Pipeline overview](#pipeline-overview)
+2. [Primary pipeline](#primary-pipeline)
+3. [Fallback pipeline](#fallback-pipeline)
+4. [Recursion protection](#recursion-protection)
+5. [Memory check](#memory-check)
+6. [Query loop setup phase detection](#query-loop-setup-phase-detection)
+7. [Cross-post inline CSS handling](#cross-post-inline-css-handling)
+8. [Safe output (post-pipeline)](#safe-output-post-pipeline)
+9. [Debug logging](#debug-logging)
+10. [Public API summary](#public-api-summary)
+11. [Pre-plugin-integration history](#pre-plugin-integration-history)
 
 ---
 
-## Core Technical Discoveries
+## Pipeline overview
 
-### 1. Block Instance is an Object, Not an Array
+All `content`-template callbacks (base `content`, `term_content` modifier, `try_content` slots, deprecated wrappers that resolve to content) funnel through one helper:
 
-**Critical Discovery:**  
-GenerateBlocks passes `$instance` as a `WP_Block` object, not an array.
+```
+bws_process_post_content( $post_id )
+   ├── early returns: invalid post_id, recursion-blocked
+   ├── memory below threshold? → bws_process_post_content_fallback()
+   └── primary path:
+         bws_start_processing_post()
+         get_post_field( 'post_content' )
+         do_blocks()
+         wpautop()
+         bws_extract_and_queue_inline_styles()
+         bws_sanitize_rich_content()
+         bws_end_processing_post()
+```
+
+Callback sites wrap the helper with two safeties before calling it:
 
 ```php
-// ❌ WRONG - Fatal error
+function bws_content_callback( $options, $block, $instance ) {
+    // ... resolve $post_id via source ...
+    if ( ! $post_id ) {
+        return '';
+    }
+
+    // Skip during GB query loop setup phase (postId not yet in context).
+    if ( bws_is_query_loop_setup_phase( $instance ) ) {
+        return '';
+    }
+
+    $content = bws_process_post_content( $post_id );
+    if ( empty( $content ) ) {
+        return '';
+    }
+
+    // Strips trunc/case/wpautop/link before GB's output().
+    return bws_safe_content_output( $content, $options, $instance );
+}
+```
+
+There is **no** "processing mode" tag option. Earlier versions exposed Basic/Limited/Full modes; those were removed when the plugin consolidated on a single primary pipeline with automatic fallback.
+
+---
+
+## Primary pipeline
+
+`bws_process_post_content( int $post_id, array $args = array() ): string`
+
+Located in `includes/helpers/content-helpers.php`. Steps in order:
+
+1. **Recursion guard** — `bws_can_process_post_content( $post_id )` returns `false` when the post is already in the stack or stack depth ≥ 3. Returns `''` if blocked.
+2. **Memory check** — `bws_has_sufficient_memory()` (≥ 20% free, i.e. usage < 80% of `memory_limit`). On failure: delegate to fallback pipeline and return.
+3. **Stack push** — `bws_start_processing_post( $post_id )`.
+4. **Read raw content** — `get_post_field( 'post_content', $post_id )`. Returns `''` if empty.
+5. **`do_blocks()`** — runs GB and other block renderers. Resolves nested dynamic tags and shortcodes via the standard `render_block` filter chain.
+6. **`wpautop()`** — paragraph wrapping. Runs *after* `do_blocks()` so block-emitted HTML is intact when paragraph rules apply.
+7. **Inline-style extraction** — `bws_extract_and_queue_inline_styles()` pulls any `<style>` elements GB inlined inside content (see [§Cross-post inline CSS handling](#cross-post-inline-css-handling)) and queues them for `wp_footer`.
+8. **Sanitize** — `bws_sanitize_rich_content()` runs `wp_kses_post()` with GB's expanded allowed HTML filter temporarily added.
+9. **Stack pop** — `bws_end_processing_post( $post_id )`.
+
+Returns the rendered HTML, or `''` on early exit.
+
+---
+
+## Fallback pipeline
+
+`bws_process_post_content_fallback( int $post_id, array $args = array() ): string`
+
+Used automatically when memory is below threshold at the entry to `bws_process_post_content()`. `do_blocks()` is too expensive to run safely, so dynamic tags inside the content go **unresolved** and we approximate styling from raw block JSON instead. Steps:
+
+1. Read raw content via `get_post_field()`.
+2. `bws_extract_css_from_block_comments()` — parses `<!-- wp:... { ... } -->` JSON attributes for any `"css"` property and concatenates them.
+3. `bws_strip_block_comments()` — removes the `<!-- wp:... -->` and `<!-- /wp:... -->` delimiters, leaving inner HTML.
+4. `bws_strip_dynamic_tags()` — removes any unresolved `{{tag ...}}` placeholders (they would render as literal text without `do_blocks()`).
+5. `wpautop()` + `bws_sanitize_rich_content()`.
+6. Queues the extracted CSS via `bws_queue_inline_css()` if any was found.
+
+Trade-off: layout is approximate (no block-level rendering), dynamic content inside the post is dropped, but the page still renders rather than crashing on OOM.
+
+---
+
+## Recursion protection
+
+The recursion guard is a single global stack: `$GLOBALS['bws_content_processing_stack']`.
+
+```php
+function bws_can_process_post_content( $post_id ) {
+    $stack = $GLOBALS['bws_content_processing_stack'] ?? array();
+    return ! in_array( $post_id, $stack, true ) && count( $stack ) < 3;
+}
+```
+
+Rules:
+- **Block** when the post is already on the stack (circular reference: A → B → A).
+- **Block** when the stack is already at depth 3 (cap on nesting).
+- **Allow** in all other cases — including a query loop where each iteration displays its own content (each iteration pushes and pops cleanly).
+
+The stack lives for the duration of one request. `bws_start_processing_post()` appends; `bws_end_processing_post()` removes by value via `array_search` + `array_splice` (not LIFO pop — guards against unbalanced pairings during exception unwinding).
+
+**What the stack does NOT do:** it does not block a post from rendering its own content at the top level. The original "self-reference" check (returning false when `get_the_ID() === $post_id`) was flawed — `setup_postdata()` shifts `get_the_ID()` underneath you, blocking valid query-loop usage. The stack alone is sufficient.
+
+---
+
+## Memory check
+
+`bws_has_sufficient_memory(): bool` returns `true` when current usage is below 80% of `memory_limit`:
+
+```php
+function bws_has_sufficient_memory() {
+    $limit_str = ini_get( 'memory_limit' );
+    if ( '-1' === $limit_str ) {
+        return true;
+    }
+    $limit = wp_convert_hr_to_bytes( $limit_str );
+    if ( $limit <= 0 ) {
+        return true;
+    }
+    return ( memory_get_usage( true ) / $limit ) < 0.80;
+}
+```
+
+`-1` (no limit) and indeterminate limits both pass as "sufficient". Only a positive numeric limit triggers the gate.
+
+Called once at the top of `bws_process_post_content()`. There is no per-step recheck — once primary is chosen, it runs to completion.
+
+---
+
+## Query loop setup phase detection
+
+GB query loops execute their template multiple times per page render. The first call(s) carry the **parent page's** `postId` in `$instance->context`, not the loop item. Rendering content during setup would output the parent page's content as if it were the loop item.
+
+`bws_is_query_loop_setup_phase( $instance ): bool`:
+
+```php
+if ( ! isset( $instance->context['queryId'] ) ) {
+    return false; // Not in a query loop at all.
+}
+$context_post_id = $instance->context['postId'] ?? null;
+if ( null === $context_post_id ) {
+    return true;  // queryId set, postId not — setup.
+}
+return (int) $context_post_id === (int) get_the_ID();
+```
+
+Returns `true` (skip processing) when:
+- We're in a query (`queryId` present) AND
+- `postId` is missing OR matches the global post (the outer page).
+
+Callers short-circuit with `return ''` when this returns `true`. The "real iteration" calls always have a `postId` distinct from the outer page's `get_the_ID()` and pass through.
+
+---
+
+## Cross-post inline CSS handling
+
+When `do_blocks()` runs against a post **other** than the current page's post — e.g., a related-post `content` tag — GB cannot enqueue block CSS through `wp_head` (which has already fired). It falls back to inlining `<style>` elements directly before each block's HTML.
+
+`wp_kses_post()` then strips the `<style>` tags but leaves the raw CSS text behind, which renders as visible page content. Helpers:
+
+- `bws_extract_and_queue_inline_styles( string $content ): string` — regex-extracts `<style>...</style>` blocks from the content string, concatenates their bodies, and hands them to `bws_queue_inline_css()`. Returns content with the `<style>` elements removed.
+- `bws_queue_inline_css( string $css )` — appends to `$GLOBALS['bws_queued_inline_css']` and (on first call) hooks `bws_output_queued_inline_css` to `wp_footer` priority 5.
+- `bws_output_queued_inline_css()` — emits the accumulated CSS as one `<style id="bws-dynamic-content-inline-css">` element in the footer, then clears the buffer.
+
+Net effect: cross-post rendered content keeps its block styling, but the CSS moves to one consolidated `<style>` element after the page body — out of the content stream where `wp_kses_post()` was eating it.
+
+---
+
+## Safe output (post-pipeline)
+
+GB's `GenerateBlocks_Dynamic_Tag_Callbacks::output()` applies value-shaping options (`trunc`, `case`, `wpautop`, `link`) that are safe for short text but destructive on rich HTML:
+
+- `trunc` — `substr()` cuts mid-tag, breaking HTML.
+- `case` — `strtolower()` corrupts HTML attribute syntax and CSS within `<style>` (if any survived sanitize).
+- `wpautop` — pipeline already ran it once; second pass shifts whitespace inside block markup.
+- `link` — wrapping rendered HTML inside `<a>` produces invalid markup.
+
+`bws_safe_content_output()` strips these four keys from the options array before calling GB's `output()`, preserving the `generateblocks_dynamic_tag_output` filter hook for third-party compatibility:
+
+```php
+function bws_safe_content_output( $content, $options, $instance ) {
+    $safe_options = $options;
+    unset( $safe_options['trunc'], $safe_options['case'], $safe_options['wpautop'], $safe_options['link'] );
+    return GenerateBlocks_Dynamic_Tag_Callbacks::output( $content, $safe_options, $instance );
+}
+```
+
+Always use this helper for content-template callbacks. Other text-template callbacks (`text`, `title`, etc.) call `output()` directly since their values are short scalars where the standard options are appropriate.
+
+---
+
+## Debug logging
+
+`bws_content_debug( string $message )` is **gated solely** by the admin setting "Enable benchmark logging" (`SettingsPage::is_benchmark_logging_enabled()`). `WP_DEBUG` no longer activates it — that was changed because debug-on-WP_DEBUG bypassed the user-facing toggle entirely.
+
+When enabled, output goes to `error_log()` prefixed `[BWS Content]`.
+
+Benchmark helpers:
+- `bws_content_debug_start( int $post_id ): array` — captures `microtime(true)` + `memory_get_usage(true)`; returns empty array when logging disabled.
+- `bws_content_debug_end( int $post_id, array $start_data )` — logs `post_id=N time=Xms mem_delta=±Y stack_depth=D`. No-op when `$start_data` is empty.
+
+`bws_process_post_content()` calls these around the primary pipeline body so per-post timing/memory is logged for benchmarking. Recursion-blocked, OOM-fallback, and empty-content paths are logged via plain `bws_content_debug()` calls.
+
+---
+
+## Public API summary
+
+All in `includes/helpers/content-helpers.php`. Guarded with `function_exists()` for safe re-loads.
+
+| Function | Returns | Purpose |
+|---|---|---|
+| `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry point. Full pipeline; auto-fallback on low memory. |
+| `bws_process_post_content_fallback( $post_id, $args = [] )` | `string` | Low-memory path. CSS-extraction-from-JSON + dynamic-tag stripping. Called by `bws_process_post_content`; rarely called directly. |
+| `bws_can_process_post_content( $post_id )` | `bool` | Recursion + depth check. |
+| `bws_start_processing_post( $post_id )` | `void` | Push onto recursion stack. |
+| `bws_end_processing_post( $post_id )` | `void` | Pop from recursion stack (by value, not LIFO). |
+| `bws_has_sufficient_memory()` | `bool` | < 80% of `memory_limit`. |
+| `bws_is_query_loop_setup_phase( $instance )` | `bool` | Detect parent-page-context calls during GB query loop setup. |
+| `bws_safe_content_output( $content, $options, $instance )` | `string` | Final output stage; strips destructive GB options before `output()`. |
+| `bws_queue_inline_css( $css )` | `void` | Append CSS to `wp_footer`-deferred buffer. |
+| `bws_extract_and_queue_inline_styles( $content )` | `string` | Pull `<style>` from content; queue via above. |
+| `bws_extract_css_from_block_comments( $content )` | `string` | Fallback-pipeline helper: parse `"css"` from block-JSON. |
+| `bws_strip_block_comments( $content )` | `string` | Fallback-pipeline helper. |
+| `bws_strip_dynamic_tags( $content )` | `string` | Fallback-pipeline helper: strip unresolved `{{...}}`. |
+| `bws_sanitize_rich_content( $content )` | `string` | `wp_kses_post` with GB's expanded allowed HTML temporarily filtered. |
+| `bws_content_debug( $message )` | `void` | Gated by benchmark-logging admin toggle. |
+| `bws_content_debug_start( $post_id )` | `array` | Capture timing/memory baseline. |
+| `bws_content_debug_end( $post_id, $start )` | `void` | Log delta. |
+
+---
+
+## Pre-plugin-integration history
+
+> **Caveat.** Everything below this point describes the **standalone-script** era (versions internally numbered v1.1.0–v1.2.3) before the code was packaged as a plugin. Several mechanisms documented here — three-tier Basic/Limited/Full modes, Query Monitor auto-downgrade, the `processing_level` tag option, the self-reference recursion check — were **removed** when consolidating the pipeline. Kept as record of approaches tried and discoveries that still inform the current design.
+
+### Core technical discoveries (still applicable)
+
+#### 1. Block instance is an object, not an array
+
+GenerateBlocks passes `$instance` as a `WP_Block` object:
+
+```php
+// WRONG - Fatal error
 $post_id = $instance['context']['postId'];
 
-// ✅ CORRECT
+// CORRECT
 $post_id = $instance->context['postId'];
 ```
 
-**Impact:** Any code treating `$instance` as an array will crash. Always use object property access.
+#### 2. The `do_blocks()` double-processing problem
 
-### 2. The `do_blocks()` Double-Processing Problem
+Calling `do_blocks()` on content already being rendered by a parent block context triggers duplicate tag evaluations and apparent recursion. The stack guard plus the query-loop-setup-phase check together cover this — there is no longer a separate "limited mode" that skips `do_blocks()`.
 
-**Problem:**  
-Calling `do_blocks()` when content is already being rendered by a parent block (like GeneratePress Dynamic Content) causes nested block rendering, triggering duplicate tag evaluations.
+#### 3. Query loop renders multiple times
 
-**Symptom:**  
-The same `{{post_content}}` tag fires multiple times with the same post ID, creating recursion attempts.
+WP query loops render their template 3+ times: setup phases (parent context) + actual iterations (loop item context). Setup phases must be detected and skipped — see [§Query loop setup phase detection](#query-loop-setup-phase-detection) above for the current implementation.
 
-**Solution:**  
-Remove `do_blocks()` from processing modes when content is already in a block rendering context.
+#### 4. `WP_Block` context shape
 
-```php
-// ❌ CAUSES NESTED RENDERING
-function bws_get_limited_post_content( $post_id, $process_shortcodes = false ) {
-    $content = get_the_content();
-    $content = do_blocks( $content ); // Re-renders blocks already being rendered
-    return $content;
-}
-
-// ✅ SAFE - No nested rendering
-function bws_get_limited_post_content( $post_id, $process_shortcodes = false ) {
-    $content = get_the_content();
-    $content = wpautop( $content ); // Just formatting
-    return $content;
-}
 ```
-
-### 3. Query Loop Has Setup Phases
-
-**Critical Discovery:**  
-WordPress Query Loop blocks render their template **3+ times**:
-
-1. **Setup/Initialization Phase(s)** - Context matches parent page or is missing
-2. **Actual Iteration** - Context contains the loop item's post ID
-
-**Log Evidence:**
-```
-Call 1: context=2810, global=2810 [Setup - parent page]
-Call 2: context=not set, global=2810 [Setup - no context]  
-Call 3: context=72195, global=72195 [Real iteration - loop item]
-Call 4: context=72203, global=72203 [Real iteration - loop item]
-```
-
-**Solution:**  
-Detect and skip setup phases to avoid processing the parent page's content instead of loop items.
-
-```php
-// Detect query loop setup phase
-$context_post_id = isset( $instance->context['postId'] ) ? $instance->context['postId'] : null;
-$global_post_id = get_the_ID();
-
-// Skip if context matches global (setup phase) and we're in a query
-if ( $context_post_id && $context_post_id === $global_post_id && 
-     isset( $instance->context['queryId'] ) ) {
-    return ''; // Skip setup, only process during actual iteration
-}
-```
-
----
-
-## Processing Modes & Memory Management
-
-### Three-Tier Processing System
-
-**Basic Mode (Recommended Default):**
-- Raw content + `wpautop()`
-- Optional shortcode processing (off by default)
-- Optional block comment stripping
-- ~1-5MB memory footprint
-- Safe for nested content
-
-**Limited Mode (Use with Caution):**
-- ~~Includes `do_blocks()`~~ **REMOVED** - causes nested rendering
-- Core WordPress formatting (wptexturize, wpautop, etc.)
-- Optional shortcode processing
-- ~10-50MB memory footprint
-- Risk of memory exhaustion with complex content
-
-**Full Mode (High Risk):**
-- Complete `the_content` filter pipeline
-- Includes all plugins' content filters
-- Optional shortcode processing override
-- ~50-500MB memory footprint
-- **Frequently causes memory exhaustion**
-- Only use when explicitly needed and tested
-
-### Memory Protection Strategy
-
-**Three-Layer Protection:**
-
-1. **Environment Detection:**
-```php
-// Auto-downgrade to Basic mode if Query Monitor active
-if ( bws_is_query_monitor_active() ) {
-    return 'basic';
-}
-
-// Check memory constraint
-if ( ( memory_get_usage(true) / wp_convert_hr_to_bytes(ini_get('memory_limit')) ) > 0.5 ) {
-    return 'basic';
-}
-```
-
-2. **Pre-Processing Memory Check:**
-```php
-function bws_has_sufficient_memory() {
-    $memory_limit = wp_convert_hr_to_bytes( ini_get( 'memory_limit' ) );
-    $current_usage = memory_get_usage( true );
-    
-    // Require at least 20% free (allow up to 80% usage)
-    return ( $current_usage / $memory_limit ) <= 0.8;
-}
-```
-
-3. **Stack Depth Limits:**
-```php
-// Maximum 3 levels of nesting
-if ( count( $bws_content_processing_stack ) >= 3 ) {
-    return false;
-}
-```
-
-### Shortcode Processing Considerations
-
-**Rule:** Shortcodes are **disabled by default** and should only be enabled when:
-1. Explicitly requested by user
-2. NOT in Query Monitor context (prevents debug panel corruption)
-3. Memory sufficient for additional processing
-
-```php
-// Shortcode protection
-if ( $process_shortcodes && ! bws_is_query_monitor_active() ) {
-    $content = do_shortcode( $content );
-}
-```
-
----
-
-## Recursion & Safety Protection
-
-### The Processing Stack
-
-**Global tracker prevents infinite loops:**
-
-```php
-// Global stack
-$GLOBALS['bws_content_processing_stack'] = [2810, 72195];
-
-// Before processing
-if ( in_array( $post_id, $bws_content_processing_stack, true ) ) {
-    return false; // Already processing this post
-}
-
-// During processing
-bws_start_processing_post( $post_id );  // Adds to stack
-// ... process content ...
-bws_end_processing_post( $post_id );    // Removes from stack
-```
-
-### Why Self-Reference Check Was Removed
-
-**Original (flawed) approach:**
-```php
-// ❌ WRONG - Blocks legitimate query loop usage
-if ( count( $stack ) > 0 && get_the_ID() === $post_id ) {
-    return false; // Blocks valid scenarios
-}
-```
-
-**Problem:**  
-- `setup_postdata()` changes what `get_the_ID()` returns
-- Blocks query loop items from displaying their own content
-- Redundant with recursion check
-
-**Correct approach:**  
-Use only the stack recursion check - it's sufficient.
-
-### Recursion Scenarios Correctly Handled
-
-✅ **Allowed:**
-- Page displays its own content (top-level, stack empty)
-- Query loop items each display their own content
-- Post A displays Post B's content
-
-❌ **Blocked:**
-- Post A tries to display Post A while already processing A
-- Post A → Post B → Post A (circular reference)
-- More than 3 levels of nesting
-
----
-
-## Query Loop Context Handling
-
-### Block Context Priority
-
-**Always check multiple sources in priority order:**
-
-```php
-// 1. Block context (query loop provides this)
-if ( isset( $instance->context['postId'] ) && $instance->context['postId'] ) {
-    $post_id = absint( $instance->context['postId'] );
-}
-
-// 2. GenerateBlocks method (source selection)
-if ( ! $post_id ) {
-    $post_id = GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
-}
-
-// 3. Fallback to global post
-if ( ! $post_id ) {
-    $post_id = get_the_ID();
-}
-```
-
-### Query Loop Setup Phase Detection
-
-**Key indicators of setup vs iteration:**
-
-| Phase | `context['postId']` | `get_the_ID()` | `context['queryId']` |
-|-------|---------------------|----------------|----------------------|
-| Setup | Matches parent OR missing | Parent page ID | Present |
-| Iteration | Loop item ID | Loop item ID | Present |
-| Outside Loop | Not set | Current page | Not set |
-
-**Detection logic:**
-
-```php
-$context_post_id = isset( $instance->context['postId'] ) ? $instance->context['postId'] : null;
-$global_post_id = get_the_ID();
-$in_query = isset( $instance->context['queryId'] );
-
-// Skip setup phase
-if ( $in_query && ( ! $context_post_id || $context_post_id === $global_post_id ) ) {
-    return ''; // Setup phase - don't process
-}
-```
-
-### Why Setup Phases Exist
-
-WordPress renders query loop templates during:
-1. **Block parsing** - Understanding template structure
-2. **Placeholder rendering** - Editor preview
-3. **Query setup** - Before iteration begins
-4. **Actual iteration** - Real content rendering
-
-Only #4 should actually process content.
-
----
-
-## Block Instance Structure
-
-### WP_Block Object Properties
-
-```php
 WP_Block {
     name: string              // e.g., 'generateblocks/text'
     parsed_block: array       // Raw block data
-    context: array {          // Inherited context
+    context: array {
         postId: int|null      // Current post in context
         queryId: int|null     // Query loop ID if present
-        // ... other context
     }
-    inner_blocks: array       // Nested blocks
-    // ... other properties
+    inner_blocks: array
 }
 ```
 
-### Accessing Context Safely
+### Removed mechanisms
 
-```php
-// ✅ Safe access with fallback
-$post_id = isset( $instance->context['postId'] ) ? 
-    absint( $instance->context['postId'] ) : null;
+**Three-tier processing modes** (Basic / Limited / Full) — gone. The single primary pipeline now does what "Limited" did (skip the full `the_content` filter chain, run `do_blocks` + `wpautop` only). The fallback pipeline replaced "Basic". "Full" (running the entire `the_content` filter stack) was dropped: it triggered OOM too often and the filters that mattered for rendering were already covered by `do_blocks`.
 
-// ✅ Check multiple context properties
-$in_query = isset( $instance->context['queryId'] );
-$has_post_context = isset( $instance->context['postId'] );
+**Query Monitor auto-downgrade** — gone. QM detection added noise without preventing the issues it was meant to mitigate; once shortcode processing moved inside `do_blocks` via standard filters, the QM-specific edge case stopped mattering.
 
-// ❌ Don't assume context exists
-$post_id = $instance->context['postId']; // May error if context missing
-```
+**`processing_level` tag option** — gone. There is no per-tag mode selector now; all callers go through `bws_process_post_content()`.
 
----
+**Shortcode processing toggle** — gone. Shortcodes inside block content are handled by `do_blocks()` via the `render_block` filter chain, which is the WordPress-standard path. The standalone version had its own `do_shortcode()` call gated by an option; that was removed.
 
-## Best Practices
+**Self-reference recursion check** (`get_the_ID() === $post_id` while stack non-empty) — gone. `setup_postdata()` reassigns `get_the_ID()` mid-loop, causing this check to false-positive on legitimate query-loop usage. The stack-membership check alone is sufficient and correct.
 
-### 1. Processing Mode Selection
+### Standalone-era version log
 
-**Default to Basic:**
-```php
-'default' => 'auto',  // Auto-selects Basic in most cases
-```
+`v1.2.3` — Query loop setup-phase detection added. Replaced ad-hoc context comparisons with a single helper.
 
-**Only use Limited/Full when:**
-- Specific visual/functional requirements demand it
-- Thoroughly tested with representative content
-- Memory limits confirmed adequate
-- Not in nested rendering contexts
+`v1.2.2` — Removed flawed self-reference recursion check. Stack-only guard.
 
-### 2. Always Implement Safety Checks
+`v1.2.1` — Fixed `$instance` array vs object access errors.
 
-**Required checks before processing:**
-```php
-// 1. Valid post ID
-if ( ! $post_id ) return $fallback;
+`v1.2.0` — Three-tier processing modes (Basic/Limited/Full), Query Monitor detection, memory thresholding for mode selection. **Removed** during plugin integration; superseded by single-pipeline-plus-fallback.
 
-// 2. Can process (not in recursion)
-if ( ! bws_can_process_post_content( $post_id ) ) return $fallback;
+`v1.1.0` — Initial standalone implementation. Basic/Limited/Full modes, stack recursion protection, length truncation.
 
-// 3. Memory available
-if ( ! bws_has_sufficient_memory() ) return $fallback;
+### Pitfalls that still bite
 
-// 4. Not in query setup phase
-if ( $in_query_setup ) return '';
-```
-
-### 3. Comprehensive Debug Logging
-
-**Log at decision points:**
-```php
-bws_content_debug( sprintf(
-    "Processing %d: mode=%s, stack=[%s], context=%s",
-    $post_id,
-    $mode,
-    implode(',', $stack),
-    $context_post_id ?? 'none'
-) );
-```
-
-**What to log:**
-- Post ID source (context, method, fallback)
-- Processing mode selected
-- Stack state before/after
-- Memory usage at checkpoints
-- Setup phase detection
-
-### 4. Graceful Degradation
-
-**Never fail fatally:**
-```php
-// ✅ Return fallback or empty string
-if ( $problem ) {
-    bws_content_debug( "Problem: $description" );
-    return $fallback_text;
-}
-
-// ❌ Don't throw exceptions or return null
-if ( $problem ) {
-    throw new Exception( "Fatal error" );
-}
-```
-
-### 5. Content Sanitization
-
-**Always sanitize output:**
-```php
-// Use GenerateBlocks' expanded allowed HTML
-add_filter( 'wp_kses_allowed_html', 
-    [ 'GenerateBlocks_Dynamic_Tags', 'expand_allowed_html' ], 10, 2 );
-$content = wp_kses_post( $content );
-remove_filter( 'wp_kses_allowed_html', 
-    [ 'GenerateBlocks_Dynamic_Tags', 'expand_allowed_html' ], 10, 2 );
-```
-
----
-
-## Common Pitfalls
-
-### 1. Treating $instance as Array
-```php
-// ❌ Fatal error
-$post_id = $instance['context']['postId'];
-
-// ✅ Correct
-$post_id = $instance->context['postId'];
-```
-
-### 2. Using do_blocks() in Nested Context
-```php
-// ❌ Causes duplicate rendering
-function limited_content( $post_id ) {
-    $content = get_the_content();
-    return do_blocks( $content ); // Already being rendered!
-}
-
-// ✅ Correct
-function limited_content( $post_id ) {
-    $content = get_the_content();
-    return wpautop( $content ); // Just formatting
-}
-```
-
-### 3. Processing Query Setup Phases
-```php
-// ❌ Processes parent page instead of loop items
-if ( $in_query ) {
-    return bws_get_content( $post_id );
-}
-
-// ✅ Skip setup phases
-if ( $in_query && $context_matches_global ) {
-    return ''; // Skip, only process during iteration
-}
-```
-
-### 4. Insufficient Memory Checks
-```php
-// ❌ No protection
-return apply_filters( 'the_content', $content );
-
-// ✅ Check first
-if ( ! bws_has_sufficient_memory() ) {
-    return bws_get_basic_content( $post_id );
-}
-```
-
-### 5. Missing Recursion Protection
-```php
-// ❌ No stack tracking
-function get_content( $post_id ) {
-    return process_content( $post_id );
-}
-
-// ✅ Track processing
-function get_content( $post_id ) {
-    bws_start_processing_post( $post_id );
-    $content = process_content( $post_id );
-    bws_end_processing_post( $post_id );
-    return $content;
-}
-```
-
-### 6. Assuming Source is Set
-```php
-// ❌ May be empty
-$source = $options['source'];
-
-// ✅ Check with fallback
-$source = $options['source'] ?? 'not set';
-```
-
-### 7. Shortcodes Without Protection
-```php
-// ❌ Can corrupt Query Monitor
-if ( $process_shortcodes ) {
-    $content = do_shortcode( $content );
-}
-
-// ✅ Check environment
-if ( $process_shortcodes && ! bws_is_query_monitor_active() ) {
-    $content = do_shortcode( $content );
-}
-```
-
----
-
-## Debugging Strategies
-
-### 1. Comprehensive Call Logging
-
-**Template for debug messages:**
-```php
-bws_content_debug( sprintf(
-    "=== TAG CALLED === Post: %d, Context: %s, Global: %d, Stack: [%s], QueryID: %s",
-    $post_id,
-    $context_post_id ?? 'none',
-    get_the_ID(),
-    implode( ', ', $stack ),
-    isset( $instance->context['queryId'] ) ? 'yes' : 'no'
-) );
-```
-
-### 2. Backtrace for Call Source
-
-**When you need to know WHERE a tag is called from:**
-```php
-$backtrace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 10 );
-$call_chain = array_map( fn($t) => $t['function'] ?? '?', $backtrace );
-bws_content_debug( "Call chain: " . implode( ' -> ', $call_chain ) );
-```
-
-### 3. Block Information Logging
-
-**Understanding which blocks trigger tags:**
-```php
-bws_content_debug( sprintf(
-    "Block: %s | ID: %s | Attrs: %s",
-    $block['blockName'] ?? 'unknown',
-    $block['attrs']['uniqueId'] ?? 'no-id',
-    json_encode( $block['attrs'] ?? [] )
-) );
-```
-
-### 4. Memory Usage Tracking
-
-**Monitor memory at key points:**
-```php
-$mem_before = memory_get_usage( true );
-$content = process_content( $post_id );
-$mem_after = memory_get_usage( true );
-$mem_delta = $mem_after - $mem_before;
-
-bws_content_debug( sprintf(
-    "Memory: %s → %s (Δ %s)",
-    size_format( $mem_before ),
-    size_format( $mem_after ),
-    size_format( $mem_delta )
-) );
-```
-
-### 5. Stack State Visualization
-
-**Before/after comparisons:**
-```php
-function bws_start_processing_post( $post_id ) {
-    global $bws_content_processing_stack;
-    $bws_content_processing_stack[] = $post_id;
-    
-    bws_content_debug( sprintf(
-        "⬇ START %d | Stack: [%s] | Depth: %d",
-        $post_id,
-        implode( ', ', $bws_content_processing_stack ),
-        count( $bws_content_processing_stack )
-    ) );
-}
-
-function bws_end_processing_post( $post_id ) {
-    // ... remove from stack ...
-    
-    bws_content_debug( sprintf(
-        "⬆ END %d | Stack: [%s] | Depth: %d",
-        $post_id,
-        implode( ', ', $bws_content_processing_stack ),
-        count( $bws_content_processing_stack )
-    ) );
-}
-```
-
-### 6. Conditional Debug Output
-
-**Show context in debug mode:**
-```php
-if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-    return sprintf(
-        '<div style="border:2px solid red; padding:10px;">
-            <strong>DEBUG:</strong><br>
-            Post ID: %d<br>
-            Context: %s<br>
-            Global: %d<br>
-            Stack: [%s]<br>
-            Reason: %s
-        </div>',
-        $post_id,
-        $context_post_id ?? 'none',
-        get_the_ID(),
-        implode( ', ', $stack ),
-        $reason
-    );
-}
-```
-
----
-
-## Related Post Content Considerations
-
-**Additional complexity:**
-```php
-// Must handle:
-// 1. Relationship field resolution
-$related_posts = bws_get_related_posts_data( $source_post_id, $field_key );
-
-// 2. Multiple post processing with limits
-if ( count( $related_posts ) > $limit ) {
-    $related_posts = array_slice( $related_posts, 0, $limit );
-}
-
-// 3. Memory scaling
-if ( 'basic' === $mode && $limit > 2 ) {
-    $limit = 2; // Auto-reduce in constrained environments
-}
-
-// 4. Each related post needs stack protection
-foreach ( $related_posts as $related_post ) {
-    if ( ! bws_can_process_post_content( $related_post->ID ) ) {
-        continue; // Skip, don't fail
-    }
-    
-    bws_start_processing_post( $related_post->ID );
-    $content = process_content( $related_post->ID );
-    bws_end_processing_post( $related_post->ID );
-}
-```
-
----
-
-## Version History & Migration Notes
-
-### v1.2.3 - Query Loop Setup Phase Detection
-- Added detection for query loop setup vs iteration phases
-- Prevents duplicate processing of parent page content
-- Improved context-aware post ID resolution
-
-### v1.2.2 - Recursion Protection Enhanced
-- Removed flawed self-reference check
-- Improved stack-based recursion detection
-- Added per-post recursion depth tracking (optional)
-- Enhanced debug logging with stack visualization
-
-### v1.2.1 - Block Instance Type Fix
-- Corrected `$instance` from array to object access
-- Fixed fatal errors in context reading
-- Added type checking to debug logging
-
-### v1.2.0 - Memory Management & Processing Modes
-- Implemented three-tier processing system
-- Added Query Monitor detection
-- Memory constraint checking
-- Removed `do_blocks()` from Limited mode
-- Added shortcode protection
-
-### v1.1.0 - Initial Implementation
-- Basic/Limited/Full processing modes
-- Stack-based recursion protection
-- Content sanitization
-- Length truncation
-
----
-
-## Testing Checklist
-
-### Essential Test Cases
-
-**1. Single Post Content Display**
-- [ ] Page displays its own content (top-level)
-- [ ] Content renders without errors
-- [ ] Memory usage stays under 80%
-- [ ] No recursion warnings in logs
-
-**2. Query Loop Usage**
-- [ ] Loop items display their own content (not parent page)
-- [ ] No duplicate processing during setup phases
-- [ ] Each iteration processes correctly
-- [ ] Stack clears properly after loop
-
-**3. Nested Content**
-- [ ] Post A displays Post B's content (2 levels)
-- [ ] Post A → B → C (3 levels, maximum)
-- [ ] Post A → B → C → D blocked (exceeds depth limit)
-- [ ] Circular references blocked (A → B → A)
-
-**4. Memory Constraints**
-- [ ] Query Monitor active = auto Basic mode
-- [ ] High memory usage = degraded mode
-- [ ] Memory exhaustion prevented
-- [ ] Graceful fallback when memory insufficient
-
-**5. Related Posts**
-- [ ] Multiple related posts processed
-- [ ] Limit respected
-- [ ] Memory scaling works
-- [ ] Each post gets stack protection
-
-**6. Edge Cases**
-- [ ] Empty content returns fallback
-- [ ] Invalid post ID returns fallback
-- [ ] Missing ACF fields return fallback
-- [ ] No fatal errors under any scenario
-
----
-
-## Key Takeaways
-
-1. **WP_Block is an object** - Use `->` not `[]`
-
-2. **Query loops render multiple times** - Detect and skip setup phases
-
-3. **`do_blocks()` causes nested rendering** - Avoid in nested contexts
-
-4. **Stack-based recursion protection is sufficient** - Don't add flawed self-reference checks
-
-5. **Memory management is critical** - Three-tier modes with auto-detection
-
-6. **Always check multiple post ID sources** - Context → Method → Fallback
-
-7. **Debug logging is essential** - Log decisions, not just results
-
-8. **Graceful degradation over failures** - Return fallback, never crash
-
-9. **Processing modes have trade-offs** - Basic is safe, Full is risky
-
-10. **Test with representative content** - Memory usage varies widely
-
----
-
-## Quick Reference Commands
-
-### Enable Debug Logging
-```php
-define( 'WP_DEBUG', true );
-define( 'WP_DEBUG_LOG', true );
-// Check: /wp-content/debug.log
-```
-
-### Check Current Stack
-```php
-error_log( 'Stack: ' . print_r( $GLOBALS['bws_content_processing_stack'], true ) );
-```
-
-### Force Processing Mode
-```php
-// In tag options
-'processing_level' => 'basic' // or 'limited', 'full'
-```
-
-### View Block Context
-```php
-error_log( 'Context: ' . print_r( $instance->context, true ) );
-```
-
----
-
-**Last Updated:** February 18, 2026  
-**Maintainer:** BWS Development Team  
-**Related:** GenerateBlocks Dynamic Tags, Portal Content System
+- **`$instance` is an object.** Property access (`->`) not array access (`[]`).
+- **Don't call `do_blocks()` outside the stack guard.** Always gate with `bws_can_process_post_content()` or call via `bws_process_post_content()` which gates internally.
+- **Don't skip the query-loop-setup check.** Callers that resolve `$post_id` from `$instance->context['postId']` get wrong content during setup phases without it.
+- **Don't pipe content through GB's `output()` directly.** Use `bws_safe_content_output()` — `trunc`/`case`/`wpautop`/`link` corrupt rich HTML.
+- **Cross-post `do_blocks` inlines `<style>`.** `wp_kses_post` strips the tags but leaves CSS visible. `bws_extract_and_queue_inline_styles` handles this; don't bypass it.

@@ -10,6 +10,22 @@ have forced revisions to several approved renames listed below.
 
 ---
 
+## Notation
+
+Used across the former-matrix tables in this document.
+
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | Generated, **enabled** by default |
+| ☐ | Generated, **opt-in** (disabled by default) |
+| — | Not applicable — template context type did not match source |
+| GB | Not generated — GB (or GB Pro) already registered this tag name; skipped by collision check |
+| ★ | Was planned but never implemented |
+
+Historical collision-check behavior: tags whose generated name matched GB built-ins (`post_title`, `post_excerpt`, `post_permalink`) were silently skipped at registration time. The check queried `GenerateBlocks_Register_Dynamic_Tag::get_tags()` dynamically, so any tag already registered by GB or another plugin was automatically avoided. The N×M generation loop was removed in v1.6.0; only deprecated-wrapper registrations remain.
+
+---
+
 ## Former Tag Matrix — Post-context sources
 
 > **Note (v1.6.0+):** These source prefixes are now **deprecated wrapper registrations** only.

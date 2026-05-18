@@ -1,14 +1,30 @@
 # BWS GenerateBlocks Dynamic Tags Extensions
 
-WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data. `datetime_single` and `datetime_range` offer custom date/time formatting for date/datetime/time fields, and `try_*` tags allow using the first available (populated) field from an editor-selected list of sources/fields.
+WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data. 
 
-The base tags (`{{text}}`, `{{image}}`, `{{datetime_single}}`, etc.) are designed to be source-agnostic, currently tested for both post and loop item contexts. A custom `src` option allows using the current entity or one related by a reference/relational field, and the `srcTermIn` toggle and taxonomy selector allows using a taxonomy term applied to the selected source. 
+The tags are designed to be source-agnostic (currently tested for both post and loop item contexts). A custom `src` option also allows using a source related to the current context by a reference/relational field, and the `srcTermIn` toggle and taxonomy selector allows using a taxonomy term applied to the selected source as the field source. 
 
-The `term_*` modifier wraps base tags for term-context resolution using GenerateBlock's built-in taxonomy/term selector; external plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
+| Tag | Description |
+|---|---|
+| `text` | Return simple custom text fields or post title/term name* (useful in `try_` tags). |
+| `image` | Return an image from a custom field or the featured image field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. |
+| `content` | Return post content/term description* via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. |
+| `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. |
+| `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. |
+| `title` | Return post title/term name.* |
+| `permalink` | Return post/term permalink.* |
+
+\* Not yet tested in term context without `term_` prefix.
+
+**Note:** As of now, custom field names must be supplied manually (there's no dropdown selector).
 
 ## try_ tags
 
-`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`): use a single tag to try up to 5 source and/or field combinations in sequence and return the first non-empty result. Useful for "try ACF field, fall back to post title; if still empty, fall back to a related post's field" patterns without conditional template logic.
+`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Useful for "try ACF field, fall back to post title; if still empty, fall back to a related post's field" patterns without conditional template logic.
+
+## Context modifiers
+
+The `term_*` modifier wraps base tags for term-context resolution using GenerateBlock's built-in taxonomy/term selector; external plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
 
 ## Requirements
 

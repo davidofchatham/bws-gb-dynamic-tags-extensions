@@ -1,7 +1,7 @@
 === GenerateBlocks Dynamic Tag Extensions by BWS ===
 Contributors: bridgewebsolutions
 Requires at least: 6.5
-Tested up to: 6.7
+Tested up to: 6.9.4
 Requires PHP: 8.1
 Stable tag: 1.6.0
 License: GPLv2 or later

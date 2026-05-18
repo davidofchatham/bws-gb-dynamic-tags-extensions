@@ -1,28 +1,8 @@
 # BWS Dynamic Tags — Tag × Source Matrix
 
-This document is the **authoritative living reference** for template keys, source keys, option names,
-and which dynamic tag variants exist. Update this file whenever sources, templates, or options are
-added, removed, renamed, or change default-enabled status. Other docs should cross-reference here
-rather than maintaining parallel tables.
+**Authoritative living reference** for template keys, source keys, option names, and which dynamic tag variants exist. Also owns this plugin's response to GB constraints (default-strip strategy, custom editor controls). Update this file whenever sources, templates, options, or controls are added, removed, renamed, or change default-enabled status. Other docs cross-reference here rather than maintaining parallel tables.
 
-Option names shown throughout are the **approved names** (current or approved-but-pending). See
-the option renaming tracker for the transition from old names.
-
----
-
-## Notation
-
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | Generated, **enabled** by default |
-| — | Not applicable — template context type does not match source |
-| GB | Not generated — GB (or GB Pro) already registers this tag name; skipped by collision check |
-| ★ | Planned but not yet implemented |
-
-Tags generated with GB's built-in `post_title`, `post_excerpt`, and `post_permalink` names are
-silently skipped at registration time. The collision check queries
-`GenerateBlocks_Register_Dynamic_Tag::get_tags()` dynamically, so any tag already registered by
-GB or another plugin is automatically avoided.
+See [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership) for the full doc ownership policy and update triggers.
 
 ---
 
@@ -38,10 +18,10 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
-| `parent` | WP parent post | Planned |
+| `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
-| `child` | WP child posts (list output) | To be considered |
-| `sibling` | WP same-parent posts (list output) | To be considered |
+| `child` | WP child posts/terms (list output) | To be considered |
+| `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source options](#source-options) for label/UI details.
 
@@ -54,7 +34,7 @@ Modifiers wrap base tag templates with a context-shifting prefix. Registered via
 | (no prefix — base) | `'cross-source'` | — | Current entity (post in post loop, term on term archive) | Built-in |
 | `term_` | `'term'` | (term-based) | User-selected term via GB native taxonomy/term picker | Built-in |
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
-| `view_` | `'view-based'` | (View-based) | Portal entity | `bws-portal-system` |
+| *(external prefix)* | *(plugin-defined)* | *(plugin-defined)* | External entity | External plugin via `register_modifier()` |
 
 ### Source classes
 
@@ -66,13 +46,9 @@ PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfa
 | `RelatedPost` | post | base tag callbacks at `src:ref` in post context |
 | `TaxonomyTerm` | term | term_ modifier base; base tag callbacks when `srcTermIn:<tax>` set |
 | `TermRelatedPost` | post | term_ modifier at `src:ref` |
-| `PortalSource` | post | view_ modifier base (external) |
+| *(external source class)* | post or term | External modifier base, registered via `SourceRegistry::register_source()` |
 
 `SecondRelatedPost` and `PostTermRelatedPost` retained for deprecated wrapper callbacks only — no `src` value in v1.6.0 model.
-
-### Portal / external modifiers
-
-The portal plugin is a **context modifier**, not a traversal hop. Registers its own tag group externally (via `bws_dynamic_tags_register_sources` PHP hook + `generateblocks.editor.tagSpecificControls` JS filter). Portal is the starting context — `portal` does not appear as a `src` value on standard base tags. Deprecated wrappers for `portal_*` tags are registered with this plugin and handled by the migrator.
 
 ---
 
@@ -183,21 +159,6 @@ Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode 
 
 ---
 
-## Potential future traversals
-
-These WP hierarchy relationships are candidates for `src` values in the traversal registry (see
-[Source options](#source-options) above). They do **not** create new source classes or new matrix columns — they are additional
-`src` option values selectable on the existing base tags.
-
-| `src` value | Traversal | Description | Status |
-|---|---|---|---|
-| `parent` | current post → WP parent post | Hierarchical post types | Planned |
-| `ancestor` | current post → WP top-level ancestor | Hierarchical post types | To be considered |
-| `child` | current post → WP child posts | Hierarchical post types; implies list/loop output | To be considered |
-| `sibling` | current post → WP same-parent posts | Hierarchical post types; implies list/loop output | To be considered |
-
----
-
 ## Potential future templates
 
 These template types require their own option sets and formatting logic that `combine_text` cannot
@@ -214,7 +175,7 @@ Image tags are excluded: multiple return formats are already built into image ta
 
 ---
 
-## Base tag GB types (planned architecture)
+## Base tag GB types
 
 In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
 
@@ -234,7 +195,55 @@ The term_ modifier produces additional tags with GB type `'term'`: `term_text`, 
 
 **try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
 
-**`as` serialization exception:** For `image` and `term_image` tags, the `as` option default (`url`) is always serialized into the tag string even when unmodified — `{{image as:url|...}}`. This makes the return mode immediately visible when copying a tag instance between fields (e.g. image src → alt text). All other defaults follow the standard rule (never serialize defaults).
+See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
+
+---
+
+## Custom editor controls registered
+
+Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each entry maps a custom option `type` string (referenced in PHP option definitions) to a React control:
+
+| Control type | Renders | Source file | Used by |
+|---|---|---|---|
+| `bws-media-picker` | `wp.media()` modal; persists media URL | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
+| `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
+
+GB image-size selection uses GB's native `image-size` support (not a custom control). The earlier `bws-img-size` ComboboxControl was retired mid-1.6.0 cycle once GB's native support was confirmed to handle the reserved `size` key correctly — see CHANGELOG 1.6.0.
+
+---
+
+## Default serialization strategy
+
+Context: GB serializes named option defaults verbatim into the saved tag string (see [`gb-constraints.md` §Option Default Serialization](gb-constraints.md#option-default-serialization)). Empty-string values are dropped. Our goal is **clean, readable saved tags** — defaults should not bloat the tag string unless the default carries semantic value.
+
+**Our rule:** For options where the default carries no information a reader needs, the default must not appear in the serialized tag. For options where the default *does* carry information (e.g. distinguishes a real choice from "unset"), keep it serialized.
+
+**Mechanism — canonical tokens + registration-boundary strip:**
+
+Option definitions declare semantic tokens (`current`, `key`, `content`, etc.) as their first value so the source files read naturally. `bws_strip_default_select_values()` (in `content-helpers.php`) runs at registration time and flips the first option's `value` to `''` for any option we want stripped from the saved tag string. GB drops `''` values from serialization; callbacks then apply `?? '<canonical>'` defaults on read to recover the semantic token.
+
+Result:
+- Source code reads `'value' => 'current'` (intent is obvious).
+- Saved tags omit the default (clean wire format).
+- Callbacks see the canonical token (no `null`/empty-string special-casing).
+
+Canonical defaults applied on read:
+
+| Option | Templates | Canonical default | Why stripped |
+|---|---|---|---|
+| `src` | all base + modifier + try_ slot 1 | `'current'` | Default is "current entity" — no value to surface |
+| `use` | `text`, `image` | `'key'` | Default is ACF/meta field — only `key` value matters |
+| `use` | `content` | `'content'` | Default is post content / term description |
+
+**Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for inherit and `current` for "override back to current".
+
+**Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`, `srcTermIn` (checkbox half of the combined control).
+
+### `as` serialization opt-out (`image`, `term_image`, `try_image`)
+
+For image tags, the `as` option default (`url`) is **always serialized** — `{{image as:url|...}}` even when unmodified. Not stripped at registration. Justification: `as` controls the output mode (image src vs. alt text vs. caption vs. ID). Surfacing it in the saved tag makes the return mode immediately visible when copying a tag instance between fields, so a user can change `as:url` → `as:alt` in one edit instead of inspecting the option panel.
+
+All other image options follow the standard rule. `as` is the documented exception.
 
 ---
 
@@ -530,7 +539,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 | 5 | | `key` | shown when `use` unset [in single-slot tags] or `use:key` |
 | 6 | | `[fallback option]` | media picker — see `custom-image-controls.md` |
 
-**`as` serialization exception:** `as` default (`url`) always serialized — `{{image as:url|...}}` even when unmodified. Enables copy-paste between image-src and alt-text fields with minimal editing.
+See [§Default serialization strategy](#default-serialization-strategy) for the `as` opt-out from the strip-defaults rule.
 
 ### `content`
 
@@ -561,7 +570,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ## Updating this document
 
-This is a **living reference**. Update it immediately when any of the following change:
+Living reference. Update immediately when any of the following change:
 
 - A new `src` value, modifier prefix, or source class is added/removed
 - A new base or modifier template is added/removed
@@ -570,6 +579,8 @@ This is a **living reference**. Update it immediately when any of the following 
 - List mode support changes for a template
 - A try_ tag is added or its slot behavior changes
 - An option rename moves from "Under consideration" to "Approved" or "Implemented"
+- A custom editor control is added/retired
+- The default-strip strategy changes (canonical defaults, opt-outs)
 
 **When adding a new `src` value:** add a row to §Sources `src` option values; document the traversal in §Source classes if a new resolver class is needed; update §Source options + §Secondary, conditional options labels; add a row in §Required options if it brings new required sub-options.
 
@@ -579,4 +590,4 @@ This is a **living reference**. Update it immediately when any of the following 
 
 **Deprecated wrappers:** never edit this doc for N×M deprecated wrappers — those go in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
-**Deduplication rule:** Other docs (CLAUDE.md, plugin-integration.md, etc.) should reference this file rather than maintaining their own source, template, or option name tables.
+For ownership boundaries against other docs, see [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership).
