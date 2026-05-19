@@ -189,3 +189,15 @@ function bws_dynamic_tags_activate() {
 	) );
 }
 register_activation_hook( __FILE__, 'bws_dynamic_tags_activate' );
+
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'bws_dynamic_tags_action_links' );
+
+function bws_dynamic_tags_action_links( array $links ): array {
+	$settings_link = sprintf(
+		'<a href="%s">%s</a>',
+		admin_url( 'admin.php?page=bws-dynamic-tags' ),
+		__( 'Settings', 'generateblocks' )
+	);
+	array_unshift( $links, $settings_link );
+	return $links;
+}
