@@ -194,7 +194,9 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 			return bws_meta_handler_read( (int) $loop['row_post_id'], $key, $single_only, 'get_post_meta' );
 		}
 		// Mode 2b — flat repeater row; read directly from row data.
-		if ( is_array( $loop['loop_item'] ) ) {
+		// Only applies when no explicit post_id was resolved (e.g. GB-injected id: in REST).
+		// If a valid post_id was passed in, fall through to normal post context read.
+		if ( is_array( $loop['loop_item'] ) && ! ( is_int( $post_id ) && $post_id > 0 ) && ! ( is_numeric( $post_id ) && (int) $post_id > 0 ) ) {
 			return $loop['loop_item'][ $key ] ?? null;
 		}
 	}
@@ -1197,7 +1199,7 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 			break;
 		default:
 			$prefix    = $is_range ? 'Date-Time Range' : 'Date-Time';
-			$offset    = DAY_IN_SECONDS;
+			$offset    = HOUR_IN_SECONDS;
 			$wp_format = get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i A' );
 	}
 
@@ -1212,8 +1214,16 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 	if ( $is_range ) {
 		$end = clone $now;
 		$end->modify( '+' . $offset . ' seconds' );
-		$sep       = $options['rangeSep'] ?? $options['range_sep'] ?? $options['separator'] ?? ' – ';
-		$formatted = $now->format( $wp_format ) . $sep . $end->format( $wp_format );
+		// Normalize new option keys → legacy keys expected by bws_format_date_range().
+		$range_options = $options;
+		if ( isset( $range_options['rangeSep'] ) && ! isset( $range_options['separator'] ) ) {
+			$range_options['separator'] = $range_options['rangeSep'];
+		} elseif ( ! isset( $range_options['separator'] ) ) {
+			$range_options['separator'] = '–';
+		}
+		$range_options['omit_current_year'] = empty( $options['showCurrentYear'] );
+		$range_options['smart_time']        = empty( $options['showMidnight'] );
+		$formatted = bws_format_date_range( $now, $end, $wp_format, $range_options );
 	} else {
 		$formatted = $now->format( $wp_format );
 	}
@@ -1250,11 +1260,11 @@ function bws_strip_default_select_values( array $options ): array {
 }
 
 /**
- * Build a structured preview label for a tag that can't resolve in the editor.
+ * Build a structured preview label for a tag that returned empty in the editor.
  *
  * Schema: [tag matrix §Editor preview label schema].
  * Called only when $instance->context['bwsEditorPreview'] is set and
- * the real tag value is empty.
+ * resolution produced an empty value.
  *
  * @since 1.6.0
  * @param array  $options  Parsed tag options.
@@ -1387,7 +1397,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 				break;
 			default:
 				$prefix    = $is_range ? 'Date-Time Range' : 'Date-Time';
-				$offset    = DAY_IN_SECONDS;
+				$offset    = HOUR_IN_SECONDS;
 				$wp_format = get_option( 'date_format', 'F j, Y' ) . ' ' . get_option( 'time_format', 'g:i A' );
 		}
 
@@ -1401,10 +1411,18 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$now = new DateTime( 'now', $tz );
 
 		if ( $is_range ) {
-			$end       = clone $now;
+			$end = clone $now;
 			$end->modify( '+' . $offset . ' seconds' );
-			$sep       = $options['rangeSep'] ?? $options['range_sep'] ?? $options['separator'] ?? ' – ';
-			$formatted = $now->format( $wp_format ) . $sep . $end->format( $wp_format );
+			// Normalize new option keys → legacy keys expected by bws_format_date_range().
+			$range_options = $options;
+			if ( isset( $range_options['rangeSep'] ) && ! isset( $range_options['separator'] ) ) {
+				$range_options['separator'] = $range_options['rangeSep'];
+			} elseif ( ! isset( $range_options['separator'] ) ) {
+				$range_options['separator'] = '–';
+			}
+			$range_options['omit_current_year'] = empty( $options['showCurrentYear'] );
+			$range_options['smart_time']        = empty( $options['showMidnight'] );
+			$formatted = bws_format_date_range( $now, $end, $wp_format, $range_options );
 		} else {
 			$formatted = $now->format( $wp_format );
 		}

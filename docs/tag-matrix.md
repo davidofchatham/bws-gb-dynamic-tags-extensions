@@ -363,7 +363,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 | `as` | Single prefix | Range prefix | Range end offset |
 |---|---|---|---|
-| unset | `Date-Time` | `Date-Time Range` | +1 day |
+| unset | `Date-Time` | `Date-Time Range` | +1 hour |
 | `date` | `Date` | `Date Range` | +1 day |
 | `time` | `Time` | `Time Range` | +1 hour |
 

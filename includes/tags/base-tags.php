@@ -642,7 +642,7 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 	if ( $loop['row_post_id'] ) {
 		return $loop['row_post_id']; // Mode 2a: row entity is the post.
 	}
-	if ( $loop['in_loop'] ) {
+	if ( $loop['in_loop'] && ! isset( $options['id'] ) ) {
 		return false; // Mode 2b with src:'current' — no post ID for a flat row.
 	}
 
@@ -715,9 +715,7 @@ function bws_base_map_options( array $options ): array {
  * @since 1.6.0
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = $options['use'] ?? 'key';
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
@@ -738,14 +736,18 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 				$out[] = $result;
 			}
 		}
-		return implode( $sep, $out );
+		$value = implode( $sep, $out );
+	} elseif ( 'title' === $use ) {
+		$value = bws_post_title_core( $post_id, $opts, $instance );
+	} else {
+		$value = bws_post_custom_text_core( $post_id, $opts, $instance );
 	}
 
-	if ( 'title' === $use ) {
-		return bws_post_title_core( $post_id, $opts, $instance );
+	if ( '' !== $value ) {
+		return $value;
 	}
 
-	return bws_post_custom_text_core( $post_id, $opts, $instance );
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 }
 
 /**
@@ -763,9 +765,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_content_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = $options['use'] ?? 'content';
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
@@ -783,19 +783,21 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 				return $result;
 			}
 		}
-		return '';
-	}
-
-	if ( 'excerpt' === $use ) {
-		return bws_post_excerpt_core( $post_id, $opts, $instance );
-	}
-
-	if ( 'key' === $use ) {
+		$value = '';
+	} elseif ( 'excerpt' === $use ) {
+		$value = bws_post_excerpt_core( $post_id, $opts, $instance );
+	} elseif ( 'key' === $use ) {
 		$opts['type'] = 'custom_field';
-		return bws_post_content_core( $post_id, $opts, $instance );
+		$value = bws_post_content_core( $post_id, $opts, $instance );
+	} else {
+		$value = bws_post_content_core( $post_id, $opts, $instance );
 	}
 
-	return bws_post_content_core( $post_id, $opts, $instance );
+	if ( '' !== $value ) {
+		return $value;
+	}
+
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 }
 
 /**
@@ -807,9 +809,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
@@ -826,10 +826,16 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 				$out[] = $result;
 			}
 		}
-		return implode( $sep, $out );
+		$value = implode( $sep, $out );
+	} else {
+		$value = bws_post_title_core( $post_id, $options, $instance );
 	}
 
-	return bws_post_title_core( $post_id, $options, $instance );
+	if ( '' !== $value ) {
+		return $value;
+	}
+
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 }
 
 /**
@@ -875,10 +881,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_image_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		// Returns '' for as:url and as:id — attribute values where bracket string breaks the element.
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use = $options['use'] ?? 'key';
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
@@ -893,14 +896,19 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 				return $result;
 			}
 		}
-		return '';
+		$value = '';
+	} elseif ( 'featured' === $use ) {
+		$value = bws_featured_image_core( $post_id, $options, $instance );
+	} else {
+		$value = bws_custom_image_core( $post_id, $options, $instance );
 	}
 
-	if ( 'featured' === $use ) {
-		return bws_featured_image_core( $post_id, $options, $instance );
+	if ( '' !== $value ) {
+		return $value;
 	}
 
-	return bws_custom_image_core( $post_id, $options, $instance );
+	// bws_build_preview_label returns '' for as:url and as:id — attribute contexts where a bracket string breaks the element.
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 }
 
 // ===============================================

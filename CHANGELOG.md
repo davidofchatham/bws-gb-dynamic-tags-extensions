@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.6.2] — Unreleased
+
+### Added
+- Plugin action links: "Settings" link now appears in the Plugins list, pointing to the Tag Extensions settings page.
+
+### Fixed — Editor preview: resolve-then-label (#21)
+- Base tag callbacks (`text`, `content`, `title`, `image`), modifier callbacks, try callbacks, and datetime callbacks now attempt resolution before falling back to a structured label; tags that can resolve in the editor (e.g. `{{title src:current}}` while editing a post) show live values instead of labels
+- Removed `REST_REQUEST` short-circuits from `bws_post_title_core`, `bws_post_excerpt_core`, `bws_post_custom_text_core`, `bws_post_content_core` — those guards prevented resolution even when GB had already provided a valid post ID
+- `bws_resolve_post_by_source`: Mode 2b flat-row bail now skipped when GB has injected an explicit `id:` option (editor REST context), allowing `src:current` tags inside query loops to resolve via the injected post ID
+- `bws_read_field`: Mode 2b array read now skipped when a valid `$post_id` was passed in, allowing custom-field and datetime tags inside query loops to read post meta via the resolved ID rather than attempting a flat-row array lookup
+
+### Fixed — Datetime range editor preview
+- Default range-end offset for `datetime_range` / `datetime_single` (unset `as`) corrected from +1 day to +1 hour, matching `as:time` behavior
+- Preview separator default changed from ` – ` (spaced) to `–` (bare en-dash), matching frontend output
+- Range preview now routes through `bws_format_date_range()` instead of naïve string concatenation, so same-day smart AM/PM consolidation (e.g. `10:02–11:02 AM`) and year-omission apply correctly in the editor
+- `showCurrentYear` / `showMidnight` options now respected in preview (previously both ignored; `smart_time` defaulted to `false`, causing midnight suppression to never apply)
+
 ## [1.6.1] — 2026-05-18
 
 ### Fixed — Migration pipeline

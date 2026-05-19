@@ -79,11 +79,6 @@ function bws_get_custom_text_options() {
 function bws_post_content_core( $post_id, $options, $instance ) {
 	$type = $options['type'] ?? '';
 
-	// REST placeholder — show type-appropriate hint in editor preview.
-	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-		return 'custom_field' === $type ? '[Custom Field]' : '[Post Content Placeholder]';
-	}
-
 	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
 
 	// --- Custom field branch ---
@@ -160,11 +155,6 @@ function bws_post_content_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_post_title_core( $post_id, $options, $instance ) {
-	// Return placeholder in admin/REST context (editor preview) regardless of post_id.
-	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-		return '[Title]';
-	}
-
 	if ( ! $post_id ) {
 		return '';
 	}
@@ -186,11 +176,6 @@ function bws_post_title_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_post_excerpt_core( $post_id, $options, $instance ) {
-	// Return placeholder in admin/REST context (editor preview) regardless of post_id.
-	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-		return '[Excerpt]';
-	}
-
 	if ( ! $post_id ) {
 		return '';
 	}
@@ -237,11 +222,6 @@ function bws_post_permalink_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_post_custom_text_core( $post_id, $options, $instance ) {
-	// Return placeholder in admin/REST context (editor preview) regardless of post_id.
-	if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
-		return '[Custom Field]';
-	}
-
 	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
 
 	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];

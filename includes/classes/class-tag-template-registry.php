@@ -182,9 +182,7 @@ class TagTemplateRegistry {
 		bool $is_image = false
 	): callable {
 		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image ) {
-			if ( $tag_name && ! empty( $inst->context['bwsEditorPreview'] ) ) {
-				return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
-			}
+			$is_preview = $tag_name && ! empty( $inst->context['bwsEditorPreview'] );
 
 			$source = $opts['src'] ?? $opts['source'] ?? 'current';
 			if ( '' === $source ) {
@@ -229,44 +227,50 @@ class TagTemplateRegistry {
 				// register_modifier() hardcodes 'ref' option; resolve_id() expects 'rel' internally.
 				$src = SourceRegistry::get_source( $traversal_src_key );
 				if ( ! $src ) {
-					return '';
+					$value = '';
+				} else {
+					$mapped        = $opts;
+					$mapped['rel'] = $opts['ref'] ?? '';
+					$entity_id     = $src->resolve_id( $mapped, $inst );
+
+					if ( '' !== $srcterm_tax ) {
+						$value = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+					} elseif ( $is_image ) {
+						$value = $image_post_dispatch( $entity_id, $opts, $inst );
+					} else {
+						$value = $post_fn( $entity_id, $opts, $inst );
+					}
 				}
-				$mapped        = $opts;
-				$mapped['rel'] = $opts['ref'] ?? '';
-				$entity_id     = $src->resolve_id( $mapped, $inst );
+			} else {
+				// Source unset — resolve entity directly via base source.
+				// Dispatch to term_fn or post_fn based on the base source's context type.
+				// term_ modifier uses TaxonomyTerm (term context); views_ modifier uses PortalSource (post context).
+				$src = SourceRegistry::get_source( $base_src_key );
+				if ( ! $src ) {
+					$value = '';
+				} else {
+					$entity_id = $src->resolve_id( $opts, $inst );
+					$context   = $src->get_context_type();
 
-				if ( '' !== $srcterm_tax ) {
-					return $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+					// srcTermIn at src=current is only meaningful for post-context base sources.
+					// Term-context bases hide the control via show_if=src:ref (UI gating).
+					if ( '' !== $srcterm_tax && 'term' !== $context ) {
+						$value = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+					} elseif ( 'term' === $context ) {
+						$value = $term_fn( $entity_id, $opts, $inst );
+					} elseif ( $is_image ) {
+						$value = $image_post_dispatch( $entity_id, $opts, $inst );
+					} else {
+						$value = $post_fn( $entity_id, $opts, $inst );
+					}
 				}
-				if ( $is_image ) {
-					return $image_post_dispatch( $entity_id, $opts, $inst );
-				}
-				return $post_fn( $entity_id, $opts, $inst );
 			}
 
-			// Source unset — resolve entity directly via base source.
-			// Dispatch to term_fn or post_fn based on the base source's context type.
-			// term_ modifier uses TaxonomyTerm (term context); views_ modifier uses PortalSource (post context).
-			$src       = SourceRegistry::get_source( $base_src_key );
-			if ( ! $src ) {
-				return '';
-			}
-			$entity_id = $src->resolve_id( $opts, $inst );
-			$context   = $src->get_context_type();
-
-			// srcTermIn at src=current is only meaningful for post-context base sources.
-			// Term-context bases hide the control via show_if=src:ref (UI gating).
-			if ( '' !== $srcterm_tax && 'term' !== $context ) {
-				return $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+			if ( '' !== $value ) {
+				return $value;
 			}
 
-			if ( 'term' === $context ) {
-				return $term_fn( $entity_id, $opts, $inst );
-			}
-			if ( $is_image ) {
-				return $image_post_dispatch( $entity_id, $opts, $inst );
-			}
-			return $post_fn( $entity_id, $opts, $inst );
+			return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $opts, $tag_name ) : '';
 		};
 	}
 
@@ -533,11 +537,7 @@ class TagTemplateRegistry {
 			$tpl_key = $tpl['key'];
 
 			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $default_use, $tpl_key ) {
-				if ( ! empty( $inst->context['bwsEditorPreview'] ) ) {
-					return function_exists( 'bws_build_try_preview_label' )
-						? bws_build_try_preview_label( $opts, $tpl_key )
-						: '';
-				}
+				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );
 
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, [ 'fallback' => null, 'fallback_text' => null ] );
@@ -667,12 +667,14 @@ class TagTemplateRegistry {
 					}
 				}
 
-				// All slots exhausted — apply fallback_text.
+				// All slots exhausted — apply fallback_text, then label if in preview.
 				if ( '' !== $fallback ) {
 					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
 				}
 
-				return '';
+				return $is_preview && function_exists( 'bws_build_try_preview_label' )
+					? bws_build_try_preview_label( $opts, $tpl_key )
+					: '';
 			};
 
 			/* translators: %s: tag title e.g. "Text Fields" */

@@ -956,9 +956,7 @@ function bws_base_map_datetime_range_options( array $options ): array {
  * @since 1.6.0
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
 	$mapped = bws_base_map_datetime_options( $options );
@@ -976,13 +974,19 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 				return $result;
 			}
 		}
-		return '';
+		$value = '';
+	} else {
+		$post_id = function_exists( 'bws_resolve_post_by_source' )
+			? bws_resolve_post_by_source( $options, $instance )
+			: get_the_ID();
+		$value = bws_datetime_single_core( $post_id, $mapped, $instance );
 	}
 
-	$post_id = function_exists( 'bws_resolve_post_by_source' )
-		? bws_resolve_post_by_source( $options, $instance )
-		: get_the_ID();
-	return bws_datetime_single_core( $post_id, $mapped, $instance );
+	if ( '' !== $value ) {
+		return $value;
+	}
+
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
 }
 
 /**
@@ -995,9 +999,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  * @since 1.6.0
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
-	if ( ! empty( $instance->context['bwsEditorPreview'] ) ) {
-		return function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
-	}
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
 	$mapped = bws_base_map_datetime_range_options( $options );
@@ -1015,11 +1017,17 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 				return $result;
 			}
 		}
-		return '';
+		$value = '';
+	} else {
+		$post_id = function_exists( 'bws_resolve_post_by_source' )
+			? bws_resolve_post_by_source( $options, $instance )
+			: get_the_ID();
+		$value = bws_datetime_range_core( $post_id, $mapped, $instance );
 	}
 
-	$post_id = function_exists( 'bws_resolve_post_by_source' )
-		? bws_resolve_post_by_source( $options, $instance )
-		: get_the_ID();
-	return bws_datetime_range_core( $post_id, $mapped, $instance );
+	if ( '' !== $value ) {
+		return $value;
+	}
+
+	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
 }
