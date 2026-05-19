@@ -130,6 +130,13 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 | `rel` | `ref1` | `second_related_post_*` deprecated wrappers | Approved | First-hop reference field key. Numeric counter because `ref` type repeats. Supersedes intermediate rename `1st_rel` (approved but never implemented). `second_related_post` traversal dropped — deprecated wrappers register with no functional equivalent pending architecture revisit. |
 | `rel_2` | `ref2` | `second_related_post_*` deprecated wrappers | Approved | Second-hop reference field key. Supersedes intermediate rename `2nd_rel` (approved but never implemented). See `ref1` row. |
 
+### Link option renames
+
+| Old name(s) | New name(s) | Scope | Status | Notes |
+|---|---|---|---|---|
+| `link` (GB-native, via `supports:['link']`) | `linkTo`, `linkKey` | `title`, `custom_text`, `term_title` columns in N×M tables (where `link` was in supports) | Implemented (v1.7.0) | GB-native `link` option format: `link:post` → `linkTo:permalink`; `link:post_meta,<key>` → `linkTo:meta\|linkKey:<key>`; `link:term` → `linkTo:permalink`; `link:author_archive`, `link:author_meta`, `link:author_email`, `link:comments` → dropped (no equivalent). Handled by `bws_map_gb_link_option()` via `gb_link_remap` flag on 6 deprecated entries: `related_post_title`, `related_post_custom_text`, `post_term_title`, `post_term_custom_text`, `term_related_post_title`, `term_related_post_custom_text`. |
+| `link_to`, `link_field`, `new_window` | `linkTo`, `linkKey`, `newTab` | `related_post_content` deprecated tag only | Implemented (v1.7.0) | Custom link options on `related_post_content`. `link_to:post` → `linkTo:permalink`; `link_to:custom` + `link_field:<key>` → `linkTo:meta\|linkKey:<key>`; `new_window` presence → `newTab` bare key; `link_to:none` or absent → all dropped. Content/excerpt migration targets (`post_content`, `post_excerpt`) drop link options (content tag excluded from link wrap). Handled by `transform_callback` on the `related_post_content` deprecated entry. |
+
 ### Multi-source–specific option names
 
 | Current name | Proposed name | Scope | Status | Notes |

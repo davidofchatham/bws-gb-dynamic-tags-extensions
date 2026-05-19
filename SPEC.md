@@ -81,7 +81,7 @@ Add `linkTo`/`linkKey`/`newTab` output options to eligible templates so any tag 
 | T8 | x | Update `related_post_content` `transform_callback`: map `link_to`/`link_field`/`new_window` → `linkTo`/`linkKey`/`newTab` per V10; remove from `$drop` array | V10,I.deprecated-tags |
 | T9 | x | Add GB-native `link` → `linkTo`/`linkKey` remapping to migration transforms for deprecated tags with migration paths that had `supports:['link']`: `related_post_title`→`title`, `related_post_custom_text`→`text`, `post_term_title`→`title`, `post_term_custom_text`→`text`, `term_related_post_title`→`term_title`, `term_related_post_custom_text`→`term_text`. Add `bws_map_gb_link_option(array $options): array` helper per V10b. No changes to no-migration-path callbacks. | V10b,I.deprecated-tags |
 | T10 | x | Update `docs/tag-matrix.md`: add link-support column to §Base tag GB types table; add `linkTo`/`linkKey`/`newTab` rows to §Option render order for eligible templates; note Group 1 end placement | V11,I.tag-matrix |
-| T11 | . | Update `docs/deprecated-tags-options.md` option rename tracker: add `link` (GB native, on title/custom_text/term_title cols) → `linkTo`/`linkKey` and `link_to`/`link_field`/`new_window` (related_post_content) → `linkTo`/`linkKey`/`newTab` rename rows | I.deprecated-tags-options |
+| T11 | x | Update `docs/deprecated-tags-options.md` option rename tracker: add `link` (GB native, on title/custom_text/term_title cols) → `linkTo`/`linkKey` and `link_to`/`link_field`/`new_window` (related_post_content) → `linkTo`/`linkKey`/`newTab` rename rows | I.deprecated-tags-options |
 
 ---
 
