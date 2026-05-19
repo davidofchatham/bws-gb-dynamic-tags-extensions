@@ -110,6 +110,8 @@ class TagTemplateRegistry {
 			? bws_base_traversal_options()
 			: array();
 
+		$link_options = function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array();
+
 		// Detect term-context base source. Term entities are themselves terms — `srcTermIn`
 		// (term-hop on the resolved post) only makes sense after a post traversal (src=ref),
 		// not when the entity already IS the term (src=current).
@@ -131,18 +133,29 @@ class TagTemplateRegistry {
 			}
 			$existing[] = $tag_name;
 
-			$term_fn  = $tpl['term_fn'];
-			$post_fn  = $tpl['post_fn'];
-			$is_image = ! empty( $tpl['is_image'] );
+			$term_fn          = $tpl['term_fn'];
+			$post_fn          = $tpl['post_fn'];
+			$is_image         = ! empty( $tpl['is_image'] );
+			$supports_link    = ! $is_image && ! empty( $tpl['supports_link_wrap'] ) && ! empty( $link_options );
 
-			// Inject source + traversal after the leading `as` option so source/traversal sit
-			// between formatting controls and field-selection controls. For non-image templates
-			// (no `as`), source/traversal lead the option list.
-			$tpl_options = $tpl['options'] ?? [];
+			// Inject source + traversal after leading format controls (Group 1 end = link options,
+			// then source/traversal). For non-image templates with supports_link_wrap, link options
+			// are appended at the end of Group 1 per V11. For image templates, no link options.
+			$tpl_options  = $tpl['options'] ?? [];
+			$leading_keys = array_keys( $tpl['leading_options'] ?? [] );
+
 			if ( $is_image && isset( $tpl_options['as'] ) ) {
 				$as_opt = [ 'as' => $tpl_options['as'] ];
 				unset( $tpl_options['as'] );
 				$options = array_merge( $as_opt, $source_opt, $tag_traversal_opts, $tpl_options );
+			} elseif ( $supports_link && ! empty( $leading_keys ) ) {
+				// Split tpl_options into leading and trailing, inject link options at Group 1 end.
+				$leading_part  = array_intersect_key( $tpl_options, array_flip( $leading_keys ) );
+				$trailing_part = array_diff_key( $tpl_options, array_flip( $leading_keys ) );
+				$options = array_merge( $leading_part, $link_options, $source_opt, $tag_traversal_opts, $trailing_part );
+			} elseif ( $supports_link ) {
+				// No leading options — link options lead Group 1, then source/traversal.
+				$options = array_merge( $link_options, $source_opt, $tag_traversal_opts, $tpl_options );
 			} else {
 				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
 			}
@@ -155,7 +168,7 @@ class TagTemplateRegistry {
 				$tag_supports[] = 'image-size';
 			}
 
-			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image );
+			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link );
 
 			// Title: plain label when in its own gb_type group (modifier tags appear under their
 			// own group in GB's picker, identified by gb_type). No cross-source parenthetical needed
@@ -179,15 +192,20 @@ class TagTemplateRegistry {
 		callable $term_fn,
 		callable $post_fn,
 		string $tag_name = '',
-		bool $is_image = false
+		bool $is_image = false,
+		bool $supports_link = false
 	): callable {
-		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image ) {
+		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link ) {
 			$is_preview = $tag_name && ! empty( $inst->context['bwsEditorPreview'] );
 
 			$source = $opts['src'] ?? $opts['source'] ?? 'current';
 			if ( '' === $source ) {
 				$source = 'current';
 			}
+
+			$link_to  = $supports_link ? ( $opts['linkTo'] ?? 'none' ) : 'none';
+			$link_key = $supports_link ? ( $opts['linkKey'] ?? '' ) : '';
+			$new_tab  = $supports_link && ! empty( $opts['newTab'] );
 
 			// Image template: post-context paths dispatch by `use` (featured vs custom field).
 			// `post_fn` (= bws_custom_image_core) only handles custom-field path; featured needs bws_featured_image_core.
@@ -205,22 +223,26 @@ class TagTemplateRegistry {
 			// against each taxonomy term on that post; first non-empty wins. Mirrors
 			// bws_base_image_callback's term-hop loop. For term-context base sources, the
 			// option is hidden when src=current (UI gating), so this only runs when src=ref.
+			// Returns [ 'value' => string, 'term_id' => int ] so caller can apply link wrap.
 			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {
 				if ( ! $post_id || '' === $tax ) {
-					return '';
+					return [ 'value' => '', 'term_id' => 0 ];
 				}
 				if ( ! function_exists( 'bws_get_srcterm_terms' ) ) {
-					return '';
+					return [ 'value' => '', 'term_id' => 0 ];
 				}
 				$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
 				foreach ( $terms as $term ) {
 					$result = $term_fn( $term->term_id, $opts, $inst );
 					if ( '' !== $result && false !== $result ) {
-						return $result;
+						return [ 'value' => $result, 'term_id' => (int) $term->term_id ];
 					}
 				}
-				return '';
+				return [ 'value' => '', 'term_id' => 0 ];
 			};
+
+			$link_entity_id   = 0;
+			$link_entity_type = 'post';
 
 			if ( 'ref' === $source ) {
 				// Traversal from modifier entity → related post.
@@ -234,11 +256,16 @@ class TagTemplateRegistry {
 					$entity_id     = $src->resolve_id( $mapped, $inst );
 
 					if ( '' !== $srcterm_tax ) {
-						$value = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+						$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+						$value            = $dispatch['value'];
+						$link_entity_id   = $dispatch['term_id'];
+						$link_entity_type = 'term';
 					} elseif ( $is_image ) {
 						$value = $image_post_dispatch( $entity_id, $opts, $inst );
 					} else {
-						$value = $post_fn( $entity_id, $opts, $inst );
+						$value            = $post_fn( $entity_id, $opts, $inst );
+						$link_entity_id   = (int) $entity_id;
+						$link_entity_type = 'post';
 					}
 				}
 			} else {
@@ -255,18 +282,28 @@ class TagTemplateRegistry {
 					// srcTermIn at src=current is only meaningful for post-context base sources.
 					// Term-context bases hide the control via show_if=src:ref (UI gating).
 					if ( '' !== $srcterm_tax && 'term' !== $context ) {
-						$value = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+						$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+						$value            = $dispatch['value'];
+						$link_entity_id   = $dispatch['term_id'];
+						$link_entity_type = 'term';
 					} elseif ( 'term' === $context ) {
-						$value = $term_fn( $entity_id, $opts, $inst );
+						$value            = $term_fn( $entity_id, $opts, $inst );
+						$link_entity_id   = (int) $entity_id;
+						$link_entity_type = 'term';
 					} elseif ( $is_image ) {
 						$value = $image_post_dispatch( $entity_id, $opts, $inst );
 					} else {
-						$value = $post_fn( $entity_id, $opts, $inst );
+						$value            = $post_fn( $entity_id, $opts, $inst );
+						$link_entity_id   = (int) $entity_id;
+						$link_entity_type = 'post';
 					}
 				}
 			}
 
 			if ( '' !== $value ) {
+				if ( $supports_link && $link_entity_id && function_exists( 'bws_wrap_with_link' ) ) {
+					$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_entity_id, $link_entity_type );
+				}
 				return $value;
 			}
 
@@ -351,6 +388,7 @@ class TagTemplateRegistry {
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
 			$tpl_options     = $tpl['options'] ?? [];
 			$leading_options = $tpl['leading_options'] ?? [];
+			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
 
 			if ( ! $try_core_fn ) {
 				continue;
@@ -359,8 +397,11 @@ class TagTemplateRegistry {
 			// Per-template use option label (drives slot N "X Field N" labels).
 			$use_label = $tpl_options['use']['label'] ?? __( 'Field', 'generateblocks' );
 
-			// Group 1 — global formatting (as, size, format, etc.) before all slots.
-			$options = $leading_options;
+			// Group 1 — global formatting (as, size, format, etc.) + link options before all slots.
+			$link_opts_try = ( $supports_link && function_exists( 'bws_get_link_options' ) )
+				? bws_get_link_options()
+				: [];
+			$options = array_merge( $leading_options, $link_opts_try );
 
 			for ( $n = 1; $n <= 5; $n++ ) {
 				$prev    = $n - 1;
@@ -526,21 +567,26 @@ class TagTemplateRegistry {
 			$options = array_merge( $options, $trailing_opts );
 
 			// --- Build callback ---
-			$cf  = $try_core_fn;
-			$tcf = $try_term_fn;
-			$psk = $per_slot_key;
-			$psu = $per_slot_use;
-			$nku = $no_key_uses;
+			$cf   = $try_core_fn;
+			$tcf  = $try_term_fn;
+			$psk  = $per_slot_key;
+			$psu  = $per_slot_use;
+			$nku  = $no_key_uses;
+			$slnk = $supports_link;
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $default_use, $tpl_key ) {
 				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );
 
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
 				$eval_opts = array_diff_key( $opts, [ 'fallback' => null, 'fallback_text' => null ] );
+
+				$link_to  = $slnk ? ( $opts['linkTo'] ?? 'none' ) : 'none';
+				$link_key = $slnk ? ( $opts['linkKey'] ?? '' ) : '';
+				$new_tab  = $slnk && ! empty( $opts['newTab'] );
 
 				// Carry-forward state across slots. Canonical tokens stored:
 				// $last_src: 'current' | 'ref' (never empty after slot 1 normalize).
@@ -636,6 +682,9 @@ class TagTemplateRegistry {
 							foreach ( $terms as $term ) {
 								$result = $tcf( $term->term_id, $slot_opts, $inst );
 								if ( '' !== $result && false !== $result ) {
+									if ( $slnk && function_exists( 'bws_wrap_with_link' ) ) {
+										$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $term->term_id, 'term' );
+									}
 									return $result;
 								}
 							}
@@ -663,6 +712,9 @@ class TagTemplateRegistry {
 
 					$result = $cf( $post_id, $slot_opts, $inst );
 					if ( '' !== $result && false !== $result ) {
+						if ( $slnk && $post_id && function_exists( 'bws_wrap_with_link' ) ) {
+							$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $post_id, 'post' );
+						}
 						return $result;
 					}
 				}
