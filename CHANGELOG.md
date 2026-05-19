@@ -2,8 +2,24 @@
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-05-19
+
+### Added — Link wrapping for text/title/datetime tags
+- `linkTo` / `linkKey` / `newTab` options on `text`, `title`, `datetime_single`, `datetime_range` (base tags, `term_` modifier tags, and `try_` variants). Excluded: `content`, `permalink`, `image`.
+- `linkTo` values: `permalink` (entity permalink) or `meta` (URL from `linkKey` meta field). Unset = no link.
+- `newTab` presence-flag: adds `target="_blank" rel="noopener noreferrer"` when set.
+- Link options sit at **end of Group 1** (after format controls, before source selector) on all eligible templates.
+- Link wrap applied after fallback resolves; empty `linkKey` or unresolvable URL skips wrapping without affecting tag output.
+- `try_` tags: single `linkTo`/`linkKey` applies to the winning slot's entity (post or term). No per-slot link key.
+- `term_` modifier tags: entity type routed automatically (term for base-source dispatch; post for `src:ref` dispatch; term for `srcTermIn` hop).
+- New helpers in `content-helpers.php`: `bws_resolve_link_url()`, `bws_wrap_with_link()`, `bws_get_link_options()`, `bws_map_gb_link_option()`.
+
+### Fixed — Migration: link option remapping for deprecated tags
+- `related_post_content` `transform_callback` now maps old `link_to`/`link_field`/`new_window` options → `linkTo`/`linkKey`/`newTab`. Previously these were silently dropped. Content/excerpt migration targets still drop link options (content tag excluded from link wrap).
+- Six deprecated tags that had GB-native `link` support (`related_post_title`, `related_post_custom_text`, `post_term_title`, `post_term_custom_text`, `term_related_post_title`, `term_related_post_custom_text`) now remap `link:post` → `linkTo:permalink`, `link:post_meta,<key>` → `linkTo:meta|linkKey:<key>`, `link:term` → `linkTo:permalink`. Other GB link destinations (`author_archive`, `author_meta`, `author_email`, `comments`) dropped (no equivalent). Handled via `gb_link_remap` flag added to `MigrationRegistry::run_transform()`.
+
 ### Fixed — Migration: `related_post_content` transform and preview label
-- `related_post_content` was a multi-field tag in the original (pre-N×M) codebase whose `target_field` option selected what to extract (`post_title`, `post_content`, `post_excerpt`, `custom`). The migration entry incorrectly mapped all instances to `{{content}}` regardless of `target_field`. Now branches correctly: `post_title`/absent → `{{title src:ref|ref:…}}`; `post_content` → `{{content src:ref|ref:…}}`; `post_excerpt` → `{{content src:ref|ref:…|use:excerpt}}`; `custom` → `{{text src:ref|ref:…|key:{custom_field}}}`. Old-tag-only options (`link_to`, `link_field`, `new_window`, `separator`, `limit`, `id`) dropped silently. Both `key` and `rel` accepted as the relationship field (old tag used `key`).
+- `related_post_content` was a multi-field tag in the original (pre-N×M) codebase whose `target_field` option selected what to extract (`post_title`, `post_content`, `post_excerpt`, `custom`). The migration entry incorrectly mapped all instances to `{{content}}` regardless of `target_field`. Now branches correctly: `post_title`/absent → `{{title src:ref|ref:…}}`; `post_content` → `{{content src:ref|ref:…}}`; `post_excerpt` → `{{content src:ref|ref:…|use:excerpt}}`; `custom` → `{{text src:ref|ref:…|key:{custom_field}}}`. Both `key` and `rel` accepted as the relationship field (old tag used `key`).
 - `MigrationRegistry::transform_tag()`: added `transform_callback` support — when a registry entry includes a `transform_callback` callable, it is invoked instead of `run_transform()`, enabling branching transforms that can't be expressed as rename maps.
 - `bws_build_deprecation_preview_label()`: strip GB-injected `tag_name` key from `$options` before reconstructing the tag string for migration preview. GB's `parse_options()` always prepends `tag_name` to every callback's options array; without this strip, every deprecated tag preview included a spurious `tag_name:…` option in the suggested replacement.
 
