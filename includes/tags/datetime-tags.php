@@ -383,6 +383,7 @@ function bws_get_datetime_single_field_key_options(): array {
 function bws_get_base_datetime_single_options(): array {
 	return array_merge(
 		bws_get_datetime_single_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_single_field_key_options(),
@@ -505,6 +506,7 @@ function bws_get_datetime_range_field_key_options(): array {
 function bws_get_base_datetime_range_options(): array {
 	return array_merge(
 		bws_get_datetime_range_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_range_field_key_options(),
@@ -958,8 +960,14 @@ function bws_base_map_datetime_range_options( array $options ): array {
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
-	$mapped = bws_base_map_datetime_options( $options );
+	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$mapped   = bws_base_map_datetime_options( $options );
+	$link_to  = $options['linkTo'] ?? 'none';
+	$link_key = $options['linkKey'] ?? '';
+	$new_tab  = ! empty( $options['newTab'] );
+
+	$link_id   = 0;
+	$link_type = 'post';
 
 	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )
@@ -971,18 +979,26 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		foreach ( $terms as $term ) {
 			$result = bws_term_datetime_single_core( $term->term_id, $mapped, $instance );
 			if ( '' !== $result ) {
+				if ( function_exists( 'bws_wrap_with_link' ) ) {
+					$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, $term->term_id, 'term' );
+				}
 				return $result;
 			}
 		}
 		$value = '';
 	} else {
-		$post_id = function_exists( 'bws_resolve_post_by_source' )
+		$post_id   = function_exists( 'bws_resolve_post_by_source' )
 			? bws_resolve_post_by_source( $options, $instance )
 			: get_the_ID();
-		$value = bws_datetime_single_core( $post_id, $mapped, $instance );
+		$value     = bws_datetime_single_core( $post_id, $mapped, $instance );
+		$link_id   = (int) $post_id;
+		$link_type = 'post';
 	}
 
 	if ( '' !== $value ) {
+		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		}
 		return $value;
 	}
 
@@ -1001,8 +1017,14 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax    = sanitize_key( $options['srcTermIn'] ?? '' );
-	$mapped = bws_base_map_datetime_range_options( $options );
+	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$mapped   = bws_base_map_datetime_range_options( $options );
+	$link_to  = $options['linkTo'] ?? 'none';
+	$link_key = $options['linkKey'] ?? '';
+	$new_tab  = ! empty( $options['newTab'] );
+
+	$link_id   = 0;
+	$link_type = 'post';
 
 	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )
@@ -1014,18 +1036,26 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		foreach ( $terms as $term ) {
 			$result = bws_term_datetime_range_core( $term->term_id, $mapped, $instance );
 			if ( '' !== $result ) {
+				if ( function_exists( 'bws_wrap_with_link' ) ) {
+					$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, $term->term_id, 'term' );
+				}
 				return $result;
 			}
 		}
 		$value = '';
 	} else {
-		$post_id = function_exists( 'bws_resolve_post_by_source' )
+		$post_id   = function_exists( 'bws_resolve_post_by_source' )
 			? bws_resolve_post_by_source( $options, $instance )
 			: get_the_ID();
-		$value = bws_datetime_range_core( $post_id, $mapped, $instance );
+		$value     = bws_datetime_range_core( $post_id, $mapped, $instance );
+		$link_id   = (int) $post_id;
+		$link_type = 'post';
 	}
 
 	if ( '' !== $value ) {
+		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		}
 		return $value;
 	}
 

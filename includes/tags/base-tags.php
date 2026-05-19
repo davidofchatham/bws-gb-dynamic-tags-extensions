@@ -57,6 +57,7 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_strip_default_select_values( array_merge(
+			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -147,6 +148,7 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_strip_default_select_values( array_merge(
+			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -284,6 +286,7 @@ function bws_register_base_tags(): void {
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'text',
 		'title'                 => __( 'Text Fields', 'generateblocks' ),
+		'supports_link_wrap'    => true,
 		'options'               => array(
 			'use'      => array(
 				'type'           => 'select',
@@ -355,9 +358,10 @@ function bws_register_base_tags(): void {
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'          => 'title',
-		'title'        => __( 'Title / Name', 'generateblocks' ),
-		'options'      => array(),
+		'key'                => 'title',
+		'title'              => __( 'Title / Name', 'generateblocks' ),
+		'supports_link_wrap' => true,
+		'options'            => array(),
 		'term_fn'      => 'bws_term_title_core',
 		'post_fn'      => 'bws_post_title_core',
 		'try_core_fn'  => 'bws_post_title_core',
@@ -444,9 +448,10 @@ function bws_register_base_tags(): void {
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'             => 'datetime_single',
-		'title'           => __( 'Date / Time', 'generateblocks' ),
-		'leading_options' => function_exists( 'bws_get_datetime_single_leading_options' )
+		'key'                => 'datetime_single',
+		'title'              => __( 'Date / Time', 'generateblocks' ),
+		'supports_link_wrap' => true,
+		'leading_options'    => function_exists( 'bws_get_datetime_single_leading_options' )
 			? bws_get_datetime_single_leading_options()
 			: array(),
 		'options'         => function_exists( 'bws_get_datetime_single_template_options' )
@@ -481,9 +486,10 @@ function bws_register_base_tags(): void {
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
-		'key'             => 'datetime_range',
-		'title'           => __( 'Date / Time Range', 'generateblocks' ),
-		'leading_options' => function_exists( 'bws_get_datetime_range_leading_options' )
+		'key'                => 'datetime_range',
+		'title'              => __( 'Date / Time Range', 'generateblocks' ),
+		'supports_link_wrap' => true,
+		'leading_options'    => function_exists( 'bws_get_datetime_range_leading_options' )
 			? bws_get_datetime_range_leading_options()
 			: array(),
 		'options'         => function_exists( 'bws_get_datetime_range_template_options' )
@@ -717,33 +723,55 @@ function bws_base_map_options( array $options ): array {
 function bws_base_text_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$use  = $options['use'] ?? 'key';
-	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
-	$opts = bws_base_map_options( $options );
+	$use     = $options['use'] ?? 'key';
+	$tax     = sanitize_key( $options['srcTermIn'] ?? '' );
+	$opts    = bws_base_map_options( $options );
+	$link_to = $options['linkTo'] ?? 'none';
+	$link_key = $options['linkKey'] ?? '';
+	$new_tab  = ! empty( $options['newTab'] );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	$link_id   = 0;
+	$link_type = 'post';
 
 	if ( '' !== $tax ) {
 		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
 		$out    = [];
+		$first_term_id = 0;
 		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
 			$result = 'title' === $use
 				? bws_term_title_core( $term->term_id, $opts, $instance )
 				: bws_term_custom_text_core( $term->term_id, $opts, $instance );
 			if ( '' !== $result ) {
 				$out[] = $result;
+				if ( ! $first_term_id ) {
+					$first_term_id = $term->term_id;
+				}
 			}
 		}
 		$value = implode( $sep, $out );
+		// Only wrap single-result output — multi-result list is unwrappable as one link.
+		if ( 1 === count( $out ) && $first_term_id ) {
+			$link_id   = $first_term_id;
+			$link_type = 'term';
+		}
 	} elseif ( 'title' === $use ) {
-		$value = bws_post_title_core( $post_id, $opts, $instance );
+		$value     = bws_post_title_core( $post_id, $opts, $instance );
+		$link_id   = (int) $post_id;
+		$link_type = 'post';
 	} else {
-		$value = bws_post_custom_text_core( $post_id, $opts, $instance );
+		$value     = bws_post_custom_text_core( $post_id, $opts, $instance );
+		$link_id   = (int) $post_id;
+		$link_type = 'post';
 	}
 
 	if ( '' !== $value ) {
+		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		}
 		return $value;
 	}
 
@@ -811,27 +839,46 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 function bws_base_title_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$link_to  = $options['linkTo'] ?? 'none';
+	$link_key = $options['linkKey'] ?? '';
+	$new_tab  = ! empty( $options['newTab'] );
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
+
+	$link_id   = 0;
+	$link_type = 'post';
 
 	if ( '' !== $tax ) {
 		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
 		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
 		$sep    = $options['sep'] ?? ', ';
 		$out    = [];
+		$first_term_id = 0;
 		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
 			$result = bws_term_title_core( $term->term_id, $options, $instance );
 			if ( '' !== $result ) {
 				$out[] = $result;
+				if ( ! $first_term_id ) {
+					$first_term_id = $term->term_id;
+				}
 			}
 		}
 		$value = implode( $sep, $out );
+		if ( 1 === count( $out ) && $first_term_id ) {
+			$link_id   = $first_term_id;
+			$link_type = 'term';
+		}
 	} else {
-		$value = bws_post_title_core( $post_id, $options, $instance );
+		$value     = bws_post_title_core( $post_id, $options, $instance );
+		$link_id   = (int) $post_id;
+		$link_type = 'post';
 	}
 
 	if ( '' !== $value ) {
+		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		}
 		return $value;
 	}
 

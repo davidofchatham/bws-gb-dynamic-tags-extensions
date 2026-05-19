@@ -1484,3 +1484,124 @@ function bws_build_preview_label( array $options, string $template ): string {
 	return '[' . $inner . ']';
 }
 }
+
+// ===============================================
+// LINK-WRAP HELPERS
+// ===============================================
+
+/**
+ * Resolve a link URL for output wrapping.
+ *
+ * Routes by $link_to destination and $entity_type. Returns empty string on failure so
+ * callers can skip wrapping without blocking output (V3, V4).
+ *
+ * @since 1.7.0
+ * @param string $link_to     Destination token: 'permalink' | 'meta'.
+ * @param string $link_key    Meta key (used when $link_to = 'meta').
+ * @param int    $id          Entity ID (post ID or term ID).
+ * @param string $entity_type Entity type: 'post' | 'term'.
+ * @return string Resolved URL, or empty string on failure.
+ */
+if ( ! function_exists( 'bws_resolve_link_url' ) ) {
+function bws_resolve_link_url( string $link_to, string $link_key, int $id, string $entity_type ): string {
+	if ( ! $id || 'none' === $link_to || '' === $link_to ) {
+		return '';
+	}
+
+	if ( 'permalink' === $link_to ) {
+		if ( 'term' === $entity_type ) {
+			$url = get_term_link( $id );
+			return ( ! is_wp_error( $url ) && $url ) ? (string) $url : '';
+		}
+		$url = get_permalink( $id );
+		return $url ? (string) $url : '';
+	}
+
+	if ( 'meta' === $link_to ) {
+		if ( '' === $link_key ) {
+			return '';
+		}
+		if ( 'term' === $entity_type ) {
+			$url = get_term_meta( $id, $link_key, true );
+		} else {
+			$url = get_post_meta( $id, $link_key, true );
+		}
+		return ( $url && is_string( $url ) ) ? $url : '';
+	}
+
+	return '';
+}
+}
+
+/**
+ * Wrap output string in an anchor element when a link URL resolves.
+ *
+ * Returns $output unchanged when: linkTo is 'none'/empty, or the resolved
+ * URL is empty (V3, V5, V6).
+ *
+ * @since 1.7.0
+ * @param string $output      Tag output to wrap.
+ * @param string $link_to     Destination token from linkTo option ('none'|'permalink'|'meta').
+ * @param string $link_key    Meta key from linkKey option (used when link_to='meta').
+ * @param bool   $new_tab     Whether to add target="_blank" rel="noopener noreferrer".
+ * @param int    $id          Resolved entity ID.
+ * @param string $entity_type 'post' | 'term'.
+ * @return string Wrapped output, or original $output if no URL resolved.
+ */
+if ( ! function_exists( 'bws_wrap_with_link' ) ) {
+function bws_wrap_with_link( string $output, string $link_to, string $link_key, bool $new_tab, int $id, string $entity_type ): string {
+	if ( '' === $output || 'none' === $link_to || '' === $link_to ) {
+		return $output;
+	}
+
+	$url = bws_resolve_link_url( $link_to, $link_key, $id, $entity_type );
+	if ( '' === $url ) {
+		return $output;
+	}
+
+	$attrs = ' href="' . esc_url( $url ) . '"';
+	if ( $new_tab ) {
+		$attrs .= ' target="_blank" rel="noopener noreferrer"';
+	}
+
+	return '<a' . $attrs . '>' . $output . '</a>';
+}
+}
+
+/**
+ * Return the three link-wrap option definitions for eligible templates.
+ *
+ * linkTo  -- select; canonical first value 'none' stripped at registration via _strip_default.
+ * linkKey -- text; shown only when linkTo:meta.
+ * newTab  -- boolean presence-flag; shown only when linkTo is non-empty.
+ *
+ * @since 1.7.0
+ * @return array Option definitions keyed by option name.
+ */
+if ( ! function_exists( 'bws_get_link_options' ) ) {
+function bws_get_link_options(): array {
+	return array(
+		'linkTo'  => array(
+			'type'           => 'select',
+			'label'          => __( 'Link To', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
+				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
+				array( 'value' => 'meta',      'label' => __( 'URL Meta Field', 'generateblocks' ) ),
+			),
+			'_strip_default' => true,
+		),
+		'linkKey' => array(
+			'type'    => 'text',
+			'label'   => __( 'Link URL Field', 'generateblocks' ),
+			'help'    => __( 'Meta field key whose value is used as the link URL. For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
+			'show_if' => array( 'linkTo' => 'meta' ),
+		),
+		'newTab'  => array(
+			'type'    => 'checkbox',
+			'label'   => __( 'Open in new tab', 'generateblocks' ),
+			'show_if' => array( 'linkTo' => 'not_empty' ),
+		),
+	);
+}
+}
