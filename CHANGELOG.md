@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.6.2] — Unreleased
+## [1.6.2] — 2026-05-19
 
 ### Added
 - Plugin action links: "Settings" link now appears in the Plugins list, pointing to the Tag Extensions settings page.
