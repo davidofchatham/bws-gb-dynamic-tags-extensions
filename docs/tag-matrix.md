@@ -179,15 +179,15 @@ Image tags are excluded: multiple return formats are already built into image ta
 
 In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
 
-| Template key | GB type | Notes |
-|---|---|---|
-| `text` | `'cross-source'` | |
-| `content` | `'cross-source'` | |
-| `title` | `'cross-source'` | Zero options; shares internal pipeline with `text use:title`. |
-| `permalink` | `'cross-source'` | Zero options in current scope. |
-| `image` | `'cross-source'` | Custom image controls in scope for this plan phase: `as` + `size` (combobox) + `fallback` (media picker) registered via JS filter. No `'media'` type — all controls custom. See `custom-image-controls.md`. |
-| `datetime_single` | `'cross-source'` | |
-| `datetime_range` | `'cross-source'` | |
+| Template key | GB type | Link wrap | Notes |
+|---|---|---|---|
+| `text` | `'cross-source'` | ✅ | |
+| `content` | `'cross-source'` | ❌ | Long-form; may already contain links |
+| `title` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
+| `permalink` | `'cross-source'` | ❌ | Output is already a URL |
+| `image` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime_single` | `'cross-source'` | ✅ | |
+| `datetime_range` | `'cross-source'` | ✅ | |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
 
@@ -464,7 +464,19 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 | `ref` | Relationship Field | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy. Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
 | `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
-| `sep` | Result Separator | Separator between results (defaults to “, ”). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
+| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
+
+### Link wrap options
+
+Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. Placed at **end of Group 1** in all eligible templates.
+
+| Option name | Option label | Notes |
+|---|---|---|
+| `linkTo` | Link To | `permalink` = entity permalink; `meta` = URL from meta field at `linkKey`; unset = no link. First value `none` canonical token, stripped at registration per default-strip strategy. |
+| `linkKey` | Link URL Field | Meta field key for URL. Shown when `linkTo:meta`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
+
+Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source dispatch; post entity for `src:ref` dispatch).
 
 ## Field options
 
@@ -526,7 +538,19 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ### `text`
 
-`[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`) → `fallback`
+Group 1: `linkTo` → `linkKey` (shown when `linkTo:meta`) → `newTab` (shown when `linkTo` not empty)
+
+Group 2: `[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`)
+
+Group 3: `fallback`
+
+### `title`
+
+Group 1: `linkTo` → `linkKey` (shown when `linkTo:meta`) → `newTab` (shown when `linkTo` not empty)
+
+Group 2: `[source options]`
+
+Group 3: `fallback`
 
 ### `image`
 
@@ -555,14 +579,17 @@ See [§Default serialization strategy](#default-serialization-strategy) for the 
 | Date & Time Separator | `timeSep` | 3 | 4 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
 | Show time when stored as midnight? | `showMidnight` | 4 | 5 | checkbox, false by default; shown when `as` ≠ `date` |
 | Show current year in date? | `showCurrentYear` | 5 | 6 | checkbox, false by default; shown when `as` ≠ `time` |
-| | `[source options]` | 6 | 7 | `limit`/`sep` included for this template |
-| Date/Time Field | `key` | 7 | — | primary date/time field key |
-| Time Field (Optional) | `timeKey` | 8 | — | separate time field — shown when `as` ≠ `date` |
-| Start Date/Time Field | `startKey` | — | 8 | |
-| Start Time Field (Optional) | `startTimeKey` | — | 9 | shown when `as` ≠ `date` |
-| End Date/Time Field | `endKey` | — | 10 | |
-| End Time Field (Optional) | `endTimeKey` | — | 11 | shown when `as` ≠ `date` |
-| | `[fallback option]` | 9 | 12 | |
+| Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `meta`; unset = no link |
+| Link URL Field | `linkKey` | 7 | 8 | shown when `linkTo:meta` |
+| Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
+| | `[source options]` | 9 | 10 | `limit`/`sep` included for this template |
+| Date/Time Field | `key` | 10 | — | primary date/time field key |
+| Time Field (Optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
+| Start Date/Time Field | `startKey` | — | 11 | |
+| Start Time Field (Optional) | `startTimeKey` | — | 12 | shown when `as` ≠ `date` |
+| End Date/Time Field | `endKey` | — | 13 | |
+| End Time Field (Optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
+| | `[fallback option]` | 12 | 15 | |
 
 **Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (includes `limit`/`sep` for list-mode templates). Field keys close as group 3. `fallback` last.
 
@@ -586,7 +613,7 @@ Living reference. Update immediately when any of the following change:
 
 **When adding a new modifier prefix:** add a row to §Modifier prefixes; update §Base tag GB types if a new GB type string is introduced; document the registration call in [`docs/plugin-integration.md`](plugin-integration.md).
 
-**When adding a new template:** add a row to §Base tag GB types and §Base tag title strings; note required options + list-mode support; if `supports_try`, add a row to §Available try_ tags; document option render order in §Option render order.
+**When adding a new template:** add a row to §Base tag GB types (including Link wrap column) and §Base tag title strings; note required options + list-mode support; if `supports_try`, add a row to §Available try_ tags; document option render order in §Option render order; if link-wrap eligible, note option positions in §Link wrap options.
 
 **Deprecated wrappers:** never edit this doc for N×M deprecated wrappers — those go in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
