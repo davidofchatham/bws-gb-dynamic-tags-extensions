@@ -355,6 +355,11 @@ class MigrationRegistry {
 			}
 		}
 
+		// Step 3.5: Remap GB-native `link` option for deprecated tags that had supports:['link'] (V10b).
+		if ( ! empty( $entry['gb_link_remap'] ) && function_exists( 'bws_map_gb_link_option' ) ) {
+			$options = bws_map_gb_link_option( $options );
+		}
+
 		// Step 4: Apply value_renames (keys are in post-rename form).
 		foreach ( $entry['value_renames'] ?? array() as $key => $map ) {
 			if ( isset( $options[ $key ] ) && array_key_exists( $options[ $key ], $map ) ) {

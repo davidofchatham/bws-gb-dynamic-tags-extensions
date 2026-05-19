@@ -1605,3 +1605,42 @@ function bws_get_link_options(): array {
 	);
 }
 }
+
+/**
+ * Remap a GB-native `link` option (from deprecated N×M tags) to linkTo/linkKey (V10b).
+ *
+ * GB saved `link` option values:
+ *   link:post           → linkTo:permalink
+ *   link:term           → linkTo:permalink  (term permalink)
+ *   link:post_meta,key  → linkTo:meta, linkKey:key
+ *   link:author_archive, link:author_meta, link:author_email, link:comments → dropped
+ *
+ * The `link` key is always removed. Returns options array with mapping applied.
+ *
+ * @since 1.7.0
+ * @param array $options Tag options array (post-rename).
+ * @return array Options with `link` remapped and removed.
+ */
+if ( ! function_exists( 'bws_map_gb_link_option' ) ) {
+function bws_map_gb_link_option( array $options ): array {
+	if ( ! array_key_exists( 'link', $options ) ) {
+		return $options;
+	}
+
+	$value = (string) $options['link'];
+	unset( $options['link'] );
+
+	if ( 'post' === $value || 'term' === $value ) {
+		$options['linkTo'] = 'permalink';
+	} elseif ( str_starts_with( $value, 'post_meta,' ) ) {
+		$meta_key = substr( $value, strlen( 'post_meta,' ) );
+		$options['linkTo'] = 'meta';
+		if ( '' !== $meta_key ) {
+			$options['linkKey'] = $meta_key;
+		}
+	}
+	// author_archive, author_meta, author_email, comments → dropped (no equivalent).
+
+	return $options;
+}
+}
