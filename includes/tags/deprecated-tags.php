@@ -256,7 +256,9 @@ function bws_build_deprecation_preview_label( string $old_tag, array $old_option
 		return '[⚠ ' . $old_display . ' deprecated — no replacement]';
 	}
 
-	$old_str = \BWS\DynamicTags\MigrationRegistry::format_tag_string( $old_tag, $old_options );
+	// GB injects tag_name into every $options array — strip it before reconstructing the tag string.
+	$clean_options = array_diff_key( $old_options, array( 'tag_name' => true ) );
+	$old_str = \BWS\DynamicTags\MigrationRegistry::format_tag_string( $old_tag, $clean_options );
 	$new_str = \BWS\DynamicTags\MigrationRegistry::transform_tag( $old_tag, $old_str );
 
 	return '[⚠ ' . $old_display . ' deprecated — use ' . $new_str . ']';
@@ -859,15 +861,50 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	) );
 
 	$reg::register( array(
-		'old_tag'        => 'related_post_content',
-		'new_tag'        => 'content',
-		'title'          => __( 'Related Post Content (Deprecated)', 'generateblocks' ),
-		'since'          => $since,
-		'source_inject'  => 'ref',
-		'option_renames' => $rel_content_renames,
-		'value_renames'  => $content_values,
-		'options'        => array_merge( $rel_opts, $content_opts ),
-		'callback'       => bws_make_deprecated_post_callback( 'related_post_content', 'content', $since, 'related_post', 'bws_post_content_core' ),
+		'old_tag'            => 'related_post_content',
+		'new_tag'            => 'title',
+		'title'              => __( 'Related Post Content (Deprecated)', 'generateblocks' ),
+		'since'              => $since,
+		'options'            => array_merge( $rel_opts, $content_opts ),
+		'callback'           => bws_make_deprecated_post_callback( 'related_post_content', 'content', $since, 'related_post', 'bws_post_content_core' ),
+		// target_field-aware transform: branches new_tag on target_field value.
+		// Old tag used 'key' (not 'rel') for the relationship field.
+		'transform_callback' => static function ( string $tag_string ): string {
+			[ , $options ] = \BWS\DynamicTags\MigrationRegistry::parse_tag_string( $tag_string );
+
+			$target_field = $options['target_field'] ?? 'post_title';
+			$rel_key      = $options['key'] ?? $options['rel'] ?? '';
+			$custom_field = $options['custom_field'] ?? '';
+
+			// Drop all old-tag-specific keys that have no current-tag equivalent.
+			$drop = array( 'target_field', 'custom_field', 'link_to', 'link_field', 'new_window', 'separator', 'limit', 'id', 'fallback_text', 'type', 'key', 'rel' );
+			foreach ( $drop as $k ) {
+				unset( $options[ $k ] );
+			}
+
+			switch ( $target_field ) {
+				case 'post_content':
+					$new_tag = 'content';
+					$extra   = array();
+					break;
+				case 'post_excerpt':
+					$new_tag = 'content';
+					$extra   = array( 'use' => 'excerpt' );
+					break;
+				case 'custom':
+					$new_tag = 'text';
+					$extra   = '' !== $custom_field ? array( 'key' => $custom_field ) : array();
+					break;
+				default: // 'post_title' and absent (default was post_title).
+					$new_tag = 'title';
+					$extra   = array();
+					break;
+			}
+
+			$new_options = array_merge( array( 'src' => 'ref' ), '' !== $rel_key ? array( 'ref' => $rel_key ) : array(), $extra, $options );
+
+			return \BWS\DynamicTags\MigrationRegistry::format_tag_string( $new_tag, $new_options );
+		},
 	) );
 
 	$reg::register( array(

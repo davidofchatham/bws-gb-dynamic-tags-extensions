@@ -134,7 +134,8 @@ class MigrationRegistry {
 	/**
 	 * Transform a deprecated tag string into the migrated format.
 	 *
-	 * Applies the full transform pipeline: parse → option_renames → value_renames
+	 * When the entry has a 'transform_callback' callable, delegates to it entirely.
+	 * Otherwise applies the full transform pipeline: parse → option_renames → value_renames
 	 * → datetime_transforms → source_inject (prepend) → fixed_options → serialize.
 	 *
 	 * Returns the original string unchanged when no 'tag' entry matches.
@@ -157,6 +158,10 @@ class MigrationRegistry {
 
 		if ( null === $entry ) {
 			return $tag_string;
+		}
+
+		if ( isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] ) ) {
+			return ( $entry['transform_callback'] )( $tag_string );
 		}
 
 		return self::run_transform( $entry, $tag_string );

@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed — Migration: `related_post_content` transform and preview label
+- `related_post_content` was a multi-field tag in the original (pre-N×M) codebase whose `target_field` option selected what to extract (`post_title`, `post_content`, `post_excerpt`, `custom`). The migration entry incorrectly mapped all instances to `{{content}}` regardless of `target_field`. Now branches correctly: `post_title`/absent → `{{title src:ref|ref:…}}`; `post_content` → `{{content src:ref|ref:…}}`; `post_excerpt` → `{{content src:ref|ref:…|use:excerpt}}`; `custom` → `{{text src:ref|ref:…|key:{custom_field}}}`. Old-tag-only options (`link_to`, `link_field`, `new_window`, `separator`, `limit`, `id`) dropped silently. Both `key` and `rel` accepted as the relationship field (old tag used `key`).
+- `MigrationRegistry::transform_tag()`: added `transform_callback` support — when a registry entry includes a `transform_callback` callable, it is invoked instead of `run_transform()`, enabling branching transforms that can't be expressed as rename maps.
+- `bws_build_deprecation_preview_label()`: strip GB-injected `tag_name` key from `$options` before reconstructing the tag string for migration preview. GB's `parse_options()` always prepends `tag_name` to every callback's options array; without this strip, every deprecated tag preview included a spurious `tag_name:…` option in the suggested replacement.
+
 ## [1.6.2] — 2026-05-19
 
 ### Added
