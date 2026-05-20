@@ -62,4 +62,4 @@ GB's `parse_options()` only reads keys literally present in the tag string. Opti
 - `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
 - `false` = option dropped entirely — never appears in the tag string.
 
-See [`tag-matrix.md` §Default serialization strategy](tag-matrix.md#default-serialization-strategy) for how this plugin works with the constraint (canonical-token first values, registration-boundary strip, intentional `as` opt-out).
+See [`tag-reference.md` §Default serialization strategy](tag-reference.md#default-serialization-strategy) for how this plugin works with the constraint (canonical-token first values, registration-boundary strip, intentional `as` opt-out).

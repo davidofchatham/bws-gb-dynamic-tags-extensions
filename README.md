@@ -35,7 +35,7 @@ The `term_*` modifier wraps base tags for term-context resolution using Generate
 ## Documentation
 
 - [`CHANGELOG.md`](CHANGELOG.md) — version history
-- [`docs/tag-matrix.md`](docs/tag-matrix.md) — current tag architecture, options, preview-label schema
+- [`docs/tag-reference.md`](docs/tag-reference.md) — current tag architecture, options, preview-label schema
 - [`docs/deprecated-tags-options.md`](docs/deprecated-tags-options.md) — N×M historical reference + migration tracker
 - [`docs/plugin-integration.md`](docs/plugin-integration.md) — external plugin API (`register_modifier()`, deprecated wrappers)
 - [`docs/gb-constraints.md`](docs/gb-constraints.md) — GB editor/runtime constraint catalog

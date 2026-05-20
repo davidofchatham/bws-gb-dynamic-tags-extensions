@@ -4,7 +4,7 @@ This document is a **migration reference**. It records the N×M per-source tag n
 replaced by the source-agnostic base tag architecture in v1.6.0, along with all template key
 renames and option renames that drove the deprecated wrapper registrations.
 
-See [`tag-matrix.md`](tag-matrix.md) for the current (v1.6.0+) architecture, and
+See [`tag-reference.md`](tag-reference.md) for the current (v1.6.0+) architecture, and
 [`gb-constraints.md`](gb-constraints.md) for the GB editor/runtime constraints that
 have forced revisions to several approved renames listed below.
 
@@ -176,7 +176,7 @@ Scope notation: `[image]` = image tags only; no scope = applies to all templates
 
 ## Historical N×M source classes
 
-Source classes used by the v1.5 N×M tag-generation model. In v1.6.0+ the N×M loop is gone; these classes back deprecated wrapper callbacks only. New base/modifier tags route through a smaller subset (see [`tag-matrix.md`](tag-matrix.md) §Source classes).
+Source classes used by the v1.5 N×M tag-generation model. In v1.6.0+ the N×M loop is gone; these classes back deprecated wrapper callbacks only. New base/modifier tags route through a smaller subset (see [`tag-reference.md`](tag-reference.md) §Source classes).
 
 Notation:
 - ☐ — wrapper opt-in by default in former matrix

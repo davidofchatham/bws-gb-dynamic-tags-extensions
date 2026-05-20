@@ -1,4 +1,4 @@
-# BWS Dynamic Tags — Tag × Source Matrix
+# BWS Dynamic Tags — Tag & Option Reference
 
 **Authoritative living reference** for template keys, source keys, option names, and which dynamic tag variants exist. Also owns this plugin's response to GB constraints (default-strip strategy, custom editor controls). Update this file whenever sources, templates, options, or controls are added, removed, renamed, or change default-enabled status. Other docs cross-reference here rather than maintaining parallel tables.
 

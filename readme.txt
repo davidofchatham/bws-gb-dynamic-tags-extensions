@@ -7,4 +7,4 @@ Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-See README.md for overview, docs/tag-matrix.md for architecture, and CHANGELOG.md for version history.
+See README.md for overview, docs/tag-reference.md for architecture, and CHANGELOG.md for version history.
