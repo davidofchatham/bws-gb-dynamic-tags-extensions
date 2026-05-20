@@ -138,9 +138,8 @@ class TagTemplateRegistry {
 			$is_image         = ! empty( $tpl['is_image'] );
 			$supports_link    = ! $is_image && ! empty( $tpl['supports_link_wrap'] ) && ! empty( $link_options );
 
-			// Inject source + traversal after leading format controls (Group 1 end = link options,
-			// then source/traversal). For non-image templates with supports_link_wrap, link options
-			// are appended at the end of Group 1 per V11. For image templates, no link options.
+			// Inject source + traversal after leading format controls. Link options go after
+			// all field/fallback options (trailing part), so they appear at the bottom.
 			$tpl_options  = $tpl['options'] ?? [];
 			$leading_keys = array_keys( $tpl['leading_options'] ?? [] );
 
@@ -149,13 +148,13 @@ class TagTemplateRegistry {
 				unset( $tpl_options['as'] );
 				$options = array_merge( $as_opt, $source_opt, $tag_traversal_opts, $tpl_options );
 			} elseif ( $supports_link && ! empty( $leading_keys ) ) {
-				// Split tpl_options into leading and trailing, inject link options at Group 1 end.
+				// Split tpl_options into leading and trailing; link options appended after trailing.
 				$leading_part  = array_intersect_key( $tpl_options, array_flip( $leading_keys ) );
 				$trailing_part = array_diff_key( $tpl_options, array_flip( $leading_keys ) );
-				$options = array_merge( $leading_part, $link_options, $source_opt, $tag_traversal_opts, $trailing_part );
+				$options = array_merge( $leading_part, $source_opt, $tag_traversal_opts, $trailing_part, $link_options );
 			} elseif ( $supports_link ) {
-				// No leading options — link options lead Group 1, then source/traversal.
-				$options = array_merge( $link_options, $source_opt, $tag_traversal_opts, $tpl_options );
+				// No leading options — source/traversal then field options then link options.
+				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options, $link_options );
 			} else {
 				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
 			}
@@ -397,11 +396,12 @@ class TagTemplateRegistry {
 			// Per-template use option label (drives slot N "X Field N" labels).
 			$use_label = $tpl_options['use']['label'] ?? __( 'Field', 'generateblocks' );
 
-			// Group 1 — global formatting (as, size, format, etc.) + link options before all slots.
+			// Group 1 — global formatting (as, size, format, etc.). Link options appended after
+			// trailing field/fallback options below (after slot loop + trailing merge).
 			$link_opts_try = ( $supports_link && function_exists( 'bws_get_link_options' ) )
 				? bws_get_link_options()
 				: [];
-			$options = array_merge( $leading_options, $link_opts_try );
+			$options = $leading_options;
 
 			for ( $n = 1; $n <= 5; $n++ ) {
 				$prev    = $n - 1;
@@ -564,7 +564,7 @@ class TagTemplateRegistry {
 			if ( $per_slot_use ) {
 				unset( $trailing_opts['use'], $trailing_opts['key'] );
 			}
-			$options = array_merge( $options, $trailing_opts );
+			$options = array_merge( $options, $trailing_opts, $link_opts_try );
 
 			// --- Build callback ---
 			$cf   = $try_core_fn;

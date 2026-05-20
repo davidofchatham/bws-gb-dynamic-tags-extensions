@@ -887,7 +887,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 			if ( 'post' === $old_link_to ) {
 				$link_extra['linkTo'] = 'permalink';
 			} elseif ( 'custom' === $old_link_to ) {
-				$link_extra['linkTo'] = 'meta';
+				$link_extra['linkTo'] = 'key';
 				if ( '' !== $old_link_field ) {
 					$link_extra['linkKey'] = $old_link_field;
 				}

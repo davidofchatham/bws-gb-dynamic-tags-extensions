@@ -57,7 +57,6 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_strip_default_select_values( array_merge(
-			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -82,6 +81,9 @@ function bws_register_base_tags(): void {
 					'label' => __( 'Fallback Text', 'generateblocks' ),
 					'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
 				),
+			),
+			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
+			array(
 				'limit'    => array(
 					'type'  => 'number',
 					'label' => __( 'Result Limit', 'generateblocks' ),
@@ -148,7 +150,6 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_strip_default_select_values( array_merge(
-			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -163,7 +164,8 @@ function bws_register_base_tags(): void {
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
 				),
-			)
+			),
+			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 		) ),
 		'return'   => 'bws_base_title_callback',
 	) );

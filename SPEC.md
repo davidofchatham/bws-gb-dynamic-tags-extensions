@@ -41,11 +41,11 @@ Add `linkTo`/`linkKey`/`newTab` output options to eligible templates so any tag 
 
 **V1** `link` never used as option key or in `supports` array on any plugin-registered tag. All link-wrapping goes through `bws_wrap_with_link()`.
 
-**V2** `linkTo` option definition uses canonical first value `'none'`; `bws_strip_default_select_values()` at registration boundary flips it to `''`. Serialized tag contains `linkTo:permalink` or `linkTo:meta` only; absence = no link. Callback reads `$opts['linkTo'] ?? 'none'` to recover canonical token.
+**V2** `linkTo` option definition uses canonical first value `'none'`; `bws_strip_default_select_values()` at registration boundary flips it to `''`. Serialized tag contains `linkTo:permalink` or `linkTo:key` only; absence = no link. Callback reads `$opts['linkTo'] ?? 'none'` to recover canonical token.
 
 **V3** `linkKey` empty (unset or blank) → wrap skipped, tag output returned unchanged. Never causes empty output.
 
-**V4** `bws_resolve_link_url()` accepts entity type (`'post'`|`'term'`) and routes: `permalink` → `get_permalink()`/`get_term_link()`; `meta` → `get_post_meta()`/`get_term_meta()`. Returns `''` (not false/null) on failure.
+**V4** `bws_resolve_link_url()` accepts entity type (`'post'`|`'term'`) and routes: `permalink` → `get_permalink()`/`get_term_link()`; `key` → `get_post_meta()`/`get_term_meta()`. Returns `''` (not false/null) on failure.
 
 **V5** Link wrap applied after fallback: output passed to `bws_wrap_with_link()` is the final resolved string (slot result or fallback). If `bws_resolve_link_url()` returns `''`, original output returned unchanged.
 
@@ -57,13 +57,13 @@ Add `linkTo`/`linkKey`/`newTab` output options to eligible templates so any tag 
 
 **V9** `image` template has no `supports_link_wrap` flag. No link options on `image`, `term_image`, `try_image`.
 
-**V10** `related_post_content` `transform_callback` maps old `link_to`/`link_field`/`new_window` → new option names: `link_to:post` → `linkTo:permalink`; `link_to:custom` + `link_field:X` → `linkTo:meta|linkKey:X`; `new_window` present → `newTab` bare key. `link_to:none` (or absent) → all three dropped.
+**V10** `related_post_content` `transform_callback` maps old `link_to`/`link_field`/`new_window` → new option names: `link_to:post` → `linkTo:permalink`; `link_to:custom` + `link_field:X` → `linkTo:key|linkKey:X`; `new_window` present → `newTab` bare key. `link_to:none` (or absent) → all three dropped.
 
-**V10b** Tags that had `supports:['link']` (GB-native link) in the deprecated N×M matrix — `title`, `custom_text`, `term_title` columns — may have saved tags containing GB's `link` option (format: `link:post`, `link:post_meta,key`, `link:term`, `link:author_archive`, etc.). Migration transforms for affected deprecated tags must remap: `link:post` → `linkTo:permalink`; `link:post_meta,key` → `linkTo:meta|linkKey:key`; `link:term` → `linkTo:permalink` (term entity maps to permalink); other GB link destinations (`author_archive`, `author_meta`, `author_email`, `comments`) → dropped (out of scope, no equivalent). The `link` key is removed from the migrated tag string in all cases.
+**V10b** Tags that had `supports:['link']` (GB-native link) in the deprecated N×M matrix — `title`, `custom_text`, `term_title` columns — may have saved tags containing GB's `link` option (format: `link:post`, `link:post_meta,key`, `link:term`, `link:author_archive`, etc.). Migration transforms for affected deprecated tags must remap: `link:post` → `linkTo:permalink`; `link:post_meta,key` → `linkTo:key|linkKey:key`; `link:term` → `linkTo:permalink` (term entity maps to permalink); other GB link destinations (`author_archive`, `author_meta`, `author_email`, `comments`) → dropped (out of scope, no equivalent). The `link` key is removed from the migrated tag string in all cases.
 
-**V11** Link options appear at **end of `leading_options`** in template descriptor. For templates with no prior leading options, link options are the sole Group 1 content.
+**V11** Link options appear after fallback text in each template's option list.
 
-**V12** `show_if` conditions: `linkKey` visible only when `linkTo:meta`; `newTab` visible only when `linkTo` is `not_empty`.
+**V12** `show_if` conditions: `linkKey` visible only when `linkTo:key`; `newTab` visible only when `linkTo` is `not_empty`.
 
 ---
 

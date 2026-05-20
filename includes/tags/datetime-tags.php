@@ -383,7 +383,6 @@ function bws_get_datetime_single_field_key_options(): array {
 function bws_get_base_datetime_single_options(): array {
 	return array_merge(
 		bws_get_datetime_single_leading_options(),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_single_field_key_options(),
@@ -394,7 +393,8 @@ function bws_get_base_datetime_single_options(): array {
 				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
 				'placeholder' => 'Date/time TBA',
 			),
-		)
+		),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 	);
 }
 
@@ -506,7 +506,6 @@ function bws_get_datetime_range_field_key_options(): array {
 function bws_get_base_datetime_range_options(): array {
 	return array_merge(
 		bws_get_datetime_range_leading_options(),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_range_field_key_options(),
@@ -517,7 +516,8 @@ function bws_get_base_datetime_range_options(): array {
 				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
 				'placeholder' => 'Date TBA',
 			),
-		)
+		),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 	);
 }
 

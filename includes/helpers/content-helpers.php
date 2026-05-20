@@ -821,6 +821,56 @@ function bws_safe_content_output( $content, $options, $instance ) {
 // ===============================================
 
 /**
+ * Wrap a preview label bracket string with link annotation and optional <a> for editor display.
+ *
+ * Appends "(link: permalink)" or "(link: 'key')" inside the brackets, then wraps the
+ * whole string in <a href="#"> so the editor user sees both the annotation and the link
+ * treatment. Only fires when linkTo is set (non-empty, non-'none'). Image templates pass
+ * no linkTo so this is a no-op for them.
+ *
+ * @since 1.7.0
+ * @param string $bracket_label Already-assembled bracket string e.g. "[Title from Term]".
+ * @param array  $options       Tag options array (reads linkTo, linkKey, newTab).
+ * @return string Annotated and wrapped label, or original string unchanged.
+ */
+if ( ! function_exists( 'bws_wrap_preview_label_with_link' ) ) {
+function bws_wrap_preview_label_with_link( string $bracket_label, array $options ): string {
+	if ( '' === $bracket_label ) {
+		return $bracket_label;
+	}
+	$link_to  = $options['linkTo'] ?? 'none';
+	$link_key = trim( $options['linkKey'] ?? '' );
+	$new_tab  = ! empty( $options['newTab'] );
+
+	if ( 'none' === $link_to || '' === $link_to ) {
+		return $bracket_label;
+	}
+
+	// Build annotation suffix.
+	if ( 'key' === $link_to ) {
+		$annotation = '' !== $link_key ? "(link: '" . esc_html( $link_key ) . "')" : '(link: key)';
+	} else {
+		$annotation = '(link: ' . esc_html( $link_to ) . ')';
+	}
+
+	// Inject annotation before closing bracket.
+	if ( str_ends_with( $bracket_label, ']' ) ) {
+		$inner   = substr( $bracket_label, 1, -1 );
+		$labeled = '[' . $inner . ' ' . $annotation . ']';
+	} else {
+		$labeled = $bracket_label . ' ' . $annotation;
+	}
+
+	// Wrap in <a href="#">.
+	$attrs = ' href="#"';
+	if ( $new_tab ) {
+		$attrs .= ' target="_blank" rel="noopener noreferrer"';
+	}
+	return '<a' . $attrs . '>' . $labeled . '</a>';
+}
+}
+
+/**
  * Build a structured editor preview label for a try_ tag's slot fallback chain.
  *
  * Walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's
@@ -921,7 +971,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Collect per-slot warnings.
@@ -949,7 +999,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Compute uniformity across slots.
@@ -978,7 +1028,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Template-name prefix per matrix:
@@ -1002,7 +1052,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Default-mode collapse: single slot at template default → bare label.
@@ -1021,7 +1071,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			if ( $fallback ) {
 				$inner .= ' (fallback: “' . $fallback . '”)';
 			}
-			return '[' . $inner . ']';
+			return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 		}
 	}
 
@@ -1081,7 +1131,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	if ( $fallback ) {
 		$inner .= ' (fallback: “' . $fallback . '”)';
 	}
-	return '[' . $inner . ']';
+	return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 }
 }
 
@@ -1347,7 +1397,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Build context part (space-joined segments).
@@ -1434,7 +1484,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
-		return '[' . $inner . ']';
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
 	// Build field part (template-specific).
@@ -1481,7 +1531,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( $fallback ) {
 		$inner .= ' (fallback: “' . $fallback . '”)';
 	}
-	return '[' . $inner . ']';
+	return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 }
 }
 
@@ -1496,8 +1546,8 @@ function bws_build_preview_label( array $options, string $template ): string {
  * callers can skip wrapping without blocking output (V3, V4).
  *
  * @since 1.7.0
- * @param string $link_to     Destination token: 'permalink' | 'meta'.
- * @param string $link_key    Meta key (used when $link_to = 'meta').
+ * @param string $link_to     Destination token: 'permalink' | 'key'.
+ * @param string $link_key    Meta key (used when $link_to = 'key').
  * @param int    $id          Entity ID (post ID or term ID).
  * @param string $entity_type Entity type: 'post' | 'term'.
  * @return string Resolved URL, or empty string on failure.
@@ -1517,7 +1567,7 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 		return $url ? (string) $url : '';
 	}
 
-	if ( 'meta' === $link_to ) {
+	if ( 'key' === $link_to ) {
 		if ( '' === $link_key ) {
 			return '';
 		}
@@ -1541,8 +1591,8 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
  *
  * @since 1.7.0
  * @param string $output      Tag output to wrap.
- * @param string $link_to     Destination token from linkTo option ('none'|'permalink'|'meta').
- * @param string $link_key    Meta key from linkKey option (used when link_to='meta').
+ * @param string $link_to     Destination token from linkTo option ('none'|'permalink'|'key').
+ * @param string $link_key    Meta key from linkKey option (used when link_to='key').
  * @param bool   $new_tab     Whether to add target="_blank" rel="noopener noreferrer".
  * @param int    $id          Resolved entity ID.
  * @param string $entity_type 'post' | 'term'.
@@ -1572,7 +1622,7 @@ function bws_wrap_with_link( string $output, string $link_to, string $link_key, 
  * Return the three link-wrap option definitions for eligible templates.
  *
  * linkTo  -- select; canonical first value 'none' stripped at registration via _strip_default.
- * linkKey -- text; shown only when linkTo:meta.
+ * linkKey -- text; shown only when linkTo:key.
  * newTab  -- boolean presence-flag; shown only when linkTo is non-empty.
  *
  * @since 1.7.0
@@ -1587,7 +1637,7 @@ function bws_get_link_options(): array {
 			'options'        => array(
 				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
 				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
-				array( 'value' => 'meta',      'label' => __( 'URL Meta Field', 'generateblocks' ) ),
+				array( 'value' => 'key',       'label' => __( 'URL Meta Field', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
 		),
@@ -1595,7 +1645,7 @@ function bws_get_link_options(): array {
 			'type'    => 'text',
 			'label'   => __( 'Link URL Field', 'generateblocks' ),
 			'help'    => __( 'Meta field key whose value is used as the link URL. For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
-			'show_if' => array( 'linkTo' => 'meta' ),
+			'show_if' => array( 'linkTo' => 'key' ),
 		),
 		'newTab'  => array(
 			'type'    => 'checkbox',
@@ -1612,7 +1662,7 @@ function bws_get_link_options(): array {
  * GB saved `link` option values:
  *   link:post           → linkTo:permalink
  *   link:term           → linkTo:permalink  (term permalink)
- *   link:post_meta,key  → linkTo:meta, linkKey:key
+ *   link:post_meta,key  → linkTo:key, linkKey:key
  *   link:author_archive, link:author_meta, link:author_email, link:comments → dropped
  *
  * The `link` key is always removed. Returns options array with mapping applied.
@@ -1634,7 +1684,7 @@ function bws_map_gb_link_option( array $options ): array {
 		$options['linkTo'] = 'permalink';
 	} elseif ( str_starts_with( $value, 'post_meta,' ) ) {
 		$meta_key = substr( $value, strlen( 'post_meta,' ) );
-		$options['linkTo'] = 'meta';
+		$options['linkTo'] = 'key';
 		if ( '' !== $meta_key ) {
 			$options['linkKey'] = $meta_key;
 		}

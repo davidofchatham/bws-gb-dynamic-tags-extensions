@@ -472,8 +472,8 @@ Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_`
 
 | Option name | Option label | Notes |
 |---|---|---|
-| `linkTo` | Link To | `permalink` = entity permalink; `meta` = URL from meta field at `linkKey`; unset = no link. First value `none` canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | Link URL Field | Meta field key for URL. Shown when `linkTo:meta`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `linkTo` | Link To | `permalink` = entity permalink; `key` = URL from meta field at `linkKey`; unset = no link. First value `none` canonical token, stripped at registration per default-strip strategy. |
+| `linkKey` | Link URL Field | Meta field key for URL. Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source dispatch; post entity for `src:ref` dispatch).
@@ -538,7 +538,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ### `text`
 
-Group 1: `linkTo` → `linkKey` (shown when `linkTo:meta`) → `newTab` (shown when `linkTo` not empty)
+Group 1: `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
 
 Group 2: `[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`)
 
@@ -546,7 +546,7 @@ Group 3: `fallback`
 
 ### `title`
 
-Group 1: `linkTo` → `linkKey` (shown when `linkTo:meta`) → `newTab` (shown when `linkTo` not empty)
+Group 1: `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
 
 Group 2: `[source options]`
 
@@ -579,8 +579,8 @@ See [§Default serialization strategy](#default-serialization-strategy) for the 
 | Date & Time Separator | `timeSep` | 3 | 4 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
 | Show time when stored as midnight? | `showMidnight` | 4 | 5 | checkbox, false by default; shown when `as` ≠ `date` |
 | Show current year in date? | `showCurrentYear` | 5 | 6 | checkbox, false by default; shown when `as` ≠ `time` |
-| Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `meta`; unset = no link |
-| Link URL Field | `linkKey` | 7 | 8 | shown when `linkTo:meta` |
+| Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `key`; unset = no link |
+| Link URL Field | `linkKey` | 7 | 8 | shown when `linkTo:key` |
 | Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
 | | `[source options]` | 9 | 10 | `limit`/`sep` included for this template |
 | Date/Time Field | `key` | 10 | — | primary date/time field key |
