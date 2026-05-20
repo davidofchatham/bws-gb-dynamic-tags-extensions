@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.1] — Unreleased
+
+### Fixed
+- `deprecated-tags.php`: `related_post_content` migration entry had `new_tag => 'title'`; corrected to `'content'`. Callback was already correct; only the migration hint was wrong.
+
 ## [1.7.0] — 2026-05-20
 
 ### Added — Link wrapping for text/title/datetime tags

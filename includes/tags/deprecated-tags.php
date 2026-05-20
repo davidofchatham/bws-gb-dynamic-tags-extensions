@@ -865,7 +865,7 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	$reg::register( array(
 		'old_tag'            => 'related_post_content',
-		'new_tag'            => 'title',
+		'new_tag'            => 'content',
 		'title'              => __( 'Related Post Content (Deprecated)', 'generateblocks' ),
 		'since'              => $since,
 		'options'            => array_merge( $rel_opts, $content_opts ),
