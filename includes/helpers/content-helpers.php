@@ -1542,8 +1542,15 @@ function bws_build_preview_label( array $options, string $template ): string {
 /**
  * Resolve a link URL for output wrapping.
  *
- * Routes by $link_to destination and $entity_type. Returns empty string on failure so
- * callers can skip wrapping without blocking output (V3, V4).
+ * Routes by $link_to destination and $entity_type:
+ *   'permalink' → get_permalink() for posts, get_term_link() for terms.
+ *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
+ * Always returns '' (never false/null) so callers can unconditionally skip wrapping
+ * without blocking tag output. Empty $link_key with linkTo:'key' returns '' immediately.
+ *
+ * INVARIANT: 'link' must never be used as a GB option key by this plugin — GB strips it
+ * before custom controls see it and fires its own with_link(). All link-wrapping routes
+ * through this function and bws_wrap_with_link().
  *
  * @since 1.7.0
  * @param string $link_to     Destination token: 'permalink' | 'key'.
@@ -1586,11 +1593,14 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 /**
  * Wrap output string in an anchor element when a link URL resolves.
  *
- * Returns $output unchanged when: linkTo is 'none'/empty, or the resolved
- * URL is empty (V3, V5, V6).
+ * Invariants enforced here:
+ *   - Empty $output, linkTo 'none'/'' → return $output unchanged (never blocks output).
+ *   - Empty linkKey with linkTo:'key' → bws_resolve_link_url returns '' → no wrap.
+ *   - target="_blank" only emitted when URL resolves non-empty (never a bare target attr).
+ *   - Applied to the final resolved string — fallback text is also wrapped when present.
  *
  * @since 1.7.0
- * @param string $output      Tag output to wrap.
+ * @param string $output      Tag output to wrap (final resolved string including fallback).
  * @param string $link_to     Destination token from linkTo option ('none'|'permalink'|'key').
  * @param string $link_key    Meta key from linkKey option (used when link_to='key').
  * @param bool   $new_tab     Whether to add target="_blank" rel="noopener noreferrer".
@@ -1621,9 +1631,18 @@ function bws_wrap_with_link( string $output, string $link_to, string $link_key, 
 /**
  * Return the three link-wrap option definitions for eligible templates.
  *
- * linkTo  -- select; canonical first value 'none' stripped at registration via _strip_default.
- * linkKey -- text; shown only when linkTo:key.
- * newTab  -- boolean presence-flag; shown only when linkTo is non-empty.
+ * Eligible templates: text, title, datetime_single, datetime_range (base, term_, try_ variants).
+ * Excluded: content, permalink, image (no supports_link_wrap flag → never injected).
+ *
+ * linkTo  — select; canonical first value 'none' stripped at registration via _strip_default
+ *           so absence = no link. Callbacks recover canonical token via ?? 'none'.
+ * linkKey — text; shown only when linkTo:'key'. Empty → wrap skipped, output unchanged.
+ * newTab  — boolean presence-flag; shown only when linkTo not empty.
+ *           Emits target="_blank" rel="noopener noreferrer" only when URL resolves.
+ *
+ * try_ tags: single linkTo/linkKey applies to winning slot's entity (post or term).
+ * term_ modifier tags: entity type routed from dispatch path — term for base-source,
+ * post for src:ref traversal, term for srcTermIn hop.
  *
  * @since 1.7.0
  * @return array Option definitions keyed by option name.

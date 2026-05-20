@@ -71,6 +71,11 @@ class TagTemplateRegistry {
 	 * traversal_source_key source (via:'ref'). Modifier tags include 'source' support unless
 	 * excluded_supports contains 'source'.
 	 *
+	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
+	 * after trailing field/fallback options. Entity type for URL resolution is determined by
+	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn hop.
+	 * Templates without supports_link_wrap (content, permalink, image) never receive link options.
+	 *
 	 * @since 1.6.0
 	 *
 	 * @param array $config {
@@ -334,15 +339,20 @@ class TagTemplateRegistry {
 	 *   use, 2-use …         — source type (try_per_slot_use templates only).
 	 *   key, 2-key …         — field key (try_per_slot_key / try_per_slot_use templates).
 	 *
-	 * Option order follows the three-group structure from tag-matrix.md:
+	 * Option order follows the three-group structure from tag-reference.md:
 	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
 	 *   Group 2 — per-slot options (src/N-src, ref/N-ref, srcTerm/N-srcTerm, tax/N-tax, use/N-use, key/N-key) × 5 slots.
-	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys (field keys, fallback).
+	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys (field keys, fallback, link options).
 	 *
 	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
 	 * srcTerm does NOT carry forward — each slot independently chooses entity type.
 	 * For try_per_slot_key templates, N-key carries the field key per slot.
 	 * For try_per_slot_use templates, N-use carries the source-type selector per slot.
+	 *
+	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
+	 * after trailing options. The single linkTo/linkKey applies to the winning slot's entity —
+	 * post or term depending on which slot dispatched. content/permalink/image are excluded
+	 * (no supports_link_wrap flag) so try_content, try_permalink, try_image never get link options.
 	 *
 	 * @since 1.6.0
 	 */
