@@ -1,19 +1,21 @@
 # Changelog
 
-## [Unreleased]
-
-## [1.7.0] — 2026-05-19
+## [1.7.0] — 2026-05-20
 
 ### Added — Link wrapping for text/title/datetime tags
 - `linkTo` / `linkKey` / `newTab` options on `text`, `title`, `datetime_single`, `datetime_range` (base tags, `term_` modifier tags, and `try_` variants). Excluded: `content`, `permalink`, `image`.
 - `linkTo` values: `permalink` (entity permalink) or `key` (URL from `linkKey` meta field). Unset = no link.
 - `newTab` presence-flag: adds `target="_blank" rel="noopener noreferrer"` when set.
-- Link options sit at **end of Group 1** (after format controls, before source selector) on all eligible templates.
+- Link options appear after fallback text in each template's option list.
 - Link wrap applied after fallback resolves; empty `linkKey` or unresolvable URL skips wrapping without affecting tag output.
 - `try_` tags: single `linkTo`/`linkKey` applies to the winning slot's entity (post or term). No per-slot link key.
 - `term_` modifier tags: entity type routed automatically (term for base-source dispatch; post for `src:ref` dispatch; term for `srcTermIn` hop).
 - New helpers in `content-helpers.php`: `bws_resolve_link_url()`, `bws_wrap_with_link()`, `bws_get_link_options()`, `bws_map_gb_link_option()`.
 - Editor preview labels for link-eligible templates now annotate the configured link destination (e.g. `[Title (link: permalink)]`) and wrap the bracket string in `<a href="#">` so the link treatment is visible in the block editor even when the tag can't resolve a real value.
+
+### Changed — Docs
+- `docs/tag-matrix.md` renamed to `docs/tag-reference.md`; title updated to "BWS Dynamic Tags — Tag & Option Reference". All cross-links updated.
+- `linkTo` meta-field destination token renamed `'meta'` → `'key'` for consistency with the plugin-wide `key` convention. Saved tags using `linkTo:meta` will not be present in the wild (v1.7.0 not yet released).
 
 ### Fixed — Migration: link option remapping for deprecated tags
 - `related_post_content` `transform_callback` now maps old `link_to`/`link_field`/`new_window` options → `linkTo`/`linkKey`/`newTab`. Previously these were silently dropped. Content/excerpt migration targets still drop link options (content tag excluded from link wrap).
