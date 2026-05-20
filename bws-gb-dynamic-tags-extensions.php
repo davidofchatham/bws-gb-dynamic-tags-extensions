@@ -63,6 +63,9 @@ function bws_dynamic_tags_init() {
 		return;
 	}
 
+	// GB constraint workaround filters.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/hooks.php';
+
 	// Load helper functions.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/content-helpers.php';

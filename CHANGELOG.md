@@ -4,6 +4,7 @@
 
 ### Fixed
 - `deprecated-tags.php`: `related_post_content` migration entry had `new_tag => 'title'`; corrected to `'content'`. Callback was already correct; only the migration hint was wrong.
+- `includes/hooks.php` (new): GB's `required` check uses `! $replacement` (falsy, not empty-string), silently killing blocks for two legitimate cases: `as:alt` with no alt text (empty string), and text fields returning `'0'` (e.g. jersey number zero). Filter on `generateblocks_dynamic_tag_replacement` — the only hook between callback return and the required check — returns `' '` for empty alt and `'0 '` for bare zero. Both render correctly in HTML; trailing space collapses in text content, space is semantically equivalent to empty alt.
 
 ## [1.7.0] — 2026-05-20
 
