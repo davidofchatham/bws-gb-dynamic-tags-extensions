@@ -1,10 +1,11 @@
 # Changelog
 
-## [1.7.1] — Unreleased
+## [1.7.1] — 2026-05-21
 
 ### Fixed
 - `deprecated-tags.php`: `related_post_content` migration entry had `new_tag => 'title'`; corrected to `'content'`. Callback was already correct; only the migration hint was wrong.
 - `includes/hooks.php` (new): GB's `required` check uses `! $replacement` (falsy, not empty-string), silently killing blocks for two legitimate cases: `as:alt` with no alt text (empty string), and text fields returning `'0'` (e.g. jersey number zero). Filter on `generateblocks_dynamic_tag_replacement` — the only hook between callback return and the required check — returns `' '` for empty alt and `'0 '` for bare zero. Both render correctly in HTML; trailing space collapses in text content, space is semantically equivalent to empty alt.
+- `bws_read_field()`: in GB query loops, Mode 2a (`row_post_id`) and Mode 2b (`loop_item`) branches read from the row entity even when caller passed an explicit `$post_id`. Broke any meta-field tag (`try_text` `use:key`, `try_content` `use:key`, `try_image` `use:key`, base `text`, `content`, `image` custom-field paths) whose `src:ref` slot resolved a post outside the loop row — the resolved id was ignored and the loop row was read instead, yielding empty results when the row entity lacked the field. Explicit `$post_id` (from upstream resolution like `bws_resolve_post_by_source`) now always wins; loop branches only fire when no explicit id was passed.
 
 ## [1.7.0] — 2026-05-20
 

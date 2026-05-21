@@ -162,11 +162,17 @@ function bws_get_loop_row_context( $instance ): array {
  * functions if Meta_Handler unavailable.
  *
  * Branching order:
- *  1. Mode 2a (loop row resolves to post)  → read post meta on row post
- *  2. Mode 2b (flat repeater row)          → read $loop_item[$key] directly
- *  3. $post_id > 0                         → read post meta
- *  4. Term archive (non-REST)              → read term meta on queried term
+ *  1. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
+ *  2. Mode 2a (loop row resolves to post, no explicit id) → read post meta on row post
+ *  3. Mode 2b (flat repeater row, no explicit id)         → read $loop_item[$key] directly
+ *  4. Term archive (non-REST, no explicit id)             → read term meta on queried term
  *  5. null
+ *
+ * INVARIANT: An explicit `$post_id` passed by the caller always wins over loop-row
+ * inference. Try-loop `src:ref` slots resolve a target post via `bws_resolve_post_by_source()`
+ * and pass that id here; if loop-row inference were allowed to override it, the slot would
+ * silently read from the page entity instead of the resolved ref target — breaking
+ * fall-through across slots inside any GB query loop. (Bugfix v1.7.1.)
  *
  * @since 1.7.0
  * @param string         $key         Meta/ACF field key.
@@ -187,16 +193,19 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	}
 
 	// Mode 2 subtype detection.
+	// Explicit $post_id (e.g. resolved via src:ref hop) always wins — caller has already
+	// done entity resolution and the row entity is irrelevant to that target.
+	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
+		|| ( is_numeric( $post_id ) && (int) $post_id > 0 );
+
 	$loop = bws_get_loop_row_context( $instance );
-	if ( $loop['in_loop'] ) {
+	if ( $loop['in_loop'] && ! $has_explicit_post_id ) {
 		// Mode 2a — row resolves to a post entity.
 		if ( $loop['row_post_id'] ) {
 			return bws_meta_handler_read( (int) $loop['row_post_id'], $key, $single_only, 'get_post_meta' );
 		}
 		// Mode 2b — flat repeater row; read directly from row data.
-		// Only applies when no explicit post_id was resolved (e.g. GB-injected id: in REST).
-		// If a valid post_id was passed in, fall through to normal post context read.
-		if ( is_array( $loop['loop_item'] ) && ! ( is_int( $post_id ) && $post_id > 0 ) && ! ( is_numeric( $post_id ) && (int) $post_id > 0 ) ) {
+		if ( is_array( $loop['loop_item'] ) ) {
 			return $loop['loop_item'][ $key ] ?? null;
 		}
 	}
