@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.7.2] — 2026-05-25
+
+### Fixed — `datetime_single` / `datetime_range` in ACF repeater query loops (issue #22)
+
+- `bws_datetime_single_core()` and `bws_datetime_range_core()`: hard `! $post_id` bail returned fallback before the field-read layer could resolve loop-row data. Tags inside GB Pro repeater loops (`TYPE_OPTION` site-options repeaters and `TYPE_POST_META` flat repeater rows) saw no output. Bail now relaxes when the block instance is in a loop-row context (`generateblocks/loopItem` set), matching the v1.7.0 pattern used by `bws_post_custom_text_core()`. Mode 2b reads via `bws_read_field()` then resolve the date/time values from `$loop_item[$key]`.
+- `bws_parse_combined_date_time()`: ACF field-config lookups (`bws_get_acf_return_format()`, `bws_parse_acf_date_value()`) received `$post_id = false` in Mode 2b, so `get_field_object()` couldn't return the configured return_format. Custom return formats fell through to the generic-format parser and could mis-parse non-default storage. Resolves the ACF object_id once at the top of the function via the new `bws_resolve_acf_object_id()` helper and threads it through both lookups.
+
+### Added
+
+- `bws_resolve_acf_object_id( $instance, $post_id )` in `content-helpers.php`: single source of truth for resolving the ACF object_id used by `get_field_object()` / `get_field()` when the caller has no resolved row entity. Returns the explicit `$post_id` when set, `'option'` for GB Pro `TYPE_OPTION` rows, the outer page's `postId` (from context) for `TYPE_POST_META` rows, or `0` otherwise. Reusable by other ACF-aware helpers (image-helpers, relationship validation).
+
 ## [1.7.1] — 2026-05-21
 
 ### Fixed

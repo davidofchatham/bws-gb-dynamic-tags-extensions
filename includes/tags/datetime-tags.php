@@ -668,6 +668,13 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
 /**
  * Core datetime single logic.
  *
+ * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
+ * loop-row context (`generateblocks/loopItem` set). Mode 2b flat-repeater rows
+ * (GB Pro TYPE_OPTION site-options repeaters, TYPE_POST_META post-meta repeaters)
+ * legitimately have no row entity, but the field-read layer (`bws_read_field()`)
+ * can still resolve subfield values from `$loop_item[$key]`. Bailing before that
+ * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
+ *
  * @since 1.0.0
  * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
  * @param array            $options  Tag options.
@@ -675,7 +682,9 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_datetime_single_core( $post_id, $options, $instance ) {
-	if ( ! $post_id ) {
+	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+
+	if ( ! $post_id && ! $is_loop_row ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
@@ -717,6 +726,10 @@ function bws_datetime_single_core( $post_id, $options, $instance ) {
 /**
  * Core datetime range logic.
  *
+ * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
+ * loop-row context (see bws_datetime_single_core() for full rationale). Bugfix
+ * v1.7.2, issue #22.
+ *
  * @since 1.0.0
  * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
  * @param array            $options  Tag options.
@@ -724,7 +737,9 @@ function bws_datetime_single_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_datetime_range_core( $post_id, $options, $instance ) {
-	if ( ! $post_id ) {
+	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+
+	if ( ! $post_id && ! $is_loop_row ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 

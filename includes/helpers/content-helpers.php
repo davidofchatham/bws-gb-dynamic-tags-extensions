@@ -278,6 +278,67 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
 }
 
 /**
+ * Resolve the ACF object_id for field-config lookups (`get_field_object`, `get_field`).
+ *
+ * Some ACF-aware code paths (notably datetime return_format detection in
+ * bws_parse_combined_date_time()) need an object id to fetch field metadata even
+ * when the caller has no resolved row entity — e.g. flat ACF repeater rows
+ * (Mode 2b) under GB Pro's TYPE_OPTION or TYPE_POST_META query loops. This
+ * helper consolidates the resolution rules:
+ *
+ *  1. Explicit caller-resolved $post_id wins (int > 0, numeric string > 0,
+ *     non-empty string like ACF term object_id "term_5" or "option").
+ *  2. GB Pro TYPE_OPTION repeater rows → 'option' (ACF site-options namespace).
+ *  3. GB Pro TYPE_POST_META repeater rows → outer page's postId from context,
+ *     since ACF repeater subfields are registered against the parent post's
+ *     field group.
+ *  4. Otherwise 0 (callers should treat as "no ACF context available" and
+ *     fall through to format-agnostic parsing).
+ *
+ * INVARIANT: tags that read ACF field-config metadata in loop contexts MUST
+ * use this resolver rather than passing a bare false/0 to get_field_object();
+ * doing so causes datetime return_format misses on TYPE_OPTION and
+ * TYPE_POST_META repeater rows (issue #22, bugfix v1.7.2).
+ *
+ * @since 1.7.2
+ * @param mixed     $instance Block instance (WP_Block) — used for queryType/postId context.
+ * @param int|string|false $post_id Caller-resolved entity id, or false/0 when none.
+ * @return int|string ACF-compatible object_id, or 0 when no context available.
+ */
+if ( ! function_exists( 'bws_resolve_acf_object_id' ) ) {
+function bws_resolve_acf_object_id( $instance, $post_id ) {
+	if ( is_int( $post_id ) && $post_id > 0 ) {
+		return $post_id;
+	}
+	if ( is_string( $post_id ) && '' !== $post_id ) {
+		return $post_id;
+	}
+	if ( is_numeric( $post_id ) && (int) $post_id > 0 ) {
+		return (int) $post_id;
+	}
+
+	if ( ! is_object( $instance ) || ! isset( $instance->context ) || ! is_array( $instance->context ) ) {
+		return 0;
+	}
+
+	$query_type = $instance->context['generateblocks/queryType'] ?? '';
+
+	if ( 'option' === $query_type ) {
+		return 'option';
+	}
+
+	if ( 'post_meta' === $query_type ) {
+		$parent = (int) ( $instance->context['postId'] ?? 0 );
+		if ( $parent > 0 ) {
+			return $parent;
+		}
+	}
+
+	return 0;
+}
+}
+
+/**
  * Validate meta key format.
  *
  * @since 1.0.0

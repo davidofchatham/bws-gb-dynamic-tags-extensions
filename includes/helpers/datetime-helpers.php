@@ -182,7 +182,16 @@ function bws_get_acf_return_format( $field_key, $post_id ) {
 // ===============================================
 
 /**
- * Parse combined date/time from separate or combined fields
+ * Parse combined date/time from separate or combined fields.
+ *
+ * INVARIANT: ACF field-config lookups (`bws_get_acf_return_format()`,
+ * `bws_parse_acf_date_value()`) must receive the resolved ACF object_id, NOT a
+ * raw caller-supplied `$post_id` that may be false in loop-row Mode 2b. Use
+ * `bws_resolve_acf_object_id( $instance, $post_id )` which maps GB Pro
+ * TYPE_OPTION rows → 'option' and TYPE_POST_META rows → outer page's postId.
+ * Without this, `get_field_object()` fails on flat ACF repeater rows under GB
+ * query loops and custom return_formats fall through to format-agnostic parsing
+ * (issue #22, bugfix v1.7.2).
  *
  * @since 3.0.0
  * @param int $post_id Post ID
@@ -211,13 +220,21 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
     $term_id    = $term_match ? (int) $m[2] : 0;
     $numeric_id = is_numeric( $post_id ) ? (int) $post_id : false;
 
+    // Resolve ACF object_id for field-config lookups. For loop-row Mode 2b contexts
+    // (flat ACF repeater rows under TYPE_OPTION / TYPE_POST_META), $post_id is false
+    // but ACF still needs an object_id ('option' or outer page id) to return field
+    // metadata. Term-context keeps its existing object_id ("{taxonomy}_{term_id}").
+    $acf_object_id = $term_match
+        ? $post_id
+        : ( function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $post_id ) : $post_id );
+
     // Get primary field value and format
     $date_value = $date_field
         ? ( $term_match
             ? bws_read_term_field( $date_field, $term_id, true )
             : bws_read_field( $date_field, $instance, $numeric_id, true ) )
         : null;
-    $date_format = bws_get_acf_return_format( $date_field, $post_id );
+    $date_format = bws_get_acf_return_format( $date_field, $acf_object_id );
 
     // Get time field value and format
     $time_value = $time_field
@@ -225,7 +242,7 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
             ? bws_read_term_field( $time_field, $term_id, true )
             : bws_read_field( $time_field, $instance, $numeric_id, true ) )
         : null;
-    $time_format = bws_get_acf_return_format( $time_field, $post_id );
+    $time_format = bws_get_acf_return_format( $time_field, $acf_object_id );
 
     $utils = bws_format_utils();
 
@@ -236,13 +253,13 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
     // Parse primary field
     $date_obj = null;
     if ( $date_value ) {
-        $date_obj = bws_parse_acf_date_value( $date_value, $date_field, $post_id );
+        $date_obj = bws_parse_acf_date_value( $date_value, $date_field, $acf_object_id );
     }
 
     // Parse time field
     $time_obj = null;
     if ( $time_value ) {
-        $time_obj = bws_parse_acf_date_value( $time_value, $time_field, $post_id );
+        $time_obj = bws_parse_acf_date_value( $time_value, $time_field, $acf_object_id );
     }
 
     // Handle time-only primary field
