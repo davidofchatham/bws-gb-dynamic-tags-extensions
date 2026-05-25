@@ -759,8 +759,30 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		$end_result = bws_parse_combined_date_time( $post_id, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
 	}
 
-	if ( ! $start_result['date'] && ! $end_result ) {
+	if ( ! $start_result['date'] && ! $start_result['time_only'] && ! $end_result ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
+	}
+
+	$time_only = ! empty( $options['time_only'] );
+
+	// Handle time-only range (`as:time`). Accept either `date` or `time_only` from
+	// parse results — start-side time-only values have no date to inherit and live
+	// under `time_only`, while end-side values that inherited a start date live
+	// under `date`. Must run before the partial-parts diagnostic branch below,
+	// otherwise `as:time` ranges built from two time-only fields fall through to
+	// "Start time: …; End time: …" output.
+	if ( $time_only ) {
+		$start_dt = $start_result['date'] ?: $start_result['time_only'];
+		$end_dt   = $end_result ? ( $end_result['date'] ?: $end_result['time_only'] ) : null;
+		if ( $start_dt ) {
+			if ( $end_dt ) {
+				$smart_time = ! empty( $options['smart_time'] );
+				$time_range = bws_format_time_range( $start_dt, $end_dt, $smart_time );
+				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
+			}
+			$formatted = wp_date( 'g:i A', $start_dt->getTimestamp() );
+			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+		}
 	}
 
 	// Handle partial information.
@@ -778,23 +800,8 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
 	}
 
-	$time_only = ! empty( $options['time_only'] );
-
 	if ( ! $start_result['date'] && ! $time_only ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
-	}
-
-	// Handle time-only range.
-	if ( $time_only && $start_result['date'] ) {
-		$end_date = $end_result ? $end_result['date'] : null;
-		if ( $end_date ) {
-			$smart_time = ! empty( $options['smart_time'] );
-			$time_range = bws_format_time_range( $start_result['date'], $end_date, $smart_time );
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
-		} else {
-			$formatted = wp_date( 'g:i A', $start_result['date']->getTimestamp() );
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
-		}
 	}
 
 	// Normal range formatting.
