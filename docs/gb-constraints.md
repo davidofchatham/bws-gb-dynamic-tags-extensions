@@ -6,6 +6,8 @@ see [`deprecated-tags-options.md`](deprecated-tags-options.md) for the active
 rename tracker. The "Already-renamed keys to avoid GB conflicts" section below
 cross-references the constraints to the rename decisions they forced.
 
+**Upstream developer doc:** [Dynamic Tag Registration (learn.generatepress.com)](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/) — official registration API reference. Treat as canonical for `GenerateBlocks_Register_Dynamic_Tag` params, built-in filters, and tag parameter syntax. This file records *constraints and behaviors* not in the upstream doc; the [§Upstream-documented affordances](#upstream-documented-affordances) section below summarizes facts pulled from upstream that aren't otherwise referenced in our code.
+
 ## Tag Name Prefix Rule
 GB does not allow one dynamic tag to start with the same string as another existing tag.
 
@@ -63,3 +65,43 @@ GB's `parse_options()` only reads keys literally present in the tag string. Opti
 - `false` = option dropped entirely — never appears in the tag string.
 
 See [`tag-reference.md` §Default serialization strategy](tag-reference.md#default-serialization-strategy) for how this plugin works with the constraint (canonical-token first values, registration-boundary strip, intentional `as` opt-out).
+
+## Upstream-documented affordances
+
+Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here because none are exercised in this plugin's current code, but each is a known extension point.
+
+### Registration params not currently used
+
+- **`visibility`** — controls when a tag appears in the editor selector. Accepts `true` (default), `false`, `[ 'context' => [...] ]`, or `[ 'attributes' => [ [ 'name' => ..., 'value' => ..., 'compare' => ... ] ] ]`. Compare operators: `===`, `!==`, `IN`, `NOT_IN`. **Distinct from our JS `show_if` layer** (which gates *option* visibility inside an open modal). `visibility` gates the tag itself in the selector list. Prefer native `visibility` over JS when the gate depends on block attributes (`tagName`, etc.) rather than sibling option values.
+- **`description`** — help text shown below tag in selector UI. None of our tags set this; consider adding to clarify ambiguous tags (e.g. `term_*` selector).
+
+### Built-in tag parameters
+
+Available on every registered tag without declaring `supports`:
+
+- `id:N` — explicit entity ID.
+- `required:false` — when tag resolves empty, **don't render the containing block** (otherwise GB renders block with empty tag output). Useful for conditional layouts.
+- `link:post|term|author|comments` — wraps output in link (requires `'link'` in `supports`).
+- `trunc:N`, `trunc:N,words` — truncate by chars or words.
+- `case:lower|upper|title` — case transform.
+- `trim`, `trim:left`, `trim:right` — whitespace strip.
+- `wpautop` — paragraph wrap.
+- `replace:"old","new"` — string replace.
+
+### Tag string escape syntax
+
+- `\|` — literal pipe inside an option value (e.g. `sep:\|`). Without escape, `|` is the option-pair separator and would terminate the value early.
+
+### Filter hooks
+
+| Hook | Signature | This plugin's use |
+|---|---|---|
+| `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php:30`](../includes/hooks.php) — falsy-replacement block-kill |
+| `generateblocks_before_dynamic_tag_replace` | `($content, $args)` — pre-replace HTML hook | not used |
+| `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID | [`includes/tags/image-tags.php:56`](../includes/tags/image-tags.php) — media ID override in post context |
+| `generateblocks_dynamic_tag_output` | `($output, $options, $raw_output)` — final output transform | preserved as third-party extension point by [`bws_safe_content_output()`](../includes/helpers/content-helpers.php) (see [`post-content-processing-reference.md`](post-content-processing-reference.md#L211)) |
+| `generateblocks.dynamicTags.sourceOptions` (JS) | `(options, context)` — add entries to source dropdown | not used; potential future hook for custom source contributions from third-party plugins |
+
+### Type values
+
+Upstream lists `'post'`, `'author'`, `'user'`, `'term'`, `'media'`. We additionally use the **custom values** `'cross-source'` and `'first-available'` (not in upstream docs) — see [§Custom Tag Types](#custom-tag-types) and [`tag-reference.md`](tag-reference.md#modifier-prefixes).
