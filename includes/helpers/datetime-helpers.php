@@ -177,6 +177,35 @@ function bws_get_acf_return_format( $field_key, $post_id ) {
 }
 }
 
+/**
+ * Detect time-only values from raw string when ACF return_format is unavailable.
+ *
+ * Used as a fallback for `$date_is_time_only` detection in `bws_parse_combined_date_time()`
+ * when `bws_get_acf_return_format()` can't return the configured format — e.g. flat
+ * ACF repeater rows under GB Pro TYPE_OPTION / TYPE_POST_META loops, where ACF
+ * subfield metadata isn't reachable via the resolved object_id. Without this,
+ * `DateTime::createFromFormat('H:i:s', '14:30:00')` produces a DateTime at TODAY's
+ * date + parsed time, and the time-only-inheritance branch is skipped because the
+ * format-derived flag is false. (Issue #22 follow-up, bugfix v1.7.2.)
+ *
+ * Matches common ACF time-only storage shapes: `14:30:00`, `14:30`, `2:30 PM`,
+ * `02:30 pm`. Rejects anything containing date separators (`-`, `/`) or alpha
+ * month tokens.
+ *
+ * @since 1.7.2
+ * @param mixed $value Raw ACF-stored value.
+ * @return bool True when value parses as time-only.
+ */
+if ( ! function_exists( 'bws_value_looks_time_only' ) ) {
+function bws_value_looks_time_only( $value ) {
+    if ( ! is_string( $value ) || '' === $value ) {
+        return false;
+    }
+    $trimmed = trim( $value );
+    return (bool) preg_match( '/^\d{1,2}:\d{2}(:\d{2})?(\s*[ap]m)?$/i', $trimmed );
+}
+}
+
 // ===============================================
 // DATE/TIME PARSING FUNCTIONS
 // ===============================================
@@ -246,15 +275,30 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
 
     $utils = bws_format_utils();
 
-    // Determine field types
-    $date_is_time_only = $date_format && ! $utils['has_date']( $date_format ) && $utils['has_time']( $date_format );
-    $date_has_time = $date_format && $utils['has_time']( $date_format );
-
     // Parse primary field
     $date_obj = null;
     if ( $date_value ) {
         $date_obj = bws_parse_acf_date_value( $date_value, $date_field, $acf_object_id );
     }
+
+    // Determine field types. Primary signal: ACF return_format. Fallback when ACF
+    // metadata is unreachable (flat repeater subfields under TYPE_OPTION /
+    // TYPE_POST_META): inspect the raw value string for time-only shape and the
+    // parsed DateTime for a non-midnight time portion. Without this fallback,
+    // time-only end fields lose start-date inheritance and render with today's
+    // date (issue #22 follow-up).
+    $date_is_time_only = $date_format
+        ? ( ! $utils['has_date']( $date_format ) && $utils['has_time']( $date_format ) )
+        : bws_value_looks_time_only( $date_value );
+    // Detect time presence in fallback mode by scanning raw value for a time
+    // separator (`:`). Date-only strings ("2026-05-25") lack it; full datetimes
+    // ("2026-05-25 14:00:00") and time-only strings ("14:30:00") have it. Avoids
+    // the false-positive from `bws_parse_acf_date_value`'s noon-default for
+    // date-only values.
+    $value_has_time_chars = is_string( $date_value ) && false !== strpos( $date_value, ':' );
+    $date_has_time = $date_format
+        ? $utils['has_time']( $date_format )
+        : ( $date_is_time_only || $value_has_time_chars );
 
     // Parse time field
     $time_obj = null;
