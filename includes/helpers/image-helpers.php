@@ -349,7 +349,7 @@ function bws_get_attachment_id_from_url( $url ) {
  * Handle media fallback from the media selector UI.
  *
  * @since 1.0.0
- * @param mixed  $fallback Fallback attachment URL (bws-media-picker) or numeric ID (legacy).
+ * @param mixed  $fallback Fallback attachment ID (bws-media-picker, v1.7.3+) or URL (legacy, pre-1.7.3).
  * @param string $return_type       Type of data to return.
  * @param string $image_size        Image size.
  * @param array  $options           Tag options.

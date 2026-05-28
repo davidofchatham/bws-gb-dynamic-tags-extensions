@@ -3,7 +3,9 @@
  *
  * Registers one custom control type via the generateblocks.editor.tagSpecificControls filter:
  *
- *   bws-media-picker — WP media library picker; stores attachment URL in the option key.
+ *   bws-media-picker — WP media library picker; stores attachment ID in the option key.
+ *   (URLs cannot be embedded in tag option values — colons and pipes corrupt the
+ *   tag-string parser on reopen. See docs/gb-constraints.md §Tag-string-unsafe values.)
  *
  * Image size is handled by GenerateBlocks' native 'image-size' support (declared in supports
  * array on image-template tags), which renders its own ComboboxControl and handles
@@ -31,7 +33,16 @@
 		var state    = ctx.state || {};
 		var setState = ctx.setState;
 		var key      = props.optionKey;
-		var url      = state[ key ] || '';
+		var id       = state[ key ] || '';
+
+		// Preview URL: re-fetched from core store by ID on reopen because only
+		// the ID is persisted in the tag string (URLs would corrupt the tag parser).
+		var media = ( id && wp.data && wp.data.useSelect )
+			? wp.data.useSelect( function ( select ) {
+				return select( 'core' ).getMedia( parseInt( id, 10 ) );
+			}, [ id ] )
+			: null;
+		var url = ( media && media.source_url ) ? media.source_url : '';
 
 		function open() {
 			if ( ! window.wp || ! wp.media ) { return; }
@@ -41,7 +52,7 @@
 			} );
 			frame.on( 'select', function () {
 				var att = frame.state().get( 'selection' ).first().toJSON();
-				var upd = {}; upd[ key ] = att.url || '';
+				var upd = {}; upd[ key ] = att.id ? String( att.id ) : '';
 				setState( Object.assign( {}, state, upd ) );
 			} );
 			frame.open();
@@ -53,7 +64,7 @@
 		}
 
 		return el( BaseControl, { label: props.label },
-			url
+			id
 				? el( Fragment, null,
 					el( 'img', { src: url, style: { maxWidth: '100%', maxHeight: '80px', display: 'block', marginBottom: '4px' } } ),
 					el( Button, { variant: 'secondary', onClick: open }, 'Change' ),

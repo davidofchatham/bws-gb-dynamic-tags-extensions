@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.3] — 2026-05-28
+
+### Fixed — `bws-media-picker` fallback corrupting tag string on reopen
+
+- `assets/js/image-tag-controls.js`: media picker stored the selected attachment's `source_url` in the option key. URLs contain `:` (scheme) and `/` characters that collide with GB's tag-string parser — `parse_options()` splits on `:` with no escape sequence, so `fallback:https://host/path.jpg` round-tripped as `fallback:https` only, dropping the actual URL on modal reopen. Picker now stores the attachment ID (`att.id`) and re-fetches the preview URL via `wp.data` `core` store `getMedia(id)` for display. `bws_handle_media_fallback()` already accepted IDs (legacy code path), so render-side behavior is unchanged for existing URL-based tags; only the tag-string round-trip is fixed.
+
+### Docs
+
+- `docs/gb-constraints.md`: new §Tag-string-unsafe values documenting the colon/pipe parser limitation, workarounds (store ID, protocol-relative, encode), and pointer to the `bws-media-picker` ID-storage decision.
+
 ## [1.7.2] — 2026-05-25
 
 ### Fixed — `datetime_single` / `datetime_range` in ACF repeater query loops (issue #22)

@@ -92,6 +92,21 @@ Available on every registered tag without declaring `supports`:
 
 - `\|` — literal pipe inside an option value (e.g. `sep:\|`). Without escape, `|` is the option-pair separator and would terminate the value early.
 
+### Tag-string-unsafe values
+
+Option values containing `:` or `|` cannot be embedded in the tag string — GB's `parse_options()` splits on those characters with no escape sequence for `:`. Affected:
+
+- **Full URLs** (`https://...`) — colon after scheme + slashes in path corrupt the parse on reopen. Symptom: tag re-opens with truncated/wrong options (e.g. `fallback:https` only).
+- **Date/time literals with colons** (`12:30:00`) — same failure mode.
+- **Any free-text user input** that may contain `:` or `|`.
+
+**Workarounds (preference order):**
+1. **Store an ID** referencing the value (attachment ID, term ID, post ID). Resolve at render. Used by `bws-media-picker` for image fallback (v1.7.3+).
+2. **Protocol-relative URLs** (`//host/path`) drop the scheme colon but still fail if path contains `:`. Fragile.
+3. **Encode** (base64 / urlencode). Survives any chars but produces user-visible garbage in the tag string.
+
+Avoid storing raw URLs or colon-bearing strings in custom controls.
+
 ### Filter hooks
 
 | Hook | Signature | This plugin's use |
