@@ -90,22 +90,29 @@ Available on every registered tag without declaring `supports`:
 
 ### Tag string escape syntax
 
-- `\|` — literal pipe inside an option value (e.g. `sep:\|`). Without escape, `|` is the option-pair separator and would terminate the value early.
+GB's PHP parser (`class-register-dynamic-tag.php` `parse_options()`) recognizes two escapes inside an option value:
+
+- `\|` — literal pipe (`|` is the option-pair separator).
+- `\:` — literal colon (`:` separates key from value; only the first colon in a pair is the separator, but earlier versions of this doc reported no escape — that was wrong).
+
+Both are unescaped before the key/value split, so on the render side `format:l\:i` arrives as `format` → `l:i`.
+
+**Asymmetry with the JS parser:** GB's editor-side `parseTag()` (in their `src/dynamic-tags/utils.js`) splits on unescaped `|` and `:` but does **not** unescape the captured value, and GB's tag-string serializer writes `${key}:${value}` raw with no escaping. So any colon or pipe in a custom control's stored state must be **pre-escaped on save and unescaped on display by the control itself** for the round-trip to be clean. PHP render is fine either way.
 
 ### Tag-string-unsafe values
 
-Option values containing `:` or `|` cannot be embedded in the tag string — GB's `parse_options()` splits on those characters with no escape sequence for `:`. Affected:
+Option values containing raw `:` or `|` cannot survive a tag-string round-trip unless the control escapes them — GB's JS `parseTag()` will truncate the value at the first unescaped colon. Affected:
 
 - **Full URLs** (`https://...`) — colon after scheme + slashes in path corrupt the parse on reopen. Symptom: tag re-opens with truncated/wrong options (e.g. `fallback:https` only).
 - **Date/time literals with colons** (`12:30:00`) — same failure mode.
-- **Any free-text user input** that may contain `:` or `|`.
+- **Free-text user input** that may contain `:` or `|`.
 
 **Workarounds (preference order):**
-1. **Store an ID** referencing the value (attachment ID, term ID, post ID). Resolve at render. Used by `bws-media-picker` for image fallback (v1.7.3+).
-2. **Protocol-relative URLs** (`//host/path`) drop the scheme colon but still fail if path contains `:`. Fragile.
-3. **Encode** (base64 / urlencode). Survives any chars but produces user-visible garbage in the tag string.
+1. **Store an ID** referencing the value (attachment ID, term ID, post ID). Resolve at render. Used by `bws-media-picker` for image fallback (v1.7.3+). Use this when the value is a stable referenceable entity.
+2. **Custom control with escape/unescape on save/display.** Control stores the escaped form (`\:` / `\|`) in option state; UI shows the unescaped form to the user. PHP `parse_options()` already unescapes both sequences before render. Used by `bws-format-input` for the `format` option on datetime tags (v1.7.4+). Use this when the value is free-text user input.
+3. **Encode** (base64 / urlencode). Survives any chars but produces user-visible garbage in the tag string. Last resort.
 
-Avoid storing raw URLs or colon-bearing strings in custom controls.
+Avoid storing raw URLs or colon-bearing free-text in default-text controls.
 
 ### Filter hooks
 

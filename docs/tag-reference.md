@@ -205,8 +205,9 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 
 | Control type | Renders | Source file | Used by |
 |---|---|---|---|
-| `bws-media-picker` | `wp.media()` modal; persists media URL | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
+| `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
+| `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 
 GB image-size selection uses GB's native `image-size` support (not a custom control). The earlier `bws-img-size` ComboboxControl was retired mid-1.6.0 cycle once GB's native support was confirmed to handle the reserved `size` key correctly — see CHANGELOG 1.6.0.
 

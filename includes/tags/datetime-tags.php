@@ -338,7 +338,7 @@ function bws_get_datetime_single_leading_options(): array {
 			),
 		),
 		'format'            => array(
-			'type'        => 'text',
+			'type'        => 'bws-format-input',
 			'label'       => __( 'Format', 'generateblocks' ),
 			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
 			'placeholder' => 'F j, Y g:i A',
@@ -449,7 +449,7 @@ function bws_get_datetime_range_leading_options(): array {
 			'placeholder' => '–',
 		),
 		'format'          => array(
-			'type'        => 'text',
+			'type'        => 'bws-format-input',
 			'label'       => __( 'Format', 'generateblocks' ),
 			'help'        => __( 'PHP date format string. Leave blank to use ACF field format or WordPress defaults.', 'generateblocks' ),
 			'placeholder' => 'F j, Y g:i A',
@@ -776,11 +776,17 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		$end_dt   = $end_result ? ( $end_result['date'] ?: $end_result['time_only'] ) : null;
 		if ( $start_dt ) {
 			if ( $end_dt ) {
+				// NOTE: bws_format_time_range() hardcodes 12-hour g:i A for its
+				// AM/PM consolidation; a custom time format is not honored for the
+				// two-ended case yet (see GitHub issue #25).
 				$smart_time = ! empty( $options['smart_time'] );
 				$time_range = bws_format_time_range( $start_dt, $end_dt, $smart_time );
 				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
 			}
-			$formatted = wp_date( 'g:i A', $start_dt->getTimestamp() );
+			// Single-ended time: honor custom format (time tokens only), then the
+			// ACF field's time format, then the WordPress time_format option.
+			$time_format = bws_resolve_time_only_format( $options, $start_result );
+			$formatted   = wp_date( $time_format, $start_dt->getTimestamp() );
 			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
 		}
 	}

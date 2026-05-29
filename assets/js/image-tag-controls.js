@@ -52,15 +52,23 @@
 			} );
 			frame.on( 'select', function () {
 				var att = frame.state().get( 'selection' ).first().toJSON();
-				var upd = {}; upd[ key ] = att.id ? String( att.id ) : '';
-				setState( Object.assign( {}, state, upd ) );
+				var newState = Object.assign( {}, state );
+				if ( att.id ) {
+					newState[ key ] = String( att.id );
+				} else {
+					delete newState[ key ];
+				}
+				setState( newState );
 			} );
 			frame.open();
 		}
 
 		function clear() {
-			var upd = {}; upd[ key ] = '';
-			setState( Object.assign( {}, state, upd ) );
+			// Drop the key entirely (not set ''), matching GB's native
+			// handleChange — otherwise the serializer emits a bare `fallback:`.
+			var newState = Object.assign( {}, state );
+			delete newState[ key ];
+			setState( newState );
 		}
 
 		return el( BaseControl, { label: props.label },

@@ -82,17 +82,25 @@ function bws_format_utils() {
                 return trim( $format );
             },
             'remove_year' => function( $format ) {
-                // Handle the most common patterns correctly
-                $format = preg_replace( '/,\s*Y,\s*/', ', ', $format );
-                $format = preg_replace( '/,\s*Y$/', '', $format );
-                $format = preg_replace( '/\s+Y,\s*/', ' ', $format );
-                $format = preg_replace( '/\s+Y$/', '', $format );
+                // Drop the year token (Y/y) wherever it sits in the format, not
+                // just before a comma or at the end. A datetime format like
+                // "F j, Y g:i A" has the year mid-string followed by a space and
+                // the time, which the old comma/end-anchored patterns missed —
+                // leaving the year in consolidated range output (e.g.
+                // "April 1, 2026 3:27 PM–30").
+                //
+                // Strategy: remove the year token plus one adjacent separator
+                // (leading ", " / " " or, if year is first, a trailing one),
+                // then normalise leftover punctuation/whitespace.
+                $format = preg_replace( '/,\s*[Yy]\b/', '', $format );   // ", Y" → ""  (e.g. "F j, Y g:i" → "F j g:i")
+                $format = preg_replace( '/\s+[Yy]\b/', '', $format );    // " Y"  → ""  (e.g. "j Y" → "j")
+                $format = preg_replace( '/^[Yy]\b[,\s\-\/]*/', '', $format ); // leading "Y, " / "Y " / "Y-" → ""
 
-                // Same patterns for lowercase y
-                $format = preg_replace( '/,\s*y,\s*/', ', ', $format );
-                $format = preg_replace( '/,\s*y$/', '', $format );
-                $format = preg_replace( '/\s+y,\s*/', ' ', $format );
-                $format = preg_replace( '/\s+y$/', '', $format );
+                // Normalise: collapse doubled separators left behind.
+                $format = preg_replace( '/\s+/', ' ', $format );
+                $format = preg_replace( '/,\s*,/', ',', $format );
+                $format = preg_replace( '/^\s*,\s*/', '', $format );
+                $format = preg_replace( '/,\s*$/', '', $format );
 
                 return trim( $format );
             },
@@ -525,13 +533,14 @@ function bws_build_single_format( $options, $result, $include_date, $include_tim
         $format = $utils['remove_time']( $format );
     }
 
-    // Add missing components if needed
+    // Add missing components if needed. Gap-fill style: ACF field format first,
+    // then WordPress option defaults (not hardcoded constants).
     if ( $include_time && ! $utils['has_time']( $format ) ) {
-        $time_format = $result['formats']['time_format'] ?: 'g:i A';
+        $time_format = $result['formats']['time_format'] ?: get_option( 'time_format', 'g:i A' );
         $format .= ' ' . $time_format;
     }
     if ( $include_date && ! $utils['has_date']( $format ) ) {
-        $date_format = $result['formats']['date_format'] ?: 'F j, Y';
+        $date_format = $result['formats']['date_format'] ?: get_option( 'date_format', 'F j, Y' );
         $format = $utils['remove_time']( $date_format ) . ' ' . $format;
     }
 
@@ -570,18 +579,62 @@ function bws_build_range_format( $options, $start_result, $end_result, $include_
             : $date_fmt;
     }
 
-    // Apply date-only filter if requested
+    // Reconcile components vs. style: `as` (via $include_time / always-on date
+    // for the range path) decides WHICH components render; the format string only
+    // supplies their STYLE. Complete or strip the format symmetrically so a
+    // date-only custom format and a time-only custom format behave consistently.
+    // Gap-fill style for a missing component comes from the ACF field format
+    // first, then WordPress option defaults.
+    $include_date = empty( $options['time_only'] );
+
+    // Strip components the selection excludes.
     if ( ! $include_time && $utils['has_time']( $format ) ) {
         $format = $utils['remove_time']( $format );
     }
+    if ( ! $include_date && $utils['has_date']( $format ) ) {
+        $format = $utils['remove_date']( $format );
+    }
 
-    // Add time if needed and not present
+    // Add components the selection includes but the format omits.
     if ( $include_time && ! $utils['has_time']( $format ) ) {
-        $time_format = $start_result['formats']['time_format'] ?: 'g:i A';
-        $format .= ' ' . $time_format;
+        $time_format = $start_result['formats']['time_format'] ?: get_option( 'time_format', 'g:i A' );
+        $format     .= ' ' . $time_format;
+    }
+    if ( $include_date && ! $utils['has_date']( $format ) ) {
+        $date_format = $utils['remove_time']( $start_result['formats']['date_format'] ?: get_option( 'date_format', 'F j, Y' ) );
+        $format      = $date_format . ' ' . $format;
     }
 
     return $utils['clean_format']( $format );
+}
+}
+
+/**
+ * Resolve the time format string for a time-only ('as:time') display.
+ *
+ * Precedence: a custom format string (reduced to its time tokens, if it
+ * contains any) → the ACF field's own time format → the WordPress time_format
+ * option. Never hardcodes 'g:i A' except as the final WP-default fallback.
+ *
+ * @since 1.7.4
+ * @param array $options      Tag options (may contain format_type / custom_format).
+ * @param array $start_result Parsed start result (formats.time_format).
+ * @return string A PHP date() time-format string.
+ */
+if ( ! function_exists( 'bws_resolve_time_only_format' ) ) {
+function bws_resolve_time_only_format( $options, $start_result ) {
+    $utils = bws_format_utils();
+
+    // 1. Custom format, reduced to its time component (if it has one).
+    if ( ( $options['format_type'] ?? '' ) === 'custom' && ! empty( $options['custom_format'] ) ) {
+        $custom = $options['custom_format'];
+        if ( $utils['has_time']( $custom ) ) {
+            return $utils['remove_date']( $custom );
+        }
+    }
+
+    // 2. ACF field's own time format. 3. WordPress option default.
+    return $start_result['formats']['time_format'] ?: get_option( 'time_format', 'g:i A' );
 }
 }
 
@@ -818,8 +871,19 @@ function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_cu
     $end_format = $format;
     $same_month_range = false;
 
+    // Same-month consolidation collapses the END side to a bare day number
+    // (e.g. "August 1–9"). That collapse is only valid when the format is
+    // pure-date with no per-day-varying tokens:
+    //   - day-name tokens (l, D, N) differ across days, so a bare-day end loses them;
+    //   - time tokens (g:i A, etc.) differ start vs end, and extract_day() would
+    //     drop the end time entirely while the start keeps it — producing lopsided
+    //     output like "April 1, 2026 3:27 PM–30".
+    // When either is present, fall through to the same-year branch, which keeps
+    // the full format on the end side.
+    $blocks_day_collapse = (bool) preg_match( '/[lDN]/', $format ) || $utils['has_time']( $format );
+
     // Same month and year - show "Month Day–Day, Year"
-    if ( $start->format( 'F Y' ) === $end->format( 'F Y' ) ) {
+    if ( ! $blocks_day_collapse && $start->format( 'F Y' ) === $end->format( 'F Y' ) ) {
         $same_month_range = true;
         // Start: Full date without year (e.g., "January 10")
         $start_format = $utils['remove_year']( $format );

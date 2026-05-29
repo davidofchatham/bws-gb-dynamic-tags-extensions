@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and custom field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.7.3
+ * Version: 1.7.4
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.7.3' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.7.4' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -139,6 +139,13 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	wp_enqueue_script(
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-format-input-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/format-input-control.js',
 		array( 'wp-hooks', 'wp-element', 'wp-components' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true

@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.7.4] — 2026-05-29
+
+### Fixed — `datetime_range` consolidation dropped data with day-name or time tokens
+
+- `includes/helpers/datetime-helpers.php` `bws_format_multi_day_range()`: same-month consolidation collapses the end side to a bare day number (`August 1–9`) via `extract_day()`, which returns the first match of `[dDjlNS]`. That collapse is only valid for pure-date formats:
+  - **Day-name tokens** (`l`, `D`, `N`) differ across days — a format like `l, F j, Y` matched `l` first, so the end side rendered as just `Sunday` and the rest was lost (`Saturday, August 1–Sunday` instead of `Saturday, August 1 – Sunday, August 9`).
+  - **Time tokens** caused a lopsided collapse — with the default `as`-less datetime format the start kept its time while the end was reduced to a bare day (`April 1, 2026 3:27 PM–30`).
+  Both cases now block the day-collapse (`$blocks_day_collapse`) and fall through to the same-year branch, which keeps the end side's full format.
+
+### Fixed — `remove_year()` left the year in datetime formats
+
+- `includes/helpers/datetime-helpers.php`: `remove_year()` only matched a year token adjacent to a comma or at the end of the string, so a datetime format like `F j, Y g:i A` (year mid-string, followed by a space and the time) kept its year in consolidated range output. Rewritten to drop the year token wherever it sits — before a space-and-time, leading with a `-`/`/` separator (`Y-m-d`), etc. — then normalise leftover punctuation.
+
+### Changed — `as` selects components, custom `format` only styles them
+
+- `includes/helpers/datetime-helpers.php` `bws_build_range_format()`: range formatting was asymmetric — a date-only custom format had time auto-appended (when the field carried time), but a time-only custom format did **not** get the date prepended, so `format:g:i A` silently dropped the date while `format:l, F j, Y` kept the time. Range formatting now reconciles symmetrically with the single-date path: `as` decides **which** components render; the custom format only supplies their **style**. Missing components are completed and excluded components stripped on both sides. Gap-fill style for a missing component comes from the ACF field format first, then the WordPress `date_format` / `time_format` options (no hardcoded constants).
+- `includes/tags/datetime-tags.php` + new `bws_resolve_time_only_format()`: single-ended `as:time` ranges now honor a custom time format (reduced to its time tokens) → ACF time format → WP `time_format`, instead of hardcoding `g:i A`. Two-ended `as:time` ranges still hardcode `g:i A` for AM/PM consolidation — tracked as issue #25.
+
+### Fixed — `format` / `fallback` option round-trip corruption on tag reopen
+
+- `assets/js/format-input-control.js` (new): GB's JS `parseTag()` splits each `key:value` pair on the first unescaped colon but does **not** unescape the value, while GB's serializer writes `${key}:${value}` raw with no escaping. Format strings containing a colon in the time portion (e.g. `l, F j, Y, g:i A`) round-tripped as `l, F j, Y, g` on reopen — everything after the time colon was discarded. Both `datetime_single` and `datetime_range` `format` options now use a custom control type `bws-format-input` that escapes `:` → `\:` and `|` → `\|` on save and unescapes for display. PHP `parse_options()` already unescapes both sequences (`class-register-dynamic-tag.php:60`), so render-side behavior is unchanged.
+- `assets/js/format-input-control.js`, `assets/js/image-tag-controls.js`: clearing a custom-control value left a bare `format:` / `fallback:` in the tag string, because GB's serializer only skips a key when its value is `false` (not `''`). Both controls now delete the key from state on empty (matching GB's native `handleChange`), so the option is dropped entirely.
+
+### Docs
+
+- `docs/gb-constraints.md`: corrected the tag-string escape section — GB's PHP `parse_options()` **does** honor `\:` and `\|` escapes (it was previously documented as having no colon escape); the real limitation is the JS-side `parseTag()` asymmetry, now documented along with the custom-control escape/unescape workaround.
+- `docs/tag-reference.md`: added `bws-format-input` to the custom control table; updated the `bws-media-picker` row to reflect ID storage.
+
 ## [1.7.3] — 2026-05-28
 
 ### Fixed — `bws-media-picker` fallback corrupting tag string on reopen
