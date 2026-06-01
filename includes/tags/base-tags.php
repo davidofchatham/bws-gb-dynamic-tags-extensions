@@ -733,6 +733,18 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
 
+	// src:site — no entity; resolve site value then link-wrap (sentinel id, 'site' type).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'text', $options, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	$link_id   = 0;
@@ -802,6 +814,15 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
 	$opts = bws_base_map_options( $options );
 
+	// src:site — content option markup via shared pipeline (handled in resolver). No link wrap.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'content', $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	if ( '' !== $tax ) {
@@ -846,6 +867,18 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
+
+	// src:site — title base tag has no `use`; resolver returns site name. Link-wrap.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'title', $options, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
@@ -899,6 +932,11 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 function bws_base_permalink_callback( $options, $block, $instance ): string {
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
+	// src:site — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		return bws_site_resolve_value( 'permalink', $options, $instance );
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	if ( '' !== $tax ) {
@@ -935,6 +973,15 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 
 	$use = $options['use'] ?? 'key';
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+
+	// src:site — logo/option via resolver (logo already routed through GB ::output()).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'image', $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+	}
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
