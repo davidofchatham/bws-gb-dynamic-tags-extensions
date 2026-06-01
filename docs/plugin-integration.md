@@ -150,7 +150,7 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 
 ### Editor preview label registration
 
-`bws_build_preview_label()` (in `content-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from Example Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
+`bws_build_preview_label()` (in `includes/helpers/preview-helpers.php`) renders the bracketed placeholder shown in the editor when a tag can't resolve (e.g. `['related_posts' from Example Ref 'rel_post']`). To make your modifier prefix recognized by the preview label builder, hook the `bws_dynamic_tags_preview_modifier_map` filter and add your `prefix_ => Label` entry:
 
 ```php
 add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
@@ -344,16 +344,36 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_get_image_return_type_options()` | Standard return type option (url/id/alt/caption) |
 | `bws_get_meta_image_options()` | Field key + return type options for image tags |
 
-### Content helpers (`includes/helpers/content-helpers.php`)
-
-#### Data retrieval
+### Field helpers (`includes/helpers/field-helpers.php`)
 
 | Function | Purpose |
 |----------|---------|
 | `bws_get_related_posts_data( $post_id, $field_key )` | ACF relationship/post_object field resolution |
 | `bws_extract_post_id( $post_data )` | Extract post ID from various ACF return formats |
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
-| `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content |
+| `bws_read_field( $post_id, $key )` | Canonical post-meta/ACF read (routes through `GenerateBlocks_Meta_Handler`) |
+| `bws_read_term_field( $term_id, $key )` | Canonical term-meta/ACF read |
+| `bws_get_loop_row_context()` | Detect GB list-block loop row (Mode 2a post, Mode 2b flat repeater) |
+
+### Preview helpers (`includes/helpers/preview-helpers.php`)
+
+| Function | Purpose |
+|----------|---------|
+| `bws_build_preview_label( $options, $tag, $modifier_prefix )` | Build bracketed editor preview label for unresolved tags |
+| `bws_build_try_preview_label( $options, $tag, $modifier_prefix )` | Build preview label for try_* fallback chains |
+| `bws_wrap_preview_label_with_link( $label, $options, $instance )` | Wrap preview label in `<a>` when `linkTo` resolves |
+
+### Link helpers (`includes/helpers/link-helpers.php`)
+
+| Function | Purpose |
+|----------|---------|
+| `bws_resolve_link_url( $options, $instance )` | Resolve `linkTo` / `linkKey` to URL |
+| `bws_wrap_with_link( $content, $url, $options )` | Wrap content in `<a href>` |
+| `bws_get_link_options()` | Standard `linkTo` + `linkKey` option block |
+
+### Content helpers (`includes/helpers/content-helpers.php`)
+
+Procedural API. Most are thin wrappers over `\BWS\DynamicTags\Content\ContentProcessor` (see `includes/classes/content/class-content-processor.php`).
 
 #### Relationship field options
 
@@ -367,11 +387,26 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 
 | Function | Purpose |
 |----------|---------|
-| `bws_process_post_content( $post_id, $args )` | Full render pipeline: validates post → recursion guard → memory check → `do_blocks()` → `wpautop()` → sanitize. Returns empty string on failure. |
+| `bws_render_block_content( $raw, $cache_key, $args )` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options-stored markup). Stack keys on `$cache_key` (convention: `'post:'.$id` or `'option:'.$key`). |
+| `bws_process_post_content( $post_id, $args )` | Post-content render. Fetches raw and delegates to `bws_render_block_content( $raw, 'post:'.$post_id, $args )`. Returns empty string on failure. |
 | `bws_safe_content_output( $content, $options, $instance )` | Strips destructive GB options (`trunc`, `case`, `link`, `wpautop`) before calling `output()`. Always use this for rendered HTML. |
-| `bws_can_process_post_content( $post_id )` | Returns `true` if post can be processed (not in stack, sufficient memory). |
+| `bws_can_process_post_content( $post_id )` | Returns `true` if post can be processed (not in stack, depth below cap). |
 | `bws_is_query_loop_setup_phase( $instance )` | Returns `true` when GB is setting up a query loop and `postId` is not yet in context. Skip content rendering in this case. |
-| `bws_has_sufficient_memory()` | Returns `true` when memory usage is below 80% of the PHP limit. |
+| `bws_has_sufficient_memory()` | Returns `true` when memory usage is below `bws_content_memory_threshold` (default 0.80) of the PHP limit. |
+| `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content. |
+
+#### Filters (new in v1.8.0)
+
+| Filter | Default | Purpose |
+|--------|---------|---------|
+| `bws_content_memory_threshold` | `0.80` | Memory fraction (0.0–1.0) below which the primary render path runs. At or above, callers fall back to a CSS-extraction-only pipeline. |
+| `bws_content_max_recursion_depth` | `3` | Maximum content stack depth before further pushes are blocked. |
+
+### Registration helpers (`includes/helpers/registration-helpers.php`)
+
+| Function | Purpose |
+|----------|---------|
+| `bws_strip_default_select_values( $options )` | Wire-format helper: flip first option value of `_strip_default`-flagged select options to `''` before GB registration. Called by tag-template registry and base-tag registration. |
 
 ### Date helpers (`includes/helpers/datetime-helpers.php`)
 

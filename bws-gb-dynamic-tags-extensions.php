@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and custom field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.7.4
+ * Version: 1.8.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.7.4' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.8.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -68,9 +68,13 @@ function bws_dynamic_tags_init() {
 
 	// Load helper functions.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/field-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/link-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/preview-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/content-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();

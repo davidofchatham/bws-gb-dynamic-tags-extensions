@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.8.0] — 2026-06-01
+
+### Refactor — Post content rendering pipeline extracted to `ContentProcessor` class (C4, issue #3)
+
+- `includes/classes/content/class-content-processor.php` (new): post-content render pipeline (recursion guard, memory check, `do_blocks` dispatch, inline-CSS extraction + footer queue, fallback path) now lives as `\BWS\DynamicTags\Content\ContentProcessor`. Procedural API in `includes/helpers/content-helpers.php` preserved as thin wrappers — no caller-visible signature changes.
+- New generic entry: `bws_render_block_content( $raw, $cache_key, $args )` / `ContentProcessor::render()`. Recursion stack now keys on a caller-supplied string (`'post:'.$post_id` for post-content, `'option:'.$key` reserved for v1.9.0 `src:site` wp_options rendering) rather than an integer post ID. Required to support rendering block markup that doesn't live in a `wp_posts` row.
+- `$GLOBALS['bws_content_processing_stack']` removed. Stack state is now sole property of `ContentProcessor` (static array). `bws_content_debug_end()` reads depth via `ContentProcessor::stack_depth()`.
+
+### Added — Content pipeline filters
+
+- `bws_content_memory_threshold` (float, default `0.80`): memory-usage fraction below which the primary render path runs. Filter to `0.0` to force the fallback path; raise toward `1.0` to allow primary rendering closer to OOM. Replaces the previous hardcoded 80% threshold.
+- `bws_content_max_recursion_depth` (int, default `3`): maximum content stack depth before further pushes are blocked. Replaces the previous hardcoded depth-3 cap.
+
+### Refactor — `includes/helpers/content-helpers.php` split into single-concern files
+
+- `includes/helpers/field-helpers.php` (new): post-meta/ACF reads (`bws_read_field`, `bws_read_term_field`, `bws_meta_handler_read`, `bws_get_loop_row_context`, `bws_resolve_acf_object_id`, `bws_extract_post_id`, `bws_get_related_posts_data`, `bws_is_valid_meta_key`). Moved verbatim.
+- `includes/helpers/preview-helpers.php` (new): editor preview-label builders (`bws_build_preview_label`, `bws_build_try_preview_label`, `bws_try_preview_template_label`, `bws_try_preview_field_part`, `bws_try_preview_source_part`, `bws_try_preview_datetime_part`, `bws_wrap_preview_label_with_link`). Moved verbatim.
+- `includes/helpers/link-helpers.php` (new): `linkTo` / `linkKey` resolution + `<a>` wrapping (`bws_resolve_link_url`, `bws_wrap_with_link`, `bws_get_link_options`, `bws_map_gb_link_option`). Moved verbatim.
+- `includes/helpers/registration-helpers.php` (new): GB-registration / wire-format helpers (`bws_strip_default_select_values`). Moved verbatim from `content-helpers.php`.
+- `includes/helpers/content-helpers.php` slimmed to ContentProcessor wrappers + `bws_sanitize_rich_content` + relationship-field-options + `bws_is_query_loop_setup_phase` + `bws_safe_content_output`.
+
+### Docs
+
+- `docs/post-content-processing-reference.md`: rewritten primary/fallback pipeline + recursion sections to reflect `ContentProcessor`. New filters documented; public API table now distinguishes class-level methods from procedural wrappers and notes `bws_render_block_content` as the generic entry. Cache key contract documented (`'post:'.$id`, `'option:'.$key`, collisions defeat the guard).
+- `docs/plugin-integration.md`: helper section split into Field / Preview / Link / Content / Registration subsections matching the new file layout. Added Filters table.
+
 ## [1.7.4] — 2026-05-29
 
 ### Fixed — `datetime_range` consolidation dropped data with day-name or time tokens

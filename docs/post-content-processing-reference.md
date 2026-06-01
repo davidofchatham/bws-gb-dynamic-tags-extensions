@@ -5,7 +5,7 @@
 
 > **Historical note.** Earlier sections of this document (now at the bottom under [§Pre-Plugin-Integration History](#pre-plugin-integration-history)) record findings from standalone-script versions before this code was packaged as a plugin. The internal version numbers there (`v1.1.0`–`v1.2.3`) refer to those standalone scripts, **not** the plugin's release versions. Content-rendering inside dynamic tags has been the single most difficult area of the codebase to get right; the history block is kept as a record of approaches tried.
 >
-> The sections above the history block describe the **current** (plugin v1.6.0) implementation.
+> The sections above the history block describe the **current** (plugin v1.8.0) implementation.
 
 ---
 
@@ -33,21 +33,25 @@ Rendering a post's content from inside a dynamic tag is harder than it looks: ne
 
 ## Pipeline overview
 
-All `content`-template callbacks (base `content`, `term_content` modifier, `try_content` slots, deprecated wrappers that resolve to content) funnel through one helper:
+All `content`-template callbacks (base `content`, `term_content` modifier, `try_content` slots, deprecated wrappers that resolve to content) funnel through one helper, which delegates to `\BWS\DynamicTags\Content\ContentProcessor::render()`:
 
 ```
 bws_process_post_content( $post_id )
-   ├── early returns: invalid post_id, recursion-blocked
-   ├── memory below threshold? → bws_process_post_content_fallback()
-   └── primary path:
-         bws_start_processing_post()
-         get_post_field( 'post_content' )
-         do_blocks()
-         wpautop()
-         bws_extract_and_queue_inline_styles()
-         bws_sanitize_rich_content()
-         bws_end_processing_post()
+   └── get_post_field( 'post_content', $post_id )
+   └── ContentProcessor::render( $raw, 'post:' . $post_id )
+         ├── recursion guard: cache_key already on stack? → return ''
+         ├── depth >= bws_content_max_recursion_depth (3)? → return ''
+         ├── memory below bws_content_memory_threshold (0.80)? → render_fallback()
+         └── primary path:
+               stack push 'post:'.$post_id
+               do_blocks()
+               wpautop()
+               extract_and_queue_inline_styles()
+               bws_sanitize_rich_content()
+               stack pop
 ```
+
+The class also exposes a generic `bws_render_block_content( $raw, $cache_key, $args )` entry — use it when rendering raw block markup that isn't a `post_content` fetch (e.g. wp_options-stored markup under a future `src:site`). Cache key prefix convention: `'post:' . $post_id` for post entities, `'option:' . $key` for wp_options entities. The differentiator is `src` (post vs wp_options), not `use`.
 
 Callback sites wrap the helper with two safeties before calling it:
 
@@ -79,58 +83,69 @@ There is **no** "processing mode" tag option. Earlier versions exposed Basic/Lim
 
 ## Primary pipeline
 
-`bws_process_post_content( int $post_id, array $args = array() ): string`
+`ContentProcessor::render( string $raw, string $cache_key, array $args = array() ): string`
 
-Located in `includes/helpers/content-helpers.php`. Steps in order:
+Located in `includes/classes/content/class-content-processor.php`. Steps in order:
 
-1. **Recursion guard** — `bws_can_process_post_content( $post_id )` returns `false` when the post is already in the stack or stack depth ≥ 3. Returns `''` if blocked.
-2. **Memory check** — `bws_has_sufficient_memory()` (≥ 20% free, i.e. usage < 80% of `memory_limit`). On failure: delegate to fallback pipeline and return.
-3. **Stack push** — `bws_start_processing_post( $post_id )`.
-4. **Read raw content** — `get_post_field( 'post_content', $post_id )`. Returns `''` if empty.
+1. **Recursion guard** — `ContentProcessor::can_process( $cache_key )` returns `false` when the key is already on the stack or stack depth ≥ `bws_content_max_recursion_depth` (default 3). Returns `''` if blocked.
+2. **Memory check** — `ContentProcessor::has_sufficient_memory()` (usage / limit < `bws_content_memory_threshold`, default 0.80). On failure: delegate to fallback path and return.
+3. **Stack push** — `ContentProcessor::start( $cache_key )`.
+4. **Empty raw bail** — if `$raw === ''`, pop and return `''`.
 5. **`do_blocks()`** — runs GB and other block renderers. Resolves nested dynamic tags and shortcodes via the standard `render_block` filter chain.
 6. **`wpautop()`** — paragraph wrapping. Runs *after* `do_blocks()` so block-emitted HTML is intact when paragraph rules apply.
-7. **Inline-style extraction** — `bws_extract_and_queue_inline_styles()` pulls any `<style>` elements GB inlined inside content (see [§Cross-post inline CSS handling](#cross-post-inline-css-handling)) and queues them for `wp_footer`.
+7. **Inline-style extraction** — `extract_and_queue_inline_styles()` pulls any `<style>` elements GB inlined inside content (see [§Cross-post inline CSS handling](#cross-post-inline-css-handling)) and queues them for `wp_footer`.
 8. **Sanitize** — `bws_sanitize_rich_content()` runs `wp_kses_post()` with GB's expanded allowed HTML filter temporarily added.
-9. **Stack pop** — `bws_end_processing_post( $post_id )`.
+9. **Stack pop** — `ContentProcessor::end( $cache_key )`.
 
 Returns the rendered HTML, or `''` on early exit.
+
+`bws_process_post_content( $post_id )` is a thin wrapper: fetches `post_content` and calls `render()` with `'post:' . $post_id` as the cache key. The procedural API in `content-helpers.php` is preserved for back-compat.
 
 ---
 
 ## Fallback pipeline
 
-`bws_process_post_content_fallback( int $post_id, array $args = array() ): string`
+`ContentProcessor::render_fallback( string $raw, array $args = array() ): string`
 
-Used automatically when memory is below threshold at the entry to `bws_process_post_content()`. `do_blocks()` is too expensive to run safely, so dynamic tags inside the content go **unresolved** and we approximate styling from raw block JSON instead. Steps:
+Used automatically when memory is below threshold at the entry to `render()`. `do_blocks()` is too expensive to run safely, so dynamic tags inside the content go **unresolved** and we approximate styling from raw block JSON instead. Steps:
 
-1. Read raw content via `get_post_field()`.
-2. `bws_extract_css_from_block_comments()` — parses `<!-- wp:... { ... } -->` JSON attributes for any `"css"` property and concatenates them.
-3. `bws_strip_block_comments()` — removes the `<!-- wp:... -->` and `<!-- /wp:... -->` delimiters, leaving inner HTML.
-4. `bws_strip_dynamic_tags()` — removes any unresolved `{{tag ...}}` placeholders (they would render as literal text without `do_blocks()`).
-5. `wpautop()` + `bws_sanitize_rich_content()`.
-6. Queues the extracted CSS via `bws_queue_inline_css()` if any was found.
+1. `extract_css_from_block_comments()` — parses `<!-- wp:... { ... } -->` JSON attributes for any `"css"` property and concatenates them.
+2. `strip_block_comments()` — removes the `<!-- wp:... -->` and `<!-- /wp:... -->` delimiters, leaving inner HTML.
+3. `strip_dynamic_tags()` — removes any unresolved `{{tag ...}}` placeholders (they would render as literal text without `do_blocks()`).
+4. `wpautop()` + `bws_sanitize_rich_content()`.
+5. Queues the extracted CSS via `ContentProcessor::queue_inline_css()` if any was found.
 
 Trade-off: layout is approximate (no block-level rendering), dynamic content inside the post is dropped, but the page still renders rather than crashing on OOM.
+
+Fallback does **not** push the recursion stack — `do_blocks()` is not invoked, so there is no nested rendering to guard.
 
 ---
 
 ## Recursion protection
 
-The recursion guard is a single global stack: `$GLOBALS['bws_content_processing_stack']`.
+The recursion guard is a static stack on `ContentProcessor`. Stack entries are `cache_key` strings (e.g. `'post:42'`).
 
 ```php
-function bws_can_process_post_content( $post_id ) {
-    $stack = $GLOBALS['bws_content_processing_stack'] ?? array();
-    return ! in_array( $post_id, $stack, true ) && count( $stack ) < 3;
+public static function can_process( string $cache_key ): bool {
+    $max = (int) apply_filters( 'bws_content_max_recursion_depth', 3 );
+    return ! in_array( $cache_key, self::$stack, true ) && count( self::$stack ) < $max;
 }
 ```
 
 Rules:
-- **Block** when the post is already on the stack (circular reference: A → B → A).
-- **Block** when the stack is already at depth 3 (cap on nesting).
+- **Block** when the key is already on the stack (circular reference: A → B → A).
+- **Block** when the stack is already at the depth cap (`bws_content_max_recursion_depth`, default 3).
 - **Allow** in all other cases — including a query loop where each iteration displays its own content (each iteration pushes and pops cleanly).
 
-The stack lives for the duration of one request. `bws_start_processing_post()` appends; `bws_end_processing_post()` removes by value via `array_search` + `array_splice` (not LIFO pop — guards against unbalanced pairings during exception unwinding).
+**Cache key contract.** Callers MUST pick stable, unique keys per logical entity. Collisions defeat the guard. Convention:
+- `'post:' . $post_id` for post-content renders.
+- `'option:' . $key` for wp_options renders (reserved for v1.9.0 `src:site`).
+
+The differentiator is `src`, not `use`: a tag with `src:site` reads from wp_options instead of post meta, regardless of `use` value.
+
+The stack lives for the duration of one request. `ContentProcessor::start()` appends; `end()` removes by value via `array_search` + `array_splice` (not LIFO pop — guards against unbalanced pairings during exception unwinding).
+
+**Internal change in v1.8.0:** the previous `$GLOBALS['bws_content_processing_stack']` was removed. State now lives entirely on the class.
 
 **What the stack does NOT do:** it does not block a post from rendering its own content at the top level. The original "self-reference" check (returning false when `get_the_ID() === $post_id`) was flawed — `setup_postdata()` shifts `get_the_ID()` underneath you, blocking valid query-loop usage. The stack alone is sufficient.
 
@@ -138,10 +153,10 @@ The stack lives for the duration of one request. `bws_start_processing_post()` a
 
 ## Memory check
 
-`bws_has_sufficient_memory(): bool` returns `true` when current usage is below 80% of `memory_limit`:
+`ContentProcessor::has_sufficient_memory(): bool` returns `true` when current usage is below `bws_content_memory_threshold` (default 0.80) of `memory_limit`:
 
 ```php
-function bws_has_sufficient_memory() {
+public static function has_sufficient_memory(): bool {
     $limit_str = ini_get( 'memory_limit' );
     if ( '-1' === $limit_str ) {
         return true;
@@ -150,13 +165,14 @@ function bws_has_sufficient_memory() {
     if ( $limit <= 0 ) {
         return true;
     }
-    return ( memory_get_usage( true ) / $limit ) < 0.80;
+    $threshold = (float) apply_filters( 'bws_content_memory_threshold', 0.80 );
+    return ( memory_get_usage( true ) / $limit ) < $threshold;
 }
 ```
 
 `-1` (no limit) and indeterminate limits both pass as "sufficient". Only a positive numeric limit triggers the gate.
 
-Called once at the top of `bws_process_post_content()`. There is no per-step recheck — once primary is chosen, it runs to completion.
+Called once at the top of `render()`. There is no per-step recheck — once primary is chosen, it runs to completion. To force the fallback path (e.g. for testing): `add_filter( 'bws_content_memory_threshold', fn() => 0.0 )`.
 
 ---
 
@@ -189,11 +205,11 @@ Callers short-circuit with `return ''` when this returns `true`. The "real itera
 
 When `do_blocks()` runs against a post **other** than the current page's post — e.g., a related-post `content` tag — GB cannot enqueue block CSS through `wp_head` (which has already fired). It falls back to inlining `<style>` elements directly before each block's HTML.
 
-`wp_kses_post()` then strips the `<style>` tags but leaves the raw CSS text behind, which renders as visible page content. Helpers:
+`wp_kses_post()` then strips the `<style>` tags but leaves the raw CSS text behind, which renders as visible page content. Helpers (all live on `ContentProcessor`; procedural wrappers preserved):
 
-- `bws_extract_and_queue_inline_styles( string $content ): string` — regex-extracts `<style>...</style>` blocks from the content string, concatenates their bodies, and hands them to `bws_queue_inline_css()`. Returns content with the `<style>` elements removed.
-- `bws_queue_inline_css( string $css )` — appends to `$GLOBALS['bws_queued_inline_css']` and (on first call) hooks `bws_output_queued_inline_css` to `wp_footer` priority 5.
-- `bws_output_queued_inline_css()` — emits the accumulated CSS as one `<style id="bws-dynamic-content-inline-css">` element in the footer, then clears the buffer.
+- `ContentProcessor::extract_and_queue_inline_styles( string $content ): string` — regex-extracts `<style>...</style>` blocks from the content string, concatenates their bodies, and hands them to `queue_inline_css()`. Returns content with the `<style>` elements removed.
+- `ContentProcessor::queue_inline_css( string $css )` — appends to an internal buffer and (on first call per request) hooks `output_queued_inline_css` to `wp_footer` priority 5.
+- `ContentProcessor::output_queued_inline_css()` — emits the accumulated CSS as one `<style id="bws-dynamic-content-inline-css">` element in the footer, then clears the buffer.
 
 Net effect: cross-post rendered content keeps its block styling, but the CSS moves to one consolidated `<style>` element after the page body — out of the content stream where `wp_kses_post()` was eating it.
 
@@ -229,8 +245,8 @@ Always use this helper for content-template callbacks. Other text-template callb
 When enabled, output goes to `error_log()` prefixed `[BWS Content]`.
 
 Benchmark helpers:
-- `bws_content_debug_start( int $post_id ): array` — captures `microtime(true)` + `memory_get_usage(true)`; returns empty array when logging disabled.
-- `bws_content_debug_end( int $post_id, array $start_data )` — logs `post_id=N time=Xms mem_delta=±Y stack_depth=D`. No-op when `$start_data` is empty.
+- `bws_content_debug_start( $cache_key ): array` — captures `microtime(true)` + `memory_get_usage(true)`; returns empty array when logging disabled.
+- `bws_content_debug_end( $cache_key, array $start_data )` — logs `cache_key=K time=Xms mem_delta=±Y stack_depth=D`. Stack depth read from `ContentProcessor::stack_depth()`. No-op when `$start_data` is empty.
 
 `bws_process_post_content()` calls these around the primary pipeline body so per-post timing/memory is logged for benchmarking. Recursion-blocked, OOM-fallback, and empty-content paths are logged via plain `bws_content_debug()` calls.
 
@@ -238,27 +254,36 @@ Benchmark helpers:
 
 ## Public API summary
 
-All in `includes/helpers/content-helpers.php`. Guarded with `function_exists()` for safe re-loads.
+Procedural API in `includes/helpers/content-helpers.php` (guarded with `function_exists()` for safe re-loads). Most are thin wrappers over `ContentProcessor` (`includes/classes/content/class-content-processor.php`).
 
 | Function | Returns | Purpose |
 |---|---|---|
-| `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry point. Full pipeline; auto-fallback on low memory. |
+| `bws_render_block_content( $raw, $cache_key, $args = [] )` | `string` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options under future `src:site`). Stack keys on `$cache_key`. |
+| `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry for post-content. Fetches raw and calls `ContentProcessor::render( $raw, 'post:'.$post_id, $args )`. Auto-fallback on low memory. |
 | `bws_process_post_content_fallback( $post_id, $args = [] )` | `string` | Low-memory path. CSS-extraction-from-JSON + dynamic-tag stripping. Called by `bws_process_post_content`; rarely called directly. |
-| `bws_can_process_post_content( $post_id )` | `bool` | Recursion + depth check. |
-| `bws_start_processing_post( $post_id )` | `void` | Push onto recursion stack. |
+| `bws_can_process_post_content( $post_id )` | `bool` | Recursion + depth check on `'post:'.$post_id`. |
+| `bws_start_processing_post( $post_id )` | `void` | Push `'post:'.$post_id` onto recursion stack. |
 | `bws_end_processing_post( $post_id )` | `void` | Pop from recursion stack (by value, not LIFO). |
-| `bws_has_sufficient_memory()` | `bool` | < 80% of `memory_limit`. |
+| `bws_has_sufficient_memory()` | `bool` | Below `bws_content_memory_threshold` (default 0.80) of `memory_limit`. |
 | `bws_is_query_loop_setup_phase( $instance )` | `bool` | Detect parent-page-context calls during GB query loop setup. |
 | `bws_safe_content_output( $content, $options, $instance )` | `string` | Final output stage; strips destructive GB options before `output()`. |
 | `bws_queue_inline_css( $css )` | `void` | Append CSS to `wp_footer`-deferred buffer. |
 | `bws_extract_and_queue_inline_styles( $content )` | `string` | Pull `<style>` from content; queue via above. |
-| `bws_extract_css_from_block_comments( $content )` | `string` | Fallback-pipeline helper: parse `"css"` from block-JSON. |
-| `bws_strip_block_comments( $content )` | `string` | Fallback-pipeline helper. |
-| `bws_strip_dynamic_tags( $content )` | `string` | Fallback-pipeline helper: strip unresolved `{{...}}`. |
 | `bws_sanitize_rich_content( $content )` | `string` | `wp_kses_post` with GB's expanded allowed HTML temporarily filtered. |
 | `bws_content_debug( $message )` | `void` | Gated by benchmark-logging admin toggle. |
-| `bws_content_debug_start( $post_id )` | `array` | Capture timing/memory baseline. |
-| `bws_content_debug_end( $post_id, $start )` | `void` | Log delta. |
+| `bws_content_debug_start( $cache_key )` | `array` | Capture timing/memory baseline. |
+| `bws_content_debug_end( $cache_key, $start )` | `void` | Log delta. Stack depth read from `ContentProcessor::stack_depth()`. |
+
+### Filters (new in v1.8.0)
+
+| Filter | Default | Purpose |
+|---|---|---|
+| `bws_content_memory_threshold` | `0.80` | Memory fraction (0.0–1.0) below which the primary path runs. |
+| `bws_content_max_recursion_depth` | `3` | Maximum stack depth before further pushes are blocked. |
+
+### Class-level static methods
+
+`\BWS\DynamicTags\Content\ContentProcessor` exposes `render`, `render_fallback`, `can_process`, `start`, `end`, `has_sufficient_memory`, `stack_depth`, `queue_inline_css`, `output_queued_inline_css`, `extract_and_queue_inline_styles`, `strip_block_comments`, `extract_css_from_block_comments`, `strip_dynamic_tags`. Procedural wrappers above mirror the equivalents.
 
 ---
 
