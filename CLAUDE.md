@@ -29,6 +29,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Pending plans | `.claude/plans/` + GitHub issues | Not under `docs/` |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (gitignored) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies + dev workflow; all schema deferred to `docs/` |
+| Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
 
 ### Update triggers
 
@@ -65,3 +66,17 @@ Single source of truth per content type. Other files link, never duplicate.
 **SPEC.md is source of truth only while the release is in flight.** Once shipped: `docs/tag-reference.md` + PHPDoc + CHANGELOG + Issues take over.
 
 **Bugs:** new bugs → GitHub Issues by default. SPEC §B reserved for bugs that drove a spec change (new invariant). §B cross-references the §V it produced. Not a general bug tracker.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `davidofchatham/bws-gb-dynamic-tags-extensions` (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical default label strings; `wontfix` already exists in the repo, the other four are created on first use. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
