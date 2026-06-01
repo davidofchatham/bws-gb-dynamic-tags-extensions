@@ -962,6 +962,114 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 }
 
 // ===============================================
+// SITE SOURCE (src:site) — Stage A
+// ===============================================
+
+/**
+ * Allowlist gate for site option reads.
+ *
+ * @invariant Every site option read (use:option, site linkTo:key, datetime
+ * get_field($key,'option')) MUST pass through this gate before the read. The
+ * GB Pro `generateblocks_dynamic_tags_allowed_options` filter is seeded EMPTY
+ * here — a key reads only when a site developer opts it in. GenerateBlocks_Meta_Handler
+ * does NOT enforce this filter (blocklist only); calling it directly skips the
+ * allowlist, so gating is OUR responsibility, never the handler's.
+ * See docs/adr/0001-site-option-read-allowlist.md.
+ *
+ * Dot-path keys (wp_options): gate the FIRST segment (the actual option name).
+ * Flat keys (ACF field keys): the whole $key is the first segment — same call.
+ *
+ * @since 1.9.0
+ * @param string $key Option key (may contain dot-path for wp_options).
+ * @return bool True if the option's root key is allowed.
+ */
+function bws_site_allowlist_ok( string $key ): bool {
+	if ( '' === $key ) {
+		return false;
+	}
+	$allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', array() );
+	$parent  = explode( '.', $key )[0];
+	return in_array( $parent, $allowed, true );
+}
+
+/**
+ * Resolve a site-wide value for src:site (non-datetime tags only).
+ *
+ * Used by the text/title/permalink/image/content callbacks' early gate. Site
+ * has no entity ID, so this bypasses bws_resolve_post_by_source() entirely.
+ * Datetime tags do NOT route here — they read ACF options-page fields via
+ * bws_datetime_single_core('option', ...) (see datetime callbacks).
+ *
+ * Dispatch by `use`. The title base tag has no `use` enum, so $tag==='title'
+ * (or use:title) maps to the site name.
+ *
+ * @invariant Option reads (use:option) MUST pass bws_site_allowlist_ok() before
+ * GenerateBlocks_Meta_Handler::get_option(). Empty seed = closed by default.
+ * See docs/adr/0001-site-option-read-allowlist.md.
+ *
+ * @since 1.9.0
+ * @param string $tag      Base tag name: text|title|permalink|image|content.
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
+ * @return string Resolved value, or '' on miss / disallowed.
+ */
+function bws_site_resolve_value( string $tag, array $options, $instance ): string {
+	$use = $options['use'] ?? '';
+
+	// title base tag carries no `use` enum → site name.
+	if ( 'title' === $tag && '' === $use ) {
+		$use = 'title';
+	}
+
+	switch ( $use ) {
+		case 'tagline':
+			return (string) get_bloginfo( 'description' );
+
+		case 'title':
+			return (string) get_bloginfo( 'name' );
+
+		case 'site_url':
+			return (string) site_url();
+
+		case 'home_url':
+			return (string) home_url();
+
+		case 'logo':
+			$logo_id = (int) get_theme_mod( 'custom_logo' );
+			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
+				return '';
+			}
+			$result = bws_get_attachment_data(
+				$logo_id,
+				$options['as'] ?? 'url',
+				$options['size'] ?? 'full'
+			);
+			if ( empty( $result ) ) {
+				return '';
+			}
+			// Route through GB output for fallback/markup parity with image tag.
+			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
+				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+				: (string) $result;
+
+		case 'option':
+			$key = (string) ( $options['key'] ?? '' );
+			if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
+				return '';
+			}
+			$raw = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+			// content tag: route block/HTML option markup through the shared content
+			// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
+			if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
+				return (string) bws_render_block_content( (string) $raw, 'option:' . $key );
+			}
+			return (string) $raw;
+	}
+
+	return '';
+}
+
+// ===============================================
 // TRY DISPATCH WRAPPERS
 // ===============================================
 

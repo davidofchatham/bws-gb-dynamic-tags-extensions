@@ -50,9 +50,9 @@ One source `src:site` for all site-wide data behind existing base tags (text/per
 
 id|st|task|cites
 T1|x|Add `site` value to `bws_base_source_option()` dropdown|I.src,V4
-T2|.|Write `bws_site_resolve_value` (tagline/title/site_url/home_url/logo/option) w/ allowlist gate + `@invariant` PHPDoc → ADR 0001|I.resolve,V1,V2
+T2|x|Write `bws_site_resolve_value` (tagline/title/site_url/home_url/logo/option) w/ allowlist gate + `@invariant` PHPDoc → ADR 0001|I.resolve,V1,V2
 T3|.|Early gate in text/content/title/permalink/image callbacks → `bws_site_resolve_value` (title path link-wraps via `,1,'site'`)|I.gate,C2,V5
-T4|.|content callback site path routes raw opt through `bws_render_block_content($raw,'option:'.$key)`, no extra kses|I.resolve,C8,V6
+T4|x|content callback site path routes raw opt through `bws_render_block_content($raw,'option:'.$key)`, no extra kses|I.resolve,C8,V6
 T5|.|DT-1: `'option'` value-read branch in `bws_read_field` (allowlist-gated `get_field($key,'option')`)|I.read,V2
 T6|.|Datetime callbacks site gate → `bws_datetime_single_core('option', bws_base_map_datetime_options(...))` + range; link-wrap `(...,1,'site')`|I.dt,V3
 T7|.|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key→gated get_option) + sentinel id=1 + `site` value in `bws_get_link_options`|I.link,V2
