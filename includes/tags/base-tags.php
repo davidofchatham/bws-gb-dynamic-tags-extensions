@@ -562,6 +562,7 @@ function bws_base_source_option(): array {
 			'options'        => array(
 				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
 				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
+				array( 'value' => 'site',    'label' => __( 'Site', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
 		),
