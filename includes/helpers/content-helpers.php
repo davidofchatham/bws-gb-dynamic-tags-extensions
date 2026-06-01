@@ -338,6 +338,13 @@ function bws_process_post_content_fallback( $post_id, $args = array() ) {
 /**
  * Process post content through the primary rendering pipeline.
  *
+ * Equivalent to:
+ *   ContentProcessor::render(
+ *       get_post_field( 'post_content', $post_id ),
+ *       'post:' . $post_id,
+ *       $args
+ *   )
+ *
  * @since 1.1.0
  * @param int   $post_id Post ID.
  * @param array $args    Reserved for future use.

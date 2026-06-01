@@ -75,7 +75,14 @@ class ContentProcessor {
 	}
 
 	/**
-	 * Whether $cache_key may be processed (not already on stack, depth below max).
+	 * Whether $cache_key may be processed.
+	 *
+	 * Returns false when:
+	 *  - $cache_key is already on the stack (recursion guard), OR
+	 *  - stack depth >= bws_content_max_recursion_depth filter (default 3).
+	 *
+	 * @invariant Same $cache_key on stack → render() returns ''.
+	 * @invariant Stack depth >= max → render() returns ''.
 	 */
 	public static function can_process( string $cache_key ): bool {
 		$max = (int) apply_filters( 'bws_content_max_recursion_depth', 3 );
@@ -90,8 +97,12 @@ class ContentProcessor {
 	}
 
 	/**
-	 * Pop $cache_key from the processing stack (by value, not LIFO — guards
-	 * unbalanced pairs under exception unwind).
+	 * Pop $cache_key from the processing stack.
+	 *
+	 * Removed by value (array_search + array_splice), NOT LIFO. Protects
+	 * against unbalanced push/pop pairs during exception unwinding.
+	 *
+	 * @invariant end() removes by value, not LIFO.
 	 */
 	public static function end( string $cache_key ): void {
 		if ( empty( self::$stack ) ) {
@@ -106,8 +117,11 @@ class ContentProcessor {
 	/**
 	 * Whether memory_get_usage / memory_limit is below the configured threshold.
 	 *
-	 * memory_limit = '-1' or non-positive conversion → returns true
-	 * (no limit / indeterminate = sufficient).
+	 * Threshold filterable via bws_content_memory_threshold (default 0.80).
+	 *
+	 * @invariant memory_limit = '-1' → returns true (no limit set).
+	 * @invariant wp_convert_hr_to_bytes($limit) <= 0 → returns true
+	 *            (indeterminate limit = sufficient).
 	 */
 	public static function has_sufficient_memory(): bool {
 		$limit_str = ini_get( 'memory_limit' );
@@ -131,6 +145,13 @@ class ContentProcessor {
 	 *
 	 * Primary path: do_blocks → wpautop → inline-CSS extract → kses.
 	 * Falls back to CSS-only extraction when memory is below threshold.
+	 *
+	 * @invariant Memory check runs BEFORE stack push. Fallback path does NOT
+	 *            push the stack (no nested rendering to guard).
+	 * @invariant Empty raw content with push already done → pop still fires.
+	 * @invariant Inline-style extraction runs AFTER do_blocks + wpautop, BEFORE
+	 *            wp_kses_post. Cross-post <style> elements must survive to be
+	 *            queued, not stripped.
 	 *
 	 * @param string $raw       Raw post_content / block markup.
 	 * @param string $cache_key Stack-identifying key. See class docblock.
@@ -199,6 +220,9 @@ class ContentProcessor {
 
 	/**
 	 * Queue CSS for consolidated wp_footer output (priority 5).
+	 *
+	 * @invariant wp_footer hook (output_queued_inline_css at priority 5)
+	 *            registers exactly once per request, on the first call.
 	 */
 	public static function queue_inline_css( string $css ): void {
 		if ( '' === $css ) {
