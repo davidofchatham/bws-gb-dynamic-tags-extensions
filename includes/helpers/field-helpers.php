@@ -227,6 +227,19 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		}
 	}
 
+	// DT-1: src:site datetime — ACF options-page field value read. The 'option'
+	// sentinel reaches here only from bws_datetime_single_core('option', ...) (site
+	// datetime path); all other callers pass int/loop ids and never hit this branch,
+	// so behavior is unchanged for them. Gated through the SAME allowlist as use:option
+	// and site linkTo:key (V2). ACF field keys are flat — no dot-path split.
+	// See docs/adr/0001-site-option-read-allowlist.md.
+	if ( 'option' === $post_id && function_exists( 'get_field' ) ) {
+		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
+			return '';
+		}
+		return get_field( $key, 'option' );
+	}
+
 	return null;
 }
 }
