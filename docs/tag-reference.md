@@ -18,12 +18,38 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
+| `site` | Site-wide data (no entity) — `use:` enum picks the datum. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
 | `child` | WP child posts/terms (list output) | To be considered |
 | `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source options](#source-options) for label/UI details.
+
+### Site Source (`src:site`)
+
+**v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
+
+**`use:` enum per tag** (the `use` control is hidden off-site; its values still appear in every context — see [§Default serialization strategy](#default-serialization-strategy) on element-vs-value gating):
+
+| Base tag | `use:` values | Datum |
+|---|---|---|
+| `text` | `tagline`, `title`, `option` | tagline = `get_bloginfo('description')`; title = site name; option = wp_options key |
+| `title` | *(none)* | site name (`get_bloginfo('name')`) directly |
+| `permalink` | `site_url`, `home_url`, `option` | `site_url()` / `home_url()` / option key |
+| `image` | `logo`, `option` | logo = customizer custom-logo attachment (full `as:`/`size:` support); option = image-ID-storing option |
+| `content` | `option` | wp_options value rendered through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`) — block/HTML markup executes |
+| `datetime_single` / `datetime_range` | *(none)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
+
+**`key` control** (wp_options key, dot-path supported for arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown for `use:option` on text/permalink/image/content; shown directly (no `use:option` gate) on datetime as the ACF options field key.
+
+**Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
+
+**Link wrapping** (text/title/datetime_* only): `linkTo:site` → `home_url()`; `linkTo:key` → option-stored URL (allowlist-gated).
+
+**Allowlist (option reads).** Every option read — `use:option`, site `linkTo:key`, and datetime `get_field(…,'option')` — passes through the `generateblocks_dynamic_tags_allowed_options` filter, **seeded empty**. A key reads only when a site developer opts it in; the gate is ours, not the handler's. See [`docs/adr/0001-site-option-read-allowlist.md`](adr/0001-site-option-read-allowlist.md) and [`docs/plugin-integration.md`](plugin-integration.md) for the filter usage.
+
+**Coexistence with GB Pro.** GB Pro's site tags still work; `src:site` is additive. Migrators from `{{option key:blogname}}` should use `use:title` (the empty-seed allowlist intentionally returns empty for raw `blogname` until filtered in).
 
 ### Modifier prefixes
 

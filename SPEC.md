@@ -63,7 +63,7 @@ T7|x|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key�
 T8|x|Per-tag `use:` enum builders + `key` option (`show_if {src:site,use:option}`); add `site` to source dropdown reflected on title (no use enum); suppress ref/srcTermIn/traversal via `src:not:site` on ALL site-capable tags incl. title|I.opts,C6
 T9|~|Build-time verify: `get_field($key,'option')` returns value + `get_field_object` returns `return_format` outside loop/admin on test instance (instrument, pull to test — not live)|I.read,V3
 T10|~|Editor: src→Site hides ref/srcTermIn (all site-capable tags incl. title); use enum site-only; title src:site→site name (no use/key); datetime shows key direct; key only on use:option; round-trip save/reopen no GB strip|I.opts,V5
-T11|.|Docs: tag-reference §Site Source (matrix/use enum/dot-path/allowlist/Pro coexist); plugin-integration filter note; CHANGELOG 1.9.0 entry (ref 1.8.0 pipeline, no refactor line)|—
+T11|x|Docs: tag-reference §Site Source (matrix/use enum/dot-path/allowlist/Pro coexist); plugin-integration filter note; CHANGELOG 1.9.0 entry (ref 1.8.0 pipeline, no refactor line)|—
 
 ## §B — bugs
 

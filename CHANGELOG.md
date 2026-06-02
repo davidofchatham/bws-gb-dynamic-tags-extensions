@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.9.0] — 2026-06-02
+
+### Added — `src:site` unified site-wide source (Stage A)
+
+- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. A `use:` enum picks the datum:
+  - `text`: `tagline` (`get_bloginfo('description')`), `title` (site name), `option` (wp_options key).
+  - `title`: site name directly (no `use:` — title tag has none).
+  - `permalink`: `site_url`, `home_url`, `option`.
+  - `image`: `logo` (the customizer custom-logo, with full `as:`/`size:` support), `option` (image-ID-storing option).
+  - `content`: `option` only — renders block-/HTML-stored option values through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
+  - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
+- Link wrapping for site sources (`text`, `title`, `datetime_*`): new `linkTo:site` value resolves to `home_url()`; `linkTo:key` reads an option-stored URL.
+
+### Security — site option reads gated by an empty-seed allowlist
+
+- All site option reads (`use:option`, site `linkTo:key`, and the datetime `get_field(…,'option')` read) pass through our own `generateblocks_dynamic_tags_allowed_options` filter, **seeded empty**. A key reads only when a site developer explicitly opts it in. `GenerateBlocks_Meta_Handler::get_option()` enforces a blocklist only (not this allowlist), so the gate is the resolver's responsibility — see [`docs/adr/0001-site-option-read-allowlist.md`](docs/adr/0001-site-option-read-allowlist.md). This deliberately diverges from GB Pro's `{{option key:blogname}}` (steer migrators to `use:title`).
+
+### Fixed
+
+- `bws_parse_combined_date_time` passed the numeric-coerced id to the field **value** read, so a non-numeric ACF object-id sentinel (`'option'`) was lost before reaching `bws_read_field`. The value read now threads the `'option'` sentinel independently of the format-lookup object-id. (Prerequisite for site-datetime; no effect on existing post/term/loop callers.)
+
+### Notes
+
+- Stage A only: no `Site` source class and no registry registration (site is a dropdown value + early-gate resolver). `try_` slot support is staged separately ([#26](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/26)). Per-value link-target gating ([#27](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/27)) and `src:site` → reference-field resolution ([#28](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/28)) tracked as follow-ups.
+
 ## [1.8.0] — 2026-06-01
 
 ### Refactor — Post content rendering pipeline extracted to `ContentProcessor` class (C4, issue #3)

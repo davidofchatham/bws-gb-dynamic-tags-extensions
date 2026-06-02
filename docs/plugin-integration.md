@@ -395,12 +395,30 @@ Procedural API. Most are thin wrappers over `\BWS\DynamicTags\Content\ContentPro
 | `bws_has_sufficient_memory()` | Returns `true` when memory usage is below `bws_content_memory_threshold` (default 0.80) of the PHP limit. |
 | `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content. |
 
-#### Filters (new in v1.8.0)
+#### Filters
 
 | Filter | Default | Purpose |
 |--------|---------|---------|
-| `bws_content_memory_threshold` | `0.80` | Memory fraction (0.0–1.0) below which the primary render path runs. At or above, callers fall back to a CSS-extraction-only pipeline. |
-| `bws_content_max_recursion_depth` | `3` | Maximum content stack depth before further pushes are blocked. |
+| `bws_content_memory_threshold` | `0.80` | (v1.8.0) Memory fraction (0.0–1.0) below which the primary render path runs. At or above, callers fall back to a CSS-extraction-only pipeline. |
+| `bws_content_max_recursion_depth` | `3` | (v1.8.0) Maximum content stack depth before further pushes are blocked. |
+| `generateblocks_dynamic_tags_allowed_options` | `[]` (our use) | (v1.9.0) Allowlist of wp_options keys the `src:site` source may read. **Seeded empty by us** — a key is readable via `use:option`, site `linkTo:key`, or a datetime `get_field(…,'option')` read only after it is added here. This is the GB Pro filter name (a hard dependency), re-applied by our resolver because `Meta_Handler::get_option()` does not enforce it. See [§Exposing site option keys](#exposing-site-option-keys-srcsite) and [`docs/adr/0001-site-option-read-allowlist.md`](adr/0001-site-option-read-allowlist.md). |
+
+#### Exposing site option keys (`src:site`)
+
+The `src:site` source's `use:option` path (and site `linkTo:key`, and datetime ACF-options reads) is a closed escape hatch: it reads nothing until a site developer opts each key in. Discoverable site data (title, tagline, URLs, logo) is reached via the `use:` enum instead and needs no filtering.
+
+```php
+add_filter(
+    'generateblocks_dynamic_tags_allowed_options',
+    static function ( array $allowed ): array {
+        return array_merge( $allowed, [ 'my_plugin_settings', 'acf_options_event_date' ] );
+    }
+);
+// Now {{text src:site|use:option|key:my_plugin_settings.support_email}}
+// and  {{datetime_single src:site|key:acf_options_event_date}} resolve.
+```
+
+For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settings`); dot-path subkeys (`.support_email`) traverse within the allowed root. ACF options-page field keys are flat — the whole key is the root.
 
 ### Registration helpers (`includes/helpers/registration-helpers.php`)
 
