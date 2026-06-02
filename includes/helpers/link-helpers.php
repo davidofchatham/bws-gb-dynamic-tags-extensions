@@ -18,7 +18,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Routes by $link_to destination and $entity_type:
  *   'permalink' → get_permalink() for posts, get_term_link() for terms.
+ *   'site'      → home_url() (src:site; ignores $id — site has no entity).
  *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
+ *                 For $entity_type 'site' → get_option($link_key) through the A2 allowlist.
  * Always returns '' (never false/null) so callers can unconditionally skip wrapping
  * without blocking tag output. Empty $link_key with linkTo:'key' returns '' immediately.
  *
@@ -39,6 +41,11 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 		return '';
 	}
 
+	// src:site home URL — sentinel $id (1) passed by site callbacks; no entity lookup.
+	if ( 'site' === $link_to ) {
+		return (string) home_url();
+	}
+
 	if ( 'permalink' === $link_to ) {
 		if ( 'term' === $entity_type ) {
 			$url = get_term_link( $id );
@@ -51,6 +58,14 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 	if ( 'key' === $link_to ) {
 		if ( '' === $link_key ) {
 			return '';
+		}
+		if ( 'site' === $entity_type ) {
+			// Option-stored URL. Same allowlist gate as use:option (V2, ADR 0001).
+			if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $link_key ) ) {
+				return '';
+			}
+			$url = get_option( $link_key );
+			return ( $url && is_string( $url ) ) ? $url : '';
 		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_meta( $id, $link_key, true );
@@ -130,6 +145,7 @@ function bws_get_link_options(): array {
 			'options'        => array(
 				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
 				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
+				array( 'value' => 'site',      'label' => __( 'Site Home URL', 'generateblocks' ) ),
 				array( 'value' => 'key',       'label' => __( 'URL Meta Field', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,

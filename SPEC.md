@@ -57,7 +57,7 @@ T3|x|Early gate in text/content/title/permalink/image callbacks → `bws_site_re
 T4|x|content callback site path routes raw opt through `bws_render_block_content($raw,'option:'.$key)`, no extra kses|I.resolve,C8,V6
 T5|x|DT-1: `'option'` value-read branch in `bws_read_field` (allowlist-gated `get_field($key,'option')`)|I.read,V2
 T6|x|Datetime callbacks site gate → `bws_datetime_single_core('option', bws_base_map_datetime_options(...))` + range; link-wrap `(...,1,'site')`; DT-1b value-id seam fix (B1/V7)|I.dt,V3,V7
-T7|.|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key→gated get_option) + sentinel id=1 + `site` value in `bws_get_link_options`|I.link,V2
+T7|x|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key→gated get_option) + sentinel id=1 + `site` value in `bws_get_link_options`|I.link,V2
 T8|.|Per-tag `use:` enum builders + `key` option (`show_if {src:site,use:option}`); add `site` to source dropdown reflected on title (no use enum); suppress ref/srcTermIn/traversal via `src:not:site` on ALL site-capable tags incl. title|I.opts,C6
 T9|.|Build-time verify: `get_field($key,'option')` returns value + `get_field_object` returns `return_format` outside loop/admin on test instance (instrument, pull to test — not live)|I.read,V3
 T10|.|Editor: src→Site hides ref/srcTermIn (all site-capable tags incl. title); use enum site-only; title src:site→site name (no use/key); datetime shows key direct; key only on use:option; round-trip save/reopen no GB strip|I.opts,V5
