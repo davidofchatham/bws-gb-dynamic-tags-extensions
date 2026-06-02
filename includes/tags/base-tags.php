@@ -64,17 +64,21 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Text Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+						array( 'value' => 'key',     'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+						array( 'value' => 'title',   'label' => __( 'Title/Name', 'generateblocks' ) ),
+						array( 'value' => 'tagline', 'label' => __( 'Site Tagline', 'generateblocks' ) ),
+						array( 'value' => 'option',  'label' => __( 'Site Option (key)', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key (or wp_options key for src:site, use:option — supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'use' => 'not:title' ),
+					// Show for meta/field key (use empty or 'key') AND for site use:option;
+					// hide for title/tagline (no key needed). not_in covers empty-default.
+					'show_if'     => array( 'use' => 'not_in:title,tagline' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -120,15 +124,16 @@ function bws_register_base_tags(): void {
 						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+						array( 'value' => 'option',  'label' => __( 'Site Option (key)', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key (or wp_options key for src:site, use:option — supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'use' => 'key' ),
+					'show_if'     => array( 'use' => 'in:key,option' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -181,7 +186,28 @@ function bws_register_base_tags(): void {
 		'supports' => array(),
 		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
-			$traversal_opts
+			$traversal_opts,
+			array(
+				// Site-only: which site URL (or option key). Whole control hidden off-site.
+				'use' => array(
+					'type'           => 'select',
+					'label'          => __( 'Site URL', 'generateblocks' ),
+					'options'        => array(
+						array( 'value' => 'site_url', 'label' => __( 'Site URL', 'generateblocks' ) ),
+						array( 'value' => 'home_url', 'label' => __( 'Home URL', 'generateblocks' ) ),
+						array( 'value' => 'option',   'label' => __( 'Site Option (key)', 'generateblocks' ) ),
+					),
+					'show_if'        => array( 'src' => 'site' ),
+					'_strip_default' => true,
+				),
+				'key' => array(
+					'type'        => 'text',
+					'label'       => __( 'Option Key', 'generateblocks' ),
+					'help'        => __( 'wp_options key (supports dot-path). Must be allowlisted via generateblocks_dynamic_tags_allowed_options.', 'generateblocks' ),
+					'placeholder' => 'option_name',
+					'show_if'     => array( 'src' => 'site', 'use' => 'option' ),
+				),
+			)
 		) ),
 		'return'   => 'bws_base_permalink_callback',
 	) );
@@ -223,6 +249,8 @@ function bws_register_base_tags(): void {
 					'options'        => array(
 						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+						array( 'value' => 'logo',     'label' => __( 'Site Logo', 'generateblocks' ) ),
+						array( 'value' => 'option',   'label' => __( 'Site Option (image ID key)', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'srcTermIn' => 'empty' ),
 					'_strip_default' => true,
@@ -230,9 +258,10 @@ function bws_register_base_tags(): void {
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image (or wp_options key for src:site, use:option).', 'generateblocks' ),
 					'placeholder' => 'image_field',
-					'show_if'     => array( 'use' => 'not:featured' ),
+					// Hide for featured + logo (no key needed); show for key/option.
+					'show_if'     => array( 'use' => 'not_in:featured,logo' ),
 				),
 				'fallback' => array(
 					'type'  => 'bws-media-picker',
@@ -589,6 +618,8 @@ function bws_base_traversal_options(): array {
 			'label'       => __( 'Relationship Field', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
+			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet
+			// (not "never applies"; re-expose when a site→ref path ships).
 			'show_if'     => array( 'src' => 'ref' ),
 		),
 		'srcTermIn' => array(
@@ -597,6 +628,9 @@ function bws_base_traversal_options(): array {
 			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
 			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
 			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
+			// Hidden for src:site — no entity to hop terms from. (Term-context tags
+			// override this to src:ref in the template registry.)
+			'show_if'   => array( 'src' => 'not:site' ),
 		),
 	);
 }

@@ -35,7 +35,9 @@ One source `src:site` for all site-wide data behind existing base tags (text/per
 - I.opts — per-tag `use:` enum (`show_if: src:site` per entry):
   - text: `tagline`,`title`,`option` | permalink: `site_url`,`home_url`,`option` | image: `logo`,`option` | content: `option` only | title: NO use enum (site→name) | datetime_single/range: NO use enum.
   - `key` option `show_if {src:site, use:option}` on text/permalink/image/content. title + datetime: NO `key` for site (title=name only; datetime existing `key` unhidden/relabeled, no `use:option` gate).
-  - Suppress for site (`show_if src:not:site`): `ref`, `srcTermIn`, traversal options — on ALL site-capable tags incl. title.
+  - Suppress for site (`show_if src:not:site`) — on ALL site-capable tags incl. title:
+    - `srcTermIn` — conceptually N/A for site (no entity to hop terms from).
+    - `ref` — suppressed in Stage A because there is NO site→ref wiring yet (early gate short-circuits before `bws_resolve_post_by_source`; resolver switches on `use` only). NOT "ref never applies to site" — ACF relational fields stored as site options are plausible (untested). Re-expose `ref` (drop the `src:not:site`) when a site→ref resolution path ships.
 - I.adr — [ADR 0001](docs/adr/0001-site-option-read-allowlist.md): empty-seed allowlist, "OUR resolver gates not handler", 3 gated read paths (`use:option`, site `linkTo:key`, datetime `get_field(…,'option')`).
 
 ## §V — Invariants
@@ -58,7 +60,7 @@ T4|x|content callback site path routes raw opt through `bws_render_block_content
 T5|x|DT-1: `'option'` value-read branch in `bws_read_field` (allowlist-gated `get_field($key,'option')`)|I.read,V2
 T6|x|Datetime callbacks site gate → `bws_datetime_single_core('option', bws_base_map_datetime_options(...))` + range; link-wrap `(...,1,'site')`; DT-1b value-id seam fix (B1/V7)|I.dt,V3,V7
 T7|x|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key→gated get_option) + sentinel id=1 + `site` value in `bws_get_link_options`|I.link,V2
-T8|.|Per-tag `use:` enum builders + `key` option (`show_if {src:site,use:option}`); add `site` to source dropdown reflected on title (no use enum); suppress ref/srcTermIn/traversal via `src:not:site` on ALL site-capable tags incl. title|I.opts,C6
+T8|x|Per-tag `use:` enum builders + `key` option (`show_if {src:site,use:option}`); add `site` to source dropdown reflected on title (no use enum); suppress ref/srcTermIn/traversal via `src:not:site` on ALL site-capable tags incl. title|I.opts,C6
 T9|.|Build-time verify: `get_field($key,'option')` returns value + `get_field_object` returns `return_format` outside loop/admin on test instance (instrument, pull to test — not live)|I.read,V3
 T10|.|Editor: src→Site hides ref/srcTermIn (all site-capable tags incl. title); use enum site-only; title src:site→site name (no use/key); datetime shows key direct; key only on use:option; round-trip save/reopen no GB strip|I.opts,V5
 T11|.|Docs: tag-reference §Site Source (matrix/use enum/dot-path/allowlist/Pro coexist); plugin-integration filter note; CHANGELOG 1.9.0 entry (ref 1.8.0 pipeline, no refactor line)|—
