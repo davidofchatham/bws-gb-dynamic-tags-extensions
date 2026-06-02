@@ -37,7 +37,7 @@ One source `src:site` for all site-wide data behind existing base tags (text/per
   - `key` option `show_if {src:site, use:option}` on text/permalink/image/content. title + datetime: NO `key` for site (title=name only; datetime existing `key` unhidden/relabeled, no `use:option` gate).
   - Suppress for site (`show_if src:not:site`) — on ALL site-capable tags incl. title:
     - `srcTermIn` — conceptually N/A for site (no entity to hop terms from).
-    - `ref` — suppressed in Stage A because there is NO site→ref wiring yet (early gate short-circuits before `bws_resolve_post_by_source`; resolver switches on `use` only). NOT "ref never applies to site" — ACF relational fields stored as site options are plausible (untested). Re-expose `ref` (drop the `src:not:site`) when a site→ref resolution path ships.
+    - `ref` — suppressed in Stage A because there is NO site→ref wiring yet (early gate short-circuits before `bws_resolve_post_by_source`; resolver switches on `use` only). NOT "ref never applies to site" — ACF relational fields stored as site options are plausible (untested). Re-expose `ref` (drop the gating) when a site→ref resolution path ships → **#28**. (Mechanically `ref` keeps its existing `show_if src:ref` which already hides it for site — no new gate needed.)
 - I.adr — [ADR 0001](docs/adr/0001-site-option-read-allowlist.md): empty-seed allowlist, "OUR resolver gates not handler", 3 gated read paths (`use:option`, site `linkTo:key`, datetime `get_field(…,'option')`).
 
 ## §V — Invariants
