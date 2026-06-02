@@ -230,6 +230,12 @@ function bws_value_looks_time_only( $value ) {
  * query loops and custom return_formats fall through to format-agnostic parsing
  * (issue #22, bugfix v1.7.2).
  *
+ * @invariant The VALUE read (`bws_read_field`) is a SEPARATE arg from the
+ * field-config object_id. For src:site datetime the `'option'` sentinel must
+ * reach the value read — `$numeric_id` coerces it to false, so `$value_id`
+ * re-threads `'option'` (v1.9.0, DT-1b). Don't collapse `$value_id` back into
+ * `$numeric_id` or site-datetime values silently dead-end at null.
+ *
  * @since 3.0.0
  * @param int $post_id Post ID
  * @param string $date_field Primary date/datetime/time field key
@@ -265,11 +271,17 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
         ? $post_id
         : ( function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $post_id ) : $post_id );
 
+    // DT-1b (V7): thread the 'option' sentinel to the VALUE read. $numeric_id coerces
+    // 'option' → false, which would dead-end the DT-1 bws_read_field branch; the
+    // value-read id must stay 'option' for site-datetime (ACF options-page fields).
+    // Non-'option' callers keep $numeric_id (unchanged behavior).
+    $value_id = ( 'option' === $post_id ) ? 'option' : $numeric_id;
+
     // Get primary field value and format
     $date_value = $date_field
         ? ( $term_match
             ? bws_read_term_field( $date_field, $term_id, true )
-            : bws_read_field( $date_field, $instance, $numeric_id, true ) )
+            : bws_read_field( $date_field, $instance, $value_id, true ) )
         : null;
     $date_format = bws_get_acf_return_format( $date_field, $acf_object_id );
 
@@ -277,7 +289,7 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
     $time_value = $time_field
         ? ( $term_match
             ? bws_read_term_field( $time_field, $term_id, true )
-            : bws_read_field( $time_field, $instance, $numeric_id, true ) )
+            : bws_read_field( $time_field, $instance, $value_id, true ) )
         : null;
     $time_format = bws_get_acf_return_format( $time_field, $acf_object_id );
 

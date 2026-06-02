@@ -30,6 +30,7 @@ One source `src:site` for all site-wide data behind existing base tags (text/per
 - I.gate — text/content/title/permalink/image callbacks (base-tags.php 725/797/841/898/932): early gate `if ('site'===($options['src']??'')) return bws_site_resolve_value(...)` before entity-resolve. title callback site path must still apply `bws_wrap_with_link(...,1,'site')` (link-eligible).
 - I.dt — `bws_base_datetime_single_callback` (datetime-tags.php:988) / `_range_callback`: SEPARATE path. On `src===site` call `bws_datetime_single_core('option', bws_base_map_datetime_options($options), $instance)` (+range equiv), then `bws_wrap_with_link(...,1,'site')` tail. NO `use` enum — `key` is direct field-key control.
 - I.read — **DT-1**: `bws_read_field` (field-helpers.php:~230, before `return null` tail) add: `if('option'===$post_id && function_exists('get_field')){ allowlist-gate $key; return get_field($key,'option'); }`. Sentinel currently dead-ends at null → zero behavior change for int/loop/term callers.
+  - **DT-1b (caller seam, →B1/V7)**: `bws_parse_combined_date_time` (datetime-helpers.php:272/280) passes `$numeric_id` to `bws_read_field`, NOT raw `$post_id`. `$numeric_id = is_numeric($post_id)?(int):false`, so `'option'`→`false` and the DT-1 sentinel never arrives. MUST thread the `'option'` sentinel to the value read: `$value_id = ('option'===$post_id) ? 'option' : $numeric_id;` then pass `$value_id` at both date+time reads. Non-`'option'` callers unchanged (still `$numeric_id`).
 - I.link — **L3**: `bws_resolve_link_url` (link-helpers.php:37) add `'site'` entity branch: `linkTo:site`→`home_url()` (ignores `$id`); `linkTo:key`+site→allowlist-gate `$link_key` then `get_option($link_key)`. Site callbacks pass `$link_type='site'`, sentinel `$link_id=1` (defeats `if(!$id)` guard line 38). Add `site` value to `linkTo` dropdown (`bws_get_link_options`). Link options on text/title/datetime_* only (`supports_link_wrap`); content/permalink/image excluded.
 - I.opts — per-tag `use:` enum (`show_if: src:site` per entry):
   - text: `tagline`,`title`,`option` | permalink: `site_url`,`home_url`,`option` | image: `logo`,`option` | content: `option` only | title: NO use enum (site→name) | datetime_single/range: NO use enum.
@@ -45,6 +46,7 @@ One source `src:site` for all site-wide data behind existing base tags (text/per
 - V4 — Stage A introduces NO source class + NO registry registration. `site` is dropdown-value + early-gate-string only. !C1,C2.
 - V5 — Site early gate MUST pre-empt any `SourceRegistry::get_source('site')` lookup (returns null → choke). Preview-label + GB-registration paths must not call it for site. Editor preview = likely edge.
 - V6 — `content + use:option` recursion bounded by existing 1.8.0 guard via `'option:'.$key` cache key (key collision = guard hit, by design). Distinct keys bounded by `bws_content_max_recursion_depth` (default 3). No pipeline change. !C8.
+- V7 — Site-datetime value read MUST receive the `'option'` object-id sentinel. `bws_parse_combined_date_time` passes a value-read id to `bws_read_field` that is `'option'` when `$post_id==='option'`, else `$numeric_id` (existing behavior). The format-lookup path (`$acf_object_id` via `bws_resolve_acf_object_id`) already resolves `'option'` correctly; the VALUE-read path is a separate arg and was NOT threading it (B1). !I.read,DT-1b — drove B1.
 
 ## §T — Tasks
 
@@ -54,7 +56,7 @@ T2|x|Write `bws_site_resolve_value` (tagline/title/site_url/home_url/logo/option
 T3|x|Early gate in text/content/title/permalink/image callbacks → `bws_site_resolve_value` (title path link-wraps via `,1,'site'`)|I.gate,C2,V5
 T4|x|content callback site path routes raw opt through `bws_render_block_content($raw,'option:'.$key)`, no extra kses|I.resolve,C8,V6
 T5|x|DT-1: `'option'` value-read branch in `bws_read_field` (allowlist-gated `get_field($key,'option')`)|I.read,V2
-T6|.|Datetime callbacks site gate → `bws_datetime_single_core('option', bws_base_map_datetime_options(...))` + range; link-wrap `(...,1,'site')`|I.dt,V3
+T6|x|Datetime callbacks site gate → `bws_datetime_single_core('option', bws_base_map_datetime_options(...))` + range; link-wrap `(...,1,'site')`; DT-1b value-id seam fix (B1/V7)|I.dt,V3,V7
 T7|.|L3: `'site'` entity branch in `bws_resolve_link_url` (site→home_url; key→gated get_option) + sentinel id=1 + `site` value in `bws_get_link_options`|I.link,V2
 T8|.|Per-tag `use:` enum builders + `key` option (`show_if {src:site,use:option}`); add `site` to source dropdown reflected on title (no use enum); suppress ref/srcTermIn/traversal via `src:not:site` on ALL site-capable tags incl. title|I.opts,C6
 T9|.|Build-time verify: `get_field($key,'option')` returns value + `get_field_object` returns `return_format` outside loop/admin on test instance (instrument, pull to test — not live)|I.read,V3
@@ -64,3 +66,4 @@ T11|.|Docs: tag-reference §Site Source (matrix/use enum/dot-path/allowlist/Pro 
 ## §B — bugs
 
 id|date|cause|fix
+B1|2026-06-01|DT-1 branch keys on `'option'===$post_id` in `bws_read_field`, but caller `bws_parse_combined_date_time` (datetime-helpers.php:272/280) passes `$numeric_id` (=`false` for non-numeric `'option'`), not raw `$post_id` → sentinel never arrives, site-datetime value read dead-ends at null. Found during T6 build (lint clean, trace caught it).|V7 + DT-1b: thread `'option'` sentinel via `$value_id=('option'===$post_id)?'option':$numeric_id` at both read sites.
