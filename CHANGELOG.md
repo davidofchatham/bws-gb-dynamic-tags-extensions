@@ -5,11 +5,11 @@
 ### Added — `src:site` unified site-wide source (Stage A)
 
 - New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. Under `src:site` a named `use:` value picks a named site datum; otherwise the tag reads a site option named by `key` (`src:site` selects the wp_options namespace the way `src:current` selects post meta). There is **no `use:option` value** — an option read is a key read, not a separate field type. (This is `src:site`-specific routing, not a global "`use` unset = key" rule — each tag keeps its own non-site default, e.g. content's is post-content.):
-  - `text`: `tagline` (`get_bloginfo('description')`), `title` (site name); default + `key` = wp_options read.
+  - `text`: `title` (site name); `key` = wp_options read.
   - `title`: site name directly (no `use:`, no key).
-  - `permalink`: `site_url`, `home_url`; default + `key` = URL-valued wp_options read.
-  - `image`: `logo` (customizer custom-logo, full `as:`/`size:`); default + `key` = attachment-ID wp_options read.
-  - `content`: default + `key` = wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
+  - `permalink`: `site_url`, `home_url`; `key` = URL-valued wp_options read.
+  - `image`: `logo` (customizer custom-logo, full `as:`/`size:`); `key` = attachment-ID wp_options read.
+  - `content`: bare `{{content src:site}}` → site tagline/description (`get_bloginfo('description')`), paralleling post→content / term→description / site→description; with a `key` → wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup. (Tagline is reached here, not via a `text` `use:` value — the two are the same `blogdescription` value, so there is no redundant single-path tagline option.)
   - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
 - Link wrapping for site sources (`text`, `title`, `datetime_*`): new `linkTo:site` value resolves to `home_url()`; `linkTo:key` reads an option-stored URL.
 

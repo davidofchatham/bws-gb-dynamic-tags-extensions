@@ -34,12 +34,14 @@ See [§Source options](#source-options) for label/UI details.
 
 | Base tag | named site `use:` values | site option read (no named `use:`) |
 |---|---|---|
-| `text` | `tagline` (`get_bloginfo('description')`), `title` (site name) | `key` set → read wp_options key |
+| `text` | `title` (site name) | `key` set → read wp_options key |
 | `title` | *(none — always site name `get_bloginfo('name')`)* | n/a (no key) |
 | `permalink` | `site_url` (`site_url()`), `home_url` (`home_url()`) | `key` set → read a URL-valued wp_options key |
 | `image` | `logo` (customizer custom-logo attachment, full `as:`/`size:`) | `key` set → read an attachment-ID-valued wp_options key |
-| `content` | *(none — resolver forces option read under site)* | `key` set → read wp_options value through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`); block/HTML markup executes |
+| `content` | bare (no `key`) → site **tagline/description** (`get_bloginfo('description')`) — the post→content / term→description / **site→description** parallel | `key` set → read wp_options value through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`); block/HTML markup executes |
 | `datetime_single` / `datetime_range` | *(none)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
+
+> **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is reached via bare `{{content src:site}}` (paralleling term→description), **not** a `text` `use:` value — there is no single-path `tagline` text option.
 
 **`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key.
 

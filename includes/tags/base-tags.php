@@ -64,9 +64,8 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Text Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',     'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-						array( 'value' => 'title',   'label' => __( 'Title/Name', 'generateblocks' ) ),
-						array( 'value' => 'tagline', 'label' => __( 'Site Tagline', 'generateblocks' ) ),
+						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
@@ -75,9 +74,10 @@ function bws_register_base_tags(): void {
 					'label'       => __( 'Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					// Key-mode = empty/'key'. Hidden for named data (title/tagline).
-					// Under src:site, key-mode reads a wp_options key.
-					'show_if'     => array( 'use' => 'not_in:title,tagline' ),
+					// Key-mode = empty/'key'. Hidden for named data (title).
+					// Under src:site, key-mode reads a wp_options key. (Site tagline is
+					// reached via {{content src:site}}, not a text use value.)
+					'show_if'     => array( 'use' => 'not:title' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -1119,6 +1119,12 @@ function bws_site_allowlist_ok( string $key ): bool {
  * allowlist is GB-parity-seeded (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
+ * Named site data parallel the post/term content model:
+ *   - title tag (no `use`)          → site name   (get_bloginfo('name'))
+ *   - content tag, no `key`         → site tagline (get_bloginfo('description'))
+ *     paralleling post→content / term→description / site→description.
+ * `tagline` is therefore NOT a text `use` value — reach it via {{content src:site}}.
+ *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
  * @param array  $options  Tag options.
@@ -1127,21 +1133,23 @@ function bws_site_allowlist_ok( string $key ): bool {
  */
 function bws_site_resolve_value( string $tag, array $options, $instance ): string {
 	$use = $options['use'] ?? '';
+	$key = (string) ( $options['key'] ?? '' );
 
 	// title base tag carries no `use` enum → site name.
 	if ( 'title' === $tag && '' === $use ) {
 		$use = 'title';
 	}
 
-	// content has no named site datum — always the option key-read.
+	// content tag: bare (no key) → site description (tagline), the post→content /
+	// term→description parallel. With a key → fall through to the option key-read.
 	if ( 'content' === $tag ) {
+		if ( '' === $key ) {
+			return (string) get_bloginfo( 'description' );
+		}
 		$use = '';
 	}
 
 	switch ( $use ) {
-		case 'tagline':
-			return (string) get_bloginfo( 'description' );
-
 		case 'title':
 			return (string) get_bloginfo( 'name' );
 
@@ -1171,7 +1179,6 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 	}
 
 	// Default (empty use / use:key): wp_options key read. src:site = the namespace.
-	$key = (string) ( $options['key'] ?? '' );
 	if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
 		return '';
 	}
