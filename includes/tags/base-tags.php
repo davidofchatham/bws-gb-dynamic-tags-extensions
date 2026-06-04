@@ -67,17 +67,16 @@ function bws_register_base_tags(): void {
 						array( 'value' => 'key',     'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'title',   'label' => __( 'Title/Name', 'generateblocks' ) ),
 						array( 'value' => 'tagline', 'label' => __( 'Site Tagline', 'generateblocks' ) ),
-						array( 'value' => 'option',  'label' => __( 'Site Option (key)', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key (or wp_options key for src:site, use:option — supports dot-path).', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					// Show for meta/field key (use empty or 'key') AND for site use:option;
-					// hide for title/tagline (no key needed). not_in covers empty-default.
+					// Key-mode = empty/'key'. Hidden for named data (title/tagline).
+					// Under src:site, key-mode reads a wp_options key.
 					'show_if'     => array( 'use' => 'not_in:title,tagline' ),
 				),
 				'fallback' => array(
@@ -124,16 +123,19 @@ function bws_register_base_tags(): void {
 						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
-						array( 'value' => 'option',  'label' => __( 'Site Option (key)', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key (or wp_options key for src:site, use:option — supports dot-path).', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'use' => 'in:key,option' ),
+					// Custom content field (use:key) OR any src:site (site content = option read).
+					'show_if_any' => array(
+						'use' => 'key',
+						'src' => 'site',
+					),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -195,7 +197,6 @@ function bws_register_base_tags(): void {
 					'options'        => array(
 						array( 'value' => 'site_url', 'label' => __( 'Site URL', 'generateblocks' ) ),
 						array( 'value' => 'home_url', 'label' => __( 'Home URL', 'generateblocks' ) ),
-						array( 'value' => 'option',   'label' => __( 'Site Option (key)', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'src' => 'site' ),
 					'_strip_default' => true,
@@ -203,9 +204,10 @@ function bws_register_base_tags(): void {
 				'key' => array(
 					'type'        => 'text',
 					'label'       => __( 'Option Key', 'generateblocks' ),
-					'help'        => __( 'wp_options key (supports dot-path). Must be allowlisted via generateblocks_dynamic_tags_allowed_options.', 'generateblocks' ),
+					'help'        => __( 'wp_options / ACF-options key (supports dot-path). A URL-valued option, when no named Site URL is chosen.', 'generateblocks' ),
 					'placeholder' => 'option_name',
-					'show_if'     => array( 'src' => 'site', 'use' => 'option' ),
+					// Site key-mode: shown when a named URL is NOT selected.
+					'show_if'     => array( 'src' => 'site', 'use' => 'not_in:site_url,home_url' ),
 				),
 			)
 		) ),
@@ -250,7 +252,6 @@ function bws_register_base_tags(): void {
 						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
 						array( 'value' => 'logo',     'label' => __( 'Site Logo', 'generateblocks' ) ),
-						array( 'value' => 'option',   'label' => __( 'Site Option (image ID key)', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'srcTermIn' => 'empty' ),
 					'_strip_default' => true,
@@ -258,9 +259,9 @@ function bws_register_base_tags(): void {
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image (or wp_options key for src:site, use:option).', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image. For src:site this is the wp_options / ACF-options key storing an attachment ID.', 'generateblocks' ),
 					'placeholder' => 'image_field',
-					// Hide for featured + logo (no key needed); show for key/option.
+					// Key-mode (option read under site); hidden for named data featured/logo.
 					'show_if'     => array( 'use' => 'not_in:featured,logo' ),
 				),
 				'fallback' => array(
@@ -1049,16 +1050,19 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 /**
  * Allowlist gate for site option reads.
  *
- * @invariant Every site option read (use:option, site linkTo:key, datetime
- * get_field($key,'option')) MUST pass through this gate before the read. The
- * GB Pro `generateblocks_dynamic_tags_allowed_options` filter is seeded EMPTY
- * here — a key reads only when a site developer opts it in. GenerateBlocks_Meta_Handler
- * does NOT enforce this filter (blocklist only); calling it directly skips the
- * allowlist, so gating is OUR responsibility, never the handler's.
+ * @invariant Every site option read (site option key-mode, site linkTo:key,
+ * datetime get_field($key,'option')) MUST pass through this gate before the read.
+ * GenerateBlocks_Meta_Handler does NOT enforce the allowlist (blocklist only);
+ * calling it directly skips the gate, so gating is OUR responsibility, never the
+ * handler's. The seed MIRRORS GB Pro's `get_option` callback exactly
+ * (class-register.php:268-291): 6 WP defaults PLUS every registered ACF
+ * options-page field (registration IS the opt-in — ACF option fields auto-allow,
+ * no manual filter needed), then the shared filter. Do NOT revert to an empty
+ * seed — that blocks ACF option fields and diverges from GB Pro.
  * See docs/adr/0001-site-option-read-allowlist.md.
  *
- * Dot-path keys (wp_options): gate the FIRST segment (the actual option name).
- * Flat keys (ACF field keys): the whole $key is the first segment — same call.
+ * Dot-path keys (wp_options arrays): gate the FIRST segment (the actual option
+ * name). Flat keys (ACF field keys): the whole $key is the first segment.
  *
  * @since 1.9.0
  * @param string $key Option key (may contain dot-path for wp_options).
@@ -1068,7 +1072,29 @@ function bws_site_allowlist_ok( string $key ): bool {
 	if ( '' === $key ) {
 		return false;
 	}
-	$allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', array() );
+
+	// GB Pro's default wp_options allowlist (class-register.php).
+	$seed = array(
+		'siteurl',
+		'blogname',
+		'blogdescription',
+		'home',
+		'time_format',
+		'user_count',
+	);
+
+	// GB Pro auto-allows every registered ACF options-page field — registration
+	// is the opt-in. Mirror that so ACF option fields read without a manual filter.
+	if ( class_exists( 'GenerateBlocks_Pro_Dynamic_Tags_ACF' )
+		&& method_exists( 'GenerateBlocks_Pro_Dynamic_Tags_ACF', 'get_instance' )
+	) {
+		$acf = GenerateBlocks_Pro_Dynamic_Tags_ACF::get_instance();
+		if ( $acf && method_exists( $acf, 'get_acf_option_fields' ) ) {
+			$seed = array_merge( $seed, array_keys( (array) $acf->get_acf_option_fields() ) );
+		}
+	}
+
+	$allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed );
 	$parent  = explode( '.', $key )[0];
 	return in_array( $parent, $allowed, true );
 }
@@ -1081,12 +1107,17 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Datetime tags do NOT route here — they read ACF options-page fields via
  * bws_datetime_single_core('option', ...) (see datetime callbacks).
  *
- * Dispatch by `use`. The title base tag has no `use` enum, so $tag==='title'
- * (or use:title) maps to the site name.
+ * Dispatch by `use`. `use:<not key>` selects a named site datum (tagline / site
+ * URL / logo). The DEFAULT (empty `use` / `use:key`) is a wp_options key read —
+ * `src:site` selects the wp_options namespace, the same way `src:current` selects
+ * post meta; there is NO `use:option` value (option is a key-read, not a distinct
+ * field type — see V8). The title tag has no `use` enum → site name. The content
+ * tag has no named site datum → always the option key-read.
  *
- * @invariant Option reads (use:option) MUST pass bws_site_allowlist_ok() before
- * GenerateBlocks_Meta_Handler::get_option(). Empty seed = closed by default.
- * See docs/adr/0001-site-option-read-allowlist.md.
+ * @invariant Site option reads (the default key-mode branch) MUST pass
+ * bws_site_allowlist_ok() before GenerateBlocks_Meta_Handler::get_option(). The
+ * allowlist is GB-parity-seeded (NOT empty) — see bws_site_allowlist_ok and
+ * docs/adr/0001-site-option-read-allowlist.md.
  *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
@@ -1100,6 +1131,11 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 	// title base tag carries no `use` enum → site name.
 	if ( 'title' === $tag && '' === $use ) {
 		$use = 'title';
+	}
+
+	// content has no named site datum — always the option key-read.
+	if ( 'content' === $tag ) {
+		$use = '';
 	}
 
 	switch ( $use ) {
@@ -1132,22 +1168,20 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
 				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
 				: (string) $result;
-
-		case 'option':
-			$key = (string) ( $options['key'] ?? '' );
-			if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
-				return '';
-			}
-			$raw = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
-			// content tag: route block/HTML option markup through the shared content
-			// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
-			if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
-				return (string) bws_render_block_content( (string) $raw, 'option:' . $key );
-			}
-			return (string) $raw;
 	}
 
-	return '';
+	// Default (empty use / use:key): wp_options key read. src:site = the namespace.
+	$key = (string) ( $options['key'] ?? '' );
+	if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
+		return '';
+	}
+	$raw = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+	// content tag: route block/HTML option markup through the shared content
+	// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
+	if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
+		return (string) bws_render_block_content( (string) $raw, 'option:' . $key );
+	}
+	return (string) $raw;
 }
 
 // ===============================================

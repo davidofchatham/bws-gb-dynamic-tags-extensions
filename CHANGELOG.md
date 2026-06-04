@@ -1,21 +1,21 @@
 # Changelog
 
-## [1.9.0] — 2026-06-02
+## [1.9.0] — 2026-06-03
 
 ### Added — `src:site` unified site-wide source (Stage A)
 
-- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. A `use:` enum picks the datum:
-  - `text`: `tagline` (`get_bloginfo('description')`), `title` (site name), `option` (wp_options key).
-  - `title`: site name directly (no `use:` — title tag has none).
-  - `permalink`: `site_url`, `home_url`, `option`.
-  - `image`: `logo` (the customizer custom-logo, with full `as:`/`size:` support), `option` (image-ID-storing option).
-  - `content`: `option` only — renders block-/HTML-stored option values through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
+- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. A `use:` value picks a *named* site datum; the default (no `use:`) plus a `key` reads a site option — `src:site` selects the wp_options namespace the way `src:current` selects post meta. There is **no `use:option` value** (an option read is a key read, not a separate field type):
+  - `text`: `tagline` (`get_bloginfo('description')`), `title` (site name); default + `key` = wp_options read.
+  - `title`: site name directly (no `use:`, no key).
+  - `permalink`: `site_url`, `home_url`; default + `key` = URL-valued wp_options read.
+  - `image`: `logo` (customizer custom-logo, full `as:`/`size:`); default + `key` = attachment-ID wp_options read.
+  - `content`: default + `key` = wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
   - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
 - Link wrapping for site sources (`text`, `title`, `datetime_*`): new `linkTo:site` value resolves to `home_url()`; `linkTo:key` reads an option-stored URL.
 
-### Security — site option reads gated by an empty-seed allowlist
+### Security — site option reads gated by a GB-Pro-parity allowlist
 
-- All site option reads (`use:option`, site `linkTo:key`, and the datetime `get_field(…,'option')` read) pass through our own `generateblocks_dynamic_tags_allowed_options` filter, **seeded empty**. A key reads only when a site developer explicitly opts it in. `GenerateBlocks_Meta_Handler::get_option()` enforces a blocklist only (not this allowlist), so the gate is the resolver's responsibility — see [`docs/adr/0001-site-option-read-allowlist.md`](docs/adr/0001-site-option-read-allowlist.md). This deliberately diverges from GB Pro's `{{option key:blogname}}` (steer migrators to `use:title`).
+- All site option reads (site option key-mode, site `linkTo:key`, and the datetime `get_field(…,'option')` read) pass through the `generateblocks_dynamic_tags_allowed_options` filter, seeded to **GB Pro parity**: the six WP defaults (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`) plus every registered ACF options-page field (registration is the opt-in — ACF option fields read with no manual filter). `GenerateBlocks_Meta_Handler::get_option()` enforces a blocklist only (not this allowlist), so the gate is the resolver's responsibility — see [`docs/adr/0001-site-option-read-allowlist.md`](docs/adr/0001-site-option-read-allowlist.md). Mirrors GB Pro's `{{option}}` behavior so `src:site` is not gratuitously stricter than the tag it replaces.
 
 ### Fixed
 
