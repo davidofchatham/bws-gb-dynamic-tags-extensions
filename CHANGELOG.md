@@ -4,7 +4,7 @@
 
 ### Added — `src:site` unified site-wide source (Stage A)
 
-- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. A `use:` value picks a *named* site datum; the default (no `use:`) plus a `key` reads a site option — `src:site` selects the wp_options namespace the way `src:current` selects post meta. There is **no `use:option` value** (an option read is a key read, not a separate field type):
+- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. Under `src:site` a named `use:` value picks a named site datum; otherwise the tag reads a site option named by `key` (`src:site` selects the wp_options namespace the way `src:current` selects post meta). There is **no `use:option` value** — an option read is a key read, not a separate field type. (This is `src:site`-specific routing, not a global "`use` unset = key" rule — each tag keeps its own non-site default, e.g. content's is post-content.):
   - `text`: `tagline` (`get_bloginfo('description')`), `title` (site name); default + `key` = wp_options read.
   - `title`: site name directly (no `use:`, no key).
   - `permalink`: `site_url`, `home_url`; default + `key` = URL-valued wp_options read.

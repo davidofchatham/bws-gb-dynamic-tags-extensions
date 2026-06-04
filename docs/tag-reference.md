@@ -30,15 +30,15 @@ See [§Source options](#source-options) for label/UI details.
 
 **v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
 
-**`use:` selects a named site datum; the default (no `use`) is an option key read.** Consistent with the plugin-wide protocol that `use:<not key>` signals a *non-key field type* and the stripped default (`use:key`) is a key read. There is **no `use:option` value** — `src:site` selects the wp_options namespace the way `src:current` selects post meta, so an option read is simply the default key-mode plus a `key`. (The `use` control is hidden off-site; its named values still appear in every context — see [§Default serialization strategy](#default-serialization-strategy) on element-vs-value gating.)
+**Under `src:site`, a named `use:` value picks a named site datum; otherwise the tag reads a site option named by `key`.** There is **no `use:option` value** — `src:site` selects the wp_options namespace the way `src:current` selects post meta. This is `src:site`-specific routing inside `bws_site_resolve_value`, *not* a global "`use` unset = key" rule: each base tag keeps its own non-site default (`content`'s default is post-content, `text`/`image`'s is the meta key, etc.); under `src:site` any non-named-site `use` simply falls to the option read because there's no post entity. (The `use` control is hidden off-site; its named values still appear in every context — see [§Default serialization strategy](#default-serialization-strategy) on element-vs-value gating.)
 
-| Base tag | named `use:` values | default (no `use`) + `key` |
+| Base tag | named site `use:` values | site option read (no named `use:`) |
 |---|---|---|
-| `text` | `tagline` (`get_bloginfo('description')`), `title` (site name) | read wp_options key |
-| `title` | *(none)* | site name (`get_bloginfo('name')`) directly — no key |
-| `permalink` | `site_url` (`site_url()`), `home_url` (`home_url()`) | read a URL-valued wp_options key |
-| `image` | `logo` (customizer custom-logo attachment, full `as:`/`size:`) | read an attachment-ID-valued wp_options key |
-| `content` | *(none)* | read wp_options value through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`) — block/HTML markup executes |
+| `text` | `tagline` (`get_bloginfo('description')`), `title` (site name) | `key` set → read wp_options key |
+| `title` | *(none — always site name `get_bloginfo('name')`)* | n/a (no key) |
+| `permalink` | `site_url` (`site_url()`), `home_url` (`home_url()`) | `key` set → read a URL-valued wp_options key |
+| `image` | `logo` (customizer custom-logo attachment, full `as:`/`size:`) | `key` set → read an attachment-ID-valued wp_options key |
+| `content` | *(none — resolver forces option read under site)* | `key` set → read wp_options value through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`); block/HTML markup executes |
 | `datetime_single` / `datetime_range` | *(none)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
 **`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key.
