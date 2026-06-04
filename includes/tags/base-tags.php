@@ -190,24 +190,16 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// Site-only: which site URL (or option key). Whole control hidden off-site.
-				'use' => array(
-					'type'           => 'select',
-					'label'          => __( 'Site URL', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'site_url', 'label' => __( 'Site URL', 'generateblocks' ) ),
-						array( 'value' => 'home_url', 'label' => __( 'Home URL', 'generateblocks' ) ),
-					),
-					'show_if'        => array( 'src' => 'site' ),
-					'_strip_default' => true,
-				),
+				// Site key-mode (V9): bare {{permalink src:site}} → home_url(); supply a
+				// key to read a URL-valued wp_options instead. No `use` enum — there is
+				// no redundant named home_url/site_url value (site_url() unreachable this
+				// release by design). Control hidden off-site.
 				'key' => array(
 					'type'        => 'text',
 					'label'       => __( 'Option Key', 'generateblocks' ),
-					'help'        => __( 'wp_options / ACF-options key (supports dot-path). A URL-valued option, when no named Site URL is chosen.', 'generateblocks' ),
+					'help'        => __( 'wp_options / ACF-options key (supports dot-path) holding a URL. Leave empty for the site home URL.', 'generateblocks' ),
 					'placeholder' => 'option_name',
-					// Site key-mode: shown when a named URL is NOT selected.
-					'show_if'     => array( 'src' => 'site', 'use' => 'not_in:site_url,home_url' ),
+					'show_if'     => array( 'src' => 'site' ),
 				),
 			)
 		) ),
@@ -251,7 +243,6 @@ function bws_register_base_tags(): void {
 					'options'        => array(
 						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
 						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
-						array( 'value' => 'logo',     'label' => __( 'Site Logo', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'srcTermIn' => 'empty' ),
 					'_strip_default' => true,
@@ -259,10 +250,11 @@ function bws_register_base_tags(): void {
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image. For src:site this is the wp_options / ACF-options key storing an attachment ID.', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID; leave empty for the site logo.', 'generateblocks' ),
 					'placeholder' => 'image_field',
-					// Key-mode (option read under site); hidden for named data featured/logo.
-					'show_if'     => array( 'use' => 'not_in:featured,logo' ),
+					// Key-mode (option read under site, custom field otherwise); hidden for
+					// featured. Bare {{image src:site}} (no key) → site logo (V9, resolver).
+					'show_if'     => array( 'use' => 'not:featured' ),
 				),
 				'fallback' => array(
 					'type'  => 'bws-media-picker',
@@ -1119,11 +1111,16 @@ function bws_site_allowlist_ok( string $key ): bool {
  * allowlist is GB-parity-seeded (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * Named site data parallel the post/term content model:
- *   - title tag (no `use`)          → site name   (get_bloginfo('name'))
- *   - content tag, no `key`         → site tagline (get_bloginfo('description'))
- *     paralleling post→content / term→description / site→description.
- * `tagline` is therefore NOT a text `use` value — reach it via {{content src:site}}.
+ * Source-analog model (V9): a BARE site tag (no `key`) resolves the best
+ * intrinsic site analog; with a `key` it reads a wp_options value. There is NO
+ * site `use` enum — bare = analog, key = option:
+ *   - title   → site name        (get_bloginfo('name'))           [tag has no use]
+ *   - text    → keyed by nature; bare = '' (matches post/term text)
+ *   - content → bare: site description (get_bloginfo('description'))  [B4]
+ *   - permalink → bare: home_url()  (the site's front-facing "permalink")
+ *   - image   → bare: site logo (get_theme_mod('custom_logo'))
+ * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—}.
+ * `use:title` on text is the one named site value (title ≠ text's bare/keyed datum).
  *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
@@ -1135,50 +1132,46 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 	$use = $options['use'] ?? '';
 	$key = (string) ( $options['key'] ?? '' );
 
-	// title base tag carries no `use` enum → site name.
-	if ( 'title' === $tag && '' === $use ) {
-		$use = 'title';
+	// title base tag (no `use` enum) and text use:title → site name.
+	if ( ( 'title' === $tag && '' === $use ) || 'title' === $use ) {
+		return (string) get_bloginfo( 'name' );
 	}
 
-	// content tag: bare (no key) → site description (tagline), the post→content /
-	// term→description parallel. With a key → fall through to the option key-read.
-	if ( 'content' === $tag ) {
-		if ( '' === $key ) {
-			return (string) get_bloginfo( 'description' );
+	// Bare analogs (no key). With a key, fall through to the option read.
+	if ( '' === $key ) {
+		switch ( $tag ) {
+			case 'content':
+				// Site description — post→content / term→description parallel (B4).
+				return (string) get_bloginfo( 'description' );
+
+			case 'permalink':
+				// Site's front-facing "permalink".
+				return (string) home_url();
+
+			case 'image':
+				// Site logo — post→featured parallel.
+				$logo_id = (int) get_theme_mod( 'custom_logo' );
+				if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
+					return '';
+				}
+				$result = bws_get_attachment_data(
+					$logo_id,
+					$options['as'] ?? 'url',
+					$options['size'] ?? 'full'
+				);
+				if ( empty( $result ) ) {
+					return '';
+				}
+				// Route through GB output for fallback/markup parity with image tag.
+				return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
+					? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+					: (string) $result;
+
+			// text (bare = keyed, '') falls through to the option read with empty key → ''.
 		}
-		$use = '';
 	}
 
-	switch ( $use ) {
-		case 'title':
-			return (string) get_bloginfo( 'name' );
-
-		case 'site_url':
-			return (string) site_url();
-
-		case 'home_url':
-			return (string) home_url();
-
-		case 'logo':
-			$logo_id = (int) get_theme_mod( 'custom_logo' );
-			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
-				return '';
-			}
-			$result = bws_get_attachment_data(
-				$logo_id,
-				$options['as'] ?? 'url',
-				$options['size'] ?? 'full'
-			);
-			if ( empty( $result ) ) {
-				return '';
-			}
-			// Route through GB output for fallback/markup parity with image tag.
-			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
-				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
-				: (string) $result;
-	}
-
-	// Default (empty use / use:key): wp_options key read. src:site = the namespace.
+	// Key set (or text bare with no key): wp_options key read. src:site = namespace.
 	if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
 		return '';
 	}

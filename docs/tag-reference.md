@@ -18,7 +18,7 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
-| `site` | Site-wide data (no entity) — `use:` enum picks the datum. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
+| `site` | Site-wide data (no entity) — bare tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
 | `child` | WP child posts/terms (list output) | To be considered |
@@ -26,22 +26,40 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 
 See [§Source options](#source-options) for label/UI details.
 
+### Source-analog resolution
+
+**Design principle.** Each base tag, in *bare* form (no `key`, no named modifier), resolves to the **best intrinsic analog datum for the active source — where one exists**. A tag should "just work" per context; named `use:`/`key` are overrides and escape hatches, not the primary path.
+
+| Base tag | post | term | site |
+|---|---|---|---|
+| `title` | post title | term name | site name |
+| `content` | post content | term description | site description (tagline) |
+| `permalink` | post URL | term URL | site home URL |
+| `image` | featured image | *(none — terms have no native image; key required)* | site logo |
+| `text` | *(keyed — no intrinsic bare datum; key required in all contexts)* | | |
+
+Where a source has **no** intrinsic analog for a tag (term image, site text-body), the bare tag resolves empty and a `key`/field is required — the gap is honest, not papered over. A *corollary*: a named `use:` value that would duplicate the bare analog must not exist (e.g. no `use:logo` when bare image already = logo, no `use:home_url` when bare permalink already = home URL). This keeps one canonical path per datum.
+
+This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
+
 ### Site Source (`src:site`)
 
 **v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
 
-**Under `src:site`, a named `use:` value picks a named site datum; otherwise the tag reads a site option named by `key`.** There is **no `use:option` value** — `src:site` selects the wp_options namespace the way `src:current` selects post meta. This is `src:site`-specific routing inside `bws_site_resolve_value`, *not* a global "`use` unset = key" rule: each base tag keeps its own non-site default (`content`'s default is post-content, `text`/`image`'s is the meta key, etc.); under `src:site` any non-named-site `use` simply falls to the option read because there's no post entity. (The `use` control is hidden off-site; its named values still appear in every context — see [§Default serialization strategy](#default-serialization-strategy) on element-vs-value gating.)
+**`src:site` follows the source-analog model (see [§Source-analog resolution](#source-analog-resolution)): a BARE tag (no `key`) resolves the site's best intrinsic analog; a `key` reads a wp_options value.** There is **no site `use` enum** — bare = analog, key = option. (`src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value.)
 
-| Base tag | named site `use:` values | site option read (no named `use:`) |
+| Base tag | bare `{{tag src:site}}` (no key) | `{{tag src:site\|key:X}}` |
 |---|---|---|
-| `text` | `title` (site name) | `key` set → read wp_options key |
-| `title` | *(none — always site name `get_bloginfo('name')`)* | n/a (no key) |
-| `permalink` | `site_url` (`site_url()`), `home_url` (`home_url()`) | `key` set → read a URL-valued wp_options key |
-| `image` | `logo` (customizer custom-logo attachment, full `as:`/`size:`) | `key` set → read an attachment-ID-valued wp_options key |
-| `content` | bare (no `key`) → site **tagline/description** (`get_bloginfo('description')`) — the post→content / term→description / **site→description** parallel | `key` set → read wp_options value through the content pipeline (`bws_render_block_content`, keyed `'option:'.$key`); block/HTML markup executes |
-| `datetime_single` / `datetime_range` | *(none)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
+| `text` | *(empty — text is keyed by nature, like post/term text)* | read wp_options key `X` |
+| `title` | site name (`get_bloginfo('name')`) | *(no key — always name)* |
+| `permalink` | site home URL (`home_url()`) | read URL-valued wp_options key `X` |
+| `image` | site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`) | read attachment-ID-valued wp_options key `X` |
+| `content` | site description (`get_bloginfo('description')`) | read wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`); block/HTML markup executes |
+| `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
-> **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is reached via bare `{{content src:site}}` (paralleling term→description), **not** a `text` `use:` value — there is no single-path `tagline` text option.
+> **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is reached via bare `{{content src:site}}` (paralleling term→description), **not** a `text` `use:` value.
+>
+> **`site_url()` is not exposed** this release. Bare permalink resolves `home_url()` (the front-facing site address); `site_url()` (the WP-install address, differs only when WP lives in a subdirectory) has no tag path yet — add one if a real need appears.
 
 **`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key.
 
