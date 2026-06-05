@@ -367,7 +367,7 @@ function bws_get_datetime_single_field_key_options(): array {
 	return array(
 		'key'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'Date/Time Field', 'generateblocks' ),
 			'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
 			'placeholder' => 'event_date',
 		),
@@ -478,7 +478,7 @@ function bws_get_datetime_range_field_key_options(): array {
 	return array(
 		'startKey'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'Start Date/Time Field', 'generateblocks' ),
 			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
 			'placeholder' => 'start_date',
 		),
@@ -490,7 +490,7 @@ function bws_get_datetime_range_field_key_options(): array {
 		),
 		'endKey'       => array(
 			'type'        => 'text',
-			'label'       => __( 'End Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'End Date/Time Field', 'generateblocks' ),
 			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
 			'placeholder' => 'end_date',
 		),

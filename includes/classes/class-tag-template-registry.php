@@ -371,8 +371,7 @@ class TagTemplateRegistry {
 			[ 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ],
 		];
 
-		// Options that take a "Source N: " prefix instead of " N" suffix in slot labels.
-		$prefix_label_keys = [ 'srcTermIn' ];
+		// All slot-tied controls front-load the ordinal as an "N: " prefix (legibility).
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -459,7 +458,7 @@ class TagTemplateRegistry {
 					[
 						'type'           => 'select',
 						/* translators: %d: slot number */
-						'label'          => sprintf( __( 'Source %d', 'generateblocks' ), $n ),
+						'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
 						'options'        => $slot_src_options,
 						'_strip_default' => true,
 					],
@@ -470,7 +469,7 @@ class TagTemplateRegistry {
 				$options[ $ref_key ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
-					'label'       => sprintf( __( 'Relationship Field %d', 'generateblocks' ), $n ),
+					'label'       => sprintf( __( '%d: Relationship Field', 'generateblocks' ), $n ),
 					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
 					'placeholder' => 'related_post',
 					'show_if'     => [ $src_key => 'ref' ],
@@ -479,12 +478,12 @@ class TagTemplateRegistry {
 				// srcTermIn — combined term-hop control (no carry-forward).
 				$srcterm_in_label = sprintf(
 					/* translators: %d: slot number */
-					__( 'Source %d: Get from taxonomy term?', 'generateblocks' ),
+					__( '%d: Get from taxonomy term?', 'generateblocks' ),
 					$n
 				);
 				$srcterm_pick_label = sprintf(
 					/* translators: %d: slot number */
-					__( 'Source %d: Taxonomy', 'generateblocks' ),
+					__( '%d: Taxonomy', 'generateblocks' ),
 					$n
 				);
 				$options[ $stm_key ] = array_merge(
@@ -511,7 +510,7 @@ class TagTemplateRegistry {
 						[
 							'type'           => 'select',
 							/* translators: 1: use option label (e.g. "Text Field"), 2: slot number */
-							'label'          => sprintf( '%1$s %2$d', $use_label, $n ),
+							'label'          => sprintf( '%2$d: %1$s', $use_label, $n ),
 							'options'        => $slot_use_options,
 							'_strip_default' => true,
 						],
@@ -529,7 +528,7 @@ class TagTemplateRegistry {
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( 'Field Key %d', 'generateblocks' ), $n ),
+							'label'       => sprintf( __( '%d: Meta/Option Field', 'generateblocks' ), $n ),
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
@@ -552,7 +551,7 @@ class TagTemplateRegistry {
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( 'Field Key %d', 'generateblocks' ), $n ),
+							'label'       => sprintf( __( '%d: Meta/Option Field', 'generateblocks' ), $n ),
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],

@@ -155,14 +155,14 @@ function bws_get_link_options(): array {
 			'options'        => array(
 				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
 				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
-				array( 'value' => 'key',       'label' => __( 'URL Meta Field', 'generateblocks' ) ),
+				array( 'value' => 'key',       'label' => __( 'URL Meta/Option Field', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
 		),
 		'linkKey' => array(
 			'type'    => 'text',
-			'label'   => __( 'Link URL Field', 'generateblocks' ),
-			'help'    => __( 'Meta field key whose value is used as the link URL. For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
+			'label'   => __( 'URL Meta/Option Field', 'generateblocks' ),
+			'help'    => __( 'Meta or option field key whose value is used as the link URL (post/term meta, or a wp_options / ACF-options key under src:site). For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
 			'show_if' => array( 'linkTo' => 'key' ),
 		),
 		'newTab'  => array(

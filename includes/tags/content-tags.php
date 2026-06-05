@@ -28,7 +28,7 @@ function bws_get_content_options() {
 			'label'   => __( 'Content Type', 'generateblocks' ),
 			// No 'default' key — '' is the visual default; nothing serialized when unchanged.
 			'options' => array(
-				array( 'value' => '',             'label' => __( 'Content / Description', 'generateblocks' ) ),
+				array( 'value' => '',             'label' => __( 'Content/Description', 'generateblocks' ) ),
 				array( 'value' => 'custom_field', 'label' => __( 'Custom Field', 'generateblocks' ) ),
 			),
 		),

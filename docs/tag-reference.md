@@ -47,22 +47,22 @@ This principle governs `src:site` below and should guide every future source (`p
 
 **v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
 
-**`src:site` follows the source-analog model (see [§Source-analog resolution](#source-analog-resolution)): a BARE tag (no `key`) resolves the site's best intrinsic analog; a `key` reads a wp_options value.** There is **no site `use` enum** — bare = analog, key = option. (`src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value.)
+**`src:site` follows the source-analog model (see [§Source-analog resolution](#source-analog-resolution)): each tag's DEFAULT `use` token resolves the site's best intrinsic analog; `use:key` reads a wp_options value.** `use` is the analog-vs-option lever — **uniform with every other source** (Model B), not key-presence. `src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value (option is reached by `use:key`). The existing per-tag `use` values dispatch under site (content `use:content` → tagline, image `use:featured` → logo, text `use:title` → name); only **new site-specific** `use` values that would duplicate a default analog are barred (no `use:logo`/`use:home_url`).
 
-| Base tag | bare `{{tag src:site}}` (no key) | `{{tag src:site\|key:X}}` |
+| Base tag | default `use` (the analog) under `src:site` | `use:key` + `{{…\|key:X}}` |
 |---|---|---|
-| `text` | *(empty — text is keyed by nature, like post/term text)* | read wp_options key `X` |
-| `title` | site name (`get_bloginfo('name')`) | *(no key — always name)* |
-| `permalink` | site home URL (`home_url()`) | *(no key — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
-| `image` | site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`) | read attachment-ID-valued wp_options key `X` |
-| `content` | site description (`get_bloginfo('description')`) | read wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`); block/HTML markup executes |
+| `text` | *(empty — text is keyed by nature; `use:title` → site name)* | read wp_options key `X` |
+| `title` | site name (`get_bloginfo('name')`) | *(no `use`/`key` — always name)* |
+| `permalink` | site home URL (`home_url()`) | *(no `use`/`key` — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
+| `image` | `use:featured` (default) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`) | read attachment-ID-valued wp_options key `X` |
+| `content` | `use:content` (default) → site description / tagline (`get_bloginfo('description')`); `use:excerpt` → empty (no site excerpt) | read wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`); block/HTML markup executes |
 | `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
 > **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is reached via bare `{{content src:site}}` (paralleling term→description), **not** a `text` `use:` value.
 >
 > **`site_url()` is not exposed** this release. Bare permalink resolves `home_url()` (the front-facing site address); `site_url()` (the WP-install address, differs only when WP lives in a subdirectory) has no tag path yet — add one if a real need appears.
 
-**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key. **`permalink` is the exception — it has no `key` control under `src:site`** (it names the site's own URL, not a field): bare = `home_url()`, no option read.
+**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): bare = `home_url()`, no option read.
 
 **Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
 
@@ -143,16 +143,16 @@ Each slot exposes up to three controls:
 
 ### Per-slot label scheme
 
-Per-slot controls follow a "Source N: ..." prefix for `srcTermIn` sub-controls and "Field N" / "[Type] Field N" suffix for slot-tied controls. Slot 1 uses bare labels (no slot suffix).
+Applies to **try_ tags** (multi-slot). Every slot-tied control front-loads the slot ordinal as an `N: ` prefix (legibility — the number leads); each slot is numbered, including slot 1 (`1: …`). Base / term_ tags (single slot) use the bare labels in [§Source options](#source-options) and [§Field options](#field-options) — no ordinal.
 
-| Control | Slot 1 label | Slot N>1 label |
-|---|---|---|
-| `src` (source selector) | `Source` | `Source N` |
-| `ref` (relationship field) | `Relationship Field` | `Relationship Field N` |
-| `srcTermIn` checkbox | `Get from taxonomy term?` | `Source N: Get from taxonomy term?` |
-| `srcTermIn` taxonomy combobox | `Taxonomy` | `Source N: Taxonomy` |
-| `use` (field-type selector) | `Text Field` / `Content Field` / `Image Field` | `Text Field N` / `Content Field N` / `Image Field N` |
-| `key` (meta key) | `Field Meta Key` | `Field N Meta Key` |
+| Control | Label (`N` = slot number) |
+|---|---|
+| `src` (source selector) | `N: Source` |
+| `ref` (relationship field) | `N: Relationship Field` |
+| `srcTermIn` checkbox | `N: Get from taxonomy term?` |
+| `srcTermIn` taxonomy combobox | `N: Taxonomy` |
+| `use` (field-type selector) | `N: Text Field` / `N: Content Field` / `N: Image Field` |
+| `key` (field key) | `N: Meta/Option Field` |
 
 ### Available try_ tags
 
@@ -492,7 +492,7 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 | Option name | Option label | Context | Notes |
 |---|---|---|---|
 | `src` | Source | Base / Slot 1 | `source` avoided — GB unconditionally strips it from extraTagParams before our controls can read it |
-| `N-src` | Source [N] | Slot 2+ | Abbreviated to reduce tag length |
+| `N-src` | [N]: Source | Slot 2+ | Abbreviated to reduce tag length |
 
 ### Source option values
 
@@ -522,9 +522,17 @@ Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_`
 
 | Option name | Option label | Notes |
 |---|---|---|
-| `linkTo` | Link To | `permalink` = entity permalink; `key` = URL from meta field at `linkKey`; unset = no link. First value `none` canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | Link URL Field | Meta field key for URL. Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
+| `linkKey` | URL Meta/Option Field | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
+
+**`linkTo` values:**
+
+| Value | Label | Resolves to |
+|---|---|---|
+| `none` *(unset)* | No Link | No wrap. Canonical default, stripped at registration. |
+| `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
+| `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source dispatch; post entity for `src:ref` dispatch).
 
@@ -533,25 +541,25 @@ Link wrap is applied **after fallback resolves** — fallback text is also wrapp
 | Option name | Option label | Context | Notes |
 |---|---|---|---|
 | `use` | [Text/Image/Content] Field | Base / Slot 1  | |
-| `N-use` | [Text/Image/Content] Field [N] | Slot 2+  | |
+| `N-use` | [N]: [Text/Image/Content] Field | Slot 2+  | |
 
 #### Field selector option values (where applicable)
 
 | Applicable tags | Option name | Option label | Conditionals | Notes |
 |---|---|---|---|---|
 | `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template; stripped to '' per standard rules for default option |
-| `text`, `image`, `content` | `key` | Meta/Custom Field | Shows/enables meta key field | — |
-| `text` | `title` | Title/Name | Disables meta key field | Term name if source is term |
-| `content` | `content` | Post Content/Term Description | Disables meta key field | Term description if source is term |
-| `content` | `excerpt` | Post Excerpt | Disables meta key field | — |
-| `image` | `featured` | Featured Image | Disables meta key field | — |
+| `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
+| `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
+| `content` | `content` | Post Content/Term Description/Site Tagline | Disables field key | Term description if source is term; site tagline (`blogdescription`) if `src:site` |
+| `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
+| `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
 
 ### Secondary options
 
 | Applicable tags | Option name | Option label | Context | Notes |
 |---|---|---|---|---|
-| `text`, `image`, `content` | `key` | Field Meta Key | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. |
-| `text`, `image`, `content` | `N-key` | Field [N] Meta Key | Slot 2+ | |
+| `text`, `image`, `content` | `key` | Meta/Option Field | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. Reads post/term meta normally, or a wp_options / ACF-options value under `src:site` (the field-type prefix tracks source scope — V10). |
+| `text`, `image`, `content` | `N-key` | [N]: Meta/Option Field | Slot 2+ | |
 
 See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-context label for `key`.
 

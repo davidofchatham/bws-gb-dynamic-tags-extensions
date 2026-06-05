@@ -64,14 +64,14 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Text Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+						array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
 					// Key-mode = empty/'key'. Hidden for named data (title).
@@ -124,21 +124,21 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Content Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description/Site Tagline', 'generateblocks' ) ),
+						array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site (supports dot-path). A WYSIWYG / Blocks field renders through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					// Custom content field (use:key) OR any src:site (site content = option read).
-					'show_if_any' => array(
+					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
+					// value; use:content (default) = site tagline, no key (Model B, B5).
+					'show_if'     => array(
 						'use' => 'key',
-						'src' => 'site',
 					),
 				),
 				'fallback' => array(
@@ -156,7 +156,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Title / Name', 'generateblocks' ),
+		'title'    => __( 'Title/Name', 'generateblocks' ),
 		'tag'      => 'title',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -239,15 +239,15 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Image Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+						array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+						array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'srcTermIn' => 'empty' ),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID (use:key); the Featured Image option reads the site logo.', 'generateblocks' ),
 					'placeholder' => 'image_field',
 					// use:key → custom-field (post/term) or wp_options (site) read.
@@ -268,7 +268,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Date / Time', 'generateblocks' ),
+		'title'    => __( 'Date/Time', 'generateblocks' ),
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -281,7 +281,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Date / Time Range', 'generateblocks' ),
+		'title'    => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -314,15 +314,15 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Text Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site.', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
 			'fallback' => array(
@@ -350,16 +350,16 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Content Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-					array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description/Site Tagline', 'generateblocks' ) ),
+					array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site. A WYSIWYG / Blocks field is rendered through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
 			'fallback' => array(
@@ -381,7 +381,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'title',
-		'title'              => __( 'Title / Name', 'generateblocks' ),
+		'title'              => __( 'Title/Name', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'options'            => array(),
 		'term_fn'      => 'bws_term_title_core',
@@ -441,15 +441,15 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Image Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+					array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+					array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key for the image (post/term), or a wp_options / ACF-options key storing an attachment ID under src:site.', 'generateblocks' ),
 				'placeholder' => 'image_field',
 				'show_if'     => array( 'use' => 'not:featured' ),
 			),
@@ -471,7 +471,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_single',
-		'title'              => __( 'Date / Time', 'generateblocks' ),
+		'title'              => __( 'Date/Time', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_single_leading_options' )
 			? bws_get_datetime_single_leading_options()
@@ -509,7 +509,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_range',
-		'title'              => __( 'Date / Time Range', 'generateblocks' ),
+		'title'              => __( 'Date/Time Range', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_range_leading_options' )
 			? bws_get_datetime_range_leading_options()
