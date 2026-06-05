@@ -1171,17 +1171,15 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		}
 	}
 
-	// Key set (or text bare with no key): wp_options key read. src:site = namespace.
-	if ( ! bws_site_allowlist_ok( $key ) || ! class_exists( 'GenerateBlocks_Meta_Handler' ) ) {
-		return '';
-	}
-	$raw = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+	// Key set (or text bare with no key): wp_options key read via the canonical
+	// gated reader (allowlist + dot-path + ACF filter). src:site = namespace.
+	$raw = bws_site_read_option( $key );
 	// content tag: route block/HTML option markup through the shared content
 	// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
 	if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
-		return (string) bws_render_block_content( (string) $raw, 'option:' . $key );
+		return bws_render_block_content( $raw, 'option:' . $key );
 	}
-	return (string) $raw;
+	return $raw;
 }
 
 // ===============================================

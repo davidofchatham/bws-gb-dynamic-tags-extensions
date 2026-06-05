@@ -1,19 +1,19 @@
 # Changelog
 
-## [1.9.0] — 2026-06-03
+## [1.9.0] — Unreleased
 
 ### Added — `src:site` unified site-wide source (Stage A)
 
 - New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. `src:site` follows the **source-analog model**: a bare tag (no `key`) resolves the site's best intrinsic analog; a `key` reads a wp_options value. There is **no site `use` enum** and **no `use:option` value** (`src:site` selects the wp_options namespace the way `src:current` selects post meta):
-  - `text`: bare = empty (text is keyed by nature, like post/term text); `key` = wp_options read. (`use:title` → site name.)
+  - `text`: field-unserialized = empty (text is keyed by nature, like post/term text); `key` = wp_options read. (`use:title` → site name.)
   - `title`: site name (`get_bloginfo('name')`); no key.
-  - `permalink`: bare → site home URL (`home_url()`); `key` = URL-valued wp_options read. (`site_url()` is not exposed this release.)
-  - `image`: bare → site logo (customizer custom-logo, full `as:`/`size:`); `key` = attachment-ID wp_options read.
-  - `content`: bare → site description/tagline (`get_bloginfo('description')`); `key` → wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
+  - `permalink`: field-unserialized → site home URL (`home_url()`); `key` = URL-valued wp_options read. (`site_url()` is not exposed this release.)
+  - `image`: field-unserialized → site logo (customizer custom-logo, full `as:`/`size:`); `key` = attachment-ID wp_options read.
+  - `content`: field-unserialized → site description/tagline (`get_bloginfo('description')`); `key` → wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
 
-    The bare analogs parallel post→{title, content, permalink, featured} and term→{name, description, URL, —}. Tagline and `blogdescription` are the same value, reached via bare `{{content src:site}}` — no redundant `text` option. See `docs/tag-reference.md` §Source-analog resolution.
+    The field-unserialized analogs parallel post→{title, content, permalink, featured} and term→{name, description, URL, —}. Tagline and `blogdescription` are the same value, reached via field-unserialized `{{content src:site}}` — no redundant `text` option. See `docs/tag-reference.md` §Source-analog resolution.
   - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
-- Link wrapping for site sources (`text`, `title`, `datetime_*`): under `src:site`, `linkTo:permalink` resolves to `home_url()` — the site permalink-analog, matching bare `{{permalink src:site}}` (no separate `linkTo:site` value; permalink already IS the site's canonical URL). `linkTo:key` reads an option-stored URL (allowlist-gated).
+- Link wrapping for site sources (`text`, `title`, `datetime_*`): under `src:site`, `linkTo:permalink` resolves to `home_url()` — the site permalink-analog, matching field-unserialized `{{permalink src:site}}` (no separate `linkTo:site` value; permalink already IS the site's canonical URL). `linkTo:key` reads an option-stored URL (allowlist-gated).
 
 ### Security — site option reads gated by a GB-Pro-parity allowlist
 
@@ -22,6 +22,7 @@
 ### Fixed
 
 - `bws_parse_combined_date_time` passed the numeric-coerced id to the field **value** read, so a non-numeric ACF object-id sentinel (`'option'`) was lost before reaching `bws_read_field`. The value read now threads the `'option'` sentinel independently of the format-lookup object-id. (Prerequisite for site-datetime; no effect on existing post/term/loop callers.)
+- Site `linkTo:key` (`{{… src:site|linkTo:key|linkKey:…}}`) read the option through a raw `get_option()` instead of the reader the value path uses, so it lacked dot-path traversal and the ACF `get_field` filter — ACF options-group subfields (e.g. `organization_social.facebook`) resolved as a value but failed when used as a link target. Both site wp_options reads (key-mode value + `linkTo:key`) now share one canonical reader (`bws_site_read_option`), so the value and the link always agree.
 
 ### Notes
 

@@ -20,7 +20,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   'permalink' → get_permalink() for posts, get_term_link() for terms,
  *                 home_url() for site (the site permalink-analog; $id is a sentinel).
  *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
- *                 For $entity_type 'site' → get_option($link_key) through the A2 allowlist.
+ *                 For $entity_type 'site' → bws_site_read_option($link_key), the SAME
+ *                 canonical gated reader the site value path uses (V2: reads MUST agree).
  * Always returns '' (never false/null) so callers can unconditionally skip wrapping
  * without blocking tag output. Empty $link_key with linkTo:'key' returns '' immediately.
  *
@@ -68,12 +69,13 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 			return '';
 		}
 		if ( 'site' === $entity_type ) {
-			// Option-stored URL. Same allowlist gate as use:option (V2, ADR 0001).
-			if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $link_key ) ) {
-				return '';
-			}
-			$url = get_option( $link_key );
-			return ( $url && is_string( $url ) ) ? $url : '';
+			// Option-stored URL. Route through the SAME canonical reader as the
+			// site key-mode value read (V2 — the two reads MUST agree): allowlist
+			// gate (ADR 0001) + dot-path traversal + ACF get_field filter. Raw
+			// get_option() reaches none of those, so ACF-group subfields
+			// (e.g. organization_social.facebook) would resolve empty here.
+			// bws_site_read_option lives in field-helpers.php (loaded first).
+			return bws_site_read_option( $link_key );
 		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_meta( $id, $link_key, true );
