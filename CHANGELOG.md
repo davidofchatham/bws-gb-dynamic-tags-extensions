@@ -21,6 +21,7 @@
 
 ### Fixed
 
+- `limit` / `sep` (list-mode controls on base `text` and `title`) were shown unconditionally, including for scalar sources that can only ever return one value. They now carry `show_if_any => { srcTermIn: not_empty, src: ref }` — visible only when the final traversal step can yield multiple results (terms via `srcTermIn`, or related posts at `src:ref`). Pre-existing over-exposure; surfaced and broadened by `src:site`, which hides both `ref` and `srcTermIn` and so now also hides `limit`/`sep`. See `docs/tag-reference.md` §List mode.
 - `bws_parse_combined_date_time` passed the numeric-coerced id to the field **value** read, so a non-numeric ACF object-id sentinel (`'option'`) was lost before reaching `bws_read_field`. The value read now threads the `'option'` sentinel independently of the format-lookup object-id. (Prerequisite for site-datetime; no effect on existing post/term/loop callers.)
 - Site `linkTo:key` (`{{… src:site|linkTo:key|linkKey:…}}`) read the option through a raw `get_option()` instead of the reader the value path uses, so it lacked dot-path traversal and the ACF `get_field` filter — ACF options-group subfields (e.g. `organization_social.facebook`) resolved as a value but failed when used as a link target. Both site wp_options reads (key-mode value + `linkTo:key`) now share one canonical reader (`bws_site_read_option`), so the value and the link always agree.
 

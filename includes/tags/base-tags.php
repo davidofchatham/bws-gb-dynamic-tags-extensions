@@ -87,16 +87,20 @@ function bws_register_base_tags(): void {
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			array(
+				// List mode only applies to the final traversal step: terms (srcTermIn set)
+				// or related posts (src:ref). Scalar sources return one value — hide both.
 				'limit'    => array(
-					'type'  => 'number',
-					'label' => __( 'Result Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 			)
 		) ),
@@ -160,16 +164,20 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
+				// List mode only applies to the final traversal step: terms (srcTermIn set)
+				// or related posts (src:ref). Scalar sources return one value — hide both.
 				'limit' => array(
-					'type'  => 'number',
-					'label' => __( 'Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'type'        => 'number',
+					'label'       => __( 'Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'   => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
