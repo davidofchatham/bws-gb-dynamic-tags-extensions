@@ -28,11 +28,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * before custom controls see it and fires its own with_link(). All link-wrapping routes
  * through this function and bws_wrap_with_link().
  *
+ * @invariant Site link-wrap = permalink-analog (SPEC V-link). 'site' is an $entity_type,
+ *            NOT a $link_to value — there is no 'site' linkTo token. linkTo:permalink under
+ *            $entity_type 'site' resolves home_url(), identical to the bare {{permalink
+ *            src:site}} analog in bws_site_resolve_value (the two reads MUST agree). The
+ *            'site' guard MUST sit BEFORE the post/term permalink reads: site callbacks pass
+ *            sentinel $id=1, so an unguarded fall-through hits get_permalink(1) = wrong post.
+ *            No separate linkTo:site value (V9 corollary: permalink already IS the site
+ *            canonical URL — no duplicate path per datum).
+ *
  * @since 1.7.0
  * @param string $link_to     Destination token: 'permalink' | 'key'.
  * @param string $link_key    Meta key (used when $link_to = 'key').
- * @param int    $id          Entity ID (post ID or term ID).
- * @param string $entity_type Entity type: 'post' | 'term'.
+ * @param int    $id          Entity ID (post ID or term ID; sentinel 1 for site).
+ * @param string $entity_type Entity type: 'post' | 'term' | 'site'.
  * @return string Resolved URL, or empty string on failure.
  */
 if ( ! function_exists( 'bws_resolve_link_url' ) ) {
