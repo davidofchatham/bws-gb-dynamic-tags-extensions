@@ -248,10 +248,10 @@ function bws_register_base_tags(): void {
 				'key'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID; leave empty for the site logo.', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID (use:key); the Featured Image option reads the site logo.', 'generateblocks' ),
 					'placeholder' => 'image_field',
-					// Key-mode (option read under site, custom field otherwise); hidden for
-					// featured. Bare {{image src:site}} (no key) → site logo (V9, resolver).
+					// use:key → custom-field (post/term) or wp_options (site) read.
+					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
 					'show_if'     => array( 'use' => 'not:featured' ),
 				),
 				'fallback' => array(
@@ -1097,28 +1097,36 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Datetime tags do NOT route here — they read ACF options-page fields via
  * bws_datetime_single_core('option', ...) (see datetime callbacks).
  *
- * Dispatch by `use`. `use:<not key>` selects a named site datum (tagline / site
- * URL / logo). The DEFAULT (empty `use` / `use:key`) is a wp_options key read —
- * `src:site` selects the wp_options namespace, the same way `src:current` selects
- * post meta; there is NO `use:option` value (option is a key-read, not a distinct
- * field type — see V8). The title tag has no `use` enum → site name. The content
- * tag has no named site datum → always the option key-read.
+ * Dispatch by `use` — UNIFORM with every other source (Model B, V9). The `use`
+ * VALUE is the analog-vs-option lever, NOT key-presence: each tag's analog `use`
+ * token (and its empty/default) resolves the intrinsic site analog; `use:key`
+ * resolves a wp_options key read. `src:site` selects the wp_options namespace the
+ * same way `src:current` selects post meta. There is NO `use:option` value
+ * (option is a key-read reached by `use:key`, not a distinct field type — V8).
  *
- * @invariant Site option reads (the default key-mode branch) MUST pass
- * bws_site_allowlist_ok() before GenerateBlocks_Meta_Handler::get_option(). The
- * allowlist is GB-parity-seeded (NOT empty) — see bws_site_allowlist_ok and
+ * Do NOT branch the analog on `'' === $key` (that was B5 — a misapplied future
+ * custom-control principle that made `use` dead under site and rendered an enum of
+ * ignored post/term values).
+ *
+ * @invariant Site option reads (the use:key branch) MUST pass
+ * bws_site_allowlist_ok() before GenerateBlocks_Meta_Handler::get_option() (via
+ * the canonical bws_site_read_option reader). The allowlist is GB-parity-seeded
+ * (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * Source-analog model (V9): a BARE site tag (no `key`) resolves the best
- * intrinsic site analog; with a `key` it reads a wp_options value. There is NO
- * site `use` enum — bare = analog, key = option:
- *   - title   → site name        (get_bloginfo('name'))           [tag has no use]
- *   - text    → keyed by nature; bare = '' (matches post/term text)
- *   - content → bare: site description (get_bloginfo('description'))  [B4]
+ * Per-tag site dispatch (V9 Model B):
+ *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
+ *   - text      → use:title → name; use:key+key → option; empty/bare → ''
+ *                 (keyed by nature, no analog default)
+ *   - content   → use:content (default) → tagline (get_bloginfo('description'), B4);
+ *                 use:key → option (rich render); use:excerpt → '' (no site excerpt)
  *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
- *   - image   → bare: site logo (get_theme_mod('custom_logo'))
- * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—}.
- * `use:title` on text is the one named site value (title ≠ text's bare/keyed datum).
+ *   - image     → use:featured (default) → logo (get_theme_mod('custom_logo'),
+ *                 respects as/size); use:key → option attachment-id
+ * The analog datum IS reached by each tag's DEFAULT `use` token, so "bare site tag
+ * → analog" still holds — because the default `use` dispatches to the analog, not
+ * because key is empty. Parallels post→{title,content,permalink,featured} /
+ * term→{name,description,URL,—}.
  *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
@@ -1127,7 +1135,7 @@ function bws_site_allowlist_ok( string $key ): bool {
  * @return string Resolved value, or '' on miss / disallowed.
  */
 function bws_site_resolve_value( string $tag, array $options, $instance ): string {
-	$use = $options['use'] ?? '';
+	$use = (string) ( $options['use'] ?? '' );
 	$key = (string) ( $options['key'] ?? '' );
 
 	// title base tag (no `use` enum) and text use:title → site name.
@@ -1142,45 +1150,52 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		return (string) home_url();
 	}
 
-	// Bare analogs (no key). With a key, fall through to the option read.
-	if ( '' === $key ) {
-		switch ( $tag ) {
-			case 'content':
-				// Site description — post→content / term→description parallel (B4).
-				return (string) get_bloginfo( 'description' );
-
-			case 'image':
-				// Site logo — post→featured parallel.
-				$logo_id = (int) get_theme_mod( 'custom_logo' );
-				if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
-					return '';
-				}
-				$result = bws_get_attachment_data(
-					$logo_id,
-					$options['as'] ?? 'url',
-					$options['size'] ?? 'full'
-				);
-				if ( empty( $result ) ) {
-					return '';
-				}
-				// Route through GB output for fallback/markup parity with image tag.
-				return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
-					? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
-					: (string) $result;
-
-			// text (bare = keyed, '') falls through to the option read with empty key → ''.
+	// use:key → wp_options key read (Model B, V9: `use` is the lever, not key
+	// emptiness). The shared gated reader (allowlist + dot-path + ACF filter).
+	if ( 'key' === $use ) {
+		$raw = bws_site_read_option( $key );
+		// content: route block/HTML option markup through the shared content
+		// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
+		if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
+			return bws_render_block_content( $raw, 'option:' . $key );
 		}
+		return $raw;
 	}
 
-	// Key set (or text bare with no key): wp_options key read via the canonical
-	// gated reader (allowlist + dot-path + ACF filter). src:site = namespace.
-	$raw = bws_site_read_option( $key );
-	// content tag: route block/HTML option markup through the shared content
-	// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
-	if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
-		return bws_render_block_content( $raw, 'option:' . $key );
+	// Analog `use` tokens (and each tag's empty/default). Dispatch the intrinsic
+	// site analog per tag (V9 Model B).
+	switch ( $tag ) {
+		case 'content':
+			// use:content (default) → site description (tagline). use:excerpt → ''
+			// (no site excerpt; entry stays visible until per-value filter #27).
+			if ( 'excerpt' === $use ) {
+				return '';
+			}
+			return (string) get_bloginfo( 'description' );
+
+		case 'image':
+			// use:featured (default) → site logo (post→featured parallel).
+			$logo_id = (int) get_theme_mod( 'custom_logo' );
+			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
+				return '';
+			}
+			$result = bws_get_attachment_data(
+				$logo_id,
+				$options['as'] ?? 'url',
+				$options['size'] ?? 'full'
+			);
+			if ( empty( $result ) ) {
+				return '';
+			}
+			// Route through GB output for fallback/markup parity with image tag.
+			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
+				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+				: (string) $result;
+
+		// text: keyed by nature — empty/bare `use` has no analog default → ''.
+		default:
+			return '';
 	}
-	return $raw;
 }
 
 // ===============================================
