@@ -513,8 +513,8 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy. Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
-| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title` only. Placeholder `1`; not serialized when unset. (`datetime_*` list mode intended but unimplemented — [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30).) |
+| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | `text`, `title` only. List-mode separator. |
 
 ### Link wrap options
 
@@ -632,7 +632,7 @@ See [§Default serialization strategy](#default-serialization-strategy) for the 
 | Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `key`; unset = no link |
 | Link URL Field | `linkKey` | 7 | 8 | shown when `linkTo:key` |
 | Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
-| | `[source options]` | 9 | 10 | `limit`/`sep` included for this template |
+| | `[source options]` | 9 | 10 | `src` / `srcTermIn` / `ref` — no `limit`/`sep` (datetime is scalar, see §List mode + [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)) |
 | Date/Time Field | `key` | 10 | — | primary date/time field key |
 | Time Field (Optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
 | Start Date/Time Field | `startKey` | — | 11 | |
@@ -641,7 +641,7 @@ See [§Default serialization strategy](#default-serialization-strategy) for the 
 | End Time Field (Optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
 | | `[fallback option]` | 12 | 15 | |
 
-**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (includes `limit`/`sep` for list-mode templates). Field keys close as group 3. `fallback` last.
+**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (`src` / `srcTermIn` / `ref`; no `limit`/`sep` — datetime is scalar, see §List mode). Field keys close as group 3. `fallback` last.
 
 ---
 
