@@ -53,7 +53,7 @@ This principle governs `src:site` below and should guide every future source (`p
 |---|---|---|
 | `text` | *(empty — text is keyed by nature, like post/term text)* | read wp_options key `X` |
 | `title` | site name (`get_bloginfo('name')`) | *(no key — always name)* |
-| `permalink` | site home URL (`home_url()`) | read URL-valued wp_options key `X` |
+| `permalink` | site home URL (`home_url()`) | *(no key — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
 | `image` | site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`) | read attachment-ID-valued wp_options key `X` |
 | `content` | site description (`get_bloginfo('description')`) | read wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`); block/HTML markup executes |
 | `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
@@ -62,7 +62,7 @@ This principle governs `src:site` below and should guide every future source (`p
 >
 > **`site_url()` is not exposed** this release. Bare permalink resolves `home_url()` (the front-facing site address); `site_url()` (the WP-install address, differs only when WP lives in a subdirectory) has no tag path yet — add one if a real need appears.
 
-**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key.
+**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown under `src:site` whenever the tag is in key-mode (i.e. no named `use:` value selected); on datetime it is the always-visible direct field/option key. **`permalink` is the exception — it has no `key` control under `src:site`** (it names the site's own URL, not a field): bare = `home_url()`, no option read.
 
 **Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
 

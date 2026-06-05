@@ -186,22 +186,12 @@ function bws_register_base_tags(): void {
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
 		'supports' => array(),
+		// No `key` control under src:site — permalink is the source entity's own URL,
+		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
+		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
 		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
-			$traversal_opts,
-			array(
-				// Site key-mode (V9): bare {{permalink src:site}} → home_url(); supply a
-				// key to read a URL-valued wp_options instead. No `use` enum — there is
-				// no redundant named home_url/site_url value (site_url() unreachable this
-				// release by design). Control hidden off-site.
-				'key' => array(
-					'type'        => 'text',
-					'label'       => __( 'Option Key', 'generateblocks' ),
-					'help'        => __( 'wp_options / ACF-options key (supports dot-path) holding a URL. Leave empty for the site home URL.', 'generateblocks' ),
-					'placeholder' => 'option_name',
-					'show_if'     => array( 'src' => 'site' ),
-				),
-			)
+			$traversal_opts
 		) ),
 		'return'   => 'bws_base_permalink_callback',
 	) );
@@ -1117,7 +1107,7 @@ function bws_site_allowlist_ok( string $key ): bool {
  *   - title   → site name        (get_bloginfo('name'))           [tag has no use]
  *   - text    → keyed by nature; bare = '' (matches post/term text)
  *   - content → bare: site description (get_bloginfo('description'))  [B4]
- *   - permalink → bare: home_url()  (the site's front-facing "permalink")
+ *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
  *   - image   → bare: site logo (get_theme_mod('custom_logo'))
  * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—}.
  * `use:title` on text is the one named site value (title ≠ text's bare/keyed datum).
@@ -1137,16 +1127,19 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 		return (string) get_bloginfo( 'name' );
 	}
 
+	// permalink = the source entity's own URL, never an option read (V9 narrowed).
+	// Always home_url(); any `key` is ignored (control suppressed under site too).
+	// URL-valued options are reachable via {{text src:site|key:...}}.
+	if ( 'permalink' === $tag ) {
+		return (string) home_url();
+	}
+
 	// Bare analogs (no key). With a key, fall through to the option read.
 	if ( '' === $key ) {
 		switch ( $tag ) {
 			case 'content':
 				// Site description — post→content / term→description parallel (B4).
 				return (string) get_bloginfo( 'description' );
-
-			case 'permalink':
-				// Site's front-facing "permalink".
-				return (string) home_url();
 
 			case 'image':
 				// Site logo — post→featured parallel.
