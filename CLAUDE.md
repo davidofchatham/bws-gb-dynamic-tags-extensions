@@ -20,9 +20,10 @@ Single source of truth per content type. Other files link, never duplicate.
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
 | Current architecture (templates, sources, options, GB types, render order, preview labels) | `docs/tag-reference.md` | Authoritative |
-| Plugin's response to GB constraints (default-strip strategy, custom controls, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes |
+| Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
+| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, field discovery) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. |
 | Historical N×M tag names + rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
