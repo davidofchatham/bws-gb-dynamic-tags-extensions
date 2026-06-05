@@ -199,10 +199,12 @@ Selected templates support outputting multiple results as a delimited list. `lim
 | `content` | ❌ | Long-form prose |
 | `permalink` | ❌ | Scalar URL |
 | `image` | ❌ | Scalar media |
-| `datetime_single` | ✅ | Terms or related posts |
-| `datetime_range` | ✅ | Terms or related posts |
+| `datetime_single` | ❌ | Scalar date/time (see note) |
+| `datetime_range` | ❌ | Scalar date/time (see note) |
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
+
+**`datetime_*` — intended, not yet implemented.** The base `datetime_single` / `datetime_range` callbacks iterate `srcTermIn` terms but short-circuit to the **first** non-empty result; no `limit` / `sep` controls are registered. A multi-result date list (e.g. every event date on a term's posts) is a planned extension ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)), not current behaviour — these tags return a single value today.
 
 ---
 
