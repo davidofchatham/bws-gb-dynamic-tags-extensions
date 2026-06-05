@@ -1098,11 +1098,17 @@ function bws_site_allowlist_ok( string $key ): bool {
  * bws_datetime_single_core('option', ...) (see datetime callbacks).
  *
  * Dispatch by `use` — UNIFORM with every other source (Model B, V9). The `use`
- * VALUE is the analog-vs-option lever, NOT key-presence: each tag's analog `use`
- * token (and its empty/default) resolves the intrinsic site analog; `use:key`
- * resolves a wp_options key read. `src:site` selects the wp_options namespace the
- * same way `src:current` selects post meta. There is NO `use:option` value
- * (option is a key-read reached by `use:key`, not a distinct field type — V8).
+ * VALUE is the analog-vs-option lever, NOT key-presence; `use:key` resolves a
+ * wp_options key read. `src:site` selects the wp_options namespace the same way
+ * `src:current` selects post meta. There is NO `use:option` value (option is a
+ * key-read reached by `use:key`, not a distinct field type — V8).
+ *
+ * STRIP-DEFAULT (B6): an EMPTY wire `use` is the tag's FIRST enum value (stripped
+ * at registration), NOT a third "no use" state. This function canonicalizes empty
+ * → first-enum-value up front (text/image → 'key', content → 'content'), mirroring
+ * the per-callback `?? 'key'` / `?? 'content'` defaults. So `{{text src:site|
+ * key:blogname}}` (no explicit `use`) reads the option, because text's stripped
+ * default IS key-mode.
  *
  * Do NOT branch the analog on `'' === $key` (that was B5 — a misapplied future
  * custom-control principle that made `use` dead under site and rendered an enum of
@@ -1114,19 +1120,29 @@ function bws_site_allowlist_ok( string $key ): bool {
  * (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * Per-tag site dispatch (V9 Model B):
+ * @invariant (V11/B6) Empty wire `use` MUST be canonicalized to the tag's FIRST
+ * enum value before dispatch (content → 'content', text/image → 'key'), never
+ * treated as a distinct "no use" state. Dispatching on the literal empty string
+ * drops the option read for key-mode-default tags (the B6 regression). The
+ * stripped default MUST stay key-mode for text/image — the site logo is the
+ * EXPLICIT use:featured value, not the bare tag — so the empty wire is an
+ * unambiguous key-mode signal (no stale-key vs intended-analog ambiguity until
+ * custom-control token authority exists; see SPEC §B6).
+ *
+ * Per-tag site dispatch (V9 Model B; default = stripped first enum value):
  *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
- *   - text      → use:title → name; use:key+key → option; empty/bare → ''
- *                 (keyed by nature, no analog default)
- *   - content   → use:content (default) → tagline (get_bloginfo('description'), B4);
+ *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
+ *   - content   → DEFAULT 'content' → tagline (get_bloginfo('description'), B4);
  *                 use:key → option (rich render); use:excerpt → '' (no site excerpt)
  *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
- *   - image     → use:featured (default) → logo (get_theme_mod('custom_logo'),
- *                 respects as/size); use:key → option attachment-id
- * The analog datum IS reached by each tag's DEFAULT `use` token, so "bare site tag
- * → analog" still holds — because the default `use` dispatches to the analog, not
- * because key is empty. Parallels post→{title,content,permalink,featured} /
- * term→{name,description,URL,—}.
+ *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
+ *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
+ *                 respects as/size). Logo is NOT the stripped default — `featured` is
+ *                 always serialized so the empty wire stays an unambiguous key-mode
+ *                 signal (no stale-key ambiguity until token authority via custom
+ *                 controls; deferred — see SPEC §B6 note).
+ * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—},
+ * EXCEPT image's site analog (logo) is reached by explicit use:featured, not bare.
  *
  * @since 1.9.0
  * @param string $tag      Base tag name: text|title|permalink|image|content.
@@ -1135,11 +1151,20 @@ function bws_site_allowlist_ok( string $key ): bool {
  * @return string Resolved value, or '' on miss / disallowed.
  */
 function bws_site_resolve_value( string $tag, array $options, $instance ): string {
-	$use = (string) ( $options['use'] ?? '' );
 	$key = (string) ( $options['key'] ?? '' );
 
+	// Canonicalize `use` to the tag's stripped default (its FIRST enum value) when
+	// the wire value is empty — strip-default means an unset `use` IS the first
+	// option, NOT a third "no use" state (B6). Mirrors the per-callback defaults
+	// (text/image → 'key', content → 'content'); title/permalink have no enum.
+	$use_default = ( 'content' === $tag ) ? 'content' : 'key';
+	$use         = (string) ( $options['use'] ?? '' );
+	if ( '' === $use ) {
+		$use = $use_default;
+	}
+
 	// title base tag (no `use` enum) and text use:title → site name.
-	if ( ( 'title' === $tag && '' === $use ) || 'title' === $use ) {
+	if ( 'title' === $tag || 'title' === $use ) {
 		return (string) get_bloginfo( 'name' );
 	}
 

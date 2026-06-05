@@ -35,11 +35,13 @@ See [§Source options](#source-options) for label/UI details.
 | `title` | post title | term name | site name |
 | `content` | post content | term description | site description (tagline) |
 | `permalink` | post URL | term URL | site home URL |
-| `image` | featured image | *(none — terms have no native image; key required)* | site logo |
+| `image` | featured image | *(none — terms have no native image; key required)* | site logo *(via explicit `use:featured` — see note)* |
 | `text` | *(keyed — no intrinsic bare datum; key required in all contexts)* | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic bare datum; key/field required in all contexts)* | | |
 
-Where a source has **no** intrinsic analog for a tag (term image, site text-body), the bare tag resolves empty and a `key`/field is required — the gap is honest, not papered over. A *corollary*: a named `use:` value that would duplicate the bare analog must not exist (e.g. no `use:logo` when bare image already = logo, no `use:home_url` when bare permalink already = home URL). This keeps one canonical path per datum.
+Where a source has **no** intrinsic analog for a tag (term image, site text-body), the bare tag resolves empty and a `key`/field is required — the gap is honest, not papered over. A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
+
+**Strip-default caveat (B6).** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (tagline). The site **logo** is the explicit `use:featured` value, *not* the bare `{{image src:site}}` (which is key-mode → empty without a key). `featured` is always serialized so the empty wire stays an unambiguous key-mode signal — there is no reliable way yet to tell a stale `key` from intentional key-mode if `featured` were the stripped default. Auto-unsetting the stale `key` when `use` leaves key-mode needs token authority that arrives with the custom-control work (deferred). Until then, **the stripped default is always key-mode**, named analogs are always explicit.
 
 This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
 
@@ -47,15 +49,15 @@ This principle governs `src:site` below and should guide every future source (`p
 
 **v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
 
-**`src:site` follows the source-analog model (see [§Source-analog resolution](#source-analog-resolution)): each tag's DEFAULT `use` token resolves the site's best intrinsic analog; `use:key` reads a wp_options value.** `use` is the analog-vs-option lever — **uniform with every other source** (Model B), not key-presence. `src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value (option is reached by `use:key`). The existing per-tag `use` values dispatch under site (content `use:content` → tagline, image `use:featured` → logo, text `use:title` → name); only **new site-specific** `use` values that would duplicate a default analog are barred (no `use:logo`/`use:home_url`).
+**`src:site` is uniform with every other source: `use` is the analog-vs-option lever (Model B), not key-presence.** `use:key` reads a wp_options value; named `use` values resolve their datum; the empty wire is the tag's **stripped first-enum value** (key-mode for text/image, `content` for content — see the [strip-default caveat](#source-analog-resolution)). `src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value (option is reached by `use:key`). The existing per-tag `use` values dispatch under site (content `use:content` → tagline, image `use:featured` → logo, text `use:title` → name); only **new site-specific** `use` values that would duplicate an existing datum are barred (no `use:logo` — logo already = image `use:featured`; no `use:home_url` — already = permalink).
 
-| Base tag | default `use` (the analog) under `src:site` | `use:key` + `{{…\|key:X}}` |
+| Base tag | empty-wire default under `src:site` | explicit `use` values |
 |---|---|---|
-| `text` | *(empty — text is keyed by nature; `use:title` → site name)* | read wp_options key `X` |
-| `title` | site name (`get_bloginfo('name')`) | *(no `use`/`key` — always name)* |
+| `text` | `key` (stripped default) → read wp_options key `X` (`{{text src:site\|key:X}}`); empty key → '' | `use:title` → site name; `use:key` (explicit) → same option read |
+| `title` | site name (`get_bloginfo('name')`) | *(no `use`/`key` enum — always name)* |
 | `permalink` | site home URL (`home_url()`) | *(no `use`/`key` — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
-| `image` | `use:featured` (default) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`) | read attachment-ID-valued wp_options key `X` |
-| `content` | `use:content` (default) → site description / tagline (`get_bloginfo('description')`); `use:excerpt` → empty (no site excerpt) | read wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`); block/HTML markup executes |
+| `image` | `key` (stripped default) → attachment-ID wp_options key `X`; **bare / no key → '' (NOT the logo)** | `use:featured` (explicit) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`); `use:key` → same option read |
+| `content` | `content` (stripped default) → site description / tagline (`get_bloginfo('description')`) | `use:key` → wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`; block/HTML markup executes); `use:excerpt` → empty (no site excerpt) |
 | `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
 > **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is reached via bare `{{content src:site}}` (paralleling term→description), **not** a `text` `use:` value.
