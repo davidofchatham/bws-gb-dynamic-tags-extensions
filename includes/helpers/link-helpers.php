@@ -17,8 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Resolve a link URL for output wrapping.
  *
  * Routes by $link_to destination and $entity_type:
- *   'permalink' → get_permalink() for posts, get_term_link() for terms.
- *   'site'      → home_url() (src:site; ignores $id — site has no entity).
+ *   'permalink' → get_permalink() for posts, get_term_link() for terms,
+ *                 home_url() for site (the site permalink-analog; $id is a sentinel).
  *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
  *                 For $entity_type 'site' → get_option($link_key) through the A2 allowlist.
  * Always returns '' (never false/null) so callers can unconditionally skip wrapping
@@ -41,12 +41,11 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 		return '';
 	}
 
-	// src:site home URL — sentinel $id (1) passed by site callbacks; no entity lookup.
-	if ( 'site' === $link_to ) {
-		return (string) home_url();
-	}
-
 	if ( 'permalink' === $link_to ) {
+		// Site permalink-analog IS the home URL — no entity to resolve (sentinel $id).
+		if ( 'site' === $entity_type ) {
+			return (string) home_url();
+		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_link( $id );
 			return ( ! is_wp_error( $url ) && $url ) ? (string) $url : '';
@@ -145,7 +144,6 @@ function bws_get_link_options(): array {
 			'options'        => array(
 				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
 				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
-				array( 'value' => 'site',      'label' => __( 'Site Home URL', 'generateblocks' ) ),
 				array( 'value' => 'key',       'label' => __( 'URL Meta Field', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,

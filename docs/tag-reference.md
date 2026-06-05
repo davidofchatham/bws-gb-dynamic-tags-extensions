@@ -37,6 +37,7 @@ See [§Source options](#source-options) for label/UI details.
 | `permalink` | post URL | term URL | site home URL |
 | `image` | featured image | *(none — terms have no native image; key required)* | site logo |
 | `text` | *(keyed — no intrinsic bare datum; key required in all contexts)* | | |
+| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic bare datum; key/field required in all contexts)* | | |
 
 Where a source has **no** intrinsic analog for a tag (term image, site text-body), the bare tag resolves empty and a `key`/field is required — the gap is honest, not papered over. A *corollary*: a named `use:` value that would duplicate the bare analog must not exist (e.g. no `use:logo` when bare image already = logo, no `use:home_url` when bare permalink already = home URL). This keeps one canonical path per datum.
 
@@ -65,7 +66,7 @@ This principle governs `src:site` below and should guide every future source (`p
 
 **Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
 
-**Link wrapping** (text/title/datetime_* only): `linkTo:site` → `home_url()`; `linkTo:key` → option-stored URL (allowlist-gated).
+**Link wrapping** (text/title/datetime_* only): `linkTo:permalink` → `home_url()` under `src:site` (the site permalink-analog — no separate `linkTo:site`); `linkTo:key` → option-stored URL (allowlist-gated).
 
 **Allowlist (option reads).** Every option read — site option key-mode, site `linkTo:key`, and datetime `get_field(…,'option')` — passes through the `generateblocks_dynamic_tags_allowed_options` filter, **seeded to GB Pro parity**: the six WP defaults (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`) plus every registered ACF options-page field (registration is the opt-in — ACF option fields read with no manual filter). The gate is ours, not the handler's. See [`docs/adr/0001-site-option-read-allowlist.md`](adr/0001-site-option-read-allowlist.md) and [`docs/plugin-integration.md`](plugin-integration.md) for the filter usage.
 

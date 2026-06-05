@@ -13,7 +13,7 @@
 
     The bare analogs parallel post→{title, content, permalink, featured} and term→{name, description, URL, —}. Tagline and `blogdescription` are the same value, reached via bare `{{content src:site}}` — no redundant `text` option. See `docs/tag-reference.md` §Source-analog resolution.
   - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
-- Link wrapping for site sources (`text`, `title`, `datetime_*`): new `linkTo:site` value resolves to `home_url()`; `linkTo:key` reads an option-stored URL.
+- Link wrapping for site sources (`text`, `title`, `datetime_*`): under `src:site`, `linkTo:permalink` resolves to `home_url()` — the site permalink-analog, matching bare `{{permalink src:site}}` (no separate `linkTo:site` value; permalink already IS the site's canonical URL). `linkTo:key` reads an option-stored URL (allowlist-gated).
 
 ### Security — site option reads gated by a GB-Pro-parity allowlist
 
