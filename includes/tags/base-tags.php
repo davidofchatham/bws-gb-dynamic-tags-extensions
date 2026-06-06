@@ -75,8 +75,9 @@ function bws_register_base_tags(): void {
 					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
 					// Key-mode = empty/'key'. Hidden for named data (title).
-					// Under src:site, key-mode reads a wp_options key. (Site tagline is
-					// reached via {{content src:site}}, not a text use value.)
+					// Under src:site, key-mode reads a wp_options key. Site tagline has
+					// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
+					// (nothing unique to add until multislot-feed decouple — see #26).
 					'show_if'     => array( 'use' => 'not:title' ),
 				),
 				'fallback' => array(
@@ -124,7 +125,7 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Content Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description/Site Tagline', 'generateblocks' ) ),
+						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 						array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 					),
@@ -136,7 +137,8 @@ function bws_register_base_tags(): void {
 					'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site (supports dot-path). A WYSIWYG / Blocks field renders through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 					'placeholder' => 'field_name',
 					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
-					// value; use:content (default) = site tagline, no key (Model B, B5).
+					// value (rich render); use:content default → '' (site has no content
+					// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
 					'show_if'     => array(
 						'use' => 'key',
 					),
@@ -350,7 +352,7 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Content Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description/Site Tagline', 'generateblocks' ) ),
+					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
 					array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 				),
@@ -1132,8 +1134,10 @@ function bws_site_allowlist_ok( string $key ): bool {
  * Per-tag site dispatch (V9 Model B; default = stripped first enum value):
  *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
  *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
- *   - content   → DEFAULT 'content' → tagline (get_bloginfo('description'), B4);
- *                 use:key → option (rich render); use:excerpt → '' (no site excerpt)
+ *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt
+ *                 both → ''. Site's only long-text datum is the tagline — a SHORT
+ *                 string with no unique value over GB native {{site_tagline}}, so
+ *                 no tag path this release. use:key → option (rich render).
  *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
  *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
  *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
@@ -1191,12 +1195,12 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 	// site analog per tag (V9 Model B).
 	switch ( $tag ) {
 		case 'content':
-			// use:content (default) → site description (tagline). use:excerpt → ''
-			// (no site excerpt; entry stays visible until per-value filter #27).
-			if ( 'excerpt' === $use ) {
-				return '';
-			}
-			return (string) get_bloginfo( 'description' );
+			// Site has NO content analog (B7): the only site long-text datum is the
+			// tagline, which is a SHORT string (not body text) AND has no unique value
+			// to add over GB native {{site_tagline}} — so no tag path this release.
+			// use:content (default) and use:excerpt both → '' under site. content is
+			// only meaningful with use:key (wp_options rich-render, handled above).
+			return '';
 
 		case 'image':
 			// use:featured (default) → site logo (post→featured parallel).

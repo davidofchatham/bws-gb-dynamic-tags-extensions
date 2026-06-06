@@ -25,12 +25,12 @@ Manual editor / front-end test pass for the `src:site` unified site source (v1.9
 
 | # | Tag | Expected |
 |---|---|---|
-| R1.1 | `{{content src:site}}` | site tagline (blogdescription) |
-| R1.2 | `{{content src:site\|use:content}}` | site tagline (same as R1.1) |
+| R1.1 | `{{content src:site}}` | **empty** (no site content analog — §B7) |
+| R1.2 | `{{content src:site\|use:content}}` | **empty** (same as R1.1) |
 | R1.3 | `{{content src:site\|use:excerpt}}` | **empty** (no site excerpt) |
 | R1.4 | `{{content src:site\|use:key\|key:[SUB block/WYSIWYG option]}}` | option value, rich-rendered (blocks/shortcodes execute) |
 | R1.5 | `{{text src:site\|use:title}}` | site name |
-| R1.6 | `{{text src:site\|use:key\|key:blogdescription}}` | tagline text |
+| R1.6 | `{{text src:site\|use:key\|key:blogdescription}}` | tagline text (key path — NO `use:tagline` value exists, §B7/C10) |
 | R1.7 | `{{title src:site}}` | site name |
 | R1.8 | `{{permalink src:site}}` | home URL |
 | R1.9 | `{{image as:id\|src:site\|use:key\|key:[SUB attachment-id option]}}` | attachment ID from option |
@@ -54,7 +54,8 @@ Manual editor / front-end test pass for the `src:site` unified site source (v1.9
 | R3.1 | text/image/content `use:key` value | "Meta/Option Field" |
 | R3.2 | text/image/content key field | "Meta/Option Field" |
 | R3.3 | image analog `use` value | "Featured Image/Site Logo" |
-| R3.4 | content analog `use` value | "Post Content/Term Description/Site Tagline" |
+| R3.4 | content analog `use` value | "Post Content/Term Description" |
+| R3.4b | text `use` enum (site) | only "Meta/Option Field" + "Title/Name" — **no "Site Tagline"** (§B7/C10) |
 | R3.5 | linkTo dropdown value | "URL Meta/Option Field" |
 | R3.6 | linkKey field | "URL Meta/Option Field" |
 | R3.7 | `try_text`/`try_content`/`try_image` slot 2 | "2: Source", "2: Meta/Option Field", "2: Text Field", "2: Get from taxonomy term?" |
@@ -106,3 +107,4 @@ Plain WP options (`blogname`, `blogdescription`, `home`) need no ACF.
 - **Stale label in editor:** JS cache — hard-reload the editor.
 - **`use` value selected but ignored** (e.g. excerpt/featured no effect): §B5 — resolver dispatching on key-presence instead of `use`.
 - **`{{…|key:X}}` ignored when no explicit `use`:** §B6 — empty `use` not canonicalized to the stripped first-enum value.
+- **`{{content src:site}}` returns the tagline (not empty):** §B7 — content has no site analog; the content default must resolve empty. (Tagline has no tag path — GB native `{{site_tagline}}` or `key:blogdescription`.)
