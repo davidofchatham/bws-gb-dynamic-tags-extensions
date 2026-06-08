@@ -1127,7 +1127,7 @@ function bws_site_allowlist_ok( string $key ): bool {
  * treated as a distinct "no use" state. Dispatching on the literal empty string
  * drops the option read for key-mode-default tags (the B6 regression). The
  * stripped default MUST stay key-mode for text/image — the site logo is the
- * EXPLICIT use:featured value, not the bare tag — so the empty wire is an
+ * EXPLICIT use:featured value, not the implicit-mode tag — so the empty wire is an
  * unambiguous key-mode signal (no stale-key vs intended-analog ambiguity until
  * custom-control token authority exists; see SPEC §B6).
  *

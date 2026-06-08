@@ -18,7 +18,7 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
-| `site` | Site-wide data (no entity) — bare tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
+| `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
 | `child` | WP child posts/terms (list output) | To be considered |
@@ -28,7 +28,9 @@ See [§Source options](#source-options) for label/UI details.
 
 ### Source-analog resolution
 
-**Design principle.** Each base tag, in *bare* form (no `key`, no named modifier), resolves to the **best intrinsic analog datum for the active source — where one exists**. A tag should "just work" per context; named `use:`/`key` are overrides and escape hatches, not the primary path.
+**Design principle.** Each base tag at its **implicit mode** (no explicit `use`/`key` — the stripped per-template default, recovered via `?? '<canonical>'` on read) resolves to the **best intrinsic analog datum for the active source — where one exists**. A tag should "just work" per context; named `use:`/`key` are **explicit-mode** overrides and escape hatches, not the primary path.
+
+*Mode terminology:* a `use`/`key` selection is **explicit** (written in the string), **implicit** (absent but recoverable — the stripped default, or a mode implied by a present `key`/`ref`; a selection IS in effect even though the selector's default isn't serialized), or **unset** (no choice and nothing to recover, e.g. no `src` → current entity). "Implicit" ≠ "unset": the panel always shows a default selection. Implicit mode resolves the analog only at **base / slot 1** — inside a try_ slot, the same wire-absence means *inherit* (the implicit-in-slot collision), not analog.
 
 | Base tag | post | term | site |
 |---|---|---|---|
@@ -36,12 +38,12 @@ See [§Source options](#source-options) for label/UI details.
 | `content` | post content | term description | *(none — site has no long-form body datum; the tagline is short, and has no tag path this release — see note)* |
 | `permalink` | post URL | term URL | site home URL |
 | `image` | featured image | *(none — terms have no native image; key required)* | site logo *(via explicit `use:featured` — see note)* |
-| `text` | *(keyed — no intrinsic bare datum; key required in all contexts)* | | |
-| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic bare datum; key/field required in all contexts)* | | |
+| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | |
+| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | |
 
-Where a source has **no** intrinsic analog for a tag (term image, site content-body), the bare tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
+Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
-**Strip-default caveat (B6).** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (which, under `src:site`, has no analog → empty). The site **logo** is the explicit `use:featured` value, *not* the bare `{{image src:site}}` (which is key-mode → empty without a key). `featured` is always serialized so the empty wire stays an unambiguous key-mode signal — there is no reliable way yet to tell a stale `key` from intentional key-mode if `featured` were the stripped default. Auto-unsetting the stale `key` when `use` leaves key-mode needs token authority that arrives with the custom-control work (deferred). Until then, **the stripped default is always key-mode**, named analogs are always explicit.
+**Strip-default caveat (B6).** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (which, under `src:site`, has no analog → empty). The site **logo** is the explicit `use:featured` value, *not* the implicit-mode `{{image src:site}}` (which is key-mode → empty without a key). `featured` is always serialized so the empty wire stays an unambiguous key-mode signal — there is no reliable way yet to tell a stale `key` from intentional key-mode if `featured` were the stripped default. Auto-unsetting the stale `key` when `use` leaves key-mode needs token authority that arrives with the custom-control work (deferred). Until then, **the stripped default is always key-mode**, named analogs are always explicit.
 
 This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
 
@@ -52,7 +54,7 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 **A new `use:` value qualifies if it satisfies *either* of two independent tests — reject only when it fails BOTH:**
 
 1. **Uniqueness** — it offers an affordance no existing path gives: a datum unreachable elsewhere (e.g. an excerpt of a *related* post via `src:ref` — no native GB path), or a transform/traversal that adds value (the datetime format chain).
-2. **Strong cross-source analog** — it fills the *same conceptual slot* as the tag's analogs in other sources, so the bare tag "just works" per context (`{{title}}` → post title / term name / site name; `{{content}}` → post content / term description). An analog can qualify **even if the datum is also reachable via `key` or a GB-native tag** — the value is the *consistent mental model*, not a path the user lacked. This is the design principle at the top of this section, restated as a gate.
+2. **Strong cross-source analog** — it fills the *same conceptual slot* as the tag's analogs in other sources, so the implicit-mode tag "just works" per context (`{{title}}` → post title / term name / site name; `{{content}}` → post content / term description). An analog can qualify **even if the datum is also reachable via `key` or a GB-native tag** — the value is the *consistent mental model*, not a path the user lacked. This is the design principle at the top of this section, restated as a gate.
 
 | New value | Unique? | Strong analog? | Verdict |
 |---|---|---|---|
@@ -76,7 +78,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 | `text` | `key` (stripped default) → read wp_options key `X` (`{{text src:site\|key:X}}`); empty key → '' | `use:title` → site name; `use:key` (explicit) → same option read |
 | `title` | site name (`get_bloginfo('name')`) | *(no `use`/`key` enum — always name)* |
 | `permalink` | site home URL (`home_url()`) | *(no `use`/`key` — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
-| `image` | `key` (stripped default) → attachment-ID wp_options key `X`; **bare / no key → '' (NOT the logo)** | `use:featured` (explicit) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`); `use:key` → same option read |
+| `image` | `key` (stripped default) → attachment-ID wp_options key `X`; **implicit mode / no key → '' (NOT the logo)** | `use:featured` (explicit) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`); `use:key` → same option read |
 | `content` | `content` (stripped default) → **'' (no site content analog)** — site has no long-form body; the tagline is short and has no tag path (use GB `{{site_tagline}}`) | `use:key` → wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`; block/HTML markup executes); `use:excerpt` → empty (no site excerpt) |
 | `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
 
@@ -84,7 +86,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 >
 > **`site_url()` is not exposed** this release. Bare permalink resolves `home_url()` (the front-facing site address); `site_url()` (the WP-install address, differs only when WP lives in a subdirectory) has no tag path yet — add one if a real need appears.
 
-**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): bare = `home_url()`, no option read.
+**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): implicit mode = `home_url()`, no option read.
 
 **Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
 
