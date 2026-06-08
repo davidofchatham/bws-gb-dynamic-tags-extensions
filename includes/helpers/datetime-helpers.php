@@ -717,6 +717,14 @@ function bws_format_date_range( $start_date, $end_date, $format, $options ) {
         return bws_format_single_date( $start_date, $format, $omit_current_year, $smart_time, $current_year, $utils );
     }
 
+    // Cross-year override: when the two endpoints fall in different years, the
+    // year is meaningful even if one endpoint is the current year — omitting it
+    // would produce lopsided output (e.g. "August 12, 2025–June 1"). Suppress
+    // current-year omission for the whole range so both years render.
+    if ( $start_date->format( 'Y' ) !== $end_date->format( 'Y' ) ) {
+        $omit_current_year = false;
+    }
+
     // Same day with time range
     if ( $start_date->format( 'Y-m-d' ) === $end_date->format( 'Y-m-d' ) ) {
         return bws_format_same_day_range( $start_date, $end_date, $format, $omit_current_year, $smart_time, $current_year, $utils );

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.2] — 2026-06-08
+
+### Fixed — cross-year `datetime_range` drops a year
+
+- A `datetime_range` spanning two different years with "Omit Current Year" on (the default, `showCurrentYear` off) stripped the year from whichever endpoint fell in the current year, producing lopsided output like `August 12, 2025–June 1` instead of `August 12, 2025 – June 1, 2026`. `bws_format_date_range` now suppresses current-year omission for the whole range when the two endpoints fall in different years — the year is meaningful on both sides. Single-date and same-day ranges are unaffected (no second endpoint / shared year). Help text for the year toggle (`showCurrentYear` and legacy `omit_current_year` on range tags) notes the override.
+
 ## [1.9.1] — 2026-06-08
 
 ### Added — self-update from GitHub Releases

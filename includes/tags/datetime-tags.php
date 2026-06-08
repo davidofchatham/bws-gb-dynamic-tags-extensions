@@ -100,7 +100,7 @@ function bws_get_date_range_options() {
 		'omit_current_year' => array(
 			'type'    => 'checkbox',
 			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
+			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
 			'default' => true,
 		),
 		'separator'     => array(
@@ -261,7 +261,7 @@ function bws_get_datetime_range_options() {
 		'omit_current_year'   => array(
 			'type'    => 'checkbox',
 			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
+			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
 			'default' => true,
 		),
 		'separator'           => array(
@@ -353,7 +353,7 @@ function bws_get_datetime_single_leading_options(): array {
 		'showCurrentYear' => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show current year', 'generateblocks' ),
-			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
+			'help'  => __( 'Include the year even when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
 		),
 		'showMidnight'    => array(
 			'type'  => 'checkbox',
@@ -464,7 +464,7 @@ function bws_get_datetime_range_leading_options(): array {
 		'showCurrentYear' => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show current year', 'generateblocks' ),
-			'help'  => __( 'Include the year even when it matches the current year.', 'generateblocks' ),
+			'help'  => __( 'Include the year even when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
 		),
 		'showMidnight'    => array(
 			'type'  => 'checkbox',
