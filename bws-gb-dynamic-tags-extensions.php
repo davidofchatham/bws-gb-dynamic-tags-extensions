@@ -99,11 +99,15 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/content-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/image-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php'; // merged: includes date-only templates
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/email-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/taxonomy-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
 
 	// Register base (source-agnostic) tags: text, content, title, permalink, image, datetime_single, datetime_range.
 	bws_register_base_tags();
+
+	// Register the email base tag (unconditional; first-class base tag).
+	bws_register_email_tag();
 
 	// Generate try_ fallback-chain tags from modifier templates.
 	\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
