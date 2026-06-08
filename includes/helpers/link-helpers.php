@@ -161,7 +161,7 @@ function bws_get_link_options(): array {
 		),
 		'linkKey' => array(
 			'type'    => 'text',
-			'label'   => __( 'URL Meta/Option Field', 'generateblocks' ),
+			'label'   => __( 'URL Meta/Option Field Key', 'generateblocks' ),
 			'help'    => __( 'Meta or option field key whose value is used as the link URL (post/term meta, or a wp_options / ACF-options key under src:site). For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
 			'show_if' => array( 'linkTo' => 'key' ),
 		),

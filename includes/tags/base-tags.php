@@ -71,7 +71,7 @@ function bws_register_base_tags(): void {
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
 					// Key-mode = empty/'key'. Hidden for named data (title).
@@ -133,7 +133,7 @@ function bws_register_base_tags(): void {
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site (supports dot-path). A WYSIWYG / Blocks field renders through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 					'placeholder' => 'field_name',
 					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
@@ -249,7 +249,7 @@ function bws_register_base_tags(): void {
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID (use:key); the Featured Image option reads the site logo.', 'generateblocks' ),
 					'placeholder' => 'image_field',
 					// use:key → custom-field (post/term) or wp_options (site) read.
@@ -323,7 +323,7 @@ function bws_register_base_tags(): void {
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site.', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
@@ -360,7 +360,7 @@ function bws_register_base_tags(): void {
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site. A WYSIWYG / Blocks field is rendered through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
@@ -450,7 +450,7 @@ function bws_register_base_tags(): void {
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
 				'help'        => __( 'ACF or meta field key for the image (post/term), or a wp_options / ACF-options key storing an attachment ID under src:site.', 'generateblocks' ),
 				'placeholder' => 'image_field',
 				'show_if'     => array( 'use' => 'not:featured' ),
@@ -608,7 +608,7 @@ function bws_base_traversal_options(): array {
 	return array(
 		'ref'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Relationship Field', 'generateblocks' ),
+			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
 			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet

@@ -469,7 +469,7 @@ class TagTemplateRegistry {
 				$options[ $ref_key ] = [
 					'type'        => 'text',
 					/* translators: %d: slot number */
-					'label'       => sprintf( __( '%d: Relationship Field', 'generateblocks' ), $n ),
+					'label'       => sprintf( __( '%d: Relationship Field Key', 'generateblocks' ), $n ),
 					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
 					'placeholder' => 'related_post',
 					'show_if'     => [ $src_key => 'ref' ],
@@ -528,7 +528,7 @@ class TagTemplateRegistry {
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( '%d: Meta/Option Field', 'generateblocks' ), $n ),
+							'label'       => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
@@ -551,7 +551,7 @@ class TagTemplateRegistry {
 						[
 							'type'        => 'text',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( '%d: Meta/Option Field', 'generateblocks' ), $n ),
+							'label'       => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
 							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
 							'placeholder' => 'field_name',
 						],
