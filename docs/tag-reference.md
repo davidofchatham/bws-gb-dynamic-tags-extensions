@@ -139,7 +139,32 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Deprecated wrapper tags** — settings page exposes two group-level radio sets (Has migration path, No migration path); each tag toggles individually but state is keyed off group selection (Keep / Suppress / Disable). `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current state.
 
-**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are always registered with no admin toggle.
+**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`) are always registered with no admin toggle.
+
+---
+
+## Base tag GB types
+
+In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
+
+| Template key | GB type | Link wrap | Notes |
+|---|---|---|---|
+| `text` | `'cross-source'` | ✅ | |
+| `content` | `'cross-source'` | ❌ | Long-form; may already contain links |
+| `title` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
+| `permalink` | `'cross-source'` | ❌ | Output is already a URL |
+| `image` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime_single` | `'cross-source'` | ✅ | |
+| `datetime_range` | `'cross-source'` | ✅ | |
+| `email` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
+
+The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+
+**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
+
+**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
+
+See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
 
 ---
 
@@ -266,6 +291,22 @@ Image tags are excluded: multiple return formats are already built into image ta
 
 **`visibility` gate.** `{{email}}` registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']` — mirroring GB core's own `term_list`. The default-ON `<a>` wrap makes the tag invalid inside anchor/button (nested interactive markup) or img/picture (text in a void/replaced element), so it is hidden in the selector on those elements. This is the plugin's first native `visibility` use (see [`gb-constraints.md` §visibility](gb-constraints.md)). Wrap-capable text/title/datetime tags get an `img`/`picture`-only gate later ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)); `try_email` for base-tag parity is tracked at [#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32).
 
+**Options:**
+
+| Option | Type / control | Label | Shown when | Notes |
+|---|---|---|---|---|
+| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
+| `ref` | text | Relationship Field Key | `src:ref` | Traversal hop key. |
+| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `key` | text | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
+| `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
+
+Plus the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON) — not a per-tag option; gates `antispambot()` for all `{{email}}` output.
+
 **Wire-format examples:**
 
 ```
@@ -274,30 +315,6 @@ Image tags are excluded: multiple return formats are already built into image ta
 {{email src:site|key:org_email|subject:Hello there}}  → <a href="mailto:VALUE?subject=Hello%20there">VALUE</a>
 {{email key:contact_email}}                           → post/term meta email, wrapped
 ```
-
----
-
-## Base tag GB types
-
-In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
-
-| Template key | GB type | Link wrap | Notes |
-|---|---|---|---|
-| `text` | `'cross-source'` | ✅ | |
-| `content` | `'cross-source'` | ❌ | Long-form; may already contain links |
-| `title` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
-| `permalink` | `'cross-source'` | ❌ | Output is already a URL |
-| `image` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
-| `datetime_single` | `'cross-source'` | ✅ | |
-| `datetime_range` | `'cross-source'` | ✅ | |
-
-The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
-
-**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
-
-**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
-
-See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
 
 ---
 
@@ -571,7 +588,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 
 ### Link wrap options
 
-Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. Placed at **end of Group 1** in all eligible templates.
+Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. (`email` has its own `mailto:` link mechanism — `noLink` — documented at the end of this section, NOT the `linkTo` family.) Placed at **end of Group 1** in all eligible templates.
 
 | Option name | Option label | Notes |
 |---|---|---|
@@ -588,6 +605,14 @@ Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_`
 | `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
 
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source dispatch; post entity for `src:ref` dispatch).
+
+**`email` is the exception — its link is NOT a `linkTo` option.** `{{email}}` does not participate in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Its only link is the `mailto:` for the address itself, which is **default-ON** and toggled by a single inverted bare key:
+
+| Option name | Option label | Notes |
+|---|---|---|
+| `noLink` | Disable email link (plain text) | Boolean presence-flag, **inverted**: absent = wrap in `mailto:` (default), present = plain text. (`linkTo` defaults to *no* wrap; `noLink` defaults to *wrapped* — opposite polarity because the email's own address is the only sensible link.) The anchor is built directly (no class/target), not via `bws_wrap_with_link`. See [§Email tag](#email-tag). |
+
+The `mailto:` subject rides the email-specific `subject` option (not a link-wrap option). `newTab` does not apply to `mailto:` (opening a mail client does not navigate).
 
 ## Field options
 
@@ -622,6 +647,7 @@ See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-cont
 |---|---|---|
 | `text`, `content`, `title`, `datetime_single`, `datetime_range` | Text field | |
 | `image` | Media library selector → image ID (see `custom-image-controls.md`) | |
+| `email` | Text field → a fallback **email address** | Validated with `is_email()` + wrapped like a real address (not arbitrary text). Fires only when no valid address resolves. |
 | `permalink` | TBD — can be text field initially | Add page/post selector? |
 
 ---
