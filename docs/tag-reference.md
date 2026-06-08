@@ -205,6 +205,7 @@ Some tag variants require specific options before producing output. Missing requ
 | `image` (`use:key` or unset) | `key` — meta image field key | Default mode reads field at `key` |
 | `datetime_single` | `key` — date/datetime/time field key | |
 | `datetime_range` | `startKey` — start field key | `endKey` optional |
+| `email` | `key` — email field key | Key-required in every source (no analog); reads address from meta/option field |
 
 Required-option rules for deprecated N×M wrappers (e.g. `related_post_*`, `term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
@@ -225,6 +226,7 @@ Selected templates support outputting multiple results as a delimited list. `lim
 | `image` | ❌ | Scalar media |
 | `datetime_single` | ❌ | Scalar date/time (see note) |
 | `datetime_range` | ❌ | Scalar date/time (see note) |
+| `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
 
@@ -242,9 +244,36 @@ replicate. Each would add a row to all applicable source matrices. The naming pa
 |---|---|---|---|
 | `number` | Format a raw numeric field: decimal places, thousands separator, currency symbol + position, optional prefix/suffix | No | To be considered |
 | `phone` | Format a raw stored phone number with regional pattern and optional country code; can wrap output in a `tel:` link | `tel:` | To be considered |
-| `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | To be considered |
+| `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | **Implemented (1.9.0)** — see [Email tag](#email-tag) |
 
 Image tags are excluded: multiple return formats are already built into image tag mechanics.
+
+---
+
+## Email tag
+
+`{{email}}` (1.9.0) outputs a stored email address, by default wrapped in a `mailto:` link. It is a first-class base tag — registered unconditionally, cross-source like `text` — living in `includes/tags/email-tags.php`.
+
+**Source / field read.** The address is read from a meta/option field via the standard field-read path, so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email is **key-required in every source** — it has no intrinsic analog, so there is **no `use` enum** and `key` is always required. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
+
+**`mailto:` wrap (default-ON) + `noLink`.** The address is wrapped in `<a href="mailto:…">` UNLESS the `noLink` bare key is present (`noLink` = plain text). This is an **inverted bare-key boolean**: absence = wrap, present = off. Modeled this way because GB's serializer drops `false`, so "default-on, serialize-when-off" is only reachable via an inverted-name presence flag (same pattern as `showCurrentYear` / `showMidnight`). The anchor is built directly (minimal, no class/target) — it does NOT use the `linkTo` / `bws_wrap_with_link` entity-link machinery (those are for entity URLs; email's link is the address itself). WP emits no standard class on mailto anchors — target them via `a[href^="mailto:"]` in CSS.
+
+**`subject` — two-layer encoding.** Optional `subject` for the `mailto:?subject=` query, entered via the `bws-format-input` control. Two distinct encoding layers with different owners: (1) the control escapes `:` / `|` so the value survives GB's `parseTag`; GB's server-side `parse_options()` then **unescapes** before the callback. (2) the callback `rawurlencode()`s the (already-clean) subject into the query — its only render step. The callback does NOT unescape (GB already did). `subject` is hidden when `noLink` is set (no query to carry it).
+
+**Obfuscation (anti-harvest).** Addresses are run through `antispambot()` on BOTH display text and the `mailto:` href local-part, controlled by the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON; WP-parity — disable for a clean `mailto:` href, e.g. analytics). `antispambot()` output is already entity-encoded and is emitted raw (never re-`esc_html`'d, which would double-encode).
+
+**Validation + fallback.** The resolved value is validated with `is_email()` on the raw string — only a valid address is ever wrapped. Invalid (incl. empty) → the `fallback` option, which is itself a **fallback email address** (validated, wrapped like a real address — like `{{image}}`'s fallback = attachment ID, not text). In list mode, only `is_email()`-valid addresses are kept and wrapped individually; the fallback fires ONLY when zero valid addresses resolve (whole-result-empty), and if it too is invalid the tag returns empty.
+
+**`visibility` gate.** `{{email}}` registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']` — mirroring GB core's own `term_list`. The default-ON `<a>` wrap makes the tag invalid inside anchor/button (nested interactive markup) or img/picture (text in a void/replaced element), so it is hidden in the selector on those elements. This is the plugin's first native `visibility` use (see [`gb-constraints.md` §visibility](gb-constraints.md)). Wrap-capable text/title/datetime tags get an `img`/`picture`-only gate later ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)); `try_email` for base-tag parity is tracked at [#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32).
+
+**Wire-format examples:**
+
+```
+{{email src:site|key:org_email}}                      → <a href="mailto:VALUE">VALUE</a>   (default wrap)
+{{email src:site|key:org_email|noLink}}               → VALUE                                (plain)
+{{email src:site|key:org_email|subject:Hello there}}  → <a href="mailto:VALUE?subject=Hello%20there">VALUE</a>
+{{email key:contact_email}}                           → post/term meta email, wrapped
+```
 
 ---
 

@@ -101,6 +101,23 @@ Place on a single post, then a term archive.
 
 Plain WP options (`blogname`, `blogdescription`, `home`) need no ACF.
 
+## R6 — `{{email}}` base tag (1.9.0)
+
+Needs an email-valued field: an ACF options-page email field for `src:site` (e.g. `org_email`), and a post/term meta email field for the cross-source rows. `[SUB ...]` = substitute a real key.
+
+| # | Tag | Expected |
+|---|---|---|
+| R6.1 | `{{email src:site\|key:[SUB org_email]}}` | `<a href="mailto:VALUE">VALUE</a>` (obfuscated when global toggle on) |
+| R6.2 | `{{email src:site\|key:[SUB org_email]\|noLink}}` | plain address, no anchor |
+| R6.3 | `{{email src:site\|key:[SUB org_email]\|subject:Hello there}}` | anchor with `?subject=Hello%20there` in href |
+| R6.4 | `{{email src:site\|key:[SUB org_email]\|subject:Quote\: 20\% off}}` | href subject = `Quote%3A%2020%25%20off` (escaped editor-side, rawurlencoded at render) |
+| R6.5 | `{{email key:[SUB contact_email]}}` (no src) | post/term meta email, wrapped |
+| R6.6 | `{{email src:site\|key:[SUB org_email]\|fallback:dept@example.com}}` with the primary field EMPTY | `dept@example.com`, wrapped (fallback fires) |
+| R6.7 | `{{email src:site\|key:[SUB a non-email text option]}}` | **empty** (invalid → no fallback set → empty) |
+| R6.8 | `{{email src:site}}` (no key) | **empty**; editor preview `[⚠ No field key set]` |
+| R6.9 | Global **Email → Obfuscate** OFF, re-run R6.1 | clean `mailto:VALUE` href + plain-text display (no antispambot entities) |
+| R6.10 | Try to insert `{{email}}` on a Button / Image / link (`<a>`) element | tag **hidden** in the GB dynamic-tag selector (visibility gate) |
+
 ## Fail triage
 
 - **Empty where a value is expected:** is the key in the GB-parity seed, or a registered ACF options-page field? (`tools/debug/bws-site-datetime-probe.php` logs allowlist parity for a given key.)
@@ -110,3 +127,6 @@ Plain WP options (`blogname`, `blogdescription`, `home`) need no ACF.
 - **`use` value selected but ignored** (e.g. excerpt/featured no effect): §B5 — resolver dispatching on key-presence instead of `use`.
 - **`{{…|key:X}}` ignored when no explicit `use`:** §B6 — empty `use` not canonicalized to the stripped first-enum value.
 - **`{{content src:site}}` returns the tagline (not empty):** §B7 — content has no site analog; the content default must resolve empty. (Tagline has no tag path — GB native `{{site_tagline}}` or `key:blogdescription`.)
+- **`{{email}}` display shows `&#x…;` entities as literal text:** antispambot output was double-escaped (`esc_html` on top of `antispambot`) — VE4: emit antispambot output raw.
+- **`{{email …|subject:}}` href subject corrupted / truncated:** VE2 — subject must be `rawurlencode`d once at render, NOT unescaped in PHP (GB's `parse_options` already unescaped `\:`/`\|`).
+- **`{{email}}` wraps a non-email value / outputs `mailto:garbage`:** VE4 — `is_email()` must validate the RAW value before any wrap; invalid → fallback → empty.
