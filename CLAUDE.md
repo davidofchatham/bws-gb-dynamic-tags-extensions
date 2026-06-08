@@ -19,7 +19,8 @@ Single source of truth per content type. Other files link, never duplicate.
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
-| Current architecture (templates, sources, options, GB types, render order, preview labels) | `docs/tag-reference.md` | Authoritative |
+| Current architecture (templates, sources, options, GB types, render order) | `docs/tag-reference.md` | Authoritative |
+| Editor-time tag configuration preview text (markers, assembly, warnings, per-template + try_ shapes, examples) | `docs/editor-tag-previews.md` | Authoritative; `tag-reference.md` keeps a one-line forward-ref. Built by `bws_build_preview_label()` in `preview-helpers.php`. |
 | Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
@@ -37,6 +38,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Trigger | Update |
 |---|---|
 | New source class / template / option key | `tag-reference.md` first; CHANGELOG entry |
+| New/changed editor preview text (a `bws_build_preview_label` case) | `editor-tag-previews.md` (markers/field-part/warning/example rows) |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry |

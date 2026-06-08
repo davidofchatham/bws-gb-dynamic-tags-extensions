@@ -479,7 +479,7 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 /**
  * Build a structured preview label for a tag that returned empty in the editor.
  *
- * Schema: [tag matrix §Editor preview label schema].
+ * Schema: docs/editor-tag-previews.md (authoritative).
  * Called only when $instance->context['bwsEditorPreview'] is set and
  * resolution produced an empty value.
  *

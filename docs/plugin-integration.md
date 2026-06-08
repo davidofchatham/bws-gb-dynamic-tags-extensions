@@ -159,7 +159,9 @@ add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
 } );
 ```
 
-Without this, your modifier tags still render normally — only the editor preview label drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
+Without this, your modifier tags still render normally — only the editor preview text drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
+
+For the preview-text schema itself (markers, assembly, warnings, per-template shapes), see [`editor-tag-previews.md`](editor-tag-previews.md).
 
 ---
 
