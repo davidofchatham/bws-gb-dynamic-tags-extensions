@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.9.0] — Unreleased
+## [1.9.0] — 2026-06-08
 
 ### Added — `src:site` unified site-wide source (Stage A)
 
