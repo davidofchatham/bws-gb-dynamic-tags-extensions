@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.1] — 2026-06-08
+
+### Added — self-update from GitHub Releases
+
+- Bundled the Plugin Update Checker library (5.7, vendored at `vendor/plugin-update-checker/`) and wired it to this repo's GitHub Releases. Installed copies now surface update notices and one-click updates from the WordPress Plugins screen, pulling the `.zip` asset attached to each tagged release (`enableReleaseAssets()` — dev files stay out of the shipped package via `.distignore`). Runs independently of the GenerateBlocks dependency check so fixes reach sites even when GB Pro is inactive.
+
 ## [1.9.0] — 2026-06-08
 
 ### Added — `src:site` unified site-wide source (Stage A)

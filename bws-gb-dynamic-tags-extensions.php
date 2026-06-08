@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.9.0
+ * Version: 1.9.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,13 +21,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.9.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.9.1' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
 
 // PSR-4 Autoloader for BWS\DynamicTags namespace.
 require_once BWS_DYNAMIC_TAGS_PATH . 'autoload.php';
+
+/**
+ * Wire the GitHub-based plugin update checker.
+ *
+ * Vendored library (Plugin Update Checker 5.7); tracks tagged GitHub releases.
+ * `enableReleaseAssets()` makes PUC download the .zip attached to each release
+ * rather than the source zipball, so dev files (SPEC.md, tools/, etc.) stay out
+ * of installed copies. Runs unconditionally — independent of GB dependency check.
+ */
+function bws_dynamic_tags_init_update_checker() {
+	require_once BWS_DYNAMIC_TAGS_PATH . 'vendor/plugin-update-checker/load-v5p7.php';
+
+	$update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/',
+		BWS_DYNAMIC_TAGS_FILE,
+		'bws-gb-dynamic-tags-extensions'
+	);
+
+	// Track GitHub Releases (not the latest commit/tag), and download the
+	// attached release asset rather than the auto-generated source zip.
+	$api = $update_checker->getVcsApi();
+	if ( $api ) {
+		$api->enableReleaseAssets();
+	}
+}
+bws_dynamic_tags_init_update_checker();
 
 /**
  * Check if GenerateBlocks is active and has dynamic tag support.
