@@ -139,7 +139,7 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Deprecated wrapper tags** — settings page exposes two group-level radio sets (Has migration path, No migration path); each tag toggles individually but state is keyed off group selection (Keep / Suppress / Disable). `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current state.
 
-**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`) are always registered with no admin toggle.
+**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`, `phone`) are always registered with no admin toggle.
 
 ---
 
@@ -157,6 +157,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `datetime_single` | `'cross-source'` | ✅ | |
 | `datetime_range` | `'cross-source'` | ✅ | |
 | `email` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
+| `phone` | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
 
@@ -231,6 +232,7 @@ Some tag variants require specific options before producing output. Missing requ
 | `datetime_single` | `key` — date/datetime/time field key | |
 | `datetime_range` | `startKey` — start field key | `endKey` optional |
 | `email` | `key` — email field key | Key-required in every source (no analog); reads address from meta/option field |
+| `phone` | `key` — phone field key | Key-required in every source (no analog); reads number from meta/option field |
 
 Required-option rules for deprecated N×M wrappers (e.g. `related_post_*`, `term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
@@ -252,6 +254,7 @@ Selected templates support outputting multiple results as a delimited list. `lim
 | `datetime_single` | ❌ | Scalar date/time (see note) |
 | `datetime_range` | ❌ | Scalar date/time (see note) |
 | `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
+| `phone` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid number wrapped individually, joined by `sep` |
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
 
@@ -268,7 +271,7 @@ replicate. Each would add a row to all applicable source matrices. The naming pa
 | Template key | Description | Link support | Status |
 |---|---|---|---|
 | `number` | Format a raw numeric field: decimal places, thousands separator, currency symbol + position, optional prefix/suffix | No | To be considered |
-| `phone` | Format a raw stored phone number with regional pattern and optional country code; can wrap output in a `tel:` link | `tel:` | To be considered |
+| `phone` | Output a stored phone number; rebuild a `tel:` href from messy input (author separators preserved); 2-tier country code | `tel:` | **Implemented (1.10.0)** — see [Phone tag](#phone-tag) |
 | `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | **Implemented (1.9.0)** — see [Email tag](#email-tag) |
 
 Image tags are excluded: multiple return formats are already built into image tag mechanics.
@@ -315,6 +318,56 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 {{email src:site|key:org_email|subject:Hello there}}  → <a href="mailto:VALUE?subject=Hello%20there">VALUE</a>
 {{email key:contact_email}}                           → post/term meta email, wrapped
 ```
+
+---
+
+## Phone tag
+
+`{{phone}}` (1.10.0) outputs a stored phone number, by default wrapped in a `tel:` link. It is a first-class base tag — registered unconditionally, cross-source like `text`/`email` — living in `includes/tags/phone-tags.php`.
+
+**Source / field read.** The number is read from a meta/option field via the standard field-read path (a verbatim clone of `email`'s resolver), so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Phone is **key-required in every source** — no intrinsic analog, so **no `use` enum**.
+
+**`tel:` href rebuild — author separators preserved (model C).** Unlike `email` (href = address verbatim), the `tel:` href is rebuilt from the stored value into a canonical dial value by `bws_phone_normalize_tel()`. The key rule: **hyphens in the href appear ONLY where the author wrote a separator.** `(987) 654-3210` → `tel:+1-987-654-3210`; bare `9876543210` → `tel:+19876543210` (no fabricated grouping — segmentation is unknowable from raw digits without locale rules, so it is never guessed). No libphonenumber dependency. The **display** text stays the stored value verbatim (`esc_html`); display and href may differ. (Display-side reformatting is a planned follow-up.)
+
+**Country code — 2-tier.** Resolution, first match wins: (1) an **in-field international prefix** (`+…` or `00…`, the latter rewritten to `+`) wins and is used as-is; (2) otherwise the global **Settings → Tag Extensions → Phone → "Default country code"** (digits only, empty default) is prepended. With no country code and no in-field prefix, a **national `tel:`** link (no `+`) is emitted (single-country sites still dial). A leading national **trunk `0`** is stripped when a country code is applied (UK `07911…` → `+44-7911…`); the national-fallback case keeps the `0`. *Per-tag `cc:` is intentionally out of scope this release* — see [§Phone deferred](#phone-deferred).
+
+**Strip-leading-CC (optional, global, default OFF).** **Settings → Tag Extensions → Phone → "Strip a leading country code matching the default"** guards numbers stored *with* a country code but *without* a `+` (e.g. US `1-800-555-1212` with default country code `1`) from a doubled prefix. It strips a single leading run **only when it exactly matches the configured global country code** and ≥7 digits remain. Matches the global code only (the reason per-tag `cc:` is deferred: an arbitrary per-tag country has no equivalent safety proof).
+
+**`tel:` wrap (default-ON) + `noLink`.** Wrapped in `<a href="tel:…">` UNLESS the `noLink` bare key is present — same **inverted bare-key boolean** as `email`. The anchor is built directly (minimal, no class/target), NOT via the `linkTo` / `bws_wrap_with_link` entity-link machinery.
+
+**Validation + fallback.** Validity is a loose **length gate**: the final assembled digit count (country code + national, post-strip) must be **7–15** (E.164 max 15). A number that fails is **skipped** (strict this release — never rendered as plain text). In list mode each valid number is wrapped individually and joined by `sep`; the `fallback` (itself a **fallback phone number**, normalized the same way) fires only when zero valid numbers resolve, then returns empty if it too is invalid. Inline extension junk (`x99` / `ext 99`) is severed and ignored this release (the raw stored value is preserved for a future extension feature).
+
+**Security (`VP-href-safe`).** The `tel:` href is digits + boundary hyphens **by construction** — groups are digit-runs only and every non-digit is a discarded separator, so no raw field text reaches the href (`esc_attr` is defense-in-depth). The display side carries raw field text, defended by `esc_html`.
+
+**`visibility` gate.** Registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']`, mirroring `email` and GB core `term_list` — the default-ON `<a>` wrap is invalid inside anchor/button or img/picture.
+
+**Options:**
+
+| Option | Type / control | Label | Shown when | Notes |
+|---|---|---|---|---|
+| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
+| `ref` | text | Relationship Field Key | `src:ref` | Traversal hop key. |
+| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `key` | text | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `fallback` | text | Fallback Phone Number | always | A fallback **phone number** (normalized, wrapped). Fires only when no valid number resolves. |
+
+Plus two global **Settings → Tag Extensions → Phone** options (not per-tag): **Default country code** (digits, empty default) and **Strip a leading country code matching the default** (default OFF).
+
+**Wire-format examples:**
+
+```
+{{phone src:site|key:org_phone}}   field "(987) 654-3210"  → <a href="tel:+1-987-654-3210">(987) 654-3210</a>  (CC 1, author groups)
+{{phone key:mobile}}               field "07911 123456"     → <a href="tel:+44-7911-123456">07911 123456</a>     (CC 44, trunk 0 stripped)
+{{phone key:mobile|noLink}}        field "07911 123456"     → 07911 123456                                        (plain)
+{{phone key:phone}}                field "9876543210" no CC → <a href="tel:9876543210">9876543210</a>             (national, no hyphens)
+{{phone key:us}}    field "1-800-555-1212" CC 1, strip ON   → <a href="tel:+1-800-555-1212">1-800-555-1212</a>    (leading CC stripped)
+```
+
+<a id="phone-deferred"></a>
+**Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.
 
 ---
 
@@ -492,6 +545,7 @@ See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-cont
 | `text`, `content`, `title`, `datetime_single`, `datetime_range` | Text field | |
 | `image` | Media library selector → image ID (see `custom-image-controls.md`) | |
 | `email` | Text field → a fallback **email address** | Validated with `is_email()` + wrapped like a real address (not arbitrary text). Fires only when no valid address resolves. |
+| `phone` | Text field → a fallback **phone number** | Normalized + wrapped like a real number (length-gated, not arbitrary text). Fires only when no valid number resolves. |
 | `permalink` | TBD — can be text field initially | Add page/post selector? |
 
 ---

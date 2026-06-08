@@ -12,6 +12,7 @@ The tags are designed to be source-agnostic (currently tested for both post and 
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. |
 | `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. |
+| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Rebuilds a clean `tel:` href from messy stored input, with a configurable country code. |
 | `title` | Return post title/term name.* |
 | `permalink` | Return post/term permalink.* |
 
