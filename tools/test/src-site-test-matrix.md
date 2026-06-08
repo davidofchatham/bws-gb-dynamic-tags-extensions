@@ -1,13 +1,15 @@
-# `src:site` Manual Test Matrix
+# `src:site` Regression Matrix
 
-Manual editor / front-end test pass for the `src:site` unified site source (v1.9.0, Stage A) and the Model B `use`-dispatch (§B5/§B6). Run on a WP test instance with **GenerateBlocks (Pro)** + **ACF**, per the runtime-debug workflow (instrument + pull to a TEST instance, never probe the live/cached site).
+**Standing manual regression suite** for the `src:site` unified site source and the Model B `use`-dispatch — not a one-shot plan checklist. Originated with v1.9.0 Stage A (§B5/§B6); kept as the re-run pass for any change to the site source. Run on a WP test instance with **GenerateBlocks (Pro)** + **ACF**, per the runtime-debug workflow (instrument + pull to a TEST instance, never probe the live/cached site).
+
+> **Re-run trigger:** after any change to `bws_site_resolve_value`, the allowlist, the link resolver, or the `use`/`key` editor controls. Rows are anchored to invariants (§B4–B7/C10), not plan tasks, so they stay valid past the SPEC's post-ship truncation — the fail-triage below explains each failure mode independently.
+>
+> **Volatile section:** **R3 (label strings)** tracks the *current* label decisions (T19–T21 + the "Key"-suffix pass). Labels are the churniest surface — re-verify / rewrite R3's expected-label column after any label or UX pass. Everything else (R0–R2, R4–R5) tests behavior and is durable.
 
 **How to run:** paste each tag into a GenerateBlocks block, view the rendered front end. `[SUB ...]` = substitute a real key on your instance.
 
 **No-ACF keys** (always in the GB-parity allowlist seed): `blogname`, `blogdescription`, `siteurl`, `home`, `time_format`, `user_count`.
 **ACF options-page fields** auto-allow on registration (e.g. `organization_founded`, `organization_name`, `organization_social.facebook` on the reference instance).
-
-> Reusable: re-run after any change to `bws_site_resolve_value`, the allowlist, the link resolver, or the `use`/`key` editor controls.
 
 ---
 
@@ -18,7 +20,7 @@ Manual editor / front-end test pass for the `src:site` unified site source (v1.9
 | R0.1 | `{{text src:site\|key:blogname}}` | site name (blogname) |
 | R0.2 | `{{text src:site\|key:blogname\|linkTo:key\|linkKey:home}}` | blogname text, linked to home URL |
 | R0.3 | `{{image as:url\|src:site\|use:featured}}` | site logo URL |
-| R0.4 | `{{image as:url\|src:site}}` | **empty** (key-mode, no key — NOT the logo) |
+| R0.4 | `{{image as:url\|src:site}}` | **empty** (key-mode, no key — NOT the logo). *Editor-preview note: shows bare "Image", no `[⚠ No meta key set]`. Not a bug — `as:url`/non-alt-caption image modes suppress the bracket label (`preview-helpers.php:533` returns `''`) because a bracket string would corrupt an `<img>` attribute. The warning branch (`:549`) is therefore unreached. Surfacing an editor-only warning needs render-context awareness the preview helper lacks (it can't tell which GB element it feeds) → deferred to control/image-option work.* |
 | R0.5 | `{{text src:site}}` | **empty** (no key) |
 
 ## R1 — `use`-dispatch (content / text / image / title / permalink)
@@ -66,15 +68,15 @@ Manual editor / front-end test pass for the `src:site` unified site source (v1.9
 
 Place on a single post, then a term archive.
 
-| # | Tag | Expected |
-|---|---|---|
-| R4.1 | `{{image as:url\|use:featured}}` (post) | post featured image URL |
-| R4.2 | `{{text\|use:key\|key:[SUB post meta]}}` (post) | post meta value |
-| R4.3 | `{{text\|use:title}}` (post) | post title |
-| R4.4 | `{{content\|use:content}}` (post) | post content |
-| R4.5 | `{{term_text\|use:title}}` (term) | term name |
-| R4.6 | `{{try_text\|key:[SUB post meta]\|2-use:title}}` | slot 1 meta, else slot 2 title (carry-forward intact) |
-| R4.7 | `{{text src:site\|use:key\|key:[SUB ACF group subfield, e.g. organization_social.facebook]\|linkTo:key\|linkKey:[same key]}}` | value AND link both resolve (§B4 — dot-path + ACF filter via shared reader) |
+| # | Context | Tag | Expected |
+|---|---|---|---|
+| R4.1 | post | `{{image as:url\|use:featured}}` | post featured image URL |
+| R4.2 | post | `{{text use:key\|key:[SUB post meta]}}` | post meta value |
+| R4.3 | post | `{{text use:title}}` | post title |
+| R4.4 | post | `{{content use:content}}` | post content |
+| R4.5 | term | `{{term_text use:title}}` | term name |
+| R4.6 | post | `{{try_text key:[SUB post meta]\|2-use:title}}` | slot 1 meta, else slot 2 title (carry-forward intact) |
+| R4.7 | post | `{{text src:site\|use:key\|key:[SUB ACF group subfield, e.g. organization_social.facebook]\|linkTo:key\|linkKey:[same key]}}` | value AND link both resolve (§B4 — dot-path + ACF filter via shared reader) |
 
 ## R5 — datetime site
 
