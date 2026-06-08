@@ -9,3 +9,5 @@ deprecated-files
 tools
 CHANGELOG.md
 CLAUDE.md
+CONTEXT.md
+SPEC.md
