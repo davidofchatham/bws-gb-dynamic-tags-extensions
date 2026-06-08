@@ -2,12 +2,12 @@
 /**
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
- * Description: Extends GenerateBlocks Pro with advanced tags for both standard and custom field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
+ * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
  * Version: 1.9.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
- * Author: Bridge Web Solutions
+ * Author: David Mitchell (Bridge Web Solutions) and Claude AI
  * Text Domain: generateblocks
  * Domain Path: /languages
  * License: GPLv2 or later
@@ -203,6 +203,9 @@ function bws_dynamic_tags_activate() {
 		'diagnostics' => array(
 			'benchmark_logging'    => false,
 			'registration_logging' => false,
+		),
+		'email'       => array(
+			'obfuscate' => true,
 		),
 	) );
 }
