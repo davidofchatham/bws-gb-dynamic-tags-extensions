@@ -64,16 +64,20 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Text Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+						array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
 					'placeholder' => 'field_name',
+					// Key-mode = empty/'key'. Hidden for named data (title).
+					// Under src:site, key-mode reads a wp_options key. Site tagline has
+					// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
+					// (nothing unique to add until multislot-feed decouple — see #26).
 					'show_if'     => array( 'use' => 'not:title' ),
 				),
 				'fallback' => array(
@@ -84,16 +88,20 @@ function bws_register_base_tags(): void {
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 			array(
+				// List mode only applies to the final traversal step: terms (srcTermIn set)
+				// or related posts (src:ref). Scalar sources return one value — hide both.
 				'limit'    => array(
-					'type'  => 'number',
-					'label' => __( 'Result Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 			)
 		) ),
@@ -118,17 +126,22 @@ function bws_register_base_tags(): void {
 					'label'          => __( 'Content Field', 'generateblocks' ),
 					'options'        => array(
 						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-						array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+						array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 					),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site (supports dot-path). A WYSIWYG / Blocks field renders through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 					'placeholder' => 'field_name',
-					'show_if'     => array( 'use' => 'key' ),
+					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
+					// value (rich render); use:content default → '' (site has no content
+					// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
+					'show_if'     => array(
+						'use' => 'key',
+					),
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -145,7 +158,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Title / Name', 'generateblocks' ),
+		'title'    => __( 'Title/Name', 'generateblocks' ),
 		'tag'      => 'title',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -153,16 +166,20 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
+				// List mode only applies to the final traversal step: terms (srcTermIn set)
+				// or related posts (src:ref). Scalar sources return one value — hide both.
 				'limit' => array(
-					'type'  => 'number',
-					'label' => __( 'Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'type'        => 'number',
+					'label'       => __( 'Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'   => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
@@ -179,6 +196,9 @@ function bws_register_base_tags(): void {
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
 		'supports' => array(),
+		// No `key` control under src:site — permalink is the source entity's own URL,
+		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
+		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
 		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts
@@ -221,17 +241,19 @@ function bws_register_base_tags(): void {
 					'type'           => 'select',
 					'label'          => __( 'Image Field', 'generateblocks' ),
 					'options'        => array(
-						array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-						array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+						array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+						array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 					),
 					'show_if'        => array( 'srcTermIn' => 'empty' ),
 					'_strip_default' => true,
 				),
 				'key'      => array(
 					'type'        => 'text',
-					'label'       => __( 'Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID (use:key); the Featured Image option reads the site logo.', 'generateblocks' ),
 					'placeholder' => 'image_field',
+					// use:key → custom-field (post/term) or wp_options (site) read.
+					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
 					'show_if'     => array( 'use' => 'not:featured' ),
 				),
 				'fallback' => array(
@@ -248,7 +270,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Date / Time', 'generateblocks' ),
+		'title'    => __( 'Date/Time', 'generateblocks' ),
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -261,7 +283,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Date / Time Range', 'generateblocks' ),
+		'title'    => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -294,15 +316,15 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Text Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'key',   'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
+					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site.', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
 			'fallback' => array(
@@ -331,15 +353,15 @@ function bws_register_base_tags(): void {
 				'label'          => __( 'Content Field', 'generateblocks' ),
 				'options'        => array(
 					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-					array( 'value' => 'key',     'label' => __( 'Custom Content Field (WYSIWYG/Blocks)', 'generateblocks' ) ),
+					array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
 					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site. A WYSIWYG / Blocks field is rendered through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
 				'placeholder' => 'field_name',
 			),
 			'fallback' => array(
@@ -361,7 +383,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'title',
-		'title'              => __( 'Title / Name', 'generateblocks' ),
+		'title'              => __( 'Title/Name', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'options'            => array(),
 		'term_fn'      => 'bws_term_title_core',
@@ -421,15 +443,15 @@ function bws_register_base_tags(): void {
 				'type'           => 'select',
 				'label'          => __( 'Image Field', 'generateblocks' ),
 				'options'        => array(
-					array( 'value' => 'key',      'label' => __( 'Meta/Custom Field', 'generateblocks' ) ),
-					array( 'value' => 'featured', 'label' => __( 'Featured Image', 'generateblocks' ) ),
+					array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+					array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
 				),
 				'_strip_default' => true,
 			),
 			'key'      => array(
 				'type'        => 'text',
-				'label'       => __( 'Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key for the image.', 'generateblocks' ),
+				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key for the image (post/term), or a wp_options / ACF-options key storing an attachment ID under src:site.', 'generateblocks' ),
 				'placeholder' => 'image_field',
 				'show_if'     => array( 'use' => 'not:featured' ),
 			),
@@ -451,7 +473,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_single',
-		'title'              => __( 'Date / Time', 'generateblocks' ),
+		'title'              => __( 'Date/Time', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_single_leading_options' )
 			? bws_get_datetime_single_leading_options()
@@ -489,7 +511,7 @@ function bws_register_base_tags(): void {
 
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                => 'datetime_range',
-		'title'              => __( 'Date / Time Range', 'generateblocks' ),
+		'title'              => __( 'Date/Time Range', 'generateblocks' ),
 		'supports_link_wrap' => true,
 		'leading_options'    => function_exists( 'bws_get_datetime_range_leading_options' )
 			? bws_get_datetime_range_leading_options()
@@ -562,6 +584,7 @@ function bws_base_source_option(): array {
 			'options'        => array(
 				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
 				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
+				array( 'value' => 'site',    'label' => __( 'Site', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
 		),
@@ -585,9 +608,11 @@ function bws_base_traversal_options(): array {
 	return array(
 		'ref'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Relationship Field', 'generateblocks' ),
+			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
+			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet
+			// (not "never applies"; re-expose when a site→ref path ships).
 			'show_if'     => array( 'src' => 'ref' ),
 		),
 		'srcTermIn' => array(
@@ -596,6 +621,9 @@ function bws_base_traversal_options(): array {
 			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
 			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
 			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
+			// Hidden for src:site — no entity to hop terms from. (Term-context tags
+			// override this to src:ref in the template registry.)
+			'show_if'   => array( 'src' => 'not:site' ),
 		),
 	);
 }
@@ -732,6 +760,18 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
 
+	// src:site — no entity; resolve site value then link-wrap (sentinel id, 'site' type).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'text', $options, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	$link_id   = 0;
@@ -801,6 +841,15 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
 	$opts = bws_base_map_options( $options );
 
+	// src:site — content option markup via shared pipeline (handled in resolver). No link wrap.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'content', $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	if ( '' !== $tax ) {
@@ -845,6 +894,18 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
+
+	// src:site — title base tag has no `use`; resolver returns site name. Link-wrap.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'title', $options, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
 
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
@@ -898,6 +959,11 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 function bws_base_permalink_callback( $options, $block, $instance ): string {
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
+	// src:site — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		return bws_site_resolve_value( 'permalink', $options, $instance );
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	if ( '' !== $tax ) {
@@ -935,6 +1001,15 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	$use = $options['use'] ?? 'key';
 	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
+	// src:site — logo/option via resolver (logo already routed through GB ::output()).
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_site_resolve_value( 'image', $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+	}
+
 	$post_id = bws_resolve_post_by_source( $options, $instance );
 
 	if ( '' !== $tax ) {
@@ -958,6 +1033,198 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 
 	// bws_build_preview_label returns '' for as:url and as:id — attribute contexts where a bracket string breaks the element.
 	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+}
+
+// ===============================================
+// SITE SOURCE (src:site) — Stage A
+// ===============================================
+
+/**
+ * Allowlist gate for site option reads.
+ *
+ * @invariant Every site option read (site option key-mode, site linkTo:key,
+ * datetime get_field($key,'option')) MUST pass through this gate before the read.
+ * GenerateBlocks_Meta_Handler does NOT enforce the allowlist (blocklist only);
+ * calling it directly skips the gate, so gating is OUR responsibility, never the
+ * handler's. The seed MIRRORS GB Pro's `get_option` callback exactly
+ * (class-register.php:268-291): 6 WP defaults PLUS every registered ACF
+ * options-page field (registration IS the opt-in — ACF option fields auto-allow,
+ * no manual filter needed), then the shared filter. Do NOT revert to an empty
+ * seed — that blocks ACF option fields and diverges from GB Pro.
+ * See docs/adr/0001-site-option-read-allowlist.md.
+ *
+ * Dot-path keys (wp_options arrays): gate the FIRST segment (the actual option
+ * name). Flat keys (ACF field keys): the whole $key is the first segment.
+ *
+ * @since 1.9.0
+ * @param string $key Option key (may contain dot-path for wp_options).
+ * @return bool True if the option's root key is allowed.
+ */
+function bws_site_allowlist_ok( string $key ): bool {
+	if ( '' === $key ) {
+		return false;
+	}
+
+	// GB Pro's default wp_options allowlist (class-register.php).
+	$seed = array(
+		'siteurl',
+		'blogname',
+		'blogdescription',
+		'home',
+		'time_format',
+		'user_count',
+	);
+
+	// GB Pro auto-allows every registered ACF options-page field — registration
+	// is the opt-in. Mirror that so ACF option fields read without a manual filter.
+	if ( class_exists( 'GenerateBlocks_Pro_Dynamic_Tags_ACF' )
+		&& method_exists( 'GenerateBlocks_Pro_Dynamic_Tags_ACF', 'get_instance' )
+	) {
+		$acf = GenerateBlocks_Pro_Dynamic_Tags_ACF::get_instance();
+		if ( $acf && method_exists( $acf, 'get_acf_option_fields' ) ) {
+			$seed = array_merge( $seed, array_keys( (array) $acf->get_acf_option_fields() ) );
+		}
+	}
+
+	$allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed );
+	$parent  = explode( '.', $key )[0];
+	return in_array( $parent, $allowed, true );
+}
+
+/**
+ * Resolve a site-wide value for src:site (non-datetime tags only).
+ *
+ * Used by the text/title/permalink/image/content callbacks' early gate. Site
+ * has no entity ID, so this bypasses bws_resolve_post_by_source() entirely.
+ * Datetime tags do NOT route here — they read ACF options-page fields via
+ * bws_datetime_single_core('option', ...) (see datetime callbacks).
+ *
+ * Dispatch by `use` — UNIFORM with every other source (Model B, V9). The `use`
+ * VALUE is the analog-vs-option lever, NOT key-presence; `use:key` resolves a
+ * wp_options key read. `src:site` selects the wp_options namespace the same way
+ * `src:current` selects post meta. There is NO `use:option` value (option is a
+ * key-read reached by `use:key`, not a distinct field type — V8).
+ *
+ * STRIP-DEFAULT (B6): an EMPTY wire `use` is the tag's FIRST enum value (stripped
+ * at registration), NOT a third "no use" state. This function canonicalizes empty
+ * → first-enum-value up front (text/image → 'key', content → 'content'), mirroring
+ * the per-callback `?? 'key'` / `?? 'content'` defaults. So `{{text src:site|
+ * key:blogname}}` (no explicit `use`) reads the option, because text's stripped
+ * default IS key-mode.
+ *
+ * Do NOT branch the analog on `'' === $key` (that was B5 — a misapplied future
+ * custom-control principle that made `use` dead under site and rendered an enum of
+ * ignored post/term values).
+ *
+ * @invariant Site option reads (the use:key branch) MUST pass
+ * bws_site_allowlist_ok() before GenerateBlocks_Meta_Handler::get_option() (via
+ * the canonical bws_site_read_option reader). The allowlist is GB-parity-seeded
+ * (NOT empty) — see bws_site_allowlist_ok and
+ * docs/adr/0001-site-option-read-allowlist.md.
+ *
+ * @invariant (V11/B6) Empty wire `use` MUST be canonicalized to the tag's FIRST
+ * enum value before dispatch (content → 'content', text/image → 'key'), never
+ * treated as a distinct "no use" state. Dispatching on the literal empty string
+ * drops the option read for key-mode-default tags (the B6 regression). The
+ * stripped default MUST stay key-mode for text/image — the site logo is the
+ * EXPLICIT use:featured value, not the implicit-mode tag — so the empty wire is an
+ * unambiguous key-mode signal (no stale-key vs intended-analog ambiguity until
+ * custom-control token authority exists; see SPEC §B6).
+ *
+ * Per-tag site dispatch (V9 Model B; default = stripped first enum value):
+ *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
+ *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
+ *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt
+ *                 both → ''. Site's only long-text datum is the tagline — a SHORT
+ *                 string with no unique value over GB native {{site_tagline}}, so
+ *                 no tag path this release. use:key → option (rich render).
+ *   - permalink → ALWAYS home_url() (source's own URL; `key` ignored — no option read)
+ *   - image     → DEFAULT 'key' → option attachment-id (bare/no-key → ''); the site
+ *                 LOGO is the EXPLICIT use:featured value (get_theme_mod('custom_logo'),
+ *                 respects as/size). Logo is NOT the stripped default — `featured` is
+ *                 always serialized so the empty wire stays an unambiguous key-mode
+ *                 signal (no stale-key ambiguity until token authority via custom
+ *                 controls; deferred — see SPEC §B6 note).
+ * Parallels post→{title,content,permalink,featured} / term→{name,description,URL,—},
+ * EXCEPT image's site analog (logo) is reached by explicit use:featured, not bare.
+ *
+ * @since 1.9.0
+ * @param string $tag      Base tag name: text|title|permalink|image|content.
+ * @param array  $options  Tag options.
+ * @param object $instance Block instance.
+ * @return string Resolved value, or '' on miss / disallowed.
+ */
+function bws_site_resolve_value( string $tag, array $options, $instance ): string {
+	$key = (string) ( $options['key'] ?? '' );
+
+	// Canonicalize `use` to the tag's stripped default (its FIRST enum value) when
+	// the wire value is empty — strip-default means an unset `use` IS the first
+	// option, NOT a third "no use" state (B6). Mirrors the per-callback defaults
+	// (text/image → 'key', content → 'content'); title/permalink have no enum.
+	$use_default = ( 'content' === $tag ) ? 'content' : 'key';
+	$use         = (string) ( $options['use'] ?? '' );
+	if ( '' === $use ) {
+		$use = $use_default;
+	}
+
+	// title base tag (no `use` enum) and text use:title → site name.
+	if ( 'title' === $tag || 'title' === $use ) {
+		return (string) get_bloginfo( 'name' );
+	}
+
+	// permalink = the source entity's own URL, never an option read (V9 narrowed).
+	// Always home_url(); any `key` is ignored (control suppressed under site too).
+	// URL-valued options are reachable via {{text src:site|key:...}}.
+	if ( 'permalink' === $tag ) {
+		return (string) home_url();
+	}
+
+	// use:key → wp_options key read (Model B, V9: `use` is the lever, not key
+	// emptiness). The shared gated reader (allowlist + dot-path + ACF filter).
+	if ( 'key' === $use ) {
+		$raw = bws_site_read_option( $key );
+		// content: route block/HTML option markup through the shared content
+		// pipeline (do_blocks + sanitize + recursion guard), keyed 'option:KEY'.
+		if ( 'content' === $tag && function_exists( 'bws_render_block_content' ) ) {
+			return bws_render_block_content( $raw, 'option:' . $key );
+		}
+		return $raw;
+	}
+
+	// Analog `use` tokens (and each tag's empty/default). Dispatch the intrinsic
+	// site analog per tag (V9 Model B).
+	switch ( $tag ) {
+		case 'content':
+			// Site has NO content analog (B7): the only site long-text datum is the
+			// tagline, which is a SHORT string (not body text) AND has no unique value
+			// to add over GB native {{site_tagline}} — so no tag path this release.
+			// use:content (default) and use:excerpt both → '' under site. content is
+			// only meaningful with use:key (wp_options rich-render, handled above).
+			return '';
+
+		case 'image':
+			// use:featured (default) → site logo (post→featured parallel).
+			$logo_id = (int) get_theme_mod( 'custom_logo' );
+			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
+				return '';
+			}
+			$result = bws_get_attachment_data(
+				$logo_id,
+				$options['as'] ?? 'url',
+				$options['size'] ?? 'full'
+			);
+			if ( empty( $result ) ) {
+				return '';
+			}
+			// Route through GB output for fallback/markup parity with image tag.
+			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
+				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+				: (string) $result;
+
+		// text: keyed by nature — empty/bare `use` has no analog default → ''.
+		default:
+			return '';
+	}
 }
 
 // ===============================================

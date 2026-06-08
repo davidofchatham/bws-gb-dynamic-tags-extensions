@@ -367,13 +367,13 @@ function bws_get_datetime_single_field_key_options(): array {
 	return array(
 		'key'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'Date/Time Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
 			'placeholder' => 'event_date',
 		),
 		'timeKey' => array(
 			'type'        => 'text',
-			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
+			'label'       => __( 'Time Field Key (optional)', 'generateblocks' ),
 			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
 			'placeholder' => 'event_time',
 		),
@@ -478,25 +478,25 @@ function bws_get_datetime_range_field_key_options(): array {
 	return array(
 		'startKey'     => array(
 			'type'        => 'text',
-			'label'       => __( 'Start Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'Start Date/Time Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
 			'placeholder' => 'start_date',
 		),
 		'startTimeKey' => array(
 			'type'        => 'text',
-			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
+			'label'       => __( 'Start Time Field Key (optional)', 'generateblocks' ),
 			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
 			'placeholder' => 'start_time',
 		),
 		'endKey'       => array(
 			'type'        => 'text',
-			'label'       => __( 'End Date / Time Field', 'generateblocks' ),
+			'label'       => __( 'End Date/Time Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
 			'placeholder' => 'end_date',
 		),
 		'endTimeKey'   => array(
 			'type'        => 'text',
-			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
+			'label'       => __( 'End Time Field Key (optional)', 'generateblocks' ),
 			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
 			'placeholder' => 'end_time',
 		),
@@ -997,6 +997,21 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	$link_id   = 0;
 	$link_type = 'post';
 
+	// src:site — ACF options-page date field. Pass 'option' object-id to _core; the
+	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
+	// the value read, and the format chain (bws_build_single_format) recovers the
+	// field's return format. Link-wrap with sentinel id 1, entity_type 'site'.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_datetime_single_core( 'option', $mapped, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
+	}
+
 	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )
 			? bws_resolve_post_by_source( $options, $instance )
@@ -1053,6 +1068,19 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	$link_id   = 0;
 	$link_type = 'post';
+
+	// src:site — ACF options-page date range. 'option' object-id → DT-1 value read +
+	// format chain (bws_build_range_format). Link-wrap sentinel id 1, type 'site'.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		$value = bws_datetime_range_core( 'option', $mapped, $instance );
+		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
+		}
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
+	}
 
 	if ( '' !== $tax ) {
 		$post_id = function_exists( 'bws_resolve_post_by_source' )

@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.9.0] — 2026-06-08
+
+### Added — `src:site` unified site-wide source (Stage A)
+
+- New `src:site` source value on the `text`, `title`, `permalink`, `image`, `content`, `datetime_single`, and `datetime_range` base tags — one source + one mental model for site-wide data, replacing the need to remember GB Pro's separate `{{site_title}}` / `{{site_tagline}}` / `{{site_logo_url}}` / `{{site_url}}` / `{{option}}` tags. `use` is the analog-vs-option lever (**uniform with every other source**), not key-presence; there is **no `use:option` value** (`src:site` selects the wp_options namespace the way `src:current` selects post meta). An empty wire `use` resolves to the tag's stripped first-enum value:
+  - `text`: stripped default = key-mode — `{{text src:site|key:X}}` reads a wp_options value; `use:title` → site name; bare/no-key → empty. (No `use:tagline` — it fails the qualifying test both ways: no unique value over GB's native `{{site_tagline}}`, and no strong cross-source analog. Reach it there or via `key:blogdescription`. See `docs/tag-reference.md` §Qualifying test.)
+  - `title`: site name (`get_bloginfo('name')`); no `use`/`key`.
+  - `permalink`: site home URL (`home_url()`); no `use`/`key` (the site's own URL, never an option read; `site_url()` is not exposed this release).
+  - `image`: stripped default = key-mode → `use:key`/`{{image src:site|key:X}}` reads an attachment-ID wp_options value; **the site logo is the explicit `use:featured` value** (customizer custom-logo, full `as:`/`size:`) — bare `{{image src:site}}` is key-mode and resolves empty without a key, *not* the logo. (`featured` stays explicit/serialized so the empty wire is an unambiguous key-mode signal; a stripped-default logo would be indistinguishable from a stale key. Reliable token authority is deferred to the custom-control work — see SPEC §B6.)
+  - `content`: **no site content analog** — site has no long-form body datum (the site "description" is the *Tagline*, a short string), so the `content` default and `use:excerpt` both resolve empty. `content` is only meaningful under `src:site` with `use:key` → a wp_options read through the `bws_render_block_content` entry shipped in 1.8.0 (`do_blocks` + sanitize + recursion guard, keyed `'option:'.$key`), so block-markup options (e.g. an ACF Extended block-editor field on an options page) execute rather than printing raw markup.
+
+    The analogs parallel post→{title, content, permalink, featured} and term→{name, description, URL, —}, except: the site image analog (logo) is reached by explicit `use:featured` rather than the bare tag; and the site has **no** content-body analog (`{{content src:site}}` → empty). The site Tagline (`blogdescription`) is a short string with no tag path here — use GB native `{{site_tagline}}` or `{{text src:site|key:blogdescription}}`. See `docs/tag-reference.md` §Source-analog resolution.
+  - `datetime_single` / `datetime_range`: read ACF options-page date fields via `get_field($key,'option')` (the `key`/`end` controls), recovering the field's ACF return format through the normal format chain. **Primary driver:** ACF options-page date fields.
+- Link wrapping for site sources (`text`, `title`, `datetime_*`): under `src:site`, `linkTo:permalink` resolves to `home_url()` — the site permalink-analog, matching field-unserialized `{{permalink src:site}}` (no separate `linkTo:site` value; permalink already IS the site's canonical URL). `linkTo:key` reads an option-stored URL (allowlist-gated).
+
+### Added — `{{email}}` base tag
+
+- New `email` base tag — outputs a stored email address, by default wrapped in a `mailto:` link, cross-source like `text` (highest value under `src:site` for an org contact email in a wp_options / ACF-options field). Key-required in every source (no analog, no `use` enum). Reuses the 1.8.0 field-read path, so it benefits from `src:site` without touching site code. Specific behavior:
+  - **`mailto:` wrap is default-ON**, toggled off by the inverted bare key `noLink` (`{{email …|noLink}}` → plain text). Built as a minimal anchor — no `linkTo` / target / class (WP emits no class on mailto links either).
+  - **`subject`** — optional `mailto:?subject=` line via the `bws-format-input` control; survives GB's tag-string round-trip (escaped editor-side, unescaped by GB server-side) and is `rawurlencode`d into the query at render.
+  - **Obfuscation** — addresses run through `antispambot()` on both display and href, controlled by a new global **Settings → Tag Extensions → Email** toggle (default on; disable for a clean `mailto:` href).
+  - **Validation + fallback** — `is_email()`-validated; the `fallback` option is a *fallback email address* (validated, wrapped like a real address). List mode (`srcTermIn` / `src:ref`) wraps each valid address individually and joins by `sep`; fallback fires only when no valid address resolves.
+  - **`visibility` gate** — hidden in the tag selector on `a` / `button` / `img` / `picture` elements (first native `visibility` use in the plugin, mirroring GB core's `term_list`). See [`docs/tag-reference.md`](docs/tag-reference.md) §Email tag. Follow-ups: `img`/`picture` gate for text/title/datetime ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)), `try_email` parity ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32)).
+
+### Changed — editor labels
+
+- The `use:key` value and the field-key control now read **"Meta/Option Field"** across `text`, `image`, and `content` (was "Meta/Custom Field" / "Custom Content Field (WYSIWYG/Blocks)" / "Field Key") — the same control now reads post/term meta *or* a wp_options / ACF-options value under `src:site`, so the label tracks that widened scope. The WYSIWYG/Blocks rendering note moved to the field-key help text. Analog `use` values name every source: image "Featured Image/Site Logo", content "Post Content/Term Description". Link-target control + value "URL Meta Field" → "URL Meta/Option Field". (Nomenclature: *field* is generic; *meta*/*option* are the subtype pair.)
+- `try_` multi-slot labels front-load the slot ordinal as an `N: ` prefix (e.g. `2: Meta/Option Field`, `2: Source`) for legibility — was a trailing ` N` suffix / `Source N:` prefix mix.
+- Spaced slashes normalized to tight slashes in user-facing labels (`Title / Name` → `Title/Name`, `Date / Time` → `Date/Time`, etc.).
+- Field-key controls now carry **"Key"** in the label to distinguish them from the selector options they sit beside: field-key control "Meta/Option Field Key" (was "Meta/Option Field"), relationship-field control "Relationship Field Key", link-URL control "URL Meta/Option Field Key", and the datetime field keys "Date/Time Field Key" / "Start Date/Time Field Key" / "End Date/Time Field Key" (+ "… Time Field Key (optional)" variants). The `src` / `use` / `linkTo` *selector* option labels are unchanged (e.g. `use:key` stays "Meta/Option Field", `linkTo:key` stays "URL Meta/Option Field") — only the key-entry fields gained "Key". `try_` per-slot equivalents follow (`N: Meta/Option Field Key`, `N: Relationship Field Key`).
+
+### Security — site option reads gated by a GB-Pro-parity allowlist
+
+- All site option reads (site option key-mode, site `linkTo:key`, and the datetime `get_field(…,'option')` read) pass through the `generateblocks_dynamic_tags_allowed_options` filter, seeded to **GB Pro parity**: the six WP defaults (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`) plus every registered ACF options-page field (registration is the opt-in — ACF option fields read with no manual filter). `GenerateBlocks_Meta_Handler::get_option()` enforces a blocklist only (not this allowlist), so the gate is the resolver's responsibility — see [`docs/adr/0001-site-option-read-allowlist.md`](docs/adr/0001-site-option-read-allowlist.md). Mirrors GB Pro's `{{option}}` behavior so `src:site` is not gratuitously stricter than the tag it replaces.
+
+### Fixed
+
+- `limit` / `sep` (list-mode controls on base `text` and `title`) were shown unconditionally, including for scalar sources that can only ever return one value. They now carry `show_if_any => { srcTermIn: not_empty, src: ref }` — visible only when the final traversal step can yield multiple results (terms via `srcTermIn`, or related posts at `src:ref`). Pre-existing over-exposure; surfaced and broadened by `src:site`, which hides both `ref` and `srcTermIn` and so now also hides `limit`/`sep`. See `docs/tag-reference.md` §List mode.
+- `bws_parse_combined_date_time` passed the numeric-coerced id to the field **value** read, so a non-numeric ACF object-id sentinel (`'option'`) was lost before reaching `bws_read_field`. The value read now threads the `'option'` sentinel independently of the format-lookup object-id. (Prerequisite for site-datetime; no effect on existing post/term/loop callers.)
+- Site `linkTo:key` (`{{… src:site|linkTo:key|linkKey:…}}`) read the option through a raw `get_option()` instead of the reader the value path uses, so it lacked dot-path traversal and the ACF `get_field` filter — ACF options-group subfields (e.g. `organization_social.facebook`) resolved as a value but failed when used as a link target. Both site wp_options reads (key-mode value + `linkTo:key`) now share one canonical reader (`bws_site_read_option`), so the value and the link always agree.
+
+### Notes
+
+- Stage A only: no `Site` source class and no registry registration (site is a dropdown value + early-gate resolver). `try_` slot support is staged separately ([#26](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/26)). Per-value link-target gating ([#27](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/27)) and `src:site` → reference-field resolution ([#28](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/28)) tracked as follow-ups.
+
 ## [1.8.0] — 2026-06-01
 
 ### Refactor — Post content rendering pipeline extracted to `ContentProcessor` class (C4, issue #3)

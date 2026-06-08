@@ -10,6 +10,7 @@
  *       mode_without_path: 'keep'|'suppress'|'disable',
  *     },
  *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
+ *     email:       { obfuscate: bool },
  *   }
  *
  * Deprecated tag mode semantics:
@@ -121,6 +122,7 @@ class SettingsPage {
 			'modifiers'   => array(),
 			'deprecated'  => array(),
 			'diagnostics' => array(),
+			'email'       => array(),
 		);
 
 		// Modifier toggles.
@@ -137,6 +139,10 @@ class SettingsPage {
 		// Diagnostics.
 		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
 		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
+
+		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
+		// untouched first save submits 1. Unchecking it writes false.
+		$sanitized['email']['obfuscate'] = ! empty( $input['email']['obfuscate'] );
 
 		return $sanitized;
 	}
@@ -214,6 +220,24 @@ class SettingsPage {
 
 	public static function is_registration_logging_enabled(): bool {
 		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
+	}
+
+	/**
+	 * Whether `{{email}}` addresses are obfuscated (antispambot) on output.
+	 *
+	 * Default ON (WP-parity); the global only ever DISABLES. Mirrors the
+	 * default-true shape of is_modifier_enabled — absence means enabled.
+	 *
+	 * @invariant VE4 — default true; gates BOTH display text and the mailto href
+	 *   local-part in bws_email_callback.
+	 * @since 1.9.0
+	 * @return bool
+	 */
+	public static function is_email_obfuscation_enabled(): bool {
+		$settings = self::get_settings();
+		return isset( $settings['email']['obfuscate'] )
+			? (bool) $settings['email']['obfuscate']
+			: true;
 	}
 
 	/**
@@ -593,6 +617,26 @@ class SettingsPage {
 							<tbody id="bws-results-tbody"></tbody>
 						</table>
 					</div>
+				</div>
+
+				<?php /* ── Email ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-email-obfuscate"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[email][obfuscate]"
+										value="1" <?php checked( self::is_email_obfuscation_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 
 				<?php /* ── Diagnostics ── */ ?>

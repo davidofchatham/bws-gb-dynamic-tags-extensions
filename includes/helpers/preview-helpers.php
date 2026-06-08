@@ -479,7 +479,7 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 /**
  * Build a structured preview label for a tag that returned empty in the editor.
  *
- * Schema: [tag matrix §Editor preview label schema].
+ * Schema: docs/editor-tag-previews.md (authoritative).
  * Called only when $instance->context['bwsEditorPreview'] is set and
  * resolution produced an empty value.
  *
@@ -548,6 +548,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$missing[] = 'meta key';
 	} elseif ( 'image' === $base_template && 'featured' !== $use && '' === $key ) {
 		$missing[] = 'meta key';
+	} elseif ( 'email' === $base_template && '' === $key ) {
+		$missing[] = 'field key'; // Email key-required in every source (no analog).
 	}
 
 	if ( ! empty( $missing ) ) {
@@ -681,6 +683,9 @@ function bws_build_preview_label( array $options, string $template ): string {
 			break;
 		case 'title':
 			$field_part = 'Title';
+			break;
+		case 'email':
+			$field_part = '' !== $key ? "Email: '" . $key . "'" : 'Email';
 			break;
 	}
 

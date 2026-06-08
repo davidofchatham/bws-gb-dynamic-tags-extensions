@@ -159,7 +159,9 @@ add_filter( 'bws_dynamic_tags_preview_modifier_map', function ( $map ) {
 } );
 ```
 
-Without this, your modifier tags still render normally — only the editor preview label drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
+Without this, your modifier tags still render normally — only the editor preview text drops the modifier segment. Built-in `term_` is registered internally; external prefixes must opt in via this filter.
+
+For the preview-text schema itself (markers, assembly, warnings, per-template shapes), see [`editor-tag-previews.md`](editor-tag-previews.md).
 
 ---
 
@@ -395,12 +397,33 @@ Procedural API. Most are thin wrappers over `\BWS\DynamicTags\Content\ContentPro
 | `bws_has_sufficient_memory()` | Returns `true` when memory usage is below `bws_content_memory_threshold` (default 0.80) of the PHP limit. |
 | `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content. |
 
-#### Filters (new in v1.8.0)
+#### Filters
 
 | Filter | Default | Purpose |
 |--------|---------|---------|
-| `bws_content_memory_threshold` | `0.80` | Memory fraction (0.0–1.0) below which the primary render path runs. At or above, callers fall back to a CSS-extraction-only pipeline. |
-| `bws_content_max_recursion_depth` | `3` | Maximum content stack depth before further pushes are blocked. |
+| `bws_content_memory_threshold` | `0.80` | (v1.8.0) Memory fraction (0.0–1.0) below which the primary render path runs. At or above, callers fall back to a CSS-extraction-only pipeline. |
+| `bws_content_max_recursion_depth` | `3` | (v1.8.0) Maximum content stack depth before further pushes are blocked. |
+| `generateblocks_dynamic_tags_allowed_options` | GB-parity seed | (v1.9.0) Allowlist of wp_options keys the `src:site` source may read (site option key-mode, site `linkTo:key`, datetime `get_field(…,'option')`). We mirror GB Pro's `get_option` seed exactly: 6 WP defaults (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`) **plus every registered ACF options-page field** (`array_keys(GenerateBlocks_Pro_Dynamic_Tags_ACF::get_instance()->get_acf_option_fields())` — registration is the opt-in). Same filter name as GB Pro, re-applied by our resolver because `Meta_Handler::get_option()` does not enforce it. Use this filter only to add *non-ACF, non-default* keys. See [§Exposing site option keys](#exposing-site-option-keys-srcsite) and [`docs/adr/0001-site-option-read-allowlist.md`](adr/0001-site-option-read-allowlist.md). |
+
+#### Exposing site option keys (`src:site`)
+
+ACF options-page fields and the six common WP options read out of the box (GB-parity seed) — no filter needed. The filter is only for **arbitrary non-ACF wp_options keys** you want a tag to read. Discoverable site data (title, tagline, URLs, logo) is reached via the named `use:` values instead and needs no key or filter.
+
+```php
+// Only needed for a plain wp_options key that is NOT an ACF options field
+// and NOT one of the six defaults.
+add_filter(
+    'generateblocks_dynamic_tags_allowed_options',
+    static function ( array $allowed ): array {
+        return array_merge( $allowed, [ 'my_plugin_settings' ] );
+    }
+);
+// Now {{text src:site|key:my_plugin_settings.support_email}} resolves.
+// (An ACF options-page field like acf_options_event_date already resolves
+//  with no filter: {{datetime_single src:site|key:acf_options_event_date}}.)
+```
+
+For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settings`); dot-path subkeys (`.support_email`) traverse within the allowed root. ACF options-page field keys are flat — the whole key is the root. Note there is no `use:option` — `src:site` plus a `key` (with no named `use:` value) is the option read.
 
 ### Registration helpers (`includes/helpers/registration-helpers.php`)
 

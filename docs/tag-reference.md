@@ -18,12 +18,83 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
+| `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
 | `child` | WP child posts/terms (list output) | To be considered |
 | `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source options](#source-options) for label/UI details.
+
+### Source-analog resolution
+
+**Design principle.** Each base tag at its **implicit mode** (no explicit `use`/`key` — the stripped per-template default, recovered via `?? '<canonical>'` on read) resolves to the **best intrinsic analog datum for the active source — where one exists**. A tag should "just work" per context; named `use:`/`key` are **explicit-mode** overrides and escape hatches, not the primary path.
+
+*Mode terminology:* a `use`/`key` selection is **explicit** (written in the string), **implicit** (absent but recoverable — the stripped default, or a mode implied by a present `key`/`ref`; a selection IS in effect even though the selector's default isn't serialized), or **unset** (no choice and nothing to recover, e.g. no `src` → current entity). "Implicit" ≠ "unset": the panel always shows a default selection. Implicit mode resolves the analog only at **base / slot 1** — inside a try_ slot, the same wire-absence means *inherit* (the implicit-in-slot collision), not analog.
+
+| Base tag | post | term | site |
+|---|---|---|---|
+| `title` | post title | term name | site name |
+| `content` | post content | term description | *(none — site has no long-form body datum; the tagline is short, and has no tag path this release — see note)* |
+| `permalink` | post URL | term URL | site home URL |
+| `image` | featured image | *(none — terms have no native image; key required)* | site logo *(via explicit `use:featured` — see note)* |
+| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | |
+| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | |
+
+Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
+
+**Strip-default caveat (B6).** The analog is reached by the tag's *stripped-default* `use` value, which is its **first enum value** — and that first value is **key-mode** for `text` and `image` (so their analog is NOT the empty-wire default). An empty `use` therefore resolves to key-mode for text/image (read a `key`), to `content` for `content` (which, under `src:site`, has no analog → empty). The site **logo** is the explicit `use:featured` value, *not* the implicit-mode `{{image src:site}}` (which is key-mode → empty without a key). `featured` is always serialized so the empty wire stays an unambiguous key-mode signal — there is no reliable way yet to tell a stale `key` from intentional key-mode if `featured` were the stripped default. Auto-unsetting the stale `key` when `use` leaves key-mode needs token authority that arrives with the custom-control work (deferred). Until then, **the stripped default is always key-mode**, named analogs are always explicit.
+
+This principle governs `src:site` below and should guide every future source (`parent`, `ancestor`, external) and any new base tag.
+
+#### Qualifying test for new `use:` values
+
+Before adding a named `use:` value (or a per-source analog) for a new field target, it must clear this gate. A value that fails it is *noise* — it grows the enum, the label surface, and the per-source dispatch table without earning its place. Until **cross-token filtering** lands (the JS seam that shows only source-valid `use` entries — V10b/[#27](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/27)), every value hangs on the base tag in *every* source, so the cost is real.
+
+**A new `use:` value qualifies if it satisfies *either* of two independent tests — reject only when it fails BOTH:**
+
+1. **Uniqueness** — it offers an affordance no existing path gives: a datum unreachable elsewhere (e.g. an excerpt of a *related* post via `src:ref` — no native GB path), or a transform/traversal that adds value (the datetime format chain).
+2. **Strong cross-source analog** — it fills the *same conceptual slot* as the tag's analogs in other sources, so the implicit-mode tag "just works" per context (`{{title}}` → post title / term name / site name; `{{content}}` → post content / term description). An analog can qualify **even if the datum is also reachable via `key` or a GB-native tag** — the value is the *consistent mental model*, not a path the user lacked. This is the design principle at the top of this section, restated as a gate.
+
+| New value | Unique? | Strong analog? | Verdict |
+|---|---|---|---|
+| `content` `use:excerpt` (`src:ref`) | **Yes** — related-post excerpt has no native GB path | — | **keep** |
+| `datetime_*` site field | **Yes** — format chain (custom → ACF return-format → site default) | — | **keep** |
+| `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
+| `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **cut** (this ship) |
+
+The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
+
+The one place tagline *might* earn its keep is as **feedstock for a multi-slot tag** (`try_text` and future multi-slot tags inherit the base `text` enum). That is a weak reason — it overloads the base tag as a feeder rather than the multi-slot tag drawing from a per-source capability set. The right fix is to **decouple the multi-slot feed from the base tag's own enum** ([#26](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/26) + the cross-token work) so we stop hanging values on `text` just to pipe them into `try_text`. Until that exists, a value that *only* clears the gate as multi-slot feedstock is **deferred, not added** — re-evaluate it when the decouple ships.
+
+### Site Source (`src:site`)
+
+**v1.9.0, Stage A.** `src:site` resolves site-wide data behind the existing base tags — one source and one mental model instead of GB Pro's separate `{{site_title}}`/`{{site_tagline}}`/`{{site_logo_url}}`/`{{site_url}}`/`{{option}}` tags. Site has no entity ID, so each base callback **early-gates** on `src:site` (short-circuiting before `bws_resolve_post_by_source`) into `bws_site_resolve_value()` (non-datetime tags) or the datetime `_core('option', …)` path. No `Site` source class and no registry registration exist in Stage A — `site` is a dropdown value + early-gate resolver only.
+
+**`src:site` is uniform with every other source: `use` is the analog-vs-option lever (Model B), not key-presence.** `use:key` reads a wp_options value; named `use` values resolve their datum; the empty wire is the tag's **stripped first-enum value** (key-mode for text/image, `content` for content — see the [strip-default caveat](#source-analog-resolution)). `src:site` selects the wp_options namespace the way `src:current` selects post meta; there is no `use:option` value (option is reached by `use:key`). The existing per-tag `use` values dispatch under site (image `use:featured` → logo, text `use:title` → name). **New** `use` values must clear the [qualifying test](#qualifying-test-for-new-use-values) — be either uniquely useful or a strong cross-source analog. Barred when they are neither: e.g. no `use:logo` (logo already = image `use:featured`) or `use:home_url` (already = permalink) — duplicate data, not analogs; and no `use:tagline` (GB's `{{site_tagline}}` covers it, nothing to format, AND it fills no cross-source slot). `content` has **no** site analog — its default resolves empty (tagline is short, not body text, and has no tag path this release).
+
+| Base tag | empty-wire default under `src:site` | explicit `use` values |
+|---|---|---|
+| `text` | `key` (stripped default) → read wp_options key `X` (`{{text src:site\|key:X}}`); empty key → '' | `use:title` → site name; `use:key` (explicit) → same option read |
+| `title` | site name (`get_bloginfo('name')`) | *(no `use`/`key` enum — always name)* |
+| `permalink` | site home URL (`home_url()`) | *(no `use`/`key` — ALWAYS `home_url()`; permalink names the site's own URL, never an option read. For a URL stored in an option use `{{text src:site\|key:X}}`.)* |
+| `image` | `key` (stripped default) → attachment-ID wp_options key `X`; **implicit mode / no key → '' (NOT the logo)** | `use:featured` (explicit) → site logo (`get_theme_mod('custom_logo')`, full `as:`/`size:`); `use:key` → same option read |
+| `content` | `content` (stripped default) → **'' (no site content analog)** — site has no long-form body; the tagline is short and has no tag path (use GB `{{site_tagline}}`) | `use:key` → wp_options value `X` through the content pipeline (`bws_render_block_content`, keyed `'option:X'`; block/HTML markup executes); `use:excerpt` → empty (no site excerpt) |
+| `datetime_single` / `datetime_range` | *(n/a — always field-keyed)* | `key`/`end` read ACF options-page date fields via `get_field($key,'option')`, recovering ACF return format |
+
+> **Site tagline (= blogdescription).** WordPress's "Tagline" (Settings → General) is the same value as the API's `get_bloginfo('description')` / the `blogdescription` option. It is a **short** string (WP's own help: "In a few words, explain what this site is about"), so it is *not* a content analog — `{{content src:site}}` (no key) resolves empty. It also has **no dedicated `use:` value** this release: it fails both sides of the [qualifying test](#qualifying-test-for-new-use-values) — GB's native `{{site_tagline}}` already exposes it (nothing unique to format or traverse), and it is not a strong cross-source analog (site has no slot it parallels). Reach it via `{{site_tagline}}` or, if you need the wp_options path, `{{text src:site\|key:blogdescription}}`.
+>
+> **`site_url()` is not exposed** this release. Bare permalink resolves `home_url()` (the front-facing site address); `site_url()` (the WP-install address, differs only when WP lives in a subdirectory) has no tag path yet — add one if a real need appears.
+
+**`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): implicit mode = `home_url()`, no option read.
+
+**Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
+
+**Link wrapping** (text/title/datetime_* only): `linkTo:permalink` → `home_url()` under `src:site` (the site permalink-analog — no separate `linkTo:site`); `linkTo:key` → option-stored URL (allowlist-gated).
+
+**Allowlist (option reads).** Every option read — site option key-mode, site `linkTo:key`, and datetime `get_field(…,'option')` — passes through the `generateblocks_dynamic_tags_allowed_options` filter, **seeded to GB Pro parity**: the six WP defaults (`siteurl`, `blogname`, `blogdescription`, `home`, `time_format`, `user_count`) plus every registered ACF options-page field (registration is the opt-in — ACF option fields read with no manual filter). The gate is ours, not the handler's. See [`docs/adr/0001-site-option-read-allowlist.md`](adr/0001-site-option-read-allowlist.md) and [`docs/plugin-integration.md`](plugin-integration.md) for the filter usage.
+
+**Coexistence with GB Pro.** GB Pro's site tags still work; `src:site` is additive. Common site data is best fetched via the named `use:` values (`use:title`, etc.) — no key, no allowlist. A migrator's `{{text src:site|key:blogname}}` also resolves (`blogname` is in the parity seed).
 
 ### Modifier prefixes
 
@@ -68,7 +139,32 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Deprecated wrapper tags** — settings page exposes two group-level radio sets (Has migration path, No migration path); each tag toggles individually but state is keyed off group selection (Keep / Suppress / Disable). `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current state.
 
-**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are always registered with no admin toggle.
+**Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`) are always registered with no admin toggle.
+
+---
+
+## Base tag GB types
+
+In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
+
+| Template key | GB type | Link wrap | Notes |
+|---|---|---|---|
+| `text` | `'cross-source'` | ✅ | |
+| `content` | `'cross-source'` | ❌ | Long-form; may already contain links |
+| `title` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
+| `permalink` | `'cross-source'` | ❌ | Output is already a URL |
+| `image` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
+| `datetime_single` | `'cross-source'` | ✅ | |
+| `datetime_range` | `'cross-source'` | ✅ | |
+| `email` | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
+
+The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+
+**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
+
+**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
+
+See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
 
 ---
 
@@ -96,16 +192,16 @@ Each slot exposes up to three controls:
 
 ### Per-slot label scheme
 
-Per-slot controls follow a "Source N: ..." prefix for `srcTermIn` sub-controls and "Field N" / "[Type] Field N" suffix for slot-tied controls. Slot 1 uses bare labels (no slot suffix).
+Applies to **try_ tags** (multi-slot). Every slot-tied control front-loads the slot ordinal as an `N: ` prefix (legibility — the number leads); each slot is numbered, including slot 1 (`1: …`). Base / term_ tags (single slot) use the bare labels in [§Source options](#source-options) and [§Field options](#field-options) — no ordinal.
 
-| Control | Slot 1 label | Slot N>1 label |
-|---|---|---|
-| `src` (source selector) | `Source` | `Source N` |
-| `ref` (relationship field) | `Relationship Field` | `Relationship Field N` |
-| `srcTermIn` checkbox | `Get from taxonomy term?` | `Source N: Get from taxonomy term?` |
-| `srcTermIn` taxonomy combobox | `Taxonomy` | `Source N: Taxonomy` |
-| `use` (field-type selector) | `Text Field` / `Content Field` / `Image Field` | `Text Field N` / `Content Field N` / `Image Field N` |
-| `key` (meta key) | `Field Meta Key` | `Field N Meta Key` |
+| Control | Label (`N` = slot number) |
+|---|---|
+| `src` (source selector) | `N: Source` |
+| `ref` (relationship field) | `N: Relationship Field Key` |
+| `srcTermIn` checkbox | `N: Get from taxonomy term?` |
+| `srcTermIn` taxonomy combobox | `N: Taxonomy` |
+| `use` (field-type selector) | `N: Text Field` / `N: Content Field` / `N: Image Field` |
+| `key` (field key) | `N: Meta/Option Field Key` |
 
 ### Available try_ tags
 
@@ -134,6 +230,7 @@ Some tag variants require specific options before producing output. Missing requ
 | `image` (`use:key` or unset) | `key` — meta image field key | Default mode reads field at `key` |
 | `datetime_single` | `key` — date/datetime/time field key | |
 | `datetime_range` | `startKey` — start field key | `endKey` optional |
+| `email` | `key` — email field key | Key-required in every source (no analog); reads address from meta/option field |
 
 Required-option rules for deprecated N×M wrappers (e.g. `related_post_*`, `term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 
@@ -152,10 +249,13 @@ Selected templates support outputting multiple results as a delimited list. `lim
 | `content` | ❌ | Long-form prose |
 | `permalink` | ❌ | Scalar URL |
 | `image` | ❌ | Scalar media |
-| `datetime_single` | ✅ | Terms or related posts |
-| `datetime_range` | ✅ | Terms or related posts |
+| `datetime_single` | ❌ | Scalar date/time (see note) |
+| `datetime_range` | ❌ | Scalar date/time (see note) |
+| `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
+
+**`datetime_*` — intended, not yet implemented.** The base `datetime_single` / `datetime_range` callbacks iterate `srcTermIn` terms but short-circuit to the **first** non-empty result; no `limit` / `sep` controls are registered. A multi-result date list (e.g. every event date on a term's posts) is a planned extension ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)), not current behaviour — these tags return a single value today.
 
 ---
 
@@ -169,33 +269,52 @@ replicate. Each would add a row to all applicable source matrices. The naming pa
 |---|---|---|---|
 | `number` | Format a raw numeric field: decimal places, thousands separator, currency symbol + position, optional prefix/suffix | No | To be considered |
 | `phone` | Format a raw stored phone number with regional pattern and optional country code; can wrap output in a `tel:` link | `tel:` | To be considered |
-| `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | To be considered |
+| `email` | Output a stored email address; can wrap output in a `mailto:` link | `mailto:` | **Implemented (1.9.0)** — see [Email tag](#email-tag) |
 
 Image tags are excluded: multiple return formats are already built into image tag mechanics.
 
 ---
 
-## Base tag GB types
+## Email tag
 
-In the source-agnostic architecture, each template has one GB tag registration. Type names settled (2026-04-14): base tags use `'cross-source'`; try_ tags use `'first-available'`. Both are hyphenated English compounds confirmed valid as GB type strings.
+`{{email}}` (1.9.0) outputs a stored email address, by default wrapped in a `mailto:` link. It is a first-class base tag — registered unconditionally, cross-source like `text` — living in `includes/tags/email-tags.php`.
 
-| Template key | GB type | Link wrap | Notes |
-|---|---|---|---|
-| `text` | `'cross-source'` | ✅ | |
-| `content` | `'cross-source'` | ❌ | Long-form; may already contain links |
-| `title` | `'cross-source'` | ✅ | Zero options aside from link; shares pipeline with `text use:title`. |
-| `permalink` | `'cross-source'` | ❌ | Output is already a URL |
-| `image` | `'cross-source'` | ❌ | URL output nonsensical to wrap; image linking deferred |
-| `datetime_single` | `'cross-source'` | ✅ | |
-| `datetime_range` | `'cross-source'` | ✅ | |
+**Source / field read.** The address is read from a meta/option field via the standard field-read path, so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email is **key-required in every source** — it has no intrinsic analog, so there is **no `use` enum** and `key` is always required. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
 
-The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+**`mailto:` wrap (default-ON) + `noLink`.** The address is wrapped in `<a href="mailto:…">` UNLESS the `noLink` bare key is present (`noLink` = plain text). This is an **inverted bare-key boolean**: absence = wrap, present = off. Modeled this way because GB's serializer drops `false`, so "default-on, serialize-when-off" is only reachable via an inverted-name presence flag (same pattern as `showCurrentYear` / `showMidnight`). The anchor is built directly (minimal, no class/target) — it does NOT use the `linkTo` / `bws_wrap_with_link` entity-link machinery (those are for entity URLs; email's link is the address itself). WP emits no standard class on mailto anchors — target them via `a[href^="mailto:"]` in CSS.
 
-**`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
+**`subject` — two-layer encoding.** Optional `subject` for the `mailto:?subject=` query, entered via the `bws-format-input` control. Two distinct encoding layers with different owners: (1) the control escapes `:` / `|` so the value survives GB's `parseTag`; GB's server-side `parse_options()` then **unescapes** before the callback. (2) the callback `rawurlencode()`s the (already-clean) subject into the query — its only render step. The callback does NOT unescape (GB already did). `subject` is hidden when `noLink` is set (no query to carry it).
 
-**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots (s1–s5); slots revealed progressively as earlier slots are configured.
+**Obfuscation (anti-harvest).** Addresses are run through `antispambot()` on BOTH display text and the `mailto:` href local-part, controlled by the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON; WP-parity — disable for a clean `mailto:` href, e.g. analytics). `antispambot()` output is already entity-encoded and is emitted raw (never re-`esc_html`'d, which would double-encode).
 
-See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
+**Validation + fallback.** The resolved value is validated with `is_email()` on the raw string — only a valid address is ever wrapped. Invalid (incl. empty) → the `fallback` option, which is itself a **fallback email address** (validated, wrapped like a real address — like `{{image}}`'s fallback = attachment ID, not text). In list mode, only `is_email()`-valid addresses are kept and wrapped individually; the fallback fires ONLY when zero valid addresses resolve (whole-result-empty), and if it too is invalid the tag returns empty.
+
+**`visibility` gate.** `{{email}}` registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']` — mirroring GB core's own `term_list`. The default-ON `<a>` wrap makes the tag invalid inside anchor/button (nested interactive markup) or img/picture (text in a void/replaced element), so it is hidden in the selector on those elements. This is the plugin's first native `visibility` use (see [`gb-constraints.md` §visibility](gb-constraints.md)). Wrap-capable text/title/datetime tags get an `img`/`picture`-only gate later ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)); `try_email` for base-tag parity is tracked at [#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32).
+
+**Options:**
+
+| Option | Type / control | Label | Shown when | Notes |
+|---|---|---|---|---|
+| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
+| `ref` | text | Relationship Field Key | `src:ref` | Traversal hop key. |
+| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `key` | text | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
+| `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
+
+Plus the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON) — not a per-tag option; gates `antispambot()` for all `{{email}}` output.
+
+**Wire-format examples:**
+
+```
+{{email src:site|key:org_email}}                      → <a href="mailto:VALUE">VALUE</a>   (default wrap)
+{{email src:site|key:org_email|noLink}}               → VALUE                                (plain)
+{{email src:site|key:org_email|subject:Hello there}}  → <a href="mailto:VALUE?subject=Hello%20there">VALUE</a>
+{{email key:contact_email}}                           → post/term meta email, wrapped
+```
 
 ---
 
@@ -270,165 +389,9 @@ Template key renames and option name renames have moved to [`docs/deprecated-tag
 
 ---
 
-## Editor preview label schema
+## Editor tag configuration previews
 
-When a base tag can't resolve in the editor (no relationship configured, archive template, wrong post type), the callback returns a structured preview label instead of empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/content-helpers.php`.
-
-**Scope:** `text`, `content`, `title`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`).
-
-Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
-
-### Marker conventions
-
-| Marker | Meaning |
-|---|---|
-| `[ ]` | Preview placeholder envelope (always wraps full label) |
-| `'X'` | Literal user-supplied identifier (meta key, ref name, taxonomy slug). Straight single quotes |
-| `“X”` | Display value (fallback string, formatted datetime). Curly double quotes — attribute-safe for `image as:alt`/`as:caption` slots, no collision with `<img alt="...">` |
-| `( )` | Auxiliary append — reserved for `(fallback: …)` |
-| `:` | Separates template label from mode/key (`Content: Excerpt`, `Image Alt Text: 'hero'`, `Try Content: 'a', 'b'`); never after a preposition |
-| `,` | List item delimiter |
-| ` from ` | Field-to-source binding |
-| ` like ` | Datetime formatted-value preview |
-| `→` | Term-hop traversal arrow |
-| `⚠` | Warning prefix (replaces full label) |
-
-### Assembly
-
-```
-[{field part} from {context part}]   — both present
-[{field part}]                        — field only
-[{context part}]                      — context only (e.g. title, permalink)
-[⚠ {warning}]                        — misconfigured: replaces entire label
-```
-
-Fallback appended when set: ` (fallback: “{value}”)`.
-
-### Context part
-
-Space-joined segments. The `→` separator precedes the term-hop segment only.
-
-| Condition | Segment |
-|---|---|
-| Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
-| `src:ref` + `ref:X` set | `Ref 'X'` |
-| `src:ref` + `ref` unset | *(triggers warning — see below)* |
-| `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
-| `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
-| No modifier, `src` unset, no term-hop | *(omit — no `from` clause)* |
-
-### Field part
-
-Template-specific. Missing required input triggers a warning instead of the field part.
-
-**Convention** (consistent across base + try_ previews):
-- Template label leads when the template has multiple modes that need disambiguation (`Content`, `Image Alt Text`, `Image Caption`).
-- Mode-value or quoted user identifier follows after a colon (`: Excerpt`, `: 'body_text'`, `: Featured`).
-- Default-mode collapse: when the only configured mode is the template default, drop the colon segment (e.g. `[Content]` for `use:content`).
-- `text` has no template label — bare key (`'X'`) or `Title` is unambiguous on its own.
-- Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`. User identifiers wrapped in straight single quotes.
-
-| Template | Condition | Field part |
-|---|---|---|
-| `text` | `key:X` set | `'X'` |
-| `text` | `use:title` | `Title` |
-| `text` | `key` unset + `use` unset | *(missing — triggers warning)* |
-| `content` | `use` unset (default) | `Content` |
-| `content` | `use:excerpt` | `Content: Excerpt` |
-| `content` | `use:key` + `key:X` | `Content: 'X'` |
-| `content` | `use:key` + `key` unset | *(missing — triggers warning)* |
-| `image` (`as:alt`) | `use:featured` | `Image Alt Text: Featured` |
-| `image` (`as:alt`) | `key:X` set | `Image Alt Text: 'X'` |
-| `image` (`as:caption`) | `use:featured` | `Image Caption: Featured` |
-| `image` (`as:caption`) | `key:X` set | `Image Caption: 'X'` |
-| `title` | — | `Title` (always) |
-| `datetime_` | — | *(see datetime section below)* |
-
-### Warnings
-
-Warnings replace the **entire** label. Collect all missing required items; join with `, `; last two items use ` or `. Fallback append still applies after the warning.
-
-| Missing items | Warning |
-|---|---|
-| `ref` only | `⚠ No ref key set` |
-| `key` only | `⚠ No meta key set` |
-| `tax` only | `⚠ No taxonomy set` |
-| `ref` + `key` | `⚠ No ref key or meta key set` |
-| `ref` + `tax` | `⚠ No ref key or taxonomy set` |
-| `tax` + `key` | `⚠ No taxonomy or meta key set` |
-| `ref` + `tax` + `key` | `⚠ No ref key, taxonomy, or meta key set` |
-
-### Datetime preview
-
-Datetime tags compute a live preview from the current time rather than a static label. The `as` option controls label prefix and range-end offset. The preview value is formatted using the same formatter and options (`format`, `timeSep`, `rangeSep`, etc.) the tag uses at render time.
-
-| `as` | Single prefix | Range prefix | Range end offset |
-|---|---|---|---|
-| unset | `Date-Time` | `Date-Time Range` | +1 hour |
-| `date` | `Date` | `Date Range` | +1 day |
-| `time` | `Time` | `Time Range` | +1 hour |
-
-```
-[{prefix} like “{formatted value}” from {context part}]
-[{prefix} like “{formatted value}”]   — no context
-```
-
-### Examples
-
-| Tag | Preview label |
-|---|---|
-| `{{text key:body_text}}` | `['body_text']` |
-| `{{text src:ref\|ref:rel_post\|key:body_text}}` | `['body_text' from Ref 'rel_post']` |
-| `{{text use:title}}` | `[Title]` |
-| `{{text src:ref\|ref:rel_post\|use:title}}` | `[Title from Ref 'rel_post']` |
-| `{{text srcTermIn:category\|key:body_text}}` | `['body_text' from Category Term]` |
-| `{{text src:ref\|ref:rel_post\|srcTermIn:category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` |
-| `{{text}}` | `[⚠ No meta key set]` |
-| `{{text srcTermIn\|key:body_text}}` | `[⚠ No taxonomy set]` |
-| `{{text src:ref\|srcTermIn\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
-| `{{term_text key:bio}}` | `['bio' from Term]` |
-| `{{term_text src:ref\|ref:rel_post\|key:bio}}` | `['bio' from Term Ref 'rel_post']` |
-| `{{title src:ref\|ref:rel_post}}` | `[Title from Ref 'rel_post']` |
-| `{{content}}` | `[Content]` |
-| `{{content use:excerpt}}` | `[Content: Excerpt]` |
-| `{{content use:key\|key:body_text}}` | `[Content: 'body_text']` |
-| `{{content use:key\|key:body_text\|src:ref\|ref:rel_post}}` | `[Content: 'body_text' from Ref 'rel_post']` |
-| `{{image as:alt\|key:hero}}` | `[Image Alt Text: 'hero']` |
-| `{{image as:caption\|use:featured}}` | `[Image Caption: Featured]` |
-| `{{image as:url\|key:hero}}` | *(no label — excluded)* |
-| `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
-| `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
-| `{{datetime_range as:date\|src:ref\|ref:event}}` | `[Date Range like “April 24 – April 25” from Ref 'event']` |
-| `{{text src:ref\|ref:rel_post\|key:body_text\|fallback:Untitled}}` | `['body_text' from Ref 'rel_post' (fallback: “Untitled”)]` |
-
-### try_ tag previews
-
-`bws_build_try_preview_label()` walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's canonical value), then detects uniformity across two dimensions (field-part, source-part) and renders one of four shapes.
-
-**Conventions** (consistent with base preview labels):
-- Template-name labels: `text` has no label (default). `content`/`image` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name.
-- Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
-- User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
-- `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor.
-- Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list.
-- Single slot at template default for `content`/`image` collapses to bare `[Try Content]` / `[Try Image Alt Text]`.
-- Image excluded for `as:url` / `as:id` (bracket string would break HTML attribute). Permalink excluded entirely (URL context).
-
-| Slot pattern | Preview shape (text) | Preview shape (content/image) |
-|---|---|---|
-| Single slot, template default (no override) | n/a (text needs key) | `[Try Content]` (content `use:content` default) |
-| Uniform field, uniform source | `[Try 'body_text']` | `[Try Content: 'body_text']` |
-| Uniform field, varying sources | `[Try 'body_text' from Current, Ref 'rel_post']` | `[Try Content: 'body_text' from Current, Ref 'rel_post']` |
-| Uniform source, varying fields | `[Try 'a', 'b', 'c']` | `[Try Content: Excerpt, 'body_text', 'summary']` |
-| Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
-| Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
-| `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
-| All slots empty | `[⚠ Try: no slots configured]` | same |
-| Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
-| Image `as:url` / `as:id` | *(no label — excluded)* | — |
-| `try_permalink` | *(no label — excluded)* | — |
-
-Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
+The editor-time preview text shown in place of an unresolved tag while configuring it (markers, assembly, context/field parts, warnings, datetime + try_ shapes, examples) has its own authoritative doc: **[`editor-tag-previews.md`](editor-tag-previews.md)**. Built by `bws_build_preview_label()` in `includes/helpers/preview-helpers.php`.
 
 ---
 
@@ -443,7 +406,7 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 | Option name | Option label | Context | Notes |
 |---|---|---|---|
 | `src` | Source | Base / Slot 1 | `source` avoided — GB unconditionally strips it from extraTagParams before our controls can read it |
-| `N-src` | Source [N] | Slot 2+ | Abbreviated to reduce tag length |
+| `N-src` | [N]: Source | Slot 2+ | Abbreviated to reduce tag length |
 
 ### Source option values
 
@@ -456,53 +419,69 @@ Option name renames have moved to [`docs/deprecated-tags-options.md`](deprecated
 | Ancestor | `ancestor` | `ancestor` | `ancestor` | — | Future |
 | Child(ren) | `child` | `child` | `child` | — | Future |
 
-Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content src:ref|ref:rel_post}}`. See [§Editor preview label schema](#editor-preview-label-schema) for assembly rules.
+Note: For context-modifier tags, the modifier label is prepended as a context segment. Examples: `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content src:ref|ref:rel_post}}`. See [`editor-tag-previews.md`](editor-tag-previews.md) for assembly rules.
 
 ### Secondary, conditional options
 
 | Option name | Option label | Help text | Shown when | Notes |
 |---|---|---|---|---|
-| `ref` | Relationship Field | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
+| `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy. Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `datetime_` only. Placeholder `1`; not serialized when unset. |
-| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | `text`, `title`, `datetime_single`, `datetime_range` only. List-mode separator. |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title` only. Placeholder `1`; not serialized when unset. (`datetime_*` list mode intended but unimplemented — [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30).) |
+| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | `text`, `title` only. List-mode separator. |
 
 ### Link wrap options
 
-Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. Placed at **end of Group 1** in all eligible templates.
+Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. (`email` has its own `mailto:` link mechanism — `noLink` — documented at the end of this section, NOT the `linkTo` family.) Placed at **end of Group 1** in all eligible templates.
 
 | Option name | Option label | Notes |
 |---|---|---|
-| `linkTo` | Link To | `permalink` = entity permalink; `key` = URL from meta field at `linkKey`; unset = no link. First value `none` canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | Link URL Field | Meta field key for URL. Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
+| `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
+| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
 | `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
 
+**`linkTo` values:**
+
+| Value | Label | Resolves to |
+|---|---|---|
+| `none` *(unset)* | No Link | No wrap. Canonical default, stripped at registration. |
+| `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
+| `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
+
 Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves. On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source dispatch; post entity for `src:ref` dispatch).
+
+**`email` is the exception — its link is NOT a `linkTo` option.** `{{email}}` does not participate in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Its only link is the `mailto:` for the address itself, which is **default-ON** and toggled by a single inverted bare key:
+
+| Option name | Option label | Notes |
+|---|---|---|
+| `noLink` | Disable email link (plain text) | Boolean presence-flag, **inverted**: absent = wrap in `mailto:` (default), present = plain text. (`linkTo` defaults to *no* wrap; `noLink` defaults to *wrapped* — opposite polarity because the email's own address is the only sensible link.) The anchor is built directly (no class/target), not via `bws_wrap_with_link`. See [§Email tag](#email-tag). |
+
+The `mailto:` subject rides the email-specific `subject` option (not a link-wrap option). `newTab` does not apply to `mailto:` (opening a mail client does not navigate).
 
 ## Field options
 
 | Option name | Option label | Context | Notes |
 |---|---|---|---|
 | `use` | [Text/Image/Content] Field | Base / Slot 1  | |
-| `N-use` | [Text/Image/Content] Field [N] | Slot 2+  | |
+| `N-use` | [N]: [Text/Image/Content] Field | Slot 2+  | |
 
 #### Field selector option values (where applicable)
 
 | Applicable tags | Option name | Option label | Conditionals | Notes |
 |---|---|---|---|---|
 | `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template; stripped to '' per standard rules for default option |
-| `text`, `image`, `content` | `key` | Meta/Custom Field | Shows/enables meta key field | — |
-| `text` | `title` | Title/Name | Disables meta key field | Term name if source is term |
-| `content` | `content` | Post Content/Term Description | Disables meta key field | Term description if source is term |
-| `content` | `excerpt` | Post Excerpt | Disables meta key field | — |
-| `image` | `featured` | Featured Image | Disables meta key field | — |
+| `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
+| `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
+| `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
+| `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
+| `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
 
 ### Secondary options
 
 | Applicable tags | Option name | Option label | Context | Notes |
 |---|---|---|---|---|
-| `text`, `image`, `content` | `key` | Field Meta Key | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. |
-| `text`, `image`, `content` | `N-key` | Field [N] Meta Key | Slot 2+ | |
+| `text`, `image`, `content` | `key` | Meta/Option Field Key | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. Reads post/term meta normally, or a wp_options / ACF-options value under `src:site` (the field-type prefix tracks source scope — V10). |
+| `text`, `image`, `content` | `N-key` | [N]: Meta/Option Field Key | Slot 2+ | |
 
 See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-context label for `key`.
 
@@ -512,6 +491,7 @@ See [`datetime_` options](#datetime_single-and-datetime_range) for datetime-cont
 |---|---|---|
 | `text`, `content`, `title`, `datetime_single`, `datetime_range` | Text field | |
 | `image` | Media library selector → image ID (see `custom-image-controls.md`) | |
+| `email` | Text field → a fallback **email address** | Validated with `is_email()` + wrapped like a real address (not arbitrary text). Fires only when no valid address resolves. |
 | `permalink` | TBD — can be text field initially | Add page/post selector? |
 
 ---
@@ -581,18 +561,18 @@ See [§Default serialization strategy](#default-serialization-strategy) for the 
 | Show time when stored as midnight? | `showMidnight` | 4 | 5 | checkbox, false by default; shown when `as` ≠ `date` |
 | Show current year in date? | `showCurrentYear` | 5 | 6 | checkbox, false by default; shown when `as` ≠ `time` |
 | Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `key`; unset = no link |
-| Link URL Field | `linkKey` | 7 | 8 | shown when `linkTo:key` |
+| Link URL Field Key | `linkKey` | 7 | 8 | shown when `linkTo:key` |
 | Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
-| | `[source options]` | 9 | 10 | `limit`/`sep` included for this template |
-| Date/Time Field | `key` | 10 | — | primary date/time field key |
-| Time Field (Optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
-| Start Date/Time Field | `startKey` | — | 11 | |
-| Start Time Field (Optional) | `startTimeKey` | — | 12 | shown when `as` ≠ `date` |
-| End Date/Time Field | `endKey` | — | 13 | |
-| End Time Field (Optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
+| | `[source options]` | 9 | 10 | `src` / `srcTermIn` / `ref` — no `limit`/`sep` (datetime is scalar, see §List mode + [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)) |
+| Date/Time Field Key | `key` | 10 | — | primary date/time field key |
+| Time Field Key (optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
+| Start Date/Time Field Key | `startKey` | — | 11 | |
+| Start Time Field Key (optional) | `startTimeKey` | — | 12 | shown when `as` ≠ `date` |
+| End Date/Time Field Key | `endKey` | — | 13 | |
+| End Time Field Key (optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
 | | `[fallback option]` | 12 | 15 | |
 
-**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (includes `limit`/`sep` for list-mode templates). Field keys close as group 3. `fallback` last.
+**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (`src` / `srcTermIn` / `ref`; no `limit`/`sep` — datetime is scalar, see §List mode). Field keys close as group 3. `fallback` last.
 
 ---
 
@@ -614,7 +594,7 @@ Living reference. Update immediately when any of the following change:
 
 **When adding a new modifier prefix:** add a row to §Modifier prefixes; update §Base tag GB types if a new GB type string is introduced; document the registration call in [`docs/plugin-integration.md`](plugin-integration.md).
 
-**When adding a new template:** add a row to §Base tag GB types (including Link wrap column) and §Base tag title strings; note required options + list-mode support; if `supports_try`, add a row to §Available try_ tags; document option render order in §Option render order; if link-wrap eligible, note option positions in §Link wrap options.
+**When adding a new template:** add a row to §Base tag GB types (including Link wrap column) and §Base tag title strings; note required options + list-mode support; if `supports_try`, add a row to §Available try_ tags; document option render order in §Option render order; if link-wrap eligible, note option positions in §Link wrap options; **add its editor preview-text rows (field part, warning, example) to [`editor-tag-previews.md`](editor-tag-previews.md)** — preview text is no longer owned here.
 
 **Deprecated wrappers:** never edit this doc for N×M deprecated wrappers — those go in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 

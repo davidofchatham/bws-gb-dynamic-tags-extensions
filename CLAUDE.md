@@ -19,10 +19,13 @@ Single source of truth per content type. Other files link, never duplicate.
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
-| Current architecture (templates, sources, options, GB types, render order, preview labels) | `docs/tag-reference.md` | Authoritative |
-| Plugin's response to GB constraints (default-strip strategy, custom controls, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes |
+| Current architecture (templates, sources, options, GB types, render order) | `docs/tag-reference.md` | Authoritative |
+| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.claude/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship target for cross-cutting §V invariants. |
+| Editor-time tag configuration preview text (markers, assembly, warnings, per-template + try_ shapes, examples) | `docs/editor-tag-previews.md` | Authoritative; `tag-reference.md` keeps a one-line forward-ref. Built by `bws_build_preview_label()` in `preview-helpers.php`. |
+| Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
+| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, field discovery) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. |
 | Historical N×M tag names + rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
@@ -36,6 +39,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Trigger | Update |
 |---|---|
 | New source class / template / option key | `tag-reference.md` first; CHANGELOG entry |
+| New/changed editor preview text (a `bws_build_preview_label` case) | `editor-tag-previews.md` (markers/field-part/warning/example rows) |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry |
@@ -57,13 +61,15 @@ Single source of truth per content type. Other files link, never duplicate.
 **Post-ship cleanup is mandatory:**
 
 - **Load-bearing §V invariants** migrate to:
-  - **PHPDoc on the class/method that enforces them** (primary), OR
-  - **`docs/tag-reference.md`** (secondary — for cross-cutting invariants that don't fit one class).
+  - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
+  - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
+  - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
+  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/archive/<feature>.md`.
 - §T rows: delete all closed/deferred rows.
 - §B bugs: file as GitHub Issues; cross-reference the §V they produced if one was added.
 - Truncate `SPEC.md` to: `# SPEC — No active spec. See CHANGELOG, docs/tag-reference.md, Issues.`
 
-**SPEC.md is source of truth only while the release is in flight.** Once shipped: `docs/tag-reference.md` + PHPDoc + CHANGELOG + Issues take over.
+**SPEC.md is source of truth only while the release is in flight.** Once shipped: `CONTEXT.md` (cross-cutting invariants) + `docs/tag-reference.md` (schemas) + PHPDoc (single-class invariants) + CHANGELOG + Issues take over.
 
 **Bugs:** new bugs → GitHub Issues by default. SPEC §B reserved for bugs that drove a spec change (new invariant). §B cross-references the §V it produced. Not a general bug tracker.
 

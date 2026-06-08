@@ -15,6 +15,50 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Canonical gated read of a single site option value (src:site key-mode).
+ *
+ * THE one reader for every src:site option value. Both the value resolver
+ * (bws_site_resolve_value key-mode branch, base-tags.php) and the link path
+ * (bws_resolve_link_url, entity_type 'site', link-helpers.php) route through
+ * here so the two reads cannot diverge (V2 — the site value read and the site
+ * linkTo:key read MUST agree). It enforces the allowlist gate (ADR 0001), then
+ * delegates to GenerateBlocks_Meta_Handler::get_option, which supplies dot-path
+ * traversal (ACF group subfields, e.g. organization_social.facebook) AND the
+ * ACF get_field filter. Raw get_option() reaches neither — never read a site
+ * option without going through this function.
+ *
+ * Lives here (field-helpers, loaded before link-helpers and base-tags) so the
+ * shared reader is defined ahead of every caller; bws_site_allowlist_ok is
+ * resolved at call time (base-tags), so the load-order gap is harmless.
+ *
+ * @invariant (SPEC V2, single-reader corollary, B4) The two wp_options site
+ * reads — key-mode value read (bws_site_resolve_value) and linkTo:key
+ * (bws_resolve_link_url, entity_type 'site') — MUST both route through THIS
+ * function. Hand-rolling a second get_option() for either path silently
+ * diverges on ACF-group subfields (organization_social.facebook): dot-path
+ * traversal + the ACF get_field filter live in Meta_Handler::get_option, not
+ * in raw get_option. The datetime path reads ACF FIELDS via
+ * get_field($key,'option') — a different datum, separate reader, same gate.
+ *
+ * @since 1.9.0
+ * @param string $key Option key (may contain a dot-path for wp_options arrays).
+ * @return string Resolved string value, or '' on disallow / miss / non-string.
+ */
+if ( ! function_exists( 'bws_site_read_option' ) ) {
+function bws_site_read_option( string $key ): string {
+	if ( '' === $key
+		|| ! function_exists( 'bws_site_allowlist_ok' )
+		|| ! bws_site_allowlist_ok( $key )
+		|| ! class_exists( 'GenerateBlocks_Meta_Handler' )
+	) {
+		return '';
+	}
+	$value = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
+	return is_string( $value ) ? $value : '';
+}
+}
+
+/**
  * Get related posts from ACF relationship or post object field.
  *
  * @since 1.0.0
@@ -225,6 +269,19 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		if ( $queried instanceof WP_Term ) {
 			return bws_meta_handler_read( (int) $queried->term_id, $key, $single_only, 'get_term_meta' );
 		}
+	}
+
+	// DT-1: src:site datetime — ACF options-page field value read. The 'option'
+	// sentinel reaches here only from bws_datetime_single_core('option', ...) (site
+	// datetime path); all other callers pass int/loop ids and never hit this branch,
+	// so behavior is unchanged for them. Gated through the SAME allowlist as use:option
+	// and site linkTo:key (V2). ACF field keys are flat — no dot-path split.
+	// See docs/adr/0001-site-option-read-allowlist.md.
+	if ( 'option' === $post_id && function_exists( 'get_field' ) ) {
+		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
+			return '';
+		}
+		return get_field( $key, 'option' );
 	}
 
 	return null;

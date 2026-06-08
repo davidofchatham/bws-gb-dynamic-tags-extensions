@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and custom field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.8.0
+ * Version: 1.9.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.8.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.9.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -99,11 +99,15 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/content-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/image-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php'; // merged: includes date-only templates
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/email-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/taxonomy-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
 
 	// Register base (source-agnostic) tags: text, content, title, permalink, image, datetime_single, datetime_range.
 	bws_register_base_tags();
+
+	// Register the email base tag (unconditional; first-class base tag).
+	bws_register_email_tag();
 
 	// Generate try_ fallback-chain tags from modifier templates.
 	\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();

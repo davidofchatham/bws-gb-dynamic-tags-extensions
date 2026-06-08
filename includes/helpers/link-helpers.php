@@ -17,8 +17,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Resolve a link URL for output wrapping.
  *
  * Routes by $link_to destination and $entity_type:
- *   'permalink' → get_permalink() for posts, get_term_link() for terms.
+ *   'permalink' → get_permalink() for posts, get_term_link() for terms,
+ *                 home_url() for site (the site permalink-analog; $id is a sentinel).
  *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
+ *                 For $entity_type 'site' → bws_site_read_option($link_key), the SAME
+ *                 canonical gated reader the site value path uses (V2: reads MUST agree).
  * Always returns '' (never false/null) so callers can unconditionally skip wrapping
  * without blocking tag output. Empty $link_key with linkTo:'key' returns '' immediately.
  *
@@ -26,11 +29,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * before custom controls see it and fires its own with_link(). All link-wrapping routes
  * through this function and bws_wrap_with_link().
  *
+ * @invariant Site link-wrap = permalink-analog (SPEC V-link). 'site' is an $entity_type,
+ *            NOT a $link_to value — there is no 'site' linkTo token. linkTo:permalink under
+ *            $entity_type 'site' resolves home_url(), identical to the bare {{permalink
+ *            src:site}} analog in bws_site_resolve_value (the two reads MUST agree). The
+ *            'site' guard MUST sit BEFORE the post/term permalink reads: site callbacks pass
+ *            sentinel $id=1, so an unguarded fall-through hits get_permalink(1) = wrong post.
+ *            No separate linkTo:site value (V9 corollary: permalink already IS the site
+ *            canonical URL — no duplicate path per datum).
+ *
  * @since 1.7.0
  * @param string $link_to     Destination token: 'permalink' | 'key'.
  * @param string $link_key    Meta key (used when $link_to = 'key').
- * @param int    $id          Entity ID (post ID or term ID).
- * @param string $entity_type Entity type: 'post' | 'term'.
+ * @param int    $id          Entity ID (post ID or term ID; sentinel 1 for site).
+ * @param string $entity_type Entity type: 'post' | 'term' | 'site'.
  * @return string Resolved URL, or empty string on failure.
  */
 if ( ! function_exists( 'bws_resolve_link_url' ) ) {
@@ -40,6 +52,10 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 	}
 
 	if ( 'permalink' === $link_to ) {
+		// Site permalink-analog IS the home URL — no entity to resolve (sentinel $id).
+		if ( 'site' === $entity_type ) {
+			return (string) home_url();
+		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_link( $id );
 			return ( ! is_wp_error( $url ) && $url ) ? (string) $url : '';
@@ -51,6 +67,15 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 	if ( 'key' === $link_to ) {
 		if ( '' === $link_key ) {
 			return '';
+		}
+		if ( 'site' === $entity_type ) {
+			// Option-stored URL. Route through the SAME canonical reader as the
+			// site key-mode value read (V2 — the two reads MUST agree): allowlist
+			// gate (ADR 0001) + dot-path traversal + ACF get_field filter. Raw
+			// get_option() reaches none of those, so ACF-group subfields
+			// (e.g. organization_social.facebook) would resolve empty here.
+			// bws_site_read_option lives in field-helpers.php (loaded first).
+			return bws_site_read_option( $link_key );
 		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_meta( $id, $link_key, true );
@@ -130,14 +155,14 @@ function bws_get_link_options(): array {
 			'options'        => array(
 				array( 'value' => 'none',      'label' => __( 'No Link', 'generateblocks' ) ),
 				array( 'value' => 'permalink', 'label' => __( 'Permalink', 'generateblocks' ) ),
-				array( 'value' => 'key',       'label' => __( 'URL Meta Field', 'generateblocks' ) ),
+				array( 'value' => 'key',       'label' => __( 'URL Meta/Option Field', 'generateblocks' ) ),
 			),
 			'_strip_default' => true,
 		),
 		'linkKey' => array(
 			'type'    => 'text',
-			'label'   => __( 'Link URL Field', 'generateblocks' ),
-			'help'    => __( 'Meta field key whose value is used as the link URL. For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
+			'label'   => __( 'URL Meta/Option Field Key', 'generateblocks' ),
+			'help'    => __( 'Meta or option field key whose value is used as the link URL (post/term meta, or a wp_options / ACF-options key under src:site). For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
 			'show_if' => array( 'linkTo' => 'key' ),
 		),
 		'newTab'  => array(
