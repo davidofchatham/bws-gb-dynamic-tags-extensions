@@ -463,6 +463,13 @@ function bws_phone_render_one( string $raw, string $cc, bool $link, bool $stripC
  * @return string
  */
 function bws_phone_callback( $options, $block, $instance ): string {
+	// VP-vis runtime backstop — the native visibility gate can't catch the media
+	// block (empty tagName); its default-on tel: <a> would corrupt the <img src>.
+	// See bws_tag_blocked_on_media_block() / docs/gb-constraints.md.
+	if ( bws_tag_blocked_on_media_block( $block ) ) {
+		return '';
+	}
+
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$link    = empty( $options['noLink'] ); // VP1 — absent = wrap.
