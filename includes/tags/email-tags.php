@@ -235,6 +235,13 @@ function bws_email_render_one( string $address, string $subject, bool $link, boo
  * @return string
  */
 function bws_email_callback( $options, $block, $instance ): string {
+	// VE-vis runtime backstop — the native visibility gate can't catch the media
+	// block (empty tagName); its default-on mailto: <a> would corrupt the <img src>.
+	// See bws_tag_blocked_on_media_block() / docs/gb-constraints.md.
+	if ( bws_tag_blocked_on_media_block( $block ) ) {
+		return '';
+	}
+
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$link      = empty( $options['noLink'] );            // VE1 — absent = wrap.

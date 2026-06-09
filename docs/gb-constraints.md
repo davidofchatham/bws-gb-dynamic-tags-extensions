@@ -93,6 +93,16 @@ Pulled from the [upstream registration doc](https://learn.generatepress.com/deve
 - **`visibility`** — controls when a tag appears in the editor selector. Accepts `true` (default), `false`, `[ 'context' => [...] ]`, or `[ 'attributes' => [ [ 'name' => ..., 'value' => ..., 'compare' => ... ] ] ]`. Compare operators: `===`, `!==`, `IN`, `NOT_IN`. **Distinct from our JS `show_if` layer** (which gates *option* visibility inside an open modal). `visibility` gates the tag itself in the selector list. Prefer native `visibility` over JS when the gate depends on block attributes (`tagName`, etc.) rather than sibling option values. **First plugin use: `{{email}}` (1.9.0)** registers `tagName NOT_IN ['a','button','img','picture']`, mirroring GB core's own `term_list` registration — its default-ON `mailto:` wrap is invalid inside anchor/button (nested interactive) or img/picture (void/replaced). See `tag-reference.md` §Email tag.
 - **`description`** — help text shown below tag in selector UI. None of our tags set this; consider adding to clarify ambiguous tags (e.g. `term_*` selector).
 
+#### `visibility` blind spot — the media block (empty `tagName`)
+
+`visibility` with `tagName NOT_IN [...]` is a **value-compare on a block attribute**, so it only matches blocks that serialize a real `tagName`. The **GB media block does not**: `dist/blocks/media/block.json` declares `tagName` as `{ "type":"string", "default":"", "enum":["img"] }` — default empty, with no editor control to set it (the enum's single value is implicit). The block still renders `<img>` at runtime.
+
+Consequence: `'' NOT_IN ['a','button','img','picture']` evaluates **true**, so a tag gated to hide on `img` is **still offered on the media block**. The element block serializes its chosen tag (`tagName:"button"` etc.), so the gate works there — media is the sole hole. (GB core's own `term_list` registration has the identical hole; it's simply never exercised on a media block.)
+
+Worse, on a media block GB injects the tag's replacement into the `<img src>` attribute (`class-dynamic-tags.php` — `'generateblocks/media' === $block_name`), so any tag emitting markup (e.g. the default-on `<a>` wrap of `{{phone}}` / `{{email}}`) corrupts `src`.
+
+**Plugin response:** a **runtime backstop** keyed on block *name* (the only reliable media signal — same key GB uses), not `tagName`. `bws_tag_blocked_on_media_block()` ([`link-helpers.php`](../includes/helpers/link-helpers.php)) returns true for `generateblocks/media`; the `{{phone}}` and `{{email}}` callbacks call it and return `''` early. The native `visibility` gate stays as the cosmetic editor-list filter for the element-block cases it *can* see; correctness is guaranteed at render regardless. Editor-picker UX (hiding the tag on a media block in the selector) is tracked separately — native `visibility` cannot express a blockName condition, so it would need an undocumented selector hook.
+
 ### Built-in tag parameters
 
 Available on every registered tag without declaring `supports`:

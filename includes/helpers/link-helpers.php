@@ -90,6 +90,35 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 }
 
 /**
+ * Whether a default-link-wrapping tag must suppress its output on the host block.
+ *
+ * The native GB `visibility` gate (`tagName NOT_IN ['a','button','img','picture']`)
+ * cannot catch the GB media block: that block's `tagName` attribute defaults to ''
+ * and never serializes (its enum holds only 'img'), so the value-compare evaluates
+ * '' NOT_IN [...] = true and the tag stays offered. The element block serializes a
+ * real tagName (e.g. 'button'), so the native gate works there — media is the one
+ * hole. See docs/gb-constraints.md §Visibility gate blind spot.
+ *
+ * On a media block GB injects the tag's output into the `<img src>` attribute
+ * (class-dynamic-tags.php — `'generateblocks/media' === $block_name`), so a tag that
+ * emits an `<a>…</a>` (phone/email default-on wrap) produces a broken `src`. Such
+ * tags call this guard and return '' early when it is true.
+ *
+ * Keyed on block NAME, not tagName — that is the only reliable media-block signal
+ * (and the same key GB itself uses).
+ *
+ * @since 1.10.0
+ * @param mixed $block GB block array passed to the tag callback (arg 2).
+ * @return bool True if the tag should emit nothing on this block.
+ */
+if ( ! function_exists( 'bws_tag_blocked_on_media_block' ) ) {
+function bws_tag_blocked_on_media_block( $block ): bool {
+	$block_name = is_array( $block ) ? ( $block['blockName'] ?? '' ) : '';
+	return 'generateblocks/media' === $block_name;
+}
+}
+
+/**
  * Wrap output string in an anchor element when a link URL resolves.
  *
  * Invariants enforced here:

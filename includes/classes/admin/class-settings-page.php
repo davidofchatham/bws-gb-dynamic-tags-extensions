@@ -11,6 +11,7 @@
  *     },
  *     diagnostics: { benchmark_logging: bool, registration_logging: bool },
  *     email:       { obfuscate: bool },
+ *     phone:       { country_code: string, strip_leading_cc: bool },
  *   }
  *
  * Deprecated tag mode semantics:
@@ -123,6 +124,7 @@ class SettingsPage {
 			'deprecated'  => array(),
 			'diagnostics' => array(),
 			'email'       => array(),
+			'phone'       => array(),
 		);
 
 		// Modifier toggles.
@@ -143,6 +145,12 @@ class SettingsPage {
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
 		$sanitized['email']['obfuscate'] = ! empty( $input['email']['obfuscate'] );
+
+		// Phone. country_code: digits only, no `+` (a wrong seed silently builds
+		// wrong hrefs, so the default is empty). strip_leading_cc: opt-in, default
+		// OFF — only strips a leading run matching this country_code.
+		$sanitized['phone']['country_code']     = preg_replace( '/\D/', '', (string) ( $input['phone']['country_code'] ?? '' ) );
+		$sanitized['phone']['strip_leading_cc'] = ! empty( $input['phone']['strip_leading_cc'] );
 
 		return $sanitized;
 	}
@@ -238,6 +246,38 @@ class SettingsPage {
 		return isset( $settings['email']['obfuscate'] )
 			? (bool) $settings['email']['obfuscate']
 			: true;
+	}
+
+	/**
+	 * Default country code for `{{phone}}` tel: links (digits only, no `+`).
+	 *
+	 * Empty default — locale is not telephone country, so no country is assumed.
+	 * When empty, a number with no in-field `+`/`00` prefix yields a national
+	 * tel: link (no `+`).
+	 *
+	 * @invariant VP3 — empty default; consulted only when a number is not already
+	 *   international.
+	 * @since 1.10.0
+	 * @return string Digits only, or ''.
+	 */
+	public static function get_phone_country_code(): string {
+		$settings = self::get_settings();
+		return preg_replace( '/\D/', '', (string) ( $settings['phone']['country_code'] ?? '' ) );
+	}
+
+	/**
+	 * Whether a leading country code matching the configured default is stripped.
+	 *
+	 * Default OFF (opt-in). Guards the US `1-800-555-1212` + country-code-`1`
+	 * double-prefix. Matches the GLOBAL country code only; no-ops when that code
+	 * is empty.
+	 *
+	 * @invariant VP-strip — default false; matches the global country code only.
+	 * @since 1.10.0
+	 * @return bool
+	 */
+	public static function is_phone_strip_leading_cc_enabled(): bool {
+		return ! empty( self::get_settings()['phone']['strip_leading_cc'] );
 	}
 
 	/**
@@ -633,6 +673,42 @@ class SettingsPage {
 								<td>
 									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
 									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Phone ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Phone', 'generateblocks' ); ?></h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="text" id="bws-phone-country-code" style="width:14em"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][country_code]"
+										value="<?php echo esc_attr( self::get_phone_country_code() ); ?>"
+										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 1 (US), 44 (UK)', 'generateblocks' ); ?>" />
+								</td>
+								<td>
+									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
+									<p class="description">
+										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
+										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
+									</p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-phone-strip-cc"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][strip_leading_cc]"
+										value="1" <?php checked( self::is_phone_strip_leading_cc_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
+										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
