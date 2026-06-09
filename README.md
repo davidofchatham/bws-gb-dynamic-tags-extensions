@@ -4,25 +4,25 @@ WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks
 
 The tags are designed to be source-agnostic (currently tested for both post and loop item contexts). A custom *Source* selector allows allows you to use a source related to the current context by a reference/relational field, or site-wide data (for option fields, logo, and name). You can also use a taxonomy term applied to the current-context post or referenced post as the field source, instead of by manually picking a term directly.
 
-| Tag | Description |
-|---|---|
-| `text` | Return simple meta/option text fields or post title/term name* (useful in `try_` tags). |
-| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. |
-| `content` | Return post content/term description* via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. |
-| `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. |
-| `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. |
-| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. |
-| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Rebuilds a clean `tel:` href from messy stored input, with a configurable country code. |
-| `title` | Return post title/term name.* |
-| `permalink` | Return post/term permalink.* |
-
-\* Not yet tested in term context without `term_` prefix.
+| Tag | Description | Limitations |
+|---|---|---|
+| `text` | Return simple meta/option text fields or post title/term name* (useful in `try_` tags). | Not yet tested in term context without `term_` prefix. |
+| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | |
+| `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Not yet tested in term context without `term_` prefix. |
+| `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. | |
+| `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. | |
+| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. | Not yet available in `term_` or `try_` variants. |
+| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Rebuilds a clean `tel:` href from messy stored input, with a configurable country code. | Not yet available in `term_` or `try_` variants. |
+| `title` | Return post title/term name* or site name. | Not yet tested in term context without `term_` prefix. |
+| `permalink` | Return post/term permalink* or site URL. | Not yet tested in term context without `term_` prefix. |
 
 **Note:** As of now, meta/option field names must be supplied manually (there's no dropdown selector).
 
 ## try_ tags
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Useful for "try ACF field, fall back to post title; if still empty, fall back to a related post's field" patterns without conditional template logic.
+
+**Note:** Site fields are not yet available with these tags.
 
 ## Context modifiers
 
@@ -48,3 +48,7 @@ The `term_*` modifier wraps base tags for term-context resolution using Generate
 ## Acknowledgements
 
 Of course, this is completely dependent on the work of [Tom Usborne and the GeneratePress/GenerateBlocks team](https://generatepress.com/about/). But I'm also quite indebted to [Taylor Drayson](https://taylordrayson.com), whose SnippetClub tutorial [How to Create Custom Dynamic Tags in GenerateBlocks 2.0: A Complete Guide](https://snippetclub.com/how-to-create-custom-dynamic-tags-in-generateblocks-2-0-a-complete-guide/) started me down this path. Based on that, I began using Claude to generate my own tag code snippets, and it's grown from there through many, many versions into this plugin!
+
+### Libraries
+
+- In-WordPress update notices and one-click updates are powered by [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker) by [Yahnis Elsts](https://github.com/YahnisElsts) (MIT-licensed), bundled at [`vendor/plugin-update-checker/`](vendor/plugin-update-checker/).
