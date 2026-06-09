@@ -30,7 +30,8 @@ Single source of truth per content type. Other files link, never duplicate.
 | Historical N×M tag names + **completed** rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info. In-progress / under-consideration renames stay in `tag-reference.md` until completed, then move here. |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
-| Pending plans | `.claude/plans/` + GitHub issues | Not under `docs/` |
+| Non-bug future-work TRACKER (visible index: item + certainty status tag + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
+| Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (gitignored) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies + dev workflow; all schema deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
