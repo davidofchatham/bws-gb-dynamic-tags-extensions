@@ -63,6 +63,16 @@ Adding a source type that routes through an EXISTING shared control (the `use:ke
 
 (Future: src-dynamic per-entry labels — #33 / V10a; entry filtering — #27 / V10b. Both share the `cloneElement(options)` JS seam.)
 
+## I6 — try_ is a transparent fallback wrapper over single-string slot outputs
+
+A `try_` chain selects WHICH slot's result surfaces (first non-empty slot wins); it does not compose, decompose, or transform that result. A slot resolves **identically to the same underlying tag used standalone** with the same options — full parity. Whatever the slot's own resolve produces is what try_ surfaces.
+
+- **Output unit is one finished string per slot.** Value-count- and field-count-agnostic: one field (`{{email}}` one address), many fields composited (`datetime_range` → `start–end`), or one field enumerated to many values list-joined (`text` + `sep`) — all legal slot outputs. ALL composition (link-wrap, extension append, range formatting, list-join) happens INSIDE the slot's own resolve/core, NOT in try_ machinery.
+- **try_ machinery does exactly two things:** pick the first non-empty slot, and (when that slot is itself in list mode) `implode($sep)` its already-finished per-item strings. No per-item transform hook — slot items arrive fully composed (`try_item_fn` was considered and cut; composition-in-resolve is the rule).
+- **Scope boundary — the line is one-string-output vs repeated markup, NOT value-count.** Producing **repeated markup over multiple entities** (the "fallback query" — e.g. staff cards with photo+name+phone each) is the **query-loop layer**, OUT of try_ scope. try_ never iterates entities into repeated markup. A scenario wanting that is `fallback ∘ query-loop` composition — a separate unbuilt capability (#NN), not a try_ concern.
+
+Consequence: a `try_` tag that truncates a list its base tag would join is a **parity defect** (try_ must be transparent to the slot's own list mode). Enforced at: `generate_base_try_tags()` slot resolver PHPDoc. Schema (list mode / composite per tag): `tag-reference.md` §List mode, §datetime. Narrative: `.claude/plans/try-email-phone-and-slot-derivation.md`.
+
 ---
 
 ## Pointers
