@@ -686,14 +686,17 @@ class SettingsPage {
 						<tbody>
 							<tr class="bws-tag-row">
 								<td class="bws-tag-checkbox">
-									<input type="text" id="bws-phone-country-code" style="width:6em"
+									<input type="text" id="bws-phone-country-code" style="width:14em"
 										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][country_code]"
 										value="<?php echo esc_attr( self::get_phone_country_code() ); ?>"
-										inputmode="numeric" placeholder="1" />
+										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 1 (US), 44 (UK)', 'generateblocks' ); ?>" />
 								</td>
 								<td>
 									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?></p>
+									<p class="description">
+										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
+										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
+									</p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">
@@ -703,8 +706,9 @@ class SettingsPage {
 										value="1" <?php checked( self::is_phone_strip_leading_cc_enabled() ); ?> />
 								</td>
 								<td>
-									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip a leading country code matching the default', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'If numbers are stored with a country code but no + (e.g. 1-800-555-1212), enable this to avoid a doubled prefix. Requires a country code above; only strips digits that exactly match it.', 'generateblocks' ); ?></p>
+									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
+										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>

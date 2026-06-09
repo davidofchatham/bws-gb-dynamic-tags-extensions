@@ -6,8 +6,8 @@
  * are bypassed by passing $cc / $stripCc directly. Run:
  *   php tools/test/phone-normalize-test.php
  *
- * Covers SPEC §V VP-hyphen, VP3, VP-strip, VP4, VP-href-safe (one case-group
- * each). Exit 0 = all pass, 1 = any failure.
+ * Covers SPEC §V VP-hyphen, VP3, VP-cc-dedupe, VP-strip, VP4, VP-href-safe (one
+ * case-group each). Exit 0 = all pass, 1 = any failure.
  *
  * @package BWS_Dynamic_Tags
  */
@@ -64,10 +64,22 @@ check( '00 → +',                  '0011 22 3333',   '',   false, '+11-22-3333'
 check( 'UK trunk-0 strip on CC',  '07911 123456',   '44', false, '+44-7911-123456' );
 check( 'no CC keeps trunk 0',     '07911 123456',   '',   false, '07911-123456' );
 
-echo "\nVP-strip — leading-CC strip (global), gated\n";
-check( 'US 1-800 strip ON',       '1-800-555-1212', '1', true,  '+1-800-555-1212' );
-check( 'strip OFF → double',      '1-800-555-1212', '1', false, '+1-1-800-555-1212' );
+echo "\nVP-cc-dedupe — separated first group == CC, structure-confident, flag-agnostic\n";
+// Structured `1-800…`: first split group '1' == cc → dedupe, never doubled,
+// SAME result whether the strip flag is on or off (dedupe short-circuits strip).
+check( 'sep CC dedupe (strip OFF)','1-800-555-1212', '1', false, '+1-800-555-1212' );
+check( 'sep CC dedupe (strip ON)', '1-800-555-1212', '1', true,  '+1-800-555-1212' );
+check( 'sep CC w/ parens',         '1 (800) 555-1212','1', false,'+1-800-555-1212' );
+check( 'sep CC w/ dot',            '1.800.555.1212', '1', false, '+1-800-555-1212' );
+check( 'first group != cc → no dedupe','12-800-5551', '1', false, '+1-12-800-5551' );
+
+echo "\nVP-strip — leading-CC strip (global), gated, FLAT digits only\n";
+// Flat (no separator) → dedupe cannot fire (structure-gated); strip is the only
+// path that can collapse a doubled flat CC, and only when opted in.
+check( 'flat 1+natl strip ON',    '18005551212',    '1', true,  '+18005551212' );
+check( 'flat 1+natl strip OFF',   '18005551212',    '1', false, '+118005551212' );
 check( 'strip ON but no CC match','447911123456',   '1', true,  '+1447911123456' );
+check( 'flat strip ON, empty CC', '18005551212',    '',  true,  '18005551212' );
 
 echo "\nVP4 — length gate + extension sever\n";
 check( 'too short → empty',       '12345',          '1', false, '' );

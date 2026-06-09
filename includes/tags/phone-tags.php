@@ -233,8 +233,13 @@ function bws_phone_length_ok( string $digits ): bool {
  *   3. Capture separator boundaries via preg_split('/\D+/', NO_EMPTY); parens
  *      break a group. count<=1 → bare-digit (no internal hyphens).
  *   4. Flatten to a digit string.
+ *   4b. Separated-CC dedupe (VP-cc-dedupe): if the author wrote the global CC as
+ *      its OWN first split group (same `\D+` split as step 3 — `1 (98…`, `1.98…`,
+ *      `1-98…`), reclassify as international (keep digits, suppress re-prepend) so
+ *      the CC is not doubled. Structure-gated; the flat bare-digit case is left to
+ *      step 5's opt-in strip.
  *   5. Strip-leading-CC (VP-strip) when $stripCc + CC matches + ≥7 remain; shift
- *      boundaries left by the stripped length.
+ *      boundaries left by the stripped length. Skipped when 4b already fired.
  *   6. Trunk-0 strip when a CC is applied; shift boundaries left by 1. National
  *      fallback (no CC) KEEPS the 0.
  *   7. Apply CC: prepend, add a boundary after the CC group, shift national
@@ -249,6 +254,13 @@ function bws_phone_length_ok( string $digits ): bool {
  *   not-international → national digits, no `+`.
  * @invariant VP-strip — leading-CC strip matches the GLOBAL CC only (the caller
  *   never passes a per-tag CC here), once, gated on ≥7 remaining.
+ * @invariant VP-cc-dedupe — a `+`-less number whose FIRST author-separated group
+ *   (same `\D+` split as VP-hyphen) exactly equals the global CC is treated as
+ *   already-international: the CC is kept, never re-prepended. Gated on author
+ *   structure — the separator is the disambiguating signal, so this never fires on
+ *   a flat bare-digit string (`198…` stays the ambiguous strip-flag case). Distinct
+ *   from VP-strip: dedupe is unconditional + structure-confident; strip is opt-in +
+ *   flat. They are mutually exclusive (dedupe short-circuits strip).
  * @invariant VP4 — validity is the length gate on the final assembled digits; no
  *   group-shape policing.
  * @invariant VP-href-safe — the returned value is `+?[\d-]+` BY CONSTRUCTION:
@@ -323,7 +335,25 @@ function bws_phone_normalize_tel( string $raw, string $cc, bool $stripCc ): stri
 
 	$apply_cc = ! $is_intl && '' !== $cc;
 
-	// 5. Strip-leading-CC (VP-strip) — global CC only, gated.
+	// 4b. Separated-CC dedupe (VP-cc-dedupe). When the author wrote the global CC
+	//     as its OWN first separated group (`1 (98…`, `+`-less `1-98…`, `1.98…`),
+	//     the number already carries the CC — prepending the global CC again would
+	//     double it (`1198…`). The author's separator is the safety signal: it
+	//     marks the CC as a distinct group, so this is confident in a way the flat
+	//     bare-digit case (`198…`, handled only by the opt-in $stripCc strip) is
+	//     not. Gated on $has_structure + first group EXACTLY == cc. Reclassify as
+	//     international: keep the digits, suppress the re-prepend; the author's
+	//     boundary after group 0 already sits at the +CC- split, so reassembly
+	//     emits `+1-98…` with no extra boundary work.
+	$already_cc = $apply_cc && $has_structure && $groups[0] === $cc;
+	if ( $already_cc ) {
+		$is_intl  = true;  // becomes `+CC-…`; national keeps the CC digits.
+		$apply_cc = false; // do NOT re-prepend (step 7 skipped).
+	}
+
+	// 5. Strip-leading-CC (VP-strip) — global CC only, gated. Skipped when 4b
+	//    already resolved the CC (the dedupe is the precise, structure-confident
+	//    path; the flat strip is the ambiguous fallback — never both).
 	if ( $stripCc && $apply_cc && '' !== $cc && 0 === strncmp( $national, $cc, strlen( $cc ) ) ) {
 		$remaining = substr( $national, strlen( $cc ) );
 		if ( strlen( $remaining ) >= 7 ) {

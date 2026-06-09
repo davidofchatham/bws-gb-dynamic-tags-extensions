@@ -32,14 +32,29 @@
 | R1.4 | `07911 123456` | (empty) | `{{phone key:[SUB]}}` | href `tel:07911-123456` (**national, trunk 0 KEPT**, no `+`) |
 | R1.5 | `9876543210` | (empty) | `{{phone key:[SUB]}}` | href `tel:9876543210` (national, no `+`) |
 
-## R2 — strip-leading-CC (VP-strip) — global CC `1`
+## R2 — separated-CC dedupe (VP-cc-dedupe) — global CC `1`
+
+Author SEPARATED the CC (any non-digit: space/paren/dot/hyphen). Auto-detected, **flag-agnostic** — strip setting makes no difference. No double prefix.
 
 | # | Field | Strip setting | Expected |
 |---|---|---|---|
-| R2.1 | `1-800-555-1212` | **ON** | href `tel:+1-800-555-1212` (leading CC stripped, no double) |
-| R2.2 | `1-800-555-1212` | OFF | href `tel:+1-1-800-555-1212` (double prefix — the hazard the flag guards) |
-| R2.3 | `8005551212` (no leading 1) | ON | href `tel:+18005551212` (nothing to strip; unchanged) |
-| R2.4 | `1-800-555-1212` | ON, but global CC **empty** | href `tel:1-800-555-1212` (no-op — strip needs a CC to match; national) |
+| R2.1 | `1-800-555-1212` | OFF | href `tel:+1-800-555-1212` (first group `1` == CC → deduped, NOT doubled) |
+| R2.2 | `1-800-555-1212` | ON | href `tel:+1-800-555-1212` (same — dedupe short-circuits strip) |
+| R2.3 | `1 (800) 555-1212` | OFF | href `tel:+1-800-555-1212` (parens+space separator, same split) |
+| R2.4 | `1.800.555.1212` | OFF | href `tel:+1-800-555-1212` (dot separator, same split) |
+| R2.5 | `12-800-5551` | OFF | href `tel:+1-12-800-5551` (first group `12` != CC `1` → no dedupe, CC prepended) |
+| R2.6 | `1-800-555-1212` | OFF, global CC **empty** | href `tel:1-800-555-1212` (no CC → nothing to dedupe; national) |
+
+## R2b — strip unseparated leading CC (VP-strip) — global CC `1`
+
+FLAT digits only (no separator marks the CC). Dedupe cannot fire (structure-gated); opt-in strip is the only path. This is the ambiguous case the warning covers.
+
+| # | Field | Strip setting | Expected |
+|---|---|---|---|
+| R2b.1 | `18005551212` (flat, leading 1) | **ON** | href `tel:+18005551212` (leading CC `1` stripped then re-applied once — single prefix) |
+| R2b.2 | `18005551212` (flat, leading 1) | OFF | href `tel:+118005551212` (double prefix — the hazard the flag guards; no separator to auto-detect) |
+| R2b.3 | `8005551212` (no leading 1) | ON | href `tel:+18005551212` (nothing to strip; CC applied once) |
+| R2b.4 | `18005551212` (flat) | ON, global CC **empty** | href `tel:18005551212` (no-op — strip needs a CC to match; national, no `+`) |
 
 ## R3 — `noLink` + list mode + fallback (VP1, VP4)
 
