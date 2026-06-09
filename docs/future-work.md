@@ -34,7 +34,6 @@ full design/rationale.
 | Phone tag follow-ups (display format, ext/type affix, per-country rules, `use` enum, per-tag `cc:`, lenient passthrough, vanity/spelled display) | Deferred (mixed) | `.claude/plans/phone-tag-future.md` |
 | try_email + try_phone modifiers (base-tag parity) | Likely | GH #32 |
 | Derive try_ slot source options from base builders (kill duplication; prereq for src:site in try_ slots) | Planned | GH #26 + `.claude/plans/try-email-phone-and-slot-derivation.md` |
-| Editor: hide phone/email in picker on GB media block (UX; runtime already guarded) | Likely | GH #35 |
 | Gate wrap-capable base tags (text/title/datetime) on img/picture via native visibility | Likely | GH #31 |
 | Context-aware base tag resolution across all WP contexts (Q5/Q7) | Exploratory | GH #19 + `.claude/plans/context-aware-base-tags.md` |
 | Configurable default field keys per source × tag-type | Deferred | GH #29 (memory `project_default_field_keys.md`) |
