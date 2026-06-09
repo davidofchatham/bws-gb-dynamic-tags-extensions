@@ -1,8 +1,10 @@
 # Changelog
 
-## [1.10.0] — 2026-06-08
+## [Unreleased]
 
 ### Added — `{{phone}}` base tag
+
+> ⚠️ In testing on `feature/phone-tag`. Not yet released. Numbered + dated `1.10.0` on confirmation.
 
 - New first-class `{{phone}}` base tag (registered unconditionally, cross-source like `{{email}}`/`{{text}}`, in `includes/tags/phone-tags.php`) that outputs a stored phone number, by default wrapped in a `tel:` link. The number is read from a meta/option field via the standard field-read path, so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Key-required in every source (no `use` enum).
 - **`tel:` href is rebuilt from the stored value, preserving the author's separators.** Unlike `{{email}}` (whose href is the address verbatim), the `tel:` href is normalized into a canonical dial value. Hyphens appear in the href **only where the author wrote a separator** — `(987) 654-3210` → `tel:+1-987-654-3210`, but bare `9876543210` → `tel:+19876543210` (no fabricated grouping). The display text stays the stored value verbatim; only the href is reformatted. (Display-side formatting is a planned follow-up.)
