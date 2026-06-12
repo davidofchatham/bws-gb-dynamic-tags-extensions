@@ -364,12 +364,13 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Base source dropdown values (slot 1 — first option strip applies).
-		// Slot ≥2 prepends 'same' entry; strip then sets that to '' (= inherit).
-		$base_source_options = [
-			[ 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ],
-			[ 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ],
-		];
+		// Slot src/ref/srcTermIn option definitions DERIVE from the base builders
+		// (bws_base_source_option / bws_base_traversal_options) via
+		// bws_build_slot_traversal_options — single source of truth, no inline copies
+		// (kills slot-vs-base drift). `site` is filtered out of the derived slot src
+		// list (resolver has no site arm; #32 re-allows per-template). [SPEC §26 V1,V2]
+		$base_src_options  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : [];
+		$base_trav_options = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : [];
 
 		// All slot-tied controls front-load the ordinal as an "N: " prefix (legibility).
 
@@ -446,56 +447,19 @@ class TagTemplateRegistry {
 					$slot_trigger = [ 'show_if_any' => $prev_any ];
 				}
 
-				// Source dropdown values: slot 1 = base; slot ≥2 = prepend 'same' inherit row.
-				$slot_src_options = ( 1 === $n )
-					? $base_source_options
-					: array_merge(
-						[ [ 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) ] ],
-						$base_source_options
-					);
+				// src / ref / srcTermIn — DERIVED from the base builders (single source of
+				// truth; no inline copies). `site` filtered out, slot ≥2 'same'-prepended,
+				// _strip_default kept, "N: " label prefix overlaid, show_if re-qualified —
+				// all inside bws_build_slot_traversal_options. [SPEC §26 V1,V2,V5,V6,V10]
+				$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
+					? bws_build_slot_traversal_options( $n, $base_src_options, $base_trav_options )
+					: [ 'src' => [], 'ref' => [], 'srcTermIn' => [] ];
 
-				$options[ $src_key ] = array_merge(
-					[
-						'type'           => 'select',
-						/* translators: %d: slot number */
-						'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
-						'options'        => $slot_src_options,
-						'_strip_default' => true,
-					],
-					$slot_trigger
-				);
-
-				// ref — relationship field key (shown when src = 'ref').
-				$options[ $ref_key ] = [
-					'type'        => 'text',
-					/* translators: %d: slot number */
-					'label'       => sprintf( __( '%d: Relationship Field Key', 'generateblocks' ), $n ),
-					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
-					'placeholder' => 'related_post',
-					'show_if'     => [ $src_key => 'ref' ],
-				];
-
-				// srcTermIn — combined term-hop control (no carry-forward).
-				$srcterm_in_label = sprintf(
-					/* translators: %d: slot number */
-					__( '%d: Get from taxonomy term?', 'generateblocks' ),
-					$n
-				);
-				$srcterm_pick_label = sprintf(
-					/* translators: %d: slot number */
-					__( '%d: Taxonomy', 'generateblocks' ),
-					$n
-				);
-				$options[ $stm_key ] = array_merge(
-					[
-						'type'      => 'bws-term-hop',
-						'label'     => $srcterm_in_label,
-						'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
-						'pickLabel' => $srcterm_pick_label,
-						'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
-					],
-					$slot_trigger
-				);
+				// $slot_trigger (show_if_any visibility) is a DISTINCT key from any base
+				// show_if the derived defs carry — merge preserves both, never overwrites (V3).
+				$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
+				$options[ $ref_key ] = $slot_defs['ref'];
+				$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
 
 				// N-use — per-slot field-type selector (try_per_slot_use templates only).
 				if ( $per_slot_use && ! empty( $tpl_options['use']['options'] ) ) {

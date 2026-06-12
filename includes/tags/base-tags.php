@@ -628,6 +628,108 @@ function bws_base_traversal_options(): array {
 	);
 }
 
+/**
+ * Re-qualify a base option's `show_if` condition keys for a numbered try_ slot.
+ *
+ * Base traversal options carry bare sibling-key conditions (e.g. `ref` shows when
+ * `['src' => 'ref']`). In a try_ slot ≥2 those sibling keys are ordinal-prefixed
+ * (`{N}-src`), so the condition key must follow: `src` → `2-src`. Slot 1 keeps the
+ * bare key (no prefix). Only keys present in $sibling_keys are rewritten; any other
+ * condition key (e.g. a cross-option reference) is left untouched. Condition VALUES
+ * (`'ref'`, `'not:site'`) are never altered.
+ *
+ * Pure array transform — no WP/GB symbols. Locally harnessable
+ * (tools/test/slot-qualify-show-if-test.php). [SPEC §26 V2, V8]
+ *
+ * @since 1.11.0
+ * @param array $show_if      Condition map { key => value }. Empty → empty out.
+ * @param int   $n            Slot ordinal (1-based). Slot 1 = bare keys.
+ * @param array $sibling_keys Keys eligible for `{N}-` prefixing (e.g. ['src','ref','srcTermIn']).
+ * @return array Re-keyed condition map, values unchanged.
+ */
+function bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys ): array {
+	if ( $n <= 1 || empty( $show_if ) ) {
+		return $show_if;
+	}
+	$out = array();
+	foreach ( $show_if as $key => $value ) {
+		$qualified         = in_array( $key, $sibling_keys, true ) ? "{$n}-{$key}" : $key;
+		$out[ $qualified ] = $value;
+	}
+	return $out;
+}
+
+/**
+ * Build the source + traversal option definitions for one numbered try_ slot,
+ * derived from the base builders. Pure fn of (slot ordinal, base option sets) —
+ * no WP/GB symbols, no $slot_trigger merge (that visibility layer is the registry's
+ * concern, kept separate per V3). Locally harnessable
+ * (tools/test/slot-options-build-test.php). [SPEC §26 V1,V2,V5,V6,V9,V10]
+ *
+ * Derivation rules:
+ *   - src: base `src.options` with `site` filtered out (V6 wrong-read guard — the
+ *     try_ slot resolver has no site arm). Slot ≥2 prepends the `same` (inherit)
+ *     row. `_strip_default` preserved (V5). Label overlaid as "N: Source" (V10).
+ *   - ref / srcTermIn: base definitions verbatim (label body / placeholder / help
+ *     from base — V10), show_if re-qualified via bws_slot_qualify_show_if, label
+ *     (and srcTermIn pickLabel) given the "N: " ordinal prefix (V10).
+ *
+ * @since 1.11.0
+ * @param int   $n         Slot ordinal (1-based).
+ * @param array $base_src  bws_base_source_option() result.
+ * @param array $base_trav bws_base_traversal_options() result.
+ * @return array { 'src' => array, 'ref' => array, 'srcTermIn' => array } — option
+ *               definitions WITHOUT $slot_trigger (caller merges show_if_any).
+ */
+function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav ): array {
+	$sibling_keys = array( 'src', 'ref', 'srcTermIn' );
+
+	// --- src: filter 'site' (V6), prepend 'same' for slot ≥2, keep _strip_default (V5). ---
+	$base_src_opts = $base_src['src']['options'] ?? array();
+	$src_opts      = array_values( array_filter(
+		$base_src_opts,
+		static function ( $o ) {
+			return 'site' !== ( $o['value'] ?? '' );
+		}
+	) );
+	if ( $n >= 2 ) {
+		array_unshift(
+			$src_opts,
+			array( 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) )
+		);
+	}
+	$src_def = array(
+		'type'           => 'select',
+		/* translators: %d: slot number */
+		'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
+		'options'        => $src_opts,
+		'_strip_default' => true,
+	);
+
+	// --- ref: base def verbatim (V10), show_if re-qualified, "N: " label prefix. ---
+	$ref_def          = $base_trav['ref'];
+	$ref_def['label'] = sprintf( /* translators: 1: slot number, 2: base label */ '%1$d: %2$s', $n, $base_trav['ref']['label'] );
+	if ( isset( $ref_def['show_if'] ) ) {
+		$ref_def['show_if'] = bws_slot_qualify_show_if( $ref_def['show_if'], $n, $sibling_keys );
+	}
+
+	// --- srcTermIn: base def verbatim (V10), show_if re-qualified, "N: " label + pickLabel prefix. ---
+	$stm_def          = $base_trav['srcTermIn'];
+	$stm_def['label'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['label'] );
+	if ( isset( $stm_def['pickLabel'] ) ) {
+		$stm_def['pickLabel'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['pickLabel'] );
+	}
+	if ( isset( $stm_def['show_if'] ) ) {
+		$stm_def['show_if'] = bws_slot_qualify_show_if( $stm_def['show_if'], $n, $sibling_keys );
+	}
+
+	return array(
+		'src'       => $src_def,
+		'ref'       => $ref_def,
+		'srcTermIn' => $stm_def,
+	);
+}
+
 // ===============================================
 // SOURCE DISPATCH
 // ===============================================
