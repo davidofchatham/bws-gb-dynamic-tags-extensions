@@ -69,11 +69,53 @@ A `try_` chain selects WHICH slot's result surfaces (first non-empty slot wins);
 
 - **Output unit is one finished string per slot.** Value-count- and field-count-agnostic: one field (`{{email}}` one address), many fields composited (`datetime_range` → `start–end`), or one field enumerated to many values list-joined (`text` + `sep`) — all legal slot outputs. ALL composition (link-wrap, extension append, range formatting, list-join) happens INSIDE the slot's own resolve/core, NOT in try_ machinery.
 - **try_ machinery does exactly two things:** pick the first non-empty slot, and (when that slot is itself in list mode) `implode($sep)` its already-finished per-item strings. No per-item transform hook — slot items arrive fully composed (`try_item_fn` was considered and cut; composition-in-resolve is the rule).
-- **Scope boundary — the line is one-string-output vs repeated markup, NOT value-count.** Producing **repeated markup over multiple entities** (the "fallback query" — e.g. staff cards with photo+name+phone each) is the **query-loop layer**, OUT of try_ scope. try_ never iterates entities into repeated markup. A scenario wanting that is `fallback ∘ query-loop` composition — a separate unbuilt capability (#NN), not a try_ concern.
+- **Scope boundary = the list-mode divider (I7), NOT value-count or entity-count.** try_ list-joins a slot's items iff each item is inline-level (I7). Block-level output (staff card, `<img>` figure, `{{content}}`) ∉ list mode → not joined. The old "repeated markup over N entities / query-loop" framing was wrong-axis: a staff card is excluded because it is **block**, not because it is N entities. I7 subsumes the query-loop case.
 
 Consequence: a `try_` tag that truncates a list its base tag would join is a **parity defect** (try_ must be transparent to the slot's own list mode). Enforced at: `generate_base_try_tags()` slot resolver PHPDoc. Schema (list mode / composite per tag): `tag-reference.md` §List mode, §datetime. Narrative: `.claude/plans/try-email-phone-and-slot-derivation.md`.
 
+## I7 — List mode gated by output DESTINATION (where the value lands), not output structure
+
+Whether a tag's output participates in **list mode** (plural target read once per target, items joined with `sep`) is gated by **where the produced value is consumed**, NOT by target cardinality, key count, or inline/block structure. Three destinations:
+
+- **Text-flow value → list-joinable.** text, email address, phone number, datetime — produce a value that lands in free text flow. N such values join with `sep` into one string. ✓ list mode.
+- **Attribute slot → singular.** `{{image}}` returns a **URL string** (or attachment id) that GB injects into an `<img src>` / attribute — the tag never emits `<img>` itself (base-tags.php:1027 returns a string). An attribute holds ONE value; `url1, url2` breaks it. Plural target collapses to first. ∉ list mode — because of the **destination**, not because the output is "block".
+- **Body/document → not `sep`-joinable.** `{{content}}` returns post-body markup. Joining two documents with `, ` is incoherent (they are bodies, not values). ∉ list mode — its own exclusion reason, distinct from attribute.
+
+**Key correction:** an earlier framing said "inline-level joinable / block-level not." Wrong — `{{image}}` is a plain URL string (not block markup), yet is excluded because its **destination is an attribute slot**. The gate is destination, not structure. (Superseded framings: entity-count "query-loop" boundary; inline/block structure.)
+
+Single divider for list-joinability everywhere (base list mode + try_ I6 + read-target model): **does the value land in text flow (joinable) or a single-value slot / document (not)?** Narrative: `.claude/plans/try-email-phone-and-slot-derivation.md`. Schema: `tag-reference.md` §List mode.
+
 ---
+
+## Language
+
+Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). Provisional — being hardened in `.claude/plans/try-email-phone-and-slot-derivation.md`; not yet all built.
+
+**Read target** (casual shorthand: **target**):
+The **declared read intent** of a tag — its (source + key) specification. `{src:ref|key:email}` is one read target. Either part may be **explicit** (written token) or **implicit** (stripped default / recovered: source unset → current/context-default; both unset on `{{title}}` → analog). The resolved *intent*, NOT the literal token string. (Implicit/explicit/unset axis: handoff source-analog mode terminology. **#19 = read targets with an implicit source resolved by WP context.**) "target" alone always means read target — NOT resolved source. _Avoid_: "entity", `{kind,id}`.
+
+**Resolved source**:
+L1's output executing a target — the **bound *where*** a read happens, key not yet applied. post/term carry an id (meta-read needs one); **site** carries the `wp_options` namespace; future ones (#19 date/search, possible external Site-Views option-set source) carry their own payload. id is a post/term implementation detail, not universal. **Payload may legitimately vary by read mechanism within one kind:** site-datetime reads via ACF `get_field(key,'option')`, site-text via plain `get_option` — same `site` kind, different L2b read path. Frame-B variable payload (ADR 0002). **Distinguish legitimate payload-variance from a contradiction-to-refactor:** today datetime overloads the *post_id parameter slot* by passing the literal string `'option'` through it (datetime-tags.php:1005) — that param-overload is a contradiction of this model (a resolved-source payload smuggled through an id arg), REFACTORABLE, not canonical. Likewise `ref` collapsing to one target (`bws_extract_post_id`) contradicts the plural-source model → fix the code, don't model around it.
+
+**Resolved field**:
+L2a's output — **WHICH field to read**, determined by (resolved-source TYPE × implicit/explicit key options). Author-perspective: the field worked out before the fetch. Where the **analog** lives — `use:default` on a term resolves the field to "term name"; **I2 Model-B `use`-dispatch operates here** (use × source-type → field/analog). _Avoid_: confusing with field value (the datum).
+
+**Field value**:
+L2b's output — the **fetched datum** off the resolved field. The raw value before L3 assembly.
+
+**Target cardinality**:
+A resolved source is **`ResolvedSource[]`** — a list, usually length 1. `current`, `site` **singular**. `ref` (ACF relationship/post-object array), `srcTermIn` (taxonomy term set) **plural** (N). List mode originates here — *plural resolved-source, read once per source* — NOT a read-time loop. (Today `ref` is collapsed to the first by `bws_extract_post_id` — a latent single-read defect the plural model exposes.)
+
+**Output destination** (list-mode divider — see I7):
+WHERE a tag's produced value lands, gating list-joinability. **Text-flow value** (text/email/phone/datetime) → joinable. **Attribute slot** (image URL → GB `<img src>`; tag returns string, GB injects) → singular. **Body/document** (content) → not `sep`-joinable. _Avoid_: "inline/block structure", "query-loop boundary", "entity-count" (wrong-axis — superseded). Image proves destination ≠ structure: a plain URL string excluded by its attribute destination, not by being "block".
+
+**L1 / L2 / L3** (layers executing a read target):
+- **L1 — resolve source:** source options → `ResolvedSource[]`. The *where*; no key. Recovers implicit/unset source (→ #19 context resolution).
+- **L2a — resolve field:** (resolved-source type × key options) → **resolved field** (which field/analog). I2 Model-B dispatch.
+- **L2b — fetch value:** (resolved source, resolved field) → **field value**. Dispatches post/term → meta, site → option. Once per (source × field). Current code: `bws_read_field` / `bws_site_read_option`.
+- **L3 — assemble:** per-tag compose over sources × fields (implode/`sep`, datetime range, join template, mailto/tel wrap), landing in an output destination. Per-tag; L1/L2 shared.
+
+A tag reads **K fields × T sources** and assembles: text=1×1 (or 1×N via plural source), datetime/phone-ext=2×1, join=N×1, email-via-srcTermIn=1×N.
 
 ## Pointers
 
