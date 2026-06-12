@@ -622,6 +622,8 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 {{phone key:us}}    field "1-800-555-1212" CC 1, strip ON   → <a href="tel:+1-800-555-1212">1-800-555-1212</a>    (leading CC stripped)
 ```
 
+**Tests.** Normalization (`bws_phone_normalize_tel` + sub-helpers) is pinned by a standalone, WP-free harness: `php tools/test/phone-normalize-test.php` (run on any change to normalize/trunk-strip/length-gate/strip-CC). End-to-end source/list/render/settings coverage is the standing manual matrix [`tools/test/phone-test-matrix.md`](../tools/test/phone-test-matrix.md), which carries its own re-run trigger.
+
 <a id="phone-deferred"></a>
 **Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.
 
