@@ -167,3 +167,19 @@ Datetime tags compute a live preview from the current time rather than a static 
 Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
 `try_email` is not implemented this release ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32)); base `{{email}}` has no try_ preview path.
+
+## Tests
+
+Non-datetime label assembly is pinned by a standalone harness — **no WordPress, no PHPUnit**:
+
+```
+php tools/test/preview-label-test.php
+```
+
+**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, and the four sub-builders against the marker/assembly rules above. Datetime templates are excluded (live clock + `wp_date` → non-deterministic).
+
+Behaviors the harness locks in (correct-by-design, easy to regress):
+
+- **`→` hop arrow is positional** — emitted only when the term-hop segment *follows* another (modifier label or `Ref 'x'`). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
+- **Slot ≥2 key-only override is discarded** — an empty `use` on slot N≥2 wipes that slot's `key` (the `use:same` UI hides the key field). A key override only registers when its `N-use` is also sent.
+- **`text` try "no slots configured" is unreachable** — slot 1 is always default-filled, so a misconfigured slot-1 trips the missing-key warning first.
