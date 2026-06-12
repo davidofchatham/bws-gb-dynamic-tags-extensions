@@ -11,6 +11,8 @@
 
 **Rule:** a line that could live in `tag-reference.md` (a schema, a label, a current-state row) goes there and is *linked* from here — never duplicated. This doc holds only invariants and the model behind them.
 
+**Reading posture — contradictions are refactorable.** Where current code contradicts a model or invariant below, that is a **tracked refactor candidate**, NOT a documented exception to enshrine. Don't bend the model to fit the code, and don't carve a special case to "explain" the contradiction — name it as a refactor and point the fix at the model. (Worked instances: the resolved-source §Language note — datetime's `'option'`-in-post_id param-overload and `ref`'s single-target collapse are both flagged refactorable, not canonical. The N×M source-class explosion and the resolve-clones are the same "model not yet shared" smell, not facts to preserve.)
+
 ---
 
 ## I1 — Source-analog resolution (the base-tag mental model)
