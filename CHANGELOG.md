@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.1] — 2026-06-12
+
+### Changed — vendored update checker moved to `libs/`
+
+- Relocated the bundled Plugin Update Checker from `vendor/plugin-update-checker/` to [`libs/plugin-update-checker/`](libs/plugin-update-checker/). The library is hand-vendored, not Composer-managed, so `vendor/` was a misleading home; `libs/` reads honestly and matches the convention used across other BWS plugins (where a Composer-populated `vendor/` must be `.distignore`'d, forcing the checker out to `libs/`). Internal change only — the `require_once` path and one doc reference were updated; no behavior change.
+
 ## [1.10.0] — 2026-06-09
 
 ### Added — `{{phone}}` base tag
