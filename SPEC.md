@@ -42,7 +42,7 @@ T2|x|derive slot src from `bws_base_source_option`, filter `site`, prepend `same
 T3|x|derive slot ref/srcTermIn from `bws_base_traversal_options`, re-key, requalify show_if, merge $slot_trigger, overlay ONLY `N: ` label/pickLabel prefix (body/placeholder/help from base verbatim)|V2,V3,V10
 T4|x|delete inline `$base_source_options` (:369-372) + ref block (:469-476) + srcTermIn block (:489-498)|V1,V2
 T5|x|verify: option-JSON diff identical for current/ref slots EXCEPT ref placeholder+help drift-fix (related_post→related_posts, fuller help); `site` now in dropdown-source-of-truth but filtered from slots; slot srcTermIn hidden on slot src:site (derived not:site)|V7,V3,V10
-T6|~|editor smoke: try_text/try_content/try_image slot 1+2 render unchanged — DEFER to #32 editor phase (needs live WP; auto-gated by T8 JSON harness meanwhile)|V7
+T6|x|editor smoke: try_text slot 1+2 verified live (src list site-filtered, ref placeholder related_posts, same-prepend ≥2, srcTermIn renders, front-end render unchanged); content/image share same loop|V7
 T7|x|harness `tools/test/slot-qualify-show-if-test.php` — pure cases: slot1 bare, slot2 `2-src`, sibling-key filter (non-sibling untouched), condition values unchanged. shim `__`. exit 0/1|V8,T1
 T8|x|extracted pure `bws_build_slot_traversal_options($n,$base_src,$base_trav)` → harness `tools/test/slot-options-build-test.php` asserts byte-identical current/ref JSON (minus ref drift-fix) — V7 auto-gate, 13/13 pass|V9,V7,T2,T3
 
