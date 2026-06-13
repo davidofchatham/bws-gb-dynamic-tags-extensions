@@ -643,6 +643,18 @@ class TagTemplateRegistry {
 						$slot_opts['use'] = $last_use;
 					}
 
+					// List-join seam (CONTEXT.md I6 / SPEC §32): a slot's dispatch returns
+					// finished string(s). Collect them into $items, slice to `limit`, then
+					// the winning slot (first non-empty) joins via bws_try_join_items.
+					// Link-wrap applies to a SINGLE-result item only — count is taken AFTER
+					// the limit slice (mirrors the base text core, base-tags.php:888-901:
+					// slice-then-count, so a limit:1 chain over many non-empty terms still
+					// wraps the lone shown item). sep/limit read off the chain options;
+					// default limit 1 keeps existing try_ output byte-identical.
+					$sep      = $opts['sep'] ?? null;
+					$limit    = $opts['limit'] ?? null;
+					$slot_max = max( 1, (int) ( $limit ?: 1 ) );
+
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).
 					if ( '' !== $stm_raw && $tcf ) {
@@ -652,14 +664,32 @@ class TagTemplateRegistry {
 							: get_the_ID();
 						if ( $post_id && function_exists( 'bws_get_srcterm_terms' ) ) {
 							$terms = bws_get_srcterm_terms( (int) $post_id, $stm_raw );
+							$items      = [];
+							$first_term = 0;
 							foreach ( $terms as $term ) {
-								$result = $tcf( $term->term_id, $slot_opts, $inst );
-								if ( '' !== $result && false !== $result ) {
-									if ( $slnk && function_exists( 'bws_wrap_with_link' ) ) {
-										$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $term->term_id, 'term' );
+								$slot_items = function_exists( 'bws_try_normalize_items' )
+									? bws_try_normalize_items( $tcf( $term->term_id, $slot_opts, $inst ) )
+									: array_filter( [ $tcf( $term->term_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+								foreach ( $slot_items as $it ) {
+									$items[] = $it;
+									if ( ! $first_term ) {
+										$first_term = (int) $term->term_id;
 									}
-									return $result;
 								}
+								if ( count( $items ) >= $slot_max ) {
+									break; // Enough to satisfy limit — stop hopping terms.
+								}
+							}
+							if ( $items ) {
+								$shown  = array_slice( $items, 0, $slot_max );
+								$joined = function_exists( 'bws_try_join_items' )
+									? bws_try_join_items( $shown, $sep, $slot_max )
+									: (string) reset( $shown );
+								// Single-result list is link-wrappable; a joined multi-item list is not.
+								if ( $slnk && 1 === count( $shown ) && $first_term && function_exists( 'bws_wrap_with_link' ) ) {
+									$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, $first_term, 'term' );
+								}
+								return $joined;
 							}
 						}
 						continue; // All terms empty — try next slot.
@@ -683,12 +713,19 @@ class TagTemplateRegistry {
 						continue;
 					}
 
-					$result = $cf( $post_id, $slot_opts, $inst );
-					if ( '' !== $result && false !== $result ) {
-						if ( $slnk && $post_id && function_exists( 'bws_wrap_with_link' ) ) {
-							$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $post_id, 'post' );
+					$items = function_exists( 'bws_try_normalize_items' )
+						? bws_try_normalize_items( $cf( $post_id, $slot_opts, $inst ) )
+						: array_filter( [ $cf( $post_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+					if ( $items ) {
+						$shown  = array_slice( $items, 0, $slot_max );
+						$joined = function_exists( 'bws_try_join_items' )
+							? bws_try_join_items( $shown, $sep, $slot_max )
+							: (string) reset( $shown );
+						// Single-result list is link-wrappable; a joined multi-item list is not.
+						if ( $slnk && 1 === count( $shown ) && $post_id && function_exists( 'bws_wrap_with_link' ) ) {
+							$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, (int) $post_id, 'post' );
 						}
-						return $result;
+						return $joined;
 					}
 				}
 

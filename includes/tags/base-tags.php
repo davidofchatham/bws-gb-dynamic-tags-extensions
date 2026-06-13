@@ -660,6 +660,75 @@ function bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys )
 }
 
 /**
+ * Normalize a try_ slot dispatch return into a list of finished item strings.
+ *
+ * The try_ machinery is composition-blind (CONTEXT.md I6): a slot's dispatch
+ * returns either ONE finished string (today's text/content/image/email/phone
+ * single-result path) or an array of finished per-item strings (a slot in list
+ * mode — e.g. a srcTermIn term-hop, or the shared L1/L2 resolver's plural
+ * `src:ref`). This helper collapses both to a list, dropping empty items, so the
+ * machinery can join uniformly without caring which producer it is.
+ *
+ * The array contract lives at the resolver/L2 layer (ADR 0002), NOT retrofitted
+ * into every dispatcher: shipped dispatchers keep returning a single string and
+ * still flow through here as a 1-element list. [SPEC §32 V2,V6]
+ *
+ * Pure — no WP/GB symbols. Locally harnessable (tools/test/try-join-seam-test.php).
+ *
+ * @since 1.11.0
+ * @param mixed $raw Dispatch return: string | array<string> | '' | false.
+ * @return array<int,string> Finished item strings, empties removed, re-indexed.
+ */
+function bws_try_normalize_items( $raw ): array {
+	if ( '' === $raw || false === $raw || null === $raw ) {
+		return array();
+	}
+	$items = is_array( $raw ) ? $raw : array( $raw );
+	$out   = array();
+	foreach ( $items as $item ) {
+		if ( '' !== $item && false !== $item && null !== $item ) {
+			$out[] = $item;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Join a winning try_ slot's finished item strings — the ONLY composition the
+ * try_ machinery itself performs (CONTEXT.md I6).
+ *
+ * Limit / separator semantics MATCH the base text list-mode core
+ * (bws_post_custom_text_core, base-tags.php:884) so a try_ slot in list mode
+ * joins identically to the same underlying tag used standalone (I6 parity):
+ *   - limit = max( 1, (int) $limit ?: 1 ) — DEFAULT 1, floored at 1 (never 0).
+ *     Not a ceiling: an author setting limit:5 joins up to 5 items.
+ *   - sep   = $sep ?? ', ' — null (absent) → default ', '; an explicit empty
+ *     string is honored (matches base `$options['sep'] ?? ', '`, which only
+ *     defaults on an absent key — author may deliberately join with no sep).
+ *
+ * A 1-element list with the default limit returns the single element verbatim
+ * (no trailing separator — sep is never applied to a lone item) — the
+ * byte-identical backward-compat gate for existing try_text/try_content/try_image.
+ * [SPEC §32 V3,V4]
+ *
+ * Pure — no WP/GB symbols. Locally harnessable (tools/test/try-join-seam-test.php).
+ *
+ * @since 1.11.0
+ * @param array<int,string> $items Finished item strings (already non-empty).
+ * @param mixed              $sep   Separator; null → ', '. Explicit '' honored.
+ * @param mixed              $limit Max items to join; falsy → 1. Floored at 1.
+ * @return string Joined output (or '' if no items).
+ */
+function bws_try_join_items( array $items, $sep = null, $limit = null ): string {
+	if ( empty( $items ) ) {
+		return '';
+	}
+	$max = max( 1, (int) ( $limit ?: 1 ) );
+	$s   = ( null === $sep ) ? ', ' : $sep;
+	return implode( $s, array_slice( $items, 0, $max ) );
+}
+
+/**
  * Build the source + traversal option definitions for one numbered try_ slot,
  * derived from the base builders. Pure fn of (slot ordinal, base option sets) —
  * no WP/GB symbols, no $slot_trigger merge (that visibility layer is the registry's

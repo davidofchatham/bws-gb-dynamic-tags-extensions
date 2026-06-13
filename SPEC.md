@@ -1,50 +1,66 @@
-# SPEC — #26 derive try_ slot source/traversal options from base builders
+# SPEC — #32 try_email/try_phone via base-derived slot machinery + list-join seam
 
-Active spec. Issue #26 (refactor). Plan: `.claude/plans/try-email-phone-and-slot-derivation.md` §#26. Model: CONTEXT.md §L1/L2/L3, ADR 0002.
+Active spec. Issue #32 (enhancement, spine) + #24 (bug, folded — preview no-key warning). Prereq #26 (refactor) SHIPPED (slot src/ref/srcTermIn derive from base; see PHPDoc on `bws_build_slot_traversal_options` + `bws_slot_qualify_show_if`). Plan: `.claude/plans/try-email-phone-and-slot-derivation.md` §#32. Model: CONTEXT.md §I6 (try_ transparent wrapper) + §I7 (list-mode destination gate) + §L1/L2/L3, ADR 0002.
 
 ## §G — goal
 
-Derive try_ slot `src`/`ref`/`srcTermIn` option DEFINITIONS from base builders (`bws_base_source_option`, `bws_base_traversal_options`) → kill hand-maintained inline copies + live drift. Option-surface only; ⊥ resolver change.
+Register `email`/`phone` as modifier templates → `try_email`/`try_phone` + `term_email`/`term_phone` fall out of existing machinery. Add the list-join seam to `generate_base_try_tags()` so a winning slot's finished per-item strings join (`implode($sep, slice($limit))`) — closes the I6 parity defect (try_text/try_title truncate lists their base tags join). try_email/phone MUST ship with `src:site` slot (canonical contact fallback). Full parity: term_ variants too.
 
 ## §C — constraints
 
-- C1: editor option-surface ONLY. ⊥ touch resolver, read path, render. Registration-time JSON.
-- C2: NARROW scope = `src` + `ref` + `srcTermIn`. ⊥ absorb `key`/`use` (slot-position-branched show_if, carry-forward `same` — not base-derivable; criterion §V4).
-- C3: `site` MUST be filtered OUT of derived slot src list (resolver has no site arm → exposed `src:site` = silent current-post wrong-read, ⊥ empty). #32 re-allows per-template.
-- C4: registered try_ option JSON for `current`/`ref` slots MUST be byte-identical pre/post EXCEPT the intentional `ref`-slot drift-fixes (placeholder `related_post`→`related_posts`, help `ACF relationship field key.`→`ACF relationship or post object field key.`) inherited from base. Those two string changes are the point of derive, ⊥ regressions. All else byte-identical (regression gate).
-- C5: text domain `'generateblocks'`; all fns `bws_`-prefixed.
+- C1: text domain `'generateblocks'`; all fns `bws_`-prefixed.
+- C2: NO version bump / CHANGELOG release until whole #26+#32 plan completes (user instr). Batch commits OK.
+- C3: list-join seam is composition-BLIND (I6). Machinery does TWO things only: pick first non-empty slot + `implode($sep)` its finished items. NO per-item transform (`try_item_fn` cut — composition-in-resolve). ALL wrap/compose/range/ext-append lives in slot's own resolve, shared w/ base callback.
+- C4: HARD GATE — existing try_text/try_content/try_image output byte-identical pre/post Phase 2. 1 finished string + default `limit` = today verbatim (no trailing sep, no wrap change).
+- C5: seam `limit`/`sep` semantics MATCH base text core (base-tags.php:884): `limit = max(1,(int)($opts['limit']??1))` default 1; `sep = $opts['sep']??', '`. ⊥ "0=unlimited" (would diverge from base parity).
+- C6: array contract lives at resolver/L2 layer (Phase 3/5 producers), NOT retrofitted into shipped dispatchers. Seam boundary helper accepts string OR array. text/content/image dispatchers stay string-returning until their phase rewires (stale plan step-2 "adapt dispatchers" line corrected — array produced at L1/L2, ADR 0002).
+- C7: `src:site` slot for email/phone = slot-resolver site arm (item 1) ONLY. Dispatcher site-read already done (`bws_*_resolve_addresses` read site via `bws_site_read_option`). datetime-id-fork + home_url link-entity N/A for email/phone. datetime/text/image src:site stays DEFERRED (separate issue).
+- C8: shared L1/L2 resolver (Phase 5) HARD PREREQ for email/phone site slot — retire clones `bws_email_resolve_addresses`/`bws_phone_resolve_numbers`, site falls out, `src:ref` plural lists "just work". base `{{email}}`/`{{phone}}` byte-identical after extraction.
+- C9: term_email/term_phone IN SCOPE — full parity, no gate flag (decided 2026-06-12).
 
 ## §I — interfaces
 
-- `bws_base_source_option(): array` — base-tags.php:579. src.options = current,ref,site; `_strip_default`.
-- `bws_base_traversal_options(): array` — base-tags.php:607. ref (`show_if src:ref`), srcTermIn (`show_if src:not:site`).
-- new: `bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys ): array` — rewrite sibling-key conditions `k`→`{N}-k` (slot 1 bare); values unchanged.
-- mutate: slot loop in `includes/classes/class-tag-template-registry.php` (~:369 src array, :469-476 ref block, :489-498 srcTermIn block).
+- `generate_base_try_tags()` — registry:359. Slot callback :554, post path :686, srcTermIn arm :648-665. MUTATE: slot-result boundary → collect items → join.
+- new `bws_try_normalize_items( $raw ): array` — string→`['']`-stripped `[$s]`; array→array filtered non-`''`; `''`/false→`[]`. Pure.
+- new `bws_try_join_items( array $items, $sep, $limit ): string` — `implode($sep, array_slice($items,0,max(1,(int)$limit?:1)))`. Pure. `sep` default `', '`.
+- `try_core_fn`/`try_term_fn` — fn($id,$opts,$inst): string|array<string>. Returns finished strings (link-wrapped/composed). [contract widened: string|array]
+- base text/title list shape: `bws_post_custom_text_core` (base-tags.php:882-899) term-loop + slice + implode + single-result link-wrap — the parity target Phase 3 matches.
+- email/phone per-item compose ALREADY shared: `bws_email_render_one` (email-tags.php:277), `bws_phone_render_one` (phone-tags.php:462). base callbacks already `foreach`→render-one→`implode($sep)`. try_ dispatch CALLS same — no extraction risk.
+- `register_modifier_template()` — registry:52. email: `key=email`,`supports_try`,`try_per_slot_key=true`,`try_per_slot_use=false`,`try_use_no_key_values=[]`,`is_image=false`. phone twin.
+- `bws_build_try_preview_label($opts,$tpl_key)` — preview-helpers.php. Add email/phone text-like `$needs_key=true` cases (#24 fold).
+- `visibility` passthrough — verify template→try_ tag threads `tagName NOT_IN [a,button,img,picture]` gate (VP-vis).
 
 ## §V — invariants
 
-V1: slot src options derive from `bws_base_source_option()['src']['options']`, `site` filtered out, slot≥2 prepend `same` row. ⊥ hand-maintained `$base_source_options` array.
-V2: slot `ref`/`srcTermIn` derive from `bws_base_traversal_options()`, re-keyed `{N}-ref`/`{N}-srcTermIn`, show_if requalified via `bws_slot_qualify_show_if`.
-V3: derived option `show_if` (base) + slot `show_if_any` ($slot_trigger) MUST coexist — distinct keys, merge preserves both. ⊥ overwrite.
-V4: child option base-derivable IFF parent selector never defaults into child-triggering value. `ref` PASSES (src defaults current, never ref). `key`/`use` FAIL (use default→key-mode, slot-1 `not_in:` vs ≥2 `in:` branch) → stay hand-maintained. [criterion; not runtime]
-V5: `_strip_default` on derived slot src MUST persist (slot-1 first-option strip).
-V6: `site` ∉ derived slot src list until resolver site-arm lands (#32). Filter = wrong-read guard, ⊥ cosmetic.
-V7: current/ref slot option JSON byte-identical pre/post derive EXCEPT `ref`-slot placeholder+help drift-fix (C4) — those two strings intentionally change to base values.
-V8: `bws_slot_qualify_show_if` pure — ∀ (show_if, n, sibling_keys) → deterministic array out, no WP/GB symbols. Locally harnessable.
-V9: slot-option build extractable as pure fn of (template, base-src-options, base-trav-options) → registration JSON. Enables V7 auto-harness ⊥ by-eye diff. [if extraction clean; else V7 verified manual]
-V10: slot loop overlays ONLY the `N: ` ordinal label prefix (+ `pickLabel` prefix on srcTermIn) onto derived options. label body / placeholder / help come from base VERBATIM — fixing prior slot-vs-base drift (V7/C4 ref case). ANY further try_-specific string divergence ⊥ silent override → needs explicit sign-off. [label-scope guard]
+V1: try_ machinery is composition-blind (I6). Picks first non-empty slot + joins its finished items. NEVER wraps/composes/transforms an item. Enforced: `generate_base_try_tags()` PHPDoc + this §.
+V2: slot non-empty IFF `bws_try_normalize_items($raw)` yields ≥1 item. Winning slot = first non-empty. Whole list surfaces (sliced to limit, joined) — truncation-to-first = parity defect (I6).
+V3: BYTE-IDENTICAL gate — 1 finished string + default limit=1 + no explicit sep → output == pre-seam verbatim. ∀ existing try_text/try_content/try_image. [C4 regression gate]
+V4: seam limit/sep match base text core EXACTLY (C5): `max(1,(int)($limit??1))`, `sep??', '`. try_ join == base list-mode join for same options (I6 parity).
+V5: srcTermIn arm collects term results into list (not return-first) THEN joins via seam — but default limit=1 keeps it == today (first term). Parity defect closes only when author sets limit>1 (Phase 3 text/title producer exposes >1 item).
+V6: array contract at L2/resolver layer (C6). `try_core_fn` MAY return array; shipped dispatchers return string until their phase. Seam helper string|array agnostic. ⊥ retrofit 5 dispatchers in Phase 2.
+V7: email/phone src:site = slot-resolver site arm only (C7). On slot `src:site`: set `$slot_opts['src']='site'`, call try_core_fn `$post_id=0`, already-site-aware resolve reads option, finished string(s) return. Threads `src` to dispatcher resolve. ⊥ regress current/ref/srcTermIn arms.
+V8: site re-allowed per-TEMPLATE (email/phone) past the #26 generic filter — append `site` back in those templates' derived slot src list. datetime/text/image stay filtered. ⊥ global filter removal.
+V9: shared L1/L2 resolver (Phase 5) HARD PREREQ for V7/V8 ship. base email/phone byte-identical post-extraction; `src:ref` list stops collapsing to first; current/term arms unregressed. [C8]
+V10: email/phone per-item compose == base callback's (`bws_*_render_one`, shared). try_ dispatch resolve→render-one→array matches base per-item output (parity). ⊥ try_-private compose copy.
+V11: visibility gate threads template→try_email/try_phone (`tagName NOT_IN [a,button,img,picture]`). [VP-vis — likely untested path; text/content have no gate]
+V12: email/phone preview = text-like `$needs_key=true`, `try_use_no_key_values=[]`. Empty-key slot → `⚠ slot N no key` (#24: correct — default key-mode, no native default field → empty slot genuinely unconfigured). ⊥ collapse-to-label (that is content's correct shape, not email/phone's).
+V13: term_email/term_phone register + preview, full parity (C9). No gate flag.
 
 ## §T — tasks
 
 id|status|task|cites
-T1|x|add `bws_slot_qualify_show_if` helper (sibling-key→`{N}-k` rewrite, slot-1 bare)|V2,I
-T2|x|derive slot src from `bws_base_source_option`, filter `site`, prepend `same` ≥2, keep `_strip_default`|V1,V5,V6
-T3|x|derive slot ref/srcTermIn from `bws_base_traversal_options`, re-key, requalify show_if, merge $slot_trigger, overlay ONLY `N: ` label/pickLabel prefix (body/placeholder/help from base verbatim)|V2,V3,V10
-T4|x|delete inline `$base_source_options` (:369-372) + ref block (:469-476) + srcTermIn block (:489-498)|V1,V2
-T5|x|verify: option-JSON diff identical for current/ref slots EXCEPT ref placeholder+help drift-fix (related_post→related_posts, fuller help); `site` now in dropdown-source-of-truth but filtered from slots; slot srcTermIn hidden on slot src:site (derived not:site)|V7,V3,V10
-T6|x|editor smoke: try_text slot 1+2 verified live (src list site-filtered, ref placeholder related_posts, same-prepend ≥2, srcTermIn renders, front-end render unchanged); content/image share same loop|V7
-T7|x|harness `tools/test/slot-qualify-show-if-test.php` — pure cases: slot1 bare, slot2 `2-src`, sibling-key filter (non-sibling untouched), condition values unchanged. shim `__`. exit 0/1|V8,T1
-T8|x|extracted pure `bws_build_slot_traversal_options($n,$base_src,$base_trav)` → harness `tools/test/slot-options-build-test.php` asserts byte-identical current/ref JSON (minus ref drift-fix) — V7 auto-gate, 13/13 pass|V9,V7,T2,T3
+T1|x|Phase 2: add `bws_try_normalize_items` + `bws_try_join_items` (pure, string\|array→joined). Harness `tools/test/try-join-seam-test.php` 27/27. 1-elem+default=verbatim, N-elem joins, limit slice (floor 1 no ceiling), sep default, ''→empty, array passthrough|V2,V3,V4,I
+T2|x|Phase 2: wire seam into `generate_base_try_tags()` slot boundary — post path + srcTermIn arm (collect-into-list, slice-then-count for link-wrap, early-break at slot_max). sep/limit from opts; default limit 1 = today verbatim. lint clean, #26 harnesses unregressed|V1,V2,V4,V5
+T3|~|Phase 2 GATE: unit byte-identical PROVEN (1-string→[S]→slice(1)→S verbatim; link-wrap count==1 same args; srcTermIn skip-empty-leading + first-term wrap preserved). REMAINING: live editor + front-end smoke try_text/content/image — needs WP instance (user)|V3,C4
+T4| |Phase 3: try_text/try_title list parity — dispatcher exposes pre-join term list (match base `bws_post_custom_text_core` :882). Add `sep`/`limit` to try_text/title trailing opts. limit>1 joins|V5,V4
+T5| |Phase 4: `visibility` passthrough template→try_ registration. Verify try_ tags keep gate|V11
+T6| |Phase 5: extract shared L1/L2 resolver — retire `bws_email_resolve_addresses`+`bws_phone_resolve_numbers` clones. base callbacks + try_ slots consume. site falls out, `src:ref` plural works. Harness base byte-identical|V9,C8
+T7| |Phase 5: slot-resolver site arm (registry, before post path) — `src:site` short-circuit, `$post_id=0`, threads src to resolve. Re-allow `site` in email/phone derived slot src (append past #26 filter)|V7,V8
+T8| |Phase 6: register `email` modifier template (key=email, per_slot_key, no use enum, no-key-values=[]). try_email_post/term_dispatch call `bws_email_render_one` per item → array. base email parity|V10,V12,I
+T9| |Phase 7: register `phone` modifier template (twin). try_phone dispatch reuse `bws_phone_render_one`. strip_cc+model-C sep per item in compose|V10,V12,I
+T10| |Phase 8: preview email/phone cases in `bws_build_try_preview_label` (#24 fold) — text-like needs_key, empty→`⚠ slot N no key`. Doc line in editor-tag-previews.md. Close #24 ref analysis|V12
+T11| |Phase 9: term_email/term_phone register + preview + verify (full parity)|V13
+T12| |VERIFY: multi-slot chain personal→term→site→fallback first-non-empty wins; site slot reads option not current-post (hard gate); transparency (single slot term-hop list == standalone {{email}} joined); visibility present; subject `:`/`|` escape no double-unescape; obfuscation gate inside shared compose|V2,V7,V10,V11
 
 ## §B — bugs
 
