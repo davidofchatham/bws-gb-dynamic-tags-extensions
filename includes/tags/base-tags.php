@@ -341,6 +341,7 @@ function bws_register_base_tags(): void {
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
 		'try_use_no_key_values' => array( 'title' ),
+		'try_list_options'      => true,
 		'is_image'              => false,
 	) );
 
@@ -391,6 +392,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'  => 'bws_post_title_core',
 		'try_term_fn'  => 'bws_term_title_core',
 		'supports_try' => true,
+		'try_list_options' => true,
 		'is_image'     => false,
 	) );
 

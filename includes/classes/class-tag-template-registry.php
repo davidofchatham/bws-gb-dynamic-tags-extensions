@@ -395,6 +395,7 @@ class TagTemplateRegistry {
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
+			$list_options    = ! empty( $tpl['try_list_options'] );
 			$tpl_options     = $tpl['options'] ?? [];
 			$leading_options = $tpl['leading_options'] ?? [];
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
@@ -538,6 +539,36 @@ class TagTemplateRegistry {
 				unset( $trailing_opts['use'], $trailing_opts['key'] );
 			}
 			$options = array_merge( $options, $trailing_opts, $link_opts_try );
+
+			// List-mode chain options (try_list_options templates: text, title). A winning
+			// slot in list mode (any slot with a srcTermIn term-hop, or src:ref once the
+			// Phase-5 plural resolver lands) joins its finished items via the seam
+			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
+			// not per-slot) — the seam reads them off $opts. Shown when ANY slot declares a
+			// list axis (multi-slot OR over every slot's srcTermIn / src:ref). Mirrors the
+			// base text tag's limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			if ( $list_options ) {
+				$list_show_if_any = [];
+				foreach ( range( 1, 5 ) as $sn ) {
+					$stm = ( 1 === $sn ) ? 'srcTermIn' : "{$sn}-srcTermIn";
+					$src = ( 1 === $sn ) ? 'src'       : "{$sn}-src";
+					$list_show_if_any[ $stm ] = 'not_empty';
+					$list_show_if_any[ $src ] = 'ref';
+				}
+				$options['limit'] = [
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => $list_show_if_any,
+				];
+				$options['sep'] = [
+					'type'        => 'text',
+					'label'       => __( 'Result Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+					'show_if_any' => $list_show_if_any,
+				];
+			}
 
 			// --- Build callback ---
 			$cf   = $try_core_fn;
