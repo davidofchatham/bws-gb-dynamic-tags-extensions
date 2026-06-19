@@ -181,7 +181,11 @@ class TagTemplateRegistry {
 				? ( $tpl['title'] ?? $tag_name ) . ' (' . $modifier_label . ')'
 				: ( $tpl['title'] ?? $tag_name );
 
-			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback );
+			// Thread the template's visibility gate to the modifier (term_*) tag — same
+			// VE3/VP-vis gate the standalone email/phone tags carry. Empty otherwise.
+			$visibility = $tpl['visibility'] ?? [];
+
+			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback, $visibility );
 		}
 	}
 
@@ -776,7 +780,12 @@ class TagTemplateRegistry {
 			// Image template uses native 'image-size' support; other templates have no native supports.
 			$supports = ! empty( $tpl['is_image'] ) ? [ 'image-size' ] : [];
 
-			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback );
+			// Thread the template's visibility gate to the try_ tag (VP-vis: try_email /
+			// try_phone MUST keep the tagName NOT_IN [a,button,img,picture] gate their
+			// standalone tags carry). Empty for gateless templates (text/content/image).
+			$visibility = $tpl['visibility'] ?? [];
+
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility );
 		}
 	}
 
@@ -786,9 +795,16 @@ class TagTemplateRegistry {
 	 * @param string   $title    Full tag title shown in the GB editor.
 	 * @param string   $tag_name Tag name (e.g., 'post_custom_image').
 	 * @param string   $gb_type  GB type string ('post', 'media', 'term', 'related', …).
-	 * @param array    $supports GB supports array.
-	 * @param array    $options  Options array (passed to options_callback).
-	 * @param callable $callback Return callback: fn( $options, $block, $instance ): string.
+	 * @param array    $supports   GB supports array.
+	 * @param array    $options    Options array (passed to options_callback).
+	 * @param callable $callback   Return callback: fn( $options, $block, $instance ): string.
+	 * @param array    $visibility Optional GB `visibility` block-attribute gate
+	 *                             (e.g. tagName NOT_IN ['a','button','img','picture']).
+	 *                             Threaded through so template-registered tags (term_*, try_*)
+	 *                             can carry the same gate the standalone tags register
+	 *                             directly. Omitted from the registration array when empty
+	 *                             (preserves byte-identical registration for gateless tags).
+	 *                             [SPEC §32 V11 / VE3 / VP-vis]
 	 */
 	public static function register_gb_tag(
 		string $title,
@@ -796,21 +812,24 @@ class TagTemplateRegistry {
 		string $gb_type,
 		array $supports,
 		array $options,
-		callable $callback
+		callable $callback,
+		array $visibility = []
 	): void {
 		if ( function_exists( 'bws_strip_default_select_values' ) ) {
 			$options = bws_strip_default_select_values( $options );
 		}
-		new \GenerateBlocks_Register_Dynamic_Tag(
-			[
-				'title'    => $title,
-				'tag'      => $tag_name,
-				'type'     => $gb_type,
-				'supports' => $supports,
-				'options'  => $options,
-				'return'   => $callback,
-			]
-		);
+		$args = [
+			'title'    => $title,
+			'tag'      => $tag_name,
+			'type'     => $gb_type,
+			'supports' => $supports,
+			'options'  => $options,
+			'return'   => $callback,
+		];
+		if ( ! empty( $visibility ) ) {
+			$args['visibility'] = $visibility;
+		}
+		new \GenerateBlocks_Register_Dynamic_Tag( $args );
 	}
 
 }
