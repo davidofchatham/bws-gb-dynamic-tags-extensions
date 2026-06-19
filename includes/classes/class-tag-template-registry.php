@@ -400,6 +400,7 @@ class TagTemplateRegistry {
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
 			$list_options    = ! empty( $tpl['try_list_options'] );
+			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
 			$leading_options = $tpl['leading_options'] ?? [];
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
@@ -453,11 +454,13 @@ class TagTemplateRegistry {
 				}
 
 				// src / ref / srcTermIn — DERIVED from the base builders (single source of
-				// truth; no inline copies). `site` filtered out, slot ≥2 'same'-prepended,
-				// _strip_default kept, "N: " label prefix overlaid, show_if re-qualified —
-				// all inside bws_build_slot_traversal_options. [SPEC §26 V1,V2,V5,V6,V10]
+				// truth; no inline copies). `site` filtered out by default, slot ≥2
+				// 'same'-prepended, _strip_default kept, "N: " label prefix overlaid, show_if
+				// re-qualified — all inside bws_build_slot_traversal_options. [SPEC §26
+				// V1,V2,V5,V6,V10]. $allow_site_slot re-allows `site` per-template (email/
+				// phone) now the slot resolver has a site arm [SPEC §32 V7,V8].
 				$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
-					? bws_build_slot_traversal_options( $n, $base_src_options, $base_trav_options )
+					? bws_build_slot_traversal_options( $n, $base_src_options, $base_trav_options, $allow_site_slot )
 					: [ 'src' => [], 'ref' => [], 'srcTermIn' => [] ];
 
 				// $slot_trigger (show_if_any visibility) is a DISTINCT key from any base
@@ -728,6 +731,26 @@ class TagTemplateRegistry {
 							}
 						}
 						continue; // All terms empty — try next slot.
+					}
+
+					// Site arm: src:site has NO entity (resolved source carries the
+					// wp_options / ACF-options namespace, ADR 0002 — not a post/term id).
+					// The try_core_fn's own resolve (bws_resolve_field_values) reads the
+					// option when $slot_opts['src']==='site'; call it with $post_id=0.
+					// No link-wrap — site has no permalink entity; email/phone self-wrap
+					// mailto:/tel: inside their own compose. [SPEC §32 V7,V8]
+					if ( 'site' === $last_src ) {
+						$slot_opts['src'] = 'site';
+						$items = function_exists( 'bws_try_normalize_items' )
+							? bws_try_normalize_items( $cf( 0, $slot_opts, $inst ) )
+							: array_filter( [ $cf( 0, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+						if ( $items ) {
+							$shown = array_slice( $items, 0, $slot_max );
+							return function_exists( 'bws_try_join_items' )
+								? bws_try_join_items( $shown, $sep, $slot_max )
+								: (string) reset( $shown );
+						}
+						continue; // Site option empty — try next slot.
 					}
 
 					// Post-based paths: 'current' | 'ref'.

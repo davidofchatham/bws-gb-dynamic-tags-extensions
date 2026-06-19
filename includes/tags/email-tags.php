@@ -128,61 +128,6 @@ function bws_register_email_tag(): void {
 }
 
 /**
- * Resolve the raw email address(es) for the active source.
- *
- * Site reads route through the allowlist-gated canonical option reader
- * (bws_site_read_option); every other source uses the standard field-read path
- * (bws_read_field) after entity resolution. Returns a list of raw strings (the
- * caller validates/filters); list mode is produced by the term/ref traversal.
- *
- * @since 1.9.0
- * @param array  $options  Tag options.
- * @param object $instance GB tag instance.
- * @return string[] Raw candidate address strings (unvalidated).
- */
-function bws_email_resolve_addresses( array $options, $instance ): array {
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key ) {
-		return array();
-	}
-
-	// src:site — wp_options / ACF-options, dot-path + allowlist gated. No entity.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
-		if ( ! function_exists( 'bws_site_read_option' ) ) {
-			return array();
-		}
-		$value = bws_site_read_option( $key );
-		return '' !== $value ? array( $value ) : array();
-	}
-
-	// Non-site dot-paths are not valid meta keys; gate like bws_post_custom_text_core.
-	if ( ! bws_is_valid_meta_key( $key ) ) {
-		return array();
-	}
-
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-
-	// Term-hop list mode: read the field on each matching term.
-	if ( '' !== $tax ) {
-		$post_id = bws_resolve_post_by_source( $options, $instance );
-		$terms   = bws_get_srcterm_terms( (int) $post_id, $tax );
-		$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$out     = array();
-		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$raw = bws_read_term_field( $key, (int) $term->term_id );
-			if ( is_scalar( $raw ) && '' !== (string) $raw ) {
-				$out[] = (string) $raw;
-			}
-		}
-		return $out;
-	}
-
-	$post_id = bws_resolve_post_by_source( $options, $instance );
-	$raw     = bws_read_field( $key, $instance, $post_id );
-	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-}
-
-/**
  * Build one anchor (or plain text) for a single, already-validated address.
  *
  * @since 1.9.0
@@ -251,7 +196,7 @@ function bws_email_callback( $options, $block, $instance ): string {
 
 	// VE4 — validate raw, keep only is_email()-valid addresses.
 	$valid = array();
-	foreach ( bws_email_resolve_addresses( (array) $options, $instance ) as $candidate ) {
+	foreach ( bws_resolve_field_values( (array) $options, $instance ) as $candidate ) {
 		$candidate = trim( $candidate );
 		if ( is_email( $candidate ) ) {
 			$valid[] = $candidate;

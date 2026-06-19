@@ -119,61 +119,6 @@ function bws_register_phone_tag(): void {
 	) );
 }
 
-/**
- * Resolve the raw phone number(s) for the active source.
- *
- * Verbatim clone of bws_email_resolve_addresses: site reads route through the
- * allowlist-gated canonical option reader (bws_site_read_option); every other
- * source uses the standard field-read path (bws_read_field) after entity
- * resolution. Returns a list of raw strings (the caller validates/filters); list
- * mode is produced by the term/ref traversal.
- *
- * @since 1.10.0
- * @param array  $options  Tag options.
- * @param object $instance GB tag instance.
- * @return string[] Raw candidate number strings (unvalidated).
- */
-function bws_phone_resolve_numbers( array $options, $instance ): array {
-	$key = sanitize_text_field( $options['key'] ?? '' );
-	if ( '' === $key ) {
-		return array();
-	}
-
-	// src:site — wp_options / ACF-options, dot-path + allowlist gated. No entity.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
-		if ( ! function_exists( 'bws_site_read_option' ) ) {
-			return array();
-		}
-		$value = bws_site_read_option( $key );
-		return '' !== $value ? array( $value ) : array();
-	}
-
-	// Non-site dot-paths are not valid meta keys; gate like bws_post_custom_text_core.
-	if ( ! bws_is_valid_meta_key( $key ) ) {
-		return array();
-	}
-
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-
-	// Term-hop list mode: read the field on each matching term.
-	if ( '' !== $tax ) {
-		$post_id = bws_resolve_post_by_source( $options, $instance );
-		$terms   = bws_get_srcterm_terms( (int) $post_id, $tax );
-		$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$out     = array();
-		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$raw = bws_read_term_field( $key, (int) $term->term_id );
-			if ( is_scalar( $raw ) && '' !== (string) $raw ) {
-				$out[] = (string) $raw;
-			}
-		}
-		return $out;
-	}
-
-	$post_id = bws_resolve_post_by_source( $options, $instance );
-	$raw     = bws_read_field( $key, $instance, $post_id );
-	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
-}
 
 /**
  * Strip a single leading trunk `0` from a flat national digit string.
@@ -509,7 +454,7 @@ function bws_phone_callback( $options, $block, $instance ): string {
 
 	// VP4 — render each candidate; skip those that don't normalize.
 	$parts = array();
-	foreach ( bws_phone_resolve_numbers( (array) $options, $instance ) as $candidate ) {
+	foreach ( bws_resolve_field_values( (array) $options, $instance ) as $candidate ) {
 		$rendered = bws_phone_render_one( (string) $candidate, $cc, $link, $stripCc );
 		if ( '' !== $rendered ) {
 			$parts[] = $rendered;
