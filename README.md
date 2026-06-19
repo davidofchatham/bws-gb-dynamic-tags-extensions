@@ -1,18 +1,18 @@
 # BWS GenerateBlocks Dynamic Tags Extensions
 
-WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data. 
+WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data.
 
-The tags are designed to be source-agnostic (currently tested for both post and loop item contexts). A custom *Source* selector allows allows you to use a source related to the current context by a reference/relational field, or site-wide data (for option fields, logo, and name). You can also use a taxonomy term applied to the current-context post or referenced post as the field source, instead of by manually picking a term directly.
+The tags are designed to be source-agnostic (currently tested for both post and loop item contexts). A custom *Source* selector lets you retrieve data not only from the current context, but also from a source related via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
 
 | Tag | Description | Limitations |
 |---|---|---|
 | `text` | Return simple meta/option text fields or post title/term name* (useful in `try_` tags). | Not yet tested in term context without `term_` prefix. |
-| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | |
+| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. For alt text, it returns `' '` if the alt text field is empty, which means you *don't* have to set `required:false` to avoid the entire image tag being suppressed when the alt text is missing. | |
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Not yet tested in term context without `term_` prefix. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. | |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. | |
-| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. | Not yet available in `term_` or `try_` variants. |
-| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Rebuilds a clean `tel:` href from messy stored input, with a configurable country code. | Not yet available in `term_` or `try_` variants. |
+| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. Validates stored emails (by format) and returns empty if invalid. | Not yet available in `term_` or `try_` variants. |
+| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Normalizes stored numbers and allows global country code configuration. | Not yet available in `term_` or `try_` variants. |
 | `title` | Return post title/term name* or site name. | Not yet tested in term context without `term_` prefix. |
 | `permalink` | Return post/term permalink* or site URL. | Not yet tested in term context without `term_` prefix. |
 
