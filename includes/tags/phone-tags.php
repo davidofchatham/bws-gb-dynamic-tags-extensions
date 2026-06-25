@@ -650,6 +650,7 @@ function bws_register_phone_template(): void {
 		'try_use_no_key_values' => array(),
 		'try_list_options'    => true,
 		'try_allow_site_slot' => true,
+		'try_media_block_guard' => true,
 		'is_image'            => false,
 	) );
 }

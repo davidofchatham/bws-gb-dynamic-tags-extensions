@@ -584,12 +584,22 @@ class TagTemplateRegistry {
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
 			$slnk = $supports_link;
+			// Media-block runtime backstop — templates whose output is a link-wrapping
+			// contact tag (email/phone: mailto:/tel: <a>) must NOT render inside a GB media
+			// block, whose empty tagName slips the native visibility gate (link-helpers.php).
+			// Their default-on anchor would corrupt the <img src>. Mirrors the base
+			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
+			$media_guard = ! empty( $tpl['try_media_block_guard'] );
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
+					return '';
+				}
+
 				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );
 
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
