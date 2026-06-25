@@ -11,8 +11,8 @@ The tags are designed to be source-agnostic (currently tested for both post and 
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Not yet tested in term context without `term_` prefix. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. | |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. | |
-| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. Validates stored emails (by format) and returns empty if invalid. | Not yet available in `term_` or `try_` variants. |
-| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Normalizes stored numbers and allows global country code configuration. | Not yet available in `term_` or `try_` variants. |
+| `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. Validates stored emails (by format) and returns empty if invalid. | |
+| `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Normalizes stored numbers and allows global country code configuration. | |
 | `title` | Return post title/term name* or site name. | Not yet tested in term context without `term_` prefix. |
 | `permalink` | Return post/term permalink* or site URL. | Not yet tested in term context without `term_` prefix. |
 
@@ -20,13 +20,17 @@ The tags are designed to be source-agnostic (currently tested for both post and 
 
 ## try_ tags
 
-`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Useful for "try ACF field, fall back to post title; if still empty, fall back to a related post's field" patterns without conditional template logic.
+`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Useful for "try ACF field, fall back to post title; if still empty, fall back to a related post's field" patterns without conditional template logic.
 
-**Note:** Site fields are not yet available with these tags.
+Each slot resolves exactly as the standalone tag would — `try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link — so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and visibility conditions.
+
+**Note:** `try_email` and `try_phone` support a site-field slot, but the other `try_*` tags do not yet offer site fields.
 
 ## Context modifiers
 
 The `term_*` modifier wraps base tags for term-context resolution using GenerateBlock's built-in taxonomy/term selector; external plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
+
+**Note:** `term_*` tags read from the term (or a related post), not from site fields — for a site-wide contact address use `try_email`/`try_phone` (site slot) or `{{email src:site}}`.
 
 ## Requirements
 
