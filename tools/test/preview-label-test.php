@@ -341,5 +341,36 @@ check(
 	"[Try 'sku' (fallback: “N/A”)]"
 );
 
+// --- email / phone try_ cases (#32 Phase 8 / #24: always key-mode, no no-key values) ---
+// Empty key → warn (default key-mode, no native default field → unconfigured).
+check(
+	'try email empty key → warn',
+	bws_build_try_preview_label( [], 'email' ),
+	'[⚠ Try: slot 1 no key]'
+);
+check(
+	'try phone empty key → warn',
+	bws_build_try_preview_label( [], 'phone' ),
+	'[⚠ Try: slot 1 no key]'
+);
+// Configured single slot → Try Email/Phone: 'key'.
+check(
+	'try email configured',
+	bws_build_try_preview_label( [ 'key' => 'contact_email' ], 'email' ),
+	"[Try Email: 'contact_email']"
+);
+check(
+	'try phone configured',
+	bws_build_try_preview_label( [ 'key' => 'tel' ], 'phone' ),
+	"[Try Phone: 'tel']"
+);
+// Site slot resolves a key (site re-allowed for email/phone). Single uniform slot
+// → source-part omitted, only the field shown (same shape as a current-source slot).
+check(
+	'try email site slot',
+	bws_build_try_preview_label( [ 'src' => 'site', 'key' => 'admin_email' ], 'email' ),
+	"[Try Email: 'admin_email']"
+);
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

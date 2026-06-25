@@ -182,6 +182,10 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			$needs_key = 'key' === $slot['use'];
 		} elseif ( 'image' === $base_template ) {
 			$needs_key = 'featured' !== $slot['use'];
+		} elseif ( 'email' === $base_template || 'phone' === $base_template ) {
+			// No `use` enum (single key-mode); a slot always needs a field key,
+			// and there are no no-key values (try_use_no_key_values = []). #24.
+			$needs_key = true;
 		}
 		if ( $needs_key && '' === $slot['key'] ) {
 			$warnings[] = 'slot ' . $slot['n'] . ' no key';
@@ -352,6 +356,10 @@ function bws_try_preview_template_label( string $base_template, string $as ): st
 			return 'Title';
 		case 'permalink':
 			return 'Permalink';
+		case 'email':
+			return 'Email';
+		case 'phone':
+			return 'Phone';
 	}
 	return '';
 }
@@ -384,6 +392,9 @@ function bws_try_preview_field_part( string $base_template, string $use, string 
 			return 'Title';
 		case 'permalink':
 			return 'Permalink';
+		case 'email':
+		case 'phone':
+			return "'" . $key . "'";
 	}
 	return '';
 }

@@ -549,6 +549,17 @@ function bws_register_base_tags(): void {
 		'is_image'     => false,
 	) );
 
+	// Register the email/phone modifier TEMPLATES (descriptors) before the term_
+	// modifier pass + try_ generation, so term_email/term_phone and try_email/
+	// try_phone fall out of the shared machinery. The standalone {{email}}/{{phone}}
+	// GB tags register separately (bws_register_email_tag/_phone_tag). [SPEC §32]
+	if ( function_exists( 'bws_register_email_template' ) ) {
+		bws_register_email_template();
+	}
+	if ( function_exists( 'bws_register_phone_template' ) ) {
+		bws_register_phone_template();
+	}
+
 	// =========================================================
 	// Generate term_ modifier tags (term_text, term_image, etc.)
 	// =========================================================
@@ -738,31 +749,39 @@ function bws_try_join_items( array $items, $sep = null, $limit = null ): string 
  * (tools/test/slot-options-build-test.php). [SPEC §26 V1,V2,V5,V6,V9,V10]
  *
  * Derivation rules:
- *   - src: base `src.options` with `site` filtered out (V6 wrong-read guard — the
- *     try_ slot resolver has no site arm). Slot ≥2 prepends the `same` (inherit)
- *     row. `_strip_default` preserved (V5). Label overlaid as "N: Source" (V10).
+ *   - src: base `src.options`. `site` is filtered out by DEFAULT (V6 wrong-read
+ *     guard — the generic try_ slot resolver had no site arm). Per-template
+ *     opt-in via $allow_site=true re-allows it (email/phone — once the slot
+ *     resolver site arm landed, SPEC §32 V7/V8): site is the canonical contact
+ *     fallback slot. Slot ≥2 prepends the `same` (inherit) row. `_strip_default`
+ *     preserved (V5). Label overlaid as "N: Source" (V10).
  *   - ref / srcTermIn: base definitions verbatim (label body / placeholder / help
  *     from base — V10), show_if re-qualified via bws_slot_qualify_show_if, label
  *     (and srcTermIn pickLabel) given the "N: " ordinal prefix (V10).
  *
  * @since 1.11.0
- * @param int   $n         Slot ordinal (1-based).
- * @param array $base_src  bws_base_source_option() result.
- * @param array $base_trav bws_base_traversal_options() result.
+ * @param int   $n          Slot ordinal (1-based).
+ * @param array $base_src   bws_base_source_option() result.
+ * @param array $base_trav  bws_base_traversal_options() result.
+ * @param bool  $allow_site When true, keep `site` in the src list (per-template
+ *                          opt-in, gated on the resolver site arm). Default false.
  * @return array { 'src' => array, 'ref' => array, 'srcTermIn' => array } — option
  *               definitions WITHOUT $slot_trigger (caller merges show_if_any).
  */
-function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav ): array {
+function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav, bool $allow_site = false ): array {
 	$sibling_keys = array( 'src', 'ref', 'srcTermIn' );
 
-	// --- src: filter 'site' (V6), prepend 'same' for slot ≥2, keep _strip_default (V5). ---
+	// --- src: filter 'site' unless per-template allowed (V6 guard / V8 opt-in),
+	// prepend 'same' for slot ≥2, keep _strip_default (V5). ---
 	$base_src_opts = $base_src['src']['options'] ?? array();
-	$src_opts      = array_values( array_filter(
-		$base_src_opts,
-		static function ( $o ) {
-			return 'site' !== ( $o['value'] ?? '' );
-		}
-	) );
+	$src_opts      = $allow_site
+		? array_values( $base_src_opts )
+		: array_values( array_filter(
+			$base_src_opts,
+			static function ( $o ) {
+				return 'site' !== ( $o['value'] ?? '' );
+			}
+		) );
 	if ( $n >= 2 ) {
 		array_unshift(
 			$src_opts,

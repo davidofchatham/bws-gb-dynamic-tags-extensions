@@ -447,28 +447,18 @@ function bws_phone_callback( $options, $block, $instance ): string {
 
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$link    = empty( $options['noLink'] ); // VP1 — absent = wrap.
-	$sep     = $options['sep'] ?? ', ';
-	$cc      = bws_phone_default_cc();          // resolved ONCE.
-	$stripCc = bws_phone_strip_leading_cc();    // resolved ONCE.
+	$sep = $options['sep'] ?? ', ';
 
-	// VP4 — render each candidate; skip those that don't normalize.
-	$parts = array();
-	foreach ( bws_resolve_field_values( (array) $options, $instance ) as $candidate ) {
-		$rendered = bws_phone_render_one( (string) $candidate, $cc, $link, $stripCc );
-		if ( '' !== $rendered ) {
-			$parts[] = $rendered;
-		}
-	}
+	// L3 compose — normalize+render each raw value via the shared finisher (SAME
+	// per-item compose the try_ dispatchers use, VP4 / V10).
+	$parts = bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
 
-	// Fallback fires only on a fully-empty valid set.
+	// Fallback fires only on a fully-empty valid set — fed through the SAME
+	// normalize+compose (VP4).
 	if ( empty( $parts ) ) {
 		$fallback = trim( (string) ( $options['fallback'] ?? '' ) );
 		if ( '' !== $fallback ) {
-			$rendered = bws_phone_render_one( $fallback, $cc, $link, $stripCc );
-			if ( '' !== $rendered ) {
-				$parts[] = $rendered;
-			}
+			$parts = bws_phone_finish_values( array( $fallback ), (array) $options );
 		}
 	}
 
@@ -514,4 +504,152 @@ function bws_phone_strip_leading_cc(): bool {
 		return \BWS\DynamicTags\Admin\SettingsPage::is_phone_strip_leading_cc_enabled();
 	}
 	return false;
+}
+
+/**
+ * Compose a list of raw candidate numbers into finished tel/plain strings.
+ *
+ * The L3 assembly step shared by the base callback and the try_ dispatchers:
+ * normalize+render each raw number via bws_phone_render_one (the SAME per-item
+ * compose the base {{phone}} callback uses — cc, strip-leading-cc, tel wrap,
+ * model-C separators). Normalization doubles as the VP4 validity gate (a number
+ * that won't normalize is dropped). cc/stripCc resolved ONCE per call. NO
+ * fallback here — that is the caller's concern.
+ *
+ * @since 1.11.0
+ * @param string[] $raw     Raw candidate number strings (from bws_resolve_field_values).
+ * @param array    $options Tag options (noLink).
+ * @return string[] Finished per-item strings (already wrapped/escaped).
+ */
+function bws_phone_finish_values( array $raw, array $options ): array {
+	$link    = empty( $options['noLink'] ); // VP1 — absent = wrap.
+	$cc      = bws_phone_default_cc();       // resolved ONCE.
+	$stripCc = bws_phone_strip_leading_cc(); // resolved ONCE.
+
+	$out = array();
+	foreach ( $raw as $candidate ) {
+		$rendered = bws_phone_render_one( (string) $candidate, $cc, $link, $stripCc );
+		if ( '' !== $rendered ) { // VP4 — normalize-as-validity gate.
+			$out[] = $rendered;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Try-tag post-slot dispatch for the `phone` template (try_core_fn).
+ *
+ * Returns finished tel/plain number strings for the slot (CONTEXT.md I6). Honors
+ * the registry-resolved $post_id for post/term sources; src:site reads the option.
+ *
+ * @since 1.11.0
+ * @return string[] Finished per-item strings.
+ */
+function bws_try_phone_post_dispatch( $post_id, $options, $instance ) {
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		return bws_phone_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
+	}
+
+	$key = sanitize_text_field( $options['key'] ?? '' );
+	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
+		return array();
+	}
+	$raw = bws_read_field( $key, $instance, $post_id );
+	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
+	return bws_phone_finish_values( $raw, (array) $options );
+}
+
+/**
+ * Try-tag srcTermIn-slot dispatch for the `phone` template (try_term_fn).
+ *
+ * @since 1.11.0
+ * @return string[] Finished per-item strings for this term.
+ */
+function bws_try_phone_term_dispatch( $term_id, $options, $instance ) {
+	$key = sanitize_text_field( $options['key'] ?? '' );
+	if ( '' === $key || ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) ) {
+		return array();
+	}
+	$raw = bws_read_term_field( $key, (int) $term_id );
+	$raw = ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
+	return bws_phone_finish_values( $raw, (array) $options );
+}
+
+/**
+ * Modifier post-source reader for the `phone` template (post_fn). String contract
+ * for make_modifier_callback (term_phone at src:ref).
+ *
+ * @since 1.11.0
+ * @return string Joined finished numbers, or '' on empty.
+ */
+function bws_phone_post_core( $post_id, $options, $instance ): string {
+	$sep = $options['sep'] ?? ', ';
+	return implode( $sep, bws_try_phone_post_dispatch( $post_id, $options, $instance ) );
+}
+
+/**
+ * Modifier term-source reader for the `phone` template (term_fn).
+ *
+ * @since 1.11.0
+ * @return string Joined finished numbers, or '' on empty.
+ */
+function bws_phone_term_core( $term_id, $options, $instance ): string {
+	$sep = $options['sep'] ?? ', ';
+	return implode( $sep, bws_try_phone_term_dispatch( $term_id, $options, $instance ) );
+}
+
+/**
+ * Register the `phone` modifier TEMPLATE descriptor (not the standalone {{phone}}
+ * GB tag). Called from bws_register_base_tags() before the term_ pass + try_
+ * generation, so term_phone and try_phone fall out. [SPEC §32 T9/T11]
+ *
+ * @since 1.11.0
+ */
+function bws_register_phone_template(): void {
+	if ( ! class_exists( '\\BWS\\DynamicTags\\TagTemplateRegistry' ) ) {
+		return;
+	}
+	\BWS\DynamicTags\TagTemplateRegistry::register_modifier_template( array(
+		'key'                 => 'phone',
+		'title'               => __( 'Phone', 'generateblocks' ),
+		'options'             => array(
+			'key'      => array(
+				'type'        => 'text',
+				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
+				'help'        => __( 'ACF or meta field key holding the phone number. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+				'placeholder' => 'phone_field',
+			),
+			'noLink'   => array(
+				'type'  => 'checkbox',
+				'label' => __( 'Disable phone link (plain text)', 'generateblocks' ),
+				'help'  => __( 'Output the number as plain text instead of a tel: link.', 'generateblocks' ),
+			),
+			'fallback' => array(
+				'type'  => 'text',
+				'label' => __( 'Fallback Phone Number', 'generateblocks' ),
+				'help'  => __( 'Phone number to use if the field is empty or invalid (e.g. a main switchboard). Normalized like a stored number.', 'generateblocks' ),
+			),
+		),
+		// VP-vis — hide on interactive/void elements (threaded to term_/try_ tags).
+		'visibility'          => array(
+			'attributes' => array(
+				array(
+					'name'    => 'tagName',
+					'value'   => array( 'a', 'button', 'img', 'picture' ),
+					'compare' => 'NOT_IN',
+				),
+			),
+		),
+		'term_fn'             => 'bws_phone_term_core',
+		'post_fn'             => 'bws_phone_post_core',
+		'try_core_fn'         => 'bws_try_phone_post_dispatch',
+		'try_term_fn'         => 'bws_try_phone_term_dispatch',
+		'supports_try'        => true,
+		'try_per_slot_key'    => true,
+		'try_per_slot_use'    => false,
+		'try_use_no_key_values' => array(),
+		'try_list_options'    => true,
+		'try_allow_site_slot' => true,
+		'is_image'            => false,
+	) );
 }
