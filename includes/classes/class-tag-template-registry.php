@@ -181,7 +181,11 @@ class TagTemplateRegistry {
 				? ( $tpl['title'] ?? $tag_name ) . ' (' . $modifier_label . ')'
 				: ( $tpl['title'] ?? $tag_name );
 
-			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback );
+			// Thread the template's visibility gate to the modifier (term_*) tag — same
+			// VE3/VP-vis gate the standalone email/phone tags carry. Empty otherwise.
+			$visibility = $tpl['visibility'] ?? [];
+
+			self::register_gb_tag( $title, $tag_name, $gb_type, $tag_supports, $options, $callback, $visibility );
 		}
 	}
 
@@ -364,12 +368,13 @@ class TagTemplateRegistry {
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
-		// Base source dropdown values (slot 1 — first option strip applies).
-		// Slot ≥2 prepends 'same' entry; strip then sets that to '' (= inherit).
-		$base_source_options = [
-			[ 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ],
-			[ 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ],
-		];
+		// Slot src/ref/srcTermIn option definitions DERIVE from the base builders
+		// (bws_base_source_option / bws_base_traversal_options) via
+		// bws_build_slot_traversal_options — single source of truth, no inline copies
+		// (kills slot-vs-base drift). `site` is filtered out of the derived slot src
+		// list (resolver has no site arm; #32 re-allows per-template). [SPEC §26 V1,V2]
+		$base_src_options  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : [];
+		$base_trav_options = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : [];
 
 		// All slot-tied controls front-load the ordinal as an "N: " prefix (legibility).
 
@@ -394,6 +399,8 @@ class TagTemplateRegistry {
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
+			$list_options    = ! empty( $tpl['try_list_options'] );
+			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
 			$leading_options = $tpl['leading_options'] ?? [];
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
@@ -446,56 +453,21 @@ class TagTemplateRegistry {
 					$slot_trigger = [ 'show_if_any' => $prev_any ];
 				}
 
-				// Source dropdown values: slot 1 = base; slot ≥2 = prepend 'same' inherit row.
-				$slot_src_options = ( 1 === $n )
-					? $base_source_options
-					: array_merge(
-						[ [ 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) ] ],
-						$base_source_options
-					);
+				// src / ref / srcTermIn — DERIVED from the base builders (single source of
+				// truth; no inline copies). `site` filtered out by default, slot ≥2
+				// 'same'-prepended, _strip_default kept, "N: " label prefix overlaid, show_if
+				// re-qualified — all inside bws_build_slot_traversal_options. [SPEC §26
+				// V1,V2,V5,V6,V10]. $allow_site_slot re-allows `site` per-template (email/
+				// phone) now the slot resolver has a site arm [SPEC §32 V7,V8].
+				$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
+					? bws_build_slot_traversal_options( $n, $base_src_options, $base_trav_options, $allow_site_slot )
+					: [ 'src' => [], 'ref' => [], 'srcTermIn' => [] ];
 
-				$options[ $src_key ] = array_merge(
-					[
-						'type'           => 'select',
-						/* translators: %d: slot number */
-						'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
-						'options'        => $slot_src_options,
-						'_strip_default' => true,
-					],
-					$slot_trigger
-				);
-
-				// ref — relationship field key (shown when src = 'ref').
-				$options[ $ref_key ] = [
-					'type'        => 'text',
-					/* translators: %d: slot number */
-					'label'       => sprintf( __( '%d: Relationship Field Key', 'generateblocks' ), $n ),
-					'help'        => __( 'ACF relationship field key.', 'generateblocks' ),
-					'placeholder' => 'related_post',
-					'show_if'     => [ $src_key => 'ref' ],
-				];
-
-				// srcTermIn — combined term-hop control (no carry-forward).
-				$srcterm_in_label = sprintf(
-					/* translators: %d: slot number */
-					__( '%d: Get from taxonomy term?', 'generateblocks' ),
-					$n
-				);
-				$srcterm_pick_label = sprintf(
-					/* translators: %d: slot number */
-					__( '%d: Taxonomy', 'generateblocks' ),
-					$n
-				);
-				$options[ $stm_key ] = array_merge(
-					[
-						'type'      => 'bws-term-hop',
-						'label'     => $srcterm_in_label,
-						'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
-						'pickLabel' => $srcterm_pick_label,
-						'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
-					],
-					$slot_trigger
-				);
+				// $slot_trigger (show_if_any visibility) is a DISTINCT key from any base
+				// show_if the derived defs carry — merge preserves both, never overwrites (V3).
+				$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
+				$options[ $ref_key ] = $slot_defs['ref'];
+				$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
 
 				// N-use — per-slot field-type selector (try_per_slot_use templates only).
 				if ( $per_slot_use && ! empty( $tpl_options['use']['options'] ) ) {
@@ -575,6 +547,36 @@ class TagTemplateRegistry {
 			}
 			$options = array_merge( $options, $trailing_opts, $link_opts_try );
 
+			// List-mode chain options (try_list_options templates: text, title). A winning
+			// slot in list mode (any slot with a srcTermIn term-hop, or src:ref once the
+			// Phase-5 plural resolver lands) joins its finished items via the seam
+			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
+			// not per-slot) — the seam reads them off $opts. Shown when ANY slot declares a
+			// list axis (multi-slot OR over every slot's srcTermIn / src:ref). Mirrors the
+			// base text tag's limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			if ( $list_options ) {
+				$list_show_if_any = [];
+				foreach ( range( 1, 5 ) as $sn ) {
+					$stm = ( 1 === $sn ) ? 'srcTermIn' : "{$sn}-srcTermIn";
+					$src = ( 1 === $sn ) ? 'src'       : "{$sn}-src";
+					$list_show_if_any[ $stm ] = 'not_empty';
+					$list_show_if_any[ $src ] = 'ref';
+				}
+				$options['limit'] = [
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => $list_show_if_any,
+				];
+				$options['sep'] = [
+					'type'        => 'text',
+					'label'       => __( 'Result Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+					'show_if_any' => $list_show_if_any,
+				];
+			}
+
 			// --- Build callback ---
 			$cf   = $try_core_fn;
 			$tcf  = $try_term_fn;
@@ -582,12 +584,22 @@ class TagTemplateRegistry {
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
 			$slnk = $supports_link;
+			// Media-block runtime backstop — templates whose output is a link-wrapping
+			// contact tag (email/phone: mailto:/tel: <a>) must NOT render inside a GB media
+			// block, whose empty tagName slips the native visibility gate (link-helpers.php).
+			// Their default-on anchor would corrupt the <img src>. Mirrors the base
+			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
+			$media_guard = ! empty( $tpl['try_media_block_guard'] );
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
+					return '';
+				}
+
 				$is_preview = ! empty( $inst->context['bwsEditorPreview'] );
 
 				$fallback  = sanitize_text_field( $opts['fallback'] ?? $opts['fallback_text'] ?? '' );
@@ -679,6 +691,18 @@ class TagTemplateRegistry {
 						$slot_opts['use'] = $last_use;
 					}
 
+					// List-join seam (CONTEXT.md I6 / SPEC §32): a slot's dispatch returns
+					// finished string(s). Collect them into $items, slice to `limit`, then
+					// the winning slot (first non-empty) joins via bws_try_join_items.
+					// Link-wrap applies to a SINGLE-result item only — count is taken AFTER
+					// the limit slice (mirrors the base text core, base-tags.php:888-901:
+					// slice-then-count, so a limit:1 chain over many non-empty terms still
+					// wraps the lone shown item). sep/limit read off the chain options;
+					// default limit 1 keeps existing try_ output byte-identical.
+					$sep      = $opts['sep'] ?? null;
+					$limit    = $opts['limit'] ?? null;
+					$slot_max = max( 1, (int) ( $limit ?: 1 ) );
+
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).
 					if ( '' !== $stm_raw && $tcf ) {
@@ -688,17 +712,55 @@ class TagTemplateRegistry {
 							: get_the_ID();
 						if ( $post_id && function_exists( 'bws_get_srcterm_terms' ) ) {
 							$terms = bws_get_srcterm_terms( (int) $post_id, $stm_raw );
+							$items      = [];
+							$first_term = 0;
 							foreach ( $terms as $term ) {
-								$result = $tcf( $term->term_id, $slot_opts, $inst );
-								if ( '' !== $result && false !== $result ) {
-									if ( $slnk && function_exists( 'bws_wrap_with_link' ) ) {
-										$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $term->term_id, 'term' );
+								$slot_items = function_exists( 'bws_try_normalize_items' )
+									? bws_try_normalize_items( $tcf( $term->term_id, $slot_opts, $inst ) )
+									: array_filter( [ $tcf( $term->term_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+								foreach ( $slot_items as $it ) {
+									$items[] = $it;
+									if ( ! $first_term ) {
+										$first_term = (int) $term->term_id;
 									}
-									return $result;
 								}
+								if ( count( $items ) >= $slot_max ) {
+									break; // Enough to satisfy limit — stop hopping terms.
+								}
+							}
+							if ( $items ) {
+								$shown  = array_slice( $items, 0, $slot_max );
+								$joined = function_exists( 'bws_try_join_items' )
+									? bws_try_join_items( $shown, $sep, $slot_max )
+									: (string) reset( $shown );
+								// Single-result list is link-wrappable; a joined multi-item list is not.
+								if ( $slnk && 1 === count( $shown ) && $first_term && function_exists( 'bws_wrap_with_link' ) ) {
+									$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, $first_term, 'term' );
+								}
+								return $joined;
 							}
 						}
 						continue; // All terms empty — try next slot.
+					}
+
+					// Site arm: src:site has NO entity (resolved source carries the
+					// wp_options / ACF-options namespace, ADR 0002 — not a post/term id).
+					// The try_core_fn's own resolve (bws_resolve_field_values) reads the
+					// option when $slot_opts['src']==='site'; call it with $post_id=0.
+					// No link-wrap — site has no permalink entity; email/phone self-wrap
+					// mailto:/tel: inside their own compose. [SPEC §32 V7,V8]
+					if ( 'site' === $last_src ) {
+						$slot_opts['src'] = 'site';
+						$items = function_exists( 'bws_try_normalize_items' )
+							? bws_try_normalize_items( $cf( 0, $slot_opts, $inst ) )
+							: array_filter( [ $cf( 0, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+						if ( $items ) {
+							$shown = array_slice( $items, 0, $slot_max );
+							return function_exists( 'bws_try_join_items' )
+								? bws_try_join_items( $shown, $sep, $slot_max )
+								: (string) reset( $shown );
+						}
+						continue; // Site option empty — try next slot.
 					}
 
 					// Post-based paths: 'current' | 'ref'.
@@ -719,12 +781,19 @@ class TagTemplateRegistry {
 						continue;
 					}
 
-					$result = $cf( $post_id, $slot_opts, $inst );
-					if ( '' !== $result && false !== $result ) {
-						if ( $slnk && $post_id && function_exists( 'bws_wrap_with_link' ) ) {
-							$result = bws_wrap_with_link( $result, $link_to, $link_key, $new_tab, (int) $post_id, 'post' );
+					$items = function_exists( 'bws_try_normalize_items' )
+						? bws_try_normalize_items( $cf( $post_id, $slot_opts, $inst ) )
+						: array_filter( [ $cf( $post_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+					if ( $items ) {
+						$shown  = array_slice( $items, 0, $slot_max );
+						$joined = function_exists( 'bws_try_join_items' )
+							? bws_try_join_items( $shown, $sep, $slot_max )
+							: (string) reset( $shown );
+						// Single-result list is link-wrappable; a joined multi-item list is not.
+						if ( $slnk && 1 === count( $shown ) && $post_id && function_exists( 'bws_wrap_with_link' ) ) {
+							$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, (int) $post_id, 'post' );
 						}
-						return $result;
+						return $joined;
 					}
 				}
 
@@ -744,7 +813,12 @@ class TagTemplateRegistry {
 			// Image template uses native 'image-size' support; other templates have no native supports.
 			$supports = ! empty( $tpl['is_image'] ) ? [ 'image-size' ] : [];
 
-			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback );
+			// Thread the template's visibility gate to the try_ tag (VP-vis: try_email /
+			// try_phone MUST keep the tagName NOT_IN [a,button,img,picture] gate their
+			// standalone tags carry). Empty for gateless templates (text/content/image).
+			$visibility = $tpl['visibility'] ?? [];
+
+			self::register_gb_tag( $title, $tag_name, 'first-available', $supports, $options, $callback, $visibility );
 		}
 	}
 
@@ -754,9 +828,16 @@ class TagTemplateRegistry {
 	 * @param string   $title    Full tag title shown in the GB editor.
 	 * @param string   $tag_name Tag name (e.g., 'post_custom_image').
 	 * @param string   $gb_type  GB type string ('post', 'media', 'term', 'related', …).
-	 * @param array    $supports GB supports array.
-	 * @param array    $options  Options array (passed to options_callback).
-	 * @param callable $callback Return callback: fn( $options, $block, $instance ): string.
+	 * @param array    $supports   GB supports array.
+	 * @param array    $options    Options array (passed to options_callback).
+	 * @param callable $callback   Return callback: fn( $options, $block, $instance ): string.
+	 * @param array    $visibility Optional GB `visibility` block-attribute gate
+	 *                             (e.g. tagName NOT_IN ['a','button','img','picture']).
+	 *                             Threaded through so template-registered tags (term_*, try_*)
+	 *                             can carry the same gate the standalone tags register
+	 *                             directly. Omitted from the registration array when empty
+	 *                             (preserves byte-identical registration for gateless tags).
+	 *                             [SPEC §32 V11 / VE3 / VP-vis]
 	 */
 	public static function register_gb_tag(
 		string $title,
@@ -764,21 +845,24 @@ class TagTemplateRegistry {
 		string $gb_type,
 		array $supports,
 		array $options,
-		callable $callback
+		callable $callback,
+		array $visibility = []
 	): void {
 		if ( function_exists( 'bws_strip_default_select_values' ) ) {
 			$options = bws_strip_default_select_values( $options );
 		}
-		new \GenerateBlocks_Register_Dynamic_Tag(
-			[
-				'title'    => $title,
-				'tag'      => $tag_name,
-				'type'     => $gb_type,
-				'supports' => $supports,
-				'options'  => $options,
-				'return'   => $callback,
-			]
-		);
+		$args = [
+			'title'    => $title,
+			'tag'      => $tag_name,
+			'type'     => $gb_type,
+			'supports' => $supports,
+			'options'  => $options,
+			'return'   => $callback,
+		];
+		if ( ! empty( $visibility ) ) {
+			$args['visibility'] = $visibility;
+		}
+		new \GenerateBlocks_Register_Dynamic_Tag( $args );
 	}
 
 }

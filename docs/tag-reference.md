@@ -334,6 +334,8 @@ Applies to **try_ tags** (multi-slot). Every slot-tied control front-loads the s
 | `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`) |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
+| `try_email` | `email` | **Yes** | No | Single key-mode (no `use` enum). Each slot resolves an email field → finished mailto/plain string, exactly as `{{email}}`. Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |
+| `try_phone` | `phone` | **Yes** | No | Single key-mode (no `use` enum). Each slot resolves a phone field → finished tel/plain string, as `{{phone}}`. Slot `src:site` allowed. `noLink` chain-level |
 
 ---
 
@@ -538,7 +540,7 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 `{{email}}` (1.9.0) outputs a stored email address, by default wrapped in a `mailto:` link. It is a first-class base tag — registered unconditionally, cross-source like `text` — living in `includes/tags/email-tags.php`.
 
-**Source / field read.** The address is read from a meta/option field via the standard field-read path, so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email is **key-required in every source** — it has no intrinsic analog, so there is **no `use` enum** and `key` is always required. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
+**Source / field read.** The address is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options (allowlist-gated via `bws_site_read_option`, dot-path supported); `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Email is **key-required in every source** — it has no intrinsic analog, so there is **no `use` enum** and `key` is always required. (A future `use:author` / `use:admin` enum is additive and gated by the [qualifying test](#qualifying-test-for-new-use-values).)
 
 **`mailto:` wrap (default-ON) + `noLink`.** The address is wrapped in `<a href="mailto:…">` UNLESS the `noLink` bare key is present (`noLink` = plain text). This is an **inverted bare-key boolean**: absence = wrap, present = off. Modeled this way because GB's serializer drops `false`, so "default-on, serialize-when-off" is only reachable via an inverted-name presence flag (same pattern as `showCurrentYear` / `showMidnight`). The anchor is built directly (minimal, no class/target) — it does NOT use the `linkTo` / `bws_wrap_with_link` entity-link machinery (those are for entity URLs; email's link is the address itself). WP emits no standard class on mailto anchors — target them via `a[href^="mailto:"]` in CSS.
 
@@ -548,7 +550,7 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 **Validation + fallback.** The resolved value is validated with `is_email()` on the raw string — only a valid address is ever wrapped. Invalid (incl. empty) → the `fallback` option, which is itself a **fallback email address** (validated, wrapped like a real address — like `{{image}}`'s fallback = attachment ID, not text). In list mode, only `is_email()`-valid addresses are kept and wrapped individually; the fallback fires ONLY when zero valid addresses resolve (whole-result-empty), and if it too is invalid the tag returns empty.
 
-**`visibility` gate.** `{{email}}` registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']` — mirroring GB core's own `term_list`. The default-ON `<a>` wrap makes the tag invalid inside anchor/button (nested interactive markup) or img/picture (text in a void/replaced element), so it is hidden in the selector on those elements. This is the plugin's first native `visibility` use (see [`gb-constraints.md` §visibility](gb-constraints.md)). Wrap-capable text/title/datetime tags get an `img`/`picture`-only gate later ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)); `try_email` for base-tag parity is tracked at [#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32).
+**`visibility` gate.** `{{email}}` registers with native GB `visibility` `tagName NOT_IN ['a','button','img','picture']` — mirroring GB core's own `term_list`. The default-ON `<a>` wrap makes the tag invalid inside anchor/button (nested interactive markup) or img/picture (text in a void/replaced element), so it is hidden in the selector on those elements. This is the plugin's first native `visibility` use (see [`gb-constraints.md` §visibility](gb-constraints.md)). Wrap-capable text/title/datetime tags get an `img`/`picture`-only gate later ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)). `try_email`/`try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32)) thread this same `visibility` gate (and a runtime media-block backstop, since a media block's empty `tagName` slips the native gate — see [`gb-constraints.md` §visibility](gb-constraints.md)).
 
 **Options:**
 
@@ -579,9 +581,9 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 
 ## Phone tag
 
-`{{phone}}` (built, unreleased — slated for 1.10.0; in testing on `feature/phone-tag`) outputs a stored phone number, by default wrapped in a `tel:` link. It is a first-class base tag — registered unconditionally, cross-source like `text`/`email` — living in `includes/tags/phone-tags.php`.
+`{{phone}}` (1.10.0) outputs a stored phone number, by default wrapped in a `tel:` link. It is a first-class base tag — registered unconditionally, cross-source like `text`/`email` — living in `includes/tags/phone-tags.php`.
 
-**Source / field read.** The number is read from a meta/option field via the standard field-read path (a verbatim clone of `email`'s resolver), so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Phone is **key-required in every source** — no intrinsic analog, so **no `use` enum**.
+**Source / field read.** The number is read from a meta/option field via the shared source-resolution pipeline (`bws_resolve_field_values`, the L1/L2 seam email/phone both consume — formerly a per-tag clone, unified in 1.11.0), so it works in every source: `src:site` → wp_options / ACF-options; `src:current`/unset → post/term meta; `src:ref` / `srcTermIn` → traversed-entity meta (list mode). Phone is **key-required in every source** — no intrinsic analog, so **no `use` enum**.
 
 **`tel:` href rebuild — author separators preserved (model C).** Unlike `email` (href = address verbatim), the `tel:` href is rebuilt from the stored value into a canonical dial value by `bws_phone_normalize_tel()`. The key rule: **hyphens in the href appear ONLY where the author wrote a separator.** `(987) 654-3210` → `tel:+1-987-654-3210`; bare `9876543210` → `tel:+19876543210` (no fabricated grouping — segmentation is unknowable from raw digits without locale rules, so it is never guessed). No libphonenumber dependency. The **display** text stays the stored value verbatim (`esc_html`); display and href may differ. (Display-side reformatting is a planned follow-up.)
 
@@ -622,8 +624,28 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 {{phone key:us}}    field "1-800-555-1212" CC 1, strip ON   → <a href="tel:+1-800-555-1212">1-800-555-1212</a>    (leading CC stripped)
 ```
 
+**Tests.** Normalization (`bws_phone_normalize_tel` + sub-helpers) is pinned by a standalone, WP-free harness: `php tools/test/phone-normalize-test.php` (run on any change to normalize/trunk-strip/length-gate/strip-CC). End-to-end source/list/render/settings coverage is the standing manual matrix [`tools/test/phone-test-matrix.md`](../tools/test/phone-test-matrix.md), which carries its own re-run trigger.
+
 <a id="phone-deferred"></a>
 **Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.
+
+---
+
+## Email/phone modifier tags — `try_` and `term_` (1.11.0)
+
+`email` and `phone` are registered as modifier templates, so the shared machinery generates the `try_` and `term_` variants for both — full parity with the standalone tags.
+
+**`try_email` / `try_phone`** — fallback chains (up to 5 slots, first non-empty wins). Each slot resolves an email/phone field **exactly as the standalone tag would** and returns the finished `mailto:`/`tel:` (or plain) string; the chain surfaces the first slot that produces output. Per [I6 transparency](../CONTEXT.md), all composition (link-wrap, obfuscation, `tel:` rebuild, list-join) happens inside the slot's own resolve — the chain only picks the winning slot and joins its list.
+
+- **Per-slot field key**, no per-slot `use` (single key-mode — no `use` enum, mirroring the base tags).
+- **`src:site` slot is allowed** (re-allowed past the generic [#26 slot-src filter](#src-option-values)) — site is the canonical contact-fallback slot (personal address → site-wide address). The slot resolver has a `src:site` arm that reads the option (not current-post meta). datetime/text/image try_ slots still filter `site` (their site arm is deferred).
+- **`subject`/`noLink`** (email) and **`noLink`** (phone) are chain-level options (inputs to each slot's own compose).
+- **List mode** (`limit`/`sep`) — a slot in list mode (term-hop, or `src:ref`) joins its finished per-item strings, same as the base tag's list mode.
+- **`visibility`** — the same `tagName NOT_IN ['a','button','img','picture']` gate plus a **runtime media-block backstop**: a media block's empty `tagName` slips the native gate, so the `try_` callback returns `''` inside a media block rather than corrupting the `<img src>` with a `mailto:`/`tel:` anchor. (The tag still *appears* in the media source picker — same documented limitation as the base tags.)
+
+**`term_email` / `term_phone`** — read the email/phone field off a taxonomy-term entity (the term itself at `src:current`, or a related post at `src:ref`). Same compose path as `{{email}}`/`{{phone}}`.
+
+> **Known limitation (term_ `src:site`):** `term_email`/`term_phone` expose a `src:site` source value, but the term-modifier callback has no site arm (pre-existing, term_*-wide — affects `term_text` etc. too), so a `term_email src:site` reads term meta under the option key rather than the site option. Use `try_email`/`try_phone` (which DO have the site arm) for a site-option read, or `{{email src:site}}`. Tracked as a follow-up issue.
 
 ---
 

@@ -142,7 +142,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 `bws_build_try_preview_label()` walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's canonical value), then detects uniformity across two dimensions (field-part, source-part) and renders one of four shapes.
 
 **Conventions** (consistent with base previews):
-- Template-name labels: `text` has no label (default). `content`/`image` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name.
+- Template-name labels: `text` has no label (default). `content`/`image`/`email`/`phone` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name. `email`/`phone` use bare `Email` / `Phone`.
 - Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
 - User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
 - `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor.
@@ -159,6 +159,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | Mixed (both vary) | `[Try 'a' from Current, Title from Ref 'rel']` | `[Try Image Alt Text: 'hero', Featured from Ref 'rel']` |
 | Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
 | `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
+| `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']` (key-required, no `use` enum) |
+| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: slot 1 no key]` (always needs a key — no no-key values) |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
@@ -166,4 +168,20 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
-`try_email` is not implemented this release ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32)); base `{{email}}` has no try_ preview path.
+`try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ slot N no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
+
+## Tests
+
+Non-datetime label assembly is pinned by a standalone harness — **no WordPress, no PHPUnit**:
+
+```
+php tools/test/preview-label-test.php
+```
+
+**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, and the four sub-builders against the marker/assembly rules above. Datetime templates are excluded (live clock + `wp_date` → non-deterministic).
+
+Behaviors the harness locks in (correct-by-design, easy to regress):
+
+- **`→` hop arrow is positional** — emitted only when the term-hop segment *follows* another (modifier label or `Ref 'x'`). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
+- **Slot ≥2 key-only override is discarded** — an empty `use` on slot N≥2 wipes that slot's `key` (the `use:same` UI hides the key field). A key override only registers when its `N-use` is also sent.
+- **`text` try "no slots configured" is unreachable** — slot 1 is always default-filled, so a misconfigured slot-1 trips the missing-key warning first.

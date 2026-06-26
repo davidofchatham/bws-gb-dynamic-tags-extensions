@@ -312,6 +312,81 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 }
 
 /**
+ * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
+ * to a list of raw candidate field-value strings.
+ *
+ * This is the single source-resolution seam (CONTEXT.md §L1/L2/L3, ADR 0002)
+ * the value-list tags share — extracted from the formerly byte-identical clones
+ * `bws_email_resolve_addresses` / `bws_phone_resolve_numbers`. It performs:
+ *   - L1 resolve source: src:site → wp_options/ACF-options namespace (no entity);
+ *     otherwise the post/term entity via bws_resolve_post_by_source.
+ *   - L2 read field: site → option read; post/term → meta read. srcTermIn sets a
+ *     plural source (term-hop) → list mode (read once per term, sliced to limit).
+ *
+ * Returns RAW, UNVALIDATED strings — per-tag validation (is_email, phone
+ * normalize) and composition (L3: mailto/tel wrap, sep join) stay in each tag's
+ * own callback / render-one. The resolver is composition-blind.
+ *
+ * Variable payload by source kind (ADR 0002): site carries the option namespace,
+ * post/term carry an id — handled here, not pushed onto callers.
+ *
+ * @since 1.11.0
+ * @param array  $options  Tag options (key, src, srcTermIn, limit, …).
+ * @param object $instance GB tag instance.
+ * @return string[] Raw candidate value strings (unvalidated, empties dropped).
+ */
+if ( ! function_exists( 'bws_resolve_field_values' ) ) {
+function bws_resolve_field_values( array $options, $instance ): array {
+	$key = sanitize_text_field( $options['key'] ?? '' );
+	if ( '' === $key ) {
+		return array();
+	}
+
+	// L1 src:site — wp_options / ACF-options, dot-path + allowlist gated. No entity.
+	if ( 'site' === ( $options['src'] ?? '' ) ) {
+		if ( ! function_exists( 'bws_site_read_option' ) ) {
+			return array();
+		}
+		$value = bws_site_read_option( $key );
+		return '' !== $value ? array( $value ) : array();
+	}
+
+	// Non-site dot-paths are not valid meta keys; gate like bws_post_custom_text_core.
+	if ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) {
+		return array();
+	}
+
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+
+	// L1 plural source — term-hop list mode: read the field on each matching term.
+	if ( '' !== $tax ) {
+		$post_id = function_exists( 'bws_resolve_post_by_source' )
+			? bws_resolve_post_by_source( $options, $instance )
+			: 0;
+		$terms   = function_exists( 'bws_get_srcterm_terms' )
+			? bws_get_srcterm_terms( (int) $post_id, $tax )
+			: array();
+		$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$out     = array();
+		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
+			$raw = bws_read_term_field( $key, (int) $term->term_id );
+			if ( is_scalar( $raw ) && '' !== (string) $raw ) {
+				$out[] = (string) $raw;
+			}
+		}
+		return $out;
+	}
+
+	// L1 singular post/term source.
+	$post_id = function_exists( 'bws_resolve_post_by_source' )
+		? bws_resolve_post_by_source( $options, $instance )
+		: 0;
+	$raw     = bws_read_field( $key, $instance, $post_id );
+	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
+}
+}
+
+/**
  * Internal: route a meta read through GenerateBlocks_Meta_Handler with raw WP fallback.
  *
  * @since 1.7.0
