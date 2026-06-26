@@ -91,6 +91,14 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
 | `ref` + `tax` + `key` | `⚠ No ref key, taxonomy, or meta key set` |
 
+### Invalid-combo warning (`src:site` on a modifier tag)
+
+Distinct from the missing-input warnings: a hand-typed `src:site` on a rooting modifier (`term_*`, `view_*`) is **invalid, not missing**. The `src` dropdown filters `site` out ([tag-reference §Qualifying test](tag-reference.md#qualifying-test-for-new-use-values)), but a hand-typed value slips the UI. A site read is entity-blind, so the runtime resolves **empty** — the preview warns to match, instead of showing a normal label. Checked before the missing-input pass; fallback still appends. (See [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
+
+| Condition | Warning |
+|---|---|
+| `src:site` on any modifier tag (`{{modifierLabel}}` = `Term`, …) | `⚠ Site source not valid on {ModifierLabel} tag — use the base tag` |
+
 ## Datetime preview
 
 Datetime tags compute a live preview from the current time rather than a static label. The `as` option controls label prefix and range-end offset. The preview value is formatted using the same formatter and options (`format`, `timeSep`, `rangeSep`, etc.) the tag uses at render time.
@@ -121,6 +129,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{text src:ref\|srcTermIn\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
 | `{{term_text key:bio}}` | `['bio' from Term]` |
 | `{{term_text src:ref\|ref:rel_post\|key:bio}}` | `['bio' from Term Ref 'rel_post']` |
+| `{{term_text src:site\|key:blogdescription}}` | `[⚠ Site source not valid on Term tag — use the base tag]` |
 | `{{title src:ref\|ref:rel_post}}` | `[Title from Ref 'rel_post']` |
 | `{{content}}` | `[Content]` |
 | `{{content use:excerpt}}` | `[Content: Excerpt]` |

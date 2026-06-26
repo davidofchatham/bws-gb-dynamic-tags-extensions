@@ -545,6 +545,19 @@ function bws_build_preview_label( array $options, string $template ): string {
 		return '';
 	}
 
+	// Invalid combo: `src:site` on a rooting modifier (term_*, view_*). The src
+	// dropdown filters site out (bws_filter_site_from_src), but a hand-typed
+	// `src:site` slips the UI — the runtime guard then resolves EMPTY (a site read
+	// is entity-blind, so it would only duplicate the unrooted base tag). Warn in
+	// preview so the editor reflects the empty frontend, not a normal label. [#37]
+	if ( '' !== $modifier_label && 'site' === $source_val ) {
+		$inner = '⚠ Site source not valid on ' . $modifier_label . ' tag — use the base tag';
+		if ( $fallback ) {
+			$inner .= ' (fallback: “' . $fallback . '”)';
+		}
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+	}
+
 	// Collect missing required items for warning label.
 	$missing = [];
 	if ( 'ref' === $source_val && '' === $ref ) {

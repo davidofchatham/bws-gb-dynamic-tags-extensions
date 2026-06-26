@@ -184,6 +184,25 @@ check(
 	bws_build_preview_label( [ 'key' => 'sku', 'tax' => 'event_category' ], 'term_text' ),
 	"['sku' from Event Category Term]"
 );
+// #37: hand-typed src:site on a term_ modifier → invalid-combo warning (matches the
+// empty frontend; the src dropdown filters site, but a hand-typed value slips it).
+check(
+	'term_text src:site → invalid-combo warning',
+	bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'blogdescription' ], 'term_text' ),
+	'[⚠ Site source not valid on Term tag — use the base tag]'
+);
+// Warning still appends fallback note when one is set.
+check(
+	'term_text src:site warning + fallback',
+	bws_build_preview_label( [ 'src' => 'site', 'key' => 'x', 'fallback' => 'N/A' ], 'term_text' ),
+	'[⚠ Site source not valid on Term tag — use the base tag (fallback: “N/A”)]'
+);
+// Base (non-modifier) text src:site is VALID — no warning, normal label.
+check(
+	'text src:site (base) → no invalid-combo warning',
+	bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'blogdescription' ], 'text' ),
+	"['blogdescription']"
+);
 // Cross-source base with srcTermIn, no other context → tax segment WITHOUT arrow
 // (the '→' prefix is added only when the hop follows another segment; standalone
 // current-post→term drops it — see bws_build_preview_label line ~599).
