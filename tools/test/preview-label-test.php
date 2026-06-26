@@ -199,9 +199,9 @@ check(
 );
 // Base (non-modifier) text src:site is VALID — no warning, normal label.
 check(
-	'text src:site (base) → no invalid-combo warning',
+	'text src:site (base) → from Site, no warning',
 	bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'blogdescription' ], 'text' ),
-	"['blogdescription']"
+	"['blogdescription' from Site]"
 );
 // Cross-source base with srcTermIn, no other context → tax segment WITHOUT arrow
 // (the '→' prefix is added only when the hop follows another segment; standalone
@@ -232,6 +232,12 @@ check(
 	'phone w/ key',
 	bws_build_preview_label( [ 'key' => 'mobile' ], 'phone' ),
 	"[Phone: 'mobile']"
+);
+// Base email src:site → 'from Site' context segment (#37 preview parity).
+check(
+	'email src:site (base) → from Site',
+	bws_build_preview_label( [ 'src' => 'site', 'key' => 'org_email' ], 'email' ),
+	"[Email: 'org_email' from Site]"
 );
 // Missing-required warnings (text needs key unless title mode).
 check(

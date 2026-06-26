@@ -18,6 +18,7 @@
 
 - **Unified the email/phone source-resolution code.** `{{email}}` and `{{phone}}` previously carried byte-identical copies of the field-read pipeline; both now share one resolver (`bws_resolve_field_values`). No behavior change — the same field reads, validation, and list mode — but the contact tags (base, `try_`, `term_`) now read through one path, which is what lets `try_`/`term_` reach full parity. (Issue #32.)
 - **`try_` slot source/traversal options are now derived from the base builders** instead of hand-maintained inline copies, removing silent drift between a base tag's source options and its `try_` slots' (e.g. a missing `not:site` guard). Editor-surface only — no change to how tags resolve. (Issue #26.)
+- **Editor preview now shows a `from Site` context for `src:site` base tags** (e.g. `{{text src:site\|key:blogdescription}}` → `['blogdescription' from Site]`), matching the existing `from Term` / `from Ref 'X'` segments. Previously a site source rendered no context clause. Preview-only.
 
 ## [1.10.1] — 2026-06-12
 

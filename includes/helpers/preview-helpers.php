@@ -617,6 +617,13 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( 'ref' === $source_val && $ref ) {
 		$ctx_segments[] = "Ref '" . $ref . "'";
 	}
+	// Base-tag `src:site` → 'Site' context segment (yields "… from Site"). Site has
+	// no entity to hop from, so it never combines with ref/srcTermIn here; on a
+	// rooting modifier it is already short-circuited to the invalid-combo warning
+	// above, so this only fires for base tags. [#37 preview parity]
+	if ( 'site' === $source_val && ! $modifier_label ) {
+		$ctx_segments[] = 'Site';
+	}
 	if ( $src_term && ! $is_term_modifier ) {
 		// '→' arrow only when this hop segment follows another segment (modifier label
 		// or ref). When standalone (current post → term, no other context), drop arrow.

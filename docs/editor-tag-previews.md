@@ -41,6 +41,7 @@ Space-joined segments. The `→` separator precedes the term-hop segment only.
 | Condition | Segment |
 |---|---|
 | Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
+| `src:site` (base tag only) | `Site` (yields `… from Site`; never combines with ref/term-hop — site has no entity. On a modifier it is the invalid-combo warning instead) |
 | `src:ref` + `ref:X` set | `Ref 'X'` |
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
@@ -139,7 +140,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{image as:caption\|use:featured}}` | `[Image Caption: Featured]` |
 | `{{image as:url\|key:hero}}` | *(no preview — excluded)* |
 | `{{email key:contact_email}}` | `[Email: 'contact_email']` |
-| `{{email src:site\|key:org_email}}` | `[Email: 'org_email']` |
+| `{{email src:site\|key:org_email}}` | `[Email: 'org_email' from Site]` |
 | `{{email}}` | `[⚠ No field key set]` |
 | `{{datetime_single as:date}}` | `[Date like “April 24, 2026”]` |
 | `{{datetime_single as:time\|src:ref\|ref:event_date}}` | `[Time like “2:20 PM” from Ref 'event_date']` |
