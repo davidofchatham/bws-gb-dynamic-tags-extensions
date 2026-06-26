@@ -7,7 +7,7 @@
 - **`{{email}}` and `{{phone}}` now have full `try_` and `term_` variants**, generated from the shared modifier machinery — so a contact field gets the same first-available fallback chains and term-context resolution every other base tag already had.
   - **`try_email` / `try_phone`** build a fallback chain of up to 5 slots; the first slot that produces a value wins. Each slot resolves **exactly as the standalone tag would** — `try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link (with the same default-on link wrap, obfuscation, `tel:` rebuild, and validation as the base tag). This covers "personal email → team email → site-wide address" without stacking blocks and visibility conditions.
   - **A site-field slot is supported on `try_email` / `try_phone`** — site is the canonical contact fallback (personal address, then the site-wide one). A slot set to `src:site` reads the wp_options / ACF-options value, not current-post meta. (The other `try_*` tags still don't offer a site slot; that work is deferred per tag family.)
-  - **`term_email` / `term_phone`** read a contact field off a taxonomy term (the term itself, or a related post via `src:ref`).
+  - **`term_email` / `term_phone`** read a contact field off a taxonomy term (the term itself, or a related post via `src:ref`). They do **not** offer a `src:site` source — a rooting modifier surfaces term-distinct data, and a site read is entity-blind (it would just duplicate `{{email src:site}}`). For a site-wide contact read use the base tag or a `try_email`/`try_phone` site slot. ([#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
   - Both `try_` tags carry the same `visibility` gate as the base tags (hidden on `a`/`button`/`img`/`picture`) plus a runtime media-block backstop — a media block's empty `tagName` slips the native gate, so the tag now returns nothing inside a media block rather than corrupting the `<img src>` with a link.
 
 ### Added — `try_text` / `try_title` list mode (`limit` / `sep`)
@@ -18,10 +18,6 @@
 
 - **Unified the email/phone source-resolution code.** `{{email}}` and `{{phone}}` previously carried byte-identical copies of the field-read pipeline; both now share one resolver (`bws_resolve_field_values`). No behavior change — the same field reads, validation, and list mode — but the contact tags (base, `try_`, `term_`) now read through one path, which is what lets `try_`/`term_` reach full parity. (Issue #32.)
 - **`try_` slot source/traversal options are now derived from the base builders** instead of hand-maintained inline copies, removing silent drift between a base tag's source options and its `try_` slots' (e.g. a missing `not:site` guard). Editor-surface only — no change to how tags resolve. (Issue #26.)
-
-### Known limitation
-
-- `term_*` tags expose a `src:site` source value but have no site arm in the term-modifier callback (pre-existing, affects all `term_*` tags), so `term_email src:site` reads term meta under the option key rather than the site option. For a site-wide contact read use `try_email`/`try_phone` (site slot) or `{{email src:site}}`. Tracked in [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).
 
 ## [1.10.1] — 2026-06-12
 

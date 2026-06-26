@@ -57,7 +57,9 @@ A new named `use:` value (or per-source analog) MUST satisfy AT LEAST ONE of two
 
 A value failing both (datum already reachable AND no transform AND no cross-source slot) is proliferation → reject. "Feeds a multi-slot tag" is NOT sufficient (decouple via #26). This is a **decision-time process gate**, not a runtime invariant.
 
-Worked examples + verdicts: `tag-reference.md` §Qualifying test. Drove cutting `text use:tagline` (the site Tagline has a tag-less path — GB native `{{site_tagline}}` or `key:blogdescription`).
+**Applies at the SOURCE level too, not just `use` values.** Offering a *source* on a tag is the same gate: a source qualifies on a tag iff it's either uniquely useful there or fills a cross-source slot the tag's purpose implies. `src:site` on a single-slot **rooting modifier** (`term_*`, `view_*`) fails both — the site datum is the identical unrooted base read (`{{email src:site}}`) and site is entity-blind so it fills no entity-distinct slot → filtered from the modifier's `src` dropdown. The site rung's likely future home is a **pinned-resource source** (a probable `src:term,<ID>`-style construct, NOT final) inside a try_ chain (chains keep their site rung via `try_allow_site_slot`), NOT a `try_term_` form; `term_` is transitional, on a deprecation glide-path.
+
+Worked examples + verdicts: `tag-reference.md` §Qualifying test (incl. the source-level `term_ src:site` row). Drove cutting `text use:tagline` (the site Tagline has a tag-less path — GB native `{{site_tagline}}` or `key:blogdescription`).
 
 ## I5 — Label scope tracks source scope
 

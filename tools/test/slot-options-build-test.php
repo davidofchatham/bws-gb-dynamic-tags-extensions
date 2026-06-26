@@ -139,6 +139,35 @@ foreach ( array( $s1, $s2 ) as $s ) {
 }
 assert_same( 'V6 site absent from derived src options', false, $has_site );
 
+// ============ bws_filter_site_from_src — rooting-modifier src filter (#37) ============
+// term_/view_ tags omit `site`; the base tag keeps it. Same gate, source level (I4).
+echo "\nbws_filter_site_from_src (#37)\n";
+
+// Base source option still offers site (base tag is the unrooted site read).
+$base_has_site = false;
+foreach ( $base_src['src']['options'] as $o ) {
+	if ( 'site' === ( $o['value'] ?? '' ) ) { $base_has_site = true; }
+}
+assert_same( 'base src still offers site', true, $base_has_site );
+
+// Filtered (rooting-modifier) src drops site, keeps current + ref in order.
+$mod_src = bws_filter_site_from_src( $base_src );
+assert_same(
+	'rooting-modifier src = current,ref (site filtered)',
+	array(
+		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+	),
+	$mod_src['src']['options']
+);
+
+// Idempotent + non-mutating: re-filtering is a no-op, original untouched.
+assert_same( 'filter idempotent', $mod_src['src']['options'], bws_filter_site_from_src( $mod_src )['src']['options'] );
+assert_same( 'source_opt not mutated in place', true, in_array( 'site', array_column( $base_src['src']['options'], 'value' ), true ) );
+
+// _strip_default and other src props survive the filter.
+assert_same( 'filter preserves _strip_default', true, $mod_src['src']['_strip_default'] ?? null );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";

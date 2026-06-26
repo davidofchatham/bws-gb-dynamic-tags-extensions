@@ -605,6 +605,37 @@ function bws_base_source_option(): array {
 }
 
 /**
+ * Filter `site` out of a source-option definition.
+ *
+ * A rooting modifier (`term_*`, `view_*`) exists to surface ENTITY-DISTINCT data;
+ * a site read is entity-blind, so offering `site` there merely duplicates the
+ * unrooted base tag (`{{email src:site}}`) while discarding the rooting — it fails
+ * the qualifying gate on both arms (CONTEXT.md I4 source-level application;
+ * tag-reference.md §Qualifying test). register_modifier() routes its source dropdown
+ * through this before injecting it into every term_/view_ tag.
+ *
+ * Mirrors the slot-side filter in bws_build_slot_traversal_options() (which omits
+ * `site` from derived try_ slot src unless a template opts back in via
+ * try_allow_site_slot). A future "pinned-resource + site fallback" belongs in a
+ * try_ chain slot, NOT a single-slot rooting modifier. See [#37].
+ *
+ * @since 1.11.0
+ * @param array $source_opt A bws_base_source_option()-shaped array (key 'src').
+ * @return array Same shape with the `site` value removed from src options.
+ */
+function bws_filter_site_from_src( array $source_opt ): array {
+	if ( isset( $source_opt['src']['options'] ) && is_array( $source_opt['src']['options'] ) ) {
+		$source_opt['src']['options'] = array_values( array_filter(
+			$source_opt['src']['options'],
+			static function ( $opt ) {
+				return 'site' !== ( $opt['value'] ?? '' );
+			}
+		) );
+	}
+	return $source_opt;
+}
+
+/**
  * Build traversal sub-option definitions for the source dispatch.
  *
  * `ref` — shown when src:ref; the relationship field key for the hop.

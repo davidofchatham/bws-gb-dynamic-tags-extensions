@@ -111,6 +111,15 @@ class TagTemplateRegistry {
 		$source_opt     = function_exists( 'bws_base_source_option' )
 			? bws_base_source_option()
 			: array();
+
+		// Filter `site` out of the rooting-modifier source list — a rooting modifier
+		// (term_*, view_*) surfaces ENTITY-DISTINCT data; an entity-blind site read
+		// there just duplicates the unrooted base tag (fails the I4 gate both arms).
+		// Unconditional; no template re-allows it. Helper sits beside the option
+		// builder in base-tags.php (testable + parallel to the slot-side filter). [#37]
+		if ( function_exists( 'bws_filter_site_from_src' ) ) {
+			$source_opt = bws_filter_site_from_src( $source_opt );
+		}
 		$traversal_opts = function_exists( 'bws_base_traversal_options' )
 			? bws_base_traversal_options()
 			: array();
@@ -209,6 +218,16 @@ class TagTemplateRegistry {
 			$source = $opts['src'] ?? $opts['source'] ?? 'current';
 			if ( '' === $source ) {
 				$source = 'current';
+			}
+
+			// `site` is filtered from the rooting-modifier src dropdown (see register_modifier
+			// + CONTEXT.md I4). The UI filter can't stop a hand-typed `src:site`; guard it
+			// here so it resolves EMPTY rather than silently reading term meta under the
+			// option key (the #37 wrong-read). A site read belongs on the base tag. [#37]
+			if ( 'site' === $source ) {
+				return $is_preview && function_exists( 'bws_build_preview_label' )
+					? bws_build_preview_label( $opts, $tag_name )
+					: '';
 			}
 
 			$link_to  = $supports_link ? ( $opts['linkTo'] ?? 'none' ) : 'none';

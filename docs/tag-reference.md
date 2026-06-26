@@ -87,6 +87,7 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 | `datetime_*` site field | **Yes** — format chain (custom → ACF return-format → site default) | — | **keep** |
 | `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
 | `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **rejected** (fails both tests) |
+| `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "pinned resource + site fallback" is a pinned-resource source (a probable `src:term,<ID>`-style construct — **not final**) inside a try_ chain (which keeps its site rung via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
 
 The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
 
@@ -645,7 +646,7 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 
 **`term_email` / `term_phone`** — read the email/phone field off a taxonomy-term entity (the term itself at `src:current`, or a related post at `src:ref`). Same compose path as `{{email}}`/`{{phone}}`.
 
-> **Known limitation (term_ `src:site`):** `term_email`/`term_phone` expose a `src:site` source value, but the term-modifier callback has no site arm (pre-existing, term_*-wide — affects `term_text` etc. too), so a `term_email src:site` reads term meta under the option key rather than the site option. Use `try_email`/`try_phone` (which DO have the site arm) for a site-option read, or `{{email src:site}}`. Tracked as a follow-up issue.
+> **No `src:site` on `term_*`:** the `term_` source dropdown deliberately omits `site`. A rooting modifier exists to surface entity-distinct data; a site read is entity-blind, so `term_email src:site` would just duplicate `{{email src:site}}` while discarding the term rooting (fails the [qualifying test](#qualifying-test-for-new-use-values) on both arms). For a site-option read use the base tag (`{{email src:site}}`) or a `try_email`/`try_phone` site slot. (`site` was filtered before 1.11.0 was tagged — it never shipped as an offered `term_` source. [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
 
 ---
 
