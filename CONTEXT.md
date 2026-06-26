@@ -91,7 +91,7 @@ Single divider for list-joinability everywhere (base list mode + try_ I6 + read-
 
 ## Language
 
-Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). Provisional — being hardened in `.claude/plans/try-email-phone-and-slot-derivation.md`; not yet all built.
+Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). The L1/L2 seam is **built for email/phone** as the shared `bws_resolve_field_values` (field-helpers.php, 1.11.0 — retired the per-tag clones); other tags still inline their own L1/L2. Full unification (datetime param-overload retire, `src:ref` plural, #19 context kinds) is incremental — see `.claude/plans/try-email-phone-and-slot-derivation.md`.
 
 **Read target** (casual shorthand: **target**):
 The **declared read intent** of a tag — its (source + key) specification. `{src:ref|key:email}` is one read target. Either part may be **explicit** (written token) or **implicit** (stripped default / recovered: source unset → current/context-default; both unset on `{{title}}` → analog). The resolved *intent*, NOT the literal token string. (Implicit/explicit/unset axis: handoff source-analog mode terminology. **#19 = read targets with an implicit source resolved by WP context.**) "target" alone always means read target — NOT resolved source. _Avoid_: "entity", `{kind,id}`.
@@ -114,7 +114,7 @@ WHERE a tag's produced value lands, gating list-joinability. **Text-flow value**
 **L1 / L2 / L3** (layers executing a read target):
 - **L1 — resolve source:** source options → `ResolvedSource[]`. The *where*; no key. Recovers implicit/unset source (→ #19 context resolution).
 - **L2a — resolve field:** (resolved-source type × key options) → **resolved field** (which field/analog). I2 Model-B dispatch.
-- **L2b — fetch value:** (resolved source, resolved field) → **field value**. Dispatches post/term → meta, site → option. Once per (source × field). Current code: `bws_read_field` / `bws_site_read_option`.
+- **L2b — fetch value:** (resolved source, resolved field) → **field value**. Dispatches post/term → meta, site → option. Once per (source × field). Current code: `bws_read_field` / `bws_read_term_field` / `bws_site_read_option`; email/phone wrap L1+L2 as the shared `bws_resolve_field_values` (the seam — handles src:site, srcTermIn list mode, single post/term).
 - **L3 — assemble:** per-tag compose over sources × fields (implode/`sep`, datetime range, join template, mailto/tel wrap), landing in an output destination. Per-tag; L1/L2 shared.
 
 A tag reads **K fields × T sources** and assembles: text=1×1 (or 1×N via plural source), datetime/phone-ext=2×1, join=N×1, email-via-srcTermIn=1×N.
