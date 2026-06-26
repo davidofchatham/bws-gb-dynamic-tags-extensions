@@ -50,6 +50,8 @@ full design/rationale.
 | Block editor sidebar migration tool | Concept | memory `deferred_features.md` |
 | GB ↔ BWS tag cross-converter | Concept | memory `deferred_features.md` |
 | Traversal pipeline refactor | Likely | `.claude/plans/traversal-pipeline.md` |
+| Primary-source + ref-hop parity (`src:ref` hops only from ambient today; need pin-primary-then-hop). UX-open: likely a separate ref-step option per-`src`-value. Unifies with pinned-resource source | Exploratory | `.claude/plans/traversal-pipeline.md` §Problem (parity gap) |
+| `term_` deprecation path (subsumed by base + context-aware #19 + pinned-resource source; re-add registry-only after). NB `view_` does NOT follow — external plugin, may stay even when `src:view` lands | Exploratory | memory `project_term_deprecation_path.md` |
 | Deprecated tag removal (re-add as registry-only after) | Deferred | `.claude/plans/currently-deprecated-tags-work-quiet-snail.md` (branch `deprecated-tag-removal`) |
 | Datetime option-key cleanup (gated on deprecated removal) | Deferred | memory `project_open_refactors.md` |
 
