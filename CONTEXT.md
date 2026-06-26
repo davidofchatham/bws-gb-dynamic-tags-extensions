@@ -91,6 +91,22 @@ Single divider for list-joinability everywhere (base list mode + try_ I6 + read-
 
 ---
 
+## Tag structural vocabulary
+
+How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).
+
+**base tag**:
+An atomic tag that resolves ONE read target of its own (`text`, `title`, `image`, `email`, `phone`, `datetime_*`). The read-pipeline atom. `email`/`phone` are first-class base tags despite their own link mechanics ([tag-reference.md §Email/phone]).
+
+**modifier** (originally, and canonically, the **prefix** sense):
+A `register_modifier()`-generated **prefix** that fans ONE base tag out into a variant — `{{text}}` → `term_text`, `try_text`. "modifier" names the **prefix/fan-out registration topology**, NOT a behavior. The adjective says what the prefix does to its single wrapped base tag: **context modifier** (`term_`, `view_` — re-anchors the entity/source; [I4] "rooting") vs **functional modifier** (`try_` — alters the composition function over slots). Both fan out; both wrap.
+
+**Not a modifier ≠ a base tag.** A standalone tag that **absorbs multiple base tags as slots and assembles** their reads (`join`) is neither: not a prefix/fan-out (no `join_*`), and not an atom (resolves no read of its own — it composes base-tag reads). It occupies a THIRD structural position. ("**absorb**" is the house verb — base-tag *enhancements flow through automatically* to the slots: when `text` gains a feature, join's text slots absorb it. The behavioral-inheritance property, distinct from the moment-in-time structural containment.) A genus noun for the structural position is **deliberately deferred** — `join` is the only instance today; a standalone `{{try}}` collapse would be the second that earns the abstraction. Until then: describe it ("standalone, absorbs base tags, assembles"), don't name a genus.
+
+**Editor grouping ≠ structural class.** A consuming tag may share the base-tag GROUP in the GB picker for UX (precedent: `email`/`phone` sectioned with base tags for presentation, [tag-reference.md §base tags]) without BEING a base tag. Presentation grouping never implies structural identity.
+
+---
+
 ## Language
 
 Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). The L1/L2 seam is **built for email/phone** as the shared `bws_resolve_field_values` (field-helpers.php, 1.11.0 — retired the per-tag clones); other tags still inline their own L1/L2. Full unification (datetime param-overload retire, `src:ref` plural, #19 context kinds) is incremental — see `.claude/plans/try-email-phone-and-slot-derivation.md`.
