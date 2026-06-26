@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.11.0] — 2026-06-17
+## [1.11.0] — 2026-06-26
 
 ### Added — `try_email` / `try_phone` / `term_email` / `term_phone`
 
