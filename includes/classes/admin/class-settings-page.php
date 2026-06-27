@@ -281,6 +281,33 @@ class SettingsPage {
 	}
 
 	/**
+	 * Build the read-only `{{call}}` allowlist mirror rows (diagnostic, NOT config).
+	 *
+	 * Surfaces the live `bws_fn_passthrough_functions` allowlist + per-entry status
+	 * so an editor can discover which functions `{{call}}` will accept without the
+	 * admin touching the trust boundary (the allowlist is file/code-access only,
+	 * VC-empty/VC-allow). The same allowlist feeds the editor `fn:` select
+	 * (VC-select — one allowlist, two consumers).
+	 *
+	 * @since 1.12.0
+	 * @return array<int,array{fn:string,exists:bool,passes:bool}> Status rows.
+	 */
+	public static function get_call_allowlist_status(): array {
+		if ( ! function_exists( 'bws_call_get_allowlist' ) || ! function_exists( 'bws_call_passes_gate' ) ) {
+			return array();
+		}
+		$rows = array();
+		foreach ( array_keys( bws_call_get_allowlist() ) as $fn ) {
+			$rows[] = array(
+				'fn'     => (string) $fn,
+				'exists' => function_exists( $fn ),
+				'passes' => bws_call_passes_gate( (string) $fn ),
+			);
+		}
+		return $rows;
+	}
+
+	/**
 	 * Build a short Approach-A migration target string from a registry entry.
 	 *
 	 * Renders only the parts of the migration that are required for the migrated
@@ -711,6 +738,44 @@ class SettingsPage {
 										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Call Custom Function (read-only allowlist mirror) ── */ ?>
+				<?php $bws_call_rows = self::get_call_allowlist_status(); ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Call Custom Function', 'generateblocks' ); ?></h2>
+					<p class="bws-section-desc">
+						<?php esc_html_e( 'Read-only list of the functions the {{call}} tag will accept. This is a diagnostic mirror, not a setting: the allowlist lives in code (the bws_fn_passthrough_functions filter or bws_register_call_function()), not the database. {{call}} ships empty and runs nothing until a developer allowlists a function.', 'generateblocks' ); ?>
+					</p>
+					<table class="bws-tags-table widefat">
+						<tbody>
+						<?php if ( empty( $bws_call_rows ) ) : ?>
+							<tr class="bws-tag-row">
+								<td colspan="2"><em><?php esc_html_e( 'No functions allowlisted. {{call}} will output its fallback (or nothing) until a function is registered in code.', 'generateblocks' ); ?></em></td>
+							</tr>
+						<?php else : ?>
+							<?php foreach ( $bws_call_rows as $bws_call_row ) : ?>
+								<?php
+								$bws_call_ok    = $bws_call_row['exists'] && $bws_call_row['passes'];
+								$bws_call_label = $bws_call_ok
+									? __( 'OK', 'generateblocks' )
+									: ( ! $bws_call_row['exists']
+										? __( 'Not found (function does not exist)', 'generateblocks' )
+										: __( 'Refused (PHP built-in)', 'generateblocks' ) );
+								?>
+								<tr class="bws-tag-row">
+									<td class="bws-tag-checkbox" style="width:1.5em">
+										<span aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
+									</td>
+									<td>
+										<code><?php echo esc_html( $bws_call_row['fn'] ); ?></code>
+										<span class="bws-tag-name"><?php echo esc_html( $bws_call_label ); ?></span>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						<?php endif; ?>
 						</tbody>
 					</table>
 				</div>
