@@ -636,6 +636,45 @@ function bws_filter_site_from_src( array $source_opt ): array {
 }
 
 /**
+ * Keep ONLY the named source values in a src-option definition (allowlist).
+ *
+ * The complement of bws_filter_site_from_src() (a blocklist that drops `site`).
+ * Use the BLOCKLIST when a tag wants "every base source except X" (term_/view_
+ * rooting modifiers, generic try_ slots — they SHOULD inherit a future base
+ * source). Use this ALLOWLIST when a tag has a CLOSED source set and must NOT
+ * inherit new base values by default — e.g. `{{call}}` offers `current`/`ref`
+ * only (both post-yielding; a `$post_id` function can't consume a non-post
+ * source), so a future non-post base value must be excluded automatically, not
+ * leaked. Pulling the rows from bws_base_source_option() keeps the labels /
+ * `_strip_default` canonical instead of hand-copied.
+ *
+ * Order follows $keep (so the menu order is the caller's, not base's). A $keep
+ * value with no matching base row is silently skipped.
+ *
+ * @since 1.12.0
+ * @param array    $source_opt A bws_base_source_option()-shaped array (key 'src').
+ * @param string[] $keep       Source values to retain, in display order.
+ * @return array Same shape with src options reduced + reordered to $keep.
+ */
+function bws_pick_src_values( array $source_opt, array $keep ): array {
+	if ( ! isset( $source_opt['src']['options'] ) || ! is_array( $source_opt['src']['options'] ) ) {
+		return $source_opt;
+	}
+	$by_value = array();
+	foreach ( $source_opt['src']['options'] as $opt ) {
+		$by_value[ $opt['value'] ?? '' ] = $opt;
+	}
+	$picked = array();
+	foreach ( $keep as $value ) {
+		if ( isset( $by_value[ $value ] ) ) {
+			$picked[] = $by_value[ $value ];
+		}
+	}
+	$source_opt['src']['options'] = $picked;
+	return $source_opt;
+}
+
+/**
  * Build traversal sub-option definitions for the source dispatch.
  *
  * `ref` — shown when src:ref; the relationship field key for the hop.

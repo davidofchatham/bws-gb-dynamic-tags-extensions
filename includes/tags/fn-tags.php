@@ -64,37 +64,72 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<string,array> Map of function name => meta (meta unused in v1).
  */
 function bws_call_get_allowlist(): array {
-	$raw = apply_filters( 'bws_fn_passthrough_functions', array() );
-	if ( ! is_array( $raw ) || empty( $raw ) ) {
-		return array();
+	// Memoize the normalized list per registration generation. The filter result
+	// is invariant between registrations, so within a render pass (and across the
+	// rows of a query loop with one {{call}} each) this avoids re-running every
+	// registered filter closure + re-normalizing on every call. bws_call_bump_allowlist_generation()
+	// (fired by bws_register_call_function) invalidates it when the list changes.
+	static $cache = null;
+	static $cached_gen = -1;
+	$gen = bws_call_allowlist_generation();
+	if ( null !== $cache && $cached_gen === $gen ) {
+		return $cache;
 	}
 
-	// A pure list of bare strings → normalize each to `name => []`.
+	$raw = apply_filters( 'bws_fn_passthrough_functions', array() );
+	if ( ! is_array( $raw ) || empty( $raw ) ) {
+		$cache      = array();
+		$cached_gen = $gen;
+		return $cache;
+	}
+
+	$out = array();
 	if ( array_is_list( $raw ) ) {
-		$out = array();
+		// A pure list of bare strings → normalize each to `name => []`.
 		foreach ( $raw as $fn ) {
 			if ( is_string( $fn ) && '' !== $fn ) {
 				$out[ $fn ] = array();
 			}
 		}
-		return $out;
+	} else {
+		// Associative: not a list, so every key is a string (PHP only int-keys a
+		// list or an explicitly int-keyed array — neither documented entry path
+		// produces the latter). Keep string keys; coerce non-array meta to [].
+		foreach ( $raw as $fn => $meta ) {
+			if ( is_string( $fn ) && '' !== $fn ) {
+				$out[ $fn ] = is_array( $meta ) ? $meta : array();
+			}
+		}
 	}
 
-	// Associative (or mixed): keep string keys; coerce non-array meta to [].
-	$out = array();
-	foreach ( $raw as $fn => $meta ) {
-		// A mixed array may carry bare-string entries under integer keys.
-		if ( is_int( $fn ) ) {
-			if ( is_string( $meta ) && '' !== $meta ) {
-				$out[ $meta ] = array();
-			}
-			continue;
-		}
-		if ( is_string( $fn ) && '' !== $fn ) {
-			$out[ $fn ] = is_array( $meta ) ? $meta : array();
-		}
-	}
-	return $out;
+	$cache      = $out;
+	$cached_gen = $gen;
+	return $cache;
+}
+
+/**
+ * Monotonic generation counter for the `{{call}}` allowlist memo.
+ *
+ * Bumped by bws_register_call_function() whenever it adds a filter, so the
+ * bws_call_get_allowlist() request-scoped cache invalidates exactly when the
+ * list could have changed. Raw `add_filter` callers that bypass the helper
+ * should call bws_call_bump_allowlist_generation() if they add entries after a
+ * read (rare — most register before any render).
+ *
+ * @since 1.12.0
+ * @return int Current generation.
+ */
+function bws_call_allowlist_generation(): int {
+	return $GLOBALS['bws_call_allowlist_gen'] ?? 0;
+}
+
+/**
+ * Invalidate the `{{call}}` allowlist memo (see bws_call_allowlist_generation).
+ *
+ * @since 1.12.0
+ */
+function bws_call_bump_allowlist_generation(): void {
+	$GLOBALS['bws_call_allowlist_gen'] = ( $GLOBALS['bws_call_allowlist_gen'] ?? 0 ) + 1;
 }
 
 /**
@@ -121,14 +156,24 @@ function bws_call_get_allowlist(): array {
  */
 function bws_call_passes_gate( string $fn ): bool {
 	if ( '' === $fn || ! function_exists( $fn ) ) {
-		return false;
+		return false; // NOT cached — a function not yet defined may be defined later.
 	}
+
+	// Reflection is the costly part and a defined function's internal-ness is
+	// immutable within a request, so memoize the verdict per name (keyed only
+	// once function_exists is true). Spares a ReflectionFunction construction on
+	// every render — e.g. one {{call}} per row across a long query loop.
+	static $verdict = array();
+	if ( isset( $verdict[ $fn ] ) ) {
+		return $verdict[ $fn ];
+	}
+
 	try {
 		$ref = new ReflectionFunction( $fn );
 	} catch ( \ReflectionException $e ) {
-		return false;
+		return false; // NOT cached — transient reflection failure.
 	}
-	return ! $ref->isInternal();
+	return $verdict[ $fn ] = ! $ref->isInternal();
 }
 
 /**
@@ -142,7 +187,8 @@ function bws_call_passes_gate( string $fn ): bool {
  * but UNUSED in v1.
  *
  * @invariant VC-gate — gate run at registration (and again at resolve).
- * @invariant VC-allow — appends associatively (`$fn => $meta`).
+ * @invariant VC-allow — stores associatively (`$fn => $meta`), last-write-wins
+ *   on re-registration (assignment, NOT a `+` union).
  *
  * @since 1.12.0
  * @param string $fn   Function name to allowlist.
@@ -164,35 +210,34 @@ function bws_register_call_function( string $fn, array $meta = array() ): bool {
 			if ( ! is_array( $list ) ) {
 				$list = array();
 			}
+			// Last-write-wins: re-registering a function with richer meta should
+			// UPDATE the entry, not be discarded (which `$list + [$fn => $meta]`,
+			// a union, would do). v1 meta is unused so this is latent until v2.
 			$list[ $fn ] = $meta;
 			return $list;
 		}
 	);
+	bws_call_bump_allowlist_generation(); // invalidate the get_allowlist memo.
 	return true;
 }
 
 /**
  * Build the source dropdown for `{{call}}` — post-yielding sources ONLY.
  *
- * Bespoke 2-value menu (`current` + `ref`); site/srcTermIn are simply never
- * offered (VC2). Not derived-and-filtered from bws_base_source_option() because
- * there is nothing to filter — only the two post-yielding values exist here.
+ * Derived from bws_base_source_option() via the ALLOWLIST helper
+ * bws_pick_src_values() (keep current + ref), NOT a hand-copied menu. The
+ * allowlist (not the `site`-blocklist bws_filter_site_from_src) is the right
+ * primitive here: `{{call}}` has a CLOSED source set (both values post-yielding,
+ * since a `$post_id`-contract function can't consume a non-post source, VC2), so
+ * a future non-post base source must be excluded by default, not inherited. The
+ * `current`/`ref` labels + `_strip_default` come from base, so they stay
+ * canonical instead of drifting.
  *
  * @since 1.12.0
  * @return array Single-entry array keyed 'src'.
  */
 function bws_call_source_option(): array {
-	return array(
-		'src' => array(
-			'type'           => 'select',
-			'label'          => __( 'Source', 'generateblocks' ),
-			'options'        => array(
-				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
-				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
-			),
-			'_strip_default' => true,
-		),
-	);
+	return bws_pick_src_values( bws_base_source_option(), array( 'current', 'ref' ) );
 }
 
 /**
@@ -201,6 +246,15 @@ function bws_call_source_option(): array {
  * The select is POPULATED IN PHP at registration time (VC-select) — no JS is
  * involved (the conditional-options JS only does show/hide). v1 uses the raw
  * function name as both value and label; pretty labels ride the v2 `$meta` flip.
+ *
+ * CONTRACT — register functions on/before `init` (the tag-registration pass).
+ * GB snapshots a tag's option `options` array when the tag registers, so a
+ * function allowlisted LATER (a hook after the tag pass) still RESOLVES at render
+ * (the callback re-reads the live allowlist) but will not appear in this editor
+ * dropdown until the next registration pass. The read-only admin mirror reads
+ * the live allowlist, so a late-registered function is still visible there — the
+ * mirror is the escape hatch. (#2 from the 1.12.0 review; A: document, don't
+ * chase GB internals for an edge a developer controls.)
  *
  * @since 1.12.0
  * @return array[] GB select option rows ([ 'value' => fn, 'label' => fn ]).
@@ -236,6 +290,13 @@ function bws_register_call_tag(): void {
 	}
 	$registered = true;
 
+	// Reuse the canonical relationship-field control (label / placeholder /
+	// show_if) from the base traversal builder; override only the help to name
+	// the {{call}} semantics (the related post the function runs on). Avoids the
+	// hand-copied drift the two definitions had.
+	$ref_opt         = bws_base_traversal_options()['ref'];
+	$ref_opt['help'] = __( 'ACF relationship or post object field key (the related post the function runs on).', 'generateblocks' );
+
 	new GenerateBlocks_Register_Dynamic_Tag( array(
 		'title'    => __( 'Call Custom Function', 'generateblocks' ),
 		'tag'      => 'call',
@@ -244,13 +305,7 @@ function bws_register_call_tag(): void {
 		'options'  => bws_strip_default_select_values( array_merge(
 			bws_call_source_option(),
 			array(
-				'ref'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Relationship Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF relationship or post object field key (the related post the function runs on).', 'generateblocks' ),
-					'placeholder' => 'related_posts',
-					'show_if'     => array( 'src' => 'ref' ),
-				),
+				'ref'      => $ref_opt,
 				'fn'       => array(
 					'type'           => 'select',
 					'label'          => __( 'Function', 'generateblocks' ),
@@ -332,6 +387,17 @@ function bws_call_build_args( int $post_id, array $options ): array {
  * @return string Function output (verbatim), or the fallback.
  */
 function bws_call_callback( $options, $block, $instance ): string {
+	// Media-block guard — a GB media block has an empty `tagName` (no editor
+	// control sets it), so it slips any native `visibility` gate, yet GB injects
+	// the tag's output straight into the `<img src>`. {{call}} emits an arbitrary
+	// UNESCAPED function string (VC3), so on a media block that string would
+	// corrupt the src attribute (quotes/markup/spaces) — strictly worse than the
+	// controlled <a> wrap the same guard blocks for {{phone}}/{{email}}. Return
+	// nothing rather than poison the attribute. (Mirrors bws_phone_callback.)
+	if ( function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $block ) ) {
+		return '';
+	}
+
 	$options    = (array) $options;
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 	$fallback   = (string) ( $options['fallback'] ?? '' );

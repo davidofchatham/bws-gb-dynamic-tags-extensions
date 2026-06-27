@@ -92,39 +92,54 @@ function assert_same( $label, $expected, $actual ): void {
 // ---------------------------------------------------------------------------
 echo "bws_call_get_allowlist (VC-allow)\n";
 
-$GLOBALS['__bws_test_allowlist'] = array();
+// bws_call_get_allowlist() memoizes per registration generation, so each test
+// that changes the backing filter must bump the generation — exactly the
+// contract a raw add_filter caller follows (bws_call_bump_allowlist_generation).
+function set_allowlist( $value ): void {
+	$GLOBALS['__bws_test_allowlist'] = $value;
+	bws_call_bump_allowlist_generation();
+}
+
+set_allowlist( array() );
 assert_same( 'empty filter → []', array(), bws_call_get_allowlist() );
 
-$GLOBALS['__bws_test_allowlist'] = array( 'foo', 'bar' );
+set_allowlist( array( 'foo', 'bar' ) );
 assert_same(
 	'bare-string list normalized to assoc',
 	array( 'foo' => array(), 'bar' => array() ),
 	bws_call_get_allowlist()
 );
 
-$GLOBALS['__bws_test_allowlist'] = array( 'foo' => array( 'label' => 'Foo' ) );
+set_allowlist( array( 'foo' => array( 'label' => 'Foo' ) ) );
 assert_same(
 	'associative preserved (meta kept)',
 	array( 'foo' => array( 'label' => 'Foo' ) ),
 	bws_call_get_allowlist()
 );
 
-$GLOBALS['__bws_test_allowlist'] = array( 'foo' => 'notarray' );
+set_allowlist( array( 'foo' => 'notarray' ) );
 assert_same(
 	'assoc with non-array meta coerced to []',
 	array( 'foo' => array() ),
 	bws_call_get_allowlist()
 );
 
-$GLOBALS['__bws_test_allowlist'] = array( '', 'bar' );
+set_allowlist( array( '', 'bar' ) );
 assert_same(
 	'empty-string entry dropped',
 	array( 'bar' => array() ),
 	bws_call_get_allowlist()
 );
 
-$GLOBALS['__bws_test_allowlist'] = 'not-an-array';
+set_allowlist( 'not-an-array' );
 assert_same( 'non-array filter → []', array(), bws_call_get_allowlist() );
+
+// Memo invariance: WITHOUT a generation bump, a second read returns the cached
+// result even though the backing filter changed (the production contract).
+$GLOBALS['__bws_test_allowlist'] = array( 'stale' => array() ); // no bump
+assert_same( 'memo holds until generation bumps', array(), bws_call_get_allowlist() );
+bws_call_bump_allowlist_generation();
+assert_same( 'memo refreshes after bump', array( 'stale' => array() ), bws_call_get_allowlist() );
 
 // ---------------------------------------------------------------------------
 echo "bws_call_passes_gate (VC-gate)\n";
