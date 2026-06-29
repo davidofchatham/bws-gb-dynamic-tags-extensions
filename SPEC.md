@@ -65,6 +65,8 @@ Add a `{{call}}` tag that binds the loop-correct post entity (L1 post-resolution
 
 **VC-fail** Failure taxonomy, 3 buckets: **Bucket A** (not-in-allowlist / `function_exists` false / fails `isInternal`) → fallback + editor ⚠ warning (config/safety drift, JS-available so warn client-side live), no log. **Bucket B** (post unresolvable / non-string-or-empty return) → fallback, silent (legitimate data-absence). **#6** (function throws/fatals) → catch `\Throwable`, ALWAYS `error_log` (never debug-gated), public output = fallback, the exception message NEVER reaches the page.
 
+**VC-load** The public registration API (`bws_register_call_function` + its allowlist/gate dependencies, i.e. all of `fn-tags.php`) is defined at PLUGIN LOAD — a top-level `require` in the main file, BEFORE `init` and OUTSIDE the dependency-gated init and the init:20 tag pass. Reason: site code registers functions on `init` (commonly the default priority 10, EARLIER than the plugin's init:20 tag pass); if the function were defined only in that pass, an init:10 caller fatals with "Call to undefined function". The GB tag REGISTRATION (`bws_register_call_tag`) still runs in the init:20 pass; only the function DEFINITIONS load early. `fn-tags.php` must therefore have no load-time side effects (pure defs; the only WP/GB symbols it touches — `bws_resolve_post_by_source`, `bws_strip_default_select_values`, base option builders, `bws_tag_blocked_on_media_block` — are referenced only inside functions that run at/after init:20, never at require). Generalizes to any plugin exposing a developer registration API: the API symbol must outlive-precede the hook on which callers invoke it.
+
 ---
 
 ## §T — Tasks
@@ -89,3 +91,4 @@ Add a `{{call}}` tag that binds the loop-correct post entity (L1 post-resolution
 
 | id | date | cause | fix |
 |----|------|-------|-----|
+| B1 | 2026-06-29 | `bws_register_call_function()` was defined only inside the init:20 tag-registration pass (`fn-tags.php` required there). A site snippet calling it on `init` at the default priority 10 (before :20) hit `Call to undefined function bws_register_call_function()` → fatal. Shipped docs ("register on/before init") actively reproduced it. | Load `fn-tags.php` at plugin top level (after `autoload.php`), before any `init`, so the registration API exists whenever a caller runs; GB tag registration stays at init:20. Docs corrected to "register on `init` (any priority)". → VC-load |

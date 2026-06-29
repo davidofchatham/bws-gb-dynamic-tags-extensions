@@ -247,14 +247,15 @@ function bws_call_source_option(): array {
  * involved (the conditional-options JS only does show/hide). v1 uses the raw
  * function name as both value and label; pretty labels ride the v2 `$meta` flip.
  *
- * CONTRACT — register functions on/before `init` (the tag-registration pass).
- * GB snapshots a tag's option `options` array when the tag registers, so a
- * function allowlisted LATER (a hook after the tag pass) still RESOLVES at render
- * (the callback re-reads the live allowlist) but will not appear in this editor
- * dropdown until the next registration pass. The read-only admin mirror reads
- * the live allowlist, so a late-registered function is still visible there — the
- * mirror is the escape hatch. (#2 from the 1.12.0 review; A: document, don't
- * chase GB internals for an edge a developer controls.)
+ * CONTRACT — register functions on `init` (any priority). `bws_register_call_function`
+ * is defined at plugin load (top-level require, before `init`), so an `init`
+ * callback at any priority can call it safely. The plugin builds THIS dropdown
+ * during its own init:20 tag pass, so a function registered on init BEFORE :20
+ * (the default priority 10 included) appears in the dropdown; one registered at
+ * a LATER hook still RESOLVES at render (the callback re-reads the live allowlist)
+ * but won't appear here until the next pass. The read-only admin mirror reads the
+ * live allowlist, so a late-registered function is always visible there — the
+ * mirror is the escape hatch. (#2 from the 1.12.0 review.)
  *
  * @since 1.12.0
  * @return array[] GB select option rows ([ 'value' => fn, 'label' => fn ]).
