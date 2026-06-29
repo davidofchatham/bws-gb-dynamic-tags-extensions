@@ -746,32 +746,50 @@ class SettingsPage {
 				<?php $bws_call_rows = self::get_call_allowlist_status(); ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Call Custom Function', 'generateblocks' ); ?></h2>
-					<p class="bws-section-desc">
-						<?php esc_html_e( 'Read-only list of the functions the {{call}} tag will accept. This is a diagnostic mirror, not a setting: the allowlist lives in code (the bws_fn_passthrough_functions filter or bws_register_call_function()), not the database. {{call}} ships empty and runs nothing until a developer allowlists a function.', 'generateblocks' ); ?>
-					</p>
+					<div class="bws-section-desc">
+						<p style="margin-top:0">
+							<?php esc_html_e( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:', 'generateblocks' ); ?>
+						</p>
+						<pre style="margin:0 0 8px;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;overflow:auto"><code>add_action( 'init', function () {
+    bws_register_call_function( 'my_result' );
+} );
+
+function my_result( $post_id, $arg = '' ) {
+    return '&lt;span&gt;' . esc_html( get_the_title( $post_id ) ) . '&lt;/span&gt;';
+}</code></pre>
+						<p style="margin:0">
+							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
+						</p>
+					</div>
+					<h3 class="bws-call-subhead"><?php esc_html_e( 'Registered functions', 'generateblocks' ); ?></h3>
 					<table class="bws-tags-table widefat">
 						<tbody>
 						<?php if ( empty( $bws_call_rows ) ) : ?>
 							<tr class="bws-tag-row">
-								<td colspan="2"><em><?php esc_html_e( 'No functions allowlisted. {{call}} will output its fallback (or nothing) until a function is registered in code.', 'generateblocks' ); ?></em></td>
+								<td colspan="2"><em><?php esc_html_e( 'No functions registered yet.', 'generateblocks' ); ?></em></td>
 							</tr>
 						<?php else : ?>
 							<?php foreach ( $bws_call_rows as $bws_call_row ) : ?>
 								<?php
-								$bws_call_ok    = $bws_call_row['exists'] && $bws_call_row['passes'];
-								$bws_call_label = $bws_call_ok
-									? __( 'OK', 'generateblocks' )
+								$bws_call_ok = $bws_call_row['exists'] && $bws_call_row['passes'];
+								// Glyph = at-a-glance status. Text shown ONLY for a failure (the
+								// reason a glyph can't carry); an OK row needs no redundant "OK".
+								$bws_call_problem = $bws_call_ok
+									? ''
 									: ( ! $bws_call_row['exists']
 										? __( 'Not found (function does not exist)', 'generateblocks' )
 										: __( 'Refused (PHP built-in)', 'generateblocks' ) );
 								?>
 								<tr class="bws-tag-row">
 									<td class="bws-tag-checkbox" style="width:1.5em">
-										<span aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
+										<span class="<?php echo $bws_call_ok ? 'bws-call-ok' : 'bws-call-warn'; ?>" aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
+										<span class="screen-reader-text"><?php echo $bws_call_ok ? esc_html__( 'OK', 'generateblocks' ) : esc_html( $bws_call_problem ); ?></span>
 									</td>
 									<td>
 										<code><?php echo esc_html( $bws_call_row['fn'] ); ?></code>
-										<span class="bws-tag-name"><?php echo esc_html( $bws_call_label ); ?></span>
+										<?php if ( '' !== $bws_call_problem ) : ?>
+											<span class="bws-tag-name"><?php echo esc_html( $bws_call_problem ); ?></span>
+										<?php endif; ?>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -832,6 +850,16 @@ class SettingsPage {
 				border-top: none;
 				border-bottom: none;
 			}
+			.bws-dynamic-tags-settings .bws-call-subhead {
+				margin: 0;
+				padding: 8px 12px;
+				background: #fff;
+				border: 1px solid #c3c4c7;
+				border-bottom: none;
+				font-size: 13px;
+			}
+			.bws-dynamic-tags-settings .bws-call-ok   { color: #008a20; font-weight: 600; }
+			.bws-dynamic-tags-settings .bws-call-warn { color: #b32d2e; font-weight: 600; }
 			.bws-dynamic-tags-settings .bws-tags-table { border-top: none; }
 			.bws-dynamic-tags-settings .bws-tag-row td { padding: 6px 12px; vertical-align: middle; }
 			.bws-dynamic-tags-settings .bws-tag-checkbox { width: 30px; }

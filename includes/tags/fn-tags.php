@@ -140,7 +140,11 @@ function bws_call_bump_allowlist_generation(): void {
  *   1. function_exists( $fn )
  *   2. ( new ReflectionFunction( $fn ) )->isInternal() === false — the HARD gate;
  *      blocks PHP builtins (system / exec / unlink / eval-likes), reducing the
- *      surface to site-defined functions.
+ *      surface to site-defined functions. NB isInternal() is true ONLY for the
+ *      PHP runtime / C-extension stdlib; it is false for ALL userland PHP, so
+ *      WordPress core (get_the_title, get_post_meta, …), plugin/theme, and the
+ *      site's own functions all PASS. The gate keeps a raw C primitive off the
+ *      allowlist; it does not judge WP/site code.
  *
  * There is NO machine contract check: site functions are untyped, so reflection
  * cannot distinguish `bws_get_game_result($post_id)` from

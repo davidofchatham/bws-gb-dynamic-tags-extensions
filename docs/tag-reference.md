@@ -88,6 +88,7 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 | `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
 | `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **rejected** (fails both tests) |
 | `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "pinned resource + site fallback" is a pinned-resource source (a probable `src:term,<ID>`-style construct — **not final**) inside a try_ chain (which keeps its site rung via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
+| `src:site` / `srcTermIn` on `{{call}}` | **No** — neither yields a post id, and a `$post_id`-contract function cannot consume a wp_options namespace or a term set | **No** — `{{call}}` exists to bind a POST for a post-shaped function; a non-post source fills no post-binding slot | **rejected** — `{{call}}` offers `src:current` + `src:ref` ONLY (both post-yielding). Same I4 gate applied at the **source** level rather than the `use:`-value level. Post-context-only is a stated design non-goal, not a gap to close. See [§Call tag](#call-tag). |
 
 The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
 
@@ -278,6 +279,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | *(no term_ variant)* | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | *(no term_ variant)* | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
+| `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
 
@@ -626,6 +628,59 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 ```
 
 **Tests.** Normalization (`bws_phone_normalize_tel` + sub-helpers) is pinned by a standalone, WP-free harness: `php tools/test/phone-normalize-test.php` (run on any change to normalize/trunk-strip/length-gate/strip-CC). End-to-end source/list/render/settings coverage is the standing manual matrix [`tools/test/phone-test-matrix.md`](../tools/test/phone-test-matrix.md), which carries its own re-run trigger.
+
+---
+
+## Call tag
+
+`{{call}}` (1.12.0) runs an allowlisted, site-defined PHP function and outputs its return string. It is **NOT a base tag** — it is a structural outlier living in `includes/tags/fn-tags.php` (GB type `'post'`, not `'cross-source'`). It exists for display values too conditional for base tags to assemble (a function that branches on a term name, formats a score, looks up an indicator from a table). Rather than rig a fragile multi-tag composition, `{{call}}` hands the work to one PHP function.
+
+**A fourth structural position.** Beyond base / modifier / join-absorber, `{{call}}` reuses **L1 post-resolution ONLY** — it binds the loop-correct post entity via `bws_resolve_post_by_source`, then **delegates to an opaque PHP function**. There is no L2 resolve-field, no L2b fetch, no L3 assemble; no resolved field, no field value. The output is opaque to the read pipeline: a single string, no list mode, no composite, no analog. It sits outside the try_ transparency / list-mode destination model.
+
+**Post-context-only — a stated design non-goal, not a gap.** The source menu offers **Current** + **In Reference/Relational Field** ONLY; both resolve to a post id, exactly what a `$post_id`-contract function consumes. `src:site` (a wp_options namespace) and `srcTermIn` (terms) are deliberately **not offered** — neither is a post id, a `$post_id` function cannot consume them, and they add no post-binding affordance (the [qualifying test](#qualifying-test-for-new-use-values) applied at the source level). A future reader must not "fix" this by adding term/site sources: the post binding is the entire purpose. The GB type is `'post'` precisely because `{{call}}` has none of the term/site/media/taxonomy editor features `'cross-source'` implies.
+
+**Known limit — flat repeater rows.** `bws_resolve_post_by_source` resolves a post id. Mode 2a loops (relationship / post-object — the row IS a post) resolve and are the driver. Mode 2b (a flat ACF repeater row with no underlying post) returns false for `src:current`; there is no post to bind, and the `$post_id` function contract cannot consume a bag of row fields. Passing current-repeater-row fields into a function needs a different fn contract + a new src mode — a separate, deferred design, not a bug.
+
+**Allowlist — code, not the database.** The source of truth is the `bws_fn_passthrough_functions` filter (default empty). Register either way: the raw filter (power users / bulk), or the `bws_register_call_function( 'my_fn', $meta = [] )` helper (runs the gate at registration and fails fast via `_doing_it_wrong`). Storage is associative from v1 (`[ 'my_fn' => [] ]`); bare-string filter entries are normalized to that shape on read; re-registering a name overwrites its meta (last-write-wins, so a richer v2 meta update sticks). `$meta` is stored but unused in v1 (pretty labels / `post_id_arg` are future). The trust boundary is **file/code access only** — no DB-write widening — so `{{call}}` grants editors no capability a developer didn't already hold in PHP. It is a routing convenience, not privilege escalation.
+
+**Register on `init` (any priority).** `bws_register_call_function()` is defined at plugin load (a top-level `require`, before `init`), so an `init` callback can call it at any priority without a "Call to undefined function" fatal — including the default priority 10, which is earlier than the plugin's own init:20 tag pass. The editor `fn:` dropdown is built from the allowlist during that init:20 pass (GB snapshots a tag's option list at registration), so a function registered on init *before* :20 (default 10 included) appears in the dropdown; one registered at a *later* hook still **resolves at render** (the callback re-reads the live allowlist) but won't appear in the dropdown until the next pass. The read-only admin mirror reads the live allowlist and so always shows a late-registered function, making it the escape hatch for an "it runs but isn't pickable" case.
+
+**Security gate — security-only, NOT a contract check.** Every candidate clears two checks at registration AND defensively at resolve: (1) `function_exists`; (2) `ReflectionFunction::isInternal() === false` — the hard gate, which blocks every PHP builtin (`system` / `exec` / `unlink` / eval-likes), reducing the surface to site-defined functions.
+
+**What "built-in" means here (`isInternal`).** `isInternal()` is true ONLY for functions compiled into the PHP runtime itself or a loaded C extension (the standard library: `strlen`, `array_map`, `system`, `file_get_contents`, …). It is **false for all userland PHP** — functions defined in `.php` source at runtime. So **WordPress core functions (`get_the_title`, `get_post_meta`, `wp_kses`, …), plugin/theme functions, and your own `{{call}}` functions all PASS the gate** — they are userland, not built-ins. The gate's sole job is to keep a raw C-level primitive (a shell/eval/filesystem call) off the allowlist; it does not, and is not meant to, judge WordPress or site code. (Allowlisting `get_the_title` directly would pass the gate but is pointless — `{{title}}` already covers it; the gate is a safety floor, not a usefulness filter.)
+
+There is **no machine contract check**: site functions are untyped, so reflection cannot tell `my_result($post_id)` from `my_format($date_format)`. **post_id-first is a developer convention** upheld when allowlisting (the same act as vouching the function is safe to call), never machine-verified; a mis-signatured function mis-receives the post id, which is the file-access developer's responsibility.
+
+**Argument.** post_id is **always position 0** (hardcoded). The optional single **Argument** is passed as position 1 only when non-empty (sanitized with `sanitize_text_field`); left empty, the function's own default fires (e.g. `$format = 'full'`). This collapses behavior variants (`full` / `short`) into argument values instead of separate named functions. (A multi-arg control is future; tag-level repointing of the post-id position is a future registration-level seam, never a tag option.)
+
+**Output — verbatim, unescaped.** The function MUST return a string, surfaced raw. The **function owns its own escaping** — real functions return trusted display HTML (`<span>`, `&nbsp;`, `—`); the allowlist (developer-vetted) is the trust boundary, and double-escaping would break every real use.
+
+**Failure taxonomy — 3 buckets.** **Bucket A** (function not allowlisted / `function_exists` false / fails `isInternal`) → fallback, plus an editor ⚠ warning (config/safety drift). **Bucket B** (post unresolvable / non-string-or-empty return) → fallback, silent (legitimate data-absence). **Throw/fatal** → caught (`\Throwable`), **always** logged to `error_log` (never debug-gated — a function fataling is a real error every time), output is the fallback, and **the exception message never reaches the page** (no leaking internals or paths). The catch exists because of the opacity — no base tag try/catches a field read, but `{{call}}` runs arbitrary site code.
+
+**Editor preview — intentionally inert.** `{{call}}` is the **exception** to the plugin's normal value-preview behavior: most tags resolve a real value in the editor, but `{{call}}` deliberately does **NOT** execute the function to preview. This is a safety refusal — allowlisted functions are vetted for `isInternal`-safety, not purity/idempotency, so running them on every editor keystroke is unacceptable; and the loop-correct post id does not exist at editor time, so a run would mislead anyway. The preview is config-describing only (`Function: my_fn (arg) from Ref '…'`), with an empty-function warning. See [`editor-tag-previews.md`](editor-tag-previews.md).
+
+**Distribution.** Pure developer tool: the plugin ships the tag, resolver wiring, security gate, failure handling, editor select, admin mirror, and the `bws_register_call_function` helper, but an **empty** allowlist and **no built-in functions** — it produces nothing until the site supplies both the function and an allowlist entry. The editor `fn:` select and a **read-only allowlist mirror** (Settings → Tag Extensions → Call Custom Function — function name + exists/passes-gate status) are the allowlist's two consumers.
+
+**Options:**
+
+| Option | Type / control | Label | Shown when | Notes |
+|---|---|---|---|---|
+| `src` | select | Source | always | `current` / `ref` ONLY (no `site`/`srcTermIn`); default `current` (stripped). Bespoke 2-value menu (`bws_call_source_option`). |
+| `ref` | text | Relationship Field Key | `src:ref` | The related post the function runs on. |
+| `fn` | select | Function | always | Allowlisted function name; options populated in PHP from the allowlist (`bws_call_fn_select_options`). Default empty (stripped). |
+| `arg` | text | Argument | always | Optional single argument (position 1); sanitized; absent → the function's own default. |
+| `fallback` | text | Fallback | always | Text output when the function is unavailable, returns nothing, or errors. |
+
+**Wire-format examples:**
+
+```
+{{call fn:bws_get_game_result}}                                  → function output (current post)
+{{call src:ref|ref:games|fn:bws_get_game_result}}                → output for the related "games" post
+{{call fn:get_game_date_for_display|arg:short}}                  → output with arg "short" (else the fn default)
+{{call fn:bws_get_game_result|fallback:—}}                       → "—" if unavailable / empty / errors
+```
+
+**Tests.** The pure helpers (allowlist read+normalize, security gate, argument builder) are pinned by a standalone, WP-free harness: `php tools/test/call-tag-test.php`. The GB-bound register/callback paths and the editor preview are exercised manually in a WordPress environment.
 
 <a id="phone-deferred"></a>
 **Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.

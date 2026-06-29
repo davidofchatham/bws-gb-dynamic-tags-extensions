@@ -180,6 +180,24 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 `try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ slot N no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
 
+## `{{call}}` preview — intentionally inert (does NOT execute the function)
+
+`{{call}}` (1.12.0) is the **deliberate exception** to the plugin's normal value-preview behavior. Most tags resolve a real value in the editor preview (outside template context). `{{call}}` does **NOT** — it never runs the allowlisted function to build its preview. This is a **safety refusal**, not an oversight:
+
+1. Allowlisted functions are vetted for `isInternal`-safety, **not** purity / idempotency — running them on every editor load / keystroke is unacceptable (a function may write, send mail, hit an API).
+2. The loop-correct post id does not exist at editor time, so a run would resolve against the wrong (or no) post and mislead anyway.
+
+So the preview is **config-describing only**, built by the `call` branch in `bws_build_preview_label`:
+
+| Tag config | Preview |
+|---|---|
+| `{{call fn:my_fn}}` | `[Function: my_fn]` |
+| `{{call fn:my_fn\|arg:short}}` | `[Function: my_fn (short)]` |
+| `{{call src:ref\|ref:games\|fn:my_fn}}` | `[Function: my_fn from Ref 'games']` |
+| `{{call}}` (no `fn`) | `[⚠ No function set]` |
+
+`(arg)` is appended when `arg` is set; the `from <source>` segment reuses the shared context-part machinery (`Current` / `Ref '…'`). A missing `fn` is the bucket-A drift warning ([tag-reference.md §Call tag] failure taxonomy). The live allowlist-membership warning is client-side (the allowlist is JS-available); this PHP path catches the empty-`fn` case. **A contributor must not "fix" this to match other tags by executing the function — the inert behavior is intentional.**
+
 ## Tests
 
 Non-datetime label assembly is pinned by a standalone harness — **no WordPress, no PHPUnit**:
