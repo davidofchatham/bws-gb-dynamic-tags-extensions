@@ -109,6 +109,14 @@ A `register_modifier()`-generated **prefix** that fans ONE base tag out into a v
 
 ---
 
+## Registration-API load order
+
+**A public developer registration API must be DEFINED before the hook on which callers invoke it.** A `bws_register_*()` function that site code calls (snippets, theme `functions.php`) has to exist by the time those callers run. Site code conventionally registers on `init` at the default priority 10; the plugin's own tag pass runs at `init:20` (later). So the file *defining* the API must load at **plugin top level** (before `init`), NOT inside the deferred init pass that *uses* it — otherwise an `init:10` caller hits a "Call to undefined function" fatal. Only the function DEFINITIONS load early; the GB tag REGISTRATION that consumes them still runs in the init pass. The early-loaded file must therefore have **no load-time side effects** (the WP/GB symbols it references are touched only inside functions that run at/after the init pass, never at `require`).
+
+Drove the `{{call}}` B1 fix (`fn-tags.php` top-level require, 1.12.0): `bws_register_call_function` was trapped in the init:20 pass and fataled an init:10 snippet. Generalizes to any future registration API. Enforced at: the top-level `require` in `bws-gb-dynamic-tags-extensions.php` + its PHPDoc. Schema/usage: [tag-reference.md §Call tag] (register-on-init note).
+
+---
+
 ## Language
 
 Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). The L1/L2 seam is **built for email/phone** as the shared `bws_resolve_field_values` (field-helpers.php, 1.11.0 — retired the per-tag clones); other tags still inline their own L1/L2. Full unification (datetime param-overload retire, `src:ref` plural, #19 context kinds) is incremental — see `.claude/plans/try-email-phone-and-slot-derivation.md`.
