@@ -239,6 +239,27 @@ check(
 	bws_build_preview_label( [ 'src' => 'site', 'key' => 'org_email' ], 'email' ),
 	"[Email: 'org_email' from Site]"
 );
+// {{call}} INERT config-describing preview (VC-inert) — never executes the fn.
+check(
+	'call no fn → warn',
+	bws_build_preview_label( [], 'call' ),
+	'[⚠ No function set]'
+);
+check(
+	'call w/ fn',
+	bws_build_preview_label( [ 'fn' => 'bws_get_game_result' ], 'call' ),
+	'[Function: bws_get_game_result]'
+);
+check(
+	'call w/ fn + arg',
+	bws_build_preview_label( [ 'fn' => 'get_game_date_for_display', 'arg' => 'short' ], 'call' ),
+	'[Function: get_game_date_for_display (short)]'
+);
+check(
+	'call w/ fn from ref source',
+	bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'games', 'fn' => 'bws_get_game_result' ], 'call' ),
+	"[Function: bws_get_game_result from Ref 'games']"
+);
 // Missing-required warnings (text needs key unless title mode).
 check(
 	'text no key → warn',

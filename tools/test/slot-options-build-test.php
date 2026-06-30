@@ -168,6 +168,49 @@ assert_same( 'source_opt not mutated in place', true, in_array( 'site', array_co
 // _strip_default and other src props survive the filter.
 assert_same( 'filter preserves _strip_default', true, $mod_src['src']['_strip_default'] ?? null );
 
+echo "bws_pick_src_values (allowlist — complement of the site blocklist)\n";
+
+// Keep current+ref (the {{call}} case): canonical rows from base, reordered to $keep.
+$picked = bws_pick_src_values( bws_base_source_option(), array( 'current', 'ref' ) );
+assert_same(
+	'pick current,ref → exactly those rows, base labels',
+	array(
+		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
+	),
+	$picked['src']['options']
+);
+// _strip_default + label survive the pick.
+assert_same( 'pick preserves _strip_default', true, $picked['src']['_strip_default'] ?? null );
+assert_same( 'pick preserves label', 'Source', $picked['src']['label'] );
+
+// Order follows $keep, NOT base order (ref before current here).
+$rev = bws_pick_src_values( bws_base_source_option(), array( 'ref', 'current' ) );
+assert_same(
+	'pick order follows $keep',
+	array( 'ref', 'current' ),
+	array_column( $rev['src']['options'], 'value' )
+);
+
+// A $keep value with no base row is silently skipped (no fabricated row).
+$missing = bws_pick_src_values( bws_base_source_option(), array( 'current', 'nope' ) );
+assert_same(
+	'unknown keep value skipped',
+	array( 'current' ),
+	array_column( $missing['src']['options'], 'value' )
+);
+
+// Allowlist EXCLUDES a value the blocklist would leak: pick current,ref drops site
+// WITHOUT naming it — the closed-set guarantee {{call}} relies on (VC2).
+assert_same(
+	'site excluded by allowlist without naming it',
+	false,
+	in_array( 'site', array_column( $picked['src']['options'], 'value' ), true )
+);
+
+// Source not mutated in place.
+assert_same( 'pick does not mutate source', true, in_array( 'site', array_column( bws_base_source_option()['src']['options'], 'value' ), true ) );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";

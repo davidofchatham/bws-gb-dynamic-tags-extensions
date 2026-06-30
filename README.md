@@ -1,6 +1,6 @@
 # BWS GenerateBlocks Dynamic Tags Extensions
 
-WordPress plugin extending [GenerateBlocks Pro](https://generatepress.com/blocks/) with advanced dynamic tags for both standard post/term fields and custom field data.
+A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advanced dynamic tags for both standard post/term fields and custom field data.
 
 The tags are designed to be source-agnostic (currently working for post and loop item contexts, not yet for taxonomy term contexts such as archives). A custom *Source* selector lets you retrieve data not only from the current context, but also from a source related via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
 
@@ -18,11 +18,31 @@ The tags are designed to be source-agnostic (currently working for post and loop
 
 **Note:** As of now, meta/option field names must be supplied manually (there's no dropdown selector).
 
-## try_ tags
+## `try_` tags
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
 **Note:** Currently, only `try_email` and `try_phone` support site option fields.
+
+## `call` tag for custom functions
+
+The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.
+
+Custom functions must take a post ID as their first argument (or you may get unexpected results), sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:
+
+```php
+add_action( 'init', function () {
+    bws_register_call_function( 'my_result' );
+} );
+
+function my_result( $post_id, $arg = '' ) {
+    return '<span>' . esc_html( get_the_title( $post_id ) ) . '</span>';
+}
+```
+
+Properly registered functions will appear in the tag's **Function** dropdown for easy access. The optional **Argument** field allows passing a second parameter in addition to the post ID.
+
+A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
 ## Context modifiers
 

@@ -1,6 +1,18 @@
 # Changelog
 
-## [1.11.0] — 2026-06-17
+## [1.12.0] — 2026-06-29
+
+### Added — `{{call}}` function-passthrough tag (for developers)
+
+- **New `{{call}}` tag runs a site-defined PHP function and outputs what it returns.** Some display values are too conditional for base tags to assemble (a function that branches on a term name, formats a score, looks up an indicator). `{{call}}` hands that work to a PHP function you write, binds the loop-correct post for it, and prints the returned string. This is a **developer tool: it ships empty and produces nothing until you allowlist a function** — every other tag works out of the box; this one does not, by design.
+  - **Allowlist in code, not the database.** Register a function via the `bws_fn_passthrough_functions` filter or the `bws_register_call_function( 'my_fn' )` helper. The trust boundary is file/code access only; `{{call}}` grants editors no capability a developer didn't already hold in PHP. A security gate refuses anything that isn't a real, non-built-in function (so `system`, `unlink`, and friends can never be called).
+  - **Post-context only.** The source menu offers **Current** and **In Reference/Relational Field** — both resolve to a post the function receives as its first argument. This fixes the Query Loop case where ambient `get_the_ID()` is wrong or empty (e.g. a relationship-field loop). Site and taxonomy-term sources are intentionally not offered: a `$post_id` function can't consume them.
+  - **Optional single argument.** An **Argument** field passes one value (e.g. a format like `short` or `Y-m-d`); left empty, the function's own default applies.
+  - **Output is verbatim and unescaped** — the function owns its own escaping (real functions return trusted display HTML). If the function is missing, unavailable, errors, or returns nothing, the tag outputs its **Fallback** instead; a thrown error is always logged server-side and never leaks to the page.
+  - **Read-only allowlist mirror** under the BWS Dynamic Tags settings shows which functions `{{call}}` will accept and their status. The editor's function dropdown is populated from the same allowlist.
+  - Known limit: flat ACF repeater rows (no underlying post) are not yet supported; the related-post and current-post loop cases are.
+
+## [1.11.0] — 2026-06-26
 
 ### Added — `try_email` / `try_phone` / `term_email` / `term_phone`
 

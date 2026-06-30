@@ -576,6 +576,12 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$missing[] = 'field key'; // Email key-required in every source (no analog).
 	} elseif ( 'phone' === $base_template && '' === $key ) {
 		$missing[] = 'field key'; // Phone key-required in every source (no analog).
+	} elseif ( 'call' === $base_template && '' === ( $options['fn'] ?? '' ) ) {
+		// {{call}} INERT preview (VC-inert) — never executes the function; describes
+		// config only. A missing fn is the bucket-A drift case (VC-fail) surfaced as
+		// a warning here. The live allowlist-membership warning is client-side (the
+		// allowlist is JS-available); this PHP path catches the empty-fn case.
+		$missing[] = 'function';
 	}
 
 	if ( ! empty( $missing ) ) {
@@ -722,6 +728,16 @@ function bws_build_preview_label( array $options, string $template ): string {
 			break;
 		case 'phone':
 			$field_part = '' !== $key ? "Phone: '" . $key . "'" : 'Phone';
+			break;
+		case 'call':
+			// INERT config-describing label (VC-inert): the function name, plus the
+			// single arg in parentheses when set. Never the function's actual output.
+			$fn_name    = $options['fn'] ?? '';
+			$arg_val    = $options['arg'] ?? '';
+			$field_part = 'Function: ' . $fn_name;
+			if ( '' !== $arg_val ) {
+				$field_part .= ' (' . $arg_val . ')';
+			}
 			break;
 	}
 

@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.11.0
+ * Version: 1.12.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,13 +21,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.11.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.12.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
 
 // PSR-4 Autoloader for BWS\DynamicTags namespace.
 require_once BWS_DYNAMIC_TAGS_PATH . 'autoload.php';
+
+// {{call}} function-passthrough support is loaded at TOP LEVEL (not inside the
+// dependency-gated init, nor the init:20 tag pass) so the public registration API
+// `bws_register_call_function()` exists as soon as the plugin file loads — before
+// `init` fires. Site snippets register their functions on `init`, commonly at the
+// default priority 10, which is EARLIER than the plugin's own init:20 tag pass;
+// if the function were only defined in that pass, an init:10 caller would hit a
+// "Call to undefined function" fatal. The file is pure function definitions with
+// no load-time side effects (the GB tag is registered later, by an explicit
+// bws_register_call_tag() call in the init pass), so eager loading is safe and
+// cheap even when GB is absent. [1.12.0 load-order fix]
+require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/fn-tags.php';
 
 /**
  * Wire the GitHub-based plugin update checker.
@@ -127,6 +139,9 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php'; // merged: includes date-only templates
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/email-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/phone-tags.php';
+	// fn-tags.php is already loaded in bws_dynamic_tags_init() (plugins_loaded) so
+	// bws_register_call_function() is available to early init callers; only the GB
+	// tag registration (bws_register_call_tag) happens here in the init pass.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/taxonomy-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
 
@@ -138,6 +153,10 @@ function bws_dynamic_tags_register_all() {
 
 	// Register the phone base tag (unconditional; first-class base tag).
 	bws_register_phone_tag();
+
+	// Register the {{call}} function-passthrough tag (unconditional; ships with
+	// an EMPTY allowlist — produces nothing until the site allowlists a function).
+	bws_register_call_tag();
 
 	// Generate try_ fallback-chain tags from modifier templates.
 	\BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
