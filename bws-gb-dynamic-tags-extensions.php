@@ -117,10 +117,6 @@ function bws_dynamic_tags_init() {
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
-	// Preload the field envelope into the block editor page so apiFetch serves it
-	// from the inlined preload cache — no runtime request, so /fields never queues
-	// behind GB's dynamic-tag-replacement REST swarm. Fresh every editor load.
-	add_filter( 'block_editor_rest_api_preload_paths', 'bws_field_discovery_preload_path' );
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();
@@ -241,6 +237,19 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		$field_combo_ver,
 		true
 	);
+	// Inline the field envelope directly into the editor page as a JS global. This
+	// sidesteps any runtime REST call for /fields entirely — the control reads
+	// window.bwsFieldEnvelope synchronously, so it never queues behind GB's
+	// dynamic-tag-replacement swarm (which was the 30-40s head-of-line block). The
+	// assembly is ~13ms and runs once per editor load, so the list stays current.
+	// Guarded by function_exists so it no-ops if the discovery include is absent.
+	if ( function_exists( 'bws_field_discovery_get_envelope_json' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsFieldEnvelope = ' . bws_field_discovery_get_envelope_json() . ';',
+			'before'
+		);
+	}
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 

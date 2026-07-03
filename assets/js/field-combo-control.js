@@ -61,21 +61,24 @@
 	var ALL_TYPE = '__all_types';
 	var LOOP_TYPE = '__loop';
 
-	// Module-level cache: one fetch of the field envelope, shared across all controls
-	// on the page. The server preloads this exact path into the editor via
-	// `block_editor_rest_api_preload_paths`, so apiFetch's preloading middleware
-	// resolves it from the inlined page cache with NO runtime HTTP request — it never
-	// queues behind GB's dynamic-tag-replacement REST swarm. If preloading is absent
-	// (unexpected), apiFetch falls back to a real request transparently.
+	// Envelope source. The server inlines the field envelope directly into the editor
+	// page as `window.bwsFieldEnvelope` (via wp_add_inline_script), so the control
+	// reads it synchronously with NO runtime REST request — it never queues behind
+	// GB's dynamic-tag-replacement swarm (the 30-40s head-of-line block). If the
+	// global is absent (unexpected), fall back to a real /fields request.
 	var envelopePromise = null;
 
 	function fetchEnvelope() {
 		if ( ! envelopePromise ) {
-			envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
-				.catch( function () {
-					envelopePromise = null;
-					return { post: [], term: [], site: [] };
-				} );
+			if ( window.bwsFieldEnvelope && typeof window.bwsFieldEnvelope === 'object' ) {
+				envelopePromise = Promise.resolve( window.bwsFieldEnvelope );
+			} else {
+				envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
+					.catch( function () {
+						envelopePromise = null;
+						return { post: [], term: [], site: [] };
+					} );
+			}
 		}
 		return envelopePromise;
 	}

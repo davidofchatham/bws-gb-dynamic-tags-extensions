@@ -100,21 +100,22 @@ function bws_field_discovery_rest_response( $request ) {
 }
 
 /**
- * Add the field-discovery route to the block-editor apiFetch preload paths.
+ * Return the DISALLOWED-filtered field envelope as a JSON string.
  *
- * WordPress renders the route's response into the editor page at load and
- * primes apiFetch's preloading middleware with it, so the editor-side
- * `apiFetch({ path: 'bws-dynamic-tags/v1/fields' })` resolves from the inlined
- * cache with NO runtime HTTP request. This is what keeps /fields out of the
- * per-host connection queue that GB's dynamic-tag-replacement swarm saturates.
+ * Consumed by the enqueue path (`wp_add_inline_script`) to inline the envelope
+ * as `window.bwsFieldEnvelope`, so the editor control reads it synchronously with
+ * NO runtime REST request. Assembly is ~13ms and runs once per editor load, so
+ * the inlined list is current every load. The REST route remains registered as a
+ * fallback (and for non-editor consumers).
  *
  * @since 1.13.0
- * @param array $paths Existing preload paths.
- * @return array Paths with the field-discovery route appended.
+ * @return string JSON-encoded kind-keyed envelope.
  */
-function bws_field_discovery_preload_path( $paths ) {
-	$paths[] = '/' . BWS_FIELD_DISCOVERY_REST_NAMESPACE . BWS_FIELD_DISCOVERY_REST_ROUTE;
-	return $paths;
+function bws_field_discovery_get_envelope_json() {
+	$envelope = bws_field_discovery_collect();
+	$envelope = bws_field_discovery_filter_disallowed( $envelope );
+
+	return wp_json_encode( $envelope );
 }
 
 /**
