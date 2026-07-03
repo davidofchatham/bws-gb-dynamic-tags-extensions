@@ -39,6 +39,7 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 - V8. **Sub-fields surfaced with correct resolution key.** Group child → `parent_child` composite (stable, resolves via `get_post_meta` everywhere). Repeater/flex child → bare `name`, flagged `context:row` (resolves only in loop-row Mode 2b, field-helpers.php:253-255). Recurse `sub_fields` + flex `layouts[].sub_fields`. Owner I.rest.
 - V9. **Control composes with existing `tagSpecificControls` filters.** `bws-field-combo` filter guards `if (!element) return element` so conditional-options (`show_if`→null) hiding wins regardless of filter order; matches `cfg.type==='bws-field-combo'` only (mutually exclusive with `bws-term-hop`). Owner I.js.
 - V10. **Scope selector always shown; inference pre-fills only usable content types.** Selector (kind + sub-scope) always visible = the override GB structurally lacks. `getCurrentPostType()` pre-fills sub-scope only when a usable content type; container types (`wp_template`/`wp_template_part`/`wp_block`/`wp_navigation`/GP Elements CPT) leave it unset. Owner I.js.
+- V11. **Free-text commits via synthetic option; clear via `allowReset`.** `ComboboxControl` does NOT commit off-list text (WP-source-verified: filter-only input, typed-unmatched discarded on Enter/blur). To commit any typed key in one step (no Add button): capture `onFilterValueChange`, inject a synthetic option `{value:<typed>, label:'Use custom key: "<typed>"'}` when no existing match; selecting it fires `onChange` with the BARE key. Committed value = bare key always (label display-only, NOT "Create"). Clear = built-in `allowReset` (default true) → `onChange(null)` → `delete newState[key]`. NO Add-button footgun (structurally absent). Filtering caveat WP#64056: Combobox matches on `label` — where a real option's `value`≠`label`, put both in the label so typing either matches. Owner I.js.
 
 ## §T — tasks
 
@@ -47,13 +48,16 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | T1 | . | REST route `bws-dynamic-tags/v1/fields` on `rest_api_init`; `edit_posts` cap; DISALLOWED_KEYS filter | V5,V6,I.rest,I.enqueue |
 | T2 | . | Discovery: ACF groups+fields → derive kind+scope from `location`; recurse sub_fields (group composite / repeater bare-name context:row); options-page (kind site); term-meta (taxonomy loc); `get_registered_meta_keys` | V5,V7,V8,I.rest |
 | T3 | . | Kind-keyed envelope `{post,term,site}`; dedupe within (kind,scope), ACF-metadata-wins | V7,I.rest |
-| T4 | . | `field-combo-control.js`: creatable `ComboboxControl`, per-modal `apiFetch`, grouped render, `if(!element)return` guard, `cfg.type==='bws-field-combo'` match | V1,V9,I.js |
+| T4 | . | `field-combo-control.js`: `ComboboxControl` + synthetic-option free-text commit (`onFilterValueChange`→`Use custom key: "X"`) + `allowReset` clear→`onChange(null)`, per-modal `apiFetch`, grouped render, `if(!element)return` guard, `cfg.type==='bws-field-combo'` match | V1,V9,V11,I.js |
 | T5 | . | Client-side kind filter + always-shown scope selector (kind + sub-scope); pre-fill from sibling `src`/`ref`/`srcTermIn`, else container-aware `getCurrentPostType()` | V2,V3,V10,I.js |
 | T6 | . | Kind-dynamic label (meta/option subtype pair; static fallback) | V4,I.js |
 | T7 | . | Enqueue `field-combo-control.js` (deps wp-hooks,wp-element,wp-components,wp-api-fetch,wp-data,wp-i18n) | I.enqueue |
 | T8 | . | Flip base `use`/`key` block + `ref` to `bws-field-combo` w/ per-option scope descriptor (`key`-under-src:ref unscoped) | V1,V3,I.base |
 | T9 | . | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
-| T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text entry, `show_if` compose, round-trip persist | V1,V9,V10 |
+| T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text custom-key commit (synthetic option, Enter, no Add), clear ✕, `show_if` compose, round-trip persist | V1,V9,V10,V11 |
+| T11 | . | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
+| T12 | . | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
+| T13 | . | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
 
 ## §B — bugs
 
