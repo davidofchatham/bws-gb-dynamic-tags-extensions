@@ -130,11 +130,16 @@
 	 * @return {Array} Options with unique values.
 	 */
 	function dedupeByValue( options ) {
-		var seen = {};
+		// Prototype-free map: a field key like `toString`/`constructor`/`hasOwnProperty`
+		// would otherwise inherit a truthy value from Object.prototype and be wrongly
+		// dropped. Object.create(null) has no prototype, so only real keys register.
+		var seen = Object.create( null );
 		var out  = [];
 		( options || [] ).forEach( function ( o ) {
-			if ( ! o || seen[ o.value ] ) { return; }
-			seen[ o.value ] = true;
+			if ( ! o ) { return; }
+			var v = String( o.value );
+			if ( seen[ v ] ) { return; }
+			seen[ v ] = true;
 			out.push( o );
 		} );
 		return out;

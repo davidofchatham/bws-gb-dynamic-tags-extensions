@@ -58,8 +58,11 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | T11 | x | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
 | T12 | . | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
 | T13 | . | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
+| T14 | . | Revert DEV filemtime cache-bust on `field-combo-control.js` enqueue → `BWS_DYNAMIC_TAGS_VERSION` before ship | I.enqueue |
 
 ## §B — bugs
 
 | id | date | cause | fix |
 |----|------|-------|-----|
+| B1 | 2026-07-03 | Combobox options carried duplicate `value`s (same field key across ACF groups / cross-kind all-view); ComboboxControl keys its list by value → "two children with same key", list re-mounts/resets on scroll | dedupeByValue after building options (first-seen wins; flat select commits one key so lossless) |
+| B2 | 2026-07-03 | dedupeByValue `seen={}` plain object → field keys matching Object.prototype props (`toString`,`constructor`,`hasOwnProperty`) inherited truthy → silently dropped from the list | `Object.create(null)` seen map; `String(value)` coerce |
