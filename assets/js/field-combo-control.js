@@ -59,6 +59,11 @@
 
 	var KINDS   = [ 'post', 'term', 'site' ];
 	var BREAD   = ' › ';          // ' › ' breadcrumb separator
+	// Merge-key field delimiter. Built via fromCharCode so no literal control char
+	// sits in the source (a raw U+001F renders as an empty '' and misreads as "no
+	// separator"). U+001F not NUL: NUL broke the build; printable chars are forgeable
+	// by ordinary field text.
+	var UNIT_SEP = String.fromCharCode( 31 ); // U+001F
 	var ALL_LOC = '__all_locations';
 	var ALL_TYPE = '__all_types';
 	var LOOP_TYPE = '__loop';
@@ -261,7 +266,7 @@
 					// fields → separate rows. A control char (U+001F) joins the parts so
 					// ordinary field text can't forge a collision. `kind` is included
 					// because a post `email` and a site `email` read via different paths.
-					var mkey = kind + '' + key + '' + lbl;
+					var mkey = kind + UNIT_SEP + key + UNIT_SEP + lbl;
 					if ( ! index[ mkey ] ) {
 						index[ mkey ] = {
 							// React list key / ComboboxControl option value — unique per row.
@@ -293,7 +298,7 @@
 		// Flat alphabetical by label (then key for stable tiebreak). No breadcrumb
 		// grouping — the filters carry location/type; the list is a plain index.
 		records.forEach( function ( r ) {
-			r.sortKey = ( r.label + '' + r.key ).toLowerCase();
+			r.sortKey = ( r.label + UNIT_SEP + r.key ).toLowerCase();
 		} );
 		records.sort( function ( a, b ) {
 			return a.sortKey < b.sortKey ? -1 : ( a.sortKey > b.sortKey ? 1 : 0 );
