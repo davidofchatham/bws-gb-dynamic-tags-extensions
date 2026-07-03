@@ -491,21 +491,34 @@ function bws_field_discovery_dedupe( array $envelope ) {
 					continue;
 				}
 
+				// Dedupe collapses ONLY an ACF-vs-registered-meta collision (same raw key
+				// described by both an ACF field and a bare register_meta entry — ACF
+				// wins). Two ACF fields sharing a bare name are DISTINCT fields (e.g. a
+				// `description` sub-field in two different repeaters — ACF stores repeater
+				// children by bare name, so the collision is expected and both must
+				// survive; the client merges/labels them). So NEVER drop ACF-vs-ACF.
 				$dropped = false;
 				if ( isset( $seen[ $name ] ) ) {
 					foreach ( $seen[ $name ] as $prior ) {
 						if ( ! bws_field_discovery_scopes_overlap( $group_scope, $prior['scope'] ) ) {
 							continue;
 						}
-						// Overlapping prior winner exists. ACF beats registered; equal
-						// source → first-seen (prior) wins → drop the current field.
-						if ( 'acf' === $prior['source'] || 'acf' !== $group_source ) {
+						if ( 'registered' === $group_source && 'acf' === $prior['source'] ) {
+							// Current registered-meta duplicate of a prior ACF field → drop it.
 							$dropped = true;
 							break;
 						}
-						// Current is ACF, prior was registered → current should win.
-						// Remove the prior registered field from its already-kept group.
-						bws_field_discovery_remove_field( $envelope, $kind, $name, $prior['scope'] );
+						if ( 'acf' === $group_source && 'registered' === $prior['source'] ) {
+							// Current ACF displaces a prior registered-meta entry.
+							bws_field_discovery_remove_field( $envelope, $kind, $name, $prior['scope'] );
+							continue;
+						}
+						if ( 'registered' === $group_source && 'registered' === $prior['source'] ) {
+							// registered-vs-registered → first-seen wins.
+							$dropped = true;
+							break;
+						}
+						// acf-vs-acf → keep both (distinct fields).
 					}
 				}
 

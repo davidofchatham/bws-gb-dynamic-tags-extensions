@@ -185,7 +185,8 @@
 					var key   = field.name;
 					if ( ! key ) { return; }
 					var bread = field.parent_path || '';
-					var isRow = 'row' === field.context_hint;
+					var lbl   = field.label && field.label !== key ? field.label : key;
+					var type  = field.type || '';
 
 					// Full location path for the Location filter: kind root › group › parent…
 					var pathParts = [ root ];
@@ -193,41 +194,46 @@
 					if ( bread ) { pathParts.push( bread ); }
 					var path = pathParts.join( BREAD );
 
-					var v = String( key );
-					if ( ! index[ v ] ) {
-						index[ v ] = {
-							value:      key,
-							label:      field.label && field.label !== key ? field.label : key,
+					// Merge identity = (kind, key, label). Same key + same label within a
+					// kind = the SAME field surfaced in multiple homes → collapse to one
+					// row that lists under every home (accumulate paths + types). Same key
+					// + DIFFERENT label (e.g. `name` = "Name" vs "Feature Name") = distinct
+					// fields → separate rows. A NUL joins the parts so ordinary text can't
+					// forge a collision. `kind` is included because a post `email` and a
+					// site `email` read via different paths.
+					var mkey = kind + ' ' + key + ' ' + lbl;
+					if ( ! index[ mkey ] ) {
+						index[ mkey ] = {
+							// React list key / ComboboxControl option value — unique per row.
+							// The COMMITTED value is the bare `key` (see onChange), not this.
+							value:      mkey,
 							key:        key,
-							type:       field.type || '',
-							bread:      bread,
+							label:      lbl,
+							kind:       kind,
+							types:      [],
 							paths:      [],
 							rowSeen:    false,
 							nonRowSeen: false,
 						};
-						order.push( v );
+						order.push( mkey );
 					}
-					var rec = index[ v ];
-					// First non-empty label/type/breadcrumb wins (server dedupe order).
-					if ( ( ! rec.label || rec.label === rec.key ) && field.label && field.label !== key ) {
-						rec.label = field.label;
-					}
-					if ( ! rec.type && field.type ) { rec.type = field.type; }
-					if ( ! rec.bread && bread ) { rec.bread = bread; }
+					var rec = index[ mkey ];
+					if ( type && rec.types.indexOf( type ) === -1 ) { rec.types.push( type ); }
 					if ( rec.paths.indexOf( path ) === -1 ) { rec.paths.push( path ); }
-					rec.rowSeen    = rec.rowSeen || isRow;
-					rec.nonRowSeen = rec.nonRowSeen || ! isRow;
+					// Tracked for the "Loop fields" TYPE filter (row-only). Not shown as a
+					// label marker anymore — filters carry that meaning now.
+					rec.rowSeen    = rec.rowSeen || ( 'row' === field.context_hint );
+					rec.nonRowSeen = rec.nonRowSeen || ( 'row' !== field.context_hint );
 				} );
 			} );
 		} );
 
-		var records = order.map( function ( v ) { return index[ v ]; } );
+		var records = order.map( function ( m ) { return index[ m ]; } );
 
-		// Sort: breadcrumb + label, case-insensitive, so a parent group/repeater
-		// field and its children cluster (child bread = parent's label, sorts right
-		// after the bare parent).
+		// Flat alphabetical by label (then key for stable tiebreak). No breadcrumb
+		// grouping — the filters carry location/type; the list is a plain index.
 		records.forEach( function ( r ) {
-			r.sortKey = ( ( r.bread ? r.bread + BREAD : '' ) + r.label ).toLowerCase();
+			r.sortKey = ( r.label + ' ' + r.key ).toLowerCase();
 		} );
 		records.sort( function ( a, b ) {
 			return a.sortKey < b.sortKey ? -1 : ( a.sortKey > b.sortKey ? 1 : 0 );
@@ -239,18 +245,12 @@
 	/**
 	 * Compose a record's ComboboxControl option { value, label }.
 	 *
-	 * Label = "<breadcrumb ›> <label> ('<key>')" + " — loop-only" when the key is
-	 * found ONLY in a repeater/flex row context (AND-fold: a key also present
-	 * top-level resolves normally, no marker).
+	 * Flat label: "<label> ('<key>')". No breadcrumb, no loop-only marker — the two
+	 * filters disambiguate location/type. `value` is the unique merge key (React
+	 * list identity); the committed value is the bare `key`, resolved in onChange.
 	 */
 	function recordToOption( rec ) {
-		var label = '';
-		if ( rec.bread ) { label += rec.bread + BREAD; }
-		label += rec.label + " ('" + rec.key + "')";
-		if ( rec.rowSeen && ! rec.nonRowSeen ) {
-			label += ' — ' + __( 'loop-only', 'generateblocks' );
-		}
-		return { value: rec.value, label: label };
+		return { value: rec.value, label: rec.label + " ('" + rec.key + "')" };
 	}
 
 	/**
@@ -287,7 +287,9 @@
 		var seen = Object.create( null );
 		var types = [];
 		records.forEach( function ( rec ) {
-			if ( rec.type && ! seen[ rec.type ] ) { seen[ rec.type ] = true; types.push( rec.type ); }
+			rec.types.forEach( function ( t ) {
+				if ( t && ! seen[ t ] ) { seen[ t ] = true; types.push( t ); }
+			} );
 		} );
 		types.sort( function ( a, b ) {
 			var la = typeLabel( a ), lb = typeLabel( b );
@@ -316,7 +318,7 @@
 			if ( type === LOOP_TYPE ) {
 				if ( ! ( rec.rowSeen && ! rec.nonRowSeen ) ) { return false; }
 			} else if ( type !== ALL_TYPE ) {
-				if ( rec.type !== type ) { return false; }
+				if ( rec.types.indexOf( type ) === -1 ) { return false; }
 			}
 			return true;
 		} );
@@ -379,7 +381,15 @@
 		var filtered = applyFilters( records, activeLoc, typeVal );
 		var options  = filtered.map( recordToOption );
 
+		// Option `value` is the unique merge key, but the COMMITTED tag value is the
+		// bare field key. Map option-value → bare key so onChange can strip it. Custom
+		// / synthetic / persisted-passthrough options carry value === bare key, so they
+		// map to themselves.
+		var valueToKey = Object.create( null );
+		filtered.forEach( function ( rec ) { valueToKey[ rec.value ] = rec.key; } );
+
 		// Synthetic free-text option: typing an unmatched key offers to commit it bare.
+		// Its value IS the bare key (self-committing).
 		var typed = ( filterText || '' ).trim();
 		if ( typed ) {
 			var matches = options.some( function ( o ) {
@@ -391,13 +401,23 @@
 					value: typed,
 					label: __( 'Use custom key:', 'generateblocks' ) + ' "' + typed + '"',
 				} ].concat( options );
+				valueToKey[ typed ] = typed;
 			}
 		}
 
-		// Persisted value not in the (filtered) option set — inject it so the control
-		// shows it selected rather than blank (custom key, or filtered-out own value).
-		if ( value && ! options.some( function ( o ) { return o.value === value; } ) ) {
-			options = [ { value: value, label: value } ].concat( options );
+		// Which option should show as selected for the persisted bare key? Prefer the
+		// first row whose bare key matches (highlights it under the current filters).
+		// If none matches (custom / filtered-out key), inject a passthrough option
+		// whose value === bare key so the control shows it selected rather than blank.
+		var selectedValue = value;
+		if ( value ) {
+			var hit = filtered.filter( function ( rec ) { return rec.key === value; } )[ 0 ];
+			if ( hit ) {
+				selectedValue = hit.value;
+			} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
+				options = [ { value: value, label: value } ].concat( options );
+				valueToKey[ value ] = value;
+			}
 		}
 
 		function onChange( next ) {
@@ -405,7 +425,8 @@
 			if ( next === null || next === undefined || next === '' ) {
 				delete upd[ key ];
 			} else {
-				upd[ key ] = next;
+				// Strip the merge-key wrapper → commit the bare field key.
+				upd[ key ] = valueToKey[ next ] !== undefined ? valueToKey[ next ] : next;
 			}
 			setState( upd );
 		}
@@ -441,7 +462,7 @@
 				key:                 'combo',
 				label:               label,
 				help:                props.help,
-				value:               value,
+				value:               selectedValue,
 				options:             options,
 				onChange:            onChange,
 				onFilterValueChange: setFilterText,
