@@ -114,6 +114,10 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 
+	// Field-discovery REST service (backs the bws-field-combo editor control).
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
+	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
+
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();
 

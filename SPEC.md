@@ -45,7 +45,7 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 
 | id | st | task | cites |
 |----|----|------|-------|
-| T1 | . | REST route `bws-dynamic-tags/v1/fields` on `rest_api_init`; `edit_posts` cap; DISALLOWED_KEYS filter | V5,V6,I.rest,I.enqueue |
+| T1 | x | REST route `bws-dynamic-tags/v1/fields` on `rest_api_init`; `edit_posts` cap; DISALLOWED_KEYS filter | V5,V6,I.rest,I.enqueue |
 | T2 | . | Discovery: ACF groups+fields → derive kind+scope from `location`; recurse sub_fields (group composite / repeater bare-name context:row); options-page (kind site); term-meta (taxonomy loc); `get_registered_meta_keys` | V5,V7,V8,I.rest |
 | T3 | . | Kind-keyed envelope `{post,term,site}`; dedupe within (kind,scope), ACF-metadata-wins | V7,I.rest |
 | T4 | . | `field-combo-control.js`: `ComboboxControl` + synthetic-option free-text commit (`onFilterValueChange`→`Use custom key: "X"`) + `allowReset` clear→`onChange(null)`, per-modal `apiFetch`, grouped render, `if(!element)return` guard, `cfg.type==='bws-field-combo'` match | V1,V9,V11,I.js |
