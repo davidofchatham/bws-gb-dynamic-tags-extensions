@@ -420,7 +420,7 @@
 			el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
 				el( FlexItem, { key: 'loc', isBlock: true },
 					el( SelectControl, {
-						label:    __( 'Filter: location', 'generateblocks' ),
+						label:    __( 'Filter fields by location', 'generateblocks' ),
 						value:    activeLoc,
 						options:  locationOptions,
 						onChange: function ( v ) { setLoc( v ); },
@@ -429,7 +429,7 @@
 				),
 				el( FlexItem, { key: 'type', isBlock: true },
 					el( SelectControl, {
-						label:    __( 'Filter: field type', 'generateblocks' ),
+						label:    __( 'Filter fields by type', 'generateblocks' ),
 						value:    typeVal,
 						options:  typeOptions,
 						onChange: function ( v ) { setType( v ); },
