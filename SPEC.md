@@ -56,10 +56,10 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | T9 | x | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
 | T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text custom-key commit (synthetic option, Enter, no Add), clear ✕, `show_if` compose, round-trip persist | V1,V9,V10,V11 |
 | T11 | x | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
-| T12 | . | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
-| T13 | . | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
-| T14 | . | Revert DEV filemtime cache-bust on `field-combo-control.js` enqueue → `BWS_DYNAMIC_TAGS_VERSION` before ship | I.enqueue |
-| T15 | . | Option-label schema revision (after user schema pass): (a) row marker = AND-fold — show ONLY when the key resolves ONLY in loop context (any non-row instance drops it, plan-C); (b) wording = "loop context only" not cryptic "row context"; (c) "in: groups" merged-group label wording | I.js |
+| T12 | x | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
+| T13 | x | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
+| T14 | x | Revert DEV filemtime cache-bust on `field-combo-control.js` enqueue → `BWS_DYNAMIC_TAGS_VERSION` before ship | I.enqueue |
+| T15 | x | Option-label schema — SUPERSEDED by the fully-flat list decision (2026-07-03): no in-row breadcrumb, no loop-only marker; the two filters (location + type incl. "Loop fields") carry that meaning. Merge is (kind,key,label); location paths flag `(repeater)`/`(group)`; label tracks active group/kind. | I.js |
 
 ## §B — bugs
 
