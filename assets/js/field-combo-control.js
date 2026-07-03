@@ -52,6 +52,8 @@
 	var useMemo         = wp.element.useMemo;
 	var ComboboxControl = wp.components.ComboboxControl;
 	var SelectControl   = wp.components.SelectControl;
+	var Flex            = wp.components.Flex;
+	var FlexItem        = wp.components.FlexItem;
 	var apiFetch        = wp.apiFetch;
 	var __              = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
@@ -413,22 +415,28 @@
 			: props.label;
 
 		return el( Fragment, null, [
-			el( SelectControl, {
-				key:      'loc',
-				label:    __( 'Filter: location', 'generateblocks' ),
-				value:    activeLoc,
-				options:  locationOptions,
-				onChange: function ( v ) { setLoc( v ); },
-				__nextHasNoMarginBottom: true,
-			} ),
-			el( SelectControl, {
-				key:      'type',
-				label:    __( 'Filter: field type', 'generateblocks' ),
-				value:    typeVal,
-				options:  typeOptions,
-				onChange: function ( v ) { setType( v ); },
-				__nextHasNoMarginBottom: true,
-			} ),
+			// Two filters side-by-side above the field selector. align:flex-end keeps
+			// the dropdowns aligned when labels wrap to different heights.
+			el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
+				el( FlexItem, { key: 'loc', isBlock: true },
+					el( SelectControl, {
+						label:    __( 'Filter: location', 'generateblocks' ),
+						value:    activeLoc,
+						options:  locationOptions,
+						onChange: function ( v ) { setLoc( v ); },
+						__nextHasNoMarginBottom: true,
+					} )
+				),
+				el( FlexItem, { key: 'type', isBlock: true },
+					el( SelectControl, {
+						label:    __( 'Filter: field type', 'generateblocks' ),
+						value:    typeVal,
+						options:  typeOptions,
+						onChange: function ( v ) { setType( v ); },
+						__nextHasNoMarginBottom: true,
+					} )
+				),
+			] ),
 			el( ComboboxControl, {
 				key:                 'combo',
 				label:               label,
