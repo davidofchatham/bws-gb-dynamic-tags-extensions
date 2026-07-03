@@ -61,30 +61,66 @@
 	var ALL_TYPE = '__all_types';
 	var LOOP_TYPE = '__loop';
 
-	// Module-level cache: one fetch of the field envelope, reused for the life of
-	// the page (all modals share it). Per-modal freshness is a non-goal; the point
-	// is the searchable list, not staleness (field-selector plan Plan-purpose).
+	// Envelope caching. The field list changes only when ACF field groups change,
+	// so it is safe to cache aggressively client-side. The editor fires scores of
+	// GB dynamic-tag-replacement REST calls on load, which saturate the browser's
+	// per-host connection pool; a naive per-open fetch of /fields queues behind that
+	// swarm (observed 30-40s wait though PHP runs in ~1s). Two mitigations:
+	//   1. sessionStorage — fetch once per browser session, reuse across every
+	//      modal + page navigation. After the first fetch, /fields never hits the
+	//      wire again, so it never queues behind the swarm.
+	//   2. Deferred fetch (requestIdleCallback) — the one unavoidable first fetch
+	//      yields until the browser is idle, after GB's initial burst drains.
+	var SESSION_KEY     = 'bwsFieldEnvelope.v1';
 	var envelopePromise = null;
 
-	function fetchEnvelope() {
-		if ( ! envelopePromise ) {
-			envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
-				.then( function ( env ) {
-					// TEMP DEBUG: surface what the endpoint returned.
-					if ( window.console ) {
-						console.log( '[bws-field-combo] envelope:', env );
-					}
-					return env;
-				} )
-				.catch( function ( err ) {
-					// TEMP DEBUG: surface the failure instead of swallowing it silently.
-					if ( window.console ) {
-						console.error( '[bws-field-combo] fetch FAILED:', err );
-					}
-					envelopePromise = null;
-					return { post: [], term: [], site: [] };
-				} );
+	function readSession() {
+		try {
+			var raw = window.sessionStorage.getItem( SESSION_KEY );
+			if ( ! raw ) { return null; }
+			var env = JSON.parse( raw );
+			if ( env && env.post && env.term && env.site ) { return env; }
+		} catch ( e ) {}
+		return null;
+	}
+
+	function writeSession( env ) {
+		try { window.sessionStorage.setItem( SESSION_KEY, JSON.stringify( env ) ); } catch ( e ) {}
+	}
+
+	// Run a callback when the browser is idle (after the tag-replacement swarm),
+	// falling back to a short timeout where requestIdleCallback is unavailable.
+	function whenIdle( cb ) {
+		if ( window.requestIdleCallback ) {
+			window.requestIdleCallback( cb, { timeout: 4000 } );
+		} else {
+			window.setTimeout( cb, 1200 );
 		}
+	}
+
+	function fetchEnvelope() {
+		if ( envelopePromise ) { return envelopePromise; }
+
+		var cached = readSession();
+		if ( cached ) {
+			envelopePromise = Promise.resolve( cached );
+			return envelopePromise;
+		}
+
+		envelopePromise = new Promise( function ( resolve ) {
+			whenIdle( function () {
+				apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
+					.then( function ( env ) {
+						writeSession( env );
+						resolve( env );
+					} )
+					.catch( function () {
+						// Degrade to free-text only; reset so a later open can retry.
+						envelopePromise = null;
+						resolve( { post: [], term: [], site: [] } );
+					} );
+			} );
+		} );
 		return envelopePromise;
 	}
 

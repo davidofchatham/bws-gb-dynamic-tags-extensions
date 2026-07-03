@@ -411,34 +411,17 @@ function bws_field_discovery_collect() {
 		'site' => array(),
 	);
 
-	// TEMP DEBUG: always-on timing of the ACF enumeration (the 41s suspect).
-	// Remove once perf is understood + cache lands.
-	$debug   = true;
-	$t_start = microtime( true );
-	$n_groups = 0;
-	$n_fields = 0;
-
 	// ACF field groups (post, term, and options-page/site all arrive here — the
 	// group location determines the kind). No post_type filter: fetch ALL, the
 	// client filters by kind + scope (field-selector plan §Filter location).
 	if ( function_exists( 'acf_get_field_groups' ) && function_exists( 'acf_get_fields' ) ) {
-		$t_groups = $debug ? microtime( true ) : 0.0;
-		$groups   = acf_get_field_groups();
-		if ( $debug ) {
-			error_log( sprintf( '[bws-fields] acf_get_field_groups: %.3fs, %d groups', microtime( true ) - $t_groups, is_array( $groups ) ? count( $groups ) : 0 ) );
-		}
+		$groups = acf_get_field_groups();
 		if ( is_array( $groups ) ) {
 			foreach ( $groups as $group ) {
 				if ( ! is_array( $group ) || empty( $group['key'] ) ) {
 					continue;
 				}
-				$t_g        = $debug ? microtime( true ) : 0.0;
 				$acf_fields = acf_get_fields( $group['key'] );
-				if ( $debug ) {
-					error_log( sprintf( '[bws-fields]   acf_get_fields(%s "%s"): %.3fs, %d fields', $group['key'], isset( $group['title'] ) ? $group['title'] : '', microtime( true ) - $t_g, is_array( $acf_fields ) ? count( $acf_fields ) : 0 ) );
-					$n_groups++;
-					$n_fields += is_array( $acf_fields ) ? count( $acf_fields ) : 0;
-				}
 				$flattened  = bws_field_discovery_flatten_fields( is_array( $acf_fields ) ? $acf_fields : array() );
 				$entry      = bws_field_discovery_group_entry( $group, $flattened );
 				if ( empty( $entry['fields'] ) ) {
@@ -450,10 +433,6 @@ function bws_field_discovery_collect() {
 				}
 			}
 		}
-	}
-
-	if ( $debug ) {
-		error_log( sprintf( '[bws-fields] ACF phase total: %.3fs (%d groups, %d fields)', microtime( true ) - $t_start, $n_groups, $n_fields ) );
 	}
 
 	// Core registered post meta (non-ACF). Complementary source only.
