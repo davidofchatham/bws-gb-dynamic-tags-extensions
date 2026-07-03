@@ -115,6 +115,26 @@
 	}
 
 	/**
+	 * Deepest GROUP/container segment of an active Location filter value, or null.
+	 *
+	 * When the author has narrowed Location past the kind root (e.g.
+	 * "Post fields › Client Details" or "… › Coverage Options (repeater)"), the
+	 * control label can name that group instead of the generic kind. Returns the
+	 * leaf segment with any "(repeater)"/"(group)" hint stripped. Root-only
+	 * ("Post fields") or "All detected fields" → null (caller uses the kind label).
+	 *
+	 * @param {string} loc Active location filter value.
+	 * @return {string|null} Group/container name, or null.
+	 */
+	function locationGroupLabel( loc ) {
+		if ( ! loc || loc === ALL_LOC ) { return null; }
+		var parts = String( loc ).split( BREAD );
+		if ( parts.length < 2 ) { return null; } // kind root only → no group
+		var leaf = parts[ parts.length - 1 ];
+		return leaf.replace( /\s*\([^)]*\)\s*$/, '' ); // strip "(repeater)" etc.
+	}
+
+	/**
 	 * Slot prefix of a try_ option key, or '' for a base (non-slotted) key.
 	 *
 	 * try_ tags serialize per-slot options with an "N-" prefix (`2-key`, `2-src`,
@@ -507,14 +527,26 @@
 			setState( upd );
 		}
 
-		// Dynamic label tracks the ACTIVE location's kind when the author has narrowed
-		// to one (its root segment names the kind), else the sibling-source preset,
-		// else the source-agnostic fallback. So picking Location = "Post fields" (or a
-		// post group) makes the label read "Post Meta Field".
-		var labelKind = kindFromLocation( activeLoc ) || preset;
-		var label = props.dynamicLabel
-			? kindLabel( labelKind, props.labelPrefix )
-			: props.label;
+		// Dynamic label, most-specific-wins:
+		//   1. active Location narrowed to a GROUP → "<Group> Field" (e.g. "Client
+		//      Details Field") — the author has named the exact home;
+		//   2. else the active Location's KIND → "Post/Term/Site Meta Field";
+		//   3. else the sibling-source preset kind; else the source-agnostic fallback.
+		// labelPrefix (e.g. "URL") is honored in every case.
+		var label;
+		if ( props.dynamicLabel ) {
+			var groupLbl = locationGroupLabel( activeLoc );
+			if ( groupLbl ) {
+				// "<Group> Field" (e.g. "Client Details Field"). Group names are ACF
+				// author-supplied, so a simple concat reads correctly across locales.
+				var base = groupLbl + ' ' + __( 'Field', 'generateblocks' );
+				label = props.labelPrefix ? props.labelPrefix + ' ' + base : base;
+			} else {
+				label = kindLabel( kindFromLocation( activeLoc ) || preset, props.labelPrefix );
+			}
+		} else {
+			label = props.label;
+		}
 
 		return el( Fragment, null, [
 			// Two filters side-by-side above the field selector. align:flex-end keeps
