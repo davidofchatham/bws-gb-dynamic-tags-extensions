@@ -70,15 +70,16 @@ function bws_register_base_tags(): void {
 					'_strip_default' => true,
 				),
 				'key'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
-					'placeholder' => 'field_name',
+					'type'         => 'bws-field-combo',
+					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'dynamicLabel' => true,
+					'help'         => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+					'placeholder'  => 'field_name',
 					// Key-mode = empty/'key'. Hidden for named data (title).
 					// Under src:site, key-mode reads a wp_options key. Site tagline has
 					// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
 					// (nothing unique to add until multislot-feed decouple — see #26).
-					'show_if'     => array( 'use' => 'not:title' ),
+					'show_if'      => array( 'use' => 'not:title' ),
 				),
 				'fallback' => array(
 					'type'  => 'text',

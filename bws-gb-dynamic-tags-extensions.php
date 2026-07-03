@@ -225,6 +225,13 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-field-combo-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/field-combo-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-data', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 
