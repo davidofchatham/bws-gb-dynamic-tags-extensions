@@ -368,14 +368,12 @@ function bws_get_datetime_single_field_key_options(): array {
 		'key'     => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'Date/Time Field Key', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF field key for a date, date-time, or time picker field.', 'generateblocks' ),
 			'placeholder'  => 'event_date',
 		),
 		'timeKey' => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'Time Field Key (optional)', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
 			'placeholder'  => 'event_time',
 		),
@@ -481,28 +479,24 @@ function bws_get_datetime_range_field_key_options(): array {
 		'startKey'     => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'Start Date/Time Field Key', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
 			'placeholder'  => 'start_date',
 		),
 		'startTimeKey' => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'Start Time Field Key (optional)', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
 			'placeholder'  => 'start_time',
 		),
 		'endKey'       => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'End Date/Time Field Key', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
 			'placeholder'  => 'end_date',
 		),
 		'endTimeKey'   => array(
 			'type'         => 'bws-field-combo',
 			'label'        => __( 'End Time Field Key (optional)', 'generateblocks' ),
-			'dynamicLabel' => true,
 			'help'         => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
 			'placeholder'  => 'end_time',
 		),

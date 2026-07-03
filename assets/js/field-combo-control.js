@@ -96,6 +96,25 @@
 	}
 
 	/**
+	 * Kind implied by an active Location filter value, or null.
+	 *
+	 * The Location value is a path whose ROOT segment is the kind root
+	 * ("Post fields" / "Term fields" / "Site fields"). "All detected fields" (or an
+	 * unrecognized value) → null so the caller falls back to the sibling preset.
+	 *
+	 * @param {string} loc Active location filter value.
+	 * @return {string|null} 'post' | 'term' | 'site' | null.
+	 */
+	function kindFromLocation( loc ) {
+		if ( ! loc || loc === ALL_LOC ) { return null; }
+		var root = String( loc ).split( BREAD )[ 0 ];
+		if ( root === kindRootLabel( 'post' ) ) { return 'post'; }
+		if ( root === kindRootLabel( 'term' ) ) { return 'term'; }
+		if ( root === kindRootLabel( 'site' ) ) { return 'site'; }
+		return null;
+	}
+
+	/**
 	 * Slot prefix of a try_ option key, or '' for a base (non-slotted) key.
 	 *
 	 * try_ tags serialize per-slot options with an "N-" prefix (`2-key`, `2-src`,
@@ -488,8 +507,13 @@
 			setState( upd );
 		}
 
+		// Dynamic label tracks the ACTIVE location's kind when the author has narrowed
+		// to one (its root segment names the kind), else the sibling-source preset,
+		// else the source-agnostic fallback. So picking Location = "Post fields" (or a
+		// post group) makes the label read "Post Meta Field".
+		var labelKind = kindFromLocation( activeLoc ) || preset;
 		var label = props.dynamicLabel
-			? kindLabel( preset, props.labelPrefix )
+			? kindLabel( labelKind, props.labelPrefix )
 			: props.label;
 
 		return el( Fragment, null, [
