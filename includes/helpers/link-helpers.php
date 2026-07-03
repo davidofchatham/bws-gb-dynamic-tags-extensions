@@ -189,10 +189,12 @@ function bws_get_link_options(): array {
 			'_strip_default' => true,
 		),
 		'linkKey' => array(
-			'type'    => 'text',
-			'label'   => __( 'URL Meta/Option Field Key', 'generateblocks' ),
-			'help'    => __( 'Meta or option field key whose value is used as the link URL (post/term meta, or a wp_options / ACF-options key under src:site). For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
-			'show_if' => array( 'linkTo' => 'key' ),
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'URL Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'labelPrefix'  => __( 'URL', 'generateblocks' ),
+			'help'         => __( 'Meta or option field key whose value is used as the link URL. For try_ tags, this field is read from the source that produced the output.', 'generateblocks' ),
+			'show_if'      => array( 'linkTo' => 'key' ),
 		),
 		'newTab'  => array(
 			'type'    => 'checkbox',
