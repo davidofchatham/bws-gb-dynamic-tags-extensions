@@ -117,6 +117,11 @@ function bws_dynamic_tags_init() {
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
+	// Invalidate the cached field envelope on any ACF field-group mutation.
+	add_action( 'acf/update_field_group', 'bws_field_discovery_flush_cache' );
+	add_action( 'acf/trash_field_group', 'bws_field_discovery_flush_cache' );
+	add_action( 'acf/untrash_field_group', 'bws_field_discovery_flush_cache' );
+	add_action( 'acf/delete_field_group', 'bws_field_discovery_flush_cache' );
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();

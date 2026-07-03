@@ -68,10 +68,22 @@
 
 	function fetchEnvelope() {
 		if ( ! envelopePromise ) {
-			envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } ).catch( function () {
-				envelopePromise = null;
-				return { post: [], term: [], site: [] };
-			} );
+			envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
+				.then( function ( env ) {
+					// TEMP DEBUG: surface what the endpoint returned.
+					if ( window.console ) {
+						console.log( '[bws-field-combo] envelope:', env );
+					}
+					return env;
+				} )
+				.catch( function ( err ) {
+					// TEMP DEBUG: surface the failure instead of swallowing it silently.
+					if ( window.console ) {
+						console.error( '[bws-field-combo] fetch FAILED:', err );
+					}
+					envelopePromise = null;
+					return { post: [], term: [], site: [] };
+				} );
 		}
 		return envelopePromise;
 	}

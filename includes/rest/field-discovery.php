@@ -80,20 +80,67 @@ function bws_field_discovery_permission_check() {
 }
 
 /**
+ * Transient key for the assembled (pre-DISALLOWED-filter) envelope.
+ *
+ * Versioned so a plugin update busts stale caches. The DISALLOWED gate is applied
+ * live AFTER the cache (never cached), so a change to DISALLOWED_KEYS takes effect
+ * immediately without waiting for invalidation.
+ */
+const BWS_FIELD_DISCOVERY_TRANSIENT = 'bws_field_discovery_v1';
+const BWS_FIELD_DISCOVERY_TTL       = DAY_IN_SECONDS;
+
+/**
  * REST callback — assemble and return the kind-keyed field envelope.
  *
- * Collects field definitions (T2), dedupes within (kind, scope) (T3), then runs
- * the whole envelope through the DISALLOWED_KEYS gate (V6) before returning.
+ * Reads the cached envelope (T-perf), then runs it through the DISALLOWED_KEYS
+ * gate (V6) live before returning.
  *
  * @since 1.13.0
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response Kind-keyed envelope `{ post:[], term:[], site:[] }`.
  */
 function bws_field_discovery_rest_response( $request ) {
-	$envelope = bws_field_discovery_collect();
+	$envelope = bws_field_discovery_get_cached();
 	$envelope = bws_field_discovery_filter_disallowed( $envelope );
 
 	return rest_ensure_response( $envelope );
+}
+
+/**
+ * Return the assembled envelope, cached in a transient.
+ *
+ * ACF enumeration (`acf_get_field_groups` + per-group `acf_get_fields`) can be
+ * very slow on field-heavy installs / local-JSON sync (measured ~41s on one test
+ * instance), and the payload is small + changes only when field groups change. So
+ * the assembled envelope is cached for a day and invalidated on any ACF
+ * field-group mutation (see bws_field_discovery_flush_cache). The DISALLOWED gate
+ * is applied by the caller AFTER this, never cached.
+ *
+ * @since 1.13.0
+ * @return array<string,array<int,array<string,mixed>>> Kind-keyed envelope.
+ */
+function bws_field_discovery_get_cached() {
+	$cached = get_transient( BWS_FIELD_DISCOVERY_TRANSIENT );
+	if ( is_array( $cached ) && isset( $cached['post'], $cached['term'], $cached['site'] ) ) {
+		return $cached;
+	}
+
+	$envelope = bws_field_discovery_collect();
+	set_transient( BWS_FIELD_DISCOVERY_TRANSIENT, $envelope, BWS_FIELD_DISCOVERY_TTL );
+	return $envelope;
+}
+
+/**
+ * Delete the cached envelope so the next request rebuilds it.
+ *
+ * Hooked on ACF field-group save/delete/trash/untrash so a field definition change
+ * is reflected without waiting for the TTL. Cheap no-op when nothing is cached.
+ *
+ * @since 1.13.0
+ * @return void
+ */
+function bws_field_discovery_flush_cache() {
+	delete_transient( BWS_FIELD_DISCOVERY_TRANSIENT );
 }
 
 /**
@@ -364,17 +411,34 @@ function bws_field_discovery_collect() {
 		'site' => array(),
 	);
 
+	// TEMP DEBUG: always-on timing of the ACF enumeration (the 41s suspect).
+	// Remove once perf is understood + cache lands.
+	$debug   = true;
+	$t_start = microtime( true );
+	$n_groups = 0;
+	$n_fields = 0;
+
 	// ACF field groups (post, term, and options-page/site all arrive here — the
 	// group location determines the kind). No post_type filter: fetch ALL, the
 	// client filters by kind + scope (field-selector plan §Filter location).
 	if ( function_exists( 'acf_get_field_groups' ) && function_exists( 'acf_get_fields' ) ) {
-		$groups = acf_get_field_groups();
+		$t_groups = $debug ? microtime( true ) : 0.0;
+		$groups   = acf_get_field_groups();
+		if ( $debug ) {
+			error_log( sprintf( '[bws-fields] acf_get_field_groups: %.3fs, %d groups', microtime( true ) - $t_groups, is_array( $groups ) ? count( $groups ) : 0 ) );
+		}
 		if ( is_array( $groups ) ) {
 			foreach ( $groups as $group ) {
 				if ( ! is_array( $group ) || empty( $group['key'] ) ) {
 					continue;
 				}
+				$t_g        = $debug ? microtime( true ) : 0.0;
 				$acf_fields = acf_get_fields( $group['key'] );
+				if ( $debug ) {
+					error_log( sprintf( '[bws-fields]   acf_get_fields(%s "%s"): %.3fs, %d fields', $group['key'], isset( $group['title'] ) ? $group['title'] : '', microtime( true ) - $t_g, is_array( $acf_fields ) ? count( $acf_fields ) : 0 ) );
+					$n_groups++;
+					$n_fields += is_array( $acf_fields ) ? count( $acf_fields ) : 0;
+				}
 				$flattened  = bws_field_discovery_flatten_fields( is_array( $acf_fields ) ? $acf_fields : array() );
 				$entry      = bws_field_discovery_group_entry( $group, $flattened );
 				if ( empty( $entry['fields'] ) ) {
@@ -386,6 +450,10 @@ function bws_field_discovery_collect() {
 				}
 			}
 		}
+	}
+
+	if ( $debug ) {
+		error_log( sprintf( '[bws-fields] ACF phase total: %.3fs (%d groups, %d fields)', microtime( true ) - $t_start, $n_groups, $n_fields ) );
 	}
 
 	// Core registered post meta (non-ACF). Complementary source only.
