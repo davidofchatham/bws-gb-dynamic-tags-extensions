@@ -96,17 +96,37 @@
 	}
 
 	/**
-	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
-	 * from the editor context — only when the src TOKEN proves the kind).
+	 * Slot prefix of a try_ option key, or '' for a base (non-slotted) key.
 	 *
-	 * @param {Object} state extraTagParams.
+	 * try_ tags serialize per-slot options with an "N-" prefix (`2-key`, `2-src`,
+	 * `2-srcTermIn`), while slot 1 uses the bare names (`key`, `src`, `srcTermIn`).
+	 * So a key control must read its OWN slot's sibling source tokens. Derive the
+	 * prefix from the option key: `2-key` → `2-`, `key` → ``.
+	 *
+	 * @param {string} optionKey The option this control renders (e.g. '2-key').
+	 * @return {string} The slot prefix ('' | 'N-').
+	 */
+	function slotPrefix( optionKey ) {
+		var m = /^(\d+-)/.exec( String( optionKey || '' ) );
+		return m ? m[ 1 ] : '';
+	}
+
+	/**
+	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
+	 * from the editor context — only when the src TOKEN proves the kind). Reads the
+	 * sibling tokens of the SAME slot (prefix-aware) so per-slot try_ keys track
+	 * their own source.
+	 *
+	 * @param {Object} state     extraTagParams.
+	 * @param {string} optionKey The key control's own option key (for slot prefix).
 	 * @return {string|null} 'post' | 'term' | 'site' | null (=> All detected).
 	 */
-	function presetKind( state ) {
+	function presetKind( state, optionKey ) {
 		if ( ! state ) { return null; }
-		if ( state.srcTermIn ) { return 'term'; }
-		if ( 'site' === state.src ) { return 'site'; }
-		if ( 'ref' === state.src ) { return 'post'; }
+		var p = slotPrefix( optionKey );
+		if ( state[ p + 'srcTermIn' ] ) { return 'term'; }
+		if ( 'site' === state[ p + 'src' ] ) { return 'site'; }
+		if ( 'ref' === state[ p + 'src' ] ) { return 'post'; }
 		return null;
 	}
 
@@ -408,7 +428,7 @@
 		}, [ records ] );
 
 		// Effective location: explicit override, else safe-token preset path, else All.
-		var preset       = presetKind( state );
+		var preset       = presetKind( state, key );
 		var presetPath   = preset ? kindRootLabel( preset ) : ALL_LOC;
 		// Only use the preset path if it actually exists in the options (fields of
 		// that kind were discovered); otherwise fall back to All.
