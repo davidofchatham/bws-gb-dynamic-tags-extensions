@@ -73,7 +73,7 @@ function bws_register_base_tags(): void {
 					'type'         => 'bws-field-combo',
 					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
 					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+					'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
 					'placeholder'  => 'field_name',
 					// Key-mode = empty/'key'. Hidden for named data (title).
 					// Under src:site, key-mode reads a wp_options key. Site tagline has

@@ -75,7 +75,7 @@ function bws_register_email_tag(): void {
 					'type'         => 'bws-field-combo',
 					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
 					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding the email address. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+					'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
 					'placeholder'  => 'email_field',
 				),
 				'subject'  => array(
@@ -344,7 +344,7 @@ function bws_register_email_template(): void {
 				'type'         => 'bws-field-combo',
 				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
 				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding the email address. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+				'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
 				'placeholder'  => 'email_field',
 			),
 			'subject'  => array(

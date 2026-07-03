@@ -77,7 +77,7 @@ function bws_register_phone_tag(): void {
 					'type'         => 'bws-field-combo',
 					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
 					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding the phone number. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+					'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
 					'placeholder'  => 'phone_field',
 				),
 				'noLink'   => array(
@@ -618,7 +618,7 @@ function bws_register_phone_template(): void {
 				'type'         => 'bws-field-combo',
 				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
 				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding the phone number. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
+				'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
 				'placeholder'  => 'phone_field',
 			),
 			'noLink'   => array(
