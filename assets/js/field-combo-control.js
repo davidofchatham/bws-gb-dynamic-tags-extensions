@@ -120,6 +120,26 @@
 		return options;
 	}
 
+	/**
+	 * Collapse combobox options to unique `value`s, keeping the first occurrence.
+	 *
+	 * ComboboxControl keys its list by option value; duplicates break React
+	 * reconciliation. First-seen wins (richest label from server dedupe order).
+	 *
+	 * @param {Array} options Combobox options.
+	 * @return {Array} Options with unique values.
+	 */
+	function dedupeByValue( options ) {
+		var seen = {};
+		var out  = [];
+		( options || [] ).forEach( function ( o ) {
+			if ( ! o || seen[ o.value ] ) { return; }
+			seen[ o.value ] = true;
+			out.push( o );
+		} );
+		return out;
+	}
+
 	function FieldComboControl( props ) {
 		var ctx      = props.context;
 		var state    = ctx.state || {};
@@ -168,6 +188,16 @@
 				} );
 			}
 		}
+
+		// ComboboxControl is a flat single-select and uses each option `value` as its
+		// React list key — duplicate values (the same field key appearing in more
+		// than one ACF group, or across kinds in the unscoped/all view) trigger
+		// "two children with the same key" warnings and make the list re-mount/reset
+		// while scrolling. The control can only ever commit one bare key anyway, so
+		// collapse to unique values, keeping the first (which carries the richest
+		// label). Server-side dedupe (V7) is within (kind,scope); this is the flat
+		// UI's additional cross-group/cross-kind constraint.
+		options = dedupeByValue( options );
 
 		// Synthetic free-text option (V11): when the author typed something that
 		// matches no existing option value/label, offer to commit the BARE key.
