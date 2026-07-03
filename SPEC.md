@@ -52,13 +52,14 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | T5 | x | Client-side kind filter + always-shown scope selector (kind + sub-scope); pre-fill from sibling `src`/`ref`/`srcTermIn`, else container-aware `getCurrentPostType()` | V2,V3,V10,I.js |
 | T6 | x | Kind-dynamic label (meta/option subtype pair; static fallback) | V4,I.js |
 | T7 | x | Enqueue `field-combo-control.js` (deps wp-hooks,wp-element,wp-components,wp-api-fetch,wp-data,wp-i18n) | I.enqueue |
-| T8 | ~ | Flip base `use`/`key` block + `ref` to `bws-field-combo` w/ per-option scope descriptor (`key`-under-src:ref unscoped) | V1,V3,I.base |
-| T9 | . | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
+| T8 | x | Flip base `use`/`key` block + `ref` to `bws-field-combo` w/ per-option scope descriptor (`key`-under-src:ref unscoped) | V1,V3,I.base |
+| T9 | x | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
 | T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text custom-key commit (synthetic option, Enter, no Add), clear ✕, `show_if` compose, round-trip persist | V1,V9,V10,V11 |
 | T11 | x | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
 | T12 | . | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
 | T13 | . | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
 | T14 | . | Revert DEV filemtime cache-bust on `field-combo-control.js` enqueue → `BWS_DYNAMIC_TAGS_VERSION` before ship | I.enqueue |
+| T15 | . | Option-label schema revision (after user schema pass): (a) row marker = AND-fold — show ONLY when the key resolves ONLY in loop context (any non-row instance drops it, plan-C); (b) wording = "loop context only" not cryptic "row context"; (c) "in: groups" merged-group label wording | I.js |
 
 ## §B — bugs
 

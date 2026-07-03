@@ -33,7 +33,7 @@ function bws_get_content_options() {
 			),
 		),
 		'key' => array(
-			'type'        => 'text',
+			'type'        => 'bws-field-combo',
 			'label'       => __( 'Meta Key', 'generateblocks' ),
 			'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
 			'placeholder' => 'field_name',
