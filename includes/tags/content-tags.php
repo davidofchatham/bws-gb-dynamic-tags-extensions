@@ -33,11 +33,12 @@ function bws_get_content_options() {
 			),
 		),
 		'key' => array(
-			'type'        => 'bws-field-combo',
-			'label'       => __( 'Meta Key', 'generateblocks' ),
-			'help'        => __( 'ACF or meta field key.', 'generateblocks' ),
-			'placeholder' => 'field_name',
-			'show_if'     => array( 'type' => 'custom_field' ),
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
+			'placeholder'  => 'field_name',
+			'show_if'      => array( 'type' => 'custom_field' ),
 		),
 		'fallback_text' => array(
 			'type'  => 'text',
