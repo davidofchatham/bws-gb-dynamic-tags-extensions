@@ -95,54 +95,78 @@
 	}
 
 	/**
-	 * Flatten one kind bucket of the envelope into ComboboxControl options.
+	 * Flatten one kind bucket of the envelope into STRUCTURED option parts.
 	 *
-	 * Each field becomes `{ value: <resolution key>, label: '<Label> (<key>) [group]' }`.
-	 * Both label and key go in the display label so typing either matches (WP#64056:
-	 * Combobox filters on label, not value). Row-context children get a marker.
+	 * Emits `{ value, base, groups:[title], row:bool }` per field (label composed
+	 * later by mergeByValue). `base` = "<Label> (<key>)" or the bare key; both go in
+	 * the eventual display label so typing either matches (WP#64056: Combobox filters
+	 * on label, not value).
 	 *
 	 * @param {Array} groups Envelope groups for one kind.
-	 * @return {Array} Combobox options.
+	 * @return {Array} Structured option parts.
 	 */
 	function groupsToOptions( groups ) {
 		var options = [];
 		( groups || [] ).forEach( function ( group ) {
 			( group.fields || [] ).forEach( function ( field ) {
-				var key   = field.name;
-				var lbl   = field.label && field.label !== key ? field.label + ' (' + key + ')' : key;
-				var extra = [];
-				if ( group.group_title ) { extra.push( group.group_title ); }
-				if ( 'row' === field.context_hint ) { extra.push( __( 'row context', 'generateblocks' ) ); }
-				if ( extra.length ) { lbl += ' — ' + extra.join( ', ' ); }
-				options.push( { value: key, label: lbl } );
+				var key  = field.name;
+				var base = field.label && field.label !== key ? field.label + ' (' + key + ')' : key;
+				options.push( {
+					value:  key,
+					base:   base,
+					groups: group.group_title ? [ group.group_title ] : [],
+					row:    'row' === field.context_hint,
+				} );
 			} );
 		} );
 		return options;
 	}
 
 	/**
-	 * Collapse combobox options to unique `value`s, keeping the first occurrence.
+	 * Merge structured option parts by `value` into final ComboboxControl options.
 	 *
-	 * ComboboxControl keys its list by option value; duplicates break React
-	 * reconciliation. First-seen wins (richest label from server dedupe order).
+	 * Same field key commonly appears in MORE than one ACF group; the flat combobox
+	 * can only commit one bare key, but the label should name ALL groups the field
+	 * lives in ("… — in: Group A, Group B") rather than silently showing the first.
+	 * Also collapses duplicate values (ComboboxControl keys its list by value —
+	 * duplicates break React reconciliation / re-mount the list on scroll).
 	 *
-	 * @param {Array} options Combobox options.
-	 * @return {Array} Options with unique values.
+	 * @param {Array} options Structured parts from groupsToOptions.
+	 * @return {Array} Options `{ value, label }` with unique values, merged groups.
 	 */
-	function dedupeByValue( options ) {
+	function mergeByValue( options ) {
 		// Prototype-free map: a field key like `toString`/`constructor`/`hasOwnProperty`
-		// would otherwise inherit a truthy value from Object.prototype and be wrongly
-		// dropped. Object.create(null) has no prototype, so only real keys register.
-		var seen = Object.create( null );
-		var out  = [];
+		// would otherwise inherit a truthy value from Object.prototype. Object.create(null)
+		// has no prototype, so only real keys register.
+		var index = Object.create( null );
+		var order = [];
 		( options || [] ).forEach( function ( o ) {
 			if ( ! o ) { return; }
 			var v = String( o.value );
-			if ( seen[ v ] ) { return; }
-			seen[ v ] = true;
-			out.push( o );
+			if ( ! index[ v ] ) {
+				index[ v ] = { value: o.value, base: o.base, groups: [], row: !! o.row };
+				order.push( v );
+			}
+			var acc = index[ v ];
+			// First non-empty base wins (richest label from server dedupe order).
+			if ( ! acc.base && o.base ) { acc.base = o.base; }
+			acc.row = acc.row || !! o.row;
+			( o.groups || [] ).forEach( function ( g ) {
+				if ( g && acc.groups.indexOf( g ) === -1 ) { acc.groups.push( g ); }
+			} );
 		} );
-		return out;
+
+		return order.map( function ( v ) {
+			var acc   = index[ v ];
+			var label = acc.base;
+			var extra = [];
+			if ( acc.groups.length ) {
+				extra.push( __( 'in:', 'generateblocks' ) + ' ' + acc.groups.join( ', ' ) );
+			}
+			if ( acc.row ) { extra.push( __( 'row context', 'generateblocks' ) ); }
+			if ( extra.length ) { label += ' — ' + extra.join( '; ' ); }
+			return { value: acc.value, label: label };
+		} );
 	}
 
 	function FieldComboControl( props ) {
@@ -194,15 +218,12 @@
 			}
 		}
 
-		// ComboboxControl is a flat single-select and uses each option `value` as its
-		// React list key — duplicate values (the same field key appearing in more
-		// than one ACF group, or across kinds in the unscoped/all view) trigger
-		// "two children with the same key" warnings and make the list re-mount/reset
-		// while scrolling. The control can only ever commit one bare key anyway, so
-		// collapse to unique values, keeping the first (which carries the richest
-		// label). Server-side dedupe (V7) is within (kind,scope); this is the flat
-		// UI's additional cross-group/cross-kind constraint.
-		options = dedupeByValue( options );
+		// Merge to unique values, naming ALL groups a field lives in (same key across
+		// multiple ACF groups is common). Also fixes ComboboxControl's value-as-React-
+		// key collision (duplicates warned + re-mounted the list on scroll). Server-side
+		// dedupe (V7) is within (kind,scope); this handles the flat UI's cross-group/
+		// cross-kind merge + label composition.
+		options = mergeByValue( options );
 
 		// Synthetic free-text option (V11): when the author typed something that
 		// matches no existing option value/label, offer to commit the BARE key.
