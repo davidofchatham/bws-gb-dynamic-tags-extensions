@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.12.0
+ * Version: 1.13.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.12.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.13.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -225,16 +225,11 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
-	// DEV: filemtime cache-bust while the field selector is in active development so
-	// each JS edit lands without a manual version bump / hard-refresh. Revert to
-	// BWS_DYNAMIC_TAGS_VERSION before the feature ships.
-	$field_combo_path = BWS_DYNAMIC_TAGS_PATH . 'assets/js/field-combo-control.js';
-	$field_combo_ver  = file_exists( $field_combo_path ) ? (string) filemtime( $field_combo_path ) : BWS_DYNAMIC_TAGS_VERSION;
 	wp_enqueue_script(
 		'bws-dynamic-tags-field-combo-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/field-combo-control.js',
 		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-data', 'wp-i18n' ),
-		$field_combo_ver,
+		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
 	// Inline the field envelope directly into the editor page as a JS global. This

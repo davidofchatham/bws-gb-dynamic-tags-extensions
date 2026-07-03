@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0] — unreleased
+
+### Added — smart field selector (replaces blind key typing)
+
+- **Every meta/option field key input is now a searchable field picker instead of a blank text box.** The `key`, `ref`, and all six datetime key inputs (plus their `try_` per-slot versions) list the registered fields on your site — ACF fields, their sub-fields, options-page fields, taxonomy-term fields, and core registered meta — so you pick a field instead of remembering its key. It works in **any editor context, including WP Patterns, GP Elements, and templates**, where GB's own selector shows nothing because it can only read the post you happen to be editing.
+  - **Two filters narrow the list.** *Filter fields by location* drills through a path — `Post fields › Client Details › Coverage Options (repeater)` — so you can jump to exactly the group or repeater you mean; container fields are flagged `(repeater)` / `(group)`. *Filter fields by type* narrows to a field type (Date, Email, Relationship, …) or to loop-only fields. The location filter auto-presets from the tag's own source (a `srcTermIn` tag opens on term fields, `src:site` on site fields) but never assumes the current post is the target — you can always override.
+  - **The control label follows what you pick.** Narrow the location to a group and the label reads "Client Details Field"; narrow to a source and it reads "Post / Term / Site Meta Field". Datetime and relationship keys keep their specific labels.
+  - **Type any key you like.** Unregistered keys (a plugin's raw meta, a key you know by heart) still work — start typing and choose *Use custom key: "…"* to commit it. A clear (✕) button empties the field. There is no separate "Add" step to forget.
+  - **Same-named fields are handled honestly.** A field key that appears in more than one field group collapses to one entry that shows under every location it belongs to; two genuinely different fields that share a key but have different labels (a person's "Name" vs a repeater row's "Feature Name") stay as separate, distinguishable entries.
+  - **Only fields the tag can actually read are offered** — the list is filtered through the same security gate the tag resolver enforces, so it never lists a key that would refuse to resolve.
+  - The field list is assembled once per editor load and inlined into the page, so opening a tag never waits on a network request.
+
 ## [1.12.0] — 2026-06-29
 
 ### Added — `{{call}}` function-passthrough tag (for developers)
