@@ -24,9 +24,9 @@
  *       the editor's current context is a post (that is the GB bug we escape).
  *     Filter 2 Field type — plain select
  *       (All field types / Loop fields / <ACF types>).
- * - Free-text commit via synthetic option (ComboboxControl does NOT commit
- *   off-list text): typing an unmatched key injects a "Use custom key" option that
- *   commits the BARE typed key. Clear via built-in allowReset -> onChange(null).
+ * - Free-text entry via synthetic option (ComboboxControl does NOT accept off-list
+ *   text): typing an unmatched key injects a "Use custom key" option that
+ *   serializes the BARE typed key. Clear via built-in allowReset -> onChange(null).
  * - Pure render swap: writes the SAME plain-string key the text input did
  *   (whole-object setState; `delete` on empty, never '' — GB serializes bare key:).
  * - Composes with existing tagSpecificControls filters: `if (!element) return
@@ -158,7 +158,8 @@
 	 * so it round-trips on reopen.
 	 *
 	 * Each record:
-	 *   value        resolution key (what commits + serializes)
+	 *   value        unique merge key = React/option identity (NOT the serialized key)
+	 *   key          bare field key = what gets serialized into the tag
 	 *   label        field label (or key)
 	 *   key          bare/composite key (for the ('key') display)
 	 *   type         ACF type string ('' if none)
@@ -198,14 +199,14 @@
 					// kind = the SAME field surfaced in multiple homes → collapse to one
 					// row that lists under every home (accumulate paths + types). Same key
 					// + DIFFERENT label (e.g. `name` = "Name" vs "Feature Name") = distinct
-					// fields → separate rows. A NUL joins the parts so ordinary text can't
-					// forge a collision. `kind` is included because a post `email` and a
-					// site `email` read via different paths.
-					var mkey = kind + ' ' + key + ' ' + lbl;
+					// fields → separate rows. A control char (U+001F) joins the parts so
+					// ordinary field text can't forge a collision. `kind` is included
+					// because a post `email` and a site `email` read via different paths.
+					var mkey = kind + '' + key + '' + lbl;
 					if ( ! index[ mkey ] ) {
 						index[ mkey ] = {
 							// React list key / ComboboxControl option value — unique per row.
-							// The COMMITTED value is the bare `key` (see onChange), not this.
+							// The SERIALIZED value is the bare `key` (see onChange), not this.
 							value:      mkey,
 							key:        key,
 							label:      lbl,
@@ -233,7 +234,7 @@
 		// Flat alphabetical by label (then key for stable tiebreak). No breadcrumb
 		// grouping — the filters carry location/type; the list is a plain index.
 		records.forEach( function ( r ) {
-			r.sortKey = ( r.label + ' ' + r.key ).toLowerCase();
+			r.sortKey = ( r.label + '' + r.key ).toLowerCase();
 		} );
 		records.sort( function ( a, b ) {
 			return a.sortKey < b.sortKey ? -1 : ( a.sortKey > b.sortKey ? 1 : 0 );
@@ -247,7 +248,7 @@
 	 *
 	 * Flat label: "<label> ('<key>')". No breadcrumb, no loop-only marker — the two
 	 * filters disambiguate location/type. `value` is the unique merge key (React
-	 * list identity); the committed value is the bare `key`, resolved in onChange.
+	 * list identity); the serialized value is the bare `key`, resolved in onChange.
 	 */
 	function recordToOption( rec ) {
 		return { value: rec.value, label: rec.label + " ('" + rec.key + "')" };
@@ -381,7 +382,7 @@
 		var filtered = applyFilters( records, activeLoc, typeVal );
 		var options  = filtered.map( recordToOption );
 
-		// Option `value` is the unique merge key, but the COMMITTED tag value is the
+		// Option `value` is the unique merge key, but the SERIALIZED tag value is the
 		// bare field key. Map option-value → bare key so onChange can strip it. Custom
 		// / synthetic / persisted-passthrough options carry value === bare key, so they
 		// map to themselves.
