@@ -12,6 +12,11 @@
   - **Only fields the tag can actually read are offered** — the list is filtered through the same security gate the tag resolver enforces, so it never lists a key that would refuse to resolve.
   - The field list is assembled once per editor load and inlined into the page, so opening a tag never waits on a network request.
 
+### Fixed
+
+- **A custom key that is a substring of a listed field label can now be committed.** Typing a raw key like `city` no longer suppresses the *Use custom key: "city"* option just because a field labelled "City ('venue_city')" is in the list; the escape hatch now triggers on an exact key match, not a substring-of-label match.
+- **A malformed field envelope no longer breaks the editor.** If the inlined field list fails to JSON-encode (malformed UTF-8 in an ACF label, or a very deeply nested repeater), the page falls back to an empty object and fetches the list over REST instead of emitting an invalid inline script.
+
 ## [1.12.0] — 2026-06-29
 
 ### Added — `{{call}}` function-passthrough tag (for developers)

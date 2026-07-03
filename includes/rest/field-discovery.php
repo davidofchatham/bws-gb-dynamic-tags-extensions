@@ -115,7 +115,13 @@ function bws_field_discovery_get_envelope_json() {
 	$envelope = bws_field_discovery_collect();
 	$envelope = bws_field_discovery_filter_disallowed( $envelope );
 
-	return wp_json_encode( $envelope );
+	$json = wp_json_encode( $envelope );
+
+	// wp_json_encode returns false on malformed UTF-8 (user-authored ACF labels /
+	// group titles) or JSON depth overflow (deeply nested repeater / flex). Falling
+	// back to an empty object keeps the inlined `window.bwsFieldEnvelope = {...};`
+	// statement syntactically valid; the control then fetches via the REST route.
+	return ( false === $json ) ? '{}' : $json;
 }
 
 /**

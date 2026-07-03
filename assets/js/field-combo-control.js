@@ -488,9 +488,15 @@
 		// Its value IS the bare key (self-committing).
 		var typed = ( filterText || '' ).trim();
 		if ( typed ) {
+			// Suppress the synthetic option only when the typed text ALREADY commits an
+			// existing option: its bare key (valueToKey) or raw option value equals the
+			// typed text. A substring-of-LABEL test would wrongly hide the escape hatch
+			// for a real custom key like `city` whenever a label such as
+			// "City ('venue_city')" is visible, leaving it uncommittable.
+			var lowerTyped = typed.toLowerCase();
 			var matches = options.some( function ( o ) {
 				return o.value === typed ||
-					( o.label && o.label.toLowerCase().indexOf( typed.toLowerCase() ) !== -1 );
+					( valueToKey[ o.value ] && valueToKey[ o.value ].toLowerCase() === lowerTyped );
 			} );
 			if ( ! matches ) {
 				options = [ {
