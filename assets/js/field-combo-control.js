@@ -8,17 +8,27 @@
  * Patterns / GP Elements / templates, where the GB-native selector shows nothing
  * because it reads the container post's meta.
  *
- * Behaviour (SPEC.md §V1/§V2/§V4/§V9/§V11):
+ * UI (field-selector plan §List schema + §Filter schema, LOCKED 2026-07-03):
+ * - FLAT alphabetized field list, NOT grouped by ACF field group. One row per
+ *   resolution key (merged — same key across ACF groups collapses; bare value is
+ *   unique so it round-trips cleanly on reopen). A parent group/repeater FIELD
+ *   owns its children (children sort directly under their parent, not scattered).
+ * - Label: `Venue › City ('venue_city')` — breadcrumb (parent group/repeater,
+ *   display-only) + field label + resolution key in single quotes. `loop-only`
+ *   suffix when the key resolves ONLY in a repeater/flex row context.
+ * - TWO filter selectors ABOVE the field combobox, AND-composed:
+ *     Filter 1 Location — searchable combobox, flat path-strings
+ *       (All detected fields / Post fields / Post fields › Group A / …),
+ *       prefix-match. Preset from SAFE source tokens only (srcTermIn→Term,
+ *       src:site→Site, src:ref→Post) else "All detected fields" — NEVER assume
+ *       the editor's current context is a post (that is the GB bug we escape).
+ *     Filter 2 Field type — plain select
+ *       (All field types / Loop fields / <ACF types>).
+ * - Free-text commit via synthetic option (ComboboxControl does NOT commit
+ *   off-list text): typing an unmatched key injects a "Use custom key" option that
+ *   commits the BARE typed key. Clear via built-in allowReset -> onChange(null).
  * - Pure render swap: writes the SAME plain-string key the text input did
  *   (whole-object setState; `delete` on empty, never '' — GB serializes bare key:).
- * - Free-text commit via synthetic option: ComboboxControl does NOT commit
- *   off-list text, so when the filter string matches no option we inject a
- *   `Use custom key: "X"` option that, when chosen, commits the BARE typed key.
- * - Clear via built-in `allowReset` (default) -> onChange(null) -> delete key.
- * - Scope = resolved-source KIND (post/term/site), inferred from sibling
- *   `src`/`srcTermIn` tokens, always overridable by a kind selector. Filters the
- *   cached field list client-side (no re-fetch on kind switch).
- * - Label tracks kind via the meta/option storage-backend subtype pair.
  * - Composes with existing tagSpecificControls filters: `if (!element) return
  *   element` so conditional-options hiding (show_if -> null) still wins.
  *
@@ -39,12 +49,17 @@
 	var Fragment        = wp.element.Fragment;
 	var useState        = wp.element.useState;
 	var useEffect       = wp.element.useEffect;
+	var useMemo         = wp.element.useMemo;
 	var ComboboxControl = wp.components.ComboboxControl;
 	var SelectControl   = wp.components.SelectControl;
 	var apiFetch        = wp.apiFetch;
 	var __              = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
-	var KINDS = [ 'post', 'term', 'site' ];
+	var KINDS   = [ 'post', 'term', 'site' ];
+	var BREAD   = ' › ';          // ' › ' breadcrumb separator
+	var ALL_LOC = '__all_locations';
+	var ALL_TYPE = '__all_types';
+	var LOOP_TYPE = '__loop';
 
 	// Module-level cache: one fetch of the field envelope, reused for the life of
 	// the page (all modals share it). Per-modal freshness is a non-goal; the point
@@ -54,8 +69,6 @@
 	function fetchEnvelope() {
 		if ( ! envelopePromise ) {
 			envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } ).catch( function () {
-				// On failure, degrade to free-text only (empty envelope). Reset the
-				// promise so a later modal can retry.
 				envelopePromise = null;
 				return { post: [], term: [], site: [] };
 			} );
@@ -64,26 +77,33 @@
 	}
 
 	/**
-	 * Derive the resolved-source KIND from sibling source tokens (V2).
-	 *
-	 * Static token -> kind map, NO runtime L1 call:
-	 *   srcTermIn set        -> term
-	 *   src === 'site'       -> site
-	 *   (else)               -> post
-	 *
-	 * @param {Object} state extraTagParams.
-	 * @return {string} 'post' | 'term' | 'site'.
+	 * Human "<Kind> fields" root label for the Location filter path.
 	 */
-	function inferKind( state ) {
-		if ( ! state ) { return 'post'; }
-		if ( state.srcTermIn ) { return 'term'; }
-		if ( 'site' === state.src ) { return 'site'; }
-		return 'post';
+	function kindRootLabel( kind ) {
+		if ( 'post' === kind ) { return __( 'Post fields', 'generateblocks' ); }
+		if ( 'term' === kind ) { return __( 'Term fields', 'generateblocks' ); }
+		if ( 'site' === kind ) { return __( 'Site fields', 'generateblocks' ); }
+		return __( 'Fields', 'generateblocks' );
 	}
 
 	/**
-	 * Label for a kind, using the meta/option storage-backend subtype pair (V4).
-	 * A purpose prefix (e.g. 'URL ') is prepended when supplied by the option cfg.
+	 * Safe source-token -> kind preset for the Location filter (NEVER assume post
+	 * from the editor context — only when the src TOKEN proves the kind).
+	 *
+	 * @param {Object} state extraTagParams.
+	 * @return {string|null} 'post' | 'term' | 'site' | null (=> All detected).
+	 */
+	function presetKind( state ) {
+		if ( ! state ) { return null; }
+		if ( state.srcTermIn ) { return 'term'; }
+		if ( 'site' === state.src ) { return 'site'; }
+		if ( 'ref' === state.src ) { return 'post'; }
+		return null;
+	}
+
+	/**
+	 * Dynamic control label — meta/option storage-backend subtype pair (V4).
+	 * Uses the preset kind (safe-token) when known, else the source-agnostic fallback.
 	 */
 	function kindLabel( kind, prefix ) {
 		var base;
@@ -95,77 +115,201 @@
 	}
 
 	/**
-	 * Flatten one kind bucket of the envelope into STRUCTURED option parts.
-	 *
-	 * Emits `{ value, base, groups:[title], row:bool }` per field (label composed
-	 * later by mergeByValue). `base` = "<Label> (<key>)" or the bare key; both go in
-	 * the eventual display label so typing either matches (WP#64056: Combobox filters
-	 * on label, not value).
-	 *
-	 * @param {Array} groups Envelope groups for one kind.
-	 * @return {Array} Structured option parts.
+	 * Friendly label for an ACF field type string.
 	 */
-	function groupsToOptions( groups ) {
-		var options = [];
-		( groups || [] ).forEach( function ( group ) {
-			( group.fields || [] ).forEach( function ( field ) {
-				var key  = field.name;
-				var base = field.label && field.label !== key ? field.label + ' (' + key + ')' : key;
-				options.push( {
-					value:  key,
-					base:   base,
-					groups: group.group_title ? [ group.group_title ] : [],
-					row:    'row' === field.context_hint,
+	function typeLabel( type ) {
+		var map = {
+			text: __( 'Text', 'generateblocks' ),
+			textarea: __( 'Text Area', 'generateblocks' ),
+			wysiwyg: __( 'WYSIWYG', 'generateblocks' ),
+			email: __( 'Email', 'generateblocks' ),
+			url: __( 'URL', 'generateblocks' ),
+			number: __( 'Number', 'generateblocks' ),
+			date_picker: __( 'Date', 'generateblocks' ),
+			date_time_picker: __( 'Date & Time', 'generateblocks' ),
+			time_picker: __( 'Time', 'generateblocks' ),
+			relationship: __( 'Relationship', 'generateblocks' ),
+			post_object: __( 'Post Object', 'generateblocks' ),
+			image: __( 'Image', 'generateblocks' ),
+			taxonomy: __( 'Taxonomy', 'generateblocks' ),
+			'true_false': __( 'True / False', 'generateblocks' ),
+			group: __( 'Group', 'generateblocks' ),
+			repeater: __( 'Repeater', 'generateblocks' ),
+			flexible_content: __( 'Flexible Content', 'generateblocks' ),
+		};
+		return map[ type ] || type;
+	}
+
+	/**
+	 * Flatten the whole envelope into flat field RECORDS, merged by resolution key.
+	 *
+	 * One record per unique (key) — same key across ACF groups collapses; the record
+	 * accumulates every location path the key appears under (for the Location filter)
+	 * and ORs the row flag conservatively (see `rowOnly` below). Bare value is unique
+	 * so it round-trips on reopen.
+	 *
+	 * Each record:
+	 *   value        resolution key (what commits + serializes)
+	 *   label        field label (or key)
+	 *   key          bare/composite key (for the ('key') display)
+	 *   type         ACF type string ('' if none)
+	 *   bread        breadcrumb (parent group/repeater path), '' at top level
+	 *   sortKey      lower-cased [bread + label] so children sort under their parent
+	 *   paths        array of full location path strings (kind root › group › parent…)
+	 *   rowSeen      true if ANY instance is a repeater/flex child
+	 *   nonRowSeen   true if ANY instance is NOT a row child
+	 *   (loopOnly    = rowSeen && !nonRowSeen, computed at label time)
+	 *
+	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
+	 * @return {Array} Flat merged field records.
+	 */
+	function envelopeToRecords( envelope ) {
+		var index = Object.create( null );
+		var order = [];
+
+		KINDS.forEach( function ( kind ) {
+			var groups = ( envelope && envelope[ kind ] ) || [];
+			var root   = kindRootLabel( kind );
+			groups.forEach( function ( group ) {
+				var groupTitle = group.group_title || '';
+				( group.fields || [] ).forEach( function ( field ) {
+					var key   = field.name;
+					if ( ! key ) { return; }
+					var bread = field.parent_path || '';
+					var isRow = 'row' === field.context_hint;
+
+					// Full location path for the Location filter: kind root › group › parent…
+					var pathParts = [ root ];
+					if ( groupTitle ) { pathParts.push( groupTitle ); }
+					if ( bread ) { pathParts.push( bread ); }
+					var path = pathParts.join( BREAD );
+
+					var v = String( key );
+					if ( ! index[ v ] ) {
+						index[ v ] = {
+							value:      key,
+							label:      field.label && field.label !== key ? field.label : key,
+							key:        key,
+							type:       field.type || '',
+							bread:      bread,
+							paths:      [],
+							rowSeen:    false,
+							nonRowSeen: false,
+						};
+						order.push( v );
+					}
+					var rec = index[ v ];
+					// First non-empty label/type/breadcrumb wins (server dedupe order).
+					if ( ( ! rec.label || rec.label === rec.key ) && field.label && field.label !== key ) {
+						rec.label = field.label;
+					}
+					if ( ! rec.type && field.type ) { rec.type = field.type; }
+					if ( ! rec.bread && bread ) { rec.bread = bread; }
+					if ( rec.paths.indexOf( path ) === -1 ) { rec.paths.push( path ); }
+					rec.rowSeen    = rec.rowSeen || isRow;
+					rec.nonRowSeen = rec.nonRowSeen || ! isRow;
 				} );
 			} );
 		} );
+
+		var records = order.map( function ( v ) { return index[ v ]; } );
+
+		// Sort: breadcrumb + label, case-insensitive, so a parent group/repeater
+		// field and its children cluster (child bread = parent's label, sorts right
+		// after the bare parent).
+		records.forEach( function ( r ) {
+			r.sortKey = ( ( r.bread ? r.bread + BREAD : '' ) + r.label ).toLowerCase();
+		} );
+		records.sort( function ( a, b ) {
+			return a.sortKey < b.sortKey ? -1 : ( a.sortKey > b.sortKey ? 1 : 0 );
+		} );
+
+		return records;
+	}
+
+	/**
+	 * Compose a record's ComboboxControl option { value, label }.
+	 *
+	 * Label = "<breadcrumb ›> <label> ('<key>')" + " — loop-only" when the key is
+	 * found ONLY in a repeater/flex row context (AND-fold: a key also present
+	 * top-level resolves normally, no marker).
+	 */
+	function recordToOption( rec ) {
+		var label = '';
+		if ( rec.bread ) { label += rec.bread + BREAD; }
+		label += rec.label + " ('" + rec.key + "')";
+		if ( rec.rowSeen && ! rec.nonRowSeen ) {
+			label += ' — ' + __( 'loop-only', 'generateblocks' );
+		}
+		return { value: rec.value, label: label };
+	}
+
+	/**
+	 * Build the Location filter option list (flat path-strings, prefix set).
+	 *
+	 * Distinct set of every path PREFIX present across records: the kind roots, then
+	 * each "root › group", then each "root › group › parent…". Prefixed with
+	 * "All detected fields". Alpha within, roots first.
+	 */
+	function buildLocationOptions( records ) {
+		var seen = Object.create( null );
+		var paths = [];
+		records.forEach( function ( rec ) {
+			rec.paths.forEach( function ( full ) {
+				var parts = full.split( BREAD );
+				var acc = '';
+				for ( var i = 0; i < parts.length; i++ ) {
+					acc = i === 0 ? parts[ 0 ] : acc + BREAD + parts[ i ];
+					if ( ! seen[ acc ] ) { seen[ acc ] = true; paths.push( acc ); }
+				}
+			} );
+		} );
+		paths.sort( function ( a, b ) { return a < b ? -1 : ( a > b ? 1 : 0 ); } );
+
+		var options = [ { value: ALL_LOC, label: __( 'All detected fields', 'generateblocks' ) } ];
+		paths.forEach( function ( p ) { options.push( { value: p, label: p } ); } );
 		return options;
 	}
 
 	/**
-	 * Merge structured option parts by `value` into final ComboboxControl options.
-	 *
-	 * Same field key commonly appears in MORE than one ACF group; the flat combobox
-	 * can only commit one bare key, but the label should name ALL groups the field
-	 * lives in ("… — in: Group A, Group B") rather than silently showing the first.
-	 * Also collapses duplicate values (ComboboxControl keys its list by value —
-	 * duplicates break React reconciliation / re-mount the list on scroll).
-	 *
-	 * @param {Array} options Structured parts from groupsToOptions.
-	 * @return {Array} Options `{ value, label }` with unique values, merged groups.
+	 * Build the Field-type filter option list: All / Loop fields / <ACF types>.
 	 */
-	function mergeByValue( options ) {
-		// Prototype-free map: a field key like `toString`/`constructor`/`hasOwnProperty`
-		// would otherwise inherit a truthy value from Object.prototype. Object.create(null)
-		// has no prototype, so only real keys register.
-		var index = Object.create( null );
-		var order = [];
-		( options || [] ).forEach( function ( o ) {
-			if ( ! o ) { return; }
-			var v = String( o.value );
-			if ( ! index[ v ] ) {
-				index[ v ] = { value: o.value, base: o.base, groups: [], row: !! o.row };
-				order.push( v );
-			}
-			var acc = index[ v ];
-			// First non-empty base wins (richest label from server dedupe order).
-			if ( ! acc.base && o.base ) { acc.base = o.base; }
-			acc.row = acc.row || !! o.row;
-			( o.groups || [] ).forEach( function ( g ) {
-				if ( g && acc.groups.indexOf( g ) === -1 ) { acc.groups.push( g ); }
-			} );
+	function buildTypeOptions( records ) {
+		var seen = Object.create( null );
+		var types = [];
+		records.forEach( function ( rec ) {
+			if ( rec.type && ! seen[ rec.type ] ) { seen[ rec.type ] = true; types.push( rec.type ); }
+		} );
+		types.sort( function ( a, b ) {
+			var la = typeLabel( a ), lb = typeLabel( b );
+			return la < lb ? -1 : ( la > lb ? 1 : 0 );
 		} );
 
-		return order.map( function ( v ) {
-			var acc   = index[ v ];
-			var label = acc.base;
-			var extra = [];
-			if ( acc.groups.length ) {
-				extra.push( __( 'in:', 'generateblocks' ) + ' ' + acc.groups.join( ', ' ) );
+		var options = [
+			{ value: ALL_TYPE, label: __( 'All field types', 'generateblocks' ) },
+			{ value: LOOP_TYPE, label: __( 'Loop fields', 'generateblocks' ) },
+		];
+		types.forEach( function ( t ) { options.push( { value: t, label: typeLabel( t ) } ); } );
+		return options;
+	}
+
+	/**
+	 * Filter records by the active Location (prefix-match) + Type (exact / loop) filters.
+	 */
+	function applyFilters( records, loc, type ) {
+		return records.filter( function ( rec ) {
+			if ( loc !== ALL_LOC ) {
+				var hit = rec.paths.some( function ( p ) {
+					return p === loc || p.indexOf( loc + BREAD ) === 0;
+				} );
+				if ( ! hit ) { return false; }
 			}
-			if ( acc.row ) { extra.push( __( 'row context', 'generateblocks' ) ); }
-			if ( extra.length ) { label += ' — ' + extra.join( '; ' ); }
-			return { value: acc.value, label: label };
+			if ( type === LOOP_TYPE ) {
+				if ( ! ( rec.rowSeen && ! rec.nonRowSeen ) ) { return false; }
+			} else if ( type !== ALL_TYPE ) {
+				if ( rec.type !== type ) { return false; }
+			}
+			return true;
 		} );
 	}
 
@@ -176,27 +320,24 @@
 		var key      = props.optionKey;
 		var value    = state[ key ] || '';
 
-		// Field envelope, fetched once.
 		var envState    = useState( null );
 		var envelope    = envState[ 0 ];
 		var setEnvelope = envState[ 1 ];
 
-		// Filter string driving the synthetic free-text option (V11).
-		var filterState  = useState( '' );
-		var filterText   = filterState[ 0 ];
+		var filterState   = useState( '' );
+		var filterText    = filterState[ 0 ];
 		var setFilterText = filterState[ 1 ];
 
-		// Kind: inferred from siblings, but overridable by the selector below.
-		// null override = "follow inference"; a string = explicit author choice.
-		var overrideState = useState( null );
-		var kindOverride  = overrideState[ 0 ];
-		var setKindOverride = overrideState[ 1 ];
+		// Location filter: null => follow the safe-token preset; a string => explicit
+		// author pick (lasts the modal session, not persisted — ephemeral view state).
+		var locState    = useState( null );
+		var locOverride = locState[ 0 ];
+		var setLoc      = locState[ 1 ];
 
-		// Under src:ref the hopped-to PT is unknown (ref-hop parity unbuilt) -> the
-		// `key` combobox is UNSCOPED in v1 (V3). cfg.unscoped marks that option.
-		var unscoped   = !! props.unscoped;
-		var inferred   = inferKind( state );
-		var kind       = unscoped ? null : ( kindOverride || inferred );
+		// Type filter (ephemeral).
+		var typeState = useState( ALL_TYPE );
+		var typeVal   = typeState[ 0 ];
+		var setType   = typeState[ 1 ];
 
 		useEffect( function () {
 			var live = true;
@@ -206,27 +347,30 @@
 			return function () { live = false; };
 		}, [] );
 
-		// Build options for the active kind (or all kinds when unscoped/unset).
-		var options = [];
-		if ( envelope ) {
-			if ( kind && envelope[ kind ] ) {
-				options = groupsToOptions( envelope[ kind ] );
-			} else {
-				KINDS.forEach( function ( k ) {
-					options = options.concat( groupsToOptions( envelope[ k ] ) );
-				} );
-			}
-		}
+		var records = useMemo( function () {
+			return envelope ? envelopeToRecords( envelope ) : [];
+		}, [ envelope ] );
 
-		// Merge to unique values, naming ALL groups a field lives in (same key across
-		// multiple ACF groups is common). Also fixes ComboboxControl's value-as-React-
-		// key collision (duplicates warned + re-mounted the list on scroll). Server-side
-		// dedupe (V7) is within (kind,scope); this handles the flat UI's cross-group/
-		// cross-kind merge + label composition.
-		options = mergeByValue( options );
+		var locationOptions = useMemo( function () {
+			return buildLocationOptions( records );
+		}, [ records ] );
 
-		// Synthetic free-text option (V11): when the author typed something that
-		// matches no existing option value/label, offer to commit the BARE key.
+		var typeOptions = useMemo( function () {
+			return buildTypeOptions( records );
+		}, [ records ] );
+
+		// Effective location: explicit override, else safe-token preset path, else All.
+		var preset       = presetKind( state );
+		var presetPath   = preset ? kindRootLabel( preset ) : ALL_LOC;
+		// Only use the preset path if it actually exists in the options (fields of
+		// that kind were discovered); otherwise fall back to All.
+		var presetExists = locationOptions.some( function ( o ) { return o.value === presetPath; } );
+		var activeLoc    = locOverride !== null ? locOverride : ( presetExists ? presetPath : ALL_LOC );
+
+		var filtered = applyFilters( records, activeLoc, typeVal );
+		var options  = filtered.map( recordToOption );
+
+		// Synthetic free-text option: typing an unmatched key offers to commit it bare.
 		var typed = ( filterText || '' ).trim();
 		if ( typed ) {
 			var matches = options.some( function ( o ) {
@@ -236,14 +380,13 @@
 			if ( ! matches ) {
 				options = [ {
 					value: typed,
-					// Display-only wording; committed value is the bare key (NOT "Create").
 					label: __( 'Use custom key:', 'generateblocks' ) + ' "' + typed + '"',
 				} ].concat( options );
 			}
 		}
 
-		// If the persisted value is not among the fetched options (custom/unregistered
-		// key), inject it so the control shows it as selected rather than blank.
+		// Persisted value not in the (filtered) option set — inject it so the control
+		// shows it selected rather than blank (custom key, or filtered-out own value).
 		if ( value && ! options.some( function ( o ) { return o.value === value; } ) ) {
 			options = [ { value: value, label: value } ].concat( options );
 		}
@@ -251,7 +394,6 @@
 		function onChange( next ) {
 			var upd = Object.assign( {}, state );
 			if ( next === null || next === undefined || next === '' ) {
-				// allowReset clear, or empty -> omit the key entirely (never '').
 				delete upd[ key ];
 			} else {
 				upd[ key ] = next;
@@ -260,10 +402,26 @@
 		}
 
 		var label = props.dynamicLabel
-			? kindLabel( unscoped ? null : ( kindOverride || inferred ), props.labelPrefix )
+			? kindLabel( preset, props.labelPrefix )
 			: props.label;
 
-		var children = [
+		return el( Fragment, null, [
+			el( SelectControl, {
+				key:      'loc',
+				label:    __( 'Filter: location', 'generateblocks' ),
+				value:    activeLoc,
+				options:  locationOptions,
+				onChange: function ( v ) { setLoc( v ); },
+				__nextHasNoMarginBottom: true,
+			} ),
+			el( SelectControl, {
+				key:      'type',
+				label:    __( 'Filter: field type', 'generateblocks' ),
+				value:    typeVal,
+				options:  typeOptions,
+				onChange: function ( v ) { setType( v ); },
+				__nextHasNoMarginBottom: true,
+			} ),
 			el( ComboboxControl, {
 				key:                 'combo',
 				label:               label,
@@ -275,27 +433,7 @@
 				allowReset:          true,
 				__nextHasNoMarginBottom: true,
 			} ),
-		];
-
-		// Scope (kind) selector — always shown (the override GB structurally lacks),
-		// except when the option is unscoped by design (key-under-src:ref, V3).
-		if ( ! unscoped ) {
-			children.push( el( SelectControl, {
-				key:      'scope',
-				label:    __( 'Field source', 'generateblocks' ),
-				help:     __( 'Which source the field belongs to. Auto-set from the tag source; override to list fields from a different source.', 'generateblocks' ),
-				value:    kindOverride || inferred,
-				options:  [
-					{ value: 'post', label: __( 'Post', 'generateblocks' ) },
-					{ value: 'term', label: __( 'Term', 'generateblocks' ) },
-					{ value: 'site', label: __( 'Site', 'generateblocks' ) },
-				],
-				onChange: function ( k ) { setKindOverride( k ); },
-				__nextHasNoMarginBottom: true,
-			} ) );
-		}
-
-		return el( Fragment, null, children );
+		] );
 	}
 
 	function fieldComboFilter( element, allOptions, context ) {
