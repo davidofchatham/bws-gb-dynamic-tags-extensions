@@ -46,8 +46,8 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | id | st | task | cites |
 |----|----|------|-------|
 | T1 | x | REST route `bws-dynamic-tags/v1/fields` on `rest_api_init`; `edit_posts` cap; DISALLOWED_KEYS filter | V5,V6,I.rest,I.enqueue |
-| T2 | . | Discovery: ACF groups+fields → derive kind+scope from `location`; recurse sub_fields (group composite / repeater bare-name context:row); options-page (kind site); term-meta (taxonomy loc); `get_registered_meta_keys` | V5,V7,V8,I.rest |
-| T3 | . | Kind-keyed envelope `{post,term,site}`; dedupe within (kind,scope), ACF-metadata-wins | V7,I.rest |
+| T2 | x | Discovery: ACF groups+fields → derive kind+scope from `location`; recurse sub_fields (group composite / repeater bare-name context:row); options-page (kind site); term-meta (taxonomy loc); `get_registered_meta_keys` | V5,V7,V8,I.rest |
+| T3 | x | Kind-keyed envelope `{post,term,site}`; dedupe within (kind,scope), ACF-metadata-wins | V7,I.rest |
 | T4 | . | `field-combo-control.js`: `ComboboxControl` + synthetic-option free-text commit (`onFilterValueChange`→`Use custom key: "X"`) + `allowReset` clear→`onChange(null)`, per-modal `apiFetch`, grouped render, `if(!element)return` guard, `cfg.type==='bws-field-combo'` match | V1,V9,V11,I.js |
 | T5 | . | Client-side kind filter + always-shown scope selector (kind + sub-scope); pre-fill from sibling `src`/`ref`/`srcTermIn`, else container-aware `getCurrentPostType()` | V2,V3,V10,I.js |
 | T6 | . | Kind-dynamic label (meta/option subtype pair; static fallback) | V4,I.js |
@@ -55,7 +55,7 @@ Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchab
 | T8 | . | Flip base `use`/`key` block + `ref` to `bws-field-combo` w/ per-option scope descriptor (`key`-under-src:ref unscoped) | V1,V3,I.base |
 | T9 | . | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
 | T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text custom-key commit (synthetic option, Enter, no Add), clear ✕, `show_if` compose, round-trip persist | V1,V9,V10,V11 |
-| T11 | . | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
+| T11 | x | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
 | T12 | . | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
 | T13 | . | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
 
