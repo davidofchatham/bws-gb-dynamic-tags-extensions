@@ -117,11 +117,10 @@ function bws_dynamic_tags_init() {
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
-	// Invalidate the cached field envelope on any ACF field-group mutation.
-	add_action( 'acf/update_field_group', 'bws_field_discovery_flush_cache' );
-	add_action( 'acf/trash_field_group', 'bws_field_discovery_flush_cache' );
-	add_action( 'acf/untrash_field_group', 'bws_field_discovery_flush_cache' );
-	add_action( 'acf/delete_field_group', 'bws_field_discovery_flush_cache' );
+	// Preload the field envelope into the block editor page so apiFetch serves it
+	// from the inlined preload cache — no runtime request, so /fields never queues
+	// behind GB's dynamic-tag-replacement REST swarm. Fresh every editor load.
+	add_filter( 'block_editor_rest_api_preload_paths', 'bws_field_discovery_preload_path' );
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();

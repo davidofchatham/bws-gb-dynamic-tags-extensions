@@ -80,67 +80,41 @@ function bws_field_discovery_permission_check() {
 }
 
 /**
- * Transient key for the assembled (pre-DISALLOWED-filter) envelope.
- *
- * Versioned so a plugin update busts stale caches. The DISALLOWED gate is applied
- * live AFTER the cache (never cached), so a change to DISALLOWED_KEYS takes effect
- * immediately without waiting for invalidation.
- */
-const BWS_FIELD_DISCOVERY_TRANSIENT = 'bws_field_discovery_v1';
-const BWS_FIELD_DISCOVERY_TTL       = DAY_IN_SECONDS;
-
-/**
  * REST callback — assemble and return the kind-keyed field envelope.
  *
- * Reads the cached envelope (T-perf), then runs it through the DISALLOWED_KEYS
- * gate (V6) live before returning.
+ * Assembles field definitions fresh (ACF enumeration measured ~13ms — no cache
+ * needed) and runs the result through the DISALLOWED_KEYS gate (V6). This handler
+ * is the SAME code path the editor consumes via `rest_preload_api_request` at
+ * page render, so the field list is current on every editor load with no cache to
+ * invalidate.
  *
  * @since 1.13.0
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response Kind-keyed envelope `{ post:[], term:[], site:[] }`.
  */
 function bws_field_discovery_rest_response( $request ) {
-	$envelope = bws_field_discovery_get_cached();
+	$envelope = bws_field_discovery_collect();
 	$envelope = bws_field_discovery_filter_disallowed( $envelope );
 
 	return rest_ensure_response( $envelope );
 }
 
 /**
- * Return the assembled envelope, cached in a transient.
+ * Add the field-discovery route to the block-editor apiFetch preload paths.
  *
- * ACF enumeration (`acf_get_field_groups` + per-group `acf_get_fields`) can be
- * very slow on field-heavy installs / local-JSON sync (measured ~41s on one test
- * instance), and the payload is small + changes only when field groups change. So
- * the assembled envelope is cached for a day and invalidated on any ACF
- * field-group mutation (see bws_field_discovery_flush_cache). The DISALLOWED gate
- * is applied by the caller AFTER this, never cached.
- *
- * @since 1.13.0
- * @return array<string,array<int,array<string,mixed>>> Kind-keyed envelope.
- */
-function bws_field_discovery_get_cached() {
-	$cached = get_transient( BWS_FIELD_DISCOVERY_TRANSIENT );
-	if ( is_array( $cached ) && isset( $cached['post'], $cached['term'], $cached['site'] ) ) {
-		return $cached;
-	}
-
-	$envelope = bws_field_discovery_collect();
-	set_transient( BWS_FIELD_DISCOVERY_TRANSIENT, $envelope, BWS_FIELD_DISCOVERY_TTL );
-	return $envelope;
-}
-
-/**
- * Delete the cached envelope so the next request rebuilds it.
- *
- * Hooked on ACF field-group save/delete/trash/untrash so a field definition change
- * is reflected without waiting for the TTL. Cheap no-op when nothing is cached.
+ * WordPress renders the route's response into the editor page at load and
+ * primes apiFetch's preloading middleware with it, so the editor-side
+ * `apiFetch({ path: 'bws-dynamic-tags/v1/fields' })` resolves from the inlined
+ * cache with NO runtime HTTP request. This is what keeps /fields out of the
+ * per-host connection queue that GB's dynamic-tag-replacement swarm saturates.
  *
  * @since 1.13.0
- * @return void
+ * @param array $paths Existing preload paths.
+ * @return array Paths with the field-discovery route appended.
  */
-function bws_field_discovery_flush_cache() {
-	delete_transient( BWS_FIELD_DISCOVERY_TRANSIENT );
+function bws_field_discovery_preload_path( $paths ) {
+	$paths[] = '/' . BWS_FIELD_DISCOVERY_REST_NAMESPACE . BWS_FIELD_DISCOVERY_REST_ROUTE;
+	return $paths;
 }
 
 /**
