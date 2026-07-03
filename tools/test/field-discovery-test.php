@@ -317,7 +317,10 @@ $env_disjoint = array(
 $dd = bws_field_discovery_dedupe( $env_disjoint );
 assert_eq( 'disjoint scope: both groups kept', 2, count( $dd['post'] ) );
 
-// ACF-vs-ACF same bucket: first-seen wins.
+// ACF-vs-ACF same bucket, same name: BOTH kept (distinct fields). Server dedupe
+// only collapses ACF-vs-registered; two ACF fields sharing a bare name (e.g. a
+// `description` sub-field in two different repeaters) are distinct and must both
+// survive — the client merges/labels them by (kind, key, label).
 $env_acfacf = array(
 	'post' => array(
 		array( 'group_title' => 'First', 'kind' => 'post', 'scope' => array( 'event' ), 'source' => 'acf',
@@ -327,9 +330,33 @@ $env_acfacf = array(
 	),
 	'term' => array(), 'site' => array(),
 );
-$da = bws_field_discovery_dedupe( $env_acfacf );
-assert_eq( 'ACF-vs-ACF: one field kept', 1, count( $da['post'][0]['fields'] ) );
-assert_eq( 'ACF-vs-ACF: first-seen label', 'First Y', $da['post'][0]['fields'][0]['label'] );
+$da       = bws_field_discovery_dedupe( $env_acfacf );
+$da_names = array();
+foreach ( $da['post'] as $g ) {
+	foreach ( $g['fields'] as $f ) { $da_names[] = $f['label']; }
+}
+sort( $da_names );
+assert_eq( 'ACF-vs-ACF same name: both fields kept', array( 'First Y', 'Second Y' ), $da_names );
+
+// Sub-field collision: the same bare key in two different repeaters (both ACF,
+// same scope) — both must survive server dedupe (the Features>description bug).
+$env_subdupe = array(
+	'post' => array(
+		array( 'group_title' => 'Benefit Details', 'kind' => 'post', 'scope' => array( 'benefit' ), 'source' => 'acf',
+			'fields' => array(
+				array( 'name' => 'description', 'label' => 'Description', 'type' => 'text', 'return_format' => null, 'context_hint' => 'row', 'parent_path' => 'Highlights' ),
+				array( 'name' => 'description', 'label' => 'Description', 'type' => 'text', 'return_format' => null, 'context_hint' => 'row', 'parent_path' => 'Features' ),
+			) ),
+	),
+	'term' => array(), 'site' => array(),
+);
+$ds    = bws_field_discovery_dedupe( $env_subdupe );
+$paths = array();
+foreach ( $ds['post'] as $g ) {
+	foreach ( $g['fields'] as $f ) { $paths[] = $f['parent_path']; }
+}
+sort( $paths );
+assert_eq( 'sub-field bare-name collision: both parents survive', array( 'Features', 'Highlights' ), $paths );
 
 // -----------------------------------------------------------------------------
 echo "\n== filter_disallowed (V6) ==\n";
