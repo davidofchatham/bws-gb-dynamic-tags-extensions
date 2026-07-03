@@ -255,13 +255,43 @@
 	}
 
 	/**
+	 * Map a container field TYPE to a short location-path hint, or '' if not a
+	 * container (only group / repeater / flexible_content nest children).
+	 */
+	function containerHint( type ) {
+		if ( 'repeater' === type ) { return __( 'repeater', 'generateblocks' ); }
+		if ( 'group' === type ) { return __( 'group', 'generateblocks' ); }
+		if ( 'flexible_content' === type ) { return __( 'flexible', 'generateblocks' ); }
+		return '';
+	}
+
+	/**
 	 * Build the Location filter option list (flat path-strings, prefix set).
 	 *
 	 * Distinct set of every path PREFIX present across records: the kind roots, then
 	 * each "root › group", then each "root › group › parent…". Prefixed with
 	 * "All detected fields". Alpha within, roots first.
+	 *
+	 * The filter `value` stays the raw path (applyFilters prefix-matches it). The
+	 * displayed `label` decorates a segment that names a container FIELD (repeater /
+	 * group / flexible) with a "(repeater)" etc. hint, so the author sees what kind
+	 * of container a path drills into. Container types come from the records
+	 * themselves (a repeater field has its own row, type:'repeater'), keyed by label.
 	 */
 	function buildLocationOptions( records ) {
+		// label -> container hint, from any field that IS a container.
+		var containerByLabel = Object.create( null );
+		records.forEach( function ( rec ) {
+			var hint = '';
+			for ( var i = 0; i < rec.types.length; i++ ) {
+				hint = containerHint( rec.types[ i ] );
+				if ( hint ) { break; }
+			}
+			if ( hint && ! containerByLabel[ rec.label ] ) {
+				containerByLabel[ rec.label ] = hint;
+			}
+		} );
+
 		var seen = Object.create( null );
 		var paths = [];
 		records.forEach( function ( rec ) {
@@ -277,7 +307,13 @@
 		paths.sort( function ( a, b ) { return a < b ? -1 : ( a > b ? 1 : 0 ); } );
 
 		var options = [ { value: ALL_LOC, label: __( 'All detected fields', 'generateblocks' ) } ];
-		paths.forEach( function ( p ) { options.push( { value: p, label: p } ); } );
+		paths.forEach( function ( p ) {
+			// Decorate the LAST segment if it names a container field.
+			var parts = p.split( BREAD );
+			var leaf  = parts[ parts.length - 1 ];
+			var hint  = containerByLabel[ leaf ];
+			options.push( { value: p, label: hint ? p + ' (' + hint + ')' : p } );
+		} );
 		return options;
 	}
 
