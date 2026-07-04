@@ -493,73 +493,94 @@
 		var presetExists = locationOptions.some( function ( o ) { return o.value === presetPath; } );
 		var activeLoc    = locOverride !== null ? locOverride : ( presetExists ? presetPath : ALL_LOC );
 
-		var filtered = applyFilters( records, activeLoc, typeVal );
-		var options  = filtered.map( recordToOption );
+		// Derive the option list, the option-value→bare-key map, and the selected
+		// value together. Pure function of [records, activeLoc, typeVal, filterText,
+		// value] — memoized so typing (which fires setFilterText → re-render on every
+		// keystroke) does not re-filter the whole record set + re-allocate the map
+		// unless one of those inputs actually changed.
+		var derived = useMemo( function () {
+			var filtered   = applyFilters( records, activeLoc, typeVal );
+			var options    = filtered.map( recordToOption );
 
-		// Option `value` is the unique merge key, but the SERIALIZED tag value is the
-		// bare field key. Map option-value → bare key so onChange can strip it. Custom
-		// / synthetic / persisted-passthrough options carry value === bare key, so they
-		// map to themselves.
-		var valueToKey = Object.create( null );
-		filtered.forEach( function ( rec ) { valueToKey[ rec.value ] = rec.key; } );
+			// Option `value` is the unique merge key, but the SERIALIZED tag value is
+			// the bare field key. Map option-value → bare key so onChange can strip it.
+			// Custom / synthetic / persisted-passthrough options carry value === bare
+			// key, so they map to themselves.
+			var valueToKey = Object.create( null );
+			filtered.forEach( function ( rec ) { valueToKey[ rec.value ] = rec.key; } );
 
-		// Synthetic free-text option: typing an unmatched key offers to commit it bare.
-		// Its value IS the bare key (self-committing).
-		var typed = ( filterText || '' ).trim();
-		if ( typed ) {
-			// Suppress the synthetic option only when the typed text ALREADY commits an
-			// existing option: its bare key (valueToKey) or raw option value equals the
-			// typed text. Match is EXACT and case-SENSITIVE: WP meta/ACF keys are
-			// case-sensitive, so `event_date` and `Event_Date` are DIFFERENT keys; a
-			// case-fold here would hide the escape hatch and leave the lower-cased
-			// variant uncommittable. (Substring-of-LABEL would also over-suppress, e.g.
-			// `city` vs a visible "City ('venue_city')".)
-			var matches = options.some( function ( o ) {
-				return o.value === typed || valueToKey[ o.value ] === typed;
-			} );
-			if ( ! matches ) {
-				options = [ {
-					value: typed,
-					label: __( 'Use custom key:', 'generateblocks' ) + ' "' + typed + '"',
-				} ].concat( options );
-				valueToKey[ typed ] = typed;
-			}
-		}
-
-		// Which option should show as selected for the persisted bare key?
-		// The serialized value is only the bare key, which can map to more than one
-		// discovered field (same key, DIFFERENT labels — e.g. `name` = "Name" vs
-		// "Feature Name"). We must NOT auto-select one labeled row in that case: it
-		// would falsely assert the author picked that specific field. So:
-		//   1. Key matches EXACTLY ONE record → select it (friendly "Label ('key')"),
-		//      injecting the option if the active filter hides it.
-		//   2. Key is AMBIGUOUS (>1 record) or UNKNOWN (0 records) → neutral
-		//      passthrough option showing the raw key, no false label. The author
-		//      re-picks the exact row to disambiguate.
-		var selectedValue = value;
-		if ( value ) {
-			var matchesKey = records.filter( function ( rec ) { return rec.key === value; } );
-			if ( 1 === matchesKey.length ) {
-				var known = matchesKey[ 0 ];
-				selectedValue = known.value;
-				if ( ! options.some( function ( o ) { return o.value === known.value; } ) ) {
-					options = [ recordToOption( known ) ].concat( options );
-					valueToKey[ known.value ] = known.key;
+			// Synthetic free-text option: typing an unmatched key offers to commit it
+			// bare. Its value IS the bare key (self-committing).
+			var typed = ( filterText || '' ).trim();
+			if ( typed ) {
+				// Suppress the synthetic option only when the typed text ALREADY commits
+				// an existing option: its bare key (valueToKey) or raw option value
+				// equals the typed text. Match is EXACT and case-SENSITIVE: WP meta/ACF
+				// keys are case-sensitive, so `event_date` and `Event_Date` are DIFFERENT
+				// keys; a case-fold here would hide the escape hatch and leave the
+				// lower-cased variant uncommittable. (Substring-of-LABEL would also
+				// over-suppress, e.g. `city` vs a visible "City ('venue_city')".)
+				var matches = options.some( function ( o ) {
+					return o.value === typed || valueToKey[ o.value ] === typed;
+				} );
+				if ( ! matches ) {
+					options = [ {
+						value: typed,
+						label: __( 'Use custom key:', 'generateblocks' ) + ' "' + typed + '"',
+					} ].concat( options );
+					valueToKey[ typed ] = typed;
 				}
-			} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
-				// Ambiguous or unknown: show the bare key, assert nothing.
-				options = [ { value: value, label: value } ].concat( options );
-				valueToKey[ value ] = value;
 			}
-		}
+
+			// Which option should show as selected for the persisted bare key?
+			// The serialized value is only the bare key, which can map to more than one
+			// discovered field (same key, DIFFERENT labels — e.g. `name` = "Name" vs
+			// "Feature Name"). We must NOT auto-select one labeled row in that case: it
+			// would falsely assert the author picked that specific field. So:
+			//   1. Key matches EXACTLY ONE record → select it (friendly "Label ('key')"),
+			//      injecting the option if the active filter hides it.
+			//   2. Key is AMBIGUOUS (>1 record) or UNKNOWN (0 records) → neutral
+			//      passthrough option showing the raw key, no false label. The author
+			//      re-picks the exact row to disambiguate.
+			var selectedValue = value;
+			if ( value ) {
+				var matchesKey = records.filter( function ( rec ) { return rec.key === value; } );
+				if ( 1 === matchesKey.length ) {
+					var known = matchesKey[ 0 ];
+					selectedValue = known.value;
+					if ( ! options.some( function ( o ) { return o.value === known.value; } ) ) {
+						options = [ recordToOption( known ) ].concat( options );
+						valueToKey[ known.value ] = known.key;
+					}
+				} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
+					// Ambiguous or unknown: show the bare key, assert nothing.
+					options = [ { value: value, label: value } ].concat( options );
+					valueToKey[ value ] = value;
+				}
+			}
+
+			return { options: options, valueToKey: valueToKey, selectedValue: selectedValue };
+		}, [ records, activeLoc, typeVal, filterText, value ] );
+
+		var options       = derived.options;
+		var valueToKey    = derived.valueToKey;
+		var selectedValue = derived.selectedValue;
 
 		function onChange( next ) {
 			var upd = Object.assign( {}, state );
 			if ( next === null || next === undefined || next === '' ) {
 				delete upd[ key ];
-			} else {
+			} else if ( valueToKey[ next ] !== undefined ) {
 				// Strip the merge-key wrapper → commit the bare field key.
-				upd[ key ] = valueToKey[ next ] !== undefined ? valueToKey[ next ] : next;
+				upd[ key ] = valueToKey[ next ];
+			} else if ( next.indexOf( UNIT_SEP ) !== -1 ) {
+				// A private merge key with no valueToKey entry: an option was rendered
+				// without registering its bare key (a bug in the option-build paths).
+				// Never serialize the U+001F wrapper into the tag; drop instead.
+				return;
+			} else {
+				// Genuine free-text custom key (no wrapper) → commit verbatim.
+				upd[ key ] = next;
 			}
 			setState( upd );
 		}
@@ -612,6 +633,7 @@
 				key:                 'combo',
 				label:               label,
 				help:                props.help,
+				placeholder:         props.placeholder,
 				value:               selectedValue,
 				options:             options,
 				onChange:            onChange,
@@ -636,6 +658,7 @@
 			optionKey:    element.key,
 			label:        cfg.label,
 			help:         cfg.help,
+			placeholder:  cfg.placeholder,
 			dynamicLabel: cfg.dynamicLabel,
 			labelPrefix:  cfg.labelPrefix,
 			context:      context,
