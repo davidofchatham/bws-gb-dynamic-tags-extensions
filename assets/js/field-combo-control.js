@@ -517,26 +517,29 @@
 		}
 
 		// Which option should show as selected for the persisted bare key?
-		//   1. A visible (filtered) row with that key → highlight it in place.
-		//   2. Else a discovered row ANYWHERE (records) whose key matches, hidden by
-		//      the active filter → inject its real "Label ('key')" option so the
-		//      control shows the friendly label, not the raw key string.
-		//   3. Else a genuine custom / unknown key → passthrough option (value = key).
+		// The serialized value is only the bare key, which can map to more than one
+		// discovered field (same key, DIFFERENT labels — e.g. `name` = "Name" vs
+		// "Feature Name"). We must NOT auto-select one labeled row in that case: it
+		// would falsely assert the author picked that specific field. So:
+		//   1. Key matches EXACTLY ONE record → select it (friendly "Label ('key')"),
+		//      injecting the option if the active filter hides it.
+		//   2. Key is AMBIGUOUS (>1 record) or UNKNOWN (0 records) → neutral
+		//      passthrough option showing the raw key, no false label. The author
+		//      re-picks the exact row to disambiguate.
 		var selectedValue = value;
 		if ( value ) {
-			var hit = filtered.filter( function ( rec ) { return rec.key === value; } )[ 0 ];
-			if ( hit ) {
-				selectedValue = hit.value;
-			} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
-				var known = records.filter( function ( rec ) { return rec.key === value; } )[ 0 ];
-				if ( known ) {
+			var matchesKey = records.filter( function ( rec ) { return rec.key === value; } );
+			if ( 1 === matchesKey.length ) {
+				var known = matchesKey[ 0 ];
+				selectedValue = known.value;
+				if ( ! options.some( function ( o ) { return o.value === known.value; } ) ) {
 					options = [ recordToOption( known ) ].concat( options );
 					valueToKey[ known.value ] = known.key;
-					selectedValue = known.value;
-				} else {
-					options = [ { value: value, label: value } ].concat( options );
-					valueToKey[ value ] = value;
 				}
+			} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
+				// Ambiguous or unknown: show the bare key, assert nothing.
+				options = [ { value: value, label: value } ].concat( options );
+				valueToKey[ value ] = value;
 			}
 		}
 
