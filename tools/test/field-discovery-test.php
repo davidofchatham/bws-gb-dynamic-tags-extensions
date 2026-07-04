@@ -48,6 +48,10 @@ if ( ! class_exists( 'GenerateBlocks_Dynamic_Tag_Security' ) ) {
 	}
 }
 
+// Provides bws_field_key_disallowed() — the shared DISALLOWED_KEYS predicate the
+// discovery gate calls. Load-safe standalone (only guards + function defs at top
+// level); its WP-dependent bodies are never invoked by these pure tests.
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/rest/field-discovery.php';
 
 $failures = 0;

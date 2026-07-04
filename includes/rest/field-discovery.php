@@ -614,11 +614,11 @@ function bws_field_discovery_remove_field( array &$envelope, $kind, $name, $prio
 /**
  * Filter a kind-keyed envelope through the DISALLOWED_KEYS gate (V6).
  *
- * Offered ⟺ resolvable: strips any field whose resolution key is in
- * `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS`, the same list
- * `bws_read_field` refuses (field-helpers.php:235). Does NOT strip general
- * `_`-protected meta — the resolver allows those on the frontend
- * (field-helpers.php:233), so Pie Calendar `_piecal_*` etc. stay offerable.
+ * Offered ⟺ resolvable: strips any field the resolver would refuse, via the
+ * shared `bws_field_key_disallowed()` predicate (field-helpers.php) that
+ * `bws_read_field` / `bws_read_term_field` also call — one authority, no drift.
+ * Does NOT strip general `_`-protected meta; the resolver allows those on the
+ * frontend, so Pie Calendar `_piecal_*` etc. stay offerable.
  *
  * Pure function (takes the envelope, returns a filtered copy) so the T11 harness
  * can assert the gate without a live GB install; when the Security class is
@@ -629,12 +629,12 @@ function bws_field_discovery_remove_field( array &$envelope, $kind, $name, $prio
  * @return array<string,array<int,array<string,mixed>>> Filtered envelope.
  */
 function bws_field_discovery_filter_disallowed( array $envelope ) {
-	if ( ! class_exists( 'GenerateBlocks_Dynamic_Tag_Security' ) ) {
-		return $envelope;
-	}
-
-	$disallowed = GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS;
-	if ( empty( $disallowed ) ) {
+	// Same gate the resolver enforces (bws_field_key_disallowed, field-helpers.php)
+	// so offered ⟺ resolvable (V6). Cheap early-out when GB (hence the gate) is
+	// absent: nothing is blocked, so the envelope passes through unchanged.
+	if ( ! function_exists( 'bws_field_key_disallowed' )
+		|| ! class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
+	) {
 		return $envelope;
 	}
 
@@ -646,9 +646,9 @@ function bws_field_discovery_filter_disallowed( array $envelope ) {
 			$group['fields'] = array_values(
 				array_filter(
 					$group['fields'],
-					static function ( $field ) use ( $disallowed ) {
+					static function ( $field ) {
 						$key = isset( $field['name'] ) ? (string) $field['name'] : '';
-						return '' === $key || ! in_array( $key, $disallowed, true );
+						return '' === $key || ! bws_field_key_disallowed( $key );
 					}
 				)
 			);
