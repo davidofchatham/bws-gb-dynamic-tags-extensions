@@ -32,6 +32,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M0.2 | Open the field combobox | Lists ACF fields, sub-fields, options-page fields, term-meta, registered meta |
 | M0.3 | Network tab on editor load | NO runtime request to `/bws-dynamic-tags/v1/fields`; `window.bwsFieldEnvelope` present in page source |
 | M0.4 | Direct GET `/wp-json/bws-dynamic-tags/v1/fields` logged OUT | 401 `rest_forbidden` (edit_posts cap, V6) |
+| M0.5 | Force the REST fallback (unset `window.bwsFieldEnvelope` in console, reopen a tag) under **plain permalinks** (`?rest_route=`) | Combobox still populates; `apiFetch` path has a leading slash (`/bws-dynamic-tags/v1/fields`), so no 404 to an empty picker |
 
 ## M1 — free-text + clear (V11)
 
@@ -41,6 +42,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M1.2 | Enter / click that option | Tag serializes bare `key:made_up_key` — no separate "Add" step |
 | M1.3 | Pick a real field, then click the ✕ | Value cleared; `key:` omitted from the tag (never a bare `key:`) |
 | M1.4 | Save + reload, reopen the tag | The persisted key shows selected (round-trip) |
+| M1.5 | Type a custom key that is a **substring of a visible label** (e.g. `city` when "City ('venue_city')" is listed) | **`Use custom key: "city"`** still appears; suppression is exact-key, NOT substring-of-label (V12/B3), so the literal `city` remains committable |
 
 ## M2 — filters (location + type)
 
@@ -49,7 +51,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M2.1 | Filter fields by location = `Post fields › [SUB group]` | List narrows to that group's fields |
 | M2.2 | A repeater / group path segment | Flagged `(repeater)` / `(group)` in the location dropdown |
 | M2.3 | Filter fields by type = a specific type (Date/Email/…) | List narrows to that ACF type |
-| M2.4 | Filter fields by type = **Loop fields** | Only fields that resolve exclusively in a repeater/flex row |
+| M2.4 | Filter fields by type = **Loop fields** | Any field with a loop (repeater/flex row) home; a field that ALSO resolves outside a row still shows ("usable in a loop", NOT "row-exclusive") |
 | M2.5 | Both filters at once | List = intersection (AND) |
 
 ## M3 — flat list + merge (the two duplicate scenarios)
@@ -60,7 +62,9 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M3.2 | Same key, **same** label (e.g. `description` in two repeaters) | ONE row; it appears under BOTH location filters it belongs to |
 | M3.3 | A field key present in ≥2 field groups | ONE row (not duplicated); shows under each group's location filter |
 | M3.4 | Any list | Flat labels `Label ('key')` — no breadcrumb, no loop-only marker in the row |
-| M3.5 | Pick any row (incl. a duplicate-key row) | Serializes the BARE key; reopen shows it selected |
+| M3.5 | Pick a row for an **unambiguous** key (one record), save + reopen | Serializes the BARE key; reopen shows the friendly `Label ('key')` row selected (injected even if a filter would hide it, V12) |
+| M3.6 | Pick a row for an **ambiguous** key (M3.1's `name`, two different-label records), save + reopen | Combobox shows the **raw key** `name` selected, NOT a guessed label; never auto-asserts which field (V12/B4), so the author re-picks to disambiguate |
+| M3.7 | Ambiguous saved key with one of its rows currently **visible** in the active filter | Still shows the raw key, does NOT auto-highlight the visible row (V12) |
 
 ## M4 — dynamic label (V4 + location tracking)
 
@@ -70,7 +74,8 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M4.2 | Location narrowed to `Post fields` | "Post Meta Field" |
 | M4.3 | Location narrowed to a group `… › [SUB group]` | "[SUB group] Field" |
 | M4.4 | `srcTermIn` set (term tag) | Presets location to Term fields → "Term Meta Field" |
-| M4.5 | `src:site` | "Site Option Field" |
+| M4.5 | `src:site` | Presets location to Site fields → "Site Option Field" |
+| M4.5b | `src:ref` set | Location stays **"All detected fields"** (NOT preset to Post), label stays generic **"Meta/Option Field"**; ref-hop target PT is unknown, so no auto-scope (V3) |
 | M4.6 | Datetime key controls | Keep static labels ("Start Date/Time Field Key" etc.) — NOT the kind pair |
 | M4.7 | `ref` (relationship key) | Static "Relationship Field Key" |
 
@@ -89,7 +94,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M6.1 | An option with a `show_if` that hides `key` (e.g. use = Title) | The whole field control is hidden (composes with conditional-options) |
 | M6.2 | `try_text` — each slot's **Meta/Option Field Key** | Renders the combobox (not a text box) |
 | M6.3 | `try_text` slot 2 with `2-srcTermIn` set | That slot's label = "Term Meta Field Key", location presets Term — independent of slot 1 |
-| M6.4 | `try_text` slot `ref` (`2-ref`) | Renders the combobox, presets from `2-src` |
+| M6.4 | `try_text` slot `ref` (`2-ref`) | Renders the combobox; presets from that slot's `2-src` (`2-srcTermIn`→Term, `2-src:site`→Site, `2-src:ref`→unscoped), independent of slot 1 |
 
 ## M7 — security (offered ⟺ resolvable, V6)
 
@@ -97,3 +102,9 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 |---|---|---|
 | M7.1 | Look for a `DISALLOWED_KEYS` key (e.g. `user_pass`) in any list | Absent — never offered |
 | M7.2 | An underscore-protected key that IS resolvable (e.g. `_piecal_*` if present) | Present — resolver allows `_`-protected on frontend |
+
+## M8 — envelope encoding resilience (edge)
+
+| # | Setup | Expect |
+|---|---|---|
+| M8.1 | An ACF field label / group title with a broken UTF-8 byte (or extreme repeater nesting) that makes `wp_json_encode` return false | Editor still loads; inline emits `window.bwsFieldEnvelope = {};` (empty object, NOT the syntax-error `= ;`), and the control falls back to the REST fetch (`bws_field_discovery_get_envelope_json` false-guard). Hard to force; verify the guard by unit inspection if not reproducible on the instance |
