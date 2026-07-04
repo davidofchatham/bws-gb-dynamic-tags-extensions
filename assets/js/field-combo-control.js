@@ -233,9 +233,8 @@
 	 *   bread        breadcrumb (parent group/repeater path), '' at top level
 	 *   sortKey      lower-cased [bread + label] so children sort under their parent
 	 *   paths        array of full location path strings (kind root › group › parent…)
-	 *   rowSeen      true if ANY instance is a repeater/flex child
-	 *   nonRowSeen   true if ANY instance is NOT a row child
-	 *   (loopOnly    = rowSeen && !nonRowSeen, computed at label time)
+	 *   rowSeen      true if ANY instance is a repeater/flex child (drives the
+	 *                "Loop fields" type filter)
 	 *
 	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
 	 * @return {Array} Flat merged field records.
@@ -281,17 +280,15 @@
 							types:      [],
 							paths:      [],
 							rowSeen:    false,
-							nonRowSeen: false,
 						};
 						order.push( mkey );
 					}
 					var rec = index[ mkey ];
 					if ( type && rec.types.indexOf( type ) === -1 ) { rec.types.push( type ); }
 					if ( rec.paths.indexOf( path ) === -1 ) { rec.paths.push( path ); }
-					// Tracked for the "Loop fields" TYPE filter (row-only). Not shown as a
-					// label marker anymore — filters carry that meaning now.
-					rec.rowSeen    = rec.rowSeen || ( 'row' === field.context_hint );
-					rec.nonRowSeen = rec.nonRowSeen || ( 'row' !== field.context_hint );
+					// Tracked for the "Loop fields" TYPE filter. Not shown as a label
+					// marker anymore; the filter carries that meaning now.
+					rec.rowSeen = rec.rowSeen || ( 'row' === field.context_hint );
 				} );
 			} );
 		} );
@@ -420,7 +417,11 @@
 				if ( ! hit ) { return false; }
 			}
 			if ( type === LOOP_TYPE ) {
-				if ( ! ( rec.rowSeen && ! rec.nonRowSeen ) ) { return false; }
+				// Any field with a loop (repeater/flex row) home. A field that ALSO
+				// resolves outside a row still shows here — it is usable in a loop,
+				// which is what the filter asks. (Not "row-exclusive": that would
+				// hide a dual-context field that has a legitimate loop home.)
+				if ( ! rec.rowSeen ) { return false; }
 			} else if ( type !== ALL_TYPE ) {
 				if ( rec.types.indexOf( type ) === -1 ) { return false; }
 			}
