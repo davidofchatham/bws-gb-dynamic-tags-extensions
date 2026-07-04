@@ -170,7 +170,10 @@
 		var p = slotPrefix( optionKey );
 		if ( state[ p + 'srcTermIn' ] ) { return 'term'; }
 		if ( 'site' === state[ p + 'src' ] ) { return 'site'; }
-		if ( 'ref' === state[ p + 'src' ] ) { return 'post'; }
+		// src:ref is deliberately NOT preset. Under src:ref the ref-hop target
+		// post type is not reliably known (parity unbuilt), so `key`-under-src:ref
+		// stays UNSCOPED — all groups + free-text — with the source-agnostic
+		// "Meta/Option Field" label rather than falsely asserting "Post". (SPEC V3.)
 		return null;
 	}
 
@@ -610,7 +613,6 @@
 			optionKey:    element.key,
 			label:        cfg.label,
 			help:         cfg.help,
-			unscoped:     cfg.unscoped,
 			dynamicLabel: cfg.dynamicLabel,
 			labelPrefix:  cfg.labelPrefix,
 			context:      context,

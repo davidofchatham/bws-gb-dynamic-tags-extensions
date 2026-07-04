@@ -239,12 +239,12 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 		// enclosing group name down so the child emits the composite.
 		$resolution_key = ( '' !== $group_key ) ? $group_key . '_' . $name : $name;
 
-		// context_hint: a group child is a stable meta key (`field`); a repeater/flex
-		// child only resolves in row context (`row`). A field is a "row" child when
-		// its parent WAS a repeater/flex — signalled by group_key === '' AND we are
-		// below top level. We track that via the recursion below, not here, so the
-		// context_hint is set by the caller of the recursive branch (see below).
-		$context_hint = ( '' !== $group_key ) ? 'field' : 'field';
+		// context_hint defaults to `field` (a stable meta key). The `row` hint (a key
+		// that only resolves inside a repeater/flex row) is NOT decided here: it is
+		// stamped by the repeater/flex recursion branches below, which override each
+		// child's context_hint to `row`. So every field emitted at this level is
+		// `field`; row-ness comes from the parent, not from group_key.
+		$context_hint = 'field';
 
 		$out[] = array(
 			'name'          => $resolution_key,
