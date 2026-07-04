@@ -80,7 +80,7 @@
 			if ( window.bwsFieldEnvelope && typeof window.bwsFieldEnvelope === 'object' ) {
 				envelopePromise = Promise.resolve( window.bwsFieldEnvelope );
 			} else {
-				envelopePromise = apiFetch( { path: 'bws-dynamic-tags/v1/fields' } )
+				envelopePromise = apiFetch( { path: '/bws-dynamic-tags/v1/fields' } )
 					.catch( function () {
 						envelopePromise = null;
 						return { post: [], term: [], site: [] };
@@ -516,18 +516,27 @@
 			}
 		}
 
-		// Which option should show as selected for the persisted bare key? Prefer the
-		// first row whose bare key matches (highlights it under the current filters).
-		// If none matches (custom / filtered-out key), inject a passthrough option
-		// whose value === bare key so the control shows it selected rather than blank.
+		// Which option should show as selected for the persisted bare key?
+		//   1. A visible (filtered) row with that key → highlight it in place.
+		//   2. Else a discovered row ANYWHERE (records) whose key matches, hidden by
+		//      the active filter → inject its real "Label ('key')" option so the
+		//      control shows the friendly label, not the raw key string.
+		//   3. Else a genuine custom / unknown key → passthrough option (value = key).
 		var selectedValue = value;
 		if ( value ) {
 			var hit = filtered.filter( function ( rec ) { return rec.key === value; } )[ 0 ];
 			if ( hit ) {
 				selectedValue = hit.value;
 			} else if ( ! options.some( function ( o ) { return o.value === value; } ) ) {
-				options = [ { value: value, label: value } ].concat( options );
-				valueToKey[ value ] = value;
+				var known = records.filter( function ( rec ) { return rec.key === value; } )[ 0 ];
+				if ( known ) {
+					options = [ recordToOption( known ) ].concat( options );
+					valueToKey[ known.value ] = known.key;
+					selectedValue = known.value;
+				} else {
+					options = [ { value: value, label: value } ].concat( options );
+					valueToKey[ value ] = value;
+				}
 			}
 		}
 
