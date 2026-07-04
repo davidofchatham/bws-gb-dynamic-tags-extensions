@@ -695,9 +695,11 @@ function bws_base_traversal_options(): array {
 			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
-			// ref scopes to the SOURCE-post kind (where the relationship field lives),
-			// which the control infers as `post` here (src:ref, not term/site). v2 will
-			// type-filter this to relationship/post_object.
+			// ref names the SOURCE-post relationship field. The control does NOT
+			// preset a kind for src:ref (presetKind returns null): the ref-hop target
+			// post type is not reliably known, so the key list stays UNSCOPED with the
+			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
+			// relationship/post_object.
 			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet
 			// (not "never applies"; re-expose when a site→ref path ships).
 			'show_if'     => array( 'src' => 'ref' ),

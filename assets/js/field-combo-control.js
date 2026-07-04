@@ -45,6 +45,16 @@
 		return;
 	}
 
+	// The render uses ComboboxControl/SelectControl/Flex/FlexItem specifically.
+	// Flex/FlexItem are newer @wordpress/components exports than ComboboxControl,
+	// so gate on the exact components used: if any is missing (older/shimmed stack)
+	// bail rather than throwing el(undefined) mid-render, which would leave the
+	// field-key input unusable (worse than the text box this replaced).
+	if ( ! wp.components.ComboboxControl || ! wp.components.SelectControl
+		|| ! wp.components.Flex || ! wp.components.FlexItem ) {
+		return;
+	}
+
 	var el              = wp.element.createElement;
 	var Fragment        = wp.element.Fragment;
 	var useState        = wp.element.useState;
@@ -499,13 +509,13 @@
 		if ( typed ) {
 			// Suppress the synthetic option only when the typed text ALREADY commits an
 			// existing option: its bare key (valueToKey) or raw option value equals the
-			// typed text. A substring-of-LABEL test would wrongly hide the escape hatch
-			// for a real custom key like `city` whenever a label such as
-			// "City ('venue_city')" is visible, leaving it uncommittable.
-			var lowerTyped = typed.toLowerCase();
+			// typed text. Match is EXACT and case-SENSITIVE: WP meta/ACF keys are
+			// case-sensitive, so `event_date` and `Event_Date` are DIFFERENT keys; a
+			// case-fold here would hide the escape hatch and leave the lower-cased
+			// variant uncommittable. (Substring-of-LABEL would also over-suppress, e.g.
+			// `city` vs a visible "City ('venue_city')".)
 			var matches = options.some( function ( o ) {
-				return o.value === typed ||
-					( valueToKey[ o.value ] && valueToKey[ o.value ].toLowerCase() === lowerTyped );
+				return o.value === typed || valueToKey[ o.value ] === typed;
 			} );
 			if ( ! matches ) {
 				options = [ {

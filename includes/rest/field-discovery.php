@@ -115,7 +115,14 @@ function bws_field_discovery_get_envelope_json() {
 	$envelope = bws_field_discovery_collect();
 	$envelope = bws_field_discovery_filter_disallowed( $envelope );
 
-	$json = wp_json_encode( $envelope );
+	// JSON_HEX_TAG (+ AMP/APOS/QUOT) escapes <, >, &, ', " so an author-controlled
+	// ACF label / group title containing `</script>` cannot break out of the inline
+	// <script> block this JSON is embedded in (wp_add_inline_script). Without it,
+	// `</script>` in a label terminates the tag early = stored-injection vector.
+	$json = wp_json_encode(
+		$envelope,
+		JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+	);
 
 	// wp_json_encode returns false on malformed UTF-8 (user-authored ACF labels /
 	// group titles) or JSON depth overflow (deeply nested repeater / flex). Falling
