@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.13.0] — unreleased
+## [1.13.0] — 2026-07-06
 
 ### Added — smart field selector (replaces blind key typing)
 
