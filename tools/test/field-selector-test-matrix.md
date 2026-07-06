@@ -62,7 +62,8 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M3.1 | Same key, **different** labels (e.g. `name` = "Name" in one repeater, "Feature Name" in another) | TWO separate rows, told apart by label |
 | M3.2 | Same key, **same** label (e.g. `description` in two repeaters) | ONE row; it appears under BOTH location filters it belongs to |
 | M3.3 | A field key present in ≥2 field groups | ONE row (not duplicated); shows under each group's location filter |
-| M3.4 | Any list | Flat labels `Label ('key')` — no breadcrumb, no loop-only marker in the row |
+| M3.4 | Any list | Flat labels — no breadcrumb, no loop-only marker. A field WITH a distinct label shows `Label ('key')`; a field with NO label (label falls back to key) shows the key ONCE (`event_date`, not `event_date ('event_date')`) |
+| M3.4a | A list containing underscore-prefixed keys (`_gb_conditions`, `_acf_changed`, etc.) | Those keys are DEMOTED to the bottom of the list (still alphabetical among themselves), below all normal-keyed fields. Not hidden — still selectable/resolvable. A `_`-key that HAS a real label still demotes but keeps its `Label ('_key')` display |
 | M3.5 | Pick a row for an **unambiguous** key (one record), save + reopen | Serializes the BARE key; reopen shows the friendly `Label ('key')` row selected (injected even if a filter would hide it, V12) |
 | M3.6 | Pick a row for an **ambiguous** key (M3.1's `name`, two different-label records), save + reopen | Combobox shows the **raw key** `name` selected, NOT a guessed label; never auto-asserts which field (V12/B4), so the author re-picks to disambiguate |
 | M3.7 | Ambiguous saved key with one of its rows currently **visible** in the active filter | Still shows the raw key, does NOT auto-highlight the visible row (V12) |

@@ -319,8 +319,13 @@
 
 		// Flat alphabetical by label (then key for stable tiebreak). No breadcrumb
 		// grouping — the filters carry location/type; the list is a plain index.
+		// Underscore-prefixed resolution keys (protected/internal meta like
+		// `_gb_*`, `_acf_*`) are DEMOTED to the bottom, not hidden: a rank prefix
+		// (`0` normal, `1` underscore) sorts them into a trailing block, still
+		// alphabetical within it. They stay resolvable and selectable.
 		records.forEach( function ( r ) {
-			r.sortKey = ( r.label + UNIT_SEP + r.key ).toLowerCase();
+			var rank  = ( r.key.charAt( 0 ) === '_' ) ? '1' : '0';
+			r.sortKey = rank + ( r.label + UNIT_SEP + r.key ).toLowerCase();
 		} );
 		records.sort( function ( a, b ) {
 			return a.sortKey < b.sortKey ? -1 : ( a.sortKey > b.sortKey ? 1 : 0 );
@@ -337,7 +342,12 @@
 	 * list identity); the serialized value is the bare `key`, resolved in onChange.
 	 */
 	function recordToOption( rec ) {
-		return { value: rec.value, label: rec.label + " ('" + rec.key + "')" };
+		// When there is no distinct field label (envelopeToRecords fell back to the
+		// key), show the key ONCE — `event_date`, not `event_date ('event_date')`.
+		// Otherwise show `Label ('key')`. Combobox filters on this label; the key is
+		// present either way so typing it still matches.
+		var text = ( rec.label === rec.key ) ? rec.key : rec.label + " ('" + rec.key + "')";
+		return { value: rec.value, label: text };
 	}
 
 	/**
