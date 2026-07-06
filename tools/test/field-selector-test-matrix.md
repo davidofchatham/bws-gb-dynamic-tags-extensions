@@ -96,6 +96,8 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M6.2 | `try_text` — each slot's **Meta/Option Field Key** | Renders the combobox (not a text box) |
 | M6.3 | `try_text` slot 2 with `2-srcTermIn` set | That slot's label = "Term Meta Field Key", location presets Term — independent of slot 1 |
 | M6.4 | `try_text` slot `ref` (`2-ref`) | Renders the combobox; presets from that slot's `2-src` (`2-srcTermIn`→Term, `2-src:site`→Site, `2-src:ref`→unscoped), independent of slot 1 |
+| M6.5 | A `term_` modifier tag (`term_text` / `term_content` / `term_image`), open its **Meta/Option Field Key** control | Renders the combobox (NOT a text box); location presets to **Term fields**, label reads "Term Meta Field". Confirms the modifier-template key flips (base-tags.php text/content/image templates), not just the base tags. (`view_` is an external plugin — not covered here.) |
+| M6.6 | Base `{{content}}` (use = Meta/Option Field) and base `{{image}}` (use = Meta/Option Field) key controls | Each renders the combobox with its help nuance intact (content: "renders through the content pipeline"; image: "attachment ID or URL") and NO `src:site` / dot-path text. Confirms the 5 late-caught flips |
 
 ## M7 — security (offered ⟺ resolvable, V6)
 
