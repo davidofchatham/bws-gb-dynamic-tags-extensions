@@ -62,6 +62,8 @@ full design/rationale.
 | `term_` deprecation path (subsumed by base + context-aware #19 + pinned-resource source; re-add registry-only after). NB `view_` does NOT follow — external plugin, may stay even when `src:view` lands | Exploratory | memory `project_term_deprecation_path.md` |
 | Deprecated tag removal (re-add as registry-only after) | Deferred | `.claude/plans/currently-deprecated-tags-work-quiet-snail.md` (branch `deprecated-tag-removal`) |
 | Datetime option-key cleanup (gated on deprecated removal) | Deferred | memory `project_open_refactors.md` |
+| Collapse `bws_read_field`'s internal loop/term-archive resolution (field-helpers.php:271-296) into the source factory — surfaced during traversal Phase 1 build (T4/V12): the seam already bypasses it via explicit id; once the wrapper routes all ~30 callers through the factory, that inference duplicates the factory everywhere. NOT Phase 1 (touches the 30-caller read path). | Likely | `.claude/plans/traversal-pipeline.md` §Post-Phase-1 convergence |
+| Fold `bws_reliable_term_context_detection` (taxonomy-helpers, 5-tier) into the factory's `bws_capture_ambient_signals` — two term-detection impls now coexist (surfaced Phase 1 build); factory is the intended home. NOT Phase 1 (used by `TaxonomyTerm::resolve_id` + `term_` modifiers → widens blast radius mid-refactor). | Likely | `.claude/plans/traversal-pipeline.md` §Post-Phase-1 convergence |
 
 ## Maintenance
 
