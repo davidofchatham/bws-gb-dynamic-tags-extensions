@@ -57,6 +57,33 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
+// sanitize_key shim — the assemble-steps helper (in field-helpers.php) uses it.
+// Reproduce just that one pure function so we can test step assembly WP-free.
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', (string) $k ) ); }
+}
+// bws_field_values_assemble_steps is defined mid-file in field-helpers.php among
+// WP-dependent siblings; copy the pure function inline rather than require the
+// whole file (which pulls WP deps). Keep byte-equivalent to the shipped source.
+if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
+	function bws_field_values_assemble_steps( array $options ): array {
+		$steps = array();
+		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+		if ( '' !== $tax ) {
+			$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
+			return $steps;
+		}
+		$src = $options['src'] ?? $options['source'] ?? '';
+		if ( 'ref' === $src ) {
+			$ref = $options['ref'] ?? '';
+			if ( '' !== $ref ) {
+				$steps[] = array( 'type' => 'ref', 'field' => $ref );
+			}
+		}
+		return $steps;
+	}
+}
+
 // ── tiny assert harness ─────────────────────────────────────────────────────
 $GLOBALS['pass'] = 0;
 $GLOBALS['fail'] = 0;
@@ -309,6 +336,37 @@ eq(
 		sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) )
 	)
 );
+
+// ── T4 seam step assembly (pure options → steps) ─────────────────────────────
+
+// srcTermIn → single term-hop step, terminal (no ref appended).
+eq(
+	'assemble srcTermIn -> term-hop step',
+	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	bws_field_values_assemble_steps( array( 'srcTermIn' => 'category' ) )
+);
+
+// src:ref + ref key → ref step (V6 plural fan-out happens at run time).
+eq(
+	'assemble src:ref -> ref step',
+	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
+);
+
+// srcTermIn wins + is terminal even if a stray ref present (mutually exclusive).
+eq(
+	'assemble srcTermIn terminal (ref ignored)',
+	array( array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ) ),
+	bws_field_values_assemble_steps( array( 'srcTermIn' => 'post_tag', 'src' => 'ref', 'ref' => 'x' ) )
+);
+
+// Bare / current / site → NO steps (base source read directly).
+eq( 'assemble bare -> no steps', array(), bws_field_values_assemble_steps( array() ) );
+eq( 'assemble src:current -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'current' ) ) );
+eq( 'assemble src:site -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'site' ) ) );
+
+// src:ref WITHOUT a ref key → no step (nothing to hop; avoids empty-field ref).
+eq( 'assemble src:ref no key -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
