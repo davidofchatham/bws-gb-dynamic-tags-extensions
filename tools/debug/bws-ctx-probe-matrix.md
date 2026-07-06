@@ -1,6 +1,6 @@
 # Context probe — visit matrix (fail-fast order)
 
-Companion to `bws-ctx-probe.php`. Feeds the base-entity factory design
+Companion to `bws-ctx-probe.php`. Feeds the source factory design
 (`.claude/plans/traversal-pipeline.md` §Base Resolution) and the #19 context
 taxonomy (`.claude/plans/context-aware-base-tags.md` §Context Taxonomy).
 
