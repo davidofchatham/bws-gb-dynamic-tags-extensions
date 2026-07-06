@@ -230,6 +230,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
+| `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 GB image-size selection uses GB's native `image-size` support (not a custom control). The earlier `bws-img-size` ComboboxControl was retired mid-1.6.0 cycle once GB's native support was confirmed to handle the reserved `size` key correctly — see CHANGELOG 1.6.0.
 
@@ -560,9 +561,9 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | text | Relationship Field Key | `src:ref` | Traversal hop key. |
+| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
-| `key` | text | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
 | `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
 | `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
@@ -607,9 +608,9 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | text | Relationship Field Key | `src:ref` | Traversal hop key. |
+| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
-| `key` | text | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
@@ -666,7 +667,7 @@ There is **no machine contract check**: site functions are untyped, so reflectio
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
 | `src` | select | Source | always | `current` / `ref` ONLY (no `site`/`srcTermIn`); default `current` (stripped). Bespoke 2-value menu (`bws_call_source_option`). |
-| `ref` | text | Relationship Field Key | `src:ref` | The related post the function runs on. |
+| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | The related post the function runs on. |
 | `fn` | select | Function | always | Allowlisted function name; options populated in PHP from the allowlist (`bws_call_fn_select_options`). Default empty (stripped). |
 | `arg` | text | Argument | always | Optional single argument (position 1); sanitized; absent → the function's own default. |
 | `fallback` | text | Fallback | always | Text output when the function is unavailable, returns nothing, or errors. |

@@ -72,10 +72,11 @@ function bws_register_email_tag(): void {
 			$traversal_opts,
 			array(
 				'key'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key holding the email address. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
-					'placeholder' => 'email_field',
+					'type'         => 'bws-field-combo',
+					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+					'dynamicLabel' => true,
+					'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
+					'placeholder'  => 'email_field',
 				),
 				'subject'  => array(
 					// VE2 — bws-format-input escapes `:`/`|` so the subject survives
@@ -340,10 +341,11 @@ function bws_register_email_template(): void {
 		'title'               => __( 'Email', 'generateblocks' ),
 		'options'             => array(
 			'key'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key holding the email address. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
-				'placeholder' => 'email_field',
+				'type'         => 'bws-field-combo',
+				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key holding the email address.', 'generateblocks' ),
+				'placeholder'  => 'email_field',
 			),
 			'subject'  => array(
 				'type'    => 'bws-format-input',

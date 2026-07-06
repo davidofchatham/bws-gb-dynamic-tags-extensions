@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.12.0
+ * Version: 1.13.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.12.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.13.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -113,6 +113,10 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
+
+	// Field-discovery REST service (backs the bws-field-combo editor control).
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
+	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();
@@ -221,6 +225,28 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-field-combo-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/field-combo-control.js',
+		// No wp-data: the control reads the inlined window.bwsFieldEnvelope + sibling
+		// src tokens, never the data store (no getCurrentPostType prefill in v1).
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// Inline the field envelope directly into the editor page as a JS global. This
+	// sidesteps any runtime REST call for /fields entirely — the control reads
+	// window.bwsFieldEnvelope synchronously, so it never queues behind GB's
+	// dynamic-tag-replacement swarm (which was the 30-40s head-of-line block). The
+	// assembly is ~13ms and runs once per editor load, so the list stays current.
+	// Guarded by function_exists so it no-ops if the discovery include is absent.
+	if ( function_exists( 'bws_field_discovery_get_envelope_json' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsFieldEnvelope = ' . bws_field_discovery_get_envelope_json() . ';',
+			'before'
+		);
+	}
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 

@@ -517,11 +517,12 @@ class TagTemplateRegistry {
 				if ( $per_slot_key && ! $per_slot_use ) {
 					$options[ $key_key ] = array_merge(
 						[
-							'type'        => 'text',
+							'type'         => 'bws-field-combo',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-							'placeholder' => 'field_name',
+							'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
+							'dynamicLabel' => true,
+							'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+							'placeholder'  => 'field_name',
 						],
 						$slot_trigger
 					);
@@ -540,11 +541,12 @@ class TagTemplateRegistry {
 
 					$options[ $key_key ] = array_merge(
 						[
-							'type'        => 'text',
+							'type'         => 'bws-field-combo',
 							/* translators: %d: slot number */
-							'label'       => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-							'help'        => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-							'placeholder' => 'field_name',
+							'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
+							'dynamicLabel' => true,
+							'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+							'placeholder'  => 'field_name',
 						],
 						$key_show_if ? [ 'show_if' => $key_show_if ] : [],
 						$slot_trigger

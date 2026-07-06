@@ -15,6 +15,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Whether a field key is refused by GenerateBlocks' dynamic-tag security gate.
+ *
+ * THE single authority on the DISALLOWED_KEYS check. The field readers
+ * (bws_read_field, bws_read_term_field) refuse these keys, and field discovery
+ * (bws_field_discovery_filter_disallowed) filters the offered list through the
+ * same predicate, so "offered ⟺ resolvable" (SPEC V6) cannot drift: the offer
+ * side and the resolve side share ONE definition of "disallowed".
+ *
+ * NOTE: this blocks only the explicit DISALLOWED_KEYS credential/auth list.
+ * General `_`-prefixed protected meta is allowed on the frontend (matches GB
+ * Meta_Handler), so e.g. Pie Calendar `_piecal_*` keys stay readable/offerable.
+ *
+ * When the GB security class is absent, nothing is blocked (returns false).
+ *
+ * @since 1.13.0
+ * @param string $key Meta/ACF resolution key.
+ * @return bool True if the key is on the DISALLOWED_KEYS list.
+ */
+if ( ! function_exists( 'bws_field_key_disallowed' ) ) {
+function bws_field_key_disallowed( string $key ): bool {
+	return class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
+		&& in_array( $key, GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS, true );
+}
+}
+
+/**
  * Canonical gated read of a single site option value (src:site key-mode).
  *
  * THE one reader for every src:site option value. Both the value resolver
@@ -231,9 +257,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	// Security guard — block credential/internal-auth fields explicitly.
 	// Underscore-prefixed protected meta is allowed on frontend (matches GB Meta_Handler),
 	// since plugins like Pie Calendar legitimately store data in _-prefixed keys.
-	if ( class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
-		&& in_array( $key, GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS, true )
-	) {
+	if ( bws_field_key_disallowed( $key ) ) {
 		return null;
 	}
 
@@ -302,9 +326,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
  */
 if ( ! function_exists( 'bws_read_term_field' ) ) {
 function bws_read_term_field( string $key, int $term_id, bool $single_only = true ) {
-	if ( class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
-		&& in_array( $key, GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS, true )
-	) {
+	if ( bws_field_key_disallowed( $key ) ) {
 		return null;
 	}
 	return bws_meta_handler_read( $term_id, $key, $single_only, 'get_term_meta' );

@@ -74,10 +74,11 @@ function bws_register_phone_tag(): void {
 			$traversal_opts,
 			array(
 				'key'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key holding the phone number. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
-					'placeholder' => 'phone_field',
+					'type'         => 'bws-field-combo',
+					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+					'dynamicLabel' => true,
+					'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
+					'placeholder'  => 'phone_field',
 				),
 				'noLink'   => array(
 					// VP1 — inverted bare-key boolean. Absence = wrap (default-on);
@@ -614,10 +615,11 @@ function bws_register_phone_template(): void {
 		'title'               => __( 'Phone', 'generateblocks' ),
 		'options'             => array(
 			'key'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key holding the phone number. For src:site this is the wp_options / ACF-options key (supports dot-path).', 'generateblocks' ),
-				'placeholder' => 'phone_field',
+				'type'         => 'bws-field-combo',
+				'label'        => __( 'Meta/Option Field', 'generateblocks' ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key holding the phone number.', 'generateblocks' ),
+				'placeholder'  => 'phone_field',
 			),
 			'noLink'   => array(
 				'type'  => 'checkbox',

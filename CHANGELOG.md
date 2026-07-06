@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.13.0] — 2026-07-06
+
+### Added — smart field selector (replaces blind key typing)
+
+- **Every meta/option field key input is now a searchable field picker instead of a blank text box.** The `key`, `ref`, `linkKey` (link URL field), and all six datetime key inputs (plus their `try_` per-slot versions) list the registered fields on your site — ACF fields, their sub-fields, options-page fields, taxonomy-term fields, and core registered meta — so you pick a field instead of remembering its key. It works in **any editor context, including WP Patterns, GP Elements, and templates**, where GB's own selector shows nothing because it can only read the post you happen to be editing.
+  - **Two filters narrow the list.** *Filter fields by location* drills through a path — `Post fields › Client Details › Coverage Options (repeater)` — so you can jump to exactly the group or repeater you mean; container fields are flagged `(repeater)` / `(group)`. *Filter fields by type* narrows to a field type (Date, Email, Relationship, …) or to fields usable inside a loop. The location filter auto-presets from the tag's own source (a `srcTermIn` tag opens on term fields, `src:site` on site fields) but never assumes the current post is the target — you can always override.
+  - **The control label follows what you pick.** Narrow the location to a group and the label reads "Client Details Field"; narrow to a source and it reads "Post / Term / Site Meta Field". Datetime and relationship keys keep their specific labels.
+  - **Type any key you like.** Unregistered keys (a plugin's raw meta, a key you know by heart) still work — start typing and choose *Use custom key: "…"* to commit it. A clear (✕) button empties the field. There is no separate "Add" step to forget.
+  - **Same-named fields are handled honestly.** A field key that appears in more than one field group collapses to one entry that shows under every location it belongs to; two genuinely different fields that share a key but have different labels (a person's "Name" vs a repeater row's "Feature Name") stay as separate, distinguishable entries.
+  - **Only fields the tag can actually read are offered** — the list is filtered through the same security gate the tag resolver enforces, so it never lists a key that would refuse to resolve.
+  - The field list is assembled once per editor load and inlined into the page, so opening a tag never waits on a network request.
+
+### Fixed
+
+- **A custom key that is a substring of a listed field label can now be committed.** Typing a raw key like `city` no longer suppresses the *Use custom key: "city"* option just because a field labelled "City ('venue_city')" is in the list; the escape hatch now triggers on an exact key match, not a substring-of-label match.
+- **A key that differs only in letter case from a listed field is now committable.** Meta keys are case-sensitive, so typing `event_date` when an `Event_Date` field exists now offers *Use custom key: "event_date"* instead of silently steering you to the differently-cased field.
+- **A malformed field envelope no longer breaks the editor.** If the inlined field list fails to JSON-encode (malformed UTF-8 in an ACF label, or a very deeply nested repeater), the page falls back to an empty object and fetches the list over REST instead of emitting an invalid inline script. Field labels are also escaped so a label containing markup cannot break the editor page.
+- **Meta keys registered for a specific post type or taxonomy now appear in the picker.** Previously only globally-registered meta was listed; a key registered for one post type (or taxonomy) is now offered too, matching what the tag can actually read.
+- **A site-wide registered meta key is no longer hidden by a same-named custom field.** A global registered key stays in the list even when one post type also defines a field of the same name, so you keep the key on the post types where only the registered one applies.
+
 ## [1.12.0] — 2026-06-29
 
 ### Added — `{{call}}` function-passthrough tag (for developers)
