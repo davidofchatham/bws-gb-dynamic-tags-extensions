@@ -368,6 +368,33 @@ eq( 'assemble src:site -> no steps', array(), bws_field_values_assemble_steps( a
 // src:ref WITHOUT a ref key → no step (nothing to hop; avoids empty-field ref).
 eq( 'assemble src:ref no key -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 
+// ── §V4 — wrapper collapse (bws_first_post_id_from_sources) ──────────────────
+//
+// The back-compat contract of bws_resolve_post_by_source(): first POST id | false.
+// Non-post base (term ambient, meta_row, site) → false, never leak a term/row id
+// as a post id. Wrapper callers stay collapse-to-first (plural = SEAM only, §V6).
+
+// First source is a post → its id.
+eq( 'V4 first post id', 123, bws_first_post_id_from_sources( array( post_src( 123 ), post_src( 456 ) ) ) );
+
+// Ref-plural collapsed to FIRST for wrapper callers (§V4 vs §V6 seam plural).
+eq( 'V4 plural collapses to first', 21, bws_first_post_id_from_sources( array( post_src( 21 ), post_src( 22 ), post_src( 23 ) ) ) );
+
+// Term ambient base (archive) → false, NOT the term id (post-only callers).
+eq( 'V4 term base -> false', false, bws_first_post_id_from_sources( array( term_src( 34 ) ) ) );
+
+// Mode 2b meta_row base (src:current on a flat row) → false (matches old wrapper).
+eq( 'V4 meta_row base -> false', false, bws_first_post_id_from_sources( array( array( 'kind' => 'meta_row', 'row' => array( 'x' => 1 ) ) ) ) );
+
+// site base → false.
+eq( 'V4 site base -> false', false, bws_first_post_id_from_sources( array( array( 'kind' => 'site' ) ) ) );
+
+// Empty source list (short-circuited traversal / unresolvable) → false.
+eq( 'V4 empty sources -> false', false, bws_first_post_id_from_sources( array() ) );
+
+// A post source with id 0 → false (not a usable post id).
+eq( 'V4 post id 0 -> false', false, bws_first_post_id_from_sources( array( post_src( 0 ) ) ) );
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

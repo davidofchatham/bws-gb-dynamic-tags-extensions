@@ -291,6 +291,34 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 }
 
 /**
+ * Collapse a resolved-source list to a single first-POST id (SPEC §V4 wrapper rule).
+ *
+ * The back-compat contract of bws_resolve_post_by_source(): callers want a POST
+ * id | false, nothing else. Take the first resolved source and return its id ONLY
+ * when its kind is 'post'. A non-post base (term ambient on an archive, meta_row
+ * for a Mode-2b flat row, site) yields false — those callers are post-semantic
+ * (bws_get_srcterm_terms needs a post, {{call}}/datetime treat the result as a
+ * post id / link_type:'post'), so a term/row id must NEVER leak out as a "post id".
+ *
+ * This deliberately keeps wrapper callers collapse-to-first: plural (SPEC §V6)
+ * reaches SEAM consumers only; the wrapper stays single-valued (SPEC §V4/§C4).
+ *
+ * @since 1.14.0
+ * @param array[] $sources Resolved-source list (post/term/meta_row/site …).
+ * @return int|false First post id, or false when no post-kind source leads.
+ */
+if ( ! function_exists( 'bws_first_post_id_from_sources' ) ) {
+function bws_first_post_id_from_sources( array $sources ) {
+	$first = reset( $sources );
+	if ( ! is_array( $first ) || 'post' !== ( $first['kind'] ?? '' ) ) {
+		return false;
+	}
+	$id = (int) ( $first['id'] ?? 0 );
+	return $id > 0 ? $id : false;
+}
+}
+
+/**
  * Capture live ambient signals for the factory. The SOLE place the factory
  * reads is_tax/get_queried_object/loop context — isolated so the dispatch in
  * bws_resolve_base_source() stays pure + unit-testable (SPEC §V1/§V7).

@@ -908,55 +908,40 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
 /**
  * Resolve the target post ID from the `src` option.
  *
- * Reads $options['src'] (falls back to $options['source'] for content
- * migrated before the source→src rename) and dispatches to the appropriate
- * source class. `ref` maps the base-tag option key 'ref' to the internal
- * key 'rel' that RelatedPost::resolve_id() expects.
+ * THIN BACK-COMPAT WRAPPER (SPEC §T5, §V4) over the source factory + traversal
+ * engine. The value-list SEAM (bws_resolve_field_values) no longer calls this —
+ * it drives the factory + steps directly and reads plural by kind (SPEC §V6/§V12).
+ * This wrapper survives for its ~30 remaining POST-SEMANTIC callers (datetime,
+ * {{call}}/fn, try_ slots): they want a single POST id | false, nothing else.
+ *
+ * Delegates to bws_resolve_base_source (L1 factory: loop → ambient term → current
+ * post, SPEC §V1/§V7) + bws_field_values_assemble_steps (src:ref → ref step) run
+ * through bws_run_traversal, then collapses to the FIRST post id
+ * (bws_first_post_id_from_sources, SPEC §V4). A non-post base — term ambient on an
+ * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
+ * false, never leaks a term/row id as a post id. That is byte-compatible with the
+ * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
+ * the V11 leak-fix (base the ref hop on the ambient term, not on get_the_ID()).
  *
  * @since 1.6.0
+ * @since 1.14.0 Rewired to the source factory + traversal engine (SPEC §T5).
  * @param array  $options  Tag options from GenerateBlocks.
  * @param object $instance Block instance.
  * @return int|false Resolved post ID, or false if unresolvable.
  */
 function bws_resolve_post_by_source( array $options, $instance ) {
-	$src = $options['src'] ?? $options['source'] ?? 'current';
-	if ( '' === $src ) {
-		$src = 'current';
-	}
-	$ref = $options['ref'] ?? '';
-
-	$loop = bws_get_loop_row_context( $instance );
-
-	if ( 'ref' === $src ) {
-		// Mode 2b: flat repeater row, no row post entity → ref field is a key in the row.
-		if ( $loop['in_loop'] && ! $loop['row_post_id'] && is_array( $loop['loop_item'] ) ) {
-			return bws_extract_post_id( $loop['loop_item'][ $ref ] ?? null );
-		}
-
-		// Mode 2a: resolve ref on row post entity directly.
-		if ( $loop['row_post_id'] ) {
-			return bws_extract_post_id( get_post_meta( $loop['row_post_id'], $ref, true ) );
-		}
-
-		$source = SourceRegistry::get_source( 'related_post' );
-		if ( ! $source ) {
-			return false;
-		}
-		$mapped        = $options;
-		$mapped['rel'] = $ref;
-		return $source->resolve_id( $mapped, $instance );
+	if ( ! function_exists( 'bws_resolve_base_source' )
+		|| ! function_exists( 'bws_field_values_assemble_steps' )
+		|| ! function_exists( 'bws_run_traversal' )
+		|| ! function_exists( 'bws_first_post_id_from_sources' ) ) {
+		return false;
 	}
 
-	// src:'current' (current entity)
-	if ( $loop['row_post_id'] ) {
-		return $loop['row_post_id']; // Mode 2a: row entity is the post.
-	}
-	if ( $loop['in_loop'] && ! isset( $options['id'] ) ) {
-		return false; // Mode 2b with src:'current' — no post ID for a flat row.
-	}
+	$base    = bws_resolve_base_source( $options, $instance );
+	$steps   = bws_field_values_assemble_steps( $options );
+	$sources = bws_run_traversal( array( $base ), $steps );
 
-	$source = SourceRegistry::get_source( 'post' );
-	return $source ? $source->resolve_id( $options, $instance ) : false;
+	return bws_first_post_id_from_sources( $sources );
 }
 
 /**
