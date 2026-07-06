@@ -91,6 +91,18 @@ Single divider for list-joinability everywhere (base list mode + try_ I6 + read-
 
 ---
 
+## I8 — Field discovery projects L1's resolved-source KIND to editor time; never the runtime id, never the current post
+
+The `bws-field-combo` field selector (shipped 1.13.0) is **editor-time discovery**, orthogonal to the runtime L1/L2/L3 read. Its scoping axis is the resolved-source **KIND** (post/term/site) — the ONE half of L1 that is knowable at editor time, projected from the sibling `src`/`srcTermIn` tokens by a **static map** (`presetKind`), with **no L1 call and no runtime id** (id is a runtime-only L1 output). So the selector's location filter presets ONLY from safe source tokens (`srcTermIn`→term, `src:site`→site; `src:ref`→unscoped, since ref-hop target PT is not statically known); it **NEVER assumes the editor's current post is the read target** — that assumption is exactly the GB-native selector's blind spot (it reads the container post's meta in Patterns/Elements/templates) that this feature exists to escape.
+
+Two corollaries bind:
+- **Offered ⟺ resolvable.** The endpoint offers only keys the runtime resolver would accept (one shared `bws_field_key_disallowed()` gate; `_`-protected allowed, `DISALLOWED_KEYS` refused) — a discovery/runtime contract, so an offered key never silent-empties.
+- **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field. Discovery labels are display-only, never part of the wire format.
+
+Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (kind projection, merge-by-`(kind,key,label)`, ambiguous-key display) + `field-discovery.php` (`scopes_equal` keep-both, per-subtype registered meta, the DISALLOWED gate). Schema: `tag-reference.md` §Custom control types. Rationale + follow-ups: `.claude/plans/field-selector.md`.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).
@@ -150,4 +162,5 @@ A tag reads **K fields × T sources** and assembles: text=1×1 (or 1×N via plur
 ## Pointers
 
 - **PHPDoc invariants in code** (single-class): `bws_site_allowlist_ok` (allowlist), `bws_site_read_option` (single-reader), `bws_resolve_link_url` (site link = permalink-analog), `bws_parse_combined_date_time` (datetime value-id sentinel), the email callback + settings accessor (VE1-VE4).
+- **Field discovery (1.13.0, I8):** `includes/rest/field-discovery.php` (offered⟺resolvable gate, `scopes_equal` keep-both dedupe, per-subtype registered meta, `<script>`-safe JSON encode) + `assets/js/field-combo-control.js` (editor-time kind projection, `(kind,key,label)` merge, flat filters, ambiguous-key raw display). Schema: `tag-reference.md` §Custom control types. Design/follow-ups: `.claude/plans/field-selector.md`.
 - **Architecture decision records:** [`docs/adr/`](docs/adr/).

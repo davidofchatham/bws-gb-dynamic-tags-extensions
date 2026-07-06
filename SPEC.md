@@ -1,76 +1,10 @@
-# SPEC — Smart Field Selector (v1, in-flight)
+# SPEC — No active spec. See CHANGELOG, docs/tag-reference.md, Issues.
 
-Branch `feat/field-selector`. PR none yet. Design home `.claude/plans/field-selector.md` (grill-hardened 2026-07-02); this SPEC = v1 scope only (v2 type-priority / v3 Pie Calendar / v-future pick-a-post OUT). Truncate SPEC on merge; migrate load-bearing §V → PHPDoc + CONTEXT.md per lifecycle.
+Smart Field Selector shipped in 1.13.0 (PR #42). Post-ship homes:
+- **Cross-cutting invariant:** `CONTEXT.md` §I8 (field discovery projects L1's resolved-source KIND to editor time).
+- **Load-bearing §V → PHPDoc:** `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php`.
+- **Schema:** `docs/tag-reference.md` §Custom control types + the flipped option rows.
+- **Design + v2/v3/follow-ups (FU-1/FU-2/FU-3):** `.claude/plans/field-selector.md`.
+- **Regression guards:** `tools/test/field-discovery-test.php` (pure logic) + `tools/test/field-selector-test-matrix.md` (manual).
 
-## §G — goal
-
-Replace GB `key`/`ref`/datetime field text inputs with discovery-backed searchable combobox. Two points: (1) give author a registered-field list to pick; (2) escape GB current-post-type-only limit — works in Patterns/Elements/templates. No tag wire-format change.
-
-## §C — constraints
-
-- C1. NO wire-format change. Combobox writes existing `key`/`ref`/`N-key`/datetime keys as plain string, same as today's text input (V1). Decoupled from `use:key,field` combine.
-- C2. Registration-time discovery ONLY, never value-time postmeta scan (V5). Target context (Patterns/Elements) has no bound post instance → value-time empty there; broad `$wpdb DISTINCT` = label-less soup. Unregistered-key gap covered by free-text + (v3) injection.
-- C3. Offered ⟺ resolvable: endpoint output filtered by same gate `bws_read_field` enforces — exclude `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` (V6). Do NOT hide `_`-protected meta generally (resolver allows it, field-helpers.php:233).
-- C4. `edit_posts` cap on REST route (V6).
-- C5. ACF calls `function_exists`-guarded (custom-fields plugin optional dependency).
-- C6. Nomenclature: labels use "meta"/"option" storage-backend subtype pair; "field" umbrella; NEVER "field or option" (V4, feedback_field_nomenclature).
-- C7. No build pipeline/linter — edit PHP + JS directly, test in WP (project CLAUDE.md).
-- C8. No server-side transient cache in v1 (premature; `acf_get_fields` object-cached per request). Deferred perf lever.
-
-## §I — surfaces
-
-- I.rest = new `includes/…/field-discovery.php` (path TBD) — REST route `bws-dynamic-tags/v1/fields`; ACF + options-page + term-meta + `register_meta` discovery; kind-keyed envelope; cap + DISALLOWED filter.
-- I.js = new `assets/js/field-combo-control.js` — `bws-field-combo` control via `generateblocks.editor.tagSpecificControls`; creatable `ComboboxControl`; per-modal `apiFetch`; client-side kind filter; kind-dynamic label; always-shown scope selector.
-- I.enqueue = `bws-gb-dynamic-tags-extensions.php:185` `bws_dynamic_tags_enqueue_editor_assets()` — enqueue `field-combo-control.js` (deps `wp-hooks,wp-element,wp-components,wp-api-fetch,wp-data,wp-i18n`); register REST route on `rest_api_init`.
-- I.base = `includes/tags/base-tags.php` — flip shared `use`/`key` block (`:72` etc.) + `ref` (`:692`) `type:'text'`→`'bws-field-combo'` + per-option scope descriptor.
-- I.dt = `includes/tags/datetime-tags.php` — flip 6 keys (`key:368`,`timeKey:374`,`startKey:479`,`startTimeKey:485`,`endKey:491`,`endTimeKey:497`).
-- I.other = `includes/tags/content-tags.php:35`, `email-tags.php` (`:74`,`:342`), `phone-tags.php` (`:76`,`:616`) — flip standalone `key`.
-- I.read = `includes/helpers/field-helpers.php` — `bws_read_field` (`:230`) reader routing + `DISALLOWED_KEYS` gate (`:235`); reference only, not edited (correctness match target).
-
-## §V — invariants
-
-- V1. **Combobox is a pure render swap; value semantics unchanged.** Flipping an option `type`→`bws-field-combo` changes only how the control renders; the persisted value stays a plain string round-tripping through `extraTagParams` exactly as the `text` input did. Write via whole-object `setState`; `delete newState[key]` on empty (never `''` — GB serializes bare `key:`). Owner I.js. Orthogonal to `use` strip-default (V acts on `key`, not `use`).
-- V2. **Scope axis = resolved-source KIND (post/term/site), the editor-knowable half of L1.** Selector projects the runtime L1 resolved-source kind to editor time from sibling `src`/`ref`/`srcTermIn` tokens — static map, NO L1 call, NO runtime id. `site`'s `'option'` read is a L2b path, NOT a peer axis value (CONTEXT.md §Resolved source, I2). Owner I.js, I.rest.
-- V3. **Location preset comes from safe sibling `src` tokens ONLY; `src:ref` stays unscoped.** `presetKind(state,optionKey)` maps sibling tokens to a kind: `srcTermIn`→term, `src:site`→site. `src:ref` returns null (NO preset) since ref-hop target PT is not reliably known (parity unbuilt), so `key`-under-`src:ref` stays UNSCOPED (Location "All detected fields" + free-text) with the source-agnostic "Meta/Option Field" label (V4). Preset only narrows the Location filter when that kind's path exists in options; `locOverride` always wins. NO per-option `unscoped`/scope-descriptor prop (removed; the rule is uniform in v1, not per-option configurable). Owner I.js, I.base.
-- V4. **Control label tracks resolved-source kind via meta/option subtype pair.** kind post→"Post Meta Field", term→"Term Meta Field", site→"Site Option Field"; unresolved/mixed→"Meta/Option Field" (canonical, source-agnostic-correct fallback). Never "field or option" (feedback_field_nomenclature, CONTEXT.md I5). Owner I.js.
-- V5. **Discovery reads field DEFINITIONS, not values.** Sources = ACF groups (`acf_get_field_groups`/`acf_get_fields`) + options-page (`acf_get_options_pages`) + term-meta (taxonomy-location groups) + `get_registered_meta_keys`. No value-time postmeta scan (C2). Owner I.rest.
-- V6. **Endpoint = offered ⟺ resolvable, `edit_posts`-gated.** Cap check + filter output through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` (same gate as `bws_read_field`, field-helpers.php:235). Never offer a key the resolver refuses. Owner I.rest.
-- V7. **Envelope keyed by kind; dedupe merges same-name only at EQUAL scope.** Response `{post:[…],term:[…],site:[…]}`. Same key string across kinds = DIFFERENT fields (different storage/read path) → kept distinct. Within one kind, an ACF+registered-meta collision on name merges (ACF metadata wins) ONLY when scopes are EQUAL (`bws_field_discovery_scopes_equal`: both global `[]`, or identical slug set) = truly one field; DIFFERING reach (global `[]` vs scoped `['event']`, or partial overlap) → KEEP BOTH, since the global key must survive on post types the scoped one does not reach (the flat per-kind envelope can't partition by post type; overlap-merge dropped the global key envelope-wide — B4). ACF-vs-ACF → keep both. Registered meta is enumerated per subtype (`get_registered_meta_keys($type,$subtype)` over `''`+all post types/taxonomies) so subtype-registered keys are offered and carry their subtype as scope. Client merges records by identity `(kind,key,label)` joined with U+001F (`UNIT_SEP` named const, NOT a literal control char in source, NOT `''`) so ordinary field text can't forge a collision; same-key+same-label = one merged row, same-key+different-label = distinct rows. Owner I.rest, I.js.
-- V8. **Sub-fields surfaced with correct resolution key.** Group child → `parent_child` composite (stable, resolves via `get_post_meta` everywhere). Repeater/flex child → bare `name`, flagged `context:row` (resolves only in loop-row Mode 2b, field-helpers.php:253-255). Recurse `sub_fields` + flex `layouts[].sub_fields`. Owner I.rest.
-- V9. **Control composes with existing `tagSpecificControls` filters.** `bws-field-combo` filter guards `if (!element) return element` so conditional-options (`show_if`→null) hiding wins regardless of filter order; matches `cfg.type==='bws-field-combo'` only (mutually exclusive with `bws-term-hop`). Owner I.js.
-- V10. **Two flat filters above the combobox; location preset from safe src tokens only, NEVER the current post.** Shipped design (flat-list pivot T15, superseded the earlier scope-selector idea): two always-visible `SelectControl`s — "Filter fields by location" (flat path-string prefix filter over `All detected fields` / `Post fields` / `Post fields › Group …`) + "Filter fields by type" (ACF type or "Loop fields"). Location pre-sets ONLY from safe sibling `src` tokens via `presetKind` (`srcTermIn`→Term, `src:site`→Site, `src:ref`→unscoped per V3), else `All detected fields`. NO `getCurrentPostType()`, NO scope/sub-scope selector, NO `wp-data` dep: the control NEVER assumes the editor's current post is the target (that GB blind spot is exactly what we escape). Explicit author override (`locOverride`) always wins. Owner I.js.
-- V11. **Free-text commits via synthetic option; clear via `allowReset`.** `ComboboxControl` does NOT commit off-list text (WP-source-verified: filter-only input, typed-unmatched discarded on Enter/blur). To commit any typed key in one step (no Add button): capture `onFilterValueChange`, inject a synthetic option `{value:<typed>, label:'Use custom key: "<typed>"'}` when no existing match; selecting it fires `onChange` with the BARE key. Committed value = bare key always (label display-only, NOT "Create"). Clear = built-in `allowReset` (default true) → `onChange(null)` → `delete newState[key]`. NO Add-button footgun (structurally absent). Filtering caveat WP#64056: Combobox matches on `label` — where a real option's `value`≠`label`, put both in the label so typing either matches. Owner I.js.
-- V12. **Bare key is the ONLY serialized identity; display MUST NOT assert a specific field when the key is ambiguous.** Serialized value = bare key (V1), which can map to MANY records (same key, different labels, e.g. `name`="Name" vs "Feature Name"). On reopen resolve the persisted key against ALL records (not the filtered subset): match EXACTLY ONE record → select its friendly "Label ('key')" row, injecting the option if the active filter hides it; ambiguous (>1) OR unknown (0) → neutral passthrough option showing the RAW key, assert nothing (author re-picks to disambiguate). Holds even when an ambiguous row is currently visible in the filter (still raw, never auto-highlight one). Same-label duplicates merge upstream (V7) to one record → single match → keep friendly label. Custom-key suppression is exact-key (bare key / option value), NOT substring-of-label (else a real key that is a substring of any visible label becomes uncommittable). Owner I.js. Enforced field-combo-control.js `selectedValue` block.
-
-## §T — tasks
-
-| id | st | task | cites |
-|----|----|------|-------|
-| T1 | x | REST route `bws-dynamic-tags/v1/fields` on `rest_api_init`; `edit_posts` cap; DISALLOWED_KEYS filter | V5,V6,I.rest,I.enqueue |
-| T2 | x | Discovery: ACF groups+fields → derive kind+scope from `location`; recurse sub_fields (group composite / repeater bare-name context:row); options-page (kind site); term-meta (taxonomy loc); `get_registered_meta_keys` | V5,V7,V8,I.rest |
-| T3 | x | Kind-keyed envelope `{post,term,site}`; dedupe within (kind,scope), ACF-metadata-wins | V7,I.rest |
-| T4 | x | `field-combo-control.js`: `ComboboxControl` + synthetic-option free-text commit (`onFilterValueChange`→`Use custom key: "X"`) + `allowReset` clear→`onChange(null)`, per-modal `apiFetch`, grouped render, `if(!element)return` guard, `cfg.type==='bws-field-combo'` match | V1,V9,V11,I.js |
-| T5 | x | Client-side flat location + type filters; location preset from sibling `src`/`srcTermIn` tokens only (`presetKind`), else "All detected fields". NO getCurrentPostType / scope selector (flat-list pivot, T15) | V2,V3,V10,I.js |
-| T6 | x | Kind-dynamic label (meta/option subtype pair; static fallback) | V4,I.js |
-| T7 | x | Enqueue `field-combo-control.js` (deps wp-hooks,wp-element,wp-components,wp-api-fetch,wp-data,wp-i18n) | I.enqueue |
-| T8 | x | Flip base `use`/`key` block + `ref` to `bws-field-combo` w/ per-option scope descriptor (`key`-under-src:ref unscoped) | V1,V3,I.base |
-| T9 | x | Flip datetime ×6 keys + content/email/phone `key` to `bws-field-combo` | V1,I.dt,I.other |
-| T10 | . | Manual WP test: post/term/site scope, Pattern/Element context, free-text custom-key commit (synthetic option, Enter, no Add), clear ✕, `show_if` compose, round-trip persist | V1,V9,V10,V11 |
-| T11 | x | New harness `tools/test/field-discovery-test.php` — standalone, ACF-shimmed fixtures; assert location→kind+scope, sub-field flatten (group composite `parent_child` / repeater bare-name+`context:row` / recurse sub_fields+layouts), dedupe within (kind,scope) ACF-wins, DISALLOWED_KEYS filter, envelope shape. Pure-logic only (no REST/JS). | V5,V6,V7,V8 |
-| T12 | x | New `tools/test/field-selector-test-matrix.md` — manual integration rows: synthetic-option commit, clear ✕→onChange(null), scope-selector tracking sibling src/ref/srcTermIn, Pattern/Element context, show_if compose, round-trip persist, DISALLOWED refusal | V9,V10,V11 |
-| T13 | x | CLAUDE.md update-triggers row: field-discovery change → run `field-discovery-test.php` (mirror phone/preview harness rows) | . |
-| T14 | x | Revert DEV filemtime cache-bust on `field-combo-control.js` enqueue → `BWS_DYNAMIC_TAGS_VERSION` before ship | I.enqueue |
-| T15 | x | Option-label schema — SUPERSEDED by the fully-flat list decision (2026-07-03): no in-row breadcrumb, no loop-only marker; the two filters (location + type incl. "Loop fields") carry that meaning. Merge is (kind,key,label); location paths flag `(repeater)`/`(group)`; label tracks active group/kind. | I.js |
-
-## §B — bugs
-
-| id | date | cause | fix |
-|----|------|-------|-----|
-| B1 | 2026-07-03 | Combobox options carried duplicate `value`s (same field key across ACF groups / cross-kind all-view); ComboboxControl keys its list by value → "two children with same key", list re-mounts/resets on scroll | dedupeByValue after building options (first-seen wins; flat select commits one key so lossless) |
-| B2 | 2026-07-03 | dedupeByValue `seen={}` plain object → field keys matching Object.prototype props (`toString`,`constructor`,`hasOwnProperty`) inherited truthy → silently dropped from the list | `Object.create(null)` seen map; `String(value)` coerce |
-| B3 | 2026-07-03 | Custom-key synthetic option suppressed on substring-of-LABEL match → a real key that is a substring of any visible label (`city` vs "City ('venue_city')") became uncommittable (Combobox discards off-list text) | exact-key match (bare key / option value) → V12 |
-| B4 | 2026-07-03 | Reopen resolved the persisted key against the FILTERED subset + auto-selected one labeled row for a key mapping to many different-label fields → falsely asserted which field the author chose | resolve vs ALL records; single-match→label, ambiguous/unknown→raw passthrough → V12 |
-| B5 | 2026-07-06 | `wp_json_encode($envelope)` (no JSON_HEX_TAG) inlined into a `<script>`; an author-controlled ACF label containing `</script>` broke out of the tag (stored-injection vector) | encode with `JSON_HEX_TAG\|AMP\|APOS\|QUOT` |
-| B6 | 2026-07-06 | Custom-key suppression compared case-INSENSITIVELY but WP meta keys are case-sensitive → a case-variant key (`event_date` vs `Event_Date`) was uncommittable and committed the wrong-cased key | exact case-sensitive match; regression-locked by field-discovery-test `bws_field_key_disallowed` case assertion → V12 |
-| B7 | 2026-07-06 | Dedupe merged same-name fields on scope OVERLAP; a global registered key (empty scope overlaps all) was dropped by any same-name scoped ACF field, vanishing from post types the ACF field doesn't reach | merge only at scope EQUALITY (`scopes_equal`), keep-both on differing reach → V7 |
-| B8 | 2026-07-06 | `get_registered_meta_keys($type)` used empty subtype → subtype-registered meta (`register_post_meta('event',…)`) never offered though the resolver reads it (offered ⊊ resolvable) | enumerate `''`+all subtypes, scope each group to its subtype → V7 |
+Shipped-fix bugs (B1-B8) are captured by the invariants they produced (now in code PHPDoc + CONTEXT.md §I8) and the test guards above; no open issues outstanding.
