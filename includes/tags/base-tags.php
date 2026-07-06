@@ -133,14 +133,15 @@ function bws_register_base_tags(): void {
 					'_strip_default' => true,
 				),
 				'key'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site (supports dot-path). A WYSIWYG / Blocks field renders through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
-					'placeholder' => 'field_name',
+					'type'         => 'bws-field-combo',
+					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'dynamicLabel' => true,
+					'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
+					'placeholder'  => 'field_name',
 					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
 					// value (rich render); use:content default → '' (site has no content
 					// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
-					'show_if'     => array(
+					'show_if'      => array(
 						'use' => 'key',
 					),
 				),
@@ -249,13 +250,14 @@ function bws_register_base_tags(): void {
 					'_strip_default' => true,
 				),
 				'key'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'help'        => __( 'ACF or meta field key for the image. For src:site, the wp_options / ACF-options key storing an attachment ID (use:key); the Featured Image option reads the site logo.', 'generateblocks' ),
-					'placeholder' => 'image_field',
+					'type'         => 'bws-field-combo',
+					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+					'dynamicLabel' => true,
+					'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
+					'placeholder'  => 'image_field',
 					// use:key → custom-field (post/term) or wp_options (site) read.
 					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
-					'show_if'     => array( 'use' => 'not:featured' ),
+					'show_if'      => array( 'use' => 'not:featured' ),
 				),
 				'fallback' => array(
 					'type'  => 'bws-media-picker',
@@ -323,10 +325,11 @@ function bws_register_base_tags(): void {
 				'_strip_default' => true,
 			),
 			'key'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site.', 'generateblocks' ),
-				'placeholder' => 'field_name',
+				'type'         => 'bws-field-combo',
+				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
+				'placeholder'  => 'field_name',
 			),
 			'fallback' => array(
 				'type'  => 'text',
@@ -361,10 +364,11 @@ function bws_register_base_tags(): void {
 				'_strip_default' => true,
 			),
 			'key'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key (post/term), or a wp_options / ACF-options key under src:site. A WYSIWYG / Blocks field is rendered through the content pipeline (shortcodes + blocks execute).', 'generateblocks' ),
-				'placeholder' => 'field_name',
+				'type'         => 'bws-field-combo',
+				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
+				'placeholder'  => 'field_name',
 			),
 			'fallback' => array(
 				'type'  => 'text',
@@ -452,11 +456,12 @@ function bws_register_base_tags(): void {
 				'_strip_default' => true,
 			),
 			'key'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'help'        => __( 'ACF or meta field key for the image (post/term), or a wp_options / ACF-options key storing an attachment ID under src:site.', 'generateblocks' ),
-				'placeholder' => 'image_field',
-				'show_if'     => array( 'use' => 'not:featured' ),
+				'type'         => 'bws-field-combo',
+				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
+				'placeholder'  => 'image_field',
+				'show_if'      => array( 'use' => 'not:featured' ),
 			),
 			'fallback' => array(
 				'type'  => 'bws-media-picker',
