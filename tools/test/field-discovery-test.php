@@ -14,7 +14,8 @@
  *   bws_field_discovery_group_entry()         group array -> envelope entry
  *   bws_field_discovery_registered_meta_group() register_meta map -> group entry
  *   bws_field_discovery_dedupe()              within-(kind,scope) dedupe, ACF wins
- *   bws_field_discovery_scopes_overlap()      scope overlap predicate
+ *   bws_field_discovery_scopes_equal()        scope-equality merge gate (keep-both on differing reach)
+ *   bws_field_key_disallowed()                shared DISALLOWED_KEYS predicate (case-sensitive)
  *   bws_field_discovery_filter_disallowed()   DISALLOWED_KEYS gate
  *
  * EXCLUDED — REST route wiring, permission callback, live ACF/collect(), and the
@@ -203,6 +204,9 @@ $flat_flex = bws_field_discovery_flatten_fields( array(
 ) );
 assert_eq( 'flex layout child bare name', 'headline', $flat_flex[1]['name'] );
 assert_eq( 'flex layout child context = row', 'row', $flat_flex[1]['context_hint'] );
+// F1: layout path nests under the flex field's OWN label (Blocks), then the layout
+// (Hero) — so two flex fields sharing a layout name stay under distinct paths.
+assert_eq( 'flex layout child breadcrumb includes flex field', 'Blocks › Hero', $flat_flex[1]['parent_path'] );
 
 // Nested GROUP inside GROUP -> double composite.
 $flat_nested = bws_field_discovery_flatten_fields( array(
@@ -254,12 +258,14 @@ assert_eq( 'reg field label fallback to key', 'raw_only', $rmg['fields'][1]['lab
 assert_eq( 'empty map -> null', null, bws_field_discovery_registered_meta_group( array(), 'post', '', 'X' ) );
 
 // -----------------------------------------------------------------------------
-echo "\n== scopes_overlap ==\n";
+echo "\n== scopes_equal ==\n";
 
-assert_true( 'empty a overlaps anything', bws_field_discovery_scopes_overlap( array(), array( 'event' ) ) );
-assert_true( 'empty b overlaps anything', bws_field_discovery_scopes_overlap( array( 'event' ), array() ) );
-assert_true( 'shared slug overlaps', bws_field_discovery_scopes_overlap( array( 'event', 'page' ), array( 'page' ) ) );
-assert_eq( 'disjoint no overlap', false, bws_field_discovery_scopes_overlap( array( 'event' ), array( 'page' ) ) );
+assert_true( 'both empty (both global) are equal', bws_field_discovery_scopes_equal( array(), array() ) );
+assert_true( 'same single slug equal', bws_field_discovery_scopes_equal( array( 'event' ), array( 'event' ) ) );
+assert_true( 'same set diff order equal', bws_field_discovery_scopes_equal( array( 'event', 'page' ), array( 'page', 'event' ) ) );
+assert_eq( 'global vs scoped NOT equal', false, bws_field_discovery_scopes_equal( array(), array( 'event' ) ) );
+assert_eq( 'partial overlap NOT equal', false, bws_field_discovery_scopes_equal( array( 'event', 'page' ), array( 'event' ) ) );
+assert_eq( 'disjoint NOT equal', false, bws_field_discovery_scopes_equal( array( 'event' ), array( 'page' ) ) );
 
 // -----------------------------------------------------------------------------
 echo "\n== dedupe (within kind,scope; ACF wins) ==\n";
@@ -361,6 +367,54 @@ foreach ( $ds['post'] as $g ) {
 }
 sort( $paths );
 assert_eq( 'sub-field bare-name collision: both parents survive', array( 'Features', 'Highlights' ), $paths );
+
+// B4-regression: a GLOBAL registered-meta key (scope []) and a SCOPED ACF field
+// (scope ['event']) of the same name have DIFFERENT reach, so both are kept. The
+// global key must survive on post types the scoped ACF field does not apply to;
+// merging by overlap (old behavior) dropped it envelope-wide.
+$env_globalreg = array(
+	'post' => array(
+		// ACF appended first (mirrors collect() ordering), scoped to one post type.
+		array( 'group_title' => 'Event Details', 'kind' => 'post', 'scope' => array( 'event' ), 'source' => 'acf',
+			'fields' => array( array( 'name' => 'subtitle', 'label' => 'Event Subtitle', 'type' => 'text', 'return_format' => null, 'context_hint' => 'field', 'parent_path' => '' ) ) ),
+		// Global registered meta (empty scope = all post types).
+		array( 'group_title' => 'Registered post meta', 'kind' => 'post', 'scope' => array(), 'source' => 'registered',
+			'fields' => array( array( 'name' => 'subtitle', 'label' => 'subtitle', 'type' => '', 'return_format' => null, 'context_hint' => 'field', 'parent_path' => '' ) ) ),
+	),
+	'term' => array(), 'site' => array(),
+);
+$dg     = bws_field_discovery_dedupe( $env_globalreg );
+$dg_src = array();
+foreach ( $dg['post'] as $g ) {
+	foreach ( $g['fields'] as $f ) { $dg_src[] = $g['source']; }
+}
+sort( $dg_src );
+assert_eq( 'global-registered survives a scoped ACF of same name (keep both)', array( 'acf', 'registered' ), $dg_src );
+
+// Same name, SAME scope (both global): ACF still wins (truly one field).
+$env_bothglobal = array(
+	'post' => array(
+		array( 'group_title' => 'ACF Global', 'kind' => 'post', 'scope' => array(), 'source' => 'acf',
+			'fields' => array( array( 'name' => 'subtitle', 'label' => 'Subtitle', 'type' => 'text', 'return_format' => null, 'context_hint' => 'field', 'parent_path' => '' ) ) ),
+		array( 'group_title' => 'Registered post meta', 'kind' => 'post', 'scope' => array(), 'source' => 'registered',
+			'fields' => array( array( 'name' => 'subtitle', 'label' => 'subtitle', 'type' => '', 'return_format' => null, 'context_hint' => 'field', 'parent_path' => '' ) ) ),
+	),
+	'term' => array(), 'site' => array(),
+);
+$dbg = bws_field_discovery_dedupe( $env_bothglobal );
+assert_eq( 'equal-scope global: ACF wins, one group left', 1, count( $dbg['post'] ) );
+assert_eq( 'equal-scope global: kept is ACF', 'acf', $dbg['post'][0]['source'] );
+
+// -----------------------------------------------------------------------------
+echo "\n== bws_field_key_disallowed (shared gate, J2) ==\n";
+
+assert_true( 'disallowed key -> true', bws_field_key_disallowed( 'user_pass' ) );
+assert_eq( 'allowed key -> false', false, bws_field_key_disallowed( 'subtitle' ) );
+assert_eq( 'underscore-protected -> false (resolver allows)', false, bws_field_key_disallowed( '_piecal_start_date' ) );
+// Case-sensitivity lock: WP meta keys are case-sensitive; the gate must NOT fold
+// case (a folded gate would wrongly refuse a legitimately-distinct cased key and
+// desync offer-vs-resolve). Regression guard for the case-fold defect fixed twice.
+assert_eq( 'case-variant of disallowed -> false (exact match only)', false, bws_field_key_disallowed( 'User_Pass' ) );
 
 // -----------------------------------------------------------------------------
 echo "\n== filter_disallowed (V6) ==\n";

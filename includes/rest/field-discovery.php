@@ -280,13 +280,17 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 		}
 
 		// FLEXIBLE CONTENT → each layout's sub_fields, bare name in row context.
+		// Path nests under THIS flex field ($child_path already = parent › this label),
+		// then the layout, so two flex fields sharing a layout name (e.g. `Blocks` and
+		// `Sidebar` both with a `Hero` layout) stay under distinct location paths
+		// instead of collapsing to a bare `Hero` (matches the group/repeater breadcrumb).
 		if ( 'flexible_content' === $type && ! empty( $field['layouts'] ) && is_array( $field['layouts'] ) ) {
 			foreach ( $field['layouts'] as $layout ) {
 				if ( empty( $layout['sub_fields'] ) ) {
 					continue;
 				}
-				$layout_label = isset( $layout['label'] ) && '' !== $layout['label'] ? (string) $layout['label'] : $child_path;
-				$layout_path  = ( '' === $parent_path ) ? $layout_label : $parent_path . ' › ' . $layout_label;
+				$layout_label = isset( $layout['label'] ) && '' !== $layout['label'] ? (string) $layout['label'] : '';
+				$layout_path  = ( '' === $layout_label ) ? $child_path : $child_path . ' › ' . $layout_label;
 				foreach ( bws_field_discovery_flatten_fields( $layout['sub_fields'], $layout_path, '' ) as $child ) {
 					$child['context_hint'] = 'row';
 					$out[]                 = $child;
@@ -378,6 +382,43 @@ function bws_field_discovery_registered_meta_group( $meta_map, $kind, $scope, $g
 }
 
 /**
+ * Subtypes to enumerate for registered meta of a kind: '' (global) + every
+ * post type / taxonomy. Empty string first so global keys are seen before their
+ * subtype-scoped duplicates in dedupe (global [] and subtype scopes never merge,
+ * but ordering keeps the global group's title/position deterministic).
+ *
+ * @since 1.13.0
+ * @param string $kind 'post' or 'term'.
+ * @return array<int,string> Subtype slugs, '' included first.
+ */
+function bws_field_discovery_registered_meta_subtypes( $kind ) {
+	$subtypes = array( '' );
+	if ( 'post' === $kind && function_exists( 'get_post_types' ) ) {
+		$subtypes = array_merge( $subtypes, array_values( get_post_types( array(), 'names' ) ) );
+	} elseif ( 'term' === $kind && function_exists( 'get_taxonomies' ) ) {
+		$subtypes = array_merge( $subtypes, array_values( get_taxonomies( array(), 'names' ) ) );
+	}
+	return array_values( array_unique( $subtypes ) );
+}
+
+/**
+ * Registered meta map for one (object type, subtype). Thin wrapper over
+ * get_registered_meta_keys so collect() and the test harness share one call site.
+ *
+ * @since 1.13.0
+ * @param string $object_type 'post' or 'term'.
+ * @param string $subtype     Post type / taxonomy slug, or '' for global.
+ * @return array `key => args`, or empty array.
+ */
+function bws_field_discovery_get_registered_meta( $object_type, $subtype ) {
+	if ( ! function_exists( 'get_registered_meta_keys' ) ) {
+		return array();
+	}
+	$map = get_registered_meta_keys( $object_type, $subtype );
+	return is_array( $map ) ? $map : array();
+}
+
+/**
  * Collect field definitions into a kind-keyed envelope.
  *
  * Envelope shape (V7): `array( 'post' => [], 'term' => [], 'site' => [] )` where
@@ -423,28 +464,35 @@ function bws_field_discovery_collect() {
 		}
 	}
 
-	// Core registered post meta (non-ACF). Complementary source only.
+	// Core registered meta (non-ACF). Complementary source. get_registered_meta_keys
+	// with an EMPTY subtype returns ONLY globally-registered keys; subtype-registered
+	// keys (register_post_meta( 'event', ... )) are invisible there, so enumerate the
+	// global set AND each subtype, scoping each group to its subtype. A key resolves
+	// the same via get_(post|term)_meta regardless of subtype, so scope is a reach
+	// hint (dedupe uses it), not a read path.
 	if ( function_exists( 'get_registered_meta_keys' ) ) {
-		$post_meta = get_registered_meta_keys( 'post' );
-		$reg_group = bws_field_discovery_registered_meta_group(
-			is_array( $post_meta ) ? $post_meta : array(),
-			'post',
-			'',
-			__( 'Registered post meta', 'generateblocks' )
-		);
-		if ( $reg_group ) {
-			$envelope['post'][] = $reg_group;
+		foreach ( bws_field_discovery_registered_meta_subtypes( 'post' ) as $subtype ) {
+			$reg_group = bws_field_discovery_registered_meta_group(
+				bws_field_discovery_get_registered_meta( 'post', $subtype ),
+				'post',
+				$subtype,
+				__( 'Registered post meta', 'generateblocks' )
+			);
+			if ( $reg_group ) {
+				$envelope['post'][] = $reg_group;
+			}
 		}
 
-		$term_meta      = get_registered_meta_keys( 'term' );
-		$reg_term_group = bws_field_discovery_registered_meta_group(
-			is_array( $term_meta ) ? $term_meta : array(),
-			'term',
-			'',
-			__( 'Registered term meta', 'generateblocks' )
-		);
-		if ( $reg_term_group ) {
-			$envelope['term'][] = $reg_term_group;
+		foreach ( bws_field_discovery_registered_meta_subtypes( 'term' ) as $subtype ) {
+			$reg_group = bws_field_discovery_registered_meta_group(
+				bws_field_discovery_get_registered_meta( 'term', $subtype ),
+				'term',
+				$subtype,
+				__( 'Registered term meta', 'generateblocks' )
+			);
+			if ( $reg_group ) {
+				$envelope['term'][] = $reg_group;
+			}
 		}
 	}
 
@@ -457,18 +505,25 @@ function bws_field_discovery_collect() {
 /**
  * Dedupe fields within each (kind, scope) bucket (V7).
  *
- * Dedupe key = field resolution NAME, within one KIND, where two entries' scopes
- * OVERLAP (share a scope slug, or either scope is empty = "any scope", which
- * overlaps everything). A `post` field and a `term` field of the same name are
- * NEVER merged (different kind = different storage/read path = different field).
+ * Dedupe key = field resolution NAME, within one KIND, where two entries have the
+ * SAME scope (equal slug sets, or both empty = both global). A `post` field and a
+ * `term` field of the same name are NEVER merged (different kind = different
+ * storage/read path = different field).
  *
- * Precedence when two overlapping entries collide on name:
- *   - ACF beats registered-meta (`source:'acf'` > `source:'registered'`). Both
- *     read the identical raw key at runtime, so it IS one field; ACF's label +
- *     type describe it better, so the ACF entry is kept and the registered one
- *     dropped.
- *   - ACF-vs-ACF (rare misconfig) → first-seen wins (deterministic ACF group
- *     order).
+ * SCOPE-EQUALITY, not overlap: two same-name fields merge only when their reach is
+ * IDENTICAL (truly one field). When reach DIFFERS — e.g. a global registered
+ * `subtitle` (scope []) and an `event`-scoped ACF `subtitle` (scope ['event']) —
+ * they are kept as SEPARATE records: on an `event` post both apply (one is a dup
+ * the client's V12 ambiguity handling covers), but on a `page` ONLY the global
+ * registered key applies, so dropping it would hide a resolvable key. The flat
+ * per-kind envelope can't partition by post type, so keep-both is the only lossless
+ * answer. (Overlap-based merge dropped the global key envelope-wide — the B4-class bug.)
+ *
+ * Precedence when two SAME-SCOPE entries collide on name:
+ *   - ACF beats registered-meta (`source:'acf'` > `source:'registered'`). Same key,
+ *     same reach → it IS one field; ACF's label + type describe it better, so the
+ *     ACF entry is kept and the registered one dropped.
+ *   - ACF-vs-ACF (rare misconfig) → first-seen wins (deterministic ACF group order).
  *   - registered-vs-registered → first-seen wins.
  *
  * Dedupe removes the losing field from its group; groups emptied by dedupe are
@@ -513,16 +568,19 @@ function bws_field_discovery_dedupe( array $envelope ) {
 				$dropped = false;
 				if ( isset( $seen[ $name ] ) ) {
 					foreach ( $seen[ $name ] as $prior ) {
-						if ( ! bws_field_discovery_scopes_overlap( $group_scope, $prior['scope'] ) ) {
+						// Merge only at IDENTICAL scope (same reach = same field). Different
+						// reach → keep both; the global key must survive where the scoped
+						// one does not apply.
+						if ( ! bws_field_discovery_scopes_equal( $group_scope, $prior['scope'] ) ) {
 							continue;
 						}
 						if ( 'registered' === $group_source && 'acf' === $prior['source'] ) {
-							// Current registered-meta duplicate of a prior ACF field → drop it.
+							// Current registered-meta duplicate of a prior same-scope ACF field → drop it.
 							$dropped = true;
 							break;
 						}
 						if ( 'acf' === $group_source && 'registered' === $prior['source'] ) {
-							// Current ACF displaces a prior registered-meta entry.
+							// Current ACF displaces a prior same-scope registered-meta entry.
 							bws_field_discovery_remove_field( $envelope, $kind, $name, $prior['scope'] );
 							continue;
 						}
@@ -565,34 +623,44 @@ function bws_field_discovery_dedupe( array $envelope ) {
 }
 
 /**
- * Two candidate scopes overlap when they share a slug, or either is empty.
+ * Two candidate scopes are EQUAL when they name the same reach: both empty (both
+ * global / all subtypes) or the same set of slugs.
  *
- * Empty scope = "any scope" (candidate-level unknown), which overlaps every
- * scope — so an unscoped ACF field dedupes against a scoped one of the same name.
+ * Equality, not overlap, is the merge gate: same-name fields collapse only when
+ * they apply to exactly the same set of post types / taxonomies (truly one field).
+ * A global scope ([]) and a scoped one (['event']) are NOT equal, so they are kept
+ * distinct — the global key must survive on post types the scoped one does not
+ * reach. See bws_field_discovery_dedupe for the rationale.
  *
  * @since 1.13.0
  * @param array $a Scope slugs.
  * @param array $b Scope slugs.
- * @return bool True when the scopes overlap.
+ * @return bool True when the scopes name the same reach.
  */
-function bws_field_discovery_scopes_overlap( $a, $b ) {
-	if ( empty( $a ) || empty( $b ) ) {
-		return true;
+function bws_field_discovery_scopes_equal( $a, $b ) {
+	$a = is_array( $a ) ? $a : array();
+	$b = is_array( $b ) ? $b : array();
+	if ( count( $a ) !== count( $b ) ) {
+		return false;
 	}
-	return array_intersect( $a, $b ) !== array();
+	// Order-insensitive set equality (both are slug lists, no duplicates expected).
+	return array() === array_diff( $a, $b ) && array() === array_diff( $b, $a );
 }
 
 /**
- * Remove a field by name from all overlapping-scope groups of one kind.
+ * Remove a field by name from all SAME-SCOPE groups of one kind.
  *
  * Used by dedupe when a later ACF field must displace an earlier registered-meta
- * field already kept. Operates in place on the envelope.
+ * field of equal scope already kept. Operates in place on the envelope. Scope
+ * equality mirrors the dedupe merge gate: only the registered entry that shares
+ * the ACF winner's exact reach is removed; a differently-scoped same-name entry
+ * is a distinct field and is left alone.
  *
  * @since 1.13.0
  * @param array  $envelope    Kind-keyed envelope (by reference).
  * @param string $kind        Kind bucket to edit.
  * @param string $name        Field resolution name to remove.
- * @param array  $prior_scope Scope of the winner (overlap gate).
+ * @param array  $prior_scope Scope of the winner (equality gate).
  * @return void
  */
 function bws_field_discovery_remove_field( array &$envelope, $kind, $name, $prior_scope ) {
@@ -604,7 +672,7 @@ function bws_field_discovery_remove_field( array &$envelope, $kind, $name, $prio
 			continue;
 		}
 		$group_scope = isset( $group['scope'] ) && is_array( $group['scope'] ) ? $group['scope'] : array();
-		if ( ! bws_field_discovery_scopes_overlap( $group_scope, $prior_scope ) ) {
+		if ( ! bws_field_discovery_scopes_equal( $group_scope, $prior_scope ) ) {
 			continue;
 		}
 		$envelope[ $kind ][ $gi ]['fields'] = array_values(

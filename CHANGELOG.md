@@ -15,7 +15,10 @@
 ### Fixed
 
 - **A custom key that is a substring of a listed field label can now be committed.** Typing a raw key like `city` no longer suppresses the *Use custom key: "city"* option just because a field labelled "City ('venue_city')" is in the list; the escape hatch now triggers on an exact key match, not a substring-of-label match.
-- **A malformed field envelope no longer breaks the editor.** If the inlined field list fails to JSON-encode (malformed UTF-8 in an ACF label, or a very deeply nested repeater), the page falls back to an empty object and fetches the list over REST instead of emitting an invalid inline script.
+- **A key that differs only in letter case from a listed field is now committable.** Meta keys are case-sensitive, so typing `event_date` when an `Event_Date` field exists now offers *Use custom key: "event_date"* instead of silently steering you to the differently-cased field.
+- **A malformed field envelope no longer breaks the editor.** If the inlined field list fails to JSON-encode (malformed UTF-8 in an ACF label, or a very deeply nested repeater), the page falls back to an empty object and fetches the list over REST instead of emitting an invalid inline script. Field labels are also escaped so a label containing markup cannot break the editor page.
+- **Meta keys registered for a specific post type or taxonomy now appear in the picker.** Previously only globally-registered meta was listed; a key registered for one post type (or taxonomy) is now offered too, matching what the tag can actually read.
+- **A site-wide registered meta key is no longer hidden by a same-named custom field.** A global registered key stays in the list even when one post type also defines a field of the same name, so you keep the key on the post types where only the registered one applies.
 
 ## [1.12.0] — 2026-06-29
 

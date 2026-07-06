@@ -135,8 +135,13 @@
 	 * When the author has narrowed Location past the kind root (e.g.
 	 * "Post fields › Client Details" or "… › Coverage Options (repeater)"), the
 	 * control label can name that group instead of the generic kind. Returns the
-	 * leaf segment with any "(repeater)"/"(group)" hint stripped. Root-only
+	 * leaf segment with a trailing SYNTHETIC container hint stripped. Root-only
 	 * ("Post fields") or "All detected fields" → null (caller uses the kind label).
+	 *
+	 * The Location filter VALUE is the raw path (container hints are added only to
+	 * the display label, not the value), so the leaf here is a real author segment.
+	 * Strip only an exact trailing synthetic hint (defensive; the old code stripped
+	 * ANY "(...)", mangling a real group name like "Details (US)" into "Details").
 	 *
 	 * @param {string} loc Active location filter value.
 	 * @return {string|null} Group/container name, or null.
@@ -145,8 +150,15 @@
 		if ( ! loc || loc === ALL_LOC ) { return null; }
 		var parts = String( loc ).split( BREAD );
 		if ( parts.length < 2 ) { return null; } // kind root only → no group
-		var leaf = parts[ parts.length - 1 ];
-		return leaf.replace( /\s*\([^)]*\)\s*$/, '' ); // strip "(repeater)" etc.
+		var leaf  = parts[ parts.length - 1 ];
+		var hints = [ containerHint( 'repeater' ), containerHint( 'group' ), containerHint( 'flexible_content' ) ];
+		for ( var i = 0; i < hints.length; i++ ) {
+			var suffix = ' (' + hints[ i ] + ')';
+			if ( hints[ i ] && leaf.slice( -suffix.length ) === suffix ) {
+				return leaf.slice( 0, -suffix.length );
+			}
+		}
+		return leaf;
 	}
 
 	/**
