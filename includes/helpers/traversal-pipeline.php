@@ -273,7 +273,14 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 
 	// 3. Ambient term archive → term source (SPEC §V7). queried_kind captured
 	//    from get_queried_object, NOT $post.
-	if ( 'term' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
+	//    GATED: explicit src:ref preserves TODAY's behavior (ref hops from the
+	//    current POST, not the ambient term). "pick primary THEN hop" (ref off a
+	//    chosen non-current primary) is the FUTURE parity gap, not Phase 1 —
+	//    so an explicit ref skips term-ambient and bases on current post below.
+	//    Bare tags (no src) still term-ambient. (SPEC §C4 / parity-gap boundary.)
+	if ( 'ref' !== $src
+		&& 'term' === ( $signals['queried_kind'] ?? '' )
+		&& ! empty( $signals['queried_id'] ) ) {
 		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
 	}
 

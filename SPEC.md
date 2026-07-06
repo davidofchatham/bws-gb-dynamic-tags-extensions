@@ -48,6 +48,7 @@ tags resolve term on term archives). Everything else byte-identical.
 - V8. **try_ output byte-identical through fork collapse** — single kind-dispatching `try_core_fn`; slot resolution = standalone tag parity (I6). Owner: I.registry.
 - V9. **Engine pure + deterministic: no side effects, empty-step passthrough, short-circuit on first empty step, fan-out preserves document order.** Owner: I.engine.
 - V10. **Factory + resolver sit DOWNSTREAM of try_ slot carry-forward — never re-derive analogs or apply slot-position semantics.** `generate_base_try_tags` assembles `$slot_opts` first (`$last_src`/`$last_ref`/`$last_key`/`$last_use` merged for slot ≥2 inherit; registry.php:697-712) THEN calls the resolver. Slot-1 strip-default-first vs slot-≥2 carry-forward (CONTEXT.md I1) is UPSTREAM option-assembly; the factory receives fully-materialized `$slot_opts` + dispatches purely on them (no slot notion) — re-deriving would double-apply. `srcTermIn` read per-slot, NEVER carried. Binds T8 fork collapse: preserve assemble-then-resolve ORDER; factory stays downstream. Owner: I.registry (assembly), I.engine (purity).
+- V11. **Explicit `src:ref` bases on the CURRENT POST then hops — NOT on an ambient term.** Factory gates the term-ambient branch on `'ref' !== $src`: bare tag on term archive → term (V7); `src:ref` on term archive → current-post base + ref step (unchanged from pre-#19). "Pick a non-current primary THEN ref-hop off it" is the FUTURE parity gap (`traversal-pipeline.md` §Problem), explicitly OUT of Phase 1 — Phase 1 preserves today's ambient-only ref origin. Owner: I.engine. (Drove B1.)
 
 ## §T — tasks
 
@@ -55,7 +56,7 @@ tags resolve term on term archives). Everything else byte-identical.
 |----|----|------|-------|
 | T1 | x | I.engine file: `bws_run_traversal` + `bws_run_step` (ref, srcTermIn steps) + typedef PHPDoc | V2,V9,I.engine |
 | T2 | x | `bws_resolve_base_source()` factory: loop_ctx → queried_object(term) → explicit tokens (site/registry) → current post | V1,V5,V7,V10,I.engine |
-| T3 | . | I.test harness: engine fold rows + Q3 shape rows (LANDED T1) + factory precedence fixtures — drive `bws_resolve_base_source` with injected `$signals` (probe truth table: term-archive→term, explicit-src-wins, loop-row-in-archive→row post) | V1,V2,V7,V9,I.test,I.engine |
+| T3 | x | I.test harness: engine fold rows + Q3 shape rows (LANDED T1) + factory precedence fixtures — drive `bws_resolve_base_source` with injected `$signals` (probe truth table: term-archive→term, explicit-src-wins, loop-row-in-archive→row post, search/404 leak-guard, src:ref-gate V11) | V1,V2,V7,V9,V11,I.test,I.engine |
 | T4 | . | Rewire `bws_resolve_field_values()` internals → factory + steps; ref plural for seam consumers | V3,V6,I.seam |
 | T5 | . | `bws_resolve_post_by_source()` → thin wrapper (factory + steps → first post id) | V4,I.dispatch |
 | T6 | . | Base callbacks: kind dispatch for term ambient (analog + key reads); explicit-wins guard | V7,C4,I.dispatch |
@@ -69,3 +70,4 @@ tags resolve term on term archives). Everything else byte-identical.
 
 | id | date | cause | fix |
 |----|------|-------|-----|
+| B1 | 2026-07-06 | Factory term-ambient branch ungated → `src:ref` on a term archive based the ref-hop on the ambient TERM, not the current post (behavior change beyond V7 scope, into the deferred parity gap). Caught during T3 coverage audit, pre-ship. | V11 |

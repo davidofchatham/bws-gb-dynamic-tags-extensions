@@ -226,9 +226,6 @@ function sig( $overrides = array() ) {
 		$overrides
 	);
 }
-function loop_sig( $row_post_id, $item = null ) {
-	return sig( array( 'loop' => array( 'in_loop' => true, 'row_post_id' => $row_post_id, 'loop_item' => $item ) ) );
-}
 
 // V7: bare tag on a term archive → term source (queried_object=term, no loop).
 eq(
@@ -285,6 +282,31 @@ eq(
 	'V1 no ambient -> current post fallthrough shape',
 	array( 'kind' => 'post', 'id' => 0 ),
 	bws_resolve_base_source( array(), null, sig() )
+);
+
+// V1 leak-guard (search/404 shape): queried_kind null + no loop. The probe
+// showed $post leaks the main query's first row on search/404 — the factory
+// must NOT consult it. Injected signals carry NO queried entity and NO loop,
+// so dispatch reaches the current-post path (post/0 here) — never a stale post.
+// (No 'search'/'404' kind yet; those contexts fall through, SPEC §C4.)
+eq(
+	'V1 search/404 no-entity does NOT read stale post',
+	array( 'kind' => 'post', 'id' => 0 ),
+	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => null, 'queried_id' => 0 ) ) )
+);
+
+// V7 explicit src:ref on a term archive: ref is a STEP, not a base kind — the
+// factory bases ref on ambient/current, NOT hijacked into the term. With no
+// registry loaded, src:ref falls to current-post path (post/0). Confirms the
+// ambient term branch is skipped when an explicit non-current src is present.
+eq(
+	'V7 explicit src:ref not hijacked by ambient term',
+	array( 'kind' => 'post', 'id' => 0 ),
+	bws_resolve_base_source(
+		array( 'src' => 'ref', 'ref' => 'related' ),
+		null,
+		sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) )
+	)
 );
 
 // ── report ───────────────────────────────────────────────────────────────────
