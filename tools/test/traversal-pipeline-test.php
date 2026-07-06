@@ -207,6 +207,86 @@ eq(
 	bws_run_traversal( array( post_src( 50 ) ), array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ), $reader )
 );
 
+// ── §V1/§V7 — factory precedence (injected signals, probe truth table) ───────
+//
+// Drives bws_resolve_base_source with injected $signals so dispatch is pure.
+// Branches touching SourceRegistry (explicit registry src, current-post
+// fallback) need the live path — covered by the T10 manual sweep, not here.
+// These rows lock the ambient/loop/explicit-site precedence that is pure.
+
+// Signal builders.
+function sig( $overrides = array() ) {
+	return array_merge(
+		array(
+			'queried_kind' => null,
+			'queried_id'   => 0,
+			'is_tax'       => false,
+			'loop'         => array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null ),
+		),
+		$overrides
+	);
+}
+function loop_sig( $row_post_id, $item = null ) {
+	return sig( array( 'loop' => array( 'in_loop' => true, 'row_post_id' => $row_post_id, 'loop_item' => $item ) ) );
+}
+
+// V7: bare tag on a term archive → term source (queried_object=term, no loop).
+eq(
+	'V7 term archive -> term source',
+	array( 'kind' => 'term', 'id' => 34 ),
+	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
+);
+
+// V1: loop row WINS over ambient term (bare tag inside a query loop on an
+// archive reads the ROW, not the term — the precedence that stops the leak).
+eq(
+	'V1 loop row wins over ambient term',
+	array( 'kind' => 'post', 'id' => 48418 ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => 'term',
+			'queried_id'   => 34,
+			'is_tax'       => true,
+			'loop'         => array( 'in_loop' => true, 'row_post_id' => 48418, 'loop_item' => null ),
+		)
+	)
+);
+
+// V7 explicit-wins: src:site beats an ambient term archive.
+eq(
+	'V7 explicit src:site beats ambient term',
+	array( 'kind' => 'site' ),
+	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
+);
+
+// Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+eq(
+	'flat repeater row -> meta_row',
+	array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => null,
+			'queried_id'   => 0,
+			'is_tax'       => false,
+			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => array( 'name' => 'x' ) ),
+		)
+	)
+);
+
+// V1: NO ambient term + no loop → falls through to current-post path. With no
+// SourceRegistry loaded in this harness, current-post id resolves 0 → post/0.
+// Confirms $post is never consulted for ambient (there is none here) and the
+// fallthrough shape is a post source.
+eq(
+	'V1 no ambient -> current post fallthrough shape',
+	array( 'kind' => 'post', 'id' => 0 ),
+	bws_resolve_base_source( array(), null, sig() )
+);
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

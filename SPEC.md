@@ -27,7 +27,7 @@ tags resolve term on term archives). Everything else byte-identical.
 
 ## §I — surfaces
 
-- I.engine = `includes/helpers/traversal-pipeline.php` (NEW) — `bws_resolve_base_source()`, `bws_run_traversal()`, `bws_run_step()`; resolved-source typedef PHPDoc lives on `bws_run_traversal()` (single owner).
+- I.engine = `includes/helpers/traversal-pipeline.php` (NEW) — `bws_run_traversal()`, `bws_run_step()`, `bws_resolve_base_source( $options, $instance, $signals = null )` + `bws_capture_ambient_signals()`. Resolved-source typedef PHPDoc lives on `bws_run_traversal()` (single owner). **Factory = pure dispatch on injected `$signals` (T2 grill 2026-07-06): signals array (`queried_kind`/`queried_id`/`is_tax`/`loop`); `$signals=null` → live capture via `bws_capture_ambient_signals()` (the SOLE `is_tax`/`get_queried_object`/loop_ctx read). Injection makes V1/V7 precedence unit-testable — mirrors T1's injectable reader.**
 - I.seam = `includes/helpers/field-helpers.php` — `bws_resolve_field_values()` internals rewired to factory + steps; signature frozen.
 - I.dispatch = `includes/tags/base-tags.php` — `bws_resolve_post_by_source()` → wrapper; base callbacks gain kind dispatch for term ambient.
 - I.registry = `includes/classes/class-tag-template-registry.php` — `make_modifier_callback()` assembles pipelines; `generate_base_try_tags()` parameterized by source factory; `try_core_fn`/`try_term_fn` fork collapses.
@@ -47,19 +47,20 @@ tags resolve term on term archives). Everything else byte-identical.
 - V7. **Term ambient: bare base tags on term archive (outside loop) resolve the TERM — analogs per CONTEXT.md I1 (title→name, content→description, permalink→term URL), key reads → `bws_read_term_field()`, ALL base tags incl. text/datetime/email/phone. Explicit options ALWAYS beat ambient.** Non-analog gaps stay honest-empty (image → empty, I1 gap #29). Owner: I.engine, I.dispatch.
 - V8. **try_ output byte-identical through fork collapse** — single kind-dispatching `try_core_fn`; slot resolution = standalone tag parity (I6). Owner: I.registry.
 - V9. **Engine pure + deterministic: no side effects, empty-step passthrough, short-circuit on first empty step, fan-out preserves document order.** Owner: I.engine.
+- V10. **Factory + resolver sit DOWNSTREAM of try_ slot carry-forward — never re-derive analogs or apply slot-position semantics.** `generate_base_try_tags` assembles `$slot_opts` first (`$last_src`/`$last_ref`/`$last_key`/`$last_use` merged for slot ≥2 inherit; registry.php:697-712) THEN calls the resolver. Slot-1 strip-default-first vs slot-≥2 carry-forward (CONTEXT.md I1) is UPSTREAM option-assembly; the factory receives fully-materialized `$slot_opts` + dispatches purely on them (no slot notion) — re-deriving would double-apply. `srcTermIn` read per-slot, NEVER carried. Binds T8 fork collapse: preserve assemble-then-resolve ORDER; factory stays downstream. Owner: I.registry (assembly), I.engine (purity).
 
 ## §T — tasks
 
 | id | st | task | cites |
 |----|----|------|-------|
 | T1 | x | I.engine file: `bws_run_traversal` + `bws_run_step` (ref, srcTermIn steps) + typedef PHPDoc | V2,V9,I.engine |
-| T2 | . | `bws_resolve_base_source()` factory: loop_ctx → queried_object(term) → explicit tokens (site/registry) → current post | V1,V5,V7,I.engine |
-| T3 | . | I.test harness: engine fold rows + Q3 shape rows + factory precedence fixtures (probe truth table, stubbed signals — factory signal reads injectable) | V1,V2,V9,I.test |
+| T2 | x | `bws_resolve_base_source()` factory: loop_ctx → queried_object(term) → explicit tokens (site/registry) → current post | V1,V5,V7,V10,I.engine |
+| T3 | . | I.test harness: engine fold rows + Q3 shape rows (LANDED T1) + factory precedence fixtures — drive `bws_resolve_base_source` with injected `$signals` (probe truth table: term-archive→term, explicit-src-wins, loop-row-in-archive→row post) | V1,V2,V7,V9,I.test,I.engine |
 | T4 | . | Rewire `bws_resolve_field_values()` internals → factory + steps; ref plural for seam consumers | V3,V6,I.seam |
 | T5 | . | `bws_resolve_post_by_source()` → thin wrapper (factory + steps → first post id) | V4,I.dispatch |
 | T6 | . | Base callbacks: kind dispatch for term ambient (analog + key reads); explicit-wins guard | V7,C4,I.dispatch |
 | T7 | . | `make_modifier_callback()` assembles pipelines; `traversal_source_key` accept-but-ignore | V5,I.registry |
-| T8 | . | `generate_base_try_tags()` parameterized by factory; collapse `try_core_fn`/`try_term_fn` | V8,C9,I.registry |
+| T8 | . | `generate_base_try_tags()` parameterized by factory; collapse `try_core_fn`/`try_term_fn`; PRESERVE assemble-$slot_opts-then-resolve order (factory downstream of carry-forward) | V8,V10,C9,I.registry |
 | T9 | . | Base-tag dispatch stops routing through N×M classes (`RelatedPost` etc.); classes stay for deprecated tags | C4,I.sources |
 | T10 | . | Manual sweep: singular / term archive (ambient!) / loops (2a+2b) / view_ tags / try_ chains / search+404 (unchanged) / ref limit>1; plugin-integration.md + CHANGELOG | V1,V5,V6,V7,V8,I.doc |
 | T11 | . | AFTER testing proves V6/V7: update README caveats — flip L9 term-archive limit ("not yet for taxonomy term contexts such as archives" now works), narrow "term name*" footnote, note ref limit now honored. NOT datetime L22-23 (wrapper caller = still first-only, C4). User-facing prose → user review gate + no-em-dash rule. | V6,V7,C4,I.readme |

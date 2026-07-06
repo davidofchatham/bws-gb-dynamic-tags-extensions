@@ -199,6 +199,186 @@ function bws_pipeline_terms_to_sources( $raw ) {
 }
 
 /**
+ * Source factory — resolve the ambient/explicit BASE resolved source (L1 entry).
+ *
+ * The single point that interprets "where does this tag read from" before any
+ * traversal step runs. Precedence (SPEC §V1, probe-verified 2026-07-06):
+ *
+ *   1. EXPLICIT src token wins over ambient (SPEC §V7 "explicit always wins").
+ *      src:site → { kind:'site' }; src:ref/registry sources → post via the
+ *      registry / ref step (delegated by the caller — factory returns the
+ *      current-context base they hop FROM, unless the token names a distinct
+ *      pinned/registry source).
+ *   2. loop_ctx.in_loop + row_post_id → { kind:'post', id:row } (loop wins over
+ *      ambient — a bare tag inside a query loop reads the ROW, not the archive).
+ *   3. ambient queried-object is a TERM (is_tax/category/tag) → { kind:'term' }
+ *      (SPEC §V7 term ambient — the first #19 kind).
+ *   4. else current post via SourceRegistry 'post' → { kind:'post', id } (or a
+ *      registry-delegated external source, SPEC §V5).
+ *
+ * `$post` / get_the_ID() is NEVER consulted for AMBIENT (SPEC §V1): it carries
+ * the main query's first row on every results-bearing non-singular context
+ * (term archive, search) — a plausible-but-wrong entity. Only loop_ctx (step 2)
+ * or an explicit id option feeds a post source.
+ *
+ * Signals are INJECTED for testability: pass $signals to unit-test precedence
+ * with the probe truth table; $signals=null captures live via
+ * bws_capture_ambient_signals() (the sole is_tax/get_queried_object/loop read).
+ *
+ * @since 1.14.0
+ * @param array  $options  Tag options (src, id, srcTermIn, …).
+ * @param object $instance GB tag instance (for loop context + registry resolve).
+ * @param array|null $signals Ambient signals (see bws_capture_ambient_signals);
+ *                            null → live capture.
+ * @return array One base resolved source (see file header typedef).
+ */
+if ( ! function_exists( 'bws_resolve_base_source' ) ) {
+function bws_resolve_base_source( array $options, $instance, $signals = null ) {
+	if ( null === $signals ) {
+		$signals = bws_capture_ambient_signals( $instance );
+	}
+
+	$src = $options['src'] ?? $options['source'] ?? '';
+	if ( 'current' === $src ) {
+		$src = '';
+	}
+
+	// 1. Explicit src:site → terminal site source, ambient irrelevant.
+	if ( 'site' === $src ) {
+		return array( 'kind' => 'site' );
+	}
+
+	// 1b. Explicit non-current src (ref / registry source) — the factory returns
+	// the CURRENT-CONTEXT base the caller hops FROM. ref itself is a STEP (added
+	// by the assembler), not a base kind; so an explicit ref still bases on the
+	// ambient/current entity below. A registry source that resolves its OWN id
+	// (needs_relationship_field false, resolves independently) is honored here.
+	if ( '' !== $src && 'ref' !== $src ) {
+		$delegated = bws_factory_registry_source( $src, $options, $instance );
+		if ( null !== $delegated ) {
+			return $delegated;
+		}
+	}
+
+	// 2. Loop row wins over ambient (bare tag in a query loop reads the row).
+	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'row_post_id' => false );
+	if ( ! empty( $loop['in_loop'] ) && ! empty( $loop['row_post_id'] ) ) {
+		return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
+	}
+
+	// 2b. Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+	if ( ! empty( $loop['in_loop'] ) && is_array( $loop['loop_item'] ?? null ) ) {
+		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
+	}
+
+	// 3. Ambient term archive → term source (SPEC §V7). queried_kind captured
+	//    from get_queried_object, NOT $post.
+	if ( 'term' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
+		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
+	}
+
+	// 4. Current post via registry (delegates to external sources too, §V5).
+	$post_id = bws_factory_current_post_id( $options, $instance );
+	return array( 'kind' => 'post', 'id' => (int) $post_id );
+}
+}
+
+/**
+ * Capture live ambient signals for the factory. The SOLE place the factory
+ * reads is_tax/get_queried_object/loop context — isolated so the dispatch in
+ * bws_resolve_base_source() stays pure + unit-testable (SPEC §V1/§V7).
+ *
+ * queried_kind derives from get_queried_object()'s CLASS (never $post) — the
+ * probe-verified stable ambient signal.
+ *
+ * @since 1.14.0
+ * @param object $instance GB tag instance (loop context).
+ * @return array { queried_kind:'term'|'post'|'user'|null, queried_id:int,
+ *                 is_tax:bool, loop:array }
+ */
+if ( ! function_exists( 'bws_capture_ambient_signals' ) ) {
+function bws_capture_ambient_signals( $instance ) {
+	$queried_kind = null;
+	$queried_id   = 0;
+
+	// Term archive detection — gate on is_tax/category/tag so we only claim a
+	// term when WP actually queried one (mirrors bws_reliable_term_context_detection).
+	if ( function_exists( 'is_tax' ) && ( is_tax() || is_category() || is_tag() ) ) {
+		$qo = get_queried_object();
+		if ( $qo instanceof WP_Term ) {
+			$queried_kind = 'term';
+			$queried_id   = (int) $qo->term_id;
+		}
+	}
+
+	$loop = function_exists( 'bws_get_loop_row_context' )
+		? bws_get_loop_row_context( $instance )
+		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null );
+
+	return array(
+		'queried_kind' => $queried_kind,
+		'queried_id'   => $queried_id,
+		'is_tax'       => (bool) $queried_kind,
+		'loop'         => $loop,
+	);
+}
+}
+
+/**
+ * Resolve an explicit registry source (src token) to a resolved source, or null
+ * if the token is not a self-resolving registry source. Post-yielding sources
+ * return { kind:'post', id }; a registry source is honored only when it resolves
+ * its own id (SPEC §V5 — external sources like PortalSource route through here).
+ *
+ * @since 1.14.0
+ * @param string $src      The src token.
+ * @param array  $options  Tag options.
+ * @param object $instance GB instance.
+ * @return array|null Resolved source, or null to fall through to ambient/current.
+ */
+if ( ! function_exists( 'bws_factory_registry_source' ) ) {
+function bws_factory_registry_source( $src, array $options, $instance ) {
+	if ( ! class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		return null;
+	}
+	$source = \BWS\DynamicTags\SourceRegistry::get_source( $src );
+	if ( ! $source ) {
+		return null;
+	}
+	$id = $source->resolve_id( $options, $instance );
+	if ( ! $id ) {
+		return null;
+	}
+	// Term-context sources yield a term; everything else yields a post.
+	$kind = ( 'term' === $source->get_context_type() ) ? 'term' : 'post';
+	return array( 'kind' => $kind, 'id' => (int) $id );
+}
+}
+
+/**
+ * Current-post id via the 'post' registry source (unchanged resolution path;
+ * SPEC §V4 wrapper compat leans on this). Returns 0 when unresolvable.
+ *
+ * @since 1.14.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB instance.
+ * @return int
+ */
+if ( ! function_exists( 'bws_factory_current_post_id' ) ) {
+function bws_factory_current_post_id( array $options, $instance ) {
+	if ( ! class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		return 0;
+	}
+	$source = \BWS\DynamicTags\SourceRegistry::get_source( 'post' );
+	if ( ! $source ) {
+		return 0;
+	}
+	$id = $source->resolve_id( $options, $instance );
+	return $id ? (int) $id : 0;
+}
+}
+
+/**
  * Default field reader — the real WP/ACF read behind ref/srcTermIn steps.
  *
  * Isolated so bws_run_traversal/bws_run_step stay pure and unit-testable: the
