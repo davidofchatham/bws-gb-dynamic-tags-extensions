@@ -915,33 +915,63 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
  * {{call}}/fn, try_ slots): they want a single POST id | false, nothing else.
  *
  * Delegates to bws_resolve_base_source (L1 factory: loop → ambient term → current
- * post, SPEC §V1/§V7) + bws_field_values_assemble_steps (src:ref → ref step) run
- * through bws_run_traversal, then collapses to the FIRST post id
+ * post, SPEC §V1/§V7) + a REF-ONLY step assembly (bws_wrapper_ref_steps, SPEC
+ * §V13) run through bws_run_traversal, then collapses to the FIRST post id
  * (bws_first_post_id_from_sources, SPEC §V4). A non-post base — term ambient on an
  * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
  * false, never leaks a term/row id as a post id. That is byte-compatible with the
  * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
  * the V11 leak-fix (base the ref hop on the ambient term, not on get_the_ID()).
  *
+ * REF-ONLY (SPEC §V13): the wrapper NEVER assembles a `srcTermIn` step. srcTermIn
+ * (post→term) is owned DOWNSTREAM by the wrapper's callers — datetime/text/title
+ * srcTermIn branches call bws_get_srcterm_terms() on the returned POST id. Routing
+ * the wrapper through the SEAM's bws_field_values_assemble_steps() (which emits a
+ * srcTermIn term-hop) would collapse to false and empty those callers (B2). The
+ * seam reads term fields by kind; the wrapper cannot — its contract is a post id.
+ *
  * @since 1.6.0
- * @since 1.14.0 Rewired to the source factory + traversal engine (SPEC §T5).
+ * @since 1.14.0 Rewired to the source factory + traversal engine (SPEC §T5); ref-only steps (§V13, B2).
  * @param array  $options  Tag options from GenerateBlocks.
  * @param object $instance Block instance.
  * @return int|false Resolved post ID, or false if unresolvable.
  */
 function bws_resolve_post_by_source( array $options, $instance ) {
 	if ( ! function_exists( 'bws_resolve_base_source' )
-		|| ! function_exists( 'bws_field_values_assemble_steps' )
 		|| ! function_exists( 'bws_run_traversal' )
 		|| ! function_exists( 'bws_first_post_id_from_sources' ) ) {
 		return false;
 	}
 
 	$base    = bws_resolve_base_source( $options, $instance );
-	$steps   = bws_field_values_assemble_steps( $options );
+	$steps   = bws_wrapper_ref_steps( $options );
 	$sources = bws_run_traversal( array( $base ), $steps );
 
 	return bws_first_post_id_from_sources( $sources );
+}
+
+/**
+ * Assemble the wrapper's REF-ONLY step set (SPEC §V13, B2).
+ *
+ * Post-semantic: only a `src:ref` hop (post→post[]) is a wrapper step. A
+ * `srcTermIn` post→term hop is DELIBERATELY excluded — the wrapper's callers own
+ * that downstream on the returned post id (bws_get_srcterm_terms). Contrast the
+ * seam's bws_field_values_assemble_steps(), which DOES emit srcTermIn (terminal
+ * term-list read) because it reads term fields by kind (§V6/§V12).
+ *
+ * @since 1.14.0
+ * @param array $options Tag options (src, ref).
+ * @return array[] Zero or one ref step.
+ */
+function bws_wrapper_ref_steps( array $options ): array {
+	$src = $options['src'] ?? $options['source'] ?? '';
+	if ( 'ref' === $src ) {
+		$ref = $options['ref'] ?? '';
+		if ( '' !== $ref ) {
+			return array( array( 'type' => 'ref', 'field' => $ref ) );
+		}
+	}
+	return array();
 }
 
 /**
@@ -967,6 +997,141 @@ function bws_get_srcterm_terms( int $post_id, string $tax ): array {
 	}
 
 	return array_values( $terms );
+}
+
+// ===============================================
+// TERM-AMBIENT DISPATCH (SPEC §T6 / §V7)
+// ===============================================
+
+/**
+ * Resolve the base source for a base callback, guarded for load order.
+ *
+ * Single factory call per callback (SPEC §V1): the callback then branches on the
+ * base kind — term → analog read (§V7), else collapse to a post id via
+ * bws_first_post_id_from_sources (§V4). Falls back to a post/0 source when the
+ * engine is unavailable (mirrors the wrapper's guard) so callbacks stay safe.
+ *
+ * @since 1.14.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB instance.
+ * @return array Base resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ */
+function bws_base_resolve_source_for_callback( array $options, $instance ): array {
+	return function_exists( 'bws_resolve_base_source' )
+		? bws_resolve_base_source( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+}
+
+/**
+ * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
+ *
+ * The post-path counterpart of the ambient-term branch: runs the wrapper's
+ * ref-only step set (src:ref → post→post[] hop; NEVER srcTermIn, which the
+ * callback's own $tax branch owns) then takes the first post id. Mirrors
+ * bws_resolve_post_by_source() for a base source already resolved once, so the
+ * callback pays a single factory call (SPEC §V1).
+ *
+ * @since 1.14.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int|false First post id, or false.
+ */
+function bws_base_post_id_from_source( array $base, array $options ) {
+	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_first_post_id_from_sources' ) ) {
+		return bws_first_post_id_from_sources( array( $base ) );
+	}
+	$sources = bws_run_traversal( array( $base ), bws_wrapper_ref_steps( $options ) );
+	return bws_first_post_id_from_sources( $sources );
+}
+
+/**
+ * Whether a base callback should read the AMBIENT TERM instead of a post.
+ *
+ * True iff (a) no explicit `srcTermIn` hop is set (that branch owns its own
+ * post→term traversal and is incoherent from a term base), (b) `src` is neither
+ * the site source (own early gate) NOR `ref` (SPEC §V11: src:ref on a term archive
+ * HOPS the term's relationship field term→post[] via the post path's ref step,
+ * then reads the target POST's analog — it must NOT short-circuit to the term's
+ * own analog), and (c) the factory's base resolved source is a term — i.e. a bare
+ * base tag on a term archive (SPEC §V7). Explicit options (loop row, src:current,
+ * id) win inside the factory itself (SPEC §V1), so this returns false whenever the
+ * author pinned a non-term source.
+ *
+ * @since 1.14.0
+ * @param array  $base     Base resolved source from bws_resolve_base_source().
+ * @param array  $options  Tag options.
+ * @return int Term id when the ambient-term analog path applies, else 0.
+ */
+function bws_base_ambient_term_id( array $base, array $options ): int {
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	if ( '' !== $tax ) {
+		return 0; // Explicit post→term hop owns this render.
+	}
+	$src = $options['src'] ?? $options['source'] ?? '';
+	if ( 'site' === $src || 'ref' === $src ) {
+		return 0; // Site: own gate. ref: hops term→post (V11), post path owns it.
+	}
+	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
+		return 0;
+	}
+	return (int) ( $base['id'] ?? 0 );
+}
+
+/**
+ * Read a base tag's TERM analog on a term archive (SPEC §V7, CONTEXT.md I1).
+ *
+ * The I1 source-analog table applied to an ambient term: each base tag, at its
+ * DEFAULT `use`, yields the term's intrinsic analog; `use:key` (and text's
+ * key-default) reads a term meta field. Routes through the SAME term core fns the
+ * explicit srcTermIn branch uses — full parity, one code home for the term reads.
+ *
+ *   title   → term name           (bws_term_title_core)
+ *   text    → use:title ? name : keyed term field  (title vs custom_text core)
+ *   content → use:key  ? keyed term field : term description
+ *   permalink → term URL          (bws_term_permalink_core)
+ *   image   → HONEST GAP (#29): no term image analog; only an explicit key reads
+ *             a term image field. Bare {{image}} on a term archive → empty.
+ *
+ * @since 1.14.0
+ * @param string $tag     One of text|content|title|permalink|image.
+ * @param int    $term_id Ambient term id.
+ * @param array  $options Tag options (use, key, fallback, …).
+ * @param object $instance GB instance.
+ * @return string Rendered analog value ('' on miss/gap).
+ */
+function bws_base_term_analog_read( string $tag, int $term_id, array $options, $instance ): string {
+	if ( ! $term_id ) {
+		return '';
+	}
+	$opts = bws_base_map_options( $options );
+
+	switch ( $tag ) {
+		case 'title':
+			return bws_term_title_core( $term_id, $options, $instance );
+
+		case 'text':
+			$use = $options['use'] ?? 'key';
+			return 'title' === $use
+				? bws_term_title_core( $term_id, $opts, $instance )
+				: bws_term_custom_text_core( $term_id, $opts, $instance );
+
+		case 'content':
+			$use = $options['use'] ?? 'content';
+			return 'key' === $use
+				? bws_term_custom_text_core( $term_id, $opts, $instance )
+				: bws_term_description_core( $term_id, $opts, $instance );
+
+		case 'permalink':
+			return bws_term_permalink_core( $term_id, $options, $instance );
+
+		case 'image':
+			// I1 gap #29 — no term image analog. Only an explicit key reads a
+			// term image field; the bare-tag default resolves empty (honest gap).
+			$key = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
+			return '' !== $key ? bws_term_custom_image_core( $term_id, $options, $instance ) : '';
+	}
+
+	return '';
 }
 
 // ===============================================
@@ -1030,7 +1195,21 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 	}
 
-	$post_id = bws_resolve_post_by_source( $options, $instance );
+	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
+	// analog (SPEC §V7). Explicit src/loop/id already won inside the factory.
+	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$term_id = bws_base_ambient_term_id( $base, $options );
+	if ( $term_id ) {
+		$value = bws_base_term_analog_read( 'text', $term_id, $options, $instance );
+		if ( '' !== $value ) {
+			if ( function_exists( 'bws_wrap_with_link' ) ) {
+				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
+			}
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+	}
+	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
 	$link_type = 'post';
@@ -1108,7 +1287,17 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
 
-	$post_id = bws_resolve_post_by_source( $options, $instance );
+	// L1 base source (SPEC §V1); ambient term archive → description/key analog (§V7).
+	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$term_id = bws_base_ambient_term_id( $base, $options );
+	if ( $term_id ) {
+		$value = bws_base_term_analog_read( 'content', $term_id, $options, $instance );
+		if ( '' !== $value ) {
+			return $value; // content is not link-wrapped (parity with post path below).
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+	}
+	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
@@ -1165,7 +1354,20 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
 
-	$post_id = bws_resolve_post_by_source( $options, $instance );
+	// L1 base source (SPEC §V1); ambient term archive → term name analog (§V7).
+	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$term_id = bws_base_ambient_term_id( $base, $options );
+	if ( $term_id ) {
+		$value = bws_base_term_analog_read( 'title', $term_id, $options, $instance );
+		if ( '' !== $value ) {
+			if ( function_exists( 'bws_wrap_with_link' ) ) {
+				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
+			}
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
+	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
 	$link_type = 'post';
@@ -1222,7 +1424,13 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 		return bws_site_resolve_value( 'permalink', $options, $instance );
 	}
 
-	$post_id = bws_resolve_post_by_source( $options, $instance );
+	// L1 base source (SPEC §V1); ambient term archive → term URL analog (§V7).
+	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$term_id = bws_base_ambient_term_id( $base, $options );
+	if ( $term_id ) {
+		return bws_base_term_analog_read( 'permalink', $term_id, $options, $instance );
+	}
+	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
@@ -1268,7 +1476,18 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 
-	$post_id = bws_resolve_post_by_source( $options, $instance );
+	// L1 base source (SPEC §V1); ambient term archive → term image field IF an
+	// explicit key is set (I1 gap #29: no bare term image analog). §V7.
+	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$term_id = bws_base_ambient_term_id( $base, $options );
+	if ( $term_id ) {
+		$value = bws_base_term_analog_read( 'image', $term_id, $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
+	}
+	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	if ( '' !== $tax ) {
 		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );

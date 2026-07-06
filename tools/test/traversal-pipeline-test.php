@@ -84,6 +84,38 @@ if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 	}
 }
 
+// bws_wrapper_ref_steps + bws_base_ambient_term_id live in base-tags.php among
+// WP-dependent siblings; copy the pure functions inline (house pattern, keep
+// byte-equivalent to the shipped source) so their §V13/§V7 guards test WP-free.
+if ( ! function_exists( 'bws_wrapper_ref_steps' ) ) {
+	function bws_wrapper_ref_steps( array $options ): array {
+		$src = $options['src'] ?? $options['source'] ?? '';
+		if ( 'ref' === $src ) {
+			$ref = $options['ref'] ?? '';
+			if ( '' !== $ref ) {
+				return array( array( 'type' => 'ref', 'field' => $ref ) );
+			}
+		}
+		return array();
+	}
+}
+if ( ! function_exists( 'bws_base_ambient_term_id' ) ) {
+	function bws_base_ambient_term_id( array $base, array $options ): int {
+		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+		if ( '' !== $tax ) {
+			return 0;
+		}
+		$src = $options['src'] ?? $options['source'] ?? '';
+		if ( 'site' === $src || 'ref' === $src ) {
+			return 0;
+		}
+		if ( 'term' !== ( $base['kind'] ?? '' ) ) {
+			return 0;
+		}
+		return (int) ( $base['id'] ?? 0 );
+	}
+}
+
 // ── tiny assert harness ─────────────────────────────────────────────────────
 $GLOBALS['pass'] = 0;
 $GLOBALS['fail'] = 0;
@@ -394,6 +426,56 @@ eq( 'V4 empty sources -> false', false, bws_first_post_id_from_sources( array() 
 
 // A post source with id 0 → false (not a usable post id).
 eq( 'V4 post id 0 -> false', false, bws_first_post_id_from_sources( array( post_src( 0 ) ) ) );
+
+// ── §V13 — wrapper ref-only step set (B2 fix) ────────────────────────────────
+//
+// The wrapper NEVER assembles a srcTermIn step (that would hop post->term and
+// collapse to false, empty-ing the caller's own srcTermIn branch — B2). Only a
+// src:ref hop is a wrapper step. Contrast the seam's assemble-steps, which DOES
+// emit srcTermIn (tested above under T4).
+
+// src:ref + key → ref step (same as seam here).
+eq( 'V13 wrapper src:ref -> ref step', array( array( 'type' => 'ref', 'field' => 'related' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'related' ) ) );
+
+// srcTermIn set → NO step (wrapper excludes it; caller owns the term hop). The
+// load-bearing B2 assertion: seam would emit a srcTermIn step here, wrapper must not.
+eq( 'V13 wrapper srcTermIn -> NO step', array(), bws_wrapper_ref_steps( array( 'srcTermIn' => 'category' ) ) );
+
+// srcTermIn + stray src:ref → still no step from the wrapper? src:ref present →
+// wrapper emits ITS ref step; srcTermIn is simply ignored by the wrapper (caller
+// owns it). Confirms the wrapper only ever cares about ref.
+eq( 'V13 wrapper ref beside srcTermIn -> ref step only', array( array( 'type' => 'ref', 'field' => 'x' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'x', 'srcTermIn' => 'category' ) ) );
+
+// Bare / current / site → no wrapper step.
+eq( 'V13 wrapper bare -> no step', array(), bws_wrapper_ref_steps( array() ) );
+eq( 'V13 wrapper src:current -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'current' ) ) );
+eq( 'V13 wrapper src:site -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'site' ) ) );
+eq( 'V13 wrapper src:ref no key -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
+
+// ── §V7 — ambient-term analog gate (bws_base_ambient_term_id) ─────────────────
+//
+// Fires ONLY for a bare base tag on a term archive: term base, no srcTermIn, src
+// not site/ref. Otherwise 0 (post path runs).
+
+// Bare tag + term base → the term id (analog path).
+eq( 'V7 term base bare -> term id', 34, bws_base_ambient_term_id( term_src( 34 ), array() ) );
+eq( 'V7 term base src:current -> term id', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'current' ) ) );
+
+// Post base → 0 (post path).
+eq( 'V7 post base -> 0', 0, bws_base_ambient_term_id( post_src( 10 ), array() ) );
+
+// V11: src:ref on a term base → 0 (post path runs the term->post ref hop, NOT the
+// term's own analog). The load-bearing V11 guard.
+eq( 'V11 src:ref on term base -> 0 (ref hop owns it)', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
+
+// Explicit srcTermIn → 0 (post->term branch owns it; incoherent from a term base).
+eq( 'V7 srcTermIn set -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'srcTermIn' => 'category' ) ) );
+
+// src:site → 0 (own gate).
+eq( 'V7 src:site -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'site' ) ) );
+
+// meta_row base → 0 (only 'term' kind qualifies).
+eq( 'V7 meta_row base -> 0', 0, bws_base_ambient_term_id( array( 'kind' => 'meta_row', 'row' => array() ), array() ) );
 
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
