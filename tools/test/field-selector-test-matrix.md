@@ -54,6 +54,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M2.3 | Filter fields by type = a specific type (Date/Email/…) | List narrows to that ACF type |
 | M2.4 | Filter fields by type = **Loop fields** | Any field with a loop (repeater/flex row) home; a field that ALSO resolves outside a row still shows ("usable in a loop", NOT "row-exclusive") |
 | M2.5 | Both filters at once | List = intersection (AND) |
+| M2.6 | **Flex breadcrumb (F1), DEFERRED — needs the fixture below.** In an ACF group, add a **Flexible Content** field labelled `Blocks` with a layout labelled `Hero` containing a sub-field `Headline` (name `headline`). Open a base tag's key picker on a post type that group targets, open the Location filter | The `Headline` sub-field's location path is **`Post fields › <Group> › Blocks › Hero`** — i.e. it nests under the flex field's own label (`Blocks`), not a bare `Hero`. Add a SECOND flex field `Sidebar` with its own `Hero` layout + `headline` to confirm the two `Headline`s live under distinct paths (`… › Blocks › Hero` vs `… › Sidebar › Hero`), not collapsed to one `Hero`. (Pure test already asserts the `Blocks › Hero` parent_path; this confirms the Location UI reads it.) |
 
 ## M3 — flat list + merge (the two duplicate scenarios)
 
