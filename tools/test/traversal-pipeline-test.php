@@ -295,13 +295,14 @@ eq(
 	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => null, 'queried_id' => 0 ) ) )
 );
 
-// V7 explicit src:ref on a term archive: ref is a STEP, not a base kind — the
-// factory bases ref on ambient/current, NOT hijacked into the term. With no
-// registry loaded, src:ref falls to current-post path (post/0). Confirms the
-// ambient term branch is skipped when an explicit non-current src is present.
+// V11: src:ref on a term archive bases on the AMBIENT TERM (ref is a step; the
+// term is the ambient resolved source, ref hops its field term→post). This
+// FIXES today's leak (GB get_id('post')=get_the_ID()=stale first-loop post on
+// an archive). Ambient-term-as-ref-base = V7 applied to ref, not the deferred
+// pin-a-specific-primary parity gap.
 eq(
-	'V7 explicit src:ref not hijacked by ambient term',
-	array( 'kind' => 'post', 'id' => 0 ),
+	'V11 src:ref on term archive bases on ambient term',
+	array( 'kind' => 'term', 'id' => 34 ),
 	bws_resolve_base_source(
 		array( 'src' => 'ref', 'ref' => 'related' ),
 		null,

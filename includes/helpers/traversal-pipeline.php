@@ -271,16 +271,16 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
 	}
 
-	// 3. Ambient term archive → term source (SPEC §V7). queried_kind captured
-	//    from get_queried_object, NOT $post.
-	//    GATED: explicit src:ref preserves TODAY's behavior (ref hops from the
-	//    current POST, not the ambient term). "pick primary THEN hop" (ref off a
-	//    chosen non-current primary) is the FUTURE parity gap, not Phase 1 —
-	//    so an explicit ref skips term-ambient and bases on current post below.
-	//    Bare tags (no src) still term-ambient. (SPEC §C4 / parity-gap boundary.)
-	if ( 'ref' !== $src
-		&& 'term' === ( $signals['queried_kind'] ?? '' )
-		&& ! empty( $signals['queried_id'] ) ) {
+	// 3. Ambient term archive → term source (SPEC §V7/§V11). queried_kind captured
+	//    from get_queried_object, NOT $post. Applies to src:ref too: the term is
+	//    the ambient resolved source, so a ref step hops its relationship field
+	//    FROM the term (ref I/O table: term → post[]). This FIXES today's leak —
+	//    GB get_id($options,'post') = get_the_ID() = the stale first-loop post on
+	//    an archive (probe 48418), so today src:ref reads a relationship field off
+	//    an arbitrary leaked post. Ambient-term-as-base is V7 applied to ref, NOT
+	//    the deferred parity gap (that is PINNING a specific NON-ambient primary).
+	//    Singular pages: queried_kind null → falls through → post base (unchanged).
+	if ( 'term' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
 		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
 	}
 
