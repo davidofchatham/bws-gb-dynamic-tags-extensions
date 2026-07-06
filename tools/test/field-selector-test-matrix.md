@@ -43,6 +43,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | M1.3 | Pick a real field, then click the ✕ | Value cleared; `key:` omitted from the tag (never a bare `key:`) |
 | M1.4 | Save + reload, reopen the tag | The persisted key shows selected (round-trip) |
 | M1.5 | Type a custom key that is a **substring of a visible label** (e.g. `city` when "City ('venue_city')" is listed) | **`Use custom key: "city"`** still appears; suppression is exact-key, NOT substring-of-label (V12/B3), so the literal `city` remains committable |
+| M1.6 | With a field whose key is `Event_Date` in the list, type the **case-variant** `event_date` | **`Use custom key: "event_date"`** appears (case-sensitive match), and committing serializes `key:event_date` verbatim, NOT `Event_Date`. Meta keys are case-sensitive (B6). |
 
 ## M2 — filters (location + type)
 
@@ -108,3 +109,46 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 | # | Setup | Expect |
 |---|---|---|
 | M8.1 | An ACF field label / group title with a broken UTF-8 byte (or extreme repeater nesting) that makes `wp_json_encode` return false | Editor still loads; inline emits `window.bwsFieldEnvelope = {};` (empty object, NOT the syntax-error `= ;`), and the control falls back to the REST fetch (`bws_field_discovery_get_envelope_json` false-guard). Hard to force; verify the guard by unit inspection if not reproducible on the instance |
+| M8.2 | Name an ACF field label (or group title) literally `Break </script><b>x</b>` and load the block editor | Editor loads normally; NO broken layout, NO injected `<b>` rendered. View source: the inlined `window.bwsFieldEnvelope` shows the `<` escaped (`</script>`), so the label cannot close the inline `<script>`. The field still appears in the picker with its literal label. (B5 `JSON_HEX_TAG` escape.) |
+
+## M9 — registered meta discovery + scope (A / B7 / B8)
+
+The pure harness (`field-discovery-test.php`) covers the dedupe/scope LOGIC on
+synthetic envelopes; these rows verify it against LIVE `get_registered_meta_keys`
+output. **Fixture** — drop in a mu-plugin or `functions.php` on the test instance:
+
+```php
+// Global registered post meta (all post types).
+register_post_meta( '', 'bws_global_note', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
+// Subtype-registered meta (ONE post type only — pick a real CPT/type, e.g. 'page').
+register_post_meta( 'page', 'bws_page_only', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
+// A registered key that COLLIDES with an ACF field name on ONE post type.
+// (Create an ACF field named `subtitle` on a group located to post_type == post.)
+register_post_meta( '', 'subtitle', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
+```
+
+| # | Action | Expect |
+|---|---|---|
+| M9.1 | Open any base tag's field picker, filter type = All | `bws_global_note` (global) is listed — registered meta is discovered |
+| M9.2 | Same picker | `bws_page_only` (subtype-registered to `page`) is ALSO listed — subtype meta is no longer invisible (B8). Before the fix it was absent |
+| M9.3 | With the ACF `subtitle` field (on `post`) AND the global registered `subtitle` both defined | BOTH survive: the picker shows the ACF `subtitle` (its richer label/type) and does NOT drop the global registered `subtitle`. Same reach would merge; differing reach keeps both (B7) |
+| M9.4 | Sanity: scan the list for junk | NO keys from built-in container subtypes (`revision`, `nav_menu_item`, `attachment` unless you registered any) flood the list — empty subtypes yield no group |
+| M9.5 | Register a `register_term_meta( 'category', 'bws_cat_note', … )`, open a `srcTermIn:category` tag's key picker | `bws_cat_note` appears under term fields (subtype term meta discovered) |
+
+## M10 — reopen selection (V12, post-memoization)
+
+The filtered/options/valueToKey/selectedValue derivation moved into one `useMemo`
+this cycle; these confirm the selection behavior is intact under it. (Overlaps
+M3.5-3.7; kept here as the focused reopen pass.)
+
+| # | Action | Expect |
+|---|---|---|
+| M10.1 | Save a tag with a key matching exactly ONE field, reopen | Combobox shows the friendly `Label ('key')` row selected, even if a filter would hide it |
+| M10.2 | Save a key that maps to TWO fields with different labels (same key, e.g. `name` = "Name" and "Feature Name"), reopen | Combobox shows the **raw key** `name` selected, NOT a guessed label (V12/B4) |
+| M10.3 | Type into the combobox after reopen | Filtering still works on every keystroke (synthetic `Use custom key` appears/disappears as you type) — memoization did not freeze the filter |
+
+## M11 — src:ref scope + label (V3)
+
+| # | Action | Expect |
+|---|---|---|
+| M11.1 | Set a base tag to `src:ref`, open its `key` picker | Location filter defaults to **"All detected fields"** (NOT preset to Post), control label reads generic **"Meta/Option Field"** — ref-hop target is unknown, so unscoped (V3). Post fields still reachable by choosing them |
