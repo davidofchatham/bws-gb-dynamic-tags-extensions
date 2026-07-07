@@ -10,6 +10,10 @@
   - **Per-tag term reads:** `{{title}}` → term name, `{{content}}` → term description, `{{permalink}}` → term URL, `{{text key:…}}` → a term meta/ACF field. `{{image}}` stays empty on a term (a taxonomy term has no intrinsic image); set a key to read a term image field.
   - **`try_` chains match.** A `try_text` / `try_title` / `try_content` / `try_permalink` slot on a term archive resolves the term just like the standalone tag, so a fallback chain behaves the same whether it runs on a post or a term archive.
 
+### Fixed — `datetime_single` / `datetime_range` no longer serialize the default source
+
+- **Switching a datetime tag's Source away from and back to "Current" no longer leaves `src:current` written into the saved tag string.** Every other base tag strips its default select value at registration so the default token never gets serialized; `datetime_single` and `datetime_range` built their options through a dedicated function that skipped this step, so round-tripping the Source dropdown left a stray `src:current` (harmless functionally, but inconsistent with every other tag's wire format). No user-facing behavior change — output is identical either way.
+
 ### Fixed — `{{text}}` / `{{title}}` with `src:ref` now list every related post
 
 - **A related-field source with a raised limit now returns all matching posts, not just the first.** `{{title src:ref|ref:related_vendors|limit:5}}` lists up to five titles joined by the separator; before, it silently returned only the first related post even though the **Result Limit** and **Result Separator** controls were offered. The controls now do what they advertise. Default limit is 1, so a tag without an explicit limit is unchanged.

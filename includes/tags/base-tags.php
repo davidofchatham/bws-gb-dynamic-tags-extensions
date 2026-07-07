@@ -288,7 +288,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_get_base_datetime_single_options(),
+		'options'  => bws_strip_default_select_values( bws_get_base_datetime_single_options() ),
 		'return'   => 'bws_base_datetime_single_callback',
 	) );
 
@@ -301,7 +301,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_get_base_datetime_range_options(),
+		'options'  => bws_strip_default_select_values( bws_get_base_datetime_range_options() ),
 		'return'   => 'bws_base_datetime_range_callback',
 	) );
 
