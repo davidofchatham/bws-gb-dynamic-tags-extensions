@@ -6,7 +6,9 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 
 ### Fewer tags, more sources
 
-Our tags are designed to be source-agnostic (currently working for post and loop item contexts, not yet for taxonomy term contexts such as archives). A custom *Source* selector lets you retrieve data not only from the current context, but also from a source related via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
+Our tags currently work across post, loop item, and taxonomy term archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case! Blog, search, date, author, and post-type archives are not yet supported (they still return from the first post in the query), but we're aiming for full source agnosticism in the future.
+
+Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
 
 ### Unlocked field selector
 
@@ -16,15 +18,15 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 
 | Tag | Description | Specific Limitations |
 |---|---|---|
-| `text` | Return simple meta/option text fields or post title/term name* (useful in `try_` tags). | |
+| `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). | |
 | `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. For alt text, it returns `' '` if the alt text field is empty, which means you *don't* have to set `required:false` to avoid the entire image tag being suppressed when the alt text is missing. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the "site" source. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. | Single result only; a multi-result source (taxonomy terms or a reference/relationship field) returns just the first. A date *list* is planned. |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. | Single result only (same as `datetime_single`). |
 | `email` | Return an email address from meta/option field as a `mailto` link (by default) or as plain text. Validates stored emails (by format) and returns empty if invalid. | |
 | `phone` | Return a phone number from meta/option field as a `tel` link (by default) or as plain text. Normalizes stored numbers and allows global country code configuration. | |
-| `title` | Return post title/term name* or site name. | |
-| `permalink` | Return post/term permalink* or site URL. | |
+| `title` | Return post title/term name or site name. | |
+| `permalink` | Return post/term permalink or site URL. | |
 
 ## First-available tags
 

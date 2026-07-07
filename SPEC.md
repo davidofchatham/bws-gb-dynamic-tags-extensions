@@ -68,7 +68,7 @@ tags resolve term on term archives). Everything else byte-identical.
 | T9 | x | Base-tag dispatch stops routing through N×M classes (`RelatedPost` etc.); classes stay for deprecated tags | C4,I.sources |
 | T10 | x | Manual sweep: singular / term archive (ambient!) / loops (2a+2b) / view_ tags / try_ chains / search+404 (unchanged) / ref limit>1; plugin-integration.md + CHANGELOG | V1,V5,V6,V7,V8,I.doc |
 | T12 | x | Fix B3: base text/title `src:ref` post branch reads the FULL ref post list + list-joins (`limit`/`sep`), mirroring the srcTermIn branch; drop collapse-to-first for src:ref on text/title. Single-result link-wrap only. permalink/image/content unchanged. | V14,V6,I.dispatch |
-| T11 | . | AFTER testing proves V6/V7: update README caveats — flip L9 term-archive limit ("not yet for taxonomy term contexts such as archives" now works), narrow "term name*" footnote, note ref limit now honored. NOT datetime L22-23 (wrapper caller = still first-only, C4). User-facing prose → user review gate + no-em-dash rule. | V6,V7,C4,I.readme |
+| T11 | x | AFTER testing proves V6/V7: update README caveats — flip L9 term-archive limit ("not yet for taxonomy term contexts such as archives" now works), narrow "term name*" footnote, note ref limit now honored. NOT datetime L22-23 (wrapper caller = still first-only, C4). User-facing prose → user review gate + no-em-dash rule. | V6,V7,C4,I.readme |
 
 ## §B — bugs
 
