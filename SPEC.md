@@ -33,7 +33,8 @@ Remove GB registration + runtime callbacks for all current deprecated tags. Keep
 - V6: No `bws_make_deprecated_*_callback()` function exists (4 factories deleted).
 - V7: `bws_register_deprecated_tags()` body is empty — function exists, registers nothing.
 - V8: GB-only option helper vars deleted from `bws_register_v1_deprecated_tag_wrappers()`: `$content_opts`, `$ct_opts`, `$fi_opts`, `$ci_opts`, `$cds_opts`, `$cdr_opts`, `$cdts_opts`, `$cdtr_opts`, `$te_opts`, `$ti_opts`, `$rel_opts`, `$rel2_opts`, `$srp_src_opts`, `$ptrp_src_opts`.
-- V9: Migration rename-map vars kept: `$content_renames`, `$content_values`, `$ct_renames`, `$fi_renames`, `$ci_renames`, `$cds_renames`, `$cdr_renames`, `$cdts_renames`, `$cdtr_renames`, `$rel_renames` and merged variants, `$try_src_renames`.
+- V9: Migration rename-map vars kept: `$content_renames`, `$content_values`, `$ct_renames`, `$fi_renames`, `$ci_renames`, `$cds_renames`, `$cdr_renames`, `$cdts_renames`, `$cdtr_renames`, `$rel_renames` and merged variants, `$try_src_renames`. `$rel_renames` maps both `key` and `rel` → `ref` (B2).
+- V10: `second_related_post_*` (15) + `post_term_related_post_*` (10) — the 25 no-migration-path tags — stay registered as migration-data-only entries (`old_tag`,`since`; no `title`/`options`/`callback`). `MigrationRegistry::get_all()` count stays ~130; settings page "Tags without migration path" list stays non-empty (B1).
 
 ## §T Tasks
 
@@ -53,3 +54,5 @@ Remove GB registration + runtime callbacks for all current deprecated tags. Keep
 
 | id | date | cause | fix |
 |----|------|-------|-----|
+| B1 | 2026-07-07 | T3/removal deleted the `second_related_post`/`post_term_related_post` GB-registration loops wholesale (whole `foreach` blocks incl. `$reg::register()` calls), not just their GB fields — took 25 no-migration-path `MigrationRegistry` entries down with them. Settings page list, Tag Converter scan/migrate, K/S/D mode lookup all silently lost these tags. | Re-added as migration-data-only entries (`old_tag`+`since` only). V10. |
+| B2 | 2026-07-07 | `$rel_renames` only mapped `rel`→`ref`, never the legacy `key` spelling that `RelatedPost::resolve_id()` itself still fallback-accepts (with a `_doing_it_wrong` notice). A tag saved with `key:` scanned/migrated clean but silently lost its relationship field once the deprecated tag stopped rendering (registration removed in this same release). `related_post_content`'s bespoke `transform_callback` already handled `key ?? rel`; the shared map used by every other related_post/term_related_post entry did not. | Added `'key' => 'ref'` to `$rel_renames` (processed before `rel`, so `rel` wins if both present — matches runtime precedence). V9. |
