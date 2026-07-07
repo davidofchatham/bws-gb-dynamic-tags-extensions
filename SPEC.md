@@ -47,7 +47,7 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T2 | x | Add liveness-filter accessor(s) to MigrationRegistry (tag: `callback` presence; option: new flag) — used by settings render | V2,V3,I.registry |
 | T3 | x | Split settings page's tag rendering into Deprecated Tags box (liveness=true, K/S/D radios, empty today) + Removed Tags box (liveness=false, list-only, all 108 today; keeps with-path/without-path as 2 informational sub-lists, no control) | V3,V6,I.settings |
 | T4 | x | Split Deprecated Options box into Deprecated Options (flag=false, unchanged behavior) + Removed Options (flag=true, list-only, empty today) | V1,V2,V6,I.settings |
-| T5 | . | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
+| T5 | x | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
 | T6 | . | Build allowlist storage (rebuild source = `TagConverter::scan()` result set of matched names) | V7,I.converter |
 | T7 | . | Hook allowlist rebuild: activation, upgrade, "Scan All Content" button, post-migration | V7,I.activation,I.converter |
 | T8 | . | Apply allowlist filter to all 4 boxes' entry lists at render time | V6,V7,I.settings |

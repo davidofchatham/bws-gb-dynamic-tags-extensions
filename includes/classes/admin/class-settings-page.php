@@ -502,6 +502,118 @@ class SettingsPage {
 					</table>
 				</div>
 
+				<?php /* ── Email ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-email-obfuscate"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[email][obfuscate]"
+										value="1" <?php checked( self::is_email_obfuscation_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Phone ── */ ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Phone', 'generateblocks' ); ?></h2>
+					<table class="bws-tags-table widefat">
+						<tbody>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="text" id="bws-phone-country-code" style="width:14em"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][country_code]"
+										value="<?php echo esc_attr( self::get_phone_country_code() ); ?>"
+										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 1 (US), 44 (UK)', 'generateblocks' ); ?>" />
+								</td>
+								<td>
+									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
+									<p class="description">
+										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
+										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
+									</p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-phone-strip-cc"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][strip_leading_cc]"
+										value="1" <?php checked( self::is_phone_strip_leading_cc_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
+										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<?php /* ── Call Custom Function (read-only allowlist mirror) ── */ ?>
+				<?php $bws_call_rows = self::get_call_allowlist_status(); ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Call Custom Function', 'generateblocks' ); ?></h2>
+					<div class="bws-section-desc">
+						<p style="margin-top:0">
+							<?php esc_html_e( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:', 'generateblocks' ); ?>
+						</p>
+						<pre style="margin:0 0 8px;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;overflow:auto"><code>add_action( 'init', function () {
+    bws_register_call_function( 'my_result' );
+} );
+
+function my_result( $post_id, $arg = '' ) {
+    return '&lt;span&gt;' . esc_html( get_the_title( $post_id ) ) . '&lt;/span&gt;';
+}</code></pre>
+						<p style="margin:0">
+							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
+						</p>
+					</div>
+					<h3 class="bws-call-subhead"><?php esc_html_e( 'Registered functions', 'generateblocks' ); ?></h3>
+					<table class="bws-tags-table widefat">
+						<tbody>
+						<?php if ( empty( $bws_call_rows ) ) : ?>
+							<tr class="bws-tag-row">
+								<td colspan="2"><em><?php esc_html_e( 'No functions registered yet.', 'generateblocks' ); ?></em></td>
+							</tr>
+						<?php else : ?>
+							<?php foreach ( $bws_call_rows as $bws_call_row ) : ?>
+								<?php
+								$bws_call_ok = $bws_call_row['exists'] && $bws_call_row['passes'];
+								// Glyph = at-a-glance status. Text shown ONLY for a failure (the
+								// reason a glyph can't carry); an OK row needs no redundant "OK".
+								$bws_call_problem = $bws_call_ok
+									? ''
+									: ( ! $bws_call_row['exists']
+										? __( 'Not found (function does not exist)', 'generateblocks' )
+										: __( 'Refused (PHP built-in)', 'generateblocks' ) );
+								?>
+								<tr class="bws-tag-row">
+									<td class="bws-tag-checkbox" style="width:1.5em">
+										<span class="<?php echo $bws_call_ok ? 'bws-call-ok' : 'bws-call-warn'; ?>" aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
+										<span class="screen-reader-text"><?php echo $bws_call_ok ? esc_html__( 'OK', 'generateblocks' ) : esc_html( $bws_call_problem ); ?></span>
+									</td>
+									<td>
+										<code><?php echo esc_html( $bws_call_row['fn'] ); ?></code>
+										<?php if ( '' !== $bws_call_problem ) : ?>
+											<span class="bws-tag-name"><?php echo esc_html( $bws_call_problem ); ?></span>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						<?php endif; ?>
+						</tbody>
+					</table>
+				</div>
+
 				<?php /* ── Deprecated Tags (still GB-registered; K/S/D applies) ── */ ?>
 				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
 				<div class="bws-tag-group">
@@ -813,118 +925,6 @@ class SettingsPage {
 							<tbody id="bws-results-tbody"></tbody>
 						</table>
 					</div>
-				</div>
-
-				<?php /* ── Email ── */ ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Email', 'generateblocks' ); ?></h2>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-email-obfuscate"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[email][obfuscate]"
-										value="1" <?php checked( self::is_email_obfuscation_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-email-obfuscate"><?php esc_html_e( 'Obfuscate email addresses (anti-harvest)', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Encode addresses output by the {{email}} tag with antispambot() to deter naive harvesters. Disable if a clean mailto: href is needed (e.g. analytics).', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-
-				<?php /* ── Phone ── */ ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Phone', 'generateblocks' ); ?></h2>
-					<table class="bws-tags-table widefat">
-						<tbody>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="text" id="bws-phone-country-code" style="width:14em"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][country_code]"
-										value="<?php echo esc_attr( self::get_phone_country_code() ); ?>"
-										inputmode="numeric" placeholder="<?php esc_attr_e( 'e.g. 1 (US), 44 (UK)', 'generateblocks' ); ?>" />
-								</td>
-								<td>
-									<label for="bws-phone-country-code"><?php esc_html_e( 'Default country code', 'generateblocks' ); ?></label>
-									<p class="description">
-										<?php esc_html_e( 'Default country code (digits only, no +) for {{phone}} tel: links when a number has no international prefix. Leave empty for national-only tel: links.', 'generateblocks' ); ?>
-										<a href="https://www.countrycode.org" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Country code reference', 'generateblocks' ); ?></a>
-									</p>
-								</td>
-							</tr>
-							<tr class="bws-tag-row">
-								<td class="bws-tag-checkbox">
-									<input type="checkbox" id="bws-phone-strip-cc"
-										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[phone][strip_leading_cc]"
-										value="1" <?php checked( self::is_phone_strip_leading_cc_enabled() ); ?> />
-								</td>
-								<td>
-									<label for="bws-phone-strip-cc"><?php esc_html_e( 'Strip unseparated leading digit(s) matching the default country code', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'Numbers where the country code is set off by a separator (e.g. 1-800-555-1212, 1 (800) 555-1212, +1 800 555 1212) are already detected automatically — no setting needed. This option covers only the harder case: a country code run TOGETHER with the national number and no + (e.g. 18005551212 with a default code of 1), where there is no separator to mark it. Requires a country code above; only strips a leading run that exactly matches it.', 'generateblocks' ); ?>
-										<strong><?php esc_html_e( 'Warning:', 'generateblocks' ); ?></strong> <?php esc_html_e( 'with no separator there is no way to tell a real country-code prefix from a national number that simply begins with the same digits, so this can strip a legitimate leading digit (e.g. a national number 1860… with default code 1). Leave off unless your stored numbers consistently carry a redundant, unseparated country-code prefix.', 'generateblocks' ); ?></p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-
-				<?php /* ── Call Custom Function (read-only allowlist mirror) ── */ ?>
-				<?php $bws_call_rows = self::get_call_allowlist_status(); ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Call Custom Function', 'generateblocks' ); ?></h2>
-					<div class="bws-section-desc">
-						<p style="margin-top:0">
-							<?php esc_html_e( 'Custom functions must take a post ID as their first argument, sanitize their own output (HTML is allowed in the return string), and be registered via `bws_register_call_function()`:', 'generateblocks' ); ?>
-						</p>
-						<pre style="margin:0 0 8px;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;overflow:auto"><code>add_action( 'init', function () {
-    bws_register_call_function( 'my_result' );
-} );
-
-function my_result( $post_id, $arg = '' ) {
-    return '&lt;span&gt;' . esc_html( get_the_title( $post_id ) ) . '&lt;/span&gt;';
-}</code></pre>
-						<p style="margin:0">
-							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
-						</p>
-					</div>
-					<h3 class="bws-call-subhead"><?php esc_html_e( 'Registered functions', 'generateblocks' ); ?></h3>
-					<table class="bws-tags-table widefat">
-						<tbody>
-						<?php if ( empty( $bws_call_rows ) ) : ?>
-							<tr class="bws-tag-row">
-								<td colspan="2"><em><?php esc_html_e( 'No functions registered yet.', 'generateblocks' ); ?></em></td>
-							</tr>
-						<?php else : ?>
-							<?php foreach ( $bws_call_rows as $bws_call_row ) : ?>
-								<?php
-								$bws_call_ok = $bws_call_row['exists'] && $bws_call_row['passes'];
-								// Glyph = at-a-glance status. Text shown ONLY for a failure (the
-								// reason a glyph can't carry); an OK row needs no redundant "OK".
-								$bws_call_problem = $bws_call_ok
-									? ''
-									: ( ! $bws_call_row['exists']
-										? __( 'Not found (function does not exist)', 'generateblocks' )
-										: __( 'Refused (PHP built-in)', 'generateblocks' ) );
-								?>
-								<tr class="bws-tag-row">
-									<td class="bws-tag-checkbox" style="width:1.5em">
-										<span class="<?php echo $bws_call_ok ? 'bws-call-ok' : 'bws-call-warn'; ?>" aria-hidden="true"><?php echo $bws_call_ok ? '✓' : '⚠'; ?></span>
-										<span class="screen-reader-text"><?php echo $bws_call_ok ? esc_html__( 'OK', 'generateblocks' ) : esc_html( $bws_call_problem ); ?></span>
-									</td>
-									<td>
-										<code><?php echo esc_html( $bws_call_row['fn'] ); ?></code>
-										<?php if ( '' !== $bws_call_problem ) : ?>
-											<span class="bws-tag-name"><?php echo esc_html( $bws_call_problem ); ?></span>
-										<?php endif; ?>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						<?php endif; ?>
-						</tbody>
-					</table>
 				</div>
 
 				<?php /* ── Diagnostics ── */ ?>
