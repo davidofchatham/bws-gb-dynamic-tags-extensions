@@ -103,6 +103,31 @@ Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (
 
 ---
 
+## I9 — L1 ambient resolution: the factory picks the base source by CONTEXT, never by `$post`
+
+The traversal pipeline (shipped 1.14.0) resolves *where a bare tag reads from* through a single **source factory** (`bws_resolve_base_source`), by a fixed precedence — the load-bearing rule the whole context-aware feature rests on:
+
+1. **Explicit `src`** (site / registry source / `ref` as a step off the base) — author intent always wins.
+2. **Loop row** (`bws_get_loop_row_context`) — a bare tag inside a query loop reads the ROW (post or Mode-2b meta_row), not the archive.
+3. **Ambient queried object** — `get_queried_object()` is a `WP_Term` → the **term** (the #19 term-archive kind; the first context kind shipped).
+4. **Current post** — else the singular post.
+
+**`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a loop row (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
+
+Two guards keep the leak dead at the edges:
+- **A claimed-taxonomy-context with no resolvable term yields EMPTY, never the leaked post.** When `is_tax`/`is_category`/`is_tag` fire but `get_queried_object()` is not a `WP_Term` (deleted term, malformed query), the factory short-circuits to empty rather than falling to the current post.
+- **A `{kind:post, id:0}` reads EMPTY at the seam** — a post/0 means "no post found"; the read never falls through to `bws_read_field`'s own inference (which would re-derive a rejected context).
+
+**Term as a first-class read source** (I1 applied by context): on a term archive a bare base tag reads the term's analog — `title`→name, `content`→description, `permalink`→term URL, `text key:`→term meta; `image` has no intrinsic term analog (#29 gap) but a configured fallback still applies. A `try_` slot resolves **identically** to the same base tag standalone (I6 transparency), because both run the same term cores.
+
+**Only taxonomy term archives are context-aware in 1.14.0.** Blog / search / date / author / post-type archives fall through to current behavior (still `$post`) — their kinds are Phase 2 (`#19`, `.claude/plans/context-aware-base-tags.md`).
+
+**Source reads are ACF-or-compatible, not ACF-mandatory.** A `src:ref` post hop tries the ACF relationship reader (type-validated, plural) first, then falls back to a raw meta read, so non-ACF handlers (Pods/Carbon/core) storing a post id in plain meta still resolve — honoring the plugin's ACF-or-compatible contract.
+
+Single-class detail is PHPDoc on the enforcers: `bws_resolve_base_source` / `bws_capture_ambient_signals` (precedence + degenerate-term guard), `bws_run_traversal` (resolved-source typedef, pure fold), `bws_read_resolved_source` (kind dispatch + post/0 guard), `bws_pipeline_default_reader` (ACF-compatible ref), `bws_base_term_analog_read` (term analog + image fallback). Schema: `tag-reference.md` §Source-analog resolution, §List mode. Rationale + probe: `.claude/plans/archive/traversal-pipeline.md`.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).
