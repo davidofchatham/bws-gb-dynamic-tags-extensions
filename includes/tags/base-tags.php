@@ -1259,7 +1259,12 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 	}
 	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	$post_id = bws_base_post_id_from_source( $base, $options );
+	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
+	// its own plural traversal (bws_base_post_ids_from_source) below, so computing
+	// $post_id here would run the ref hop twice (review #3). The srcTermIn branch
+	// still needs $post_id (the ref-hopped post it reads terms from), so only skip
+	// when there is no tax hop.
+	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
 	$link_type = 'post';
@@ -1443,7 +1448,9 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
 	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	$post_id = bws_base_post_id_from_source( $base, $options );
+	// Skip the single-collapse resolve for the pure src:ref list branch (review #3):
+	// it runs its own plural traversal below. srcTermIn still needs $post_id.
+	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
 	$link_type = 'post';

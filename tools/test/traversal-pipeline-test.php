@@ -265,6 +265,27 @@ eq( 'V6 single scalar id', array( post_src( 3 ) ), bws_pipeline_ref_to_posts( 3 
 // Empty / null ref → [].
 eq( 'V6 empty ref', array(), bws_pipeline_ref_to_posts( '' ) );
 eq( 'V6 null ref', array(), bws_pipeline_ref_to_posts( null ) );
+eq( 'V6 empty array ref', array(), bws_pipeline_ref_to_posts( array() ) );
+
+// review #2 — a STRING-KEYED assoc WITHOUT 'ID' is ONE field value (an ACF group/
+// map/row), NOT a post list. Must NOT fabricate a bogus post from every scalar
+// member. bws_extract_post_id applies its own precedence (no ID key → first member).
+eq(
+	'#2 string-keyed assoc is NOT a post list',
+	array( post_src( 123 ) ), // ['post'=>123,'qty'=>2] → single value → extract_post_id → first member 123, NOT posts 123 AND 2
+	bws_pipeline_ref_to_posts( array( 'post' => 123, 'qty' => 2 ) )
+);
+eq(
+	'#2 string-keyed assoc of non-ids → []',
+	array(), // ['label'=>'x','note'=>'y'] → single value → no numeric first member → dropped
+	bws_pipeline_ref_to_posts( array( 'label' => 'x', 'note' => 'y' ) )
+);
+// A genuine sequential relationship list still fans out (regression guard for the fix).
+eq(
+	'#2 sequential id list still fans out',
+	array( post_src( 11 ), post_src( 22 ) ),
+	bws_pipeline_ref_to_posts( array( 11, 22 ) )
+);
 
 // ── srcTermIn coercion ───────────────────────────────────────────────────────
 

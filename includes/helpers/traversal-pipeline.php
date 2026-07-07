@@ -151,16 +151,24 @@ function bws_run_step( array $step, array $source, $reader = null ) {
  */
 if ( ! function_exists( 'bws_pipeline_ref_to_posts' ) ) {
 function bws_pipeline_ref_to_posts( $raw ) {
-	if ( null === $raw || '' === $raw ) {
+	if ( null === $raw || '' === $raw || array() === $raw ) {
 		return array();
 	}
 
-	// Normalize to a list of candidate entries. A single assoc row with 'ID'
-	// is ONE post, not a list — mirror bws_extract_post_id's precedence.
-	if ( is_array( $raw ) && ! isset( $raw['ID'] ) ) {
-		$entries = $raw;
+	// Normalize to a list of candidate entries. Precedence (mirrors, then tightens,
+	// bws_extract_post_id):
+	//   - assoc row WITH 'ID'            → ONE post (an ACF row, not a list).
+	//   - LIST-shaped array (int keys)   → a relationship list; fan out to every entry.
+	//   - STRING-KEYED assoc without 'ID' → ONE field value (an ACF group/map/row),
+	//     NOT a post list. Treating it as a list fabricates a bogus post from every
+	//     scalar member (review #2 — e.g. ['post'=>123,'qty'=>2] → posts 123 AND 2).
+	//     Pass it through as a SINGLE entry so bws_extract_post_id applies its own
+	//     precedence (ID key, else first member) — matching the legacy first-only read
+	//     for non-relationship shapes that reach the un-type-guarded term/user reader.
+	if ( is_array( $raw ) && ! isset( $raw['ID'] ) && array_keys( $raw ) === range( 0, count( $raw ) - 1 ) ) {
+		$entries = $raw; // Sequential list → real relationship fan-out.
 	} else {
-		$entries = array( $raw );
+		$entries = array( $raw ); // WP_Post / id / assoc-with-ID / string-keyed value → one.
 	}
 
 	$out = array();

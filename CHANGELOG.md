@@ -19,7 +19,9 @@
 - **Base and context-modifier tags (`term_*`, `view_*`) now resolve through one data-driven pipeline instead of a per-combination source class.** A single source factory works out the starting point (term, post, loop row, or site) and generic traversal steps handle the `src:ref` relationship hop and the `srcTermIn` term hop. Resolution is unchanged for existing content; this retires the N×M source-class growth and is what lets base tags become context-aware. The related-post source classes stay registered for the deprecated tag names that still use them.
 - **`traversal_source_key` is now accepted-but-ignored in `register_modifier()`.** External plugins registering a context modifier no longer need a custom traversal source class — the `src:ref` hop is generic. Existing registrations pass the key unchanged and keep working; it may be dropped from new ones. See [plugin-integration.md](docs/plugin-integration.md). Verified against bws-portal-system: no portal changes required.
 
-## [1.13.0] — 2026-07-06
+### Changed — bare tags on a term archive no longer read a stray post
+
+- **Tags that have no term reading resolve to empty on a term archive instead of showing an arbitrary post's data.** The same context fix that lets `{{title}}`/`{{content}}` read the term also stops the tags that *can't* read a term from silently reading whatever post the archive listed first. On a term archive: `{{datetime_single}}` / `{{datetime_range}}` (which read post/site date fields, not term fields) and `{{call}}` (which needs a post) now return empty or their fallback rather than the first-listed post's value; a bare `srcTermIn` tag (which hops a *post* to its terms) likewise resolves empty, since a term archive has no post to hop from. This is the honest result where before the output came from an unrelated post. Reading term date fields is planned for a later release.
 
 ### Added — smart field selector (replaces blind key typing)
 
