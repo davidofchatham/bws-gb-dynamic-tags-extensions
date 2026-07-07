@@ -10,7 +10,16 @@ See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) 
 
 ## Development
 
-No build pipeline, test suite, or linter. Edit PHP directly, test in WordPress environment.
+No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
+
+Tests are **standalone PHP harnesses** under `tools/test/` — no framework, no autoload; each
+copies the pure functions it exercises inline (house pattern) and runs via `php tools/test/<name>.php`,
+exiting non-zero on failure. Run the one whose domain you touched (see §Update triggers for the
+key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
+`phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
+`slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
+`slot-qualify-show-if-test.php`. Some domains ALSO have a manual `*-test-matrix.md` (integration
+rows exercised by hand) — noted per trigger. No CI runs these; run them locally before commit.
 
 ## Documentation ownership
 
@@ -30,7 +39,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Historical N×M tag names + **completed** rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info. In-progress / under-consideration renames stay in `tag-reference.md` until completed, then move here. |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
-| Non-bug future-work TRACKER (visible index: item + certainty status tag + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
+| Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (gitignored) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies + dev workflow; all schema deferred to `docs/` |
