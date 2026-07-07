@@ -454,7 +454,8 @@ class SettingsPage {
 		$removed_without    = array_values( array_filter( $removed_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
 
 		// Deprecated option-key entries (separate registry type).
-		$option_entries = MigrationRegistry::get_by_type( 'option' );
+		$live_option_entries    = MigrationRegistry::get_by_type_and_liveness( 'option', true );
+		$removed_option_entries = MigrationRegistry::get_by_type_and_liveness( 'option', false );
 
 		$mode_options = array(
 			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
@@ -653,31 +654,27 @@ class SettingsPage {
 				</div>
 				<?php endif; ?>
 
-<!-- 				<?php /* ── Deprecated Options ── */ ?>
- -->				<div class="bws-tag-group">
+				<?php /* ── Deprecated Options (fallback still live in reading code) ── */ ?>
+				<?php $live_option_groups = self::group_option_entries_by_transform( $live_option_entries ); ?>
+				<?php if ( ! empty( $live_option_groups ) ) : ?>
+				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
 					<p class="description bws-section-desc">
 						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
 					</p>
 
 					<div class="bws-dep-group">
-						<?php
-						$option_groups = self::group_option_entries_by_transform( $option_entries );
-						?>
-						<?php if ( empty( $option_groups ) ) : ?>
-							<p class="description"><?php esc_html_e( 'No deprecated options registered.', 'generateblocks' ); ?></p>
-						<?php else : ?>
 						<details class="bws-dep-tag-list">
 							<summary><?php
 								echo esc_html( sprintf(
 									/* translators: %d: count of deprecated option migrations */
-									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $option_groups ), 'generateblocks' ),
-									count( $option_groups )
+									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $live_option_groups ), 'generateblocks' ),
+									count( $live_option_groups )
 								) );
 							?></summary>
 							<table class="bws-tags-table widefat bws-ref-table">
 								<tbody>
-								<?php foreach ( $option_groups as $group_entry ) :
+								<?php foreach ( $live_option_groups as $group_entry ) :
 									$tags     = array_unique( $group_entry['tags'] );
 									$old_keys = $group_entry['old_keys'];
 									$new_keys = $group_entry['new_keys'];
@@ -712,9 +709,68 @@ class SettingsPage {
 								</tbody>
 							</table>
 						</details>
-						<?php endif; ?>
 					</div>
 				</div>
+				<?php endif; ?>
+
+				<?php /* ── Removed Options (legacy-key fallback deleted from reading code) ── */ ?>
+				<?php $removed_option_groups = self::group_option_entries_by_transform( $removed_option_entries ); ?>
+				<?php if ( ! empty( $removed_option_groups ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Options', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'These option-key corrections no longer have a live fallback in the reading code — the old key is no longer accepted at all. The Migration Tool below still finds and fixes stored content using the old key.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-dep-group">
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of removed option migrations */
+									_n( '%d removed option migration', '%d removed option migrations', count( $removed_option_groups ), 'generateblocks' ),
+									count( $removed_option_groups )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $removed_option_groups as $group_entry ) :
+									$tags     = array_unique( $group_entry['tags'] );
+									$old_keys = $group_entry['old_keys'];
+									$new_keys = $group_entry['new_keys'];
+									$reason   = $group_entry['reason'];
+									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
+									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<div class="bws-dep-rename">
+												<?php echo $old_html; ?>
+												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
+												<span class="bws-dep-arrow">→</span>
+												<?php endif; ?>
+												<?php echo $new_html; ?>
+												<?php if ( $reason ) : ?>
+												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
+												<?php endif; ?>
+											</div>
+											<?php if ( ! empty( $tags ) ) : ?>
+											<div class="description bws-dep-applies">
+												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
+												<?php
+												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
+												echo implode( ', ', $pieces );
+												?>
+											</div>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+				</div>
+				<?php endif; ?>
 
 				<?php /* ── Migration Tool (AJAX driven) ── */ ?>
 				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
