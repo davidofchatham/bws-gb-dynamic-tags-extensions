@@ -404,7 +404,16 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 		case 'post':
 			// Explicit id → v1.7.1 explicit-wins → bypasses bws_read_field's own
 			// loop/term inference (SPEC §V12). Factory already resolved the row.
-			$raw = bws_read_field( $key, $instance, (int) ( $source['id'] ?? 0 ) );
+			// GUARD id 0 (SPEC §V18): a {kind:post,id:0} means the factory found NO
+			// current post. bws_read_field treats a passed 0 as NOT explicit (guard
+			// requires >0), so it would re-run its own loop/term inference and could
+			// read a context the factory rejected (the two-layers-fight edge, B7).
+			// Reading a field off post 0 is meaningless → return '' directly.
+			$post_source_id = (int) ( $source['id'] ?? 0 );
+			if ( $post_source_id <= 0 ) {
+				return '';
+			}
+			$raw = bws_read_field( $key, $instance, $post_source_id );
 			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
 	}
 
