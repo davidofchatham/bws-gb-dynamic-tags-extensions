@@ -27,7 +27,6 @@
 namespace BWS\DynamicTags\Admin;
 
 use BWS\DynamicTags\MigrationRegistry;
-use BWS\DynamicTags\DeprecatedTagRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -445,10 +444,14 @@ class SettingsPage {
 		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
 		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
 
-		// Split registry entries by migration path.
-		$all_entries      = DeprecatedTagRegistry::get_all();
-		$entries_with     = array_values( array_filter( $all_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
-		$entries_without  = array_values( array_filter( $all_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+		// Split tag-type entries by liveness first (still GB-registered vs removed/inert),
+		// then by migration path within each liveness bucket.
+		$live_entries       = MigrationRegistry::get_by_type_and_liveness( 'tag', true );
+		$removed_entries    = MigrationRegistry::get_by_type_and_liveness( 'tag', false );
+		$live_with          = array_values( array_filter( $live_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$live_without       = array_values( array_filter( $live_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+		$removed_with       = array_values( array_filter( $removed_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$removed_without    = array_values( array_filter( $removed_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
 
 		// Deprecated option-key entries (separate registry type).
 		$option_entries = MigrationRegistry::get_by_type( 'option' );
@@ -498,7 +501,8 @@ class SettingsPage {
 					</table>
 				</div>
 
-				<?php /* ── Deprecated Tag Mode ── */ ?>
+				<?php /* ── Deprecated Tags (still GB-registered; K/S/D applies) ── */ ?>
+				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
 					<p class="description bws-section-desc">
@@ -511,16 +515,18 @@ class SettingsPage {
 							'label'   => __( 'Tags with migration path', 'generateblocks' ),
 							'desc'    => __( 'These deprecated tags can be automatically converted to current equivalents.', 'generateblocks' ),
 							'current' => $mode_with,
-							'entries' => $entries_with,
+							'entries' => $live_with,
 						),
 						array(
 							'key'     => 'mode_without_path',
 							'label'   => __( 'Tags without migration path', 'generateblocks' ),
 							'desc'    => __( 'These deprecated tags have no automatic conversion. Manual update required before disabling.', 'generateblocks' ),
 							'current' => $mode_without,
-							'entries' => $entries_without,
+							'entries' => $live_without,
 						),
-					) as $group ) : ?>
+					) as $group ) :
+						if ( empty( $group['entries'] ) ) { continue; }
+					?>
 
 					<div class="bws-dep-group">
 						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
@@ -538,7 +544,6 @@ class SettingsPage {
 							<?php endforeach; ?>
 						</div>
 
-						<?php if ( ! empty( $group['entries'] ) ) : ?>
 						<details class="bws-dep-tag-list">
 							<summary><?php
 								echo esc_html( sprintf(
@@ -575,10 +580,78 @@ class SettingsPage {
 								</tbody>
 							</table>
 						</details>
-						<?php endif; ?>
 					</div>
 					<?php endforeach; ?>
 				</div>
+				<?php endif; ?>
+
+				<?php /* ── Removed Tags (GB registration gone; informational only) ── */ ?>
+				<?php if ( ! empty( $removed_with ) || ! empty( $removed_without ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Tags', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'These tag names no longer register with GenerateBlocks. Use the Migration Tool below to find and update content still using them.', 'generateblocks' ); ?>
+					</p>
+
+					<?php foreach ( array(
+						array(
+							'label'   => __( 'Tags with migration path', 'generateblocks' ),
+							'desc'    => __( 'These removed tags can be automatically converted to current equivalents.', 'generateblocks' ),
+							'entries' => $removed_with,
+						),
+						array(
+							'label'   => __( 'Tags without migration path', 'generateblocks' ),
+							'desc'    => __( 'These removed tags have no automatic conversion. Manual update required.', 'generateblocks' ),
+							'entries' => $removed_without,
+						),
+					) as $group ) :
+						if ( empty( $group['entries'] ) ) { continue; }
+					?>
+
+					<div class="bws-dep-group">
+						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
+						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
+
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of removed tags */
+									_n( '%d removed tag', '%d removed tags', count( $group['entries'] ), 'generateblocks' ),
+									count( $group['entries'] )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $group['entries'] as $entry ) :
+									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
+									$new_tag = $entry['new_tag'] ?? '';
+									$since   = $entry['since']   ?? '';
+									if ( '' === $old_tag ) { continue; }
+									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
+											<?php if ( $target_string ) : ?>
+											<span class="bws-dep-arrow">→</span>
+											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
+											<?php endif; ?>
+											<?php if ( $since ) : ?>
+											<span class="bws-dep-since"><?php echo esc_html( sprintf(
+												/* translators: %s: version */
+												__( '(since %s)', 'generateblocks' ), $since
+											) ); ?></span>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+					<?php endforeach; ?>
+				</div>
+				<?php endif; ?>
 
 <!-- 				<?php /* ── Deprecated Options ── */ ?>
  -->				<div class="bws-tag-group">
