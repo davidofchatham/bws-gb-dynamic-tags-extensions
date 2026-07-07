@@ -447,12 +447,22 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 		}
 		switch ( $kind ) {
 			case 'post':
-				return get_post_meta( (int) ( $source['id'] ?? 0 ), $field, true );
+				// Delegate to the canonical relationship reader (SPEC §V5): it applies
+				// the ACF field-type guard (relationship|post_object) and returns the
+				// PLURAL array — byte-identical to the retired RelatedPost::resolve_id
+				// (via bws_get_related_posts_data), and feeding the §V6 plural coercer.
+				return function_exists( 'bws_get_related_posts_data' )
+					? bws_get_related_posts_data( (int) ( $source['id'] ?? 0 ), $field )
+					: get_post_meta( (int) ( $source['id'] ?? 0 ), $field, true );
 			case 'term':
-				// ACF stores term fields under the 'term_{id}' object id.
-				return function_exists( 'get_field' )
-					? get_field( $field, 'term_' . (int) ( $source['id'] ?? 0 ) )
-					: get_term_meta( (int) ( $source['id'] ?? 0 ), $field, true );
+				// Canonical term read (SPEC §V5): single_only=false preserves the
+				// relationship array — byte-identical to the retired
+				// TermRelatedPost::resolve_id (bws_read_term_field($rel,$id,false)).
+				return function_exists( 'bws_read_term_field' )
+					? bws_read_term_field( $field, (int) ( $source['id'] ?? 0 ), false )
+					: ( function_exists( 'get_field' )
+						? get_field( $field, 'term_' . (int) ( $source['id'] ?? 0 ) )
+						: get_term_meta( (int) ( $source['id'] ?? 0 ), $field, true ) );
 			case 'user':
 				return function_exists( 'get_field' )
 					? get_field( $field, 'user_' . (int) ( $source['id'] ?? 0 ) )

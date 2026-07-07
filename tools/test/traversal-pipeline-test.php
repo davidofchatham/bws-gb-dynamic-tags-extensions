@@ -477,6 +477,29 @@ eq( 'V7 src:site -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src
 // meta_row base → 0 (only 'term' kind qualifies).
 eq( 'V7 meta_row base -> 0', 0, bws_base_ambient_term_id( array( 'kind' => 'meta_row', 'row' => array() ), array() ) );
 
+// ── §V5 — modifier ref hop off a base source (T7 pipeline assembly) ───────────
+//
+// The modifier callback (term_/view_) resolves a BASE source via base_source_key
+// then hops src:ref through the generic ref step — replacing the retired
+// TermRelatedPost / PortalRelatedPost traversal classes. Shape assertion: a term
+// base hops term->post[] and collapses to first (single-valued modifier link).
+
+// term base + ref step → post[]; first post id (mirrors term_ modifier src:ref).
+$reader = make_reader( array( 'term:34' => array( 91, 92 ) ) );
+$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'ref', 'field' => 'related' ) ), $reader );
+eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $hopped );
+eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $hopped ) );
+
+// post base + ref step → post[] (view_ modifier src:ref: PortalSource post -> rel).
+$reader = make_reader( array( 'post:70' => 88 ) );
+$hopped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'ref', 'field' => 'rel' ) ), $reader );
+eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $hopped ) );
+
+// No ref target → empty hop → false (modifier renders empty, not a leak).
+$reader = make_reader( array() );
+$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'ref', 'field' => 'related' ) ), $reader );
+eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hopped ) );
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

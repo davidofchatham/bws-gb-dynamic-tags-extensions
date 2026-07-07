@@ -62,7 +62,7 @@ tags resolve term on term archives). Everything else byte-identical.
 | T4 | x | Rewire `bws_resolve_field_values()` internals → factory + steps; ref plural for seam consumers | V3,V6,V11,V12,I.seam |
 | T5 | x | `bws_resolve_post_by_source()` → thin wrapper (factory + steps → first post id). SCOPE-NARROWED (T4 finding): seam NO LONGER calls it (uses factory + `bws_field_values_assemble_steps` directly), so wrapper = PURE back-compat for its ~30 non-seam callers (deprecated-tags.php + site code) — off the value-list read path. Lower risk; preserve V4 byte-compat only. | V4,I.dispatch |
 | T6 | x | Base callbacks: kind dispatch for term ambient (analog + key reads); explicit-wins guard. + B2 fix: wrapper assembles ref-only steps (V13) | V7,V13,C4,I.dispatch |
-| T7 | . | `make_modifier_callback()` assembles pipelines; `traversal_source_key` accept-but-ignore | V5,I.registry |
+| T7 | x | `make_modifier_callback()` assembles pipelines; `traversal_source_key` accept-but-ignore | V5,V13,I.registry,I.engine |
 | T8 | . | `generate_base_try_tags()` parameterized by factory; collapse `try_core_fn`/`try_term_fn`; PRESERVE assemble-$slot_opts-then-resolve order (factory downstream of carry-forward) | V8,V10,C9,I.registry |
 | T9 | . | Base-tag dispatch stops routing through N×M classes (`RelatedPost` etc.); classes stay for deprecated tags | C4,I.sources |
 | T10 | . | Manual sweep: singular / term archive (ambient!) / loops (2a+2b) / view_ tags / try_ chains / search+404 (unchanged) / ref limit>1; plugin-integration.md + CHANGELOG | V1,V5,V6,V7,V8,I.doc |
