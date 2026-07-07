@@ -140,6 +140,7 @@ class SettingsPage {
 		// Diagnostics.
 		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
 		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
+		$sanitized['diagnostics']['show_all_deprecated']  = ! empty( $input['diagnostics']['show_all_deprecated'] );
 
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
@@ -227,6 +228,17 @@ class SettingsPage {
 
 	public static function is_registration_logging_enabled(): bool {
 		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
+	}
+
+	/**
+	 * Whether the scan-allowlist hide filter is bypassed on the Deprecated/Removed
+	 * Tags+Options boxes — shows every registered entry regardless of scan match.
+	 *
+	 * @since 1.15.0
+	 * @invariant V8 — permanent escape hatch; toggle state is never reset by a scan.
+	 */
+	public static function is_show_all_deprecated_enabled(): bool {
+		return (bool) ( self::get_settings()['diagnostics']['show_all_deprecated'] ?? false );
 	}
 
 	/**
@@ -444,10 +456,20 @@ class SettingsPage {
 		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
 		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
 
+		// Scan allowlist: hides zero-match entries unless "show all" is on (V7/V8).
+		$show_all  = self::is_show_all_deprecated_enabled();
+		$allowlist = TagConverter::get_allowlist();
+		$tag_in_allowlist = fn( array $e ) => in_array( $e['old_tag'] ?? $e['match_tag'] ?? '', $allowlist['tags'], true );
+		$option_in_allowlist = fn( array $e ) => in_array( $e['label'] ?? '', $allowlist['option_labels'], true );
+
 		// Split tag-type entries by liveness first (still GB-registered vs removed/inert),
 		// then by migration path within each liveness bucket.
 		$live_entries       = MigrationRegistry::get_by_type_and_liveness( 'tag', true );
 		$removed_entries    = MigrationRegistry::get_by_type_and_liveness( 'tag', false );
+		if ( ! $show_all ) {
+			$live_entries    = array_values( array_filter( $live_entries, $tag_in_allowlist ) );
+			$removed_entries = array_values( array_filter( $removed_entries, $tag_in_allowlist ) );
+		}
 		$live_with          = array_values( array_filter( $live_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
 		$live_without       = array_values( array_filter( $live_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
 		$removed_with       = array_values( array_filter( $removed_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
@@ -456,6 +478,10 @@ class SettingsPage {
 		// Deprecated option-key entries (separate registry type).
 		$live_option_entries    = MigrationRegistry::get_by_type_and_liveness( 'option', true );
 		$removed_option_entries = MigrationRegistry::get_by_type_and_liveness( 'option', false );
+		if ( ! $show_all ) {
+			$live_option_entries    = array_values( array_filter( $live_option_entries, $option_in_allowlist ) );
+			$removed_option_entries = array_values( array_filter( $removed_option_entries, $option_in_allowlist ) );
+		}
 
 		$mode_options = array(
 			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
@@ -952,6 +978,17 @@ function my_result( $post_id, $arg = '' ) {
 								<td>
 									<label for="bws-diag-registration-logging"><?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?></label>
 									<p class="description"><?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log.', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-diag-show-all-deprecated"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][show_all_deprecated]"
+										value="1" <?php checked( self::is_show_all_deprecated_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-diag-show-all-deprecated"><?php esc_html_e( 'Show all deprecated/removed tags and options', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'The Deprecated/Removed Tags and Options boxes normally hide entries with no matches in a scan. Enable this to list every registered entry regardless of scan results — useful for auditing or if a scan result looks wrong.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
