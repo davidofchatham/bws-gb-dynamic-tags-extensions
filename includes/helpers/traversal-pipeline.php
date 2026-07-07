@@ -429,6 +429,12 @@ function bws_factory_current_post_id( array $options, $instance ) {
  * The ACF id-prefix logic ('term_' . $id, 'user_' . $id) that used to live in
  * source classes moves here — step execution owns it, not a source class.
  *
+ * @invariant POST-kind `ref` is ACF-COMPATIBLE, not ACF-mandatory (SPEC §V16):
+ * try bws_get_related_posts_data (ACF, type-guarded relationship|post_object,
+ * plural) FIRST, then fall back to a raw get_post_meta read so non-ACF sites and
+ * plain-meta-post-id fields (Pods/Carbon/core) still resolve src:ref. The raw
+ * shape is coerced by bws_pipeline_ref_to_posts (string-keyed-assoc guard, #2).
+ *
  * @since 1.14.0
  * @param array $step   The step ( 'type', 'field'/'slug' ).
  * @param array $source The resolved source being hopped from.
@@ -455,13 +461,22 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 		}
 		switch ( $kind ) {
 			case 'post':
-				// Delegate to the canonical relationship reader (SPEC §V5): it applies
-				// the ACF field-type guard (relationship|post_object) and returns the
-				// PLURAL array — byte-identical to the retired RelatedPost::resolve_id
-				// (via bws_get_related_posts_data), and feeding the §V6 plural coercer.
-				return function_exists( 'bws_get_related_posts_data' )
-					? bws_get_related_posts_data( (int) ( $source['id'] ?? 0 ), $field )
-					: get_post_meta( (int) ( $source['id'] ?? 0 ), $field, true );
+				// ACF-COMPATIBLE, not ACF-mandatory (SPEC §V16). Try the canonical ACF
+				// relationship reader FIRST: type-guarded to relationship|post_object,
+				// returns the PLURAL array (feeds the §V6 coercer). On empty — ACF
+				// absent, the field is not an ACF relationship, or a non-ACF handler
+				// (Pods/Carbon/core) stored the id(s) in plain meta — FALL BACK to a raw
+				// post-meta read (the OLD Mode-2a path). bws_pipeline_ref_to_posts then
+				// coerces whatever shape the raw meta holds (id / list of ids), with its
+				// string-keyed-assoc guard preventing per-scalar fabrication (review #2).
+				$post_ref_id = (int) ( $source['id'] ?? 0 );
+				if ( function_exists( 'bws_get_related_posts_data' ) ) {
+					$acf = bws_get_related_posts_data( $post_ref_id, $field );
+					if ( ! empty( $acf ) ) {
+						return $acf;
+					}
+				}
+				return get_post_meta( $post_ref_id, $field, true );
 			case 'term':
 				// Canonical term read (SPEC §V5): single_only=false preserves the
 				// relationship array — byte-identical to the retired
