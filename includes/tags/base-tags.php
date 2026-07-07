@@ -1131,8 +1131,10 @@ function bws_base_ambient_term_id( array $base, array $options ): int {
  *   text    → use:title ? name : keyed term field  (title vs custom_text core)
  *   content → use:key  ? keyed term field : term description
  *   permalink → term URL          (bws_term_permalink_core)
- *   image   → HONEST GAP (#29): no term image analog; only an explicit key reads
- *             a term image field. Bare {{image}} on a term archive → empty.
+ *   image   → HONEST GAP (#29): no intrinsic term image analog. A key reads a
+ *             term image field; with no key + no fallback → empty. A configured
+ *             Media Library fallback still applies (bws_term_custom_image_core owns
+ *             the no-key→fallback path), keeping standalone == try_image slot.
  *
  * @since 1.14.0
  * @param string $tag     One of text|content|title|permalink|image.
@@ -1167,10 +1169,15 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			return bws_term_permalink_core( $term_id, $options, $instance );
 
 		case 'image':
-			// I1 gap #29 — no term image analog. Only an explicit key reads a
-			// term image field; the bare-tag default resolves empty (honest gap).
-			$key = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
-			return '' !== $key ? bws_term_custom_image_core( $term_id, $options, $instance ) : '';
+			// I1 gap #29 — a term has no intrinsic image analog. A key reads a term
+			// image field; with no key there is no analog datum, BUT a configured
+			// Media Library fallback still applies (fallback = last resort, gap or not).
+			// bws_term_custom_image_core handles the no-key case itself: empty key →
+			// bws_handle_term_image_fallback → the fallback (or '' when none set). So
+			// call it unconditionally — no key + no fallback stays empty (honest gap),
+			// no key + fallback yields the fallback. This keeps the standalone tag
+			// byte-identical to a try_image slot, which calls the same core (V8/C9).
+			return bws_term_custom_image_core( $term_id, $options, $instance );
 	}
 
 	return '';
@@ -1567,8 +1574,9 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 
-	// L1 base source (SPEC §V1); ambient term archive → term image field IF an
-	// explicit key is set (I1 gap #29: no bare term image analog). §V7.
+	// L1 base source (SPEC §V1); ambient term archive → term image field (by key),
+	// or the configured Media Library fallback when no key (I1 gap #29: no intrinsic
+	// term image analog, but the fallback still applies). §V7.
 	$base    = bws_base_resolve_source_for_callback( $options, $instance );
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
