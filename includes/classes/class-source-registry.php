@@ -76,32 +76,6 @@ class SourceRegistry {
 	}
 
 	/**
-	 * Get all resolvable "effective sources" — a flat map of every registered source.
-	 *
-	 * Returns a flat map keyed by effective source ID (e.g., 'post', 'related', 'term')
-	 * used as `src_N` option values in try_ tags. Each source maps to exactly one entry.
-	 *
-	 * @return array {
-	 *     effective_source_id => [
-	 *         'source'    => SourceInterface,
-	 *         'needs_rel' => bool,
-	 *         'label'     => string,
-	 *     ]
-	 * }
-	 */
-	public static function get_effective_sources(): array {
-		$effective = array();
-		foreach ( self::get_all_sources() as $source ) {
-			$effective[ $source->get_effective_source_id() ] = array(
-				'source'    => $source,
-				'needs_rel' => $source->needs_relationship_field(),
-				'label'     => $source->get_source_label(),
-			);
-		}
-		return $effective;
-	}
-
-	/**
 	 * Initialize built-in sources and fire registration hook.
 	 */
 	public static function init(): void {

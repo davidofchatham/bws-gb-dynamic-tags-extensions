@@ -2,23 +2,34 @@
 /**
  * Base (source-agnostic) dynamic tag registrations.
  *
- * Registers one GB tag per content template. Entity traversal is selected at
- * render time via the `source` option rather than at registration time. Unset
- * `source` resolves from the current loop entity; named values dispatch to the
- * appropriate source class.
+ * Registers one GB tag per content template. The read target (source + key) is
+ * selected at render time via the `src`/`ref`/`srcTermIn` options, not at
+ * registration time.
  *
  * Registered tags: text, content, title, permalink, image, datetime_single, datetime_range
  *
- * Source dispatch table (post context):
- *   ''    → CurrentPost (no traversal; current loop entity)
- *   'ref' → RelatedPost (single ACF relationship/post_object hop; sub-option: ref)
+ * Resolution (since 1.14.0 — the L1-full traversal pipeline, NOT source classes):
+ *   L1 base source — `bws_resolve_base_source()` (includes/helpers/traversal-pipeline.php)
+ *     resolves the ambient/explicit base resolved source: loop row → ambient term
+ *     (term archive) → current post, or an explicit `src:site` / registry source.
+ *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
+ *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship hop,
+ *     plural), `srcTermIn` a term-hop step; run through `bws_run_traversal()`.
+ *   L2 read — dispatched by resolved-source KIND (post → post cores /
+ *     bws_read_field, term → term cores / bws_read_term_field, site → option read).
  *
- * srcTerm modifier (applied after source resolution):
- *   When `srcTerm` is set, the resolved entity's first matching taxonomy term
- *   (via the `tax` sub-option) is used as the final entity.
+ * The N×M source classes (RelatedPost / TermRelatedPost / SecondRelatedPost /
+ * PostTermRelatedPost) NO LONGER resolve base or modifier tags — the factory +
+ * ref step subsume them. They stay registered ONLY for the deprecated tag
+ * wrappers that still call their resolve_id() (SPEC §C4 / deprecated-tags.php).
+ *
+ * Term-ambient: on a term archive a bare base tag resolves the TERM analog
+ * (title → name, content → description, permalink → term URL; image = honest gap
+ * #29), via bws_base_term_analog_read() (SPEC §V7).
  *
  * @package BWS_Dynamic_Tags
  * @since 1.6.0
+ * @since 1.14.0 Resolution moved to the traversal pipeline; source-class dispatch retired for base/modifier tags.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
