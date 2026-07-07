@@ -174,6 +174,65 @@ class TagConverter {
 	}
 
 	// ===============================================
+	// SCAN ALLOWLIST (settings-page hide-when-unused)
+	// ===============================================
+
+	/** @var string Option name for the scan-derived allowlist. */
+	const ALLOWLIST_OPTION_NAME = 'bws_dynamic_tags_scan_allowlist';
+
+	/**
+	 * Rebuild the scan allowlist from a fresh scan() pass.
+	 *
+	 * Reduces scan() results to the flat set of deprecated tag names and option
+	 * migration labels actually found in content — the positive list the settings
+	 * page uses to hide zero-match entries (V7). Called on activation, upgrade,
+	 * "Scan All Content", and after migrate_post()/bulk migrate (V7/V9 — a
+	 * migrated post's old tag/option should drop off on the next rebuild).
+	 *
+	 * @since 1.15.0
+	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
+	 */
+	public static function rebuild_allowlist(): array {
+		$tags          = array();
+		$option_labels = array();
+
+		foreach ( self::scan() as $row ) {
+			foreach ( $row['deprecated_tags'] as $found ) {
+				$tags[] = $found['tag'];
+			}
+			foreach ( $row['option_migrations'] as $found ) {
+				$option_labels[] = $found['label'];
+			}
+		}
+
+		$allowlist = array(
+			'tags'          => array_values( array_unique( $tags ) ),
+			'option_labels' => array_values( array_unique( $option_labels ) ),
+		);
+
+		update_option( self::ALLOWLIST_OPTION_NAME, $allowlist, false );
+
+		return $allowlist;
+	}
+
+	/**
+	 * Get the stored scan allowlist.
+	 *
+	 * Empty defaults (no scan run yet) hide everything until the first rebuild —
+	 * matches V7's "positive list" semantics, not a denylist.
+	 *
+	 * @since 1.15.0
+	 * @return array{tags: string[], option_labels: string[]}
+	 */
+	public static function get_allowlist(): array {
+		$allowlist = get_option( self::ALLOWLIST_OPTION_NAME, array() );
+		return array(
+			'tags'          => $allowlist['tags'] ?? array(),
+			'option_labels' => $allowlist['option_labels'] ?? array(),
+		);
+	}
+
+	// ===============================================
 	// PER-POST MIGRATE
 	// ===============================================
 
