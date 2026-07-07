@@ -292,6 +292,15 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
 	}
 
+	// 3b. Degenerate term context (SPEC §V17): the conditional tags claimed a
+	//     taxonomy archive but no WP_Term resolved. A bare tag here must NOT leak
+	//     the main query's first post — short-circuit to empty (V2 shape). This is
+	//     AFTER explicit src / loop rows (they returned above), so only the bare
+	//     ambient read on a broken term context reaches this.
+	if ( ! empty( $signals['term_context_unresolved'] ) ) {
+		return array();
+	}
+
 	// 4. Current post via registry (delegates to external sources too, §V5).
 	$post_id = bws_factory_current_post_id( $options, $instance );
 	return array( 'kind' => 'post', 'id' => (int) $post_id );
@@ -334,15 +343,21 @@ function bws_first_post_id_from_sources( array $sources ) {
  * queried_kind derives from get_queried_object()'s CLASS (never $post) — the
  * probe-verified stable ambient signal.
  *
+ * term_context_unresolved (SPEC §V17): the conditional tags claim a taxonomy
+ * archive but get_queried_object() is NOT a WP_Term (deleted term, malformed query,
+ * pre_get_posts manipulation). The factory uses this to short-circuit a bare tag to
+ * EMPTY rather than leak the main query's first post.
+ *
  * @since 1.14.0
  * @param object $instance GB tag instance (loop context).
  * @return array { queried_kind:'term'|'post'|'user'|null, queried_id:int,
- *                 is_tax:bool, loop:array }
+ *                 is_tax:bool, term_context_unresolved:bool, loop:array }
  */
 if ( ! function_exists( 'bws_capture_ambient_signals' ) ) {
 function bws_capture_ambient_signals( $instance ) {
-	$queried_kind = null;
-	$queried_id   = 0;
+	$queried_kind            = null;
+	$queried_id              = 0;
+	$term_context_unresolved = false;
 
 	// Term archive detection — gate on is_tax/category/tag so we only claim a
 	// term when WP actually queried one (mirrors bws_reliable_term_context_detection).
@@ -351,6 +366,11 @@ function bws_capture_ambient_signals( $instance ) {
 		if ( $qo instanceof WP_Term ) {
 			$queried_kind = 'term';
 			$queried_id   = (int) $qo->term_id;
+		} else {
+			// Claimed a taxonomy archive but no WP_Term resolved — the degenerate
+			// case (SPEC §V17). Flag it so the factory short-circuits to empty
+			// instead of falling through to the leaked current post.
+			$term_context_unresolved = true;
 		}
 	}
 
@@ -359,10 +379,11 @@ function bws_capture_ambient_signals( $instance ) {
 		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null );
 
 	return array(
-		'queried_kind' => $queried_kind,
-		'queried_id'   => $queried_id,
-		'is_tax'       => (bool) $queried_kind,
-		'loop'         => $loop,
+		'queried_kind'            => $queried_kind,
+		'queried_id'              => $queried_id,
+		'is_tax'                  => (bool) $queried_kind,
+		'term_context_unresolved' => $term_context_unresolved,
+		'loop'                    => $loop,
 	);
 }
 }

@@ -407,6 +407,50 @@ eq(
 	)
 );
 
+// ── §V17 — degenerate term context → empty, never the leaked post ────────────
+//
+// Conditional tags claim a taxonomy archive but no WP_Term resolved
+// (term_context_unresolved). A bare tag must short-circuit to empty, NOT fall
+// through to the current/leaked post.
+
+// V17: bare tag, term_context_unresolved → array() (empty), NOT post/0.
+eq(
+	'V17 unresolved term context -> empty',
+	array(),
+	bws_resolve_base_source( array(), null, sig( array( 'term_context_unresolved' => true ) ) )
+);
+
+// V17: explicit src:site still wins over the flag (flag check is AFTER explicit).
+eq(
+	'V17 explicit src:site beats unresolved-term flag',
+	array( 'kind' => 'site' ),
+	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'term_context_unresolved' => true ) ) )
+);
+
+// V17: a loop row still wins over the flag (loop precedes the flag check).
+eq(
+	'V17 loop row beats unresolved-term flag',
+	array( 'kind' => 'post', 'id' => 555 ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind'            => null,
+			'queried_id'              => 0,
+			'is_tax'                  => false,
+			'term_context_unresolved' => true,
+			'loop'                    => array( 'in_loop' => true, 'row_post_id' => 555, 'loop_item' => null ),
+		)
+	)
+);
+
+// V17: a RESOLVED term (normal archive) is unaffected — still returns the term.
+eq(
+	'V17 resolved term unaffected',
+	array( 'kind' => 'term', 'id' => 34 ),
+	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
+);
+
 // ── T4 seam step assembly (pure options → steps) ─────────────────────────────
 
 // srcTermIn → single term-hop step, terminal (no ref appended).
