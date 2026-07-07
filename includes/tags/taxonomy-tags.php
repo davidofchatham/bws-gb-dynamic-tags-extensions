@@ -151,22 +151,27 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_term_custom_image_core( $term_id, $options, $instance ) {
-	$field_key    = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
-	$return_type  = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
-	$image_size   = sanitize_text_field( $options['size'] ?? 'full' );
-	$fallback_url = esc_url_raw( $options['fallback'] ?? $options['fallback_url'] ?? '' );
+	$field_key   = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
+	$return_type = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
+	$image_size  = sanitize_text_field( $options['size'] ?? 'full' );
+	// Fallback is an attachment ID (bws-media-picker) OR a URL — pass it RAW to the
+	// SHARED media-fallback resolver (SPEC §V19, parity with the post image tag).
+	// Do NOT esc_url_raw here: it mangles a numeric id like 51687 into "http://51687"
+	// (B8). bws_handle_media_fallback does the id-or-url detection + the id-fallback
+	// path the term-specific URL-only helper lacked.
+	$fallback = $options['fallback'] ?? $options['fallback_url'] ?? '';
 
 	if ( empty( $field_key ) ) {
-		return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );
+		return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );
 	}
 
 	if ( ! $term_id ) {
-		return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );
+		return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );
 	}
 
 	$term = bws_get_validated_term( $term_id );
 	if ( ! $term ) {
-		return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );
+		return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );
 	}
 
 	$image_data = bws_get_term_field_image_data( $term->term_id, $field_key, $return_type, $image_size );
@@ -175,6 +180,6 @@ function bws_term_custom_image_core( $term_id, $options, $instance ) {
 		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $image_data, $options, $instance );
 	}
 
-	return bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance );
+	return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );
 }
 

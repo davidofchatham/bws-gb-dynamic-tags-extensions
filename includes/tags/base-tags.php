@@ -1173,10 +1173,10 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 			// image field; with no key there is no analog datum, BUT a configured
 			// Media Library fallback still applies (fallback = last resort, gap or not).
 			// bws_term_custom_image_core handles the no-key case itself: empty key →
-			// bws_handle_term_image_fallback → the fallback (or '' when none set). So
-			// call it unconditionally — no key + no fallback stays empty (honest gap),
-			// no key + fallback yields the fallback. This keeps the standalone tag
-			// byte-identical to a try_image slot, which calls the same core (V8/C9).
+			// the shared bws_handle_media_fallback (id-or-url, SPEC §V19) → the fallback
+			// (or '' when none set). So call it unconditionally — no key + no fallback
+			// stays empty (honest gap), no key + fallback yields the fallback. Keeps the
+			// standalone tag byte-identical to a try_image slot (same core, V8/C9).
 			return bws_term_custom_image_core( $term_id, $options, $instance );
 	}
 
