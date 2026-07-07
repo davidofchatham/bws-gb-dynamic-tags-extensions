@@ -132,6 +132,29 @@ function bws_dynamic_tags_init() {
 
 	// Register dynamic tags.
 	add_action( 'init', 'bws_dynamic_tags_register_all', 20 );
+
+	// Rebuild the deprecated/removed scan allowlist once per version change (fresh
+	// install is handled by bws_dynamic_tags_activate()). Priority 25 — after tag
+	// registration (20) so MigrationRegistry is fully populated before scan().
+	if ( get_option( 'bws_dynamic_tags_installed_version' ) !== BWS_DYNAMIC_TAGS_VERSION ) {
+		add_action( 'init', 'bws_dynamic_tags_rebuild_allowlist_on_upgrade', 25 );
+	}
+}
+
+/**
+ * Rebuild the scan allowlist once after a version change, then record the new version.
+ *
+ * Runs on whichever request first hits `init` at priority 25 after the version
+ * changes (admin or frontend — scan()/rebuild_allowlist() have no admin-only
+ * dependency). The stored version is only bumped after the rebuild succeeds, so
+ * a request that errors mid-rebuild retries on the next request instead of
+ * silently skipping the allowlist population for the rest of that version's life.
+ *
+ * @since 1.15.0
+ */
+function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
+	\BWS\DynamicTags\Admin\TagConverter::rebuild_allowlist();
+	update_option( 'bws_dynamic_tags_installed_version', BWS_DYNAMIC_TAGS_VERSION );
 }
 
 /**

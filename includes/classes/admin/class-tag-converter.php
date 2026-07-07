@@ -183,20 +183,36 @@ class TagConverter {
 	/**
 	 * Rebuild the scan allowlist from a fresh scan() pass.
 	 *
-	 * Reduces scan() results to the flat set of deprecated tag names and option
-	 * migration labels actually found in content — the positive list the settings
-	 * page uses to hide zero-match entries (V7). Called on activation, upgrade,
-	 * "Scan All Content", and after migrate_post()/bulk migrate (V7/V9 — a
-	 * migrated post's old tag/option should drop off on the next rebuild).
+	 * Called on activation, upgrade, and "Scan All Content" — anywhere a fresh
+	 * scan() result isn't already in hand. Use rebuild_allowlist_from_scan()
+	 * instead when a scan() result already exists (e.g. ajax_scan()'s own pass)
+	 * to avoid scanning all content twice.
 	 *
 	 * @since 1.15.0
 	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
 	 */
 	public static function rebuild_allowlist(): array {
+		return self::rebuild_allowlist_from_scan( self::scan() );
+	}
+
+	/**
+	 * Rebuild the scan allowlist from an already-computed scan() result.
+	 *
+	 * Reduces scan() rows to the flat set of deprecated tag names and option
+	 * migration labels actually found in content — the positive list the settings
+	 * page uses to hide zero-match entries (V7). Also called after migrate_post()/
+	 * bulk migrate (V7/V9 — a migrated post's old tag/option should drop off on
+	 * the next rebuild).
+	 *
+	 * @since 1.15.0
+	 * @param array[] $posts scan()'s return value.
+	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
+	 */
+	public static function rebuild_allowlist_from_scan( array $posts ): array {
 		$tags          = array();
 		$option_labels = array();
 
-		foreach ( self::scan() as $row ) {
+		foreach ( $posts as $row ) {
 			foreach ( $row['deprecated_tags'] as $found ) {
 				$tags[] = $found['tag'];
 			}
@@ -344,6 +360,7 @@ class TagConverter {
 		}
 
 		$posts = self::scan();
+		self::rebuild_allowlist_from_scan( $posts );
 		wp_send_json_success( array( 'posts' => $posts, 'total' => count( $posts ) ) );
 	}
 
@@ -385,6 +402,8 @@ class TagConverter {
 			unset( $result['revision_id'] );
 			$results[] = $result;
 		}
+
+		self::rebuild_allowlist();
 
 		wp_send_json_success( array(
 			'results'   => $results,

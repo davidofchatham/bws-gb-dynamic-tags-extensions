@@ -49,7 +49,7 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T4 | x | Split Deprecated Options box into Deprecated Options (flag=false, unchanged behavior) + Removed Options (flag=true, list-only, empty today) | V1,V2,V6,I.settings |
 | T5 | x | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
 | T6 | x | Build allowlist storage (rebuild source = `TagConverter::scan()` result set of matched names) | V7,I.converter |
-| T7 | . | Hook allowlist rebuild: activation, upgrade, "Scan All Content" button, post-migration | V7,I.activation,I.converter |
+| T7 | x | Hook allowlist rebuild: activation, upgrade, "Scan All Content" button, post-migration | V7,I.activation,I.converter |
 | T8 | . | Apply allowlist filter to all 4 boxes' entry lists at render time | V6,V7,I.settings |
 | T9 | . | Add "show all" checkbox to Diagnostics box; wires bypass in render | V8,I.diagnostics |
 | T10 | . | Verify: fresh install / first scan shows expected buckets (Deprecated Tags+Removed Options empty, Removed Tags=108, Deprecated Options=11) | V3,V1 |
