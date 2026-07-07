@@ -2,6 +2,11 @@
 
 ## [1.14.0] — unreleased
 
+### Removed — deprecated tags no longer register with GenerateBlocks
+
+- **All deprecated tag names (old N×M source×template tags, plus the eight pre-1.6.0 renames) are gone from the GB tag picker and no longer render.** They were already flagged deprecated in the editor and documented as due for removal; this completes that removal instead of leaving them registered indefinitely.
+- **The admin Migration Tool (Settings → Tag Extensions) still finds and fixes them.** Scan and Migrate keep working exactly as before, so existing content with an old tag string gets a clean, correct upgrade path to its current equivalent — only the live rendering of the deprecated name itself is gone.
+
 ### Added — base tags resolve the term on a taxonomy term archive
 
 - **On a category, tag, or custom-taxonomy term archive, a bare base tag now reads the term itself.** `{{title}}` shows the term name, `{{content}}` the term description, `{{permalink}}` the term URL. Previously a base tag on a term archive read from an arbitrary post (whatever the main query listed first), so it showed the wrong thing. Now a bare tag follows its context: the term on a term archive, the row post inside a query loop, the current post on a singular page.

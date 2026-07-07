@@ -1,11 +1,17 @@
 ﻿<?php
 /**
- * Deprecated tag wrappers for backward compatibility.
+ * Deprecated tag migration data (formerly: deprecated tag wrappers).
  *
- * These tags register old names that delegate to their replacements.
- * They emit _doing_it_wrong() notices when WP_DEBUG is enabled.
+ * Historically these tags stayed registered with GB, delegating to their
+ * replacements and emitting _doing_it_wrong() notices when WP_DEBUG was
+ * enabled. As of 1.15.0 no deprecated tag is registered with GB or renders —
+ * this file now provides MigrationRegistry data only, so the admin Tag
+ * Converter and settings page can still find and migrate old content.
+ * bws_deprecated_tag_notice() and the 4 callback factories are kept
+ * (currently uncalled) for a future deprecated-tag family that needs live
+ * rendering again.
  *
- * Deprecated tags:
+ * Early deprecated tags (pre-1.6.0):
  *   current_post_featured_image  → post_featured_image
  *   current_post_meta_image      → post_custom_image
  *   related_post_meta_image      → related_post_custom_image
@@ -17,6 +23,7 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
+ * @since 1.15.0 GB registration + runtime callbacks removed; migration-data-only.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -28,6 +35,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Register deprecated dynamic tags (old names that delegate to new ones).
  *
  * @since 1.0.0
+ * @since 1.15.0 Emptied — GB registration + runtime callbacks for all current
+ *               deprecated tags removed (SPEC B1/B2, V1, V7). Migration data
+ *               stays live via bws_register_v1_deprecated_tag_wrappers() and
+ *               bws_register_early_deprecated_tag_migrations() so the admin
+ *               Tag Converter and settings page can still find + migrate old
+ *               content. No deprecated tag name appears in the GB tag picker.
+ * @invariant Body stays empty. Any future deprecated-tag family is registered
+ *            here ONLY if it needs live GB rendering again — otherwise its
+ *            data belongs solely in the two migration-registration functions
+ *            above, matching the removed-tag pattern.
  */
 function bws_register_deprecated_tags() {
 	// Deprecated tags are no longer registered with GenerateBlocks.
@@ -124,6 +141,26 @@ function bws_build_deprecation_preview_label( string $old_tag, array $old_option
  * 'src:term' is NOT a valid src value. term_ modifier tags are a separate GB
  * tag family (gb_type='term') — they do not accept a 'src' option at all.
  * Never use new_tag:'image' + source_inject:'term'; use new_tag:'term_image'.
+ *
+ * @invariant Every register() call here carries ONLY migration keys (old_tag,
+ *            new_tag, source_inject, option_renames, value_renames, fixed_options,
+ *            datetime_transforms, combine_options, required_options, since,
+ *            transform_callback, gb_link_remap) — never callback/options/title/
+ *            description/supports/gb_type (those were GB-registration fields,
+ *            removed 1.15.0). transform_callback is a migration-pipeline hook
+ *            (MigrationRegistry::run_transform()), not a GB renderer — keep it.
+ * @invariant second_related_post_* (15) and post_term_related_post_* (10) — no
+ *            current tag reaches a second-hop relationship or a term-then-
+ *            relationship chain, so these carry old_tag+since only, no new_tag.
+ *            Do not delete these foreach blocks wholesale when touching this
+ *            function; they were mistakenly dropped once already (SPEC B1) and
+ *            their loss silently emptied the settings page's "no migration path"
+ *            list and starved Tag Converter of ~25 entries.
+ * @invariant $rel_renames (and every var merged from it) maps BOTH 'key' and
+ *            'rel' → 'ref'. 'key' is the legacy pre-'rel' spelling for the same
+ *            relationship field; RelatedPost::resolve_id() still fallback-accepts
+ *            it. Map 'key' before 'rel' so 'rel' wins if a tag string somehow has
+ *            both (SPEC B2).
  *
  * @since 1.6.0
  */
@@ -840,6 +877,12 @@ function bws_register_v1_deprecated_tag_wrappers() {
  * Called from bws_dynamic_tags_register_all() after bws_register_v1_deprecated_tag_wrappers().
  *
  * @since 1.6.0
+ * @since 1.15.0 `callback` key stripped from all 8 entries (GB registration
+ *               removed) — migration data (old_tag, new_tag, since, etc.) kept.
+ * @invariant MigrationRegistry::get_deprecated_tag_names() returns the same set
+ *            of 8 tag names before and after any future edit here; no entry
+ *            carries a `callback` key (that was GB-registration wiring for
+ *            functions deleted in 1.15.0 — do not re-add).
  */
 function bws_register_early_deprecated_tag_migrations(): void {
 	$reg   = 'BWS\DynamicTags\MigrationRegistry';
