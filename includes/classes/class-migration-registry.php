@@ -115,6 +115,42 @@ class MigrationRegistry {
 		);
 	}
 
+	/**
+	 * Whether an entry is still "live" (Deprecated) vs "removed" (inert, migration-data-only).
+	 *
+	 * Hand-set per entry, never inferred:
+	 *   'tag'    — live when a `callback` key is present (still GB-registered).
+	 *   'option' — live when `legacy_fallback_removed` is NOT true (the runtime code still
+	 *              accepts the old option key as a fallback; false/absent = still live).
+	 *
+	 * @since 1.15.0
+	 * @param array $entry Registry entry.
+	 * @return bool
+	 */
+	public static function is_entry_live( array $entry ): bool {
+		if ( 'option' === ( $entry['type'] ?? 'tag' ) ) {
+			return empty( $entry['legacy_fallback_removed'] );
+		}
+		return isset( $entry['callback'] ) && is_callable( $entry['callback'] );
+	}
+
+	/**
+	 * Get entries filtered by type AND liveness.
+	 *
+	 * @since 1.15.0
+	 * @param string $type  'tag' or 'option'.
+	 * @param bool   $live  True for Deprecated (still live), false for Removed (inert).
+	 * @return array[]
+	 */
+	public static function get_by_type_and_liveness( string $type, bool $live ): array {
+		return array_values(
+			array_filter(
+				self::get_by_type( $type ),
+				fn( $e ) => self::is_entry_live( $e ) === $live
+			)
+		);
+	}
+
 	// ===============================================
 	// TAG-TYPE METHODS
 	// ===============================================

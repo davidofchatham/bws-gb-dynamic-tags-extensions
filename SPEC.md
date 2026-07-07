@@ -44,7 +44,7 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | id | st | task | cites |
 |----|----|------|-------|
 | T1 | x | Add hand-set liveness flag to option-type `register()` args (e.g. `legacy_fallback_removed`); default false | V2,I.registry |
-| T2 | . | Add liveness-filter accessor(s) to MigrationRegistry (tag: `callback` presence; option: new flag) — used by settings render | V2,V3,I.registry |
+| T2 | x | Add liveness-filter accessor(s) to MigrationRegistry (tag: `callback` presence; option: new flag) — used by settings render | V2,V3,I.registry |
 | T3 | . | Split settings page's tag rendering into Deprecated Tags box (liveness=true, K/S/D radios, empty today) + Removed Tags box (liveness=false, list-only, all 108 today) | V3,V6,I.settings |
 | T4 | . | Split Deprecated Options box into Deprecated Options (flag=false, unchanged behavior) + Removed Options (flag=true, list-only, empty today) | V1,V2,V6,I.settings |
 | T5 | . | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
