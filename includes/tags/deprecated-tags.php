@@ -771,6 +771,55 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'value_renames'       => $try_src_values,
 		'datetime_transforms' => true,
 	) );
+
+	// ==========================================
+	// SECOND RELATED POST / POST→TERM→RELATED POST — no migration path.
+	// No current tag reaches a *second-hop* relationship or a term-then-relationship
+	// chain, so these have no new_tag. Kept so MigrationRegistry/Tag Converter/Settings
+	// page can still find and report them; entry shape omits GB registration fields
+	// (title/options/callback) since nothing registers these with GB anymore.
+	// ==========================================
+
+	foreach ( array(
+		'second_related_post_title',
+		'second_related_post_content',
+		'second_related_post_permalink',
+		'second_related_post_custom_text',
+		'second_related_post_featured_image',
+		'second_related_post_custom_image',
+		'second_related_post_custom_date_single',
+		'second_related_post_custom_date_range',
+		'second_related_post_custom_datetime_single',
+		'second_related_post_custom_datetime_range',
+		'second_related_post_term_title',
+		'second_related_post_term_permalink',
+		'second_related_post_term_description',
+		'second_related_post_term_custom_text',
+		'second_related_post_term_custom_image',
+	) as $old_tag ) {
+		$reg::register( array(
+			'old_tag' => $old_tag,
+			'since'   => $since,
+		) );
+	}
+
+	foreach ( array(
+		'post_term_related_post_title',
+		'post_term_related_post_content',
+		'post_term_related_post_permalink',
+		'post_term_related_post_custom_text',
+		'post_term_related_post_featured_image',
+		'post_term_related_post_custom_image',
+		'post_term_related_post_custom_date_single',
+		'post_term_related_post_custom_date_range',
+		'post_term_related_post_custom_datetime_single',
+		'post_term_related_post_custom_datetime_range',
+	) as $old_tag ) {
+		$reg::register( array(
+			'old_tag' => $old_tag,
+			'since'   => $since,
+		) );
+	}
 }
 
 // ===============================================
