@@ -144,7 +144,11 @@ function bws_register_v1_deprecated_tag_wrappers() {
 
 	// Related-source renames: adds 'rel' → 'ref' (old relationship field key → new).
 	// Used for all related_post and term_related_post entries which have source_inject:'ref'.
-	$rel_renames      = array( 'rel' => 'ref' );
+	// 'key' is the legacy pre-'rel' spelling for the same relationship field (matches the
+	// RelatedPost source's own key-fallback precedence: 'rel' wins if both are present since
+	// it's processed second here). Not used by second_related_post/post_term_related_post,
+	// which use rel/rel1/rel2 only (no legacy 'key' alias ever existed for those).
+	$rel_renames      = array( 'key' => 'ref', 'rel' => 'ref' );
 	$rel_content_renames = array_merge( $rel_renames, $content_renames );
 	$rel_ct_renames      = array_merge( $rel_renames, $ct_renames );
 	$rel_fi_renames      = array_merge( $rel_renames, $fi_renames );
