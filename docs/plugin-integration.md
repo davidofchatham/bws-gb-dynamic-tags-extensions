@@ -95,15 +95,15 @@ A context modifier creates a prefixed group of GB tags (`example_text`, `example
 
 ### Implement and register the source(s)
 
-The modifier needs at least one registered source for direct entity resolution. If the modifier supports a traversal hop (`src:ref`), register a second source for that:
+The modifier needs one registered source for direct entity resolution (`base_source_key`). The `src:ref` hop is handled generically off that base source (see the `traversal_source_key` note below) — no second traversal source class is needed as of 1.14.0:
 
 ```php
 // Register on bws_dynamic_tags_register_sources (or plugins_loaded priority < 20).
 add_action( 'bws_dynamic_tags_register_sources', function() {
-    // Direct entity resolution (src unset = current context).
+    // Direct entity resolution (src unset = current context). This is base_source_key.
     \BWS\DynamicTags\SourceRegistry::register_source( new ExampleSource() );
-    // Optional: traversal source (src:ref = entity → related post).
-    \BWS\DynamicTags\SourceRegistry::register_source( new ExampleRelatedPostSource() );
+    // The src:ref hop reads the `ref` relationship field on the base entity via a
+    // generic step — no ExampleRelatedPostSource needed (1.14.0+).
 } );
 ```
 
@@ -121,7 +121,7 @@ add_action( 'init', function() {
         'gb_type'              => 'example-based',        // GB type string for all modifier tags.
         'modifier_label'       => 'example-based',        // Parenthetical in tag title: "Text Fields (example-based)".
         'base_source_key'      => 'example',              // Source key for unset src (direct resolution).
-        'traversal_source_key' => 'example_related_post', // Source key for src:ref hop. '' = no traversal option.
+        'traversal_source_key' => '',                     // Accept-but-ignore (1.14.0+): src:ref hops generically off base_source_key. Omit or leave ''.
         'excluded_supports'    => array(),                // Omit to keep 'source' GB entity picker on all tags.
     ) );
 }, 21 );
@@ -131,11 +131,11 @@ add_action( 'init', function() {
 
 `register_modifier()` iterates every template registered via `register_modifier_template()` and creates one GB tag per template: `{prefix}_{template_key}` (e.g. `example_text`, `example_image`, `example_title`).
 
-Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal hop (`ref`). Traversal sub-options (`ref` field key + `srcTermIn` term-hop control) are included automatically via `bws_base_traversal_options()`.
+Each modifier tag includes a **Source** selector with two entries: current entity (unset) and the traversal hop (`ref`). Traversal sub-options (`ref` field key + `srcTermIn` term-hop control) are included automatically via `bws_base_traversal_options()`. The `src:ref` entry reads the `ref` relationship field on the base entity and hops to the related post — no traversal source class needed (1.14.0+).
 
-If `traversal_source_key` is empty, the Source selector is omitted and the modifier always resolves from the direct entity.
+**`traversal_source_key` is accepted-but-ignored as of 1.14.0 (traversal pipeline).** The `src:ref` hop is now performed by a generic `ref` step off the modifier's `base_source_key` — the framework resolves your base entity via `base_source_key`, then reads the `ref` relationship field on it (via `bws_get_related_posts_data` for post bases, `bws_read_term_field` for term bases) and hops to the target post. **You no longer need a custom traversal source class.** Register only your `base_source_key` source; the `ref` step handles the relationship traversal generically.
 
-**When to provide a custom traversal source vs. reuse built-in `'related_post'`:** The built-in `RelatedPost` source resolves the base post from the GB loop context (`GenerateBlocks_Dynamic_Tags::get_id()`). If your base entity is already the current GB loop post, set `traversal_source_key => 'related_post'` — no custom class needed. If your base entity is resolved through a different context (e.g. user session, query parameter, custom lookup), you must register a custom traversal source that first resolves your entity, then traverses the relationship field. The `example` modifier above illustrates this case: when the base post comes from a non-loop context, a class like `ExampleRelatedPostSource` handles both resolution and traversal.
+`traversal_source_key` is still accepted (so existing registrations pass it without change) but the framework does not read it at render time — you may drop it from new registrations. A traversal source class you previously registered (e.g. `ExampleRelatedPostSource`) stays harmless if left registered, but is no longer invoked by the modifier callback. (Historical note: pre-1.14.0, a custom traversal source was required when the base entity came from a non-loop context — that resolution now lives in `base_source_key` alone, and the relationship hop is generic.)
 
 ### `register_modifier()` parameter reference
 
@@ -145,7 +145,7 @@ If `traversal_source_key` is empty, the Source selector is omitted and the modif
 | `gb_type` | string | Yes | GB tag type string for all generated modifier tags (e.g. `'post'`, `'term'`). |
 | `modifier_label` | string | — | Parenthetical appended to the tag title (e.g. `'term-based'`). Omit for no parenthetical. |
 | `base_source_key` | string | Yes | Source registry key used when `src` is unset (direct resolution). |
-| `traversal_source_key` | string | — | Source registry key used when `src:'ref'`. Empty string omits the traversal option entirely. If base entity is a standard GB loop post, the built-in `'related_post'` source can be used directly; otherwise register a custom traversal source. |
+| `traversal_source_key` | string | — | **Accept-but-ignore as of 1.14.0.** Previously the source key used for the `src:'ref'` hop; the hop is now a generic `ref` step off `base_source_key`, so this is no longer read at render time. Still accepted for back-compat (existing registrations need no change); may be omitted from new registrations. No custom traversal source class is required. |
 | `excluded_supports` | array | — | GB supports to remove from modifier tags. Omit to keep all default supports. |
 
 ### Editor preview label registration

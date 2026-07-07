@@ -201,7 +201,17 @@ class TagTemplateRegistry {
 	/**
 	 * Build a modifier tag callback that dispatches to term_fn (via unset) or post_fn (via:'ref').
 	 *
+	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
+	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →
+	 * PortalSource post-kind), then hops `src:ref` through the generic `ref` step —
+	 * the per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
+	 * is no longer invoked. `$traversal_src_key` is ACCEPTED-BUT-IGNORED: kept in the
+	 * signature so register_modifier() (and external callers like bws-portal-system)
+	 * pass it without change, but never read — the ref step does the traversal
+	 * generically. Portal renders identically with zero portal changes (SPEC §V5).
+	 *
 	 * @since 1.6.0
+	 * @since 1.14.0 Pipeline-assembled; traversal_source_key accept-but-ignore (§V5).
 	 */
 	private static function make_modifier_callback(
 		string $base_src_key,
@@ -212,7 +222,8 @@ class TagTemplateRegistry {
 		bool $is_image = false,
 		bool $supports_link = false
 	): callable {
-		return static function ( $opts, $block, $inst ) use ( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link ) {
+		unset( $traversal_src_key ); // Accept-but-ignore (SPEC §V5); ref step replaces it.
+		return static function ( $opts, $block, $inst ) use ( $base_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link ) {
 			$is_preview = $tag_name && ! empty( $inst->context['bwsEditorPreview'] );
 
 			$source = $opts['src'] ?? $opts['source'] ?? 'current';
@@ -271,59 +282,69 @@ class TagTemplateRegistry {
 			$link_entity_id   = 0;
 			$link_entity_type = 'post';
 
-			if ( 'ref' === $source ) {
-				// Traversal from modifier entity → related post.
-				// register_modifier() hardcodes 'ref' option; resolve_id() expects 'rel' internally.
-				$src = SourceRegistry::get_source( $traversal_src_key );
-				if ( ! $src ) {
-					$value = '';
-				} else {
-					$mapped        = $opts;
-					$mapped['rel'] = $opts['ref'] ?? '';
-					$entity_id     = $src->resolve_id( $mapped, $inst );
+			// L1 — resolve the modifier's BASE resolved source via base_src_key (SPEC
+			// §V5): term_ → TaxonomyTerm (term kind), view_ → PortalSource (post kind).
+			// The pipeline engine then hops it; traversal_src_key is accepted-but-
+			// IGNORED (SPEC §V5 — portal still passes it, we never read it). The old
+			// per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
+			// is replaced by the generic `ref` step off this base source.
+			$base_src   = SourceRegistry::get_source( $base_src_key );
+			$base_kind  = ( $base_src && 'term' === $base_src->get_context_type() ) ? 'term' : 'post';
+			$base_id    = $base_src ? (int) $base_src->resolve_id( $opts, $inst ) : 0;
+			$base_source = $base_id ? array( 'kind' => $base_kind, 'id' => $base_id ) : array();
 
-					if ( '' !== $srcterm_tax ) {
-						$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
-						$value            = $dispatch['value'];
-						$link_entity_id   = $dispatch['term_id'];
-						$link_entity_type = 'term';
-					} elseif ( $is_image ) {
-						$value = $image_post_dispatch( $entity_id, $opts, $inst );
-					} else {
-						$value            = $post_fn( $entity_id, $opts, $inst );
-						$link_entity_id   = (int) $entity_id;
-						$link_entity_type = 'post';
-					}
+			if ( 'ref' === $source ) {
+				// Traversal: hop the base source's relationship field → post[] via the
+				// generic ref step (SPEC §V5/§V6). Modifier link semantics are single-
+				// valued, so collapse to the first post id after the hop.
+				$ref_field = $opts['ref'] ?? '';
+				$entity_id = 0;
+				if ( $base_source && '' !== $ref_field && function_exists( 'bws_run_traversal' ) ) {
+					$hopped    = bws_run_traversal(
+						array( $base_source ),
+						array( array( 'type' => 'ref', 'field' => $ref_field ) )
+					);
+					$entity_id = function_exists( 'bws_first_post_id_from_sources' )
+						? (int) bws_first_post_id_from_sources( $hopped )
+						: 0;
+				}
+
+				if ( '' !== $srcterm_tax ) {
+					$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+					$value            = $dispatch['value'];
+					$link_entity_id   = $dispatch['term_id'];
+					$link_entity_type = 'term';
+				} elseif ( $is_image ) {
+					$value = $image_post_dispatch( $entity_id, $opts, $inst );
+				} else {
+					$value            = $post_fn( $entity_id, $opts, $inst );
+					$link_entity_id   = (int) $entity_id;
+					$link_entity_type = 'post';
 				}
 			} else {
-				// Source unset — resolve entity directly via base source.
-				// Dispatch to term_fn or post_fn based on the base source's context type.
-				// term_ modifier uses TaxonomyTerm (term context); views_ modifier uses PortalSource (post context).
-				$src = SourceRegistry::get_source( $base_src_key );
-				if ( ! $src ) {
-					$value = '';
-				} else {
-					$entity_id = $src->resolve_id( $opts, $inst );
-					$context   = $src->get_context_type();
+				// Source unset — read the base resolved source directly, dispatching by
+				// its KIND (term → term_fn, post → post_fn/image). Mirrors the base-tag
+				// kind dispatch (SPEC §V7 posture). term_ modifier bases a term; view_
+				// modifier bases a post.
+				$entity_id = $base_id;
 
-					// srcTermIn at src=current is only meaningful for post-context base sources.
-					// Term-context bases hide the control via show_if=src:ref (UI gating).
-					if ( '' !== $srcterm_tax && 'term' !== $context ) {
-						$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
-						$value            = $dispatch['value'];
-						$link_entity_id   = $dispatch['term_id'];
-						$link_entity_type = 'term';
-					} elseif ( 'term' === $context ) {
-						$value            = $term_fn( $entity_id, $opts, $inst );
-						$link_entity_id   = (int) $entity_id;
-						$link_entity_type = 'term';
-					} elseif ( $is_image ) {
-						$value = $image_post_dispatch( $entity_id, $opts, $inst );
-					} else {
-						$value            = $post_fn( $entity_id, $opts, $inst );
-						$link_entity_id   = (int) $entity_id;
-						$link_entity_type = 'post';
-					}
+				// srcTermIn at src=current is only meaningful for post-context base sources.
+				// Term-context bases hide the control via show_if=src:ref (UI gating).
+				if ( '' !== $srcterm_tax && 'term' !== $base_kind ) {
+					$dispatch         = $srcterm_dispatch( $entity_id, $opts, $inst, $srcterm_tax );
+					$value            = $dispatch['value'];
+					$link_entity_id   = $dispatch['term_id'];
+					$link_entity_type = 'term';
+				} elseif ( 'term' === $base_kind ) {
+					$value            = $term_fn( $entity_id, $opts, $inst );
+					$link_entity_id   = (int) $entity_id;
+					$link_entity_type = 'term';
+				} elseif ( $is_image ) {
+					$value = $image_post_dispatch( $entity_id, $opts, $inst );
+				} else {
+					$value            = $post_fn( $entity_id, $opts, $inst );
+					$link_entity_id   = (int) $entity_id;
+					$link_entity_type = 'post';
 				}
 			}
 
@@ -782,6 +803,34 @@ class TagTemplateRegistry {
 								: (string) reset( $shown );
 						}
 						continue; // Site option empty — try next slot.
+					}
+
+					// Term-ambient arm (SPEC §T8 / I6 parity): a bare `src:current` slot on
+					// a term archive resolves to the ambient TERM — the slot must read the
+					// term analog exactly as the standalone base tag does (T6), else try_
+					// is not transparent to the slot's own resolution (I6/C9). Fires ONLY
+					// for src:current (ref hops term→post via the post arm, V11; site handled
+					// above; srcTermIn handled above). Uses the template's existing try_term_fn
+					// ($tcf) — same term core the srcTermIn arm calls, no fork change (V8).
+					if ( 'current' === $last_src && $tcf && function_exists( 'bws_resolve_base_source' ) && function_exists( 'bws_base_ambient_term_id' ) ) {
+						$term_base = bws_resolve_base_source( $slot_opts, $inst );
+						$amb_term  = bws_base_ambient_term_id( $term_base, $slot_opts );
+						if ( $amb_term ) {
+							$items = function_exists( 'bws_try_normalize_items' )
+								? bws_try_normalize_items( $tcf( $amb_term, $slot_opts, $inst ) )
+								: array_filter( [ $tcf( $amb_term, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+							if ( $items ) {
+								$shown  = array_slice( $items, 0, $slot_max );
+								$joined = function_exists( 'bws_try_join_items' )
+									? bws_try_join_items( $shown, $sep, $slot_max )
+									: (string) reset( $shown );
+								if ( $slnk && 1 === count( $shown ) && function_exists( 'bws_wrap_with_link' ) ) {
+									$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, $amb_term, 'term' );
+								}
+								return $joined;
+							}
+							continue; // Ambient term resolved but analog empty — try next slot.
+						}
 					}
 
 					// Post-based paths: 'current' | 'ref'.

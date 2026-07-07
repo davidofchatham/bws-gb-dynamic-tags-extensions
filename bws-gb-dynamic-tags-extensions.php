@@ -106,6 +106,10 @@ function bws_dynamic_tags_init() {
 
 	// Load helper functions.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
+	// Traversal pipeline engine + source factory (L1-full) — must load before the
+	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /
+	// bws_run_traversal. No load-time side effects (all WP touched inside functions).
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/traversal-pipeline.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/field-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/link-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/preview-helpers.php';

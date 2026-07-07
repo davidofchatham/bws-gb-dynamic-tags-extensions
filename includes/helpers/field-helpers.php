@@ -334,26 +334,119 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 }
 
 /**
+ * Assemble traversal steps from tag options (PURE — options → steps[]).
+ *
+ * The step-assembly half of the seam, extracted so the src:ref / srcTermIn →
+ * step mapping is unit-testable without WP (SPEC §V6/§V11 guard). Order matters:
+ * srcTermIn (post→term hop) then ref would be invalid input-kind; today the two
+ * are mutually exclusive in practice, but the pipeline short-circuits a bad
+ * chain harmlessly (SPEC §V2). Only ONE step is produced per current option set.
+ *
+ * @since 1.14.0
+ * @param array $options Tag options (src, ref, srcTermIn).
+ * @return array[] Ordered traversal steps (may be empty).
+ */
+if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
+function bws_field_values_assemble_steps( array $options ): array {
+	$steps = array();
+
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	if ( '' !== $tax ) {
+		$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
+		return $steps; // srcTermIn is terminal for value-list tags (term-hop list mode).
+	}
+
+	$src = $options['src'] ?? $options['source'] ?? '';
+	if ( 'ref' === $src ) {
+		$ref = $options['ref'] ?? '';
+		if ( '' !== $ref ) {
+			$steps[] = array( 'type' => 'ref', 'field' => $ref );
+		}
+	}
+
+	return $steps;
+}
+}
+
+/**
+ * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
+ *
+ * The factory owns source-SELECTION; this owns the READ. site → option read;
+ * term → term meta; post → post meta with an EXPLICIT id (triggers the v1.7.1
+ * explicit-wins rule in bws_read_field, bypassing ITS own loop/term inference so
+ * the factory's resolved source is authoritative — no double resolution).
+ * meta_row → the row's own key. Returns '' on miss (caller drops empties).
+ *
+ * @since 1.14.0
+ * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * @param string $key      Field key.
+ * @param object $instance GB instance (bws_read_field context cache).
+ * @return string Raw value, '' on miss.
+ */
+if ( ! function_exists( 'bws_read_resolved_source' ) ) {
+function bws_read_resolved_source( array $source, string $key, $instance ): string {
+	$kind = $source['kind'] ?? '';
+
+	switch ( $kind ) {
+		case 'site':
+			$value = function_exists( 'bws_site_read_option' ) ? bws_site_read_option( $key ) : '';
+			return is_scalar( $value ) ? (string) $value : '';
+
+		case 'term':
+			$raw = bws_read_term_field( $key, (int) ( $source['id'] ?? 0 ) );
+			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+
+		case 'meta_row':
+			$row = $source['row'] ?? array();
+			$raw = is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
+			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+
+		case 'post':
+			// Explicit id → v1.7.1 explicit-wins → bypasses bws_read_field's own
+			// loop/term inference (SPEC §V12). Factory already resolved the row.
+			// GUARD id 0 (SPEC §V18): a {kind:post,id:0} means the factory found NO
+			// current post. bws_read_field treats a passed 0 as NOT explicit (guard
+			// requires >0), so it would re-run its own loop/term inference and could
+			// read a context the factory rejected (the two-layers-fight edge, B7).
+			// Reading a field off post 0 is meaningless → return '' directly.
+			$post_source_id = (int) ( $source['id'] ?? 0 );
+			if ( $post_source_id <= 0 ) {
+				return '';
+			}
+			$raw = bws_read_field( $key, $instance, $post_source_id );
+			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+	}
+
+	return '';
+}
+}
+
+/**
  * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
  * to a list of raw candidate field-value strings.
  *
- * This is the single source-resolution seam (CONTEXT.md §L1/L2/L3, ADR 0002)
- * the value-list tags share — extracted from the formerly byte-identical clones
- * `bws_email_resolve_addresses` / `bws_phone_resolve_numbers`. It performs:
- *   - L1 resolve source: src:site → wp_options/ACF-options namespace (no entity);
- *     otherwise the post/term entity via bws_resolve_post_by_source.
- *   - L2 read field: site → option read; post/term → meta read. srcTermIn sets a
- *     plural source (term-hop) → list mode (read once per term, sliced to limit).
+ * The single source-resolution seam (CONTEXT.md §L1/L2/L3, ADR 0002) the
+ * value-list tags share. Since 1.14.0 (traversal pipeline Phase 1) the L1 half
+ * delegates to the source factory + step engine:
+ *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site,
+ *     SPEC §V1) → base resolved source.
+ *   - L1 traversal: bws_field_values_assemble_steps (src:ref → ref step,
+ *     srcTermIn → term-hop step) run through bws_run_traversal — ref now FANS
+ *     OUT to all targets (SPEC §V6 plural; no first-only collapse), and a term
+ *     archive bases ref on the ambient term (SPEC §V11).
+ *   - L2 read: per resolved source by KIND (bws_read_resolved_source, SPEC §V12).
+ *   - list mode: slice the resolved-source list to `limit` (list mode originates
+ *     at the plural source, CONTEXT.md §Target cardinality); `sep` join stays in
+ *     the caller's L3.
  *
- * Returns RAW, UNVALIDATED strings — per-tag validation (is_email, phone
- * normalize) and composition (L3: mailto/tel wrap, sep join) stay in each tag's
- * own callback / render-one. The resolver is composition-blind.
- *
- * Variable payload by source kind (ADR 0002): site carries the option namespace,
- * post/term carry an id — handled here, not pushed onto callers.
+ * Signature + string[] return are FROZEN (SPEC §V3) — every existing caller
+ * (email/phone × 2) renders identically except the limit>1 ref-plural change.
+ * Returns RAW, UNVALIDATED strings — per-tag validation + L3 composition stay in
+ * each tag's callback. The resolver is composition-blind.
  *
  * @since 1.11.0
- * @param array  $options  Tag options (key, src, srcTermIn, limit, …).
+ * @since 1.14.0 Delegates L1 to the source factory + traversal engine; ref plural.
+ * @param array  $options  Tag options (key, src, ref, srcTermIn, limit, …).
  * @param object $instance GB tag instance.
  * @return string[] Raw candidate value strings (unvalidated, empties dropped).
  */
@@ -364,47 +457,38 @@ function bws_resolve_field_values( array $options, $instance ): array {
 		return array();
 	}
 
-	// L1 src:site — wp_options / ACF-options, dot-path + allowlist gated. No entity.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
-		if ( ! function_exists( 'bws_site_read_option' ) ) {
-			return array();
-		}
-		$value = bws_site_read_option( $key );
-		return '' !== $value ? array( $value ) : array();
-	}
-
-	// Non-site dot-paths are not valid meta keys; gate like bws_post_custom_text_core.
-	if ( function_exists( 'bws_is_valid_meta_key' ) && ! bws_is_valid_meta_key( $key ) ) {
+	// src:site keeps its dot-path affordance (ACF options can be dotted); other
+	// sources require a valid flat meta key. Gate BEFORE resolution to preserve
+	// the historical early-return on invalid non-site keys.
+	$is_site = 'site' === ( $options['src'] ?? '' );
+	if ( ! $is_site
+		&& function_exists( 'bws_is_valid_meta_key' )
+		&& ! bws_is_valid_meta_key( $key ) ) {
 		return array();
 	}
 
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	// L1 — resolve the base source, then run assembled traversal steps.
+	$base    = function_exists( 'bws_resolve_base_source' )
+		? bws_resolve_base_source( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+	$steps   = bws_field_values_assemble_steps( $options );
+	$sources = function_exists( 'bws_run_traversal' )
+		? bws_run_traversal( array( $base ), $steps )
+		: array( $base );
 
-	// L1 plural source — term-hop list mode: read the field on each matching term.
-	if ( '' !== $tax ) {
-		$post_id = function_exists( 'bws_resolve_post_by_source' )
-			? bws_resolve_post_by_source( $options, $instance )
-			: 0;
-		$terms   = function_exists( 'bws_get_srcterm_terms' )
-			? bws_get_srcterm_terms( (int) $post_id, $tax )
-			: array();
-		$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$out     = array();
-		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$raw = bws_read_term_field( $key, (int) $term->term_id );
-			if ( is_scalar( $raw ) && '' !== (string) $raw ) {
-				$out[] = (string) $raw;
-			}
+	// list mode — slice plural source list to limit (default 1).
+	$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
+	$sources = array_slice( $sources, 0, $limit );
+
+	// L2 — read each resolved source by kind; drop empties.
+	$out = array();
+	foreach ( $sources as $source ) {
+		$value = bws_read_resolved_source( $source, $key, $instance );
+		if ( '' !== $value ) {
+			$out[] = $value;
 		}
-		return $out;
 	}
-
-	// L1 singular post/term source.
-	$post_id = function_exists( 'bws_resolve_post_by_source' )
-		? bws_resolve_post_by_source( $options, $instance )
-		: 0;
-	$raw     = bws_read_field( $key, $instance, $post_id );
-	return ( is_scalar( $raw ) && '' !== (string) $raw ) ? array( (string) $raw ) : array();
+	return $out;
 }
 }
 
