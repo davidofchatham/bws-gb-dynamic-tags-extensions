@@ -116,6 +116,23 @@ if ( ! function_exists( 'bws_base_ambient_term_id' ) ) {
 	}
 }
 
+// §V14 src:ref list-mode collapse — the post-kind id extraction from a fanned-out
+// ref source list. Mirrors bws_base_post_ids_from_source's filter (post-kind only,
+// order preserved, id>0); tested as a pure list transform so no WP reader is needed
+// (the fan-out itself is covered by the V6 rows via injected readers).
+function ids_post_kind_only( array $sources ): array {
+	$ids = array();
+	foreach ( $sources as $src ) {
+		if ( is_array( $src ) && 'post' === ( $src['kind'] ?? '' ) ) {
+			$id = (int) ( $src['id'] ?? 0 );
+			if ( $id > 0 ) {
+				$ids[] = $id;
+			}
+		}
+	}
+	return $ids;
+}
+
 // ── tiny assert harness ─────────────────────────────────────────────────────
 $GLOBALS['pass'] = 0;
 $GLOBALS['fail'] = 0;
@@ -499,6 +516,37 @@ eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources
 $reader = make_reader( array() );
 $hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'ref', 'field' => 'related' ) ), $reader );
 eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hopped ) );
+
+// ── §V14 — base text/title src:ref LIST mode (B3 fix) ────────────────────────
+//
+// text/title offer limit/sep for src:ref, so the src:ref post branch must read the
+// FULL fanned-out ref post set (not collapse-to-first). The fan-out is the same V6
+// engine path; the callback keeps ALL post-kind ids, in order, for slice+join.
+
+// A 2-target ref field (the B3 repro: 2 posts in benefit_vendor) yields BOTH ids,
+// in document order — NOT just the first.
+$reader = make_reader( array( 'post:5' => array( 61, 62 ) ) );
+$hopped = bws_run_traversal( array( post_src( 5 ) ), array( array( 'type' => 'ref', 'field' => 'benefit_vendor' ) ), $reader );
+eq( 'V14 src:ref keeps BOTH targets (B3 repro)', array( 61, 62 ), ids_post_kind_only( $hopped ) );
+
+// Order preserved across a 3-target field.
+$reader = make_reader( array( 'post:1' => array( 30, 31, 32 ) ) );
+$hopped = bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'ref', 'field' => 'r' ) ), $reader );
+eq( 'V14 src:ref order preserved', array( 30, 31, 32 ), ids_post_kind_only( $hopped ) );
+
+// Post-kind filter: non-post kinds are dropped (defensive — ref yields posts, but
+// the extractor must never surface a term/site id as a post id).
+eq(
+	'V14 post-kind filter drops non-post',
+	array( 7, 9 ),
+	ids_post_kind_only( array( post_src( 7 ), term_src( 8 ), post_src( 9 ), array( 'kind' => 'site' ) ) )
+);
+
+// id 0 dropped.
+eq( 'V14 drops id 0', array( 4 ), ids_post_kind_only( array( post_src( 0 ), post_src( 4 ) ) ) );
+
+// Empty ref → empty list (slot renders nothing, not a stray first).
+eq( 'V14 empty ref -> empty list', array(), ids_post_kind_only( array() ) );
 
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";

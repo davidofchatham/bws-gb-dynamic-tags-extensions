@@ -1056,6 +1056,37 @@ function bws_base_post_id_from_source( array $base, array $options ) {
 }
 
 /**
+ * Collapse a base source to the FULL post-id LIST via ref-only steps (SPEC §V14).
+ *
+ * The plural counterpart of bws_base_post_id_from_source(): for a tag that offers
+ * list mode on `src:ref` (text/title, §V14 offered⟺resolvable), the src:ref post
+ * branch reads EVERY fanned-out ref target (bws_run_traversal keeps all, §V6) — not
+ * just the first. Order preserved; only post-kind sources contribute. The caller
+ * slices to `limit` and joins with `sep`, mirroring the srcTermIn branch.
+ *
+ * @since 1.14.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int[] Post ids in document order (may be empty).
+ */
+function bws_base_post_ids_from_source( array $base, array $options ): array {
+	if ( ! function_exists( 'bws_run_traversal' ) ) {
+		return array();
+	}
+	$sources = bws_run_traversal( array( $base ), bws_wrapper_ref_steps( $options ) );
+	$ids     = array();
+	foreach ( $sources as $src ) {
+		if ( is_array( $src ) && 'post' === ( $src['kind'] ?? '' ) ) {
+			$id = (int) ( $src['id'] ?? 0 );
+			if ( $id > 0 ) {
+				$ids[] = $id;
+			}
+		}
+	}
+	return $ids;
+}
+
+/**
  * Whether a base callback should read the AMBIENT TERM instead of a post.
  *
  * True iff (a) no explicit `srcTermIn` hop is set (that branch owns its own
@@ -1220,6 +1251,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
 	}
+	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
@@ -1247,6 +1279,31 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		if ( 1 === count( $out ) && $first_term_id ) {
 			$link_id   = $first_term_id;
 			$link_type = 'term';
+		}
+	} elseif ( $is_ref ) {
+		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, not just
+		// the first. limit/sep are offered for src:ref, so honor them — mirrors the
+		// srcTermIn branch (slice-to-limit, join, single-result link-wrap only).
+		$post_ids = bws_base_post_ids_from_source( $base, $options );
+		$limit    = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$sep      = $options['sep'] ?? ', ';
+		$out      = [];
+		$first_id = 0;
+		foreach ( array_slice( $post_ids, 0, $limit ) as $pid ) {
+			$result = 'title' === $use
+				? bws_post_title_core( $pid, $opts, $instance )
+				: bws_post_custom_text_core( $pid, $opts, $instance );
+			if ( '' !== $result ) {
+				$out[] = $result;
+				if ( ! $first_id ) {
+					$first_id = (int) $pid;
+				}
+			}
+		}
+		$value = implode( $sep, $out );
+		if ( 1 === count( $out ) && $first_id ) {
+			$link_id   = $first_id;
+			$link_type = 'post';
 		}
 	} elseif ( 'title' === $use ) {
 		$value     = bws_post_title_core( $post_id, $opts, $instance );
@@ -1378,6 +1435,7 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
+	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	$link_id   = 0;
@@ -1402,6 +1460,28 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		if ( 1 === count( $out ) && $first_term_id ) {
 			$link_id   = $first_term_id;
 			$link_type = 'term';
+		}
+	} elseif ( $is_ref ) {
+		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, honoring
+		// limit/sep (offered for src:ref) — mirrors the srcTermIn branch above.
+		$post_ids = bws_base_post_ids_from_source( $base, $options );
+		$limit    = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$sep      = $options['sep'] ?? ', ';
+		$out      = [];
+		$first_id = 0;
+		foreach ( array_slice( $post_ids, 0, $limit ) as $pid ) {
+			$result = bws_post_title_core( $pid, $options, $instance );
+			if ( '' !== $result ) {
+				$out[] = $result;
+				if ( ! $first_id ) {
+					$first_id = (int) $pid;
+				}
+			}
+		}
+		$value = implode( $sep, $out );
+		if ( 1 === count( $out ) && $first_id ) {
+			$link_id   = $first_id;
+			$link_type = 'post';
 		}
 	} else {
 		$value     = bws_post_title_core( $post_id, $options, $instance );
