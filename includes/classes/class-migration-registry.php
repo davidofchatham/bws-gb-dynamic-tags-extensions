@@ -66,6 +66,12 @@ class MigrationRegistry {
 	 *                                       when multiple old keys signal the same deprecated state and
 	 *                                       only one needs to be present to warrant migration.
 	 *   @type string  $label               Short description shown in admin UI (e.g. 'rel → ref fix').
+	 *   @type bool    $legacy_fallback_removed Hand-set. True once the runtime's legacy-key
+	 *                                       fallback (e.g. `$options['old_key'] ?? $options['new_key']`)
+	 *                                       is deleted from the reading code — the migration is then the
+	 *                                       only path back, not an active safety net. Never inferred from
+	 *                                       scan results; an author sets this by hand when the fallback
+	 *                                       code is actually removed. Default false (fallback still live).
 	 * }
 	 */
 	public static function register( array $args ): void {
