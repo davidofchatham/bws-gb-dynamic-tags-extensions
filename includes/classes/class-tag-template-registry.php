@@ -805,6 +805,34 @@ class TagTemplateRegistry {
 						continue; // Site option empty — try next slot.
 					}
 
+					// Term-ambient arm (SPEC §T8 / I6 parity): a bare `src:current` slot on
+					// a term archive resolves to the ambient TERM — the slot must read the
+					// term analog exactly as the standalone base tag does (T6), else try_
+					// is not transparent to the slot's own resolution (I6/C9). Fires ONLY
+					// for src:current (ref hops term→post via the post arm, V11; site handled
+					// above; srcTermIn handled above). Uses the template's existing try_term_fn
+					// ($tcf) — same term core the srcTermIn arm calls, no fork change (V8).
+					if ( 'current' === $last_src && $tcf && function_exists( 'bws_resolve_base_source' ) && function_exists( 'bws_base_ambient_term_id' ) ) {
+						$term_base = bws_resolve_base_source( $slot_opts, $inst );
+						$amb_term  = bws_base_ambient_term_id( $term_base, $slot_opts );
+						if ( $amb_term ) {
+							$items = function_exists( 'bws_try_normalize_items' )
+								? bws_try_normalize_items( $tcf( $amb_term, $slot_opts, $inst ) )
+								: array_filter( [ $tcf( $amb_term, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+							if ( $items ) {
+								$shown  = array_slice( $items, 0, $slot_max );
+								$joined = function_exists( 'bws_try_join_items' )
+									? bws_try_join_items( $shown, $sep, $slot_max )
+									: (string) reset( $shown );
+								if ( $slnk && 1 === count( $shown ) && function_exists( 'bws_wrap_with_link' ) ) {
+									$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, $amb_term, 'term' );
+								}
+								return $joined;
+							}
+							continue; // Ambient term resolved but analog empty — try next slot.
+						}
+					}
+
 					// Post-based paths: 'current' | 'ref'.
 					$post_id = function_exists( 'bws_resolve_post_by_source' )
 						? bws_resolve_post_by_source( $slot_opts, $inst )
