@@ -47,8 +47,8 @@ Remove GB registration + runtime callbacks for all current deprecated tags. Keep
 | T5  | x  | Delete GB-only option vars from `bws_register_v1_deprecated_tag_wrappers()` preamble                     | V8            |
 | T6  | x  | Strip `callback` key from 8 entries in `bws_register_early_deprecated_tag_migrations()`                  | V4            |
 | T7  | x  | Verify: activate plugin, confirm no PHP errors, no deprecated tags in GB picker                          | V1            |
-| T8  | .  | Verify: Tag Converter scan detects deprecated tags in test post; migrate produces correct output          | V2,C2         |
-| T9  | .  | Verify: Settings page deprecated-tag section lists all ~130 entries with migration targets               | C3            |
+| T8  | x  | Verify: Tag Converter scan detects deprecated tags in test post; migrate produces correct output          | V2,C2         |
+| T9  | x  | Verify: Settings page deprecated-tag section lists all ~130 entries with migration targets               | C3            |
 
 ## §B Bugs
 
