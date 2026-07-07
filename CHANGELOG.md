@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.14.0] — unreleased
+
+### Added — base tags resolve the term on a taxonomy term archive
+
+- **On a category, tag, or custom-taxonomy term archive, a bare base tag now reads the term itself.** `{{title}}` shows the term name, `{{content}}` the term description, `{{permalink}}` the term URL. Previously a base tag on a term archive read from an arbitrary post (whatever the main query listed first), so it showed the wrong thing. Now a bare tag follows its context: the term on a term archive, the row post inside a query loop, the current post on a singular page.
+  - **This covers taxonomy term archives only.** Other archive types (the blog/posts index, search results, date, author, and post-type archives) are not yet context-aware — a bare base tag there still reads the first listed post, unchanged from before. Those contexts are planned for a later release. For an archive heading on any of them, use GenerateBlocks' `{{archive_title}}`.
+  - **Explicit options always win.** A tag that names its own source (`src:current`, `src:ref`, a pinned entity, or a `srcTermIn` hop) resolves exactly as before — the term read only fills in for a *bare* tag that would otherwise have guessed.
+  - **Per-tag term reads:** `{{title}}` → term name, `{{content}}` → term description, `{{permalink}}` → term URL, `{{text key:…}}` → a term meta/ACF field. `{{image}}` stays empty on a term (a taxonomy term has no intrinsic image); set a key to read a term image field.
+  - **`try_` chains match.** A `try_text` / `try_title` / `try_content` / `try_permalink` slot on a term archive resolves the term just like the standalone tag, so a fallback chain behaves the same whether it runs on a post or a term archive.
+
+### Fixed — `{{text}}` / `{{title}}` with `src:ref` now list every related post
+
+- **A related-field source with a raised limit now returns all matching posts, not just the first.** `{{title src:ref|ref:related_vendors|limit:5}}` lists up to five titles joined by the separator; before, it silently returned only the first related post even though the **Result Limit** and **Result Separator** controls were offered. The controls now do what they advertise. Default limit is 1, so a tag without an explicit limit is unchanged.
+
+### Changed — internal: traversal pipeline replaces the source-class matrix
+
+- **Base and context-modifier tags (`term_*`, `view_*`) now resolve through one data-driven pipeline instead of a per-combination source class.** A single source factory works out the starting point (term, post, loop row, or site) and generic traversal steps handle the `src:ref` relationship hop and the `srcTermIn` term hop. Resolution is unchanged for existing content; this retires the N×M source-class growth and is what lets base tags become context-aware. The related-post source classes stay registered for the deprecated tag names that still use them.
+- **`traversal_source_key` is now accepted-but-ignored in `register_modifier()`.** External plugins registering a context modifier no longer need a custom traversal source class — the `src:ref` hop is generic. Existing registrations pass the key unchanged and keep working; it may be dropped from new ones. See [plugin-integration.md](docs/plugin-integration.md). Verified against bws-portal-system: no portal changes required.
+
 ## [1.13.0] — 2026-07-06
 
 ### Added — smart field selector (replaces blind key typing)
