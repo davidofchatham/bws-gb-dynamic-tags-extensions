@@ -133,9 +133,10 @@ function bws_dynamic_tags_init() {
 	// Register dynamic tags.
 	add_action( 'init', 'bws_dynamic_tags_register_all', 20 );
 
-	// Rebuild the deprecated/removed scan allowlist once per version change (fresh
-	// install is handled by bws_dynamic_tags_activate()). Priority 25 — after tag
-	// registration (20) so MigrationRegistry is fully populated before scan().
+	// Rebuild the deprecated/removed scan allowlist once per version change (a fresh
+	// install has no stored version either, so it falls through this same check on its
+	// first request). Priority 25 — after tag registration (20) so MigrationRegistry is
+	// fully populated before scan().
 	if ( get_option( 'bws_dynamic_tags_installed_version' ) !== BWS_DYNAMIC_TAGS_VERSION ) {
 		add_action( 'init', 'bws_dynamic_tags_rebuild_allowlist_on_upgrade', 25 );
 	}
@@ -144,15 +145,22 @@ function bws_dynamic_tags_init() {
 /**
  * Rebuild the scan allowlist once after a version change, then record the new version.
  *
- * Runs on whichever request first hits `init` at priority 25 after the version
- * changes (admin or frontend — scan()/rebuild_allowlist() have no admin-only
- * dependency). The stored version is only bumped after the rebuild succeeds, so
- * a request that errors mid-rebuild retries on the next request instead of
- * silently skipping the allowlist population for the rest of that version's life.
+ * TagConverter::scan() walks all site content (a wpdb LIKE query plus per-post
+ * regex), so it must never run inline on a frontend page load. This is gated to
+ * admin, cron, and WP-CLI requests only: a frontend request that trips the version
+ * check simply skips (leaving the version unbumped) so the hook re-arms cheaply on
+ * later requests until an admin/cron/CLI request does the real rebuild. The stored
+ * version is bumped only after the rebuild succeeds, so a request that errors
+ * mid-rebuild retries next time instead of silently skipping the allowlist for the
+ * rest of that version's life.
  *
- * @since 1.15.0
+ * @since 1.14.0
  */
 function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
+	$is_cli = defined( 'WP_CLI' ) && WP_CLI;
+	if ( ! is_admin() && ! wp_doing_cron() && ! $is_cli ) {
+		return;
+	}
 	\BWS\DynamicTags\Admin\TagConverter::rebuild_allowlist();
 	update_option( 'bws_dynamic_tags_installed_version', BWS_DYNAMIC_TAGS_VERSION );
 }

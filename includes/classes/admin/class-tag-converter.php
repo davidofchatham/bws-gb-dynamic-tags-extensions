@@ -188,7 +188,7 @@ class TagConverter {
 	 * instead when a scan() result already exists (e.g. ajax_scan()'s own pass)
 	 * to avoid scanning all content twice.
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
 	 */
 	public static function rebuild_allowlist(): array {
@@ -204,7 +204,7 @@ class TagConverter {
 	 * bulk migrate (V7/V9 — a migrated post's old tag/option should drop off on
 	 * the next rebuild).
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @param array[] $posts scan()'s return value.
 	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
 	 */
@@ -237,7 +237,7 @@ class TagConverter {
 	 * Empty defaults (no scan run yet) hide everything until the first rebuild —
 	 * matches V7's "positive list" semantics, not a denylist.
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @return array{tags: string[], option_labels: string[]}
 	 */
 	public static function get_allowlist(): array {
@@ -370,11 +370,19 @@ class TagConverter {
 	 * POST fields:
 	 *   nonce    — bws_convert_tag nonce.
 	 *   post_ids — JSON-encoded array of post IDs to migrate in this batch.
+	 *   is_final — "1" on the last batch of a bulk run (or a single-post migrate),
+	 *              signalling the allowlist should be rebuilt now.
+	 *
+	 * The allowlist rebuild runs a full site scan, so it fires ONCE per bulk run
+	 * (on the final batch) rather than once per batch — a 100-post/10-batch run
+	 * would otherwise scan all content 10 times. A per-post migrate sends is_final
+	 * on its single call, so it still rebuilds exactly once.
 	 *
 	 * Returns JSON { success: true, data: { results: [...], processed: N } }
 	 * Each result: { post_id, changed, tag_count, option_count, has_revision }
 	 *
 	 * @since 1.6.0
+	 * @since 1.14.0 Allowlist rebuild gated to the final batch via is_final.
 	 */
 	public static function ajax_migrate(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );
@@ -403,7 +411,14 @@ class TagConverter {
 			$results[] = $result;
 		}
 
-		self::rebuild_allowlist();
+		// Rebuild once at the end of a bulk run (or on a single-post migrate), not
+		// per batch — the rebuild scans all content and would otherwise repeat per
+		// batch. Absent is_final (older cached JS), fall back to rebuilding so the
+		// allowlist never goes stale.
+		$is_final = ! isset( $_POST['is_final'] ) || '1' === $_POST['is_final'];
+		if ( $is_final ) {
+			self::rebuild_allowlist();
+		}
 
 		wp_send_json_success( array(
 			'results'   => $results,

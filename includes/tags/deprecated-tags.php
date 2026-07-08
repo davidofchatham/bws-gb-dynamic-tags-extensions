@@ -4,7 +4,7 @@
  *
  * Historically these tags stayed registered with GB, delegating to their
  * replacements and emitting _doing_it_wrong() notices when WP_DEBUG was
- * enabled. As of 1.15.0 no deprecated tag is registered with GB or renders —
+ * enabled. As of 1.14.0 no deprecated tag is registered with GB or renders —
  * this file now provides MigrationRegistry data only, so the admin Tag
  * Converter and settings page can still find and migrate old content.
  * bws_deprecated_tag_notice() and the 4 callback factories are kept
@@ -23,7 +23,7 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
- * @since 1.15.0 GB registration + runtime callbacks removed; migration-data-only.
+ * @since 1.14.0 GB registration + runtime callbacks removed; migration-data-only.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -35,7 +35,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Register deprecated dynamic tags (old names that delegate to new ones).
  *
  * @since 1.0.0
- * @since 1.15.0 Emptied — GB registration + runtime callbacks for all current
+ * @since 1.14.0 Emptied — GB registration + runtime callbacks for all current
  *               deprecated tags removed (SPEC B1/B2, V1, V7). Migration data
  *               stays live via bws_register_v1_deprecated_tag_wrappers() and
  *               bws_register_early_deprecated_tag_migrations() so the admin
@@ -147,7 +147,7 @@ function bws_build_deprecation_preview_label( string $old_tag, array $old_option
  *            datetime_transforms, combine_options, required_options, since,
  *            transform_callback, gb_link_remap) — never callback/options/title/
  *            description/supports/gb_type (those were GB-registration fields,
- *            removed 1.15.0). transform_callback is a migration-pipeline hook
+ *            removed 1.14.0). transform_callback is a migration-pipeline hook
  *            (MigrationRegistry::run_transform()), not a GB renderer — keep it.
  * @invariant second_related_post_* (15) and post_term_related_post_* (10) — no
  *            current tag reaches a second-hop relationship or a term-then-
@@ -877,12 +877,12 @@ function bws_register_v1_deprecated_tag_wrappers() {
  * Called from bws_dynamic_tags_register_all() after bws_register_v1_deprecated_tag_wrappers().
  *
  * @since 1.6.0
- * @since 1.15.0 `callback` key stripped from all 8 entries (GB registration
+ * @since 1.14.0 `callback` key stripped from all 8 entries (GB registration
  *               removed) — migration data (old_tag, new_tag, since, etc.) kept.
  * @invariant MigrationRegistry::get_deprecated_tag_names() returns the same set
  *            of 8 tag names before and after any future edit here; no entry
  *            carries a `callback` key (that was GB-registration wiring for
- *            functions deleted in 1.15.0 — do not re-add).
+ *            functions deleted in 1.14.0 — do not re-add).
  */
 function bws_register_early_deprecated_tag_migrations(): void {
 	$reg   = 'BWS\DynamicTags\MigrationRegistry';

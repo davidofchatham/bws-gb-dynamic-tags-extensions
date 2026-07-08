@@ -234,7 +234,7 @@ class SettingsPage {
 	 * Whether the scan-allowlist hide filter is bypassed on the Deprecated/Removed
 	 * Tags+Options boxes — shows every registered entry regardless of scan match.
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @invariant V8 — permanent escape hatch; toggle state is never reset by a scan.
 	 */
 	public static function is_show_all_deprecated_enabled(): bool {

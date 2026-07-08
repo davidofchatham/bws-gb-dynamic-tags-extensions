@@ -123,7 +123,7 @@ class MigrationRegistry {
 	 *   'option' — live when `legacy_fallback_removed` is NOT true (the runtime code still
 	 *              accepts the old option key as a fallback; false/absent = still live).
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @param array $entry Registry entry.
 	 * @return bool
 	 */
@@ -137,7 +137,7 @@ class MigrationRegistry {
 	/**
 	 * Get entries filtered by type AND liveness.
 	 *
-	 * @since 1.15.0
+	 * @since 1.14.0
 	 * @param string $type  'tag' or 'option'.
 	 * @param bool   $live  True for Deprecated (still live), false for Removed (inert).
 	 * @return array[]
