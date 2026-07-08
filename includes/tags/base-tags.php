@@ -633,7 +633,8 @@ function bws_base_source_option(): array {
  *
  * Mirrors the slot-side filter in bws_build_slot_traversal_options() (which omits
  * `site` from derived try_ slot src unless a template opts back in via
- * try_allow_site_slot). A future "pinned-resource + site fallback" belongs in a
+ * try_allow_site_slot). A future "ID source + site fallback" (the author-serialized-
+ * entity-id source flavor — CONTEXT.md §Language "Source binding") belongs in a
  * try_ chain slot, NOT a single-slot rooting modifier. See [#37].
  *
  * @since 1.11.0

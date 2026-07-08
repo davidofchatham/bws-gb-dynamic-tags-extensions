@@ -38,8 +38,7 @@ never orphans a reference.
 
 | ID | Item | Description | Blocked by | Interacts with | Detail home |
 |---|---|---|---|---|---|
-| FW-1 | Deprecated tag removal | DONE (branch `deprecated-tag-removal`, ready to merge into 1.14.0) — GB registration + runtime callbacks stripped for all current deprecated tags; migration data + Tag Converter + settings page kept live. Surfaced FW-36 (K/S/D control now a dead no-op) as follow-on. | — | FW-2, FW-33, FW-36 | `.claude/plans/currently-deprecated-tags-work-quiet-snail.md`; SPEC.md (this branch, pre-truncation) |
-| FW-2 | Datetime option-key cleanup | Rename/normalize the datetime option keys. | `row:FW-1` | FW-3 | memory `project_open_refactors.md` |
+| FW-2 | Datetime option-key cleanup | Rename/normalize the datetime option keys. | — | FW-3 | memory `project_open_refactors.md` |
 | FW-3 | Route datetime through the L1/L2 seam | `bws_resolve_field_values` — retire the `'option'`-in-post_id param-overload (datetime-tags.php:~1005, the resolved-source-smuggled-through-id-arg contradiction, CONTEXT §Language). Closes the datetime **term-ambient gap** deferred in Phase 1 (T6): datetime base tags stay post-only today (honest-empty on a term archive, no stale-post leak) and gain term/site kind-awareness for free once they ride the seam's kind dispatch (V12). | `code:seam gains content/image/analog arms` | FW-2, FW-4, FW-6, FW-35 | `.claude/plans/traversal-pipeline.md` §Post-Phase-1 convergence |
 | FW-4 | `src:site` slot for the remaining `try_` tags | `try_text`/`try_title`/`try_content`/`try_image`/`try_permalink` (today only `try_email`/`try_phone` set `try_allow_site_slot` — they route their `try_core_fn` through the SEAM, which has a site arm; the others route through site-blind post/term cores). Reachable ONLY when those templates' try dispatch rides a kind-aware seam that reads site — but `content`, `image`, `title`-analog are NOT value-list reads, so gated on the SAME seam expansion as FW-3. Surfaced Phase 1 T8. NOT reachable by the fork-collapse alone. | `code:seam gains content/image/analog arms` | FW-3, FW-5 | `.claude/plans/traversal-pipeline.md` §Post-Phase-1 convergence |
 | FW-5 | Collapse the `try_core_fn`/`try_term_fn` fork | Paired post-core/term-core dispatch fns per template → ONE kind-dispatching try handler. DEFERRED from Phase 1 T8 (scope narrowed to term-ambient parity, the reachable I6/C9 fix). Pure structural cleanup (deletes ~7 paired `bws_try_*_post_dispatch`/`bws_try_*_term_dispatch` fns), high V8 byte-identity risk in the densest callback, zero behavior gain on its own. Best AFTER the seam expansion proves the unified kind-dispatch shape — the collapse target is a seam-routed handler, not a hand-merged leaf-fn pair. | `code:seam expansion proves unified kind-dispatch shape` | FW-4, FW-3 | `.claude/plans/traversal-pipeline.md` §Post-Phase-1 convergence |
@@ -62,8 +61,7 @@ never orphans a reference.
 | FW-17 | Src-dynamic use-entry labels (V10a) | Relabel select `options[]` by active source. | — | FW-18 | GH #33 |
 | FW-18 | Per-value `show_if` gating for select `options[]` | | — | FW-17 | GH #27 |
 | FW-19 | Base-tag distinguishing suffixes | e.g. "Text (cross-source)". | — | — | Under consideration |
-| FW-36 | Deprecated vs Removed settings split (tags AND options) | **IN FLIGHT on `deprecated-tag-removal` — see `SPEC.md`.** 4-box split (Deprecated/Removed × Tags/Options) on a hand-set liveness axis, repositioned above Diagnostics, scan-derived allowlist that hides zero-match entries with a "show all" diagnostic bypass. Live-WP verification (T10-T12, T15) pending. Correction landed mid-build (SPEC §B1): tag liveness is NOT plain callback-presence — external context-modifier aliases (portal-system, 18 entries) carry a `callback` but no longer render post-FW-1, so a `prefix_removed` override was added (V9); our 108 N×M entries stay in Removed, the 18 externals sit in Deprecated. | `row:FW-1` (done) | FW-1, FW-38 | `SPEC.md` (active) |
-| FW-38 | Explicit `registered_by` + `lifecycle` entry fields (retire the callback proxy) | Path Y follow-on to FW-36/§B1. Today tag box-placement leans on callback-presence as a de-facto "internal-removed vs external-still-registered" marker, with a `prefix_removed` override bolted on (interim, SPEC V9). Principled replacement: record `registered_by` (internal vs external plugin id) and `lifecycle` (`unset=active` \| `deprecated` \| `removed`) at `register()` time; box placement reads `lifecycle` only, callback becomes irrelevant to classification, internal-removed entries carry an explicit `removed` marker. Feeds portal-system coordination (external declares its own `registered_by` + `lifecycle`). NOT this release. | `row:FW-36` (ship first) | FW-36 | `SPEC.md` §V11 |
+| FW-38 | Explicit `registered_by` + `lifecycle` entry fields (retire the callback proxy) | Path Y follow-on to the FW-36 split (shipped 1.14.0) / its §B1 correction. Today tag box-placement leans on callback-presence as a de-facto "internal-removed vs external-still-registered" marker, with a `prefix_removed` override bolted on (interim; `MigrationRegistry::is_entry_live()` PHPDoc + CONTEXT.md I10). Principled replacement: record `registered_by` (internal vs external plugin id) and `lifecycle` (`unset=active` \| `deprecated` \| `removed`) at `register()` time; box placement reads `lifecycle` only, callback becomes irrelevant to classification, internal-removed entries carry an explicit `removed` marker. Feeds portal-system coordination (external declares its own `registered_by` + `lifecycle`; handoff in `bws-portal-system/.claude/plans/prefix-removed-handoff.md`). NOT this release. | — | — | memory `project_registered_by_lifecycle.md`; CONTEXT.md I10 (interim state it replaces) |
 
 ### Future possibilities
 
@@ -81,19 +79,42 @@ never orphans a reference.
 | FW-29 | Admin-built composite tag | `{{custom}}` + template selector. Counter to in-block nesting: build the over-complex tag in an admin UI, persist server-side (named template, `{{call}}`-store precedent), reference via `{{custom tpl:name}}`. Sidesteps flat-options serialization wall. May be the authoring SUBSTRATE for heterogeneous join/if/try via a `tpl:` option. | — | FW-28 (substrate) | memory `deferred_features.md` (counter-concept + substrate spitball, no design) |
 | FW-30 | Block editor sidebar migration tool | | — | FW-31 | memory `deferred_features.md` |
 | FW-31 | GB ↔ BWS tag cross-converter | | — | FW-30 | memory `deferred_features.md` |
-| FW-32 | Primary-source + ref-hop parity | `src:ref` hops only from ambient today; need pin-primary-then-hop. UX-open: likely a separate ref-step option per-`src`-value. Unifies with pinned-resource source. | — | FW-10, FW-9 | `.claude/plans/traversal-pipeline.md` §Problem (parity gap) |
-| FW-33 | `term_` deprecation path | Subsumed by base + context-aware #19 + pinned-resource source; re-add registry-only after. NB `view_` does NOT follow — external plugin, may stay even when `src:view` lands. | `row:FW-9`, `code:pinned-resource source lands` | FW-8, FW-1 | memory `project_term_deprecation_path.md` |
+| FW-32 | Primary-source + ref-hop parity | `src:ref` hops only from a detected origin today; need pick-primary-then-hop, incl. ref-hop off an ID source. UX-open: likely a separate ref-step option per-`src`-value. Unifies with the ID source (FW-39). | — | FW-10, FW-9 | `.claude/plans/traversal-pipeline.md` §Problem (parity gap) |
+| FW-33 | `term_` deprecation path | Subsumed by base + context-aware #19 + the ID source (FW-39); re-add registry-only after. NB `view_` does NOT follow — external plugin, may stay even when `src:view` lands. | `row:FW-9`, `code:ID source lands` | FW-8 | memory `project_term_deprecation_path.md` |
 | FW-34 | Configurable default field keys per source × tag-type | | — | — | GH #29 (memory `project_default_field_keys.md`) |
 | FW-35 | datetime_ all-day boolean field | Read `_piecal_is_allday` / ACF `true_false`, trim to date-only and/or show a note (each toggleable). | — | FW-3 | GH #41 |
+| FW-39 | ID source | New source flavor: author identifies ONE specific entity, its id serialized into the token (probable `src:<type>,<ID>`, NOT final). The author-supplied-entity-id pole of the source-binding model. Editor = pick-a-post/term. Home for the "specific-resource + site fallback" the #37 modifier filter left homeless; belongs in a try_ chain slot (`try_allow_site_slot`), NOT a `try_term_` form. UX-open: ref-step decoupling (per-`src` ref option). | — | FW-32, FW-33, FW-9 | CONTEXT.md §Language "Source binding" (concept + two-axis model); no plan/issue yet |
+
+## Closed / Retired
+
+Append-only ledger of closed, shipped, or cut work — both `FW-N` rows deleted from the live
+table above AND pre-tracker refactors (the legacy `C#` / GitHub-`#issue` handles from the old
+`project_open_refactors` memory, folded in here so there is ONE closed record). IDs are
+**permanent** — a retired `FW-N` is never reused or reassigned. This ledger is the only record
+of the FW high-water mark once shipped rows are deleted; **"next unused id" = (max `FW-N` here ∪
+max `FW-N` in the live table) + 1**. One line per item: outcome + where it landed. Not a tracker
+(no blockers/interactions) — just the closed record + a pointer to detail.
+
+| ID | Item | Outcome | Landed / detail home |
+|---|---|---|---|
+| FW-1 | Deprecated tag removal | Shipped 1.14.0 | CHANGELOG 1.14.0; `deprecated-tags.php` PHPDoc; memory `project_deprecated_tags_no_migration_path` |
+| FW-36 | Deprecated vs Removed settings split (tags AND options) | Shipped 1.14.0 (absorbed FW-37) | CHANGELOG 1.14.0; `MigrationRegistry::is_entry_live()` PHPDoc + CONTEXT.md I10; FW-38 is the principled successor |
+| FW-37 | Settings-split sub-item | Merged into FW-36 before ship | see FW-36 |
+| C1 (#2) | Consolidate field extraction logic | Closed 2026-05-01, shipped v1.6.0 | `bws_read_field()`/`bws_read_term_field()` in `content-helpers.php` (route through `GenerateBlocks_Meta_Handler`); CHANGELOG v1.6.0 |
+| C4 (#3) | Extract post-content rendering pipeline | Closed 2026-06-01, shipped v1.8.0 | `ContentProcessor` (`includes/classes/content/class-content-processor.php`); `bws_render_block_content()`; CHANGELOG v1.8.0 + `docs/post-content-processing-reference.md` |
+| #21 | Editor preview: resolve-then-label | Closed 2026-05-19 (commit 9f4fa96), shipped v1.6.2 | Resolve-then-label on all base/modifier/try/datetime callbacks; CHANGELOG v1.6.2 |
+| #26 | Derive try_ slot option DEFS from base builders | Closed 2026-06-26 | `bws_build_slot_traversal_options`; option-DEFINITION derivation only (NOT the resolve loop / `show_if_any`) — see memory `project_open_refactors` residual note |
+| Traversal pipeline Phase 1 | Ambient-context source factory + term-kind base tags | Shipped 1.14.0 | CHANGELOG 1.14.0; `.claude/plans/traversal-pipeline.md` (later phases = FW-3/4/5/7/8) |
 
 ## Maintenance
 
-- New non-bug idea → add a row with the next unused `FW-N` (highest id + 1; never
-  reuse a retired id) + put detail in its home (plan file / issue / memory). Don't
-  let an item exist *only* in a hidden file with no tracker row.
-- Item ships → delete its row once CHANGELOG records it. Its `FW-N` retires — do
-  not reassign it. Update any surviving row that referenced it (`row:FW-N` →
-  satisfied gate can be dropped; `Interacts with` id removed).
+- New non-bug idea → add a row with the next unused `FW-N` — **(highest id in the live table
+  ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan
+  file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker row.
+- Item ships (or is cut/merged) → delete its row once CHANGELOG records it, **and append a line
+  to Retired IDs** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it.
+  Update any surviving row that referenced it (`row:FW-N` → satisfied gate can be dropped;
+  `Interacts with` id removed).
 - Blocker clears or a new interaction surfaces → update the cell; that's the point
   of those columns. Certainty (concept → planned) is read from the detail home,
   not tracked here.
