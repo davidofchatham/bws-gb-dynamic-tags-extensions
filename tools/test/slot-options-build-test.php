@@ -77,14 +77,13 @@ assert_same( 'slot1 src _strip_default true', true, $s1['src']['_strip_default']
 assert_same( 'slot1 src label "1: Source"', '1: Source', $s1['src']['label'] );
 assert_same( 'slot1 src type select', 'select', $s1['src']['type'] );
 
-// V7 ref — byte-identical to OLD inline EXCEPT placeholder+help drift-fix.
-// OLD inline (pre-derive): label '1: Relationship Field Key', help 'ACF relationship
-// field key.', placeholder 'related_post', show_if ['src'=>'ref'].
-// NEW (derived from base): help+placeholder now base values (the drift-fix).
+// V7 ref — derived from base verbatim (label prefixed). type is bws-field-combo:
+// the ref key uses the field-discovery combobox control (unscoped for src:ref;
+// SPEC V3), not a plain text input.
 assert_same(
 	'slot1 ref derived (label prefixed, base body/help/placeholder, show_if bare src:ref)',
 	array(
-		'type'        => 'text',
+		'type'        => 'bws-field-combo',
 		'label'       => '1: Relationship Field Key',
 		'help'        => 'ACF relationship or post object field key.',
 		'placeholder' => 'related_posts',
