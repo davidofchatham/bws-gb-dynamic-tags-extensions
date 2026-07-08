@@ -58,6 +58,12 @@ class MigrationRegistry {
 	 *   @type string  $since           Plugin version when tag was deprecated.
 	 *   @type string  $description     GB tag description (auto-generated if omitted).
 	 *   @type string  $gb_type         Always overwritten to 'deprecated' for 'tag' entries.
+	 *   @type bool    $prefix_removed  Hand-set. True once the external plugin that owns this
+	 *                                   alias retires its prefix generation — moves the entry
+	 *                                   from the Deprecated Tags box to Removed Tags (V9/V10).
+	 *                                   Never inferred; the owning plugin sets it. Default
+	 *                                   absent (still Deprecated). Interim mechanism pending
+	 *                                   the explicit `lifecycle` field (V11 / FW-38).
 	 *
 	 *   'option' type only:
 	 *   @type array   $match_options       Option keys that must ALL be present in the tag string to trigger.
@@ -118,18 +124,34 @@ class MigrationRegistry {
 	/**
 	 * Whether an entry is still "live" (Deprecated) vs "removed" (inert, migration-data-only).
 	 *
-	 * Hand-set per entry, never inferred:
-	 *   'tag'    — live when a `callback` key is present (still GB-registered).
+	 * Hand-set per entry, never inferred (SPEC B1/V9):
+	 *   'tag'    — Removed iff a hand-set `prefix_removed` flag is true; otherwise falls back
+	 *              to the callback-presence default. The `prefix_removed` override exists
+	 *              because the two tag populations have OPPOSITE natural defaults: our own
+	 *              N×M entries are Removed (FW-1 stripped their `callback`) while external
+	 *              context-modifier aliases are Deprecated (they carry a `callback`). A
+	 *              single flag with one global default would split them wrong. So today the
+	 *              callback-presence test remains the default "internal-removed vs
+	 *              external-still-registered" marker, and `prefix_removed` is the retirement
+	 *              axis an external plugin sets to push a specific alias generation to
+	 *              Removed (V10). NOTE: callback-presence here is an interim proxy, NOT a
+	 *              render guarantee — post-FW-1 nothing dispatches these callbacks to GB.
+	 *              A future release (V11 / FW-38) replaces it with explicit `registered_by`
+	 *              + `lifecycle` fields.
 	 *   'option' — live when `legacy_fallback_removed` is NOT true (the runtime code still
 	 *              accepts the old option key as a fallback; false/absent = still live).
 	 *
 	 * @since 1.14.0
+	 * @since 1.14.0 B1: tag branch adds a `prefix_removed` override above the callback default.
 	 * @param array $entry Registry entry.
 	 * @return bool
 	 */
 	public static function is_entry_live( array $entry ): bool {
 		if ( 'option' === ( $entry['type'] ?? 'tag' ) ) {
 			return empty( $entry['legacy_fallback_removed'] );
+		}
+		if ( ! empty( $entry['prefix_removed'] ) ) {
+			return false;
 		}
 		return isset( $entry['callback'] ) && is_callable( $entry['callback'] );
 	}
