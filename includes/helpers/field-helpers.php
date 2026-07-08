@@ -337,12 +337,19 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * Assemble traversal steps from tag options (PURE — options → steps[]).
  *
  * The step-assembly half of the seam, extracted so the src:ref / srcTermIn →
- * step mapping is unit-testable without WP (SPEC §V6/§V11 guard). Order matters:
- * srcTermIn (post→term hop) then ref would be invalid input-kind; today the two
- * are mutually exclusive in practice, but the pipeline short-circuits a bad
- * chain harmlessly (SPEC §V2). Only ONE step is produced per current option set.
+ * step mapping is unit-testable without WP.
+ *
+ * **`src:ref` and `srcTermIn` COMPOUND** (issue #44 regression fix): a tag with
+ * both emits `[ref, srcTermIn]` in that order — ref hops the source to its
+ * related posts, then srcTermIn hops those posts to their terms. Order is
+ * load-bearing: srcTermIn needs a POST input (it reads get_the_terms), which the
+ * ref step produces; the reverse order would feed srcTermIn a term and short out.
+ * (Pre-1.14.0 this compounded via bws_resolve_post_by_source honoring src:ref
+ * before the term hop; the pipeline rewrite briefly dropped it — see #44.)
+ * srcTermIn alone (no ref) emits `[srcTermIn]` and hops the base post's terms.
  *
  * @since 1.14.0
+ * @since 1.14.0 #44: src:ref + srcTermIn now compound instead of dropping ref.
  * @param array $options Tag options (src, ref, srcTermIn).
  * @return array[] Ordered traversal steps (may be empty).
  */
@@ -350,18 +357,19 @@ if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 function bws_field_values_assemble_steps( array $options ): array {
 	$steps = array();
 
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( '' !== $tax ) {
-		$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
-		return $steps; // srcTermIn is terminal for value-list tags (term-hop list mode).
-	}
-
+	// ref first: source (post/term) → related posts. srcTermIn (below) then hops
+	// those posts to their terms, so ref must precede it (input-kind order, #44).
 	$src = $options['src'] ?? $options['source'] ?? '';
 	if ( 'ref' === $src ) {
 		$ref = $options['ref'] ?? '';
 		if ( '' !== $ref ) {
 			$steps[] = array( 'type' => 'ref', 'field' => $ref );
 		}
+	}
+
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	if ( '' !== $tax ) {
+		$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
 	}
 
 	return $steps;
@@ -431,9 +439,10 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
  *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site,
  *     SPEC §V1) → base resolved source.
  *   - L1 traversal: bws_field_values_assemble_steps (src:ref → ref step,
- *     srcTermIn → term-hop step) run through bws_run_traversal — ref now FANS
- *     OUT to all targets (SPEC §V6 plural; no first-only collapse), and a term
- *     archive bases ref on the ambient term (SPEC §V11).
+ *     srcTermIn → term-hop step; both compound as [ref, srcTermIn] when set, #44)
+ *     run through bws_run_traversal — ref now FANS OUT to all targets (SPEC §V6
+ *     plural; no first-only collapse), and a term archive bases ref on the
+ *     ambient term (SPEC §V11).
  *   - L2 read: per resolved source by KIND (bws_read_resolved_source, SPEC §V12).
  *   - list mode: slice the resolved-source list to `limit` (list mode originates
  *     at the plural source, CONTEXT.md §Target cardinality); `sep` join stays in

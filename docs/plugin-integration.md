@@ -459,7 +459,7 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 The settings page (v1.6.0+) exposes:
 
 - **Modifier group toggles** — `term_` and `try_` can be enabled/disabled. Modifier groups registered by external plugins via `register_modifier()` do not currently appear in the settings page UI unless you add your own settings integration.
-- **Deprecated wrapper toggles** — each entry in `DeprecatedTagRegistry` gets an individual enable/disable checkbox. Use `SettingsPage::is_deprecated_tag_enabled( $tag_name )` to read the current state in your deprecated tag's registration code.
+- **Deprecated tag mode** — a group-level Keep/Suppress/Disable control for deprecated tags that still register with GenerateBlocks (two settings: one for tags with a migration path, one for those without). This governs future deprecated tag families that keep live registration; it does not gate tags routed only through `DeprecatedTagRegistry` for migration data. There is no per-tag toggle and no `is_deprecated_tag_enabled()` gating call to add to your registration code.
 
 Base tags and manually registered custom tags (Option B) have no admin toggle — they are always active.
 
@@ -512,8 +512,8 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 
 ### What happens automatically
 
-- The old tag is registered with GenerateBlocks so existing content continues to render.
-- The old tag appears in the deprecated section of the admin settings page with an individual enable/disable toggle.
+- The old tag is recorded in `MigrationRegistry` so the Migration Tool can find and rewrite it. As of 1.14.0 deprecated tags no longer register with GenerateBlocks, so existing content using an old tag string stops rendering until you run the Migration Tool (or the author updates the tag) — the migration path is how that content stays working, not live rendering of the old name.
+- The old tag appears in the Removed Tags section of the admin settings page (informational; no per-tag toggle).
 - `bws_deprecated_tag_notice()` fires a `_doing_it_wrong()` notice when `WP_DEBUG` is
   enabled, prompting developers to update their templates.
 - When a `new_tag` and migration fields (`option_renames`, `fixed_options`, etc.) are configured, the **Convert** button on the settings page rewrites matching tag strings in post content.
@@ -528,7 +528,7 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `gb_type` | string | — | GB tag type. Always overwritten to `'deprecated'` internally. |
 | `supports` | array | — | GB supports array. Defaults to `[]`. |
 | `options` | array | — | GB options array. Omit if no options. |
-| `callback` | callable\|string | Yes | PHP callable that handles tag output. |
+| `callback` | callable\|string | Yes | PHP callable, historically invoked to render the old tag. As of 1.14.0 it is **not** called for rendering (deprecated tags no longer register with GB); still required for a well-formed entry and future lifecycle use. |
 | `since` | string | — | Version string passed to `bws_deprecated_tag_notice()`. |
 | `description` | string | — | Overrides the auto-generated GB tag description. Auto-default: `'Deprecated — use "new_tag" instead.'` |
 | `source_inject` | string | — | `src` option value injected on conversion (e.g. `'ref'` for a related-post traversal source). Empty string omits the `src` option. |
@@ -536,6 +536,7 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 | `value_renames` | array | — | Map of (post-rename) option key → `[old value => new value]`. Applied after `option_renames`. |
 | `fixed_options` | array | — | Key/value pairs always injected during conversion regardless of user options. E.g. `['use' => 'excerpt']`. |
 | `datetime_transforms` | bool | — | When `true`, apply the five special-case datetime option transforms during conversion. Default `false`. |
+| `prefix_removed` | bool | — | Hand-set. Set `true` once **you** retire this alias generation — moves the entry from the **Deprecated Tags** box to **Removed Tags** on the settings page. Default absent (still Deprecated). See "Alias status and retiring a prefix" below. |
 
 ---
 
@@ -566,7 +567,7 @@ add_action( 'bws_dynamic_tags_register_sources', function () {
 } );
 ```
 
-The passthrough callback resolves via the **new** modifier's source so the old tag continues to render while the migration is pending:
+The passthrough callback resolves via the **new** modifier's source. (As of 1.14.0 this callback is no longer invoked to render the old tag name — deprecated tags do not register with GB — so keep it for bookkeeping and future lifecycle use, but old content renders again only after the Migration Tool rewrites it.)
 
 ```php
 function my_plugin_passthrough_callback( $options, $block, $instance ) {
@@ -584,5 +585,16 @@ function my_plugin_passthrough_callback( $options, $block, $instance ) {
 The admin **Migration Tool** (separate section on the settings page) scans all non-revision posts for any deprecated tag matching a registered `old_tag`. The results table shows post title + type + per-row issue list (deprecated tags + option migrations). Per-row **Migrate** rewrites stored content via `MigrationRegistry::transform_tag()` — applying `option_renames`, `value_renames`, `combine_options`, `source_inject`, `fixed_options`, `datetime_transforms` in the documented order. **Bulk Migrate Selected** processes the checked rows in sequence with a progress bar.
 
 Posts whose content does not change after transformation are not rewritten. Each migrated post gets a pre-migration `wp_save_post_revision()` snapshot so changes are reversible.
+
+### Alias status and retiring a prefix
+
+Your deprecated aliases are **context modifiers over tags this plugin owns** — e.g. `newname_title` is a live modifier and `oldname_title` is an old-prefix alias of it. Because the target tag is ours, its status is authoritative here: while the target renders, your alias is a **deprecated** name for it, not a removed one.
+
+The settings page sorts deprecated tags into two boxes:
+
+- **Deprecated Tags** — the alias's target is still live and you have not retired the prefix. This is where a freshly-deprecated alias belongs. Your aliases land here by default.
+- **Removed Tags** — informational, migration-only. An alias moves here when you retire its prefix generation by setting `prefix_removed => true` on that entry's registration.
+
+Set `prefix_removed` when you consider an old prefix generation fully retired (for example, two prefix renames later). Existing content still using that name is not broken by the flag — the Migration Tool still finds and rewrites it — the flag only changes which box the entry is filed under and signals "this generation is history, not a currently-recommended deprecation."
 
 Migration available only for deprecated entries that declare `new_tag` plus at least one of `source_inject`, `option_renames`, or `fixed_options`. `DeprecatedTagRegistry::has_migration_path( $old_tag )` returns whether a path exists.

@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.13.0
+ * Version: 1.14.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.13.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.14.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -132,6 +132,37 @@ function bws_dynamic_tags_init() {
 
 	// Register dynamic tags.
 	add_action( 'init', 'bws_dynamic_tags_register_all', 20 );
+
+	// Rebuild the deprecated/removed scan allowlist once per version change (a fresh
+	// install has no stored version either, so it falls through this same check on its
+	// first request). Priority 25 — after tag registration (20) so MigrationRegistry is
+	// fully populated before scan().
+	if ( get_option( 'bws_dynamic_tags_installed_version' ) !== BWS_DYNAMIC_TAGS_VERSION ) {
+		add_action( 'init', 'bws_dynamic_tags_rebuild_allowlist_on_upgrade', 25 );
+	}
+}
+
+/**
+ * Rebuild the scan allowlist once after a version change, then record the new version.
+ *
+ * TagConverter::scan() walks all site content (a wpdb LIKE query plus per-post
+ * regex), so it must never run inline on a frontend page load. This is gated to
+ * admin, cron, and WP-CLI requests only: a frontend request that trips the version
+ * check simply skips (leaving the version unbumped) so the hook re-arms cheaply on
+ * later requests until an admin/cron/CLI request does the real rebuild. The stored
+ * version is bumped only after the rebuild succeeds, so a request that errors
+ * mid-rebuild retries next time instead of silently skipping the allowlist for the
+ * rest of that version's life.
+ *
+ * @since 1.14.0
+ */
+function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
+	$is_cli = defined( 'WP_CLI' ) && WP_CLI;
+	if ( ! is_admin() && ! wp_doing_cron() && ! $is_cli ) {
+		return;
+	}
+	\BWS\DynamicTags\Admin\TagConverter::rebuild_allowlist();
+	update_option( 'bws_dynamic_tags_installed_version', BWS_DYNAMIC_TAGS_VERSION );
 }
 
 /**
@@ -301,3 +332,59 @@ function bws_dynamic_tags_action_links( array $links ): array {
 	array_unshift( $links, $settings_link );
 	return $links;
 }
+
+/**
+ * Warn on the Plugins / Updates screens before an upgrade that stops registering
+ * the legacy N×M deprecated tags.
+ *
+ * v1.14.0 removed the deprecated tag families from registration: after upgrading,
+ * any post still using one renders nothing (the tag name no longer resolves to a
+ * callback). This injects a caution line into the plugin's update-details row so
+ * the user scans + migrates content BEFORE clicking update, not after it breaks.
+ *
+ * Gated to a genuine crossing of the 1.14.0 boundary — installed < 1.14.0 AND the
+ * offered version >= 1.14.0 — so the notice never appears on later 1.14.x → 1.15
+ * updates where the tags are already gone. Once the site is on >= 1.14.0 the
+ * boundary can't be re-crossed, so the check self-retires.
+ *
+ * Hook: `in_plugin_update_message-{plugin_basename}` (WP core) fires per-plugin
+ * inside the update row on both wp-admin/plugins.php and update-core.php. Passed
+ * the current plugin header array and the update `$response` object (PUC-supplied
+ * here); `$response->new_version` is the offered version string.
+ *
+ * @param array  $plugin_data Current plugin header fields (incl. 'Version').
+ * @param object $response    Update response; ->new_version is the offered version.
+ * @since 1.14.0
+ */
+function bws_dynamic_tags_update_message( $plugin_data, $response ) {
+	$installed = isset( $plugin_data['Version'] ) ? (string) $plugin_data['Version'] : '';
+	$offered   = isset( $response->new_version ) ? (string) $response->new_version : '';
+
+	// Only the first crossing of the 1.14.0 boundary is destructive.
+	if ( '' === $installed || '' === $offered ) {
+		return;
+	}
+	if ( ! version_compare( $installed, '1.14.0', '<' ) ) {
+		return;
+	}
+	if ( ! version_compare( $offered, '1.14.0', '>=' ) ) {
+		return;
+	}
+
+	$settings_url = admin_url( 'admin.php?page=bws-dynamic-tags' );
+
+	printf(
+		'<br><strong>%s</strong> %s <a href="%s">%s</a> %s',
+		esc_html__( 'Heads up:', 'generateblocks' ),
+		esc_html__( 'Old deprecated tags are no longer registered as of v1.14.0. After upgrading, any instances in content will return the unprocessed tag strings on the frontend. Scan and migrate with the', 'generateblocks' ),
+		esc_url( $settings_url ),
+		esc_html__( 'Migration Tool', 'generateblocks' ),
+		esc_html__( 'before updating.', 'generateblocks' )
+	);
+}
+add_action(
+	'in_plugin_update_message-' . plugin_basename( __FILE__ ),
+	'bws_dynamic_tags_update_message',
+	10,
+	2
+);

@@ -220,6 +220,7 @@
 		function processBatch( offset ) {
 			var batch    = ids.slice( offset, offset + batchSize );
 			var batchRows = batch.map( function ( id ) { return rowMap[ id ]; } );
+			var isFinal   = offset + batchSize >= total;
 
 			batchRows.forEach( function ( row ) {
 				if ( row ) {
@@ -232,7 +233,7 @@
 
 			post(
 				'bws_migrate_tags',
-				{ post_ids: batch },
+				{ post_ids: batch, is_final: isFinal ? '1' : '0' },
 				function ( data ) {
 					( data.results || [] ).forEach( function ( result ) {
 						var row = rowMap[ result.post_id ];

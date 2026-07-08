@@ -1,31 +1,56 @@
 # Changelog
 
-## [1.14.0] — unreleased
+## [1.14.0] — 2026-07-08
+
+### Highlights
+
+- **Base tags now read the term on a taxonomy archive.** A bare `{{title}}` / `{{content}}` / `{{permalink}}` on a category, tag, or custom-taxonomy archive reads the term itself instead of an arbitrary post. (Added)
+- **Deprecated tags no longer register with GenerateBlocks.** The old tag names are gone from the picker; the Migration Tool still finds and updates existing content that uses them. (Removed)
+- **`{{text}}` / `{{title}}` with `src:ref` now list every related post,** not just the first, when you raise the result limit. (Fixed)
 
 ### Added — base tags resolve the term on a taxonomy term archive
 
 - **On a category, tag, or custom-taxonomy term archive, a bare base tag now reads the term itself.** `{{title}}` shows the term name, `{{content}}` the term description, `{{permalink}}` the term URL. Previously a base tag on a term archive read from an arbitrary post (whatever the main query listed first), so it showed the wrong thing. Now a bare tag follows its context: the term on a term archive, the row post inside a query loop, the current post on a singular page.
-  - **This covers taxonomy term archives only.** Other archive types (the blog/posts index, search results, date, author, and post-type archives) are not yet context-aware — a bare base tag there still reads the first listed post, unchanged from before. Those contexts are planned for a later release. For an archive heading on any of them, use GenerateBlocks' `{{archive_title}}`.
-  - **Explicit options always win.** A tag that names its own source (`src:current`, `src:ref`, a pinned entity, or a `srcTermIn` hop) resolves exactly as before — the term read only fills in for a *bare* tag that would otherwise have guessed.
+  - **Term reference/relational fields are also supported.** A `src:ref` tag hops from the resolved term, reading its relationship field off the term instead of off an arbitrary post.
   - **Per-tag term reads:** `{{title}}` → term name, `{{content}}` → term description, `{{permalink}}` → term URL, `{{text key:…}}` → a term meta/ACF field. `{{image}}` stays empty on a term (a taxonomy term has no intrinsic image); set a key to read a term image field.
   - **`try_` chains match.** A `try_text` / `try_title` / `try_content` / `try_permalink` slot on a term archive resolves the term just like the standalone tag, so a fallback chain behaves the same whether it runs on a post or a term archive.
+  - **This covers taxonomy term archives only.** Other archive types (the blog/posts index, search results, date, author, and post-type archives) are not yet context-aware: a bare base tag there still reads the first listed post, unchanged from before. Expanding proper resolution to those contexts is planned for a later release.
 
-### Fixed — `datetime_single` / `datetime_range` no longer serialize the default source
+### Added — pre-upgrade warning when deprecated tags are about to stop rendering
 
-- **Switching a datetime tag's Source away from and back to "Current" no longer leaves `src:current` written into the saved tag string.** Every other base tag strips its default select value at registration so the default token never gets serialized; `datetime_single` and `datetime_range` built their options through a dedicated function that skipped this step, so round-tripping the Source dropdown left a stray `src:current` (harmless functionally, but inconsistent with every other tag's wire format). No user-facing behavior change — output is identical either way.
+- **The Plugins and Updates screens now warn before an upgrade removes the old tag names.** When the available update is the one that stops registering the deprecated tags, the plugin's update row adds a caution line pointing you to the Migration Tool, so you can scan and fix affected content before updating rather than discovering blank output afterward. The notice only appears on the upgrade that actually removes them and goes away once you are past it.
 
-### Fixed — `{{text}}` / `{{title}}` with `src:ref` now list every related post
+### Changed — bare tags on a term archive no longer read a stray post
 
-- **A related-field source with a raised limit now returns all matching posts, not just the first.** `{{title src:ref|ref:related_vendors|limit:5}}` lists up to five titles joined by the separator; before, it silently returned only the first related post even though the **Result Limit** and **Result Separator** controls were offered. The controls now do what they advertise. Default limit is 1, so a tag without an explicit limit is unchanged.
+- **Tags that have no term reading resolve to empty on a term archive instead of showing an arbitrary post's data.** The same context fix that lets `{{title}}`/`{{content}}` read the term also stops the tags that *can't* read a term from silently reading whatever post the archive listed first. On a term archive: `{{datetime_single}}` / `{{datetime_range}}` (which read post/site date fields, not term fields) and `{{call}}` (which needs a post) now return empty or their fallback rather than the first-listed post's value; a bare `srcTermIn` tag (which hops a *post* to its terms) likewise resolves empty, since a term archive has no post to hop from. This is the honest result where before the output came from an unrelated post. Reading term date fields is planned for a later release.
+
+### Changed — deprecated-tag settings split into Deprecated and Removed, with scan-aware hiding
+
+- **The settings page now sorts deprecated tags into two boxes: Deprecated Tags and Removed Tags.** A tag is "removed" once it no longer renders (its GenerateBlocks registration is gone), and "deprecated" while it still registers. All of this plugin's old N×M tags are Removed; context-modifier aliases registered by companion plugins (for example the portal tags) stay Deprecated while the current tag they point at is still live. The Keep/Suppress/Disable control stays on the Deprecated box for tags that still register.
+- **Options split the same way.** Deprecated Options lists the option-key corrections still applied to current tags; a Removed Options box is reserved for the future point when an old option key is dropped from the reading code entirely. It is empty today.
+- **The whole group moved above Diagnostics**, next to the Migration Tool it works with.
+- **Boxes now hide entries that were not found in your content.** After a plugin upgrade or a Migration Tool scan, only the deprecated or removed tags and options actually present in your posts are listed, so the page reflects what you have rather than every name the plugin knows. Migrate a post and its old tag drops off the list on the next scan. The Migration Tool itself is always shown.
+- **A "Show all" toggle in Diagnostics lists every registered entry regardless of scan results**, for auditing or if a scan looks wrong. It stays on until you turn it off.
 
 ### Changed — internal: traversal pipeline replaces the source-class matrix
 
 - **Base and context-modifier tags (`term_*`, `view_*`) now resolve through one data-driven pipeline instead of a per-combination source class.** A single source factory works out the starting point (term, post, loop row, or site) and generic traversal steps handle the `src:ref` relationship hop and the `srcTermIn` term hop. Resolution is unchanged for existing content; this retires the N×M source-class growth and is what lets base tags become context-aware. The related-post source classes stay registered for the deprecated tag names that still use them.
 - **`traversal_source_key` is now accepted-but-ignored in `register_modifier()`.** External plugins registering a context modifier no longer need a custom traversal source class — the `src:ref` hop is generic. Existing registrations pass the key unchanged and keep working; it may be dropped from new ones. See [plugin-integration.md](docs/plugin-integration.md). Verified against bws-portal-system: no portal changes required.
 
-### Changed — bare tags on a term archive no longer read a stray post
+### Removed — deprecated tags no longer register with GenerateBlocks
 
-- **Tags that have no term reading resolve to empty on a term archive instead of showing an arbitrary post's data.** The same context fix that lets `{{title}}`/`{{content}}` read the term also stops the tags that *can't* read a term from silently reading whatever post the archive listed first. On a term archive: `{{datetime_single}}` / `{{datetime_range}}` (which read post/site date fields, not term fields) and `{{call}}` (which needs a post) now return empty or their fallback rather than the first-listed post's value; a bare `srcTermIn` tag (which hops a *post* to its terms) likewise resolves empty, since a term archive has no post to hop from. This is the honest result where before the output came from an unrelated post. Reading term date fields is planned for a later release.
+- **All deprecated tag names (old N×M source×template tags, plus the eight pre-1.6.0 renames) are gone from the GB tag picker and no longer render.** They were already flagged deprecated in the editor and documented as due for removal; this completes that removal instead of leaving them registered indefinitely.
+- **The admin Migration Tool (Settings → Tag Extensions) still finds and fixes them.** Scan and Migrate keep working exactly as before, so existing content with an old tag string gets a clean, correct upgrade path to its current equivalent — only the live rendering of the deprecated name itself is gone.
+
+### Fixed — `{{text}}` / `{{title}}` with `src:ref` now list every related post
+
+- **A related-field source with a raised limit now returns all matching posts, not just the first.** `{{title src:ref|ref:related_vendors|limit:5}}` lists up to five titles joined by the separator; before, it silently returned only the first related post even though the **Result Limit** and **Result Separator** controls were offered. The controls now do what they advertise. Default limit is 1, so a tag without an explicit limit is unchanged.
+
+### Fixed — `datetime_single` / `datetime_range` no longer serialize the default source
+
+- **Switching a datetime tag's Source away from and back to "Current" no longer leaves `src:current` written into the saved tag string.** Every other base tag strips its default select value at registration so the default token never gets serialized; `datetime_single` and `datetime_range` built their options through a dedicated function that skipped this step, so round-tripping the Source dropdown left a stray `src:current` (harmless functionally, but inconsistent with every other tag's wire format). No user-facing behavior change — output is identical either way.
+
+## [1.13.0] — 2026-07-06
 
 ### Added — smart field selector (replaces blind key typing)
 

@@ -27,7 +27,6 @@
 namespace BWS\DynamicTags\Admin;
 
 use BWS\DynamicTags\MigrationRegistry;
-use BWS\DynamicTags\DeprecatedTagRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -141,6 +140,7 @@ class SettingsPage {
 		// Diagnostics.
 		$sanitized['diagnostics']['benchmark_logging']    = ! empty( $input['diagnostics']['benchmark_logging'] );
 		$sanitized['diagnostics']['registration_logging'] = ! empty( $input['diagnostics']['registration_logging'] );
+		$sanitized['diagnostics']['show_all_deprecated']  = ! empty( $input['diagnostics']['show_all_deprecated'] );
 
 		// Email. `obfuscate` defaults ON; the checkbox renders checked, so an
 		// untouched first save submits 1. Unchecking it writes false.
@@ -228,6 +228,17 @@ class SettingsPage {
 
 	public static function is_registration_logging_enabled(): bool {
 		return (bool) ( self::get_settings()['diagnostics']['registration_logging'] ?? false );
+	}
+
+	/**
+	 * Whether the scan-allowlist hide filter is bypassed on the Deprecated/Removed
+	 * Tags+Options boxes — shows every registered entry regardless of scan match.
+	 *
+	 * @since 1.14.0
+	 * @invariant V8 — permanent escape hatch; toggle state is never reset by a scan.
+	 */
+	public static function is_show_all_deprecated_enabled(): bool {
+		return (bool) ( self::get_settings()['diagnostics']['show_all_deprecated'] ?? false );
 	}
 
 	/**
@@ -435,6 +446,23 @@ class SettingsPage {
 	// RENDER
 	// ===============================================
 
+	/**
+	 * Render the settings page.
+	 *
+	 * Deprecated/Removed box structural rules (were SPEC §V5/§V6; migrated here on ship):
+	 * - **Empty-cascade is structural, not per-row.** A bucket (a K/S/D with-path/without-path
+	 *   subgroup, or a Removed tag-list/option-list) with zero entries after the allowlist
+	 *   filter hides its ENTIRE heading + description + control block, not just an empty
+	 *   disclosure. If all four boxes (Deprecated/Removed × Tags/Options) end up empty, the
+	 *   whole group renders nothing.
+	 * - **The Migration Tool box has NO hide condition** — it always renders regardless of every
+	 *   other box's item count, so an admin whose boxes all hid (e.g. after migrating the last
+	 *   matching post) still has the scan/migrate entry point.
+	 *
+	 * Entry classification (Deprecated vs Removed) is MigrationRegistry::is_entry_live()
+	 * (CONTEXT.md I10). The allowlist hide-filter (positive list) and the "show all" bypass are
+	 * TagConverter::get_allowlist() / is_show_all_deprecated_enabled() (V7/V8, PHPDoc there).
+	 */
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -445,13 +473,32 @@ class SettingsPage {
 		$mode_with    = $settings['deprecated']['mode_with_path']    ?? 'keep';
 		$mode_without = $settings['deprecated']['mode_without_path'] ?? 'keep';
 
-		// Split registry entries by migration path.
-		$all_entries      = DeprecatedTagRegistry::get_all();
-		$entries_with     = array_values( array_filter( $all_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
-		$entries_without  = array_values( array_filter( $all_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+		// Scan allowlist: hides zero-match entries unless "show all" is on (V7/V8).
+		$show_all  = self::is_show_all_deprecated_enabled();
+		$allowlist = TagConverter::get_allowlist();
+		$tag_in_allowlist = fn( array $e ) => in_array( $e['old_tag'] ?? $e['match_tag'] ?? '', $allowlist['tags'], true );
+		$option_in_allowlist = fn( array $e ) => in_array( $e['label'] ?? '', $allowlist['option_labels'], true );
+
+		// Split tag-type entries by liveness first (still GB-registered vs removed/inert),
+		// then by migration path within each liveness bucket.
+		$live_entries       = MigrationRegistry::get_by_type_and_liveness( 'tag', true );
+		$removed_entries    = MigrationRegistry::get_by_type_and_liveness( 'tag', false );
+		if ( ! $show_all ) {
+			$live_entries    = array_values( array_filter( $live_entries, $tag_in_allowlist ) );
+			$removed_entries = array_values( array_filter( $removed_entries, $tag_in_allowlist ) );
+		}
+		$live_with          = array_values( array_filter( $live_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$live_without       = array_values( array_filter( $live_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
+		$removed_with       = array_values( array_filter( $removed_entries, fn( $e ) => ! empty( $e['new_tag'] ) ) );
+		$removed_without    = array_values( array_filter( $removed_entries, fn( $e ) => empty( $e['new_tag'] ) ) );
 
 		// Deprecated option-key entries (separate registry type).
-		$option_entries = MigrationRegistry::get_by_type( 'option' );
+		$live_option_entries    = MigrationRegistry::get_by_type_and_liveness( 'option', true );
+		$removed_option_entries = MigrationRegistry::get_by_type_and_liveness( 'option', false );
+		if ( ! $show_all ) {
+			$live_option_entries    = array_values( array_filter( $live_option_entries, $option_in_allowlist ) );
+			$removed_option_entries = array_values( array_filter( $removed_option_entries, $option_in_allowlist ) );
+		}
 
 		$mode_options = array(
 			'keep'     => __( 'Keep — tags work normally', 'generateblocks' ),
@@ -496,194 +543,6 @@ class SettingsPage {
 							</tr>
 						</tbody>
 					</table>
-				</div>
-
-				<?php /* ── Deprecated Tag Mode ── */ ?>
-				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Control how deprecated tags behave. Use the Migration Tool below to find and update content before disabling.', 'generateblocks' ); ?>
-					</p>
-
-					<?php foreach ( array(
-						array(
-							'key'     => 'mode_with_path',
-							'label'   => __( 'Tags with migration path', 'generateblocks' ),
-							'desc'    => __( 'These deprecated tags can be automatically converted to current equivalents.', 'generateblocks' ),
-							'current' => $mode_with,
-							'entries' => $entries_with,
-						),
-						array(
-							'key'     => 'mode_without_path',
-							'label'   => __( 'Tags without migration path', 'generateblocks' ),
-							'desc'    => __( 'These deprecated tags have no automatic conversion. Manual update required before disabling.', 'generateblocks' ),
-							'current' => $mode_without,
-							'entries' => $entries_without,
-						),
-					) as $group ) : ?>
-
-					<div class="bws-dep-group">
-						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
-						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
-
-						<div class="bws-mode-radios">
-							<?php foreach ( $mode_options as $val => $label ) : ?>
-							<label class="bws-mode-radio-label">
-								<input type="radio"
-									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $group['key'] ); ?>]"
-									value="<?php echo esc_attr( $val ); ?>"
-									<?php checked( $group['current'], $val ); ?> />
-								<?php echo esc_html( $label ); ?>
-							</label>
-							<?php endforeach; ?>
-						</div>
-
-						<?php if ( ! empty( $group['entries'] ) ) : ?>
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of deprecated tags */
-									_n( '%d deprecated tag', '%d deprecated tags', count( $group['entries'] ), 'generateblocks' ),
-									count( $group['entries'] )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $group['entries'] as $entry ) :
-									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
-									$new_tag = $entry['new_tag'] ?? '';
-									$since   = $entry['since']   ?? '';
-									if ( '' === $old_tag ) { continue; }
-									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
-											<?php if ( $target_string ) : ?>
-											<span class="bws-dep-arrow">→</span>
-											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
-											<?php endif; ?>
-											<?php if ( $since ) : ?>
-											<span class="bws-dep-since"><?php echo esc_html( sprintf(
-												/* translators: %s: version */
-												__( '(since %s)', 'generateblocks' ), $since
-											) ); ?></span>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
-						<?php endif; ?>
-					</div>
-					<?php endforeach; ?>
-				</div>
-
-<!-- 				<?php /* ── Deprecated Options ── */ ?>
- -->				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
-					</p>
-
-					<div class="bws-dep-group">
-						<?php
-						$option_groups = self::group_option_entries_by_transform( $option_entries );
-						?>
-						<?php if ( empty( $option_groups ) ) : ?>
-							<p class="description"><?php esc_html_e( 'No deprecated options registered.', 'generateblocks' ); ?></p>
-						<?php else : ?>
-						<details class="bws-dep-tag-list">
-							<summary><?php
-								echo esc_html( sprintf(
-									/* translators: %d: count of deprecated option migrations */
-									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $option_groups ), 'generateblocks' ),
-									count( $option_groups )
-								) );
-							?></summary>
-							<table class="bws-tags-table widefat bws-ref-table">
-								<tbody>
-								<?php foreach ( $option_groups as $group_entry ) :
-									$tags     = array_unique( $group_entry['tags'] );
-									$old_keys = $group_entry['old_keys'];
-									$new_keys = $group_entry['new_keys'];
-									$reason   = $group_entry['reason'];
-									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
-									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
-								?>
-									<tr class="bws-tag-row">
-										<td>
-											<div class="bws-dep-rename">
-												<?php echo $old_html; ?>
-												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
-												<span class="bws-dep-arrow">→</span>
-												<?php endif; ?>
-												<?php echo $new_html; ?>
-												<?php if ( $reason ) : ?>
-												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
-												<?php endif; ?>
-											</div>
-											<?php if ( ! empty( $tags ) ) : ?>
-											<div class="description bws-dep-applies">
-												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
-												<?php
-												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
-												echo implode( ', ', $pieces );
-												?>
-											</div>
-											<?php endif; ?>
-										</td>
-									</tr>
-								<?php endforeach; ?>
-								</tbody>
-							</table>
-						</details>
-						<?php endif; ?>
-					</div>
-				</div>
-
-				<?php /* ── Migration Tool (AJAX driven) ── */ ?>
-				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
-					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
-					</p>
-
-					<div class="bws-scan-controls">
-						<button type="button" id="bws-scan-btn" class="button button-primary">
-							<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
-						</button>
-						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
-					</div>
-
-					<div id="bws-scan-results" style="display:none;">
-						<div class="bws-results-toolbar">
-							<label>
-								<input type="checkbox" id="bws-select-all" />
-								<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
-							</label>
-							<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
-								<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
-							</button>
-							<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
-								<div class="bws-progress-bar"><div class="bws-progress-fill" id="bws-progress-fill"></div></div>
-								<span id="bws-progress-label"></span>
-							</div>
-						</div>
-						<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
-							<thead>
-								<tr>
-									<th class="bws-cb-col"></th>
-									<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
-									<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
-									<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
-									<th><?php esc_html_e( 'Actions', 'generateblocks' ); ?></th>
-								</tr>
-							</thead>
-							<tbody id="bws-results-tbody"></tbody>
-						</table>
-					</div>
 				</div>
 
 				<?php /* ── Email ── */ ?>
@@ -798,6 +657,319 @@ function my_result( $post_id, $arg = '' ) {
 					</table>
 				</div>
 
+				<?php /* ── Deprecated Tags (still GB-registered; K/S/D applies) ── */ ?>
+				<?php if ( ! empty( $live_with ) || ! empty( $live_without ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Tags', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Control how deprecated tags behave. Use the Migration Tool below to find and update content before disabling.', 'generateblocks' ); ?>
+					</p>
+
+					<?php foreach ( array(
+						array(
+							'key'     => 'mode_with_path',
+							'label'   => __( 'Tags with migration path', 'generateblocks' ),
+							'desc'    => __( 'These deprecated tags can be automatically converted to current equivalents.', 'generateblocks' ),
+							'current' => $mode_with,
+							'entries' => $live_with,
+						),
+						array(
+							'key'     => 'mode_without_path',
+							'label'   => __( 'Tags without migration path', 'generateblocks' ),
+							'desc'    => __( 'These deprecated tags have no automatic conversion. Manual update required before disabling.', 'generateblocks' ),
+							'current' => $mode_without,
+							'entries' => $live_without,
+						),
+					) as $group ) :
+						if ( empty( $group['entries'] ) ) { continue; }
+					?>
+
+					<div class="bws-dep-group">
+						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
+						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
+
+						<div class="bws-mode-radios">
+							<?php foreach ( $mode_options as $val => $label ) : ?>
+							<label class="bws-mode-radio-label">
+								<input type="radio"
+									name="<?php echo esc_attr( self::OPTION_NAME ); ?>[deprecated][<?php echo esc_attr( $group['key'] ); ?>]"
+									value="<?php echo esc_attr( $val ); ?>"
+									<?php checked( $group['current'], $val ); ?> />
+								<?php echo esc_html( $label ); ?>
+							</label>
+							<?php endforeach; ?>
+						</div>
+
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of deprecated tags */
+									_n( '%d deprecated tag', '%d deprecated tags', count( $group['entries'] ), 'generateblocks' ),
+									count( $group['entries'] )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $group['entries'] as $entry ) :
+									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
+									$new_tag = $entry['new_tag'] ?? '';
+									$since   = $entry['since']   ?? '';
+									if ( '' === $old_tag ) { continue; }
+									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
+											<?php if ( $target_string ) : ?>
+											<span class="bws-dep-arrow">→</span>
+											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
+											<?php endif; ?>
+											<?php if ( $since ) : ?>
+											<span class="bws-dep-since"><?php echo esc_html( sprintf(
+												/* translators: %s: version */
+												__( '(since %s)', 'generateblocks' ), $since
+											) ); ?></span>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+					<?php endforeach; ?>
+				</div>
+				<?php endif; ?>
+
+				<?php /* ── Removed Tags (GB registration gone; informational only) ── */ ?>
+				<?php if ( ! empty( $removed_with ) || ! empty( $removed_without ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Tags', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'These tag names no longer register with GenerateBlocks. Use the Migration Tool below to find and update content still using them.', 'generateblocks' ); ?>
+					</p>
+
+					<?php foreach ( array(
+						array(
+							'label'   => __( 'Tags with migration path', 'generateblocks' ),
+							'desc'    => __( 'These removed tags can be automatically converted to current equivalents.', 'generateblocks' ),
+							'entries' => $removed_with,
+						),
+						array(
+							'label'   => __( 'Tags without migration path', 'generateblocks' ),
+							'desc'    => __( 'These removed tags have no automatic conversion. Manual update required.', 'generateblocks' ),
+							'entries' => $removed_without,
+						),
+					) as $group ) :
+						if ( empty( $group['entries'] ) ) { continue; }
+					?>
+
+					<div class="bws-dep-group">
+						<h3 class="bws-dep-group-header"><?php echo esc_html( $group['label'] ); ?></h3>
+						<p class="description"><?php echo esc_html( $group['desc'] ); ?></p>
+
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of removed tags */
+									_n( '%d removed tag', '%d removed tags', count( $group['entries'] ), 'generateblocks' ),
+									count( $group['entries'] )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $group['entries'] as $entry ) :
+									$old_tag = $entry['old_tag'] ?? $entry['match_tag'] ?? '';
+									$new_tag = $entry['new_tag'] ?? '';
+									$since   = $entry['since']   ?? '';
+									if ( '' === $old_tag ) { continue; }
+									$target_string = $new_tag ? self::format_migration_target( $entry ) : '';
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<code class="bws-tag-name"><?php echo esc_html( '{{' . $old_tag . '}}' ); ?></code>
+											<?php if ( $target_string ) : ?>
+											<span class="bws-dep-arrow">→</span>
+											<code class="bws-tag-name bws-new-tag"><?php echo esc_html( $target_string ); ?></code>
+											<?php endif; ?>
+											<?php if ( $since ) : ?>
+											<span class="bws-dep-since"><?php echo esc_html( sprintf(
+												/* translators: %s: version */
+												__( '(since %s)', 'generateblocks' ), $since
+											) ); ?></span>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+					<?php endforeach; ?>
+				</div>
+				<?php endif; ?>
+
+				<?php /* ── Deprecated Options (fallback still live in reading code) ── */ ?>
+				<?php $live_option_groups = self::group_option_entries_by_transform( $live_option_entries ); ?>
+				<?php if ( ! empty( $live_option_groups ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Deprecated Options', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Option-key migrations applied to current tags when stored content uses old option names. The Migration Tool below rewrites stored content; option-type migrations always have an automatic conversion path.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-dep-group">
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of deprecated option migrations */
+									_n( '%d deprecated option migration', '%d deprecated option migrations', count( $live_option_groups ), 'generateblocks' ),
+									count( $live_option_groups )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $live_option_groups as $group_entry ) :
+									$tags     = array_unique( $group_entry['tags'] );
+									$old_keys = $group_entry['old_keys'];
+									$new_keys = $group_entry['new_keys'];
+									$reason   = $group_entry['reason'];
+									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
+									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<div class="bws-dep-rename">
+												<?php echo $old_html; ?>
+												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
+												<span class="bws-dep-arrow">→</span>
+												<?php endif; ?>
+												<?php echo $new_html; ?>
+												<?php if ( $reason ) : ?>
+												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
+												<?php endif; ?>
+											</div>
+											<?php if ( ! empty( $tags ) ) : ?>
+											<div class="description bws-dep-applies">
+												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
+												<?php
+												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
+												echo implode( ', ', $pieces );
+												?>
+											</div>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+				</div>
+				<?php endif; ?>
+
+				<?php /* ── Removed Options (legacy-key fallback deleted from reading code) ── */ ?>
+				<?php $removed_option_groups = self::group_option_entries_by_transform( $removed_option_entries ); ?>
+				<?php if ( ! empty( $removed_option_groups ) ) : ?>
+				<div class="bws-tag-group">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Removed Options', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'These option-key corrections no longer have a live fallback in the reading code — the old key is no longer accepted at all. The Migration Tool below still finds and fixes stored content using the old key.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-dep-group">
+						<details class="bws-dep-tag-list">
+							<summary><?php
+								echo esc_html( sprintf(
+									/* translators: %d: count of removed option migrations */
+									_n( '%d removed option migration', '%d removed option migrations', count( $removed_option_groups ), 'generateblocks' ),
+									count( $removed_option_groups )
+								) );
+							?></summary>
+							<table class="bws-tags-table widefat bws-ref-table">
+								<tbody>
+								<?php foreach ( $removed_option_groups as $group_entry ) :
+									$tags     = array_unique( $group_entry['tags'] );
+									$old_keys = $group_entry['old_keys'];
+									$new_keys = $group_entry['new_keys'];
+									$reason   = $group_entry['reason'];
+									$old_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $old_keys ) );
+									$new_html = implode( ' + ', array_map( fn( $k ) => '<code>' . esc_html( $k ) . '</code>', $new_keys ) );
+								?>
+									<tr class="bws-tag-row">
+										<td>
+											<div class="bws-dep-rename">
+												<?php echo $old_html; ?>
+												<?php if ( '' !== $old_html && '' !== $new_html ) : ?>
+												<span class="bws-dep-arrow">→</span>
+												<?php endif; ?>
+												<?php echo $new_html; ?>
+												<?php if ( $reason ) : ?>
+												<span class="bws-dep-reason"><?php echo esc_html( '(' . $reason . ')' ); ?></span>
+												<?php endif; ?>
+											</div>
+											<?php if ( ! empty( $tags ) ) : ?>
+											<div class="description bws-dep-applies">
+												<?php esc_html_e( 'Applies to:', 'generateblocks' ); ?>
+												<?php
+												$pieces = array_map( fn( $t ) => '<code class="bws-tag-name">' . esc_html( $t ) . '</code>', $tags );
+												echo implode( ', ', $pieces );
+												?>
+											</div>
+											<?php endif; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+								</tbody>
+							</table>
+						</details>
+					</div>
+				</div>
+				<?php endif; ?>
+
+				<?php /* ── Migration Tool (AJAX driven) ── */ ?>
+				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
+					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+					</p>
+
+					<div class="bws-scan-controls">
+						<button type="button" id="bws-scan-btn" class="button button-primary">
+							<?php esc_html_e( 'Scan All Content', 'generateblocks' ); ?>
+						</button>
+						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
+					</div>
+
+					<div id="bws-scan-results" style="display:none;">
+						<div class="bws-results-toolbar">
+							<label>
+								<input type="checkbox" id="bws-select-all" />
+								<span id="bws-select-all-label"><?php esc_html_e( 'Select all', 'generateblocks' ); ?></span>
+							</label>
+							<button type="button" id="bws-migrate-selected-btn" class="button" disabled>
+								<?php esc_html_e( 'Migrate Selected', 'generateblocks' ); ?>
+							</button>
+							<div class="bws-progress-wrap" id="bws-progress-wrap" style="display:none;">
+								<div class="bws-progress-bar"><div class="bws-progress-fill" id="bws-progress-fill"></div></div>
+								<span id="bws-progress-label"></span>
+							</div>
+						</div>
+						<table class="bws-tags-table widefat bws-results-table" id="bws-results-table">
+							<thead>
+								<tr>
+									<th class="bws-cb-col"></th>
+									<th><?php esc_html_e( 'Post', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Type', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Issues Found', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Actions', 'generateblocks' ); ?></th>
+								</tr>
+							</thead>
+							<tbody id="bws-results-tbody"></tbody>
+						</table>
+					</div>
+				</div>
+
 				<?php /* ── Diagnostics ── */ ?>
 				<div class="bws-tag-group">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
@@ -823,6 +995,17 @@ function my_result( $post_id, $arg = '' ) {
 								<td>
 									<label for="bws-diag-registration-logging"><?php esc_html_e( 'Enable source registration logging', 'generateblocks' ); ?></label>
 									<p class="description"><?php esc_html_e( 'Log source registration and the bws_dynamic_tags_register_sources action to the PHP error log.', 'generateblocks' ); ?></p>
+								</td>
+							</tr>
+							<tr class="bws-tag-row">
+								<td class="bws-tag-checkbox">
+									<input type="checkbox" id="bws-diag-show-all-deprecated"
+										name="<?php echo esc_attr( self::OPTION_NAME ); ?>[diagnostics][show_all_deprecated]"
+										value="1" <?php checked( self::is_show_all_deprecated_enabled() ); ?> />
+								</td>
+								<td>
+									<label for="bws-diag-show-all-deprecated"><?php esc_html_e( 'Show all deprecated/removed tags and options', 'generateblocks' ); ?></label>
+									<p class="description"><?php esc_html_e( 'By default, only deprecated or removed tags and options which were found in site content at the last plugin upgrade or Migration Tool scan are shown. Enable this to list every registered entry regardless of scan results.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>

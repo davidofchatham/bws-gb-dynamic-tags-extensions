@@ -174,6 +174,81 @@ class TagConverter {
 	}
 
 	// ===============================================
+	// SCAN ALLOWLIST (settings-page hide-when-unused)
+	// ===============================================
+
+	/** @var string Option name for the scan-derived allowlist. */
+	const ALLOWLIST_OPTION_NAME = 'bws_dynamic_tags_scan_allowlist';
+
+	/**
+	 * Rebuild the scan allowlist from a fresh scan() pass.
+	 *
+	 * Called on activation, upgrade, and "Scan All Content" — anywhere a fresh
+	 * scan() result isn't already in hand. Use rebuild_allowlist_from_scan()
+	 * instead when a scan() result already exists (e.g. ajax_scan()'s own pass)
+	 * to avoid scanning all content twice.
+	 *
+	 * @since 1.14.0
+	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
+	 */
+	public static function rebuild_allowlist(): array {
+		return self::rebuild_allowlist_from_scan( self::scan() );
+	}
+
+	/**
+	 * Rebuild the scan allowlist from an already-computed scan() result.
+	 *
+	 * Reduces scan() rows to the flat set of deprecated tag names and option
+	 * migration labels actually found in content — the positive list the settings
+	 * page uses to hide zero-match entries (V7). Also called after migrate_post()/
+	 * bulk migrate (V7/V9 — a migrated post's old tag/option should drop off on
+	 * the next rebuild).
+	 *
+	 * @since 1.14.0
+	 * @param array[] $posts scan()'s return value.
+	 * @return array{tags: string[], option_labels: string[]} The rebuilt allowlist (also stored).
+	 */
+	public static function rebuild_allowlist_from_scan( array $posts ): array {
+		$tags          = array();
+		$option_labels = array();
+
+		foreach ( $posts as $row ) {
+			foreach ( $row['deprecated_tags'] as $found ) {
+				$tags[] = $found['tag'];
+			}
+			foreach ( $row['option_migrations'] as $found ) {
+				$option_labels[] = $found['label'];
+			}
+		}
+
+		$allowlist = array(
+			'tags'          => array_values( array_unique( $tags ) ),
+			'option_labels' => array_values( array_unique( $option_labels ) ),
+		);
+
+		update_option( self::ALLOWLIST_OPTION_NAME, $allowlist, false );
+
+		return $allowlist;
+	}
+
+	/**
+	 * Get the stored scan allowlist.
+	 *
+	 * Empty defaults (no scan run yet) hide everything until the first rebuild —
+	 * matches V7's "positive list" semantics, not a denylist.
+	 *
+	 * @since 1.14.0
+	 * @return array{tags: string[], option_labels: string[]}
+	 */
+	public static function get_allowlist(): array {
+		$allowlist = get_option( self::ALLOWLIST_OPTION_NAME, array() );
+		return array(
+			'tags'          => $allowlist['tags'] ?? array(),
+			'option_labels' => $allowlist['option_labels'] ?? array(),
+		);
+	}
+
+	// ===============================================
 	// PER-POST MIGRATE
 	// ===============================================
 
@@ -285,6 +360,7 @@ class TagConverter {
 		}
 
 		$posts = self::scan();
+		self::rebuild_allowlist_from_scan( $posts );
 		wp_send_json_success( array( 'posts' => $posts, 'total' => count( $posts ) ) );
 	}
 
@@ -294,11 +370,19 @@ class TagConverter {
 	 * POST fields:
 	 *   nonce    — bws_convert_tag nonce.
 	 *   post_ids — JSON-encoded array of post IDs to migrate in this batch.
+	 *   is_final — "1" on the last batch of a bulk run (or a single-post migrate),
+	 *              signalling the allowlist should be rebuilt now.
+	 *
+	 * The allowlist rebuild runs a full site scan, so it fires ONCE per bulk run
+	 * (on the final batch) rather than once per batch — a 100-post/10-batch run
+	 * would otherwise scan all content 10 times. A per-post migrate sends is_final
+	 * on its single call, so it still rebuilds exactly once.
 	 *
 	 * Returns JSON { success: true, data: { results: [...], processed: N } }
 	 * Each result: { post_id, changed, tag_count, option_count, has_revision }
 	 *
 	 * @since 1.6.0
+	 * @since 1.14.0 Allowlist rebuild gated to the final batch via is_final.
 	 */
 	public static function ajax_migrate(): void {
 		check_ajax_referer( 'bws_convert_tag', 'nonce' );
@@ -325,6 +409,15 @@ class TagConverter {
 			$result['has_revision'] = ( false !== $result['revision_id'] );
 			unset( $result['revision_id'] );
 			$results[] = $result;
+		}
+
+		// Rebuild once at the end of a bulk run (or on a single-post migrate), not
+		// per batch — the rebuild scans all content and would otherwise repeat per
+		// batch. Absent is_final (older cached JS), fall back to rebuilding so the
+		// allowlist never goes stale.
+		$is_final = ! isset( $_POST['is_final'] ) || '1' === $_POST['is_final'];
+		if ( $is_final ) {
+			self::rebuild_allowlist();
 		}
 
 		wp_send_json_success( array(

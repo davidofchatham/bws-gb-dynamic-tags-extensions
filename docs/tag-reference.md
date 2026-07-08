@@ -180,7 +180,7 @@ In v1.6.0 the per-source×template matrix was removed from the admin settings pa
 
 **Modifier group toggles** — `term_` and `try_` each have an on/off toggle in the admin settings page. Disabling a modifier group removes all its tags from the GB editor picker. Both groups default to enabled. Externally registered modifier groups (e.g. `view_`) are not surfaced in the toggle UI.
 
-**Deprecated wrapper tags** — settings page exposes two group-level radio sets (Has migration path, No migration path); each tag toggles individually but state is keyed off group selection (Keep / Suppress / Disable). `SettingsPage::is_deprecated_tag_enabled( $tag_name )` reflects the current state.
+**Deprecated wrapper tags** — GB registration and runtime callbacks for all current deprecated tags were removed entirely (no longer conditional on any setting). Migration data (`MigrationRegistry` entries) and the admin Tag Converter / settings-page list stay intact for detection and migration of old content. The settings page still shows a Keep/Suppress/Disable radio per group (Has migration path, No migration path), but it no longer has any effect — pending a settings-page redesign to reflect that these are removed, not merely deprecated (tracked `docs/future-work.md`).
 
 **Base tags** (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`, `email`, `phone`) are always registered with no admin toggle.
 
