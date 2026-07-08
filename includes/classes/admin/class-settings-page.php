@@ -988,7 +988,7 @@ function my_result( $post_id, $arg = '' ) {
 								</td>
 								<td>
 									<label for="bws-diag-show-all-deprecated"><?php esc_html_e( 'Show all deprecated/removed tags and options', 'generateblocks' ); ?></label>
-									<p class="description"><?php esc_html_e( 'The Deprecated/Removed Tags and Options boxes normally hide entries with no matches in a scan. Enable this to list every registered entry regardless of scan results — useful for auditing or if a scan result looks wrong.', 'generateblocks' ); ?></p>
+									<p class="description"><?php esc_html_e( 'By default, only deprecated or removed tags and options which were found in site content at the last plugin upgrade or Migration Tool scan are shown. Enable this to list every registered entry regardless of scan results.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 						</tbody>

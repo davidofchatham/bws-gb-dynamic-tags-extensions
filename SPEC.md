@@ -61,8 +61,8 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T7 | x | Hook allowlist rebuild: activation, upgrade, "Scan All Content" button, post-migration | V7,I.activation,I.converter |
 | T8 | x | Apply allowlist filter to all 4 boxes' entry lists at render time | V6,V7,I.settings |
 | T9 | x | Add "show all" checkbox to Diagnostics box; wires bypass in render | V8,I.diagnostics |
-| T10 | . | Verify (show-all OFF): fresh scan populates the allowlist, boxes hide zero-match entries. Bucket identities (confirmed T15): Deprecated Tags = 18 externals, Removed Tags = 90 (65+25), Deprecated Options = 11, Removed Options empty. | V9,V1 |
-| T11 | . | Verify: migrate a post, confirm its tag/option drops off allowlist on next scan | V7,V9 |
+| T10 | x | Verified 2026-07-08 (show-all OFF): only scan-matched entries show; zero-match hidden. | V9,V1 |
+| T11 | x | Verified 2026-07-08: migrated the one found tag + reload → it dropped off; all 4 boxes emptied → group hid, Migration Tool still shown (V5). | V7,V9 |
 | T12 | x | Verify: "show all" on shows all entries in all 4 boxes regardless of allowlist state | V8 |
 
 ## §B — bugs
