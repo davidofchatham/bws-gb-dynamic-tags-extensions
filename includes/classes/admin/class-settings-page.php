@@ -446,6 +446,23 @@ class SettingsPage {
 	// RENDER
 	// ===============================================
 
+	/**
+	 * Render the settings page.
+	 *
+	 * Deprecated/Removed box structural rules (were SPEC §V5/§V6; migrated here on ship):
+	 * - **Empty-cascade is structural, not per-row.** A bucket (a K/S/D with-path/without-path
+	 *   subgroup, or a Removed tag-list/option-list) with zero entries after the allowlist
+	 *   filter hides its ENTIRE heading + description + control block, not just an empty
+	 *   disclosure. If all four boxes (Deprecated/Removed × Tags/Options) end up empty, the
+	 *   whole group renders nothing.
+	 * - **The Migration Tool box has NO hide condition** — it always renders regardless of every
+	 *   other box's item count, so an admin whose boxes all hid (e.g. after migrating the last
+	 *   matching post) still has the scan/migrate entry point.
+	 *
+	 * Entry classification (Deprecated vs Removed) is MigrationRegistry::is_entry_live()
+	 * (CONTEXT.md I10). The allowlist hide-filter (positive list) and the "show all" bypass are
+	 * TagConverter::get_allowlist() / is_show_all_deprecated_enabled() (V7/V8, PHPDoc there).
+	 */
 	public static function render_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;

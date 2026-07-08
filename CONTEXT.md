@@ -128,6 +128,21 @@ Single-class detail is PHPDoc on the enforcers: `bws_resolve_base_source` / `bws
 
 ---
 
+## I10 — A deprecated tag's lifecycle status is a HAND-SET fact; external aliases take our status as authoritative
+
+The settings page files a deprecated tag under **Deprecated** (still registers/renders) or **Removed** (inert, migration-data-only) by a hand-set fact per entry, **never derived** from GB runtime state (`get_tags()`) — deriving it would make box placement depend on load-order timing and let a settings toggle silently reclassify entries. Two axes, both hand-set:
+
+- **Options** — Removed once `legacy_fallback_removed` is set, i.e. when the runtime's legacy-key fallback (`$options['old_key'] ?? $options['new_key']`) is deleted from the reading code. Absent = still live.
+- **Tags** — Removed when `prefix_removed` is set; else the interim default reads `callback`-presence. **`callback`-presence is a proxy, NOT a render guarantee**: post-FW-1 the GB dispatch loop is gone, so a present `callback` (carried by an external alias) no longer means the tag renders. The proxy survives only because our own removed N×M entries had their `callback` stripped (→ Removed) while external aliases still pass one (→ Deprecated) — two populations with opposite natural defaults that a single global-default flag would split wrong.
+
+**External context-modifier aliases take their authoritative status from THIS plugin.** An external plugin's alias (e.g. portal-system `portal_title → view_title`) is a *modifier over a tag this plugin owns*; its target's live/removed status is authoritative here, and the external additionally owns a `prefix_removed` flag it sets when it retires that prefix generation. Either target-removed OR prefix-removed ⇒ the alias files under Removed. Rebuilding these aliases inside the external plugin is rejected — they are modifiers of our tags, not standalone tags the external owns (revisit only if base tags ever become a drop-in module). Today all external targets (`view_*`) are live and no external prefix is flagged, so every external alias sits in Deprecated.
+
+The `prefix_removed`/`callback` proxy is **interim**: a later release (FW-38) replaces it with explicit `registered_by` + `lifecycle` (`unset=active | deprecated | removed`) fields recorded at `register()` time, so box placement reads `lifecycle` only and `callback` becomes irrelevant to classification.
+
+Enforced at: `MigrationRegistry::is_entry_live()` PHPDoc (the classifier + why-not-callback rationale) + `register()` `@param` docs (`prefix_removed`, `legacy_fallback_removed`). Integrator guidance: `docs/plugin-integration.md` §"Alias status and retiring a prefix". Future direction: `docs/future-work.md` FW-38.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).
