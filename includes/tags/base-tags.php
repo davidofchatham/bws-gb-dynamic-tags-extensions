@@ -967,8 +967,9 @@ function bws_resolve_post_by_source( array $options, $instance ) {
  * Post-semantic: only a `src:ref` hop (post→post[]) is a wrapper step. A
  * `srcTermIn` post→term hop is DELIBERATELY excluded — the wrapper's callers own
  * that downstream on the returned post id (bws_get_srcterm_terms). Contrast the
- * seam's bws_field_values_assemble_steps(), which DOES emit srcTermIn (terminal
- * term-list read) because it reads term fields by kind (§V6/§V12).
+ * seam's bws_field_values_assemble_steps(), which DOES emit a srcTermIn term-hop
+ * (and compounds it after a ref step when both are set, #44) because it reads
+ * term fields by kind (§V6/§V12).
  *
  * @since 1.14.0
  * @param array $options Tag options (src, ref).

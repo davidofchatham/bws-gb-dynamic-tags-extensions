@@ -68,17 +68,16 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 	function bws_field_values_assemble_steps( array $options ): array {
 		$steps = array();
-		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-		if ( '' !== $tax ) {
-			$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
-			return $steps;
-		}
 		$src = $options['src'] ?? $options['source'] ?? '';
 		if ( 'ref' === $src ) {
 			$ref = $options['ref'] ?? '';
 			if ( '' !== $ref ) {
 				$steps[] = array( 'type' => 'ref', 'field' => $ref );
 			}
+		}
+		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+		if ( '' !== $tax ) {
+			$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
 		}
 		return $steps;
 	}
@@ -304,6 +303,27 @@ eq(
 	bws_run_traversal( array( post_src( 50 ) ), array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ), $reader )
 );
 
+// #44: compound [ref, srcTermIn] through the fold — ref off a TERM base yields
+// related posts, then srcTermIn hops those posts to their terms. Proves the
+// chain the assembler now emits actually resolves end-to-end.
+$reader = make_reader( array(
+	'term:3'   => array( 100, 101 ),                     // ref off term 3 -> posts 100,101
+	'post:100' => array( new WP_Term( 200 ) ),           // srcTermIn off post 100 -> term 200
+	'post:101' => array( new WP_Term( 201 ) ),           // srcTermIn off post 101 -> term 201
+) );
+eq(
+	'#44 ref+srcTermIn compound via fold (term -> posts -> terms)',
+	array( term_src( 200 ), term_src( 201 ) ),
+	bws_run_traversal(
+		array( term_src( 3 ) ),
+		array(
+			array( 'type' => 'ref', 'field' => 'related' ),
+			array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+		),
+		$reader
+	)
+);
+
 // ── §V1/§V7 — factory precedence (injected signals, probe truth table) ───────
 //
 // Drives bws_resolve_base_source with injected $signals so dispatch is pure.
@@ -467,10 +487,15 @@ eq(
 	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 
-// srcTermIn wins + is terminal even if a stray ref present (mutually exclusive).
+// #44: src:ref + srcTermIn COMPOUND, emitting [ref, srcTermIn] in that order.
+// ref hops source -> related posts, then srcTermIn hops those posts -> terms.
+// Order is load-bearing: srcTermIn needs the post kind ref produces.
 eq(
-	'assemble srcTermIn terminal (ref ignored)',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ) ),
+	'assemble src:ref + srcTermIn -> [ref, srcTermIn] (compound, #44)',
+	array(
+		array( 'type' => 'ref', 'field' => 'x' ),
+		array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ),
+	),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'post_tag', 'src' => 'ref', 'ref' => 'x' ) )
 );
 
