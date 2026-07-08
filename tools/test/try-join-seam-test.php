@@ -1,11 +1,11 @@
 <?php
 /**
  * Standalone unit harness for the try_ list-join seam in
- * includes/tags/base-tags.php:
+ * includes/tags/base-shared.php:
  *   - bws_try_normalize_items( $raw ): array
  *   - bws_try_join_items( array $items, $sep, $limit ): string
  *
- * Both are pure array/string transforms — no WordPress required. base-tags.php
+ * Both are pure array/string transforms — no WordPress required. base-shared.php
  * is loaded inert (shimmed __ + no-op WP entry points) per the same pattern as
  * slot-qualify-show-if-test.php; we call only the pure helpers.
  *
@@ -37,7 +37,7 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 	}
 }
 
-require __DIR__ . '/../../includes/tags/base-tags.php';
+require __DIR__ . '/../../includes/tags/base-shared.php';
 
 $failures = 0;
 $count    = 0;

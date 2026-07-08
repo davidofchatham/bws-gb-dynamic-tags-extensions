@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone unit harness for bws_build_slot_traversal_options() in
- * includes/tags/base-tags.php — the #26 slot-option derive (V7/V9 auto-gate).
+ * includes/tags/base-shared.php — the #26 slot-option derive (V7/V9 auto-gate).
  *
  * Pure fn of (slot ordinal, base src options, base traversal options). No WP
  * beyond __() (shimmed). Asserts the DERIVED slot src/ref/srcTermIn defs against
@@ -36,7 +36,7 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 	}
 }
 
-require __DIR__ . '/../../includes/tags/base-tags.php';
+require __DIR__ . '/../../includes/tags/base-shared.php';
 
 $failures = 0;
 $count    = 0;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14.1] — unreleased
+
+### Changed
+
+- **Internal: split the base-tag foundation into its own file.** The shared source, traversal, and dispatch helpers that every tag family builds on moved from `base-tags.php` into a new `base-shared.php`; `base-tags.php` now holds only the base tag renderers. No behavior change, no tag or option change.
+
 ## [1.14.0] — 2026-07-08
 
 ### Highlights
