@@ -53,7 +53,7 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T3 | x | Split settings page's tag rendering into Deprecated Tags box (liveness=true, K/S/D radios, empty today) + Removed Tags box (liveness=false, list-only, all 108 today; keeps with-path/without-path as 2 informational sub-lists, no control) | V3,V6,I.settings |
 | T13 | x | Path X: `is_entry_live()` tag branch returns `false` iff `prefix_removed===true`, ELSE existing callback default. Preserves 108→Removed + 18→Deprecated. Add `prefix_removed` to `register()` @param docs (tag-type) + document callback-as-interim-marker. | B1,V9,I.registry |
 | T14 | x | Document `prefix_removed` + authoritative-status/alias model in `plugin-integration.md` (V10); write portal-system handoff doc (set `prefix_removed` on retired generation). | V10,I.integration,I.handoff |
-| T15 | . | Verify (live-WP): 18 external aliases in Deprecated Tags, 108 in Removed Tags. NOTE: the `prefix_removed`→moves-to-Removed leg is NOT testable today (no live entry sets the flag until the portal-system handoff lands); defer that leg to when portal-system applies T14's handoff. | V9,V10 |
+| T15 | x | Verify (live-WP): CONFIRMED 2026-07-08 — Deprecated Tags = 18 external aliases; Removed Tags = 90 (65 with-path + 25 without-path); Deprecated Options = 11. 18 + 90 = 108 (the 18 were part of the 108, not additional). `prefix_removed`→Removed leg deferred until portal-system applies T14 handoff. | V9,V10 |
 | T16 | x | Add `docs/future-work.md` FW-38 row: Path Y (explicit `registered_by` + `lifecycle` fields replace callback proxy). NOT this release. | V11 |
 | T4 | x | Split Deprecated Options box into Deprecated Options (flag=false, unchanged behavior) + Removed Options (flag=true, list-only, empty today) | V1,V2,V6,I.settings |
 | T5 | x | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
@@ -61,9 +61,9 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T7 | x | Hook allowlist rebuild: activation, upgrade, "Scan All Content" button, post-migration | V7,I.activation,I.converter |
 | T8 | x | Apply allowlist filter to all 4 boxes' entry lists at render time | V6,V7,I.settings |
 | T9 | x | Add "show all" checkbox to Diagnostics box; wires bypass in render | V8,I.diagnostics |
-| T10 | . | Verify: fresh install / first scan shows expected buckets. **CORRECTED per B1/V9**: Removed Options empty; Deprecated Options=11; Deprecated Tags = 18 external aliases (callback, no prefix_removed); Removed Tags = our 108 N×M entries (no callback). | V9,V1 |
+| T10 | . | Verify (show-all OFF): fresh scan populates the allowlist, boxes hide zero-match entries. Bucket identities (confirmed T15): Deprecated Tags = 18 externals, Removed Tags = 90 (65+25), Deprecated Options = 11, Removed Options empty. | V9,V1 |
 | T11 | . | Verify: migrate a post, confirm its tag/option drops off allowlist on next scan | V7,V9 |
-| T12 | . | Verify: "show all" on shows all entries in all 4 boxes regardless of allowlist state | V8 |
+| T12 | x | Verify: "show all" on shows all entries in all 4 boxes regardless of allowlist state | V8 |
 
 ## §B — bugs
 
