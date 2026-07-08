@@ -18,7 +18,7 @@
 
 ### Added — pre-upgrade warning when deprecated tags are about to stop rendering
 
-- **The Plugins and Updates screens now warn before an upgrade removes the old tag names.** When the available update is the one that stops registering the deprecated tags, the plugin's update row adds a caution line pointing you to the Migration Tool, so you can scan and fix affected content before updating rather than discovering blank output afterward. The notice only appears on the upgrade that actually removes them and goes away once you are past it.
+- **The Plugins and Updates screens now warn before an upgrade removes the old tag names.** When the available update is the one that stops registering the deprecated tags, the plugin's update row adds a caution line pointing you to the Migration Tool, so you can scan and fix affected content before updating rather than finding raw tag strings in your content afterward. The notice only appears on the upgrade that actually removes them and goes away once you are past it.
 
 ### Changed — bare tags on a term archive no longer read a stray post
 
