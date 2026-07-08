@@ -53,8 +53,8 @@ Split settings page into 4 boxes (Deprecated Tags / Removed Tags / Deprecated Op
 | T3 | x | Split settings page's tag rendering into Deprecated Tags box (liveness=true, K/S/D radios, empty today) + Removed Tags box (liveness=false, list-only, all 108 today; keeps with-path/without-path as 2 informational sub-lists, no control) | V3,V6,I.settings |
 | T13 | x | Path X: `is_entry_live()` tag branch returns `false` iff `prefix_removed===true`, ELSE existing callback default. Preserves 108→Removed + 18→Deprecated. Add `prefix_removed` to `register()` @param docs (tag-type) + document callback-as-interim-marker. | B1,V9,I.registry |
 | T14 | . | Document `prefix_removed` + authoritative-status/alias model in `plugin-integration.md` (V10); write portal-system handoff doc (set `prefix_removed` on retired generation). | V10,I.integration,I.handoff |
-| T15 | . | Verify (live-WP): 18 external aliases in Deprecated Tags, 108 in Removed Tags; setting `prefix_removed` on an entry moves it Deprecated→Removed. | V9,V10 |
-| T16 | . | Add `docs/future-work.md` FW-38 row: Path Y (explicit `registered_by` + `lifecycle` fields replace callback proxy). NOT this release. | V11 |
+| T15 | . | Verify (live-WP): 18 external aliases in Deprecated Tags, 108 in Removed Tags. NOTE: the `prefix_removed`→moves-to-Removed leg is NOT testable today (no live entry sets the flag until the portal-system handoff lands); defer that leg to when portal-system applies T14's handoff. | V9,V10 |
+| T16 | x | Add `docs/future-work.md` FW-38 row: Path Y (explicit `registered_by` + `lifecycle` fields replace callback proxy). NOT this release. | V11 |
 | T4 | x | Split Deprecated Options box into Deprecated Options (flag=false, unchanged behavior) + Removed Options (flag=true, list-only, empty today) | V1,V2,V6,I.settings |
 | T5 | x | Reposition the 4-box group + Migration Tool as one unit above Diagnostics | C-repositioning,I.settings |
 | T6 | x | Build allowlist storage (rebuild source = `TagConverter::scan()` result set of matched names) | V7,I.converter |
