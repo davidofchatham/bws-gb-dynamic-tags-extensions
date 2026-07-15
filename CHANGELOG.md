@@ -5,6 +5,7 @@
 ### Changed
 
 - **Internal: split the base-tag foundation into its own file.** The shared source, traversal, and dispatch helpers that every tag family builds on moved from `base-tags.php` into a new `base-shared.php`; `base-tags.php` now holds only the base tag renderers. No behavior change, no tag or option change.
+- **Internal: the `{{text}}` tag's value resolution extracted from its render callback.** The full text read path (source resolution, term/site arms, list modes) now lives in its own function so future tags can reuse the exact same read; the render callback keeps only link-wrapping and the editor preview fallback. No behavior change.
 
 ## [1.14.0] — 2026-07-08
 

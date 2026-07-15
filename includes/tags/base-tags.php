@@ -596,7 +596,8 @@ function bws_register_base_tags(): void {
 // ===============================================
 
 /**
- * Callback for the `text` base tag.
+ * Resolve the `text` base tag's VALUE — the full read path minus link-wrap
+ * and preview fallback.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
  * dispatches to the appropriate core function based on `use`:
@@ -606,28 +607,32 @@ function bws_register_base_tags(): void {
  * post    + use unset   → bws_post_custom_text_core()
  * post    + use:title   → bws_post_title_core()
  *
- * @since 1.6.0
+ * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
+ * {{text}} renders before link-wrap — including the src:site arm, the
+ * srcTermIn / src:ref list modes (text's own sep/limit), and '0' preservation
+ * (hooks.php maps '0' downstream; no emptiness re-decision here). Other tags
+ * absorb the text read through this seam (planned: {{join}} per-slot resolve),
+ * so any text read change lands here, never in a caller's copy.
+ *
+ * @since 1.14.1 Extracted from bws_base_text_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 =
+ *                        multi-result output; caller must not link-wrap.
  */
-function bws_base_text_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+function bws_base_text_resolve_value( array $options, $instance ): array {
+	$use  = $options['use'] ?? 'key';
+	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$opts = bws_base_map_options( $options );
 
-	$use     = $options['use'] ?? 'key';
-	$tax     = sanitize_key( $options['srcTermIn'] ?? '' );
-	$opts    = bws_base_map_options( $options );
-	$link_to = $options['linkTo'] ?? 'none';
-	$link_key = $options['linkKey'] ?? '';
-	$new_tab  = ! empty( $options['newTab'] );
-
-	// src:site — no entity; resolve site value then link-wrap (sentinel id, 'site' type).
+	// src:site — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === ( $options['src'] ?? '' ) ) {
-		$value = bws_site_resolve_value( 'text', $options, $instance );
-		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
-		}
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+		return array(
+			'value'     => bws_site_resolve_value( 'text', $options, $instance ),
+			'link_id'   => 1,
+			'link_type' => 'site',
+		);
 	}
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
@@ -635,14 +640,11 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 	$base    = bws_base_resolve_source_for_callback( $options, $instance );
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
-		$value = bws_base_term_analog_read( 'text', $term_id, $options, $instance );
-		if ( '' !== $value ) {
-			if ( function_exists( 'bws_wrap_with_link' ) ) {
-				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
-			}
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+		return array(
+			'value'     => bws_base_term_analog_read( 'text', $term_id, $options, $instance ),
+			'link_id'   => $term_id,
+			'link_type' => 'term',
+		);
 	}
 	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
@@ -713,9 +715,38 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		$link_type = 'post';
 	}
 
+	return array(
+		'value'     => $value,
+		'link_id'   => $link_id,
+		'link_type' => $link_type,
+	);
+}
+
+/**
+ * Callback for the `text` base tag.
+ *
+ * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap
+ * single-result output, fall back to the editor preview label when empty.
+ *
+ * @since 1.6.0
+ * @since 1.14.1 Value resolution extracted to bws_base_text_resolve_value().
+ */
+function bws_base_text_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_text_resolve_value( $options, $instance );
+	$value    = $resolved['value'];
+
 	if ( '' !== $value ) {
-		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				! empty( $options['newTab'] ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
 		}
 		return $value;
 	}
