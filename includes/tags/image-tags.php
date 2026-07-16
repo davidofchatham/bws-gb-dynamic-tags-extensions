@@ -1,12 +1,16 @@
 <?php
 /**
- * Image dynamic tags for GenerateBlocks.
+ * Image dynamic tag cores for GenerateBlocks.
  *
- * Tags: post_featured_image, related_post_featured_image,
- *       post_custom_image, related_post_custom_image
+ * Shared read cores for the `image` base tag and its try_/term_ arms:
+ * bws_featured_image_core() (use:featured) and bws_custom_image_core() (field key).
+ * Callers resolve the entity via the L1 factory and pass the id in — these cores
+ * never resolve a source themselves (SPEC §V1: no ambient get_the_ID() fallback).
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
+ * @since 1.14.1 GB `generateblocks_dynamic_tag_id` filter removed (dead since
+ *               1.14.0 deprecated-tag removal; unreachable for `image`).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,46 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use BWS\DynamicTags\Admin\SettingsPage;
-
-// ===============================================
-// MEDIA ID OVERRIDE FOR POST CONTEXT
-// ===============================================
-
-/**
- * Override media IDs to provide post context for image tags.
- *
- * @since 1.0.0
- * @param int    $id       Original ID.
- * @param array  $options  Tag options.
- * @param object $instance Block instance.
- * @return int Modified ID.
- */
-function bws_override_media_ids_for_post_context( $id, $options, $instance ) {
-	$tag_name = $options['tag_name'] ?? '';
-
-	$post_context_media_tags = array(
-		'image',
-		'post_featured_image',
-		'related_post_featured_image',
-		'post_custom_image',
-		'related_post_custom_image',
-		// Deprecated names.
-		'current_post_featured_image',
-		'current_post_meta_image',
-		'related_post_meta_image',
-	);
-
-	if ( in_array( $tag_name, $post_context_media_tags, true ) ) {
-		$current_post_id = get_the_ID();
-
-		if ( $current_post_id ) {
-			return $current_post_id;
-		}
-	}
-
-	return $id;
-}
-add_filter( 'generateblocks_dynamic_tag_id', 'bws_override_media_ids_for_post_context', 10, 3 );
 
 // ===============================================
 // CORE FUNCTIONS

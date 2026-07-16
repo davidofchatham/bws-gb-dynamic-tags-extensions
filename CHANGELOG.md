@@ -7,6 +7,10 @@
 - **Internal: split the base-tag foundation into its own file.** The shared source, traversal, and dispatch helpers that every tag family builds on moved from `base-tags.php` into a new `base-shared.php`; `base-tags.php` now holds only the base tag renderers. No behavior change, no tag or option change.
 - **Internal: the `{{text}}` tag's value resolution extracted from its render callback.** The full text read path (source resolution, term/site arms, list modes) now lives in its own function so future tags can reuse the exact same read; the render callback keeps only link-wrapping and the editor preview fallback. No behavior change.
 
+### Removed
+
+- **Internal: dropped a dead GenerateBlocks filter left over from the old image tags.** A media ID override hooked to `generateblocks_dynamic_tag_id` dated from the era when a tag name fixed its source; it was unreachable (eight of its nine tag names stopped registering in 1.14.0, and the ninth, `image`, resolves its source through the traversal pipeline instead). No behavior change.
+
 ## [1.14.0] — 2026-07-08
 
 ### Highlights
