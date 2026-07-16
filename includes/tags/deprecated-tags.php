@@ -7,9 +7,13 @@
  * enabled. As of 1.14.0 no deprecated tag is registered with GB or renders —
  * this file now provides MigrationRegistry data only, so the admin Tag
  * Converter and settings page can still find and migrate old content.
- * bws_deprecated_tag_notice() and the 4 callback factories are kept
- * (currently uncalled) for a future deprecated-tag family that needs live
- * rendering again.
+ *
+ * bws_deprecated_tag_notice() and bws_build_deprecation_preview_label() are
+ * KEPT BY DESIGN and are currently uncalled — retained for a future
+ * deprecated-tag family that needs live rendering again. Do not remove them as
+ * dead code: having no callers is their expected steady state. The 1.14.0
+ * callback factories (bws_make_deprecated_try_callback() and the per-tag
+ * bws_deprecated_*_callback() functions) are gone; only these two remain.
  *
  * Early deprecated tags (pre-1.6.0):
  *   current_post_featured_image  → post_featured_image
@@ -63,6 +67,10 @@ function bws_register_deprecated_tags() {
  * Only triggers when WP_DEBUG is enabled, using WordPress's _doing_it_wrong().
  * Available for external plugins to call from their own deprecated tag callbacks.
  *
+ * @internal Uncalled by design since 1.14.0 (no deprecated tag renders). Kept for
+ *           a future deprecated-tag family that needs live rendering, and as a
+ *           public affordance for external plugins. Not dead code — do not remove
+ *           on a zero-callers sweep.
  * @since 1.0.0
  * @param string $old_tag The deprecated tag name.
  * @param string $new_tag The replacement tag name.
@@ -91,6 +99,10 @@ function bws_deprecated_tag_notice( string $old_tag, string $new_tag, string $si
  * the current option values. When no migration path exists, shows the old tag name
  * with a "no replacement" notice.
  *
+ * @internal Uncalled by design since 1.14.0 (no deprecated tag renders, so nothing
+ *           builds a deprecated tag's editor preview). Kept for a future
+ *           deprecated-tag family that needs live rendering. Not dead code — do not
+ *           remove on a zero-callers sweep.
  * @since 1.6.0
  * @param string      $old_tag          Deprecated tag name.
  * @param array       $old_options      Parsed options from the old tag (old key format).
