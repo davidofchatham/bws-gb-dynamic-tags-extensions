@@ -1,6 +1,6 @@
 <?php
 /**
- * tags-core blueprint — manifest (the data contract).
+ * core-structures blueprint — manifest (the data contract).
  *
  * Pure data: what the seeded site contains, keyed by stable fixture slugs.
  * Consumers (matrices, future Playwright, composing blueprints) pin against
@@ -14,7 +14,7 @@
  */
 
 return array(
-	'blueprint' => 'tags-core',
+	'blueprint' => 'core-structures',
 	'version'   => 1,
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not

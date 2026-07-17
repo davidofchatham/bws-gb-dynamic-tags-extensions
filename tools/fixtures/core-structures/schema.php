@@ -1,8 +1,8 @@
 <?php
 /**
- * tags-core blueprint — schema.
+ * core-structures blueprint — schema.
  *
- * Fixture-defining code for the tags-core blueprint: CPT + taxonomy registration,
+ * Fixture-defining code for the core-structures blueprint: CPT + taxonomy registration,
  * ACF field groups (incl. the collision repeaters and flex fields the
  * field-selector matrix needs), the options page, and registered meta.
  *
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) && ! defined( 'WP_CLI' ) ) {
  * staff      — relationship-field target (src:ref rows).
  * department — term-hop taxonomy (srcTermIn rows + ambient term archive).
  */
-function bws_fixture_tags_core_register_types() {
+function bws_fixture_core_structures_register_types() {
 	register_post_type(
 		'staff',
 		array(
@@ -58,7 +58,7 @@ function bws_fixture_tags_core_register_types() {
  *                   field on post (M9.3 / B7: differing reach keeps both).
  * bws_cat_note    — subtype-registered term meta on category (M9.5).
  */
-function bws_fixture_tags_core_register_meta() {
+function bws_fixture_core_structures_register_meta() {
 	register_post_meta( '', 'bws_global_note', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
 	register_post_meta( 'page', 'bws_page_only', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
 	register_post_meta( '', 'subtitle', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
@@ -79,7 +79,7 @@ function bws_fixture_tags_core_register_meta() {
  *  Page Builder          — two flex fields, each with a Hero layout + headline (M2.6).
  *  Department Details    — term meta fields on the department taxonomy (R3.2–R3.4, M9.5 area).
  */
-function bws_fixture_tags_core_register_acf() {
+function bws_fixture_core_structures_register_acf() {
 	if ( ! function_exists( 'acf_add_local_field_group' ) ) {
 		return;
 	}
@@ -417,7 +417,7 @@ function bws_fixture_tags_core_register_acf() {
 
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
-	add_action( 'init', 'bws_fixture_tags_core_register_types', 5 );
-	add_action( 'init', 'bws_fixture_tags_core_register_meta', 5 );
-	add_action( 'acf/init', 'bws_fixture_tags_core_register_acf', 5 );
+	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
+	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
+	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );
 }

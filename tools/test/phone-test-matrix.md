@@ -8,7 +8,7 @@
 > - **Algorithm (pure, automated):** `php tools/test/phone-normalize-test.php` — 19 cases over VP-hyphen / VP3 / VP-strip / VP4 / VP-href-safe. Run first; must be green before manual rows.
 > - **Integration (manual, WP):** the R-rows below — sources, list mode, `noLink` render, fallback, preview, settings. Run on a WP test instance with **GenerateBlocks (Pro)** + **ACF**, per the runtime-debug workflow (TEST instance, never the live/cached site).
 
-**How to run:** on the fixture testbed, seed the `tags-core` blueprint (see [`tools/fixtures/tags-core/README.md`](../fixtures/tags-core/README.md)) — the page `/phone-matrix/` renders every row below with the fixture keys already substituted; term-hop cases live on `/phone-mixed-terms/` and `/phone-junk-terms/`. Keys named in the rows are the blueprint's fixture keys (`manifest.php` is authoritative). On any other instance, substitute your own keys. Settings rows assume **Settings → Tag Extensions → Phone**.
+**How to run:** on the fixture testbed, seed the `core-structures` blueprint (see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)) — the page `/phone-matrix/` renders every row below with the fixture keys already substituted; term-hop cases live on `/phone-mixed-terms/` and `/phone-junk-terms/`. Keys named in the rows are the blueprint's fixture keys (`manifest.php` is authoritative). On any other instance, substitute your own keys. Settings rows assume **Settings → Tag Extensions → Phone**.
 
 ---
 

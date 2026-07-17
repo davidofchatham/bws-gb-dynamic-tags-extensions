@@ -1,12 +1,12 @@
 <?php
 /**
- * tags-core blueprint — seed applier.
+ * core-structures blueprint — seed applier.
  *
  * Idempotent: reads manifest.php, upserts by fixture slug. Safe to re-run;
  * page content is regenerated from blocks.php every run.
  *
  * Run (from the wp-litespeed env; path shown is the container mount):
- *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/tags-core/seed.php
+ *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/core-structures/seed.php
  *
  * First job: installs a mu-plugin loader stub whose include path is computed
  * from THIS file's location at seed time (nothing environment-specific is
@@ -28,7 +28,7 @@ require_once __DIR__ . '/blocks.php';
 
 $manifest = require __DIR__ . '/manifest.php';
 $log      = function ( $msg ) {
-	WP_CLI::log( '[tags-core] ' . $msg );
+	WP_CLI::log( '[core-structures] ' . $msg );
 };
 
 // ---------------------------------------------------------------------------
@@ -39,19 +39,19 @@ if ( ! is_dir( $mu_dir ) ) {
 	mkdir( $mu_dir, 0755, true );
 }
 $schema_path = __DIR__ . '/schema.php';
-$stub        = "<?php\n// Auto-installed by tags-core seed.php — includes the blueprint schema off the plugin mount.\n"
+$stub        = "<?php\n// Auto-installed by core-structures seed.php — includes the blueprint schema off the plugin mount.\n"
 	. "if ( file_exists( '" . addslashes( $schema_path ) . "' ) ) {\n"
 	. "\trequire_once '" . addslashes( $schema_path ) . "';\n"
 	. "}\n";
-file_put_contents( $mu_dir . '/bws-fixture-tags-core.php', $stub );
-$log( 'mu-plugin loader stub installed → ' . $mu_dir . '/bws-fixture-tags-core.php' );
+file_put_contents( $mu_dir . '/bws-fixture-core-structures.php', $stub );
+$log( 'mu-plugin loader stub installed → ' . $mu_dir . '/bws-fixture-core-structures.php' );
 
 // ---------------------------------------------------------------------------
 // 2. Register schema NOW (init/acf hooks already fired in this CLI run).
 // ---------------------------------------------------------------------------
-bws_fixture_tags_core_register_types();
-bws_fixture_tags_core_register_meta();
-bws_fixture_tags_core_register_acf();
+bws_fixture_core_structures_register_types();
+bws_fixture_core_structures_register_meta();
+bws_fixture_core_structures_register_acf();
 $have_acf = function_exists( 'update_field' );
 $log( 'schema registered (ACF ' . ( $have_acf ? 'present' : 'ABSENT — scalar fallback' ) . ')' );
 

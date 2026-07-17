@@ -1,13 +1,13 @@
 <?php
 /**
- * tags-core blueprint — post-seed smoke test.
+ * core-structures blueprint — post-seed smoke test.
  *
  * Renders through the real seam (wp() + fake GB instance) against the seeded
  * /phone-matrix/ page. NOT a matrix replacement — the matrices own the full
  * assertion set; this proves the applier landed and the seam reads it.
  *
  * Run (after seed.php, from the wp-litespeed env):
- *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/tags-core/verify.php \
+ *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/core-structures/verify.php \
  *     --url=https://<site-domain>/phone-matrix/
  *
  * Assumes the seeded settings baseline (global CC 1, strip OFF).

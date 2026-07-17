@@ -1,4 +1,4 @@
-# tags-core blueprint
+# core-structures blueprint
 
 First fixture blueprint (fixture-testbed FW-42). Seeds the state the two existing
 manual matrices assume:
@@ -26,20 +26,20 @@ Prereqs: a dedicated test site with GenerateBlocks (Pro) + ACF Pro active
 (licensed baseline saved via the env's snapshot tool). From the wp-litespeed env:
 
 ```bash
-bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/tags-core/seed.php
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/seed.php
 ```
 
 Then smoke-test:
 
 ```bash
-bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/tags-core/verify.php \
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify.php \
   --url=https://<site-domain>/phone-matrix/
 ```
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
 Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
 the phone matrix's default state) into `bws_dynamic_tags_settings`.
-`seed.php` also installs `mu-plugins/bws-fixture-tags-core.php`, a loader stub
+`seed.php` also installs `mu-plugins/bws-fixture-core-structures.php`, a loader stub
 whose include path is computed at seed time (nothing machine-specific committed),
 so the schema survives snapshot restores.
 

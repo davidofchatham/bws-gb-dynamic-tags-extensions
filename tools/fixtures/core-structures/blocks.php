@@ -1,6 +1,6 @@
 <?php
 /**
- * tags-core blueprint — GB block markup generator.
+ * core-structures blueprint — GB block markup generator.
  *
  * Builds GenerateBlocks page content for the matrix pages from tag strings.
  * Four shapes cover every flat matrix row (reference corpus:

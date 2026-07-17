@@ -20,8 +20,8 @@ truncation.
 >   workflow (TEST instance, never the live/cached site).
 
 **How to run:** add a GenerateBlocks block, add a dynamic tag, open its config, and
-drive the field controls. On the fixture testbed, seed the `tags-core` blueprint
-(see [`tools/fixtures/tags-core/README.md`](../fixtures/tags-core/README.md)) —
+drive the field controls. On the fixture testbed, seed the `core-structures` blueprint
+(see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)) —
 field/group names in the rows are that blueprint's fixture names (`schema.php` /
 `manifest.php` authoritative). On any other instance, substitute your own.
 
@@ -122,11 +122,11 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 
 The pure harness (`field-discovery-test.php`) covers the dedupe/scope LOGIC on
 synthetic envelopes; these rows verify it against LIVE `get_registered_meta_keys`
-output. **Fixture:** the `tags-core` blueprint registers all four keys —
+output. **Fixture:** the `core-structures` blueprint registers all four keys —
 `bws_global_note` (global), `bws_page_only` (page-only), `subtitle` (global,
 colliding with the ACF `subtitle` field on post), `bws_cat_note`
 (`register_term_meta` on category) — see
-[`tools/fixtures/tags-core/schema.php`](../fixtures/tags-core/schema.php)
+[`tools/fixtures/core-structures/schema.php`](../fixtures/core-structures/schema.php)
 `bws_fixture_tags_core_register_meta()`.
 
 | # | Action | Expect |
