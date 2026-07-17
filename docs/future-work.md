@@ -63,6 +63,12 @@ never orphans a reference.
 | FW-19 | Base-tag distinguishing suffixes | e.g. "Text (cross-source)". | — | — | Under consideration |
 | FW-38 | Explicit `registered_by` + `lifecycle` entry fields (retire the callback proxy) | Path Y follow-on to the FW-36 split (shipped 1.14.0) / its §B1 correction. Today tag box-placement leans on callback-presence as a de-facto "internal-removed vs external-still-registered" marker, with a `prefix_removed` override bolted on (interim; `MigrationRegistry::is_entry_live()` PHPDoc + CONTEXT.md I10). Principled replacement: record `registered_by` (internal vs external plugin id) and `lifecycle` (`unset=active` \| `deprecated` \| `removed`) at `register()` time; box placement reads `lifecycle` only, callback becomes irrelevant to classification, internal-removed entries carry an explicit `removed` marker. Feeds portal-system coordination (external declares its own `registered_by` + `lifecycle`; handoff in `bws-portal-system/.claude/plans/prefix-removed-handoff.md`). NOT this release. | — | — | memory `project_registered_by_lifecycle.md`; CONTEXT.md I10 (interim state it replaces) |
 
+### Testing & infrastructure
+
+| ID | Item | Description | Blocked by | Interacts with | Detail home |
+|---|---|---|---|---|---|
+| FW-42 | Fixture testbed (seeded WP site + render seam) | Dedicated browsable fixture site on the wp-litespeed env; blueprint-composing seed (`tools/fixtures/<blueprint>/` = manifest.php data contract + schema.php + seed.php; env `bin/seed.sh` runner) so sibling plugins (portal-system, Meta Conductor) compose shared infrastructure while owning their fixtures; `wp bws render-tag --url` seam (spike PROVEN 2026-07-16, `tools/debug/spike-render-seam.php`) makes discovery rows + manual matrix rows one CLI call. Deliverable A = seed the two existing matrices' state; B accretes per-tag manifests (spec work). | — | FW-3 (datetime term-ambient row is FW-3(a)'s pre-written acceptance test), FW-13 (editor surface eyeball env) | `.claude/plans/fixture-testbed.md` |
+
 ### Future possibilities
 
 | ID | Item | Description | Blocked by | Interacts with | Detail home |
