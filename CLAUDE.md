@@ -12,14 +12,35 @@ See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) 
 
 No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 
-Tests are **standalone PHP harnesses** under `tools/test/` — no framework, no autoload; each
-copies the pure functions it exercises inline (house pattern) and runs via `php tools/test/<name>.php`,
+**Two test layers — run the pure harness always, route integration through the testbed.**
+
+1. **Pure PHP harnesses** under `tools/test/` — no framework, no autoload; each copies the
+pure functions it exercises inline (house pattern) and runs via `php tools/test/<name>.php`,
 exiting non-zero on failure. Run the one whose domain you touched (see §Update triggers for the
 key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
 `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
-`slot-qualify-show-if-test.php`. Some domains ALSO have a manual `*-test-matrix.md` (integration
-rows exercised by hand) — noted per trigger. No CI runs these; run them locally before commit.
+`slot-qualify-show-if-test.php`. No CI runs these; run them locally before commit.
+
+2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
+WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
+there is a seeded WP site on the local OpenLiteSpeed/Docker env at `D:/Environments/wp-litespeed`,
+site `testbed`. **Prefer routing integration smoke tests through it over hand-built pages or
+live-site probes.** Two entrypoints:
+   - **Render a tag with real ambient context:**
+     `bin/wp.sh testbed bws render-tag '{{...}}' --url=https://testbed.test/<context>/`
+     (`--loop-item=<id>` for a synthetic query-loop row, `--porcelain` for output-only). Runs
+     the real main query so `is_tax()`/queried-object/current-post are genuine. This is the
+     cheap what-if / discovery-row engine — use it before building a page to answer "what does
+     this tag do on context X".
+   - **(Re)seed fixture state:** `bin/seed.sh testbed core-structures` (idempotent). The
+     `core-structures` **blueprint** (`tools/fixtures/core-structures/`) seeds the state the
+     two `*-test-matrix.md` files assume — matrix pages are split by source-state
+     (`matrix-post-meta`, `matrix-terms-valid|mixed|junk`); tag families accrete rows into them.
+     See `tools/fixtures/core-structures/README.md`. Full design: `.claude/plans/fixture-testbed.md`.
+
+The manual `*-test-matrix.md` files (integration rows exercised by hand / via `render-tag`) are
+noted per trigger — run against the testbed, never the live/cached site.
 
 ## Documentation ownership
 
@@ -51,8 +72,9 @@ Single source of truth per content type. Other files link, never duplicate.
 |---|---|
 | New source class / template / option key | `tag-reference.md` first; CHANGELOG entry |
 | New/changed editor preview text (a `bws_build_preview_label` case) | `editor-tag-previews.md` (markers/field-part/warning/example rows) + run `php tools/test/preview-label-test.php` |
-| Phone normalize / render / settings change (`bws_phone_normalize_tel` + sub-helpers, `bws_phone_callback`, `bws_phone_render_one`, phone settings/preview) | run `php tools/test/phone-normalize-test.php` (algorithm) + `tools/test/phone-test-matrix.md` manual rows (integration) |
-| Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` manual rows (control/integration) |
+| Phone normalize / render / settings change (`bws_phone_normalize_tel` + sub-helpers, `bws_phone_callback`, `bws_phone_render_one`, phone settings/preview) | run `php tools/test/phone-normalize-test.php` (algorithm) + `tools/test/phone-test-matrix.md` rows against the testbed (`bws render-tag` / matrix pages; §Development) |
+| Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` rows against the testbed editor (§Development) |
+| New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`; keep matrices linking, not duplicating |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry |
