@@ -20,7 +20,10 @@ truncation.
 >   workflow (TEST instance, never the live/cached site).
 
 **How to run:** add a GenerateBlocks block, add a dynamic tag, open its config, and
-drive the field controls. `[SUB …]` = a real field on your instance.
+drive the field controls. On the fixture testbed, seed the `tags-core` blueprint
+(see [`tools/fixtures/tags-core/README.md`](../fixtures/tags-core/README.md)) —
+field/group names in the rows are that blueprint's fixture names (`schema.php` /
+`manifest.php` authoritative). On any other instance, substitute your own.
 
 ---
 
@@ -49,20 +52,20 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 
 | # | Action | Expect |
 |---|---|---|
-| M2.1 | Filter fields by location = `Post fields › [SUB group]` | List narrows to that group's fields |
+| M2.1 | Filter fields by location = `Post fields › Event Details` | List narrows to that group's fields |
 | M2.2 | A repeater / group path segment | Flagged `(repeater)` / `(group)` in the location dropdown |
 | M2.3 | Filter fields by type = a specific type (Date/Email/…) | List narrows to that ACF type |
 | M2.4 | Filter fields by type = **Loop fields** | Any field with a loop (repeater/flex row) home; a field that ALSO resolves outside a row still shows ("usable in a loop", NOT "row-exclusive") |
 | M2.5 | Both filters at once | List = intersection (AND) |
-| M2.6 | **Flex breadcrumb (F1), DEFERRED — needs the fixture below.** In an ACF group, add a **Flexible Content** field labelled `Blocks` with a layout labelled `Hero` containing a sub-field `Headline` (name `headline`). Open a base tag's key picker on a post type that group targets, open the Location filter | The `Headline` sub-field's location path is **`Post fields › <Group> › Blocks › Hero`** — i.e. it nests under the flex field's own label (`Blocks`), not a bare `Hero`. Add a SECOND flex field `Sidebar` with its own `Hero` layout + `headline` to confirm the two `Headline`s live under distinct paths (`… › Blocks › Hero` vs `… › Sidebar › Hero`), not collapsed to one `Hero`. (Pure test already asserts the `Blocks › Hero` parent_path; this confirms the Location UI reads it.) |
+| M2.6 | **Flex breadcrumb (F1).** Fixture ships this: the **Page Builder** group (page) has flex `Blocks` with a `Hero` layout containing `Headline` (name `headline`), AND a second flex `Sidebar` with its own `Hero` + `headline`. Open a base tag's key picker on a page, open the Location filter | The `Headline` sub-field's location path is **`Post fields › Page Builder › Blocks › Hero`** — i.e. it nests under the flex field's own label (`Blocks`), not a bare `Hero`. The second flex confirms the two `Headline`s live under distinct paths (`… › Blocks › Hero` vs `… › Sidebar › Hero`), not collapsed to one `Hero`. (Pure test already asserts the `Blocks › Hero` parent_path; this confirms the Location UI reads it.) |
 
 ## M3 — flat list + merge (the two duplicate scenarios)
 
 | # | Setup (needs the collisions on your instance) | Expect |
 |---|---|---|
-| M3.1 | Same key, **different** labels (e.g. `name` = "Name" in one repeater, "Feature Name" in another) | TWO separate rows, told apart by label |
-| M3.2 | Same key, **same** label (e.g. `description` in two repeaters) | ONE row; it appears under BOTH location filters it belongs to |
-| M3.3 | A field key present in ≥2 field groups | ONE row (not duplicated); shows under each group's location filter |
+| M3.1 | Same key, **different** labels (fixture: `name` = "Name" in Team's repeater, "Feature Name" in Product Features') | TWO separate rows, told apart by label |
+| M3.2 | Same key, **same** label (fixture: `description` = "Description" in both repeaters) | ONE row; it appears under BOTH location filters it belongs to |
+| M3.3 | A field key present in ≥2 field groups (fixture: `contact_email` in Staff Contact + Event Details) | ONE row (not duplicated); shows under each group's location filter |
 | M3.4 | Any list | Flat labels — no breadcrumb, no loop-only marker. A field WITH a distinct label shows `Label ('key')`; a field with NO label (label falls back to key) shows the key ONCE (`event_date`, not `event_date ('event_date')`) |
 | M3.4a | A list containing underscore-prefixed keys (`_gb_conditions`, `_acf_changed`, etc.) | Those keys are DEMOTED to the bottom of the list (still alphabetical among themselves), below all normal-keyed fields. Not hidden — still selectable/resolvable. A `_`-key that HAS a real label still demotes but keeps its `Label ('_key')` display |
 | M3.5 | Pick a row for an **unambiguous** key (one record), save + reopen | Serializes the BARE key; reopen shows the friendly `Label ('key')` row selected (injected even if a filter would hide it, V12) |
@@ -75,7 +78,7 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 |---|---|---|
 | M4.1 | Base `key`, no source, location = All | "Meta/Option Field Key" |
 | M4.2 | Location narrowed to `Post fields` | "Post Meta Field" |
-| M4.3 | Location narrowed to a group `… › [SUB group]` | "[SUB group] Field" |
+| M4.3 | Location narrowed to a group `… › Event Details` | "Event Details Field" |
 | M4.4 | `srcTermIn` set (term tag) | Presets location to Term fields → "Term Meta Field" |
 | M4.5 | `src:site` | Presets location to Site fields → "Site Option Field" |
 | M4.5b | `src:ref` set | Location stays **"All detected fields"** (NOT preset to Post), label stays generic **"Meta/Option Field"**; ref-hop target PT is unknown, so no auto-scope (V3) |
@@ -119,17 +122,12 @@ drive the field controls. `[SUB …]` = a real field on your instance.
 
 The pure harness (`field-discovery-test.php`) covers the dedupe/scope LOGIC on
 synthetic envelopes; these rows verify it against LIVE `get_registered_meta_keys`
-output. **Fixture** — drop in a mu-plugin or `functions.php` on the test instance:
-
-```php
-// Global registered post meta (all post types).
-register_post_meta( '', 'bws_global_note', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
-// Subtype-registered meta (ONE post type only — pick a real CPT/type, e.g. 'page').
-register_post_meta( 'page', 'bws_page_only', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
-// A registered key that COLLIDES with an ACF field name on ONE post type.
-// (Create an ACF field named `subtitle` on a group located to post_type == post.)
-register_post_meta( '', 'subtitle', array( 'type' => 'string', 'single' => true, 'show_in_rest' => true ) );
-```
+output. **Fixture:** the `tags-core` blueprint registers all four keys —
+`bws_global_note` (global), `bws_page_only` (page-only), `subtitle` (global,
+colliding with the ACF `subtitle` field on post), `bws_cat_note`
+(`register_term_meta` on category) — see
+[`tools/fixtures/tags-core/schema.php`](../fixtures/tags-core/schema.php)
+`bws_fixture_tags_core_register_meta()`.
 
 | # | Action | Expect |
 |---|---|---|
@@ -137,7 +135,7 @@ register_post_meta( '', 'subtitle', array( 'type' => 'string', 'single' => true,
 | M9.2 | Same picker | `bws_page_only` (subtype-registered to `page`) is ALSO listed — subtype meta is no longer invisible (B8). Before the fix it was absent |
 | M9.3 | With the ACF `subtitle` field (on `post`) AND the global registered `subtitle` both defined | BOTH survive: the picker shows the ACF `subtitle` (its richer label/type) and does NOT drop the global registered `subtitle`. Same reach would merge; differing reach keeps both (B7) |
 | M9.4 | Sanity: scan the list for junk | NO keys from built-in container subtypes (`revision`, `nav_menu_item`, `attachment` unless you registered any) flood the list — empty subtypes yield no group |
-| M9.5 | Register a `register_term_meta( 'category', 'bws_cat_note', … )`, open a `srcTermIn:category` tag's key picker | `bws_cat_note` appears under term fields (subtype term meta discovered) |
+| M9.5 | With the fixture's `register_term_meta( 'category', 'bws_cat_note', … )` active, open a `srcTermIn:category` tag's key picker | `bws_cat_note` appears under term fields (subtype term meta discovered) |
 
 ## M10 — reopen selection (V12, post-memoization)
 
