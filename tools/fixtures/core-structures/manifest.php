@@ -76,6 +76,14 @@ return array(
 			'post_title' => 'Jane Partner',
 		),
 
+		// Second relationship target — src:ref LIST mode rows need >1 related
+		// post to distinguish all-results from first-only (text matrix T7).
+		'staff-tom-associate' => array(
+			'post_type'  => 'staff',
+			'post_name'  => 'tom-associate',
+			'post_title' => 'Tom Associate',
+		),
+
 		// Matrix pages split BY SOURCE-STATE, not by tag family — every tag
 		// family adds its rows to the page whose carried state it needs.
 
@@ -135,6 +143,11 @@ return array(
 			'contact_email' => 'jane@example.test',
 		),
 
+		'staff-tom-associate' => array(
+			'main_line'     => '(555) 200-4000',
+			'contact_email' => 'tom@example.test',
+		),
+
 		'page-matrix-post-meta' => array(
 			// R0 — href rebuild, global CC 1, strip OFF
 			'main_line'        => '(987) 654-3210',            // R0.1
@@ -159,7 +172,7 @@ return array(
 			'unused_line'      => '',                          // R3.5 empty
 			'short_code'       => '12345',                     // R3.6 length gate
 			'hacked_line'      => '+1-987"><script>654-3210',  // R6.1
-			'related_staff'    => array( 'staff-jane-partner' ), // R4.4 (slug resolved to ID at seed)
+			'related_staff'    => array( 'staff-jane-partner', 'staff-tom-associate' ), // R4.4 + text T7 list mode (slugs resolved to IDs at seed; jane FIRST — limit:1 rows pin her)
 		),
 
 		'post-sample-event' => array(
@@ -186,7 +199,8 @@ return array(
 			'subtitle'        => 'registered subtitle value', // overwritten by ACF value above where both apply
 		),
 		'page-matrix-post-meta' => array(
-			'bws_page_only' => 'page-only note value',
+			'bws_page_only'  => 'page-only note value',
+			'bws_zero_probe' => '0', // text matrix T5 — '0' is a REAL value, must render
 		),
 	),
 

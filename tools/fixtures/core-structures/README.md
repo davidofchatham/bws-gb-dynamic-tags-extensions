@@ -5,6 +5,7 @@ manual matrices assume:
 
 - [`tools/test/phone-test-matrix.md`](../../test/phone-test-matrix.md)
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
+- [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
