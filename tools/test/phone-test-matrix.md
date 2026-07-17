@@ -8,7 +8,7 @@
 > - **Algorithm (pure, automated):** `php tools/test/phone-normalize-test.php` — 19 cases over VP-hyphen / VP3 / VP-strip / VP4 / VP-href-safe. Run first; must be green before manual rows.
 > - **Integration (manual, WP):** the R-rows below — sources, list mode, `noLink` render, fallback, preview, settings. Run on a WP test instance with **GenerateBlocks (Pro)** + **ACF**, per the runtime-debug workflow (TEST instance, never the live/cached site).
 
-**How to run:** on the fixture testbed, seed the `core-structures` blueprint (see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)) — the page `/phone-matrix/` renders every row below with the fixture keys already substituted; term-hop cases live on `/phone-mixed-terms/` and `/phone-junk-terms/`. Keys named in the rows are the blueprint's fixture keys (`manifest.php` is authoritative). On any other instance, substitute your own keys. Settings rows assume **Settings → Tag Extensions → Phone**.
+**How to run:** on the fixture testbed, seed the `core-structures` blueprint (see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)) — the page `/matrix-post-meta/` renders every row below with the fixture keys already substituted; term-hop cases live on `/matrix-terms-mixed/` and `/matrix-terms-junk/`. Keys named in the rows are the blueprint's fixture keys (`manifest.php` is authoritative). On any other instance, substitute your own keys. Settings rows assume **Settings → Tag Extensions → Phone**.
 
 ---
 
@@ -65,9 +65,9 @@ Fixture keys: `flat_tollfree` (R2b.1/R2b.2/R2b.4), `flat_local` (R2b.3).
 | # | Setup | Tag | Expected |
 |---|---|---|---|
 | R3.1 | field `07911 123456` | `{{phone key:uk_mobile\|noLink}}` | `07911 123456` (**plain text, stored verbatim**, no anchor) |
-| R3.2 | `/phone-matrix/` (terms support + sales, both valid) | `{{phone srcTermIn:department\|key:phone\|limit:5}}` | each valid number its own `<a tel:>`, joined by `, ` (`limit` defaults to **1** — without it only the first term renders) |
-| R3.3 | `/phone-mixed-terms/` (adds warehouse, value `abc`) | as R3.2 | junk term **skipped**; valid ones joined (strict, no plain passthrough) |
-| R3.4 | `/phone-junk-terms/` (warehouse only) | as R3.2 + `\|fallback:555-123-4567` | fallback number wrapped (fires only on all-empty) |
+| R3.2 | `/matrix-post-meta/` (terms support + sales, both valid) | `{{phone srcTermIn:department\|key:phone\|limit:5}}` | each valid number its own `<a tel:>`, joined by `, ` (`limit` defaults to **1** — without it only the first term renders) |
+| R3.3 | `/matrix-terms-mixed/` (adds warehouse, value `abc`) | as R3.2 | junk term **skipped**; valid ones joined (strict, no plain passthrough) |
+| R3.4 | `/matrix-terms-junk/` (warehouse only) | as R3.2 + `\|fallback:555-123-4567` | fallback number wrapped (fires only on all-empty) |
 | R3.5 | field empty, no fallback | `{{phone key:unused_line}}` | empty output on front end |
 | R3.6 | field `12345` (too short) | `{{phone key:short_code}}` | empty (length gate <7) — VP4 |
 

@@ -18,7 +18,7 @@ listed in `manifest.php` `defines` — reuse via composition instead.
 | `schema.php` | Code — CPT/taxonomy registration, ACF groups, options page, registered meta. Loaded at runtime by the mu-plugin stub `seed.php` installs. |
 | `seed.php` | Idempotent applier — reads the manifest, upserts by fixture slug. `wp eval-file`-able. |
 | `blocks.php` | GB block markup generator (4 shapes) — builds the matrix pages' content from tag strings. |
-| `verify.php` | Post-seed smoke test — renders through the real seam against `/phone-matrix/`. Not a matrix replacement. |
+| `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
 
 ## Seeding
 
@@ -33,7 +33,7 @@ Then smoke-test:
 
 ```bash
 bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify.php \
-  --url=https://<site-domain>/phone-matrix/
+  --url=https://<site-domain>/matrix-post-meta/
 ```
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
@@ -46,9 +46,11 @@ so the schema survives snapshot restores.
 ## Seeded surface (summary — manifest.php is authoritative)
 
 - CPT `staff`, taxonomy `department` (post/page/staff).
-- Pages `phone-matrix` (full phone value set + valid-terms hop), `phone-mixed-terms`
-  (one junk term), `phone-junk-terms` (all junk → fallback); post `sample-event`
-  (discovery edge cases); staff `jane-partner` (src:ref target).
+- Matrix pages split **by source-state** (tag families accrete rows INTO each):
+  `matrix-post-meta` (explicit reads: full field value set + src:site + src:ref),
+  `matrix-terms-valid`, `matrix-terms-mixed` (one junk term), `matrix-terms-junk`
+  (all junk → fallback); post `sample-event` (discovery edge cases); staff
+  `jane-partner` (src:ref target).
 - Options page **Site Settings** with `organization_*` fields.
 - Collision repeaters (Team / Product Features), two flex fields (Page Builder),
   registered-meta set (`bws_global_note`, `bws_page_only`, `subtitle`, `bws_cat_note`),

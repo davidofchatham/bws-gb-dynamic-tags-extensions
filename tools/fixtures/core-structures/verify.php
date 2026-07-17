@@ -3,12 +3,12 @@
  * core-structures blueprint — post-seed smoke test.
  *
  * Renders through the real seam (wp() + fake GB instance) against the seeded
- * /phone-matrix/ page. NOT a matrix replacement — the matrices own the full
+ * /matrix-post-meta/ page. NOT a matrix replacement — the matrices own the full
  * assertion set; this proves the applier landed and the seam reads it.
  *
  * Run (after seed.php, from the wp-litespeed env):
  *   bin/wp.sh <site> eval-file <mounted-repo>/tools/fixtures/core-structures/verify.php \
- *     --url=https://<site-domain>/phone-matrix/
+ *     --url=https://<site-domain>/matrix-post-meta/
  *
  * Assumes the seeded settings baseline (global CC 1, strip OFF).
  */
@@ -23,8 +23,8 @@ wp(); // real main query from --url
 $instance          = new stdClass();
 $instance->context = [];
 
-$page = get_page_by_path( 'phone-matrix' );
-$check( 'page phone-matrix exists', $page instanceof WP_Post );
+$page = get_page_by_path( 'matrix-post-meta' );
+$check( 'page matrix-post-meta exists', $page instanceof WP_Post );
 $check( 'page has generated GB content', $page && strpos( $page->post_content, 'wp:generateblocks/text' ) !== false );
 $check( 'page meta main_line', get_post_meta( $page->ID, 'main_line', true ) === '(987) 654-3210', var_export( get_post_meta( $page->ID, 'main_line', true ), true ) );
 
@@ -34,9 +34,9 @@ $check( 'term meta phone', $term && get_term_meta( $term->term_id, 'phone', true
 
 $check( 'option org_phone', get_option( 'options_org_phone' ) === '(987) 555-0000', var_export( get_option( 'options_org_phone' ), true ) );
 
-// Render seam end-to-end: phone tag off the phone-matrix page context.
+// Render seam end-to-end: phone tag off the matrix-post-meta page context.
 $out = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone key:main_line}}', [], $instance );
-$check( 'render {{phone key:main_line}} on /phone-matrix/ (CC 1 baseline)', strpos( (string) $out, 'tel:+1-987-654-3210' ) !== false, 'out=' . var_export( $out, true ) );
+$check( 'render {{phone key:main_line}} on /matrix-post-meta/ (CC 1 baseline)', strpos( (string) $out, 'tel:+1-987-654-3210' ) !== false, 'out=' . var_export( $out, true ) );
 
 $out2 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone srcTermIn:department|key:phone|limit:5}}', [], $instance );
 $check( 'term-hop renders both valid dept numbers', strpos( (string) $out2, '987-111-2222' ) !== false && strpos( (string) $out2, '987-333-4444' ) !== false, 'out=' . var_export( $out2, true ) );

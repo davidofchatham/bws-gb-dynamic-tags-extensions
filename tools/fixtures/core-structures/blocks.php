@@ -106,15 +106,17 @@ function bws_fixture_gb_row( $label, $tag ) {
 }
 
 /**
- * Page content: phone-matrix (page-phone-matrix).
- * One row per phone matrix R-row that reads THIS page's meta. Settings-dependent
- * rows (global CC / strip toggles) render the same tag; the matrix says which
- * setting state to view under.
+ * Page content: matrix-post-meta (page-matrix-post-meta).
+ * Split axis is SOURCE-STATE: this page = explicit reads off the current post
+ * (+ src:site, src:ref). One section group per tag family — phone now; other
+ * families append their sections here as they accrete (Deliverable B).
+ * Settings-dependent rows (global CC / strip toggles) render the same tag; the
+ * matrix says which setting state to view under.
  */
-function bws_fixture_page_content_phone_matrix() {
+function bws_fixture_page_content_matrix_post_meta() {
 	$sections = array();
 
-	$sections[] = bws_fixture_gb_section( 'R0 - href rebuild', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R0 - href rebuild', array(
 		bws_fixture_gb_row( 'R0.1', '{{phone key:main_line}}' ),
 		bws_fixture_gb_row( 'R0.2', '{{phone key:booking_line}}' ),
 		bws_fixture_gb_row( 'R0.3', '{{phone key:after_hours_line}}' ),
@@ -122,40 +124,40 @@ function bws_fixture_page_content_phone_matrix() {
 		bws_fixture_gb_row( 'R0.5', '{{phone key:intl_desk}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R1 - country code + trunk-0', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R1 - country code + trunk-0', array(
 		bws_fixture_gb_row( 'R1.1', '{{phone key:us_toll_free}}' ),
 		bws_fixture_gb_row( 'R1.2', '{{phone key:intl_exchange}}' ),
 		bws_fixture_gb_row( 'R1.3/R1.4', '{{phone key:uk_mobile}}' ),
 		bws_fixture_gb_row( 'R1.5', '{{phone key:sms_number}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R2 - separated-CC dedupe', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R2 - separated-CC dedupe', array(
 		bws_fixture_gb_row( 'R2.1/R2.2/R2.6', '{{phone key:support_tollfree}}' ),
 		bws_fixture_gb_row( 'R2.3', '{{phone key:sales_tollfree}}' ),
 		bws_fixture_gb_row( 'R2.4', '{{phone key:fax_tollfree}}' ),
 		bws_fixture_gb_row( 'R2.5', '{{phone key:intl_support}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R2b - flat leading CC', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R2b - flat leading CC', array(
 		bws_fixture_gb_row( 'R2b.1/R2b.2/R2b.4', '{{phone key:flat_tollfree}}' ),
 		bws_fixture_gb_row( 'R2b.3', '{{phone key:flat_local}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R3 - noLink / list / fallback', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R3 - noLink / list / fallback', array(
 		bws_fixture_gb_row( 'R3.1', '{{phone key:uk_mobile|noLink}}' ),
 		bws_fixture_gb_row( 'R3.2', '{{phone srcTermIn:department|key:phone|limit:5}}' ),
 		bws_fixture_gb_row( 'R3.5', '{{phone key:unused_line}}' ),
 		bws_fixture_gb_row( 'R3.6', '{{phone key:short_code}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R4 - extension + sources', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R4 - extension + sources', array(
 		bws_fixture_gb_row( 'R4.1', '{{phone key:front_desk_ext}}' ),
 		bws_fixture_gb_row( 'R4.2', '{{phone src:site|key:org_phone}}' ),
 		bws_fixture_gb_row( 'R4.3', '{{phone src:current|key:main_line}}' ),
 		bws_fixture_gb_row( 'R4.4', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'R6 - security', array(
+	$sections[] = bws_fixture_gb_section( 'Phone R6 - security', array(
 		bws_fixture_gb_row( 'R6.1', '{{phone key:hacked_line}}' ),
 	) );
 
@@ -163,11 +165,11 @@ function bws_fixture_page_content_phone_matrix() {
 }
 
 /**
- * Page content: term-hop pages (page-phone-mixed-terms / page-phone-junk-terms).
+ * Page content: term-hop pages (page-matrix-terms-mixed / page-matrix-terms-junk).
  * Same tags; the page's assigned terms make the case (R3.3 mixed / R3.4 all-junk).
  */
-function bws_fixture_page_content_phone_term_hop() {
-	return bws_fixture_gb_section( 'Term hop (R3.2-R3.4)', array(
+function bws_fixture_page_content_matrix_term_hop() {
+	return bws_fixture_gb_section( 'Phone term hop (R3.2-R3.4)', array(
 		bws_fixture_gb_row( 'no fallback', '{{phone srcTermIn:department|key:phone|limit:5}}' ),
 		bws_fixture_gb_row( 'with fallback', '{{phone srcTermIn:department|key:phone|limit:5|fallback:555-123-4567}}' ),
 	) );
@@ -176,8 +178,8 @@ function bws_fixture_page_content_phone_term_hop() {
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
-		'phone_matrix'   => 'bws_fixture_page_content_phone_matrix',
-		'phone_term_hop' => 'bws_fixture_page_content_phone_term_hop',
+		'matrix_post_meta' => 'bws_fixture_page_content_matrix_post_meta',
+		'matrix_term_hop'  => 'bws_fixture_page_content_matrix_term_hop',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';
