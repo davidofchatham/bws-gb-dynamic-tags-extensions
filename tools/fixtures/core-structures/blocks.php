@@ -161,6 +161,33 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'R6.1', '{{phone key:hacked_line}}' ),
 	) );
 
+	// text read-seam matrix (text-test-matrix.md). Standing rendered rows for
+	// bws_base_text_resolve_value + the shell wrap gate. Term-hop rows (T4) live
+	// on the term-archive pages; the src:ref target order (jane first) is pinned
+	// by the manifest.
+	$sections[] = bws_fixture_gb_section( 'Text T1 - post arm + wrap gate', array(
+		bws_fixture_gb_row( 'T1.1', '{{text key:main_line}}' ),
+		bws_fixture_gb_row( 'T1.2', '{{text key:main_line|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T1.3', '{{text use:title|linkTo:permalink|newTab}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Text T3 - srcTermIn list: multi never wraps', array(
+		bws_fixture_gb_row( 'T3.1', '{{text srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'T3.2', '{{text srcTermIn:department|use:title|limit:2|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T3.3', '{{text srcTermIn:department|use:title|limit:1|linkTo:permalink}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Text T5 - zero preservation', array(
+		bws_fixture_gb_row( 'T5.1', '{{text key:bws_zero_probe}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Text T7 - src:ref list mode', array(
+		bws_fixture_gb_row( 'T7.1', '{{text src:ref|ref:related_staff|use:title}}' ),
+		bws_fixture_gb_row( 'T7.2', '{{text src:ref|ref:related_staff|use:title|limit:5}}' ),
+		bws_fixture_gb_row( 'T7.3', '{{text src:ref|ref:related_staff|use:title|limit:5|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'T7.4', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 
@@ -172,6 +199,13 @@ function bws_fixture_page_content_matrix_term_hop() {
 	return bws_fixture_gb_section( 'Phone term hop (R3.2-R3.4)', array(
 		bws_fixture_gb_row( 'no fallback', '{{phone srcTermIn:department|key:phone|limit:5}}' ),
 		bws_fixture_gb_row( 'with fallback', '{{phone srcTermIn:department|key:phone|limit:5|fallback:555-123-4567}}' ),
+	) )
+	// text srcTermIn hop, term ACF field (email) — a post-context read of its
+	// terms' fields. Matrix T4 proper (BARE tag on a term ARCHIVE → term-analog
+	// arm) is NOT page-embeddable — it needs the archive as ambient context;
+	// run it via `render-tag --url=/department/support/` (matrix T4.1/T4.2).
+	. "\n\n" . bws_fixture_gb_section( 'Text - term field via srcTermIn hop', array(
+		bws_fixture_gb_row( 'text-term-hop', '{{text srcTermIn:department|key:email|limit:2}}' ),
 	) );
 }
 
