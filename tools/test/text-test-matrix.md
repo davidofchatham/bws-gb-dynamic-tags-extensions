@@ -23,8 +23,8 @@ Contexts used: `/matrix-post-meta/` (post arm; carries Support + Sales departmen
 `related_staff` → Jane Partner, Tom Associate — jane first) and `/department/support/` (term
 archive → term-analog arm). T6 is editor-only (open a block on the testbed editor).
 
-> Verified 2026-07-17 against the 1.14.1 extraction: T1, T3, T4, T5, T7 all pass via
-> `render-tag`; T6 pending an editor pass.
+> Verified 2026-07-17 against the 1.14.1 extraction: T1, T3, T4, T5, T7 pass via
+> `render-tag`; T6 passes via a direct callback call with a faked preview context.
 
 ---
 
@@ -63,11 +63,21 @@ rows here.
 |---|---|---|
 | T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows bare `0`; in a real GB block render the hooks.php `'0'`→`'0 '` falsy guard applies downstream.) |
 
-## T6 — editor preview fallback (editor-only)
+## T6 — editor preview fallback
 
-| # | Action | Expected |
+The shell callback's `bwsEditorPreview` branch — driveable without the editor by
+faking the context flag on the instance (`wp eval` on the testbed):
+
+```php
+$inst = new stdClass(); $inst->context = array( 'bwsEditorPreview' => true );
+bws_base_text_callback( array( 'key' => 'nonexistent_key_xyz' ), array( 'blockName' => 'generateblocks/text' ), $inst );
+```
+
+| # | Case | Expected |
 |---|---|---|
-| T6.1 | `{{text key:nonexistent_key}}` in a block on the testbed editor | preview label renders (bracket placeholder), block not blank |
+| T6.1 | empty key, `bwsEditorPreview` on | preview label renders (bracket placeholder, e.g. `['nonexistent_key_xyz']`), NOT blank |
+| T6.2 | real key, `bwsEditorPreview` on | real value, no placeholder |
+| T6.3 | empty key, no preview context (front end) | empty string (no placeholder leak) |
 
 ## T7 — src:ref list mode (1.14.0 fix lives in the moved code)
 
@@ -95,5 +105,7 @@ rows here.
   hooks.php `'0'`→`'0 '` guard.
 - **T7.2 shows only Jane:** src:ref list regression (the 1.14.0 fix — plural traversal
   `bws_base_post_ids_from_source` not honored).
-- **T6.1 blank block:** preview fallback moved to the shell — `$is_preview` branch after resolve
-  not reached.
+- **T6.1 blank / T6.3 leaks a placeholder on the front end:** preview fallback moved to the shell
+  in 1.14.1 — the `$is_preview` branch must fire ONLY when the resolve returned empty AND the
+  context flag is set. Blank T6.1 = branch not reached; T6.3 leak = `$is_preview` true without the
+  flag.
