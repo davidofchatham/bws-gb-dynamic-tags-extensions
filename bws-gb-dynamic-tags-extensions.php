@@ -122,6 +122,12 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
 
+	// Dev/testing CLI commands (never part of shipped runtime). Registered on
+	// cli_init so it lands after tags register at init:20.
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		add_action( 'cli_init', 'bws_dynamic_tags_register_cli' );
+	}
+
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();
 
@@ -140,6 +146,17 @@ function bws_dynamic_tags_init() {
 	if ( get_option( 'bws_dynamic_tags_installed_version' ) !== BWS_DYNAMIC_TAGS_VERSION ) {
 		add_action( 'init', 'bws_dynamic_tags_rebuild_allowlist_on_upgrade', 25 );
 	}
+}
+
+/**
+ * Register dev/testing WP-CLI commands.
+ *
+ * Loaded only under WP-CLI (guarded at the add_action site). The command files
+ * self-guard on WP_CLI and register nothing shipped.
+ */
+function bws_dynamic_tags_register_cli() {
+	require_once BWS_DYNAMIC_TAGS_PATH . 'tools/cli/class-render-tag-command.php';
+	WP_CLI::add_command( 'bws render-tag', 'BWS_Render_Tag_Command' );
 }
 
 /**
