@@ -219,25 +219,71 @@ function bws_value_looks_time_only( $value ) {
 // ===============================================
 
 /**
+ * Coerce a datetime read target into the factory's resolved-source payload.
+ *
+ * FW-3(a) compat shim: the datetime cores' public signatures historically took
+ * a bare post id, the `'option'` site sentinel, or an ACF term object-id string
+ * ("{taxonomy}_{term_id}") in their first arg. External callers still pass
+ * those forms (bws-portal-system maps `bws_datetime_*_core` by name; try_/term_
+ * template closures pass scalars), so every legacy shape maps here onto the
+ * payload shape the source factory emits (`bws_resolve_base_source()`), and the
+ * cores + parse layer branch on `kind` — never on string-shape sniffing. This
+ * shim is FW-3 residue: it dies when portal-system and the registry closures
+ * thread resolved sources themselves (FW-38 coordination).
+ *
+ * Payload: `['kind' => 'post'|'term'|'site', 'id' => int|false, 'taxonomy' => string]`
+ * — 'taxonomy' on term kind only; a false 'id' means no entity (loop-row Mode 2b
+ * reads may still resolve via the block instance). Idempotent: an array with a
+ * 'kind' passes through verbatim.
+ *
+ * @since 1.15.0
+ * @param mixed $target Resolved-source array, post id, 'option', or "{tax}_{id}".
+ * @return array Resolved-source payload.
+ */
+if ( ! function_exists( 'bws_datetime_coerce_read_target' ) ) {
+function bws_datetime_coerce_read_target( $target ) {
+    if ( is_array( $target ) && isset( $target['kind'] ) ) {
+        return $target;
+    }
+    if ( 'option' === $target ) {
+        return [ 'kind' => 'site' ];
+    }
+    if ( is_string( $target ) && preg_match( '/^([a-z][a-z0-9_-]*)_(\d+)$/', $target, $m ) ) {
+        return [ 'kind' => 'term', 'id' => (int) $m[2], 'taxonomy' => $m[1] ];
+    }
+    return [ 'kind' => 'post', 'id' => is_numeric( $target ) ? (int) $target : false ];
+}
+}
+
+/**
  * Parse combined date/time from separate or combined fields.
  *
  * INVARIANT: ACF field-config lookups (`bws_get_acf_return_format()`,
  * `bws_parse_acf_date_value()`) must receive the resolved ACF object_id, NOT a
- * raw caller-supplied `$post_id` that may be false in loop-row Mode 2b. Use
- * `bws_resolve_acf_object_id( $instance, $post_id )` which maps GB Pro
+ * raw caller-supplied post id that may be false in loop-row Mode 2b. Use
+ * `bws_resolve_acf_object_id( $instance, $id )` which maps GB Pro
  * TYPE_OPTION rows → 'option' and TYPE_POST_META rows → outer page's postId.
  * Without this, `get_field_object()` fails on flat ACF repeater rows under GB
  * query loops and custom return_formats fall through to format-agnostic parsing
  * (issue #22, bugfix v1.7.2).
  *
  * @invariant The VALUE read (`bws_read_field`) is a SEPARATE arg from the
- * field-config object_id. For src:site datetime the `'option'` sentinel must
- * reach the value read — `$numeric_id` coerces it to false, so `$value_id`
- * re-threads `'option'` (v1.9.0, DT-1b). Don't collapse `$value_id` back into
- * `$numeric_id` or site-datetime values silently dead-end at null.
+ * field-config object_id. For site-kind sources the `'option'` sentinel must
+ * reach the value read — coercing it to a numeric id (false) dead-ends the DT-1
+ * `bws_read_field` branch and site-datetime values silently die at null
+ * (v1.9.0, DT-1b). `$value_id` carries the sentinel; don't fold it into a
+ * numeric coercion.
+ *
+ * @invariant Kind dispatch (FW-3a): the read target is the factory's
+ * resolved-source payload; legacy scalar forms are coerced by
+ * `bws_datetime_coerce_read_target()` at the boundary. All branching below is
+ * on `kind` — never reintroduce string-shape sniffing of the first arg.
  *
  * @since 3.0.0
- * @param int $post_id Post ID
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
+ *               scalars still coerced.
+ * @param array|int|string|false $target Resolved source (or legacy post id /
+ *                                       'option' / "{tax}_{id}" via the shim)
  * @param string $date_field Primary date/datetime/time field key
  * @param string $time_field Optional time field key
  * @param string $context 'start', 'end', or 'datetime'
@@ -246,7 +292,7 @@ function bws_value_looks_time_only( $value ) {
  * @return array Combined result with 'date', 'has_time', 'time_only', 'formats'
  */
 if ( ! function_exists( 'bws_parse_combined_date_time' ) ) {
-function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $context, $inherit_date = null, $options = [], $instance = null ) {
+function bws_parse_combined_date_time( $target, $date_field, $time_field, $context, $inherit_date = null, $options = [], $instance = null ) {
     $result = [
         'date'      => null,
         'has_time'  => false,
@@ -258,28 +304,33 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
         ],
     ];
 
-    // ACF term object_id syntax: "{taxonomy}_{term_id}" — route to term meta.
-    $term_match = is_string( $post_id ) && preg_match( '/^([a-z][a-z0-9_-]*)_(\d+)$/', $post_id, $m );
-    $term_id    = $term_match ? (int) $m[2] : 0;
-    $numeric_id = is_numeric( $post_id ) ? (int) $post_id : false;
+    // Kind-dispatched read target (FW-3a).
+    $source  = bws_datetime_coerce_read_target( $target );
+    $is_term = 'term' === ( $source['kind'] ?? '' );
+    $is_site = 'site' === ( $source['kind'] ?? '' );
+    $term_id = $is_term ? (int) ( $source['id'] ?? 0 ) : 0;
 
-    // Resolve ACF object_id for field-config lookups. For loop-row Mode 2b contexts
-    // (flat ACF repeater rows under TYPE_OPTION / TYPE_POST_META), $post_id is false
-    // but ACF still needs an object_id ('option' or outer page id) to return field
-    // metadata. Term-context keeps its existing object_id ("{taxonomy}_{term_id}").
-    $acf_object_id = $term_match
-        ? $post_id
-        : ( function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $post_id ) : $post_id );
+    // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
+    // "{taxonomy}_{term_id}" object id. For loop-row Mode 2b contexts (flat ACF
+    // repeater rows under TYPE_OPTION / TYPE_POST_META) the post id is false but
+    // ACF still needs an object_id ('option' or outer page id) to return field
+    // metadata.
+    if ( $is_term ) {
+        $acf_object_id = ( $source['taxonomy'] ?? 'term' ) . '_' . $term_id;
+    } else {
+        $raw_id        = $is_site ? 'option' : ( $source['id'] ?? false );
+        $acf_object_id = function_exists( 'bws_resolve_acf_object_id' ) ? bws_resolve_acf_object_id( $instance, $raw_id ) : $raw_id;
+    }
 
-    // DT-1b (V7): thread the 'option' sentinel to the VALUE read. $numeric_id coerces
-    // 'option' → false, which would dead-end the DT-1 bws_read_field branch; the
-    // value-read id must stay 'option' for site-datetime (ACF options-page fields).
-    // Non-'option' callers keep $numeric_id (unchanged behavior).
-    $value_id = ( 'option' === $post_id ) ? 'option' : $numeric_id;
+    // DT-1b (V7): thread the 'option' sentinel to the VALUE read for site-kind
+    // sources (ACF options-page fields). Post kind keeps its numeric id (false
+    // when entity-less); term kind reads via bws_read_term_field and never
+    // consumes $value_id.
+    $value_id = $is_site ? 'option' : ( $is_term ? false : ( $source['id'] ?? false ) );
 
     // Get primary field value and format
     $date_value = $date_field
-        ? ( $term_match
+        ? ( $is_term
             ? bws_read_term_field( $date_field, $term_id, true )
             : bws_read_field( $date_field, $instance, $value_id, true ) )
         : null;
@@ -287,7 +338,7 @@ function bws_parse_combined_date_time( $post_id, $date_field, $time_field, $cont
 
     // Get time field value and format
     $time_value = $time_field
-        ? ( $term_match
+        ? ( $is_term
             ? bws_read_term_field( $time_field, $term_id, true )
             : bws_read_field( $time_field, $instance, $value_id, true ) )
         : null;

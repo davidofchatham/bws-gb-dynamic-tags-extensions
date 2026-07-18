@@ -563,13 +563,16 @@ function bws_get_base_datetime_range_options(): array {
  * Core date-only single logic (shared by source-specific callbacks).
  *
  * @since 1.0.0
- * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
- * @param array            $options  Tag options.
- * @param object           $instance Block instance.
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
+ *               scalars (post id / 'option' / "{tax}_{id}") still coerced.
+ * @param array|int|string|false $target   Resolved source (or legacy scalar).
+ * @param array                  $options  Tag options.
+ * @param object                 $instance Block instance.
  * @return string
  */
-function bws_date_single_core( $post_id, $options, $instance ) {
-	if ( ! $post_id ) {
+function bws_date_single_core( $target, $options, $instance ) {
+	$source = bws_datetime_coerce_read_target( $target );
+	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
@@ -587,7 +590,7 @@ function bws_date_single_core( $post_id, $options, $instance ) {
 		'time_field' => '',
 	) );
 
-	$result = bws_parse_combined_date_time( $post_id, $date_field, '', 'datetime', null, $date_options, $instance );
+	$result = bws_parse_combined_date_time( $source, $date_field, '', 'datetime', null, $date_options, $instance );
 
 	if ( ! $result['date'] || ! is_a( $result['date'], 'DateTime' ) ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
@@ -604,13 +607,16 @@ function bws_date_single_core( $post_id, $options, $instance ) {
  * Core date-only range logic (shared by source-specific callbacks).
  *
  * @since 1.0.0
- * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
- * @param array            $options  Tag options.
- * @param object           $instance Block instance.
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
+ *               scalars still coerced.
+ * @param array|int|string|false $target   Resolved source (or legacy scalar).
+ * @param array                  $options  Tag options.
+ * @param object                 $instance Block instance.
  * @return string
  */
-function bws_date_range_core( $post_id, $options, $instance ) {
-	if ( ! $post_id ) {
+function bws_date_range_core( $target, $options, $instance ) {
+	$source = bws_datetime_coerce_read_target( $target );
+	if ( 'site' !== $source['kind'] && empty( $source['id'] ) ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 
@@ -630,11 +636,11 @@ function bws_date_range_core( $post_id, $options, $instance ) {
 		'end_time_field'   => '',
 	) );
 
-	$start_result = bws_parse_combined_date_time( $post_id, $start_field, '', 'start', null, $date_options, $instance );
+	$start_result = bws_parse_combined_date_time( $source, $start_field, '', 'start', null, $date_options, $instance );
 
 	$end_result = null;
 	if ( ! empty( $end_field ) ) {
-		$end_result = bws_parse_combined_date_time( $post_id, $end_field, '', 'end', $start_result['date'], $date_options, $instance );
+		$end_result = bws_parse_combined_date_time( $source, $end_field, '', 'end', $start_result['date'], $date_options, $instance );
 	}
 
 	if ( ! $start_result['date'] ) {
@@ -654,9 +660,8 @@ function bws_date_range_core( $post_id, $options, $instance ) {
 }
 
 /**
- * Term date single core — converts term_id to ACF object_id format, then delegates.
- *
- * ACF accepts '{taxonomy}_{term_id}' (e.g. 'category_5') as the object_id for term fields.
+ * Term date single core — validates the term, delegates a term-kind resolved
+ * source (FW-3a; the term read is kind-dispatched, no object-id string smuggle).
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.
@@ -665,18 +670,20 @@ function bws_date_range_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_term_date_single_core( $term_id, $options, $instance ) {
-	if ( ! $term_id ) {
-		return bws_date_single_core( false, $options, $instance );
-	}
-	$term = bws_get_validated_term( $term_id );
+	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
 		return bws_date_single_core( false, $options, $instance );
 	}
-	return bws_date_single_core( $term->taxonomy . '_' . $term->term_id, $options, $instance );
+	return bws_date_single_core(
+		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
+		$options,
+		$instance
+	);
 }
 
 /**
- * Term date range core — converts term_id to ACF object_id format, then delegates.
+ * Term date range core — validates the term, delegates a term-kind resolved
+ * source (FW-3a).
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.
@@ -685,14 +692,15 @@ function bws_term_date_single_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_term_date_range_core( $term_id, $options, $instance ) {
-	if ( ! $term_id ) {
-		return bws_date_range_core( false, $options, $instance );
-	}
-	$term = bws_get_validated_term( $term_id );
+	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
 		return bws_date_range_core( false, $options, $instance );
 	}
-	return bws_date_range_core( $term->taxonomy . '_' . $term->term_id, $options, $instance );
+	return bws_date_range_core(
+		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
+		$options,
+		$instance
+	);
 }
 
 // ===============================================
@@ -710,15 +718,20 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
  * @since 1.0.0
- * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
- * @param array            $options  Tag options.
- * @param object           $instance Block instance.
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
+ *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
+ *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ * @param array|int|string|false $target   Resolved source (or legacy scalar).
+ * @param array                  $options  Tag options.
+ * @param object                 $instance Block instance.
  * @return string
  */
-function bws_datetime_single_core( $post_id, $options, $instance ) {
+function bws_datetime_single_core( $target, $options, $instance ) {
+	$source      = bws_datetime_coerce_read_target( $target );
 	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $post_id && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $is_loop_row ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
@@ -729,7 +742,7 @@ function bws_datetime_single_core( $post_id, $options, $instance ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
-	$result = bws_parse_combined_date_time( $post_id, $date_time_field, $time_field, 'datetime', null, $options, $instance );
+	$result = bws_parse_combined_date_time( $source, $date_time_field, $time_field, 'datetime', null, $options, $instance );
 
 	if ( ! $result['date'] && ! $result['time_only'] ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
@@ -765,15 +778,20 @@ function bws_datetime_single_core( $post_id, $options, $instance ) {
  * v1.7.2, issue #22.
  *
  * @since 1.0.0
- * @param int|string|false $post_id  Resolved post ID (or ACF object ID for term context).
- * @param array            $options  Tag options.
- * @param object           $instance Block instance.
+ * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
+ *               scalars (post id / 'option' / "{tax}_{id}") still coerced —
+ *               bws-portal-system + try_/term_ closures pin the scalar forms.
+ * @param array|int|string|false $target   Resolved source (or legacy scalar).
+ * @param array                  $options  Tag options.
+ * @param object                 $instance Block instance.
  * @return string
  */
-function bws_datetime_range_core( $post_id, $options, $instance ) {
+function bws_datetime_range_core( $target, $options, $instance ) {
+	$source      = bws_datetime_coerce_read_target( $target );
 	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $post_id && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $is_loop_row ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 
@@ -786,11 +804,11 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 
-	$start_result = bws_parse_combined_date_time( $post_id, $start_field, $start_time_field, 'start', null, $options, $instance );
+	$start_result = bws_parse_combined_date_time( $source, $start_field, $start_time_field, 'start', null, $options, $instance );
 
 	$end_result = null;
 	if ( ! empty( $end_field ) || ! empty( $end_time_field ) ) {
-		$end_result = bws_parse_combined_date_time( $post_id, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
+		$end_result = bws_parse_combined_date_time( $source, $end_field, $end_time_field, 'end', $start_result['date'], $options, $instance );
 	}
 
 	if ( ! $start_result['date'] && ! $start_result['time_only'] && ! $end_result ) {
@@ -860,9 +878,9 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 }
 
 /**
- * Term datetime single core — converts term_id to ACF object_id format, then delegates.
- *
- * ACF accepts '{taxonomy}_{term_id}' (e.g. 'category_5') as the object_id for term fields.
+ * Term datetime single core — validates the term, delegates a term-kind
+ * resolved source (FW-3a; the term read is kind-dispatched inside
+ * bws_parse_combined_date_time, no object-id string smuggle).
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.
@@ -871,18 +889,20 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_term_datetime_single_core( $term_id, $options, $instance ) {
-	if ( ! $term_id ) {
-		return bws_datetime_single_core( false, $options, $instance );
-	}
-	$term = bws_get_validated_term( $term_id );
+	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
 		return bws_datetime_single_core( false, $options, $instance );
 	}
-	return bws_datetime_single_core( $term->taxonomy . '_' . $term->term_id, $options, $instance );
+	return bws_datetime_single_core(
+		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
+		$options,
+		$instance
+	);
 }
 
 /**
- * Term datetime range core — converts term_id to ACF object_id format, then delegates.
+ * Term datetime range core — validates the term, delegates a term-kind
+ * resolved source (FW-3a).
  *
  * @since 1.2.0
  * @param int|false $term_id  Resolved term ID.
@@ -891,14 +911,15 @@ function bws_term_datetime_single_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_term_datetime_range_core( $term_id, $options, $instance ) {
-	if ( ! $term_id ) {
-		return bws_datetime_range_core( false, $options, $instance );
-	}
-	$term = bws_get_validated_term( $term_id );
+	$term = $term_id ? bws_get_validated_term( $term_id ) : null;
 	if ( ! $term ) {
 		return bws_datetime_range_core( false, $options, $instance );
 	}
-	return bws_datetime_range_core( $term->taxonomy . '_' . $term->term_id, $options, $instance );
+	return bws_datetime_range_core(
+		array( 'kind' => 'term', 'id' => $term->term_id, 'taxonomy' => $term->taxonomy ),
+		$options,
+		$instance
+	);
 }
 
 // ===============================================
@@ -1079,9 +1100,15 @@ function bws_datetime_collect_list( array $items, callable $render, array $optio
  * the fallback is suppressed per-item and fires once on all-empty output;
  * link-wrap applies only when exactly one result renders.
  *
+ * Term-ambient parity (FW-3a, SPEC §V7 / CONTEXT.md I1): a bare tag on a term
+ * archive reads the ambient term's date field through the same term core the
+ * explicit srcTermIn branch uses — one factory call (§V1), kind branch via
+ * bws_base_ambient_term_id(), matching base text/title.
+ *
  * @since 1.6.0
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
  *               traversal engine instead of collapsing to the first target.
+ *               Term-ambient parity (FW-3a).
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1118,9 +1145,22 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
-	if ( '' !== $tax ) {
-		$post_id = function_exists( 'bws_resolve_post_by_source' )
-			? bws_resolve_post_by_source( $options, $instance )
+	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
+	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
+	$base = function_exists( 'bws_base_resolve_source_for_callback' )
+		? bws_base_resolve_source_for_callback( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+	$ambient_term_id = function_exists( 'bws_base_ambient_term_id' )
+		? bws_base_ambient_term_id( $base, $options )
+		: 0;
+
+	if ( $ambient_term_id ) {
+		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );
+		$link_id   = $ambient_term_id;
+		$link_type = 'term';
+	} elseif ( '' !== $tax ) {
+		$post_id = function_exists( 'bws_base_post_id_from_source' )
+			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
@@ -1140,9 +1180,6 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	} elseif ( $is_ref ) {
 		// src:ref list mode: read EVERY fanned-out ref target via the shared
 		// traversal engine (plural resolver, not the collapse-to-first wrapper).
-		$base = function_exists( 'bws_base_resolve_source_for_callback' )
-			? bws_base_resolve_source_for_callback( $options, $instance )
-			: array( 'kind' => 'post', 'id' => 0 );
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
@@ -1159,8 +1196,8 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 			$link_type = 'post';
 		}
 	} else {
-		$post_id   = function_exists( 'bws_resolve_post_by_source' )
-			? bws_resolve_post_by_source( $options, $instance )
+		$post_id   = function_exists( 'bws_base_post_id_from_source' )
+			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
 		$value     = bws_datetime_single_core( $post_id, $mapped, $instance );
 		$link_id   = (int) $post_id;
@@ -1193,9 +1230,12 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  * List mode (#30): as bws_base_datetime_single_callback(). `sep` joins whole
  * formatted ranges; `rangeSep` stays the intra-range start↔end separator.
  *
+ * Term-ambient parity (FW-3a): as bws_base_datetime_single_callback().
+ *
  * @since 1.6.0
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
  *               traversal engine instead of collapsing to the first target.
+ *               Term-ambient parity (FW-3a).
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1228,9 +1268,22 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
-	if ( '' !== $tax ) {
-		$post_id = function_exists( 'bws_resolve_post_by_source' )
-			? bws_resolve_post_by_source( $options, $instance )
+	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
+	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
+	$base = function_exists( 'bws_base_resolve_source_for_callback' )
+		? bws_base_resolve_source_for_callback( $options, $instance )
+		: array( 'kind' => 'post', 'id' => 0 );
+	$ambient_term_id = function_exists( 'bws_base_ambient_term_id' )
+		? bws_base_ambient_term_id( $base, $options )
+		: 0;
+
+	if ( $ambient_term_id ) {
+		$value     = bws_term_datetime_range_core( $ambient_term_id, $mapped, $instance );
+		$link_id   = $ambient_term_id;
+		$link_type = 'term';
+	} elseif ( '' !== $tax ) {
+		$post_id = function_exists( 'bws_base_post_id_from_source' )
+			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
@@ -1250,9 +1303,6 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 	} elseif ( $is_ref ) {
 		// src:ref list mode: read EVERY fanned-out ref target via the shared
 		// traversal engine (plural resolver, not the collapse-to-first wrapper).
-		$base = function_exists( 'bws_base_resolve_source_for_callback' )
-			? bws_base_resolve_source_for_callback( $options, $instance )
-			: array( 'kind' => 'post', 'id' => 0 );
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
@@ -1269,8 +1319,8 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 			$link_type = 'post';
 		}
 	} else {
-		$post_id   = function_exists( 'bws_resolve_post_by_source' )
-			? bws_resolve_post_by_source( $options, $instance )
+		$post_id   = function_exists( 'bws_base_post_id_from_source' )
+			? bws_base_post_id_from_source( $base, $options )
 			: get_the_ID();
 		$value     = bws_datetime_range_core( $post_id, $mapped, $instance );
 		$link_id   = (int) $post_id;
