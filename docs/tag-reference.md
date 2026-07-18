@@ -280,6 +280,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | *(no term_ variant)* | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | *(no term_ variant)* | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
+| `join` | `'Combine Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 8 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
 | `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
@@ -685,6 +686,87 @@ There is **no machine contract check**: site functions are untyped, so reflectio
 
 <a id="phone-deferred"></a>
 **Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.
+
+---
+
+## `join`
+
+**Standalone COMBINING tag (1.15.0)** — the counterpart to `try_`'s *selecting*. Where a `try_`
+chain returns the FIRST non-empty slot, `{{join}}` visits EVERY slot (collect-all, never
+short-circuits), keeps all non-empty values, and assembles them into one output string. It is
+neither a base tag nor a modifier: it resolves no read of its own — each slot **absorbs** a full
+base `text` read via the extracted seam (`bws_base_text_resolve_value`, 1.14.1), so every current
+and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref list modes,
+loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
+(`'Combine Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
+
+**Slots.** Up to **8** (`BWS_JOIN_MAX_SLOTS`), on the same flat `{N}-` prefix wire format as
+`try_` (slot 1 bare keys). Per slot: `src` / `ref` / `srcTermIn` (from the shared slot builders,
+**site allowed** — the `try_text` site-slot gap is not repeated), `use` (text's key/title enum —
+**no "Same as Previous Field" row**: in combining, same-`use` is redundant or pointless), `key`
+(never inherited), and `limit` (list-mode cap so a term/ref slot reads >1 target). Slot ≥2 `src`
+keeps the `same`/inherit row — weave several fields off one entity (see J16b in the matrix for
+real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` —
+no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): a slot-1
+bare `sep` would collide with the tag-level assembly `sep`).
+
+**Reveal (combining-shaped).** Slots 1–2 visible up front; slot N ≥ 3 reveals when the previous
+slot has a `key` OR a non-default `use` — NOT its `src` (default-empty in combining; `try_`'s
+src-keyed reveal is the selecting axis).
+
+**Tag-level options.**
+
+| Option | Type | Notes |
+|---|---|---|
+| `mode` | select | `''` = Separator (default, stripped) / `template` |
+| `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
+| `format` | text | Template-mode format string with **`%1`…`%8` positional tokens**. Shown in template mode. |
+| `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
+
+**Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
+tag's options (captured as `[^}]+` — kills the whole tag match, no escape;
+[`gb-constraints.md` §Tag-string-unsafe values](gb-constraints.md#tag-string-unsafe-values)), so
+brace tokens `{1}` can never ride the wire. Authors write `%1`…`%8`; `%%` escapes a literal
+percent directly before a digit. Internally `bws_join_wire_format()` translates to the canonical
+`{N}` form the pure algorithm uses.
+
+**Template mode — smart literal removal.** After token substitution, punctuation attached to
+EMPTY tokens is removed with them (five ordered steps; full contract + edge cases pinned by
+`php tools/test/join-template-test.php`):
+
+1. **Attached punctuation** — unit punct (`.` `'` `"`) trailing-attached sheds with the empty
+   token (`%1'%2"` with empty inches → `5'`); connective punct (`,` `:`) collapses only when the
+   empty token sits BETWEEN two connectives (`%4 %5, %6` with empty generation keeps ONE comma:
+   `Smith, PhD`), else survives as the neighbors' separator.
+2. **Bracket pairs** around an empty token removed (`%1 (%2)` → `Jane`); kept around a survivor.
+3. **Floating separators** (`·` `•` `/` `|` `-` `–` `—`) adjacent to an empty token removed
+   (look right; the format's last token looks left).
+4. **Whitespace collapse** + edge-orphan cleanup; a trailing `.` survives only when the format
+   intentionally ends with one. Trailing quote marks never stripped (a surviving `5'` is intent).
+5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %1 · %2`
+   → `Mr. Smith`).
+
+**`'0'` is a real value.** "Empty" is exactly `''` everywhere; a stored `0` renders (`5'0"`), by
+absorb — join never re-decides emptiness. Suppressing a zero needs the author to store `''`, or
+the tracked base-text zero-as-empty opt-in (absorbed by join when it lands).
+
+**No link-wrap.** Output composes raw slot values — link identities from the seam are ignored
+(no per-slot anchors, no nested/broken markup). If wrap ever arrives it is once at the join
+layer, single-value output only (tracked).
+
+```
+{{join key:name_first|2-key:name_last}}                          → Jane, Smith
+{{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
+{{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
+{{join mode:template|format:%1'%2"|key:height_ft|2-key:height_in}}  → 5'11" / 5' / 5'0"
+{{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
+{{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
+```
+
+**Tests.** Pure algorithm: `php tools/test/join-template-test.php` (Steps 1–5, wire-token
+translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix
+[`tools/test/join-test-matrix.md`](../tools/test/join-test-matrix.md) against the seeded testbed
+(assembly modes, absorb-visible behavior: site arm, per-slot `limit`, carry-forward, `'0'`).
 
 ---
 

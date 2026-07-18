@@ -144,6 +144,21 @@ Option values containing raw `:` or `|` cannot survive a tag-string round-trip u
 
 Avoid storing raw URLs or colon-bearing free-text in default-text controls.
 
+**Closing brace `}` — kills the whole tag match (harder failure than `:`/`|`).** GB's render-side
+matcher (`class-register-dynamic-tag.php` `find_matches()`) captures a tag's options as `[^}]+`:
+
+```php
+$pattern = '/\{{(' . implode( '|', array_keys( $availableTags ) ) . ')(\s+[^}]+)?}}/';
+```
+
+A `}` anywhere inside the options doesn't truncate a value — the tag never matches at all and
+renders as its raw literal string. There is NO escape sequence for it (`parse_options()` handles
+only `\|`/`\:`). Verified against 2.2.1 and 2.3.0-beta.2 (same pattern). Consequence: option
+values must be designed brace-free — e.g. `{{join}}` template mode uses `%1`…`%8` positional
+tokens on the wire instead of `{1}`…`{8}` (translated internally; response documented in
+[`tag-reference.md` §join](tag-reference.md#join)). Also the reason a nested-braces tag-in-slot
+syntax can never ride the wire (`{{join 1:{{text …}}}}` is unparseable by construction).
+
 ### Filter hooks
 
 | Hook | Signature | This plugin's use |

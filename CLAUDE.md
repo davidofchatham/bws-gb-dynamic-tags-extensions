@@ -20,7 +20,8 @@ exiting non-zero on failure. Run the one whose domain you touched (see §Update 
 key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
 `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
-`slot-qualify-show-if-test.php`. No CI runs these; run them locally before commit.
+`slot-qualify-show-if-test.php`, `join-template-test.php`. No CI runs these; run them locally
+before commit.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
@@ -75,6 +76,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Phone normalize / render / settings change (`bws_phone_normalize_tel` + sub-helpers, `bws_phone_callback`, `bws_phone_render_one`, phone settings/preview) | run `php tools/test/phone-normalize-test.php` (algorithm) + `tools/test/phone-test-matrix.md` rows against the testbed (`bws render-tag` / matrix pages; §Development) |
 | Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` rows against the testbed editor (§Development) |
 | Text read-seam / link-wrap change (`bws_base_text_resolve_value`, `bws_base_text_callback`, `bws_wrap_with_link` / `bws_resolve_link_url`, or a new seam absorber e.g. `{{join}}` slots) | `tools/test/text-test-matrix.md` rows against the testbed (`bws render-tag`; §Development) |
+| Join assembly / slot change (`bws_join_callback`, `bws_get_join_options`, or any `includes/helpers/join-helpers.php` fn) | run `php tools/test/join-template-test.php` (pure Steps 1–5 + wire tokens) + `tools/test/join-test-matrix.md` rows against the testbed; a seam-implicating failure routes to the text matrix |
 | New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`; keep matrices linking, not duplicating |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
