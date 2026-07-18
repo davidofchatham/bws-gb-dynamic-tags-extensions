@@ -776,11 +776,12 @@ function bws_datetime_range_core( $post_id, $options, $instance ) {
 		$end_dt   = $end_result ? ( $end_result['date'] ?: $end_result['time_only'] ) : null;
 		if ( $start_dt ) {
 			if ( $end_dt ) {
-				// NOTE: bws_format_time_range() hardcodes 12-hour g:i A for its
-				// AM/PM consolidation; a custom time format is not honored for the
-				// two-ended case yet (see GitHub issue #25).
-				$smart_time = ! empty( $options['smart_time'] );
-				$time_range = bws_format_time_range( $start_dt, $end_dt, $smart_time );
+				// Two-ended time range (#25): resolve the format via the same chain
+				// the single-ended case uses (custom token → ACF time format → WP
+				// default); consolidation applies only for 12-hour formats.
+				$smart_time  = ! empty( $options['smart_time'] );
+				$time_format = bws_resolve_time_only_format( $options, $start_result );
+				$time_range  = bws_format_time_range( $start_dt, $end_dt, $smart_time, $time_format );
 				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
 			}
 			// Single-ended time: honor custom format (time tokens only), then the

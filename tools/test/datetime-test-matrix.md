@@ -56,12 +56,12 @@ Fixture keys are the blueprint's (`manifest.php` authoritative): `event_datetime
 | D2.2 | `… |rangeSep: to ` | `August 1 to 9, 2030` |
 | D2.3 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime}}` | `August 12, 2030, 9:00 AM–5:00 PM` (same-day, time range) |
 | D2.4 | `{{datetime_range startKey:event_midnight|endKey:event_end_datetime}}` | `August 12, 2030, 5:00 PM` (midnight start suppressed, smart default) |
-| D2.5 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time}}` | `9:00 AM–5:00 PM` (**#25 baseline** — two-ended, cross-meridiem, hardcoded `g:i A`) |
-| D2.6 | `{{datetime_range startKey:event_time|endKey:event_end_time|as:time}}` | `9:00–11:30 AM` (**#25 baseline** — same-meridiem consolidation) |
+| D2.5 | `{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time}}` | `9:00 am–5:00 pm` (cross-meridiem, both sides full; testbed WP `time_format` is `g:i a` — post-#25 the two-ended range rides the same resolver chain as single-ended D1.4. Pre-#25 baseline: `9:00 AM–5:00 PM` hardcoded) |
+| D2.6 | `{{datetime_range startKey:event_time|endKey:event_end_time|as:time}}` | `9:00–11:30 am` (same-meridiem consolidation; lowercase per the fields' ACF `g:i a`, matching D1.4. Pre-#25 baseline: `9:00–11:30 AM` hardcoded) |
 
-## D3 — #25 two-ended `as:time` custom format — ⏳ EXPECTED-FAIL until Stage 2 lands
+## D3 — #25 two-ended `as:time` custom format — ✅ shipped (Stage 2, testbed-verified)
 
-Custom `format:` on a two-ended time range. Baseline (pre-#25) shows the custom format thrown away (D3.1/D3.2 render `9:00 AM–5:00 PM`); these rows assert the post-#25 behavior and flip to green when Stage 2 lands.
+Custom `format:` on a two-ended time range. Baseline (pre-#25) showed the custom format thrown away (D3.1/D3.2 rendered `9:00 AM–5:00 PM`); rows assert the post-#25 behavior.
 
 | # | Tag | Expected (post-#25) | Pre-#25 baseline |
 |---|---|---|---|

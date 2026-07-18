@@ -279,6 +279,32 @@ assert_same( 'T7 non-smart, both midnight → rendered verbatim',
 	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 00:00' ), false )
 );
 
+// #25 — custom-format awareness (two-ended); shipped with the datetime pass.
+assert_same( 'T8 custom 24-hour: both sides full, no consolidation (#25)',
+	'09:00–17:00',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), true, 'H:i' )
+);
+assert_same( 'T9 custom meridiem-less 12-hour: both sides full (#25)',
+	'9:00–11:30',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), true, 'g:i' )
+);
+assert_same( 'T10 custom 12-hour, same meridiem: still consolidates (#25)',
+	'9:00–11:30 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), true, 'g:i A' )
+);
+assert_same( 'T11 custom 12-hour lowercase, cross meridiem: both full (#25)',
+	'09:00 am–05:00 pm',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), true, 'h:i a' )
+);
+assert_same( 'T12 midnight suppression independent of custom format (#25)',
+	'17:00',
+	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 17:00' ), true, 'H:i' )
+);
+assert_same( 'T13 non-smart custom format: both sides full (#25)',
+	'09:00–17:00',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), false, 'H:i' )
+);
+
 // ===========================================================================
 echo "\nS — bws_format_single_date_time (year omission, midnight suppression)\n";
 // ===========================================================================
@@ -358,6 +384,10 @@ assert_same( 'R10 day-name token blocks same-month day collapse',
 assert_same( 'R11 time token blocks day collapse; per-side times kept',
 	'August 1 9:00 AM–August 9, 2030 5:00 PM',
 	bws_format_date_range( dt( '2030-08-01 09:00' ), dt( '2030-08-09 17:00' ), 'F j, Y g:i A', $opts_plain )
+);
+assert_same( 'R12 same-day custom 24-hour: time range in the format\'s tokens (#25)',
+	'August 12, 2030, 09:00–17:00',
+	bws_format_date_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), 'F j, Y H:i', $opts_plain )
 );
 
 // ===========================================================================

@@ -800,9 +800,11 @@ function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $
 
     $date_part = wp_date( $date_format, $start->getTimestamp() );
 
-    // Handle time range if applicable
+    // Handle time range if applicable. The time part of the range renders in the
+    // format's own time tokens (#25) — extract_time falls back to 'g:i A' when
+    // the format carries no recognizable time pattern.
     if ( $has_time && $start->format( 'H:i' ) !== $end->format( 'H:i' ) ) {
-        $time_range = bws_format_time_range( $start, $end, $smart_time );
+        $time_range = bws_format_time_range( $start, $end, $smart_time, $utils['extract_time']( $format ) );
 
         if ( $time_range ) {
             return trim( $date_part . ', ' . $time_range );
@@ -821,47 +823,57 @@ function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $
 /**
  * Format time range with smart AM/PM consolidation
  *
+ * Format-aware (#25): renders both sides in $time_format. AM/PM consolidation
+ * (the shared-meridiem collapse, `9:00–11:30 AM`) applies ONLY in smart mode
+ * AND only when the format is 12-hour (an hour token g/h plus a meridiem token
+ * A/a) — a meridiem-less or 24-hour format renders both sides fully.
+ * Midnight suppression (smart mode) is independent of the format.
+ *
  * @since 3.0.0
+ * @since 1.15.0 $time_format param — custom/ACF/WP-default chain honored
+ *               two-ended (issue #25); previously hardcoded 'g:i A'.
  * @param DateTime $start Start time
  * @param DateTime $end End time
  * @param bool $smart_time Whether to use smart formatting
+ * @param string $time_format Time-only PHP date format for both sides.
  * @return string Formatted time range
  */
 if ( ! function_exists( 'bws_format_time_range' ) ) {
-function bws_format_time_range( $start, $end, $smart_time ) {
+function bws_format_time_range( $start, $end, $smart_time, $time_format = 'g:i A' ) {
     // Safety checks - must have valid dates
     if ( ! $start || ! is_a( $start, 'DateTime' ) || ! $end || ! is_a( $end, 'DateTime' ) ) {
         return '';
     }
 
-    // Skip midnight times in smart mode
+    // Skip midnight times in smart mode (independent of the format).
     if ( $smart_time ) {
-        $start_time = $start->format( 'H:i' ) === '00:00' ? '' : $start->format( 'g:i' );
-        $end_time = $end->format( 'H:i' ) === '00:00' ? '' : $end->format( 'g:i' );
+        $start_is_midnight = $start->format( 'H:i' ) === '00:00';
+        $end_is_midnight   = $end->format( 'H:i' ) === '00:00';
 
-        if ( ! $start_time && ! $end_time ) {
+        if ( $start_is_midnight && $end_is_midnight ) {
             return ''; // Both midnight
         }
-        if ( ! $start_time ) {
-            return $end->format( 'g:i A' ); // Only end time
+        if ( $start_is_midnight ) {
+            return $end->format( $time_format ); // Only end time
         }
-        if ( ! $end_time ) {
-            return $start->format( 'g:i A' ); // Only start time
-        }
-
-        // Both times exist - check for AM/PM consolidation
-        $start_ampm = $start->format( 'A' );
-        $end_ampm = $end->format( 'A' );
-
-        if ( $start_ampm === $end_ampm ) {
-            return $start_time . '–' . $end_time . ' ' . $end_ampm;
+        if ( $end_is_midnight ) {
+            return $start->format( $time_format ); // Only start time
         }
 
-        return $start_time . ' ' . $start_ampm . '–' . $end_time . ' ' . $end_ampm;
+        // Consolidation gate: 12-hour formats only.
+        $is_twelve_hour = preg_match( '/[gh]/', $time_format ) && preg_match( '/[Aa]/', $time_format );
+
+        if ( $is_twelve_hour && $start->format( 'A' ) === $end->format( 'A' ) ) {
+            // Shared meridiem: the start side sheds its meridiem token.
+            $bare = trim( preg_replace( '/\s*[Aa]\s*/', ' ', $time_format ) );
+            return $start->format( $bare ) . '–' . $end->format( $time_format );
+        }
+
+        return $start->format( $time_format ) . '–' . $end->format( $time_format );
     }
 
-    // Non-smart formatting
-    return $start->format( 'g:i A' ) . '–' . $end->format( 'g:i A' );
+    // Non-smart formatting: both sides full, no consolidation.
+    return $start->format( $time_format ) . '–' . $end->format( $time_format );
 }
 }
 
