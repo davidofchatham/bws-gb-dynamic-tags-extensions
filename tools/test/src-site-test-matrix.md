@@ -80,6 +80,8 @@ Place on a single post, then a term archive.
 
 ## R5 — datetime site
 
+> **Standing datetime coverage now lives in [`datetime-test-matrix.md`](datetime-test-matrix.md)** (D5 runs the `src:site` single/format rows against seeded fixture keys — `organization_founded`, `org_party_datetime`). The rows below stay as the site-source view (R5.3 range-site and R5.4 site-link have no D-row twin); run them with your own substituted keys.
+
 | # | Tag | Expected |
 |---|---|---|
 | R5.1 | `{{datetime_single src:site\|key:[SUB ACF date option]}}` | formatted date, ACF return_format honored |

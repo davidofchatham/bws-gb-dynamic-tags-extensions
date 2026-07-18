@@ -13,8 +13,11 @@
   - **In the editor** an unresolved `{{join}}` shows a configuration preview naming its target fields and assembly (`[Join 'name_first', 'name_last']`), like the other tags, instead of a blank block.
   - Output is plain text with no per-slot links, so composed values never produce nested or broken anchors.
   - Note: template tokens are `%1`…`%10` (not `{1}`), because GenerateBlocks cannot parse a `}` inside a tag. `%%` gives a literal percent sign before a digit.
+- **Datetime tags can now list several dates.** `{{datetime_single}}` and `{{datetime_range}}` gain the same `limit` / `sep` list mode base text and title already have: reading from a taxonomy term list (`srcTermIn`) or related posts (`src:ref`) with a raised limit renders every date, joined by the separator, instead of only the first. Empty dates are skipped; the fallback text fires once, only when nothing renders; a single result still gets its link, a multi-result list stays unlinked. On the range tag the result separator joins whole ranges while the existing range separator stays between each start and end. The two controls appear in the editor only for term-list and related-post sources.
 
 ### Changed
+
+- **Internal: datetime option keys are parsed in one place.** The public datetime option keys are now normalized by a single function shared by the render callbacks, the try_/term_ template closures, and the editor preview, replacing two mappers plus two hand-copied preview translations. No tag or option change; output is byte-identical (locked by a new pure-PHP formatter harness and a standing testbed matrix).
 
 - **Internal: split the base-tag foundation into its own file.** The shared source, traversal, and dispatch helpers that every tag family builds on moved from `base-tags.php` into a new `base-shared.php`; `base-tags.php` now holds only the base tag renderers. No behavior change, no tag or option change.
 - **Internal: the `{{text}}` tag's value resolution extracted from its render callback.** The full text read path (source resolution, term/site arms, list modes) now lives in its own function so future tags can reuse the exact same read; the render callback keeps only link-wrapping and the editor preview fallback. No behavior change.
@@ -22,6 +25,10 @@
 ### Removed
 
 - **Internal: dropped a dead GenerateBlocks filter left over from the old image tags.** A media ID override hooked to `generateblocks_dynamic_tag_id` dated from the era when a tag name fixed its source; it was unreachable (eight of its nine tag names stopped registering in 1.14.0, and the ninth, `image`, resolves its source through the traversal pipeline instead). No behavior change.
+
+### Fixed
+
+- **A custom time format now applies to a two-ended time range.** `{{datetime_range as:time|format:...}}` previously honored the custom format only when a single time was present; with both a start and end time it fell back to a hardcoded 12-hour `g:i A`. The two-ended case now resolves its format through the same chain as the single-ended case (custom format, then the ACF field's time format, then the WordPress setting). AM/PM consolidation (`9:00–11:30 AM`) still applies for 12-hour formats; 24-hour and meridiem-less formats render both sides in full; midnight suppression keeps working regardless of format. (#25)
 
 ## [1.14.0] — 2026-07-08
 

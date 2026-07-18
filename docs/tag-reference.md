@@ -163,14 +163,14 @@ Selected templates support outputting multiple results as a delimited list. `lim
 | `content` | ❌ | Long-form prose (single-result) |
 | `permalink` | ❌ | Single-result URL |
 | `image` | ❌ | Single-result media |
-| `datetime_single` | ❌ | Single-result date/time (see note) |
-| `datetime_range` | ❌ | Single-result composite string (start–end; see note) |
+| `datetime_single` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each date formatted individually, joined by `sep` (see note) |
+| `datetime_range` | ✅ | Same — each **whole formatted range** is one result; `sep` joins ranges, `rangeSep` stays the intra-range start–end separator (see note) |
 | `email` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid address wrapped individually, joined by `sep` |
 | `phone` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) — each valid number wrapped individually, joined by `sep` |
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
 
-**`datetime_*` — single-result only; list mode is a planned extension ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)).** The base `datetime_single` / `datetime_range` callbacks iterate `srcTermIn` terms but short-circuit to the **first** non-empty result; no `limit` / `sep` controls are registered. A multi-result date list (e.g. every event date on a term's posts) would land under #30 — until it does, these tags return a single value.
+**`datetime_*` list mode (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)):** the base `datetime_single` / `datetime_range` callbacks collect per-term / per-ref-target results via `bws_datetime_collect_list()` — empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` fires once on all-empty output (never per item), and link-wrap applies only when exactly one result renders (same rule as text/title). Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
 ---
 
@@ -378,7 +378,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term hop on" and the taxonomy — **required** when hop is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone` only (list-mode tags). Placeholder `1`; not serialized when unset. (`datetime_*` list mode intended but unimplemented — [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30).) |
+| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset. |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | List-mode separator, same tag set as `limit`. |
 
 ### Field group
@@ -511,9 +511,9 @@ A media field: the source's **featured image / site logo** analog (`use:featured
 
 ## `datetime_single` and `datetime_range`
 
-Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). Single-result (list mode intended but unimplemented — [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)). Link-wrappable. GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
+Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). List mode on `srcTermIn` / `src:ref` (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) — see [§List mode](#list-mode-limit--sep)). Link-wrappable (single result only). GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
 
-**Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. Uses [Source](#source-group) (no `limit`/`sep`) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
+**Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 
 **Tag-specific options + panel order** (numbers = position per template):
 
@@ -528,7 +528,9 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `key`; unset = no link |
 | Link URL Field Key | `linkKey` | 7 | 8 | shown when `linkTo:key` |
 | Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
-| | `[source options]` | 9 | 10 | `src` / `srcTermIn` / `ref` — no `limit`/`sep` (datetime is single-result, see §List mode + [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)) |
+| | `[source options]` | 9 | 10 | `src` / `srcTermIn` / `ref` |
+| Result Limit | `limit` | with fallback group | with fallback group | list mode ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)): shown when `srcTermIn` set or `src:ref`; default 1 |
+| Result Separator | `sep` | with fallback group | with fallback group | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
 | Date/Time Field Key | `key` | 10 | — | primary date/time field key |
 | Time Field Key (optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
 | Start Date/Time Field Key | `startKey` | — | 11 | |
@@ -537,7 +539,7 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | End Time Field Key (optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
 | | `[fallback option]` | 12 | 15 | |
 
-**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (`src` / `srcTermIn` / `ref`; no `limit`/`sep` — datetime is single-result, see §List mode). Field keys close as group 3. `fallback` last.
+**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (`src` / `srcTermIn` / `ref`). Field keys close as group 3. `fallback` + list controls (`limit`/`sep`, revealed only for `srcTermIn`/`src:ref`) last.
 
 ---
 

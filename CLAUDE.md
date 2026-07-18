@@ -20,8 +20,8 @@ exiting non-zero on failure. Run the one whose domain you touched (see §Update 
 key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
 `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
-`slot-qualify-show-if-test.php`, `join-template-test.php`. No CI runs these; run them locally
-before commit.
+`slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`. No CI
+runs these; run them locally before commit.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
@@ -90,6 +90,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` rows against the testbed editor (§Development) |
 | Text read-seam / link-wrap change (`bws_base_text_resolve_value`, `bws_base_text_callback`, `bws_wrap_with_link` / `bws_resolve_link_url`, or a new seam absorber e.g. `{{join}}` slots) | `tools/test/text-test-matrix.md` rows against the testbed (`bws render-tag`; §Development) |
 | Join assembly / slot change (`bws_join_callback`, `bws_get_join_options`, or any `includes/helpers/join-helpers.php` fn) | run `php tools/test/join-template-test.php` (pure Steps 1–5 + wire tokens) + `tools/test/join-test-matrix.md` rows against the testbed; a seam-implicating failure routes to the text matrix |
+| Datetime change (any `includes/helpers/datetime-helpers.php` fn, `bws_normalize_datetime_options` or its compat wrappers, the datetime cores/callbacks/option builders, or the datetime preview branch) | run `php tools/test/datetime-format-test.php` (pure formatters + normalizer) + `tools/test/datetime-test-matrix.md` D-rows against the testbed (§Development) |
 | New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`; keep matrices linking, not duplicating |
 | New `*-test-matrix.md` rows for a tag family | ALSO generate them as visible GB blocks in `blocks.php` (see §Development "make them VISIBLE" — mandatory, missed twice); reseed + curl the front end; matrix links, page shows |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
