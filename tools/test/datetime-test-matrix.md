@@ -5,7 +5,7 @@
 > **Re-run trigger:** after any change to the datetime helpers (`bws_format_*`, `bws_build_*_format`, `bws_parse_combined_date_time`, `bws_resolve_time_only_format`), the option-key normalizer / mappers, the datetime core functions or base callbacks, the datetime option builders, or the datetime preview branch.
 >
 > **Two layers:**
-> - **Algorithm (pure, automated):** `php tools/test/datetime-format-test.php` — 46 cases over normalization / format resolution / time-range / single / range / assembly. Run first; must be green before manual rows.
+> - **Algorithm (pure, automated):** `php tools/test/datetime-format-test.php` — 53 cases over normalization / format resolution / time-range (incl. the #25 custom-format group) / single / range / assembly. Run first; must be green before manual rows.
 > - **Integration (manual, WP):** the D-rows below — ACF return-format dispatch, sources, traversal, list mode, link-wrap, preview. Testbed only, never the live/cached site.
 
 **How to run:** on the fixture testbed, seed the `core-structures` blueprint (see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)). The page `/matrix-post-meta/` renders D0–D3, D4.6–D4.9, and D5; term-hop rows (D4.1–D4.5) live on `/matrix-terms-valid|mixed|junk/`. Every row is also runnable standalone:
@@ -77,7 +77,7 @@ Mirrors base text/title list mode: slice to `limit` (default 1), join with `sep`
 | # | Page | Tag | Expected (post-#30) | Pre-#30 baseline |
 |---|---|---|---|---|
 | D4.1 | terms-valid | `{{datetime_single srcTermIn:department|key:event_date|limit:5}}` | `November 12, 2030, October 5, 2030` (sales, support — term name order) | `November 12, 2030` |
-| D4.2 | terms-valid | `… |key:event_date}}` (no limit) | `November 12, 2030` (limit defaults to 1) | same |
+| D4.2 | terms-valid | `… |key:event_date}}` (no limit) | `November 12, 2030` (limit defaults to 1). NB text/title-parity change: the default-limit slice consults the FIRST term only — an empty first term now yields the fallback instead of the old scan-to-first-non-empty result | same |
 | D4.3 | terms-valid | `… |limit:5|sep: / ` | `November 12, 2030 / October 5, 2030` | `November 12, 2030` |
 | D4.4 | terms-junk | `… |limit:5|fallback:Dates TBA` | `Dates TBA` (all terms empty → fallback once) | `Dates TBA` |
 | D4.4b | terms-mixed | `… |limit:5|fallback:Dates TBA` | `November 12, 2030, October 5, 2030` (empty warehouse SKIPPED, fallback does NOT fire) | `November 12, 2030` |

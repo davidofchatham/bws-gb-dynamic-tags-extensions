@@ -378,7 +378,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term hop on" and the taxonomy — **required** when hop is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | This source type may return multiple results. By default, only the first result is used, but you may enter either a fixed limit, or “0” for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset. |
+| `limit` | Result Limit | Maximum number of results to return. Default: 1. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **floored at 1** (there is no `0` = unlimited — set a high limit instead). |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | List-mode separator, same tag set as `limit`. |
 
 ### Field group

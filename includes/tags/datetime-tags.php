@@ -394,7 +394,7 @@ function bws_get_base_datetime_single_options(): array {
 				'placeholder' => 'Date/time TBA',
 			),
 		),
-		bws_get_datetime_list_options(),
+		bws_get_datetime_list_options( false ),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 	);
 }
@@ -407,9 +407,13 @@ function bws_get_base_datetime_single_options(): array {
  * value, so both controls stay hidden otherwise.
  *
  * @since 1.15.0
+ * @param bool $range Range tag: `sep` help gains the sep-vs-rangeSep distinction.
  * @return array
  */
-function bws_get_datetime_list_options(): array {
+function bws_get_datetime_list_options( bool $range = false ): array {
+	$sep_help = $range
+		? __( 'Text to place between results. Default: ", ". This joins whole ranges; the Range Separator stays between each start and end.', 'generateblocks' )
+		: __( 'Text to place between results. Default: ", ".', 'generateblocks' );
 	return array(
 		'limit' => array(
 			'type'        => 'number',
@@ -420,7 +424,7 @@ function bws_get_datetime_list_options(): array {
 		'sep'   => array(
 			'type'        => 'text',
 			'label'       => __( 'Result Separator', 'generateblocks' ),
-			'help'        => __( 'Text to place between results. Default: ", ". On the range tag this joins whole ranges; the Range Separator stays between each start and end.', 'generateblocks' ),
+			'help'        => $sep_help,
 			'placeholder' => ', ',
 			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 		),
@@ -546,7 +550,7 @@ function bws_get_base_datetime_range_options(): array {
 				'placeholder' => 'Date TBA',
 			),
 		),
-		bws_get_datetime_list_options(),
+		bws_get_datetime_list_options( true ),
 		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
 	);
 }
