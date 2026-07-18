@@ -70,7 +70,7 @@ Custom `format:` on a two-ended time range. Baseline (pre-#25) showed the custom
 | D3.3 | `…startKey:event_time|endKey:event_end_time|as:time|format:g:i A` | `9:00–11:30 AM` (12-hour custom format still consolidates) | `9:00–11:30 AM` |
 | D3.4 | `…startKey:event_midnight|endKey:event_end_datetime|as:time|format:H:i` | `17:00` (midnight suppression independent of format) | `5:00 PM` |
 
-## D4 — #30 list mode (`limit` / `sep`) — ⏳ EXPECTED-FAIL until Stage 3 lands
+## D4 — #30 list mode (`limit` / `sep`) — ✅ shipped (Stage 3, testbed-verified incl. front-end after cache purge)
 
 Mirrors base text/title list mode: slice to `limit` (default 1), join with `sep` (default `, `), skip empty per-item results, per-item fallback suppressed (fires only on all-empty), link-wrap only on exactly one result. Baseline (pre-#30) showed first-non-empty only. D4.1–D4.5 run on the term pages; page column notes which.
 
