@@ -21,20 +21,20 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --url=https://testbed.test/CONTEXT/ -
 ```
 
 Contexts used:
-- `/staff/jane-partner/` — DENSE person (`name_*` all populated) — full-name + separator rows
-- `/staff/tom-associate/` — SPARSE person (only `name_first`/`name_last`; other `name_*` `''`)
+- `/staff/tom-associate/` — DENSE person (`name_*` all populated) — full-name + separator rows
+- `/staff/jane-partner/` — SPARSE person (only `name_first`/`name_last`; other `name_*` `''`)
 - `/matrix-post-meta/` — post arm (height/role/absorb rows; carries Support+Sales terms,
   `related_staff` → Jane Partner first, site options page reachable regardless of context)
 
 **Also browsable + editable.** The seed builds these rows as visible GB blocks on the pages
-(`blocks.php`: `staff_join` builder → both staff singles [full row set on each; jane dense vs
-tom sparse IS the collapse demonstration]; a Join section group on `matrix-post-meta`). Open a
+(`blocks.php`: `staff_join` builder → both staff singles [full row set on each; tom dense vs
+jane sparse IS the collapse demonstration]; a Join section group on `matrix-post-meta`). Open a
 page on the front end to eyeball every row, or open it in the editor to interact with the join
 controls (this is also where J20 reveal is checked). The `--porcelain` expected values below are
 the RAW join output; the front-end page additionally runs WP content filters (see the height
 `wptexturize` note under §Unit suffix).
 
-**Wire note:** template-mode tokens are `%1`…`%8` on the wire — GB's tag parser rejects `}`
+**Wire note:** template-mode tokens are `%1`…`%10` on the wire — GB's tag parser rejects `}`
 anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 `docs/gb-constraints.md`), so brace tokens `{N}` exist only INTERNALLY (translated by
 `bws_join_wire_format`). `%%` escapes a literal percent before a digit.
@@ -42,6 +42,9 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 > Verified 2026-07-17 against the initial 1.15.0 build: J1–J19, J21, J22 all pass via
 > `render-tag`; J20 is editor-only. J23/J24 (single-empty-middle-part collapse) live in the
 > pure harness by decision — `render-tag` has no per-field blanking.
+> Re-verified 2026-07-18 after the dense↔sparse fixture swap (DENSE now `tom-associate`,
+> SPARSE now `jane-partner`; `name_last` = Smith/Johnson) and the editor-preview add
+> (JP1–JP6 via the new `--preview` flag): J1/J1b/J2/J5/J7/J21/J22 + all JP rows pass.
 
 ---
 
@@ -49,23 +52,23 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 
 | # | Tag | Context | Expected |
 |---|---|---|---|
-| J1 | `{{join key:name_first\|2-key:name_last}}` | jane | `Jane, Smith` (default sep `, `) |
-| J1b | `{{join key:name_first\|2-key:name_last\|sep: }}` | jane | `Jane Smith` (space sep — option values are not trimmed) |
-| J2 | `{{join key:name_first\|2-key:name_generation\|3-key:name_last}}` | tom | `Tom, Associate` — empty middle slot dropped, no doubled sep |
-| J3 | `{{join key:name_generation\|2-key:name_credential\|fallback_text:—}}` | tom | `—` — all slots empty → fallback |
-| J3b | `{{join key:name_generation\|2-key:name_credential}}` | tom | `` (empty — no fallback → GB hides the block) |
+| J1 | `{{join key:name_first\|2-key:name_last}}` | tom | `Tom, Smith` (default sep `, `) |
+| J1b | `{{join key:name_first\|2-key:name_last\|sep: }}` | tom | `Tom Smith` (space sep — option values are not trimmed) |
+| J2 | `{{join key:name_first\|2-key:name_generation\|3-key:name_last}}` | jane | `Jane, Johnson` — empty middle slot dropped, no doubled sep |
+| J3 | `{{join key:name_generation\|2-key:name_credential\|fallback_text:—}}` | jane | `—` — all slots empty → fallback |
+| J3b | `{{join key:name_generation\|2-key:name_credential}}` | jane | `` (empty — no fallback → GB hides the block) |
 | J4 | `{{join key:height_in_zero\|2-key:role}}` | `/matrix-post-meta/` | `0, Captain` — `'0'` is a REAL value (survives the empty-filter) |
 
 ## Template mode — brackets / separators
 
 | # | Tag | Context | Expected |
 |---|---|---|---|
-| J5 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | jane | `Jane (Smith)` |
-| J6 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_generation}}` | tom | `Tom` — bracket group removed (`%2` empty) |
-| J7 | `{{join mode:template\|format:%1 · %2\|key:name_generation\|2-key:name_last}}` | tom | `Associate` — floating separator removed (`%1` empty) |
-| J8 | `{{join mode:template\|format:%1 (%2.)\|key:name_first\|2-key:name_generation}}` | tom | `Tom` — punct + brackets removed with empty `%2` |
-| J9 | `{{join mode:template\|format:%1 (%2.)\|key:name_generation\|2-key:name_first}}` | tom | `(Tom.)` — bracket KEPT around surviving token |
-| J10 | `{{join mode:template\|format:%1 (%2)\|key:name_generation\|2-key:name_credential\|fallback_text:—}}` | tom | `—` — all tokens empty → fallback |
+| J5 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | tom | `Tom (Smith)` |
+| J6 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_generation}}` | jane | `Jane` — bracket group removed (`%2` empty) |
+| J7 | `{{join mode:template\|format:%1 · %2\|key:name_generation\|2-key:name_last}}` | jane | `Johnson` — floating separator removed (`%1` empty) |
+| J8 | `{{join mode:template\|format:%1 (%2.)\|key:name_first\|2-key:name_generation}}` | jane | `Jane` — punct + brackets removed with empty `%2` |
+| J9 | `{{join mode:template\|format:%1 (%2.)\|key:name_generation\|2-key:name_first}}` | jane | `(Jane.)` — bracket KEPT around surviving token |
+| J10 | `{{join mode:template\|format:%1 (%2)\|key:name_generation\|2-key:name_credential\|fallback_text:—}}` | jane | `—` — all tokens empty → fallback |
 
 ## Full-name assembly — the primary stress case
 
@@ -78,10 +81,10 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 
 | # | Context | Expected |
 |---|---|---|
-| J21 | jane (DENSE) | `Dr. Jane M. Smith Jr., PhD, USN (Ret.)` — every part rendered, literal `.`/`,` kept |
-| J22 | tom (SPARSE) | `Tom Associate` — mid-initial `.` shed, commas around empty credential/service collapsed, no orphan `, ,`, no trailing punctuation |
-| J23 | pure harness | `Dr. Jane M. Smith, PhD, USN (Ret.)` — empty `{5}` only (see harness) |
-| J24 | pure harness | `Dr. Jane M. Smith Jr., USN (Ret.)` — empty `{6}` sheds ONE comma (Gap-2 core; see harness) |
+| J21 | tom (DENSE) | `Dr. Tom M. Smith Jr., PhD, USN (Ret.)` — every part rendered, literal `.`/`,` kept |
+| J22 | jane (SPARSE) | `Jane Johnson` — mid-initial `.` shed, commas around empty credential/service collapsed, no orphan `, ,`, no trailing punctuation |
+| J23 | pure harness | `Dr. Tom M. Smith, PhD, USN (Ret.)` — empty `{5}` only (see harness) |
+| J24 | pure harness | `Dr. Tom M. Smith Jr., USN (Ret.)` — empty `{6}` sheds ONE comma (Gap-2 core; see harness) |
 
 > **J23/J24 → pure harness (decided 2026-07-17).** One empty middle part against an
 > otherwise-dense name is a 100% pure string transform; `render-tag` has no per-field blanking
@@ -129,6 +132,32 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 | # | Case | Expected |
 |---|---|---|
 | J20 | slot 2 has neither `key` nor non-default `use` | slot 3 controls hidden (reveal keys on `2-key not_empty` OR `2-use not_empty`, NOT `2-src`) |
+
+## Editor configuration preview (`bws_build_join_preview_label`)
+
+In the editor a `{{join}}` **resolves its slots against the post being edited** — GB's
+preview REST route injects `id:<postId>` into the tag string, and the callback threads that
+id into each post-based slot (`bws_join_callback`, the `$explicit_id` note; only `src:site`
+slots skip it, being entity-blind). So a join whose fields live on the edited post shows the
+real assembled value, exactly like `{{phone}}`/`{{text}}`. The bracket **preview label** below
+is the fallback shown only when the slots still resolve empty (fields absent on that post, a
+misconfigured slot, etc.). Owned + example-tabled in
+[`docs/editor-tag-previews.md` §join](../../docs/editor-tag-previews.md#join-preview); shape is
+pinned string-exact by `php tools/test/preview-label-test.php`. Reproduce on the testbed with the
+`render-tag` **`--preview`** flag (seeds `bwsEditorPreview`), no `--url` needed:
+
+```bash
+bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
+```
+
+| # | Tag | Expected preview |
+|---|---|---|
+| JP1 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
+| JP2 | `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
+| JP3 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “%1 (%2)”: 'name_first', 'name_last']` |
+| JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
+| JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
+| JP6 | `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
 
 ## Fail triage
 

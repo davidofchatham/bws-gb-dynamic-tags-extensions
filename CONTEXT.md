@@ -143,6 +143,18 @@ Enforced at: `MigrationRegistry::is_entry_live()` PHPDoc (the classifier + why-n
 
 ---
 
+## I11 — A composing tag must thread the editor-injected `id` into every post-based sub-read
+
+GB's editor **preview REST route** resolves the edited post by appending `id:<postId>` to the tag string — because `GenerateBlocks_Dynamic_Tags::get_id()`'s post fallback is `get_the_ID()`, which is **`false` in the REST context** (no main query runs). A single-read tag (`text`, `phone`, …) receives that `id` in its OWN options and resolves. But a **composing tag** — one that builds a fresh option set per sub-read (`join`'s per-slot `$slot_opts`, and any future multi-slot absorber) — **drops the tag-level `id`** unless it explicitly copies it down, so its current/ref sub-reads resolve against a nonexistent post → empty-in-editor (the tag then shows only its configuration-preview label, never the real data the sibling `{{text}}` shows).
+
+**Rule:** a composing tag MUST thread its tag-level `id` into every **post-based** sub-read it delegates. `src:ref` sub-reads carry it too (the current post is the ref-hop origin). Only **entity-blind** sources skip it — `src:site` reads a `wp_options` datum, never a post, so passing `id` there is meaningless.
+
+**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-row / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
+
+This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot resolves identically to the same tag standalone — which fails silently in the editor if the id isn't propagated). Enforced at: `bws_join_callback` `$explicit_id` PHPDoc (base-tags.php). Schema/behavior: `tag-reference.md` §join (editor preview) + `tools/test/join-test-matrix.md` §Editor preview.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).

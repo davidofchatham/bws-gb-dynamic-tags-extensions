@@ -50,6 +50,14 @@ class BWS_Render_Tag_Command {
 	 *   ID as the loop item (queryType WP_Query). Loop-row context wins over
 	 *   ambient, matching front-end precedence.
 	 *
+	 * [--preview]
+	 * : Seed the block context with bwsEditorPreview so callbacks return the
+	 *   editor CONFIGURATION-PREVIEW string (the bracket label shown while a tag
+	 *   is being configured) instead of real output. Mirrors the editor REST
+	 *   route. Use to eyeball the preview a tag produces on a given context
+	 *   (`bws_build_preview_label` / `_try_` / `_join_`). Combine with --url to
+	 *   preview against a real queried object.
+	 *
 	 * [--porcelain]
 	 * : Output only the rendered result, nothing else.
 	 *
@@ -58,15 +66,17 @@ class BWS_Render_Tag_Command {
 	 *     wp bws render-tag '{{text key:main_line}}' --url=https://testbed.test/matrix-post-meta/
 	 *     wp bws render-tag '{{phone srcTermIn:department|key:phone|limit:5}}' --url=https://testbed.test/matrix-terms-mixed/
 	 *     wp bws render-tag '{{title src:current}}' --url=https://testbed.test/benefit-type/health/
+	 *     wp bws render-tag '{{join key:name_first|2-key:name_last}}' --preview --porcelain
 	 *
 	 * @when after_wp_load
 	 *
 	 * @param array $args       Positional args: [0] = tag string.
-	 * @param array $assoc_args Flags: url, loop-item, porcelain.
+	 * @param array $assoc_args Flags: url, loop-item, preview, porcelain.
 	 */
 	public function __invoke( $args, $assoc_args ) {
 		$tag       = $args[0];
 		$loop_item = $assoc_args['loop-item'] ?? null;
+		$preview   = isset( $assoc_args['preview'] );
 		$porcelain = isset( $assoc_args['porcelain'] );
 
 		// --url is a WP-CLI GLOBAL param — consumed before the command runs (which
@@ -84,6 +94,10 @@ class BWS_Render_Tag_Command {
 
 		$instance          = new stdClass();
 		$instance->context = array();
+
+		if ( $preview ) {
+			$instance->context['bwsEditorPreview'] = true;
+		}
 
 		if ( null !== $loop_item ) {
 			$instance->context['generateblocks/loopItem']  = (int) $loop_item;

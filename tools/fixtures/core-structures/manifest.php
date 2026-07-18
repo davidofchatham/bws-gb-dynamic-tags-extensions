@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 2, // 2: join matrix fields — name_* person parts (dense jane / sparse tom), role + height_* on matrix-post-meta.
+	'version'   => 2, // 2: join matrix fields — name_* person parts (dense tom / sparse jane), role + height_* on matrix-post-meta.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -74,7 +74,7 @@ return array(
 			'post_type'       => 'staff',
 			'post_name'       => 'jane-partner',
 			'post_title'      => 'Jane Partner',
-			'content_builder' => 'staff_join', // join NAME rows (dense) — join-test-matrix.md
+			'content_builder' => 'staff_join', // join NAME rows (sparse data → collapsed output) — join-test-matrix.md
 		),
 
 		// Second relationship target — src:ref LIST mode rows need >1 related
@@ -83,7 +83,7 @@ return array(
 			'post_type'       => 'staff',
 			'post_name'       => 'tom-associate',
 			'post_title'      => 'Tom Associate',
-			'content_builder' => 'staff_join', // same rows, sparse data → collapsed output
+			'content_builder' => 'staff_join', // same rows, dense data → full-name output (J21 stress)
 		),
 
 		// Matrix pages split BY SOURCE-STATE, not by tag family — every tag
@@ -143,25 +143,28 @@ return array(
 		'staff-jane-partner' => array(
 			'main_line'     => '(555) 200-3000',
 			'contact_email' => 'jane@example.test',
-			// join matrix — DENSE full personal name (J21 stress fixture).
-			'name_honorific'      => 'Dr.',
-			'name_first'          => 'Jane',
-			'name_middle_initial' => 'M',
-			'name_last'           => 'Smith',
-			'name_generation'     => 'Jr.',
-			'name_credential'     => 'PhD',
-			'name_service'        => 'USN (Ret.)',
+			// join matrix — SPARSE person (first+last only; honorific / middle /
+			// generation / credential / service stay unseeded → '' reads, J22).
+			// A generation suffix is implausible on this name, so the DENSE
+			// full-name stress fixture lives on Tom (male) instead; Jane is the
+			// sparse-collapse case. related_staff/main_line/contact_email rows
+			// (J16b, R4.4) are untouched — they read phone/email, not name_*.
+			'name_first' => 'Jane',
+			'name_last'  => 'Johnson',
 		),
 
 		'staff-tom-associate' => array(
 			'main_line'     => '(555) 200-4000',
 			'contact_email' => 'tom@example.test',
-			// join matrix — SPARSE person (first+last only; honorific / middle /
-			// generation / credential / service stay unseeded → '' reads, J22).
-			// Additive: tom's post_title + related_staff target role (text T7)
-			// are untouched.
-			'name_first' => 'Tom',
-			'name_last'  => 'Associate',
+			// join matrix — DENSE full personal name (J21 stress fixture). Male
+			// name carries a plausible generation suffix.
+			'name_honorific'      => 'Dr.',
+			'name_first'          => 'Tom',
+			'name_middle_initial' => 'M',
+			'name_last'           => 'Smith',
+			'name_generation'     => 'Jr.',
+			'name_credential'     => 'PhD',
+			'name_service'        => 'USN (Ret.)',
 		),
 
 		'page-matrix-post-meta' => array(

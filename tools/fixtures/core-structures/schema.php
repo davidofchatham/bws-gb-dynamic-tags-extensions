@@ -132,8 +132,8 @@ function bws_fixture_core_structures_register_acf() {
 				$text( 'unused_line', 'Unused Line' ),
 				$text( 'short_code', 'Short Code' ),
 				$text( 'hacked_line', 'Hacked Line' ),
-				// --- join matrix (J-rows) — person-name parts (dense on jane,
-				// sparse on tom), role, and height unit-suffix fields. ---
+				// --- join matrix (J-rows) — person-name parts (dense on tom,
+				// sparse on jane), role, and height unit-suffix fields. ---
 				$text( 'name_honorific', 'Honorific' ),
 				$text( 'name_first', 'First Name' ),
 				$text( 'name_middle_initial', 'Middle Initial' ),

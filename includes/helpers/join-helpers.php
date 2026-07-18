@@ -56,10 +56,10 @@ if ( ! defined( 'BWS_JOIN_MAX_SLOTS' ) ) {
 	/**
 	 * Fixed v1 slot cap. Threaded through the resolve loop, the {N}-token scan,
 	 * the option-emit loop, and the editor reveal chain — raising it is one
-	 * change. Driver: a full personal name needs 7 parts + headroom.
+	 * change. Driver: a full personal name needs 7 parts + headroom to spare.
 	 * Dynamic/unbounded slots are tracked future work (docs/future-work.md).
 	 */
-	define( 'BWS_JOIN_MAX_SLOTS', 8 );
+	define( 'BWS_JOIN_MAX_SLOTS', 10 );
 }
 
 // ===============================================
@@ -133,7 +133,9 @@ function bws_join_assemble( array $values, array $options ): string {
  */
 function bws_join_wire_format( string $format ): string {
 	$format = str_replace( '%%', "\x00", $format ); // protect escaped %
-	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+	// High → low so a two-digit token (`%10`) matches before its `%1` prefix;
+	// low-first would rewrite `%10` to `{1}0`.
+	for ( $n = BWS_JOIN_MAX_SLOTS; $n >= 1; $n-- ) {
 		$format = str_replace( '%' . $n, '{' . $n . '}', $format );
 	}
 	return str_replace( "\x00", '%', $format );

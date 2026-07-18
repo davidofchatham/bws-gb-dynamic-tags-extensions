@@ -85,6 +85,7 @@ echo "bws_join_wire_format (wire %N → canonical {N}; GB bans } in options)\n";
 
 assert_same( 'basic translation', '{1} ({2})', bws_join_wire_format( '%1 (%2)' ) );
 assert_same( 'all eight tokens', '{1}{2}{3}{4}{5}{6}{7}{8}', bws_join_wire_format( '%1%2%3%4%5%6%7%8' ) );
+assert_same( 'two-digit token %10 wins over its %1 prefix', '{9} {10} {1}', bws_join_wire_format( '%9 %10 %1' ) );
 assert_same( '%% escapes a literal percent before a digit', '50%1 off {2}', bws_join_wire_format( '50%%1 off %2' ) );
 assert_same( 'lone % (no slot digit) passes through', '100% {1}', bws_join_wire_format( '100% %1' ) );
 assert_same( 'no tokens → unchanged', 'plain text', bws_join_wire_format( 'plain text' ) );
@@ -144,37 +145,39 @@ assert_same( 'hyphen inside a word untouched', 'e-mail', tpl( array( 1 => 'e-mai
 echo "Full-name stress case — {1} {2} {3}. {4} {5}, {6}, {7}\n";
 
 $name_format = '{1} {2} {3}. {4} {5}, {6}, {7}';
-$dense       = array( 1 => 'Dr.', 2 => 'Jane', 3 => 'M', 4 => 'Smith', 5 => 'Jr.', 6 => 'PhD', 7 => 'USN (Ret.)' );
+// Tokens mirror the testbed fixtures (dense = Tom, sparse = Jane) so the matrix's
+// "see harness" pointer stays truthful; the algorithm itself is name-agnostic.
+$dense       = array( 1 => 'Dr.', 2 => 'Tom', 3 => 'M', 4 => 'Smith', 5 => 'Jr.', 6 => 'PhD', 7 => 'USN (Ret.)' );
 
-assert_same( 'J21 dense: every part rendered', 'Dr. Jane M. Smith Jr., PhD, USN (Ret.)', tpl( $dense, $name_format ) );
+assert_same( 'J21 dense: every part rendered', 'Dr. Tom M. Smith Jr., PhD, USN (Ret.)', tpl( $dense, $name_format ) );
 assert_same(
 	'J22 sparse (first+last only): full collapse',
-	'Tom Associate',
-	tpl( array( 1 => '', 2 => 'Tom', 3 => '', 4 => 'Associate', 5 => '', 6 => '', 7 => '' ), $name_format )
+	'Jane Johnson',
+	tpl( array( 1 => '', 2 => 'Jane', 3 => '', 4 => 'Johnson', 5 => '', 6 => '', 7 => '' ), $name_format )
 );
 assert_same(
 	'J23 empty generation ({5}): surrounding ", " collapses cleanly',
-	'Dr. Jane M. Smith, PhD, USN (Ret.)',
+	'Dr. Tom M. Smith, PhD, USN (Ret.)',
 	tpl( array_replace( $dense, array( 5 => '' ) ), $name_format )
 );
 assert_same(
 	'J24 empty credential ({6}): sheds ONE comma, not both (Gap-2 core)',
-	'Dr. Jane M. Smith Jr., USN (Ret.)',
+	'Dr. Tom M. Smith Jr., USN (Ret.)',
 	tpl( array_replace( $dense, array( 6 => '' ) ), $name_format )
 );
 assert_same(
 	'empty honorific ({1}): leading part drops cleanly',
-	'Jane M. Smith Jr., PhD, USN (Ret.)',
+	'Tom M. Smith Jr., PhD, USN (Ret.)',
 	tpl( array_replace( $dense, array( 1 => '' ) ), $name_format )
 );
 assert_same(
 	'empty middle initial ({3}): its "." sheds',
-	'Dr. Jane Smith Jr., PhD, USN (Ret.)',
+	'Dr. Tom Smith Jr., PhD, USN (Ret.)',
 	tpl( array_replace( $dense, array( 3 => '' ) ), $name_format )
 );
 assert_same(
 	'empty service ({7}): trailing comma stripped',
-	'Dr. Jane M. Smith Jr., PhD',
+	'Dr. Tom M. Smith Jr., PhD',
 	tpl( array_replace( $dense, array( 7 => '' ) ), $name_format )
 );
 assert_same(

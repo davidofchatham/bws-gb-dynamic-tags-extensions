@@ -6,7 +6,7 @@ manual matrices assume:
 - [`tools/test/phone-test-matrix.md`](../../test/phone-test-matrix.md)
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
-- [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `jane-partner` / sparse on `tom-associate`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
+- [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -41,6 +41,13 @@ bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/ve
 Safe to re-run — upserts by slug; page content is regenerated every run.
 Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
 the phone matrix's default state) into `bws_dynamic_tags_settings`.
+
+> **Reseed is additive — it never DELETES a key removed from the manifest.** If a
+> fixture edit *drops* a field (e.g. the join dense↔sparse swap that moved the full
+> `name_*` set from `jane-partner` to `tom-associate`), the removed keys stay on the
+> old post as orphaned meta until cleared by hand (`wp post meta delete <id> <key>`,
+> plus the ACF `_<key>` companion) or a fresh reseed on an empty DB. Verify with
+> `wp post meta list <id>` after any field-removing change.
 `seed.php` also installs `mu-plugins/bws-fixture-core-structures.php`, a loader stub
 whose include path is computed at seed time (nothing machine-specific committed),
 so the schema survives snapshot restores.
@@ -55,10 +62,10 @@ so the schema survives snapshot restores.
   `jane-partner` (src:ref target).
 - Options page **Site Settings** with `organization_*` fields.
 - join person-name surface: `name_*` parts (Staff Contact group) — dense on
-  `jane-partner`, sparse (first+last) on `tom-associate`; `role` + `height_*`
+  `tom-associate`, sparse (first+last) on `jane-partner`; `role` + `height_*`
   (incl. blank + zero probes) + a slot-1 `name_first` on `matrix-post-meta`.
   Both staff singles carry a `staff_join` content builder (the name J-rows as
-  visible/editable GB blocks — full set on each, jane dense vs tom sparse);
+  visible/editable GB blocks — full set on each, tom dense vs jane sparse);
   the post-arm J-rows (height/role/absorb) render in a Join section group on
   `matrix-post-meta`.
 - Collision repeaters (Team / Product Features), two flex fields (Page Builder),

@@ -280,7 +280,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | *(no term_ variant)* | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | *(no term_ variant)* | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
-| `join` | `'Combine Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 8 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
+| `join` | `'Join Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
 | `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
@@ -698,9 +698,9 @@ neither a base tag nor a modifier: it resolves no read of its own — each slot 
 base `text` read via the extracted seam (`bws_base_text_resolve_value`, 1.14.1), so every current
 and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref list modes,
 loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
-(`'Combine Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
+(`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
 
-**Slots.** Up to **8** (`BWS_JOIN_MAX_SLOTS`), on the same flat `{N}-` prefix wire format as
+**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the same flat `{N}-` prefix wire format as
 `try_` (slot 1 bare keys). Per slot: `src` / `ref` / `srcTermIn` (from the shared slot builders,
 **site allowed** — the `try_text` site-slot gap is not repeated), `use` (text's key/title enum —
 **no "Same as Previous Field" row**: in combining, same-`use` is redundant or pointless), `key`
@@ -720,13 +720,13 @@ src-keyed reveal is the selecting axis).
 |---|---|---|
 | `mode` | select | `''` = Separator (default, stripped) / `template` |
 | `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
-| `format` | text | Template-mode format string with **`%1`…`%8` positional tokens**. Shown in template mode. |
+| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens**. Shown in template mode. |
 | `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
 
 **Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
 tag's options (captured as `[^}]+` — kills the whole tag match, no escape;
 [`gb-constraints.md` §Tag-string-unsafe values](gb-constraints.md#tag-string-unsafe-values)), so
-brace tokens `{1}` can never ride the wire. Authors write `%1`…`%8`; `%%` escapes a literal
+brace tokens `{1}` can never ride the wire. Authors write `%1`…`%10`; `%%` escapes a literal
 percent directly before a digit. Internally `bws_join_wire_format()` translates to the canonical
 `{N}` form the pure algorithm uses.
 
@@ -761,6 +761,14 @@ the tracked base-text zero-as-empty opt-in (absorbed by join when it lands).
 **No link-wrap.** Output composes raw slot values — link identities from the seam are ignored
 (no per-slot anchors, no nested/broken markup). If wrap ever arrives it is once at the join
 layer, single-value output only (tracked).
+
+**Editor preview.** In the editor a join resolves its slots against the post being edited — GB's
+preview REST route injects `id:<postId>`, and the callback threads that id into each post-based
+slot (only `src:site` slots skip it), so a join reading the edited post's own fields shows the
+real assembled value just like `{{text}}`/`{{phone}}`. When the slots still resolve empty (fields
+absent, misconfigured slot), it shows a configuration preview (target fields + assembly mode)
+instead of an empty block, built by `bws_build_join_preview_label()`. Shape + examples:
+[`editor-tag-previews.md` §join](editor-tag-previews.md#join-preview).
 
 ```
 {{join key:name_first|2-key:name_last}}                          → Jane, Smith

@@ -220,7 +220,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 /**
  * Page content: staff singles (staff-jane-partner / staff-tom-associate).
  * join NAME rows — same tag strings on both; the FIXTURE data makes the case
- * (jane dense / tom sparse), so one builder serves both staff. These resolve
+ * (tom dense / jane sparse), so one builder serves both staff. These resolve
  * off the current staff post (name_* fields live on the Staff Contact group).
  */
 function bws_fixture_page_content_staff_join() {
@@ -243,7 +243,7 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'J10', '{{join mode:template|format:%1 (%2)|key:name_generation|2-key:name_credential|fallback_text:—}}' ),
 	) );
 
-	// Full-name stress case — one format string, dense (jane) vs collapsed (tom).
+	// Full-name stress case — one format string, dense (tom) vs collapsed (jane).
 	$sections[] = bws_fixture_gb_section( 'Join - full personal name', array(
 		bws_fixture_gb_row( 'J21/J22', '{{join mode:template|format:%1 %2 %3. %4 %5, %6, %7|key:name_honorific|2-key:name_first|3-key:name_middle_initial|4-key:name_last|5-key:name_generation|6-key:name_credential|7-key:name_service}}' ),
 	) );

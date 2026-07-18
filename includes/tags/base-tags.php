@@ -314,7 +314,7 @@ function bws_register_base_tags(): void {
 	// =========================================================
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
-		'title'    => __( 'Combine Fields', 'generateblocks' ),
+		'title'    => __( 'Join Fields', 'generateblocks' ),
 		'tag'      => 'join',
 		'type'     => 'cross-source',
 		'supports' => array(),
@@ -946,6 +946,18 @@ function bws_join_callback( $options, $block, $instance ): string {
 	$last_src = '';
 	$last_ref = '';
 
+	// Tag-level explicit post id — GB's editor preview REST route injects
+	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
+	// get_the_ID(), false in the REST context) resolves the edited post. That id
+	// lives at the JOIN level; each slot builds its own option set, so it must be
+	// threaded into every post-based slot below or the current/ref slots resolve
+	// empty in the editor (showing only the preview label, unlike the sibling
+	// {{text}}). Inert on the front end — GB injects `id` only in the editor, so
+	// there $explicit_id is '' and the loop/ambient context (I9) resolves instead.
+	// This is CONTEXT.md I11 (composing-tag id-threading); see also the join
+	// $slot_opts['id'] assignment for the src:site exclusion.
+	$explicit_id = $options['id'] ?? '';
+
 	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
 		$src = ( 1 === $n ) ? ( $options['src'] ?? '' )       : ( $options[ "{$n}-src" ] ?? '' );
 		$ref = ( 1 === $n ) ? ( $options['ref'] ?? '' )       : ( $options[ "{$n}-ref" ] ?? '' );
@@ -983,6 +995,13 @@ function bws_join_callback( $options, $block, $instance ): string {
 		if ( '' !== $lim ) {
 			$slot_opts['limit'] = $lim;
 		}
+		// Thread the editor's injected post id into every post-based slot (see
+		// $explicit_id note). src:ref bases its hop on this id too (the current
+		// post is the ref origin), so it must carry. Only src:site is entity-blind
+		// — it reads an option, never a post — so the id is left off there.
+		if ( '' !== $explicit_id && 'site' !== $last_src ) {
+			$slot_opts['id'] = $explicit_id;
+		}
 
 		$values[ $n ] = bws_join_resolve_slot( $slot_opts, $instance );
 	}
@@ -990,6 +1009,15 @@ function bws_join_callback( $options, $block, $instance ): string {
 	$assembled = bws_join_assemble( $values, (array) $options );
 
 	if ( '' === $assembled ) {
+		// Editor-time: the target fields rarely exist on the editing context, so
+		// show the configuration preview (target fields + assembly, with the
+		// fallback annotated) rather than the literal fallback — the author needs
+		// to see the config, not the masked-empty output. Front end below shows
+		// the real fallback. Matches every other base tag's preview ordering.
+		$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+		if ( $is_preview && function_exists( 'bws_build_join_preview_label' ) ) {
+			return bws_build_join_preview_label( (array) $options );
+		}
 		$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
 		return '' !== $fallback
 			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
