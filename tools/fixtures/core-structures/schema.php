@@ -12,7 +12,8 @@
  *
  * Data lives in manifest.php; this file is code only.
  *
- * Consumed by: tools/test/phone-test-matrix.md, tools/test/field-selector-test-matrix.md.
+ * Consumed by: tools/test/phone-test-matrix.md, tools/test/field-selector-test-matrix.md,
+ * tools/test/text-test-matrix.md, tools/test/join-test-matrix.md.
  */
 
 if ( ! defined( 'ABSPATH' ) && ! defined( 'WP_CLI' ) ) {
@@ -131,6 +132,20 @@ function bws_fixture_core_structures_register_acf() {
 				$text( 'unused_line', 'Unused Line' ),
 				$text( 'short_code', 'Short Code' ),
 				$text( 'hacked_line', 'Hacked Line' ),
+				// --- join matrix (J-rows) — person-name parts (dense on jane,
+				// sparse on tom), role, and height unit-suffix fields. ---
+				$text( 'name_honorific', 'Honorific' ),
+				$text( 'name_first', 'First Name' ),
+				$text( 'name_middle_initial', 'Middle Initial' ),
+				$text( 'name_last', 'Last Name' ),
+				$text( 'name_generation', 'Generation' ),
+				$text( 'name_credential', 'Credential' ),
+				$text( 'name_service', 'Service/Status' ),
+				$text( 'role', 'Role' ),
+				$text( 'height_ft', 'Height (ft)' ),
+				$text( 'height_in', 'Height (in)' ),
+				$text( 'height_in_blank', 'Height (in, blank)' ),
+				$text( 'height_in_zero', 'Height (in, zero)' ),
 				array(
 					'key'   => 'field_bwsfx_staff_contact_email',
 					'name'  => 'contact_email',

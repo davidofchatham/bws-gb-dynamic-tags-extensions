@@ -6,6 +6,7 @@ manual matrices assume:
 - [`tools/test/phone-test-matrix.md`](../../test/phone-test-matrix.md)
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
+- [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `jane-partner` / sparse on `tom-associate`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -53,6 +54,9 @@ so the schema survives snapshot restores.
   (all junk → fallback); post `sample-event` (discovery edge cases); staff
   `jane-partner` (src:ref target).
 - Options page **Site Settings** with `organization_*` fields.
+- join person-name surface: `name_*` parts (Staff Contact group) — dense on
+  `jane-partner`, sparse (first+last) on `tom-associate`; `role` + `height_*`
+  (incl. blank + zero probes) + a slot-1 `name_first` on `matrix-post-meta`.
 - Collision repeaters (Team / Product Features), two flex fields (Page Builder),
   registered-meta set (`bws_global_note`, `bws_page_only`, `subtitle`, `bws_cat_note`),
   `Break </script><b>x</b>` label probe, empty **Scratch** ACF group in the DB.

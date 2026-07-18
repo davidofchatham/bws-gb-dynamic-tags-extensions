@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 1,
+	'version'   => 2, // 2: join matrix fields — name_* person parts (dense jane / sparse tom), role + height_* on matrix-post-meta.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -141,11 +141,25 @@ return array(
 		'staff-jane-partner' => array(
 			'main_line'     => '(555) 200-3000',
 			'contact_email' => 'jane@example.test',
+			// join matrix — DENSE full personal name (J21 stress fixture).
+			'name_honorific'      => 'Dr.',
+			'name_first'          => 'Jane',
+			'name_middle_initial' => 'M',
+			'name_last'           => 'Smith',
+			'name_generation'     => 'Jr.',
+			'name_credential'     => 'PhD',
+			'name_service'        => 'USN (Ret.)',
 		),
 
 		'staff-tom-associate' => array(
 			'main_line'     => '(555) 200-4000',
 			'contact_email' => 'tom@example.test',
+			// join matrix — SPARSE person (first+last only; honorific / middle /
+			// generation / credential / service stay unseeded → '' reads, J22).
+			// Additive: tom's post_title + related_staff target role (text T7)
+			// are untouched.
+			'name_first' => 'Tom',
+			'name_last'  => 'Associate',
 		),
 
 		'page-matrix-post-meta' => array(
@@ -173,6 +187,16 @@ return array(
 			'short_code'       => '12345',                     // R3.6 length gate
 			'hacked_line'      => '+1-987"><script>654-3210',  // R6.1
 			'related_staff'    => array( 'staff-jane-partner', 'staff-tom-associate' ), // R4.4 + text T7 list mode (slugs resolved to IDs at seed; jane FIRST — limit:1 rows pin her)
+			// join matrix — post-arm context rows. name_first is a deliberate
+			// slot-1 value for the ref/site-hop rows (J17/J18) — distinct entity
+			// from the staff name_first; the OTHER name_* parts stay unseeded on
+			// this page (J13's name_generation slot reads empty here).
+			'role'            => 'Captain',                    // J4, J15
+			'name_first'      => 'Jane',                       // J17, J18
+			'height_ft'       => '5',                          // J11-J14
+			'height_in'       => '11',                         // J11
+			'height_in_blank' => '',                           // J12/J13 dangling-quote drop
+			'height_in_zero'  => '0',                          // J14 absorbed-'0' renders
 		),
 
 		'post-sample-event' => array(
