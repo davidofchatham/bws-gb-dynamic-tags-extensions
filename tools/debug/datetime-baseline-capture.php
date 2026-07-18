@@ -9,6 +9,8 @@
  *   ... --url=https://testbed.test/matrix-terms-valid/   (D4 term rows)
  *   ... --url=https://testbed.test/matrix-terms-mixed/
  *   ... --url=https://testbed.test/matrix-terms-junk/
+ *   ... --url=https://testbed.test/department/support/   (D7 term-ambient rows, FW-3)
+ *   ... --url=https://testbed.test/department/warehouse/ (D7.6 empty-term row)
  *
  * Used for the Stage 0b baseline (#48) and any later re-baseline.
  */
@@ -64,6 +66,13 @@ $rows = array(
 	'D5.3'  => '{{datetime_single src:site|key:org_party_datetime}}',
 	'D5.4'  => '{{datetime_single src:ref|ref:related_staff|key:event_datetime}}',
 	'D5.6'  => '{{datetime_single key:missing_dt_field|fallback:Date TBA}}',
+	// D7 — FW-3(a) term-ambient parity (meaningful on the /department/* term archives)
+	'D7.1'  => '{{datetime_single key:event_date}}',
+	'D7.2'  => '{{datetime_single key:event_date|format:Y-m-d}}',
+	'D7.3'  => '{{datetime_single key:event_date|fallback:Date TBA}}',
+	'D7.4'  => '{{datetime_single key:event_date|as:date}}',
+	'D7.5'  => '{{datetime_range startKey:event_date}}',
+	'D7.6'  => '{{datetime_single key:event_date|fallback:Date TBA}}',
 );
 
 foreach ( $rows as $label => $tag ) {

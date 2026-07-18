@@ -108,3 +108,29 @@ Datetime previews are **excluded from the pure preview harness** (live-clock `wp
 |---|---|
 | D6.1 | Open `/matrix-post-meta/` in the editor: an unresolved datetime block shows `[Date-Time like "…"]` (live current time in the active format), range blocks `[Date-Time Range like "…"]`, `as:` variants swap the prefix (Date / Time / Date Range / Time Range). |
 | D6.2 | `limit` / `sep` controls appear ONLY when `srcTermIn` is set or `src` = Related Post Field (post-#30; conditional-options JS). |
+
+## D7 — FW-3(a) term-ambient parity — ⏳ expected-fail (pre-FW-3 baseline captured 2026-07-18)
+
+Bare datetime tags on a taxonomy archive read the ambient term's date field, matching the base
+text/title I1 analog behavior. Pre-FW-3 baseline: post-only resolution → honest-empty (fallback
+fires). Rows assert the post-FW-3 behavior; until the rethread lands every value row renders
+empty.
+
+**render-tag-only** (stated exception to the visible-rows rule): rows need a term ARCHIVE as
+ambient context, which can't host page blocks — same exception as text T4. Run:
+
+```
+bin/wp.sh testbed bws render-tag '{{datetime_single key:event_date}}' --url=https://testbed.test/department/support/ --porcelain
+```
+
+Fixture: term `event_date` — support `October 5, 2030` / warehouse EMPTY (blueprint v3, already
+seeded — no new fixture state).
+
+| # | URL context | Tag | Expected (post-FW-3) | Pre-FW-3 baseline |
+|---|---|---|---|---|
+| D7.1 | support | `{{datetime_single key:event_date}}` | `October 5, 2030` (ambient term read, field return format) | empty |
+| D7.2 | support | `{{datetime_single key:event_date|format:Y-m-d}}` | `2030-10-05` | empty |
+| D7.3 | support | `{{datetime_single key:event_date|fallback:Date TBA}}` | `October 5, 2030` (value wins, fallback idle) | `Date TBA` |
+| D7.4 | support | `{{datetime_single key:event_date|as:date}}` | `October 5, 2030` | empty |
+| D7.5 | support | `{{datetime_range startKey:event_date}}` | `October 5, 2030` (single-ended range off the term) | empty |
+| D7.6 | warehouse | `{{datetime_single key:event_date|fallback:Date TBA}}` | `Date TBA` (empty term field stays honest-empty → fallback) | `Date TBA` |
