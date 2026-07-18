@@ -92,6 +92,16 @@ $field_keys = array(
 		'height_in_zero'      => 'field_bwsfx_height_in_zero',
 		'event_date'       => 'field_bwsfx_event_date',
 		'Event_Date'       => 'field_bwsfx_event_date_cased',
+		// datetime matrix (manifest v3) — Event Schedule group (page + staff).
+		'event_datetime'     => 'field_bwsfx_event_datetime',
+		'event_end_datetime' => 'field_bwsfx_event_end_datetime',
+		'event_time'         => 'field_bwsfx_event_time',
+		'event_end_time'     => 'field_bwsfx_event_end_time',
+		'event_start_date'   => 'field_bwsfx_event_start_date',
+		'event_end_date'     => 'field_bwsfx_event_end_date',
+		'event_midnight'     => 'field_bwsfx_event_midnight',
+		'event_thisyear'     => 'field_bwsfx_event_thisyear',
+		'event_date_dmy'     => 'field_bwsfx_event_date_dmy',
 		'venue_city'       => 'field_bwsfx_venue_city',
 		'subtitle'         => 'field_bwsfx_subtitle',
 		'escape_probe'     => 'field_bwsfx_escape_probe',
@@ -105,12 +115,24 @@ $field_keys = array(
 		'organization_address'       => 'field_bwsfx_organization_address',
 		'organization_founded'       => 'field_bwsfx_organization_founded',
 		'organization_social'        => 'field_bwsfx_organization_social',
+		'org_party_datetime'         => 'field_bwsfx_org_party_datetime',
 	),
 	'term'   => array(
-		'phone' => 'field_bwsfx_phone',
-		'email' => 'field_bwsfx_department_email',
+		'phone'      => 'field_bwsfx_phone',
+		'email'      => 'field_bwsfx_department_email',
+		'event_date' => 'field_bwsfx_dept_event_date',
 	),
 );
+
+// Manifest value tokens. {CURRENT_YEAR} → the seed-time year (keeps the
+// showCurrentYear fixture in the current year on every reseed; manifest stays
+// pure data). Applied to every string field value below.
+$resolve_tokens = function ( $value ) {
+	if ( is_string( $value ) && false !== strpos( $value, '{CURRENT_YEAR}' ) ) {
+		return str_replace( '{CURRENT_YEAR}', wp_date( 'Y' ), $value );
+	}
+	return $value;
+};
 // contact_email has two homes (M3.3) — pick by post type at write time.
 $contact_email_keys = array(
 	'staff' => 'field_bwsfx_staff_contact_email',
@@ -143,6 +165,7 @@ foreach ( $manifest['term_fields'] as $slug => $fields ) {
 	}
 	$tid = $term_ids[ $slug ];
 	foreach ( $fields as $name => $value ) {
+		$value = $resolve_tokens( $value );
 		if ( $have_acf && isset( $field_keys['term'][ $name ] ) ) {
 			update_field( $field_keys['term'][ $name ], $value, 'term_' . $tid );
 		} else {
@@ -206,6 +229,7 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 	$pid   = $post_ids[ $slug ];
 	$ptype = get_post_type( $pid );
 	foreach ( $fields as $name => $value ) {
+		$value = $resolve_tokens( $value );
 		// Resolve fixture-slug references (relationship fields) to post IDs.
 		if ( 'related_staff' === $name && is_array( $value ) ) {
 			$value = array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
@@ -252,6 +276,7 @@ if ( ! empty( $manifest['wp_options'] ) ) {
 // 7. Options-page fields.
 // ---------------------------------------------------------------------------
 foreach ( $manifest['option_fields'] as $name => $value ) {
+	$value = $resolve_tokens( $value );
 	if ( $have_acf && isset( $field_keys['option'][ $name ] ) ) {
 		update_field( $field_keys['option'][ $name ], $value, 'option' );
 	} elseif ( ! is_array( $value ) ) {

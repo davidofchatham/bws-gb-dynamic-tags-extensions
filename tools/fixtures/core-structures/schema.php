@@ -197,6 +197,15 @@ function bws_fixture_core_structures_register_acf() {
 					'display_format' => 'F j, Y',
 				),
 				array(
+					// datetime matrix D5 — src:site datetime read.
+					'key'            => 'field_bwsfx_org_party_datetime',
+					'name'           => 'org_party_datetime',
+					'label'          => 'Company Party',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
 					'key'        => 'field_bwsfx_organization_social',
 					'name'       => 'organization_social',
 					'label'      => 'Social Links',
@@ -409,6 +418,98 @@ function bws_fixture_core_structures_register_acf() {
 		)
 	);
 
+	// --- Event Schedule (page + staff) — datetime matrix value fields (D-rows,
+	// tools/test/datetime-test-matrix.md). Fixed 2030 values keep expectations
+	// stable; the current-year case uses the {CURRENT_YEAR} seed token. ---
+	acf_add_local_field_group(
+		array(
+			'key'      => 'group_bwsfx_event_schedule',
+			'title'    => 'Event Schedule',
+			'fields'   => array(
+				array(
+					'key'            => 'field_bwsfx_event_datetime',
+					'name'           => 'event_datetime',
+					'label'          => 'Event Date-Time',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
+					'key'            => 'field_bwsfx_event_end_datetime',
+					'name'           => 'event_end_datetime',
+					'label'          => 'Event End Date-Time',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
+					// Lowercase-meridiem return format — case probe for the auto chain.
+					'key'            => 'field_bwsfx_event_time',
+					'name'           => 'event_time',
+					'label'          => 'Event Time',
+					'type'           => 'time_picker',
+					'return_format'  => 'g:i a',
+					'display_format' => 'g:i a',
+				),
+				array(
+					'key'            => 'field_bwsfx_event_end_time',
+					'name'           => 'event_end_time',
+					'label'          => 'Event End Time',
+					'type'           => 'time_picker',
+					'return_format'  => 'g:i a',
+					'display_format' => 'g:i a',
+				),
+				array(
+					'key'            => 'field_bwsfx_event_start_date',
+					'name'           => 'event_start_date',
+					'label'          => 'Event Start Date',
+					'type'           => 'date_picker',
+					'return_format'  => 'F j, Y',
+					'display_format' => 'F j, Y',
+				),
+				array(
+					'key'            => 'field_bwsfx_event_end_date',
+					'name'           => 'event_end_date',
+					'label'          => 'Event End Date',
+					'type'           => 'date_picker',
+					'return_format'  => 'F j, Y',
+					'display_format' => 'F j, Y',
+				),
+				array(
+					// Value seeded at midnight — showMidnight / smart-time rows.
+					'key'            => 'field_bwsfx_event_midnight',
+					'name'           => 'event_midnight',
+					'label'          => 'Event (midnight)',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
+					// Value seeded in the CURRENT year — showCurrentYear rows.
+					'key'            => 'field_bwsfx_event_thisyear',
+					'name'           => 'event_thisyear',
+					'label'          => 'Event (this year)',
+					'type'           => 'date_picker',
+					'return_format'  => 'F j, Y',
+					'display_format' => 'F j, Y',
+				),
+				array(
+					// Non-default return_format — the parse chain dispatches on it (D0.11).
+					'key'            => 'field_bwsfx_event_date_dmy',
+					'name'           => 'event_date_dmy',
+					'label'          => 'Event Date (d/m/Y)',
+					'type'           => 'date_picker',
+					'return_format'  => 'd/m/Y',
+					'display_format' => 'd/m/Y',
+				),
+			),
+			'location' => array(
+				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ),
+				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'staff' ) ),
+			),
+		)
+	);
+
 	// --- Department Details (term meta on department) — term-hop value fields. ---
 	acf_add_local_field_group(
 		array(
@@ -421,6 +522,16 @@ function bws_fixture_core_structures_register_acf() {
 					'name'  => 'email',
 					'label' => 'Email',
 					'type'  => 'email',
+				),
+				array(
+					// datetime matrix D4 — srcTermIn list rows (valid on support/sales,
+					// junk on warehouse per the manifest).
+					'key'            => 'field_bwsfx_dept_event_date',
+					'name'           => 'event_date',
+					'label'          => 'Department Event Date',
+					'type'           => 'date_picker',
+					'return_format'  => 'F j, Y',
+					'display_format' => 'F j, Y',
 				),
 			),
 			'location' => array(

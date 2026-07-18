@@ -205,6 +205,63 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J14', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_zero}}' ),
 	) );
 
+	// datetime matrix (datetime-test-matrix.md) — D0/D1/D2 baseline rows, D3
+	// (#25) + D4 src:ref (#30) new-behavior rows, D5 sources. Term-hop D4 rows
+	// live on the term pages (matrix_term_hop); D5.5 loop-item is
+	// render-tag-only (stated exception in the matrix).
+	$sections[] = bws_fixture_gb_section( 'Datetime D0 - single basics', array(
+		bws_fixture_gb_row( 'D0.1', '{{datetime_single key:event_start_date}}' ),
+		bws_fixture_gb_row( 'D0.2', '{{datetime_single key:event_datetime}}' ),
+		bws_fixture_gb_row( 'D0.3', '{{datetime_single key:event_datetime|format:Y-m-d}}' ),
+		bws_fixture_gb_row( 'D0.4', '{{datetime_single key:event_thisyear}}' ),
+		bws_fixture_gb_row( 'D0.5', '{{datetime_single key:event_thisyear|showCurrentYear}}' ),
+		bws_fixture_gb_row( 'D0.6', '{{datetime_single key:event_midnight}}' ),
+		bws_fixture_gb_row( 'D0.7', '{{datetime_single key:event_midnight|showMidnight}}' ),
+		bws_fixture_gb_row( 'D0.8', '{{datetime_single key:event_start_date|timeKey:event_time}}' ),
+		bws_fixture_gb_row( 'D0.9', '{{datetime_single key:event_start_date|timeKey:event_time|timeSep: @ }}' ),
+		bws_fixture_gb_row( 'D0.10', '{{datetime_single key:plain_meta_date}}' ),
+		bws_fixture_gb_row( 'D0.11', '{{datetime_single key:event_date_dmy}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D1 - as: narrowing', array(
+		bws_fixture_gb_row( 'D1.1', '{{datetime_single key:event_datetime|as:date}}' ),
+		bws_fixture_gb_row( 'D1.2', '{{datetime_single key:event_datetime|as:time}}' ),
+		bws_fixture_gb_row( 'D1.3', '{{datetime_single key:event_time|as:time}}' ),
+		bws_fixture_gb_row( 'D1.4', '{{datetime_range startKey:event_datetime|as:time}}' ),
+		bws_fixture_gb_row( 'D1.5', '{{datetime_range startKey:event_datetime|as:time|format:H:i}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D2 - range basics', array(
+		bws_fixture_gb_row( 'D2.1', '{{datetime_range startKey:event_start_date|endKey:event_end_date}}' ),
+		bws_fixture_gb_row( 'D2.2', '{{datetime_range startKey:event_start_date|endKey:event_end_date|rangeSep: to }}' ),
+		bws_fixture_gb_row( 'D2.3', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime}}' ),
+		bws_fixture_gb_row( 'D2.4', '{{datetime_range startKey:event_midnight|endKey:event_end_datetime}}' ),
+		bws_fixture_gb_row( 'D2.5', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time}}' ),
+		bws_fixture_gb_row( 'D2.6', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D3 - #25 two-ended as:time custom format', array(
+		bws_fixture_gb_row( 'D3.1', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|format:H:i}}' ),
+		bws_fixture_gb_row( 'D3.2', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|format:g:i}}' ),
+		bws_fixture_gb_row( 'D3.3', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|format:g:i A}}' ),
+		bws_fixture_gb_row( 'D3.4', '{{datetime_range startKey:event_midnight|endKey:event_end_datetime|as:time|format:H:i}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D4 - src:ref list mode (#30)', array(
+		bws_fixture_gb_row( 'D4.6', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5}}' ),
+		bws_fixture_gb_row( 'D4.7', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; }}' ),
+		bws_fixture_gb_row( 'D4.8', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'D4.9', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|linkTo:permalink}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Datetime D5 - sources + fallback', array(
+		bws_fixture_gb_row( 'D5.1', '{{datetime_single src:site|key:organization_founded}}' ),
+		bws_fixture_gb_row( 'D5.2', '{{datetime_single src:site|key:organization_founded|format:F j, Y}}' ),
+		bws_fixture_gb_row( 'D5.3', '{{datetime_single src:site|key:org_party_datetime}}' ),
+		bws_fixture_gb_row( 'D5.4', '{{datetime_single src:ref|ref:related_staff|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'D5.6', '{{datetime_single key:missing_dt_field|fallback:Date TBA}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Join - per-slot src / use / site / list (absorb)', array(
 		bws_fixture_gb_row( 'J15', '{{join use:title|2-use:key|2-key:role|sep: / }}' ),
 		bws_fixture_gb_row( 'J16', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
@@ -266,6 +323,15 @@ function bws_fixture_page_content_matrix_term_hop() {
 	// run it via `render-tag --url=/department/support/` (matrix T4.1/T4.2).
 	. "\n\n" . bws_fixture_gb_section( 'Text - term field via srcTermIn hop', array(
 		bws_fixture_gb_row( 'text-term-hop', '{{text srcTermIn:department|key:email|limit:2}}' ),
+	) )
+	// datetime matrix D4 (#30) — srcTermIn list rows. The page's assigned terms
+	// make the case (valid / mixed-junk / all-junk), same as the phone rows.
+	. "\n\n" . bws_fixture_gb_section( 'Datetime D4 - srcTermIn list (#30)', array(
+		bws_fixture_gb_row( 'D4.1', '{{datetime_single srcTermIn:department|key:event_date|limit:5}}' ),
+		bws_fixture_gb_row( 'D4.2', '{{datetime_single srcTermIn:department|key:event_date}}' ),
+		bws_fixture_gb_row( 'D4.3', '{{datetime_single srcTermIn:department|key:event_date|limit:5|sep: / }}' ),
+		bws_fixture_gb_row( 'D4.4', '{{datetime_single srcTermIn:department|key:event_date|limit:5|fallback:Dates TBA}}' ),
+		bws_fixture_gb_row( 'D4.5', '{{datetime_range srcTermIn:department|startKey:event_date|limit:5|sep:; }}' ),
 	) );
 }
 

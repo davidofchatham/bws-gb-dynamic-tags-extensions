@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 2, // 2: join matrix fields — name_* person parts (dense tom / sparse jane), role + height_* on matrix-post-meta.
+	'version'   => 3, // 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -26,6 +26,7 @@ return array(
 			'group_bwsfx_staff_contact',
 			'group_bwsfx_site_settings',
 			'group_bwsfx_event_details',
+			'group_bwsfx_event_schedule',
 			'group_bwsfx_team',
 			'group_bwsfx_features',
 			'group_bwsfx_page_builder',
@@ -55,16 +56,23 @@ return array(
 	// Keyed by term fixture slug above.
 	'term_fields' => array(
 		'department-support'   => array(
-			'phone' => '(987) 111-2222',   // R3.2 valid
-			'email' => 'support@example.test',
+			'phone'      => '(987) 111-2222',   // R3.2 valid
+			'email'      => 'support@example.test',
+			'event_date' => '20301005',         // datetime D4 valid
 		),
 		'department-sales'     => array(
-			'phone' => '(987) 333-4444',   // R3.2 valid
-			'email' => 'sales@example.test',
+			'phone'      => '(987) 333-4444',   // R3.2 valid
+			'email'      => 'sales@example.test',
+			'event_date' => '20301112',         // datetime D4 valid
 		),
 		'department-warehouse' => array(
-			'phone' => 'abc',              // R3.3 junk — skipped in list mode
-			'email' => 'warehouse@example.test',
+			'phone'      => 'abc',              // R3.3 junk — skipped in list mode
+			'email'      => 'warehouse@example.test',
+			// datetime D4 "junk" = EMPTY, not a junk string: ACF formats a junk
+			// stored value in a date field to TODAY's date before the tag sees it
+			// (upstream of the parse chain), so a junk string is untestable as a
+			// skip case. Empty is the real-world skippable state.
+			'event_date' => '',
 		),
 	),
 
@@ -151,6 +159,10 @@ return array(
 			// (J16b, R4.4) are untouched — they read phone/email, not name_*.
 			'name_first' => 'Jane',
 			'name_last'  => 'Johnson',
+			// datetime matrix — src:ref list rows (D4/D5): distinct per-staff
+			// datetime pair; jane is the FIRST related_staff target (limit:1 pins her).
+			'event_datetime'     => '2030-05-01 10:00:00',
+			'event_end_datetime' => '2030-05-03 15:00:00',
 		),
 
 		'staff-tom-associate' => array(
@@ -165,6 +177,9 @@ return array(
 			'name_generation'     => 'Jr.',
 			'name_credential'     => 'PhD',
 			'name_service'        => 'USN (Ret.)',
+			// datetime matrix — second src:ref target (list rows show both dates).
+			'event_datetime'     => '2030-06-01 11:00:00',
+			'event_end_datetime' => '2030-06-05 12:00:00',
 		),
 
 		'page-matrix-post-meta' => array(
@@ -202,6 +217,17 @@ return array(
 			'height_in'       => '11',                         // J11
 			'height_in_blank' => '',                           // J12/J13 dangling-quote drop
 			'height_in_zero'  => '0',                          // J14 absorbed-'0' renders
+			// datetime matrix (D-rows) — Event Schedule group. Fixed 2030 values;
+			// {CURRENT_YEAR} resolves to the seed-time year (showCurrentYear rows).
+			'event_datetime'     => '2030-08-12 09:00:00',     // D0/D1/D2/D3
+			'event_end_datetime' => '2030-08-12 17:00:00',     // D2/D3 (cross-meridiem pair)
+			'event_time'         => '09:00:00',                // D0.8, D2.6/D3.3 (same-meridiem pair)
+			'event_end_time'     => '11:30:00',                // D2.6/D3.3
+			'event_start_date'   => '20300801',                // D0.1, D2.1 (same-month range)
+			'event_end_date'     => '20300809',                // D2.1
+			'event_midnight'     => '2030-08-12 00:00:00',     // D0.6/D0.7, D2.4/D3.4
+			'event_thisyear'     => '{CURRENT_YEAR}0410',      // D0.4/D0.5
+			'event_date_dmy'     => '20300815',                // D0.11 non-default return_format
 		),
 
 		'post-sample-event' => array(
@@ -230,6 +256,7 @@ return array(
 		'page-matrix-post-meta' => array(
 			'bws_page_only'  => 'page-only note value',
 			'bws_zero_probe' => '0', // text matrix T5 — '0' is a REAL value, must render
+			'plain_meta_date' => '2030-06-15', // datetime D0.10 — plain-meta (non-ACF) read path
 		),
 	),
 
@@ -252,6 +279,8 @@ return array(
 		'organization_email'         => 'info@example.test',
 		'organization_address'       => "123 Fixture Lane\nChatham, NC 27517",
 		'organization_founded'       => '20200115',
+		'org_party_datetime'         => '2030-09-20 18:00:00', // datetime D5 src:site
+
 		'organization_social'        => array( 'facebook' => 'https://facebook.example.test/org' ),
 	),
 );
