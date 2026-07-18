@@ -116,6 +116,7 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/content-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 
 	// Field-discovery REST service (backs the bws-field-combo editor control).
