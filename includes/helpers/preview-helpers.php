@@ -598,16 +598,12 @@ function bws_try_preview_datetime_part( string $base_template, array $options ):
 	if ( $is_range ) {
 		$end = clone $now;
 		$end->modify( '+' . $offset . ' seconds' );
-		// Normalize new option keys → legacy keys expected by bws_format_date_range().
-		$range_options = $options;
-		if ( isset( $range_options['rangeSep'] ) && ! isset( $range_options['separator'] ) ) {
-			$range_options['separator'] = $range_options['rangeSep'];
-		} elseif ( ! isset( $range_options['separator'] ) ) {
-			$range_options['separator'] = '–';
-		}
-		$range_options['omit_current_year'] = empty( $options['showCurrentYear'] );
-		$range_options['smart_time']        = empty( $options['showMidnight'] );
-		$formatted = bws_format_date_range( $now, $end, $wp_format, $range_options );
+		// One parse point (FW-2): the shared normalizer maps rangeSep/showCurrentYear/
+		// showMidnight to the canonical keys bws_format_date_range() reads.
+		$range_options = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $options, true )
+				: $options;
+		$formatted     = bws_format_date_range( $now, $end, $wp_format, $range_options );
 	} else {
 		$formatted = $now->format( $wp_format );
 	}
@@ -800,16 +796,12 @@ function bws_build_preview_label( array $options, string $template ): string {
 		if ( $is_range ) {
 			$end = clone $now;
 			$end->modify( '+' . $offset . ' seconds' );
-			// Normalize new option keys → legacy keys expected by bws_format_date_range().
-			$range_options = $options;
-			if ( isset( $range_options['rangeSep'] ) && ! isset( $range_options['separator'] ) ) {
-				$range_options['separator'] = $range_options['rangeSep'];
-			} elseif ( ! isset( $range_options['separator'] ) ) {
-				$range_options['separator'] = '–';
-			}
-			$range_options['omit_current_year'] = empty( $options['showCurrentYear'] );
-			$range_options['smart_time']        = empty( $options['showMidnight'] );
-			$formatted = bws_format_date_range( $now, $end, $wp_format, $range_options );
+			// One parse point (FW-2): the shared normalizer maps rangeSep/showCurrentYear/
+			// showMidnight to the canonical keys bws_format_date_range() reads.
+			$range_options = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $options, true )
+				: $options;
+			$formatted     = bws_format_date_range( $now, $end, $wp_format, $range_options );
 		} else {
 			$formatted = $now->format( $wp_format );
 		}

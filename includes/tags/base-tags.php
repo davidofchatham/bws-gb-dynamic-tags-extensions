@@ -518,26 +518,26 @@ function bws_register_base_tags(): void {
 			? bws_get_datetime_single_template_options()
 			: array(),
 		'term_fn'      => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_options' )
-				? bws_base_map_datetime_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
 				: $opts;
 			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
 		},
 		'post_fn'      => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_options' )
-				? bws_base_map_datetime_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
 				: $opts;
 			return bws_datetime_single_core( $post_id, $mapped, $inst );
 		},
 		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_options' )
-				? bws_base_map_datetime_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
 				: $opts;
 			return bws_datetime_single_core( $post_id, $mapped, $inst );
 		},
 		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_options' )
-				? bws_base_map_datetime_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
 				: $opts;
 			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
 		},
@@ -556,26 +556,26 @@ function bws_register_base_tags(): void {
 			? bws_get_datetime_range_template_options()
 			: array(),
 		'term_fn'      => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
-				? bws_base_map_datetime_range_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
 				: $opts;
 			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
 		},
 		'post_fn'      => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
-				? bws_base_map_datetime_range_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
 				: $opts;
 			return bws_datetime_range_core( $post_id, $mapped, $inst );
 		},
 		'try_core_fn'  => static function ( $post_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
-				? bws_base_map_datetime_range_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
 				: $opts;
 			return bws_datetime_range_core( $post_id, $mapped, $inst );
 		},
 		'try_term_fn'  => static function ( $term_id, $opts, $inst ) {
-			$mapped = function_exists( 'bws_base_map_datetime_range_options' )
-				? bws_base_map_datetime_range_options( $opts )
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
 				: $opts;
 			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
 		},

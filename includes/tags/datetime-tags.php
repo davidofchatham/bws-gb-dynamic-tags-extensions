@@ -871,30 +871,34 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
 // ===============================================
 
 /**
- * Map base datetime single options to keys expected by existing core functions.
+ * Normalize public datetime option keys to the canonical core keys — THE single
+ * parse point for datetime options (FW-2).
  *
- * Base tags use a simplified, consistent option set (key, key2, as, format,
- * show_current_year, show_midnight, fallback). Existing core functions read
- * legacy keys (date_time_field, time_field, format_type, custom_format,
- * date_only, time_only, smart_time, omit_current_year, fallback_text).
- * This function bridges the gap without modifying the core functions.
+ * Public keys (key, timeKey, startKey/endKey, as, format, timeSep, rangeSep,
+ * showCurrentYear, showMidnight, fallback) map to the canonical keys the core
+ * functions, format builders, and formatters read (date_time_field, time_field,
+ * start_field/end_field, date_only/time_only, format_type/custom_format,
+ * date_time_separator, separator, omit_current_year, smart_time,
+ * fallback_text).
  *
- * @since 1.6.0
+ * INVARIANT: this function is the ONLY place public datetime keys are parsed.
+ * Both render paths (base callbacks, try_/modifier template closures) and the
+ * editor preview call it — they can never disagree about what an option means.
+ * A future comma-folded key value (FW-41 `key:date,time`) is an edit to this
+ * function alone, not a re-sweep of the read sites.
+ *
+ * Canonical keys already present in $options are preserved (legacy
+ * template-tag callers pass them directly; the isset guards keep them
+ * authoritative over their public twins).
+ *
+ * @since 1.6.0 As bws_base_map_datetime_options()/…_range_options().
+ * @since 1.15.0 Collapsed into the single normalizer (FW-2, #48).
  * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing core functions.
+ * @param bool  $range   Range-tag mapping (startKey/endKey family) when true.
+ * @return array Options with canonical core keys populated.
  */
-function bws_base_map_datetime_options( array $options ): array {
+function bws_normalize_datetime_options( array $options, bool $range = false ): array {
 	$mapped = $options;
-
-	// key → date_time_field (for single; range overrides this below).
-	if ( isset( $options['key'] ) && ! isset( $options['date_time_field'] ) ) {
-		$mapped['date_time_field'] = $options['key'];
-	}
-
-	// timeKey → time_field (for single; range overrides this below).
-	if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
-		$mapped['time_field'] = $options['timeKey'];
-	}
 
 	// as → date_only / time_only.
 	$as                  = $options['as'] ?? '';
@@ -927,43 +931,29 @@ function bws_base_map_datetime_options( array $options ): array {
 		$mapped['fallback_text'] = $options['fallback'];
 	}
 
-	return $mapped;
-}
+	if ( ! $range ) {
+		// key → date_time_field, timeKey → time_field.
+		if ( isset( $options['key'] ) && ! isset( $options['date_time_field'] ) ) {
+			$mapped['date_time_field'] = $options['key'];
+		}
+		if ( isset( $options['timeKey'] ) && ! isset( $options['time_field'] ) ) {
+			$mapped['time_field'] = $options['timeKey'];
+		}
+		return $mapped;
+	}
 
-/**
- * Map base datetime range options to keys expected by existing range core functions.
- *
- * Extends bws_base_map_datetime_options() with range-specific remapping:
- * key/key2 become start_field/start_time_field, and end/end2 become
- * end_field/end_time_field. range_sep becomes separator.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Remapped options for existing range core functions.
- */
-function bws_base_map_datetime_range_options( array $options ): array {
-	// Start with base mapping (handles format, as, show_current_year, show_midnight, etc.).
-	$mapped = bws_base_map_datetime_options( $options );
-
-	// Undo single-tag key mappings; range core reads different field names.
-	unset( $mapped['date_time_field'], $mapped['time_field'] );
-
-	// startKey → start_field.
+	// Range: start/end field family (the single-tag field keys stay unmapped —
+	// a range tag's `key` option, if present, belongs to the range core's own
+	// start_field mapping below, never date_time_field).
 	if ( isset( $options['startKey'] ) && ! isset( $options['start_field'] ) ) {
 		$mapped['start_field'] = $options['startKey'];
 	}
-
-	// startTimeKey → start_time_field.
 	if ( isset( $options['startTimeKey'] ) && ! isset( $options['start_time_field'] ) ) {
 		$mapped['start_time_field'] = $options['startTimeKey'];
 	}
-
-	// endKey → end_field.
 	if ( isset( $options['endKey'] ) && ! isset( $options['end_field'] ) ) {
 		$mapped['end_field'] = $options['endKey'];
 	}
-
-	// endTimeKey → end_time_field.
 	if ( isset( $options['endTimeKey'] ) && ! isset( $options['end_time_field'] ) ) {
 		$mapped['end_time_field'] = $options['endTimeKey'];
 	}
@@ -974,6 +964,34 @@ function bws_base_map_datetime_range_options( array $options ): array {
 	}
 
 	return $mapped;
+}
+
+/**
+ * Back-compat wrapper over bws_normalize_datetime_options() — single mapping.
+ *
+ * External API: bws-portal-system pins this name in its template map. Internal
+ * call sites use the normalizer directly; do not add parsing here.
+ *
+ * @since 1.6.0
+ * @param array $options Raw tag options from GenerateBlocks.
+ * @return array Remapped options for existing core functions.
+ */
+function bws_base_map_datetime_options( array $options ): array {
+	return bws_normalize_datetime_options( $options, false );
+}
+
+/**
+ * Back-compat wrapper over bws_normalize_datetime_options() — range mapping.
+ *
+ * External API: bws-portal-system pins this name in its template map. Internal
+ * call sites use the normalizer directly; do not add parsing here.
+ *
+ * @since 1.6.0
+ * @param array $options Raw tag options from GenerateBlocks.
+ * @return array Remapped options for existing range core functions.
+ */
+function bws_base_map_datetime_range_options( array $options ): array {
+	return bws_normalize_datetime_options( $options, true );
 }
 
 /**
@@ -989,7 +1007,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
-	$mapped   = bws_base_map_datetime_options( $options );
+	$mapped   = bws_normalize_datetime_options( $options );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
@@ -1061,7 +1079,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
-	$mapped   = bws_base_map_datetime_range_options( $options );
+	$mapped   = bws_normalize_datetime_options( $options, true );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
