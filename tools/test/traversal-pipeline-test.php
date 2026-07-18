@@ -114,6 +114,24 @@ if ( ! function_exists( 'bws_base_ambient_term_id' ) ) {
 		return (int) ( $base['id'] ?? 0 );
 	}
 }
+// User-ambient gate (#19 author kind, 1.15.0) — same guards as the term gate,
+// kind:'user'. House pattern: copy the pure fn inline (mirror base-shared.php).
+if ( ! function_exists( 'bws_base_ambient_user_id' ) ) {
+	function bws_base_ambient_user_id( array $base, array $options ): int {
+		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+		if ( '' !== $tax ) {
+			return 0;
+		}
+		$src = $options['src'] ?? $options['source'] ?? '';
+		if ( 'site' === $src || 'ref' === $src ) {
+			return 0;
+		}
+		if ( 'user' !== ( $base['kind'] ?? '' ) ) {
+			return 0;
+		}
+		return (int) ( $base['id'] ?? 0 );
+	}
+}
 
 // §V14 src:ref list-mode collapse — the post-kind id extraction from a fanned-out
 // ref source list. Mirrors bws_base_post_ids_from_source's filter (post-kind only,
@@ -150,6 +168,7 @@ function eq( $label, $expected, $actual ) {
 // Convenience: a resolved source.
 function post_src( $id ) { return array( 'kind' => 'post', 'id' => $id ); }
 function term_src( $id ) { return array( 'kind' => 'term', 'id' => $id ); }
+function user_src( $id ) { return array( 'kind' => 'user', 'id' => $id ); }
 
 // A stub reader keyed off the step 'field'/'slug' so tests control fan-out
 // without any WP call. Returns whatever the fixture maps a (kind,id) to.
@@ -583,6 +602,27 @@ eq( 'V7 src:site -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src
 
 // meta_row base → 0 (only 'term' kind qualifies).
 eq( 'V7 meta_row base -> 0', 0, bws_base_ambient_term_id( array( 'kind' => 'meta_row', 'row' => array() ), array() ) );
+
+// user base → 0 on the TERM gate (author archive is not a term archive).
+eq( 'V7 user base -> 0 (term gate)', 0, bws_base_ambient_term_id( user_src( 7 ), array() ) );
+
+// ── #19 author kind — ambient-user analog gate (bws_base_ambient_user_id) ──────
+//
+// Symmetric with the term gate: fires ONLY for a bare base tag on an author
+// archive (user base, no srcTermIn, src not site/ref). Otherwise 0.
+
+eq( 'author user base bare -> user id', 7, bws_base_ambient_user_id( user_src( 7 ), array() ) );
+eq( 'author user base src:current -> user id', 7, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'current' ) ) );
+
+// Cross-kind exclusion: term/post base → 0 on the USER gate.
+eq( 'author term base -> 0 (user gate)', 0, bws_base_ambient_user_id( term_src( 34 ), array() ) );
+eq( 'author post base -> 0 (user gate)', 0, bws_base_ambient_user_id( post_src( 10 ), array() ) );
+
+// Same guards as the term gate: src:ref / src:site / srcTermIn keep their own
+// meaning → 0 (post path / site gate / post->term branch owns the render).
+eq( 'author src:ref on user base -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
+eq( 'author src:site -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'site' ) ) );
+eq( 'author srcTermIn set -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'srcTermIn' => 'category' ) ) );
 
 // ── §V5 — modifier ref hop off a base source (T7 pipeline assembly) ───────────
 //

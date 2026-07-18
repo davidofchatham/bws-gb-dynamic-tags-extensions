@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 3, // 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 4, // 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -33,6 +33,23 @@ return array(
 			'group_bwsfx_department',
 		),
 		'registered_meta' => array( 'bws_global_note', 'bws_page_only', 'subtitle', 'bws_cat_note' ),
+		'users'           => array( 'fixture-author' ),
+	),
+
+	// Fixture users. author-fixture is the author-archive context fixture
+	// (context-test-matrix C3/C13): display_name + description (bio) meta give
+	// the {{title}}/{{content}} author analogs a real payload, and it authors a
+	// visible post so /author/fixture-author/ is non-empty under the
+	// portal-system anonymous query filter.
+	'users' => array(
+		'author-fixture' => array(
+			'user_login'   => 'fixture-author',
+			'user_nicename' => 'fixture-author',
+			'display_name' => 'Fixture Author',
+			'user_email'   => 'author@example.test',
+			'role'         => 'author',
+			'description'  => 'Fixture Author writes the sample posts that back the author-archive context rows. This bio is the user description meta the {{content}} author analog reads.',
+		),
 	),
 
 	'terms' => array(
@@ -42,9 +59,12 @@ return array(
 			'slug'     => 'support',
 		),
 		'department-sales'     => array(
-			'taxonomy' => 'department',
-			'name'     => 'Sales',
-			'slug'     => 'sales',
+			'taxonomy'    => 'department',
+			'name'        => 'Sales',
+			'slug'        => 'sales',
+			// Term description — makes the shipped term-kind {{content}} analog
+			// (context-test-matrix C17) assert a value instead of vacuous-pass.
+			'description' => 'The Sales department term. This description is the term-kind {{content}} analog on a /department/sales/ archive.',
 		),
 		'department-warehouse' => array(
 			'taxonomy' => 'department',
@@ -135,9 +155,12 @@ return array(
 		// seed keeps it categoryless + portal-visible so /2026/07/ has results
 		// under the portal-system anonymous query filter (see seed.php).
 		'post-sample-event' => array(
-			'post_type'  => 'post',
-			'post_name'  => 'sample-event',
-			'post_title' => 'Sample Event',
+			'post_type'   => 'post',
+			'post_name'   => 'sample-event',
+			'post_title'  => 'Sample Event',
+			// Authored by the fixture user so /author/fixture-author/ has a
+			// visible post (author-archive context fixture, C3/C13).
+			'post_author' => 'author-fixture',
 		),
 	),
 

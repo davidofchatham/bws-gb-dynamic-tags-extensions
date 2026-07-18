@@ -57,14 +57,16 @@ See [§Source group](#source-group) for label/UI details and the per-slot serial
 
 *Mode terminology:* a `use`/`key` selection is **explicit** (written in the string), **implicit** (absent but recoverable — the stripped default, or a mode implied by a present `key`/`ref`; a selection IS in effect even though the selector's default isn't serialized), or **unset** (no choice and nothing to recover, e.g. no `src` → current entity). "Implicit" ≠ "unset": the panel always shows a default selection. Implicit mode resolves the analog only at **base / slot 1** — inside a try_ slot, the same wire-absence means *inherit* (the implicit-in-slot collision), not analog.
 
-| Base tag | post | term | site |
-|---|---|---|---|
-| `title` | post title | term name | site name |
-| `content` | post content | term description | *(none — site has no long-form body datum; the tagline is short, and has no `content`-tag path — see note)* |
-| `permalink` | post URL | term URL | site home URL |
-| `image` | featured image | *(none — terms have no native image; key required)* | site logo *(via explicit `use:featured` — see note)* |
-| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | |
-| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | |
+| Base tag | post | term | user (author archive) | site |
+|---|---|---|---|---|
+| `title` | post title | term name | author display name | site name |
+| `content` | post content | term description | author biographical info (`description`) | *(none — site has no long-form body datum; the tagline is short, and has no `content`-tag path — see note)* |
+| `permalink` | post URL | term URL | *(not yet author-aware — deferred)* | site home URL |
+| `image` | featured image | *(none — terms have no native image; key required)* | *(not yet author-aware — deferred)* | site logo *(via explicit `use:featured` — see note)* |
+| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | |
+| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | |
+
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` this release; `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop row overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 

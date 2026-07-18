@@ -18,8 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Routes by $link_to destination and $entity_type:
  *   'permalink' → get_permalink() for posts, get_term_link() for terms,
- *                 home_url() for site (the site permalink-analog; $id is a sentinel).
- *   'key'       → get_post_meta() for posts, get_term_meta() for terms, using $link_key.
+ *                 get_author_posts_url() for users, home_url() for site (the site
+ *                 permalink-analog; $id is a sentinel).
+ *   'key'       → get_post_meta() for posts, get_term_meta() for terms,
+ *                 get_user_meta() for users, using $link_key.
  *                 For $entity_type 'site' → bws_site_read_option($link_key), the SAME
  *                 canonical gated reader the site value path uses (V2: reads MUST agree).
  * Always returns '' (never false/null) so callers can unconditionally skip wrapping
@@ -60,6 +62,11 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 			$url = get_term_link( $id );
 			return ( ! is_wp_error( $url ) && $url ) ? (string) $url : '';
 		}
+		if ( 'user' === $entity_type ) {
+			// Author-archive URL — the user permalink-analog (#19 author kind).
+			$url = get_author_posts_url( $id );
+			return $url ? (string) $url : '';
+		}
 		$url = get_permalink( $id );
 		return $url ? (string) $url : '';
 	}
@@ -79,6 +86,8 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
 		}
 		if ( 'term' === $entity_type ) {
 			$url = get_term_meta( $id, $link_key, true );
+		} elseif ( 'user' === $entity_type ) {
+			$url = get_user_meta( $id, $link_key, true );
 		} else {
 			$url = get_post_meta( $id, $link_key, true );
 		}

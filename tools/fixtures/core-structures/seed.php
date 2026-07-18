@@ -145,11 +145,19 @@ $contact_email_keys = array(
 // ---------------------------------------------------------------------------
 $term_ids = array();
 foreach ( $manifest['terms'] as $slug => $def ) {
+	$term_args = array( 'slug' => $def['slug'] );
+	if ( isset( $def['description'] ) ) {
+		$term_args['description'] = $def['description'];
+	}
 	$existing = get_term_by( 'slug', $def['slug'], $def['taxonomy'] );
 	if ( $existing ) {
 		$term_ids[ $slug ] = (int) $existing->term_id;
+		// Upsert description on re-seed (wp_insert_term only sets it on create).
+		if ( isset( $def['description'] ) ) {
+			wp_update_term( (int) $existing->term_id, $def['taxonomy'], array( 'description' => $def['description'] ) );
+		}
 	} else {
-		$res = wp_insert_term( $def['name'], $def['taxonomy'], array( 'slug' => $def['slug'] ) );
+		$res = wp_insert_term( $def['name'], $def['taxonomy'], $term_args );
 		if ( is_wp_error( $res ) ) {
 			WP_CLI::warning( "term {$slug}: " . $res->get_error_message() );
 			continue;
@@ -158,6 +166,42 @@ foreach ( $manifest['terms'] as $slug => $def ) {
 	}
 }
 $log( 'terms: ' . count( $term_ids ) . ' upserted' );
+
+// ---------------------------------------------------------------------------
+// 3b. Users (author-archive context fixture — C3/C13).
+// ---------------------------------------------------------------------------
+$user_ids = array();
+foreach ( ( $manifest['users'] ?? array() ) as $slug => $def ) {
+	$existing = get_user_by( 'login', $def['user_login'] );
+	if ( $existing ) {
+		$uid = (int) $existing->ID;
+		wp_update_user(
+			array(
+				'ID'           => $uid,
+				'display_name' => $def['display_name'],
+				'user_email'   => $def['user_email'],
+				'description'  => $def['description'],
+				'role'         => $def['role'],
+			)
+		);
+	} else {
+		$uid = wp_insert_user(
+			array(
+				'user_login'    => $def['user_login'],
+				'user_nicename' => $def['user_nicename'],
+				'user_pass'     => wp_generate_password( 24 ),
+				'display_name'  => $def['display_name'],
+				'user_email'    => $def['user_email'],
+				'description'   => $def['description'],
+				'role'          => $def['role'],
+			)
+		);
+	}
+	if ( ! is_wp_error( $uid ) ) {
+		$user_ids[ $slug ] = (int) $uid;
+	}
+}
+$log( 'users: ' . count( $user_ids ) . ' upserted' );
 
 foreach ( $manifest['term_fields'] as $slug => $fields ) {
 	if ( ! isset( $term_ids[ $slug ] ) ) {
@@ -196,6 +240,9 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 		'post_status'  => 'publish',
 		'post_content' => $content,
 	);
+	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
+		$args['post_author'] = $user_ids[ $def['post_author'] ];
+	}
 	if ( $existing ) {
 		$args['ID']         = $existing[0]->ID;
 		$post_ids[ $slug ]  = (int) wp_update_post( $args );

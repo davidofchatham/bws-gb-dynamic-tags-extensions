@@ -7,6 +7,7 @@ manual matrices assume:
 - [`tools/test/field-selector-test-matrix.md`](../../test/field-selector-test-matrix.md)
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
+- [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless portal-visible `sample-event`, `department-sales` description for C17; manifest v4)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -61,6 +62,11 @@ so the schema survives snapshot restores.
   (all junk → fallback); post `sample-event` (discovery edge cases); staff
   `jane-partner` (src:ref target).
 - Options page **Site Settings** with `organization_*` fields.
+- Fixture user `fixture-author` (display name + bio) authoring `sample-event`
+  → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
+- `sample-event` doubles as the date-archive fixture: kept categoryless +
+  portal-visible so `/2026/07/` has results under the portal-system anonymous
+  query filter (else 404). `department-sales` carries a description (C17).
 - join person-name surface: `name_*` parts (Staff Contact group) — dense on
   `tom-associate`, sparse (first+last) on `jane-partner`; `role` + `height_*`
   (incl. blank + zero probes) + a slot-1 `name_first` on `matrix-post-meta`.

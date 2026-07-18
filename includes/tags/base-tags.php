@@ -1066,6 +1066,15 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
+	// Ambient author archive → biographical info analog (#19 author kind, 1.15.0).
+	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
+	if ( $user_id ) {
+		$value = bws_base_user_analog_read( 'content', $user_id, $options, $instance );
+		if ( '' !== $value ) {
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+	}
 	$post_id = bws_base_post_id_from_source( $base, $options );
 
 	if ( '' !== $tax ) {
@@ -1131,6 +1140,20 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		if ( '' !== $value ) {
 			if ( function_exists( 'bws_wrap_with_link' ) ) {
 				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
+			}
+			return $value;
+		}
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
+	// Ambient author archive → display name analog (#19 author kind, 1.15.0).
+	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
+	if ( $user_id ) {
+		$value = bws_base_user_analog_read( 'title', $user_id, $options, $instance );
+		if ( '' !== $value ) {
+			// User archives have a canonical URL (get_author_posts_url); wrap when
+			// the author asked for a link, mirroring the term branch.
+			if ( function_exists( 'bws_wrap_with_link' ) ) {
+				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $user_id, 'user' );
 			}
 			return $value;
 		}

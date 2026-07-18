@@ -109,7 +109,7 @@ The traversal pipeline (shipped 1.14.0) resolves *where a bare tag reads from* t
 
 1. **Explicit `src`** (site / registry source / `ref` as a step off the base) — author intent always wins.
 2. **Loop row** (`bws_get_loop_row_context`) — a bare tag inside a query loop reads the ROW (post or Mode-2b meta_row), not the archive.
-3. **Ambient queried object** — `get_queried_object()` is a `WP_Term` → the **term** (the #19 term-archive kind; the first context kind shipped).
+3. **Ambient queried object** — `get_queried_object()` is a `WP_Term` → the **term** (the #19 term-archive kind, shipped 1.14.0); a `WP_User` → the **user** (the #19 author-archive kind, shipped 1.15.0).
 4. **Current post** — else the singular post.
 
 **`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a loop row (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
@@ -120,11 +120,13 @@ Two guards keep the leak dead at the edges:
 
 **Term as a first-class read source** (I1 applied by context): on a term archive a bare base tag reads the term's analog — `title`→name, `content`→description, `permalink`→term URL, `text key:`→term meta; `image` has no intrinsic term analog (#29 gap) but a configured fallback still applies. A `try_` slot resolves **identically** to the same base tag standalone (I6 transparency), because both run the same term cores.
 
-**Only taxonomy term archives are context-aware in 1.14.0.** Blog / search / date / author / post-type archives fall through to current behavior (still `$post`) — their kinds are Phase 2 (`#19`, `.claude/plans/context-aware-base-tags.md`).
+**User as a read source** (I1 applied by context; author kind, 1.15.0): on an author archive a bare base tag reads the user's analog — `title`→display name, `content`→biographical info (the `description` user meta). Scope is `title`/`content` only this release; `permalink`/`image`/datetime author analogs are deferred (they render empty, not wrong). The user kind is an ENTITY kind (carries an id; field reads via `'user_' . $id`) but reuses no post/term reader — its two analogs read `get_the_author_meta()` directly (`bws_base_user_analog_read`). Link-wrap resolves the author-archive URL (`get_author_posts_url`, the user permalink-analog in `bws_resolve_link_url`). Unlike the term kind there is NO degenerate guard — a zero-result author archive still resolves the `WP_User` and does not leak `$post`.
+
+**Query-context (entity-LESS) kinds are still Phase 2.** Search / date / post-type archive / 404 / latest-home carry query/date/search payload with no field to read (PTA's `queried_object` is a `WP_Post_Type` with `queried_id` 0 — captured 2026-07-18), and each needs an option surface (search format, 404 fallback, home title-source) before shipping. They fall through to current behavior (still `$post`) until then. Detail: `#19`, `.claude/plans/context-aware-base-tags.md`; baseline rows `tools/test/context-test-matrix.md`.
 
 **Source reads are ACF-or-compatible, not ACF-mandatory.** A `src:ref` post hop tries the ACF relationship reader (type-validated, plural) first, then falls back to a raw meta read, so non-ACF handlers (Pods/Carbon/core) storing a post id in plain meta still resolve — honoring the plugin's ACF-or-compatible contract.
 
-Single-class detail is PHPDoc on the enforcers: `bws_resolve_base_source` / `bws_capture_ambient_signals` (precedence + degenerate-term guard), `bws_run_traversal` (resolved-source typedef, pure fold), `bws_read_resolved_source` (kind dispatch + post/0 guard), `bws_pipeline_default_reader` (ACF-compatible ref), `bws_base_term_analog_read` (term analog + image fallback). Schema: `tag-reference.md` §Source-analog resolution, §List mode. Rationale + probe: `.claude/plans/archive/traversal-pipeline.md`.
+Single-class detail is PHPDoc on the enforcers: `bws_resolve_base_source` / `bws_capture_ambient_signals` (precedence + degenerate-term guard), `bws_run_traversal` (resolved-source typedef, pure fold), `bws_read_resolved_source` (kind dispatch + post/0 guard), `bws_pipeline_default_reader` (ACF-compatible ref), `bws_base_term_analog_read` (term analog + image fallback), `bws_base_ambient_user_id` / `bws_base_user_analog_read` (author kind gate + analogs). Schema: `tag-reference.md` §Source-analog resolution, §List mode. Rationale + probe: `.claude/plans/archive/traversal-pipeline.md`.
 
 ---
 

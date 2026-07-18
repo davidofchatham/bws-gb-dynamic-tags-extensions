@@ -292,6 +292,16 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		return array( 'kind' => 'term', 'id' => (int) $signals['queried_id'] );
 	}
 
+	// 3c. Ambient author archive → user source (#19 author kind, 1.15.0). Symmetric
+	//     with the term branch: get_queried_object() is a WP_User (probe P7), never
+	//     $post — the author archive's $post leaks the first authored row. Entity
+	//     kind: carries an id, user-field reads via 'user_' . $id. Explicit src /
+	//     loop already returned above; only a bare tag on an author archive reaches
+	//     here. src:ref keeps its meaning (falls through — no user ref hop yet).
+	if ( 'user' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
+		return array( 'kind' => 'user', 'id' => (int) $signals['queried_id'] );
+	}
+
 	// 3b. Degenerate term context (SPEC §V17): the conditional tags claimed a
 	//     taxonomy archive but no WP_Term resolved. A bare tag here must NOT leak
 	//     the main query's first post — short-circuit to empty (V2 shape). This is
@@ -341,7 +351,7 @@ function bws_first_post_id_from_sources( array $sources ) {
  * bws_resolve_base_source() stays pure + unit-testable (SPEC §V1/§V7).
  *
  * queried_kind derives from get_queried_object()'s CLASS (never $post) — the
- * probe-verified stable ambient signal.
+ * probe-verified stable ambient signal: WP_Term → 'term', WP_User → 'user'.
  *
  * term_context_unresolved (SPEC §V17): the conditional tags claim a taxonomy
  * archive but get_queried_object() is NOT a WP_Term (deleted term, malformed query,
@@ -371,6 +381,16 @@ function bws_capture_ambient_signals( $instance ) {
 			// case (SPEC §V17). Flag it so the factory short-circuits to empty
 			// instead of falling through to the leaked current post.
 			$term_context_unresolved = true;
+		}
+	} elseif ( function_exists( 'is_author' ) && is_author() ) {
+		// Author archive (#19 author kind, 1.15.0) — get_queried_object() is a
+		// WP_User (probe P7). Zero-result author archives don't leak $post, so no
+		// degenerate guard needed here (unlike term). queried_id feeds user-field
+		// reads via 'user_' . $id.
+		$qo = get_queried_object();
+		if ( $qo instanceof WP_User ) {
+			$queried_kind = 'user';
+			$queried_id   = (int) $qo->ID;
 		}
 	}
 

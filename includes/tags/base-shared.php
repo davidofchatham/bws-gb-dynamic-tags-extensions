@@ -621,6 +621,91 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 }
 
 // ===============================================
+// USER-AMBIENT DISPATCH (#19 author kind, 1.15.0)
+// ===============================================
+
+/**
+ * Whether a base callback should read the AMBIENT USER instead of a post.
+ *
+ * The user-kind counterpart of bws_base_ambient_term_id(): true iff the factory's
+ * base resolved source is a user (bare tag on an author archive, #19). Mirrors the
+ * term gate's guards — an explicit srcTermIn hop, src:site, or src:ref keeps its
+ * own meaning (no user ref hop exists yet, so src:ref falls through to the post
+ * path), and explicit src/loop/id already won inside the factory (SPEC §V1).
+ *
+ * @since 1.15.0
+ * @param array $base    Base resolved source from bws_resolve_base_source().
+ * @param array $options Tag options.
+ * @return int User id when the ambient-user analog path applies, else 0.
+ */
+function bws_base_ambient_user_id( array $base, array $options ): int {
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	if ( '' !== $tax ) {
+		return 0;
+	}
+	$src = $options['src'] ?? $options['source'] ?? '';
+	if ( 'site' === $src || 'ref' === $src ) {
+		return 0;
+	}
+	if ( 'user' !== ( $base['kind'] ?? '' ) ) {
+		return 0;
+	}
+	return (int) ( $base['id'] ?? 0 );
+}
+
+/**
+ * Read a base tag's USER analog on an author archive (#19, CONTEXT.md I1).
+ *
+ * The I1 source-analog table applied to an ambient user — each base tag at its
+ * DEFAULT `use` yields the user's intrinsic analog:
+ *
+ *   title   → display name          (get_the_author_meta('display_name'))
+ *   content → biographical info      (get_the_author_meta('description'))
+ *
+ * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
+ * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the
+ * term analog readers.
+ *
+ * Scope for 1.15.0 is title + content only (the plan's author-archive dispatch
+ * rows). text/permalink/image/datetime author analogs are future work — this
+ * returns '' for any other tag, so an unhandled tag renders empty rather than
+ * wrong. A `use:key` user-meta read is deferred with them.
+ *
+ * @since 1.15.0
+ * @param string $tag      One of title|content (others → '').
+ * @param int    $user_id  Ambient user id.
+ * @param array  $options  Tag options.
+ * @param object $instance GB instance.
+ * @return string Rendered analog value ('' on miss/gap/unsupported tag).
+ */
+function bws_base_user_analog_read( string $tag, int $user_id, array $options, $instance ): string {
+	if ( ! $user_id ) {
+		return '';
+	}
+	switch ( $tag ) {
+		case 'title':
+			$name = get_the_author_meta( 'display_name', $user_id );
+			if ( ! is_string( $name ) || '' === $name ) {
+				return '';
+			}
+			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $name, $options, $instance );
+
+		case 'content':
+			$bio = get_the_author_meta( 'description', $user_id );
+			if ( ! is_string( $bio ) || '' === $bio ) {
+				return '';
+			}
+			return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+				bws_sanitize_rich_content( $bio ),
+				$options,
+				$instance
+			);
+	}
+
+	return '';
+}
+
+// ===============================================
 // SHARED OPTION HELPER
 // ===============================================
 
