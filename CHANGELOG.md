@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.15.0] — unreleased
+
+### Added
+
+- **New `{{join}}` tag: combine several field values into one line.** Configure up to 10 slots, each reading its own text value (a meta/ACF field or the entity's title/name, from the current post, a related post, a taxonomy term, or a site option), and the tag assembles every non-empty value into a single string. Empty slots are skipped cleanly: no orphan commas, no doubled separators.
+  - **Separator mode (default):** joins all non-empty values with a separator string (default `", "`; spaces are kept, so `sep: / ` gives ` / `).
+  - **Template mode:** write a format string with `%1`…`%10` positional tokens (`%1 (%2)`), and punctuation attached to an empty token is removed with it. An empty bracketed part drops its brackets, an empty middle part sheds exactly one adjacent comma, a missing unit value drops its dangling mark (`%1′%2″` renders `5′11″`, or `5′` when inches is blank). Example: one format string renders `Dr. Tom M. Smith Jr., PhD, USN (Ret.)` for a fully filled person and `Jane Johnson` for a sparse one.
+  - For unit strings, prefer the prime marks `′`/`″` over straight quotes: WordPress converts a straight `'`/`"` to a curly quote on the front end.
+  - **Each slot is a full text read.** Slots support related-post hops (`src:ref`), taxonomy term lists with a per-slot result limit, site options, and "Same as Previous Source" to weave several fields off one related entity. A stored `0` counts as a real value (`5'0"` renders, not `5'`).
+  - **Fallback text** renders when every slot is empty; with no fallback the block output is empty so GenerateBlocks can hide it.
+  - **In the editor** an unresolved `{{join}}` shows a configuration preview naming its target fields and assembly (`[Join 'name_first', 'name_last']`), like the other tags, instead of a blank block.
+  - Output is plain text with no per-slot links, so composed values never produce nested or broken anchors.
+  - Note: template tokens are `%1`…`%10` (not `{1}`), because GenerateBlocks cannot parse a `}` inside a tag. `%%` gives a literal percent sign before a digit.
+
+### Changed
+
+- **Internal: split the base-tag foundation into its own file.** The shared source, traversal, and dispatch helpers that every tag family builds on moved from `base-tags.php` into a new `base-shared.php`; `base-tags.php` now holds only the base tag renderers. No behavior change, no tag or option change.
+- **Internal: the `{{text}}` tag's value resolution extracted from its render callback.** The full text read path (source resolution, term/site arms, list modes) now lives in its own function so future tags can reuse the exact same read; the render callback keeps only link-wrapping and the editor preview fallback. No behavior change.
+
+### Removed
+
+- **Internal: dropped a dead GenerateBlocks filter left over from the old image tags.** A media ID override hooked to `generateblocks_dynamic_tag_id` dated from the era when a tag name fixed its source; it was unreachable (eight of its nine tag names stopped registering in 1.14.0, and the ninth, `image`, resolves its source through the traversal pipeline instead). No behavior change.
+
 ## [1.14.0] — 2026-07-08
 
 ### Highlights

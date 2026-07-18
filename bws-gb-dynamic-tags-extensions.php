@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.14.0
+ * Version: 1.15.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.14.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.15.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -116,11 +116,18 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/content-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/datetime-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
 
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
+
+	// Dev/testing CLI commands (never part of shipped runtime). Registered on
+	// cli_init so it lands after tags register at init:20.
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		add_action( 'cli_init', 'bws_dynamic_tags_register_cli' );
+	}
 
 	// Initialize source registry (registers built-in sources and fires hook for external sources).
 	\BWS\DynamicTags\SourceRegistry::init();
@@ -140,6 +147,17 @@ function bws_dynamic_tags_init() {
 	if ( get_option( 'bws_dynamic_tags_installed_version' ) !== BWS_DYNAMIC_TAGS_VERSION ) {
 		add_action( 'init', 'bws_dynamic_tags_rebuild_allowlist_on_upgrade', 25 );
 	}
+}
+
+/**
+ * Register dev/testing WP-CLI commands.
+ *
+ * Loaded only under WP-CLI (guarded at the add_action site). The command files
+ * self-guard on WP_CLI and register nothing shipped.
+ */
+function bws_dynamic_tags_register_cli() {
+	require_once BWS_DYNAMIC_TAGS_PATH . 'tools/cli/class-render-tag-command.php';
+	WP_CLI::add_command( 'bws render-tag', 'BWS_Render_Tag_Command' );
 }
 
 /**
@@ -172,6 +190,10 @@ function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
  * rather than via add_action('init') to avoid re-hooking inside an init callback.
  */
 function bws_dynamic_tags_register_all() {
+	// Shared base-tag foundation (source/traversal options, source dispatch,
+	// term-ambient read, option remap) — required FIRST so base-tags.php and the
+	// other tag families can call its builders/wrappers. See includes/tags/base-shared.php.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/base-shared.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/base-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/content-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/image-tags.php';

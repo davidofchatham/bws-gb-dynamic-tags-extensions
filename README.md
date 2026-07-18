@@ -28,6 +28,15 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 | `title` | Return post title/term name or site name. | |
 | `permalink` | Return post/term permalink or site URL. | |
 
+## `join` tag to combine fields
+
+Where a `try_` tag returns the first populated field, the `join` tag keeps *all* populated fields and assembles them into one line. Configure up to 10 slots, each reading its own text value (a meta/option field or a title/name, from the current post, a related post, taxonomy terms, or a site option), in either of two modes:
+
+- **Separator mode** joins every non-empty value with a separator string (default `", "`), skipping empties so a missing middle value never leaves a doubled separator.
+- **Template mode** places values by position in a format string (tokens `%1`-`%10`), and punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string renders `Dr. Tom M. Smith Jr., PhD, USN (Ret.)` and collapses cleanly to `Jane Johnson`.
+
+An optional fallback text renders when every slot is empty. Output is plain text with no per-slot links; a stored `0` counts as a real value. For units, use the prime marks `′` (feet) and `″` (inches) rather than straight quotes, which WordPress converts to curly quotes on the front end (`%1′%2″` renders `5′11″`, or `5′` with no inches value).
+
 ## First-available tags
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.

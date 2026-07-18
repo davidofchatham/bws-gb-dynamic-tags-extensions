@@ -1,10 +1,10 @@
 <?php
 /**
  * Standalone unit harness for bws_slot_qualify_show_if() in
- * includes/tags/base-tags.php.
+ * includes/tags/base-shared.php.
  *
  * Pure array transform — no WordPress required. The function makes no WP/GB
- * calls. base-tags.php top-level IS guarded but defines many WP-dependent
+ * calls. base-shared.php top-level IS guarded but defines many WP-dependent
  * functions at parse, so rather than require the whole file we shim the
  * minimal WP symbols its top-level references and pull only what parses.
  * Simpler + drift-proof: re-declare nothing — load the real file under a
@@ -33,7 +33,7 @@ if ( ! function_exists( '__' ) ) {
 	function __( $s, $d = null ) { return $s; }
 }
 
-// base-tags.php registers tags / hooks at parse via add_action etc. Shim the
+// base-shared.php registers tags / hooks at parse via add_action etc. Shim the
 // WP entry points it touches at top level to no-ops so the require is inert;
 // we only call the pure helper.
 foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $fn ) {
@@ -42,7 +42,7 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 	}
 }
 
-require __DIR__ . '/../../includes/tags/base-tags.php';
+require __DIR__ . '/../../includes/tags/base-shared.php';
 
 $failures = 0;
 $count    = 0;

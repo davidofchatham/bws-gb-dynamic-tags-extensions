@@ -4,7 +4,7 @@
 
 When a base tag can't resolve in the editor, the callback returns this structured preview string instead of an empty string. Built by `bws_build_preview_label( $options, $template )` in `includes/helpers/preview-helpers.php`. (The function name retains the historical `_label` suffix; the text it builds is the configuration-preview described here.)
 
-**Scope:** `text`, `content`, `title`, `email`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`).
+**Scope:** `text`, `content`, `title`, `email`, `datetime_single`, `datetime_range`, and their `term_` modifier equivalents. Image tags: only when `as:alt` or `as:caption` — excluded for `as:url` and `as:id` (attribute values; bracket string silently breaks the element). `permalink` excluded entirely (URL context — bracket string breaks `<a href>`). The slot-based composing tags have their own builders: `try_*` (§try_ tag previews) and `{{join}}` (§join preview), both below.
 
 Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected only by the editor JS filter.
 
@@ -180,6 +180,41 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 `try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ slot N no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
 
+## join preview
+
+`{{join}}` is the standalone COMBINING tag (up to `BWS_JOIN_MAX_SLOTS` text slots, all non-empty values assembled into one string). Unlike `try_` (a fallback chain — first non-empty wins), join combines **every** slot, so its preview lists all configured slot fields rather than describing a chain. Built by `bws_build_join_preview_label()`.
+
+**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' inherits the prior resolved source), `key`/`use` never inherit. Each real slot contributes a quoted key (`'name_first'`) or `Title`; a non-current source is appended per-slot (` from Ref 'rel'`).
+
+**Assembly annotation.** The `Join` prefix leads. Then:
+
+| Mode | Shape |
+|---|---|
+| Separator, default `', '` | `[Join {field list}]` (default sep unremarkable — not shown) |
+| Separator, custom `sep` | `[Join {field list} (sep: “X”)]` |
+| Template (`format` set) | `[Join “{format}”: {field list}]` (format quoted; `%N` wire tokens shown as authored) |
+
+**Warnings** replace the field list, prefixed `⚠ Join:`, joined with `, `:
+
+| Condition | Warning fragment |
+|---|---|
+| `src:ref` slot, no `ref` | `slot N no ref` |
+| key-mode slot, no `key` | `slot N no key` |
+| Template mode, no `format` | `no format set` |
+
+Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback_text` is set.
+
+| Tag config | Preview |
+|---|---|
+| `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
+| `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
+| `{{join use:title\|2-key:role}}` | `[Join Title, 'role']` |
+| `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “%1 (%2)”: 'name_first', 'name_last']` |
+| `{{join key:name_first\|2-src:ref\|2-ref:rel_post\|2-key:role}}` | `[Join 'name_first', 'role' from Ref 'rel_post']` |
+| `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
+| `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
+| `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
+
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 
 `{{call}}` (1.12.0) is the **deliberate exception** to the plugin's normal value-preview behavior. Most tags resolve a real value in the editor preview (outside template context). `{{call}}` does **NOT** — it never runs the allowlisted function to build its preview. This is a **safety refusal**, not an oversight:
@@ -206,7 +241,7 @@ Non-datetime label assembly is pinned by a standalone harness — **no WordPress
 php tools/test/preview-label-test.php
 ```
 
-**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, and the four sub-builders against the marker/assembly rules above. Datetime templates are excluded (live clock + `wp_date` → non-deterministic).
+**Run it after any change to `preview-helpers.php` or to a label shape in this doc.** It asserts `bws_build_preview_label`, `bws_build_try_preview_label`, `bws_build_join_preview_label`, and the sub-builders against the marker/assembly rules above. Datetime templates are excluded (live clock + `wp_date` → non-deterministic).
 
 Behaviors the harness locks in (correct-by-design, easy to regress):
 

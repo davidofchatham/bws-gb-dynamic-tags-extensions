@@ -65,6 +65,135 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
 }
 
 /**
+ * Build a structured editor preview label for the {{join}} combining tag.
+ *
+ * join is the standalone COMBINING tag (see join-helpers.php): it absorbs up to
+ * BWS_JOIN_MAX_SLOTS base `text` reads as slots and assembles ALL non-empty
+ * values into one string (separator or template mode). At editor time the fields
+ * rarely exist on the editing context, so — like every other base tag — the
+ * callback shows this configuration preview instead of an empty block.
+ *
+ * Mirrors the base/try_ marker conventions (docs/editor-tag-previews.md):
+ *   [Join {field list}]                       — separator mode, default sep
+ *   [Join {field list} (sep: “X”)]            — separator mode, custom sep
+ *   [Join “%1 (%2)”: {field list}]            — template mode (format quoted)
+ *   [⚠ Join: {warnings}]                      — misconfigured slot(s) / no format
+ * Trailing ` (fallback: “X”)` appended when `fallback_text` is set.
+ *
+ * Slot walk matches bws_join_callback(): a slot is "real" iff it has a `key` OR a
+ * non-default `use`; src/ref carry forward (`same`/'' inherits the prior resolved
+ * source), key/use never inherit. No link-wrap (join composes raw values).
+ *
+ * @since 1.15.0
+ * @param array $options Parsed tag options (slot fields prefixed N- for N≥2;
+ *                       tag-level mode/sep/format/fallback_text).
+ * @return string Bracket preview label, or '' when nothing is configured.
+ */
+if ( ! function_exists( 'bws_build_join_preview_label' ) ) {
+function bws_build_join_preview_label( array $options ): string {
+	$max      = defined( 'BWS_JOIN_MAX_SLOTS' ) ? BWS_JOIN_MAX_SLOTS : 10;
+	$mode     = $options['mode'] ?? '';
+	$format   = $options['format'] ?? '';
+	$sep      = $options['sep'] ?? '';
+	$fallback = $options['fallback_text'] ?? '';
+
+	// Walk slots 1..max with the callback's carry-forward. Collect field/source
+	// parts for the "real" slots only.
+	$field_parts  = array();
+	$source_parts = array();
+	$warnings     = array();
+	$last_src     = 'current';
+	$last_ref     = '';
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$src_k = ( 1 === $n ) ? 'src'       : "{$n}-src";
+		$ref_k = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
+		$stm_k = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
+		$use_k = ( 1 === $n ) ? 'use'       : "{$n}-use";
+		$key_k = ( 1 === $n ) ? 'key'       : "{$n}-key";
+
+		$src = $options[ $src_k ] ?? '';
+		$ref = $options[ $ref_k ] ?? '';
+		$tax = $options[ $stm_k ] ?? '';
+		$use = $options[ $use_k ] ?? '';
+		$key = $options[ $key_k ] ?? '';
+
+		// Not a real slot (matches callback's skip rule).
+		if ( '' === $key && '' === $use ) {
+			continue;
+		}
+
+		// Carry-forward: '' / 'same' src inherits; ref survives non-ref overrides.
+		if ( '' !== $src && 'same' !== $src ) {
+			$last_src = $src;
+		}
+		if ( '' !== $ref ) {
+			$last_ref = $ref;
+		}
+		$eff_use = '' === $use ? 'key' : $use; // '' = stripped key default (I3).
+
+		// Per-slot warnings: src:ref with no ref key; key-mode with no key.
+		if ( 'ref' === $last_src && '' === $last_ref ) {
+			$warnings[] = 'slot ' . $n . ' no ref';
+		}
+		if ( 'title' !== $eff_use && '' === $key ) {
+			$warnings[] = 'slot ' . $n . ' no key';
+		}
+
+		$field_parts[]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
+		$source_parts[] = bws_try_preview_source_part( $last_src, $last_ref, $tax, true );
+	}
+
+	// Template mode with no format is unresolvable — warn (matches the callback
+	// returning '' for template+empty-format).
+	if ( 'template' === $mode && '' === $format ) {
+		$warnings[] = 'no format set';
+	}
+
+	// Nothing configured at all → no preview (GB shows its own placeholder).
+	if ( empty( $field_parts ) && empty( $warnings ) ) {
+		return '';
+	}
+
+	if ( ! empty( $warnings ) ) {
+		$inner = '⚠ Join: ' . implode( ', ', $warnings );
+		if ( '' !== $fallback ) {
+			$inner .= ' (fallback: “' . $fallback . '”)';
+		}
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+	}
+
+	// Assemble the field list, annotated per assembly mode. Sources appended
+	// per-slot only when a slot actually binds to a non-current source (join
+	// slots frequently share the current entity — no noise then).
+	$parts = array();
+	foreach ( $field_parts as $i => $fp ) {
+		$src_segment = $source_parts[ $i ];
+		if ( '' !== $src_segment && 'Current' !== $src_segment ) {
+			$fp .= ' from ' . $src_segment;
+		}
+		$parts[] = $fp;
+	}
+	$field_list = implode( ', ', $parts );
+
+	if ( 'template' === $mode ) {
+		// Format string quoted (display value), then the ordered field list.
+		$inner = 'Join “' . $format . '”: ' . $field_list;
+	} else {
+		$inner = 'Join ' . $field_list;
+		// Custom separator noted; the default ', ' is unremarkable, so omit it.
+		if ( '' !== $sep ) {
+			$inner .= ' (sep: “' . $sep . '”)';
+		}
+	}
+
+	if ( '' !== $fallback ) {
+		$inner .= ' (fallback: “' . $fallback . '”)';
+	}
+	return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+}
+}
+
+/**
  * Build a structured editor preview label for a try_ tag's slot fallback chain.
  *
  * Walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's

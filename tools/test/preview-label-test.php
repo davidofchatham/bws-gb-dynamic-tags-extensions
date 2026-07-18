@@ -418,5 +418,68 @@ check(
 	"[Try Email: 'admin_email']"
 );
 
+// ---------------------------------------------------------------------------
+echo "\nbuild_join_preview_label — {{join}} combining tag\n";
+// Separator mode, two key slots, default sep → bare field list, no sep note.
+check(
+	'sep mode two keys',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last' ] ),
+	"[Join 'name_first', 'name_last']"
+);
+// Custom separator noted.
+check(
+	'sep mode custom sep',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'sep' => ' ' ] ),
+	"[Join 'name_first', 'name_last' (sep: “ ”)]"
+);
+// Title mode slot needs no key.
+check(
+	'title slot needs no key',
+	bws_build_join_preview_label( [ 'use' => 'title', '2-key' => 'role' ] ),
+	"[Join Title, 'role']"
+);
+// Template mode: format quoted, then field list.
+check(
+	'template mode',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'key' => 'name_first', '2-key' => 'name_last' ] ),
+	"[Join “%1 (%2)”: 'name_first', 'name_last']"
+);
+// Template mode, no format → warning.
+check(
+	'template mode no format warns',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'key' => 'name_first' ] ),
+	'[⚠ Join: no format set]'
+);
+// Slot missing key (key-mode) → warning.
+check(
+	'slot no key warns',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-use' => 'key' ] ),
+	'[⚠ Join: slot 2 no key]'
+);
+// src:ref slot with no ref → warning.
+check(
+	'slot no ref warns',
+	bws_build_join_preview_label( [ 'src' => 'ref', 'key' => 'name_first' ] ),
+	'[⚠ Join: slot 1 no ref]'
+);
+// Non-current source appended per-slot.
+check(
+	'ref source appended',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-src' => 'ref', '2-ref' => 'rel_post', '2-key' => 'role' ] ),
+	"[Join 'name_first', 'role' from Ref 'rel_post']"
+);
+// Fallback text appended.
+check(
+	'fallback appended',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'fallback_text' => 'N/A' ] ),
+	"[Join 'name_first', 'name_last' (fallback: “N/A”)]"
+);
+// Nothing configured → no preview.
+check(
+	'empty → no preview',
+	bws_build_join_preview_label( [] ),
+	''
+);
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

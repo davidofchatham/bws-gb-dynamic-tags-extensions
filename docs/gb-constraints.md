@@ -60,6 +60,8 @@ GB editor serializes named default values into the stored tag string even when t
 
 GB's `parse_options()` only reads keys literally present in the tag string. Options absent from the string are absent from `$options` in the callback.
 
+**Option values are NOT trimmed.** `parse_options()` splits each `key:value` pair with `explode( ':', $pair, 2 )` and stores the raw remainder — no `trim()`. So surrounding whitespace in a value survives to the callback: `sep: ` yields `' '` (a single space), `sep: / ` yields `' / '`. (Only the whole options blob's leading space after the tag name is `ltrim`'d, once, in `replace_tags()` — never per-value.) A value's trailing space before the closing `}}` is captured too (the option regex `[^}]+` stops at `}`, keeping the space). Load-bearing for any whitespace-significant option — `{{join}}`'s `sep`/`format`, datetime `format`.
+
 **Boolean serialization:**
 - `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
 - `false` = option dropped entirely — never appears in the tag string.
@@ -142,13 +144,28 @@ Option values containing raw `:` or `|` cannot survive a tag-string round-trip u
 
 Avoid storing raw URLs or colon-bearing free-text in default-text controls.
 
+**Closing brace `}` — kills the whole tag match (harder failure than `:`/`|`).** GB's render-side
+matcher (`class-register-dynamic-tag.php` `find_matches()`) captures a tag's options as `[^}]+`:
+
+```php
+$pattern = '/\{{(' . implode( '|', array_keys( $availableTags ) ) . ')(\s+[^}]+)?}}/';
+```
+
+A `}` anywhere inside the options doesn't truncate a value — the tag never matches at all and
+renders as its raw literal string. There is NO escape sequence for it (`parse_options()` handles
+only `\|`/`\:`). Verified against 2.2.1 and 2.3.0-beta.2 (same pattern). Consequence: option
+values must be designed brace-free — e.g. `{{join}}` template mode uses `%1`…`%10` positional
+tokens on the wire instead of `{1}`…`{8}` (translated internally; response documented in
+[`tag-reference.md` §join](tag-reference.md#join)). Also the reason a nested-braces tag-in-slot
+syntax can never ride the wire (`{{join 1:{{text …}}}}` is unparseable by construction).
+
 ### Filter hooks
 
 | Hook | Signature | This plugin's use |
 |---|---|---|
 | `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php:30`](../includes/hooks.php) — falsy-replacement block-kill |
 | `generateblocks_before_dynamic_tag_replace` | `($content, $args)` — pre-replace HTML hook | not used |
-| `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID | [`includes/tags/image-tags.php:56`](../includes/tags/image-tags.php) — media ID override in post context |
+| `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID. Applied only in `GenerateBlocks_Dynamic_Tags::get_id()`, which our tags never reach: GB calls it from its own built-in callbacks and from `with_link()`, and `with_link()` early-returns unless `$options['link']` is set. We never set `link` (we link-wrap via our own `linkTo`/`linkKey` — see [`link-helpers.php`](../includes/helpers/link-helpers.php)), so this hook cannot fire for a BWS tag. | not used (removed in 1.14.1; a filter here would silently defeat §V1 source resolution) |
 | `generateblocks_dynamic_tag_output` | `($output, $options, $raw_output)` — final output transform | preserved as third-party extension point by [`bws_safe_content_output()`](../includes/helpers/content-helpers.php) (see [`post-content-processing-reference.md`](post-content-processing-reference.md#L211)) |
 | `generateblocks.dynamicTags.sourceOptions` (JS) | `(options, context)` — add entries to source dropdown | not used; potential future hook for custom source contributions from third-party plugins |
 

@@ -306,6 +306,23 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
+	// join — standalone COMBINING tag (third structural position: neither a
+	// base tag nor a modifier). Absorbs up to BWS_JOIN_MAX_SLOTS base `text`
+	// reads as slots and assembles all non-empty values into ONE string
+	// (separator or template mode). One GB tag — no prefix fan-out, no
+	// per-source variants. Shares the base-tag picker group for UX only.
+	// =========================================================
+
+	new GenerateBlocks_Register_Dynamic_Tag( array(
+		'title'    => __( 'Join Fields', 'generateblocks' ),
+		'tag'      => 'join',
+		'type'     => 'cross-source',
+		'supports' => array(),
+		'options'  => bws_strip_default_select_values( bws_get_join_options() ),
+		'return'   => 'bws_join_callback',
+	) );
+
+	// =========================================================
 	// Register modifier templates for the term_ constructor.
 	//
 	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates
@@ -592,626 +609,12 @@ function bws_register_base_tags(): void {
 }
 
 // ===============================================
-// SOURCE OPTION + TRAVERSAL SUB-OPTIONS
-// ===============================================
-
-/**
- * Build the source dropdown option definition.
- *
- * Uses option key 'src' (not 'source') because GB's DynamicTagSelect
- * unconditionally destructures 'source' from parsed tag params before
- * spreading into extraTagParams, so any option named 'source' is silently
- * eaten and never reaches the editor controls.
- *
- * @since 1.6.0
- * @return array Single-entry array keyed 'src'.
- */
-function bws_base_source_option(): array {
-	return array(
-		'src' => array(
-			'type'           => 'select',
-			'label'          => __( 'Source', 'generateblocks' ),
-			'options'        => array(
-				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
-				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
-				array( 'value' => 'site',    'label' => __( 'Site', 'generateblocks' ) ),
-			),
-			'_strip_default' => true,
-		),
-	);
-}
-
-/**
- * Filter `site` out of a source-option definition.
- *
- * A rooting modifier (`term_*`, `view_*`) exists to surface ENTITY-DISTINCT data;
- * a site read is entity-blind, so offering `site` there merely duplicates the
- * unrooted base tag (`{{email src:site}}`) while discarding the rooting — it fails
- * the qualifying gate on both arms (CONTEXT.md I4 source-level application;
- * tag-reference.md §Qualifying test). register_modifier() routes its source dropdown
- * through this before injecting it into every term_/view_ tag.
- *
- * Mirrors the slot-side filter in bws_build_slot_traversal_options() (which omits
- * `site` from derived try_ slot src unless a template opts back in via
- * try_allow_site_slot). A future "pinned-resource + site fallback" belongs in a
- * try_ chain slot, NOT a single-slot rooting modifier. See [#37].
- *
- * @since 1.11.0
- * @param array $source_opt A bws_base_source_option()-shaped array (key 'src').
- * @return array Same shape with the `site` value removed from src options.
- */
-function bws_filter_site_from_src( array $source_opt ): array {
-	if ( isset( $source_opt['src']['options'] ) && is_array( $source_opt['src']['options'] ) ) {
-		$source_opt['src']['options'] = array_values( array_filter(
-			$source_opt['src']['options'],
-			static function ( $opt ) {
-				return 'site' !== ( $opt['value'] ?? '' );
-			}
-		) );
-	}
-	return $source_opt;
-}
-
-/**
- * Keep ONLY the named source values in a src-option definition (allowlist).
- *
- * The complement of bws_filter_site_from_src() (a blocklist that drops `site`).
- * Use the BLOCKLIST when a tag wants "every base source except X" (term_/view_
- * rooting modifiers, generic try_ slots — they SHOULD inherit a future base
- * source). Use this ALLOWLIST when a tag has a CLOSED source set and must NOT
- * inherit new base values by default — e.g. `{{call}}` offers `current`/`ref`
- * only (both post-yielding; a `$post_id` function can't consume a non-post
- * source), so a future non-post base value must be excluded automatically, not
- * leaked. Pulling the rows from bws_base_source_option() keeps the labels /
- * `_strip_default` canonical instead of hand-copied.
- *
- * Order follows $keep (so the menu order is the caller's, not base's). A $keep
- * value with no matching base row is silently skipped.
- *
- * @since 1.12.0
- * @param array    $source_opt A bws_base_source_option()-shaped array (key 'src').
- * @param string[] $keep       Source values to retain, in display order.
- * @return array Same shape with src options reduced + reordered to $keep.
- */
-function bws_pick_src_values( array $source_opt, array $keep ): array {
-	if ( ! isset( $source_opt['src']['options'] ) || ! is_array( $source_opt['src']['options'] ) ) {
-		return $source_opt;
-	}
-	$by_value = array();
-	foreach ( $source_opt['src']['options'] as $opt ) {
-		$by_value[ $opt['value'] ?? '' ] = $opt;
-	}
-	$picked = array();
-	foreach ( $keep as $value ) {
-		if ( isset( $by_value[ $value ] ) ) {
-			$picked[] = $by_value[ $value ];
-		}
-	}
-	$source_opt['src']['options'] = $picked;
-	return $source_opt;
-}
-
-/**
- * Build traversal sub-option definitions for the source dispatch.
- *
- * `ref` — shown when src:ref; the relationship field key for the hop.
- * `srcTermIn` — combined control (checkbox + taxonomy ComboboxControl); when a
- *               taxonomy slug is selected, the resolved entity's taxonomy term
- *               is used as the final entity instead of the post itself. Empty =
- *               disabled. Custom JS control (`bws-term-hop`) ensures non-GB-reserved
- *               serialization. Replaces the prior `srcTerm` + `tax` pair.
- *
- * @since 1.6.0
- * @return array Option definitions keyed by option name.
- */
-function bws_base_traversal_options(): array {
-	return array(
-		'ref'     => array(
-			'type'        => 'bws-field-combo',
-			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
-			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
-			'placeholder' => 'related_posts',
-			// ref names the SOURCE-post relationship field. The control does NOT
-			// preset a kind for src:ref (presetKind returns null): the ref-hop target
-			// post type is not reliably known, so the key list stays UNSCOPED with the
-			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
-			// relationship/post_object.
-			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet
-			// (not "never applies"; re-expose when a site→ref path ships).
-			'show_if'     => array( 'src' => 'ref' ),
-		),
-		'srcTermIn' => array(
-			'type'      => 'bws-term-hop',
-			'label'     => __( 'Get from taxonomy term?', 'generateblocks' ),
-			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
-			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
-			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
-			// Hidden for src:site — no entity to hop terms from. (Term-context tags
-			// override this to src:ref in the template registry.)
-			'show_if'   => array( 'src' => 'not:site' ),
-		),
-	);
-}
-
-/**
- * Re-qualify a base option's `show_if` condition keys for a numbered try_ slot.
- *
- * Base traversal options carry bare sibling-key conditions (e.g. `ref` shows when
- * `['src' => 'ref']`). In a try_ slot ≥2 those sibling keys are ordinal-prefixed
- * (`{N}-src`), so the condition key must follow: `src` → `2-src`. Slot 1 keeps the
- * bare key (no prefix). Only keys present in $sibling_keys are rewritten; any other
- * condition key (e.g. a cross-option reference) is left untouched. Condition VALUES
- * (`'ref'`, `'not:site'`) are never altered.
- *
- * Pure array transform — no WP/GB symbols. Locally harnessable
- * (tools/test/slot-qualify-show-if-test.php). [SPEC §26 V2, V8]
- *
- * @since 1.11.0
- * @param array $show_if      Condition map { key => value }. Empty → empty out.
- * @param int   $n            Slot ordinal (1-based). Slot 1 = bare keys.
- * @param array $sibling_keys Keys eligible for `{N}-` prefixing (e.g. ['src','ref','srcTermIn']).
- * @return array Re-keyed condition map, values unchanged.
- */
-function bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys ): array {
-	if ( $n <= 1 || empty( $show_if ) ) {
-		return $show_if;
-	}
-	$out = array();
-	foreach ( $show_if as $key => $value ) {
-		$qualified         = in_array( $key, $sibling_keys, true ) ? "{$n}-{$key}" : $key;
-		$out[ $qualified ] = $value;
-	}
-	return $out;
-}
-
-/**
- * Normalize a try_ slot dispatch return into a list of finished item strings.
- *
- * The try_ machinery is composition-blind (CONTEXT.md I6): a slot's dispatch
- * returns either ONE finished string (today's text/content/image/email/phone
- * single-result path) or an array of finished per-item strings (a slot in list
- * mode — e.g. a srcTermIn term-hop, or the shared L1/L2 resolver's plural
- * `src:ref`). This helper collapses both to a list, dropping empty items, so the
- * machinery can join uniformly without caring which producer it is.
- *
- * The array contract lives at the resolver/L2 layer (ADR 0002), NOT retrofitted
- * into every dispatcher: shipped dispatchers keep returning a single string and
- * still flow through here as a 1-element list. [SPEC §32 V2,V6]
- *
- * Pure — no WP/GB symbols. Locally harnessable (tools/test/try-join-seam-test.php).
- *
- * @since 1.11.0
- * @param mixed $raw Dispatch return: string | array<string> | '' | false.
- * @return array<int,string> Finished item strings, empties removed, re-indexed.
- */
-function bws_try_normalize_items( $raw ): array {
-	if ( '' === $raw || false === $raw || null === $raw ) {
-		return array();
-	}
-	$items = is_array( $raw ) ? $raw : array( $raw );
-	$out   = array();
-	foreach ( $items as $item ) {
-		if ( '' !== $item && false !== $item && null !== $item ) {
-			$out[] = $item;
-		}
-	}
-	return $out;
-}
-
-/**
- * Join a winning try_ slot's finished item strings — the ONLY composition the
- * try_ machinery itself performs (CONTEXT.md I6).
- *
- * Limit / separator semantics MATCH the base text list-mode core
- * (bws_post_custom_text_core, base-tags.php:884) so a try_ slot in list mode
- * joins identically to the same underlying tag used standalone (I6 parity):
- *   - limit = max( 1, (int) $limit ?: 1 ) — DEFAULT 1, floored at 1 (never 0).
- *     Not a ceiling: an author setting limit:5 joins up to 5 items.
- *   - sep   = $sep ?? ', ' — null (absent) → default ', '; an explicit empty
- *     string is honored (matches base `$options['sep'] ?? ', '`, which only
- *     defaults on an absent key — author may deliberately join with no sep).
- *
- * A 1-element list with the default limit returns the single element verbatim
- * (no trailing separator — sep is never applied to a lone item) — the
- * byte-identical backward-compat gate for existing try_text/try_content/try_image.
- * [SPEC §32 V3,V4]
- *
- * Pure — no WP/GB symbols. Locally harnessable (tools/test/try-join-seam-test.php).
- *
- * @since 1.11.0
- * @param array<int,string> $items Finished item strings (already non-empty).
- * @param mixed              $sep   Separator; null → ', '. Explicit '' honored.
- * @param mixed              $limit Max items to join; falsy → 1. Floored at 1.
- * @return string Joined output (or '' if no items).
- */
-function bws_try_join_items( array $items, $sep = null, $limit = null ): string {
-	if ( empty( $items ) ) {
-		return '';
-	}
-	$max = max( 1, (int) ( $limit ?: 1 ) );
-	$s   = ( null === $sep ) ? ', ' : $sep;
-	return implode( $s, array_slice( $items, 0, $max ) );
-}
-
-/**
- * Build the source + traversal option definitions for one numbered try_ slot,
- * derived from the base builders. Pure fn of (slot ordinal, base option sets) —
- * no WP/GB symbols, no $slot_trigger merge (that visibility layer is the registry's
- * concern, kept separate per V3). Locally harnessable
- * (tools/test/slot-options-build-test.php). [SPEC §26 V1,V2,V5,V6,V9,V10]
- *
- * Derivation rules:
- *   - src: base `src.options`. `site` is filtered out by DEFAULT (V6 wrong-read
- *     guard — the generic try_ slot resolver had no site arm). Per-template
- *     opt-in via $allow_site=true re-allows it (email/phone — once the slot
- *     resolver site arm landed, SPEC §32 V7/V8): site is the canonical contact
- *     fallback slot. Slot ≥2 prepends the `same` (inherit) row. `_strip_default`
- *     preserved (V5). Label overlaid as "N: Source" (V10).
- *   - ref / srcTermIn: base definitions verbatim (label body / placeholder / help
- *     from base — V10), show_if re-qualified via bws_slot_qualify_show_if, label
- *     (and srcTermIn pickLabel) given the "N: " ordinal prefix (V10).
- *
- * @since 1.11.0
- * @param int   $n          Slot ordinal (1-based).
- * @param array $base_src   bws_base_source_option() result.
- * @param array $base_trav  bws_base_traversal_options() result.
- * @param bool  $allow_site When true, keep `site` in the src list (per-template
- *                          opt-in, gated on the resolver site arm). Default false.
- * @return array { 'src' => array, 'ref' => array, 'srcTermIn' => array } — option
- *               definitions WITHOUT $slot_trigger (caller merges show_if_any).
- */
-function bws_build_slot_traversal_options( int $n, array $base_src, array $base_trav, bool $allow_site = false ): array {
-	$sibling_keys = array( 'src', 'ref', 'srcTermIn' );
-
-	// --- src: filter 'site' unless per-template allowed (V6 guard / V8 opt-in),
-	// prepend 'same' for slot ≥2, keep _strip_default (V5). ---
-	$base_src_opts = $base_src['src']['options'] ?? array();
-	$src_opts      = $allow_site
-		? array_values( $base_src_opts )
-		: array_values( array_filter(
-			$base_src_opts,
-			static function ( $o ) {
-				return 'site' !== ( $o['value'] ?? '' );
-			}
-		) );
-	if ( $n >= 2 ) {
-		array_unshift(
-			$src_opts,
-			array( 'value' => 'same', 'label' => __( 'Same as Previous Source', 'generateblocks' ) )
-		);
-	}
-	$src_def = array(
-		'type'           => 'select',
-		/* translators: %d: slot number */
-		'label'          => sprintf( __( '%d: Source', 'generateblocks' ), $n ),
-		'options'        => $src_opts,
-		'_strip_default' => true,
-	);
-
-	// --- ref: base def verbatim (V10), show_if re-qualified, "N: " label prefix. ---
-	$ref_def          = $base_trav['ref'];
-	$ref_def['label'] = sprintf( /* translators: 1: slot number, 2: base label */ '%1$d: %2$s', $n, $base_trav['ref']['label'] );
-	if ( isset( $ref_def['show_if'] ) ) {
-		$ref_def['show_if'] = bws_slot_qualify_show_if( $ref_def['show_if'], $n, $sibling_keys );
-	}
-
-	// --- srcTermIn: base def verbatim (V10), show_if re-qualified, "N: " label + pickLabel prefix. ---
-	$stm_def          = $base_trav['srcTermIn'];
-	$stm_def['label'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['label'] );
-	if ( isset( $stm_def['pickLabel'] ) ) {
-		$stm_def['pickLabel'] = sprintf( '%1$d: %2$s', $n, $base_trav['srcTermIn']['pickLabel'] );
-	}
-	if ( isset( $stm_def['show_if'] ) ) {
-		$stm_def['show_if'] = bws_slot_qualify_show_if( $stm_def['show_if'], $n, $sibling_keys );
-	}
-
-	return array(
-		'src'       => $src_def,
-		'ref'       => $ref_def,
-		'srcTermIn' => $stm_def,
-	);
-}
-
-// ===============================================
-// SOURCE DISPATCH
-// ===============================================
-
-/**
- * Resolve the target post ID from the `src` option.
- *
- * THIN BACK-COMPAT WRAPPER (SPEC §T5, §V4) over the source factory + traversal
- * engine. The value-list SEAM (bws_resolve_field_values) no longer calls this —
- * it drives the factory + steps directly and reads plural by kind (SPEC §V6/§V12).
- * This wrapper survives for its ~30 remaining POST-SEMANTIC callers (datetime,
- * {{call}}/fn, try_ slots): they want a single POST id | false, nothing else.
- *
- * Delegates to bws_resolve_base_source (L1 factory: loop → ambient term → current
- * post, SPEC §V1/§V7) + a REF-ONLY step assembly (bws_wrapper_ref_steps, SPEC
- * §V13) run through bws_run_traversal, then collapses to the FIRST post id
- * (bws_first_post_id_from_sources, SPEC §V4). A non-post base — term ambient on an
- * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
- * false, never leaks a term/row id as a post id. That is byte-compatible with the
- * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
- * the V11 leak-fix (base the ref hop on the ambient term, not on get_the_ID()).
- *
- * REF-ONLY (SPEC §V13): the wrapper NEVER assembles a `srcTermIn` step. srcTermIn
- * (post→term) is owned DOWNSTREAM by the wrapper's callers — datetime/text/title
- * srcTermIn branches call bws_get_srcterm_terms() on the returned POST id. Routing
- * the wrapper through the SEAM's bws_field_values_assemble_steps() (which emits a
- * srcTermIn term-hop) would collapse to false and empty those callers (B2). The
- * seam reads term fields by kind; the wrapper cannot — its contract is a post id.
- *
- * @since 1.6.0
- * @since 1.14.0 Rewired to the source factory + traversal engine (SPEC §T5); ref-only steps (§V13, B2).
- * @param array  $options  Tag options from GenerateBlocks.
- * @param object $instance Block instance.
- * @return int|false Resolved post ID, or false if unresolvable.
- */
-function bws_resolve_post_by_source( array $options, $instance ) {
-	if ( ! function_exists( 'bws_resolve_base_source' )
-		|| ! function_exists( 'bws_run_traversal' )
-		|| ! function_exists( 'bws_first_post_id_from_sources' ) ) {
-		return false;
-	}
-
-	$base    = bws_resolve_base_source( $options, $instance );
-	$steps   = bws_wrapper_ref_steps( $options );
-	$sources = bws_run_traversal( array( $base ), $steps );
-
-	return bws_first_post_id_from_sources( $sources );
-}
-
-/**
- * Assemble the wrapper's REF-ONLY step set (SPEC §V13, B2).
- *
- * Post-semantic: only a `src:ref` hop (post→post[]) is a wrapper step. A
- * `srcTermIn` post→term hop is DELIBERATELY excluded — the wrapper's callers own
- * that downstream on the returned post id (bws_get_srcterm_terms). Contrast the
- * seam's bws_field_values_assemble_steps(), which DOES emit a srcTermIn term-hop
- * (and compounds it after a ref step when both are set, #44) because it reads
- * term fields by kind (§V6/§V12).
- *
- * @since 1.14.0
- * @param array $options Tag options (src, ref).
- * @return array[] Zero or one ref step.
- */
-function bws_wrapper_ref_steps( array $options ): array {
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'ref' === $src ) {
-		$ref = $options['ref'] ?? '';
-		if ( '' !== $ref ) {
-			return array( array( 'type' => 'ref', 'field' => $ref ) );
-		}
-	}
-	return array();
-}
-
-/**
- * Get taxonomy terms for a resolved post via the `srcTerm`/`tax` options.
- *
- * Called by base tag callbacks when `srcTerm` is set. The post is already
- * resolved via bws_resolve_post_by_source(); this function performs the
- * final hop from that post to its taxonomy terms.
- *
- * @since 1.6.0
- * @param int    $post_id Resolved post ID.
- * @param string $tax     Taxonomy slug from $options['tax'].
- * @return WP_Term[]
- */
-function bws_get_srcterm_terms( int $post_id, string $tax ): array {
-	if ( ! $post_id || '' === $tax ) {
-		return [];
-	}
-
-	$terms = get_the_terms( $post_id, $tax );
-	if ( is_wp_error( $terms ) || empty( $terms ) ) {
-		return [];
-	}
-
-	return array_values( $terms );
-}
-
-// ===============================================
-// TERM-AMBIENT DISPATCH (SPEC §T6 / §V7)
-// ===============================================
-
-/**
- * Resolve the base source for a base callback, guarded for load order.
- *
- * Single factory call per callback (SPEC §V1): the callback then branches on the
- * base kind — term → analog read (§V7), else collapse to a post id via
- * bws_first_post_id_from_sources (§V4). Falls back to a post/0 source when the
- * engine is unavailable (mirrors the wrapper's guard) so callbacks stay safe.
- *
- * @since 1.14.0
- * @param array  $options  Tag options.
- * @param object $instance GB instance.
- * @return array Base resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
- */
-function bws_base_resolve_source_for_callback( array $options, $instance ): array {
-	return function_exists( 'bws_resolve_base_source' )
-		? bws_resolve_base_source( $options, $instance )
-		: array( 'kind' => 'post', 'id' => 0 );
-}
-
-/**
- * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
- *
- * The post-path counterpart of the ambient-term branch: runs the wrapper's
- * ref-only step set (src:ref → post→post[] hop; NEVER srcTermIn, which the
- * callback's own $tax branch owns) then takes the first post id. Mirrors
- * bws_resolve_post_by_source() for a base source already resolved once, so the
- * callback pays a single factory call (SPEC §V1).
- *
- * @since 1.14.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
- * @return int|false First post id, or false.
- */
-function bws_base_post_id_from_source( array $base, array $options ) {
-	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_first_post_id_from_sources' ) ) {
-		return bws_first_post_id_from_sources( array( $base ) );
-	}
-	$sources = bws_run_traversal( array( $base ), bws_wrapper_ref_steps( $options ) );
-	return bws_first_post_id_from_sources( $sources );
-}
-
-/**
- * Collapse a base source to the FULL post-id LIST via ref-only steps (SPEC §V14).
- *
- * The plural counterpart of bws_base_post_id_from_source(): for a tag that offers
- * list mode on `src:ref` (text/title, §V14 offered⟺resolvable), the src:ref post
- * branch reads EVERY fanned-out ref target (bws_run_traversal keeps all, §V6) — not
- * just the first. Order preserved; only post-kind sources contribute. The caller
- * slices to `limit` and joins with `sep`, mirroring the srcTermIn branch.
- *
- * @since 1.14.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
- * @return int[] Post ids in document order (may be empty).
- */
-function bws_base_post_ids_from_source( array $base, array $options ): array {
-	if ( ! function_exists( 'bws_run_traversal' ) ) {
-		return array();
-	}
-	$sources = bws_run_traversal( array( $base ), bws_wrapper_ref_steps( $options ) );
-	$ids     = array();
-	foreach ( $sources as $src ) {
-		if ( is_array( $src ) && 'post' === ( $src['kind'] ?? '' ) ) {
-			$id = (int) ( $src['id'] ?? 0 );
-			if ( $id > 0 ) {
-				$ids[] = $id;
-			}
-		}
-	}
-	return $ids;
-}
-
-/**
- * Whether a base callback should read the AMBIENT TERM instead of a post.
- *
- * True iff (a) no explicit `srcTermIn` hop is set (that branch owns its own
- * post→term traversal and is incoherent from a term base), (b) `src` is neither
- * the site source (own early gate) NOR `ref` (SPEC §V11: src:ref on a term archive
- * HOPS the term's relationship field term→post[] via the post path's ref step,
- * then reads the target POST's analog — it must NOT short-circuit to the term's
- * own analog), and (c) the factory's base resolved source is a term — i.e. a bare
- * base tag on a term archive (SPEC §V7). Explicit options (loop row, src:current,
- * id) win inside the factory itself (SPEC §V1), so this returns false whenever the
- * author pinned a non-term source.
- *
- * @since 1.14.0
- * @param array  $base     Base resolved source from bws_resolve_base_source().
- * @param array  $options  Tag options.
- * @return int Term id when the ambient-term analog path applies, else 0.
- */
-function bws_base_ambient_term_id( array $base, array $options ): int {
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( '' !== $tax ) {
-		return 0; // Explicit post→term hop owns this render.
-	}
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'site' === $src || 'ref' === $src ) {
-		return 0; // Site: own gate. ref: hops term→post (V11), post path owns it.
-	}
-	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
-		return 0;
-	}
-	return (int) ( $base['id'] ?? 0 );
-}
-
-/**
- * Read a base tag's TERM analog on a term archive (SPEC §V7, CONTEXT.md I1).
- *
- * The I1 source-analog table applied to an ambient term: each base tag, at its
- * DEFAULT `use`, yields the term's intrinsic analog; `use:key` (and text's
- * key-default) reads a term meta field. Routes through the SAME term core fns the
- * explicit srcTermIn branch uses — full parity, one code home for the term reads.
- *
- *   title   → term name           (bws_term_title_core)
- *   text    → use:title ? name : keyed term field  (title vs custom_text core)
- *   content → use:key  ? keyed term field : term description
- *   permalink → term URL          (bws_term_permalink_core)
- *   image   → HONEST GAP (#29): no intrinsic term image analog. A key reads a
- *             term image field; with no key + no fallback → empty. A configured
- *             Media Library fallback still applies (bws_term_custom_image_core owns
- *             the no-key→fallback path), keeping standalone == try_image slot.
- *
- * @since 1.14.0
- * @param string $tag     One of text|content|title|permalink|image.
- * @param int    $term_id Ambient term id.
- * @param array  $options Tag options (use, key, fallback, …).
- * @param object $instance GB instance.
- * @return string Rendered analog value ('' on miss/gap).
- */
-function bws_base_term_analog_read( string $tag, int $term_id, array $options, $instance ): string {
-	if ( ! $term_id ) {
-		return '';
-	}
-	$opts = bws_base_map_options( $options );
-
-	switch ( $tag ) {
-		case 'title':
-			return bws_term_title_core( $term_id, $options, $instance );
-
-		case 'text':
-			$use = $options['use'] ?? 'key';
-			return 'title' === $use
-				? bws_term_title_core( $term_id, $opts, $instance )
-				: bws_term_custom_text_core( $term_id, $opts, $instance );
-
-		case 'content':
-			$use = $options['use'] ?? 'content';
-			return 'key' === $use
-				? bws_term_custom_text_core( $term_id, $opts, $instance )
-				: bws_term_description_core( $term_id, $opts, $instance );
-
-		case 'permalink':
-			return bws_term_permalink_core( $term_id, $options, $instance );
-
-		case 'image':
-			// I1 gap #29 — a term has no intrinsic image analog. A key reads a term
-			// image field; with no key there is no analog datum, BUT a configured
-			// Media Library fallback still applies (fallback = last resort, gap or not).
-			// bws_term_custom_image_core handles the no-key case itself: empty key →
-			// the shared bws_handle_media_fallback (id-or-url, SPEC §V19) → the fallback
-			// (or '' when none set). So call it unconditionally — no key + no fallback
-			// stays empty (honest gap), no key + fallback yields the fallback. Keeps the
-			// standalone tag byte-identical to a try_image slot (same core, V8/C9).
-			return bws_term_custom_image_core( $term_id, $options, $instance );
-	}
-
-	return '';
-}
-
-// ===============================================
-// SHARED OPTION HELPER
-// ===============================================
-
-/**
- * Remap base-tag option keys to what the old core functions expect.
- *
- * Base tags use the new naming convention (fallback vs. fallback_text).
- * Existing core functions still read the old keys. This function bridges
- * the gap without requiring changes to the core functions.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Options with fallback_text populated from fallback when present.
- */
-function bws_base_map_options( array $options ): array {
-	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
-		$options['fallback_text'] = $options['fallback'];
-	}
-	return $options;
-}
-
-// ===============================================
 // CALLBACKS
 // ===============================================
 
 /**
- * Callback for the `text` base tag.
+ * Resolve the `text` base tag's VALUE — the full read path minus link-wrap
+ * and preview fallback.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
  * dispatches to the appropriate core function based on `use`:
@@ -1221,28 +624,32 @@ function bws_base_map_options( array $options ): array {
  * post    + use unset   → bws_post_custom_text_core()
  * post    + use:title   → bws_post_title_core()
  *
- * @since 1.6.0
+ * ABSORB INVARIANT: the returned value must stay byte-equivalent to what
+ * {{text}} renders before link-wrap — including the src:site arm, the
+ * srcTermIn / src:ref list modes (text's own sep/limit), and '0' preservation
+ * (hooks.php maps '0' downstream; no emptiness re-decision here). Other tags
+ * absorb the text read through this seam (planned: {{join}} per-slot resolve),
+ * so any text read change lands here, never in a caller's copy.
+ *
+ * @since 1.14.1 Extracted from bws_base_text_callback().
+ *
+ * @param array $options  Tag options.
+ * @param mixed $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string} link_id 0 =
+ *                        multi-result output; caller must not link-wrap.
  */
-function bws_base_text_callback( $options, $block, $instance ): string {
-	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+function bws_base_text_resolve_value( array $options, $instance ): array {
+	$use  = $options['use'] ?? 'key';
+	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$opts = bws_base_map_options( $options );
 
-	$use     = $options['use'] ?? 'key';
-	$tax     = sanitize_key( $options['srcTermIn'] ?? '' );
-	$opts    = bws_base_map_options( $options );
-	$link_to = $options['linkTo'] ?? 'none';
-	$link_key = $options['linkKey'] ?? '';
-	$new_tab  = ! empty( $options['newTab'] );
-
-	// src:site — no entity; resolve site value then link-wrap (sentinel id, 'site' type).
+	// src:site — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === ( $options['src'] ?? '' ) ) {
-		$value = bws_site_resolve_value( 'text', $options, $instance );
-		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
-		}
-		if ( '' !== $value ) {
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+		return array(
+			'value'     => bws_site_resolve_value( 'text', $options, $instance ),
+			'link_id'   => 1,
+			'link_type' => 'site',
+		);
 	}
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
@@ -1250,14 +657,11 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 	$base    = bws_base_resolve_source_for_callback( $options, $instance );
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
-		$value = bws_base_term_analog_read( 'text', $term_id, $options, $instance );
-		if ( '' !== $value ) {
-			if ( function_exists( 'bws_wrap_with_link' ) ) {
-				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
-			}
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+		return array(
+			'value'     => bws_base_term_analog_read( 'text', $term_id, $options, $instance ),
+			'link_id'   => $term_id,
+			'link_type' => 'term',
+		);
 	}
 	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
@@ -1328,14 +732,298 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		$link_type = 'post';
 	}
 
+	return array(
+		'value'     => $value,
+		'link_id'   => $link_id,
+		'link_type' => $link_type,
+	);
+}
+
+/**
+ * Callback for the `text` base tag.
+ *
+ * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap
+ * single-result output, fall back to the editor preview label when empty.
+ *
+ * @since 1.6.0
+ * @since 1.14.1 Value resolution extracted to bws_base_text_resolve_value().
+ */
+function bws_base_text_callback( $options, $block, $instance ): string {
+	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+
+	$resolved = bws_base_text_resolve_value( $options, $instance );
+	$value    = $resolved['value'];
+
 	if ( '' !== $value ) {
-		if ( $link_id && function_exists( 'bws_wrap_with_link' ) ) {
-			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $link_id, $link_type );
+		if ( $resolved['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+			$value = bws_wrap_with_link(
+				$value,
+				$options['linkTo'] ?? 'none',
+				$options['linkKey'] ?? '',
+				! empty( $options['newTab'] ),
+				$resolved['link_id'],
+				$resolved['link_type']
+			);
 		}
 		return $value;
 	}
 
 	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+}
+
+/**
+ * Build the {{join}} option definitions: per-slot text-base specs (flat `{N}-`
+ * prefix wire format, slot 1 bare — the SAME scheme try_ uses) followed by the
+ * tag-level assembly options.
+ *
+ * Per slot: src/ref/srcTermIn from bws_build_slot_traversal_options() with the
+ * site arm ALLOWED (the try_text site gap is not repeated), plus `use` (text's
+ * full key/title enum — deliberately NO "Same as Previous Field" row: in
+ * combining, same-use is redundant [use:key = the default] or pointless
+ * [use:title twice reads the identical datum]; this is a concrete reason join
+ * owns its build loop rather than reusing the try_ per_slot_use emit, which
+ * hardcodes the same-prepend), `key` (never inherited), and `limit` (list-mode
+ * cap so a srcTermIn / src:ref slot reads >1 target; its own list-axis
+ * show_if_any doubles as the reveal — an unconfigured slot has no list axis).
+ *
+ * COMBINING-shaped reveal: a slot is "real" when it has a key OR a non-default
+ * use, so slot N+1 (N ≥ 3) reveals on `{prev}-key not_empty` OR `{prev}-use
+ * not_empty` — NOT `{prev}-src` (default-empty in combining; try_'s src-keyed
+ * reveal is the selecting axis, wrong here). Slots 1–2 always visible.
+ *
+ * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items
+ * with text's default ', '; a slot-1 bare `sep` would collide with the
+ * tag-level assembly `sep` on GB's flat option map.
+ *
+ * @since 1.15.0
+ * @return array Option definitions keyed by option name.
+ */
+function bws_get_join_options(): array {
+	$base_src  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
+	$base_trav = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+
+	$options = array();
+
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$src_key = ( 1 === $n ) ? 'src'       : "{$n}-src";
+		$ref_key = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
+		$stm_key = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
+		$use_key = ( 1 === $n ) ? 'use'       : "{$n}-use";
+		$key_key = ( 1 === $n ) ? 'key'       : "{$n}-key";
+		$lim_key = ( 1 === $n ) ? 'limit'     : "{$n}-limit";
+
+		// Combining reveal: slots 1-2 up front; slot N ≥ 3 reveals when the
+		// PREVIOUS slot is "real" (has a key or a non-default use).
+		if ( $n <= 2 ) {
+			$slot_trigger = array();
+		} else {
+			$prev         = $n - 1;
+			$slot_trigger = array(
+				'show_if_any' => array(
+					( 2 === $prev ? '2-key' : "{$prev}-key" ) => 'not_empty',
+					( 2 === $prev ? '2-use' : "{$prev}-use" ) => 'not_empty',
+				),
+			);
+		}
+
+		// src / ref / srcTermIn — derived from the base builders; site arm
+		// allowed (join is standalone: the bool passes directly, no
+		// modifier-only flag). Slot ≥2 keeps the `same` inherit row: source
+		// can sensibly carry forward in combining; field identity cannot.
+		$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
+			? bws_build_slot_traversal_options( $n, $base_src, $base_trav, true )
+			: array( 'src' => array(), 'ref' => array(), 'srcTermIn' => array() );
+
+		$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
+		$options[ $ref_key ] = $slot_defs['ref'];
+		$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
+
+		// use — text's full enum, no same-row (see PHPDoc).
+		$options[ $use_key ] = array_merge(
+			array(
+				'type'           => 'select',
+				/* translators: %d: slot number */
+				'label'          => sprintf( __( '%d: Text Field', 'generateblocks' ), $n ),
+				'options'        => array(
+					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+				),
+				'_strip_default' => true,
+			),
+			$slot_trigger
+		);
+
+		// key — per slot, never inherited. Hidden for use:title (no inherit
+		// mode, so slot ≥2 visibility = same rule as slot 1).
+		$options[ $key_key ] = array_merge(
+			array(
+				'type'         => 'bws-field-combo',
+				/* translators: %d: slot number */
+				'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+				'placeholder'  => 'field_name',
+				'show_if'      => array( $use_key => 'not:title' ),
+			),
+			$slot_trigger
+		);
+
+		// limit — per-slot list-mode cap (srcTermIn / src:ref). Threaded into
+		// the slot's text resolve; without it a list slot silently truncates
+		// to one item. The list-axis condition doubles as the reveal (an
+		// unconfigured slot's srcTermIn/src are empty → hidden).
+		$options[ $lim_key ] = array(
+			'type'        => 'number',
+			/* translators: %d: slot number */
+			'label'       => sprintf( __( '%d: Result Limit', 'generateblocks' ), $n ),
+			'help'        => __( 'Maximum number of results this slot returns. Default: 1.', 'generateblocks' ),
+			'show_if_any' => array(
+				$stm_key => 'not_empty',
+				$src_key => 'ref',
+			),
+		);
+	}
+
+	// Tag-level assembly options.
+	$options['mode'] = array(
+		'type'           => 'select',
+		'label'          => __( 'Assembly Mode', 'generateblocks' ),
+		'options'        => array(
+			array( 'value' => '',         'label' => __( 'Separator', 'generateblocks' ) ),
+			array( 'value' => 'template', 'label' => __( 'Template', 'generateblocks' ) ),
+		),
+		'_strip_default' => true,
+	);
+	$options['sep'] = array(
+		'type'        => 'text',
+		'label'       => __( 'Separator', 'generateblocks' ),
+		'help'        => __( 'Text placed between non-empty values. Default: ", ".', 'generateblocks' ),
+		'placeholder' => ', ',
+		'show_if'     => array( 'mode' => 'not:template' ),
+	);
+	// %N (not {N}) — GB's tag parser rejects `}` anywhere in a tag's options
+	// (find_matches captures options as [^}]+; docs/gb-constraints.md), so the
+	// wire token syntax is brace-free. bws_join_wire_format() translates.
+	$options['format'] = array(
+		'type'        => 'text',
+		'label'       => __( 'Format', 'generateblocks' ),
+		'help'        => __( 'Format string using %1, %2 … as positional tokens for the slots. Use %% for a literal percent sign before a digit.', 'generateblocks' ),
+		'placeholder' => '%1 (%2)',
+		'show_if'     => array( 'mode' => 'template' ),
+	);
+	$options['fallback_text'] = array(
+		'type'  => 'text',
+		'label' => __( 'Fallback Text', 'generateblocks' ),
+		'help'  => __( 'Text to display when all fields are empty.', 'generateblocks' ),
+	);
+
+	return $options;
+}
+
+/**
+ * Callback for the {{join}} tag — the COLLECT-ALL slot loop.
+ *
+ * Visits every slot (never short-circuits — the combining counterpart to
+ * try_'s selecting fold), resolves each through the absorbed text read
+ * (bws_join_resolve_slot → bws_base_text_resolve_value; link identity
+ * ignored, no per-slot link-wrap), then assembles via separator or template
+ * mode. All-empty output falls back to `fallback_text` (or '' so GB's
+ * empty-render handling hides the block).
+ *
+ * Source carry-forward asymmetry: slot ≥2 `''`/`same` src inherits the prior
+ * resolved source; `use`/`key` NEVER inherit. $last_ref is deliberately NOT
+ * cleared on a non-ref src override — the text resolve reads `ref` ONLY under
+ * src:ref, so a stale carried ref alongside src:current/site is inert;
+ * clearing it would break a later slot carrying back to the same ref.
+ *
+ * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
+ * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
+ *
+ * @since 1.15.0
+ */
+function bws_join_callback( $options, $block, $instance ): string {
+	$values   = array(); // 1-based; $values[$n] = finished slot string or ''.
+	$last_src = '';
+	$last_ref = '';
+
+	// Tag-level explicit post id — GB's editor preview REST route injects
+	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
+	// get_the_ID(), false in the REST context) resolves the edited post. That id
+	// lives at the JOIN level; each slot builds its own option set, so it must be
+	// threaded into every post-based slot below or the current/ref slots resolve
+	// empty in the editor (showing only the preview label, unlike the sibling
+	// {{text}}). Inert on the front end — GB injects `id` only in the editor, so
+	// there $explicit_id is '' and the loop/ambient context (I9) resolves instead.
+	// This is CONTEXT.md I11 (composing-tag id-threading); see also the join
+	// $slot_opts['id'] assignment for the src:site exclusion.
+	$explicit_id = $options['id'] ?? '';
+
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$src = ( 1 === $n ) ? ( $options['src'] ?? '' )       : ( $options[ "{$n}-src" ] ?? '' );
+		$ref = ( 1 === $n ) ? ( $options['ref'] ?? '' )       : ( $options[ "{$n}-ref" ] ?? '' );
+		$use = ( 1 === $n ) ? ( $options['use'] ?? '' )       : ( $options[ "{$n}-use" ] ?? '' );
+		$key = ( 1 === $n ) ? ( $options['key'] ?? '' )       : ( $options[ "{$n}-key" ] ?? '' );
+		$stm = ( 1 === $n ) ? ( $options['srcTermIn'] ?? '' ) : ( $options[ "{$n}-srcTermIn" ] ?? '' );
+		$lim = ( 1 === $n ) ? ( $options['limit'] ?? '' )     : ( $options[ "{$n}-limit" ] ?? '' );
+
+		// Slot is "real" iff it has a key OR a non-default use. Reveal keeps
+		// gaps from occurring mid-chain; be defensive and just skip.
+		if ( '' === $key && '' === $use ) {
+			continue;
+		}
+
+		// Carry-forward: '' src = inherit prior resolved source ('same');
+		// else override. $last_ref intentionally survives non-ref overrides
+		// (inert outside src:ref — see fn PHPDoc).
+		if ( '' !== $src && 'same' !== $src ) {
+			$last_src = $src;
+		}
+		if ( '' !== $ref ) {
+			$last_ref = $ref;
+		}
+
+		// Single-slot text-tag option set for the absorb seam. Join's
+		// tag-level `sep` (assembly) is NEVER passed through — a list-mode
+		// slot joins its own items with text's default ', ' (ADR 0003).
+		$slot_opts = array(
+			'src'       => $last_src,
+			'ref'       => $last_ref,
+			'use'       => '' === $use ? 'key' : $use, // '' = stripped key default (I3).
+			'key'       => $key,
+			'srcTermIn' => $stm,
+		);
+		if ( '' !== $lim ) {
+			$slot_opts['limit'] = $lim;
+		}
+		// Thread the editor's injected post id into every post-based slot (see
+		// $explicit_id note). src:ref bases its hop on this id too (the current
+		// post is the ref origin), so it must carry. Only src:site is entity-blind
+		// — it reads an option, never a post — so the id is left off there.
+		if ( '' !== $explicit_id && 'site' !== $last_src ) {
+			$slot_opts['id'] = $explicit_id;
+		}
+
+		$values[ $n ] = bws_join_resolve_slot( $slot_opts, $instance );
+	}
+
+	$assembled = bws_join_assemble( $values, (array) $options );
+
+	if ( '' === $assembled ) {
+		// Editor-time: the target fields rarely exist on the editing context, so
+		// show the configuration preview (target fields + assembly, with the
+		// fallback annotated) rather than the literal fallback — the author needs
+		// to see the config, not the masked-empty output. Front end below shows
+		// the real fallback. Matches every other base tag's preview ordering.
+		$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
+		if ( $is_preview && function_exists( 'bws_build_join_preview_label' ) ) {
+			return bws_build_join_preview_label( (array) $options );
+		}
+		$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
+	}
+	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $assembled, $options, $instance );
 }
 
 /**

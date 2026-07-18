@@ -8,7 +8,7 @@
 > - **Algorithm (pure, automated):** `php tools/test/phone-normalize-test.php` — 19 cases over VP-hyphen / VP3 / VP-strip / VP4 / VP-href-safe. Run first; must be green before manual rows.
 > - **Integration (manual, WP):** the R-rows below — sources, list mode, `noLink` render, fallback, preview, settings. Run on a WP test instance with **GenerateBlocks (Pro)** + **ACF**, per the runtime-debug workflow (TEST instance, never the live/cached site).
 
-**How to run:** paste each tag into a GenerateBlocks block, view the rendered front end. `[SUB …]` = substitute a real key on your instance. Settings rows assume **Settings → Tag Extensions → Phone**.
+**How to run:** on the fixture testbed, seed the `core-structures` blueprint (see [`tools/fixtures/core-structures/README.md`](../fixtures/core-structures/README.md)) — the page `/matrix-post-meta/` renders every row below with the fixture keys already substituted; term-hop cases live on `/matrix-terms-mixed/` and `/matrix-terms-junk/`. Keys named in the rows are the blueprint's fixture keys (`manifest.php` is authoritative). On any other instance, substitute your own keys. Settings rows assume **Settings → Tag Extensions → Phone**.
 
 ---
 
@@ -16,25 +16,27 @@
 
 | # | Field value | Tag | Expected href / output |
 |---|---|---|---|
-| R0.1 | `(987) 654-3210` | `{{phone key:[SUB]}}` | `<a href="tel:+1-987-654-3210">(987) 654-3210</a>` (author groups reused) |
-| R0.2 | `987.654.3210` | `{{phone key:[SUB]}}` | href `tel:+1-987-654-3210` (dots → hyphens) |
-| R0.3 | `(987)654-3210` | `{{phone key:[SUB]}}` | href `tel:+1-987-654-3210` (parens break group, no space) |
-| R0.4 | `9876543210` | `{{phone key:[SUB]}}` | href `tel:+19876543210` (**bare digits → no internal hyphens**) |
-| R0.5 | `987 654 3210` | `{{phone key:[SUB]}}` | href `tel:+1-987-654-3210` (spaces → hyphens) |
+| R0.1 | `(987) 654-3210` | `{{phone key:main_line}}` | `<a href="tel:+1-987-654-3210">(987) 654-3210</a>` (author groups reused) |
+| R0.2 | `987.654.3210` | `{{phone key:booking_line}}` | href `tel:+1-987-654-3210` (dots → hyphens) |
+| R0.3 | `(987)654-3210` | `{{phone key:after_hours_line}}` | href `tel:+1-987-654-3210` (parens break group, no space) |
+| R0.4 | `9876543210` | `{{phone key:sms_number}}` | href `tel:+19876543210` (**bare digits → no internal hyphens**) |
+| R0.5 | `987 654 3210` | `{{phone key:intl_desk}}` | href `tel:+1-987-654-3210` (spaces → hyphens) |
 
 ## R1 — country code 2-tier + trunk-0 (VP3)
 
 | # | Field | Global CC | Tag | Expected |
 |---|---|---|---|---|
-| R1.1 | `+1 987 654 3210` | `44` | `{{phone key:[SUB]}}` | href `tel:+1-987-654-3210` (**in-field `+` wins**, global ignored) |
-| R1.2 | `0011 22 3333` | (empty) | `{{phone key:[SUB]}}` | href `tel:+11-22-3333` (`00`→`+`) |
-| R1.3 | `07911 123456` | `44` | `{{phone key:[SUB]}}` | href `tel:+44-7911-123456` (**trunk 0 stripped** on CC apply) |
-| R1.4 | `07911 123456` | (empty) | `{{phone key:[SUB]}}` | href `tel:07911-123456` (**national, trunk 0 KEPT**, no `+`) |
-| R1.5 | `9876543210` | (empty) | `{{phone key:[SUB]}}` | href `tel:9876543210` (national, no `+`) |
+| R1.1 | `+1 987 654 3210` | `44` | `{{phone key:us_toll_free}}` | href `tel:+1-987-654-3210` (**in-field `+` wins**, global ignored) |
+| R1.2 | `0011 22 3333` | (empty) | `{{phone key:intl_exchange}}` | href `tel:+11-22-3333` (`00`→`+`) |
+| R1.3 | `07911 123456` | `44` | `{{phone key:uk_mobile}}` | href `tel:+44-7911-123456` (**trunk 0 stripped** on CC apply) |
+| R1.4 | `07911 123456` | (empty) | `{{phone key:uk_mobile}}` | href `tel:07911-123456` (**national, trunk 0 KEPT**, no `+`) |
+| R1.5 | `9876543210` | (empty) | `{{phone key:sms_number}}` | href `tel:9876543210` (national, no `+`) |
 
 ## R2 — separated-CC dedupe (VP-cc-dedupe) — global CC `1`
 
 Author SEPARATED the CC (any non-digit: space/paren/dot/hyphen). Auto-detected, **flag-agnostic** — strip setting makes no difference. No double prefix.
+
+Fixture keys: `support_tollfree` (R2.1/R2.2/R2.6), `sales_tollfree` (R2.3), `fax_tollfree` (R2.4), `intl_support` (R2.5).
 
 | # | Field | Strip setting | Expected |
 |---|---|---|---|
@@ -49,6 +51,8 @@ Author SEPARATED the CC (any non-digit: space/paren/dot/hyphen). Auto-detected, 
 
 FLAT digits only (no separator marks the CC). Dedupe cannot fire (structure-gated); opt-in strip is the only path. This is the ambiguous case the warning covers.
 
+Fixture keys: `flat_tollfree` (R2b.1/R2b.2/R2b.4), `flat_local` (R2b.3).
+
 | # | Field | Strip setting | Expected |
 |---|---|---|---|
 | R2b.1 | `18005551212` (flat, leading 1) | **ON** | href `tel:+18005551212` (leading CC `1` stripped then re-applied once — single prefix) |
@@ -60,21 +64,21 @@ FLAT digits only (no separator marks the CC). Dedupe cannot fire (structure-gate
 
 | # | Setup | Tag | Expected |
 |---|---|---|---|
-| R3.1 | field `07911 123456` | `{{phone key:[SUB]\|noLink}}` | `07911 123456` (**plain text, stored verbatim**, no anchor) |
-| R3.2 | term-hop, ≥2 terms with phone fields | `{{phone srcTermIn:[SUB tax]\|key:[SUB]}}` | each valid number its own `<a tel:>`, joined by `, ` |
-| R3.3 | term-hop, one term's value is junk (`abc`) | as R3.2 | junk term **skipped**; valid ones joined (strict, no plain passthrough) |
-| R3.4 | term-hop, ALL values junk, `fallback:555-123-4567` | as R3.2 + `\|fallback:…` | fallback number wrapped (fires only on all-empty) |
-| R3.5 | field empty, no fallback | `{{phone key:[SUB]}}` | empty output on front end |
-| R3.6 | field `12345` (too short) | `{{phone key:[SUB]}}` | empty (length gate <7) — VP4 |
+| R3.1 | field `07911 123456` | `{{phone key:uk_mobile\|noLink}}` | `07911 123456` (**plain text, stored verbatim**, no anchor) |
+| R3.2 | `/matrix-post-meta/` (terms support + sales, both valid) | `{{phone srcTermIn:department\|key:phone\|limit:5}}` | each valid number its own `<a tel:>`, joined by `, ` (`limit` defaults to **1** — without it only the first term renders) |
+| R3.3 | `/matrix-terms-mixed/` (adds warehouse, value `abc`) | as R3.2 | junk term **skipped**; valid ones joined (strict, no plain passthrough) |
+| R3.4 | `/matrix-terms-junk/` (warehouse only) | as R3.2 + `\|fallback:555-123-4567` | fallback number wrapped (fires only on all-empty) |
+| R3.5 | field empty, no fallback | `{{phone key:unused_line}}` | empty output on front end |
+| R3.6 | field `12345` (too short) | `{{phone key:short_code}}` | empty (length gate <7) — VP4 |
 
 ## R4 — extension sever + sources (VP4, cross-source)
 
 | # | Field | Tag | Expected |
 |---|---|---|---|
-| R4.1 | `555-867-5309 x99` | `{{phone key:[SUB]}}` | href `tel:+1-555-867-5309` (**`x99` severed**, dials main); display shows the raw incl. `x99` |
+| R4.1 | `555-867-5309 x99` | `{{phone key:front_desk_ext}}` | href `tel:+1-555-867-5309` (**`x99` severed**, dials main); display shows the raw incl. `x99` |
 | R4.2 | option `org_phone` on options page | `{{phone src:site\|key:org_phone}}` | wp_options/ACF-options number wrapped |
-| R4.3 | post meta on current post | `{{phone src:current\|key:[SUB]}}` | post-meta number wrapped |
-| R4.4 | related-post field via `src:ref` | `{{phone src:ref\|ref:[SUB]\|key:[SUB]}}` | traversed-entity number(s) wrapped, list mode |
+| R4.3 | post meta on current post | `{{phone src:current\|key:main_line}}` | post-meta number wrapped |
+| R4.4 | related-post field via `src:ref` (jane-partner) | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | traversed-entity number(s) wrapped, list mode |
 
 ## R5 — preview + visibility (VP-vis, preview)
 
@@ -88,7 +92,7 @@ FLAT digits only (no separator marks the CC). Dedupe cannot fire (structure-gate
 
 | # | Field | Expected |
 |---|---|---|
-| R6.1 | `+1-987"><script>654-3210` | href is `tel:+1-987-654-3210` (digits+hyphens only; `"><script>` discarded as a separator); **no script in source**; display shows the raw string HTML-escaped as text |
+| R6.1 | `+1-987"><script>654-3210` (fixture key `hacked_line`) | href is `tel:+1-987-654-3210` (digits+hyphens only; `"><script>` discarded as a separator); **no script in source**; display shows the raw string HTML-escaped as text |
 
 ---
 

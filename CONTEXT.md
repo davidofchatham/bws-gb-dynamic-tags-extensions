@@ -57,7 +57,7 @@ A new named `use:` value (or per-source analog) MUST satisfy AT LEAST ONE of two
 
 A value failing both (datum already reachable AND no transform AND no cross-source slot) is proliferation → reject. "Feeds a multi-slot tag" is NOT sufficient (decouple via #26). This is a **decision-time process gate**, not a runtime invariant.
 
-**Applies at the SOURCE level too, not just `use` values.** Offering a *source* on a tag is the same gate: a source qualifies on a tag iff it's either uniquely useful there or fills a cross-source slot the tag's purpose implies. `src:site` on a single-slot **rooting modifier** (`term_*`, `view_*`) fails both — the site datum is the identical unrooted base read (`{{email src:site}}`) and site is entity-blind so it fills no entity-distinct slot → filtered from the modifier's `src` dropdown. The site rung's likely future home is a **pinned-resource source** (a probable `src:term,<ID>`-style construct, NOT final) inside a try_ chain (chains keep their site rung via `try_allow_site_slot`), NOT a `try_term_` form; `term_` is transitional, on a deprecation glide-path.
+**Applies at the SOURCE level too, not just `use` values.** Offering a *source* on a tag is the same gate: a source qualifies on a tag iff it's either uniquely useful there or fills a cross-source slot the tag's purpose implies. `src:site` on a single-slot **rooting modifier** (`term_*`, `view_*`) fails both — the site datum is the identical unrooted base read (`{{email src:site}}`) and site is entity-blind so it fills no entity-distinct slot → filtered from the modifier's `src` dropdown. If the author actually wants "read the term field, else fall back to the site field," that is a **fallback across two sources** — its home is a **try_ chain** (slot 1 reads the term, slot 2 reads site; chains keep a site slot via `try_allow_site_slot`), NOT `src:site` on a `term_` tag and NOT a `try_term_` form. (`term_` is transitional, on a deprecation glide-path.) A separate future affordance — falling back to *one specific pinned entity* rather than the global site — is what the **ID source** (`src:<type>,<ID>`; §Language "Source binding", FW-39) would add as its own slot flavor; that is a distinct flavor from the global site rung, not what the site rung is.
 
 Worked examples + verdicts: `tag-reference.md` §Qualifying test (incl. the source-level `term_ src:site` row). Drove cutting `text use:tagline` (the site Tagline has a tag-less path — GB native `{{site_tagline}}` or `key:blogdescription`).
 
@@ -143,6 +143,18 @@ Enforced at: `MigrationRegistry::is_entry_live()` PHPDoc (the classifier + why-n
 
 ---
 
+## I11 — A composing tag must thread the editor-injected `id` into every post-based sub-read
+
+GB's editor **preview REST route** resolves the edited post by appending `id:<postId>` to the tag string — because `GenerateBlocks_Dynamic_Tags::get_id()`'s post fallback is `get_the_ID()`, which is **`false` in the REST context** (no main query runs). A single-read tag (`text`, `phone`, …) receives that `id` in its OWN options and resolves. But a **composing tag** — one that builds a fresh option set per sub-read (`join`'s per-slot `$slot_opts`, and any future multi-slot absorber) — **drops the tag-level `id`** unless it explicitly copies it down, so its current/ref sub-reads resolve against a nonexistent post → empty-in-editor (the tag then shows only its configuration-preview label, never the real data the sibling `{{text}}` shows).
+
+**Rule:** a composing tag MUST thread its tag-level `id` into every **post-based** sub-read it delegates. `src:ref` sub-reads carry it too (the current post is the ref-hop origin). Only **entity-blind** sources skip it — `src:site` reads a `wp_options` datum, never a post, so passing `id` there is meaningless.
+
+**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-row / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
+
+This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot resolves identically to the same tag standalone — which fails silently in the editor if the id isn't propagated). Enforced at: `bws_join_callback` `$explicit_id` PHPDoc (base-tags.php). Schema/behavior: `tag-reference.md` §join (editor preview) + `tools/test/join-test-matrix.md` §Editor preview.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).
@@ -175,6 +187,19 @@ Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by 
 
 **Read target** (casual shorthand: **target**):
 The **declared read intent** of a tag — its (source + key) specification. `{src:ref|key:email}` is one read target. Either part may be **explicit** (written token) or **implicit** (stripped default / recovered: source unset → current/context-default; both unset on `{{title}}` → analog). The resolved *intent*, NOT the literal token string. (Implicit/explicit/unset axis: handoff source-analog mode terminology. **#19 = read targets with an implicit source resolved by WP context.**) "target" alone always means read target — NOT resolved source. _Avoid_: "entity", `{kind,id}`.
+
+**Source binding** (two orthogonal axes describing WHERE a source's read-entity comes from — classifies every `src` flavor, drives the [I4] qualifying gate at the source level):
+
+*Axis 1 — invocation (is a source serialized?):*
+- **implicit** — no `src` token; the tag infers its entity from WP context. The bare queried tag ONLY (`{{title}}` on a singular/term archive, #19).
+- **explicit** — a source is serialized (author-selected). EVERY other flavor, incl. `src:current` (same OUTCOME as implicit — reads the queried item — but explicit once written, e.g. a serialized try_ slot 2+). "selected" is an informal synonym for explicit (the author selected a Source); it is NOT a pole name — all three axis-2 flavors below are "selected" in this loose sense.
+
+*Axis 2 — entity provenance (who supplies the read-entity — the meaningful split among explicit sources; the implicit tag's hidden provenance is always `detected`):*
+- **detected** — an ambient signal supplies the entity, so it varies per render: WP query object / loop row (`src:current`, term-archive), a related-post hop (`src:ref`), or the active Site View / user session (`view_`). `view_` is detected-yet-explicit — detection is NOT the same axis as implicit/explicit.
+- **global** — no per-entity read; a site-wide datum (`src:site`). A Site View may ALSO act site-wide, but `view_` stays **detected** because a signal (the active view) selects it; `src:site` consults nothing.
+- **ID** — the author identifies ONE specific entity and its id is serialized into the token (probable `src:<type>,<ID>` shape, **not final**). The **ID source** — the only flavor carrying a serialized entity id. This is the "pinned/specific resource" concept the qualifying gate points at (FW-32 ref-hop parity, FW-33 `term_` deprecation). Names the mechanism (serialized id) = the provenance (author supplies it).
+
+Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`term`/`ref`/`view_`) | global (`site`) | ID (`src:<type>,<ID>`). Prefer **global** over "fixed" for `site` — "fixed" also fits ID sources (fixed-per-render), so it under-discriminates. _Avoid_: "contextual"/"context source" as the NAME of this axis-2 pole — say **detected** (the pole spans query, ref-hop, AND session/view; "context" in the doc means specifically the #19 *query*-context, a subset, so naming the whole pole "contextual" blurs it with that subset). "context modifier"/"context-aware"/"context kind" elsewhere are unaffected. Also avoid "entityless" for `global` (collides with unresolvable-read / post/0 empty).
 
 **Resolved source**:
 L1's output executing a target — the **bound *where*** a read happens, key not yet applied. post/term carry an id (meta-read needs one); **site** carries the `wp_options` namespace; future ones (#19 date/search, possible external Site-Views option-set source) carry their own payload. id is a post/term implementation detail, not universal. **Payload may legitimately vary by read mechanism within one kind:** site-datetime reads via ACF `get_field(key,'option')`, site-text via plain `get_option` — same `site` kind, different L2b read path. Frame-B variable payload (ADR 0002). **Distinguish legitimate payload-variance from a contradiction-to-refactor:** today datetime overloads the *post_id parameter slot* by passing the literal string `'option'` through it (datetime-tags.php:1005) — that param-overload is a contradiction of this model (a resolved-source payload smuggled through an id arg), REFACTORABLE, not canonical. Likewise `ref` collapsing to one target (`bws_extract_post_id`) contradicts the plural-source model → fix the code, don't model around it.

@@ -87,7 +87,7 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 | `datetime_*` site field | **Yes** — format chain (custom → ACF return-format → site default) | — | **keep** |
 | `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
 | `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **rejected** (fails both tests) |
-| `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "pinned resource + site fallback" is a pinned-resource source (a probable `src:term,<ID>`-style construct — **not final**) inside a try_ chain (which keeps its site rung via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
+| `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "specific resource + site fallback" is an ID source (a probable `src:<type>,<ID>`-style construct — **not final**; the author-serialized-entity-id flavor, see CONTEXT.md §Language "Source binding") inside a try_ chain (which keeps its site rung via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
 | `src:site` / `srcTermIn` on `{{call}}` | **No** — neither yields a post id, and a `$post_id`-contract function cannot consume a wp_options namespace or a term set | **No** — `{{call}}` exists to bind a POST for a post-shaped function; a non-post source fills no post-binding slot | **rejected** — `{{call}}` offers `src:current` + `src:ref` ONLY (both post-yielding). Same I4 gate applied at the **source** level rather than the `use:`-value level. Post-context-only is a stated design non-goal, not a gap to close. See [§Call tag](#call-tag). |
 
 The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
@@ -280,6 +280,7 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `datetime_range` | `'Format Date/Time Fields as Range'` | `+ '(term-based)'` | `'cross-source'` | ✅ | |
 | `email` | `'Email'` | *(no term_ variant)* | `'cross-source'` | `mailto:` (own anchor, not `linkTo`) | Default-ON mailto wrap toggled by `noLink`; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Email tag](#email-tag). |
 | `phone` | `'Phone'` | *(no term_ variant)* | `'cross-source'` | `tel:` (own anchor, not `linkTo`) | Default-ON tel wrap toggled by `noLink`; href rebuilt from stored value (author separators preserved); 2-tier country code; `visibility`-gated off `a`/`button`/`img`/`picture`. See [§Phone tag](#phone-tag). |
+| `join` | `'Join Fields'` | *(no term_ variant)* | `'cross-source'` | ❌ | **Structural outlier — not a base tag.** Standalone COMBINING tag: absorbs up to 10 base `text` reads as slots and assembles all non-empty values (separator or template mode). No read of its own; no per-slot link-wrap. See [§join](#join). |
 | `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
@@ -685,6 +686,103 @@ There is **no machine contract check**: site functions are untyped, so reflectio
 
 <a id="phone-deferred"></a>
 **Deferred (not in 1.10.0):** display-side number formatting; an extension field (`ext`/`extKey` + separator) outside the link; a number-type label ("cell"/"office"); per-country trunk/length rules; per-tag `cc:` override (strip-flag safety); lenient passthrough of unparseable numbers as plain text. Tracked in the project deferred-features backlog.
+
+---
+
+## `join`
+
+**Standalone COMBINING tag (1.15.0)** — the counterpart to `try_`'s *selecting*. Where a `try_`
+chain returns the FIRST non-empty slot, `{{join}}` visits EVERY slot (collect-all, never
+short-circuits), keeps all non-empty values, and assembles them into one output string. It is
+neither a base tag nor a modifier: it resolves no read of its own — each slot **absorbs** a full
+base `text` read via the extracted seam (`bws_base_text_resolve_value`, 1.14.1), so every current
+and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref list modes,
+loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
+(`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
+
+**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the same flat `{N}-` prefix wire format as
+`try_` (slot 1 bare keys). Per slot: `src` / `ref` / `srcTermIn` (from the shared slot builders,
+**site allowed** — the `try_text` site-slot gap is not repeated), `use` (text's key/title enum —
+**no "Same as Previous Field" row**: in combining, same-`use` is redundant or pointless), `key`
+(never inherited), and `limit` (list-mode cap so a term/ref slot reads >1 target). Slot ≥2 `src`
+keeps the `same`/inherit row — weave several fields off one entity (see J16b in the matrix for
+real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` —
+no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): a slot-1
+bare `sep` would collide with the tag-level assembly `sep`).
+
+**Reveal (combining-shaped).** Slots 1–2 visible up front; slot N ≥ 3 reveals when the previous
+slot has a `key` OR a non-default `use` — NOT its `src` (default-empty in combining; `try_`'s
+src-keyed reveal is the selecting axis).
+
+**Tag-level options.**
+
+| Option | Type | Notes |
+|---|---|---|
+| `mode` | select | `''` = Separator (default, stripped) / `template` |
+| `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
+| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens**. Shown in template mode. |
+| `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
+
+**Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
+tag's options (captured as `[^}]+` — kills the whole tag match, no escape;
+[`gb-constraints.md` §Tag-string-unsafe values](gb-constraints.md#tag-string-unsafe-values)), so
+brace tokens `{1}` can never ride the wire. Authors write `%1`…`%10`; `%%` escapes a literal
+percent directly before a digit. Internally `bws_join_wire_format()` translates to the canonical
+`{N}` form the pure algorithm uses.
+
+**Template mode — smart literal removal.** After token substitution, punctuation attached to
+EMPTY tokens is removed with them (five ordered steps; full contract + edge cases pinned by
+`php tools/test/join-template-test.php`):
+
+1. **Attached punctuation** — unit punct (`.` `'` `"`) trailing-attached sheds with the empty
+   token (`%1'%2"` with empty inches → `5'`); connective punct (`,` `:`) collapses only when the
+   empty token sits BETWEEN two connectives (`%4 %5, %6` with empty generation keeps ONE comma:
+   `Smith, PhD`), else survives as the neighbors' separator.
+2. **Bracket pairs** around an empty token removed (`%1 (%2)` → `Jane`); kept around a survivor.
+3. **Floating separators** (`·` `•` `/` `|` `-` `–` `—`) adjacent to an empty token removed
+   (look right; the format's last token looks left).
+4. **Whitespace collapse** + edge-orphan cleanup; a trailing `.` survives only when the format
+   intentionally ends with one. Trailing quote marks never stripped (a surviving `5'` is intent).
+5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %1 · %2`
+   → `Mr. Smith`).
+
+**Unit marks and `wptexturize`.** A rendered front-end page runs WordPress's `wptexturize`, which
+converts straight `'`/`"` in the assembled string to curly quotes (`5'11"` → `5’11”`) — WP content
+processing on join's output, not a join behavior (a literal `5'11"` typed into content converts the
+same way). For height/dimension formats use the **prime marks** `′` (U+2032, feet) and `″` (U+2033,
+inches): `format:%1′%2″` renders `5′11″` untouched, and they are the typographically correct
+glyphs. Numeric entities `&#39;`/`&#34;` in the format also survive (rendering literal straight
+marks) if straight quotes are required.
+
+**`'0'` is a real value.** "Empty" is exactly `''` everywhere; a stored `0` renders (`5'0"`), by
+absorb — join never re-decides emptiness. Suppressing a zero needs the author to store `''`, or
+the tracked base-text zero-as-empty opt-in (absorbed by join when it lands).
+
+**No link-wrap.** Output composes raw slot values — link identities from the seam are ignored
+(no per-slot anchors, no nested/broken markup). If wrap ever arrives it is once at the join
+layer, single-value output only (tracked).
+
+**Editor preview.** In the editor a join resolves its slots against the post being edited — GB's
+preview REST route injects `id:<postId>`, and the callback threads that id into each post-based
+slot (only `src:site` slots skip it), so a join reading the edited post's own fields shows the
+real assembled value just like `{{text}}`/`{{phone}}`. When the slots still resolve empty (fields
+absent, misconfigured slot), it shows a configuration preview (target fields + assembly mode)
+instead of an empty block, built by `bws_build_join_preview_label()`. Shape + examples:
+[`editor-tag-previews.md` §join](editor-tag-previews.md#join-preview).
+
+```
+{{join key:name_first|2-key:name_last}}                          → Jane, Smith
+{{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
+{{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
+{{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
+{{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
+{{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
+```
+
+**Tests.** Pure algorithm: `php tools/test/join-template-test.php` (Steps 1–5, wire-token
+translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix
+[`tools/test/join-test-matrix.md`](../tools/test/join-test-matrix.md) against the seeded testbed
+(assembly modes, absorb-visible behavior: site arm, per-slot `limit`, carry-forward, `'0'`).
 
 ---
 
