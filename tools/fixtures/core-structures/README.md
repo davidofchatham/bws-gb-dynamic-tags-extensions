@@ -57,6 +57,10 @@ so the schema survives snapshot restores.
 - join person-name surface: `name_*` parts (Staff Contact group) — dense on
   `jane-partner`, sparse (first+last) on `tom-associate`; `role` + `height_*`
   (incl. blank + zero probes) + a slot-1 `name_first` on `matrix-post-meta`.
+  Both staff singles carry a `staff_join` content builder (the name J-rows as
+  visible/editable GB blocks — full set on each, jane dense vs tom sparse);
+  the post-arm J-rows (height/role/absorb) render in a Join section group on
+  `matrix-post-meta`.
 - Collision repeaters (Team / Product Features), two flex fields (Page Builder),
   registered-meta set (`bws_global_note`, `bws_page_only`, `subtitle`, `bws_cat_note`),
   `Break </script><b>x</b>` label probe, empty **Scratch** ACF group in the DB.

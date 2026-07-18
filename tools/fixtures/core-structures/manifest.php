@@ -71,17 +71,19 @@ return array(
 	'posts' => array(
 		// Relationship target for src:ref rows (R4.4).
 		'staff-jane-partner' => array(
-			'post_type'  => 'staff',
-			'post_name'  => 'jane-partner',
-			'post_title' => 'Jane Partner',
+			'post_type'       => 'staff',
+			'post_name'       => 'jane-partner',
+			'post_title'      => 'Jane Partner',
+			'content_builder' => 'staff_join', // join NAME rows (dense) — join-test-matrix.md
 		),
 
 		// Second relationship target — src:ref LIST mode rows need >1 related
 		// post to distinguish all-results from first-only (text matrix T7).
 		'staff-tom-associate' => array(
-			'post_type'  => 'staff',
-			'post_name'  => 'tom-associate',
-			'post_title' => 'Tom Associate',
+			'post_type'       => 'staff',
+			'post_name'       => 'tom-associate',
+			'post_title'      => 'Tom Associate',
+			'content_builder' => 'staff_join', // same rows, sparse data → collapsed output
 		),
 
 		// Matrix pages split BY SOURCE-STATE, not by tag family — every tag

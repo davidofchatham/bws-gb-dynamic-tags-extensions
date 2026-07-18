@@ -188,6 +188,65 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T7.4', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
 	) );
 
+	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
+	// absorb: src:same, src:ref, src:site, srcTermIn limit). Name rows resolve
+	// on the staff singles (staff_join builder), NOT here. J23/J24 stay in the
+	// pure harness (no per-field blanking on a page). J20 (reveal) is visible
+	// by opening any join block below in the editor.
+	$sections[] = bws_fixture_gb_section( 'Join - separator / zero', array(
+		bws_fixture_gb_row( 'J4', '{{join key:height_in_zero|2-key:role}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Join - unit suffix (height)', array(
+		bws_fixture_gb_row( 'J11', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in}}' ),
+		bws_fixture_gb_row( 'J12', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_blank}}' ),
+		bws_fixture_gb_row( 'J13', '{{join mode:template|format:%1\'%2"|key:name_generation|2-key:height_in_blank|fallback_text:—}}' ),
+		bws_fixture_gb_row( 'J14', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_zero}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Join - per-slot src / use / site / list (absorb)', array(
+		bws_fixture_gb_row( 'J15', '{{join use:title|2-use:key|2-key:role|sep: / }}' ),
+		bws_fixture_gb_row( 'J16', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'J16b', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
+		bws_fixture_gb_row( 'J17', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
+		bws_fixture_gb_row( 'J18', '{{join key:name_first|2-src:site|2-key:organization_email}}' ),
+		bws_fixture_gb_row( 'J19', '{{join srcTermIn:department|use:title|limit:2}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
+/**
+ * Page content: staff singles (staff-jane-partner / staff-tom-associate).
+ * join NAME rows — same tag strings on both; the FIXTURE data makes the case
+ * (jane dense / tom sparse), so one builder serves both staff. These resolve
+ * off the current staff post (name_* fields live on the Staff Contact group).
+ */
+function bws_fixture_page_content_staff_join() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Join - separator mode (name)', array(
+		bws_fixture_gb_row( 'J1', '{{join key:name_first|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'J1b', '{{join key:name_first|2-key:name_last|sep: }}' ),
+		bws_fixture_gb_row( 'J2', '{{join key:name_first|2-key:name_generation|3-key:name_last}}' ),
+		bws_fixture_gb_row( 'J3', '{{join key:name_generation|2-key:name_credential|fallback_text:—}}' ),
+		bws_fixture_gb_row( 'J3b', '{{join key:name_generation|2-key:name_credential}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Join - template mode (name)', array(
+		bws_fixture_gb_row( 'J5', '{{join mode:template|format:%1 (%2)|key:name_first|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'J6', '{{join mode:template|format:%1 (%2)|key:name_first|2-key:name_generation}}' ),
+		bws_fixture_gb_row( 'J7', '{{join mode:template|format:%1 · %2|key:name_generation|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'J8', '{{join mode:template|format:%1 (%2.)|key:name_first|2-key:name_generation}}' ),
+		bws_fixture_gb_row( 'J9', '{{join mode:template|format:%1 (%2.)|key:name_generation|2-key:name_first}}' ),
+		bws_fixture_gb_row( 'J10', '{{join mode:template|format:%1 (%2)|key:name_generation|2-key:name_credential|fallback_text:—}}' ),
+	) );
+
+	// Full-name stress case — one format string, dense (jane) vs collapsed (tom).
+	$sections[] = bws_fixture_gb_section( 'Join - full personal name', array(
+		bws_fixture_gb_row( 'J21/J22', '{{join mode:template|format:%1 %2 %3. %4 %5, %6, %7|key:name_honorific|2-key:name_first|3-key:name_middle_initial|4-key:name_last|5-key:name_generation|6-key:name_credential|7-key:name_service}}' ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 
@@ -214,6 +273,7 @@ function bws_fixture_build_page_content( $builder ) {
 	$map = array(
 		'matrix_post_meta' => 'bws_fixture_page_content_matrix_post_meta',
 		'matrix_term_hop'  => 'bws_fixture_page_content_matrix_term_hop',
+		'staff_join'       => 'bws_fixture_page_content_staff_join',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';

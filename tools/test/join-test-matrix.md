@@ -26,6 +26,14 @@ Contexts used:
 - `/matrix-post-meta/` — post arm (height/role/absorb rows; carries Support+Sales terms,
   `related_staff` → Jane Partner first, site options page reachable regardless of context)
 
+**Also browsable + editable.** The seed builds these rows as visible GB blocks on the pages
+(`blocks.php`: `staff_join` builder → both staff singles [full row set on each; jane dense vs
+tom sparse IS the collapse demonstration]; a Join section group on `matrix-post-meta`). Open a
+page on the front end to eyeball every row, or open it in the editor to interact with the join
+controls (this is also where J20 reveal is checked). The `--porcelain` expected values below are
+the RAW join output; the front-end page additionally runs WP content filters (see the height
+`wptexturize` note under §Unit suffix).
+
 **Wire note:** template-mode tokens are `%1`…`%8` on the wire — GB's tag parser rejects `}`
 anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 `docs/gb-constraints.md`), so brace tokens `{N}` exist only INTERNALLY (translated by
@@ -82,6 +90,14 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 > `--blank=<key>` render-tag feature, not a join hack).
 
 ## Unit suffix — height (`/matrix-post-meta/`)
+
+> **`render-tag` vs the rendered page.** These rows are the RAW join output (`--porcelain`, no
+> WordPress content filters). On a real front-end page WordPress runs `wptexturize`, which turns
+> the straight `'`/`"` unit marks into curly quotes (`5’11”`). That is WP content processing on
+> the assembled string, NOT a join behavior — the same conversion hits any literal `5'11"` typed
+> into content. The visible fixture rows show the texturized form; the `--porcelain` expected
+> values below are the pre-texturize truth join produces. Suppress it (if ever needed) with a
+> `no_texturize`-style wrapper at the block level, not in join.
 
 | # | Tag | Expected |
 |---|---|---|
