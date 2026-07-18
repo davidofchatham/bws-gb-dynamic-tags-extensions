@@ -667,9 +667,15 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  * term analog readers.
  *
  * Scope for 1.15.0 is title + content only (the plan's author-archive dispatch
- * rows). text/permalink/image/datetime author analogs are future work — this
- * returns '' for any other tag, so an unhandled tag renders empty rather than
- * wrong. A `use:key` user-meta read is deferred with them.
+ * rows). This returns '' for any other tag, so an unhandled tag renders empty
+ * rather than wrong. Deferred author analogs (FW-47):
+ *   - permalink: get_author_posts_url() datum EXISTS (bws_resolve_link_url
+ *     already resolves it for link-wrap) but is circular on the author's own
+ *     archive — worth-it call open before wiring a bare {{permalink}}.
+ *   - image: no clean intrinsic analog (parity with the #29 term-image gap);
+ *     the avatar is the candidate but adds a Gravatar HTTP + privacy surface.
+ *     A use:key ACF user-image read works today (key-mode, not analog).
+ *   - datetime: folds in with FW-9's remaining datetime context work.
  *
  * @since 1.15.0
  * @param string $tag      One of title|content (others → '').
