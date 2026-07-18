@@ -73,6 +73,7 @@ $rows = array(
 	'D7.4'  => '{{datetime_single key:event_date|as:date}}',
 	'D7.5'  => '{{datetime_range startKey:event_date}}',
 	'D7.6'  => '{{datetime_single key:event_date|fallback:Date TBA}}',
+	'D7.7'  => '{{datetime_single key:event_date|as:time}}',
 );
 
 foreach ( $rows as $label => $tag ) {

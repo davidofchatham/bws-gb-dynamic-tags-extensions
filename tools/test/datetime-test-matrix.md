@@ -134,3 +134,4 @@ seeded — no new fixture state).
 | D7.4 | support | `{{datetime_single key:event_date|as:date}}` | `October 5, 2030` | empty |
 | D7.5 | support | `{{datetime_range startKey:event_date}}` | `October 5, 2030` (single-ended range off the term) | empty |
 | D7.6 | warehouse | `{{datetime_single key:event_date|fallback:Date TBA}}` | `Date TBA` (empty term field stays honest-empty → fallback) | `Date TBA` |
+| D7.7 | support | `{{datetime_single key:event_date|as:time}}` | empty (date-only term field has no time portion; midnight suppressed by smart default — same as the post-source rule) | empty |

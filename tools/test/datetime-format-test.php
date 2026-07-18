@@ -14,6 +14,7 @@
  *   - bws_format_single_date_time()    — year-omission / midnight suppression
  *   - bws_resolve_time_only_format()   — custom → ACF → WP-default chain (v1.7.4)
  *   - bws_build_single_format() / bws_build_range_format() — format assembly
+ *   - bws_datetime_coerce_read_target() — FW-3a legacy-scalar → resolved-source shim
  *   - the option-key normalizer        — public→core key mapping (FW-2 baseline;
  *     calls bws_normalize_datetime_options() when it exists, else the pre-FW-2
  *     mappers — expectations survive the rewrite)
@@ -441,6 +442,43 @@ assert_same( 'B9 range: custom time-only format kept under time_only',
 assert_same( 'B10 range: no formats → WP defaults, date-only',
 	'F j, Y',
 	bws_build_range_format( array(), $empty_result, null, false )
+);
+
+// ===========================================================================
+echo "\nK — bws_datetime_coerce_read_target (FW-3a legacy-scalar shim)\n";
+// ===========================================================================
+
+assert_same( 'K1 resolved-source array passes through verbatim (idempotent)',
+	array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ),
+	bws_datetime_coerce_read_target( array( 'kind' => 'term', 'id' => 7, 'taxonomy' => 'department' ) )
+);
+assert_same( 'K2 \'option\' sentinel → site kind',
+	array( 'kind' => 'site' ),
+	bws_datetime_coerce_read_target( 'option' )
+);
+assert_same( 'K3 ACF term object-id string → term kind + taxonomy split',
+	array( 'kind' => 'term', 'id' => 5, 'taxonomy' => 'department' ),
+	bws_datetime_coerce_read_target( 'department_5' )
+);
+assert_same( 'K4 underscored taxonomy keeps full slug (greedy prefix)',
+	array( 'kind' => 'term', 'id' => 12, 'taxonomy' => 'product_cat' ),
+	bws_datetime_coerce_read_target( 'product_cat_12' )
+);
+assert_same( 'K5 bare int → post kind',
+	array( 'kind' => 'post', 'id' => 42 ),
+	bws_datetime_coerce_read_target( 42 )
+);
+assert_same( 'K6 numeric string → post kind (no term-regex false positive)',
+	array( 'kind' => 'post', 'id' => 123 ),
+	bws_datetime_coerce_read_target( '123' )
+);
+assert_same( 'K7 false → post kind, id false (loop-row entity-less read)',
+	array( 'kind' => 'post', 'id' => false ),
+	bws_datetime_coerce_read_target( false )
+);
+assert_same( 'K8 empty string → post kind, id false',
+	array( 'kind' => 'post', 'id' => false ),
+	bws_datetime_coerce_read_target( '' )
 );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
