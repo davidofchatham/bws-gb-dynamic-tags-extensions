@@ -109,12 +109,12 @@ Datetime previews are **excluded from the pure preview harness** (live-clock `wp
 | D6.1 | Open `/matrix-post-meta/` in the editor: an unresolved datetime block shows `[Date-Time like "…"]` (live current time in the active format), range blocks `[Date-Time Range like "…"]`, `as:` variants swap the prefix (Date / Time / Date Range / Time Range). |
 | D6.2 | `limit` / `sep` controls appear ONLY when `srcTermIn` is set or `src` = Related Post Field (post-#30; conditional-options JS). |
 
-## D7 — FW-3(a) term-ambient parity — ⏳ expected-fail (pre-FW-3 baseline captured 2026-07-18)
+## D7 — FW-3(a) term-ambient parity — ✅ shipped (testbed-verified 2026-07-18)
 
 Bare datetime tags on a taxonomy archive read the ambient term's date field, matching the base
 text/title I1 analog behavior. Pre-FW-3 baseline: post-only resolution → honest-empty (fallback
-fires). Rows assert the post-FW-3 behavior; until the rethread lands every value row renders
-empty.
+fires). All rows verified post-rethread; every other matrix row byte-identical to the pre-FW-3
+capture.
 
 **render-tag-only** (stated exception to the visible-rows rule): rows need a term ARCHIVE as
 ambient context, which can't host page blocks — same exception as text T4. Run:

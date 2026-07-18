@@ -513,7 +513,7 @@ A media field: the source's **featured image / site logo** analog (`use:featured
 
 Format a date/datetime/time field (`datetime_single`) or a start–end **composite string** (`datetime_range`). List mode on `srcTermIn` / `src:ref` (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) — see [§List mode](#list-mode-limit--sep)). Link-wrappable (single result only). GB types `'cross-source'`; picker titles `'Format Date/Time Fields'` / `'Format Date/Time Fields as Range'`.
 
-**Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
+**Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. On a taxonomy archive a bare tag reads the ambient **term's** date field (1.15.0, FW-3a — same current-entity rule as text/title; previously post-only, honest-empty there). Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 
 **Tag-specific options + panel order** (numbers = position per template):
 
