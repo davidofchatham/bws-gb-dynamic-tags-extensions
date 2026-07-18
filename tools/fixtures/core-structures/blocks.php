@@ -199,6 +199,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	$sections[] = bws_fixture_gb_section( 'Join - unit suffix (height)', array(
 		bws_fixture_gb_row( 'J11', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in}}' ),
+		bws_fixture_gb_row( 'J11b', '{{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}' ),
 		bws_fixture_gb_row( 'J12', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_blank}}' ),
 		bws_fixture_gb_row( 'J13', '{{join mode:template|format:%1\'%2"|key:name_generation|2-key:height_in_blank|fallback_text:—}}' ),
 		bws_fixture_gb_row( 'J14', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_zero}}' ),

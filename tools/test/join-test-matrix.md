@@ -95,13 +95,20 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 > WordPress content filters). On a real front-end page WordPress runs `wptexturize`, which turns
 > the straight `'`/`"` unit marks into curly quotes (`5’11”`). That is WP content processing on
 > the assembled string, NOT a join behavior — the same conversion hits any literal `5'11"` typed
-> into content. The visible fixture rows show the texturized form; the `--porcelain` expected
-> values below are the pre-texturize truth join produces. Suppress it (if ever needed) with a
-> `no_texturize`-style wrapper at the block level, not in join.
+> into content.
+>
+> **Author workaround (verified J11b): use the PRIME marks.** Write the format with `′` (prime,
+> U+2032 = feet) and `″` (double prime, U+2033 = inches) instead of straight quotes:
+> `format:%1′%2″` → `5′11″`, untouched by `wptexturize` (they are not quote characters) — and
+> they are the typographically correct feet/inches glyphs anyway. J11 (straight quotes) shows the
+> texturized `5’11”`; J11b (primes) shows the clean `5′11″`. Prefer primes for any unit string.
+> (Numeric entities `&#39;`/`&#34;` in the format also survive, rendering literal straight quotes,
+> if straight marks are a hard requirement.)
 
 | # | Tag | Expected |
 |---|---|---|
-| J11 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in}}` | `5'11"` |
+| J11 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in}}` | `5'11"` (raw); front-end texturizes to `5’11”` — see note above |
+| J11b | `{{join mode:template\|format:%1′%2″\|key:height_ft\|2-key:height_in}}` | `5′11″` — prime marks, texturize-safe on the front end (the recommended height idiom) |
 | J12 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_blank}}` | `5'` — dangling `"` shed (Step 1) |
 | J13 | `{{join mode:template\|format:%1'%2"\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — both quote marks shed, all empty → fallback (`name_generation` unseeded on this page) |
 | J14 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_zero}}` | `5'0"` — absorbed `'0'` renders; `5'` needs author `''` or the future base-text zero-empty opt-in |

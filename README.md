@@ -39,7 +39,9 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 Where a `try_` tag returns the first populated field, the `join` tag keeps *all* populated fields and assembles them into one line. Configure up to 8 slots, each reading its own text value (a meta/option field or a title/name, from the current post, a related post, taxonomy terms, or a site option), in either of two modes:
 
 - **Separator mode** joins every non-empty value with a separator string (default `", "`). Empty fields are skipped, so a missing middle value never leaves a doubled separator.
-- **Template mode** places values by position in a format string (`%1 (%2)`), and punctuation attached to an empty value is removed with it: an empty bracketed part drops its brackets, an empty middle part sheds its comma, a missing unit value drops its mark (`%1'%2"` renders `5'11"`, or `5'` with no inches value). One format string can render a full personal name (`Dr. Jane M. Smith Jr., PhD, USN (Ret.)`) and collapse cleanly to `Tom Associate` for a sparsely filled person.
+- **Template mode** places values by position in a format string (`%1 (%2)`), and punctuation attached to an empty value is removed with it: an empty bracketed part drops its brackets, an empty middle part sheds its comma, a missing unit value drops its mark (`%1′%2″` renders `5′11″`, or `5′` with no inches value). One format string can render a full personal name (`Dr. Jane M. Smith Jr., PhD, USN (Ret.)`) and collapse cleanly to `Tom Associate` for a sparsely filled person.
+
+For height and other unit strings, use the prime marks `′` (feet) and `″` (inches) rather than straight quotes: WordPress converts a straight `'`/`"` into curly quotes on the front end, while the primes render as typed (and are the correct glyphs).
 
 An optional fallback text renders when every slot is empty. Output is plain text with no per-slot links. A stored `0` counts as a real value. Template tokens are `%1`-`%8` rather than `{1}`, since GenerateBlocks cannot parse braces inside a tag.
 

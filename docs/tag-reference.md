@@ -746,6 +746,14 @@ EMPTY tokens is removed with them (five ordered steps; full contract + edge case
 5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %1 · %2`
    → `Mr. Smith`).
 
+**Unit marks and `wptexturize`.** A rendered front-end page runs WordPress's `wptexturize`, which
+converts straight `'`/`"` in the assembled string to curly quotes (`5'11"` → `5’11”`) — WP content
+processing on join's output, not a join behavior (a literal `5'11"` typed into content converts the
+same way). For height/dimension formats use the **prime marks** `′` (U+2032, feet) and `″` (U+2033,
+inches): `format:%1′%2″` renders `5′11″` untouched, and they are the typographically correct
+glyphs. Numeric entities `&#39;`/`&#34;` in the format also survive (rendering literal straight
+marks) if straight quotes are required.
+
 **`'0'` is a real value.** "Empty" is exactly `''` everywhere; a stored `0` renders (`5'0"`), by
 absorb — join never re-decides emptiness. Suppressing a zero needs the author to store `''`, or
 the tracked base-text zero-as-empty opt-in (absorbed by join when it lands).
@@ -758,7 +766,7 @@ layer, single-value output only (tracked).
 {{join key:name_first|2-key:name_last}}                          → Jane, Smith
 {{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
 {{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
-{{join mode:template|format:%1'%2"|key:height_ft|2-key:height_in}}  → 5'11" / 5' / 5'0"
+{{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
 {{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
 {{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
 ```
