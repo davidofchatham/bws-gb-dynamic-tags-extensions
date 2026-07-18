@@ -219,6 +219,21 @@ foreach ( $manifest['post_terms'] as $slug => $terms ) {
 }
 $log( 'post→term assignments applied' );
 
+// sample-event doubles as the date-archive context fixture (context-test-matrix
+// C-rows): the portal-system front-end query filter drops anonymous-invisible
+// posts (must carry an all-users/no-portal portal_visibility term AND no
+// category), so a default 'uncategorized' assignment 404s /2026/07/. Keep it
+// categoryless + all-users-visible. portal_visibility belongs to
+// bws-portal-system — guard on taxonomy existence so this blueprint stays
+// loadable without it.
+if ( isset( $post_ids['post-sample-event'] ) ) {
+	wp_set_object_terms( $post_ids['post-sample-event'], array(), 'category' );
+	if ( taxonomy_exists( 'portal_visibility' ) ) {
+		wp_set_object_terms( $post_ids['post-sample-event'], array( 'all-users' ), 'portal_visibility' );
+	}
+	$log( 'sample-event date-archive visibility ensured (no category, all-users)' );
+}
+
 // ---------------------------------------------------------------------------
 // 5. Post fields (ACF) + plain post meta.
 // ---------------------------------------------------------------------------

@@ -131,6 +131,9 @@ return array(
 		),
 
 		// Editor-side discovery post: Event Details + repeater values live here.
+		// ALSO the date-archive context fixture (context-test-matrix C-rows):
+		// seed keeps it categoryless + portal-visible so /2026/07/ has results
+		// under the portal-system anonymous query filter (see seed.php).
 		'post-sample-event' => array(
 			'post_type'  => 'post',
 			'post_name'  => 'sample-event',

@@ -333,6 +333,38 @@ The P4b null is the ONLY no-canonical-entity case and is unambiguously detected
 by `home && front && queried_object === null`. Title-source option gating
 condition confirmed.
 
+### Runs 2026-07-18 — P6/P7/P8 closed via testbed (`tools/debug/ctx-capture.php` + `wp bws render-tag`, NOT Element probes)
+
+**P6 date** (`/2026/`, `/2026/07/17/` on testbed) — **PASS.** `queried_object`
+null; payload = `query_vars.year/monthnum/day` (2026 / 7 / 17), exactly as
+expected. `$post` leaks first row (15) — finding #1 holds. NOTE: first capture
+404'd — the portal-system anonymous query filter emptied the archive
+(fixture posts categorized / portal-invisible); fixed in the core-structures
+seed (`sample-event` categoryless + `all-users`). Environmental, not a signal
+change.
+
+**P6 PTA** (`/staff/`) — **PASS.** `queried_object` = `WP_Post_Type` (`name:staff`,
+`label:"Staff"`, full `labels` set — title-analog source confirmed);
+`queried_id:0` → PTA is entity-LESS (query-context kind, label payload), as
+planned. `$post` leaks first staff row (30).
+
+**P7 author** (`/author/admin/`) — **PASS.** `queried_object` = `WP_User` (ID 1),
+`queried_id:1`, `query_vars.author_name:"admin"` / `author:1` — entity-kind id
+payload for `'user_' . $id` field reads confirmed. Bonus: archive had ZERO
+results (its one post portal-filtered) yet `is_author:true`, `is_404:false`,
+`$post` null — zero-result archives don't leak, sharpening finding #1's
+"results-bearing" qualifier.
+
+**P8 term control** — via render-tag baseline: bare `{{title}}` on
+`/department/sales/` → `Sales` (shipped 1.14.0 kind resolves).
+
+**Baseline sweep distilled to `tools/test/context-test-matrix.md`** (expected-fail
+C-rows per context, FW-3 D7 staging pattern).
+
+**Remaining open rows: P4c (pagination) + P5 (editor/REST preview shape) only.**
+Both no-design-risk; P5 stays Element/probe territory (render-tag `--preview`
+is not the editor REST pipeline).
+
 **DESIGN QUESTIONS: all closed.** Every decision-bearing row (P0-P4) is green.
 Factory precedence spine + finding-#1 guard + home/front matrix + title-source
 gate all evidence-backed. Remaining rows are pure payload capture (no design
