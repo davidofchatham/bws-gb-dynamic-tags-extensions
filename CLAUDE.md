@@ -43,6 +43,19 @@ live-site probes.** Two entrypoints:
 The manual `*-test-matrix.md` files (integration rows exercised by hand / via `render-tag`) are
 noted per trigger — run against the testbed, never the live/cached site.
 
+**MANDATORY when adding matrix rows — also make them VISIBLE.** Every new `*-test-matrix.md` row
+group MUST additionally be generated as browsable/editable GB blocks on the testbed pages, via the
+blueprint's `blocks.php` (`bws_fixture_gb_section` + `_row` under the right `content_builder`; add
+a NEW builder + dispatcher entry + `content_builder` on the fixture when the rows resolve on a post
+type with no page content yet — e.g. join's `staff_join` on the staff singles). The user browses
+these on the actual site (front end to eyeball, editor to interact with controls / check reveal
+rows). Do NOT leave rows as `render-tag`-only — that has been MISSED TWICE. Reseed + curl the front
+end to confirm before commit. Exceptions (render-tag/harness-only): a bare tag needing a term
+ARCHIVE as ambient context (text T4), or synthetic per-field blanking with no fixture (join
+J23/J24) — state the exception in the matrix. NB the front-end page runs WP content filters
+(`wptexturize` — straight quotes → curly; use prime marks `′`/`″` for units) that `--porcelain`
+skips, so the visible rows are also a bug surface render-tag can't reach.
+
 ## Documentation ownership
 
 Single source of truth per content type. Other files link, never duplicate.
@@ -78,6 +91,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Text read-seam / link-wrap change (`bws_base_text_resolve_value`, `bws_base_text_callback`, `bws_wrap_with_link` / `bws_resolve_link_url`, or a new seam absorber e.g. `{{join}}` slots) | `tools/test/text-test-matrix.md` rows against the testbed (`bws render-tag`; §Development) |
 | Join assembly / slot change (`bws_join_callback`, `bws_get_join_options`, or any `includes/helpers/join-helpers.php` fn) | run `php tools/test/join-template-test.php` (pure Steps 1–5 + wire tokens) + `tools/test/join-test-matrix.md` rows against the testbed; a seam-implicating failure routes to the text matrix |
 | New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`; keep matrices linking, not duplicating |
+| New `*-test-matrix.md` rows for a tag family | ALSO generate them as visible GB blocks in `blocks.php` (see §Development "make them VISIBLE" — mandatory, missed twice); reseed + curl the front end; matrix links, page shows |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry |
