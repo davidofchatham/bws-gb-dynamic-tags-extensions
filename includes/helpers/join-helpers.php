@@ -105,12 +105,38 @@ function bws_join_assemble( array $values, array $options ): string {
 	$mode = $options['mode'] ?? '';
 	if ( 'template' === $mode ) {
 		$format = $options['format'] ?? '';
-		return '' === $format ? '' : bws_join_template( $values, $format );
+		return '' === $format ? '' : bws_join_template( $values, bws_join_wire_format( $format ) );
 	}
 	// Separator mode: absent key → default ', '; explicit '' honored is NOT
 	// offered here (GB never serializes an empty option value), so '' → default.
 	$sep = isset( $options['sep'] ) && '' !== $options['sep'] ? $options['sep'] : ', ';
 	return bws_join_separator( $values, $sep );
+}
+
+/**
+ * Translate the WIRE format syntax (%1…%N) to the canonical internal token
+ * syntax ({1}…{N}).
+ *
+ * GB CONSTRAINT (docs/gb-constraints.md): find_matches() captures tag options
+ * as `[^}]+` — a `}` anywhere inside a tag's options kills the whole tag
+ * match, so brace tokens `{1}` can NEVER ride the wire inside {{join …}}.
+ * Authors therefore write `%1`…`%N` in the Format control; this translates to
+ * the brace form the pure algorithm (and its harness) canonically uses.
+ * `%%` escapes a literal percent sign directly before a digit (printf
+ * convention); a lone `%` not followed by a slot digit passes through as-is.
+ *
+ * Pure — no WP/GB symbols. Harnessed in join-template-test.php.
+ *
+ * @since 1.15.0
+ * @param string $format Author-written wire format (%N tokens).
+ * @return string Canonical format ({N} tokens).
+ */
+function bws_join_wire_format( string $format ): string {
+	$format = str_replace( '%%', "\x00", $format ); // protect escaped %
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$format = str_replace( '%' . $n, '{' . $n . '}', $format );
+	}
+	return str_replace( "\x00", '%', $format );
 }
 
 /**

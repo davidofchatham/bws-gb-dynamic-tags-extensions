@@ -78,8 +78,17 @@ echo "bws_join_assemble (mode dispatch)\n";
 
 assert_same( 'default mode = separator, default sep ", "', 'a, b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array() ) );
 assert_same( 'explicit sep carried (incl. spaces)', 'a / b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'sep' => ' / ' ) ) );
-assert_same( 'template mode routes to format', 'a (b)', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'mode' => 'template', 'format' => '{1} ({2})' ) ) );
+assert_same( 'template mode routes to format (wire %N tokens)', 'a (b)', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'mode' => 'template', 'format' => '%1 (%2)' ) ) );
 assert_same( 'template mode, no format → empty', '', bws_join_assemble( array( 1 => 'a' ), array( 'mode' => 'template' ) ) );
+
+echo "bws_join_wire_format (wire %N → canonical {N}; GB bans } in options)\n";
+
+assert_same( 'basic translation', '{1} ({2})', bws_join_wire_format( '%1 (%2)' ) );
+assert_same( 'all eight tokens', '{1}{2}{3}{4}{5}{6}{7}{8}', bws_join_wire_format( '%1%2%3%4%5%6%7%8' ) );
+assert_same( '%% escapes a literal percent before a digit', '50%1 off {2}', bws_join_wire_format( '50%%1 off %2' ) );
+assert_same( 'lone % (no slot digit) passes through', '100% {1}', bws_join_wire_format( '100% %1' ) );
+assert_same( 'no tokens → unchanged', 'plain text', bws_join_wire_format( 'plain text' ) );
+assert_same( 'height format on the wire', "{1}'{2}\"", bws_join_wire_format( '%1\'%2"' ) );
 
 echo "Step 1a — unit punct (. ' \") trailing-attached sheds with empty token\n";
 

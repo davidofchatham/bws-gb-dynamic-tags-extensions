@@ -60,6 +60,8 @@ GB editor serializes named default values into the stored tag string even when t
 
 GB's `parse_options()` only reads keys literally present in the tag string. Options absent from the string are absent from `$options` in the callback.
 
+**Option values are NOT trimmed.** `parse_options()` splits each `key:value` pair with `explode( ':', $pair, 2 )` and stores the raw remainder — no `trim()`. So surrounding whitespace in a value survives to the callback: `sep: ` yields `' '` (a single space), `sep: / ` yields `' / '`. (Only the whole options blob's leading space after the tag name is `ltrim`'d, once, in `replace_tags()` — never per-value.) A value's trailing space before the closing `}}` is captured too (the option regex `[^}]+` stops at `}`, keeping the space). Load-bearing for any whitespace-significant option — `{{join}}`'s `sep`/`format`, datetime `format`.
+
 **Boolean serialization:**
 - `true` serializes as a bare key only (e.g. `showCurrentYear`, NOT `showCurrentYear:true`).
 - `false` = option dropped entirely — never appears in the tag string.

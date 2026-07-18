@@ -306,6 +306,23 @@ function bws_register_base_tags(): void {
 	) );
 
 	// =========================================================
+	// join — standalone COMBINING tag (third structural position: neither a
+	// base tag nor a modifier). Absorbs up to BWS_JOIN_MAX_SLOTS base `text`
+	// reads as slots and assembles all non-empty values into ONE string
+	// (separator or template mode). One GB tag — no prefix fan-out, no
+	// per-source variants. Shares the base-tag picker group for UX only.
+	// =========================================================
+
+	new GenerateBlocks_Register_Dynamic_Tag( array(
+		'title'    => __( 'Combine Fields', 'generateblocks' ),
+		'tag'      => 'join',
+		'type'     => 'cross-source',
+		'supports' => array(),
+		'options'  => bws_strip_default_select_values( bws_get_join_options() ),
+		'return'   => 'bws_join_callback',
+	) );
+
+	// =========================================================
 	// Register modifier templates for the term_ constructor.
 	//
 	// Each descriptor is stored in TagTemplateRegistry::$modifier_templates
@@ -752,6 +769,233 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 	}
 
 	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+}
+
+/**
+ * Build the {{join}} option definitions: per-slot text-base specs (flat `{N}-`
+ * prefix wire format, slot 1 bare — the SAME scheme try_ uses) followed by the
+ * tag-level assembly options.
+ *
+ * Per slot: src/ref/srcTermIn from bws_build_slot_traversal_options() with the
+ * site arm ALLOWED (the try_text site gap is not repeated), plus `use` (text's
+ * full key/title enum — deliberately NO "Same as Previous Field" row: in
+ * combining, same-use is redundant [use:key = the default] or pointless
+ * [use:title twice reads the identical datum]; this is a concrete reason join
+ * owns its build loop rather than reusing the try_ per_slot_use emit, which
+ * hardcodes the same-prepend), `key` (never inherited), and `limit` (list-mode
+ * cap so a srcTermIn / src:ref slot reads >1 target; its own list-axis
+ * show_if_any doubles as the reveal — an unconfigured slot has no list axis).
+ *
+ * COMBINING-shaped reveal: a slot is "real" when it has a key OR a non-default
+ * use, so slot N+1 (N ≥ 3) reveals on `{prev}-key not_empty` OR `{prev}-use
+ * not_empty` — NOT `{prev}-src` (default-empty in combining; try_'s src-keyed
+ * reveal is the selecting axis, wrong here). Slots 1–2 always visible.
+ *
+ * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items
+ * with text's default ', '; a slot-1 bare `sep` would collide with the
+ * tag-level assembly `sep` on GB's flat option map.
+ *
+ * @since 1.15.0
+ * @return array Option definitions keyed by option name.
+ */
+function bws_get_join_options(): array {
+	$base_src  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
+	$base_trav = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+
+	$options = array();
+
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$src_key = ( 1 === $n ) ? 'src'       : "{$n}-src";
+		$ref_key = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
+		$stm_key = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
+		$use_key = ( 1 === $n ) ? 'use'       : "{$n}-use";
+		$key_key = ( 1 === $n ) ? 'key'       : "{$n}-key";
+		$lim_key = ( 1 === $n ) ? 'limit'     : "{$n}-limit";
+
+		// Combining reveal: slots 1-2 up front; slot N ≥ 3 reveals when the
+		// PREVIOUS slot is "real" (has a key or a non-default use).
+		if ( $n <= 2 ) {
+			$slot_trigger = array();
+		} else {
+			$prev         = $n - 1;
+			$slot_trigger = array(
+				'show_if_any' => array(
+					( 2 === $prev ? '2-key' : "{$prev}-key" ) => 'not_empty',
+					( 2 === $prev ? '2-use' : "{$prev}-use" ) => 'not_empty',
+				),
+			);
+		}
+
+		// src / ref / srcTermIn — derived from the base builders; site arm
+		// allowed (join is standalone: the bool passes directly, no
+		// modifier-only flag). Slot ≥2 keeps the `same` inherit row: source
+		// can sensibly carry forward in combining; field identity cannot.
+		$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
+			? bws_build_slot_traversal_options( $n, $base_src, $base_trav, true )
+			: array( 'src' => array(), 'ref' => array(), 'srcTermIn' => array() );
+
+		$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
+		$options[ $ref_key ] = $slot_defs['ref'];
+		$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
+
+		// use — text's full enum, no same-row (see PHPDoc).
+		$options[ $use_key ] = array_merge(
+			array(
+				'type'           => 'select',
+				/* translators: %d: slot number */
+				'label'          => sprintf( __( '%d: Text Field', 'generateblocks' ), $n ),
+				'options'        => array(
+					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+				),
+				'_strip_default' => true,
+			),
+			$slot_trigger
+		);
+
+		// key — per slot, never inherited. Hidden for use:title (no inherit
+		// mode, so slot ≥2 visibility = same rule as slot 1).
+		$options[ $key_key ] = array_merge(
+			array(
+				'type'         => 'bws-field-combo',
+				/* translators: %d: slot number */
+				'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
+				'dynamicLabel' => true,
+				'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+				'placeholder'  => 'field_name',
+				'show_if'      => array( $use_key => 'not:title' ),
+			),
+			$slot_trigger
+		);
+
+		// limit — per-slot list-mode cap (srcTermIn / src:ref). Threaded into
+		// the slot's text resolve; without it a list slot silently truncates
+		// to one item. The list-axis condition doubles as the reveal (an
+		// unconfigured slot's srcTermIn/src are empty → hidden).
+		$options[ $lim_key ] = array(
+			'type'        => 'number',
+			/* translators: %d: slot number */
+			'label'       => sprintf( __( '%d: Result Limit', 'generateblocks' ), $n ),
+			'help'        => __( 'Maximum number of results this slot returns. Default: 1.', 'generateblocks' ),
+			'show_if_any' => array(
+				$stm_key => 'not_empty',
+				$src_key => 'ref',
+			),
+		);
+	}
+
+	// Tag-level assembly options.
+	$options['mode'] = array(
+		'type'           => 'select',
+		'label'          => __( 'Assembly Mode', 'generateblocks' ),
+		'options'        => array(
+			array( 'value' => '',         'label' => __( 'Separator', 'generateblocks' ) ),
+			array( 'value' => 'template', 'label' => __( 'Template', 'generateblocks' ) ),
+		),
+		'_strip_default' => true,
+	);
+	$options['sep'] = array(
+		'type'        => 'text',
+		'label'       => __( 'Separator', 'generateblocks' ),
+		'help'        => __( 'Text placed between non-empty values. Default: ", ".', 'generateblocks' ),
+		'placeholder' => ', ',
+		'show_if'     => array( 'mode' => 'not:template' ),
+	);
+	// %N (not {N}) — GB's tag parser rejects `}` anywhere in a tag's options
+	// (find_matches captures options as [^}]+; docs/gb-constraints.md), so the
+	// wire token syntax is brace-free. bws_join_wire_format() translates.
+	$options['format'] = array(
+		'type'        => 'text',
+		'label'       => __( 'Format', 'generateblocks' ),
+		'help'        => __( 'Format string using %1, %2 … as positional tokens for the slots. Use %% for a literal percent sign before a digit.', 'generateblocks' ),
+		'placeholder' => '%1 (%2)',
+		'show_if'     => array( 'mode' => 'template' ),
+	);
+	$options['fallback_text'] = array(
+		'type'  => 'text',
+		'label' => __( 'Fallback Text', 'generateblocks' ),
+		'help'  => __( 'Text to display when all fields are empty.', 'generateblocks' ),
+	);
+
+	return $options;
+}
+
+/**
+ * Callback for the {{join}} tag — the COLLECT-ALL slot loop.
+ *
+ * Visits every slot (never short-circuits — the combining counterpart to
+ * try_'s selecting fold), resolves each through the absorbed text read
+ * (bws_join_resolve_slot → bws_base_text_resolve_value; link identity
+ * ignored, no per-slot link-wrap), then assembles via separator or template
+ * mode. All-empty output falls back to `fallback_text` (or '' so GB's
+ * empty-render handling hides the block).
+ *
+ * Source carry-forward asymmetry: slot ≥2 `''`/`same` src inherits the prior
+ * resolved source; `use`/`key` NEVER inherit. $last_ref is deliberately NOT
+ * cleared on a non-ref src override — the text resolve reads `ref` ONLY under
+ * src:ref, so a stale carried ref alongside src:current/site is inert;
+ * clearing it would break a later slot carrying back to the same ref.
+ *
+ * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
+ * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
+ *
+ * @since 1.15.0
+ */
+function bws_join_callback( $options, $block, $instance ): string {
+	$values   = array(); // 1-based; $values[$n] = finished slot string or ''.
+	$last_src = '';
+	$last_ref = '';
+
+	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
+		$src = ( 1 === $n ) ? ( $options['src'] ?? '' )       : ( $options[ "{$n}-src" ] ?? '' );
+		$ref = ( 1 === $n ) ? ( $options['ref'] ?? '' )       : ( $options[ "{$n}-ref" ] ?? '' );
+		$use = ( 1 === $n ) ? ( $options['use'] ?? '' )       : ( $options[ "{$n}-use" ] ?? '' );
+		$key = ( 1 === $n ) ? ( $options['key'] ?? '' )       : ( $options[ "{$n}-key" ] ?? '' );
+		$stm = ( 1 === $n ) ? ( $options['srcTermIn'] ?? '' ) : ( $options[ "{$n}-srcTermIn" ] ?? '' );
+		$lim = ( 1 === $n ) ? ( $options['limit'] ?? '' )     : ( $options[ "{$n}-limit" ] ?? '' );
+
+		// Slot is "real" iff it has a key OR a non-default use. Reveal keeps
+		// gaps from occurring mid-chain; be defensive and just skip.
+		if ( '' === $key && '' === $use ) {
+			continue;
+		}
+
+		// Carry-forward: '' src = inherit prior resolved source ('same');
+		// else override. $last_ref intentionally survives non-ref overrides
+		// (inert outside src:ref — see fn PHPDoc).
+		if ( '' !== $src && 'same' !== $src ) {
+			$last_src = $src;
+		}
+		if ( '' !== $ref ) {
+			$last_ref = $ref;
+		}
+
+		// Single-slot text-tag option set for the absorb seam. Join's
+		// tag-level `sep` (assembly) is NEVER passed through — a list-mode
+		// slot joins its own items with text's default ', ' (ADR 0003).
+		$slot_opts = array(
+			'src'       => $last_src,
+			'ref'       => $last_ref,
+			'use'       => '' === $use ? 'key' : $use, // '' = stripped key default (I3).
+			'key'       => $key,
+			'srcTermIn' => $stm,
+		);
+		if ( '' !== $lim ) {
+			$slot_opts['limit'] = $lim;
+		}
+
+		$values[ $n ] = bws_join_resolve_slot( $slot_opts, $instance );
+	}
+
+	$assembled = bws_join_assemble( $values, (array) $options );
+
+	if ( '' === $assembled ) {
+		$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+		return '' !== $fallback
+			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			: '';
+	}
+	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $assembled, $options, $instance );
 }
 
 /**
