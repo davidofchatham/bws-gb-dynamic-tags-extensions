@@ -1,6 +1,10 @@
 # Changelog
 
-## [1.15.0] — 2026-07-20
+## [1.15.1] — unreleased
+
+### Fixed
+
+- **WP-CLI commands no longer fail on an installed copy of the plugin.** Running any `wp` command with 1.15.0 active stopped WordPress before it finished loading, so unrelated commands (`wp search-replace`, for example) exited without doing their work. The plugin was loading a development-only file that is not part of the released download. Released builds now skip it, and the `wp bws render-tag` development command still loads when the file is present.
 
 ### Highlights
 

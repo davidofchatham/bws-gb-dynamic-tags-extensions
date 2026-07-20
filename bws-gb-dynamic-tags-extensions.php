@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.15.0
+ * Version: 1.15.1
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.15.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.15.1' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -156,7 +156,14 @@ function bws_dynamic_tags_init() {
  * self-guard on WP_CLI and register nothing shipped.
  */
 function bws_dynamic_tags_register_cli() {
-	require_once BWS_DYNAMIC_TAGS_PATH . 'tools/cli/class-render-tag-command.php';
+	// tools/ is excluded from distribution builds (.distignore), so the file is
+	// absent in released packages — an unguarded require fatals WP-CLI bootstrap.
+	$cli_cmd = BWS_DYNAMIC_TAGS_PATH . 'tools/cli/class-render-tag-command.php';
+	if ( ! file_exists( $cli_cmd ) ) {
+		return;
+	}
+
+	require_once $cli_cmd;
 	WP_CLI::add_command( 'bws render-tag', 'BWS_Render_Tag_Command' );
 }
 
