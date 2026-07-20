@@ -13,6 +13,20 @@ Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
 listed in `manifest.php` `defines` — reuse via composition instead.
 
+## External consumers (check before bumping `version`)
+
+Composing blueprints pin the manifest `version` and enforce the pin at seed
+time (their seed.php errors on mismatch). When bumping, verify these still
+seed + verify clean, or coordinate a pin bump with them:
+
+| Consumer | Blueprint | Pins |
+|---|---|---|
+| bws-portal-system | `tools/fixtures/view-structures/` | v4+ |
+| meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
+
+Orchestrated seeding (order + pins + verify in one command):
+wp-litespeed env `bin/seed-all.sh <site>`.
+
 ## Files
 
 | File | Role |
