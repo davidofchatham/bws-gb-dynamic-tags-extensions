@@ -77,7 +77,7 @@ function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
 		array(
 			'uniqueId'  => $q_uid,
 			'tagName'   => 'div',
-			'queryType' => 'post_meta',
+			'queryType' => 'WP_Query',
 			'query'     => $query,
 			'className' => '',
 		)
@@ -218,6 +218,36 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J12', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_blank}}' ),
 		bws_fixture_gb_row( 'J13', '{{join mode:template|format:%1\'%2"|key:name_generation|2-key:height_in_blank|fallback_text:—}}' ),
 		bws_fixture_gb_row( 'J14', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_zero}}' ),
+	) );
+
+	// J11c/J11d — NEGATIVE control for the wptexturize surface. Same two formats
+	// as J11/J11b but inside a query-loop item, to pin that being loop-generated
+	// does NOT exempt a row from wptexturize: do_blocks runs on the_content at
+	// priority 9 and wptexturize at 10, so rows are already inline in the string
+	// when texturize sweeps it. EXPECT J11c === J11 (both `5’11”`) — an inequality
+	// here means the ordering assumption broke. The real exempt path is a GP
+	// Element (no the_content at all), which a page fixture cannot reach; see the
+	// matrix note. Loop is over this page itself so the height meta is in row
+	// scope and placement is the only variable vs J11.
+	$sections[] = bws_fixture_gb_section( 'Join - unit suffix in a query loop (texturize control)', array(
+		bws_fixture_gb_query_loop(
+			array(
+				'post_type'      => 'page',
+				'post_name__in'  => array( 'matrix-post-meta' ),
+				'posts_per_page' => 1,
+			),
+			'J11c: {{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in}}',
+			'j11c-loop-straight'
+		),
+		bws_fixture_gb_query_loop(
+			array(
+				'post_type'      => 'page',
+				'post_name__in'  => array( 'matrix-post-meta' ),
+				'posts_per_page' => 1,
+			),
+			'J11d: {{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}',
+			'j11d-loop-prime'
+		),
 	) );
 
 	// ~…~ unit groups (Step 0, 1.15.0) — group + separator shed vs unwrap vs

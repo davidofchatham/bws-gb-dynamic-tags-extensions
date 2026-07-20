@@ -94,24 +94,43 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 
 ## Unit suffix — height (`/matrix-post-meta/`)
 
-> **`render-tag` vs the rendered page.** These rows are the RAW join output (`--porcelain`, no
-> WordPress content filters). On a real front-end page WordPress runs `wptexturize`, which turns
-> the straight `'`/`"` unit marks into curly quotes (`5’11”`). That is WP content processing on
-> the assembled string, NOT a join behavior — the same conversion hits any literal `5'11"` typed
-> into content.
+> **`render-tag` vs the rendered page — and WHICH render path.** These rows are the RAW join
+> output (`--porcelain`, no WordPress content filters). `wptexturize` turns straight `'`/`"` into
+> curly quotes (`5’11”`), but it is registered on `the_content`/`the_title`/`the_excerpt` ONLY, so
+> what matters is whether the render path runs `the_content` at all:
+>
+> - **Page/post body** (what these matrix pages use) — static block OR a query loop inside it →
+>   `the_content` runs → `5’11”`.
+> - **GP Element / hooked layout / block template** → blocks render via `do_blocks()` with no
+>   content filter → straight `5'11"` survives.
+>
+> **Loop-vs-static is NOT the axis.** `do_blocks` runs on `the_content` at priority 9 and
+> `wptexturize` at 10, so loop rows are already inline when texturize sweeps the string. J11c/J11d
+> below are the negative control pinning this: J11c must equal J11.
+>
+> GB itself never calls `the_content` or `wptexturize` (zero references in the plugin). Mechanism +
+> the rejected "just hook wptexturize" option: [`tag-reference.md` §Unit marks](../../docs/tag-reference.md).
 >
 > **Author workaround (verified J11b): use the PRIME marks.** Write the format with `′` (prime,
 > U+2032 = feet) and `″` (double prime, U+2033 = inches) instead of straight quotes:
-> `format:%1′%2″` → `5′11″`, untouched by `wptexturize` (they are not quote characters) — and
-> they are the typographically correct feet/inches glyphs anyway. J11 (straight quotes) shows the
-> texturized `5’11”`; J11b (primes) shows the clean `5′11″`. Prefer primes for any unit string.
-> (Numeric entities `&#39;`/`&#34;` in the format also survive, rendering literal straight quotes,
-> if straight marks are a hard requirement.)
+> `format:%1′%2″` → `5′11″` in BOTH paths (they are not quote characters) — and they are the
+> typographically correct feet/inches glyphs anyway. J11 (straight quotes) shows the texturized
+> `5’11”` **in page content**; J11b (primes) shows the clean `5′11″` everywhere. Prefer primes for
+> any unit string — the cross-path consistency is the real win.
+> (Numeric entities `&#39;`/`&#34;` in the format also survive both paths, rendering literal
+> straight quotes, if straight marks are a hard requirement.)
+>
+> **Coverage gap:** no fixture exercises the GP Element path (the one that actually skips
+> texturize) — a page fixture cannot reach it. That arm is verified by live observation on
+> `hargrave.test` (a schedule Element) plus the hook-registration check, not by a matrix row.
+> Closing it needs an Element fixture, which the blueprint does not currently seed.
 
 | # | Tag | Expected |
 |---|---|---|
-| J11 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in}}` | `5'11"` (raw); front-end texturizes to `5’11”` — see note above |
-| J11b | `{{join mode:template\|format:%1′%2″\|key:height_ft\|2-key:height_in}}` | `5′11″` — prime marks, texturize-safe on the front end (the recommended height idiom) |
+| J11 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in}}` | `5'11"` (raw); page content texturizes to `5’11”`; a GP Element would keep `5'11"` — see note above |
+| J11b | `{{join mode:template\|format:%1′%2″\|key:height_ft\|2-key:height_in}}` | `5′11″` — prime marks, identical in every render path (the recommended height idiom) |
+| J11c | same as J11, inside a query-loop item | `5’11”` — **negative control: must EQUAL J11.** Loop-generated rows are still texturized (do_blocks@9 < wptexturize@10) |
+| J11d | same as J11b, inside a query-loop item | `5′11″` — primes unaffected by placement |
 | J12 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_blank}}` | `5'` — dangling `"` shed (Step 1) |
 | J13 | `{{join mode:template\|format:%1'%2"\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — both quote marks shed, all empty → fallback (`name_generation` unseeded on this page) |
 | J14 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_zero}}` | `5'0"` — absorbed `'0'` renders; `5'` needs author `''` or the future base-text zero-empty opt-in |

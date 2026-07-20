@@ -757,13 +757,40 @@ EMPTY tokens is removed with them (ordered steps; full contract + edge cases pin
 5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %1 · %2`
    → `Mr. Smith`).
 
-**Unit marks and `wptexturize`.** A rendered front-end page runs WordPress's `wptexturize`, which
-converts straight `'`/`"` in the assembled string to curly quotes (`5'11"` → `5’11”`) — WP content
-processing on join's output, not a join behavior (a literal `5'11"` typed into content converts the
-same way). For height/dimension formats use the **prime marks** `′` (U+2032, feet) and `″` (U+2033,
-inches): `format:%1′%2″` renders `5′11″` untouched, and they are the typographically correct
-glyphs. Numeric entities `&#39;`/`&#34;` in the format also survive (rendering literal straight
-marks) if straight quotes are required.
+**Unit marks and `wptexturize`.** WordPress's `wptexturize` converts straight `'`/`"` to curly
+quotes (`5'11"` → `5’11”`). It is **not** a global output filter: core registers it on
+`the_content`, `the_title`, and `the_excerpt` (priority 10) only. Whether join's output hits it
+therefore depends on **which render path the block sits in**, not on the tag:
+
+| Render path | `the_content` runs? | `format:%1'%2"` renders |
+|---|---|---|
+| Page/post body — static block **or** a GB query loop inside it | yes — the whole rendered body is filtered | `5’11”` (texturized) |
+| GP Element, hooked layout, block template | no — content is rendered via `do_blocks()` without the filter | `5'11"` (straight) |
+
+**Being inside a query loop does not matter.** `do_blocks` runs on `the_content` at priority 9 and
+`wptexturize` at 10, so blocks render *first* and texturize then sweeps the whole resulting string,
+loop-generated rows included. A loop row is built by a direct `WP_Block::render()` in
+`GenerateBlocks_Block_Looper::render_wp_query()` (which applies the `render_block` filter, never
+`the_content`), but it is already inline in the output before `wptexturize` runs — so it is
+texturized exactly like a static block. Verified: J11/J11c both render `5’11”` on a normal page.
+
+What actually decides it is whether *anything* in the chain applies `the_content`. A GP Element
+renders its blocks and echoes them on a hook, so no content filter ever touches the string.
+GenerateBlocks never calls `the_content` or `wptexturize` itself (verified: zero references in the
+plugin), so it neither adds nor suppresses this. The consequence is that one format string renders
+two different ways depending on whether the same block lives in page content or in an Element.
+
+For height/dimension formats use the **prime marks** `′` (U+2032, feet) and `″` (U+2033, inches):
+`format:%1′%2″` renders `5′11″` identically in **both** paths (they are not quote characters, so
+`wptexturize` leaves them alone), and they are the typographically correct glyphs. That consistency
+is the main reason to prefer them, beyond avoiding the curling. Numeric entities `&#39;`/`&#34;` in
+the format also survive both paths (rendering literal straight marks) if straight quotes are
+required.
+
+Hooking `wptexturize` onto the callback's return to force uniform behavior is **not** done: the
+callback cannot tell which path it is in (so page content would double-texturize), it would
+diverge from every other GB dynamic tag in the same Element, and `wptexturize` also rewrites `--`,
+`...`, and `(c)`, which mangles field values like part numbers and codes.
 
 **`'0'` is a real value.** "Empty" is exactly `''` everywhere; a stored `0` renders (`5'0"`), by
 absorb — join never re-decides emptiness. Suppressing a zero needs the author to store `''`, or
