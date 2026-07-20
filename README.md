@@ -14,12 +14,22 @@ Not only can you start from post, loop, and term contexts without changing tags,
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, starting in v1.13, every meta/option field key input allows you to search by label/name, as well as filter by context, field group, and field type, among all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields).
 
+### Special handling
+
+#### Zero values
+
+GB suppresses the block when a dynamic tag inside it returns nothing, unless `required:false` is set. The underlying logic treats the string `0` as nothing, so a field holding a real value of `0` would result in the block being suppressed instead of returning "0". We work around that by returning '0 ' (zero followed by a space); the space collapses in rendered HTML output, so you see just **0**. (Note that if you're injecting a text field which may have a zero value into a URL or attribute, the added space could cause problems.)
+
+#### Empty alt text
+
+If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exists but doesn't have stored alt text will result in the entire `img` tag being suppressed (again, unless `required:false` is set). For our `{{image as:alt|use:featured|…}}` dynamic tag, we inject a space so it doesn't fail GB's empty-result check even if you forget to set `required:false`. (It should still parse as empty alt text for screen readers.)
+
 ## Cross-source base tags
 
 | Tag | Description | Specific Limitations |
 |---|---|---|
 | `text` | Return simple meta/option text fields or post title/term name (useful in `try_` tags). | |
-| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. For alt text, it returns `' '` if the alt text field is empty, which means you *don't* have to set `required:false` to avoid the entire image tag being suppressed when the alt text is missing. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
+| `image` | Return an image from a meta field or the post featured image or site logo field, with return options like GB's (alt text, etc.) and a Media Library fallback image selector. | Since terms have no native image fields, a field name must be supplied to retrieve images from a term source. |
 | `content` | Return post content/term description via a processing pipeline that handles block-rendered content safely, including consolidating block CSS for embedded post content into the page footer. | Since there's no site-wide body/content field, an option field name must be supplied to use this tag with the "site" source. |
 | `datetime_single` | Format combined datetime fields or separate date and time fields you want to show as a single date and time. By default, also hides midnight times and the current year. Multi-result sources (taxonomy terms or a reference/relationship field) can render a delimited date list via the same result limit/separator controls as `text`. | |
 | `datetime_range` | Like `datetime_single`, but to format a range from separate start and end date/datetime/time fields. In a range list, the result separator joins whole ranges while the range separator stays between each start and end. | |
@@ -28,22 +38,24 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 | `title` | Return post title/term name or site name. | |
 | `permalink` | Return post/term permalink or site URL. | |
 
-## `join` tag to combine fields
+## Combine multiple fields with `join` tag
 
-Where a `try_` tag returns the first populated field, the `join` tag keeps *all* populated fields and assembles them into one line. Configure up to 10 slots, each reading its own text value (a meta/option field or a title/name, from the current post, a related post, taxonomy terms, or a site option), in either of two modes:
+Instead of stringing together multiple tags in separate `span` elements, use one tag to combine up to 10 text fields in either simple separator or advanced template mode:
 
 - **Separator mode** joins every non-empty value with a separator string (default `", "`), skipping empties so a missing middle value never leaves a doubled separator.
-- **Template mode** places values by position in a format string (tokens `%1`-`%10`), and punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string renders `Dr. Tom M. Smith Jr., PhD, USN (Ret.)` and collapses cleanly to `Jane Johnson`.
+- **Template mode** places values by position in a format string, using tokens `%1`-`%10` to represent the configured fields. Punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string can return both *Dr. Tom M. Smith Jr., PhD, USN (Ret.)* and *Jane Johnson*.
 
-An optional fallback text renders when every slot is empty. Output is plain text with no per-slot links; a stored `0` counts as a real value. For units, use the prime marks `′` (feet) and `″` (inches) rather than straight quotes, which WordPress converts to curly quotes on the front end (`%1′%2″` renders `5′11″`, or `5′` with no inches value).
+Output is plain text; no link options are currently available.
 
-## First-available tags
+**Note:** For height and feet units, use the prime marks `′` and `″` rather than straight quotes (`%1′%2″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
+
+## Return first available field with `try_` tags
 
 `try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
-**Note:** Currently, only `try_email` and `try_phone` support site option fields.
+All `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
-## `call` tag for custom functions
+## Return custom function output with `call` tag
 
 The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.
 
