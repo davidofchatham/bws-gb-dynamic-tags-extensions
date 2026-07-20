@@ -334,11 +334,11 @@ Applies to **try_ tags** (multi-slot). Every slot-tied control front-loads the s
 
 | Tag name | Based on template | Per-slot field key? | Per-slot `use`? | Notes |
 |---|---|---|---|---|
-| `try_content` | `content` | **Yes** | **Yes** | Each slot: Content/Description, Excerpt, or ACF/Custom Field (with per-slot key when `use:key`) |
-| `try_title` | `title` | No | No | |
-| `try_permalink` | `permalink` | No | No | |
-| `try_text` | `text` | **Yes** | **Yes** | Each slot: Title/Name or ACF/Custom Field (with per-slot key when `use:key`) |
-| `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`) |
+| `try_content` | `content` | **Yes** | **Yes** | Each slot: Content/Description, Excerpt, or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:key` → option rich-render; content/excerpt analogs resolve empty under site (no site content analog) |
+| `try_title` | `title` | No | No | Slot `src:site` allowed (1.15.0): site name; single-result link-wrap uses the site sentinel (home URL) |
+| `try_permalink` | `permalink` | No | No | Slot `src:site` allowed (1.15.0): home URL |
+| `try_text` | `text` | **Yes** | **Yes** | Each slot: Title/Name or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:title` → site name, `use:key` → option value |
+| `try_image` | `image` | **Yes** | **Yes** | Each slot: Featured Image or ACF/Custom Field (with per-slot key when `use:key`). Slot `src:site` allowed (1.15.0): `use:featured` → site logo, `use:key` → option attachment |
 | `try_datetime_single` | `datetime_single` | No | No | Shared `key` across slots |
 | `try_datetime_range` | `datetime_range` | No | No | Shared `startKey`/`endKey` across slots |
 | `try_email` | `email` | **Yes** | No | Single key-mode (no `use` enum). Each slot resolves an email field → finished mailto/plain string, exactly as `{{email}}`. Slot `src:site` allowed (canonical contact fallback). `subject`/`noLink` chain-level |

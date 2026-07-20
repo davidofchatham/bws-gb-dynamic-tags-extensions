@@ -336,6 +336,10 @@ function bws_register_base_tags(): void {
 	// 'post_fn'         — fn($post_id, $opts, $inst) for the ref-traversal path (term → post).
 	// 'try_core_fn'     — fn($post_id, $opts, $inst) for try_ post-slot dispatch.
 	// 'try_term_fn'     — fn($term_id, $opts, $inst) for try_ srcTerm slot dispatch.
+	// 'try_site_fn'     — fn($opts, $inst) for try_ src:site slot dispatch (FW-4): thin
+	//                     closure over bws_site_resolve_value('<tag>') for templates whose
+	//                     try_core_fn is site-blind. email/phone omit it (their core rides
+	//                     the seam, which reads site) — registry falls back to $cf(0,…).
 	// =========================================================
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -369,6 +373,8 @@ function bws_register_base_tags(): void {
 		'post_fn'               => 'bws_post_custom_text_core',
 		'try_core_fn'           => 'bws_try_text_post_dispatch',
 		'try_term_fn'           => 'bws_try_text_term_dispatch',
+		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
+		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
@@ -408,6 +414,8 @@ function bws_register_base_tags(): void {
 		'post_fn'               => 'bws_post_content_core',
 		'try_core_fn'           => 'bws_try_content_post_dispatch',
 		'try_term_fn'           => 'bws_try_content_term_dispatch',
+		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
+		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,
@@ -424,6 +432,8 @@ function bws_register_base_tags(): void {
 		'post_fn'      => 'bws_post_title_core',
 		'try_core_fn'  => 'bws_post_title_core',
 		'try_term_fn'  => 'bws_term_title_core',
+		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'title', (array) $opts, $inst ),
+		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'try_list_options' => true,
 		'is_image'     => false,
@@ -437,6 +447,8 @@ function bws_register_base_tags(): void {
 		'post_fn'      => 'bws_post_permalink_core',
 		'try_core_fn'  => 'bws_post_permalink_core',
 		'try_term_fn'  => 'bws_term_permalink_core',
+		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'permalink', (array) $opts, $inst ),
+		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
 	) );
@@ -500,6 +512,8 @@ function bws_register_base_tags(): void {
 		'post_fn'               => 'bws_custom_image_core',
 		'try_core_fn'           => 'bws_try_image_post_dispatch',
 		'try_term_fn'           => 'bws_term_custom_image_core',
+		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'image', (array) $opts, $inst ),
+		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
 		'try_per_slot_use'      => true,

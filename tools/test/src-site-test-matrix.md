@@ -120,6 +120,34 @@ Needs an email-valued field: an ACF options-page email field for `src:site` (e.g
 | R6.9 | Global **Email → Obfuscate** OFF, re-run R6.1 | clean `mailto:VALUE` href + plain-text display (no antispambot entities) |
 | R6.10 | Try to insert `{{email}}` on a Button / Image / link (`<a>`) element | tag **hidden** in the GB dynamic-tag selector (visibility gate) |
 
+## R7 — `src:site` slots on the remaining `try_` tags (FW-4, 1.15.0)
+
+The five post-core try_ templates (`try_text`/`try_title`/`try_content`/`try_image`/`try_permalink`)
+dispatch their site slots through the `try_site_fn` descriptor leg (thin closures over
+`bws_site_resolve_value`); `try_email`/`try_phone` keep their seam route ($cf(0,…) fallback,
+byte-identical). Single-result site output on link-wrap templates wraps with the site sentinel
+(`('site', 1)` → home URL) for I6/C9 slot-transparency parity with base `{{title src:site}}`.
+
+Visible rows: `matrix-post-meta` page, section "Site R7 - try_ site slots" (R7.1–R7.7, R7.10).
+Exceptions (stated per §Development): R7.8 needs a `[SUB]` WYSIWYG option, R7.9's positive case
+needs a site logo, R7.12 a `[SUB]` email option — none seeded by `core-structures`; R7.11 is
+editor-only (open any R7 block, check the slot src dropdowns).
+
+| # | Tag | Expected |
+|---|---|---|
+| R7.1 | `{{try_title src:site}}` | site name |
+| R7.2 | `{{try_permalink src:site}}` | home URL |
+| R7.3 | `{{try_text src:site\|use:title}}` | site name (text site analog via slot) |
+| R7.4 | `{{try_text src:site\|use:key\|key:blogname}}` | site name (option key read) |
+| R7.5 | `{{try_text key:[SUB empty/nonexistent post meta]\|2-src:site\|2-use:key\|2-key:blogname}}` | slot 1 empty → slot 2 site value (chain falls through to site) |
+| R7.6 | `{{try_title src:site\|linkTo:permalink}}` | site name linked to home URL (site sentinel wrap) |
+| R7.7 | `{{try_content src:site}}` | **empty** (no site content analog — §B7 rides through the slot) |
+| R7.8 | `{{try_content src:site\|use:key\|key:[SUB block/WYSIWYG option]}}` | option value, rich-rendered |
+| R7.9 | `{{try_image as:url\|src:site\|use:featured}}` | site logo URL (empty if no logo set — set one to verify positive) |
+| R7.10 | `{{try_image as:url\|src:site}}` | **empty** (key-mode default, no key — NOT the logo; R0.4 parity) |
+| R7.11 | Editor: `try_title`/`try_permalink`/`try_text`/`try_content`/`try_image` slot src dropdowns | "Site" offered in every slot (1 and 2+) |
+| R7.12 | `{{try_email src:site\|key:[SUB org_email]}}` re-run (R6.1 form via try_) | unchanged — mailto self-wrap, no site-sentinel wrap (fallback leg byte-identical) |
+
 ## Fail triage
 
 - **Empty where a value is expected:** is the key in the GB-parity seed, or a registered ACF options-page field? (`tools/debug/bws-site-datetime-probe.php` logs allowlist parity for a given key.)
@@ -132,3 +160,5 @@ Needs an email-valued field: an ACF options-page email field for `src:site` (e.g
 - **`{{email}}` display shows `&#x…;` entities as literal text:** antispambot output was double-escaped (`esc_html` on top of `antispambot`) — VE4: emit antispambot output raw.
 - **`{{email …|subject:}}` href subject corrupted / truncated:** VE2 — subject must be `rawurlencode`d once at render, NOT unescaped in PHP (GB's `parse_options` already unescaped `\:`/`\|`).
 - **`{{email}}` wraps a non-email value / outputs `mailto:garbage`:** VE4 — `is_email()` must validate the RAW value before any wrap; invalid → fallback → empty.
+- **R7 site slot empty where base `src:site` works:** the template's `try_site_fn` closure missing/mis-keyed — registry falls back to `$cf(0,…)` which is site-blind for the five post-core templates.
+- **R7 link-wrap missing on single-result site slot (link template):** the wrap is gated `$sf && $slnk && count===1` in the registry site arm — check `supports_link_wrap` on the descriptor and that the site leg (not the fallback) dispatched.

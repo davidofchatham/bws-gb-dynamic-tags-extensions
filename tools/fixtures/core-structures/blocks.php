@@ -188,6 +188,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T7.4', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
 	) );
 
+	// src:site matrix (src-site-test-matrix.md) — R7 try_ site-slot rows (FW-4,
+	// 1.15.0). R7.8 (WYSIWYG option), R7.9-positive (site logo) and R7.12
+	// (org_email) need [SUB] state the fixture doesn't seed — matrix notes them;
+	// R7.11 is editor-only (open any try_ block below, check slot src dropdowns).
+	$sections[] = bws_fixture_gb_section( 'Site R7 - try_ site slots', array(
+		bws_fixture_gb_row( 'R7.1', '{{try_title src:site}}' ),
+		bws_fixture_gb_row( 'R7.2', '{{try_permalink src:site}}' ),
+		bws_fixture_gb_row( 'R7.3', '{{try_text src:site|use:title}}' ),
+		bws_fixture_gb_row( 'R7.4', '{{try_text src:site|use:key|key:blogname}}' ),
+		bws_fixture_gb_row( 'R7.5', '{{try_text key:no_such_meta|2-src:site|2-use:key|2-key:blogname}}' ),
+		bws_fixture_gb_row( 'R7.6', '{{try_title src:site|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'R7.7', '{{try_content src:site}}' ),
+		bws_fixture_gb_row( 'R7.10', '{{try_image as:url|src:site}}' ),
+	) );
+
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
 	// absorb: src:same, src:ref, src:site, srcTermIn limit). Name rows resolve
 	// on the staff singles (staff_join builder), NOT here. J23/J24 stay in the

@@ -28,6 +28,11 @@ class TagTemplateRegistry {
 	 *   post_fn          callable  fn($post_id, $opts, $inst): string — post-entity handler (term_ via:'ref').
 	 *   try_core_fn      callable  fn($post_id, $opts, $inst): string — try_ post-slot handler.
 	 *   try_term_fn      callable|null  fn($term_id, $opts, $inst): string — try_ via:tax slot handler.
+	 *   try_site_fn      callable|null  fn($opts, $inst): string — try_ src:site slot handler (FW-4).
+	 *                    When present the registry site arm dispatches here instead of $cf(0,…);
+	 *                    templates whose try_core_fn is site-blind (post cores) set a thin closure
+	 *                    over bws_site_resolve_value('<tag>',…). Absent → $cf(0,…) fallback keeps
+	 *                    seam-routed templates (email/phone) byte-identical.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Group 1 options (global formatting: as, size, format, etc.) prepended before slots in try_ tags.
 	 *   try_per_slot_key      bool     Each try_ slot gets its own N-key.
@@ -436,6 +441,7 @@ class TagTemplateRegistry {
 
 			$try_core_fn     = $tpl['try_core_fn'] ?? null;
 			$try_term_fn     = $tpl['try_term_fn'] ?? null;
+			$try_site_fn     = $tpl['try_site_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
@@ -622,6 +628,7 @@ class TagTemplateRegistry {
 			// --- Build callback ---
 			$cf   = $try_core_fn;
 			$tcf  = $try_term_fn;
+			$sf   = $try_site_fn;
 			$psk  = $per_slot_key;
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
@@ -637,7 +644,7 @@ class TagTemplateRegistry {
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -787,22 +794,34 @@ class TagTemplateRegistry {
 
 					// Site arm: src:site has NO entity (resolved source carries the
 					// wp_options / ACF-options namespace, ADR 0002 — not a post/term id).
-					// The try_core_fn's own resolve (bws_resolve_field_values) reads the
-					// option when $slot_opts['src']==='site'; call it with $post_id=0.
-					// No link-wrap — site has no permalink entity; email/phone self-wrap
-					// mailto:/tel: inside their own compose. [SPEC §32 V7,V8]
+					// Two dispatch legs (FW-4):
+					//   try_site_fn present → templates whose try_core_fn is site-blind
+					//     (post cores: text/title/content/image/permalink) route to their
+					//     site resolver (bws_site_resolve_value closure). Single-result
+					//     output link-wraps with the site sentinel ('site', 1) — I6/C9
+					//     slot-transparency parity with base {{title src:site}}
+					//     (link-helpers.php V-link: site link-wrap = permalink-analog).
+					//   absent → try_core_fn's own resolve (bws_resolve_field_values)
+					//     reads the option when $slot_opts['src']==='site'; call with
+					//     $post_id=0, no link-wrap (email/phone self-wrap mailto:/tel:
+					//     inside their own compose — byte-identical). [SPEC §32 V7,V8]
 					if ( 'site' === $last_src ) {
 						$slot_opts['src'] = 'site';
+						$raw   = $sf ? $sf( $slot_opts, $inst ) : $cf( 0, $slot_opts, $inst );
 						$items = function_exists( 'bws_try_normalize_items' )
-							? bws_try_normalize_items( $cf( 0, $slot_opts, $inst ) )
-							: array_filter( [ $cf( 0, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+							? bws_try_normalize_items( $raw )
+							: array_filter( [ $raw ], static fn( $v ) => '' !== $v && false !== $v );
 						if ( $items ) {
-							$shown = array_slice( $items, 0, $slot_max );
-							return function_exists( 'bws_try_join_items' )
+							$shown  = array_slice( $items, 0, $slot_max );
+							$joined = function_exists( 'bws_try_join_items' )
 								? bws_try_join_items( $shown, $sep, $slot_max )
 								: (string) reset( $shown );
+							if ( $sf && $slnk && 1 === count( $shown ) && function_exists( 'bws_wrap_with_link' ) ) {
+								$joined = bws_wrap_with_link( $joined, $link_to, $link_key, $new_tab, 1, 'site' );
+							}
+							return $joined;
 						}
-						continue; // Site option empty — try next slot.
+						continue; // Site value empty — try next slot.
 					}
 
 					// Term-ambient arm (SPEC §T8 / I6 parity): a bare `src:current` slot on

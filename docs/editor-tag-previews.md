@@ -41,7 +41,7 @@ Space-joined segments. The `→` separator precedes the term-hop segment only.
 | Condition | Segment |
 |---|---|
 | Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
-| `src:site` (base tag only) | `Site` (yields `… from Site`; never combines with ref/term-hop — site has no entity. On a modifier it is the invalid-combo warning instead) |
+| `src:site` (base tags + try_ slots) | `Site` (yields `… from Site`; never combines with ref/term-hop — site has no entity. Since 1.15.0 every try_ tag offers a site slot (FW-4), previously only try_email/try_phone. On a modifier it is the invalid-combo warning instead) |
 | `src:ref` + `ref:X` set | `Ref 'X'` |
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
