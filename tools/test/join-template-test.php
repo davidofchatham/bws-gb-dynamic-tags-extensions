@@ -186,6 +186,66 @@ assert_same(
 	tpl( array( 1 => '', 2 => '', 3 => '', 4 => 'Smith', 5 => '', 6 => '', 7 => '' ), $name_format )
 );
 
+echo "Step 0 — ~…~ unit groups\n";
+
+$stat_format = '{1} / {2} / ~{3}′{4}″~ / ~{5} lbs.~';
+
+assert_same(
+	'trailing group empty → group + its separator shed',
+	'Center / 6′11″',
+	tpl( array( 1 => '', 2 => 'Center', 3 => '6', 4 => '11', 5 => '' ), $stat_format )
+);
+assert_same(
+	'all slots present → groups unwrap invisibly',
+	'Aleks / Center / 6′11″ / 185 lbs.',
+	tpl( array( 1 => 'Aleks', 2 => 'Center', 3 => '6', 4 => '11', 5 => '185' ), $stat_format )
+);
+assert_same(
+	'group with one non-empty token survives (contents run Steps 1–5)',
+	"Center / 6'",
+	tpl( array( 1 => '', 2 => 'Center', 3 => '6', 4 => '', 5 => '' ), "{1} / {2} / ~{3}'{4}\"~ / ~{5} lbs.~" )
+);
+assert_same(
+	'mid-string empty group sheds like an empty token (separator rules)',
+	'Jane MD',
+	tpl( array( 1 => 'Jane', 2 => '', 3 => 'MD' ), '{1} ~({2})~ - {3}' )
+);
+assert_same(
+	'all groups + tokens empty → empty string (markers count as present)',
+	'',
+	tpl( array( 1 => '', 2 => '' ), 'Stats: ~{1} ft~ ~{2} lbs~' )
+);
+assert_same(
+	'token-less group unwraps verbatim',
+	'a lbs b',
+	tpl( array( 1 => 'a', 2 => 'b' ), '{1} ~lbs~ {2}' )
+);
+assert_same(
+	'lone unpaired tilde stays literal',
+	'a ~ b',
+	tpl( array( 1 => 'a', 2 => 'b' ), '{1} ~ {2}' )
+);
+assert_same(
+	'odd tilde count: last delimiter literal, first pair still groups',
+	'a ~5',
+	tpl( array( 1 => 'a', 2 => '' ), '{1} ~x {2}~ ~5' )
+);
+assert_same(
+	'~~ escapes a literal tilde',
+	'a ~ b',
+	tpl( array( 1 => 'a', 2 => 'b' ), '{1} ~~ {2}' )
+);
+assert_same(
+	'empty group last, earlier empty token: both shed, look-left on group',
+	'Smith',
+	tpl( array( 1 => '', 2 => 'Smith', 3 => '' ), '{1} - {2} ~/ {3} lbs~' )
+);
+assert_same(
+	"group with '0' value is non-empty (real value)",
+	'0 lbs.',
+	tpl( array( 1 => '0' ), '~{1} lbs.~' )
+);
+
 echo "All-empty / degenerate formats\n";
 
 assert_same( 'all tokens empty → empty string (fallback fires upstream)', '', tpl( array( 1 => '', 2 => '' ), '{1} ({2})' ) );

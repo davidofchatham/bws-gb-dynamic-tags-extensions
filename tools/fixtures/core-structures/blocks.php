@@ -220,6 +220,15 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J14', '{{join mode:template|format:%1\'%2"|key:height_ft|2-key:height_in_zero}}' ),
 	) );
 
+	// ~…~ unit groups (Step 0, 1.15.0) — group + separator shed vs unwrap vs
+	// literal tilde. Wire round-trip surface: ~ rides the GB tag string raw.
+	$sections[] = bws_fixture_gb_section( 'Join - unit groups (~…~)', array(
+		bws_fixture_gb_row( 'J25', '{{join mode:template|format:%1 ~(%2)~|key:name_first|2-key:role}}' ),
+		bws_fixture_gb_row( 'J26', '{{join mode:template|format:%1′ / ~%2 in~|key:height_ft|2-key:height_in_blank}}' ),
+		bws_fixture_gb_row( 'J27', '{{join mode:template|format:~%1 ft~ / ~%2 in~|key:name_generation|2-key:height_in_blank|fallback_text:—}}' ),
+		bws_fixture_gb_row( 'J28', '{{join mode:template|format:%1 ~~ %2|key:height_ft|2-key:height_in}}' ),
+	) );
+
 	// datetime matrix (datetime-test-matrix.md) — D0/D1/D2 baseline rows, D3
 	// (#25) + D4 src:ref (#30) new-behavior rows, D5 sources. Term-hop D4 rows
 	// live on the term pages (matrix_term_hop); D5.5 loop-item is

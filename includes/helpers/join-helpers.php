@@ -17,13 +17,19 @@
  * kept (the base text '0' hook, hooks.php, is absorbed — no coercion here).
  *
  * bws_join_assemble() / bws_join_separator() / bws_join_template() /
- * bws_join_remove_empty_token() / bws_join_strip_connective_separators() are
+ * bws_join_apply_groups() / bws_join_remove_empty_token() /
+ * bws_join_strip_connective_separators() are
  * PURE string functions (no WP/GB symbols) — harnessed locally by
  * tools/test/join-template-test.php (house pattern: fns copied inline there;
  * keep both in sync).
  *
- * Template-mode smart literal removal (five ordered steps on empty-token
+ * Template-mode smart literal removal (ordered steps on empty-token
  * positions — docs/tag-reference.md §{{join}}):
+ *   0. ~…~ unit groups: a group whose {N} tokens ALL resolved empty is excised
+ *      whole (it then sheds adjacent separators like an empty token — Step 3);
+ *      a group with any non-empty token is unwrapped and its contents run
+ *      through Steps 1–5 normally. `~~` = literal tilde; an unpaired lone `~`
+ *      stays literal; a group with NO tokens is unwrapped verbatim.
  *   1. Attached punctuation sheds with the empty token. Split by punctuation
  *      class: UNIT punct (. ' ") directly attached AFTER the token always
  *      sheds with it ({3}'{4}" with empty {4} → the dangling " dies);
@@ -155,7 +161,7 @@ function bws_join_separator( array $values, string $sep ): string {
 
 /**
  * Template mode: substitute positional {N} tokens, then smart-remove literal
- * punctuation attached to empty tokens (Steps 1–5, file header).
+ * punctuation attached to empty tokens (Steps 0–5, file header).
  *
  * All-empty short-circuit: when the format contains at least one {N} token and
  * every one of them resolved empty, returns '' (so literal-only residue like a
@@ -168,10 +174,21 @@ function bws_join_separator( array $values, string $sep ): string {
  * @return string
  */
 function bws_join_template( array $values, string $format ): string {
+	// --- Step 0: ~…~ unit groups. Protect `~~` (literal tilde) with the same
+	// sentinel trick as %% in bws_join_wire_format(), parse groups, restore.
+	// An all-empty group collapses to a \x02 marker that sheds like an empty
+	// token below; other groups are unwrapped in place.
+	$format = str_replace( '~~', "\x01", $format );
+	if ( str_contains( $format, '~' ) ) {
+		$format = bws_join_apply_groups( $format, $values );
+	}
+	$format = str_replace( "\x01", '~', $format );
+
 	$result    = $format;
 	$empty     = array();
-	$present   = 0; // tokens present in the format
-	$non_empty = 0; // present tokens with a non-empty value
+	$markers   = substr_count( $format, "\x02" );
+	$present   = $markers; // each marker = one all-empty group
+	$non_empty = 0;        // present tokens with a non-empty value
 
 	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
 		$token = '{' . $n . '}';
@@ -190,7 +207,7 @@ function bws_join_template( array $values, string $format ): string {
 	if ( $present > 0 && 0 === $non_empty ) {
 		return '';
 	}
-	if ( empty( $empty ) ) {
+	if ( empty( $empty ) && 0 === $markers ) {
 		return $result;
 	}
 
@@ -208,6 +225,27 @@ function bws_join_template( array $values, string $format ): string {
 	// cascades resolve against the current string state.
 	foreach ( $empty as $n ) {
 		$result = bws_join_remove_empty_token( $result, '{' . $n . '}', $n === $last_token );
+	}
+
+	// Step 0 markers shed like empty tokens. The look-left exception belongs
+	// to the FINAL marker when it is also the format's last token-ish element
+	// (marker or {N}); it is retagged \x03 so the two passes get distinct
+	// is_last flags (bws_join_remove_empty_token removes ALL occurrences of
+	// its token per call).
+	if ( $markers > 0 ) {
+		preg_match_all( '/\{\d+\}|' . "\x02" . '/', $format, $tok_m );
+		$last_is_marker = "\x02" === end( $tok_m[0] );
+		if ( $last_is_marker ) {
+			$p = strrpos( $result, "\x02" );
+			if ( false !== $p ) {
+				$result[ $p ] = "\x03";
+			}
+		}
+		// Left-to-right like the empty-token loop: earlier markers first.
+		$result = bws_join_remove_empty_token( $result, "\x02", false );
+		if ( $last_is_marker ) {
+			$result = bws_join_remove_empty_token( $result, "\x03", true );
+		}
 	}
 
 	// Step 4 — whitespace collapse + whitespace-before-connective repair +
@@ -228,6 +266,59 @@ function bws_join_template( array $values, string $format ): string {
 	}
 
 	return trim( $result );
+}
+
+/**
+ * Step 0: parse ~…~ unit groups against the resolved values.
+ *
+ * A group binds literals (units like "lbs.") to the token(s) inside it so they
+ * live or die together. Pieces from an explode on '~' alternate outside/inside;
+ * an odd tilde count leaves the LAST delimiter unpaired → it is literal (folded
+ * back). Per inside piece: no {N} tokens → unwrapped verbatim (author literal);
+ * all tokens empty → the whole group collapses to the \x02 marker (shed by the
+ * caller like an empty token, Step 3 separator rules included); any non-empty
+ * token → unwrapped, contents processed by Steps 1–5 normally.
+ *
+ * Caller protects `~~` (literal tilde) BEFORE this runs — a raw tilde reaching
+ * here is always a delimiter candidate. Pure; harnessed via bws_join_template()
+ * in join-template-test.php.
+ *
+ * @since 1.15.0
+ * @param string $format Canonical format ({N} tokens), `~~` already sentineled.
+ * @param array  $values 1-based slot values.
+ * @return string Format with groups resolved (markers in, delimiters out).
+ */
+function bws_join_apply_groups( string $format, array $values ): string {
+	$pieces = explode( '~', $format );
+	$n      = count( $pieces );
+	if ( $n < 3 ) {
+		return $format; // one lone ~ (or none) — literal, nothing to pair.
+	}
+	if ( 0 === $n % 2 ) {
+		// Odd tilde count: last delimiter unpaired → literal; refold.
+		$tail                          = array_pop( $pieces );
+		$pieces[ count( $pieces ) - 1 ] .= '~' . $tail;
+	}
+	$out = '';
+	foreach ( $pieces as $i => $piece ) {
+		if ( 0 === $i % 2 ) {
+			$out .= $piece; // outside any group
+			continue;
+		}
+		if ( ! preg_match_all( '/\{(\d+)\}/', $piece, $m ) ) {
+			$out .= $piece; // token-less group → unwrap verbatim
+			continue;
+		}
+		$all_empty = true;
+		foreach ( $m[1] as $d ) {
+			if ( '' !== ( $values[ (int) $d ] ?? '' ) ) {
+				$all_empty = false;
+				break;
+			}
+		}
+		$out .= $all_empty ? "\x02" : $piece;
+	}
+	return $out;
 }
 
 /**

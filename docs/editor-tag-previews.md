@@ -192,7 +192,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 |---|---|
 | Separator, default `', '` | `[Join {field list}]` (default sep unremarkable — not shown) |
 | Separator, custom `sep` | `[Join {field list} (sep: “X”)]` |
-| Template (`format` set) | `[Join “{format}”: {field list}]` (format quoted; `%N` wire tokens shown as authored) |
+| Template (`format` set) | `[Join “{substituted format}”]` — the format quoted with each `%N` replaced by its slot's field part (source annotation inline: `'full_name' from Ref 'student'`); an unbound `%N` stays literal (visible mistake, matches render); `%%` and `~…~` group delimiters shown as typed |
 
 **Warnings** replace the field list, prefixed `⚠ Join:`, joined with `, `:
 
@@ -209,7 +209,8 @@ Nothing configured at all → **no preview** (empty string; GB shows its own pla
 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
 | `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
 | `{{join use:title\|2-key:role}}` | `[Join Title, 'role']` |
-| `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “%1 (%2)”: 'name_first', 'name_last']` |
+| `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` |
+| `{{join mode:template\|format:%1 / %2\|src:ref\|ref:student\|key:full_name\|2-src:current\|2-key:role}}` | `[Join “'full_name' from Ref 'student' / 'role'”]` |
 | `{{join key:name_first\|2-src:ref\|2-ref:rel_post\|2-key:role}}` | `[Join 'name_first', 'role' from Ref 'rel_post']` |
 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |

@@ -438,11 +438,29 @@ check(
 	bws_build_join_preview_label( [ 'use' => 'title', '2-key' => 'role' ] ),
 	"[Join Title, 'role']"
 );
-// Template mode: format quoted, then field list.
+// Template mode: format quoted with %N substituted by slot field parts.
 check(
-	'template mode',
+	'template mode substitutes tokens',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'key' => 'name_first', '2-key' => 'name_last' ] ),
-	"[Join “%1 (%2)”: 'name_first', 'name_last']"
+	"[Join “'name_first' ('name_last')”]"
+);
+// Non-current source rides inline on its slot's part.
+check(
+	'template mode inline ref source',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 / %2', 'src' => 'ref', 'ref' => 'student', 'key' => 'full_name', '2-src' => 'current', '2-key' => 'role' ] ),
+	"[Join “'full_name' from Ref 'student' / 'role'”]"
+);
+// Unbound %N stays literal (visible mistake); %% shown as typed; ~ groups raw.
+check(
+	'template mode unbound token + escapes literal',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 ~%7 lbs.~ 100%%2', 'key' => 'height', '2-key' => 'pct' ] ),
+	"[Join “'height' ~%7 lbs.~ 100%%2”]"
+);
+// Two-digit token: %10 must not be eaten by %1's substitution.
+check(
+	'template mode %10 before %1',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 %10', 'key' => 'a', '10-key' => 'j' ] ),
+	"[Join “'a' 'j'”]"
 );
 // Template mode, no format → warning.
 check(

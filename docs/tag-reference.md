@@ -724,7 +724,7 @@ src-keyed reveal is the selecting axis).
 |---|---|---|
 | `mode` | select | `''` = Separator (default, stripped) / `template` |
 | `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
-| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens**. Shown in template mode. |
+| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. |
 | `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
 
 **Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
@@ -735,9 +735,16 @@ percent directly before a digit. Internally `bws_join_wire_format()` translates 
 `{N}` form the pure algorithm uses.
 
 **Template mode — smart literal removal.** After token substitution, punctuation attached to
-EMPTY tokens is removed with them (five ordered steps; full contract + edge cases pinned by
+EMPTY tokens is removed with them (ordered steps; full contract + edge cases pinned by
 `php tools/test/join-template-test.php`):
 
+0. **`~…~` unit groups (1.15.0)** — wrap a token and its unit text in tildes so they live or die
+   together: `~%5 lbs.~` sheds whole (including adjacent separators, Step 3 rules) when `%5` is
+   empty; with any token inside non-empty the delimiters unwrap invisibly and the contents run
+   Steps 1–5 normally. Covers what Steps 1–3 can't: space-separated literal words belonging to a
+   token (`%5 lbs.` with empty `%5` keeps `lbs.` — bind it: `~%5 lbs.~`). `~~` = literal tilde; a
+   lone unpaired `~` and a token-less group render literally. `~` rides the GB wire unescaped
+   (verified: both GB parsers pass it through raw).
 1. **Attached punctuation** — unit punct (`.` `'` `"`) trailing-attached sheds with the empty
    token (`%1'%2"` with empty inches → `5'`); connective punct (`,` `:`) collapses only when the
    empty token sits BETWEEN two connectives (`%4 %5, %6` with empty generation keeps ONE comma:
@@ -779,11 +786,12 @@ instead of an empty block, built by `bws_build_join_preview_label()`. Shape + ex
 {{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
 {{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
 {{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
+{{join mode:template|format:%1 / ~%2 lbs.~|key:position|2-key:weight}} → Center / 185 lbs. / Center when weight empty
 {{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
 {{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
 ```
 
-**Tests.** Pure algorithm: `php tools/test/join-template-test.php` (Steps 1–5, wire-token
+**Tests.** Pure algorithm: `php tools/test/join-template-test.php` (Steps 0–5, wire-token
 translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix
 [`tools/test/join-test-matrix.md`](../tools/test/join-test-matrix.md) against the seeded testbed
 (assembly modes, absorb-visible behavior: site arm, per-slot `limit`, carry-forward, `'0'`).

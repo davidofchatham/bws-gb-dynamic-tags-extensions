@@ -921,7 +921,7 @@ function bws_get_join_options(): array {
 	$options['format'] = array(
 		'type'        => 'text',
 		'label'       => __( 'Format', 'generateblocks' ),
-		'help'        => __( 'Format string using %1, %2 … as positional tokens for the slots. Use %% for a literal percent sign before a digit.', 'generateblocks' ),
+		'help'        => __( 'Format string using %1, %2 … as positional tokens for the slots. Wrap a token and its unit text in tildes (~%5 lbs.~) so they disappear together when the field is empty. Use %% for a literal percent sign before a digit, ~~ for a literal tilde.', 'generateblocks' ),
 		'placeholder' => '%1 (%2)',
 		'show_if'     => array( 'mode' => 'template' ),
 	);

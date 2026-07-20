@@ -76,7 +76,11 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * Mirrors the base/try_ marker conventions (docs/editor-tag-previews.md):
  *   [Join {field list}]                       — separator mode, default sep
  *   [Join {field list} (sep: “X”)]            — separator mode, custom sep
- *   [Join “%1 (%2)”: {field list}]            — template mode (format quoted)
+ *   [Join “'first' ('last')”]                 — template mode: format quoted with
+ *                                               %N substituted by slot field
+ *                                               parts (+ inline ` from {src}`
+ *                                               on non-current slots); unbound
+ *                                               %N stays literal
  *   [⚠ Join: {warnings}]                      — misconfigured slot(s) / no format
  * Trailing ` (fallback: “X”)` appended when `fallback_text` is set.
  *
@@ -139,8 +143,8 @@ function bws_build_join_preview_label( array $options ): string {
 			$warnings[] = 'slot ' . $n . ' no key';
 		}
 
-		$field_parts[]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
-		$source_parts[] = bws_try_preview_source_part( $last_src, $last_ref, $tax, true );
+		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
+		$source_parts[ $n ] = bws_try_preview_source_part( $last_src, $last_ref, $tax, true );
 	}
 
 	// Template mode with no format is unresolvable — warn (matches the callback
@@ -162,24 +166,26 @@ function bws_build_join_preview_label( array $options ): string {
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
-	// Assemble the field list, annotated per assembly mode. Sources appended
+	// Assemble per-slot display parts, keyed by slot number. Sources appended
 	// per-slot only when a slot actually binds to a non-current source (join
 	// slots frequently share the current entity — no noise then).
 	$parts = array();
-	foreach ( $field_parts as $i => $fp ) {
-		$src_segment = $source_parts[ $i ];
+	foreach ( $field_parts as $n => $fp ) {
+		$src_segment = $source_parts[ $n ];
 		if ( '' !== $src_segment && 'Current' !== $src_segment ) {
 			$fp .= ' from ' . $src_segment;
 		}
-		$parts[] = $fp;
+		$parts[ $n ] = $fp;
 	}
-	$field_list = implode( ', ', $parts );
 
 	if ( 'template' === $mode ) {
-		// Format string quoted (display value), then the ordered field list.
-		$inner = 'Join “' . $format . '”: ' . $field_list;
+		// Format string shown with %N tokens substituted by their slot's field
+		// part (source annotation inline) — the author reads structure and
+		// bindings in one string. Unbound %N stays literal (visible mistake,
+		// matches render). ~…~ group delimiters shown as typed.
+		$inner = 'Join “' . bws_join_preview_format( $format, $parts, $max ) . '”';
 	} else {
-		$inner = 'Join ' . $field_list;
+		$inner = 'Join ' . implode( ', ', $parts );
 		// Custom separator noted; the default ', ' is unremarkable, so omit it.
 		if ( '' !== $sep ) {
 			$inner .= ' (sep: “' . $sep . '”)';
@@ -190,6 +196,33 @@ function bws_build_join_preview_label( array $options ): string {
 		$inner .= ' (fallback: “' . $fallback . '”)';
 	}
 	return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+}
+}
+
+/**
+ * Substitute %N wire tokens in a join format string with per-slot display
+ * parts, for the template-mode preview label.
+ *
+ * `%%` is protected (shown as typed) with the sentinel trick from
+ * bws_join_wire_format(); high→low so %10 matches before its %1 prefix. A %N
+ * with no configured slot stays literal — the misconfiguration is visible and
+ * matches what render does.
+ *
+ * @since 1.15.0
+ * @param string $format Author-written wire format (%N tokens).
+ * @param array  $parts  Slot-number-keyed display parts (field + optional src).
+ * @param int    $max    Slot cap (BWS_JOIN_MAX_SLOTS).
+ * @return string Display format.
+ */
+if ( ! function_exists( 'bws_join_preview_format' ) ) {
+function bws_join_preview_format( string $format, array $parts, int $max ): string {
+	$format = str_replace( '%%', "\x00", $format );
+	for ( $n = $max; $n >= 1; $n-- ) {
+		if ( isset( $parts[ $n ] ) ) {
+			$format = str_replace( '%' . $n, $parts[ $n ], $format );
+		}
+	}
+	return str_replace( "\x00", '%%', $format );
 }
 }
 

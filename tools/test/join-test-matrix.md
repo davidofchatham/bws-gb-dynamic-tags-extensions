@@ -116,6 +116,22 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 | J13 | `{{join mode:template\|format:%1'%2"\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — both quote marks shed, all empty → fallback (`name_generation` unseeded on this page) |
 | J14 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_zero}}` | `5'0"` — absorbed `'0'` renders; `5'` needs author `''` or the future base-text zero-empty opt-in |
 
+## `~…~` unit groups (Step 0, 1.15.0 — `/matrix-post-meta/`)
+
+A `~…~` group binds literal unit text to its token(s): all tokens inside empty → the whole
+group sheds (plus adjacent separators, Step 3 rules); any token non-empty → the delimiters
+unwrap and the contents run Steps 1–5 normally. `~~` = literal tilde; a lone unpaired `~`
+stays literal. Pure engine pinned by `join-template-test.php` §Step 0; these rows exercise
+the wire round-trip (`~` rides GB's tag string unescaped — verified against GB 2.2.1 +
+2.3.0-beta.2 parsers, `docs/gb-constraints.md` §Tag string escape syntax).
+
+| # | Tag | Expected |
+|---|---|---|
+| J25 | `{{join mode:template\|format:%1 ~(%2)~\|key:name_first\|2-key:role}}` | `Jane (Captain)` — both present: group delimiters unwrap invisibly |
+| J26 | `{{join mode:template\|format:%1′ / ~%2 in~\|key:height_ft\|2-key:height_in_blank}}` | `5′` — empty group sheds whole (unit word `in` AND the `/` separator; contrast J12 where a space-separated unit would survive) |
+| J27 | `{{join mode:template\|format:~%1 ft~ / ~%2 in~\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — all groups empty → fallback (`name_generation` unseeded on this page) |
+| J28 | `{{join mode:template\|format:%1 ~~ %2\|key:height_ft\|2-key:height_in}}` | `5 ~ 11` — `~~` renders a literal tilde |
+
 ## Per-slot src / use / site / list (absorb — `/matrix-post-meta/`)
 
 | # | Tag | Expected |
@@ -154,7 +170,8 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 |---|---|---|
 | JP1 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
 | JP2 | `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
-| JP3 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “%1 (%2)”: 'name_first', 'name_last']` |
+| JP3 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` — `%N` substituted by slot field parts (1.15.0) |
+| JP3b | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:related_staff\|key:name_first\|2-src:current\|2-key:role}}` | `[Join “'name_first' from Ref 'related_staff' / 'role'”]` — non-current source inline on its slot |
 | JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
 | JP6 | `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
