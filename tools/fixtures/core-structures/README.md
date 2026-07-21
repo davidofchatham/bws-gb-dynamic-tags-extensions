@@ -23,6 +23,12 @@ seed + verify clean, or coordinate a pin bump with them:
 |---|---|---|
 | bws-portal-system | `tools/fixtures/view-structures/` | v4+ |
 | meta-conductor | `tools/fixtures/mc-rules/` | v4+ |
+| bws-generate-layout-conditions | `tools/fixtures/layout-states/` | v4+ |
+
+`layout-states` asserts against **`department:sales` specifically**: it needs a
+populated non-singular archive for a featured-image detection test, and an
+empty term archive 404s (the test would then pass without running). If that
+term ever loses its posts, that blueprint's verify reports it.
 
 Orchestrated seeding (order + pins + verify in one command):
 wp-litespeed env `bin/seed-all.sh <site>`.
