@@ -659,14 +659,17 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *
  *   title   → display name          (get_the_author_meta('display_name'))
  *   content → biographical info      (get_the_author_meta('description'))
+ *   text    → use:title = display name; key-mode = user meta field (1.16.0,
+ *             FW-48 seam half — closes the ABSORB-seam hole so {{text}},
+ *             {{join}} slots and try_text resolve on an author archive)
  *
  * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
  * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the
  * term analog readers.
  *
- * Scope for 1.15.0 is title + content only (the plan's author-archive dispatch
- * rows). This returns '' for any other tag, so an unhandled tag renders empty
- * rather than wrong. Deferred author analogs (FW-47):
+ * Scope: title + content (1.15.0, the plan's author-archive dispatch rows) +
+ * text (1.16.0, FW-48 seam half). This returns '' for any other tag, so an
+ * unhandled tag renders empty rather than wrong. Deferred author analogs (FW-47):
  *   - permalink: get_author_posts_url() datum EXISTS (bws_resolve_link_url
  *     already resolves it for link-wrap) but a bare {{permalink}} is circular
  *     on the author's own archive (= the page URL). Non-circular uses need a
@@ -678,7 +681,8 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *   - datetime: folds in with FW-9's remaining datetime context work.
  *
  * @since 1.15.0
- * @param string $tag      One of title|content (others → '').
+ * @since 1.16.0 text case (FW-48 seam half).
+ * @param string $tag      One of title|content|text (others → '').
  * @param int    $user_id  Ambient user id.
  * @param array  $options  Tag options.
  * @param object $instance GB instance.
@@ -695,6 +699,27 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 				return '';
 			}
 			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $name, $options, $instance );
+
+		case 'text':
+			// Mirror of the term analog's text dispatch: use:title → the intrinsic
+			// analog (display name), key-mode → a user meta field read shaped like
+			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
+			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
+			}
+			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
+			$key      = sanitize_text_field( $options['key'] ?? '' );
+			if ( '' === $key || ( function_exists( 'bws_field_key_disallowed' ) && bws_field_key_disallowed( $key ) ) ) {
+				return '';
+			}
+			$raw   = get_user_meta( $user_id, $key, true );
+			$value = ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			if ( '' === $value ) {
+				return '' !== $fallback
+					? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+					: '';
+			}
+			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $value, $options, $instance );
 
 		case 'content':
 			$bio = get_the_author_meta( 'description', $user_id );

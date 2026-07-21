@@ -677,6 +677,17 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			'link_type' => 'term',
 		);
 	}
+	// Ambient author archive → user analog/meta read (FW-48 seam half, 1.16.0).
+	// Mirrors title/content's user arms; closing it HERE closes it for every
+	// ABSORB-seam reader ({{join}} slots, try_text) at once.
+	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
+	if ( $user_id ) {
+		return array(
+			'value'     => bws_base_user_analog_read( 'text', $user_id, $options, $instance ),
+			'link_id'   => $user_id,
+			'link_type' => 'user',
+		);
+	}
 	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
 	// its own plural traversal (bws_base_post_ids_from_source) below, so computing

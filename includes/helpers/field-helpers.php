@@ -383,9 +383,11 @@ function bws_field_values_assemble_steps( array $options ): array {
  * term → term meta; post → post meta with an EXPLICIT id (triggers the v1.7.1
  * explicit-wins rule in bws_read_field, bypassing ITS own loop/term inference so
  * the factory's resolved source is authoritative — no double resolution).
- * meta_row → the row's own key. Returns '' on miss (caller drops empties).
+ * meta_row → the row's own key. user → plain user meta (FW-48 seam half).
+ * Returns '' on miss (caller drops empties).
  *
  * @since 1.14.0
+ * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author hop).
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -407,6 +409,21 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 		case 'meta_row':
 			$row = $source['row'] ?? array();
 			$raw = is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
+			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+
+		case 'user':
+			// FW-48 (seam half): plain user-meta read, NOT the analog reader
+			// (bws_base_user_analog_read lives in base-shared, loaded AFTER this
+			// file — and it reads analogs, not meta; different concern). Currently
+			// unreachable at runtime — no traversal step or factory path yields a
+			// user-kind source into the seam until the post→author hop (FW-48
+			// proper) lands — but a user-less kind switch would ship a hole the
+			// ABSORB seam converged onto and force re-opening this function.
+			$user_id = (int) ( $source['id'] ?? 0 );
+			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
+				return '';
+			}
+			$raw = get_user_meta( $user_id, $key, true );
 			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
 
 		case 'post':
