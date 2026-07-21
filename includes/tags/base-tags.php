@@ -646,6 +646,7 @@ function bws_register_base_tags(): void {
  * so any text read change lands here, never in a caller's copy.
  *
  * @since 1.14.1 Extracted from bws_base_text_callback().
+ * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
  *
  * @param array $options  Tag options.
  * @param mixed $instance GB tag instance.
@@ -684,67 +685,60 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// when there is no tax hop.
 	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
 
-	// Per-item reads in list mode suppress the fallback — it fires ONCE in the
-	// callback on all-empty output, never per item (else an empty term/post
-	// inside the limit window injects the fallback text into the list, and a
-	// lone fallback would satisfy the 1 === count($out) link gate below and be
-	// link-wrapped as though it were a real value — GH #51). Matches datetime's
-	// contract (bws_base_datetime_single_callback) and try_'s (TagTemplateRegistry).
-	// The singular arms below keep the full $options: no list to pollute, and the
-	// cores' own fallback emit is the shipped behavior there.
-	$item_opts = $options;
-	unset( $item_opts['fallback'] );
-
 	$link_id   = 0;
 	$link_type = 'post';
 
+	// List branches ride the shared fold (FW-49): slice/suppress/drop/link-gate/
+	// join live in bws_collect_value_list. Per-item reads get $item_opts with
+	// 'fallback' unset — it fires ONCE in the callback on all-empty output,
+	// never per item (GH #51: else an empty term/post inside the limit window
+	// injects the fallback text into the list, and a lone fallback would pass
+	// the single-result link gate as though it were a real value). Matches
+	// datetime's contract and try_'s (TagTemplateRegistry). The singular arms
+	// below keep the full $options: no list to pollute, and the cores' own
+	// fallback emit is the shipped behavior there.
 	if ( '' !== $tax ) {
-		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
-		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$sep    = $options['sep'] ?? ', ';
-		$out    = [];
-		$first_term_id = 0;
-		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$result = 'title' === $use
-				? bws_term_title_core( $term->term_id, $item_opts, $instance )
-				: bws_term_custom_text_core( $term->term_id, $item_opts, $instance );
-			if ( '' !== $result ) {
-				$out[] = $result;
-				if ( ! $first_term_id ) {
-					$first_term_id = $term->term_id;
-				}
-			}
-		}
-		$value = implode( $sep, $out );
-		// Only wrap single-result output — multi-result list is unwrappable as one link.
-		if ( 1 === count( $out ) && $first_term_id ) {
-			$link_id   = $first_term_id;
-			$link_type = 'term';
+		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+		$collected = bws_collect_value_list(
+			$terms,
+			static function ( $term, array $item_opts ) use ( $use, $instance ) {
+				$result = 'title' === $use
+					? bws_term_title_core( $term->term_id, $item_opts, $instance )
+					: bws_term_custom_text_core( $term->term_id, $item_opts, $instance );
+				return array(
+					'value' => $result,
+					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+				);
+			},
+			$options
+		);
+		$value = $collected['value'];
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( $is_ref ) {
 		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, not just
 		// the first. limit/sep are offered for src:ref, so honor them — mirrors the
-		// srcTermIn branch (slice-to-limit, join, single-result link-wrap only).
-		$post_ids = bws_base_post_ids_from_source( $base, $options );
-		$limit    = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$sep      = $options['sep'] ?? ', ';
-		$out      = [];
-		$first_id = 0;
-		foreach ( array_slice( $post_ids, 0, $limit ) as $pid ) {
-			$result = 'title' === $use
-				? bws_post_title_core( $pid, $item_opts, $instance )
-				: bws_post_custom_text_core( $pid, $item_opts, $instance );
-			if ( '' !== $result ) {
-				$out[] = $result;
-				if ( ! $first_id ) {
-					$first_id = (int) $pid;
-				}
-			}
-		}
-		$value = implode( $sep, $out );
-		if ( 1 === count( $out ) && $first_id ) {
-			$link_id   = $first_id;
-			$link_type = 'post';
+		// srcTermIn branch.
+		$post_ids  = bws_base_post_ids_from_source( $base, $options );
+		$collected = bws_collect_value_list(
+			$post_ids,
+			static function ( $pid, array $item_opts ) use ( $use, $instance ) {
+				$result = 'title' === $use
+					? bws_post_title_core( $pid, $item_opts, $instance )
+					: bws_post_custom_text_core( $pid, $item_opts, $instance );
+				return array(
+					'value' => $result,
+					'link'  => array( 'kind' => 'post', 'id' => (int) $pid ),
+				);
+			},
+			$options
+		);
+		$value = $collected['value'];
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( 'title' === $use ) {
 		$value     = bws_post_title_core( $post_id, $options, $instance );
@@ -1157,6 +1151,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
  * srcTerm iterates terms with limit/sep applied.
  *
  * @since 1.6.0
+ * @since 1.16.0 List branches ride the shared bws_collect_value_list fold (FW-49).
  */
 function bws_base_title_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1213,47 +1208,43 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 	$link_id   = 0;
 	$link_type = 'post';
 
+	// List branches ride the shared fold (FW-49). Fallback suppression is inert
+	// here — the title cores never read 'fallback' (unlike the text cores).
 	if ( '' !== $tax ) {
-		$terms  = bws_get_srcterm_terms( (int) $post_id, $tax );
-		$limit  = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$sep    = $options['sep'] ?? ', ';
-		$out    = [];
-		$first_term_id = 0;
-		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
-			$result = bws_term_title_core( $term->term_id, $options, $instance );
-			if ( '' !== $result ) {
-				$out[] = $result;
-				if ( ! $first_term_id ) {
-					$first_term_id = $term->term_id;
-				}
-			}
-		}
-		$value = implode( $sep, $out );
-		if ( 1 === count( $out ) && $first_term_id ) {
-			$link_id   = $first_term_id;
-			$link_type = 'term';
+		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+		$collected = bws_collect_value_list(
+			$terms,
+			static function ( $term, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_term_title_core( $term->term_id, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+				);
+			},
+			$options
+		);
+		$value = $collected['value'];
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( $is_ref ) {
 		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, honoring
 		// limit/sep (offered for src:ref) — mirrors the srcTermIn branch above.
-		$post_ids = bws_base_post_ids_from_source( $base, $options );
-		$limit    = max( 1, (int) ( $options['limit'] ?? 1 ) );
-		$sep      = $options['sep'] ?? ', ';
-		$out      = [];
-		$first_id = 0;
-		foreach ( array_slice( $post_ids, 0, $limit ) as $pid ) {
-			$result = bws_post_title_core( $pid, $options, $instance );
-			if ( '' !== $result ) {
-				$out[] = $result;
-				if ( ! $first_id ) {
-					$first_id = (int) $pid;
-				}
-			}
-		}
-		$value = implode( $sep, $out );
-		if ( 1 === count( $out ) && $first_id ) {
-			$link_id   = $first_id;
-			$link_type = 'post';
+		$post_ids  = bws_base_post_ids_from_source( $base, $options );
+		$collected = bws_collect_value_list(
+			$post_ids,
+			static function ( $pid, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_post_title_core( $pid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'post', 'id' => (int) $pid ),
+				);
+			},
+			$options
+		);
+		$value = $collected['value'];
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} else {
 		$value     = bws_post_title_core( $post_id, $options, $instance );
