@@ -489,7 +489,7 @@ check(
 // Fallback text appended.
 check(
 	'fallback appended',
-	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'fallback_text' => 'N/A' ] ),
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'fallback' => 'N/A' ] ),
 	"[Join 'name_first', 'name_last' (fallback: “N/A”)]"
 );
 // Nothing configured → no preview.

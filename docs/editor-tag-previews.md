@@ -202,7 +202,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
 
-Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback_text` is set.
+Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback` is set.
 
 | Tag config | Preview |
 |---|---|
@@ -214,7 +214,7 @@ Nothing configured at all → **no preview** (empty string; GB shows its own pla
 | `{{join key:name_first\|2-src:ref\|2-ref:rel_post\|2-key:role}}` | `[Join 'name_first', 'role' from Ref 'rel_post']` |
 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
-| `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
+| `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 

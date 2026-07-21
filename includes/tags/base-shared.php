@@ -6,7 +6,7 @@
  * These are the cross-tag primitives the base callbacks AND the other tag
  * families (datetime, email, fn, phone) build on — the `src`/`ref`/`srcTermIn`
  * option definitions, the try_ slot option builder, the post-id source
- * wrapper, the ambient-term analog read, and bws_base_map_options(). They live
+ * wrapper and the ambient-term analog read. They live
  * here (not in base-tags.php) because their scope is every tag, not just the
  * base renderers; base-tags.php now holds only the actual base tag callbacks,
  * the src:site source, and the try_ dispatch wrappers.
@@ -584,8 +584,6 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 	if ( ! $term_id ) {
 		return '';
 	}
-	$opts = bws_base_map_options( $options );
-
 	switch ( $tag ) {
 		case 'title':
 			return bws_term_title_core( $term_id, $options, $instance );
@@ -593,14 +591,14 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 		case 'text':
 			$use = $options['use'] ?? 'key';
 			return 'title' === $use
-				? bws_term_title_core( $term_id, $opts, $instance )
-				: bws_term_custom_text_core( $term_id, $opts, $instance );
+				? bws_term_title_core( $term_id, $options, $instance )
+				: bws_term_custom_text_core( $term_id, $options, $instance );
 
 		case 'content':
 			$use = $options['use'] ?? 'content';
 			return 'key' === $use
-				? bws_term_custom_text_core( $term_id, $opts, $instance )
-				: bws_term_description_core( $term_id, $opts, $instance );
+				? bws_term_custom_text_core( $term_id, $options, $instance )
+				: bws_term_description_core( $term_id, $options, $instance );
 
 		case 'permalink':
 			return bws_term_permalink_core( $term_id, $options, $instance );
@@ -713,24 +711,3 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 	return '';
 }
 
-// ===============================================
-// SHARED OPTION HELPER
-// ===============================================
-
-/**
- * Remap base-tag option keys to what the old core functions expect.
- *
- * Base tags use the new naming convention (fallback vs. fallback_text).
- * Existing core functions still read the old keys. This function bridges
- * the gap without requiring changes to the core functions.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Options with fallback_text populated from fallback when present.
- */
-function bws_base_map_options( array $options ): array {
-	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
-		$options['fallback_text'] = $options['fallback'];
-	}
-	return $options;
-}

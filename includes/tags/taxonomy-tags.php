@@ -103,7 +103,7 @@ function bws_term_description_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_term_custom_text_core( $term_id, $options, $instance ) {
-	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 
 	if ( ! $term_id ) {
 		return '' !== $fallback

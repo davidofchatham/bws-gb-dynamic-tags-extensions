@@ -725,7 +725,7 @@ src-keyed reveal is the selecting axis).
 | `mode` | select | `''` = Separator (default, stripped) / `template` |
 | `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
 | `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. |
-| `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
+| `fallback` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
 
 **Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
 tag's options (captured as `[^}]+` — kills the whole tag match, no escape;

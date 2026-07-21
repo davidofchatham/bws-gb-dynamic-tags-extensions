@@ -1,9 +1,18 @@
 # Changelog
 
-## [1.15.2] — unreleased
+## [1.16.0] — unreleased
+
+### Changed
+
+- **`{{join}}`'s fallback option is now named `fallback`,** matching every other tag. It shipped in 1.15.0 as `fallback_text`, the legacy name every other tag had already moved away from. Because 1.15.0 is one release old and the option is new, this is a plain rename with no migration: a `{{join}}` tag that already has Fallback Text set needs it re-entered. Nothing else about the option changes.
+
+### Removed
+
+- Removed seven option-builder functions that no longer fed any tag (`bws_get_content_options`, `bws_get_custom_text_options`, and the four `bws_get_date*_options` builders for the retired date/datetime templates), along with an unused helper method on the source base class. These were internal leftovers from templates retired in earlier releases. `bws_post_term_extraction_options()` is kept, since external plugins can use it, and its fallback option is renamed to `fallback` to match the documented contract.
 
 ### Fixed
 
+- **`{{text}}` no longer repeats the fallback text for each empty item in a list.** Reading a list (several taxonomy terms, or several related posts) where only some entries had a value inserted the fallback in place of each empty one, so a three-term list with one value rendered `Sales, N/A, N/A`. The fallback is a stand-in for the whole tag, not for one item, so it now renders only when nothing at all resolves, and the list shows just the values that exist. A single empty result also no longer picks up a link that belonged to a real value. Behavior for a tag reading one value is unchanged.
 - **Stray characters no longer appear at the start of plugin output.** One plugin file carried an invisible byte-order mark, which PHP treats as content and prints on every page load. The visible effect was on WP-CLI: the first line of output from any `wp` command was prefixed with the stray bytes, which broke scripts that read a command's value directly. The same bytes were sent before any redirect or JSON response, so this also removes a latent cause of "headers already sent" warnings.
 
 ## [1.15.1] — 2026-07-20

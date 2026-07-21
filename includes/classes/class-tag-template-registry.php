@@ -886,7 +886,7 @@ class TagTemplateRegistry {
 					}
 				}
 
-				// All slots exhausted — apply fallback_text, then label if in preview.
+				// All slots exhausted — apply the fallback, then label if in preview.
 				if ( '' !== $fallback ) {
 					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
 				}

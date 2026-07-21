@@ -15,55 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 // OPTIONS FUNCTIONS
 // ===============================================
 
-/**
- * Options for the content tag template.
- *
- * @since 1.4.0
- * @return array
- */
-function bws_get_content_options() {
-	return array(
-		'type' => array(
-			'type'    => 'select',
-			'label'   => __( 'Content Type', 'generateblocks' ),
-			// No 'default' key — '' is the visual default; nothing serialized when unchanged.
-			'options' => array(
-				array( 'value' => '',             'label' => __( 'Content/Description', 'generateblocks' ) ),
-				array( 'value' => 'custom_field', 'label' => __( 'Custom Field', 'generateblocks' ) ),
-			),
-		),
-		'key' => array(
-			'type'         => 'bws-field-combo',
-			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-			'dynamicLabel' => true,
-			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
-			'placeholder'  => 'field_name',
-			'show_if'      => array( 'type' => 'custom_field' ),
-		),
-		'fallback_text' => array(
-			'type'  => 'text',
-			'label' => __( 'Fallback Text', 'generateblocks' ),
-			'help'  => __( 'Text to display if content is empty or not found.', 'generateblocks' ),
-		),
-	);
-}
-
-/**
- * Options for the custom_text tag template.
- *
- * @since 1.3.0
- * @return array
- */
-function bws_get_custom_text_options() {
-	return array(
-		'fallback_text' => array(
-			'type'  => 'text',
-			'label' => __( 'Fallback Text', 'generateblocks' ),
-			'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
-		),
-	);
-}
-
 // ===============================================
 // CORE FUNCTIONS
 // ===============================================
@@ -80,7 +31,7 @@ function bws_get_custom_text_options() {
 function bws_post_content_core( $post_id, $options, $instance ) {
 	$type = $options['type'] ?? '';
 
-	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 
 	// --- Custom field branch ---
 	if ( 'custom_field' === $type ) {
@@ -223,7 +174,7 @@ function bws_post_permalink_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_post_custom_text_core( $post_id, $options, $instance ) {
-	$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 
 	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
 

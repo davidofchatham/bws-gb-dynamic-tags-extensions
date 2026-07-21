@@ -14,280 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ===============================================
-// OPTION DEFINITIONS — DATE TEMPLATES
-// ===============================================
-
-/**
- * Date-only single tag options (no time-related options).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_date_single_options() {
-	return array(
-		'date_time_field' => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key.', 'generateblocks' ),
-			'placeholder' => __( 'event_date', 'generateblocks' ),
-		),
-		'format_type'     => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y"). See PHP date() documentation.', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y', 'generateblocks' ),
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
-			'default' => true,
-		),
-		'fallback_text'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid date is found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-/**
- * Date-only range tag options (no time-related options).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_date_range_options() {
-	return array(
-		'start_field'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key for start date.', 'generateblocks' ),
-			'placeholder' => __( 'start_date', 'generateblocks' ),
-		),
-		'end_field'     => array(
-			'type'        => 'text',
-			'label'       => __( 'End Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key for end date (optional).', 'generateblocks' ),
-			'placeholder' => __( 'end_date', 'generateblocks' ),
-		),
-		'format_type'   => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format' => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y"). See PHP date() documentation.', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y', 'generateblocks' ),
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'separator'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Separator', 'generateblocks' ),
-			'help'        => __( 'Text between start and end dates.', 'generateblocks' ),
-			'default'     => '–',
-			'placeholder' => __( '–', 'generateblocks' ),
-		),
-		'fallback_text' => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-// ===============================================
-// OPTION DEFINITIONS — DATETIME TEMPLATES
-// ===============================================
-
-/**
- * DateTime single tag options (full option set with time support).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_datetime_single_options() {
-	return array(
-		'date_time_field'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for a date-time, date, or time picker field.', 'generateblocks' ),
-			'placeholder' => __( 'event_date', 'generateblocks' ),
-		),
-		'time_field'        => array(
-			'type'        => 'text',
-			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
-			'placeholder' => __( 'event_time', 'generateblocks' ),
-		),
-		'format_type'       => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y g:i A").', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y g:i A', 'generateblocks' ),
-		),
-		'date_only'         => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show date only', 'generateblocks' ),
-			'help'    => __( 'Hide time components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'time_only'         => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show time only', 'generateblocks' ),
-			'help'    => __( 'Hide date components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'smart_time'        => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Smart Time Formatting', 'generateblocks' ),
-			'help'    => __( 'Hide time if midnight and other intelligent time formatting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
-			'default' => true,
-		),
-		'fallback_text'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid date-time is found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date/time TBA', 'generateblocks' ),
-		),
-	);
-}
-
-/**
- * DateTime range tag options (full option set with time support).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_datetime_range_options() {
-	return array(
-		'start_field'         => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
-			'placeholder' => __( 'start_date_time', 'generateblocks' ),
-		),
-		'start_time_field'    => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
-			'placeholder' => __( 'start_time', 'generateblocks' ),
-		),
-		'end_field'           => array(
-			'type'        => 'text',
-			'label'       => __( 'End Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
-			'placeholder' => __( 'end_date_time', 'generateblocks' ),
-		),
-		'end_time_field'      => array(
-			'type'        => 'text',
-			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
-			'placeholder' => __( 'end_time', 'generateblocks' ),
-		),
-		'format_type'         => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'       => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y g:i A").', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y g:i A', 'generateblocks' ),
-		),
-		'date_only'           => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show date only', 'generateblocks' ),
-			'help'    => __( 'Hide time components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'time_only'           => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show time only', 'generateblocks' ),
-			'help'    => __( 'Hide date components and show only time range.', 'generateblocks' ),
-			'default' => false,
-		),
-		'smart_time'          => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Smart Time Formatting', 'generateblocks' ),
-			'help'    => __( 'Hide time if midnight, consolidate AM/PM in ranges.', 'generateblocks' ),
-			'default' => true,
-		),
-		'omit_current_year'   => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'separator'           => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Separator', 'generateblocks' ),
-			'help'        => __( 'Text between start and end dates.', 'generateblocks' ),
-			'default'     => '–',
-			'placeholder' => __( '–', 'generateblocks' ),
-		),
-		'date_time_separator' => array(
-			'type'        => 'text',
-			'label'       => __( 'Date-Time Separator', 'generateblocks' ),
-			'help'        => __( 'Text between date and time when using separate fields.', 'generateblocks' ),
-			'placeholder' => __( ', ', 'generateblocks' ),
-		),
-		'fallback_text'       => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-// ===============================================
 // OPTION DEFINITIONS — BASE TAGS
 // ===============================================
 
@@ -934,8 +660,8 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * showCurrentYear, showMidnight, fallback) map to the canonical keys the core
  * functions, format builders, and formatters read (date_time_field, time_field,
  * start_field/end_field, date_only/time_only, format_type/custom_format,
- * date_time_separator, separator, omit_current_year, smart_time,
- * fallback_text).
+ * date_time_separator, separator, omit_current_year, smart_time). `fallback`
+ * is already canonical and passes through untouched.
  *
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
  * Both render paths (base callbacks, try_/modifier template closures) and the
@@ -981,11 +707,6 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	// showMidnight (true = show midnight) → smart_time (true = hide midnight) — inverted.
 	// Absent showMidnight → smart_time true (default: smart-hide midnight).
 	$mapped['smart_time'] = empty( $options['showMidnight'] );
-
-	// fallback → fallback_text.
-	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
-		$mapped['fallback_text'] = $options['fallback'];
-	}
 
 	if ( ! $range ) {
 		// key → date_time_field, timeKey → time_field.
@@ -1141,7 +862,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	// on all-empty output, never per item (else an empty term/post inside the
 	// limit window would inject the fallback text into the list).
 	$item_opts = $mapped;
-	unset( $item_opts['fallback_text'] );
+	unset( $item_opts['fallback'] );
 
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
@@ -1264,7 +985,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	// Per-item reads in list mode suppress the fallback (fires once below).
 	$item_opts = $mapped;
-	unset( $item_opts['fallback_text'] );
+	unset( $item_opts['fallback'] );
 
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 

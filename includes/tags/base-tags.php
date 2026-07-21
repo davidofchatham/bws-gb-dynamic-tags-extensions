@@ -653,9 +653,8 @@ function bws_register_base_tags(): void {
  *                        multi-result output; caller must not link-wrap.
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
-	$use  = $options['use'] ?? 'key';
-	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
-	$opts = bws_base_map_options( $options );
+	$use = $options['use'] ?? 'key';
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
 
 	// src:site — no entity; site value with sentinel link identity (id 1, 'site' type).
 	if ( 'site' === ( $options['src'] ?? '' ) ) {
@@ -685,6 +684,17 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// when there is no tax hop.
 	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
 
+	// Per-item reads in list mode suppress the fallback — it fires ONCE in the
+	// callback on all-empty output, never per item (else an empty term/post
+	// inside the limit window injects the fallback text into the list, and a
+	// lone fallback would satisfy the 1 === count($out) link gate below and be
+	// link-wrapped as though it were a real value — GH #51). Matches datetime's
+	// contract (bws_base_datetime_single_callback) and try_'s (TagTemplateRegistry).
+	// The singular arms below keep the full $options: no list to pollute, and the
+	// cores' own fallback emit is the shipped behavior there.
+	$item_opts = $options;
+	unset( $item_opts['fallback'] );
+
 	$link_id   = 0;
 	$link_type = 'post';
 
@@ -696,8 +706,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		$first_term_id = 0;
 		foreach ( array_slice( $terms, 0, $limit ) as $term ) {
 			$result = 'title' === $use
-				? bws_term_title_core( $term->term_id, $opts, $instance )
-				: bws_term_custom_text_core( $term->term_id, $opts, $instance );
+				? bws_term_title_core( $term->term_id, $item_opts, $instance )
+				: bws_term_custom_text_core( $term->term_id, $item_opts, $instance );
 			if ( '' !== $result ) {
 				$out[] = $result;
 				if ( ! $first_term_id ) {
@@ -722,8 +732,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		$first_id = 0;
 		foreach ( array_slice( $post_ids, 0, $limit ) as $pid ) {
 			$result = 'title' === $use
-				? bws_post_title_core( $pid, $opts, $instance )
-				: bws_post_custom_text_core( $pid, $opts, $instance );
+				? bws_post_title_core( $pid, $item_opts, $instance )
+				: bws_post_custom_text_core( $pid, $item_opts, $instance );
 			if ( '' !== $result ) {
 				$out[] = $result;
 				if ( ! $first_id ) {
@@ -737,11 +747,11 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_type = 'post';
 		}
 	} elseif ( 'title' === $use ) {
-		$value     = bws_post_title_core( $post_id, $opts, $instance );
+		$value     = bws_post_title_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	} else {
-		$value     = bws_post_custom_text_core( $post_id, $opts, $instance );
+		$value     = bws_post_custom_text_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	}
@@ -757,10 +767,22 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
  * Callback for the `text` base tag.
  *
  * Shell over bws_base_text_resolve_value(): resolve the value, link-wrap
- * single-result output, fall back to the editor preview label when empty.
+ * single-result output, then on empty output apply the editor preview label
+ * (editor) or the fallback (front end).
+ *
+ * The fallback fires HERE, once, on all-empty output — the list loops in
+ * bws_base_text_resolve_value() suppress it per item (GH #51). Singular reads
+ * still emit it from inside the core, so this path only fires for them when the
+ * core produced nothing at all; `''` either way, so the double route is inert.
+ *
+ * Preview label outranks the fallback in the editor: the author needs to see the
+ * tag's configuration, not the masked-empty output. Matches {{join}} and
+ * datetime.
  *
  * @since 1.6.0
  * @since 1.14.1 Value resolution extracted to bws_base_text_resolve_value().
+ * @since 1.16.0 All-empty fallback path (GH #51) — list mode no longer emits the
+ *               fallback per item.
  */
 function bws_base_text_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -782,7 +804,16 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 		return $value;
 	}
 
-	return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'text' ) : '';
+	if ( $is_preview && function_exists( 'bws_build_preview_label' ) ) {
+		return bws_build_preview_label( $options, 'text' );
+	}
+
+	// All slots empty — apply the fallback. Never link-wrapped: it is not a
+	// resolved entity's value, so there is no entity to link to.
+	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
+	return '' !== $fallback
+		? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+		: '';
 }
 
 /**
@@ -925,7 +956,7 @@ function bws_get_join_options(): array {
 		'placeholder' => '%1 (%2)',
 		'show_if'     => array( 'mode' => 'template' ),
 	);
-	$options['fallback_text'] = array(
+	$options['fallback'] = array(
 		'type'  => 'text',
 		'label' => __( 'Fallback Text', 'generateblocks' ),
 		'help'  => __( 'Text to display when all fields are empty.', 'generateblocks' ),
@@ -941,7 +972,7 @@ function bws_get_join_options(): array {
  * try_'s selecting fold), resolves each through the absorbed text read
  * (bws_join_resolve_slot → bws_base_text_resolve_value; link identity
  * ignored, no per-slot link-wrap), then assembles via separator or template
- * mode. All-empty output falls back to `fallback_text` (or '' so GB's
+ * mode. All-empty output falls back to `fallback` (or '' so GB's
  * empty-render handling hides the block).
  *
  * Source carry-forward asymmetry: slot ≥2 `''`/`same` src inherits the prior
@@ -1032,7 +1063,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		if ( $is_preview && function_exists( 'bws_build_join_preview_label' ) ) {
 			return bws_build_join_preview_label( (array) $options );
 		}
-		$fallback = sanitize_text_field( $options['fallback_text'] ?? '' );
+		$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 		return '' !== $fallback
 			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
 			: '';
@@ -1059,7 +1090,8 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 
 	$use  = $options['use'] ?? 'content';
 	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
-	$opts = bws_base_map_options( $options );
+	// Local copy — the use:key arm sets $opts['type'] below.
+	$opts = $options;
 
 	// src:site — content option markup via shared pipeline (handled in resolver). No link wrap.
 	if ( 'site' === ( $options['src'] ?? '' ) ) {
@@ -1577,16 +1609,16 @@ function bws_try_text_term_dispatch( $term_id, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
-	$use  = $options['use'] ?? 'content';
-	$opts = bws_base_map_options( $options );
+	$use = $options['use'] ?? 'content';
 	if ( 'excerpt' === $use ) {
-		return bws_post_excerpt_core( $post_id, $opts, $instance );
+		return bws_post_excerpt_core( $post_id, $options, $instance );
 	}
 	if ( 'key' === $use ) {
+		$opts         = $options;
 		$opts['type'] = 'custom_field';
 		return bws_post_content_core( $post_id, $opts, $instance );
 	}
-	return bws_post_content_core( $post_id, $opts, $instance );
+	return bws_post_content_core( $post_id, $options, $instance );
 }
 
 /**
@@ -1595,13 +1627,12 @@ function bws_try_content_post_dispatch( $post_id, $options, $instance ) {
  * @since 1.6.0
  */
 function bws_try_content_term_dispatch( $term_id, $options, $instance ) {
-	$use  = $options['use'] ?? 'content';
-	$opts = bws_base_map_options( $options );
+	$use = $options['use'] ?? 'content';
 	if ( 'key' === $use ) {
-		return bws_term_custom_text_core( $term_id, $opts, $instance );
+		return bws_term_custom_text_core( $term_id, $options, $instance );
 	}
 	// content (default) and excerpt both fall back to term description on terms.
-	return bws_term_description_core( $term_id, $opts, $instance );
+	return bws_term_description_core( $term_id, $options, $instance );
 }
 
 /**
