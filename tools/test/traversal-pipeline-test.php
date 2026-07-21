@@ -791,6 +791,40 @@ eq( 'CV string return link null', null, $r['link'] );
 $r = bws_collect_value_list( array( 'a' ), function ( $i, $o ) { return array( 'value' => 'x', 'link' => 5 ); }, array() );
 eq( 'CV non-array link -> null', null, $r['link'] );
 
+// ── FW-49 — bws_source_link_identity (resolved source → link identity) ───────
+//
+// Pure mapper (field-helpers.php): {kind,id} for post|term|user (id>0), site
+// sentinel id 1 (matches existing site link-wrap call sites), null otherwise
+// (I12: no sentinel for "no link identity"). House pattern: inline copy.
+
+if ( ! function_exists( 'bws_source_link_identity' ) ) {
+	function bws_source_link_identity( array $source ): ?array {
+		$kind = $source['kind'] ?? '';
+
+		switch ( $kind ) {
+			case 'post':
+			case 'term':
+			case 'user':
+				$id = (int) ( $source['id'] ?? 0 );
+				return $id > 0 ? array( 'kind' => $kind, 'id' => $id ) : null;
+
+			case 'site':
+				return array( 'kind' => 'site', 'id' => 1 );
+		}
+
+		return null;
+	}
+}
+
+eq( 'LI post', array( 'kind' => 'post', 'id' => 7 ), bws_source_link_identity( post_src( 7 ) ) );
+eq( 'LI term', array( 'kind' => 'term', 'id' => 3 ), bws_source_link_identity( term_src( 3 ) ) );
+eq( 'LI user', array( 'kind' => 'user', 'id' => 2 ), bws_source_link_identity( user_src( 2 ) ) );
+eq( 'LI site sentinel 1', array( 'kind' => 'site', 'id' => 1 ), bws_source_link_identity( array( 'kind' => 'site' ) ) );
+eq( 'LI post id 0 -> null', null, bws_source_link_identity( post_src( 0 ) ) );
+eq( 'LI meta_row -> null', null, bws_source_link_identity( array( 'kind' => 'meta_row', 'row' => array() ) ) );
+eq( 'LI unknown kind -> null', null, bws_source_link_identity( array( 'kind' => 'date' ) ) );
+eq( 'LI empty source -> null', null, bws_source_link_identity( array() ) );
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

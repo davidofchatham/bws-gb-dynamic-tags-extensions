@@ -430,6 +430,40 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 }
 
 /**
+ * Map a resolved source to its link identity, or null when it has none (PURE).
+ *
+ * Link identity is the {kind,id} pair bws_resolve_link_url consumes
+ * (post|term|user|site). Per CONTEXT.md I12, link-wrappability is a property
+ * of the VALUE a source produces, not of the source kind — a source with no
+ * link identity (meta_row, future query-context kinds) maps to null, NEVER a
+ * sentinel id. site maps to sentinel id 1, matching the existing site
+ * link-wrap call sites (bws_wrap_with_link(..., 1, 'site')) — that sentinel
+ * is bws_resolve_link_url's own site convention, not an absence marker.
+ *
+ * @since 1.16.0
+ * @param array $source One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * @return array{kind:string, id:int}|null Link identity, or null.
+ */
+if ( ! function_exists( 'bws_source_link_identity' ) ) {
+function bws_source_link_identity( array $source ): ?array {
+	$kind = $source['kind'] ?? '';
+
+	switch ( $kind ) {
+		case 'post':
+		case 'term':
+		case 'user':
+			$id = (int) ( $source['id'] ?? 0 );
+			return $id > 0 ? array( 'kind' => $kind, 'id' => $id ) : null;
+
+		case 'site':
+			return array( 'kind' => 'site', 'id' => 1 );
+	}
+
+	return null;
+}
+}
+
+/**
  * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
  * to a list of raw candidate field-value strings.
  *
@@ -450,17 +484,24 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
  *
  * Signature + string[] return are FROZEN (SPEC §V3) — every existing caller
  * (email/phone × 2) renders identically except the limit>1 ref-plural change.
+ * The optional $links out-param (FW-49) is ADDITIVE: existing callers omit it
+ * and see zero change; callers that pass a variable receive one link identity
+ * per RETURNED value (parallel arrays — $links[i] belongs to the returned
+ * value [i]), each bws_source_link_identity({kind,id})|null per CONTEXT.md I12.
  * Returns RAW, UNVALIDATED strings — per-tag validation + L3 composition stay in
  * each tag's callback. The resolver is composition-blind.
  *
  * @since 1.11.0
  * @since 1.14.0 Delegates L1 to the source factory + traversal engine; ref plural.
- * @param array  $options  Tag options (key, src, ref, srcTermIn, limit, …).
- * @param object $instance GB tag instance.
+ * @since 1.16.0 Optional $links out-param carries per-value link identity (FW-49).
+ * @param array      $options  Tag options (key, src, ref, srcTermIn, limit, …).
+ * @param object     $instance GB tag instance.
+ * @param array|null $links    Optional out-param: filled with one link identity
+ *                             ({kind,id}|null) per returned value, same order.
  * @return string[] Raw candidate value strings (unvalidated, empties dropped).
  */
 if ( ! function_exists( 'bws_resolve_field_values' ) ) {
-function bws_resolve_field_values( array $options, $instance ): array {
+function bws_resolve_field_values( array $options, $instance, ?array &$links = null ): array {
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key ) {
 		return array();
@@ -489,12 +530,16 @@ function bws_resolve_field_values( array $options, $instance ): array {
 	$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
 	$sources = array_slice( $sources, 0, $limit );
 
-	// L2 — read each resolved source by kind; drop empties.
-	$out = array();
+	// L2 — read each resolved source by kind; drop empties. Link identity is
+	// carried out per KEPT value (FW-49) instead of being discarded with the
+	// source — $links stays parallel to the returned strings.
+	$out   = array();
+	$links = array();
 	foreach ( $sources as $source ) {
 		$value = bws_read_resolved_source( $source, $key, $instance );
 		if ( '' !== $value ) {
-			$out[] = $value;
+			$out[]   = $value;
+			$links[] = bws_source_link_identity( $source );
 		}
 	}
 	return $out;
