@@ -27,7 +27,11 @@ runs these; run them locally before commit.
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
 there is a seeded WP site on the local OpenLiteSpeed/Docker env at `D:/Environments/wp-litespeed`,
 site `testbed`. **Prefer routing integration smoke tests through it over hand-built pages or
-live-site probes.** Two entrypoints:
+live-site probes.**
+
+**All `bin/*.sh` commands below live in the ENV repo, not this one — run them from
+`D:/Environments/wp-litespeed`** (e.g. `cd /d/Environments/wp-litespeed && bash bin/seed.sh …`).
+There is no `bin/` in this plugin repo. Two entrypoints:
    - **Render a tag with real ambient context:**
      `bin/wp.sh testbed bws render-tag '{{...}}' --url=https://testbed.test/<context>/`
      (`--loop-item=<id>` for a synthetic query-loop row, `--porcelain` for output-only). Runs
@@ -40,6 +44,12 @@ live-site probes.** Two entrypoints:
      (`matrix-post-meta`, `matrix-terms-valid|mixed|junk`); tag families accrete rows into them.
      See `tools/fixtures/core-structures/README.md`. Full design: `.claude/plans/fixture-testbed.md`.
 
+**Front-end pages are LiteSpeed-cached — always cache-bust when eyeballing after a reseed:**
+`curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"`. A plain curl can return the
+pre-reseed page, so new fixture rows read as MISSING when they seeded fine. `bin/wp.sh testbed
+litespeed-purge all` does NOT work from the wpcli container (see `docs/agents/env-notes.md`) — use
+the query string.
+
 The manual `*-test-matrix.md` files (integration rows exercised by hand / via `render-tag`) are
 noted per trigger — run against the testbed, never the live/cached site.
 
@@ -50,7 +60,7 @@ a NEW builder + dispatcher entry + `content_builder` on the fixture when the row
 type with no page content yet — e.g. join's `staff_join` on the staff singles). The user browses
 these on the actual site (front end to eyeball, editor to interact with controls / check reveal
 rows). Do NOT leave rows as `render-tag`-only — that has been MISSED TWICE. Reseed + curl the front
-end to confirm before commit. Exceptions (render-tag/harness-only): a bare tag needing a term
+end (with the `?nocache=` bust above — a cached page hides brand-new rows) to confirm before commit. Exceptions (render-tag/harness-only): a bare tag needing a term
 ARCHIVE as ambient context (text T4), or synthetic per-field blanking with no fixture (join
 J23/J24) — state the exception in the matrix. NB the front-end page runs WP content filters
 (`wptexturize` — straight quotes → curly; use prime marks `′`/`″` for units) that `--porcelain`
