@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Deprecated tag migration data (formerly: deprecated tag wrappers).
  *

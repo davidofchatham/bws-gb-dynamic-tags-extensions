@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.15.2] — unreleased
+
+### Fixed
+
+- **Stray characters no longer appear at the start of plugin output.** One plugin file carried an invisible byte-order mark, which PHP treats as content and prints on every page load. The visible effect was on WP-CLI: the first line of output from any `wp` command was prefixed with the stray bytes, which broke scripts that read a command's value directly. The same bytes were sent before any redirect or JSON response, so this also removes a latent cause of "headers already sent" warnings.
+
 ## [1.15.1] — 2026-07-20
 
 ### Fixed
