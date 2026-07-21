@@ -23,6 +23,8 @@
  *   Step 4   ws collapse + ws-before-connective repair + leading orphan strip
  *   Step 4b  trailing orphan : , . stripped unless format ends '.'; quotes kept
  *   Step 5   single survivor strips remaining connective separators
+ *   Step 0   ~…~ unit groups; `~~` escapes a literal tilde (\x01 sentinel keeps
+ *            it away from the group parser so delimiter parity survives)
  *   '0' is a REAL value everywhere ('' is the only empty).
  *   All-empty tokens → '' (fallback fires at the callback layer).
  *
@@ -234,6 +236,32 @@ assert_same(
 	'~~ escapes a literal tilde',
 	'a ~ b',
 	tpl( array( 1 => 'a', 2 => 'b' ), '{1} ~~ {2}' )
+);
+
+// The \x01 sentinel exists so an escaped `~~` never reaches the group parser and
+// corrupts delimiter parity. The plain '{1} ~~ {2}' case above cannot prove that:
+// with no real group present, str_contains($format, '~') is false after
+// sentineling and bws_join_apply_groups() never runs. These four pair a literal
+// `~~` WITH a real ~…~ group, so the parser does run and parity is under test.
+assert_same(
+	'literal ~~ before a bare token, group on the left (parity holds)',
+	'5 in ~ 11',
+	tpl( array( 1 => '5', 2 => '11' ), '~{1} in~ ~~ {2}' )
+);
+assert_same(
+	'literal ~~ between two real groups (parity holds)',
+	'5 in ~ 11 cm',
+	tpl( array( 1 => '5', 2 => '11' ), '~{1} in~ ~~ ~{2} cm~' )
+);
+assert_same(
+	'literal ~~ before a real group, bare token on the left',
+	'5 ~ 11 in',
+	tpl( array( 1 => '5', 2 => '11' ), '{1} ~~ ~{2} in~' )
+);
+assert_same(
+	'empty group sheds beside a literal ~~ (escaped tilde survives)',
+	'5 ft ~',
+	tpl( array( 1 => '5', 2 => '' ), '~{1} ft~ ~~ ~{2} in~' )
 );
 assert_same(
 	'empty group last, earlier empty token: both shed, look-left on group',

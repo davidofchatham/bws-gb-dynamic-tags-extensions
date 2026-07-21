@@ -150,6 +150,8 @@ the wire round-trip (`~` rides GB's tag string unescaped — verified against GB
 | J26 | `{{join mode:template\|format:%1′ / ~%2 in~\|key:height_ft\|2-key:height_in_blank}}` | `5′` — empty group sheds whole (unit word `in` AND the `/` separator; contrast J12 where a space-separated unit would survive) |
 | J27 | `{{join mode:template\|format:~%1 ft~ / ~%2 in~\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — all groups empty → fallback (`name_generation` unseeded on this page) |
 | J28 | `{{join mode:template\|format:%1 ~~ %2\|key:height_ft\|2-key:height_in}}` | `5 ~ 11` — `~~` renders a literal tilde |
+| J28b | `{{join mode:template\|format:~%1 in~ ~~ ~%2 cm~\|key:height_ft\|2-key:height_in}}` | `5 in ~ 11 cm` — literal `~~` BETWEEN two real groups: the escape is sentineled away from the group parser, so delimiter parity is unaffected (J28 alone can't prove this — with no real group present the parser never runs) |
+| J28c | `{{join mode:template\|format:~%1 ft~ ~~ ~%2 in~\|key:height_ft\|2-key:height_in_blank}}` | `5 ft ~` — empty group sheds beside a literal `~~`; output ends in a bare trailing tilde (eyeball on the page, not `--porcelain`) |
 
 ## Per-slot src / use / site / list (absorb — `/matrix-post-meta/`)
 

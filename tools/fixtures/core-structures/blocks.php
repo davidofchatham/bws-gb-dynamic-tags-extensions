@@ -257,6 +257,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J26', '{{join mode:template|format:%1′ / ~%2 in~|key:height_ft|2-key:height_in_blank}}' ),
 		bws_fixture_gb_row( 'J27', '{{join mode:template|format:~%1 ft~ / ~%2 in~|key:name_generation|2-key:height_in_blank|fallback_text:—}}' ),
 		bws_fixture_gb_row( 'J28', '{{join mode:template|format:%1 ~~ %2|key:height_ft|2-key:height_in}}' ),
+		bws_fixture_gb_row( 'J28b', '{{join mode:template|format:~%1 in~ ~~ ~%2 cm~|key:height_ft|2-key:height_in}}' ),
+		bws_fixture_gb_row( 'J28c', '{{join mode:template|format:~%1 ft~ ~~ ~%2 in~|key:height_ft|2-key:height_in_blank}}' ),
 	) );
 
 	// datetime matrix (datetime-test-matrix.md) — D0/D1/D2 baseline rows, D3
