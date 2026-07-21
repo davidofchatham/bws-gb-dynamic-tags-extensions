@@ -502,6 +502,96 @@ function bws_resolve_field_values( array $options, $instance ): array {
 }
 
 /**
+ * Fold a list of read targets into a joined value list carrying link identity (L3).
+ *
+ * THE shared combining fold for list-mode output (FW-49 convergence). One
+ * implementation replaces the hand-written slice/suppress/render/drop/join
+ * loops in base text/title (srcTermIn + src:ref branches) and datetime
+ * single/range (bws_datetime_collect_list). The seam
+ * (bws_resolve_field_values) does NOT route through this — its string[]
+ * return is frozen (SPEC §V3); it only carries link identity out per value.
+ *
+ * Owns, in order:
+ *  1. slice to `limit` (default 1);
+ *  2. per-item fallback suppression — $render receives $options with
+ *     'fallback' unset, so the fallback fires ONCE in the caller on all-empty
+ *     output, never per item (GH #51: a per-item fallback would pollute the
+ *     list AND satisfy the single-result link gate as though it were a value);
+ *  3. render each item ('' or empty 'value' drops silently);
+ *  4. per-value link capture;
+ *  5. the single-result link gate (top-level `link` = values[0]['link'] iff
+ *     count is exactly 1);
+ *  6. `sep` join (default ', ').
+ *
+ * @invariant (CONTEXT.md I12) Link-wrappability is a property of the VALUE,
+ * not of the source kind. Each collected value carries `link` — the {kind,id}
+ * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
+ * identity" is null, NEVER a sentinel id; kinds with no link identity
+ * (meta_row today, the #19 query-context kinds as they land) are normal, not
+ * exceptional — they collect fine and simply cannot be link-wrapped. The
+ * top-level single-result gate is a JOIN constraint, not a linking one: a
+ * multi-value composite string is unwrappable as ONE link, while the
+ * per-value links remain available in `values` for future per-item wrapping.
+ *
+ * The fold never coerces or inspects an item — $render owns the item→value
+ * read entirely. Callers keep their raw $options for linkTo/linkKey/newTab
+ * and the preview label; only the fold inputs route through here. Datetime
+ * callers pass the NORMALIZED ($mapped) options: bws_normalize_datetime_options
+ * is purely additive ($mapped ⊇ $options), so one array serves both the
+ * slice keys and $render's per-item options.
+ *
+ * @since 1.16.0
+ * @param array    $items   Read targets in document order (terms, post ids, …).
+ * @param callable $render  fn( $item, array $item_opts ): array{value:string, link:?array}|string
+ *                          Return '' to skip the item. A plain non-empty string
+ *                          is accepted as a value with no link identity.
+ *                          `link` is array{kind:string, id:int} or null.
+ * @param array    $options Tag options (limit / sep / fallback).
+ * @return array{
+ *   value:  string,
+ *   values: array<int, array{value:string, link:?array}>,
+ *   count:  int,
+ *   link:   ?array,
+ * }
+ */
+if ( ! function_exists( 'bws_collect_value_list' ) ) {
+function bws_collect_value_list( array $items, callable $render, array $options ): array {
+	$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
+	$sep   = $options['sep'] ?? ', ';
+
+	$item_opts = $options;
+	unset( $item_opts['fallback'] );
+
+	$values = array();
+	foreach ( array_slice( $items, 0, $limit ) as $item ) {
+		$result = $render( $item, $item_opts );
+		if ( is_array( $result ) ) {
+			$value = (string) ( $result['value'] ?? '' );
+			$link  = $result['link'] ?? null;
+		} else {
+			$value = (string) $result;
+			$link  = null;
+		}
+		if ( '' === $value ) {
+			continue;
+		}
+		$values[] = array(
+			'value' => $value,
+			'link'  => is_array( $link ) ? $link : null,
+		);
+	}
+
+	$count = count( $values );
+	return array(
+		'value'  => implode( $sep, array_column( $values, 'value' ) ),
+		'values' => $values,
+		'count'  => $count,
+		'link'   => 1 === $count ? $values[0]['link'] : null,
+	);
+}
+}
+
+/**
  * Internal: route a meta read through GenerateBlocks_Meta_Handler with raw WP fallback.
  *
  * @since 1.7.0

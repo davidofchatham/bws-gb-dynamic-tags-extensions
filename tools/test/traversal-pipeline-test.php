@@ -14,6 +14,8 @@
  *   bws_run_step()                 dispatch: unknown type/kind → [], input-kind gate
  *   bws_pipeline_ref_to_posts()    plural: EVERY id, no first-only collapse (§V6)
  *   bws_pipeline_terms_to_sources()WP_Term[] → term sources
+ *   bws_collect_value_list()       FW-49 L3 combining fold: slice/suppress/
+ *                                  render/drop/link-gate/join (CONTEXT.md I12)
  *
  * EXCLUDED — the live reader (bws_pipeline_default_reader: get_post_meta/get_field/
  * get_the_terms) and the factory (T2, its own precedence fixtures). Manual sweep
@@ -677,6 +679,117 @@ eq( 'V14 drops id 0', array( 4 ), ids_post_kind_only( array( post_src( 0 ), post
 
 // Empty ref → empty list (slot renders nothing, not a stray first).
 eq( 'V14 empty ref -> empty list', array(), ids_post_kind_only( array() ) );
+
+// ── FW-49 — bws_collect_value_list (shared L3 combining fold) ────────────────
+//
+// Pure fold (field-helpers.php): slice→suppress→render→drop→link-gate→join.
+// House pattern: copy the shipped function inline, byte-equivalent.
+
+if ( ! function_exists( 'bws_collect_value_list' ) ) {
+	function bws_collect_value_list( array $items, callable $render, array $options ): array {
+		$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
+		$sep   = $options['sep'] ?? ', ';
+
+		$item_opts = $options;
+		unset( $item_opts['fallback'] );
+
+		$values = array();
+		foreach ( array_slice( $items, 0, $limit ) as $item ) {
+			$result = $render( $item, $item_opts );
+			if ( is_array( $result ) ) {
+				$value = (string) ( $result['value'] ?? '' );
+				$link  = $result['link'] ?? null;
+			} else {
+				$value = (string) $result;
+				$link  = null;
+			}
+			if ( '' === $value ) {
+				continue;
+			}
+			$values[] = array(
+				'value' => $value,
+				'link'  => is_array( $link ) ? $link : null,
+			);
+		}
+
+		$count = count( $values );
+		return array(
+			'value'  => implode( $sep, array_column( $values, 'value' ) ),
+			'values' => $values,
+			'count'  => $count,
+			'link'   => 1 === $count ? $values[0]['link'] : null,
+		);
+	}
+}
+
+// Render stub: items are ['v' => value, 'l' => link|null]; '' value = skip source.
+$cv_render = function ( $item, array $item_opts ) {
+	return array( 'value' => $item['v'], 'link' => $item['l'] ?? null );
+};
+$cv = function ( ...$items ) use ( $cv_render ) {
+	return function ( array $options ) use ( $items, $cv_render ) {
+		return bws_collect_value_list( $items, $cv_render, $options );
+	};
+};
+
+// Two values join with default sep; multi-result → top-level link null (I12
+// corollary: the gate is a JOIN constraint).
+$r = $cv( array( 'v' => 'A', 'l' => array( 'kind' => 'post', 'id' => 1 ) ),
+          array( 'v' => 'B', 'l' => array( 'kind' => 'post', 'id' => 2 ) ) )( array( 'limit' => 5 ) );
+eq( 'CV join default sep', 'A, B', $r['value'] );
+eq( 'CV multi-result link gate -> null', null, $r['link'] );
+eq( 'CV per-value links survive multi', array( 'kind' => 'post', 'id' => 2 ), $r['values'][1]['link'] );
+eq( 'CV count', 2, $r['count'] );
+
+// Single result → link passes the gate.
+$r = $cv( array( 'v' => 'A', 'l' => array( 'kind' => 'term', 'id' => 9 ) ) )( array( 'limit' => 3 ) );
+eq( 'CV single-result link', array( 'kind' => 'term', 'id' => 9 ), $r['link'] );
+
+// Empty renders drop; a lone survivor still passes the gate (GH #51 shape: the
+// dropped item must not block the survivor's link).
+$r = $cv( array( 'v' => '' ), array( 'v' => 'B', 'l' => array( 'kind' => 'post', 'id' => 4 ) ) )( array( 'limit' => 5 ) );
+eq( 'CV empty dropped, survivor linked', array( 'kind' => 'post', 'id' => 4 ), $r['link'] );
+eq( 'CV empty dropped from value', 'B', $r['value'] );
+
+// Value with NO link identity (meta_row-shaped) is normal: collects, single-result
+// gate yields null, never a sentinel (I12).
+$r = $cv( array( 'v' => 'raw' ) )( array() );
+eq( 'CV linkless value collects', 'raw', $r['value'] );
+eq( 'CV linkless single -> link null not sentinel', null, $r['link'] );
+
+// limit slices BEFORE render (default 1); sep honored.
+$r = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ), array( 'v' => 'C' ) )( array( 'limit' => 2, 'sep' => ' | ' ) );
+eq( 'CV limit slice + custom sep', 'A | B', $r['value'] );
+$r = $cv( array( 'v' => 'A' ), array( 'v' => 'B' ) )( array() );
+eq( 'CV default limit 1', 'A', $r['value'] );
+
+// Fallback suppression: $render must NOT see 'fallback' (GH #51 — fires once in
+// the caller on all-empty, never per item).
+$seen_fallback = 'unset-sentinel';
+bws_collect_value_list(
+	array( 'x' ),
+	function ( $item, array $item_opts ) use ( &$seen_fallback ) {
+		$seen_fallback = array_key_exists( 'fallback', $item_opts );
+		return 'v';
+	},
+	array( 'fallback' => 'NOPE', 'limit' => 1 )
+);
+eq( 'CV fallback suppressed from item opts', false, $seen_fallback );
+
+// All-empty → empty value, count 0, link null (caller's fallback territory).
+$r = $cv( array( 'v' => '' ), array( 'v' => '' ) )( array( 'limit' => 5, 'fallback' => 'NOPE' ) );
+eq( 'CV all-empty value', '', $r['value'] );
+eq( 'CV all-empty count', 0, $r['count'] );
+eq( 'CV all-empty link', null, $r['link'] );
+
+// Plain string return accepted as linkless value.
+$r = bws_collect_value_list( array( 'a' ), function ( $i, $o ) { return 'plain'; }, array() );
+eq( 'CV string return = linkless value', 'plain', $r['value'] );
+eq( 'CV string return link null', null, $r['link'] );
+
+// Malformed link (non-array) coerces to null, not a crash.
+$r = bws_collect_value_list( array( 'a' ), function ( $i, $o ) { return array( 'value' => 'x', 'link' => 5 ); }, array() );
+eq( 'CV non-array link -> null', null, $r['link'] );
 
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
