@@ -90,6 +90,23 @@ bws_base_text_callback( array( 'key' => 'nonexistent_key_xyz' ), array( 'blockNa
 
 ---
 
+## T8 — user-analog arm (bare tag on an author archive, 1.16.0 FW-48 seam half)
+
+**render-tag-only exception** (same as T4's archive-context rule): these rows need an AUTHOR
+archive as ambient context, which no fixture page's GB blocks can supply — state per CLAUDE.md
+§Development. Context: `/author/fixture-author/`.
+
+| # | Tag (on `/author/fixture-author/`) | Expected |
+|---|---|---|
+| T8.1 | `{{text use:title}}` | `Fixture Author` — display-name analog |
+| T8.2 | `{{text key:description}}` | the fixture bio — key-mode user meta read |
+| T8.3 | `{{text key:unseeded_key\|fallback:NOPE}}` | `NOPE` — key miss emits the fallback (term-core-shaped) |
+| T8.4 | `{{text use:title\|linkTo:permalink}}` | `Fixture Author` wrapped in the author-archive URL (user entity type) |
+| T8.5 | `{{join use:title}}` | `Fixture Author` — join slot absorbs the user arm through the seam |
+| T8.6 | `{{try_text use:title}}` | **empty — expected**: try_ slots read the descriptor table, not this seam; user leg lands with FW-43's fork collapse |
+
+Verified 2026-07-21 (build f6f8d1e) via `render-tag`.
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
