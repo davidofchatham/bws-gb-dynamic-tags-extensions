@@ -2,6 +2,10 @@
 
 ## [1.16.0] — unreleased
 
+### Added
+
+- **`{{text}}` now reads the author on an author archive,** joining `{{title}}` and `{{content}}` (1.15.0). With Use Entity Title it shows the display name; with a field key it reads the author's user field. `{{join}}` slots pick this up too, so a join renders on author archives. `try_` slots do not yet.
+
 ### Changed
 
 - **`{{join}}`'s fallback option is now named `fallback`,** matching every other tag. It shipped in 1.15.0 as `fallback_text`, the legacy name every other tag had already moved away from. Because 1.15.0 is one release old and the option is new, this is a plain rename with no migration: a `{{join}}` tag that already has Fallback Text set needs it re-entered. Nothing else about the option changes.
