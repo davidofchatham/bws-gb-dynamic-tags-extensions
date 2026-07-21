@@ -102,11 +102,15 @@ function bws_resolve_link_url( string $link_to, string $link_key, int $id, strin
  * Whether a default-link-wrapping tag must suppress its output on the host block.
  *
  * The native GB `visibility` gate (`tagName NOT_IN ['a','button','img','picture']`)
- * cannot catch the GB media block: that block's `tagName` attribute defaults to ''
- * and never serializes (its enum holds only 'img'), so the value-compare evaluates
- * '' NOT_IN [...] = true and the tag stays offered. The element block serializes a
- * real tagName (e.g. 'button'), so the native gate works there — media is the one
- * hole. See docs/gb-constraints.md §Visibility gate blind spot.
+ * cannot catch the GB media block, so this guard is LOAD-BEARING — not a redundant
+ * belt-and-braces backstop. Verified GB 2.3.0 (2026-07-21): a saved media block DOES
+ * serialize `"tagName":"img"`, but the picker's filter call site passes an unpopulated
+ * `tagName` prop and the comparator falls back to '' (`$o = $r?->[$a] ?? ''`), so
+ * '' NOT_IN [...] = true and every tag stays offered. (Empirically: {{email}} has
+ * carried that gate since 1.9.0 and is still listed on a media block.) The Container
+ * block's tagName enum excludes 'img'/'picture' entirely, so no editor-reachable block
+ * makes that half of the gate fire at all. See docs/gb-constraints.md §visibility
+ * blind spot for the full finding.
  *
  * On a media block GB injects the tag's output into the `<img src>` attribute
  * (class-dynamic-tags.php — `'generateblocks/media' === $block_name`), so a tag that
