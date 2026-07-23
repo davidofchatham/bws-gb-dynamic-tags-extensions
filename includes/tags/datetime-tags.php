@@ -107,11 +107,17 @@ function bws_get_datetime_single_field_key_options(): array {
 }
 
 function bws_get_base_datetime_single_options(): array {
+	// Canonical CONTROL order (FW-52): source → format → link → fallback.
+	// Source group = src → ref/srcTermIn → limit/sep → field keys (key/timeKey).
+	// The format block (as/format/timeSep/…) is control-LATE, serialize-EARLY (the
+	// normalizer lifts it to the front of the string). link then fallback last.
 	return array_merge(
-		bws_get_datetime_single_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
+		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
+		bws_get_datetime_single_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -119,9 +125,7 @@ function bws_get_base_datetime_single_options(): array {
 				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
 				'placeholder' => 'Date/time TBA',
 			),
-		),
-		bws_get_datetime_list_options( false ),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
+		)
 	);
 }
 
@@ -263,11 +267,17 @@ function bws_get_datetime_range_field_key_options(): array {
 }
 
 function bws_get_base_datetime_range_options(): array {
+	// Canonical CONTROL order (FW-52): source → format → link → fallback.
+	// Source group = src → ref/srcTermIn → limit/sep → field keys (start/end). The
+	// format block (as/rangeSep/format/…) is control-LATE, serialize-EARLY (normalizer
+	// lifts it front). link then fallback last.
 	return array_merge(
-		bws_get_datetime_range_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
+		bws_get_datetime_list_options( true ),
 		bws_get_datetime_range_field_key_options(),
+		bws_get_datetime_range_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -275,9 +285,7 @@ function bws_get_base_datetime_range_options(): array {
 				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
 				'placeholder' => 'Date TBA',
 			),
-		),
-		bws_get_datetime_list_options( true ),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
+		)
 	);
 }
 

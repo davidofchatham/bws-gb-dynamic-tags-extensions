@@ -284,7 +284,7 @@ Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269
 **Serialization order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is (corrected 2026-07-23 — link moved after source, see below):
 
 1. **`format`** group — `as`, format/separator tokens (serialize-early so the return mode is visible up front when copying a tag; see [§`as` serialization opt-out](#as-serialization-opt-out-image-term_image-try_image)).
-2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-use`, `N-key` (canonical within-slot order). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0.
+2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-limit`, `N-sep`, `N-use`, `N-key`, then the datetime field keys (`N-timeKey`, `N-startKey`, `N-startTimeKey`, `N-endKey`, `N-endTimeKey`) — canonical within-slot order (`limit`/`sep` precede the field keys: list length is a source property). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0.
 3. **`link`** group — the `linkTo`/`linkKey`/`newTab` cluster (custom — NOT GB's reserved `link`) OR, on email/phone, the own-anchor set `subject → noLink`. A role-based group (link-affecting controls, whichever mechanism); one set per tag. Placed **after source** because link is source-relative (`linkTo:post/term` links the resolved entity; `linkKey` reads a field off it) — matching GB's own `post_meta`/`post_date` `source → field → link` serialize chain.
 4. **`fallback`** group — `fallback`, last.
 

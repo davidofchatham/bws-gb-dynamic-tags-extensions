@@ -118,6 +118,9 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
+	// FW-52 canonical serialization-order model (pure; PHP mirror of the editor-JS
+	// normalizer's ordering algorithm — the harness-tested spec of the ordering contract).
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/serialization-order.php';
 
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
@@ -265,6 +268,16 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
 		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// FW-52 serialization-order normalizer: rebuilds extraTagParams in canonical
+	// serialization order (format → source → link → fallback) so the saved tag string
+	// stays readable regardless of the order the author touched the controls.
+	wp_enqueue_script(
+		'bws-dynamic-tags-order-normalizer',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/serialization-order-normalizer.js',
+		array( 'wp-hooks', 'wp-element' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

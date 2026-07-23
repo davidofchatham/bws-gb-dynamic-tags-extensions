@@ -67,10 +67,29 @@ function bws_register_base_tags(): void {
 		'tag'      => 'text',
 		'type'     => 'cross-source',
 		'supports' => array(),
+		// Canonical CONTROL order (FW-52): source → format → link → fallback.
+		// text has no format group. Within source: src → ref → srcTermIn → limit → sep
+		// → use → key (limit/sep before field keys — list length is a source property).
 		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
+				// List mode only applies to the final traversal step: terms (srcTermIn set)
+				// or related posts (src:ref). Scalar sources return one value — hide both.
+				// Ordered before the field keys (list length is a source property, FW-52).
+				'limit'    => array(
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+				),
+				'sep'      => array(
+					'type'        => 'text',
+					'label'       => __( 'Result Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+				),
 				'use'      => array(
 					'type'           => 'select',
 					'label'          => __( 'Text Field', 'generateblocks' ),
@@ -92,28 +111,13 @@ function bws_register_base_tags(): void {
 					// (nothing unique to add until multislot-feed decouple — see #26).
 					'show_if'      => array( 'use' => 'not:title' ),
 				),
+			),
+			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
+			array(
 				'fallback' => array(
 					'type'  => 'text',
 					'label' => __( 'Fallback Text', 'generateblocks' ),
 					'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
-				),
-			),
-			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
-			array(
-				// List mode only applies to the final traversal step: terms (srcTermIn set)
-				// or related posts (src:ref). Scalar sources return one value — hide both.
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
-				'sep'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Result Separator', 'generateblocks' ),
-					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
-					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 			)
 		) ),
@@ -232,21 +236,12 @@ function bws_register_base_tags(): void {
 		'tag'      => 'image',
 		'type'     => 'cross-source',
 		'supports' => array( 'image-size' ),
+		// Canonical CONTROL order (FW-52): source → format → link(none) → fallback.
+		// `as` is a FORMAT option: control-LATE (after source/field), serialize-EARLY
+		// (the normalizer lifts it to the front of the string for copy-visibility — the
+		// `as` serialization opt-out means it is always present). `size` stays GB-native
+		// (image-size support) until the as+size fold; it serializes in GB's built-in block.
 		'options'  => bws_strip_default_select_values( array_merge(
-			array(
-				'as' => array(
-					'type'    => 'select',
-					'label'   => __( 'Return type:', 'generateblocks' ),
-					'default' => 'url',
-					'options' => array(
-						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
-						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
-						array( 'value' => 'title',   'label' => __( 'Image Title', 'generateblocks' ) ),
-						array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
-						array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
-					),
-				),
-			),
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -269,6 +264,18 @@ function bws_register_base_tags(): void {
 					// use:key → custom-field (post/term) or wp_options (site) read.
 					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
 					'show_if'      => array( 'use' => 'not:featured' ),
+				),
+				'as'       => array(
+					'type'    => 'select',
+					'label'   => __( 'Return type:', 'generateblocks' ),
+					'default' => 'url',
+					'options' => array(
+						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
+						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
+						array( 'value' => 'title',   'label' => __( 'Image Title', 'generateblocks' ) ),
+						array( 'value' => 'alt',     'label' => __( 'Alt Text', 'generateblocks' ) ),
+						array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
+					),
 				),
 				'fallback' => array(
 					'type'  => 'bws-media-picker',

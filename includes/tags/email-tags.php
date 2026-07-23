@@ -67,10 +67,30 @@ function bws_register_email_tag(): void {
 				),
 			),
 		),
+		// Canonical CONTROL order (FW-52): source → format(none) → link → fallback.
+		// Source group = src → ref/srcTermIn → limit/sep → key. The email own-anchor
+		// set (subject → noLink) is the tag's `link` group → after source, before
+		// fallback (serialization normalizer keeps it that way in the string too).
 		'options'    => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
+				// List mode only applies to the final traversal step (terms / related
+				// posts). Scalar sources return one address — hide both. Before the
+				// field key (list length is a source property, FW-52).
+				'limit'    => array(
+					'type'        => 'number',
+					'label'       => __( 'Result Limit', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+				),
+				'sep'      => array(
+					'type'        => 'text',
+					'label'       => __( 'Result Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+				),
 				'key'      => array(
 					'type'         => 'bws-field-combo',
 					'label'        => __( 'Meta/Option Field', 'generateblocks' ),
@@ -96,23 +116,6 @@ function bws_register_email_tag(): void {
 					'type'  => 'checkbox',
 					'label' => __( 'Disable email link (plain text)', 'generateblocks' ),
 					'help'  => __( 'Output the address as plain text instead of a mailto: link.', 'generateblocks' ),
-				),
-			),
-			array(
-				// List mode only applies to the final traversal step (terms / related
-				// posts). Scalar sources return one address — hide both.
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
-				'sep'      => array(
-					'type'        => 'text',
-					'label'       => __( 'Result Separator', 'generateblocks' ),
-					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
-					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				// Fallback last. A fallback EMAIL ADDRESS (not arbitrary text), like
 				// {{image}} fallback = attachment ID. Validated + wrapped like a real
