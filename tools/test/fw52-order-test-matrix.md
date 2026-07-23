@@ -73,21 +73,34 @@ round-trip that harness can't reach.
 **With the fold, O1.1's expected string is now `as:url,full`** (size arg always serialized) —
 the O1.1 row below reflects this. O1.2-1.4 (nullary modes) stay bare.
 
-**Visible GB blocks NOT YET SEEDED for O4** — the O4 fixtures (a `FW-52 O4` section in
-`blocks.php`, plus legacy-split wire for the migration rows) still need authoring +
-reseed before the editor eyeball. Do that at eyeball time (§Development "make them VISIBLE").
+**Visible GB blocks SEEDED** — the `FW-52 O4` section in `blocks.php` (O4.1 media block +
+O4.2-O4.5, legacy-split wire on the migration rows) is authored + reseeded on `matrix-post-meta`.
 
 The composite owns the whole `as` widget (mode dropdown + size dropdown) — GB's native
 select would corrupt `url,full` on reopen. Verified by opening the block and reading the
 live string + interacting with the two dropdowns.
 
-| Row | Authored / action | Expected string on open | What it proves |
-|---|---|---|---|
-| O4.1 | `{{image as:url,medium\|use:key\|key:feature_image}}` | `{{image as:url,medium\|src:...\|use:key\|key:feature_image}}` | size folds into `as` value; whole token leads (format group) |
-| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | `{{image as:url,full\|use:key\|key:feature_image}}` | default size arg (`full`) always-serialized — composite writes it on open |
-| O4.3 | `{{image as:alt\|use:key\|key:feature_image}}` | `{{image as:alt\|use:key\|key:feature_image}}` | nullary return — NO size sub-slot (bare mode); size dropdown hidden in modal |
-| O4.4 | migration: `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (legacy split) | `{{image as:url,medium\|use:key\|key:feature_image}}` | `transform_callback` folds legacy `size:` into `as` on open; orphan `size:` token gone |
-| O4.5 | migration: `{{image as:alt\|size:large\|key:feature_image\|use:key}}` (dead size on nullary) | `{{image as:alt\|use:key\|key:feature_image}}` | legacy `size:` on a nullary mode is DROPPED (was dead at render) |
+**⚠ ON-OPEN vs CONVERTER — the fold does NOT happen on editor-open for a legacy `size:`
+(finding 2026-07-23).** `size` is GB-RESERVED: GB destructures it out of `parsedTag.params`
+into its OWN private `imageSize` state (`DynamicTagSelect.jsx:392,443`, ungated on support)
+and re-serializes it (`:541`, also ungated). Our `bws-as-size` composite writes only
+`extraTagParams` — it can NEITHER see nor delete GB's `imageSize`. So on open, a legacy
+`{{image size:medium|as:url}}` renders `as:url` in the composite (size shows the *default*
+`full`, ignoring the orphan) and GB keeps re-emitting the stray `size:medium`. The fold is
+therefore **Tag-Converter-only** (the converter transforms the raw string BEFORE GB parses,
+so it reaches the orphan). The `transform_callback` rows below are exercised through the
+converter, NOT by opening the block. Editor-open only REORDERS (moves the tokens; `size`
+ranks format,1 so it leads) — it does not fold. Tracked as
+[issue #53](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/53).
+
+| Row | Authored / action | Result | Path | What it proves |
+|---|---|---|---|---|
+| O4.1 | `{{image as:url,medium\|use:key\|key:feature_image}}` | `{{image as:url,medium\|src:...\|use:key\|key:feature_image}}` on open | editor open | already-folded `as` value survives; whole token leads (format group) |
+| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | composite renders url + size `full`; string writes `as:url,full` **once the author touches a control** (mount does not write) | editor open | default size arg (`full`) is the composite's rendered value; serialized on next edit |
+| O4.3 | `{{image as:alt\|use:key\|key:feature_image}}` | `{{image as:alt\|use:key\|key:feature_image}}` | editor open | nullary return — NO size sub-slot (bare mode); size dropdown hidden in modal |
+| O4.4 | migration: `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (legacy split) | `{{image as:url,medium\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open — see ⚠ above) | `transform_callback` folds legacy `size:` into `as`; orphan `size:` token gone |
+| O4.5 | migration: `{{image as:alt\|size:large\|key:feature_image\|use:key}}` (dead size on nullary) | `{{image as:alt\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open) | legacy `size:` on a nullary mode is DROPPED (was dead at render) |
+| O4.6 | on-open of a legacy split: open `{{image size:medium\|as:url\|...}}` in the editor, do NOT run the converter | `size:medium` SURVIVES (reordered to lead), composite shows size `full` | editor open (negative) | pins the GB-private-`imageSize` limitation: open-fold is impossible; converter required |
 
 **Size-visible-only-on-`url` gate (editor-only, no string — do by hand in O4.1):** in the
 modal, the size dropdown shows while Return type is URL. Change Return type to `alt` (or any
@@ -104,10 +117,11 @@ shows the default `full` in the (then-hidden-until-url) size control — no stas
 reload, correct-by-construction.
 
 **Fixture note:** these reuse the O1 `feature_image` attachment (manifest v5) on
-`matrix-post-meta`. When the fold builds, author O4.1-O4.3 as visible GB blocks (a new
-`FW-52 O4` section in `blocks.php`, authored in scrambled order like O1); O4.4/O4.5 are
-migration round-trips — author them with the LEGACY split wire (`size:` separate) so the
-`transform_callback` visibly folds them on open.
+`matrix-post-meta`. O4.1-O4.3 are seeded as visible GB blocks (the `FW-52 O4` section in
+`blocks.php`, authored in scrambled order like O1); O4.4/O4.5/O4.6 carry the LEGACY split
+wire (`size:` separate) — they are the converter round-trip (and, for O4.6, the negative
+on-open control). Run the Tag Converter to exercise O4.4/O4.5; open the block WITHOUT
+converting to reproduce O4.6.
 
 ## Notes
 

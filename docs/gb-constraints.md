@@ -86,6 +86,29 @@ Built-in options (`source`, `id`, `key`, `link`, `size`, `dateFormat`, `required
 - A custom control **can force canonical order** by rebuilding the whole `extraTagParams` object (re-inserting keys in the desired order) inside its `setState`, instead of spreading-and-appending. The stock `TextControl` path cannot — it only spreads-and-appends.
 - **Folding multiple fields into one composite-owned key** (e.g. `start:date,time`) makes intra-field order structural — the control builds the comma string itself, so GB never orders those sub-values. This is the only way to *guarantee* a fixed order between two values without owning every control that might touch the object. (Comma is opaque to GB's `parseTag()` — see §Tag string escape syntax.)
 
+### Reserved keys are destructured into GB-private state and re-serialized even when unsupported
+
+**Dropping a `supports` value stops GB RENDERING that control, but does NOT stop GB owning and
+re-emitting its reserved key.** Verified GB 2.2.1 (`DynamicTagSelect.jsx`):
+
+- **Parse** (`:385-395`) destructures `id`, `source`, `key`, `link`, `required`, `tax`, `size`,
+  `dateFormat` out of `parsedTag.params` **unconditionally** — before `extraParams` (which becomes
+  `extraTagParams`) is formed. `size` then goes into GB's own `imageSize` state (`:443`, ungated).
+- **Serialize** (`:541`) re-emits it from that private state — `if ( imageSize && 'full' !== imageSize )
+  options.push('size:'+imageSize)` — also **ungated on `supports`**.
+- **Render** (`:800`) is the ONLY support-gated step (`tagSupportsImageSize`).
+
+So a tag that drops `'image-size'` support still round-trips a saved `size:` token: invisible in the
+modal, absent from `extraTagParams`, yet re-serialized on every save. The `tagSpecificControls`
+filter receives only `{ state: extraTagParams, setState: setExtraTagParams }` (`:112`), so **a custom
+control can neither read nor clear these reserved keys** — there is no plugin-side lever.
+
+**Consequence for migrations:** a legacy reserved-key token can only be rewritten by transforming the
+**raw tag string before GB parses it** (our `TagConverter` path). An editor-open / control-mount fold
+is impossible for reserved keys. (This is the stranded-reserved-token trap that forced the
+`tax` → `srcTermIn` rename, in a different guise; hit again by the 1.16.0 image `as`+`size` fold —
+see [`tag-reference.md` §`as` serialization opt-out + `as`+`size` fold](tag-reference.md).)
+
 ### Serialization order is independent of control (render) order — GB itself proves it
 
 The order options **serialize** in the tag string is a separate axis from the order their controls **render** top-to-bottom in the modal. **GB's own `post_date` demonstrates the split:** its modal renders **Date Format ABOVE Link To**, yet it serializes `{{post_date id:100|link:author_archive|dateFormat:F j, Y}}` — **link before format** (render puts format first, serialization puts it last). Render order is fixed by the control-render sequence; serialization order is `extraTagParams` insertion order (above). The two need not agree, and for `post_date` they don't.
