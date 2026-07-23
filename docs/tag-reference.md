@@ -760,8 +760,10 @@ loop-row context, term-analog arm) works inside a join slot by construction. One
 (never inherited), and `limit` (list-mode cap so a term/ref slot reads >1 target). Slot ≥2 `src`
 keeps the `same`/inherit row — weave several fields off one entity (see J16b in the matrix for
 real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` —
-no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): a slot-1
-bare `sep` would collide with the tag-level assembly `sep`).
+no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1
+decision was to thread `{N}-limit` only). NB the wire-collision that ADR 0003 cited (a slot-1 bare
+`sep` clashing with the tag-level assembly `sep`) **dissolved when the assembly key was renamed to
+`valueSep`** (1.16.0, FW-52) — a per-slot `{N}-sep` is now free to add, though still deferred.
 
 **Reveal (combining-shaped).** Slots 1–2 visible up front; slot N ≥ 3 reveals when the previous
 slot has a `key` OR a non-default `use` — NOT its `src` (default-empty in combining; `try_`'s
@@ -771,10 +773,12 @@ src-keyed reveal is the selecting axis).
 
 | Option | Type | Notes |
 |---|---|---|
-| `mode` | select | `''` = Separator (default, stripped) / `template` |
-| `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
-| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. |
-| `fallback` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
+| `mode` | select | `''` = Separator (default, stripped) / `template`. **Format group** (serialization). |
+| `valueSep` | text | Assembly separator between non-empty slot values, default `', '`. Shown in separator mode. Values are not trimmed — `valueSep: ` is a literal space. **Format group** (serialization). Renamed from `sep` (1.16.0, FW-52) to free the key name for the list-mode source-group `sep` — a slot-value joiner is a format concern, not a source one. |
+| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. **Format group** (serialization). |
+| `fallback` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). **Fallback group.** |
+
+`mode`/`valueSep`/`format` are join's **format group** — they sort serialize-early per the canonical serialization order (see [§Option order](#option-order)). They are NOT the source-group list-mode `sep`, which stays `sep` and joins repeated results of one field.
 
 **Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
 tag's options (captured as `[^}]+` — kills the whole tag match, no escape;

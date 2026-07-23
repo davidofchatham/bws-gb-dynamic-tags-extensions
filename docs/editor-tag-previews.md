@@ -190,8 +190,8 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 | Mode | Shape |
 |---|---|
-| Separator, default `', '` | `[Join {field list}]` (default sep unremarkable — not shown) |
-| Separator, custom `sep` | `[Join {field list} (sep: “X”)]` |
+| Separator, default `', '` | `[Join {field list}]` (default separator unremarkable — not shown) |
+| Separator, custom separator | `[Join {field list} (sep: “X”)]` (read from the `valueSep` wire key, renamed from `sep` in 1.16.0/FW-52; the annotation label word is a build-session decision — see the join-sep-rename handoff) |
 | Template (`format` set) | `[Join “{substituted format}”]` — the format quoted with each `%N` replaced by its slot's field part (source annotation inline: `'full_name' from Ref 'student'`); an unbound `%N` stays literal (visible mistake, matches render); `%%` and `~…~` group delimiters shown as typed |
 
 **Warnings** replace the field list, prefixed `⚠ Join:`, joined with `, `:
