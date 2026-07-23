@@ -242,12 +242,51 @@ GB image-size selection uses GB's native `image-size` support (not a custom cont
 
 The cross-tag model for **how options are ordered in the editor panel** and **how show/hide conditions are expressed**. Each per-tag section in Part II gives its own ordered list; this section is the shared schema those lists follow.
 
-**Three-group structure (applies to all templates):**
-- **Group 1 — global formatting:** `as`, format options, separators, link-wrap. Not per-slot; applies to the assembled result.
-- **Group 2 — per-slot:** source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
-- **Group 3 — global fallback:** `fallback`. Once, after all slots.
+**Four groups (descriptive names; replace the legacy `Group 1/2/3` placeholders):**
+- **`format` — global formatting** (was "Group 1"): `as`, format options, separators. Not per-slot; applies to the assembled result.
+- **`link` — link-wrap** (split out of "Group 1"): `linkTo` + dependent `linkKey` + `newTab`. A contiguous cluster; treated as its own group so ordering can move it as a block.
+- **`source` — per-slot** (was "Group 2"): source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
+- **`fallback` — global fallback** (was "Group 3"): `fallback`. Once, after all slots.
 
 Show/hide conditions are noted inline in each per-tag list; all other options are always visible.
+
+### Option render order
+
+> **⚠ PROPOSED — not built (FW-52).** This section splits into VERIFIED FACT and PROPOSED TARGET:
+> - **Verified fact** (current code, safe to rely on): the *GB-native-controls-used* audit below — the `supports`-gating table and "image's `size` is the only reserved-and-used control." Confirmed against `base-tags.php` + `DynamicTagSelect.jsx` on 2026-07-22.
+> - **Proposed target** (design, NOT canonical until it ships): the two-order *decoupling*, the canonical serialize order (`format`→`link`→`source`→`fallback`), and the reorder normalizer. These are FW-52's design intent — the plugin does NOT yet decouple modal from string order (today both follow registration order). **If FW-52 doesn't land as planned, the proposed order is void.** Reconcile with code on ship; until then, per-tag lists in Part II reflect actual (registration) order.
+
+**Two orders, defined against two references.** The editor **modal (render)** order — how controls stack top-to-bottom in the panel — is independent of the serialized **string** order. GB drives both from the same `extraTagParams` object but the plugin can decouple them (see [`.claude/plans/combined-option-controls.md` §Phase 3+](../.claude/plans/combined-option-controls.md) for the mechanism; FW-52 for status). This section is the **target** both orders aim at.
+
+**Which GB-native controls the plugin actually uses — only ONE.** GB gates every native control on a registered `supports` value (`tagSupports(tagData, X)`, `DynamicTagSelect.jsx:193`, `:269-274`): a control renders (and its reserved key serializes) ONLY when the tag registers support `X`. GB reserves the key names `source`, `id`, `key`, `link`, `size`, `dateFormat`, `required`, `tax` — but reserving a name and *using* the machinery are different. The plugin's tags register **empty `supports` arrays** (`base-tags.php:69,131,177,211,290,303,320`) except `image`/`term_image` = `['image-size']` (`:234`); and it does not register any source into GB's `sourcesInOptions` filter (default `[]`, so GB never serializes `source:`/`id:` for our tags either). So:
+
+| GB-native mechanism | Gated by | Plugin uses it? | What the plugin uses instead |
+|---|---|---|---|
+| Source selector, `source:` / `id:` serialize | `'source'` support / `sourcesInOptions` | **No** | custom `src` control |
+| Meta key control, `key:` serialize | `'meta'` support | **No** | custom `key` option |
+| Link controls, `link:` serialize | `'link'` support | **No** | custom `linkTo` / `linkKey` / `newTab` |
+| Taxonomy control, `tax:` serialize | `'taxonomy'` support | **No** | custom `srcTermIn` |
+| Date Format control, `dateFormat:` serialize | `'date'` support | **No** | custom `as:date\|time\|both` + format tokens |
+| **Image Size control, `size:` serialize** | `'image-size'` support | **YES** (`image`/`term_image` only) | — (GB-native) |
+
+Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269-274`, `:513`, `:695-817`; no plugin reference to `sourcesInOptions`). **`size` on image is the ONLY GB-native reserved control in play** (today) — it serializes in GB's fixed built-in block (`:541-543`) and renders modal-early (`:800`), untouchable by the reorder normalizer. **Every other option this plugin uses is a CUSTOM option** → all within the normalizer's reach. The reorder therefore governs essentially the whole option surface (source/field/link/format/fallback), with only image's `size` fixed. Everything below is the canonical order for those custom options.
+
+**`size` is fixed only until the `as`+`size` fold lands.** The decided `as`+`size` composite (plan §Image `as`+`size`) removes `'image-size'` from image's supports array and folds size into the custom `as:url,medium` value — at which point `size` becomes a custom option too and **no GB-native reserved control remains anywhere** (the reorder would govern 100% of the surface). That fold is a SEPARATE decision, NOT part of the serialization-order pull-forward (FW-52 needs zero `size` work); the two may ship in either order. So: `size` is the one immovable control *while `image-size` support is still registered*, and stops being an exception once the fold ships.
+
+**One transient source exception — `term_*` tags.** The `term_*` modifier tags register with GB **type `'term'`**, which triggers GB's native term source + taxonomy machinery (`'term' === dynamicTagType` paths serialize `id:`/`tax:` and render the native term/taxonomy pickers without a `supports` entry). So on `term_*` specifically, source IS partly GB-native. This is the lone source exception, and it is **temporary — `term_*` is on the deprecation glide-path** (base tags + context modifiers subsume it; see [`docs/future-work.md`](future-work.md) term_ deprecation). Both pending changes shrink GB-native usage toward zero: dropping `term_*` removes the native term source, and the `as`+`size` fold removes the native size control — after both, the plugin uses NO GB-native controls at all.
+
+**Modal (render) order — author custom controls at GB's single injection point.** Since the plugin registers almost no GB-native supports (table above), the only GB-native control that renders for our tags is **Image Size** (on `image`/`term_image`, `:800`). All the plugin's own controls inject together at GB's single `tagSpecificControls` slot (`DynamicTagSelect.jsx:819`). So the modal order is essentially the plugin's to define wholesale — GB contributes only the tag selector (top), image's Size control, and the Required checkbox + Insert button (bottom). The intent for our controls: source/field (`source` group) before global formatting (`format` group) — the author picks *what to read* before *how to display it*.
+
+**String (serialize) order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is:
+
+1. **`format`** group — `as`, format/separator tokens (string-early so the return mode is visible up front when copying a tag; see [§`as` serialization opt-out](#as-serialization-opt-out-image-term_image-try_image)).
+2. **`link`** group — `linkTo`, `linkKey`, `newTab` (custom options — NOT GB's reserved `link`, which we don't use). A contiguous cluster.
+3. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-use`, `N-key` (canonical within-slot order). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0.
+4. **`fallback`** group — `fallback`, last.
+
+(The one exception, and only until the `as`+`size` fold ships: image's GB-native `size:` serializes in GB's fixed built-in block ahead of all custom options — outside the reorder's reach. It is the only reserved-and-used key today; the fold folds it into custom `as` and removes even that. Everything in the list above is a custom option the normalizer controls.)
+
+**Serialize ≠ modal is intentional:** `format` is string-early but modal-late. The two orders are reconciled by a per-tag JS normalizer that rebuilds `extraTagParams` in the canonical string order inside `setState` (transform = lift `format` to front + keep each `N-` slot contiguous, else preserve GB/registration order). Status, scope, and the build constraints (per-tag gating, Strategy-1 `N-`-prefix block detection) live in [`.claude/plans/combined-option-controls.md` §Phase 3+](../.claude/plans/combined-option-controls.md) / FW-52 — **not yet built**; reconcile this section with code on ship.
 
 **`show_if` condition types** (implemented in `assets/js/editor-conditional-options.js`):
 - `'not_empty'` — passes when option has any value
