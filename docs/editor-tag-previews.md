@@ -207,7 +207,7 @@ Nothing configured at all → **no preview** (empty string; GB shows its own pla
 | Tag config | Preview |
 |---|---|
 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
-| `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
+| `{{join key:name_first\|2-key:name_last\|valueSep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
 | `{{join use:title\|2-key:role}}` | `[Join Title, 'role']` |
 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` |
 | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:student\|key:full_name\|2-src:current\|2-key:role}}` | `[Join “'full_name' from Ref 'student' / 'role'”]` |

@@ -49,11 +49,16 @@
 		// format (leads; global)
 		as: [ 'format', 0 ],
 		size: [ 'format', 1 ], // GB-reserved today (never in extraTagParams); harmless.
-		format: [ 'format', 2 ],
-		rangeSep: [ 'format', 3 ],
-		timeSep: [ 'format', 4 ],
-		showCurrentYear: [ 'format', 5 ],
-		showMidnight: [ 'format', 6 ],
+		// join tag-level assembly keys (share format group): mode → valueSep →
+		// format. valueSep (renamed from sep, 1.16.0/FW-52) is a slot-value joiner,
+		// distinct from the source-group list sep.
+		mode: [ 'format', 2 ],
+		valueSep: [ 'format', 3 ],
+		format: [ 'format', 4 ],
+		rangeSep: [ 'format', 5 ],
+		timeSep: [ 'format', 6 ],
+		showCurrentYear: [ 'format', 7 ],
+		showMidnight: [ 'format', 8 ],
 		// source (per-slot: src → ref → srcTermIn → limit → sep → use → key → datetime keys)
 		src: [ 'source', 0 ],
 		ref: [ 'source', 1 ],

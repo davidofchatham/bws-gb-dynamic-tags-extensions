@@ -83,7 +83,7 @@ if ( ! defined( 'BWS_JOIN_MAX_SLOTS' ) ) {
  *
  * @since 1.15.0
  * @param array  $slot_opts Single-slot text-tag option set (src/ref/use/key/
- *                          srcTermIn/limit — never join's tag-level sep).
+ *                          srcTermIn/limit — never join's tag-level valueSep).
  * @param object $instance  GB tag instance.
  * @return string Finished slot value ('' on miss).
  */
@@ -104,7 +104,7 @@ function bws_join_resolve_slot( array $slot_opts, $instance ): string {
  *
  * @since 1.15.0
  * @param array $values  1-based slot values (finished strings, '' = empty).
- * @param array $options Tag options (mode, sep, format).
+ * @param array $options Tag options (mode, valueSep, format).
  * @return string Assembled output ('' when nothing survives).
  */
 function bws_join_assemble( array $values, array $options ): string {
@@ -115,7 +115,9 @@ function bws_join_assemble( array $values, array $options ): string {
 	}
 	// Separator mode: absent key → default ', '; explicit '' honored is NOT
 	// offered here (GB never serializes an empty option value), so '' → default.
-	$sep = isset( $options['sep'] ) && '' !== $options['sep'] ? $options['sep'] : ', ';
+	// `valueSep` = join's tag-level assembly separator (renamed from `sep`,
+	// 1.16.0/FW-52) — distinct from the source-group list-mode `sep`.
+	$sep = isset( $options['valueSep'] ) && '' !== $options['valueSep'] ? $options['valueSep'] : ', ';
 	return bws_join_separator( $values, $sep );
 }
 

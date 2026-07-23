@@ -78,8 +78,12 @@ assert_same( 'single value → no separator', 'Jane', bws_join_separator( array(
 
 echo "bws_join_assemble (mode dispatch)\n";
 
-assert_same( 'default mode = separator, default sep ", "', 'a, b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array() ) );
-assert_same( 'explicit sep carried (incl. spaces)', 'a / b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'sep' => ' / ' ) ) );
+assert_same( 'default mode = separator, default valueSep ", "', 'a, b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array() ) );
+assert_same( 'explicit valueSep carried (incl. spaces)', 'a / b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'valueSep' => ' / ' ) ) );
+// FW-52 decouple: a bare source-group `sep` is NOT the assembly separator — it
+// must be ignored by assemble (falls to the ', ' default), proving valueSep and
+// the list-mode sep no longer collide.
+assert_same( 'bare source `sep` ignored by assemble (uses valueSep default)', 'a, b', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'sep' => ' / ' ) ) );
 assert_same( 'template mode routes to format (wire %N tokens)', 'a (b)', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'mode' => 'template', 'format' => '%1 (%2)' ) ) );
 assert_same( 'template mode, no format → empty', '', bws_join_assemble( array( 1 => 'a' ), array( 'mode' => 'template' ) ) );
 

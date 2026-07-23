@@ -863,11 +863,11 @@ instead of an empty block, built by `bws_build_join_preview_label()`. Shape + ex
 
 ```
 {{join key:name_first|2-key:name_last}}                          → Jane, Smith
-{{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
+{{join key:name_first|2-key:name_last|valueSep: }}              → Jane Smith
 {{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
 {{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
 {{join mode:template|format:%1 / ~%2 lbs.~|key:position|2-key:weight}} → Center / 185 lbs. / Center when weight empty
-{{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
+{{join use:title|2-use:key|2-key:role|valueSep: / }}            → Page Title / Captain
 {{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
 ```
 

@@ -131,6 +131,22 @@ assert_order(
 	$sort( array( 'endTimeKey', 'src', 'startKey', 'endKey', 'startTimeKey', 'rangeSep', 'format', 'as', 'fallback' ) )
 );
 
+// --- join tag-level assembly keys sort into the format group: mode → valueSep →
+// format, ahead of the per-slot source keys. valueSep (renamed from sep, FW-52)
+// is a format concern, NOT the source-group list sep. ---
+assert_order(
+	'join format group (mode → valueSep → format) leads source slots',
+	array( 'mode', 'valueSep', 'src', 'key', '2-src', '2-key', 'fallback' ),
+	$sort( array( '2-key', 'key', 'src', 'valueSep', 'fallback', '2-src', 'mode' ) )
+);
+// A join slot CAN carry a source-group `sep` (list mode) independently — it stays
+// in source, so both separators coexist without collision (the FW-52 point).
+assert_order(
+	'join valueSep (format) and slot sep (source) coexist, correctly grouped',
+	array( 'valueSep', 'src', 'srcTermIn', 'limit', 'sep', 'key', 'fallback' ),
+	$sort( array( 'sep', 'key', 'src', 'valueSep', 'srcTermIn', 'limit', 'fallback' ) )
+);
+
 // --- Unknown key: tails the source group, keeps incoming order relative to peers ---
 assert_order(
 	'unknown keys tail source, before link/fallback, stable among themselves',

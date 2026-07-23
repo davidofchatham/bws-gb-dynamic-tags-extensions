@@ -90,7 +90,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *
  * @since 1.15.0
  * @param array $options Parsed tag options (slot fields prefixed N- for N≥2;
- *                       tag-level mode/sep/format/fallback).
+ *                       tag-level mode/valueSep/format/fallback).
  * @return string Bracket preview label, or '' when nothing is configured.
  */
 if ( ! function_exists( 'bws_build_join_preview_label' ) ) {
@@ -98,7 +98,7 @@ function bws_build_join_preview_label( array $options ): string {
 	$max      = defined( 'BWS_JOIN_MAX_SLOTS' ) ? BWS_JOIN_MAX_SLOTS : 10;
 	$mode     = $options['mode'] ?? '';
 	$format   = $options['format'] ?? '';
-	$sep      = $options['sep'] ?? '';
+	$sep      = $options['valueSep'] ?? '';
 	$fallback = $options['fallback'] ?? '';
 
 	// Walk slots 1..max with the callback's carry-forward. Collect field/source

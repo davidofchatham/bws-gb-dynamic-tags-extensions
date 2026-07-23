@@ -10,6 +10,7 @@
 
 - **Tag option controls now read source first, then formatting, and the saved tag string leads with the formatting.** The editor panel now consistently orders controls as source and field, then formatting, then link, then fallback, so you choose what to read before how to show it. The saved tag string is ordered separately: the return type or format leads (so it is visible up front when you copy a tag), followed by source, link, and fallback. For a multi-slot `try_` tag, each slot's options now stay grouped together in the string instead of scattering when you revise an earlier slot. Existing tags are re-ordered to match the moment you open them in the editor; output is unchanged.
 - **`{{join}}`'s fallback option is now named `fallback`,** matching every other tag. It shipped in 1.15.0 as `fallback_text`, the legacy name every other tag had already moved away from. Because 1.15.0 is one release old and the option is new, this is a plain rename with no migration: a `{{join}}` tag that already has Fallback Text set needs it re-entered. Nothing else about the option changes.
+- **`{{join}}`'s separator option is now written `valueSep` in the tag string,** freeing the shorter `sep` name for the list separator the other tags use when a source returns several values. The control and its behavior are unchanged; only the saved key differs. Because `{{join}}` is one release old, this is a plain rename with no migration: a `{{join}}` tag with a custom separator set needs it re-entered. A tag using the default separator is unaffected.
 
 ### Removed
 

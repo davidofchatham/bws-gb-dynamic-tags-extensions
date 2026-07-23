@@ -82,11 +82,16 @@ function bws_serialization_order_key_map(): array {
 		// --- format group (leads; global, not per-slot) ---
 		'as'              => array( 'format', 0 ),
 		'size'            => array( 'format', 1 ), // GB-reserved today; harmless to rank (never in extraTagParams until the as+size fold).
-		'format'         => array( 'format', 2 ),
-		'rangeSep'        => array( 'format', 3 ),
-		'timeSep'         => array( 'format', 4 ),
-		'showCurrentYear' => array( 'format', 5 ),
-		'showMidnight'    => array( 'format', 6 ),
+		// join tag-level assembly keys (share the format group): mode → valueSep →
+		// format. `valueSep` (renamed from `sep`, 1.16.0/FW-52) is a slot-value
+		// joiner — a format concern, distinct from the source-group list `sep`.
+		'mode'            => array( 'format', 2 ),
+		'valueSep'        => array( 'format', 3 ),
+		'format'         => array( 'format', 4 ),
+		'rangeSep'        => array( 'format', 5 ),
+		'timeSep'         => array( 'format', 6 ),
+		'showCurrentYear' => array( 'format', 7 ),
+		'showMidnight'    => array( 'format', 8 ),
 
 		// --- source group (per-slot; src → ref → srcTermIn → limit → sep → use → key → datetime keys) ---
 		'src'          => array( 'source', 0 ),

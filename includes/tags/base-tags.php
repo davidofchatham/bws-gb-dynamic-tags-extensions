@@ -849,8 +849,10 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * reveal is the selecting axis, wrong here). Slots 1–2 always visible.
  *
  * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items
- * with text's default ', '; a slot-1 bare `sep` would collide with the
- * tag-level assembly `sep` on GB's flat option map.
+ * with text's default ', '. The original blocker — a slot-1 bare `sep`
+ * colliding with the tag-level assembly `sep` on GB's flat option map —
+ * dissolved when the assembly key was renamed to `valueSep` (1.16.0, FW-52),
+ * so a per-slot `{N}-sep` is now free to add though still deferred.
  *
  * @since 1.15.0
  * @return array Option definitions keyed by option name.
@@ -951,7 +953,7 @@ function bws_get_join_options(): array {
 		),
 		'_strip_default' => true,
 	);
-	$options['sep'] = array(
+	$options['valueSep'] = array(
 		'type'        => 'text',
 		'label'       => __( 'Separator', 'generateblocks' ),
 		'help'        => __( 'Text placed between non-empty values. Default: ", ".', 'generateblocks' ),
@@ -1040,7 +1042,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		}
 
 		// Single-slot text-tag option set for the absorb seam. Join's
-		// tag-level `sep` (assembly) is NEVER passed through — a list-mode
+		// tag-level `valueSep` (assembly) is NEVER passed through — a list-mode
 		// slot joins its own items with text's default ', ' (ADR 0003).
 		$slot_opts = array(
 			'src'       => $last_src,

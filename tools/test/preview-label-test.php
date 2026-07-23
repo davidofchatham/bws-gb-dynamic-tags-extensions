@@ -426,10 +426,10 @@ check(
 	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last' ] ),
 	"[Join 'name_first', 'name_last']"
 );
-// Custom separator noted.
+// Custom separator noted (assembly separator = valueSep, renamed from sep in FW-52).
 check(
-	'sep mode custom sep',
-	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'sep' => ' ' ] ),
+	'sep mode custom valueSep',
+	bws_build_join_preview_label( [ 'key' => 'name_first', '2-key' => 'name_last', 'valueSep' => ' ' ] ),
 	"[Join 'name_first', 'name_last' (sep: “ ”)]"
 );
 // Title mode slot needs no key.
