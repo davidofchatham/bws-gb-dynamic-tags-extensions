@@ -241,7 +241,11 @@ function bws_join_preview_format( string $format, array $parts, int $max ): stri
  */
 if ( ! function_exists( 'bws_build_try_preview_label' ) ) {
 function bws_build_try_preview_label( array $options, string $base_template ): string {
-	$as       = $options['as'] ?? '';
+	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
+	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
+	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
+		? bws_parse_as_option( $options )['mode']
+		: ( $options['as'] ?? '' );
 	$fallback = $options['fallback'] ?? $options['fallback_text'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string breaks attribute).
@@ -695,7 +699,11 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( '' === $use && '' !== $use_default ) {
 		$use = $use_default;
 	}
-	$as       = $options['as'] ?? '';
+	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
+	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
+	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
+		? bws_parse_as_option( $options )['mode']
+		: ( $options['as'] ?? '' );
 	$fallback = $options['fallback'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string silently breaks the element).

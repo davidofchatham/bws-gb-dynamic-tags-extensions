@@ -38,6 +38,92 @@ function bws_get_image_return_type_options() {
 }
 
 /**
+ * Registered image sizes as {value,label} option rows for the as+size composite.
+ *
+ * The `bws-as-size` control (assets/js/as-size-control.js) folds size INTO the
+ * `as` value (`as:url,<size>`); this feeds its size dropdown, localized to JS.
+ *
+ * Labels come from WP's own media-modal source — apply_filters(
+ * 'image_size_names_choose', ... ), which respects theme/plugin-registered custom
+ * size labels (GB's native control ignored that filter and slug-munged instead).
+ * Any registered-but-unlabeled size is backfilled from
+ * get_intermediate_image_sizes() with title-cased slug. `full` is always present.
+ *
+ * @since 1.16.0
+ * @return array List of array( 'value' => slug, 'label' => human ).
+ */
+if ( ! function_exists( 'bws_get_image_size_options' ) ) {
+function bws_get_image_size_options() {
+	$labels = apply_filters(
+		'image_size_names_choose',
+		array(
+			'thumbnail'    => __( 'Thumbnail', 'generateblocks' ),
+			'medium'       => __( 'Medium', 'generateblocks' ),
+			'medium_large' => __( 'Medium Large', 'generateblocks' ),
+			'large'        => __( 'Large', 'generateblocks' ),
+			'full'         => __( 'Full Size', 'generateblocks' ),
+		)
+	);
+
+	// Backfill any registered size with no label (theme/plugin sizes the filter omitted).
+	foreach ( get_intermediate_image_sizes() as $slug ) {
+		if ( ! isset( $labels[ $slug ] ) ) {
+			$labels[ $slug ] = ucwords( str_replace( array( '-', '_' ), ' ', $slug ) );
+		}
+	}
+
+	// `full` is not an intermediate size — guarantee it.
+	if ( ! isset( $labels['full'] ) ) {
+		$labels['full'] = __( 'Full Size', 'generateblocks' );
+	}
+
+	$options = array();
+	foreach ( $labels as $value => $label ) {
+		$options[] = array(
+			'value' => $value,
+			'label' => $label,
+		);
+	}
+
+	return $options;
+}
+}
+
+/**
+ * Parse the folded `as` option into its return-mode and size argument.
+ *
+ * The as+size fold serializes size as a comma second slot on `as`'s value:
+ * `as:url,medium` → url(medium). Nullary return modes (id/alt/title/caption) carry
+ * no size argument. Size is consumed ONLY by the `url` mode (bws_get_attachment_data
+ * touches $size in the url/default case only), so a size on a nullary mode is inert.
+ *
+ * Legacy fallback: pre-fold tags stored size in a separate `size:` option (GB's
+ * native image-size control). When `as` carries no comma slot, the size falls back
+ * to $options['size'] then 'full', so old saved tags still render at their size.
+ *
+ * @since 1.16.0
+ * @param array $options Tag options (reads `as` and legacy `size`).
+ * @return array array( 'mode' => string, 'size' => string ) — mode defaults 'url', size 'full'.
+ */
+if ( ! function_exists( 'bws_parse_as_option' ) ) {
+function bws_parse_as_option( $options ) {
+	$raw  = $options['as'] ?? $options['return_type'] ?? 'url';
+	$raw  = sanitize_text_field( (string) $raw );
+	$bits = explode( ',', $raw, 2 );
+
+	$mode = ( '' !== $bits[0] ) ? $bits[0] : 'url';
+	$size = isset( $bits[1] ) && '' !== $bits[1]
+		? $bits[1]
+		: sanitize_text_field( $options['size'] ?? 'full' );
+
+	return array(
+		'mode' => $mode,
+		'size' => $size,
+	);
+}
+}
+
+/**
  * Get meta image field options for tag registration.
  *
  * @since 1.0.0

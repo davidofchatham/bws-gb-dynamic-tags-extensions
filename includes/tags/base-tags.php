@@ -225,8 +225,11 @@ function bws_register_base_tags(): void {
 
 	// =========================================================
 	// image — custom field or featured image; type 'cross-source'.
-	// `as` is first and always serialized (default:'url' intentional).
-	// Image size handled by GB native control via 'image-size' support.
+	// `as` is the folded return-mode + size token (bws-as-size, FW-52), always
+	// serialized (`as:url,<size>` for url; bare mode for nullary returns). The
+	// composite owns the whole `as` widget; GB's native image-size support is DROPPED
+	// (size folds into `as`'s value — see docs/tag-reference.md §`as` serialization
+	// opt-out + assets/js/as-size-control.js).
 	// `fallback` uses custom JS control (image-tag-controls.js).
 	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
@@ -235,12 +238,12 @@ function bws_register_base_tags(): void {
 		'title'    => __( 'Image', 'generateblocks' ),
 		'tag'      => 'image',
 		'type'     => 'cross-source',
-		'supports' => array( 'image-size' ),
+		'supports' => array(),
 		// Canonical CONTROL order (FW-52): source → format → link(none) → fallback.
 		// `as` is a FORMAT option: control-LATE (after source/field), serialize-EARLY
 		// (the normalizer lifts it to the front of the string for copy-visibility — the
-		// `as` serialization opt-out means it is always present). `size` stays GB-native
-		// (image-size support) until the as+size fold; it serializes in GB's built-in block.
+		// `as` serialization opt-out means it is always present). Its `size` argument
+		// rides inside the `as` value (as+size fold) — no separate size option.
 		'options'  => bws_strip_default_select_values( array_merge(
 			$source_opt,
 			$traversal_opts,
@@ -265,10 +268,12 @@ function bws_register_base_tags(): void {
 					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
 					'show_if'      => array( 'use' => 'not:featured' ),
 				),
+				// Folded return-mode + size. The bws-as-size composite renders the mode
+				// dropdown + a size dropdown (url only) and owns the whole token. No
+				// `default` (always-serialized; the composite writes url,full on open).
 				'as'       => array(
-					'type'    => 'select',
+					'type'    => 'bws-as-size',
 					'label'   => __( 'Return type:', 'generateblocks' ),
-					'default' => 'url',
 					'options' => array(
 						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -467,10 +472,11 @@ function bws_register_base_tags(): void {
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
 		'leading_options'       => array(
+			// Folded return-mode + size (bws-as-size, FW-52). No `default` — always
+			// serialized; the composite writes url,full on open.
 			'as' => array(
-				'type'    => 'select',
+				'type'    => 'bws-as-size',
 				'label'   => __( 'Return image as:', 'generateblocks' ),
-				'default' => 'url',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -482,9 +488,8 @@ function bws_register_base_tags(): void {
 		),
 		'options'               => array(
 			'as'       => array(
-				'type'    => 'select',
+				'type'    => 'bws-as-size',
 				'label'   => __( 'Return image as:', 'generateblocks' ),
-				'default' => 'url',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -1560,10 +1565,14 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			if ( ! $logo_id || ! function_exists( 'bws_get_attachment_data' ) ) {
 				return '';
 			}
+			// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+			$as     = function_exists( 'bws_parse_as_option' )
+				? bws_parse_as_option( $options )
+				: array( 'mode' => $options['as'] ?? 'url', 'size' => $options['size'] ?? 'full' );
 			$result = bws_get_attachment_data(
 				$logo_id,
-				$options['as'] ?? 'url',
-				$options['size'] ?? 'full'
+				$as['mode'],
+				$as['size']
 			);
 			if ( empty( $result ) ) {
 				return '';

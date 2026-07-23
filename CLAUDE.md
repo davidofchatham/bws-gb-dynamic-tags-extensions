@@ -20,7 +20,8 @@ exiting non-zero on failure. Run the one whose domain you touched (see §Update 
 key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
 `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
-`slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`. No CI
+`slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`,
+`serialization-order-test.php`, `as-size-fold-test.php`. No CI
 runs these; run them locally before commit.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
@@ -101,6 +102,8 @@ Single source of truth per content type. Other files link, never duplicate.
 | Text read-seam / link-wrap change (`bws_base_text_resolve_value`, `bws_base_text_callback`, `bws_wrap_with_link` / `bws_resolve_link_url`, or a new seam absorber e.g. `{{join}}` slots) | `tools/test/text-test-matrix.md` rows against the testbed (`bws render-tag`; §Development) |
 | Join assembly / slot change (`bws_join_callback`, `bws_get_join_options`, or any `includes/helpers/join-helpers.php` fn) | run `php tools/test/join-template-test.php` (pure Steps 1–5 + wire tokens) + `tools/test/join-test-matrix.md` rows against the testbed; a seam-implicating failure routes to the text matrix |
 | Datetime change (any `includes/helpers/datetime-helpers.php` fn, `bws_normalize_datetime_options` or its compat wrappers, the datetime cores/callbacks/option builders, or the datetime preview branch) | run `php tools/test/datetime-format-test.php` (pure formatters + normalizer) + `tools/test/datetime-test-matrix.md` D-rows against the testbed (§Development) |
+| Image `as`/`size` change (`bws_parse_as_option`, `bws_get_image_size_options`, the `bws-as-size` control JS, the `as`+`size` fold migration `bws_migrate_image_as_size_fold`, or the image cores' `as`/size read) | run `php tools/test/as-size-fold-test.php` (pure parse + fold) + `tools/test/fw52-order-test-matrix.md` O4 rows against the testbed editor (§Development) |
+| Serialization-order change (`bws_serialization_order_sort` in `includes/helpers/serialization-order.php`, its JS port `serialization-order-normalizer.js`, or the canonical KEY_MAP/group ranks) | run `php tools/test/serialization-order-test.php` (pure sort) + `tools/test/fw52-order-test-matrix.md` O-rows against the testbed editor (§Development) |
 | New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`; keep matrices linking, not duplicating |
 | New `*-test-matrix.md` rows for a tag family | ALSO generate them as visible GB blocks in `blocks.php` (see §Development "make them VISIBLE" — mandatory, missed twice); reseed + curl the front end; matrix links, page shows |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names |

@@ -271,6 +271,23 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// as+size composite (FW-52): folds the image return-mode + size into one `as` token,
+	// replacing GB's native `as` select AND image-size control. Size enum + pretty labels
+	// are localized from PHP (respects the image_size_names_choose filter GB ignored).
+	wp_enqueue_script(
+		'bws-dynamic-tags-as-size-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/as-size-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	if ( function_exists( 'bws_get_image_size_options' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-as-size-control',
+			'window.bwsImageSizes = ' . wp_json_encode( bws_get_image_size_options() ) . ';',
+			'before'
+		);
+	}
 	// FW-52 serialization-order normalizer: rebuilds extraTagParams in canonical
 	// serialization order (format → source → link → fallback) so the saved tag string
 	// stays readable regardless of the order the author touched the controls.

@@ -14,8 +14,8 @@ page.
 - **Visible blocks:** the O1-O3 rows below are generated as browsable/editable GB blocks on
   `matrix-post-meta` (blocks.php `matrix_post_meta` builder, sections `FW-52 O1/O2/O3`).
   `feature_image` (a seeded image attachment, manifest v5) backs the image reads. **O4
-  (the `as`+`size` fold) is NOT YET BUILT** — authoring targets pending the Phase 3
-  composite; its visible blocks land with the fold.
+  (the `as`+`size` fold) is BUILT (v1.16.0)** but its visible GB blocks are not yet seeded
+  — author + reseed them at eyeball time.
 
 **How to check a row:** open `/matrix-post-meta/` in the block editor, select the block,
 open its dynamic-tag modal, and read the tag string shown live. It should match the
@@ -31,7 +31,7 @@ then hard-refresh the editor (not the cached front end).
 
 | Row | Authored (scrambled) input | Expected string on open | What it proves |
 |---|---|---|---|
-| O1.1 | `{{image use:key\|key:feature_image\|as:url}}` | `{{image as:url\|src:...\|use:key\|key:feature_image}}` | `as` (format) lifts to the FRONT though authored/registered control-late |
+| O1.1 | `{{image use:key\|key:feature_image\|as:url}}` | `{{image as:url,full\|src:...\|use:key\|key:feature_image}}` | `as` (format) lifts to the FRONT; the composite writes the folded `url,full` on open |
 | O1.2 | `{{image key:feature_image\|use:key\|as:alt}}` | `{{image as:alt\|use:key\|key:feature_image}}` | nullary return mode still leads the string |
 | O1.3 | `{{image key:feature_image\|use:key\|as:id}}` | `{{image as:id\|use:key\|key:feature_image}}` | same |
 | O1.4 | `{{image key:feature_image\|use:key\|as:caption}}` | `{{image as:caption\|use:key\|key:feature_image}}` | same |
@@ -62,16 +62,20 @@ a config gap, not a fallthrough bug; see FW-51).
 (`src:...` = whatever base source token is present, or none when the default `current` is
 stripped. The point of the row is the RELATIVE order, not the presence of `src`.)
 
-## O4 — image `as`+`size` fold (Phase 3 — NOT YET BUILT)
+## O4 — image `as`+`size` fold (Phase 3 — BUILT v1.16.0)
 
-**Pending the `as`+`size` composite** (plan §Image `as`+`size` unification). These rows go
-live when the fold ships: `size` leaves GB's native `image-size` support and folds into
-`as`'s value as a comma second slot (`as:<mode>[,<size>]`), always-serialized. Until then
-these are AUTHORING TARGETS, not passing rows — the current branch still has GB's native
-size control and O1 shows bare `as:url`.
+The `as`+`size` composite (`bws-as-size`) shipped in 1.16.0 (plan §Image `as`+`size`
+unification): `size` left GB's native `image-size` support and folds into `as`'s value as a
+comma second slot (`as:<mode>[,<size>]`), always-serialized. Pure parse + fold pinned by
+`php tools/test/as-size-fold-test.php` (15 cases). The rows below are the LIVE editor
+round-trip that harness can't reach.
 
-**Post-fold, O1.1's expected string changes** from `as:url` to `as:url,full` (size arg
-always serialized). Update O1.1 when the fold lands; O1.2-1.4 (nullary modes) stay bare.
+**With the fold, O1.1's expected string is now `as:url,full`** (size arg always serialized) —
+the O1.1 row below reflects this. O1.2-1.4 (nullary modes) stay bare.
+
+**Visible GB blocks NOT YET SEEDED for O4** — the O4 fixtures (a `FW-52 O4` section in
+`blocks.php`, plus legacy-split wire for the migration rows) still need authoring +
+reseed before the editor eyeball. Do that at eyeball time (§Development "make them VISIBLE").
 
 The composite owns the whole `as` widget (mode dropdown + size dropdown) — GB's native
 select would corrupt `url,full` on reopen. Verified by opening the block and reading the

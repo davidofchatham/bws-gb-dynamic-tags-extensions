@@ -152,8 +152,10 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
  */
 function bws_term_custom_image_core( $term_id, $options, $instance ) {
 	$field_key   = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? '' );
-	$return_type = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
-	$image_size  = sanitize_text_field( $options['size'] ?? 'full' );
+	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+	$as          = bws_parse_as_option( $options );
+	$return_type = $as['mode'];
+	$image_size  = $as['size'];
 	// Fallback is an attachment ID (bws-media-picker) OR a URL — pass it RAW to the
 	// SHARED media-fallback resolver (SPEC §V19, parity with the post image tag).
 	// Do NOT esc_url_raw here: it mangles a numeric id like 51687 into "http://51687"

@@ -33,8 +33,10 @@ use BWS\DynamicTags\Admin\SettingsPage;
  * @return string
  */
 function bws_featured_image_core( $post_id, $options, $instance ) {
-	$return_type       = $options['as'] ?? $options['return_type'] ?? 'url';
-	$image_size        = $options['size'] ?? 'full';
+	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+	$as                = bws_parse_as_option( $options );
+	$return_type       = $as['mode'];
+	$image_size        = $as['size'];
 	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
 
 	if ( $post_id ) {
@@ -65,8 +67,10 @@ function bws_featured_image_core( $post_id, $options, $instance ) {
  */
 function bws_custom_image_core( $post_id, $options, $instance ) {
 	$field_key         = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
-	$return_type       = sanitize_text_field( $options['as'] ?? $options['return_type'] ?? 'url' );
-	$image_size        = sanitize_text_field( $options['size'] ?? 'full' );
+	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
+	$as                = bws_parse_as_option( $options );
+	$return_type       = $as['mode'];
+	$image_size        = $as['size'];
 	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
 
 	if ( empty( $field_key ) ) {

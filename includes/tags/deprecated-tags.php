@@ -994,6 +994,70 @@ function bws_register_early_deprecated_tag_migrations(): void {
 // ===============================================
 
 /**
+ * Migration transform_callback: fold a legacy separate `size:` option into `as`'s value.
+ *
+ * The as+size fold (FW-52, v1.16.0) retires GB's native image-size control; size now
+ * rides inside the `as` value as a comma second slot (`as:url,<size>`). Old saved tags
+ * stored size in a separate `size:` (bare) or `N-size:` (try_ slot) option — an orphan
+ * GB keeps verbatim after the fold, diverging string from modal. This rewrites each
+ * image slot, value-conditionally:
+ *
+ *   - url mode (or `as` absent → url default) + size present → `as:url,<size>`
+ *   - nullary mode (id/alt/title/caption) + size present     → DROP size (dead at render)
+ *   - already folded / no size                               → unchanged
+ *
+ * Handles slot 1 (bare `as`/`size`) and try_ slots 2..5 (`N-as`/`N-size`) uniformly.
+ * Registered per image variant (image / term_image / try_image).
+ *
+ * @since 1.16.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string (unchanged when nothing to fold).
+ */
+function bws_migrate_image_as_size_fold( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
+
+	// Nullary return modes take no size argument; only `url` (and the url default) does.
+	$nullary = array( 'id', 'alt', 'title', 'caption' );
+
+	// Fold each slot: '' = bare (slot 1), '2'..'5' = try_ prefixes.
+	foreach ( array( '', '2', '3', '4', '5' ) as $slot ) {
+		$prefix   = ( '' === $slot ) ? '' : $slot . '-';
+		$as_key   = $prefix . 'as';
+		$size_key = $prefix . 'size';
+
+		// Skip slots with no size to fold. (A bare `as:url` with no legacy size is
+		// left as-is here; the editor composite writes url,full on open — the migration
+		// only needs to rescue orphan `size:` tokens.)
+		if ( ! array_key_exists( $size_key, $options ) ) {
+			continue;
+		}
+
+		$size = trim( (string) $options[ $size_key ] );
+		unset( $options[ $size_key ] );
+
+		// Read the raw `as` value; it may already carry a folded size.
+		$as_raw   = isset( $options[ $as_key ] ) ? (string) $options[ $as_key ] : 'url';
+		$as_bits  = explode( ',', $as_raw, 2 );
+		$mode     = ( '' !== $as_bits[0] ) ? $as_bits[0] : 'url';
+		$folded   = isset( $as_bits[1] ) && '' !== $as_bits[1]; // `as` already carries a size.
+
+		if ( in_array( $mode, $nullary, true ) ) {
+			// Size was dead on a nullary return — drop it, keep the bare mode.
+			$options[ $as_key ] = $mode;
+		} elseif ( $folded ) {
+			// Already folded — the folded value wins; the stray legacy size is stale.
+			$options[ $as_key ] = $mode . ',' . $as_bits[1];
+		} else {
+			// url (or any non-nullary), not yet folded → fold the legacy size in.
+			$options[ $as_key ] = 'url,' . ( '' !== $size ? $size : 'full' );
+		}
+	}
+
+	return $reg::format_tag_string( $tag_name, $options );
+}
+
+/**
  * Register option-key migration entries for base tags with deprecated option names.
  *
  * These entries fix posts that were partially migrated by a buggy converter run that
@@ -1213,6 +1277,34 @@ function bws_register_option_migrations(): void {
 			'label'             => sprintf(
 				/* translators: %s: tag name */
 				__( '{{%s}}: return_type/fallback_url/field_key → as/fallback/key', 'generateblocks' ),
+				$tag
+			),
+		) );
+	}
+
+	// image / term_image / try_image: as+size FOLD (FW-52, v1.16.0).
+	// GB's native image-size control is retired; size folds INTO the `as` value as a
+	// comma second slot (`as:url,<size>`). A legacy separate `size:` (or per-slot
+	// `N-size:`) becomes an orphan token GB keeps verbatim — silent string-vs-modal
+	// divergence (the stranded-reserved-token trap). This value-conditional fold can't
+	// be expressed with combine_options/option_renames, so it uses a transform_callback.
+	// Per slot (bare + N- prefixed):
+	//   - `as:url` (or `as` absent → url default) + `size` present → `as:url,<size>`
+	//   - `as:` nullary (id/alt/title/caption) + `size` present → DROP size (was dead
+	//     at render — nullary returns ignore size), emit bare `as:<mode>`
+	//   - no `size` → unchanged (already folded, or size never set)
+	foreach ( array( 'image', 'term_image', 'try_image' ) as $tag ) {
+		$reg::register( array(
+			'type'               => 'option',
+			'match_tag'          => $tag,
+			// `size` triggers the fold; `as` alone also matches so a bare url without a
+			// size still normalizes to url,full on conversion (callback no-ops otherwise).
+			'match_any_options'  => array( 'size', 'as', '2-size', '3-size', '4-size', '5-size', '2-as', '3-as', '4-as', '5-as' ),
+			'new_tag'            => $tag,
+			'transform_callback' => 'bws_migrate_image_as_size_fold',
+			'label'              => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: fold size into as (as:url,size)', 'generateblocks' ),
 				$tag
 			),
 		) );

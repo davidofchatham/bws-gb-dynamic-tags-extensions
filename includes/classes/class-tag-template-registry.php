@@ -179,12 +179,10 @@ class TagTemplateRegistry {
 			}
 
 			// Per-tag supports (do not mutate the shared $base_supports across templates).
-			// Image template adds native 'image-size': GB renders the ComboboxControl, handles
-			// 'size:' parsing/serialization, and strips the 'full' default automatically.
+			// Image tags no longer declare native 'image-size' (as+size fold, FW-52):
+			// size folds into the `as` value (bws-as-size composite), so GB renders no
+			// native size control. No image-family tag carries extra supports now.
 			$tag_supports = $base_supports;
-			if ( $is_image && ! in_array( 'image-size', $tag_supports, true ) ) {
-				$tag_supports[] = 'image-size';
-			}
 
 			$callback = self::make_modifier_callback( $base_src_key, $traversal_src_key, $term_fn, $post_fn, $tag_name, $is_image, $supports_link );
 
@@ -899,8 +897,9 @@ class TagTemplateRegistry {
 			/* translators: %s: tag title e.g. "Text Fields" */
 			$title = sprintf( __( 'Try %s', 'generateblocks' ), $tpl['title'] ?? $tag_name );
 
-			// Image template uses native 'image-size' support; other templates have no native supports.
-			$supports = ! empty( $tpl['is_image'] ) ? [ 'image-size' ] : [];
+			// No native supports on try_ tags. Image size folds into the `as` value
+			// (as+size fold, FW-52) — GB's native 'image-size' control is retired.
+			$supports = [];
 
 			// Thread the template's visibility gate to the try_ tag (VP-vis: try_email /
 			// try_phone MUST keep the tagName NOT_IN [a,button,img,picture] gate their
