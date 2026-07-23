@@ -203,6 +203,42 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'R7.10', '{{try_image as:url|src:site}}' ),
 	) );
 
+	// FW-52 serialization-order editor rows (fw52-order-test-matrix.md). These are
+	// EDITOR-EYEBALL fixtures: the point is to OPEN each block in the GB editor and
+	// read the reordered tag string (as-front, source contiguous, N- slots grouped),
+	// not the front-end render. The tag strings below are intentionally authored in
+	// a NON-canonical key order so the normalizer visibly re-sorts them on open.
+	// Rendered output is unchanged and secondary; feature_image (matrix-post-meta)
+	// backs the image reads with a real seeded attachment.
+	$sections[] = bws_fixture_gb_section( 'FW-52 O1 - image as-front (open in editor)', array(
+		// O1.1 media block: {{image as:url}} → real <img src>. On open the string
+		// should lead with `as:url` (format-front), then src/use/key.
+		bws_fixture_gb_media_block( '{{image use:key|key:feature_image|as:url}}', 'fw52-o1-1' ),
+		// O1.2-O1.4 nullary return modes (text blocks — output is the raw datum).
+		bws_fixture_gb_row( 'O1.2', '{{image key:feature_image|use:key|as:alt}}' ),
+		bws_fixture_gb_row( 'O1.3', '{{image key:feature_image|use:key|as:id}}' ),
+		bws_fixture_gb_row( 'O1.4', '{{image key:feature_image|use:key|as:caption}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'FW-52 O2 - multi-slot try_text contiguity (open in editor)', array(
+		// O2.1 three slots authored scrambled: on open each slot's keys should
+		// group contiguously and ascend (1- keys, then 2-, then 3-).
+		bws_fixture_gb_row( 'O2.1', '{{try_text 3-use:title|key:name_first|use:key|2-src:site|2-use:key|2-key:blogname|3-src:current}}' ),
+		// O2.2 reset-scatter: slot-1 key added last (globally-last in the string)
+		// should rejoin its slot-1 siblings on open.
+		bws_fixture_gb_row( 'O2.2', '{{try_text use:key|2-src:site|2-use:title|key:name_last}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'FW-52 O3 - datetime format-front + link (open in editor)', array(
+		// O3.1 single: authored source-first + link before format; on open the
+		// string should lead with the format block (as/format), then source, link,
+		// fallback.
+		bws_fixture_gb_row( 'O3.1', '{{datetime_single key:event_datetime|linkTo:permalink|as:date|format:F j, Y|fallback:TBA}}' ),
+		// O3.2 range: format block (as/rangeSep/format) leads, start/end keys in
+		// source, link after.
+		bws_fixture_gb_row( 'O3.2', '{{datetime_range startKey:event_start_date|endKey:event_end_date|linkTo:permalink|as:date|rangeSep:–}}' ),
+	) );
+
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
 	// absorb: src:same, src:ref, src:site, srcTermIn limit). Name rows resolve
 	// on the staff singles (staff_join builder), NOT here. J23/J24 stay in the

@@ -107,6 +107,8 @@ $field_keys = array(
 		'escape_probe'     => 'field_bwsfx_escape_probe',
 		'team_members'     => 'field_bwsfx_team_members',
 		'feature_list'     => 'field_bwsfx_feature_list',
+		// FW-52 image editor rows.
+		'feature_image'    => 'field_bwsfx_feature_image',
 	),
 	'option' => array(
 		'org_phone'                  => 'field_bwsfx_org_phone',
@@ -220,6 +222,74 @@ foreach ( $manifest['term_fields'] as $slug => $fields ) {
 $log( 'term fields applied' );
 
 // ---------------------------------------------------------------------------
+// 3b. Media attachments (FW-52 image editor rows).
+//
+// Generates a small deterministic PNG in the uploads dir and registers it as an
+// attachment. Idempotent: an existing attachment carrying the same
+// `_bws_fixture_slug` meta is reused (its metadata refreshed), so reseeding never
+// piles up duplicates. Needs wp_generate_attachment_metadata (admin media stack).
+// ---------------------------------------------------------------------------
+$attachment_ids = array();
+if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+}
+foreach ( ( $manifest['attachments'] ?? array() ) as $slug => $def ) {
+	// Reuse by fixture-slug meta.
+	$existing = get_posts( array(
+		'post_type'   => 'attachment',
+		'post_status' => 'any',
+		'numberposts' => 1,
+		'meta_key'    => '_bws_fixture_slug',
+		'meta_value'  => $slug,
+		'fields'      => 'ids',
+	) );
+
+	// Build a deterministic solid-color PNG (GD) or fall back to a 1x1 PNG.
+	$hex   = ltrim( (string) ( $def['color'] ?? '4a90d9' ), '#' );
+	$r     = hexdec( substr( $hex, 0, 2 ) );
+	$g     = hexdec( substr( $hex, 2, 2 ) );
+	$b     = hexdec( substr( $hex, 4, 2 ) );
+	$png   = '';
+	if ( function_exists( 'imagecreatetruecolor' ) ) {
+		$img = imagecreatetruecolor( 320, 200 );
+		imagefill( $img, 0, 0, imagecolorallocate( $img, $r, $g, $b ) );
+		ob_start();
+		imagepng( $img );
+		$png = ob_get_clean();
+		imagedestroy( $img );
+	} else {
+		// Minimal 1x1 opaque PNG (base64). Size variants won't generate, but the
+		// attachment + as:url/alt/id/caption reads still work.
+		$png = base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC' );
+	}
+
+	$uploads  = wp_upload_dir();
+	$filename = sanitize_file_name( $def['filename'] ?? ( $slug . '.png' ) );
+	$filepath = trailingslashit( $uploads['path'] ) . $filename;
+	file_put_contents( $filepath, $png );
+
+	$attach_args = array(
+		'post_mime_type' => 'image/png',
+		'post_title'     => $def['title'] ?? $slug,
+		'post_excerpt'   => $def['caption'] ?? '', // caption.
+		'post_status'    => 'inherit',
+	);
+	if ( $existing ) {
+		$attach_args['ID'] = $existing[0];
+		$att_id            = (int) wp_update_post( $attach_args );
+	} else {
+		$att_id = (int) wp_insert_attachment( $attach_args, $filepath );
+	}
+
+	update_post_meta( $att_id, '_bws_fixture_slug', $slug );
+	update_post_meta( $att_id, '_wp_attachment_image_alt', $def['alt'] ?? '' );
+	wp_update_attachment_metadata( $att_id, wp_generate_attachment_metadata( $att_id, $filepath ) );
+
+	$attachment_ids[ $slug ] = $att_id;
+}
+$log( 'attachments: ' . count( $attachment_ids ) . ' upserted' );
+
+// ---------------------------------------------------------------------------
 // 4. Posts (content regenerated from blocks.php each run).
 // ---------------------------------------------------------------------------
 $post_ids = array();
@@ -297,6 +367,10 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 			$value = array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
 				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
 			}, $value ) ) );
+		}
+		// Resolve an image-field fixture slug → the seeded attachment ID.
+		if ( 'feature_image' === $name && is_string( $value ) && isset( $attachment_ids[ $value ] ) ) {
+			$value = $attachment_ids[ $value ];
 		}
 		if ( 'contact_email' === $name ) {
 			$key = isset( $contact_email_keys[ $ptype ] ) ? $contact_email_keys[ $ptype ] : null;

@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 4, // 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 5, // 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -49,6 +49,20 @@ return array(
 			'user_email'   => 'author@example.test',
 			'role'         => 'author',
 			'description'  => 'Fixture Author writes the sample posts that back the author-archive context rows. This bio is the user description meta the {{content}} author analog reads.',
+		),
+	),
+
+	// Seeded media attachments, keyed by stable fixture slug. seed.php generates a
+	// tiny solid-color PNG in the uploads dir and registers it as an attachment
+	// (idempotent — re-uses an existing attachment with the same _bws_fixture_slug
+	// meta). Used as the target for image-field reads (FW-52 {{image}} editor rows).
+	'attachments' => array(
+		'fixture-photo' => array(
+			'title'    => 'Fixture Photo',
+			'alt'      => 'Fixture photo alt text',
+			'caption'  => 'Fixture photo caption',
+			'color'    => '4a90d9', // solid fill (hex, no #) so the generated PNG is deterministic.
+			'filename' => 'fixture-photo.png',
 		),
 	),
 
@@ -254,6 +268,10 @@ return array(
 			'event_midnight'     => '2030-08-12 00:00:00',     // D0.6/D0.7, D2.4/D3.4
 			'event_thisyear'     => '{CURRENT_YEAR}0410',      // D0.4/D0.5
 			'event_date_dmy'     => '20300815',                // D0.11 non-default return_format
+			// FW-52 image editor rows — attachment ID target for {{image}} (as:url /
+			// as:alt / as:id / as:caption). Seed resolves the fixture slug → the
+			// seeded attachment's ID (like related_staff slug→ID resolution).
+			'feature_image'      => 'fixture-photo',
 		),
 
 		'post-sample-event' => array(
