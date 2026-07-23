@@ -14,280 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ===============================================
-// OPTION DEFINITIONS — DATE TEMPLATES
-// ===============================================
-
-/**
- * Date-only single tag options (no time-related options).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_date_single_options() {
-	return array(
-		'date_time_field' => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key.', 'generateblocks' ),
-			'placeholder' => __( 'event_date', 'generateblocks' ),
-		),
-		'format_type'     => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y"). See PHP date() documentation.', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y', 'generateblocks' ),
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
-			'default' => true,
-		),
-		'fallback_text'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid date is found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-/**
- * Date-only range tag options (no time-related options).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_date_range_options() {
-	return array(
-		'start_field'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key for start date.', 'generateblocks' ),
-			'placeholder' => __( 'start_date', 'generateblocks' ),
-		),
-		'end_field'     => array(
-			'type'        => 'text',
-			'label'       => __( 'End Date Field', 'generateblocks' ),
-			'help'        => __( 'ACF date picker field key for end date (optional).', 'generateblocks' ),
-			'placeholder' => __( 'end_date', 'generateblocks' ),
-		),
-		'format_type'   => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format' => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y"). See PHP date() documentation.', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y', 'generateblocks' ),
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'separator'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Separator', 'generateblocks' ),
-			'help'        => __( 'Text between start and end dates.', 'generateblocks' ),
-			'default'     => '–',
-			'placeholder' => __( '–', 'generateblocks' ),
-		),
-		'fallback_text' => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-// ===============================================
-// OPTION DEFINITIONS — DATETIME TEMPLATES
-// ===============================================
-
-/**
- * DateTime single tag options (full option set with time support).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_datetime_single_options() {
-	return array(
-		'date_time_field'   => array(
-			'type'        => 'text',
-			'label'       => __( 'Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for a date-time, date, or time picker field.', 'generateblocks' ),
-			'placeholder' => __( 'event_date', 'generateblocks' ),
-		),
-		'time_field'        => array(
-			'type'        => 'text',
-			'label'       => __( 'Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker field to override or add time component.', 'generateblocks' ),
-			'placeholder' => __( 'event_time', 'generateblocks' ),
-		),
-		'format_type'       => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y g:i A").', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y g:i A', 'generateblocks' ),
-		),
-		'date_only'         => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show date only', 'generateblocks' ),
-			'help'    => __( 'Hide time components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'time_only'         => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show time only', 'generateblocks' ),
-			'help'    => __( 'Hide date components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'smart_time'        => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Smart Time Formatting', 'generateblocks' ),
-			'help'    => __( 'Hide time if midnight and other intelligent time formatting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'omit_current_year' => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year.', 'generateblocks' ),
-			'default' => true,
-		),
-		'fallback_text'     => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid date-time is found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date/time TBA', 'generateblocks' ),
-		),
-	);
-}
-
-/**
- * DateTime range tag options (full option set with time support).
- *
- * @since 1.0.0
- * @return array
- */
-function bws_get_datetime_range_options() {
-	return array(
-		'start_field'         => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for start date-time, date, or time picker.', 'generateblocks' ),
-			'placeholder' => __( 'start_date_time', 'generateblocks' ),
-		),
-		'start_time_field'    => array(
-			'type'        => 'text',
-			'label'       => __( 'Start Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for start.', 'generateblocks' ),
-			'placeholder' => __( 'start_time', 'generateblocks' ),
-		),
-		'end_field'           => array(
-			'type'        => 'text',
-			'label'       => __( 'End Date/Date-Time Field', 'generateblocks' ),
-			'help'        => __( 'ACF field key for end date-time. Time-only values inherit date from start.', 'generateblocks' ),
-			'placeholder' => __( 'end_date_time', 'generateblocks' ),
-		),
-		'end_time_field'      => array(
-			'type'        => 'text',
-			'label'       => __( 'End Time Field (Optional)', 'generateblocks' ),
-			'help'        => __( 'ACF time picker to override or add time component for end.', 'generateblocks' ),
-			'placeholder' => __( 'end_time', 'generateblocks' ),
-		),
-		'format_type'         => array(
-			'type'    => 'select',
-			'label'   => __( 'Format Type', 'generateblocks' ),
-			'default' => 'auto',
-			'options' => array(
-				array( 'value' => 'auto',   'label' => __( 'Auto (Use ACF Return Format)', 'generateblocks' ) ),
-				array( 'value' => 'custom', 'label' => __( 'Custom Format', 'generateblocks' ) ),
-			),
-		),
-		'custom_format'       => array(
-			'type'        => 'text',
-			'label'       => __( 'Custom Format', 'generateblocks' ),
-			'help'        => __( 'PHP date format string (e.g., "F j, Y g:i A").', 'generateblocks' ),
-			'placeholder' => __( 'F j, Y g:i A', 'generateblocks' ),
-		),
-		'date_only'           => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show date only', 'generateblocks' ),
-			'help'    => __( 'Hide time components even if present in fields.', 'generateblocks' ),
-			'default' => false,
-		),
-		'time_only'           => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Show time only', 'generateblocks' ),
-			'help'    => __( 'Hide date components and show only time range.', 'generateblocks' ),
-			'default' => false,
-		),
-		'smart_time'          => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Smart Time Formatting', 'generateblocks' ),
-			'help'    => __( 'Hide time if midnight, consolidate AM/PM in ranges.', 'generateblocks' ),
-			'default' => true,
-		),
-		'omit_current_year'   => array(
-			'type'    => 'checkbox',
-			'label'   => __( 'Omit Current Year', 'generateblocks' ),
-			'help'    => __( 'Hide the year when it matches the current year. Ranges spanning two different years always show both years regardless of this setting.', 'generateblocks' ),
-			'default' => true,
-		),
-		'separator'           => array(
-			'type'        => 'text',
-			'label'       => __( 'Date Separator', 'generateblocks' ),
-			'help'        => __( 'Text between start and end dates.', 'generateblocks' ),
-			'default'     => '–',
-			'placeholder' => __( '–', 'generateblocks' ),
-		),
-		'date_time_separator' => array(
-			'type'        => 'text',
-			'label'       => __( 'Date-Time Separator', 'generateblocks' ),
-			'help'        => __( 'Text between date and time when using separate fields.', 'generateblocks' ),
-			'placeholder' => __( ', ', 'generateblocks' ),
-		),
-		'fallback_text'       => array(
-			'type'        => 'text',
-			'label'       => __( 'Fallback Text', 'generateblocks' ),
-			'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
-			'default'     => '',
-			'placeholder' => __( 'Date TBA', 'generateblocks' ),
-		),
-	);
-}
-
-// ===============================================
 // OPTION DEFINITIONS — BASE TAGS
 // ===============================================
 
@@ -381,11 +107,17 @@ function bws_get_datetime_single_field_key_options(): array {
 }
 
 function bws_get_base_datetime_single_options(): array {
+	// Canonical CONTROL order (FW-52): source → format → link → fallback.
+	// Source group = src → ref/srcTermIn → limit/sep → field keys (key/timeKey).
+	// The format block (as/format/timeSep/…) is control-LATE, serialize-EARLY (the
+	// normalizer lifts it to the front of the string). link then fallback last.
 	return array_merge(
-		bws_get_datetime_single_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
+		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
+		bws_get_datetime_single_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -393,9 +125,7 @@ function bws_get_base_datetime_single_options(): array {
 				'help'        => __( 'Text to display when no valid date/time is found.', 'generateblocks' ),
 				'placeholder' => 'Date/time TBA',
 			),
-		),
-		bws_get_datetime_list_options( false ),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
+		)
 	);
 }
 
@@ -537,11 +267,17 @@ function bws_get_datetime_range_field_key_options(): array {
 }
 
 function bws_get_base_datetime_range_options(): array {
+	// Canonical CONTROL order (FW-52): source → format → link → fallback.
+	// Source group = src → ref/srcTermIn → limit/sep → field keys (start/end). The
+	// format block (as/rangeSep/format/…) is control-LATE, serialize-EARLY (normalizer
+	// lifts it front). link then fallback last.
 	return array_merge(
-		bws_get_datetime_range_leading_options(),
 		bws_base_source_option(),
 		bws_base_traversal_options(),
+		bws_get_datetime_list_options( true ),
 		bws_get_datetime_range_field_key_options(),
+		bws_get_datetime_range_leading_options(),
+		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
 		array(
 			'fallback' => array(
 				'type'        => 'text',
@@ -549,9 +285,7 @@ function bws_get_base_datetime_range_options(): array {
 				'help'        => __( 'Text to display when no valid dates are found.', 'generateblocks' ),
 				'placeholder' => 'Date TBA',
 			),
-		),
-		bws_get_datetime_list_options( true ),
-		function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
+		)
 	);
 }
 
@@ -934,8 +668,8 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * showCurrentYear, showMidnight, fallback) map to the canonical keys the core
  * functions, format builders, and formatters read (date_time_field, time_field,
  * start_field/end_field, date_only/time_only, format_type/custom_format,
- * date_time_separator, separator, omit_current_year, smart_time,
- * fallback_text).
+ * date_time_separator, separator, omit_current_year, smart_time). `fallback`
+ * is already canonical and passes through untouched.
  *
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
  * Both render paths (base callbacks, try_/modifier template closures) and the
@@ -981,11 +715,6 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	// showMidnight (true = show midnight) → smart_time (true = hide midnight) — inverted.
 	// Absent showMidnight → smart_time true (default: smart-hide midnight).
 	$mapped['smart_time'] = empty( $options['showMidnight'] );
-
-	// fallback → fallback_text.
-	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
-		$mapped['fallback_text'] = $options['fallback'];
-	}
 
 	if ( ! $range ) {
 		// key → date_time_field, timeKey → time_field.
@@ -1051,44 +780,6 @@ function bws_base_map_datetime_range_options( array $options ): array {
 }
 
 /**
- * Collect a datetime list (#30): render each item, skip empties, slice to
- * `limit` (default 1, floored at 1), join with `sep` (default ", ").
- *
- * FW-3 shaping: $items carries ACF-object-id-shaped values — integer post ids
- * or WP_Term objects today; a term object-id string ("{taxonomy}_{term_id}")
- * slots into the same loop when FW-3's kind dispatch lands. The loop contract
- * never coerces an item; $render owns the item→string read.
- *
- * @since 1.15.0
- * @param array    $items   Read targets in document order.
- * @param callable $render  Item → rendered string ('' = skip).
- * @param array    $options Raw tag options (limit / sep).
- * @return array{value:string, count:int, first:mixed} `first` = first item
- *               that produced output (null when none) — the link-wrap target
- *               iff count is exactly 1.
- */
-function bws_datetime_collect_list( array $items, callable $render, array $options ): array {
-	$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
-	$sep   = $options['sep'] ?? ', ';
-	$out   = array();
-	$first = null;
-	foreach ( array_slice( $items, 0, $limit ) as $item ) {
-		$result = $render( $item );
-		if ( '' !== $result ) {
-			$out[] = $result;
-			if ( null === $first ) {
-				$first = $item;
-			}
-		}
-	}
-	return array(
-		'value' => implode( $sep, $out ),
-		'count' => count( $out ),
-		'first' => $first,
-	);
-}
-
-/**
  * Callback for the `datetime_single` base tag.
  *
  * Resolves entity via `source`, applies srcTerm hop when set, then
@@ -1109,6 +800,8 @@ function bws_datetime_collect_list( array $items, callable $render, array $optio
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
  *               traversal engine instead of collapsing to the first target.
  *               Term-ambient parity (FW-3a).
+ * @since 1.16.0 List collection via the shared bws_collect_value_list fold
+ *               (FW-49) — link identity replaces the first-item kind sniff.
  */
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1137,12 +830,6 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
 	}
 
-	// Per-item reads in list mode suppress the fallback — it fires ONCE below
-	// on all-empty output, never per item (else an empty term/post inside the
-	// limit window would inject the fallback text into the list).
-	$item_opts = $mapped;
-	unset( $item_opts['fallback_text'] );
-
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
@@ -1165,17 +852,22 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
-		$collected = bws_datetime_collect_list(
+		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
+		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
+		$collected = bws_collect_value_list(
 			$terms,
-			static function ( $term ) use ( $item_opts, $instance ) {
-				return bws_term_datetime_single_core( $term->term_id, $item_opts, $instance );
+			static function ( $term, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_term_datetime_single_core( $term->term_id, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+				);
 			},
-			$options
+			$mapped
 		);
 		$value = $collected['value'];
-		if ( 1 === $collected['count'] && $collected['first'] instanceof WP_Term ) {
-			$link_id   = $collected['first']->term_id;
-			$link_type = 'term';
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( $is_ref ) {
 		// src:ref list mode: read EVERY fanned-out ref target via the shared
@@ -1183,17 +875,20 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
-		$collected = bws_datetime_collect_list(
+		$collected = bws_collect_value_list(
 			$post_ids,
-			static function ( $oid ) use ( $item_opts, $instance ) {
-				return bws_datetime_single_core( $oid, $item_opts, $instance );
+			static function ( $oid, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_datetime_single_core( $oid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'post', 'id' => (int) $oid ),
+				);
 			},
-			$options
+			$mapped
 		);
 		$value = $collected['value'];
-		if ( 1 === $collected['count'] && is_numeric( $collected['first'] ) ) {
-			$link_id   = (int) $collected['first'];
-			$link_type = 'post';
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} else {
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )
@@ -1236,6 +931,8 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
  *               traversal engine instead of collapsing to the first target.
  *               Term-ambient parity (FW-3a).
+ * @since 1.16.0 List collection via the shared bws_collect_value_list fold
+ *               (FW-49) — link identity replaces the first-item kind sniff.
  */
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
@@ -1262,10 +959,6 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
 	}
 
-	// Per-item reads in list mode suppress the fallback (fires once below).
-	$item_opts = $mapped;
-	unset( $item_opts['fallback_text'] );
-
 	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
@@ -1288,17 +981,22 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
 			? bws_get_srcterm_terms( (int) $post_id, $tax )
 			: [];
-		$collected = bws_datetime_collect_list(
+		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
+		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
+		$collected = bws_collect_value_list(
 			$terms,
-			static function ( $term ) use ( $item_opts, $instance ) {
-				return bws_term_datetime_range_core( $term->term_id, $item_opts, $instance );
+			static function ( $term, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_term_datetime_range_core( $term->term_id, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+				);
 			},
-			$options
+			$mapped
 		);
 		$value = $collected['value'];
-		if ( 1 === $collected['count'] && $collected['first'] instanceof WP_Term ) {
-			$link_id   = $collected['first']->term_id;
-			$link_type = 'term';
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( $is_ref ) {
 		// src:ref list mode: read EVERY fanned-out ref target via the shared
@@ -1306,17 +1004,20 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
-		$collected = bws_datetime_collect_list(
+		$collected = bws_collect_value_list(
 			$post_ids,
-			static function ( $oid ) use ( $item_opts, $instance ) {
-				return bws_datetime_range_core( $oid, $item_opts, $instance );
+			static function ( $oid, array $item_opts ) use ( $instance ) {
+				return array(
+					'value' => bws_datetime_range_core( $oid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'post', 'id' => (int) $oid ),
+				);
 			},
-			$options
+			$mapped
 		);
 		$value = $collected['value'];
-		if ( 1 === $collected['count'] && is_numeric( $collected['first'] ) ) {
-			$link_id   = (int) $collected['first'];
-			$link_type = 'post';
+		if ( $collected['link'] ) {
+			$link_id   = (int) $collected['link']['id'];
+			$link_type = $collected['link']['kind'];
 		}
 	} else {
 		$post_id   = function_exists( 'bws_base_post_id_from_source' )

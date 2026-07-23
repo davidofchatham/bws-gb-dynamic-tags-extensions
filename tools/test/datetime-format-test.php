@@ -131,16 +131,16 @@ assert_same(
 		'time_only'       => false,
 		'omit_current_year' => true,
 		'smart_time'      => true,
-		'fallback_text'   => '(unset)',
+		'fallback'        => '(unset)',
 	),
 	pick( norm_single( array() ), array(
 		'date_time_field', 'time_field', 'format_type', 'custom_format',
-		'date_only', 'time_only', 'omit_current_year', 'smart_time', 'fallback_text',
+		'date_only', 'time_only', 'omit_current_year', 'smart_time', 'fallback',
 	) )
 );
 
 assert_same(
-	'N2 single full: key/timeKey/format/timeSep/show*/fallback all mapped',
+	'N2 single full: key/timeKey/format/timeSep/show* mapped; fallback passes through',
 	array(
 		'date_time_field'     => 'event_date',
 		'time_field'          => 'event_time',
@@ -149,7 +149,7 @@ assert_same(
 		'date_time_separator' => ' @ ',
 		'omit_current_year'   => false,
 		'smart_time'          => false,
-		'fallback_text'       => 'TBA',
+		'fallback'            => 'TBA',
 	),
 	pick( norm_single( array(
 		'key'             => 'event_date',
@@ -161,7 +161,7 @@ assert_same(
 		'fallback'        => 'TBA',
 	) ), array(
 		'date_time_field', 'time_field', 'format_type', 'custom_format',
-		'date_time_separator', 'omit_current_year', 'smart_time', 'fallback_text',
+		'date_time_separator', 'omit_current_year', 'smart_time', 'fallback',
 	) )
 );
 

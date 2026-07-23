@@ -98,13 +98,4 @@ abstract class AbstractSource implements SourceInterface {
 		return $this->get_context_type();
 	}
 
-	/**
-	 * Get sanitized fallback text from options.
-	 *
-	 * @param array $options Tag options.
-	 * @return string
-	 */
-	protected function get_fallback_text( array $options ): string {
-		return sanitize_text_field( $options['fallback_text'] ?? '' );
-	}
 }

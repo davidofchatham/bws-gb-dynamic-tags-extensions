@@ -7,7 +7,7 @@ See [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership
 **How this doc is organized.** Three parts, each a different reader-mode:
 
 - **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, custom editor controls, the option layout & visibility model.
-- **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its panel order — plus the try_ chains. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
+- **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its control order — plus the try_ chains. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
 - **[Part III — Trackers](#part-iii--trackers)** — read on change. Potential future templates; how to keep this document current.
 
 ---
@@ -66,7 +66,7 @@ See [§Source group](#source-group) for label/UI details and the per-slot serial
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | |
 
-The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` this release; `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop row overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field; `{{join}}` slots inherit it through the text read seam, `try_` slots do not yet); `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop row overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
@@ -172,7 +172,7 @@ Selected templates support outputting multiple results as a delimited list. `lim
 
 Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode rule applied at their `src:ref` traversal.
 
-**`datetime_*` list mode (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)):** the base `datetime_single` / `datetime_range` callbacks collect per-term / per-ref-target results via `bws_datetime_collect_list()` — empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` fires once on all-empty output (never per item), and link-wrap applies only when exactly one result renders (same rule as text/title). Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
+**List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies only when exactly one result renders — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12), and the single-result rule is a join constraint, not a linking one. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
 ---
 
@@ -215,9 +215,21 @@ Canonical defaults applied on read:
 
 **Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`, `srcTermIn` (checkbox half of the combined control).
 
-### `as` serialization opt-out (`image`, `term_image`, `try_image`)
+### `as` serialization opt-out + `as`+`size` fold (`image`, `term_image`, `try_image`)
 
-For image tags, the `as` option default (`url`) is **always serialized** — `{{image as:url|...}}` even when unmodified. Not stripped at registration. Justification: `as` controls the output mode (image src vs. alt text vs. caption vs. ID). Surfacing it in the saved tag makes the return mode immediately visible when copying a tag instance between fields, so a user can change `as:url` → `as:alt` in one edit instead of inspecting the option panel.
+For image tags, the `as` option is **always serialized** — `{{image as:url,full|...}}` even when unmodified. Not stripped at registration. Justification: `as` controls the output mode (image src vs. alt text vs. caption vs. ID). Surfacing it in the saved tag makes the return mode immediately visible when copying a tag instance between fields, so a user can change `as:url` → `as:alt` in one edit instead of inspecting the option panel.
+
+**`as` is a parameterized return-type selector; size folds into its value (as+size fold, v1.16.0).** Most return modes are nullary (`id`/`alt`/`title`/`caption` — no argument); `url` is unary — it takes a **size** argument (size changes *which* url). So size rides inside the `as` value as a comma second slot rather than a separate `size:` option:
+
+```
+as:url,<size>    // url(size) — always serialized, default full included: as:url,full
+as:<mode>        // nullary return (id/alt/title/caption) — bare mode, NO size arg
+```
+
+- **Wire schema:** `as:<mode>[,<size>]`. Size sub-slot present **iff** mode is `url`. Size enum = registered sizes (see `bws_get_image_size_options()`), default `full`, never stripped (rides the `as` opt-out). No interior `,,` possible — a nullary mode has no arg slot.
+- **GB `image-size` support DROPPED.** Image tags no longer register `'image-size'`; the `bws-as-size` composite control (`assets/js/as-size-control.js`) renders the mode dropdown + a size dropdown (shown only under `url`) and owns the whole `as` token. GB's native size control is retired — the composite ships pretty size labels GB never had (respects the `image_size_names_choose` filter).
+- **Read seam:** cores parse `as` via `bws_parse_as_option()` (`includes/helpers/image-helpers.php`), which splits `mode,size` and falls back to a legacy separate `size:` then `full`, so pre-fold saved tags still render at their size.
+- **Migration — Tag Converter ONLY:** `bws_migrate_image_as_size_fold()` (a `transform_callback` migration, `includes/tags/deprecated-tags.php`) folds a legacy `size:` (bare or per-slot `N-size:`) into `as` value-conditionally — into `url,<size>` for url, dropped for a nullary mode (size was dead there). It runs **through the Tag Converter, which rewrites the raw tag string before GB parses it**. It does **NOT** run on editor-open, and no control-side fold can replace it: `size` is GB-reserved, so GB destructures it into its own private `imageSize` state and re-serializes it even though the tag no longer registers `image-size` support — unreachable from `extraTagParams` (see [`gb-constraints.md` §Reserved keys are destructured into GB-private state](gb-constraints.md#reserved-keys-are-destructured-into-gb-private-state-and-re-serialized-even-when-unsupported)). Opening a pre-fold tag in the editor therefore leaves its `size:` token in place (reordered, not folded); the read seam above keeps it rendering correctly meanwhile.
 
 All other image options follow the standard rule. `as` is the documented exception.
 
@@ -230,11 +242,12 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | Control type | Renders | Source file | Used by |
 |---|---|---|---|
 | `bws-media-picker` | `wp.media()` modal; persists attachment ID (re-fetches preview URL via `wp.data` `core` `getMedia(id)`) | `assets/js/image-tag-controls.js` | `image`, `term_image`, `try_image` fallback |
+| `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `term_image`, `try_image` |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
-GB image-size selection uses GB's native `image-size` support (not a custom control). The earlier `bws-img-size` ComboboxControl was retired mid-1.6.0 cycle once GB's native support was confirmed to handle the reserved `size` key correctly — see CHANGELOG 1.6.0.
+Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
 
 ---
 
@@ -242,12 +255,53 @@ GB image-size selection uses GB's native `image-size` support (not a custom cont
 
 The cross-tag model for **how options are ordered in the editor panel** and **how show/hide conditions are expressed**. Each per-tag section in Part II gives its own ordered list; this section is the shared schema those lists follow.
 
-**Three-group structure (applies to all templates):**
-- **Group 1 — global formatting:** `as`, format options, separators, link-wrap. Not per-slot; applies to the assembled result.
-- **Group 2 — per-slot:** source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Repeated for each try_ slot.
-- **Group 3 — global fallback:** `fallback`. Once, after all slots.
+**Four groups (descriptive names; the legacy `Group 1/2/3` placeholders are retired):**
+- **`source` — per-slot**: source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Within-source order is `src → ref → srcTermIn → limit → sep → use → key` — `limit`/`sep` precede the field options because list length is a property of whether the **source** can return multiple results, not of the field read. Repeated for each try_ slot.
+- **`format` — global formatting**: `as`, format options, separators. Not per-slot; applies to the assembled result.
+- **`link` — link-wrap**: `linkTo` + dependent `linkKey` + `newTab` (or, on email/phone, the own-anchor `subject → noLink` set). A contiguous, role-defined cluster; treated as its own group so ordering can move it as a block.
+- **`fallback` — global fallback**: `fallback`. Once, after all slots.
 
-Show/hide conditions are noted inline in each per-tag list; all other options are always visible.
+**Two canonical orders (see [§Option order](#option-order) for the full model):**
+- **Control order** (panel top-to-bottom) = `source → format → link → fallback`.
+- **Serialization order** (tag string left-to-right) = `format → source → link → fallback`.
+
+The per-tag control lists in Part II are stated in **control order**. Show/hide conditions are noted inline in each per-tag list; all other options are always visible.
+
+### Option order
+
+**Two orders, defined against two references.** The **control order** — how controls stack top-to-bottom in the editor panel — is independent of the **serialization order** — how options appear left-to-right in the saved tag string. GB drives both from the same `extraTagParams` object, and the plugin decouples them with a per-tag reorder normalizer (built v1.16.0 — FW-52). The GB fact that makes this possible (GB's own `post_date` renders format above link yet serializes link before format) lives in [`gb-constraints.md` §Serialization order is independent of control order](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it). This section defines the canonical orders both axes aim at.
+
+**Which GB-native controls the plugin actually uses — only ONE.** GB gates every native control on a registered `supports` value (`tagSupports(tagData, X)`, `DynamicTagSelect.jsx:193`, `:269-274`): a control renders (and its reserved key serializes) ONLY when the tag registers support `X`. GB reserves the key names `source`, `id`, `key`, `link`, `size`, `dateFormat`, `required`, `tax` — but reserving a name and *using* the machinery are different. The plugin's tags register **empty `supports` arrays** (`base-tags.php:69,131,177,211,290,303,320`) except `image`/`term_image` = `['image-size']` (`:234`); and it does not register any source into GB's `sourcesInOptions` filter (default `[]`, so GB never serializes `source:`/`id:` for our tags either). So:
+
+| GB-native mechanism | Gated by | Plugin uses it? | What the plugin uses instead |
+|---|---|---|---|
+| Source selector, `source:` / `id:` serialize | `'source'` support / `sourcesInOptions` | **No** | custom `src` control |
+| Meta key control, `key:` serialize | `'meta'` support | **No** | custom `key` option |
+| Link controls, `link:` serialize | `'link'` support | **No** | custom `linkTo` / `linkKey` / `newTab` |
+| Taxonomy control, `tax:` serialize | `'taxonomy'` support | **No** | custom `srcTermIn` |
+| Date Format control, `dateFormat:` serialize | `'date'` support | **No** | custom `as:date\|time\|both` + format tokens |
+| Image Size control, `size:` serialize | `'image-size'` support | **No** (as of v1.16.0) | custom `bws-as-size` (`size` folded into `as`) |
+
+Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269-274`, `:513`, `:695-817`; no plugin reference to `sourcesInOptions`). **As of v1.16.0 the plugin uses NO GB-native reserved control at all** — the last one, Image Size, was retired by the `as`+`size` fold (below). **Every option this plugin uses is a CUSTOM option** → all within the reorder normalizer's reach. The reorder governs 100% of the custom-option surface (source/field/link/format/fallback). Everything below is the canonical order for those custom options.
+
+**`size` folded into `as` (v1.16.0).** The `as`+`size` composite (`bws-as-size`) removed `'image-size'` from image's supports arrays and folded size into the custom `as:url,medium` value — so `size` is now a custom option and no GB-native reserved control remains anywhere. See [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image).
+
+**One transient source exception — `term_*` tags.** The `term_*` modifier tags register with GB **type `'term'`**, which triggers GB's native term source + taxonomy machinery (`'term' === dynamicTagType` paths serialize `id:`/`tax:` and render the native term/taxonomy pickers without a `supports` entry). So on `term_*` specifically, source IS partly GB-native. This is the lone remaining GB-native usage, and it is **temporary — `term_*` is on the deprecation glide-path** (base tags + context modifiers subsume it; see [`docs/future-work.md`](future-work.md) term_ deprecation). Dropping `term_*` removes the native term source, after which the plugin uses NO GB-native controls at all.
+
+**Control order — author custom controls at GB's single injection point.** Since the plugin registers almost no GB-native supports (table above), all the plugin's own controls inject together at GB's single `tagSpecificControls` slot (`DynamicTagSelect.jsx:819`). So the control order is essentially the plugin's to define wholesale — GB contributes only the tag selector (top) and the Required checkbox + Insert button (bottom). **Canonical control order: `source → format → link → fallback`** — the author picks *what to read* (source/field) before *how to display it* (format), then link, then fallback. Format renders early in the panel, matching GB's own `post_date` (Date Format renders ABOVE Link To). Note this is the INVERSE of the serialization order below, where format leads and link precedes it.
+
+**Serialization order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is (corrected 2026-07-23 — link moved after source, see below):
+
+1. **`format`** group — `as` (image: the folded `as:url,<size>` — see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)), format/separator tokens (serialize-early so the return mode is visible up front when copying a tag).
+2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-limit`, `N-sep`, `N-use`, `N-key`, then the datetime field keys (`N-timeKey`, `N-startKey`, `N-startTimeKey`, `N-endKey`, `N-endTimeKey`) — canonical within-slot order (`limit`/`sep` precede the field keys: list length is a source property). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0.
+3. **`link`** group — the `linkTo`/`linkKey`/`newTab` cluster (custom — NOT GB's reserved `link`) OR, on email/phone, the own-anchor set `subject → noLink`. A role-based group (link-affecting controls, whichever mechanism); one set per tag. Placed **after source** because link is source-relative (`linkTo:post/term` links the resolved entity; `linkKey` reads a field off it) — matching GB's own `post_meta`/`post_date` `source → field → link` serialize chain.
+4. **`fallback`** group — `fallback`, last.
+
+**Format-front is a deliberate departure from GB.** GB's own `post_date` serializes format LAST (link before `dateFormat`); we invert to format-FIRST for manual-edit copy-visibility. Everything else (`source → field → link`) mirrors GB's chain. (The `post_date` render≠serialize proof is a pure GB fact — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it).)
+
+(No exceptions as of v1.16.0: image's former GB-native `size:` was folded into custom `as` by the `as`+`size` fold, so every option in the list above is a custom option the normalizer controls.)
+
+**Serialization order ≠ control order is intentional** (GB itself does this — see [`gb-constraints.md`](gb-constraints.md#serialization-order-is-independent-of-control-render-order--gb-itself-proves-it)). Our control order is `source → format → link → fallback` (format-early in the panel); our serialization order lifts `format` to front (`format → source → link → fallback`). The two are reconciled by a per-tag JS normalizer ([`serialization-order-normalizer.js`](../assets/js/serialization-order-normalizer.js), canonical map mirrored PHP-side in [`serialization-order.php`](../includes/helpers/serialization-order.php)) that rebuilds `extraTagParams` in the canonical serialization order inside `setState` (transform = lift `format` to front + keep each `N-` slot contiguous), gated per-tag-name via `tagSpecificControls`. Built v1.16.0 (FW-52); design rationale + build constraints (Strategy-1 `N-`-prefix block detection, registration-standardization unwind, two-writer coexistence) in [`.claude/plans/combined-option-controls.md` §Phase 3+ + §Grill outcomes 2](../.claude/plans/combined-option-controls.md).
 
 **`show_if` condition types** (implemented in `assets/js/editor-conditional-options.js`):
 - `'not_empty'` — passes when option has any value
@@ -348,7 +402,7 @@ Applies to **try_ tags** (multi-slot). Every slot-tied control front-loads the s
 
 ## Shared option groups
 
-Options common to most base tags, defined **once** here. Each per-tag section below lists only its tag-specific options and links back to these groups. The panel order these slot into is the [Option layout & visibility](#option-layout--visibility) model in Part I.
+Options common to most base tags, defined **once** here. Each per-tag section below lists only its tag-specific options and links back to these groups. The control order these slot into is the [Option layout & visibility](#option-layout--visibility) model in Part I.
 
 Option / required-option rules for deprecated N×M wrappers (e.g. `related_post_*`, `term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md), not here.
 
@@ -414,7 +468,7 @@ See [`datetime_*` section](#datetime_single-and-datetime_range) for the datetime
 
 ### Link wrap group
 
-Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own `mailto:`/`tel:` link mechanism — `noLink` — NOT the `linkTo` family; see their sections.) Placed at **end of Group 1** in all eligible templates.
+Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and `try_` variants). Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own `mailto:`/`tel:` link mechanism — `noLink` — NOT the `linkTo` family; see their sections.) The `link` group renders after `format` in control order, after `source` in serialization order.
 
 | Option name | Option label | Notes |
 |---|---|---|
@@ -436,7 +490,7 @@ Link wrap is applied **after fallback resolves** — fallback text is also wrapp
 
 ### Fallback group
 
-The `fallback` option (Group 3 — global, after all slots).
+The `fallback` option (the `fallback` group — global, last in both control and serialization order).
 
 | Applicable tags | Option type | Notes |
 |---|---|---|
@@ -454,10 +508,10 @@ Reads a text field (ACF/meta) or the source's **title/name** analog (`use:title`
 
 **Tag-specific options:** none beyond the shared groups — `text` is the canonical user of [Source](#source-group) + [Field](#field-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group). `use` values: `key` (default, key-mode — **`key` required**) or `title` (the analog).
 
-**Panel order:**
-- **Group 1:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
-- **Group 2:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`)
-- **Group 3:** `fallback`
+**Control order** (`source → link → fallback` — no `format` group on `text`):
+- **`source`:** `[source options]` → `use` (`key` (unset default in single-slot tags); `title`) → `key` (shown when `use` unset [in single-slot tags] or `use:key`)
+- **`link`:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
+- **`fallback`:** `fallback`
 
 ---
 
@@ -467,7 +521,7 @@ Long-form prose: post content / term description (the analog), an excerpt, or a 
 
 **Tag-specific options:** `use` values are `content` (default analog — post content / term description; **empty under `src:site`**), `excerpt` (post excerpt; empty under `src:site`), or `key` (**`key` required**). Uses [Source](#source-group) + [Field](#field-group) + [Fallback](#fallback-group); no [Link wrap](#link-wrap-group).
 
-**Panel order:** `[source options]` → `use` (`content` (unset default in single-slot tags); `excerpt`; `key`) → `key` (shown when `use:key`) → `fallback`
+**Control order:** `[source options]` → `use` (`content` (unset default in single-slot tags); `excerpt`; `key`) → `key` (shown when `use:key`) → `fallback`
 
 ---
 
@@ -477,10 +531,10 @@ The source's title/name analog — post title / term name / site name. Zero opti
 
 **Tag-specific options:** none — no [Field group](#field-group) (the datum is always the analog, no `use`/`key`). Uses [Source](#source-group) + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 
-**Panel order:**
-- **Group 1:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
-- **Group 2:** `[source options]`
-- **Group 3:** `fallback`
+**Control order** (`source → link → fallback` — no `format` group on `title`):
+- **`source`:** `[source options]`
+- **`link`:** `linkTo` → `linkKey` (shown when `linkTo:key`) → `newTab` (shown when `linkTo` not empty)
+- **`fallback`:** `fallback`
 
 ---
 
@@ -490,7 +544,7 @@ The source's URL analog — post URL / term URL / site `home_url()`. Output is a
 
 **Tag-specific options:** none — no [Field group](#field-group), no [Link wrap group](#link-wrap-group). Uses [Source](#source-group) + [Fallback](#fallback-group) (fallback is TBD — see [Fallback group](#fallback-group)).
 
-**Panel order:** `[source options]` → `fallback`
+**Control order:** `[source options]` → `fallback`
 
 ---
 
@@ -500,14 +554,16 @@ A media field: the source's **featured image / site logo** analog (`use:featured
 
 **Tag-specific options:**
 
-| # | Option label | Option name | Notes |
-|---|---|---|---|
-| 1 | Return As | `as` | return type: `url` / `alt` / `id` / `caption` — **always serialized** (see [§Default serialization strategy](#default-serialization-strategy) for the `as` opt-out) |
-| 2 | Image Size | `size` | image size (URL or ID returns) — GB native `image-size` support; see `custom-image-controls.md` |
-| 3 | | `[source options]` | [Source group](#source-group); no `limit`/`sep` for image |
-| 4 | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
-| 5 | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
-| 6 | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
+Control order `source → format → fallback` (no `link` group on `image`; `format` = the folded `as`+`size` composite). As of v1.16.0 the `bws-as-size` composite renders the return-mode dropdown and (under `url` only) a size dropdown as one control in the format group — GB's native image-size control is gone, so the whole format group is now under the plugin's control ordering.
+
+| # | Group | Option label | Option name | Notes |
+|---|---|---|---|---|
+| 1 | source | | `[source options]` | [Source group](#source-group); no `limit`/`sep` for image |
+| 2 | source | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
+| 3 | source | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
+| 4 | format | Return type | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
+| — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return type when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
+| 6 | fallback | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
 
 ---
 
@@ -517,31 +573,33 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 **Required:** `datetime_single` needs `key`; `datetime_range` needs `startKey` (`endKey` optional). Under `src:site` the keys read ACF options-page date fields via `get_field($key,'option')`. On a taxonomy archive a bare tag reads the ambient **term's** date field (1.15.0, FW-3a — same current-entity rule as text/title; previously post-only, honest-empty there). Uses [Source](#source-group) + `limit`/`sep` + [Link wrap](#link-wrap-group) + [Fallback](#fallback-group).
 
-**Tag-specific options + panel order** (numbers = position per template):
+**Tag-specific options + control order** (rows in canonical control order `source → format → link → fallback`; numbers = panel position per template):
 
-| Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
-|---|---|---|---|---|
-| Return As | `as` | 1 | 1 | `datetime`; `date`; `time` |
-| Start & End Separator | `rangeSep` | — | 2 | separator between start and end values within one result |
-| Custom Format | `format` | 2 | 3 | PHP format string; empty = auto |
-| Date & Time Separator | `timeSep` | 3 | 4 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
-| Show time when stored as midnight? | `showMidnight` | 4 | 5 | checkbox, false by default; shown when `as` ≠ `date` |
-| Show current year in date? | `showCurrentYear` | 5 | 6 | checkbox, false by default; shown when `as` ≠ `time` |
-| Link To | `linkTo` | 6 | 7 | End of Group 1. `permalink`; `key`; unset = no link |
-| Link URL Field Key | `linkKey` | 7 | 8 | shown when `linkTo:key` |
-| Open in new tab | `newTab` | 8 | 9 | checkbox; shown when `linkTo` not empty |
-| | `[source options]` | 9 | 10 | `src` / `srcTermIn` / `ref` |
-| Result Limit | `limit` | with fallback group | with fallback group | list mode ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)): shown when `srcTermIn` set or `src:ref`; default 1 |
-| Result Separator | `sep` | with fallback group | with fallback group | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
-| Date/Time Field Key | `key` | 10 | — | primary date/time field key |
-| Time Field Key (optional) | `timeKey` | 11 | — | separate time field — shown when `as` ≠ `date` |
-| Start Date/Time Field Key | `startKey` | — | 11 | |
-| Start Time Field Key (optional) | `startTimeKey` | — | 12 | shown when `as` ≠ `date` |
-| End Date/Time Field Key | `endKey` | — | 13 | |
-| End Time Field Key (optional) | `endTimeKey` | — | 14 | shown when `as` ≠ `date` |
-| | `[fallback option]` | 12 | 15 | |
+| Group | Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
+|---|---|---|---|---|---|
+| source | | `[source options]` | 1 | 1 | `src` / `srcTermIn` / `ref` |
+| source | Result Limit | `limit` | 2 | 2 | list mode ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)): shown when `srcTermIn` set or `src:ref`; default 1 |
+| source | Result Separator | `sep` | 3 | 3 | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
+| source | Date/Time Field Key | `key` | 4 | — | primary date/time field key |
+| source | Time Field Key (optional) | `timeKey` | 5 | — | separate time field |
+| source | Start Date/Time Field Key | `startKey` | — | 4 | |
+| source | Start Time Field Key (optional) | `startTimeKey` | — | 5 | |
+| source | End Date/Time Field Key | `endKey` | — | 6 | |
+| source | End Time Field Key (optional) | `endTimeKey` | — | 7 | |
+| format | Return As | `as` | 6 | 8 | `datetime`; `date`; `time` |
+| format | Start & End Separator | `rangeSep` | — | 9 | separator between start and end values within one result |
+| format | Custom Format | `format` | 7 | 10 | PHP format string; empty = auto |
+| format | Date & Time Separator | `timeSep` | 8 | 11 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| format | Show time when stored as midnight? | `showMidnight` | 9 | 12 | checkbox, false by default; shown when `as` ≠ `date` |
+| format | Show current year in date? | `showCurrentYear` | 10 | 13 | checkbox, false by default; shown when `as` ≠ `time` |
+| link | Link To | `linkTo` | 11 | 14 | `permalink`; `key`; unset = no link |
+| link | Link URL Field Key | `linkKey` | 12 | 15 | shown when `linkTo:key` |
+| link | Open in new tab | `newTab` | 13 | 16 | checkbox; shown when `linkTo` not empty |
+| fallback | | `[fallback option]` | 14 | 17 | |
 
-**Design rationale:** Global formatting options (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) lead as group 1 — not per-slot. Source selector follows as group 2 (`src` / `srcTermIn` / `ref`). Field keys close as group 3. `fallback` + list controls (`limit`/`sep`, revealed only for `srcTermIn`/`src:ref`) last.
+**Design rationale:** Canonical control order `source → format → link → fallback`. Source selector + list-mode `limit`/`sep` + per-slot field keys (`src`/`srcTermIn`/`ref` → `limit`/`sep` → `key`/`startKey`/…) lead — the author picks *what to read* first. `limit`/`sep` precede the field keys (list length is a source property, not a field one). Global formatting (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) follows. Link cluster, then `fallback`, close. **NB the serialization order differs** (`format → source → link → fallback` — format lifts to front for copy-visibility); the reorder normalizer reconciles the two (built v1.16.0, FW-52).
+
+> **⚠ CODE PENDING (FW-52 build).** The time-field keys (`timeKey`/`startTimeKey`/`endTimeKey`) shed their `as ≠ date` `show_if` reveal — they now render unconditionally with the source group (a field key is *what to read*, independent of *how to format*). The option definitions in [`base-tags.php`](../includes/tags/base-tags.php) still carry the old `show_if`; this doc reflects the FW-52 target. Reconcile on build.
 
 ---
 
@@ -568,11 +626,11 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
 | `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
 | `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
-| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
 
 Plus the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON) — not a per-tag option; gates `antispambot()` for all `{{email}}` output.
@@ -615,10 +673,10 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
 | `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
-| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
-| `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
+| `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `fallback` | text | Fallback Phone Number | always | A fallback **phone number** (normalized, wrapped). Fires only when no valid number resolves. |
 
 Plus two global **Settings → Tag Extensions → Phone** options (not per-tag): **Default country code** (digits, empty default) and **Strip a leading country code matching the default** (default OFF).
@@ -711,8 +769,10 @@ loop-row context, term-analog arm) works inside a join slot by construction. One
 (never inherited), and `limit` (list-mode cap so a term/ref slot reads >1 target). Slot ≥2 `src`
 keeps the `same`/inherit row — weave several fields off one entity (see J16b in the matrix for
 real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` —
-no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): a slot-1
-bare `sep` would collide with the tag-level assembly `sep`).
+no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1
+decision was to thread `{N}-limit` only). NB the wire-collision that ADR 0003 cited (a slot-1 bare
+`sep` clashing with the tag-level assembly `sep`) **dissolved when the assembly key was renamed to
+`valueSep`** (1.16.0, FW-52) — a per-slot `{N}-sep` is now free to add, though still deferred.
 
 **Reveal (combining-shaped).** Slots 1–2 visible up front; slot N ≥ 3 reveals when the previous
 slot has a `key` OR a non-default `use` — NOT its `src` (default-empty in combining; `try_`'s
@@ -722,10 +782,12 @@ src-keyed reveal is the selecting axis).
 
 | Option | Type | Notes |
 |---|---|---|
-| `mode` | select | `''` = Separator (default, stripped) / `template` |
-| `sep` | text | Assembly separator between non-empty values, default `', '`. Shown in separator mode. Values are not trimmed — `sep: ` is a literal space. |
-| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. |
-| `fallback_text` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). |
+| `mode` | select | `''` = Separator (default, stripped) / `template`. **Format group** (serialization). |
+| `valueSep` | text | Assembly separator between non-empty slot values, default `', '`. Shown in separator mode. Values are not trimmed — `valueSep: ` is a literal space. **Format group** (serialization). Renamed from `sep` (1.16.0, FW-52) to free the key name for the list-mode source-group `sep` — a slot-value joiner is a format concern, not a source one. |
+| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. **Format group** (serialization). |
+| `fallback` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). **Fallback group.** |
+
+`mode`/`valueSep`/`format` are join's **format group** — they sort serialize-early per the canonical serialization order (see [§Option order](#option-order)). They are NOT the source-group list-mode `sep`, which stays `sep` and joins repeated results of one field.
 
 **Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
 tag's options (captured as `[^}]+` — kills the whole tag match, no escape;
@@ -810,11 +872,11 @@ instead of an empty block, built by `bws_build_join_preview_label()`. Shape + ex
 
 ```
 {{join key:name_first|2-key:name_last}}                          → Jane, Smith
-{{join key:name_first|2-key:name_last|sep: }}                    → Jane Smith
+{{join key:name_first|2-key:name_last|valueSep: }}              → Jane Smith
 {{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
 {{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
 {{join mode:template|format:%1 / ~%2 lbs.~|key:position|2-key:weight}} → Center / 185 lbs. / Center when weight empty
-{{join use:title|2-use:key|2-key:role|sep: / }}                  → Page Title / Captain
+{{join use:title|2-use:key|2-key:role|valueSep: / }}            → Page Title / Captain
 {{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
 ```
 
@@ -887,7 +949,7 @@ Living reference. Update immediately when any of the following change:
 
 **When adding a new modifier prefix:** add a row to §Modifier prefixes; update §Base tag GB types if a new GB type string is introduced; document the registration call in [`docs/plugin-integration.md`](plugin-integration.md).
 
-**When adding a new template:** add a row to §Base tag GB types (including the Link wrap, Tag title, and Term modifier title columns); **add a per-tag section** (prose + tag-specific options + panel order, linking the §Shared option groups it uses) — note required options + list-mode support there; if `supports_try`, add a row to §Available try_ tags; if it introduces a new shared option, add it to the relevant §Shared option group; **add its editor preview-text rows (field part, warning, example) to [`editor-tag-previews.md`](editor-tag-previews.md)** — preview text is no longer owned here.
+**When adding a new template:** add a row to §Base tag GB types (including the Link wrap, Tag title, and Term modifier title columns); **add a per-tag section** (prose + tag-specific options + control order, linking the §Shared option groups it uses) — note required options + list-mode support there; if `supports_try`, add a row to §Available try_ tags; if it introduces a new shared option, add it to the relevant §Shared option group; **add its editor preview-text rows (field part, warning, example) to [`editor-tag-previews.md`](editor-tag-previews.md)** — preview text is no longer owned here.
 
 **Deprecated wrappers:** never edit this doc for N×M deprecated wrappers — those go in [`docs/deprecated-tags-options.md`](deprecated-tags-options.md).
 

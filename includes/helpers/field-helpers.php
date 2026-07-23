@@ -383,9 +383,11 @@ function bws_field_values_assemble_steps( array $options ): array {
  * term → term meta; post → post meta with an EXPLICIT id (triggers the v1.7.1
  * explicit-wins rule in bws_read_field, bypassing ITS own loop/term inference so
  * the factory's resolved source is authoritative — no double resolution).
- * meta_row → the row's own key. Returns '' on miss (caller drops empties).
+ * meta_row → the row's own key. user → plain user meta (FW-48 seam half).
+ * Returns '' on miss (caller drops empties).
  *
  * @since 1.14.0
+ * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author hop).
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -409,6 +411,21 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 			$raw = is_array( $row ) ? ( $row[ $key ] ?? '' ) : '';
 			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
 
+		case 'user':
+			// FW-48 (seam half): plain user-meta read, NOT the analog reader
+			// (bws_base_user_analog_read lives in base-shared, loaded AFTER this
+			// file — and it reads analogs, not meta; different concern). Currently
+			// unreachable at runtime — no traversal step or factory path yields a
+			// user-kind source into the seam until the post→author hop (FW-48
+			// proper) lands — but a user-less kind switch would ship a hole the
+			// ABSORB seam converged onto and force re-opening this function.
+			$user_id = (int) ( $source['id'] ?? 0 );
+			if ( $user_id <= 0 || bws_field_key_disallowed( $key ) ) {
+				return '';
+			}
+			$raw = get_user_meta( $user_id, $key, true );
+			return ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+
 		case 'post':
 			// Explicit id → v1.7.1 explicit-wins → bypasses bws_read_field's own
 			// loop/term inference (SPEC §V12). Factory already resolved the row.
@@ -426,6 +443,40 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 	}
 
 	return '';
+}
+}
+
+/**
+ * Map a resolved source to its link identity, or null when it has none (PURE).
+ *
+ * Link identity is the {kind,id} pair bws_resolve_link_url consumes
+ * (post|term|user|site). Per CONTEXT.md I12, link-wrappability is a property
+ * of the VALUE a source produces, not of the source kind — a source with no
+ * link identity (meta_row, future query-context kinds) maps to null, NEVER a
+ * sentinel id. site maps to sentinel id 1, matching the existing site
+ * link-wrap call sites (bws_wrap_with_link(..., 1, 'site')) — that sentinel
+ * is bws_resolve_link_url's own site convention, not an absence marker.
+ *
+ * @since 1.16.0
+ * @param array $source One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * @return array{kind:string, id:int}|null Link identity, or null.
+ */
+if ( ! function_exists( 'bws_source_link_identity' ) ) {
+function bws_source_link_identity( array $source ): ?array {
+	$kind = $source['kind'] ?? '';
+
+	switch ( $kind ) {
+		case 'post':
+		case 'term':
+		case 'user':
+			$id = (int) ( $source['id'] ?? 0 );
+			return $id > 0 ? array( 'kind' => $kind, 'id' => $id ) : null;
+
+		case 'site':
+			return array( 'kind' => 'site', 'id' => 1 );
+	}
+
+	return null;
 }
 }
 
@@ -450,17 +501,24 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
  *
  * Signature + string[] return are FROZEN (SPEC §V3) — every existing caller
  * (email/phone × 2) renders identically except the limit>1 ref-plural change.
+ * The optional $links out-param (FW-49) is ADDITIVE: existing callers omit it
+ * and see zero change; callers that pass a variable receive one link identity
+ * per RETURNED value (parallel arrays — $links[i] belongs to the returned
+ * value [i]), each bws_source_link_identity({kind,id})|null per CONTEXT.md I12.
  * Returns RAW, UNVALIDATED strings — per-tag validation + L3 composition stay in
  * each tag's callback. The resolver is composition-blind.
  *
  * @since 1.11.0
  * @since 1.14.0 Delegates L1 to the source factory + traversal engine; ref plural.
- * @param array  $options  Tag options (key, src, ref, srcTermIn, limit, …).
- * @param object $instance GB tag instance.
+ * @since 1.16.0 Optional $links out-param carries per-value link identity (FW-49).
+ * @param array      $options  Tag options (key, src, ref, srcTermIn, limit, …).
+ * @param object     $instance GB tag instance.
+ * @param array|null $links    Optional out-param: filled with one link identity
+ *                             ({kind,id}|null) per returned value, same order.
  * @return string[] Raw candidate value strings (unvalidated, empties dropped).
  */
 if ( ! function_exists( 'bws_resolve_field_values' ) ) {
-function bws_resolve_field_values( array $options, $instance ): array {
+function bws_resolve_field_values( array $options, $instance, ?array &$links = null ): array {
 	$key = sanitize_text_field( $options['key'] ?? '' );
 	if ( '' === $key ) {
 		return array();
@@ -489,15 +547,109 @@ function bws_resolve_field_values( array $options, $instance ): array {
 	$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
 	$sources = array_slice( $sources, 0, $limit );
 
-	// L2 — read each resolved source by kind; drop empties.
-	$out = array();
+	// L2 — read each resolved source by kind; drop empties. Link identity is
+	// carried out per KEPT value (FW-49) instead of being discarded with the
+	// source — $links stays parallel to the returned strings.
+	$out   = array();
+	$links = array();
 	foreach ( $sources as $source ) {
 		$value = bws_read_resolved_source( $source, $key, $instance );
 		if ( '' !== $value ) {
-			$out[] = $value;
+			$out[]   = $value;
+			$links[] = bws_source_link_identity( $source );
 		}
 	}
 	return $out;
+}
+}
+
+/**
+ * Fold a list of read targets into a joined value list carrying link identity (L3).
+ *
+ * THE shared combining fold for list-mode output (FW-49 convergence). One
+ * implementation replaces the hand-written slice/suppress/render/drop/join
+ * loops in base text/title (srcTermIn + src:ref branches) and datetime
+ * single/range (bws_datetime_collect_list). The seam
+ * (bws_resolve_field_values) does NOT route through this — its string[]
+ * return is frozen (SPEC §V3); it only carries link identity out per value.
+ *
+ * Owns, in order:
+ *  1. slice to `limit` (default 1);
+ *  2. per-item fallback suppression — $render receives $options with
+ *     'fallback' unset, so the fallback fires ONCE in the caller on all-empty
+ *     output, never per item (GH #51: a per-item fallback would pollute the
+ *     list AND satisfy the single-result link gate as though it were a value);
+ *  3. render each item ('' or empty 'value' drops silently);
+ *  4. per-value link capture;
+ *  5. the single-result link gate (top-level `link` = values[0]['link'] iff
+ *     count is exactly 1);
+ *  6. `sep` join (default ', ').
+ *
+ * @invariant (CONTEXT.md I12) Link-wrappability is a property of the VALUE,
+ * not of the source kind. Each collected value carries `link` — the {kind,id}
+ * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
+ * identity" is null, NEVER a sentinel id; kinds with no link identity
+ * (meta_row today, the #19 query-context kinds as they land) are normal, not
+ * exceptional — they collect fine and simply cannot be link-wrapped. The
+ * top-level single-result gate is a JOIN constraint, not a linking one: a
+ * multi-value composite string is unwrappable as ONE link, while the
+ * per-value links remain available in `values` for future per-item wrapping.
+ *
+ * The fold never coerces or inspects an item — $render owns the item→value
+ * read entirely. Callers keep their raw $options for linkTo/linkKey/newTab
+ * and the preview label; only the fold inputs route through here. Datetime
+ * callers pass the NORMALIZED ($mapped) options: bws_normalize_datetime_options
+ * is purely additive ($mapped ⊇ $options), so one array serves both the
+ * slice keys and $render's per-item options.
+ *
+ * @since 1.16.0
+ * @param array    $items   Read targets in document order (terms, post ids, …).
+ * @param callable $render  fn( $item, array $item_opts ): array{value:string, link:?array}|string
+ *                          Return '' to skip the item. A plain non-empty string
+ *                          is accepted as a value with no link identity.
+ *                          `link` is array{kind:string, id:int} or null.
+ * @param array    $options Tag options (limit / sep / fallback).
+ * @return array{
+ *   value:  string,
+ *   values: array<int, array{value:string, link:?array}>,
+ *   count:  int,
+ *   link:   ?array,
+ * }
+ */
+if ( ! function_exists( 'bws_collect_value_list' ) ) {
+function bws_collect_value_list( array $items, callable $render, array $options ): array {
+	$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
+	$sep   = $options['sep'] ?? ', ';
+
+	$item_opts = $options;
+	unset( $item_opts['fallback'] );
+
+	$values = array();
+	foreach ( array_slice( $items, 0, $limit ) as $item ) {
+		$result = $render( $item, $item_opts );
+		if ( is_array( $result ) ) {
+			$value = (string) ( $result['value'] ?? '' );
+			$link  = $result['link'] ?? null;
+		} else {
+			$value = (string) $result;
+			$link  = null;
+		}
+		if ( '' === $value ) {
+			continue;
+		}
+		$values[] = array(
+			'value' => $value,
+			'link'  => is_array( $link ) ? $link : null,
+		);
+	}
+
+	$count = count( $values );
+	return array(
+		'value'  => implode( $sep, array_column( $values, 'value' ) ),
+		'values' => $values,
+		'count'  => $count,
+		'link'   => 1 === $count ? $values[0]['link'] : null,
+	);
 }
 }
 

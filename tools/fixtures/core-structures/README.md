@@ -8,6 +8,7 @@ manual matrices assume:
 - [`tools/test/text-test-matrix.md`](../../test/text-test-matrix.md) (added 1.14.1 — read-seam rows; uses `staff-tom-associate` + `bws_zero_probe`)
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
 - [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless portal-visible `sample-event`, `department-sales` description for C17; manifest v4)
+- [`tools/test/fw52-order-test-matrix.md`](../../test/fw52-order-test-matrix.md) (added for FW-52 — EDITOR-EYEBALL serialization-order rows on `matrix-post-meta`; a seeded `fixture-photo` attachment + `feature_image` image field back the `{{image}}` reads; manifest v5, additive)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -97,6 +98,9 @@ so the schema survives snapshot restores.
 - Collision repeaters (Team / Product Features), two flex fields (Page Builder),
   registered-meta set (`bws_global_note`, `bws_page_only`, `subtitle`, `bws_cat_note`),
   `Break </script><b>x</b>` label probe, empty **Scratch** ACF group in the DB.
+- Media: one seeded image attachment `fixture-photo` (deterministic solid-color PNG,
+  idempotent by `_bws_fixture_slug` meta) + a `feature_image` ACF image field
+  (return_format `id`) on `matrix-post-meta` — backs the FW-52 `{{image}}` editor rows.
 
 ## Known gaps
 

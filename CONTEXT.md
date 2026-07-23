@@ -157,6 +157,20 @@ This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot
 
 ---
 
+## I12 — Link-wrappability is a property of the VALUE, not of the source kind
+
+A collected value carries a **link identity** — the `(kind, id)` pair `bws_resolve_link_url` consumes (`post|term|user|site`) — or it carries **none**. "None" is `null`, never a sentinel id. A value with no link identity is not "an entity whose id happens to be 0"; it is a datum that is not addressable.
+
+**Why this is not ADR 0002's rejected `{kind,id}`:** that decision governs L1's **resolved source** (the bound *where* a read happens — payload varies by read mechanism). This is an L3 **collected value** and its consumer, `bws_resolve_link_url`, is genuinely a typed four-kind switch. The two live at different layers with different consumers, so a typed link identity here does not re-import the shape ADR 0002 rejected there — provided the no-identity case stays `null`. The moment it becomes `id => 0`, every unaddressable kind starts special-casing at every consumer, which is exactly what ADR 0002 predicted.
+
+Kinds with no link identity are **normal, not exceptional**: `meta_row` (a repeater row is not an entity — it has no URL) today; the [I9]/#19 query-context kinds (date archive, search, 404) as they land — the tracker calls them "entity-less ... no field to read". A new source kind's link obligation is therefore ONE question: does it address something? If not, `null`, and no consumer changes.
+
+**Corollary — the single-result link gate is a JOIN constraint, not a linking one.** A list whose values are `sep`-joined into one string cannot be wrapped in one link (the link would span unrelated entities, and a lone fallback string would satisfy a naive gate — GH #51). Hence "wrap iff exactly one value survived". This does NOT say list items are unlinkable individually: per-value link identities are retained precisely so a future per-item link mode is available without reshaping the payload.
+
+Enforced at: `bws_collect_value_list()` PHPDoc (field-helpers.php). Consumer contract: `bws_resolve_link_url` (link-helpers.php). Rationale + build record: `.claude/plans/traversal-pipeline.md` §Design (FW-49). Related: [ADR 0002](docs/adr/0002-resolved-source-variable-payload.md), [I7] (list mode), [I9] (ambient kinds).
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).

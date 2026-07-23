@@ -75,7 +75,7 @@ Place on a single post, then a term archive.
 | R4.3 | post | `{{text use:title}}` | post title |
 | R4.4 | post | `{{content use:content}}` | post content |
 | R4.5 | term | `{{term_text use:title}}` | term name |
-| R4.6 | post | `{{try_text key:[SUB post meta]\|2-use:title}}` | slot 1 meta, else slot 2 title (carry-forward intact) |
+| R4.6 | post | `{{try_text key:[SUB post meta]\|2-use:title}}` | slot 1 meta, else slot 2 title (carry-forward intact). NB `2-use:` is REQUIRED — a slot 2+ given only `2-key:` renders empty (looks like broken fallthrough, isn't; `2-src:same` does not rescue it) |
 | R4.7 | post | `{{text src:site\|use:key\|key:[SUB ACF group subfield, e.g. organization_social.facebook]\|linkTo:key\|linkKey:[same key]}}` | value AND link both resolve (§B4 — dot-path + ACF filter via shared reader) |
 
 ## R5 — datetime site

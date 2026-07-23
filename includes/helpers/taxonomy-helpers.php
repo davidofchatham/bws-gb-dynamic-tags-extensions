@@ -280,7 +280,14 @@ function bws_get_terms_for_post( int $post_id, array $options ): array {
  *
  * Provides the taxonomy selector used by post_term_*, related_post_term_*, etc.
  *
+ * No internal callers remain (the post-context term-extraction templates it fed
+ * were retired); kept as a published integration affordance —
+ * docs/plugin-integration.md lists it for external plugins registering their own
+ * post-context term templates.
+ *
  * @since 1.2.0
+ * @since 1.16.0 `fallback_text` key renamed to `fallback`, matching every live
+ *               tag and the documented contract.
  * @return array
  */
 if ( ! function_exists( 'bws_post_term_extraction_options' ) ) {
@@ -292,7 +299,7 @@ function bws_post_term_extraction_options(): array {
 			'help'        => __( 'Enter the taxonomy slug to retrieve terms from (e.g. category, post_tag, or a custom taxonomy slug).', 'generateblocks' ),
 			'placeholder' => __( 'category', 'generateblocks' ),
 		),
-		'fallback_text' => array(
+		'fallback' => array(
 			'type'  => 'text',
 			'label' => __( 'Fallback Text', 'generateblocks' ),
 		),

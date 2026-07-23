@@ -1029,7 +1029,7 @@ function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_cu
  */
 if ( ! function_exists( 'bws_handle_date_time_fallback' ) ) {
 function bws_handle_date_time_fallback( $options, $instance, $tag_type ) {
-    $fallback_text = sanitize_text_field( $options['fallback_text'] ?? '' );
+    $fallback_text = sanitize_text_field( $options['fallback'] ?? '' );
 
     if ( empty( $fallback_text ) ) {
         return '';

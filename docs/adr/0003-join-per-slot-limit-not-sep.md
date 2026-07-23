@@ -2,6 +2,16 @@
 
 **Status:** accepted (grill 2026-07-17; pre-build, hardening `.claude/plans/combine-text.md`).
 
+> **Update (1.16.0):** the tag-level assembly separator was renamed `sep` → `valueSep` under FW-52
+> (serialization-group correctness — a bare tag-level `sep` scattered into the source group and
+> clashed with the list-mode `sep`). The rename happened for that reason, not for this ADR's
+> per-slot concern, but its consequence lands here: the wire collision that blocked a per-slot
+> `{N}-sep` (§Considered options, first bullet) **no longer exists** — the tag-level key is now
+> `valueSep`, so a slot-1 bare `sep` is free. Per-slot inner `sep` stays deferred (still an edge
+> affordance, no evidence it's wanted; tracked `docs/future-work.md` FW-44), but its blocker
+> dissolved. The v1 decision below (`{N}-limit` only, inner sep = text default) is unchanged and
+> still accurate.
+
 A `{{join}}` slot that resolves in list mode (`srcTermIn` / `src:ref` reading N targets) absorbs
 the base `text` list resolve, which reads BOTH `$options['limit']` and `$options['sep']` off the
 slot's own option array (base-tags.php:662-663, 688-689). v1 threads a per-slot `{N}-limit` (slot 1

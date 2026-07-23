@@ -82,7 +82,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *                                               on non-current slots); unbound
  *                                               %N stays literal
  *   [⚠ Join: {warnings}]                      — misconfigured slot(s) / no format
- * Trailing ` (fallback: “X”)` appended when `fallback_text` is set.
+ * Trailing ` (fallback: “X”)` appended when `fallback` is set.
  *
  * Slot walk matches bws_join_callback(): a slot is "real" iff it has a `key` OR a
  * non-default `use`; src/ref carry forward (`same`/'' inherits the prior resolved
@@ -90,7 +90,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *
  * @since 1.15.0
  * @param array $options Parsed tag options (slot fields prefixed N- for N≥2;
- *                       tag-level mode/sep/format/fallback_text).
+ *                       tag-level mode/valueSep/format/fallback).
  * @return string Bracket preview label, or '' when nothing is configured.
  */
 if ( ! function_exists( 'bws_build_join_preview_label' ) ) {
@@ -98,8 +98,8 @@ function bws_build_join_preview_label( array $options ): string {
 	$max      = defined( 'BWS_JOIN_MAX_SLOTS' ) ? BWS_JOIN_MAX_SLOTS : 10;
 	$mode     = $options['mode'] ?? '';
 	$format   = $options['format'] ?? '';
-	$sep      = $options['sep'] ?? '';
-	$fallback = $options['fallback_text'] ?? '';
+	$sep      = $options['valueSep'] ?? '';
+	$fallback = $options['fallback'] ?? '';
 
 	// Walk slots 1..max with the callback's carry-forward. Collect field/source
 	// parts for the "real" slots only.
@@ -241,7 +241,11 @@ function bws_join_preview_format( string $format, array $parts, int $max ): stri
  */
 if ( ! function_exists( 'bws_build_try_preview_label' ) ) {
 function bws_build_try_preview_label( array $options, string $base_template ): string {
-	$as       = $options['as'] ?? '';
+	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
+	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
+	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
+		? bws_parse_as_option( $options )['mode']
+		: ( $options['as'] ?? '' );
 	$fallback = $options['fallback'] ?? $options['fallback_text'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string breaks attribute).
@@ -695,7 +699,11 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( '' === $use && '' !== $use_default ) {
 		$use = $use_default;
 	}
-	$as       = $options['as'] ?? '';
+	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the
+	// bare return MODE for the exclusion test. Datetime/other `as` has no size fold.
+	$as       = ( 'image' === $base_template && function_exists( 'bws_parse_as_option' ) )
+		? bws_parse_as_option( $options )['mode']
+		: ( $options['as'] ?? '' );
 	$fallback = $options['fallback'] ?? '';
 
 	// Image excluded for output-attribute modes (bracket string silently breaks the element).

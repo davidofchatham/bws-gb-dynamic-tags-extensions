@@ -6,7 +6,7 @@
  * These are the cross-tag primitives the base callbacks AND the other tag
  * families (datetime, email, fn, phone) build on — the `src`/`ref`/`srcTermIn`
  * option definitions, the try_ slot option builder, the post-id source
- * wrapper, the ambient-term analog read, and bws_base_map_options(). They live
+ * wrapper and the ambient-term analog read. They live
  * here (not in base-tags.php) because their scope is every tag, not just the
  * base renderers; base-tags.php now holds only the actual base tag callbacks,
  * the src:site source, and the try_ dispatch wrappers.
@@ -584,8 +584,6 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 	if ( ! $term_id ) {
 		return '';
 	}
-	$opts = bws_base_map_options( $options );
-
 	switch ( $tag ) {
 		case 'title':
 			return bws_term_title_core( $term_id, $options, $instance );
@@ -593,14 +591,14 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 		case 'text':
 			$use = $options['use'] ?? 'key';
 			return 'title' === $use
-				? bws_term_title_core( $term_id, $opts, $instance )
-				: bws_term_custom_text_core( $term_id, $opts, $instance );
+				? bws_term_title_core( $term_id, $options, $instance )
+				: bws_term_custom_text_core( $term_id, $options, $instance );
 
 		case 'content':
 			$use = $options['use'] ?? 'content';
 			return 'key' === $use
-				? bws_term_custom_text_core( $term_id, $opts, $instance )
-				: bws_term_description_core( $term_id, $opts, $instance );
+				? bws_term_custom_text_core( $term_id, $options, $instance )
+				: bws_term_description_core( $term_id, $options, $instance );
 
 		case 'permalink':
 			return bws_term_permalink_core( $term_id, $options, $instance );
@@ -661,14 +659,17 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *
  *   title   → display name          (get_the_author_meta('display_name'))
  *   content → biographical info      (get_the_author_meta('description'))
+ *   text    → use:title = display name; key-mode = user meta field (1.16.0,
+ *             FW-48 seam half — closes the ABSORB-seam hole so {{text}},
+ *             {{join}} slots and try_text resolve on an author archive)
  *
  * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
  * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the
  * term analog readers.
  *
- * Scope for 1.15.0 is title + content only (the plan's author-archive dispatch
- * rows). This returns '' for any other tag, so an unhandled tag renders empty
- * rather than wrong. Deferred author analogs (FW-47):
+ * Scope: title + content (1.15.0, the plan's author-archive dispatch rows) +
+ * text (1.16.0, FW-48 seam half). This returns '' for any other tag, so an
+ * unhandled tag renders empty rather than wrong. Deferred author analogs (FW-47):
  *   - permalink: get_author_posts_url() datum EXISTS (bws_resolve_link_url
  *     already resolves it for link-wrap) but a bare {{permalink}} is circular
  *     on the author's own archive (= the page URL). Non-circular uses need a
@@ -680,7 +681,8 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *   - datetime: folds in with FW-9's remaining datetime context work.
  *
  * @since 1.15.0
- * @param string $tag      One of title|content (others → '').
+ * @since 1.16.0 text case (FW-48 seam half).
+ * @param string $tag      One of title|content|text (others → '').
  * @param int    $user_id  Ambient user id.
  * @param array  $options  Tag options.
  * @param object $instance GB instance.
@@ -698,6 +700,27 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			}
 			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $name, $options, $instance );
 
+		case 'text':
+			// Mirror of the term analog's text dispatch: use:title → the intrinsic
+			// analog (display name), key-mode → a user meta field read shaped like
+			// bws_term_custom_text_core (fallback emit on miss, '0' preserved).
+			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+				return bws_base_user_analog_read( 'title', $user_id, $options, $instance );
+			}
+			$fallback = sanitize_text_field( $options['fallback'] ?? '' );
+			$key      = sanitize_text_field( $options['key'] ?? '' );
+			if ( '' === $key || ( function_exists( 'bws_field_key_disallowed' ) && bws_field_key_disallowed( $key ) ) ) {
+				return '';
+			}
+			$raw   = get_user_meta( $user_id, $key, true );
+			$value = ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
+			if ( '' === $value ) {
+				return '' !== $fallback
+					? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+					: '';
+			}
+			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $value, $options, $instance );
+
 		case 'content':
 			$bio = get_the_author_meta( 'description', $user_id );
 			if ( ! is_string( $bio ) || '' === $bio ) {
@@ -713,24 +736,3 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 	return '';
 }
 
-// ===============================================
-// SHARED OPTION HELPER
-// ===============================================
-
-/**
- * Remap base-tag option keys to what the old core functions expect.
- *
- * Base tags use the new naming convention (fallback vs. fallback_text).
- * Existing core functions still read the old keys. This function bridges
- * the gap without requiring changes to the core functions.
- *
- * @since 1.6.0
- * @param array $options Raw tag options from GenerateBlocks.
- * @return array Options with fallback_text populated from fallback when present.
- */
-function bws_base_map_options( array $options ): array {
-	if ( isset( $options['fallback'] ) && ! isset( $options['fallback_text'] ) ) {
-		$options['fallback_text'] = $options['fallback'];
-	}
-	return $options;
-}

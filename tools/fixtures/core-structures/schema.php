@@ -160,6 +160,16 @@ function bws_fixture_core_structures_register_acf() {
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'id',
 				),
+				// FW-52 image editor rows — an ACF image field returning the
+				// attachment ID, so {{image use:key|key:feature_image}} resolves a
+				// real attachment for the as:url/alt/id/caption editor eyeball.
+				array(
+					'key'           => 'field_bwsfx_feature_image',
+					'name'          => 'feature_image',
+					'label'         => 'Feature Image',
+					'type'          => 'image',
+					'return_format' => 'id',
+				),
 			),
 			'location' => array(
 				array( array( 'param' => 'post_type', 'operator' => '==', 'value' => 'page' ) ),

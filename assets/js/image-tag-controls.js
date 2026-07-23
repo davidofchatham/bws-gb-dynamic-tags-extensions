@@ -7,9 +7,9 @@
  *   (URLs cannot be embedded in tag option values — colons and pipes corrupt the
  *   tag-string parser on reopen. See docs/gb-constraints.md §Tag-string-unsafe values.)
  *
- * Image size is handled by GenerateBlocks' native 'image-size' support (declared in supports
- * array on image-template tags), which renders its own ComboboxControl and handles
- * 'size:' parsing/serialization (default 'full' is stripped automatically).
+ * Image size is handled by the bws-as-size composite (assets/js/as-size-control.js) as of
+ * v1.16.0 — size folds into the `as` value (`as:url,medium`); GB's native 'image-size'
+ * support is dropped. This file now owns only the fallback media picker.
  *
  * @package BWS_Dynamic_Tags
  * @since   1.6.0

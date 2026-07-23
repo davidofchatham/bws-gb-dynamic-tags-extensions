@@ -86,24 +86,94 @@ Built-in options (`source`, `id`, `key`, `link`, `size`, `dateFormat`, `required
 - A custom control **can force canonical order** by rebuilding the whole `extraTagParams` object (re-inserting keys in the desired order) inside its `setState`, instead of spreading-and-appending. The stock `TextControl` path cannot — it only spreads-and-appends.
 - **Folding multiple fields into one composite-owned key** (e.g. `start:date,time`) makes intra-field order structural — the control builds the comma string itself, so GB never orders those sub-values. This is the only way to *guarantee* a fixed order between two values without owning every control that might touch the object. (Comma is opaque to GB's `parseTag()` — see §Tag string escape syntax.)
 
+### Reserved keys are destructured into GB-private state and re-serialized even when unsupported
+
+**Dropping a `supports` value stops GB RENDERING that control, but does NOT stop GB owning and
+re-emitting its reserved key.** Verified GB 2.2.1 (`DynamicTagSelect.jsx`):
+
+- **Parse** (`:385-395`) destructures `id`, `source`, `key`, `link`, `required`, `tax`, `size`,
+  `dateFormat` out of `parsedTag.params` **unconditionally** — before `extraParams` (which becomes
+  `extraTagParams`) is formed. `size` then goes into GB's own `imageSize` state (`:443`, ungated).
+- **Serialize** (`:541`) re-emits it from that private state — `if ( imageSize && 'full' !== imageSize )
+  options.push('size:'+imageSize)` — also **ungated on `supports`**.
+- **Render** (`:800`) is the ONLY support-gated step (`tagSupportsImageSize`).
+
+So a tag that drops `'image-size'` support still round-trips a saved `size:` token: invisible in the
+modal, absent from `extraTagParams`, yet re-serialized on every save. The `tagSpecificControls`
+filter receives only `{ state: extraTagParams, setState: setExtraTagParams }` (`:112`), so **a custom
+control can neither read nor clear these reserved keys** — there is no plugin-side lever.
+
+**Consequence for migrations:** a legacy reserved-key token can only be rewritten by transforming the
+**raw tag string before GB parses it** (our `TagConverter` path). An editor-open / control-mount fold
+is impossible for reserved keys. (This is the stranded-reserved-token trap that forced the
+`tax` → `srcTermIn` rename, in a different guise; hit again by the 1.16.0 image `as`+`size` fold —
+see [`tag-reference.md` §`as` serialization opt-out + `as`+`size` fold](tag-reference.md).)
+
+### Serialization order is independent of control (render) order — GB itself proves it
+
+The order options **serialize** in the tag string is a separate axis from the order their controls **render** top-to-bottom in the modal. **GB's own `post_date` demonstrates the split:** its modal renders **Date Format ABOVE Link To**, yet it serializes `{{post_date id:100|link:author_archive|dateFormat:F j, Y}}` — **link before format** (render puts format first, serialization puts it last). Render order is fixed by the control-render sequence; serialization order is `extraTagParams` insertion order (above). The two need not agree, and for `post_date` they don't.
+
+This is the affordance the plugin's reorder normalizer stands on: a per-tag JS normalizer (gated by tag name via `generateblocks.editor.tagSpecificControls`) rebuilds `extraTagParams` in a canonical serialization order inside `setState`, WITHOUT touching control render order (which stays the registration/PHP option-definition order). The gate is per-tag-name so a tag with a value-writing composite and the order-normalizer can coexist: they converge iff their guards test **disjoint** properties — the normalizer touches key-ORDER only, a composite touches key-VALUE only (spread-preserve `setState`), so neither perturbs the other's axis. The plugin's canonical orders and the normalizer's status live in [`tag-reference.md` §Option order](tag-reference.md#option-order); this is the pure GB fact that makes the decoupling possible.
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).
 
 ### Registration params rarely / not yet used
 
-- **`visibility`** — controls when a tag appears in the editor selector. Accepts `true` (default), `false`, `[ 'context' => [...] ]`, or `[ 'attributes' => [ [ 'name' => ..., 'value' => ..., 'compare' => ... ] ] ]`. Compare operators: `===`, `!==`, `IN`, `NOT_IN`. **Distinct from our JS `show_if` layer** (which gates *option* visibility inside an open modal). `visibility` gates the tag itself in the selector list. Prefer native `visibility` over JS when the gate depends on block attributes (`tagName`, etc.) rather than sibling option values. **First plugin use: `{{email}}` (1.9.0)** registers `tagName NOT_IN ['a','button','img','picture']`, mirroring GB core's own `term_list` registration — its default-ON `mailto:` wrap is invalid inside anchor/button (nested interactive) or img/picture (void/replaced). See `tag-reference.md` §Email tag.
+- **`visibility`** — controls when a tag appears in the editor selector. Accepts `true` (default), `false`, `[ 'context' => [...] ]`, or `[ 'attributes' => [ [ 'name' => ..., 'value' => ..., 'compare' => ... ] ] ]`. Compare operators: `===`, `!==`, `IN`, `NOT_IN`. **Distinct from our JS `show_if` layer** (which gates *option* visibility inside an open modal). `visibility` gates the tag itself in the selector list. Prefer native `visibility` over JS when the gate depends on block attributes (`tagName`, etc.) rather than sibling option values. **First plugin use: `{{email}}` (1.9.0)** registers `tagName NOT_IN ['a','button','img','picture']`, mirroring GB core's own `term_list` registration — its default-ON `mailto:` wrap is invalid inside anchor/button (nested interactive) or img/picture (void/replaced). Note only the **`a`/`button` half of that gate actually fires**; `img`/`picture` is unreachable — see the blind-spot section below before designing a new gate. See `tag-reference.md` §Email tag.
 - **`description`** — help text shown below tag in selector UI. None of our tags set this; consider adding to clarify ambiguous tags (e.g. `term_*` selector).
 
-#### `visibility` blind spot — the media block (empty `tagName`)
+#### `visibility` blind spot — `img`/`picture` is unreachable (verified GB 2.3.0, 2026-07-21)
 
-`visibility` with `tagName NOT_IN [...]` is a **value-compare on a block attribute**, so it only matches blocks that serialize a real `tagName`. The **GB media block does not**: `dist/blocks/media/block.json` declares `tagName` as `{ "type":"string", "default":"", "enum":["img"] }` — default empty, with no editor control to set it (the enum's single value is implicit). The block still renders `<img>` at runtime.
+**A `tagName` gate naming `img`/`picture` can never fire.** No editor-reachable GB block
+presents a `tagName` of `img` or `picture` to the picker's compare. Verified two ways:
 
-Consequence: `'' NOT_IN ['a','button','img','picture']` evaluates **true**, so a tag gated to hide on `img` is **still offered on the media block**. The element block serializes its chosen tag (`tagName:"button"` etc.), so the gate works there — media is the sole hole. (GB core's own `term_list` registration has the identical hole; it's simply never exercised on a media block.)
+1. **The Container block's enum excludes void tags.** `dist/blocks/element/block.json`
+   declares `tagName` with enum `div, section, article, aside, header, footer, nav, main,
+   figure, a, ul, ol, li, dl, dt, dd`. No `img`, no `picture`. The block that *does* serialize
+   a real, compared `tagName` cannot be set to a void element.
+2. **The media block serializes `img` but the picker never sees it.** Its
+   `dist/blocks/media/block.json` declares `tagName` as `{"type":"string","default":"",
+   "enum":["img"]}`. A saved block *does* carry `"tagName":"img"` in its markup — but the
+   picker's filter call site (`dist/blocks/media/index.js`) passes a `tagName` **prop** that
+   is not populated from the saved attribute, and the comparator falls back to `""` via
+   `const o = r?.[a] ?? ""`. So `!['a','button','img','picture'].includes("")` → **true** →
+   every tag stays offered.
 
-Worse, on a media block GB injects the tag's replacement into the `<img src>` attribute (`class-dynamic-tags.php` — `'generateblocks/media' === $block_name`), so any tag emitting markup (e.g. the default-on `<a>` wrap of `{{phone}}` / `{{email}}`) corrupts `src`.
+> **Correction (2026-07-21).** This section previously attributed the hole to the media
+> block's `tagName` "never serializing." That is wrong — it serializes fine; the picker
+> just doesn't read it. The observable consequence (tags still offered on media) was and
+> remains correct. Confirmed empirically: `{{email}}`, which has carried the
+> `['a','button','img','picture']` gate since 1.9.0, is still listed in the picker on a
+> media block.
 
-**Plugin response:** a **runtime backstop** keyed on block *name* (the only reliable media signal — same key GB uses), not `tagName`. `bws_tag_blocked_on_media_block()` ([`link-helpers.php`](../includes/helpers/link-helpers.php)) returns true for `generateblocks/media`; the `{{phone}}` and `{{email}}` callbacks call it and return `''` early. The native `visibility` gate stays as the cosmetic editor-list filter for the element-block cases it *can* see; correctness is guaranteed at render regardless. Editor-picker UX (hiding the tag on a media block in the selector) is tracked separately — native `visibility` cannot express a blockName condition, so it would need an undocumented selector hook.
+**Consequences for gate design:**
+
+- The `img`/`picture` half of any `tagName` gate is **decorative** — it costs nothing but
+  protects nothing. Only the `a`/`button` half does real work, on Container blocks set to `a`.
+- A gate is therefore only worth registering for the **anchor/button** case. Gating a tag
+  *solely* on `img`/`picture` is inert. ([#31](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/31)
+  proposed exactly that for `text`/`title`/`datetime_*`/`join` and was closed as inert on
+  this finding — see `future-work.md` Closed/Retired FW-11.)
+- Anything needing real media-block protection must use the **runtime backstop** below.
+
+**Media-block `src` injection (separate, still live).** On a media block GB injects the
+tag's replacement into the `<img src>` attribute (`class-dynamic-tags.php` —
+`'generateblocks/media' === $block_name`), so any tag emitting markup (e.g. the default-on
+`<a>` wrap of `{{phone}}` / `{{email}}`) corrupts `src`. Bare-text tags are fine there, and
+`{{image as:url}}` populating `src` is the intended pattern.
+
+**Plugin response:** a **runtime backstop** keyed on block *name* — the only reliable media
+signal, and the same key GB itself uses. `bws_tag_blocked_on_media_block()`
+([`link-helpers.php`](../includes/helpers/link-helpers.php)) returns true for
+`generateblocks/media`; the `{{phone}}`, `{{email}}`, and `{{call}}` callbacks call it and
+return `''` early, and the template registry threads it to `term_`/`try_` variants behind its
+`$media_guard` flag. This backstop is **load-bearing, not redundant** — it is the only thing
+standing between a media block and a corrupt `src`, precisely because the native gate cannot
+fire there. Tags whose output is bare text by default (`text`/`title`/`datetime_*`/`join`)
+deliberately do NOT take it: their output in `src` is valid, and blocking it would break a
+legitimate use.
 
 ### Built-in tag parameters
 

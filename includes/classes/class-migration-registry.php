@@ -43,6 +43,13 @@ class MigrationRegistry {
 	 *                                   Combines a presence-flag key + a value key into one new key. Both old
 	 *                                   keys are dropped after combination. Applied before option_renames.
 	 *   @type array   $fixed_options   Key/value pairs always injected on conversion.
+	 *   @type callable $transform_callback Whole-string fn( string $tag_string ): string.
+	 *                                   When set, OVERRIDES the entire declarative pipeline
+	 *                                   (both 'tag' and 'option' entries) — use for shape
+	 *                                   changes the declarative steps can't express, e.g. a
+	 *                                   value-conditional fold (as+size). Must return the
+	 *                                   original string unchanged when there is nothing to do
+	 *                                   (apply_option_migration loops until stable).
 	 *   @type array   $required_options Option keys (post-rename) required for the migrated
 	 *                                   tag to reproduce the deprecated tag's default behavior.
 	 *                                   Display-only metadata for admin migration preview;
@@ -389,6 +396,15 @@ class MigrationRegistry {
 	 * @return string Transformed tag string.
 	 */
 	public static function run_transform( array $entry, string $tag_string ): string {
+		// Step 0: a whole-string transform_callback overrides the declarative pipeline.
+		// Used for shape changes the declarative steps can't express — e.g. the as+size
+		// value-conditional fold (append size into `as`'s value, or drop a dead size on a
+		// nullary mode). transform_tag() already honors this for tag-type entries; option
+		// entries reach it through here.
+		if ( isset( $entry['transform_callback'] ) && is_callable( $entry['transform_callback'] ) ) {
+			return ( $entry['transform_callback'] )( $tag_string );
+		}
+
 		// Step 1: Parse.
 		[ , $options ] = self::parse_tag_string( $tag_string );
 

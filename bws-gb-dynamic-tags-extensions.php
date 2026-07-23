@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.15.2
+ * Version: 1.16.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.15.2' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.16.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -118,6 +118,9 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/taxonomy-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/join-helpers.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/registration-helpers.php';
+	// FW-52 canonical serialization-order model (pure; PHP mirror of the editor-JS
+	// normalizer's ordering algorithm — the harness-tested spec of the ordering contract).
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/serialization-order.php';
 
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
@@ -265,6 +268,33 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
 		array( 'wp-hooks', 'wp-element', 'wp-components' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// as+size composite (FW-52): folds the image return-mode + size into one `as` token,
+	// replacing GB's native `as` select AND image-size control. Size enum + pretty labels
+	// are localized from PHP (respects the image_size_names_choose filter GB ignored).
+	wp_enqueue_script(
+		'bws-dynamic-tags-as-size-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/as-size-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	if ( function_exists( 'bws_get_image_size_options' ) ) {
+		wp_add_inline_script(
+			'bws-dynamic-tags-as-size-control',
+			'window.bwsImageSizes = ' . wp_json_encode( bws_get_image_size_options() ) . ';',
+			'before'
+		);
+	}
+	// FW-52 serialization-order normalizer: rebuilds extraTagParams in canonical
+	// serialization order (format → source → link → fallback) so the saved tag string
+	// stays readable regardless of the order the author touched the controls.
+	wp_enqueue_script(
+		'bws-dynamic-tags-order-normalizer',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/serialization-order-normalizer.js',
+		array( 'wp-hooks', 'wp-element' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

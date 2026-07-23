@@ -53,7 +53,7 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 | # | Tag | Context | Expected |
 |---|---|---|---|
 | J1 | `{{join key:name_first\|2-key:name_last}}` | tom | `Tom, Smith` (default sep `, `) |
-| J1b | `{{join key:name_first\|2-key:name_last\|sep: }}` | tom | `Tom Smith` (space sep — option values are not trimmed) |
+| J1b | `{{join key:name_first\|2-key:name_last\|valueSep: }}` | tom | `Tom Smith` (space valueSep — option values are not trimmed) |
 | J2 | `{{join key:name_first\|2-key:name_generation\|3-key:name_last}}` | jane | `Jane, Johnson` — empty middle slot dropped, no doubled sep |
 | J3 | `{{join key:name_generation\|2-key:name_credential\|fallback_text:—}}` | jane | `—` — all slots empty → fallback |
 | J3b | `{{join key:name_generation\|2-key:name_credential}}` | jane | `` (empty — no fallback → GB hides the block) |
@@ -157,12 +157,12 @@ the wire round-trip (`~` rides GB's tag string unescaped — verified against GB
 
 | # | Tag | Expected |
 |---|---|---|
-| J15 | `{{join use:title\|2-use:key\|2-key:role\|sep: / }}` | `Matrix: Post Meta / Captain` — slot 1 = page title, slot 2 = meta field |
+| J15 | `{{join use:title\|2-use:key\|2-key:role\|valueSep: / }}` | `Matrix: Post Meta / Captain` — slot 1 = page title, slot 2 = meta field |
 | J16 | `{{join key:main_line\|2-src:same\|2-key:booking_line}}` | `(987) 654-3210, 987.654.3210` — `src:same` is a no-op when slot 1 is ambient |
 | J16b | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `(555) 200-3000, jane@example.test` — REAL carry-forward: slot 2 re-reads the SAME ref target (jane, first), different key. Shared machinery with future try_ carry-forward rows. |
 | J17 | `{{join key:name_first\|2-src:ref\|2-ref:related_staff\|2-use:title}}` | `Jane, Jane Partner` — slot 2 hops the relationship (text ref parity, first target) |
 | J18 | `{{join key:name_first\|2-src:site\|2-key:organization_email}}` | `Jane, info@example.test` — site arm present (try_text gap NOT repeated) |
-| J19 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` — per-slot `limit` threaded; term list joined by text's default inner sep `', '` (ADR 0003), independent of join's `sep` |
+| J19 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` — per-slot `limit` threaded; term list joined by text's default inner sep `', '` (ADR 0003), independent of join's `valueSep` |
 
 ## Reveal (editor-only — open a join block on the testbed editor)
 
@@ -190,7 +190,7 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 | # | Tag | Expected preview |
 |---|---|---|
 | JP1 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
-| JP2 | `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
+| JP2 | `{{join key:name_first\|2-key:name_last\|valueSep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
 | JP3 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` — `%N` substituted by slot field parts (1.15.0) |
 | JP3b | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:related_staff\|key:name_first\|2-src:current\|2-key:role}}` | `[Join “'name_first' from Ref 'related_staff' / 'role'”]` — non-current source inline on its slot |
 | JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |

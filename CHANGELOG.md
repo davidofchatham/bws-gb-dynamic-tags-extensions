@@ -1,9 +1,30 @@
 # Changelog
 
-## [1.15.2] — unreleased
+## [1.16.0] — 2026-07-23
+
+### Highlights
+
+- **Stray characters no longer appear at the start of plugin output.** An invisible byte-order mark in one plugin file printed on every page load, breaking WP-CLI scripts that read a command's value and risking "headers already sent" warnings. (Fixed)
+- **Tag options are now ordered for reading in the panel and for scanning in the tag string.** Controls run source, then formatting, then link, then fallback, so you pick what to read before how to show it; the saved string leads with the return type or format instead, so it is visible up front when you copy a tag. Multi-slot `try_` tags keep each slot's options together. (Changed)
+- **Image size now belongs to the URL return type, and shows only when you pick it.** Size appears under Return type only for URL, the one mode that uses it, and the two travel together in the saved tag as `as:url,medium`. Size labels also read properly now and include custom sizes your theme registers. (Changed)
+
+### Added
+
+- **`{{text}}` now reads the author on an author archive,** joining `{{title}}` and `{{content}}` (1.15.0). With Use Entity Title it shows the display name; with a field key it reads the author's user field. `{{join}}` slots pick this up too, so a join renders on author archives. `try_` slots do not yet.
+
+### Changed
+
+- **Tag option controls now read source first, then formatting, and the saved tag string leads with the formatting.** The editor panel now consistently orders controls as source and field, then formatting, then link, then fallback, so you choose what to read before how to show it. The saved tag string is ordered separately: the return type or format leads (so it is visible up front when you copy a tag), followed by source, link, and fallback. For a multi-slot `try_` tag, each slot's options now stay grouped together in the string instead of scattering when you revise an earlier slot. Existing tags are re-ordered to match the moment you open them in the editor; output is unchanged.
+- **`{{join}}`'s fallback and separator options are renamed to match the rest of the plugin.** The fallback is now `fallback` (it shipped in 1.15.0 as `fallback_text`, the legacy name every other tag had already moved away from), and the separator is now written `valueSep` in the tag string (freeing the shorter `sep` name for the list separator the other tags use when a source returns several values). Both controls and their behavior are unchanged; only the saved keys differ. Because `{{join}}` is one release old, these are plain renames with no migration: a `{{join}}` tag that has a custom Fallback Text or separator set needs it re-entered. A tag using the defaults is unaffected.
+- **Image size now belongs to the URL return type, and shows only when you pick it.** The image tags carry one Return type control (URL, ID, Alt Text, and so on); the size dropdown now appears under it only when the return type is URL, which is the only mode a size affects. Picking Alt Text or ID hides it, since those never use a size. The two now travel together in the saved tag as `as:url,medium`. Size labels also read properly now (for example "Medium Large" rather than "Medium large") and include any custom sizes your theme registers. Existing image tags keep rendering unchanged; run the Tag Converter to fold their saved strings into the new form. A tag saved before this release still carries a separate `size:` in its string until then, and output is unchanged either way.
+
+### Removed
+
+- Removed seven option-builder functions that no longer fed any tag (`bws_get_content_options`, `bws_get_custom_text_options`, and the four `bws_get_date*_options` builders for the retired date/datetime templates), along with an unused helper method on the source base class. These were internal leftovers from templates retired in earlier releases. `bws_post_term_extraction_options()` is kept, since external plugins can use it, and its fallback option is renamed to `fallback` to match the documented contract.
 
 ### Fixed
 
+- **`{{text}}` no longer repeats the fallback text for each empty item in a list.** Reading a list (several taxonomy terms, or several related posts) where only some entries had a value inserted the fallback in place of each empty one, so a three-term list with one value rendered `Sales, N/A, N/A`. The fallback is a stand-in for the whole tag, not for one item, so it now renders only when nothing at all resolves, and the list shows just the values that exist. A single empty result also no longer picks up a link that belonged to a real value. Behavior for a tag reading one value is unchanged.
 - **Stray characters no longer appear at the start of plugin output.** One plugin file carried an invisible byte-order mark, which PHP treats as content and prints on every page load. The visible effect was on WP-CLI: the first line of output from any `wp` command was prefixed with the stray bytes, which broke scripts that read a command's value directly. The same bytes were sent before any redirect or JSON response, so this also removes a latent cause of "headers already sent" warnings.
 
 ## [1.15.1] — 2026-07-20

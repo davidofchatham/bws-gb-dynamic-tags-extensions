@@ -190,8 +190,8 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 | Mode | Shape |
 |---|---|
-| Separator, default `', '` | `[Join {field list}]` (default sep unremarkable — not shown) |
-| Separator, custom `sep` | `[Join {field list} (sep: “X”)]` |
+| Separator, default `', '` | `[Join {field list}]` (default separator unremarkable — not shown) |
+| Separator, custom separator | `[Join {field list} (sep: “X”)]` (read from the `valueSep` wire key, renamed from `sep` in 1.16.0/FW-52; the annotation label word is a build-session decision — see the join-sep-rename handoff) |
 | Template (`format` set) | `[Join “{substituted format}”]` — the format quoted with each `%N` replaced by its slot's field part (source annotation inline: `'full_name' from Ref 'student'`); an unbound `%N` stays literal (visible mistake, matches render); `%%` and `~…~` group delimiters shown as typed |
 
 **Warnings** replace the field list, prefixed `⚠ Join:`, joined with `, `:
@@ -202,19 +202,19 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
 
-Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback_text` is set.
+Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback` is set.
 
 | Tag config | Preview |
 |---|---|
 | `{{join key:name_first\|2-key:name_last}}` | `[Join 'name_first', 'name_last']` |
-| `{{join key:name_first\|2-key:name_last\|sep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
+| `{{join key:name_first\|2-key:name_last\|valueSep: }}` | `[Join 'name_first', 'name_last' (sep: “ ”)]` |
 | `{{join use:title\|2-key:role}}` | `[Join Title, 'role']` |
 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` |
 | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:student\|key:full_name\|2-src:current\|2-key:role}}` | `[Join “'full_name' from Ref 'student' / 'role'”]` |
 | `{{join key:name_first\|2-src:ref\|2-ref:rel_post\|2-key:role}}` | `[Join 'name_first', 'role' from Ref 'rel_post']` |
 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
-| `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
+| `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 
