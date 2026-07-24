@@ -44,6 +44,13 @@ There is no `bin/` in this plugin repo. Two entrypoints:
      `core-structures` **blueprint** (`tools/fixtures/core-structures/`) seeds the state the
      two `*-test-matrix.md` files assume — matrix pages are split by source-state
      (`matrix-post-meta`, `matrix-terms-valid|mixed|junk`); tag families accrete rows into them.
+     **Group rows by tag in `docs/tag-reference.md` Catalog order** (the §Base tag GB types table
+     sequence: text→content→title→permalink→image→datetime_single→datetime_range→email→phone→join→
+     table→call), NOT arrival order — applies to `*-test-matrix.md` sections AND the visible
+     `blocks.php` row groups (forward-going: new rows slot into Catalog position; existing files
+     reorder opportunistically when touched). **A new tag's Catalog placement is a DECISION — ASK for
+     it if not already specified, never default to append-at-end** (e.g. `{{table}}` sits after
+     `{{join}}`, not after the `call` outlier).
      See `tools/fixtures/core-structures/README.md`. Full design: `.claude/plans/fixture-testbed.md`.
 
 **Front-end pages are LiteSpeed-cached — always cache-bust when eyeballing after a reseed:**
