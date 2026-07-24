@@ -825,6 +825,113 @@ eq( 'LI meta_row -> null', null, bws_source_link_identity( array( 'kind' => 'met
 eq( 'LI unknown kind -> null', null, bws_source_link_identity( array( 'kind' => 'date' ) ) );
 eq( 'LI empty source -> null', null, bws_source_link_identity( array() ) );
 
+// ── 1.16.0 — `rows` step: repeater → meta_row[] ({{table}} feedstock) ─────────
+//
+// Structural twin of srcTermIn. bws_pipeline_rows_to_sources is the pure coercer;
+// bws_run_step case 'rows' gates the input kind then coerces. The live reader
+// (get_field) is bypassed via a stub — the reader arm's get_field/get_*_meta path
+// is manual-swept, same as ref/srcTermIn.
+
+// meta_row convenience + a reader that returns a fixture repeater for the `rows`
+// step and a sub-field value for a following ref step off the produced meta_row.
+function row_src( $row ) { return array( 'kind' => 'meta_row', 'row' => $row ); }
+
+// --- coercer (bws_pipeline_rows_to_sources) ---------------------------------
+eq(
+	'rows coercer: array-of-rows -> meta_row[]',
+	array( row_src( array( 'a' => 1 ) ), row_src( array( 'a' => 2 ) ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), array( 'a' => 2 ) ) )
+);
+eq( 'rows coercer: non-array -> []', array(), bws_pipeline_rows_to_sources( 'nope' ) );
+eq( 'rows coercer: empty array -> []', array(), bws_pipeline_rows_to_sources( array() ) );
+eq( 'rows coercer: null -> []', array(), bws_pipeline_rows_to_sources( null ) );
+eq(
+	'rows coercer: skips non-array rows, keeps blank row',
+	array( row_src( array( 'a' => 1 ) ), row_src( array() ) ),
+	bws_pipeline_rows_to_sources( array( array( 'a' => 1 ), 'scalar', array() ) )
+);
+eq(
+	'rows coercer: order preserved',
+	array( row_src( array( 'n' => 'x' ) ), row_src( array( 'n' => 'y' ) ), row_src( array( 'n' => 'z' ) ) ),
+	bws_pipeline_rows_to_sources( array( array( 'n' => 'x' ), array( 'n' => 'y' ), array( 'n' => 'z' ) ) )
+);
+
+// --- step input-kind gate (bws_run_step case 'rows') ------------------------
+// A stub reader that returns a 2-row repeater regardless of source (gate is what
+// we test here, not the read).
+$rows_reader = function ( $step, $source ) {
+	return array( array( 'c' => 'p' ), array( 'c' => 'q' ) );
+};
+foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => user_src( 5 ), 'meta_row' => row_src( array( 'r' => array() ) ), 'site' => array( 'kind' => 'site' ) ) as $kname => $src ) {
+	eq(
+		"rows step accepts {$kname} input",
+		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
+		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
+	);
+}
+eq(
+	'rows step rejects unknown kind -> []',
+	array(),
+	bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
+);
+
+// --- fold: rows then bare column read (meta_row reader arm) ------------------
+// rows fans a post to 3 meta_rows; the meta_row source then reads a scalar column.
+$rows_then = function ( $step, $source ) {
+	if ( 'rows' === $step['type'] ) {
+		return array(
+			array( 'name' => 'Ann', 'role' => 'Lead' ),
+			array( 'name' => 'Bo',  'role' => 'Dev' ),
+			array( 'name' => 'Cy',  'role' => '' ),
+		);
+	}
+	// ref off a meta_row -> the sub-field's post id list (column-as-ref case).
+	if ( 'ref' === $step['type'] && 'meta_row' === $source['kind'] ) {
+		$v = $source['row'][ $step['field'] ] ?? '';
+		return '' === $v ? '' : array( $v );
+	}
+	return '';
+};
+$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $rows_then );
+eq(
+	'rows fold: post -> 3 meta_rows',
+	array(
+		row_src( array( 'name' => 'Ann', 'role' => 'Lead' ) ),
+		row_src( array( 'name' => 'Bo',  'role' => 'Dev' ) ),
+		row_src( array( 'name' => 'Cy',  'role' => '' ) ),
+	),
+	$rows_out
+);
+// Bare column read off each produced meta_row (the {{table}} cell read) — the
+// default reader's meta_row arm returns $row[field].
+eq( 'rows cell: meta_row scalar column via reader', 'Ann', bws_pipeline_default_reader( array( 'type' => 'ref', 'field' => 'name' ), $rows_out[0] ) );
+eq( 'rows cell: meta_row scalar column', 'Ann', $rows_out[0]['row']['name'] );
+eq( 'rows cell: blank column empty', '', $rows_out[2]['row']['role'] );
+
+// --- column-as-ref mini-traversal off a produced meta_row -------------------
+// A repeater row holds a relationship sub-field 'lead' → post; a ref step off the
+// meta_row hops it to a post (limit-1 collapse done tag-side; here verify fan).
+$mr = row_src( array( 'lead' => 77 ) );
+eq(
+	'rows column ref: meta_row -> post',
+	array( post_src( 77 ) ),
+	bws_run_step( array( 'type' => 'ref', 'field' => 'lead' ), $mr, $rows_then )
+);
+$mr_blank = row_src( array( 'lead' => '' ) );
+eq(
+	'rows column ref: blank sub-field -> []',
+	array(),
+	bws_run_step( array( 'type' => 'ref', 'field' => 'lead' ), $mr_blank, $rows_then )
+);
+
+// --- short-circuit: empty repeater ends the fold ----------------------------
+$empty_rows = function ( $step, $source ) { return array(); };
+eq(
+	'rows fold: empty repeater short-circuits',
+	array(),
+	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $empty_rows )
+);
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

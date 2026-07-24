@@ -306,6 +306,16 @@ function bws_fixture_core_structures_register_acf() {
 							'label' => 'Role',
 							'type'  => 'text',
 						),
+						// {{table}} use:title column target — a relationship sub-field per
+						// row. Stored as a post ID (seed resolves the manifest slug → ID);
+						// the table's ref-title column hops it row→post and reads the title.
+						array(
+							'key'           => 'field_bwsfx_team_lead_ref',
+							'name'          => 'lead_ref',
+							'label'         => 'Lead (related post)',
+							'type'          => 'relationship',
+							'return_format' => 'id',
+						),
 					),
 				),
 			),

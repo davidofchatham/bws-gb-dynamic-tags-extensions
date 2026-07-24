@@ -39,6 +39,24 @@ function bws_fixture_gb_text_block( $body, $seed = '' ) {
 	);
 }
 
+/**
+ * Shape 2b — block-host row for a tag that outputs whole HTML (e.g. {{table}}).
+ *
+ * {{table}} emits a full <table>; it must NOT sit in a <p> (the tag warns of
+ * this). Host it in a generateblocks/TEXT block with tagName:div — the SAME
+ * dynamic-tag-resolving block as the <p> text row, just a div wrapper (the
+ * "text-as-div" host, {{content}} precedent). NOT generateblocks/element (a
+ * container that does NOT parse dynamic tags in its body → "invalid content").
+ * A label line precedes it (own <p>) so the front-end output maps to a matrix id.
+ */
+function bws_fixture_gb_block_host_row( $label, $tag ) {
+	$uid   = bws_fixture_gb_uid( 'blockhost:' . $label . $tag );
+	$lbl   = bws_fixture_gb_text_block( $label . ':', 'blockhost-label:' . $label );
+	$inner = $lbl . "\n\n<!-- wp:generateblocks/text {\"uniqueId\":\"{$uid}\",\"tagName\":\"div\",\"className\":\"\"} -->\n"
+		. "<div class=\"gb-text\">{$tag}</div>\n<!-- /wp:generateblocks/text -->";
+	return $inner;
+}
+
 /** Shape 3 — media row. Tag string duplicated in JSON attrs and rendered HTML. */
 function bws_fixture_gb_media_block( $tag, $seed = '' ) {
 	$uid  = bws_fixture_gb_uid( 'media:' . ( $seed !== '' ? $seed : $tag ) );
@@ -381,6 +399,18 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J17', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
 		bws_fixture_gb_row( 'J18', '{{join key:name_first|2-src:site|2-key:organization_email}}' ),
 		bws_fixture_gb_row( 'J19', '{{join srcTermIn:department|use:title|limit:2}}' ),
+	) );
+
+	// {{table}} structured-output (1.16.0, feat/table-tag). team_members repeater
+	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
+	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
+	// TB1 scalar columns + headers; TB2 header-less; TB3 ref-title column
+	// (lead_ref sub-field, none seeded → the use:title path reads empty, proving
+	// it degrades to a blank cell not a crash).
+	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
+		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table rows:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
+		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table rows:team_members|1-key:name|2-key:role}}' ),
+		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table rows:team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

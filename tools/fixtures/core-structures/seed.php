@@ -372,6 +372,18 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		if ( 'feature_image' === $name && is_string( $value ) && isset( $attachment_ids[ $value ] ) ) {
 			$value = $attachment_ids[ $value ];
 		}
+		// Resolve the {{table}} repeater's per-row relationship sub-field (lead_ref)
+		// fixture slug → post ID. The generic related_staff resolver above is
+		// top-level-only; the repeater's rows are one level down, so map each row's
+		// lead_ref slug here. Empty/unknown slugs → '' (proves the empty-cell path).
+		if ( 'team_members' === $name && is_array( $value ) ) {
+			$value = array_map( function ( $row ) use ( $post_ids ) {
+				if ( is_array( $row ) && isset( $row['lead_ref'] ) && is_string( $row['lead_ref'] ) ) {
+					$row['lead_ref'] = isset( $post_ids[ $row['lead_ref'] ] ) ? $post_ids[ $row['lead_ref'] ] : '';
+				}
+				return $row;
+			}, $value );
+		}
 		if ( 'contact_email' === $name ) {
 			$key = isset( $contact_email_keys[ $ptype ] ) ? $contact_email_keys[ $ptype ] : null;
 		} else {

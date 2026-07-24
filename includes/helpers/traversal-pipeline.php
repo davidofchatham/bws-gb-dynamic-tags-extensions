@@ -91,6 +91,8 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
  *                 bws_extract_post_id first-only collapse).
  *   - srcTermIn : hop to taxonomy terms via get_the_terms → term[]
  *                 Valid input kind: post only.
+ *   - rows      : hop into a repeater field via get_field → meta_row[]
+ *                 Valid input kinds: post, term, user, meta_row, site.
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
  * the step → array() (SPEC §V2 silent-empty, never fatal).
@@ -130,6 +132,19 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			}
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_terms_to_sources( $raw );
+
+		case 'rows':
+			// Hop into a repeater field → meta_row[] (one row per repeater entry).
+			// Valid input: entity kinds that own a repeater (post/term/user via
+			// get_field's kind-prefixed selector; meta_row for a nested repeater
+			// held in a parent row). site is terminal — a site-option repeater is
+			// read directly by the reader's 'option' selector, but a { kind:'site' }
+			// still carries no id, so allow it: the reader switches on kind.
+			if ( ! in_array( $kind, array( 'post', 'term', 'user', 'meta_row', 'site' ), true ) ) {
+				return array();
+			}
+			$raw = call_user_func( $reader, $step, $source );
+			return bws_pipeline_rows_to_sources( $raw );
 
 		default:
 			return array(); // Unknown step type.
@@ -200,6 +215,41 @@ function bws_pipeline_terms_to_sources( $raw ) {
 			$out[] = array( 'kind' => 'term', 'id' => (int) $term->term_id );
 		} elseif ( is_array( $term ) && isset( $term['term_id'] ) ) {
 			$out[] = array( 'kind' => 'term', 'id' => (int) $term['term_id'] );
+		}
+	}
+	return $out;
+}
+}
+
+/**
+ * Coerce a raw repeater-field read into a meta_row resolved-source list.
+ *
+ * The `rows` step core (structural twin of bws_pipeline_terms_to_sources): a
+ * repeater field is an array-of-rows, each row an assoc array of sub-field
+ * values. Every array row becomes one { kind:'meta_row', row } — preserving
+ * document order (append order), NO first-only collapse. A column step then
+ * reads sub-fields off each meta_row via the existing meta_row reader arm
+ * (bws_pipeline_default_reader case 'meta_row') or hops a ref sub-field to a
+ * post (case 'ref' accepts meta_row).
+ *
+ * Non-array input (miss, scalar, null) → array() (V2 silent-empty, short-circuits
+ * the fold). Non-array row entries are skipped (a malformed repeater row is not a
+ * meta_row); a row that is an empty array is a legitimate blank row and is kept so
+ * cell-level blanks read as empty, not as a dropped row.
+ *
+ * @since 1.17.0
+ * @param mixed $raw Raw repeater value (array-of-rows) or anything else.
+ * @return array[] Zero or more { kind:'meta_row', row } sources, order preserved.
+ */
+if ( ! function_exists( 'bws_pipeline_rows_to_sources' ) ) {
+function bws_pipeline_rows_to_sources( $raw ) {
+	if ( ! is_array( $raw ) || array() === $raw ) {
+		return array();
+	}
+	$out = array();
+	foreach ( $raw as $row ) {
+		if ( is_array( $row ) ) {
+			$out[] = array( 'kind' => 'meta_row', 'row' => $row );
 		}
 	}
 	return $out;
@@ -493,6 +543,57 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 		}
 		$terms = get_the_terms( (int) ( $source['id'] ?? 0 ), $slug );
 		return ( is_wp_error( $terms ) || empty( $terms ) ) ? array() : array_values( $terms );
+	}
+
+	if ( 'rows' === $type ) {
+		// Read a repeater field off the source entity → array-of-rows. The ACF
+		// kind→selector prefixes live here (same idiom the ref arm uses): post is
+		// a bare id, term/user carry ACF's 'term_'/'user_' prefix, site reads the
+		// 'option' store. get_field returns the repeater as an array-of-row-arrays
+		// (the meta_row shape) — chosen over have_rows(), whose stateful global
+		// cursor would break the pure fold. Non-ACF fallback: get_*_meta returns
+		// the serialized repeater array for post/term/user; the coercer skips any
+		// non-array rows. meta_row source: a nested repeater held in a parent row.
+		$field = $step['field'] ?? '';
+		if ( '' === $field ) {
+			return array();
+		}
+		$has_get_field = function_exists( 'get_field' );
+		switch ( $kind ) {
+			case 'post':
+				$post_row_id = (int) ( $source['id'] ?? 0 );
+				if ( $has_get_field ) {
+					$rows = get_field( $field, $post_row_id );
+					if ( ! empty( $rows ) ) {
+						return $rows;
+					}
+				}
+				return get_post_meta( $post_row_id, $field, true );
+			case 'term':
+				$term_row_id = (int) ( $source['id'] ?? 0 );
+				if ( $has_get_field ) {
+					$rows = get_field( $field, 'term_' . $term_row_id );
+					if ( ! empty( $rows ) ) {
+						return $rows;
+					}
+				}
+				return get_term_meta( $term_row_id, $field, true );
+			case 'user':
+				$user_row_id = (int) ( $source['id'] ?? 0 );
+				if ( $has_get_field ) {
+					$rows = get_field( $field, 'user_' . $user_row_id );
+					if ( ! empty( $rows ) ) {
+						return $rows;
+					}
+				}
+				return get_user_meta( $user_row_id, $field, true );
+			case 'site':
+				return $has_get_field ? get_field( $field, 'option' ) : get_option( $field );
+			case 'meta_row':
+				$row = $source['row'] ?? array();
+				return ( is_array( $row ) && isset( $row[ $field ] ) ) ? $row[ $field ] : array();
+		}
+		return array();
 	}
 
 	if ( 'ref' === $type ) {

@@ -272,6 +272,15 @@ return array(
 			// as:alt / as:id / as:caption). Seed resolves the fixture slug → the
 			// seeded attachment's ID (like related_staff slug→ID resolution).
 			'feature_image'      => 'fixture-photo',
+			// {{table}} matrix (1.16.0) — team_members repeater on the PAGE so a bare
+			// {{table}} reads its own current-post. name/description/role feed TB1/TB2
+			// scalar columns; lead_ref is a relationship sub-field (staff slug → ID at
+			// seed) feeding TB3's use:title ref-hop column. Row 2 leaves lead_ref blank
+			// to prove the ref-title column degrades to '' on a missing relationship.
+			'team_members'       => array(
+				array( 'name' => 'Alice Adams', 'description' => 'Founding partner', 'role' => 'Engineering', 'lead_ref' => 'staff-jane-partner' ),
+				array( 'name' => 'Bob Brown',   'description' => 'Support lead',     'role' => 'Operations',  'lead_ref' => '' ),
+			),
 		),
 
 		'post-sample-event' => array(

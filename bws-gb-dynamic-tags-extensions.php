@@ -3,7 +3,7 @@
  * Plugin Name: GenerateBlocks Dynamic Tag Extensions by BWS
  * Plugin URI: https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions
  * Description: Extends GenerateBlocks Pro with advanced tags for both standard and meta/option field data, including date/time field formatting tags and first-available tags to try multiple sources/fields.
- * Version: 1.16.0
+ * Version: 1.17.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: generateblocks-pro
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BWS_DYNAMIC_TAGS_VERSION', '1.16.0' );
+define( 'BWS_DYNAMIC_TAGS_VERSION', '1.17.0' );
 define( 'BWS_DYNAMIC_TAGS_FILE', __FILE__ );
 define( 'BWS_DYNAMIC_TAGS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'BWS_DYNAMIC_TAGS_URL', plugin_dir_url( __FILE__ ) );
@@ -210,6 +210,7 @@ function bws_dynamic_tags_register_all() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/datetime-tags.php'; // merged: includes date-only templates
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/email-tags.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/phone-tags.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/table-tags.php';
 	// fn-tags.php is already loaded in bws_dynamic_tags_init() (plugins_loaded) so
 	// bws_register_call_function() is available to early init callers; only the GB
 	// tag registration (bws_register_call_tag) happens here in the init pass.
@@ -224,6 +225,9 @@ function bws_dynamic_tags_register_all() {
 
 	// Register the phone base tag (unconditional; first-class base tag).
 	bws_register_phone_tag();
+
+	// Register the {{table}} structured-output tag (unconditional; first-class base tag).
+	bws_register_table_tag();
 
 	// Register the {{call}} function-passthrough tag (unconditional; ships with
 	// an EMPTY allowlist — produces nothing until the site allowlists a function).
