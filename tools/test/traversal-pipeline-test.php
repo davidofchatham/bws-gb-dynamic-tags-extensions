@@ -825,7 +825,7 @@ eq( 'LI meta_row -> null', null, bws_source_link_identity( array( 'kind' => 'met
 eq( 'LI unknown kind -> null', null, bws_source_link_identity( array( 'kind' => 'date' ) ) );
 eq( 'LI empty source -> null', null, bws_source_link_identity( array() ) );
 
-// ── 1.16.0 — `rows` step: repeater → meta_row[] ({{table}} feedstock) ─────────
+// ── 1.17.0 — `rows` step: repeater → meta_row[] ({{table}} feedstock) ─────────
 //
 // Structural twin of srcTermIn. bws_pipeline_rows_to_sources is the pure coercer;
 // bws_run_step case 'rows' gates the input kind then coerces. The live reader

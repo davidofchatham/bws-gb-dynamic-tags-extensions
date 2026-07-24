@@ -7,6 +7,7 @@
 ### Added
 
 - **New `{{table}}` tag builds an HTML table from a repeater field.** Point it at a repeater (an ACF repeater or a serialized meta array) and each row of the repeater becomes a table row; you configure the columns, and each column reads a sub-field from every row. A column can show a plain sub-field value, or follow a relationship sub-field to a related post and show its title. Optional per-column headers render a header row. Once you pick the repeater, each column's field picker narrows to that repeater's own sub-fields, so you choose from the right list without hunting; you can still type any field name by hand. The tag reads its repeater from the current entry, a related-post reference, or the site, the same as the other tags. It outputs a full table, so place it in a Div or other block element, not inside a paragraph.
+- **`{{table}}` follows accessible table standards.** An optional Caption field labels the table for screen readers. When you set a caption, the table is placed in a keyboard-focusable, horizontally scrollable region, so a wide table stays reachable on small screens without forcing the whole page to scroll sideways, and assistive technology announces it by its caption.
 
 ## [1.16.0] — 2026-07-23
 

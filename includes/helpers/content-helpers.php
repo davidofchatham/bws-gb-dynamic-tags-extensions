@@ -43,6 +43,51 @@ function bws_sanitize_rich_content( $content ) {
 }
 
 // ===============================================
+// INLINE CSS QUEUE (frontend, footer-printed)
+// ===============================================
+
+/**
+ * Queue a fixed block of frontend CSS to print once per request.
+ *
+ * A shared footer-queue for tags that emit their own presentation CSS but ship no
+ * stylesheet asset. Mirrors ContentProcessor::output_queued_inline_css (which
+ * queues GB block CSS extracted from {{content}}); this variant takes STATIC,
+ * plugin-authored CSS keyed by a stable id. Each id prints at most once — repeated
+ * calls with the same id are no-ops — so any number of tag instances on the page
+ * yield a single <style id="…"> at wp_footer:5.
+ *
+ * The CSS is echoed verbatim (NOT escaped): callers must pass only trusted,
+ * plugin-authored CSS — never user input.
+ *
+ * @since 1.17.0
+ * @param string $id  Stable style-element id (also the dedupe key).
+ * @param string $css CSS text (no <style> tags). Trusted, plugin-authored only.
+ * @return void
+ */
+if ( ! function_exists( 'bws_queue_inline_css' ) ) {
+function bws_queue_inline_css( string $id, string $css ): void {
+	static $queued = array();
+
+	if ( '' === $id || '' === $css || isset( $queued[ $id ] ) ) {
+		return;
+	}
+	if ( ! function_exists( 'add_action' ) ) {
+		return;
+	}
+	$queued[ $id ] = true;
+
+	add_action(
+		'wp_footer',
+		static function () use ( $id, $css ): void {
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- trusted plugin-authored CSS; id is a caller-supplied literal.
+			echo '<style id="' . esc_attr( $id ) . '">' . $css . "</style>\n";
+		},
+		5
+	);
+}
+}
+
+// ===============================================
 // RELATIONSHIP FIELD OPTIONS
 // ===============================================
 

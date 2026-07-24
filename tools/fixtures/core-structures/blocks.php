@@ -401,16 +401,19 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J19', '{{join srcTermIn:department|use:title|limit:2}}' ),
 	) );
 
-	// {{table}} structured-output (1.16.0, feat/table-tag). team_members repeater
+	// {{table}} structured-output (1.17.0, feat/table-tag). team_members repeater
 	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
 	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
 	// TB1 scalar columns + headers; TB2 header-less; TB3 ref-title column
 	// (lead_ref sub-field, none seeded → the use:title path reads empty, proving
-	// it degrades to a blank cell not a crash).
+	// it degrades to a blank cell not a crash). TB4 caption + responsive wrapper
+	// (W3C data-table a11y): <caption id> + <div.bws-table-wrap role=region
+	// tabindex=0 aria-labelledby=that-id>.
 	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
 		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
 		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table key:team_members|1-key:name|2-key:role}}' ),
 		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
+		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table key:team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

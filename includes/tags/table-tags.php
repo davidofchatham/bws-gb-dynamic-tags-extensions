@@ -115,6 +115,14 @@ function bws_get_table_options(): array {
 				// (typeDefault) + .claude/plans/table-tag.md #12.
 				'typeDefault'  => 'repeater',
 			),
+			// Accessible caption (W3C data-table pattern). Labels the table for
+			// screen readers and, when set, names the responsive scroll region via
+			// aria-labelledby. Optional — omit for no <caption>.
+			'caption' => array(
+				'type'        => 'text',
+				'label'       => __( 'Caption', 'generateblocks' ),
+				'help'        => __( 'Optional table caption. Labels the table for assistive technology.', 'generateblocks' ),
+			),
 		)
 	);
 
@@ -220,7 +228,10 @@ function bws_table_collect_columns( array $options, int $max ): array {
  * @since 1.17.0
  * @param array  $row_source { kind:'meta_row', row }.
  * @param array  $col        { use, key, label }.
- * @param object $instance   GB instance.
+ * @param object $instance   GB instance. Reserved seam — unused by the v1 scalar +
+ *                           ref→title reads, kept for the non-scalar cell reader
+ *                           (nested repeater / image / rich value, plan #10) that
+ *                           will need the instance for a nested render/context.
  * @return string Cell value (may be '').
  */
 function bws_table_read_cell( array $row_source, array $col, $instance ): string {
@@ -256,20 +267,50 @@ function bws_table_read_cell( array $row_source, array $col, $instance ): string
 /**
  * Assemble the <table> HTML from headers + a matrix of cell strings.
  *
- * Pure presentation (L3, tag-side — the fold stays dumb): a <thead> is emitted
- * only when at least one column carries a header label; every row becomes a <tr>
- * of <td>. Cells are escaped (esc_html); headers too. No caption/scope styling in
- * v1 (deferred with the header label-mode question).
+ * Pure presentation (L3, tag-side — the fold stays dumb). Follows the
+ * Roselli/W3C responsive-data-table pattern (adrianroselli.com/2020/11/
+ * under-engineered-responsive-tables.html; design-system.w3.org/styles/tables.html):
+ *
+ *   - When a caption is set, the table is wrapped in a focusable scroll region —
+ *     `<div role="region" tabindex="0" aria-labelledby="$caption_id">` — and
+ *     `<caption id="$caption_id">` names it. The `tabindex="0"` lets a keyboard
+ *     user focus and scroll an overflowing table (WCAG 2.1.1); `role="region"` +
+ *     `aria-labelledby` give that focusable element its required name+role (WCAG
+ *     4.1.2). The frontend CSS (bws_table_print_inline_css) matches this exact
+ *     attribute triple to apply `overflow:auto` (WCAG 1.4.10 Reflow) + a focus
+ *     outline — NO class hook needed (the attribute selector self-enforces the
+ *     a11y markup, per Roselli).
+ *   - Without a caption there is NO wrapper — a focusable region with no accessible
+ *     name would itself fail WCAG 4.1.2, so a caption-less table is a bare
+ *     `<table>` (no scroll containment, but no violation). Authors who want the
+ *     scroll region set a caption.
+ *   - A <thead> is emitted only when at least one column carries a header label;
+ *     every row becomes a <tr> of <td>. Header <th> carry NO scope="col" yet — the
+ *     scope-col/scope-row pair is deferred together (col scope only disambiguates
+ *     axes once row headers also exist).
+ *
+ * No presentation class on the <table> either — the tag ships bare structural
+ * markup (§9); styling is the theme's, the only plugin CSS is the 6-line
+ * attribute-scoped scroll rule.
+ *
+ * Cells, headers, and caption are escaped (esc_html); the caption id is
+ * esc_attr'd. Caller supplies a request-unique $caption_id (wp_unique_id) so the
+ * assembler stays framework-free for the pure harness.
  *
  * @since 1.17.0
- * @param string[] $headers Column header labels (may contain '' entries).
- * @param array[]  $matrix  Row-major cell strings ($matrix[row][col]).
- * @return string <table> HTML, or '' if no rows.
+ * @param string[] $headers    Column header labels (may contain '' entries).
+ * @param array[]  $matrix     Row-major cell strings ($matrix[row][col]).
+ * @param string   $caption    Caption text ('' = no caption).
+ * @param string   $caption_id Unique id for the caption element / aria-labelledby.
+ * @return string <table> HTML (wrapped in the scroll region when captioned), or
+ *                '' if no rows.
  */
-function bws_table_assemble( array $headers, array $matrix ): string {
+function bws_table_assemble( array $headers, array $matrix, string $caption = '', string $caption_id = '' ): string {
 	if ( empty( $matrix ) ) {
 		return '';
 	}
+
+	$has_caption = '' !== $caption && '' !== $caption_id;
 
 	$has_header = false;
 	foreach ( $headers as $h ) {
@@ -279,7 +320,19 @@ function bws_table_assemble( array $headers, array $matrix ): string {
 		}
 	}
 
-	$html = '<table class="bws-table">';
+	$html = '';
+
+	// Focusable scroll region — ONLY with a caption (its accessible name). No
+	// caption → no wrapper (an unnamed focusable region fails WCAG 4.1.2).
+	if ( $has_caption ) {
+		$html .= '<div role="region" tabindex="0" aria-labelledby="' . esc_attr( $caption_id ) . '">';
+	}
+
+	$html .= '<table>';
+
+	if ( $has_caption ) {
+		$html .= '<caption id="' . esc_attr( $caption_id ) . '">' . esc_html( $caption ) . '</caption>';
+	}
 
 	if ( $has_header ) {
 		$html .= '<thead><tr>';
@@ -299,8 +352,29 @@ function bws_table_assemble( array $headers, array $matrix ): string {
 	}
 	$html .= '</tbody></table>';
 
+	if ( $has_caption ) {
+		$html .= '</div>';
+	}
+
 	return $html;
 }
+
+/**
+ * The 6-line responsive-table CSS (Roselli recipe).
+ *
+ * The scroll region is inert without this: the wrapper attributes give keyboard +
+ * name/role semantics (WCAG 2.1.1 / 4.1.2), but `overflow:auto` (WCAG 1.4.10
+ * Reflow) and the focus outline (WCAG 2.4.7 / 1.4.11) are CSS. Attribute-scoped
+ * selector (`[role="region"][aria-labelledby][tabindex]`) — no class hook; the
+ * rule applies only to a wrapper carrying the full accessible-region markup, so
+ * the CSS itself enforces the a11y. Queued once per request via the shared
+ * bws_queue_inline_css footer-printer (the {{content}} inline-CSS precedent);
+ * plugin ships no stylesheet asset.
+ *
+ * @since 1.17.0
+ */
+const BWS_TABLE_INLINE_CSS = '[role="region"][aria-labelledby][tabindex]{overflow:auto}'
+	. '[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}';
 
 /**
  * Callback for the {{table}} tag.
@@ -308,7 +382,8 @@ function bws_table_assemble( array $headers, array $matrix ): string {
  * 1. Resolve the base source (ambient/explicit) that OWNS the repeater.
  * 2. Run the tag-level ref steps then the `rows` step → meta_row[].
  * 3. For each row, read every configured column → a cell matrix.
- * 4. Assemble the <table> string (text-as-div host).
+ * 4. Assemble the <table> string, wrapped in the W3C responsive scroll region
+ *    (+ <caption> when set), in the text-as-div host.
  *
  * Empty repeater or no columns → '' (the fold short-circuits; nothing to build).
  * The `id` from the editor is threaded into the base source by the factory
@@ -358,6 +433,14 @@ function bws_table_callback( $options, $block, $instance ): string {
 		$headers[] = $col['label'];
 	}
 
+	// Accessible caption + a request-unique id for aria-labelledby (W3C responsive
+	// data-table pattern). wp_unique_id is a deterministic per-request counter — no
+	// randomness — so it is safe on the frontend and stable within a render.
+	$caption    = trim( (string) ( $options['caption'] ?? '' ) );
+	$caption_id = '' !== $caption && function_exists( 'wp_unique_id' )
+		? wp_unique_id( 'bws-table-caption-' )
+		: '';
+
 	$matrix = array();
 	foreach ( $row_sources as $row_source ) {
 		if ( ! is_array( $row_source ) || 'meta_row' !== ( $row_source['kind'] ?? '' ) ) {
@@ -370,9 +453,16 @@ function bws_table_callback( $options, $block, $instance ): string {
 		$matrix[] = $cells;
 	}
 
-	$html = bws_table_assemble( $headers, $matrix );
+	$html = bws_table_assemble( $headers, $matrix, $caption, $caption_id );
 	if ( '' === $html ) {
 		return '';
+	}
+
+	// A rendered captioned table carries the scroll-region wrapper — queue its CSS
+	// (idempotent, shared footer-printer). After the empty-html guard so an
+	// all-skipped-rows table (which assembles to '') leaves no orphan CSS.
+	if ( '' !== $caption_id && function_exists( 'bws_queue_inline_css' ) ) {
+		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
 	}
 
 	// text-as-div host: hand the atomic <table> to GB's output() so link/attr
