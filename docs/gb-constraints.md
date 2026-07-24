@@ -115,6 +115,133 @@ The order options **serialize** in the tag string is a separate axis from the or
 
 This is the affordance the plugin's reorder normalizer stands on: a per-tag JS normalizer (gated by tag name via `generateblocks.editor.tagSpecificControls`) rebuilds `extraTagParams` in a canonical serialization order inside `setState`, WITHOUT touching control render order (which stays the registration/PHP option-definition order). The gate is per-tag-name so a tag with a value-writing composite and the order-normalizer can coexist: they converge iff their guards test **disjoint** properties — the normalizer touches key-ORDER only, a composite touches key-VALUE only (spread-preserve `setState`), so neither perturbs the other's axis. The plugin's canonical orders and the normalizer's status live in [`tag-reference.md` §Option order](tag-reference.md#option-order); this is the pure GB fact that makes the decoupling possible.
 
+## Replacement is gated on block NAME — and the gate is filterable
+
+GB hooks WP's `render_block` at priority 10 (`includes/dynamic-tags/class-dynamic-tags.php:25`), so
+the callback fires for **every** block on the page — including core blocks. It then gates
+immediately on block name alone (`:374-382`):
+
+```php
+public function replace_tags( $content, $block, $instance ) {
+    $block_name = $block['blockName'] ?? '';
+    if ( $block_name && in_array( $block_name, $this->get_allowed_blocks(), true ) ) {
+        return GenerateBlocks_Register_Dynamic_Tag::replace_tags( $content, $block, $instance );
+    }
+    return $content;   // every non-GB block exits here, untouched
+}
+```
+
+Allow-list (`:350-364`): `generateblocks/element`, `loop-item`, `looper`, `media`, `query`,
+`query-page-numbers`, `shape`, `text`. **Gated on NAME only** — not on attributes, not on content.
+A `{{tag}}` inside any other block renders as its literal string.
+
+**The list is filterable: `generateblocks_dynamic_tags_allowed_blocks`.** Adding a core block name
+to it makes GB process tags inside that block's rendered output. This plugin does not currently hook
+it. What makes the extension viable on the GB side: the replacement is a pure regex over `$content`,
+markup-agnostic and fast-pathed by a `generateblocks_str_contains( $block_html, '{{' )` guard
+(`class-register-dynamic-tag.php:111`) — it neither knows nor cares which block produced the HTML.
+Whether a given core block can actually *hold* a tag is a WP-core question, not a GB one.
+
+Caveats when extending: the tag must be a **registered** GB dynamic tag (the pattern is built from
+`array_keys( $availableTags )`), dynamic-tag security/context still applies, and a non-GB block
+supplies **no loop context** — only ambient-entity tags resolve there.
+
+## No escaping anywhere in the replacement path — tags may return raw HTML
+
+There is no `esc_html`, no `wp_kses`, and no allowed-tags filter standing between a callback's
+return value and the rendered page.
+
+- `class-register-dynamic-tag.php:129` calls the callback; `:196` splices the result with a bare
+  `str_replace( $full_tag, (string) $replacement, $content )`. Between those lines the value passes
+  through only two `apply_filters` (`generateblocks_dynamic_tag_replacement` `:147`,
+  `generateblocks_before_dynamic_tag_replace` `:181`).
+- `GenerateBlocks_Dynamic_Tag_Callbacks::output()` (`class-dynamic-tag-callbacks.php:218-234`) is
+  pure string transforms — trunc, replace, trim, case, wpautop, link. Nothing escapes.
+- `wp_kses_post` appears only **inside three specific GB callbacks**, applied to untrusted stored
+  meta (`:387-389` `get_post_meta`, `:495-497` `get_author_meta`, `:665,672` excerpt read-more) —
+  never as a pipeline gate. Each wraps the call in a filter that **widens** the allowlist
+  (`class-dynamic-tags.php:1030-1045` adds `<iframe>` and exposes
+  `generateblocks_dynamic_tags_allowed_html`). `wp_kses_post` permits `<ul>/<li>/<table>/<tr>/<td>`
+  regardless.
+
+**GB's own tags rely on this** — `get_term_list` (`class-dynamic-tag-callbacks.php:600-616`) builds
+raw `<a rel="tag">` / `<span>` strings and returns them through `output()`.
+
+**So does this plugin** — `bws_wrap_with_link` ([`link-helpers.php`](../includes/helpers/link-helpers.php))
+emits a raw `<a>` with the resolved value interpolated unescaped; `bws_phone_render_one`
+([`phone-tags.php`](../includes/tags/phone-tags.php)) and the email tag do the same. Sanitization in
+this plugin is **opt-in per site** (`bws_sanitize_rich_content`,
+[`content-helpers.php`](../includes/helpers/content-helpers.php)), called only for WYSIWYG-sourced
+content (author bio, term description) — it is not a global gate.
+
+Image tags are **not** evidence of this affordance: they return URLs/IDs/alt strings and GB's
+`media` block builds the `<img>`.
+
+**Consequence:** a tag returning structured markup (`<ul>…</ul>`, `<table>…</table>`) reaches the
+page live, with no GB-side change required. The corollary responsibility is ours — a tag that
+interpolates stored field values into markup must escape them itself.
+
+## `tagName` enums: editor-restricted, render-permissive
+
+Each block declares a `tagName` enum in its `block.json`, and **that enum drives the editor dropdown
+at runtime.** `TagNameControl` reads it live rather than carrying its own list
+(`src/components/tagname-control/TagNameControl.jsx:5-25`, minified as `Oe` in
+`dist/blocks/element/index.js`):
+
+```jsx
+const tagNames = getBlockType( blockName )?.attributes?.tagName?.enum ?? [];
+const tagNameOptions = options.length ? options : tagNames.map( ( tag ) => ( { label: tag, value: tag } ) );
+```
+
+GB **Pro** does the same and additionally *intersects* configured options with the enum
+(`generateblocks-pro-*/dist/editor-access.js`).
+
+Enums as of 2.3.0 (identical in 2.2.1 and 2.3.0-beta.2):
+
+| Block | `tagName` enum |
+|---|---|
+| `element` | `div, section, article, aside, header, footer, nav, main, figure, a, ul, ol, li, dl, dt, dd` |
+| `looper` | `div, section, article, aside, header, footer, nav, main, ul, ol` |
+| `loop-item` | `div, li, a, article, section, aside` |
+| `text` | `p, span, div, h1`–`h6, a, button, figcaption, li` |
+| `query` | `div, section, article, aside, header, footer, nav, main` |
+| `query-page-numbers` | `div, section, nav` |
+| `media` | `img` |
+
+**No table tags anywhere.** This is the entire cause of the observed "a GB query loop can build
+`ul`/`ol` but not `dl` or `table`" — pure enum omission in `looper`/`loop-item`. There is no logic,
+no validation, and no comment behind it; GB appears never to have considered table output (a
+repo-wide sweep of GB + GB Pro finds no table handling and no `display:table` CSS — every
+`"table"`/`tbody`/`td` string hit in `dist/*.js` belongs to bundled DOMPurify).
+
+**PHP render performs no validation.** `element` is a save-based (static) block:
+`includes/blocks/class-element.php:37-49` runs `generateblocks_maybe_add_block_css()` and returns
+`$block_content` — no `$allowedTagNames`, no `in_array` fallback, no `wp_kses`. Contrast the
+**legacy** Container block, which does enforce one (`class-container.php:1022-1040`, filter
+`generateblocks_container_allowed_tagnames`) — `element` has no equivalent. WP core does not enforce
+JSON-Schema `enum` on attributes parsed from `post_content`, and the JS `save()` interpolates the
+attribute raw as the React element type.
+
+**Extension point:** there is no GB-specific filter for the tag list (verified — no
+`generateblocks_element_tag_names` or JS equivalent). WP core's `blocks.registerBlockType` JS filter
+is the lever: pushing entries onto the enum at registration adds them to the dropdown, and they
+render. GB Pro already uses that idiom for other purposes.
+
+**Caution:** this is unversioned coupling to another plugin's `block.json`. If GB adds its own table
+tags or changes the attribute schema, an enum patch silently conflicts or breaks.
+
+## Block appender is suppressible via JS filter
+
+GB renders the innerblocks appender behind
+`applyFilters( 'generateblocks.editor.showBlockAppender', <default>, { clientId, isSelected, attributes } )`,
+passing a `renderAppender` that supplies the appender's *contents* (an `Inserter`) but not its
+wrapper tag. Returning `false` from the filter suppresses it entirely.
+
+Noted here as an available lever: the appender's wrapper is a `<div>` emitted by WP core as a direct
+child of the innerblocks container, which matters for any `element` `tagName` whose content model
+rejects a `<div>` child. That platform behavior is out of scope for this doc — see
+`.claude/plans/structured-output-tags-handoff.md` §4.
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).
@@ -131,8 +258,9 @@ presents a `tagName` of `img` or `picture` to the picker's compare. Verified two
 
 1. **The Container block's enum excludes void tags.** `dist/blocks/element/block.json`
    declares `tagName` with enum `div, section, article, aside, header, footer, nav, main,
-   figure, a, ul, ol, li, dl, dt, dd`. No `img`, no `picture`. The block that *does* serialize
-   a real, compared `tagName` cannot be set to a void element.
+   figure, a, ul, ol, li, dl, dt, dd` (full enum table: [§`tagName` enums](#tagname-enums-editor-restricted-render-permissive)).
+   No `img`, no `picture`. The block that *does* serialize a real, compared `tagName` cannot be
+   set to a void element.
 2. **The media block serializes `img` but the picker never sees it.** Its
    `dist/blocks/media/block.json` declares `tagName` as `{"type":"string","default":"",
    "enum":["img"]}`. A saved block *does* carry `"tagName":"img"` in its markup — but the
