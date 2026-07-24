@@ -498,10 +498,12 @@
 		var locOverride = locState[ 0 ];
 		var setLoc      = locState[ 1 ];
 
-		// Type filter (ephemeral).
-		var typeState = useState( ALL_TYPE );
-		var typeVal   = typeState[ 0 ];
-		var setType   = typeState[ 1 ];
+		// Type filter: null => follow the typeDefault preset (below); a string => explicit
+		// author pick (ephemeral view state, same as locOverride). Author can always widen
+		// back to "All field types" — the default is a starting view, not a lock.
+		var typeState   = useState( null );
+		var typeOverride = typeState[ 0 ];
+		var setType      = typeState[ 1 ];
 
 		useEffect( function () {
 			var live = true;
@@ -554,6 +556,18 @@
 		// that kind were discovered); otherwise fall back to All.
 		var presetExists = locationOptions.some( function ( o ) { return o.value === presetPath; } );
 		var activeLoc    = locOverride !== null ? locOverride : ( presetExists ? presetPath : ALL_LOC );
+
+		// Effective type: explicit override, else the option's typeDefault (e.g. the
+		// {{table}} tag-level `key` pre-scopes to 'repeater' so the picker opens showing
+		// only repeater fields), else All. Only apply the default if that type was
+		// actually discovered (mirrors presetExists) — otherwise the picker would open on
+		// an empty list. The two filter SelectControls stay visible either way, so the
+		// author can widen to All or pick another type; this is a starting view, not a
+		// lock. Orthogonal to props.scope ('row'), which HIDES the filters and narrows to
+		// one repeater's sub-fields (#12). See .claude/plans/table-tag.md #12 (OTHER-axis).
+		var typeDefault  = props.typeDefault || '';
+		var typeExists   = typeDefault && typeOptions.some( function ( o ) { return o.value === typeDefault; } );
+		var typeVal      = typeOverride !== null ? typeOverride : ( typeExists ? typeDefault : ALL_TYPE );
 
 		// Derive the option list, the option-value→bare-key map, and the selected
 		// value together. Pure function of [records, activeLoc, typeVal, filterText,
@@ -731,6 +745,9 @@
 			// #12: 'row' auto-scopes the picker to a sibling repeater's sub-fields
 			// (the {N}-key column controls) and hides the two filter selectors.
 			scope:        cfg.scope,
+			// Pre-selects the type filter (e.g. 'repeater' for the {{table}} tag-level
+			// `key`) without hiding the filters — the OTHER scope axis vs `scope:'row'`.
+			typeDefault:  cfg.typeDefault,
 			context:      context,
 		} );
 	}

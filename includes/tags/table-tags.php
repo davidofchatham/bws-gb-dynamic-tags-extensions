@@ -85,7 +85,10 @@ function bws_register_table_tag(): void {
  * `{N}-`-prefixed from N=1 (bare reserved for the tag-level source — option i). Per
  * column: `{N}-use`, `{N}-key`/`{N}-ref`, `{N}-label` (header cell text). Each
  * `{N}-key` carries `'scope' => 'row'` so its field picker auto-narrows to the
- * chosen repeater's sub-fields (see field-combo-control.js; #12).
+ * chosen repeater's sub-fields (see field-combo-control.js; #12). The tag-level
+ * `key` carries `'typeDefault' => 'repeater'` — the OTHER scope axis: its picker
+ * opens showing only repeater fields, but keeps the filter controls visible so the
+ * author can widen (a non-ACF meta repeater has no discovered type → falls to All).
  *
  * @since 1.17.0
  * @return array Option definitions keyed by option name.
@@ -104,6 +107,13 @@ function bws_get_table_options(): array {
 				'dynamicLabel' => true,
 				'help'         => __( 'ACF repeater (or meta) field key. Each row of the repeater becomes a table row.', 'generateblocks' ),
 				'placeholder'  => 'repeater_field',
+				// Pre-scope the picker's type filter to repeater fields (the OTHER scope
+				// axis vs the {N}-key column controls' 'scope' => 'row'). The two filter
+				// SelectControls stay visible, so the author can widen to All or pick a
+				// plain-meta key (a non-ACF meta repeater has no discovered 'repeater'
+				// type, so the guard falls back to All). See field-combo-control.js
+				// (typeDefault) + .claude/plans/table-tag.md #12.
+				'typeDefault'  => 'repeater',
 			),
 		)
 	);
