@@ -224,7 +224,7 @@ function bws_field_discovery_derive_kind_scope( $location ) {
  * @param string $parent_path Breadcrumb prefix (UI only), '' at top level.
  * @param string $group_key   ACF group name of the enclosing GROUP field, or '' if
  *                            the parent is not a group (top level, repeater, flex).
- * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string}>
+ * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string,repeater_key:string}>
  */
 function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_key = '' ) {
 	$out = array();
@@ -260,6 +260,13 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 			'return_format' => $rf,
 			'context_hint'  => $context_hint,
 			'parent_path'   => $parent_path,
+			// Machine-readable owning-repeater/flex key. '' at this level; the
+			// repeater/flex branches below stamp it on their children (the resolution
+			// key of the container field) so a consumer can scope a picker to one
+			// repeater's sub-fields WITHOUT parsing the display breadcrumb (parent_path).
+			// Additive / structured — the shape FU-1 should absorb (see
+			// .claude/plans/field-selector.md, table-tag #12).
+			'repeater_key'  => '',
 		);
 
 		$child_path = ( '' === $parent_path ) ? $label : $parent_path . ' › ' . $label;
@@ -271,11 +278,18 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 			}
 		}
 
-		// REPEATER → children resolve by bare name in row context only.
+		// REPEATER → children resolve by bare name in row context only. Stamp the
+		// repeater's resolution key on each child so a consumer can scope to exactly
+		// this repeater's sub-fields (table {N}-key auto-scope, #12). Only stamp the
+		// DIRECT children (a nested repeater's own children keep their own key from
+		// the recursion) — an already-set repeater_key is not overwritten.
 		if ( 'repeater' === $type && ! empty( $field['sub_fields'] ) ) {
 			foreach ( bws_field_discovery_flatten_fields( $field['sub_fields'], $child_path, '' ) as $child ) {
 				$child['context_hint'] = 'row';
-				$out[]                 = $child;
+				if ( '' === ( $child['repeater_key'] ?? '' ) ) {
+					$child['repeater_key'] = $resolution_key;
+				}
+				$out[] = $child;
 			}
 		}
 
@@ -293,7 +307,12 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 				$layout_path  = ( '' === $layout_label ) ? $child_path : $child_path . ' › ' . $layout_label;
 				foreach ( bws_field_discovery_flatten_fields( $layout['sub_fields'], $layout_path, '' ) as $child ) {
 					$child['context_hint'] = 'row';
-					$out[]                 = $child;
+					// Flex children scope to the FLEX field's key (its rows are the flex
+					// layouts). Same additive stamp as the repeater branch (#12).
+					if ( '' === ( $child['repeater_key'] ?? '' ) ) {
+						$child['repeater_key'] = $resolution_key;
+					}
+					$out[] = $child;
 				}
 			}
 		}

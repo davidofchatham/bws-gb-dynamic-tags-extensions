@@ -408,9 +408,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// (lead_ref sub-field, none seeded → the use:title path reads empty, proving
 	// it degrades to a blank cell not a crash).
 	$sections[] = bws_fixture_gb_section( 'Table TB - repeater to table', array(
-		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table rows:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
-		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table rows:team_members|1-key:name|2-key:role}}' ),
-		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table rows:team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
+		bws_fixture_gb_block_host_row( 'TB1 (3 scalar cols + headers -> 2-row table: Alice/Engineering/Founding partner, Bob/Operations/Support lead)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role|3-label:Note|3-key:description}}' ),
+		bws_fixture_gb_block_host_row( 'TB2 (no labels -> header-less table, no thead row)', '{{table key:team_members|1-key:name|2-key:role}}' ),
+		bws_fixture_gb_block_host_row( 'TB3 (use:title ref-hop col -> row1 Lead = Jane Partner, row2 blank lead_ref = empty cell)', '{{table key:team_members|1-label:Name|1-key:name|2-label:Lead|2-use:title|2-key:lead_ref}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

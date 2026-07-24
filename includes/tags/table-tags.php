@@ -3,9 +3,15 @@
  * {{table}} — structured-output tag: build an HTML table from a repeater field.
  *
  * A composing tag over the traversal fold (traversal-pipeline.php). The tag-level
- * source + traversal resolve a base entity; a `rows` step hops that entity's
- * repeater field to a meta_row[] (one row per repeater entry); each configured
- * column reads a sub-field off every row. Output is an atomic <table> string in a
+ * source + traversal resolve a base entity; the `key` option names the repeater
+ * field, and a `rows` fold step hops that entity's repeater to a meta_row[] (one
+ * row per repeater entry); each configured column reads a sub-field off every row.
+ *
+ * `key` NAMES THE FIELD (house nomenclature — the primary field target, parallel to
+ * every other tag's `key`); the internal fold step it drives stays named `rows`
+ * (the datum it produces). The `key`→`rows`-step mapping is TABLE-ONLY, owned here:
+ * no other tag turns a bare `key` into a rows step. Output is an atomic <table>
+ * string in a
  * text-as-div host (the {{content}} precedent) — NOT a scalar; it must not be
  * inserted into a <p>/<span> (the tag modal description warns of this).
  *
@@ -74,10 +80,12 @@ function bws_register_table_tag(): void {
  * Build the {{table}} option definitions.
  *
  * Tag-level (bare keys): the base source that OWNS the repeater — `src`
- * (current/ref/site), `ref`/`srcTermIn` traversal, and `rows` (the repeater field
- * key). Then N column slots, ALL `{N}-`-prefixed from N=1 (bare reserved for the
- * tag-level source — option i). Per column: `{N}-use`, `{N}-key`/`{N}-ref`,
- * `{N}-label` (header cell text).
+ * (current/ref/site), `ref`/`srcTermIn` traversal, and `key` (the repeater field
+ * key — drives the table-only `rows` fold step). Then N column slots, ALL
+ * `{N}-`-prefixed from N=1 (bare reserved for the tag-level source — option i). Per
+ * column: `{N}-use`, `{N}-key`/`{N}-ref`, `{N}-label` (header cell text). Each
+ * `{N}-key` carries `'scope' => 'row'` so its field picker auto-narrows to the
+ * chosen repeater's sub-fields (see field-combo-control.js; #12).
  *
  * @since 1.17.0
  * @return array Option definitions keyed by option name.
@@ -90,7 +98,7 @@ function bws_get_table_options(): array {
 		$source_opt,
 		$traversal_opts,
 		array(
-			'rows' => array(
+			'key' => array(
 				'type'         => 'bws-field-combo',
 				'label'        => __( 'Repeater Field', 'generateblocks' ),
 				'dynamicLabel' => true,
@@ -148,6 +156,11 @@ function bws_get_table_options(): array {
 				'label'        => sprintf( __( 'Column %d Field Key', 'generateblocks' ), $n ),
 				'help'         => __( 'Sub-field key within each repeater row.', 'generateblocks' ),
 				'placeholder'  => 'sub_field',
+				// Auto-scope the picker to the tag-level `key` repeater's sub-fields
+				// (#12): the field-combo control reads the sibling `key`, filters
+				// results to that repeater's row-context sub-fields, and HIDES the two
+				// location/type filter selectors. Free-text of any key still allowed.
+				'scope'        => 'row',
 			),
 			$col_trigger
 		);
@@ -303,7 +316,10 @@ function bws_table_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	$rows_field = trim( (string) ( $options['rows'] ?? '' ) );
+	// Tag-level `key` NAMES the repeater field (house nomenclature); it drives the
+	// table-only `rows` fold step below. No other tag maps a bare `key` to a rows
+	// step — the mapping is owned here.
+	$rows_field = trim( (string) ( $options['key'] ?? '' ) );
 	if ( '' === $rows_field ) {
 		return '';
 	}

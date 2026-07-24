@@ -257,6 +257,12 @@
 	 *   paths        array of full location path strings (kind root › group › parent…)
 	 *   rowSeen      true if ANY instance is a repeater/flex child (drives the
 	 *                "Loop fields" type filter)
+	 *   repeaterKeys array of owning repeater/flex resolution keys this field is a
+	 *                sub-field of (from the server `repeater_key` stamp; empty for a
+	 *                top-level field). Drives the {{table}} {N}-key auto-scope (#12):
+	 *                a picker scoped to repeater R keeps only records whose
+	 *                repeaterKeys include R. Machine-readable — NOT parsed from the
+	 *                breadcrumb (parent_path), which stays display-only.
 	 *
 	 * @param {Object} envelope { post:[groups], term:[groups], site:[groups] }.
 	 * @return {Array} Flat merged field records.
@@ -298,10 +304,11 @@
 							value:      mkey,
 							key:        key,
 							label:      lbl,
-							kind:       kind,
-							types:      [],
-							paths:      [],
-							rowSeen:    false,
+							kind:         kind,
+							types:        [],
+							paths:        [],
+							rowSeen:      false,
+							repeaterKeys: [],
 						};
 						order.push( mkey );
 					}
@@ -311,6 +318,15 @@
 					// Tracked for the "Loop fields" TYPE filter. Not shown as a label
 					// marker anymore; the filter carries that meaning now.
 					rec.rowSeen = rec.rowSeen || ( 'row' === field.context_hint );
+
+					// Owning repeater/flex key (server `repeater_key` stamp), accumulated
+					// because one merged record can be a sub-field of more than one
+					// container (same bare key + label in two repeaters). Drives #12
+					// scope. Empty string = top-level field → not recorded.
+					var rk = field.repeater_key || '';
+					if ( rk && rec.repeaterKeys.indexOf( rk ) === -1 ) {
+						rec.repeaterKeys.push( rk );
+					}
 				} );
 			} );
 		} );
@@ -495,9 +511,33 @@
 			return function () { live = false; };
 		}, [] );
 
-		var records = useMemo( function () {
+		var allRecords = useMemo( function () {
 			return envelope ? envelopeToRecords( envelope ) : [];
 		}, [ envelope ] );
+
+		// #12 auto-scope: when props.scope === 'row' (the {{table}} {N}-key column
+		// controls), narrow the field pool to the sub-fields of the repeater named by
+		// the TAG-LEVEL `key` option (always the bare `key`, whatever this control's own
+		// prefix), and hide the two filter selectors below. The scope handle is machine-
+		// readable (rec.repeaterKeys, from the server repeater_key stamp) — NOT parsed
+		// from the display breadcrumb. Empty / unknown repeater key → no scoping (the
+		// picker degrades to the full list; free-text of any key still works). This is a
+		// per-instance render conditional, deliberately NOT the FU-3 shared-state channel
+		// (see .claude/plans/field-selector.md FU-3): table ships without blocking on it.
+		var scopeRepeaterKey = ( 'row' === props.scope ) ? String( state.key || '' ).trim() : '';
+		var scopeToRepeater  = '' !== scopeRepeaterKey;
+
+		var records = useMemo( function () {
+			if ( ! scopeToRepeater ) { return allRecords; }
+			var scoped = allRecords.filter( function ( rec ) {
+				return rec.repeaterKeys && rec.repeaterKeys.indexOf( scopeRepeaterKey ) !== -1;
+			} );
+			// If the repeater key matched NO discovered sub-fields (an unregistered /
+			// free-typed repeater, or a non-repeater key), do NOT collapse to an empty
+			// list — that would strand the author with no picker and no way back. Fall
+			// through to the full pool; free-text still commits any sub-field name.
+			return scoped.length ? scoped : allRecords;
+		}, [ allRecords, scopeToRepeater, scopeRepeaterKey ] );
 
 		var locationOptions = useMemo( function () {
 			return buildLocationOptions( records );
@@ -628,29 +668,34 @@
 			label = props.label;
 		}
 
+		// #12: hide the location/type filters when auto-scoped to a repeater — the
+		// scope IS the filter (the picker already shows only that repeater's sub-fields),
+		// so the two selectors would be redundant + misleading. A null child renders
+		// nothing (React); the combobox stands alone.
+		var filtersBlock = scopeToRepeater ? null : el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
+			el( FlexItem, { key: 'loc', isBlock: true },
+				el( SelectControl, {
+					label:    __( 'Filter fields by location', 'generateblocks' ),
+					value:    activeLoc,
+					options:  locationOptions,
+					onChange: function ( v ) { setLoc( v ); },
+					__nextHasNoMarginBottom: true,
+				} )
+			),
+			el( FlexItem, { key: 'type', isBlock: true },
+				el( SelectControl, {
+					label:    __( 'Filter fields by type', 'generateblocks' ),
+					value:    typeVal,
+					options:  typeOptions,
+					onChange: function ( v ) { setType( v ); },
+					__nextHasNoMarginBottom: true,
+				} )
+			),
+		] );
+
 		return el( Fragment, null, [
-			// Two filters side-by-side above the field selector. align:flex-end keeps
-			// the dropdowns aligned when labels wrap to different heights.
-			el( Flex, { key: 'filters', gap: 2, align: 'flex-end', wrap: true }, [
-				el( FlexItem, { key: 'loc', isBlock: true },
-					el( SelectControl, {
-						label:    __( 'Filter fields by location', 'generateblocks' ),
-						value:    activeLoc,
-						options:  locationOptions,
-						onChange: function ( v ) { setLoc( v ); },
-						__nextHasNoMarginBottom: true,
-					} )
-				),
-				el( FlexItem, { key: 'type', isBlock: true },
-					el( SelectControl, {
-						label:    __( 'Filter fields by type', 'generateblocks' ),
-						value:    typeVal,
-						options:  typeOptions,
-						onChange: function ( v ) { setType( v ); },
-						__nextHasNoMarginBottom: true,
-					} )
-				),
-			] ),
+			// Two filters side-by-side above the field selector (hidden when auto-scoped).
+			filtersBlock,
 			el( ComboboxControl, {
 				key:                 'combo',
 				label:               label,
@@ -683,6 +728,9 @@
 			placeholder:  cfg.placeholder,
 			dynamicLabel: cfg.dynamicLabel,
 			labelPrefix:  cfg.labelPrefix,
+			// #12: 'row' auto-scopes the picker to a sibling repeater's sub-fields
+			// (the {N}-key column controls) and hides the two filter selectors.
+			scope:        cfg.scope,
 			context:      context,
 		} );
 	}

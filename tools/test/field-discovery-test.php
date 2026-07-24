@@ -187,6 +187,10 @@ $flat_rep = bws_field_discovery_flatten_fields( array(
 ) );
 assert_eq( 'repeater child bare name', 'session_title', $flat_rep[1]['name'] );
 assert_eq( 'repeater child context = row', 'row', $flat_rep[1]['context_hint'] );
+// #12: the child carries the owning repeater's key (machine-readable scope handle,
+// not a parsed breadcrumb) so a picker can narrow to exactly this repeater.
+assert_eq( 'repeater child repeater_key = owning repeater', 'sessions', $flat_rep[1]['repeater_key'] );
+assert_eq( 'repeater field itself has empty repeater_key', '', $flat_rep[0]['repeater_key'] );
 
 // FLEXIBLE content layout child -> bare name, context row.
 $flat_flex = bws_field_discovery_flatten_fields( array(
@@ -207,6 +211,8 @@ assert_eq( 'flex layout child context = row', 'row', $flat_flex[1]['context_hint
 // F1: layout path nests under the flex field's OWN label (Blocks), then the layout
 // (Hero) — so two flex fields sharing a layout name stay under distinct paths.
 assert_eq( 'flex layout child breadcrumb includes flex field', 'Blocks › Hero', $flat_flex[1]['parent_path'] );
+// #12: flex children scope to the FLEX field's key (its rows are the layouts).
+assert_eq( 'flex layout child repeater_key = flex field', 'blocks', $flat_flex[1]['repeater_key'] );
 
 // Nested GROUP inside GROUP -> double composite.
 $flat_nested = bws_field_discovery_flatten_fields( array(
@@ -224,6 +230,26 @@ $flat_nested = bws_field_discovery_flatten_fields( array(
 ) );
 $names = array_column( $flat_nested, 'name' );
 assert_true( 'nested group composite a_b_c present', in_array( 'a_b_c', $names, true ) );
+
+// #12: nested REPEATER — an inner repeater's grandchildren keep the INNER key
+// (recursion stamps the direct parent first; the outer branch does not overwrite).
+$flat_nested_rep = bws_field_discovery_flatten_fields( array(
+	array(
+		'name' => 'outer', 'label' => 'Outer', 'type' => 'repeater',
+		'sub_fields' => array(
+			array(
+				'name' => 'inner', 'label' => 'Inner', 'type' => 'repeater',
+				'sub_fields' => array(
+					array( 'name' => 'cell', 'label' => 'Cell', 'type' => 'text' ),
+				),
+			),
+		),
+	),
+) );
+$by_name = array();
+foreach ( $flat_nested_rep as $r ) { $by_name[ $r['name'] ] = $r; }
+assert_eq( 'inner repeater scopes to outer', 'outer', $by_name['inner']['repeater_key'] );
+assert_eq( 'grandchild cell scopes to INNER (not overwritten by outer)', 'inner', $by_name['cell']['repeater_key'] );
 
 // -----------------------------------------------------------------------------
 echo "\n== group_entry ==\n";
