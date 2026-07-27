@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GB Tag String Preview</title>
+<style>
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface2: #f0f0f2;
+  --border: #d8d8db;
+  --border2: #b8b8bb;
+  --text: #1d1d1f;
+  --muted: #86868b;
+  --accent: #0066cc;
+  --accent-light: #e8f0fb;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Tabs ───────────────────────────────── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+  height: 42px;
+  gap: 0;
+}
+header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: nowrap; }
+.tab {
+  padding: 0 14px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+/* ── Layout ─────────────────────────────── */
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+}
+.tab-content { flex: 1; overflow-y: auto; padding: 16px; }
+.tab-content.hidden { display: none; }
+
+/* ── Sidebar ────────────────────────────── */
+.sb-h {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin: 14px 0 6px;
+  font-weight: 600;
+}
+.sb-h:first-child { margin-top: 0; }
+
+.name-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 0;
+}
+.name-id { font-size: 10px; color: var(--muted); font-family: ui-monospace, monospace; }
+input.name-inp {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  background: var(--surface2);
+  color: var(--text);
+  min-width: 0;
+}
+input.name-inp:focus { outline: none; border-color: var(--accent); }
+
+.preset-wrap { position: relative; }
+.preset-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 1px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+}
+.preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+.preset-menu {
+  position: absolute; top: 100%; right: 0; z-index: 300;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 100px;
+  display: none;
+}
+.preset-menu.open { display: block; }
+.preset-item { padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: ui-monospace, monospace; }
+.preset-item:hover { background: var(--bg); }
+.preset-item.cur { color: var(--accent); }
+
+.toggle-row {
+  display: flex; align-items: flex-start; gap: 5px;
+  padding: 4px 0; font-size: 12px; cursor: pointer; line-height: 1.35;
+}
+.toggle-row input[type=checkbox] { margin-top: 1px; flex-shrink: 0; accent-color: var(--accent); }
+.toggle-desc { color: var(--muted); }
+.toggle-desc code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text); }
+
+.pfx-row {
+  display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+  padding: 3px 0; font-size: 12px;
+}
+.pfx-row label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
+.pfx-row input[type=radio] { accent-color: var(--accent); }
+
+/* ── Configure tab ──────────────────────── */
+.cfg-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 14px;
+}
+.cfg-bar label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+.cfg-bar select {
+  border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px;
+  font-size: 13px; background: var(--surface); color: var(--text);
+}
+.cfg-bar select:focus { outline: none; border-color: var(--accent); }
+.cfg-div { width: 1px; height: 20px; background: var(--border); }
+.cfg-lbl { font-size: 12px; color: var(--muted); }
+.cfg-bar input[type=radio] { accent-color: var(--accent); }
+
+.cfg-cols { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; margin-bottom: 12px;
+}
+.card h3 {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--muted); margin-bottom: 10px; font-weight: 600;
+}
+.opt-row {
+  display: grid; grid-template-columns: 110px 1fr;
+  gap: 8px; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid var(--bg);
+  min-height: 26px;
+}
+.opt-row:last-child { border-bottom: none; }
+.opt-row.dim { opacity: 0.3; }
+.opt-lbl { font-size: 12px; color: var(--muted); }
+.opt-row select, .opt-row input[type=text] {
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 7px; font-size: 13px;
+  background: var(--surface2); color: var(--text); width: 100%;
+}
+.opt-row select:focus, .opt-row input[type=text]:focus { outline: none; border-color: var(--accent); }
+.opt-row input[type=checkbox] { accent-color: var(--accent); }
+
+.src-block { border-left: 3px solid #4a90d9; padding-left: 10px; margin-bottom: 10px; }
+.src-block-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #4a90d9; margin-bottom: 5px; font-weight: 600; }
+.interm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.interm-tax-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+.order-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; border-bottom: 1px solid var(--bg); }
+.order-row:last-child { border-bottom: none; }
+.arr-wrap { display: flex; flex-direction: column; }
+.arr-btn {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  padding: 0; font-size: 9px; line-height: 1.4;
+}
+.arr-btn:hover { color: var(--accent); }
+.arr-btn:disabled { opacity: 0.25; cursor: default; }
+.arr-btn:disabled:hover { color: var(--muted); }
+.order-lbl { font-size: 12px; flex: 1; font-family: ui-monospace, monospace; color: var(--text); }
+.order-lbl .grp { color: var(--accent); }
+.order-lbl .oid { color: var(--muted); font-size: 10px; }
+
+/* Preview */
+.preview-tag {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px; color: var(--text);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 14px;
+  word-break: break-all; margin-bottom: 12px; min-height: 44px;
+  user-select: all;
+}
+.btn-row { display: flex; gap: 6px; margin-bottom: 10px; }
+button {
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--text); padding: 4px 10px; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-family: inherit;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+.snap-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--bg); }
+.snap-item:last-child { border-bottom: none; }
+.snap-num { font-size: 11px; color: var(--muted); min-width: 18px; padding-top: 2px; }
+.snap-str {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px; flex: 1; word-break: break-word; color: var(--text);
+}
+.snap-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0; }
+.snap-del:hover { color: var(--text); }
+
+/* ── Permutations tab ───────────────────── */
+.dummy-bar {
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 18px;
+}
+.dummy-bar-h {
+  width: 100%; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--muted); font-weight: 600;
+}
+.dummy-item { display: flex; align-items: center; gap: 5px; }
+.dummy-item label { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; white-space: nowrap; }
+.dummy-item input {
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
+  font-size: 12px; font-family: ui-monospace, monospace;
+  background: var(--surface2); color: var(--text); width: 110px;
+}
+.dummy-item input:focus { outline: none; border-color: var(--accent); }
+
+.perm-group { margin-bottom: 22px; }
+.perm-group-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--muted); font-weight: 700;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+.perm-tags { display: flex; flex-direction: column; gap: 7px; }
+.perm-row { display: flex; align-items: center; gap: 10px; }
+.perm-lbl {
+  font-size: 11px; color: var(--muted); width: 160px;
+  flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.perm-str {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 15px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 5px 12px;
+  flex: 1; word-break: break-word; cursor: default;
+  user-select: all; min-height: 32px;
+}
+.perm-str:hover { background: var(--accent-light); border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GB Tag String Preview</h1>
+  <div class="tab active" data-tab="configure">Configure</div>
+  <div class="tab" data-tab="perms">Permutations</div>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-h">Option Key Names</div>
+    <div id="sb-names"></div>
+
+    <div class="sb-h">Combined Options</div>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-interm">
+      <span class="toggle-desc">srcTerm + tax → <code>srcTerm:slug</code></span>
+    </label>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-fromkey">
+      <span class="toggle-desc">use + key → <code>use:meta,key</code></span>
+    </label>
+
+    <div class="sb-h">srcRel Hop Chain</div>
+    <div class="pfx-row">
+      <label><input type="radio" name="relenc" value="off" checked> off</label>
+      <label><input type="radio" name="relenc" value="csv"> flat CSV pairs</label>
+      <label><input type="radio" name="relenc" value="repeater"> repeater (| split)</label>
+    </div>
+    <div class="pfx-row" id="rel-hoppfx-row" style="display:none;margin-top:5px">
+      <span class="toggle-desc" style="width:100%;margin-bottom:2px">Hop prefix (repeater) — <b>N- collides with try_ slots</b>:</span>
+      <label><input type="radio" name="relhoppfx" value="numeric"> 2- 3-</label>
+      <label><input type="radio" name="relhoppfx" value="letter" checked> B- C-</label>
+    </div>
+    <div class="toggle-desc" style="margin:4px 0 0;line-height:1.4">
+      <code>csv</code>: <code>srcRel:ref,f,termIn,tax</code> — one value, positional pairs.<br>
+      <code>repeater</code>: <code>srcRel:ref,f|B-srcRel:termIn,tax</code> — one option per hop.
+    </div>
+
+    <div class="sb-h">try_ Prefix Style</div>
+    <div class="pfx-row">
+      <label><input type="radio" name="pfx" value="numeric"> 1- 2-</label>
+      <label><input type="radio" name="pfx" value="letter"> A- B-</label>
+      <label><input type="radio" name="pfx" value="s_numeric"> s1- s2-</label>
+      <label><input type="radio" name="pfx" value="slot1_bare" checked> (∅) 2-</label>
+    </div>
+  </div>
+
+  <!-- Configure tab -->
+  <div class="tab-content" id="tab-configure">
+    <div class="cfg-bar">
+      <label>Template:
+        <select id="tmpl-sel">
+          <option value="text">text</option>
+          <option value="image_post">image (post)</option>
+          <option value="image_term">image (term)</option>
+          <option value="content">content</option>
+          <option value="datetime_single">datetime_single</option>
+          <option value="datetime_range">datetime_range</option>
+        </select>
+      </label>
+      <div class="cfg-div"></div>
+      <span class="cfg-lbl">Mode:</span>
+      <label><input type="radio" name="mode" value="0" checked> base</label>
+      <label><input type="radio" name="mode" value="2"> try_ 2</label>
+      <label><input type="radio" name="mode" value="3"> try_ 3</label>
+      <label><input type="radio" name="mode" value="4"> try_ 4</label>
+      <label><input type="radio" name="mode" value="5"> try_ 5</label>
+    </div>
+
+    <div class="cfg-cols">
+      <div>
+        <div class="card" id="order-card">
+          <h3>Option Order</h3>
+          <div id="order-list"></div>
+        </div>
+      </div>
+      <div>
+        <div id="slots-container"></div>
+        <div class="card">
+          <h3>Preview</h3>
+          <div class="preview-tag" id="cfg-preview"></div>
+          <div class="btn-row">
+            <button id="cfg-copy">Copy</button>
+            <button id="cfg-snap">Save Snapshot</button>
+            <button id="cfg-clear">Clear</button>
+          </div>
+          <div id="cfg-snaps"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Permutations tab -->
+  <div class="tab-content hidden" id="tab-perms">
+    <div class="dummy-bar">
+      <div class="dummy-bar-h">Dummy Values</div>
+      <div class="dummy-item"><label>key1</label><input id="d-key1" value="custom_field"></div>
+      <div class="dummy-item"><label>key2</label><input id="d-key2" value="other_field"></div>
+      <div class="dummy-item"><label>imgKey</label><input id="d-imgKey" value="image_field"></div>
+      <div class="dummy-item"><label>dateKey</label><input id="d-dateKey" value="event_date"></div>
+      <div class="dummy-item"><label>timeKey</label><input id="d-timeKey" value="event_time"></div>
+      <div class="dummy-item"><label>startKey</label><input id="d-startKey" value="start_date"></div>
+      <div class="dummy-item"><label>endKey</label><input id="d-endKey" value="end_date"></div>
+      <div class="dummy-item"><label>ref</label><input id="d-ref" value="rel_post"></div>
+      <div class="dummy-item"><label>tax</label><input id="d-tax" value="category"></div>
+      <div class="dummy-item"><label>fallback</label><input id="d-fallback" value="N/A"></div>
+      <div class="dummy-item"><label>rangeSep</label><input id="d-rangeSep" value=" – "></div>
+      <div class="dummy-item"><label>format</label><input id="d-format" value="F j, Y"></div>
+    </div>
+    <div id="perm-output"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Presets ──────────────────────────────────────────────────────────────────
+const PRESETS = {
+  src:             ['src','source','via','from'],
+  ref:             ['ref','rel'],
+  srcRel:          ['srcRel','rel','via','hop','trail'],
+  srcTerm:         ['srcTerm','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm'],
+  tax:             ['tax','taxonomy','termTax','inTax'],
+  use:             ['use','from','field','type','in','get'],
+  key:             ['key','meta_key','field_key'],
+  fallback:        ['fallback','fallback_text','fallback_url'],
+  as:              ['as','return_type'],
+  timeKey:         ['timeKey','time_key','time_field'],
+  startKey:        ['startKey','start_key','start_field'],
+  endKey:          ['endKey','end_key','end_field'],
+  startTimeKey:    ['startTimeKey','start_time_key','start_time_field'],
+  endTimeKey:      ['endTimeKey','end_time_key','end_time_field'],
+  rangeSep:        ['rangeSep','range_sep','separator'],
+  timeSep:         ['timeSep','time_sep','date_time_separator'],
+  showCurrentYear: ['showCurrentYear','show_current_year','omit_current_year'],
+  showMidnight:    ['showMidnight','show_midnight'],
+  format:          ['format'],
+  sep:             ['sep'],
+  size:            ['size'],
+};
+
+// ── Template schemas ─────────────────────────────────────────────────────────
+const TMPL = {
+  text: [
+    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'Meta/Custom Field'},{value:'title',label:'Title/Name'}]},
+    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
+    {id:'fallback',label:'Fallback',type:'text'},
+    {id:'limit',label:'Limit',type:'text'},
+    {id:'sep',label:'Separator',type:'text'},
+  ],
+  image_post: [
+    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
+    {id:'size',label:'Image Size',type:'select',alwaysSerialize:true,choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
+    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'ACF/Meta Field'},{value:'featured',label:'Featured Image'}]},
+    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
+    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
+  ],
+  image_term: [
+    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
+    {id:'size',label:'Image Size',type:'select',alwaysSerialize:true,choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
+    {id:'key',label:'Meta Key',type:'text'},
+    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
+  ],
+  content: [
+    {id:'use',label:'Content Mode',type:'select',choices:[{value:'',label:'Content/Description'},{value:'excerpt',label:'Excerpt'},{value:'key',label:'ACF/Custom Field'}]},
+    {id:'key',label:'Meta Key',type:'text',showIf:{use:'key'}},
+    {id:'fallback',label:'Fallback',type:'text'},
+  ],
+  datetime_single: [
+    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
+    {id:'format',label:'Format (PHP)',type:'text'},
+    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
+    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
+    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
+    {id:'key',label:'Date/Time Key',type:'text'},
+    {id:'timeKey',label:'Time Key',type:'text',showIf:{as:'not:date'}},
+    {id:'fallback',label:'Fallback',type:'text'},
+  ],
+  datetime_range: [
+    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
+    {id:'rangeSep',label:'Range Sep',type:'text'},
+    {id:'format',label:'Format (PHP)',type:'text'},
+    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
+    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
+    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
+    {id:'startKey',label:'Start Key',type:'text'},
+    {id:'startTimeKey',label:'Start Time Key',type:'text',showIf:{as:'not:date'}},
+    {id:'endKey',label:'End Key',type:'text'},
+    {id:'endTimeKey',label:'End Time Key',type:'text',showIf:{as:'not:date'}},
+    {id:'sep',label:'List Sep',type:'text'},
+    {id:'fallback',label:'Fallback',type:'text'},
+  ],
+};
+
+const DEFAULT_ORDER = {
+  text:            ['source','use','key','fallback','limit','sep'],
+  image_post:      ['as','size','source','use','key','fallback'],
+  image_term:      ['as','size','source','key','fallback'],
+  content:         ['source','use','key','fallback'],
+  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','key','timeKey','fallback'],
+  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','startKey','startTimeKey','endKey','endTimeKey','sep','fallback'],
+};
+
+// ── Permutation scenarios ────────────────────────────────────────────────────
+// Part IDs: standard option IDs, plus specials:
+//   _inTerm:       combined → inTerm:$tax   separate → inTerm | tax:$tax
+//   _content_key:  combined → from:key,$k   separate → from:key | key:$k
+//   key (no prior 'from'): combined → from:meta,$k   separate → key:$k
+// Value starting '$' = dummy ref. Value === true = boolean flag.
+
+const SCENARIO_GROUPS = [
+  { tmpl:'text', title:'text', scenarios:[
+    {label:'meta key',              parts:[['key','$key1']]},
+    {label:'title',                 parts:[['use','title']]},
+    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']]},
+    {label:'via ref → key',         parts:[['source','ref'],['ref','$ref'],['key','$key1']]},
+    {label:'key, in term',          parts:[['key','$key1'],['_inTerm','$tax']]},
+    {label:'via ref → key, in term',parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']]},
+    {label:'parent → key',          parts:[['source','parent'],['key','$key1']]},
+  ]},
+  { tmpl:'image', title:'image', scenarios:[
+    {label:'url, meta key',           parts:[['as','url'],['key','$imgKey'],['size','full']]},
+    {label:'url, meta key, medium',   parts:[['as','url'],['key','$imgKey'],['size','medium']]},
+    {label:'url, meta key, thumb',    parts:[['as','url'],['key','$imgKey'],['size','thumbnail']]},
+    {label:'url, featured',           parts:[['as','url'],['use','featured'],['size','full']]},
+    {label:'alt, meta key',           parts:[['as','alt'],['key','$imgKey'],['size','full']]},
+    {label:'id, meta key',            parts:[['as','id'], ['key','$imgKey'],['size','full']]},
+    {label:'url, via ref → key',      parts:[['as','url'],['source','ref'],['ref','$ref'],['key','$imgKey'],['size','full']]},
+    {label:'url, key, in term',       parts:[['as','url'],['key','$imgKey'],['size','full'],['_inTerm','$tax']]},
+    {label:'url, key + fallback',     parts:[['as','url'],['key','$imgKey'],['size','full'],['fallback','$fallback']]},
+  ]},
+  { tmpl:'content', title:'content', scenarios:[
+    {label:'post content',          parts:[]},
+    {label:'excerpt',               parts:[['use','excerpt']]},
+    {label:'ACF field',             parts:[['_content_key','$key1']]},
+    {label:'via ref',               parts:[['source','ref'],['ref','$ref']]},
+    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']]},
+    {label:'in term',               parts:[['_inTerm','$tax']]},
+  ]},
+  { tmpl:'datetime_single', title:'datetime_single', scenarios:[
+    {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
+    {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
+    {label:'time',                  parts:[['as','time'],['key','$timeKey']]},
+    {label:'date + show year',      parts:[['as','date'],['showCurrentYear',true],['key','$dateKey']]},
+    {label:'date, custom format',   parts:[['as','date'],['format','$format'],['key','$dateKey']]},
+    {label:'via ref → date',        parts:[['as','date'],['source','ref'],['ref','$ref'],['key','$dateKey']]},
+  ]},
+  { tmpl:'datetime_range', title:'datetime_range', scenarios:[
+    {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
+    {label:'date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
+    {label:'via ref → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
+  ]},
+  { tmpl:'text', title:'try_text', isTry:true, scenarios:[
+    {label:'2: key, key',           slots:[[['key','$key1']],[['key','$key2']]]},
+    {label:'2: key, title',         slots:[[['key','$key1']],[['use','title']]]},
+    {label:'2: key, via ref key',   slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']]]},
+    {label:'2: key, in term',       slots:[[['key','$key1']],[['_inTerm','$tax']]]},
+    {label:'3: key, ref key, title',slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]]},
+    {label:'3: key, ref key, term', slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]]},
+  ]},
+  { tmpl:'content', title:'try_content', isTry:true, scenarios:[
+    {label:'2: content, ACF',       slots:[[],[['_content_key','$key1']]]},
+    {label:'2: ACF, via ref',       slots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']]]},
+    {label:'3: ACF, ref, in term',  slots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']],[['_inTerm','$tax']]]},
+  ]},
+  { tmpl:'image', title:'try_image', isTry:true, scenarios:[
+    {label:'2: key, featured',      slots:[[['as','url'],['key','$imgKey'],['size','full']],[['as','url'],['use','featured'],['size','full']]]},
+    {label:'2: key, via ref key',   slots:[[['as','url'],['key','$imgKey'],['size','full']],[['as','url'],['source','ref'],['ref','$ref'],['key','$imgKey'],['size','full']]]},
+    {label:'2: key medium, fallback',slots:[[['as','url'],['key','$imgKey'],['size','medium']],[['as','url'],['key','$imgKey'],['size','full'],['fallback','$fallback']]]},
+  ]},
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+const S = {
+  tmpl: 'text',
+  tryCount: 0,
+  pfxStyle: 'slot1_bare',
+  keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
+  order: [...DEFAULT_ORDER.text],
+  slotVals: [{}],
+  inTermCombined: false,
+  fromKeyCombined: false,
+  relChainEnc: 'off',   // 'off' | 'csv' (flat pairs) | 'repeater' (| split)
+  relHopPfx: 'letter',  // 'numeric' (2-/3-, collides w/ try_) | 'letter' (B-/C-)
+  dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
+  snapshots: [],
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function kn(id) { return S.keyNames[id] || id; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function pfx(idx) {
+  const n = idx + 1;
+  switch(S.pfxStyle) {
+    case 'numeric':    return `${n}-`;
+    case 'letter':     return String.fromCharCode(64+n)+'-';
+    case 's_numeric':  return `s${n}-`;
+    case 'slot1_bare': return idx===0 ? '' : `${n}-`;
+  }
+  return `${n}-`;
+}
+
+function evalShowIf(cond, sv) {
+  if (!cond) return true;
+  for (const [id, rule] of Object.entries(cond)) {
+    const val = sv[id] ?? '';
+    if (!evalRule(val, rule)) return false;
+  }
+  return true;
+}
+function evalRule(val, rule) {
+  if (rule==='' || rule==='empty') return val==='';
+  if (rule==='not_empty') return val!=='';
+  if (rule.startsWith('not:')) return val!==rule.slice(4);
+  if (rule.startsWith('not_in:')) return !rule.slice(7).split(',').includes(val);
+  if (rule.startsWith('in:')) return rule.slice(3).split(',').includes(val);
+  return val===rule;
+}
+
+function tmplName(t) {
+  if (t==='image_post'||t==='image_term') return 'image';
+  return t;
+}
+
+// ── Configurator tag builder ─────────────────────────────────────────────────
+function buildCfgTag() {
+  const slots = S.tryCount>0 ? S.tryCount : 1;
+  const parts = [];
+  for (let i=0; i<slots; i++) {
+    const sv = S.slotVals[i]||{};
+    const p = S.tryCount>0 ? pfx(i) : '';
+    const t2p = S.tryCount>0 && i>0;
+    for (const item of S.order) {
+      if (item==='source') { parts.push(...buildSrcParts(sv,p,t2p)); continue; }
+      const schema = (TMPL[S.tmpl]||[]).find(o=>o.id===item);
+      if (!schema) continue;
+      if (!evalShowIf(schema.showIf,sv)) continue;
+      // use+key combined
+      if (S.fromKeyCombined && item==='use') {
+        const fv=sv['use']||'', kv=sv['key']||'';
+        if (fv!==''||kv!=='') parts.push(`${p}${kn('use')}:${fv||'meta'}${kv?','+kv:''}`);
+        continue;
+      }
+      if (S.fromKeyCombined && item==='key') continue;
+      const part = buildOptPart(schema,sv,p,t2p);
+      if (part!==null) parts.push(part);
+    }
+  }
+  const name = S.tryCount>0 ? `try_${tmplName(S.tmpl)}` : tmplName(S.tmpl);
+  const opts = parts.length ? ' '+parts.join('|') : '';
+  return `{{${name}${opts}}}`;
+}
+
+// Emit the srcRel hop chain for one slot. Chain = [{type,arg},…].
+//   csv:      one option, flat positional pairs — srcRel:ref,f,termIn,tax
+//   repeater: one option per hop — srcRel:ref,f | 2-srcRel:termIn,tax
+//             (repeater prefix is the HOP index, independent of any try_ slot prefix p;
+//              when both are live they compose, e.g. try_ slot 2 → 2-srcRel + 2-2-srcRel)
+function buildRelParts(sv, p) {
+  if (S.relChainEnc==='off') return [];
+  const chain=(sv['relChain']||[]).filter(h=>h.type||h.arg);
+  if (!chain.length) return [];
+  const k=kn('srcRel');
+  if (S.relChainEnc==='csv') {
+    const toks=[];
+    chain.forEach(h=>{ toks.push(h.type||''); toks.push(h.arg||''); });
+    return [`${p}${k}:${toks.join(',')}`];
+  }
+  // repeater. Hop-index prefix must NOT reuse N- (claimed by try_ multislot) — a try_
+  // slot with a multi-hop chain would produce 2-2-srcRel (ambiguous). Letter prefix
+  // (B-/C-) sidesteps the collision; numeric shown only to demonstrate the clash.
+  return chain.map((h,hi)=>{
+    let hp='';
+    if (hi>0) hp = S.relHopPfx==='letter' ? String.fromCharCode(65+hi)+'-' : `${hi+1}-`;
+    return `${p}${hp}${k}:${(h.type||'')},${(h.arg||'')}`;
+  });
+}
+
+function buildSrcParts(sv, p, t2p) {
+  const out=[];
+  const src=sv['src']||'';
+  if (src) out.push(`${p}${kn('src')}:${src}`);
+  if (src==='ref'&&sv['ref']) out.push(`${p}${kn('ref')}:${sv['ref']}`);
+  out.push(...buildRelParts(sv,p));
+  if (S.inTermCombined) {
+    if (sv['srcTerm']) out.push(`${p}${kn('srcTerm')}:${sv['srcTerm']}`);
+  } else {
+    if (sv['srcTerm']==='1') {
+      out.push(`${p}${kn('srcTerm')}`);
+      if (sv['tax']) out.push(`${p}${kn('tax')}:${sv['tax']}`);
+    }
+  }
+  return out;
+}
+
+function buildOptPart(schema, sv, p, t2p) {
+  const val=sv[schema.id]??'';
+  if (schema.type==='boolean') return val==='1' ? `${p}${kn(schema.id)}` : null;
+  if (schema.alwaysSerialize) return `${p}${kn(schema.id)}:${val}`;
+  if (val==='') return null;
+  return `${p}${kn(schema.id)}:${val}`;
+}
+
+// ── Permutation tag builder ──────────────────────────────────────────────────
+function resolveVal(v) {
+  if (typeof v==='string'&&v.startsWith('$')) return S.dummies[v.slice(1)]??'';
+  return v;
+}
+
+function renderSlotParts(parts, p, t2p) {
+  const out=[];
+  const hasExplicitUse = parts.some(([k])=>k==='use');
+  const uk = kn('use');
+  for (const [id,val] of parts) {
+    const rv = resolveVal(val);
+    if (id==='source') {
+      const sv2 = typeof rv==='string' ? rv : String(rv);
+      if (sv2!=='') out.push(`${p}${kn('src')}:${sv2}`);
+      continue;
+    }
+    if (id==='use') {
+      const sv2 = typeof rv==='string' ? rv : String(rv);
+      if (sv2!=='') out.push(`${p}${uk}:${sv2}`);
+      continue;
+    }
+    if (id==='_inTerm') {
+      const slug = typeof rv==='string' ? rv : '';
+      if (S.inTermCombined) { if(slug) out.push(`${p}${kn('srcTerm')}:${slug}`); }
+      else { out.push(`${p}${kn('srcTerm')}`); if(slug) out.push(`${p}${kn('tax')}:${slug}`); }
+      continue;
+    }
+    if (id==='_content_key') {
+      const field = typeof rv==='string' ? rv : '';
+      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:key,${field}`); else out.push(`${p}${uk}:key`); }
+      else { out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`); }
+      continue;
+    }
+    if (id==='key' && !hasExplicitUse) {
+      const field = typeof rv==='string' ? rv : '';
+      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:meta,${field}`); }
+      else { if(field) out.push(`${p}${kn('key')}:${field}`); }
+      continue;
+    }
+    if (val===true) { out.push(`${p}${kn(id)}`); continue; }
+    const sv = typeof rv==='string' ? rv : String(rv);
+    if (sv!=='') out.push(`${p}${kn(id)}:${sv}`);
+  }
+  return out;
+}
+
+// Map a scenario part ID to its S.order slot for sorting.
+// Source-block items (source, ref, _inTerm) all map to 'source' slot index.
+// _content_key maps to 'use' (combines use+key).
+function partOrderKey(id) {
+  if (id==='source'||id==='ref'||id==='_inTerm') return 'source';
+  if (id==='_content_key') return 'use';
+  return id;
+}
+
+function buildPermTag(group, scenario) {
+  const name = group.isTry ? `try_${tmplName(group.tmpl)}` : tmplName(group.tmpl);
+  const slots = scenario.slots || [scenario.parts];
+  const parts=[];
+  slots.forEach((slotParts,i)=>{
+    const p = group.isTry ? pfx(i) : '';
+    const t2p = group.isTry && i>0;
+    // Sort parts by their position in S.order so permutations respect Configure-tab ordering.
+    const order = S.order;
+    const sorted = [...slotParts].sort((a,b)=>{
+      const ai = order.indexOf(partOrderKey(a[0]));
+      const bi = order.indexOf(partOrderKey(b[0]));
+      const ar = ai===-1 ? 999 : ai;
+      const br = bi===-1 ? 999 : bi;
+      return ar - br;
+    });
+    parts.push(...renderSlotParts(sorted,p,t2p));
+  });
+  const opts = parts.length ? ' '+parts.join('|') : '';
+  return `{{${name}${opts}}}`;
+}
+
+// ── Render: sidebar names ────────────────────────────────────────────────────
+function renderSbNames() {
+  const allIds = ['src','ref','srcRel','srcTerm','tax','use','key','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
+  const TRY_IDS = new Set([]);
+  const el = document.getElementById('sb-names');
+  el.innerHTML='';
+  allIds.forEach(id=>{
+    if (!PRESETS[id]) return;
+    const row=document.createElement('div');
+    row.className='name-row';
+    const idSpan=document.createElement('span');
+    idSpan.className='name-id';
+    if (TRY_IDS.has(id)) {
+      idSpan.textContent=id.replace('_try','')+'›2';
+      idSpan.style.cssText='color:var(--accent);font-size:9px;';
+    } else {
+      idSpan.textContent=id;
+    }
+    const inp=document.createElement('input');
+    inp.className='name-inp'; inp.value=S.keyNames[id]||id;
+    inp.addEventListener('input',()=>{ S.keyNames[id]=inp.value.trim()||id; onNamesChanged(); });
+    const wrap=document.createElement('div');
+    wrap.className='preset-wrap';
+    const btn=document.createElement('button');
+    btn.className='preset-btn'; btn.textContent='▾';
+    const menu=document.createElement('div');
+    menu.className='preset-menu';
+    PRESETS[id].forEach(p=>{
+      const item=document.createElement('div');
+      item.className='preset-item'+(p===S.keyNames[id]?' cur':'');
+      item.textContent=p;
+      item.addEventListener('click',e=>{
+        e.stopPropagation();
+        inp.value=p; S.keyNames[id]=p;
+        menu.classList.remove('open');
+        onNamesChanged();
+        renderSbNames();
+      });
+      menu.appendChild(item);
+    });
+    btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
+    el.appendChild(row);
+  });
+}
+
+function onNamesChanged() {
+  renderOrder(); renderCfgPreview(); renderPerms();
+}
+
+// ── Render: order panel ──────────────────────────────────────────────────────
+function renderOrder() {
+  const el=document.getElementById('order-list');
+  el.innerHTML='';
+  S.order.forEach((item,idx)=>{
+    const row=document.createElement('div'); row.className='order-row';
+    const aw=document.createElement('div'); aw.className='arr-wrap';
+    const up=document.createElement('button'); up.className='arr-btn'; up.textContent='▲'; up.disabled=idx===0;
+    up.addEventListener('click',()=>{ [S.order[idx-1],S.order[idx]]=[S.order[idx],S.order[idx-1]]; renderOrder(); renderCfgPreview(); });
+    const dn=document.createElement('button'); dn.className='arr-btn'; dn.textContent='▼'; dn.disabled=idx===S.order.length-1;
+    dn.addEventListener('click',()=>{ [S.order[idx],S.order[idx+1]]=[S.order[idx+1],S.order[idx]]; renderOrder(); renderCfgPreview(); });
+    aw.appendChild(up); aw.appendChild(dn);
+    const lbl=document.createElement('span'); lbl.className='order-lbl';
+    if (item==='source') lbl.innerHTML='<span class="grp">[source block]</span>';
+    else { const cur=S.keyNames[item]||item; lbl.innerHTML=cur!==item ? `${esc(cur)} <span class="oid">(${esc(item)})</span>` : esc(cur); }
+    row.appendChild(aw); row.appendChild(lbl); el.appendChild(row);
+  });
+}
+
+// ── Render: slots ────────────────────────────────────────────────────────────
+function renderSlots() {
+  const el=document.getElementById('slots-container');
+  el.innerHTML='';
+  const count=S.tryCount>0?S.tryCount:1;
+  for (let i=0;i<count;i++) {
+    if (!S.slotVals[i]) S.slotVals[i]={};
+    const sv=S.slotVals[i];
+    const card=document.createElement('div'); card.className='card';
+    if (count>1) {
+      const h=document.createElement('h3');
+      h.textContent=`Slot ${i+1} — prefix: ${pfx(i)||'(none)'}`;
+      card.appendChild(h);
+    } else {
+      const h=document.createElement('h3'); h.textContent='Values'; card.appendChild(h);
+    }
+    // Source block
+    const sb=document.createElement('div'); sb.className='src-block';
+    const sbl=document.createElement('div'); sbl.className='src-block-lbl'; sbl.textContent='source';
+    sb.appendChild(sbl);
+    appendSel(sb,i,'src','Source',[{value:'',label:'Current (unset)'},{value:'ref',label:'In Ref/Rel Field'},{value:'parent',label:'Parent'},{value:'ancestor',label:'Ancestor'},{value:'child',label:'Child(ren)'}],()=>{renderSlots();renderCfgPreview();});
+    const refRow=appendTxt(sb,i,'ref','Ref Key');
+    setDim(refRow,sv['src']!=='ref');
+    appendInTerm(sb,i,sv);
+    appendRelChain(sb,i,sv);
+    card.appendChild(sb);
+    // Template opts
+    (TMPL[S.tmpl]||[]).forEach(schema=>{
+      if (S.fromKeyCombined&&schema.id==='key') return;
+      if (S.fromKeyCombined&&schema.id==='use') { appendFromKeyCombined(card,i,sv,schema); return; }
+      let row;
+      if (schema.type==='select') row=appendSel(card,i,schema.id,schema.label,schema.choices,()=>{renderSlots();renderCfgPreview();});
+      else if (schema.type==='boolean') row=appendBool(card,i,schema.id,schema.label);
+      else row=appendTxt(card,i,schema.id,schema.label);
+      setDim(row,!evalShowIf(schema.showIf,sv));
+    });
+    el.appendChild(card);
+  }
+}
+
+function appendSel(parent,si,id,label,choices,onChange) {
+  const sv=S.slotVals[si];
+  const row=document.createElement('div'); row.className='opt-row';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
+  const sel=document.createElement('select');
+  choices.forEach(c=>{ const o=document.createElement('option'); o.value=c.value; o.textContent=c.label; if((sv[id]??'')===c.value) o.selected=true; sel.appendChild(o); });
+  sel.addEventListener('change',()=>{ sv[id]=sel.value; if(onChange)onChange(); else renderCfgPreview(); });
+  row.appendChild(lbl); row.appendChild(sel); parent.appendChild(row); return row;
+}
+function appendTxt(parent,si,id,label) {
+  const sv=S.slotVals[si];
+  const row=document.createElement('div'); row.className='opt-row';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
+  const inp=document.createElement('input'); inp.type='text'; inp.value=sv[id]||''; inp.style.width='100%';
+  inp.addEventListener('input',()=>{ sv[id]=inp.value; renderCfgPreview(); });
+  row.appendChild(lbl); row.appendChild(inp); parent.appendChild(row); return row;
+}
+function appendBool(parent,si,id,label) {
+  const sv=S.slotVals[si];
+  const row=document.createElement('div'); row.className='opt-row';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
+  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv[id]==='1';
+  cb.addEventListener('change',()=>{ sv[id]=cb.checked?'1':''; renderCfgPreview(); });
+  row.appendChild(lbl); row.appendChild(cb); parent.appendChild(row); return row;
+}
+function appendInTerm(parent,si,sv) {
+  const row=document.createElement('div'); row.className='opt-row';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='In Term';
+  const inner=document.createElement('div'); inner.className='interm-row';
+  if (S.inTermCombined) {
+    const inp=document.createElement('input'); inp.type='text'; inp.placeholder='tax slug or blank'; inp.value=sv['srcTerm']||''; inp.style.flex='1';
+    inp.addEventListener('input',()=>{ sv['srcTerm']=inp.value; renderCfgPreview(); });
+    inner.appendChild(inp);
+  } else {
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv['srcTerm']==='1';
+    const taxLbl=document.createElement('span'); taxLbl.className='interm-tax-lbl'; taxLbl.textContent=kn('tax')+':'; taxLbl.style.display=sv['srcTerm']==='1'?'':'none';
+    const taxInp=document.createElement('input'); taxInp.type='text'; taxInp.placeholder='taxonomy'; taxInp.value=sv['tax']||''; taxInp.style.cssText='width:80px;display:'+(sv['srcTerm']==='1'?'':'none');
+    taxInp.addEventListener('input',()=>{ sv['tax']=taxInp.value; renderCfgPreview(); });
+    cb.addEventListener('change',()=>{ sv['srcTerm']=cb.checked?'1':''; taxLbl.style.display=cb.checked?'':'none'; taxInp.style.display=cb.checked?'':'none'; renderCfgPreview(); });
+    inner.appendChild(cb); inner.appendChild(taxLbl); inner.appendChild(taxInp);
+  }
+  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row); return row;
+}
+function appendFromKeyCombined(parent,si,sv,schema) {
+  const row=document.createElement('div'); row.className='opt-row';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='use + key';
+  const inner=document.createElement('div'); inner.style.cssText='display:flex;gap:5px;align-items:center;width:100%';
+  const inp=document.createElement('input'); inp.type='text'; inp.style.flex='1';
+  inp.placeholder='meta,field_key or title';
+  const fv=sv['use']||'', kv=sv['key']||'';
+  inp.value=kv?`${fv||'meta'},${kv}`:(fv||'');
+  inp.addEventListener('input',()=>{
+    const v=inp.value.trim();
+    if(!v){sv['use']='';sv['key']='';}
+    else if(v.includes(',')){ const ci=v.indexOf(','); sv['use']=v.slice(0,ci).trim(); sv['key']=v.slice(ci+1).trim(); }
+    else{sv['use']=v;sv['key']='';}
+    renderCfgPreview();
+  });
+  const hint=document.createElement('span'); hint.style.cssText='font-size:11px;color:var(--muted);white-space:nowrap'; hint.textContent=`→ ${kn('use')}:type,key`;
+  inner.appendChild(inp); inner.appendChild(hint);
+  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row);
+  setDim(row,!evalShowIf(schema.showIf,sv)); return row;
+}
+// Hop-chain editor: rows of {type,arg}; add/remove to flip depth and watch readability.
+// Hidden unless the srcRel encoding is on.
+function appendRelChain(parent,si,sv) {
+  if (S.relChainEnc==='off') return;
+  if (!Array.isArray(sv['relChain'])) sv['relChain']=[];
+  const chain=sv['relChain'];
+  const wrap=document.createElement('div'); wrap.className='opt-row'; wrap.style.alignItems='flex-start';
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=kn('srcRel');
+  const box=document.createElement('div'); box.style.cssText='flex:1;display:flex;flex-direction:column;gap:4px';
+  const TYPES=[{value:'ref',label:'ref (relationship)'},{value:'termIn',label:'termIn (taxonomy)'},{value:'parent',label:'parent'},{value:'child',label:'child'}];
+  chain.forEach((hop,hi)=>{
+    const r=document.createElement('div'); r.style.cssText='display:flex;gap:4px;align-items:center';
+    const idx=document.createElement('span'); idx.style.cssText='font-size:10px;color:var(--muted);width:14px'; idx.textContent=(hi+1)+'.';
+    const sel=document.createElement('select'); sel.style.width='120px';
+    TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=t.label; if((hop.type||'')===t.value)o.selected=true; sel.appendChild(o); });
+    if(!hop.type) hop.type='ref';
+    sel.addEventListener('change',()=>{ hop.type=sel.value; renderCfgPreview(); });
+    const arg=document.createElement('input'); arg.type='text'; arg.placeholder='field / slug'; arg.value=hop.arg||''; arg.style.flex='1';
+    arg.addEventListener('input',()=>{ hop.arg=arg.value; renderCfgPreview(); });
+    const del=document.createElement('button'); del.textContent='×'; del.style.cssText='width:22px;padding:0';
+    del.addEventListener('click',()=>{ chain.splice(hi,1); renderSlots(); renderCfgPreview(); });
+    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(del); box.appendChild(r);
+  });
+  const add=document.createElement('button'); add.textContent='+ hop'; add.style.cssText='align-self:flex-start;font-size:11px';
+  add.addEventListener('click',()=>{ chain.push({type:'ref',arg:''}); renderSlots(); renderCfgPreview(); });
+  box.appendChild(add);
+  wrap.appendChild(lbl); wrap.appendChild(box); parent.appendChild(wrap);
+}
+function setDim(row,dim) { row.classList.toggle('dim',dim); }
+
+// ── Render: cfg preview ──────────────────────────────────────────────────────
+function renderCfgPreview() {
+  document.getElementById('cfg-preview').textContent=buildCfgTag();
+}
+
+// ── Render: snapshots ────────────────────────────────────────────────────────
+function renderSnaps() {
+  const el=document.getElementById('cfg-snaps'); el.innerHTML='';
+  S.snapshots.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='snap-item';
+    const num=document.createElement('span'); num.className='snap-num'; num.textContent=`${i+1}.`;
+    const str=document.createElement('span'); str.className='snap-str'; str.textContent=s;
+    const del=document.createElement('button'); del.className='snap-del'; del.textContent='×';
+    del.addEventListener('click',()=>{ S.snapshots.splice(i,1); renderSnaps(); });
+    row.appendChild(num); row.appendChild(str); row.appendChild(del); el.appendChild(row);
+  });
+}
+
+// ── Render: permutations ─────────────────────────────────────────────────────
+function renderPerms() {
+  const el=document.getElementById('perm-output'); el.innerHTML='';
+  SCENARIO_GROUPS.forEach(group=>{
+    const div=document.createElement('div'); div.className='perm-group';
+    const title=document.createElement('div'); title.className='perm-group-title'; title.textContent=group.title;
+    div.appendChild(title);
+    const tags=document.createElement('div'); tags.className='perm-tags';
+    group.scenarios.forEach(sc=>{
+      const row=document.createElement('div'); row.className='perm-row';
+      const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label; lbl.textContent=sc.label;
+      const str=document.createElement('div'); str.className='perm-str'; str.textContent=buildPermTag(group,sc);
+      row.appendChild(lbl); row.appendChild(str); tags.appendChild(row);
+    });
+    div.appendChild(tags); el.appendChild(div);
+  });
+}
+
+// ── Template/mode switches ───────────────────────────────────────────────────
+function switchTmpl(t) {
+  S.tmpl=t;
+  S.order=[...(DEFAULT_ORDER[t]||DEFAULT_ORDER.text)];
+  const n=S.tryCount>0?S.tryCount:1;
+  S.slotVals=Array.from({length:n},()=>({}));
+}
+function setTryCount(n) {
+  S.tryCount=n;
+  const count=n>0?n:1;
+  while(S.slotVals.length<count) S.slotVals.push({});
+  S.slotVals=S.slotVals.slice(0,count);
+}
+
+// ── Full re-render ────────────────────────────────────────────────────────────
+function fullRender() { renderSbNames(); renderOrder(); renderSlots(); renderCfgPreview(); renderPerms(); }
+
+// ── Events ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x=>x.classList.add('hidden'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.remove('hidden');
+    if (t.dataset.tab==='perms') renderPerms();
+  });
+});
+
+document.getElementById('tmpl-sel').addEventListener('change',e=>{ switchTmpl(e.target.value); fullRender(); });
+
+document.querySelectorAll('input[name="mode"]').forEach(r=>{
+  r.addEventListener('change',()=>{ setTryCount(parseInt(r.value)); renderSlots(); renderCfgPreview(); });
+});
+
+document.querySelectorAll('input[name="pfx"]').forEach(r=>{
+  r.addEventListener('change',()=>{ S.pfxStyle=r.value; renderSlots(); renderCfgPreview(); renderPerms(); });
+});
+
+document.querySelectorAll('input[name="relenc"]').forEach(r=>{
+  r.addEventListener('change',()=>{
+    S.relChainEnc=r.value;
+    document.getElementById('rel-hoppfx-row').style.display = r.value==='repeater' ? 'flex' : 'none';
+    renderSlots(); renderCfgPreview();
+  });
+});
+document.querySelectorAll('input[name="relhoppfx"]').forEach(r=>{
+  r.addEventListener('change',()=>{ S.relHopPfx=r.value; renderCfgPreview(); });
+});
+
+document.getElementById('cb-interm').addEventListener('change',e=>{
+  S.inTermCombined=e.target.checked;
+  const n=S.tryCount>0?S.tryCount:1;
+  S.slotVals=Array.from({length:n},()=>({}));
+  renderSlots(); renderCfgPreview(); renderPerms();
+});
+document.getElementById('cb-fromkey').addEventListener('change',e=>{
+  S.fromKeyCombined=e.target.checked;
+  const n=S.tryCount>0?S.tryCount:1;
+  S.slotVals=Array.from({length:n},()=>({}));
+  renderSlots(); renderCfgPreview(); renderPerms();
+});
+
+document.getElementById('cfg-copy').addEventListener('click',()=>{
+  navigator.clipboard.writeText(buildCfgTag()).then(()=>{ const b=document.getElementById('cfg-copy'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1500); });
+});
+document.getElementById('cfg-snap').addEventListener('click',()=>{
+  const t=buildCfgTag(); if(!S.snapshots.includes(t)){ S.snapshots.push(t); renderSnaps(); }
+});
+document.getElementById('cfg-clear').addEventListener('click',()=>{ S.snapshots=[]; renderSnaps(); });
+
+// Dummy value inputs
+['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
+  const inp=document.getElementById('d-'+id);
+  if (inp) inp.addEventListener('input',()=>{ S.dummies[id]=inp.value; renderPerms(); });
+});
+
+document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); });
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+fullRender();
+</script>
+</body>
+</html>
