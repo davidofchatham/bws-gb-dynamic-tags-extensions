@@ -325,14 +325,101 @@ GB's PHP parser (`class-register-dynamic-tag.php` `parse_options()`) recognizes 
 
 Both are unescaped before the key/value split, so on the render side `format:l\:i` arrives as `format` → `l:i`.
 
-**Asymmetry with the JS parser:** GB's editor-side `parseTag()` (in their `src/dynamic-tags/utils.js`) splits on unescaped `|` and `:` but does **not** unescape the captured value, and GB's tag-string serializer writes `${key}:${value}` raw with no escaping. So any colon or pipe in a custom control's stored state must be **pre-escaped on save and unescaped on display by the control itself** for the round-trip to be clean. PHP render is fine either way.
+**Asymmetry with the JS parser.** The editor-side tag parser (minified in
+`dist/blocks/element/index.js`, verified GB 2.3.0) is:
+
+```js
+r.split(/(?<!\\)\|/).forEach( e => {
+    const [ t, n = !0 ] = e.split( /(?<!\\):/, 2 );   // ← String.split limit 2
+    a[ t ] = n;
+} );
+```
+
+It splits pairs on unescaped `|` and each pair on unescaped `:`, but does **not** unescape the
+captured value, and GB's serializer writes `${key}:${value}` raw with no escaping. So any colon or
+pipe in a custom control's stored state must be **pre-escaped on save and unescaped on display by the
+control itself** for the round-trip to be clean. PHP render is fine either way.
+
+**The limit-2 discard is the sharp edge — JS `split` ≠ PHP `explode`.** PHP's
+`explode( ':', $pair, 2 )` keeps *everything* after the first colon in element `[1]`. JavaScript's
+`String.split( regex, 2 )` **caps the result at 2 elements and throws the rest away.** So a pair with
+a **second** colon loses its tail on the JS side:
+
+| Pair on the wire | PHP `explode(':',_,2)` → value | JS `split(/…:/,2)` → value | Round-trips? |
+|---|---|---|---|
+| `valueSep: ` (one colon) | `' '` | `' '` | ✅ |
+| `fallback:https://x` (2 colons) | `'https://x'` | `'https'` (tail `//x` **discarded**) | ❌ |
+| `valueSep:: ` (2 colons, empty middle) | `': '` | `''` (tail `' '` **discarded**) | ❌ |
+| `format:l\:i` (escaped 2nd colon) | `'l:i'` | `'l:i'` (lookbehind skips `\:`) | ✅ |
+
+Front-end render uses PHP only, so a `valueSep:: ` renders correctly *once*; the corruption surfaces
+only when the editor **reopens** the tag and JS reparses the stored string (control repopulates
+empty → re-serializes wrong). A render-only test (`render-tag`, front-end curl) never touches the JS
+parser and will show a false pass — verify colon/pipe-bearing values by reopening the modal.
+
+### Separator-safe vs unsafe characters (exhaustive)
+
+Three parser layers stand between an authored option value and render; a character used **inside** a
+value (a separator glue, a `format` literal, a subvalue delimiter) must clear **all three** to
+survive a tag-string round-trip:
+
+| Layer | Where | Rule | What it kills |
+|---|---|---|---|
+| Render matcher | PHP `find_matches()` | options captured `[^}]+` | `{` `}` — the tag never matches, renders literal |
+| Pair split | JS + PHP | split on **unescaped** `\|` | `\|` |
+| KV split | JS + PHP | split on **unescaped** `:` (JS **limit 2, discards tail**) | a **2nd** `:` in a pair |
+| Editor field | Gutenberg RichText | entity-encodes `& < > " '` | those five round-trip as `&amp;` etc. |
+
+Everything a parser doesn't name is **inert to it**. Netting the four layers:
+
+**Serialization-safe (survive verbatim, no escaping):**
+- Punctuation / symbols: `.` `,` `;` `/` `~` `!` `?` `-` `_` `=` `+` `*` `#` `@` `%` `^`
+- Non-brace brackets: `(` `)` `[` `]`
+- Whitespace — including a bare trailing space (`valueSep: `); PHP does **not** trim option values
+  ([§Option Default Serialization](#option-default-serialization)).
+- A **single** `:` that is the value's *only* colon (`valueSep: ` → value `' '`) — one colon is the
+  legitimate key/value boundary, safe. Two-plus colons are unsafe (limit-2 discard, above).
+- Escaped `\:` / `\|` — both parsers unescape; the JS lookbehind skips them at split time.
+- Any non-ASCII / Unicode glyph (`›` `·` `•` `→` `∣`) — fully opaque to every layer. Safest, at
+  legibility cost.
+
+**Unsafe (never use raw as a separator / inside a value):**
+
+| Char | Killed by | Failure mode |
+|---|---|---|
+| `\|` | pair split | truncates the pair at the pipe |
+| `:` (2nd+ in one pair) | KV split, **JS limit 2** | **discards everything after the 2nd colon** on editor reopen |
+| `}` | render matcher | **whole tag fails to match** — renders as literal `{{…}}` |
+| `{` | render matcher | breaks `{{`/`}}` balance |
+| `&` `<` `>` `"` `'` | RichText entity-encode | round-trip as `&amp;` / `&lt;` … in the editor field |
+
+`\|` and `:` are **escapable** (`\|`, `\:` — both parsers unescape). `{` `}` have **no escape** and
+are hard-unsafe — the reason `{{join}}` template mode ships `%1`…`%10` on the wire, not `{1}`…`{8}`
+(see [Closing brace](#) below).
+
+**Choosing a separator glue.** Among the safe set, prefer characters **rare inside the values they
+separate**: `,` and `;` almost never appear in field keys, so they split cleanly without escaping.
+`.` is wire-safe but collides with dot-path field keys (`address.city`, `repeater.0.name`) — avoid it
+as a subvalue delimiter. None of the safe separators **self-escape**: if a subvalue can itself contain
+the chosen glue, you still need the escape/encode discipline in the workarounds below.
+
+**No safe character carries parser scope.** GB's `parse_options()` is a flat key→value map with no
+nesting. A wire-safe grouping character — brackets (`src[…]`), or any paired glyph — is **visual
+only**: the parser still sees one opaque value string per key, and a `:` / `\|` / `}` *inside* a
+"group" is fully live (still triggers the KV/pair split or kills the match). Any structured
+sub-encoding (grouped, bracketed, CSV, positional) is therefore a **second parser you own on both
+sides** (JS control for round-trip + PHP for render), including its own balancing/escaping — GB
+contributes nothing beyond delivering the raw bytes.
 
 ### Tag-string-unsafe values
 
-Option values containing raw `:` or `|` cannot survive a tag-string round-trip unless the control escapes them — GB's JS `parseTag()` will truncate the value at the first unescaped colon. Affected:
+The classic failure is a value whose *own content* carries a **second** colon or a raw pipe — the KV
+split's limit-2 discard (above) drops the tail on editor reopen. Affected:
 
-- **Full URLs** (`https://...`) — colon after scheme + slashes in path corrupt the parse on reopen. Symptom: tag re-opens with truncated/wrong options (e.g. `fallback:https` only).
-- **Date/time literals with colons** (`12:30:00`) — same failure mode.
+- **Full URLs** (`https://...`) — the `:` after the scheme is the value's second colon, so JS keeps
+  only `https` and discards `//host/path`. Symptom: tag re-opens with a truncated option
+  (`fallback:https`). The slashes are inert; the **colon** is what breaks it.
+- **Date/time literals with colons** (`12:30:00`) — same limit-2 discard.
 - **Free-text user input** that may contain `:` or `|`.
 
 **Workarounds (preference order):**
