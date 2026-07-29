@@ -32,14 +32,57 @@
  */
 
 // ── Grammar config (chars provisional — frontrunner values) ────────────────
+// Canonical chars drive EMIT; each `*_class` is the LENIENT-ACCEPT set the
+// parser also honors (chosen-for-visual-distinctiveness chars have functional
+// twins: `,`≡`;`, `+`≡`/`, `()`≡`[]`). Roles are POSITION-disambiguated
+// (depth 0 vs inside src(...) vs inside a free-form bracket), so classes may
+// OVERLAP ACROSS positions (opt + step both accept `,;`) but must stay
+// DISJOINT within one (hop ∩ step = ∅ — both live inside the chain).
+// bws_spike_grammar_validate() machine-checks that before any suite runs.
 function bws_spike_grammar( $over = array() ) {
 	return array_merge( array(
-		'opt_sep'  => ';',  // between slot tokens
-		'hop_sep'  => '+',  // between chain steps inside src(...)
-		'step_sep' => ',',  // intra-step: slug,arg[,limit]
-		'br_open'  => '(',  // L1 bracket — token kv delimiter (depth-alt L2 = opposite)
-		'br_close' => ')',
+		'opt_sep'    => ';',                 // between slot tokens (canonical emit)
+		'opt_class'  => array( ';', ',' ),   // lenient accept at depth 0
+		'hop_sep'    => '+',                 // between chain steps inside src(...)
+		'hop_class'  => array( '+', '/' ),
+		'step_sep'   => ',',                 // intra-step: slug,arg[,limit]
+		'step_class' => array( ',', ';' ),
+		'br_open'    => '(',                 // canonical L1 bracket (emit)
+		'br_close'   => ')',
+		// Accepted bracket pairs — PER-TOKEN delimiter rule: the open char after
+		// a token name fixes THAT token's structural pair; the other pair is
+		// inert text inside it (an author can pick the pair their content avoids).
+		'br_pairs'   => array( '(' => ')', '[' => ']' ),
 	), $over );
+}
+
+/**
+ * Per-position disjointness validator — THE safety condition for lenient
+ * separator classes. Returns array of violation strings (empty = safe).
+ */
+function bws_spike_grammar_validate( $G ) {
+	$bad     = array();
+	$br_all  = array_merge( array_keys( $G['br_pairs'] ), array_values( $G['br_pairs'] ) );
+	// hop + step share a position (inside the chain) — must be disjoint.
+	if ( array_intersect( $G['hop_class'], $G['step_class'] ) ) {
+		$bad[] = 'hop_class ∩ step_class ≠ ∅';
+	}
+	// no separator class may contain a bracket char (brackets structural everywhere).
+	foreach ( array( 'opt_class', 'hop_class', 'step_class' ) as $cls ) {
+		if ( array_intersect( $G[ $cls ], $br_all ) ) {
+			$bad[] = "$cls contains a bracket char";
+		}
+	}
+	// canonical emit char must be inside its own accept class.
+	foreach ( array( 'opt' => 'opt_sep', 'hop' => 'hop_sep', 'step' => 'step_sep' ) as $role => $k ) {
+		if ( ! in_array( $G[ $k ], $G[ "{$role}_class" ], true ) ) {
+			$bad[] = "{$k} not in its accept class";
+		}
+	}
+	if ( ! isset( $G['br_pairs'][ $G['br_open'] ] ) || $G['br_pairs'][ $G['br_open'] ] !== $G['br_close'] ) {
+		$bad[] = 'canonical bracket pair not in br_pairs';
+	}
+	return $bad;
 }
 
 // Free-form option names (arbitrary author text → escape + balance rules apply).
@@ -119,20 +162,30 @@ function bws_spike_tokenize( $value, $G ) {
 	$toks  = array();
 	$buf   = '';
 	$depth = 0;
+	$pair  = null;   // active structural pair (per-token delimiter rule): [open, close]
 	$len   = strlen( $value );
 	for ( $i = 0; $i < $len; $i++ ) {
 		$c = $value[ $i ];
-		if ( $c === $G['br_open'] ) {
-			$depth++;
-		} elseif ( $c === $G['br_close'] ) {
-			$depth--;
-			if ( $depth < 0 ) {
+		if ( 0 === $depth ) {
+			if ( isset( $G['br_pairs'][ $c ] ) ) {
+				// First open char fixes this token's structural pair; the OTHER
+				// pair is inert inside it.
+				$pair  = array( $c, $G['br_pairs'][ $c ] );
+				$depth = 1;
+			} elseif ( in_array( $c, $G['br_pairs'], true ) ) {
 				return array( 'error' => "unbalanced close bracket at $i" );
+			} elseif ( in_array( $c, $G['opt_class'], true ) ) {
+				$toks[] = $buf;
+				$buf    = '';
+				continue;
 			}
-		} elseif ( $c === $G['opt_sep'] && 0 === $depth ) {
-			$toks[] = $buf;
-			$buf    = '';
-			continue;
+		} else {
+			// Inside a token value: only the ACTIVE pair is structural.
+			if ( $c === $pair[0] ) {
+				$depth++;
+			} elseif ( $c === $pair[1] ) {
+				$depth--;
+			}
 		}
 		$buf .= $c;
 	}
@@ -148,22 +201,34 @@ function bws_spike_tokenize( $value, $G ) {
  * pair, inner balanced brackets verbatim) or bare `name`.
  */
 function bws_spike_parse_token( $tok, $G ) {
-	$p = strpos( $tok, $G['br_open'] );
+	// Per-token delimiter rule: the FIRST accepted open char fixes the pair;
+	// the other pair is inert text inside the value.
+	$p     = false;
+	$open  = null;
+	foreach ( array_keys( $G['br_pairs'] ) as $o ) {
+		$q = strpos( $tok, $o );
+		if ( false !== $q && ( false === $p || $q < $p ) ) {
+			$p    = $q;
+			$open = $o;
+		}
+	}
 	if ( false === $p ) {
 		return array( 'name' => $tok, 'val' => null );
 	}
-	if ( substr( $tok, -1 ) !== $G['br_close'] ) {
+	$close = $G['br_pairs'][ $open ];
+	if ( substr( $tok, -1 ) !== $close ) {
 		return array( 'error' => "token '$tok' bracket not closed at end" );
 	}
 	// The bracket opened at $p must be the one closed by the FINAL char — depth
-	// may not return to 0 before the end (catches close-then-reopen junk like
-	// `src(a)+use(b)` arriving as ONE token; found live in Spike B smoke).
+	// (of the ACTIVE pair only) may not return to 0 before the end (catches
+	// close-then-reopen junk like `src(a)+use(b)` arriving as ONE token; found
+	// live in Spike B smoke).
 	$depth = 0;
 	$len   = strlen( $tok );
 	for ( $i = $p; $i < $len; $i++ ) {
-		if ( $tok[ $i ] === $G['br_open'] ) {
+		if ( $tok[ $i ] === $open ) {
 			$depth++;
-		} elseif ( $tok[ $i ] === $G['br_close'] ) {
+		} elseif ( $tok[ $i ] === $close ) {
 			$depth--;
 			if ( 0 === $depth && $i < $len - 1 ) {
 				return array( 'error' => "token '$tok' has trailing content after its value bracket" );
@@ -179,13 +244,15 @@ function bws_spike_parse_token( $tok, $G ) {
 // ── Chain sub-parser (FLAT LOCKED: slug,arg[,limit] joined by hop_sep) ─────
 
 function bws_spike_parse_chain( $chain_str, $G ) {
-	$steps = array();
-	foreach ( explode( $G['hop_sep'], $chain_str ) as $seg ) {
+	$steps   = array();
+	$hop_re  = '/[' . preg_quote( implode( '', $G['hop_class'] ), '/' ) . ']/';
+	$step_re = '/[' . preg_quote( implode( '', $G['step_class'] ), '/' ) . ']/';
+	foreach ( preg_split( $hop_re, $chain_str ) as $seg ) {
 		$seg = trim( $seg );
 		if ( '' === $seg ) {
 			continue;
 		}
-		$parts = explode( $G['step_sep'], $seg );
+		$parts = preg_split( $step_re, $seg );
 		$step  = array( 'slug' => trim( $parts[0] ), 'arg' => null, 'limit' => null );
 		if ( isset( $parts[1] ) ) {
 			$step['arg'] = trim( $parts[1] );
@@ -666,13 +733,68 @@ function run_suite( $G, $tag ) {
 	check( "[$tag] P7.2 trailing-backslash fallback round trip", ! isset( $pt['error'] ) && 'ends with \\' === $pt['opts']['fallback'], "wire: $vt → " . var_export( $pt, true ) );
 }
 
+// ── P8 LENIENT SEPARATOR CLASSES (frontrunner grammar only) ─────────────────
+// Visually-distinct canonical chars have functional twins; the parser accepts
+// the CLASS, emit stays canonical (normalize-on-commit). Position disambiguates
+// roles; bws_spike_grammar_validate() proves the class config is conflict-free.
+function run_lenient_suite( $G, $tag ) {
+	// Validator: frontrunner config safe; a hop/step overlap must be caught.
+	check( "[$tag] P8.v0 frontrunner classes validate", array() === bws_spike_grammar_validate( $G ), implode( '; ', bws_spike_grammar_validate( $G ) ) );
+	$bad_g = bws_spike_grammar( array( 'hop_class' => array( '+', ',' ) ) );   // ',' also in step_class
+	check( "[$tag] P8.v1 hop∩step overlap rejected", array() !== bws_spike_grammar_validate( $bad_g ), '' );
+	$bad_g = bws_spike_grammar( array( 'opt_class' => array( ';', '(' ) ) );   // bracket char as sep
+	check( "[$tag] P8.v2 bracket-as-sep rejected", array() !== bws_spike_grammar_validate( $bad_g ), '' );
+
+	// Lenient input → canonical emit. [container, lenient in, canonical want]
+	$cases = array(
+		// depth-0 `,` accepted as opt-sep
+		array( 'try',  'src(refs,office),key(name)',        'src(refs,office);key(name)' ),
+		// `[]` accepted as token bracket
+		array( 'try',  'key[name]',                          'key(name)' ),
+		array( 'try',  'src[refs,office];key[name]',        'src(refs,office);key(name)' ),
+		// `/` accepted as hop-sep
+		array( 'try',  'src(refs,office/refs,region);key(name)', 'src(refs,office+refs,region);key(name)' ),
+		// `;` accepted as step-sep inside the chain
+		array( 'try',  'src(refs;office);key(name)',        'src(refs,office);key(name)' ),
+		// everything at once, mixed pairs + mixed seps
+		array( 'join', 'phone,src[post;9999/refs;related_staff;5],key[mobile]',
+		               'phone;src(post,9999+refs,related_staff,5);key(mobile)' ),
+		// per-token delimiter rule affordance: inert OTHER pair inside a free-form
+		array( 'table', 'label[Note (TBD];key(note)',       null /* parse-only check below */ ),
+	);
+	foreach ( $cases as $i => $case ) {
+		list( $container, $in, $want ) = $case;
+		$slot = bws_spike_parse_slot_wire( $in, $container, $G );
+		check( "[$tag] P8.$i parse ok: $in", ! isset( $slot['error'] ), isset( $slot['error'] ) ? $slot['error'] : '' );
+		if ( isset( $slot['error'] ) ) {
+			continue;
+		}
+		if ( null === $want ) {
+			check( "[$tag] P8.$i inert other-pair label", 'Note (TBD' === $slot['label'], var_export( $slot['label'], true ) );
+			continue;
+		}
+		$out = bws_spike_emit_slot( $slot, $G );
+		check( "[$tag] P8.$i normalize: $in", $out === $want, "want: $want\n      got:  $out" );
+	}
+	// Lone close char of the NON-canonical pair at depth 0 still errors.
+	$r = bws_spike_parse_slot_wire( 'key(note)]', 'try', $G );
+	check( "[$tag] P8.x stray alt-pair close flagged", isset( $r['error'] ), var_export( $r, true ) );
+}
+
 // Provisional frontrunner chars…
-run_suite( bws_spike_grammar(), 'frontrunner ;+,()' );
+$G_front = bws_spike_grammar();
+check( 'grammar validate: frontrunner', array() === bws_spike_grammar_validate( $G_front ), implode( '; ', bws_spike_grammar_validate( $G_front ) ) );
+run_suite( $G_front, 'frontrunner ;+,()' );
+run_lenient_suite( $G_front, 'lenient' );
 // …and an alternate set (still-open decision #1: prove grammar ≠ char-dependent).
-run_suite( bws_spike_grammar( array(
-	'opt_sep' => ',', 'hop_sep' => '/', 'step_sep' => '~',
+$G_alt = bws_spike_grammar( array(
+	'opt_sep' => ',', 'opt_class' => array( ',', ';' ),
+	'hop_sep' => '/', 'hop_class' => array( '/', '+' ),
+	'step_sep' => '~', 'step_class' => array( '~' ),
 	'br_open' => '[', 'br_close' => ']',
-) ), 'alt ,/~[]' );
+) );
+check( 'grammar validate: alt', array() === bws_spike_grammar_validate( $G_alt ), implode( '; ', bws_spike_grammar_validate( $G_alt ) ) );
+run_suite( $G_alt, 'alt ,/~[]' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

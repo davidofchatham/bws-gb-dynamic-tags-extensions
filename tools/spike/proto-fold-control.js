@@ -40,20 +40,32 @@
 	var __            = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
 	// ── Grammar (frontrunner chars — mirror of the PHP spike parser) ─────────
-	var OPT_SEP  = ';';
-	var HOP_SEP  = '+';
-	var STEP_SEP = ',';
-	var BR_OPEN  = '(';
-	var BR_CLOSE = ')';
+	// Canonical (emit) + lenient accept classes (parse): `,`≡`;`, `+`≡`/`, `()`≡`[]`.
+	var OPT_SEP    = ';';
+	var OPT_CLASS  = [ ';', ',' ];
+	var HOP_SEP    = '+';
+	var HOP_RE     = /[+/]/;
+	var STEP_SEP   = ',';
+	var STEP_RE    = /[,;]/;
+	var BR_OPEN    = '(';
+	var BR_CLOSE   = ')';
+	var BR_PAIRS   = { '(': ')', '[': ']' };
+	var BR_CLOSERS = [ ')', ']' ];
 
-	// Balance-aware tokenize on OPT_SEP (Spike A port).
+	// Balance-aware tokenize on the opt-sep CLASS; per-token delimiter rule
+	// (first open char fixes the structural pair; the other pair is inert).
 	function tokenize( value ) {
-		var toks = [], buf = '', depth = 0;
+		var toks = [], buf = '', depth = 0, pair = null;
 		for ( var i = 0; i < value.length; i++ ) {
 			var c = value[ i ];
-			if ( c === BR_OPEN ) { depth++; }
-			else if ( c === BR_CLOSE ) { depth--; if ( depth < 0 ) { return null; } }
-			else if ( c === OPT_SEP && depth === 0 ) { toks.push( buf ); buf = ''; continue; }
+			if ( depth === 0 ) {
+				if ( BR_PAIRS[ c ] ) { pair = [ c, BR_PAIRS[ c ] ]; depth = 1; }
+				else if ( BR_CLOSERS.indexOf( c ) !== -1 ) { return null; }
+				else if ( OPT_CLASS.indexOf( c ) !== -1 ) { toks.push( buf ); buf = ''; continue; }
+			} else {
+				if ( c === pair[ 0 ] ) { depth++; }
+				else if ( c === pair[ 1 ] ) { depth--; }
+			}
 			buf += c;
 		}
 		if ( depth !== 0 ) { return null; }
@@ -70,14 +82,20 @@
 		var slot = { chain: [], read: null };
 		for ( var i = 0; i < toks.length; i++ ) {
 			var tok = toks[ i ];
-			var p   = tok.indexOf( BR_OPEN );
+			// Per-token delimiter rule: first accepted open char fixes the pair.
+			var p = -1, open = null;
+			Object.keys( BR_PAIRS ).forEach( function ( o ) {
+				var q = tok.indexOf( o );
+				if ( q !== -1 && ( p === -1 || q < p ) ) { p = q; open = o; }
+			} );
 			if ( p === -1 ) { continue; }                    // bare tokens ignored in spike (no Option-R UI here)
-			if ( tok[ tok.length - 1 ] !== BR_CLOSE ) { return null; }
+			var close = BR_PAIRS[ open ];
+			if ( tok[ tok.length - 1 ] !== close ) { return null; }
 			// Close-then-reopen junk guard (mirror of the PHP parser).
 			var depth = 0;
 			for ( var j = p; j < tok.length; j++ ) {
-				if ( tok[ j ] === BR_OPEN ) { depth++; }
-				else if ( tok[ j ] === BR_CLOSE ) {
+				if ( tok[ j ] === open ) { depth++; }
+				else if ( tok[ j ] === close ) {
 					depth--;
 					if ( depth === 0 && j < tok.length - 1 ) { return null; }
 				}
@@ -85,8 +103,8 @@
 			var name = tok.slice( 0, p );
 			var val  = tok.slice( p + 1, -1 );
 			if ( 'src' === name ) {
-				slot.chain = val.split( HOP_SEP ).map( function ( seg ) {
-					var parts = seg.trim().split( STEP_SEP );
+				slot.chain = val.split( HOP_RE ).map( function ( seg ) {
+					var parts = seg.trim().split( STEP_RE );
 					return { slug: parts[ 0 ].trim(), arg: parts[ 1 ] ? parts[ 1 ].trim() : null, limit: parts[ 2 ] ? parts[ 2 ].trim() : null };
 				} );
 			} else if ( 'use' === name ) {

@@ -39,11 +39,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // ── Grammar (mirror of Spike A — frontrunner chars) ─────────────────────────
 
-const BWS_SPIKE_FOLD_OPT_SEP  = ';';
-const BWS_SPIKE_FOLD_HOP_SEP  = '+';
-const BWS_SPIKE_FOLD_STEP_SEP = ',';
-const BWS_SPIKE_FOLD_BR_OPEN  = '(';
-const BWS_SPIKE_FOLD_BR_CLOSE = ')';
+// Canonical chars (emit) + lenient accept classes (parse) — `,`≡`;`, `+`≡`/`,
+// `()`≡`[]`. Roles are position-disambiguated; classes validated disjoint per
+// position in the Spike A harness (bws_spike_grammar_validate).
+const BWS_SPIKE_FOLD_OPT_SEP    = ';';
+const BWS_SPIKE_FOLD_OPT_CLASS  = array( ';', ',' );
+const BWS_SPIKE_FOLD_HOP_SEP    = '+';
+const BWS_SPIKE_FOLD_HOP_CLASS  = array( '+', '/' );
+const BWS_SPIKE_FOLD_STEP_SEP   = ',';
+const BWS_SPIKE_FOLD_STEP_CLASS = array( ',', ';' );
+const BWS_SPIKE_FOLD_BR_OPEN    = '(';
+const BWS_SPIKE_FOLD_BR_CLOSE   = ')';
+const BWS_SPIKE_FOLD_BR_PAIRS   = array( '(' => ')', '[' => ']' );
 
 /**
  * Balance-aware tokenize of a slot value on the opt-sep (Spike A port).
@@ -55,20 +62,27 @@ function bws_spike_fold_tokenize( string $value ): array {
 	$toks  = array();
 	$buf   = '';
 	$depth = 0;
+	$pair  = null;   // active structural pair (per-token delimiter rule)
 	$len   = strlen( $value );
 	for ( $i = 0; $i < $len; $i++ ) {
 		$c = $value[ $i ];
-		if ( BWS_SPIKE_FOLD_BR_OPEN === $c ) {
-			$depth++;
-		} elseif ( BWS_SPIKE_FOLD_BR_CLOSE === $c ) {
-			$depth--;
-			if ( $depth < 0 ) {
+		if ( 0 === $depth ) {
+			if ( isset( BWS_SPIKE_FOLD_BR_PAIRS[ $c ] ) ) {
+				$pair  = array( $c, BWS_SPIKE_FOLD_BR_PAIRS[ $c ] );
+				$depth = 1;
+			} elseif ( in_array( $c, BWS_SPIKE_FOLD_BR_PAIRS, true ) ) {
 				return array( 'error' => 'unbalanced close bracket' );
+			} elseif ( in_array( $c, BWS_SPIKE_FOLD_OPT_CLASS, true ) ) {
+				$toks[] = $buf;
+				$buf    = '';
+				continue;
 			}
-		} elseif ( BWS_SPIKE_FOLD_OPT_SEP === $c && 0 === $depth ) {
-			$toks[] = $buf;
-			$buf    = '';
-			continue;
+		} else {
+			if ( $c === $pair[0] ) {
+				$depth++;
+			} elseif ( $c === $pair[1] ) {
+				$depth--;
+			}
 		}
 		$buf .= $c;
 	}
@@ -93,8 +107,19 @@ function bws_spike_fold_parse_slot( string $value ): array {
 	}
 	$types = array( 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' );
 	$slot  = array( 'type' => null, 'chain' => array(), 'read' => null, 'extra' => array() );
+	$hop_re  = '/[' . preg_quote( implode( '', BWS_SPIKE_FOLD_HOP_CLASS ), '/' ) . ']/';
+	$step_re = '/[' . preg_quote( implode( '', BWS_SPIKE_FOLD_STEP_CLASS ), '/' ) . ']/';
 	foreach ( $toks as $tok ) {
-		$p = strpos( $tok, BWS_SPIKE_FOLD_BR_OPEN );
+		// Per-token delimiter rule: first accepted open char fixes the pair.
+		$p    = false;
+		$open = null;
+		foreach ( array_keys( BWS_SPIKE_FOLD_BR_PAIRS ) as $o ) {
+			$q = strpos( $tok, $o );
+			if ( false !== $q && ( false === $p || $q < $p ) ) {
+				$p    = $q;
+				$open = $o;
+			}
+		}
 		if ( false === $p ) {
 			if ( null === $slot['type'] && in_array( $tok, $types, true ) ) {
 				$slot['type'] = $tok;
@@ -103,17 +128,18 @@ function bws_spike_fold_parse_slot( string $value ): array {
 			}
 			continue;
 		}
-		if ( substr( $tok, -1 ) !== BWS_SPIKE_FOLD_BR_CLOSE ) {
+		$close = BWS_SPIKE_FOLD_BR_PAIRS[ $open ];
+		if ( substr( $tok, -1 ) !== $close ) {
 			return array( 'error' => "token '$tok' bracket not closed at end" );
 		}
-		// Depth must not return to 0 before the final char (close-then-reopen
-		// junk guard — found live in the first smoke render).
+		// Depth (of the active pair) must not return to 0 before the final char
+		// (close-then-reopen junk guard — found live in the first smoke render).
 		$depth = 0;
 		$tlen  = strlen( $tok );
 		for ( $i = $p; $i < $tlen; $i++ ) {
-			if ( BWS_SPIKE_FOLD_BR_OPEN === $tok[ $i ] ) {
+			if ( $open === $tok[ $i ] ) {
 				$depth++;
-			} elseif ( BWS_SPIKE_FOLD_BR_CLOSE === $tok[ $i ] ) {
+			} elseif ( $close === $tok[ $i ] ) {
 				$depth--;
 				if ( 0 === $depth && $i < $tlen - 1 ) {
 					return array( 'error' => "token '$tok' has trailing content after its value bracket" );
@@ -124,8 +150,8 @@ function bws_spike_fold_parse_slot( string $value ): array {
 		$val  = substr( $tok, $p + 1, strlen( $tok ) - $p - 2 );
 		switch ( $name ) {
 			case 'src':
-				foreach ( explode( BWS_SPIKE_FOLD_HOP_SEP, $val ) as $seg ) {
-					$parts           = explode( BWS_SPIKE_FOLD_STEP_SEP, trim( $seg ) );
+				foreach ( preg_split( $hop_re, $val ) as $seg ) {
+					$parts           = preg_split( $step_re, trim( $seg ) );
 					$slot['chain'][] = array(
 						'slug'  => trim( $parts[0] ),
 						'arg'   => isset( $parts[1] ) ? trim( $parts[1] ) : null,
