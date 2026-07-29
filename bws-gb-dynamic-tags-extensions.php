@@ -247,6 +247,15 @@ function bws_dynamic_tags_register_all() {
 
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
+
+	// SPIKE B (FW-56/57) — {{proto_fold}} folded-slot + intent-radio prototype.
+	// tools/ is .distignore'd, so the file is absent in released builds; guard
+	// per the CLI-command pattern above. REMOVE when the spike concludes.
+	$spike = BWS_DYNAMIC_TAGS_PATH . 'tools/spike/proto-fold-tag.php';
+	if ( file_exists( $spike ) ) {
+		require_once $spike;
+		bws_spike_register_proto_fold_tag();
+	}
 }
 
 /**

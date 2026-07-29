@@ -155,6 +155,21 @@ function bws_spike_parse_token( $tok, $G ) {
 	if ( substr( $tok, -1 ) !== $G['br_close'] ) {
 		return array( 'error' => "token '$tok' bracket not closed at end" );
 	}
+	// The bracket opened at $p must be the one closed by the FINAL char — depth
+	// may not return to 0 before the end (catches close-then-reopen junk like
+	// `src(a)+use(b)` arriving as ONE token; found live in Spike B smoke).
+	$depth = 0;
+	$len   = strlen( $tok );
+	for ( $i = $p; $i < $len; $i++ ) {
+		if ( $tok[ $i ] === $G['br_open'] ) {
+			$depth++;
+		} elseif ( $tok[ $i ] === $G['br_close'] ) {
+			$depth--;
+			if ( 0 === $depth && $i < $len - 1 ) {
+				return array( 'error' => "token '$tok' has trailing content after its value bracket" );
+			}
+		}
+	}
 	return array(
 		'name' => substr( $tok, 0, $p ),
 		'val'  => substr( $tok, $p + 1, strlen( $tok ) - $p - 2 ),
@@ -581,6 +596,10 @@ function run_suite( $G, $tag ) {
 		"label{$O}Note {$O}TBD{$C}{$s}key{$O}note{$C}X",       // trailing junk after close
 		"label{$O}Note{$s}key{$O}note{$C}",                     // unbalanced open
 		"key{$O}note{$C}{$C}",                                  // stray close
+		// close-then-reopen inside ONE token (author typed the hop-sep as an
+		// opt-sep: `src(a)+use(b)` with no real opt-sep) — found live, Spike B
+		// smoke: silently parsed as a junk chain before the depth-return guard.
+		"src{$O}refs{$c}office{$C}+use{$O}same{$C}",
 	);
 	foreach ( $bad as $i => $in ) {
 		$r = bws_spike_parse_slot_wire( $in, 'table', $G );
