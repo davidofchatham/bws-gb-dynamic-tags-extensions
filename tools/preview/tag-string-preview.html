@@ -15,6 +15,8 @@
   --muted: #86868b;
   --accent: #0066cc;
   --accent-light: #e8f0fb;
+  /* GB's own tag-modal font for the serialized string — match it in our previews (user 2026-07-29). */
+  --gb-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -207,8 +209,8 @@ input.name-inp:focus { outline: none; border-color: var(--accent); }
 
 /* Preview */
 .preview-tag {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px; color: var(--text);
+  font-family: var(--gb-font);
+  font-size: 13px; color: var(--text);
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 6px; padding: 10px 14px;
   word-break: break-all; margin-bottom: 12px; min-height: 44px;
@@ -263,8 +265,8 @@ button:hover { border-color: var(--accent); color: var(--accent); }
   flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .perm-str {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  font-size: 15px; color: var(--text);
+  font-family: var(--gb-font);
+  font-size: 13px; color: var(--text);
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 5px; padding: 5px 12px;
   flex: 1; word-break: break-word; cursor: default;
@@ -288,39 +290,68 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div class="sb-h">Option Key Names</div>
     <div id="sb-names"></div>
 
-    <div class="sb-h">Combined Options</div>
-    <label class="toggle-row">
-      <input type="checkbox" id="cb-interm">
-      <span class="toggle-desc">srcTerm + tax → <code>srcTerm:slug</code></span>
+    <div class="sb-h">LOCKED decisions</div>
+    <div class="toggle-desc" style="line-height:1.5">
+      • Slot prefix: <code>N:</code> value + <code>N-</code> siblings, slot 1 included<br>
+      • <code>src</code> chain owns the source string (use+key excluded → the read)<br>
+      • Type token LEADS the slot value (primary format option, FW-52 order)
+    </div>
+
+    <div class="sb-h">Slot Schema: bracket-kv</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
+      Sole schema. <code>name[value]</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
+      Type LEADS, options FW-52-ordered, FORMAT-SAFE. LOCKED RULES: flat src chain
+      (<code>refs,office</code>), hop-sep <code>+</code>, opt-sep <code>,</code>, brackets ALTERNATE by
+      nesting depth (L1 <code>[]</code> → L2 <code>()</code>, no same-char nesting).
+      <br><code>3:src[refs,office+refs,region],key[name]</code>
+    </div>
+    <div id="slotsep-controls" style="margin-top:6px"></div>
+    <label class="toggle-row" style="margin-top:6px">
+      <input type="checkbox" id="cb-slotforcesrc">
+      <span class="toggle-desc">[future look] always serialize <code>src</code> on slot 1 (join / try_) → <code>src:current</code></span>
     </label>
+    <label class="toggle-row" style="margin-top:4px">
+      <input type="checkbox" id="cb-readviause">
+      <span class="toggle-desc">[future look] read via <code>use(...)</code> parity: meta → <code>use(key,name)</code> (vs bare <code>key(name)</code>). Loved parity, but verbose — OFF for now.</span>
+    </label>
+
+    <div class="sb-h">Combined Options (slot inherits these)</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
+      Global combine schema. Slot reads INHERIT whatever these produce (future: the slot's own
+      use+key/link fold follows the global toggle, not a separate slot control).
+    </div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fromkey">
-      <span class="toggle-desc">use + key → <code>use:meta,key</code></span>
+      <span class="toggle-desc">use + key → <code>use:key[sep]field</code></span>
     </label>
-
-    <div class="sb-h">srcRel Hop Chain</div>
-    <div class="pfx-row">
-      <label><input type="radio" name="relenc" value="off" checked> off</label>
-      <label><input type="radio" name="relenc" value="csv"> flat CSV pairs</label>
-      <label><input type="radio" name="relenc" value="repeater"> repeater (| split)</label>
-    </div>
-    <div class="pfx-row" id="rel-hoppfx-row" style="display:none;margin-top:5px">
-      <span class="toggle-desc" style="width:100%;margin-bottom:2px">Hop prefix (repeater) — <b>N- collides with try_ slots</b>:</span>
-      <label><input type="radio" name="relhoppfx" value="numeric"> 2- 3-</label>
-      <label><input type="radio" name="relhoppfx" value="letter" checked> B- C-</label>
-    </div>
-    <div class="toggle-desc" style="margin:4px 0 0;line-height:1.4">
-      <code>csv</code>: <code>srcRel:ref,f,termIn,tax</code> — one value, positional pairs.<br>
-      <code>repeater</code>: <code>srcRel:ref,f|B-srcRel:termIn,tax</code> — one option per hop.
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-linkcombined">
+      <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code></span>
+    </label>
+    <div class="pfx-row" style="margin-top:5px">
+      <span class="toggle-desc" style="width:100%;margin-bottom:2px">Combine bracket CHAR (use+key / link fold):</span>
+      <label><input type="radio" name="valuepair" value="off"> flat <code>use:key,field</code></label>
+      <label><input type="radio" name="valuepair" value="()" checked> ( ) <code>use:key(field)</code></label>
+      <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
     </div>
 
-    <div class="sb-h">try_ Prefix Style</div>
-    <div class="pfx-row">
-      <label><input type="radio" name="pfx" value="numeric"> 1- 2-</label>
-      <label><input type="radio" name="pfx" value="letter"> A- B-</label>
-      <label><input type="radio" name="pfx" value="s_numeric"> s1- s2-</label>
-      <label><input type="radio" name="pfx" value="slot1_bare" checked> (∅) 2-</label>
+    <div class="sb-h">Value Separator</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
+      glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
     </div>
+    <div id="valuesep-controls"></div>
+
+    <div class="sb-h">src Chain (FW-56) — FLAT (locked)</div>
+    <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
+      One <code>src</code> key; value = sep-joined steps <code>slug,arg[,limit]</code> (FLAT, no step
+      brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>entries</code>; starts
+      <code>post</code>/<code>term</code>/<code>user</code>. Hop-sep + intra-step-sep still tunable:
+    </div>
+    <div id="sep-controls" style="margin-top:8px"></div>
+    <label class="toggle-row" id="chainlimit-row">
+      <input type="checkbox" id="cb-chainlimit" checked>
+      <span class="toggle-desc">limit as last intra-step token → <code>refs,rel_post,5</code> (LOCKED)</span>
+    </label>
   </div>
 
   <!-- Configure tab -->
@@ -334,6 +365,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
           <option value="content">content</option>
           <option value="datetime_single">datetime_single</option>
           <option value="datetime_range">datetime_range</option>
+          <option value="table">table (FW-53)</option>
         </select>
       </label>
       <div class="cfg-div"></div>
@@ -395,11 +427,15 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
-  srcRel:          ['srcRel','rel','via','hop','trail'],
+  label:           ['label','head','col'],
+  caption:         ['caption'],
   srcTerm:         ['srcTerm','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm'],
   tax:             ['tax','taxonomy','termTax','inTax'],
   use:             ['use','from','field','type','in','get'],
   key:             ['key','meta_key','field_key'],
+  linkTo:          ['linkTo','link','linkAs','href'],
+  linkKey:         ['linkKey','link_key','urlKey','hrefKey'],
+  newTab:          ['newTab','new_tab','blank','target'],
   fallback:        ['fallback','fallback_text','fallback_url'],
   as:              ['as','return_type'],
   timeKey:         ['timeKey','time_key','time_field'],
@@ -416,6 +452,22 @@ const PRESETS = {
   size:            ['size'],
 };
 
+// Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
+// characters: no `|` `:` `}` `{` `&` `<` `>` `"` `'`. (`>` and a 2nd `:` are UNSAFE — dropped.)
+// hop = between ordered chain steps; step = between kind,arg[,limit] inside one chain step.
+const SEP_PRESETS = {
+  hop:  ['/', '~', '»', '·', '+'],
+  step: [',', ';', '~', '·'],
+};
+// General value-separator: the glue inside a composite OPTION VALUE (as:url,medium /
+// use:key,field / folded linkTo:key,field). Same safe pool. Applies across all folds.
+const VALUE_SEP_PRESETS = [',', ';', '~', '-', '_', '=', '+', '»', '·'];
+// FW-57 type-token separator (read ↔ processing-tag). Same safe pool; '/' leaned.
+const TYPE_SEP_PRESETS = ['/', ',', '~', '·', '»'];   // ':' excluded — gb-reserved
+// respell separators: option-sep (was '|') + key/value-sep (was ':'). All gb-safe.
+const RESPELL_OPT_PRESETS = ['/', '~', '»', '·', '+', ';'];
+const RESPELL_KV_PRESETS  = ['=', '~', '·', '-'];      // ':' and '|' excluded — gb-reserved
+
 // ── Template schemas ─────────────────────────────────────────────────────────
 const TMPL = {
   text: [
@@ -425,16 +477,18 @@ const TMPL = {
     {id:'limit',label:'Limit',type:'text'},
     {id:'sep',label:'Separator',type:'text'},
   ],
+  // as+size FOLDED: size rides inside as (as:url,<size>). size control shown only for the
+  // url mode (id/alt/caption are nullary — no size). Emit handled specially (foldAsSize).
   image_post: [
     {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size',type:'select',alwaysSerialize:true,choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
+    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
     {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'ACF/Meta Field'},{value:'featured',label:'Featured Image'}]},
     {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
     {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
   ],
   image_term: [
     {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size',type:'select',alwaysSerialize:true,choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
+    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
     {id:'key',label:'Meta Key',type:'text'},
     {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
   ],
@@ -467,22 +521,35 @@ const TMPL = {
     {id:'sep',label:'List Sep',type:'text'},
     {id:'fallback',label:'Fallback',type:'text'},
   ],
+  // table (FW-53): row-set = the global src chain; columns = a repeater, each column its
+  // own mini src-chain (2-src:…) + label + cell reader (use/key). Columns handled specially
+  // in renderSlots (not this flat opt list). caption is a plain tag-level opt.
+  table: [
+    {id:'caption',label:'Caption',type:'text'},
+  ],
 };
 
 const DEFAULT_ORDER = {
-  text:            ['source','use','key','fallback','limit','sep'],
-  image_post:      ['as','size','source','use','key','fallback'],
-  image_term:      ['as','size','source','key','fallback'],
+  // Canonical serialization order per tools/test/serialization-order-test.php KEY_MAP:
+  //   format group (as/format/… + join mode/valueSep) LEADS, then source group
+  //   (src→ref→srcTermIn→limit→sep→use→key→datetime keys), then link (linkTo→linkKey→newTab),
+  //   fallback LAST. 'source' = the src-block; 'link' = the link group. Link-wrap templates
+  //   only (text/title/datetime_*); content/image never link.
+  text:            ['source','limit','sep','use','key','link','fallback'],
+  image_post:      ['as','source','use','key','fallback'],
+  image_term:      ['as','source','key','fallback'],
   content:         ['source','use','key','fallback'],
-  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','key','timeKey','fallback'],
-  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','startKey','startTimeKey','endKey','endTimeKey','sep','fallback'],
+  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','key','timeKey','link','fallback'],
+  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
+  // NB sep (source rank 4) precedes the datetime field keys (ranks 8-11) per KEY_MAP.
+  table:           ['source','caption'],
 };
 
 // ── Permutation scenarios ────────────────────────────────────────────────────
 // Part IDs: standard option IDs, plus specials:
 //   _inTerm:       combined → inTerm:$tax   separate → inTerm | tax:$tax
-//   _content_key:  combined → from:key,$k   separate → from:key | key:$k
-//   key (no prior 'from'): combined → from:meta,$k   separate → key:$k
+//   _content_key:  combined → use:key<sep>$k   separate → use:key | key:$k
+//   key (no prior 'use'): combined → use:key<sep>$k   separate → key:$k
 // Value starting '$' = dummy ref. Value === true = boolean flag.
 
 const SCENARIO_GROUPS = [
@@ -494,17 +561,23 @@ const SCENARIO_GROUPS = [
     {label:'key, in term',          parts:[['key','$key1'],['_inTerm','$tax']]},
     {label:'via ref → key, in term',parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']]},
     {label:'parent → key',          parts:[['source','parent'],['key','$key1']]},
+    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]]},
+    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
+    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
+    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
   ]},
+  // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
+  // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
   { tmpl:'image', title:'image', scenarios:[
-    {label:'url, meta key',           parts:[['as','url'],['key','$imgKey'],['size','full']]},
-    {label:'url, meta key, medium',   parts:[['as','url'],['key','$imgKey'],['size','medium']]},
-    {label:'url, meta key, thumb',    parts:[['as','url'],['key','$imgKey'],['size','thumbnail']]},
-    {label:'url, featured',           parts:[['as','url'],['use','featured'],['size','full']]},
-    {label:'alt, meta key',           parts:[['as','alt'],['key','$imgKey'],['size','full']]},
-    {label:'id, meta key',            parts:[['as','id'], ['key','$imgKey'],['size','full']]},
-    {label:'url, via ref → key',      parts:[['as','url'],['source','ref'],['ref','$ref'],['key','$imgKey'],['size','full']]},
-    {label:'url, key, in term',       parts:[['as','url'],['key','$imgKey'],['size','full'],['_inTerm','$tax']]},
-    {label:'url, key + fallback',     parts:[['as','url'],['key','$imgKey'],['size','full'],['fallback','$fallback']]},
+    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
+    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
+    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
+    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
+    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']]},
+    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]},
+    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']]},
+    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
   ]},
   { tmpl:'content', title:'content', scenarios:[
     {label:'post content',          parts:[]},
@@ -521,6 +594,8 @@ const SCENARIO_GROUPS = [
     {label:'date + show year',      parts:[['as','date'],['showCurrentYear',true],['key','$dateKey']]},
     {label:'date, custom format',   parts:[['as','date'],['format','$format'],['key','$dateKey']]},
     {label:'via ref → date',        parts:[['as','date'],['source','ref'],['ref','$ref'],['key','$dateKey']]},
+    {label:'date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
+    {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
   { tmpl:'datetime_range', title:'datetime_range', scenarios:[
     {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
@@ -536,6 +611,9 @@ const SCENARIO_GROUPS = [
     {label:'2: key, in term',       slots:[[['key','$key1']],[['_inTerm','$tax']]]},
     {label:'3: key, ref key, title',slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]]},
     {label:'3: key, ref key, term', slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]]},
+    // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
+    // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink below.
+    {label:'2: key, key + chain link', slots:[[['key','$key1']],[['key','$key2']]], chainLink:{to:'permalink',newTab:true}},
   ]},
   { tmpl:'content', title:'try_content', isTry:true, scenarios:[
     {label:'2: content, ACF',       slots:[[],[['_content_key','$key1']]]},
@@ -543,9 +621,131 @@ const SCENARIO_GROUPS = [
     {label:'3: ACF, ref, in term',  slots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']],[['_inTerm','$tax']]]},
   ]},
   { tmpl:'image', title:'try_image', isTry:true, scenarios:[
-    {label:'2: key, featured',      slots:[[['as','url'],['key','$imgKey'],['size','full']],[['as','url'],['use','featured'],['size','full']]]},
-    {label:'2: key, via ref key',   slots:[[['as','url'],['key','$imgKey'],['size','full']],[['as','url'],['source','ref'],['ref','$ref'],['key','$imgKey'],['size','full']]]},
-    {label:'2: key medium, fallback',slots:[[['as','url'],['key','$imgKey'],['size','medium']],[['as','url'],['key','$imgKey'],['size','full'],['fallback','$fallback']]]},
+    {label:'2: key, featured',      slots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]]},
+    {label:'2: key, via ref key',   slots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]]},
+    {label:'2: key medium, fallback',slots:[[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]]},
+  ]},
+  // FW-53/FW-56 table: rowChain = the global src chain; cols = [{label,use,key,chain}].
+  // Chains here are literal step arrays [{slug,arg,limit?}] — the tag string shows the DECIDED
+  // value encoding (src:slug,arg/… + {N}-src column mini-chains).
+  { tmpl:'table', title:'table (FW-53/56)', isTable:true, scenarios:[
+    {label:'staff rows, name + office',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      cols:[{label:'Name',use:'title'},{label:'Office',key:'address',chain:[{slug:'refs',arg:'office'}]}]},
+    {label:'2-hop rows (staff→dept)',
+      rowChain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],
+      cols:[{label:'Dept',use:'title'}]},
+    {label:'start post → ref, limited',
+      rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
+      cols:[{label:'Name',use:'title'}]},
+    {label:'repeater rows (entries)',
+      rowChain:[{slug:'entries',arg:'staff_members'}],
+      cols:[{label:'Name',key:'name'},{label:'Role',key:'role'}]},
+    {label:'terms rows + caption',
+      rowChain:[{slug:'terms',arg:'category'}],
+      caption:'Categories',
+      cols:[{label:'Term',use:'title'}]},
+  ]},
+
+  // ── FW-57 FOLDED slots (the proposed collapsed encoding) ────────────────────
+  // Each slot = ONE `{N}:` value = chain + terminal read. Read forms:
+  //   {kind:'analog',slug:'title'}  → bare nullary slug   ·   {kind:'key',field:'x'} → key(x)
+  //   {kind:'same'}                 → inherit prior slot's read (S1: always explicit)
+  // try_ = format-FIXED container → NO type token. Contrast with the UNFOLDED 'try_text'
+  // group above (shipped separate-option wire) to see what the fold buys.
+  { tmpl:'text', title:'try_text — FOLDED (FW-57)', foldClass:'try', scenarios:[
+    {label:'2: key, key',            slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
+    {label:'2: key, title',          slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+    {label:'2: key, via ref → key',  slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}}]},
+    {label:'3: key, ref→key, title', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+    // the three intent paths (2×2 of source[same|new] × read[same|new]):
+    {label:'Path A: new ctx, SAME read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'same'}}]},
+    {label:'Path B: SAME ctx, new read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'same'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'Path C: both new',             slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'$key2'}}]},
+    // longer chains (multi-hop + start-kind + limit) — stress the chain inside a slot value:
+    {label:'2: key, 2-hop staff→dept→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
+    {label:'2: key, post→ref limited→title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'3: key, term-hop, ref→ref→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}},{chain:[{slug:'refs',arg:'office'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
+  ]},
+  // JOIN — AGNOSTIC combiner: each slot NAMES its processing tag (Option R type token).
+  // Heterogeneous tags per slot for free (no recursive braces): 1:title | 2:phone,key(mobile).
+  { title:'join — FOLDED, heterogeneous (FW-57 Option R)', foldClass:'join', scenarios:[
+    {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
+    {label:'plain field (text, no tag token)', slots:[{tag:'text',read:{kind:'key',field:'$key1'}},{tag:'text',read:{kind:'key',field:'$key2'}}]},
+    {label:'ref-hop slot',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'Path A across slots',    slots:[{tag:'text',read:{kind:'key',field:'first'}},{tag:'text',chain:[{slug:'refs',arg:'spouse'}],read:{kind:'same'}}]},
+    // per-slot LINK (the primary case: name links to its own entity permalink)
+    {label:'name→permalink + phone', slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    {label:'name→url field new tab + phone',slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'key',key:'$urlKey',newTab:true}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    // STACKED handlers: transform AND link on one cell (email the field, then link it)
+    {label:'email+link + name (2 handlers)',slots:[{tag:'email',read:{kind:'key',field:'contact_email'},link:{to:'key',key:'$urlKey'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    // DATETIME slot — the pivot case: datetime_range needs up to 4 keys (start/end date+time).
+    // rule2 view can only carry ONE terminal key (breaks); respell view holds all as flat options.
+    {label:'name + datetime_range (multi-key)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',endKey:'end_date',as:'date',format:'F j, Y'}}]},
+  ]},
+  // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
+  // AGNOSTIC columns → Option R type token per column (like join).
+  { title:'table — FOLDED cols (FW-53/56/57)', foldClass:'table', scenarios:[
+    {label:'staff rows: name→link + office',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
+             {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    {label:'repeater rows: name + role + email',
+      rowChain:[{slug:'entries',arg:'staff_members'}],
+      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Role',tag:'text',read:{kind:'key',field:'role'}},
+             {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
+    {label:'terms rows + caption',
+      rowChain:[{slug:'terms',arg:'category'}], caption:'Categories',
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
+    {label:'start post → limited ref, 2 cols',
+      rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
+  ]},
+
+  // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
+  // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
+  // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
+  { title:'join — FOLDED datetime (multi-key pivot)', foldClass:'join', scenarios:[
+    {label:'name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
+    {label:'name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
+    {label:'name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
+    {label:'name + 4 key datetime range',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',startTimeKey:'start_time',endKey:'end_date',endTimeKey:'end_time'}}]},
+    {label:'range + link + name',        slots:[{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'},link:{to:'permalink'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+  ]},
+  { title:'table — FOLDED datetime cols (multi-key)', foldClass:'table', scenarios:[
+    {label:'event rows: name + date range',
+      rowChain:[{slug:'refs',arg:'events'}],
+      slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'When',tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date',format:'M j'}}]},
+    {label:'repeater rows: milestone + datetime',
+      rowChain:[{slug:'entries',arg:'milestones'}],
+      slots:[{label:'Milestone',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Date',tag:'datetime_single',read:{kind:'key',field:'due'},dtKeys:{as:'date',key:'due'}}]},
+  ]},
+
+  // FREE-FORM ESCAPE HAZARDS (user 2026-07-29). GB splits on unescaped `:` and `|` → the tool
+  // `\:`/`\|`-escapes free-form values (format/label/fallback). Brackets are INERT to GB (safe
+  // verbatim); balanced inner brackets survive our own balance-aware sub-parser. `{ }` are hard-
+  // unsafe but ~never in these values. Eyeball: the `:` in `g:i A` / `Price: $5` must appear as `\:`,
+  // and the balanced `(cm)` / `[TBD]` must survive; an UNBALANCED bracket is flagged in the label.
+  { title:'escape hazards — free-form values (\\: \\| + brackets)', foldClass:'join', scenarios:[
+    {label:'time format g:i A + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
+    {label:'datetime l, F jS g:i A',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    {label:'fallback with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+  ]},
+  { title:'escape hazards — table labels (brackets + colon)', foldClass:'table', scenarios:[
+    {label:'balanced brackets + colon in labels',
+      rowChain:[{slug:'entries',arg:'products'}],
+      slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
+             {label:'Price: USD',tag:'text',read:{kind:'key',field:'price'}}]},
+    {label:'UNBALANCED bracket in label (flagged)',
+      rowChain:[{slug:'entries',arg:'products'}],
+      slots:[{label:'Note [TBD',tag:'text',read:{kind:'key',field:'note'}},
+             {label:'OK [done]',tag:'text',read:{kind:'key',field:'status'}}]},
   ]},
 ];
 
@@ -553,15 +753,54 @@ const SCENARIO_GROUPS = [
 const S = {
   tmpl: 'text',
   tryCount: 0,
-  pfxStyle: 'slot1_bare',
+  // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
+  // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
   order: [...DEFAULT_ORDER.text],
   slotVals: [{}],
-  inTermCombined: false,
   fromKeyCombined: false,
-  relChainEnc: 'off',   // 'off' | 'csv' (flat pairs) | 'repeater' (| split)
-  relHopPfx: 'letter',  // 'numeric' (2-/3-, collides w/ try_) | 'letter' (B-/C-)
-  dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
+  // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
+  // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
+  // 1-4 keys survive. No toggle: one src string is the decision.
+  chainSep: {hop:',', step:','},  // chain-value separators. Default BOTH ',' (user 2026-07-28:
+                                  // ',' universal separator, '()' subgrouping). '/' etc kept in
+                                  // SEP_PRESETS for comparison — chars still open, split not.
+  // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
+  // FW-52 canonical order. Three SCHEMAS to eyeball, each a preset of {optSep, kvChar, valWrap,
+  // wrapScope}; chars stay switchable. Type always LEADS (primary format option).
+  //   'bracket-kv'  → name[value] ; sep — the bracket IS the kv delimiter, no `=`. label[Milestone];key[name]
+  //   'unsafe-lit'  → name=value , sep, FREE-FORM values wrapped: label=[Milestone],key=name
+  //   'bracket-all' → [name=value] blocks, no sep, free-form quoted: [label="Milestone"][key=name]
+  slotSchema: 'bracket-kv',
+  slotOptSep: ',',   // separator between option tokens (schema-driven default; switchable)
+  slotKvChar: '=',   // key/value char within a token (schema-driven default; switchable)
+  slotBracket: '[]',    // (legacy — independent-mode slot char; retired with its radio, kept for refs)
+  // BRACKET RULE (user 2026-07-29, LOCKED — no longer a toggle): brackets ALTERNATE by NESTING
+  // DEPTH. Level 1 = bracketL1 ([]), level 2 = the opposite (()), guaranteeing no same-char nesting.
+  // Slot token = level 1; a chain/read nested inside a slot = level 2; a base-tag chain = level 1.
+  // e.g. slot `3:src[refs,office+refs,region],key[name]` — slot [] (L1); a nested read-target () (L2).
+  bracketMode: 'depth-alt',
+  bracketL1: '()',      // level-1 (outermost) bracket char; level 2 = the opposite. Frontrunner: L1=().
+  slotForceSrc: false,  // always serialize a src value (src:current) on slot 1 of join/try_.
+  readViaUse: false,    // fold a slot's META read under use(key,field) for parity with use(same)/use(title).
+  respellReadBracket: false, // read target: false → flat key=field; true → Rule-2 key(field).
+  // FW-57 POST-READ HANDLER placement. A "handler" = any post-read stage: the Option-R type
+  // TRANSFORM (phone/email/…) AND the per-slot LINK. Three models (user 2026-07-28):
+  //   'pipe-each'  → '/' before EVERY handler:      key(mobile)/phone/linkTo(permalink)
+  //   'zone'       → ONE '/' opens a handler zone, handlers ','-listed within:
+  //                                                 key(mobile)/phone,linkTo(permalink)
+  //   'sibling'    → link only: separate {N}-linkTo: off the value (transform still piped).
+  handlerMode: 'zone',
+  typeSep: '/',       // read↔type-tag separator (rule2/legacy paths).
+  valueSep: ',',        // general composite-value glue (as:url,med / use:key,field / linkTo:key,field)
+  chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain steps are bare-comma `slug,arg,limit`,
+                        // no step brackets. (Radio dropped; 'off' is the decision, not a knob.)
+  chainKvChar: '=',     // (legacy — kv chain mode retired with the radio; kept to avoid ref breaks)
+  chainLimitInPair: true, // limit as the last intra-step token — LOCKED.
+  valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
+  linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
+  columns: [],          // table (FW-53) columns: [{label,use,key,chain:[{slug,arg,limit}]}]
+  dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
   snapshots: [],
 };
 
@@ -569,16 +808,9 @@ const S = {
 function kn(id) { return S.keyNames[id] || id; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function pfx(idx) {
-  const n = idx + 1;
-  switch(S.pfxStyle) {
-    case 'numeric':    return `${n}-`;
-    case 'letter':     return String.fromCharCode(64+n)+'-';
-    case 's_numeric':  return `s${n}-`;
-    case 'slot1_bare': return idx===0 ? '' : `${n}-`;
-  }
-  return `${n}-`;
-}
+// Slot prefix LOCKED to `N-` for all slots incl 1 (user 2026-07-29). Used for the sibling/
+// non-folded Configure preview; the FOLDED value key is `N:` (see foldedSlotKey).
+function pfx(idx) { return `${idx + 1}-`; }
 
 function evalShowIf(cond, sv) {
   if (!cond) return true;
@@ -601,6 +833,41 @@ function tmplName(t) {
   if (t==='image_post'||t==='image_term') return 'image';
   return t;
 }
+function isImageTmpl() { return S.tmpl==='image_post'||S.tmpl==='image_term'; }
+
+// image as+size fold (FW-52 Phase 3): value = `<mode>[,<size>]`. Only the url mode
+// consumes a size; id/alt/caption are nullary → size dropped. Mirrors bws_parse_as_option.
+// Paired-bracket separator: wrap the arg in () or [] (both gb-constraints-safe non-brace
+// brackets). 'off' → bare (caller supplies the flat sep). Brackets are a VISUAL paired
+// separator; GB's parser sees one opaque value either way (gb-constraints.md §grouping).
+const PAIR_OPEN  = { '()':'(', '[]':'[' };
+const PAIR_CLOSE = { '()':')', '[]':']' };
+function pairWrap(mode, arg) { return `${PAIR_OPEN[mode]}${arg}${PAIR_CLOSE[mode]}`; }
+
+// Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) splits the two folds:
+//   - RESOLUTION-read folds (use:key,field / linkTo:key,field) — the field is a READ TARGET
+//     → ALWAYS bracketed: use:key(field). Char knob S.valuePair picks () vs []; 'off' shows
+//     the rejected bare form for contrast only.
+//   - RENDER-MODIFIER folds (as:url,medium) — size only TUNES the render → ALWAYS flat sep:
+//     as:url,medium. Never brackets (user: dislikes as:url(medium); it's not a resolution arg).
+function foldResolution(head, tail) {   // read target → bracket, OR flat when valuePair 'off'
+  // 'off' = the flat form (user 2026-07-29): head<valueSep>tail → use:key,field (bare comma, no
+  // bracket). Parallels the chain's flat mode. Bracketed forms use the '()'/'[]' char.
+  if (S.valuePair==='off') return `${head}${S.valueSep}${tail}`;
+  return `${head}${pairWrap(S.valuePair, tail)}`;
+}
+function foldRender(head, tail) {       // render modifier → flat sep, never bracket
+  return `${head}${S.valueSep}${tail}`;
+}
+// Back-compat alias for the resolution-read folds (use/link). Callers that fold a READ TARGET.
+function foldJoin(head, tail) { return foldResolution(head, tail); }
+
+const AS_NULLARY = new Set(['id','alt','caption','title']);
+function foldAsSize(vals) {
+  const mode = vals['as'] || 'url';
+  const size = vals['size'] || 'full';
+  return AS_NULLARY.has(mode) ? mode : foldRender(mode, size);   // size = render modifier → flat
+}
 
 // ── Configurator tag builder ─────────────────────────────────────────────────
 function buildCfgTag() {
@@ -615,61 +882,277 @@ function buildCfgTag() {
       const schema = (TMPL[S.tmpl]||[]).find(o=>o.id===item);
       if (!schema) continue;
       if (!evalShowIf(schema.showIf,sv)) continue;
+      // image as+size fold: as:<mode>[,<size>]; size folded in, no standalone size key.
+      // Only the url mode carries a size (id/alt/caption are nullary — size dropped).
+      if (isImageTmpl() && item==='as') { parts.push(`${p}${kn('as')}:${foldAsSize(sv)}`); continue; }
+      if (isImageTmpl() && item==='size') continue;  // folded into as above
       // use+key combined
       if (S.fromKeyCombined && item==='use') {
         const fv=sv['use']||'', kv=sv['key']||'';
-        if (fv!==''||kv!=='') parts.push(`${p}${kn('use')}:${fv||'meta'}${kv?','+kv:''}`);
+        if (fv!==''||kv!=='') parts.push(`${p}${kn('use')}:${kv?foldJoin(fv||'key',kv):(fv||'key')}`);
         continue;
       }
       if (S.fromKeyCombined && item==='key') continue;
       const part = buildOptPart(schema,sv,p,t2p);
       if (part!==null) parts.push(part);
     }
+    // table columns (base slot only — try_ table not modeled)
+    if (S.tmpl==='table' && i===0) parts.push(...buildColumnParts());
   }
   const name = S.tryCount>0 ? `try_${tmplName(S.tmpl)}` : tmplName(S.tmpl);
   const opts = parts.length ? ' '+parts.join('|') : '';
   return `{{${name}${opts}}}`;
 }
 
-// Emit the srcRel hop chain for one slot. Chain = [{type,arg},…].
-//   csv:      one option, flat positional pairs — srcRel:ref,f,termIn,tax
-//   repeater: one option per hop — srcRel:ref,f | 2-srcRel:termIn,tax
-//             (repeater prefix is the HOP index, independent of any try_ slot prefix p;
-//              when both are live they compose, e.g. try_ slot 2 → 2-srcRel + 2-2-srcRel)
-function buildRelParts(sv, p) {
-  if (S.relChainEnc==='off') return [];
-  const chain=(sv['relChain']||[]).filter(h=>h.type||h.arg);
-  if (!chain.length) return [];
-  const k=kn('srcRel');
-  if (S.relChainEnc==='csv') {
-    const toks=[];
-    chain.forEach(h=>{ toks.push(h.type||''); toks.push(h.arg||''); });
-    return [`${p}${k}:${toks.join(',')}`];
-  }
-  // repeater. Hop-index prefix must NOT reuse N- (claimed by try_ multislot) — a try_
-  // slot with a multi-hop chain would produce 2-2-srcRel (ambiguous). Letter prefix
-  // (B-/C-) sidesteps the collision; numeric shown only to demonstrate the clash.
-  return chain.map((h,hi)=>{
-    let hp='';
-    if (hi>0) hp = S.relHopPfx==='letter' ? String.fromCharCode(65+hi)+'-' : `${hi+1}-`;
-    return `${p}${hp}${k}:${(h.type||'')},${(h.arg||'')}`;
-  });
+// FW-56 src-chain slug vocabulary (DECISION 3, grilled + locked 2026-07-27).
+//   hop family:   refs (ref field) / terms (taxonomy) / entries (repeater) → fan-out, arg = field/tax
+//   start family: post / term / user → kind,id ; only valid as the FIRST step
+const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',label:'terms (taxonomy)'},{value:'entries',label:'entries (repeater)'}];
+const CHAIN_STARTS = [{value:'post',label:'post (kind,id)'},{value:'term',label:'term (kind,id)'},{value:'user',label:'user (kind,id)'}];
+function chainSlugChoices(isFirst) { return isFirst ? [...CHAIN_STARTS,...CHAIN_HOPS] : CHAIN_HOPS; }
+
+// Serialize one chain step. RULE 2 (locked 2026-07-28): a step's arg is a RESOLUTION
+// OPERAND (hop target / read target / entity ID) → ALWAYS bracketed. Brackets are no longer
+// a flat-vs-paired CHOICE for resolution args; only the bracket CHAR (`()` vs `[]`) is a knob
+// (S.chainPair, default '()'). limit rides INSIDE the bracket (locked): refs(field,5).
+// ID-FLIP (locked): entity-start args bracket too → post(9999). Argless steps (same/analog/
+// nullary starts) emit the bare slug. `S.chainPair==='off'` = the legacy flat mode, kept only
+// so the char knob can still show a bare-comma comparison; decided output is bracketed.
+// Depth-alternating bracket char (user 2026-07-29): in 'depth-alt' mode the char is a function of
+// NESTING DEPTH, not role — level 1 = S.bracketL1, level 2 = the opposite, so no same-char nest.
+// depth 1 = base-tag chain (unnested) or slot token; depth 2 = a chain nested inside a slot bracket.
+function otherBracket(b) { return b==='()' ? '[]' : '()'; }
+function bracketAt(depth) {
+  if (S.bracketMode!=='depth-alt') return null;   // caller falls back to its own knob
+  return (depth % 2 === 1) ? S.bracketL1 : otherBracket(S.bracketL1);
+}
+// Serialize one chain step. FLAT (locked 2026-07-29): `slug,arg[,limit]` — bare intra-step sep, NO
+// step brackets. depth-alt governs the SLOT-token + READ-target brackets, NOT chain steps (a chain
+// nested in a slot is still flat inside its slot's `src[…]`). `depth` is unused now (chain is always
+// flat); kept in the signature so callers needn't change if a bracketed chain mode ever returns.
+function serializeStep(h, depth) {
+  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? h.limit : '';
+  if (arg==='') return slug;   // argless step (nullary start / analog / same) — bare slug
+  const bits = lim!=='' ? [slug,arg,lim] : [slug,arg];
+  return bits.join(S.chainSep.step);   // slug,arg[,limit]
+}
+// Serialize a chain [{slug,arg,limit}] into a src VALUE: hop-sep-joined steps. `depth` = the chain's
+// nesting level (1 = base-tag src:, 2 = a chain inside a slot bracket) — drives depth-alt bracketing.
+function serializeChain(chain, depth) {
+  return (chain||[]).filter(h=>h.slug||h.arg).map(h=>serializeStep(h, depth)).join(S.chainSep.hop);
 }
 
+// ── FW-57 slot-payload fold: read-step + slot value ──────────────────────────
+// A SLOT (try_ candidate / join value / table column) folds its whole `src-chain → field
+// READ` into ONE value: the read is the chain's TERMINAL step (yields a value, not a field
+// context). Grammar (grill-locked 2026-07-28, FORM per Rule 2 / the chain char knobs):
+//   read = { kind:'analog', slug }        → bare nullary slug: title / excerpt / default / featured / same
+//        | { kind:'key',   field }         → key read, RESOLUTION target → bracketed: key(field)
+//   The `key` slug is kn('key') — SAME modifiable preset as the base-tag key option (user).
+//   `same` = inherit prior slot's read (S1: ALWAYS serialized, never absent).
+//   Container-conditional TYPE (Option R): AGNOSTIC containers (join / table column) prepend the
+//   processing-tag name as the read-step's leading token (email,key(x) / phone / title);
+//   format-FIXED containers (try_<tag>) OMIT it (the tag fixes the type). typeTag='' → omit.
+
+// ── RESPELL slot syntax (parallel view — user 2026-07-28) ────────────────────
+// A slot = the base tag RE-SPELLED: <tag>/<opt>=<val>/…  ('/' for '|', '=' for ':', type leads,
+// FLAT — no brackets). Datetime's 1-4 keys become ordinary options → no field-as-terminal
+// problem. Built from the SAME folded-slot intent {chain,read,tag,link} so both views compare.
+// Emits ordered [key,val] pairs (val===true → bare flag) then joins with respell seps.
+// respell keeps the FW-56 SRC-CHAIN main draft for SOURCE (refs(office) bracketed hops); only the
+// TAG-LEVEL OPTIONS (read/format/keys/link) respell to /+= (user 2026-07-28). So a respell slot =
+// [chain]  /  <tag>  /  <opt>=<val> …   — chain in bracket grammar, option tail flat.
+// Tag OPTION pairs past the source. Each pair [key, val, bracketed?]: bracketed args render as
+// key(val) (Rule 2), else key=val. REDUNDANCIES base tags never emit are dropped (user
+// 2026-07-28): no `use=<analog>` when the analog already leads as the type; no `use=title` at all
+// on a title-tag — base `{{title}}` never writes it.
+// FW-52 canonical (group_rank, within_rank) mirror — from serialization-order.php KEY_MAP.
+// The respell slot value serializes options in THIS order (user 2026-07-29): the type token is
+// the PRIMARY format option → leads the format group → format group leads the value, exactly as
+// tag-level serialization order dictates. Options sort by (group, within).
+const RESPELL_KEY_MAP = {
+  as:[0,0], mode:[0,2], valueSep:[0,3], format:[0,4], rangeSep:[0,5], timeSep:[0,6],
+  showCurrentYear:[0,7], showMidnight:[0,8],
+  src:[1,0], ref:[1,1], srcTermIn:[1,2], limit:[1,3], sep:[1,4], use:[1,5], key:[1,6],
+  timeKey:[1,7], startKey:[1,8], startTimeKey:[1,9], endKey:[1,10], endTimeKey:[1,11],
+  linkTo:[2,0], linkKey:[2,1], newTab:[2,2], fallback:[3,0],
+};
+// Collect ALL slot options as canonical entries. The src-CHAIN is a pre-serialized bracket string
+// occupying the source group's `src` slot (rank [1,0]). REDUNDANCIES base tags never emit are
+// dropped: no `use=<analog>` equal to the leading type.
+function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
+  const E=[];
+  const rb = S.respellReadBracket;
+  const push=(name,val,br)=>E.push({name,val,br:!!br,rank:RESPELL_KEY_MAP[name]||[1,99]});
+  // A slot's own chain is nested INSIDE the slot bracket → depth 2 in depth-alt mode (so it picks
+  // the opposite char of the slot token). Independent mode ignores depth (serializeStep uses chainPair).
+  const chainStr = serializeChain(chain, 2);
+  if (chainStr) E.push({name:'src', val:chainStr, chainStr:true, rank:RESPELL_KEY_MAP.src});
+  if (dtKeys) {
+    if(dtKeys.as) push('as',dtKeys.as,false);
+    ['key','timeKey','startKey','startTimeKey','endKey','endTimeKey'].forEach(k=>{ if(dtKeys[k]) push(k,dtKeys[k],rb); });
+    if(dtKeys.format) push('format',dtKeys.format,false);
+  }
+  if (read && !dtKeys) {
+    // READ-VIA-USE (user 2026-07-29): unify the read under a single `use(...)` token for parity —
+    //   analog  → use(title)      same → use(same)      meta → use(key,field)
+    // vs the default MIXED form: analog/same via use(...), meta as a bare key(field). The composite
+    // `key,field` value glues with valueSep; base tag's `use:key,field` combine mirrors this.
+    if (S.readViaUse) {
+      if (read.kind==='same') push('use','same',false);
+      else if (read.kind==='key') E.push({name:'use', val:`key${S.valueSep}${read.field||''}`, rank:RESPELL_KEY_MAP.use});
+      // analog: still DROP when it equals the type token (type-lead already says it — no title;use(title)).
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+    } else {
+      if (read.kind==='same') push('use','same',false);
+      else if (read.kind==='key') push('key',read.field||'',rb);
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+    }
+  }
+  if (link && link.to && S.handlerMode!=='sibling') {
+    if (link.to==='key') {
+      if (S.linkCombined && link.key) {
+        // fold linkKey INTO linkTo's value: linkTo=key,<field> (or bracketed key(field)).
+        // Emitted as a composite-value entry so the schema spells it whole.
+        push('linkTo', foldJoin('key', link.key), false);
+      } else {
+        push('linkTo','key',false);
+        if(link.key) push('linkKey',link.key,rb);
+      }
+    }
+    else push('linkTo',link.to,false);
+    if (link.newTab) E.push({name:'newTab', flag:true, rank:RESPELL_KEY_MAP.newTab});
+  }
+  if (fallback!==undefined && fallback!=='') push('fallback', fallback, false);   // free-form → escaped in emit
+  return E;
+}
+// FREE-FORM option values: arbitrary user text (PHP date format `g:i A`, table label `Price: $5`,
+// fallback `N/A`). The REAL parse hazard is NOT brackets — GB treats `( ) [ ]` as inert/serialization
+// -safe (gb-constraints §Separator-safe), so inner brackets survive GB verbatim; the slot bracket is
+// a SECOND parser WE own, made balance-aware so BALANCED inner brackets are free. What GB actually
+// splits on is unescaped `:` and `|` → those MUST be `\:` / `\|`-escaped (GB unescapes on read;
+// precedent: bws-format-input). `{ }` are hard-unsafe (no escape) but ~never appear in these values.
+const RESPELL_FREEFORM = new Set(['format','fallback','sep','valueSep','rangeSep','timeSep','label']);
+// Escape a free-form value for the GB tag string: backslash the two GB-structural chars (`:` `|`).
+// GB's parse_options() unescapes both before the kv/pair split. Brackets are NOT escaped — inert to
+// GB; our own balance-aware sub-parser handles balanced inner brackets.
+function escFreeform(v) { return String(v).replace(/([:|])/g, '\\$1'); }
+// Does a free-form value carry an UNBALANCED slot-bracket that even a balance-aware sub-parser can't
+// survive? (A lone `]` / `)` with no opener, or vice versa.) Preview-only flag for eyeballing.
+function unbalancedBrackets(v, open, close) {
+  let d=0; for (const c of String(v)) { if(c===open)d++; else if(c===close){ if(--d<0) return true; } }
+  return d!==0;
+}
+
+// Three folded-slot SCHEMAS (user 2026-07-29). Each is a preset of default separators + a token
+// emitter; chars stay switchable via S.slotOptSep / S.slotKvChar. Every schema:
+//   - LEADS with the type token (primary format option; 'text' non-type dropped)
+//   - serializes options in FW-52 canonical order (respellEntries already sorted)
+//   - is FORMAT-SAFE: free-form values (date formats etc.) can't collide with a separator.
+// Schemas differ on how a `name=value` pair is spelled and how tokens divide:
+// SOLE SCHEMA (user 2026-07-29 — dropped unsafe-lit, bracket-all, then bracket-uniform):
+//   bracket-kv → name[value]   opt-sep ',' , CHAIN hop-sep '+'  — the slot bracket IS the kv
+//                delimiter. Distinct seps: hop '+' inside src[…], opt ',' between tokens → eye
+//                separates hops from options. Lighter (no '=', single bracket per token).
+// Seps still under test (opt/kv/hop pickers live). `hopSep` schema-driven ('+' avoids ','-collision
+// with the opt-sep). The quote-freeform emit branch is retained but currently unreferenced.
+const SLOT_SCHEMAS = {
+  'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, hopSep: '+' },
+};
+function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback) {
+  const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback);
+  // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
+  // has no chain of its own, inject an explicit `src:current` so slot 1 declares its source.
+  if (forceSrc && !serializeChain(chain)) {
+    entries.push({ name:'src', val:'current', chainStr:true, rank:RESPELL_KEY_MAP.src });
+  }
+  entries.forEach((e,i)=>e._i=i);   // STABLE sort by (group, within) — mirrors bws_serialization_order_sort.
+  entries.sort((a,b)=> a.rank[0]-b.rank[0] || a.rank[1]-b.rank[1] || a._i-b._i);
+  const sch    = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
+  const optSep = S.slotOptSep;
+  const kv     = S.slotKvChar;
+  // SLOT bracket char (depth 1) — the delimiter around slot tokens.
+  //   independent: S.slotBracket, set separately from the chain.
+  //   depth-alt:   bracketAt(1) — the level-1 char; a nested read/chain (depth 2) takes the opposite.
+  const slotBr = bracketAt(1) || S.slotBracket;
+  const SO = PAIR_OPEN[slotBr]||'[', SC = PAIR_CLOSE[slotBr]||']';
+  // read-target bracket (the key(field) INSIDE a slot token) — depth 2 in depth-alt; else the
+  // chainPair char floored to a real bracket.
+  const rbr    = bracketAt(2) || ((S.chainPair==='()'||S.chainPair==='[]') ? S.chainPair : '()');
+  const bracketType = sch.wrap === 'quote-freeform';   // Option (a): bracket the type token too.
+  const lead   = (typeTag && typeTag!=='text')
+               ? (bracketType ? `${SO}${typeTag}${SC}` : typeTag) : '';   // type leads; 'text' non-type dropped
+  const readBr = sch.readBr || S.respellReadBracket;
+
+  const emit = (e) => {
+    const name = kn(e.name);
+    if (sch.wrap === 'bracket-val') {
+      // name[value] — the slot bracket carries the value; flags are bare `name`. Free-form values
+      // (format/label/fallback/…) get `\:`/`\|` escaped for GB; keys/chain are charset-safe already.
+      if (e.flag)     return name;
+      if (e.chainStr) return `${kn('src')}${SO}${e.val}${SC}`;
+      const val = RESPELL_FREEFORM.has(e.name) ? escFreeform(e.val) : e.val;
+      return `${name}${SO}${val}${SC}`;                        // read/keys/format all uniform
+    }
+    if (sch.wrap === 'quote-freeform') {
+      // [name=value] blocks; free-form quoted, read bracketed key(val); no join sep.
+      if (e.flag)     return `${SO}${name}${SC}`;
+      if (e.chainStr) return `${SO}${kn('src')}${kv}${e.val}${SC}`;
+      if (e.br || (readBr && e.name==='key')) return `${SO}${name}${pairWrap(rbr, e.val)}${SC}`;
+      const v = RESPELL_FREEFORM.has(e.name) ? `"${e.val}"` : e.val;
+      return `${SO}${name}${kv}${v}${SC}`;
+    }
+    // lit-freeform: name=value, free-form value wrapped [], sep-joined.
+    if (e.flag)     return name;
+    if (e.chainStr) return e.val;                              // raw chain bracket string
+    if (e.br)       return `${name}${pairWrap(rbr, e.val)}`;
+    const v = RESPELL_FREEFORM.has(e.name) ? `[${e.val}]` : e.val;
+    return `${name}${kv}${v}`;
+  };
+
+  const toks = entries.map(emit).filter(Boolean);
+  // TABLE label folds into the slot value as the FIRST token, ahead of the type (user draft
+  // 2026-07-29: `2:label[Date];datetime_single;key[due]`). label is free-form → schema-wrapped.
+  let labelTok = (label!==undefined && label!=='') ? emit({name:'label', val:label}) : '';
+  // UNBALANCED-bracket flag: a lone `]`/`)` in a free-form value defeats even a balance-aware
+  // sub-parser → mark it in the preview so the hazard is visible (⚠ is preview-only, not wire).
+  if (labelTok && unbalancedBrackets(label, SO, SC)) labelTok += '⚠';
+  return [labelTok, lead, ...toks].filter(Boolean).join(optSep);
+}
+
+// ── Configure-tab source parts (chain LOCKED to own src; use+key excluded) ──────
+// FW-56 value-side chain is always on now. The chain owns the `src:` string; `ref` folds into it.
+// The Configure tab is de-prioritized (Permutations is the focus) but must not throw.
 function buildSrcParts(sv, p, t2p) {
   const out=[];
+  const chainVal = serializeChain(sv['srcChain']);
+  if (chainVal) { out.push(`${p}${kn('src')}:${chainVal}`); return out; }
+  // no chain built yet → legacy src/ref fallback for the Configure preview only
   const src=sv['src']||'';
   if (src) out.push(`${p}${kn('src')}:${src}`);
   if (src==='ref'&&sv['ref']) out.push(`${p}${kn('ref')}:${sv['ref']}`);
-  out.push(...buildRelParts(sv,p));
-  if (S.inTermCombined) {
-    if (sv['srcTerm']) out.push(`${p}${kn('srcTerm')}:${sv['srcTerm']}`);
-  } else {
-    if (sv['srcTerm']==='1') {
-      out.push(`${p}${kn('srcTerm')}`);
-      if (sv['tax']) out.push(`${p}${kn('tax')}:${sv['tax']}`);
+  return out;
+}
+
+// table (FW-53) columns → {N}-prefixed opts. Each column: label, its own mini src-chain
+// ({N}-src value = same grammar, one level down), and a cell reader (use/key).
+// Emit order per column mirrors the draft worked example: label, src, use, key.
+function buildColumnParts() {
+  const out=[];
+  S.columns.forEach((col,ci)=>{
+    const cp=`${ci+1}-`;
+    if ((col.label||'')!=='') out.push(`${cp}${kn('label')}:${col.label}`);
+    const chainVal=serializeChain(col.chain);
+    if (chainVal) out.push(`${cp}${kn('src')}:${chainVal}`);
+    // cell reader: use combines with key when fromKeyCombined, else separate use + key
+    const uv=col.use||'', kv=col.key||'';
+    if (S.fromKeyCombined) {
+      if (uv!==''||kv!=='') out.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`);
+    } else {
+      if (uv!=='') out.push(`${cp}${kn('use')}:${uv}`);
+      if (kv!=='') out.push(`${cp}${kn('key')}:${kv}`);
     }
-  }
+  });
   return out;
 }
 
@@ -691,6 +1174,8 @@ function renderSlotParts(parts, p, t2p) {
   const out=[];
   const hasExplicitUse = parts.some(([k])=>k==='use');
   const uk = kn('use');
+  // These are the SHIPPED-wire unfolded scenarios (base/try_ today) — they show the current wire,
+  // NOT the FW-56 chain (that's a folded-slot proposal). srcTerm shown in its shipped form.
   for (const [id,val] of parts) {
     const rv = resolveVal(val);
     if (id==='source') {
@@ -705,20 +1190,41 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (id==='_inTerm') {
       const slug = typeof rv==='string' ? rv : '';
-      if (S.inTermCombined) { if(slug) out.push(`${p}${kn('srcTerm')}:${slug}`); }
-      else { out.push(`${p}${kn('srcTerm')}`); if(slug) out.push(`${p}${kn('tax')}:${slug}`); }
+      out.push(`${p}${kn('srcTerm')}`); if(slug) out.push(`${p}${kn('tax')}:${slug}`);
       continue;
     }
     if (id==='_content_key') {
       const field = typeof rv==='string' ? rv : '';
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:key,${field}`); else out.push(`${p}${uk}:key`); }
+      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); else out.push(`${p}${uk}:key`); }
       else { out.push(`${p}${uk}:key`); if(field) out.push(`${p}${kn('key')}:${field}`); }
       continue;
     }
     if (id==='key' && !hasExplicitUse) {
       const field = typeof rv==='string' ? rv : '';
-      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:meta,${field}`); }
+      // bare meta key → custom-field mode is use:key (NOT use:meta — base-tags.php `use` value
+      // for a meta/option field is 'key'). Folded: use:key<sep><field>.
+      if (S.fromKeyCombined) { if(field) out.push(`${p}${uk}:${foldJoin('key',field)}`); }
       else { if(field) out.push(`${p}${kn('key')}:${field}`); }
+      continue;
+    }
+    if (id==='_asSize') {
+      // val = {mode,size?}. Fold via foldAsSize so the value separator drives the comma.
+      out.push(`${p}${kn('as')}:${foldAsSize({as:val.mode, size:val.size})}`);
+      continue;
+    }
+    if (id==='_link') {
+      // val = {to, key?, newTab?}. Shipped shape: linkTo | linkKey(show_if key) | newTab(flag).
+      // Folded (linkCombined): linkKey rides linkTo's value → linkTo:key<sep><field>.
+      const L=val||{}; const to=L.to||'';
+      if (to==='') continue;
+      const lkey = typeof L.key==='string' ? resolveVal(L.key) : '';
+      if (S.linkCombined && to==='key' && lkey!=='') {
+        out.push(`${p}${kn('linkTo')}:${foldJoin('key',lkey)}`);
+      } else {
+        out.push(`${p}${kn('linkTo')}:${to}`);
+        if (to==='key' && lkey!=='') out.push(`${p}${kn('linkKey')}:${lkey}`);
+      }
+      if (L.newTab) out.push(`${p}${kn('newTab')}`);
       continue;
     }
     if (val===true) { out.push(`${p}${kn(id)}`); continue; }
@@ -734,18 +1240,31 @@ function renderSlotParts(parts, p, t2p) {
 function partOrderKey(id) {
   if (id==='source'||id==='ref'||id==='_inTerm') return 'source';
   if (id==='_content_key') return 'use';
+  if (id==='_asSize') return 'as';   // folded image as+size → 'as' slot (format group, leads)
+  if (id==='_link') return 'link';   // link group: after source, before fallback (serialization-order.php)
   return id;
 }
 
+// Canonical order for a permutation GROUP — its OWN template's DEFAULT_ORDER (the KEY_MAP
+// mirror in serialization-order-test.php), NOT the Configure tab's live S.order. Perms must
+// show canonical serialization order regardless of what template Configure has selected.
+function groupOrder(group) {
+  const t=group.tmpl;
+  if (t==='image') return DEFAULT_ORDER.image_post;   // image_post covers as/source/use/key/fallback
+  return DEFAULT_ORDER[t] || DEFAULT_ORDER.text;
+}
+
 function buildPermTag(group, scenario) {
+  if (group.foldClass) return buildFoldedTag(group, scenario);   // FW-57 folded slots
+  if (group.isTable) return buildTablePermTag(scenario);
   const name = group.isTry ? `try_${tmplName(group.tmpl)}` : tmplName(group.tmpl);
   const slots = scenario.slots || [scenario.parts];
   const parts=[];
   slots.forEach((slotParts,i)=>{
     const p = group.isTry ? pfx(i) : '';
     const t2p = group.isTry && i>0;
-    // Sort parts by their position in S.order so permutations respect Configure-tab ordering.
-    const order = S.order;
+    // Sort parts by the GROUP's canonical order (KEY_MAP mirror), not Configure's S.order.
+    const order = groupOrder(group);
     const sorted = [...slotParts].sort((a,b)=>{
       const ai = order.indexOf(partOrderKey(a[0]));
       const bi = order.indexOf(partOrderKey(b[0]));
@@ -755,13 +1274,103 @@ function buildPermTag(group, scenario) {
     });
     parts.push(...renderSlotParts(sorted,p,t2p));
   });
+  // chain-level link (try_ tags): one unprefixed link group after all slots (link-helpers.php:184).
+  if (scenario.chainLink) parts.push(...renderSlotParts([['_link',scenario.chainLink]],'',false));
+  const opts = parts.length ? ' '+parts.join('|') : '';
+  return `{{${name}${opts}}}`;
+}
+
+// table permutation: row chain in global src + {N}- column mini-chains. Honors the same
+// key-name presets + fromKeyCombined toggle as the Configure tab.
+function buildTablePermTag(sc) {
+  const parts=[];
+  const rc=serializeChain(sc.rowChain);
+  if (rc) parts.push(`${kn('src')}:${rc}`);
+  if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
+  (sc.cols||[]).forEach((col,ci)=>{
+    const cp=`${ci+1}-`;
+    if ((col.label||'')!=='') parts.push(`${cp}${kn('label')}:${col.label}`);
+    const cc=serializeChain(col.chain);
+    if (cc) parts.push(`${cp}${kn('src')}:${cc}`);
+    const uv=col.use||'', kv=col.key||'';
+    if (S.fromKeyCombined) { if(uv!==''||kv!=='') parts.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`); }
+    else { if(uv!=='') parts.push(`${cp}${kn('use')}:${uv}`); if(kv!=='') parts.push(`${cp}${kn('key')}:${kv}`); }
+  });
+  const opts = parts.length ? ' '+parts.join('|') : '';
+  return `{{table${opts}}}`;
+}
+
+// ── FW-57 folded-slot permutation builder ────────────────────────────────────
+// Renders the COLLAPSED slot encoding: each slot = ONE `{N}:` value = chain + terminal read.
+// A slot scenario: { chain:[{slug,arg,limit}], read:{kind,...} }.
+//   read.kind: 'analog' (bare slug: title/excerpt/default/featured) | 'key' (key(field)) |
+//              'same' (inherit prior slot's read).
+// Container class drives Option R (the type token):
+//   'try'   → format-FIXED (try_<tag>): NO type token in the read-step.
+//   'join'  → AGNOSTIC combiner: each slot NAMES its processing tag (typeTag) as the read's
+//             leading token → email,key(x) / phone / title. Heterogeneous-tag-per-slot for free.
+//   'table' → AGNOSTIC column: same as join; the row chain is the tag-global src.
+// Slot prefix LOCKED to `N-` (pfx(i)); the folded KEY is prefix + ':' (the slot ordinal IS the
+// key, no option name), e.g. `2:refs(office),key(address)`. Slot 1 included → `1:`.
+function foldedSlotKey(i) {
+  // FOLD SLOT-1 KEY (rule confirmed 2026-07-28): under the fold, slot 1 STOPS borrowing base-tag
+  // option keys. It gets the SAME merged `1:` target token as every other slot (+ `1-option:`
+  // siblings for anything that must ride OUTSIDE the token — label, sep — the fold-boundary
+  // axes). No bare `key:`/`use:`/`src:` for slot 1. This applies ONLY to the FW-57 fold; the
+  // shipped unfolded wire keeps slot-1-bare until migration. (Table differs: its slot 1 IS the
+  // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
+  return pfx(i).replace(/-$/, ':');         // '1-' → '1:', '2-' → '2:' (slot 1 included)
+}
+// Resolve $-dummy refs inside a folded slot's chain args + read field + link key (perms use $key1).
+function resolveSlot(slot) {
+  const chain=(slot.chain||[]).map(s=>({...s, arg: s.arg!==undefined?String(resolveVal(s.arg)):s.arg}));
+  let read=slot.read;
+  if (read && read.kind==='key') read={...read, field:String(resolveVal(read.field))};
+  let link=slot.link;
+  if (link && link.key!==undefined) link={...link, key:String(resolveVal(link.key))};
+  return {...slot, chain, read, link};
+}
+function slotValueFor(s, typeTag, label, forceSrc) {
+  return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback);
+}
+function buildFoldedSlot(i, slot, containerClass) {
+  const s = resolveSlot(slot);
+  // try_<tag> is format-fixed → no type token (the tag name fixes it); join/table agnostic → type
+  // leads. Link is always inlined as flat options (all 3 schemas), never a sibling.
+  const typeTag = (containerClass==='join'||containerClass==='table') ? (s.tag||'') : '';
+  // Slot-1 forced src: only slot 0 of join/try_ (table's slot-1 is the row src:, excluded).
+  const forceSrc = S.slotForceSrc && i===0 && (containerClass==='join'||containerClass==='try');
+  const val = slotValueFor(s, typeTag, undefined, forceSrc);
+  return [`${foldedSlotKey(i)}${val}`];
+}
+// Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
+// try_: name = try_<baseTag>. join: name = join. table: name = table (row chain in src:, cols {N}:).
+function buildFoldedTag(group, sc) {
+  const parts=[];
+  const slots = sc.slots||[];
+  if (group.foldClass==='table') {
+    // table: row chain rides the tag-global src:; each column is a folded {N}: value.
+    const rc = serializeChain(sc.rowChain);
+    if (rc) parts.push(`${kn('src')}:${rc}`);
+    if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
+    slots.forEach((col,ci)=>{
+      // columns are 1-indexed {N}: values (no bare slot-1 — the row set is src:, not a column).
+      // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
+      const c = resolveSlot(col);
+      parts.push(`${ci+1}:${slotValueFor(c, c.tag||'', col.label||'')}`);
+    });
+  } else {
+    slots.forEach((slot,i)=>{ parts.push(...buildFoldedSlot(i, slot, group.foldClass)); });
+  }
+  const name = group.foldClass==='try' ? `try_${tmplName(group.tmpl)}`
+             : group.foldClass;   // 'join' | 'table'
   const opts = parts.length ? ' '+parts.join('|') : '';
   return `{{${name}${opts}}}`;
 }
 
 // ── Render: sidebar names ────────────────────────────────────────────────────
 function renderSbNames() {
-  const allIds = ['src','ref','srcRel','srcTerm','tax','use','key','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
+  const allIds = ['src','ref','srcTerm','tax','use','key','label','caption','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
   const TRY_IDS = new Set([]);
   const el = document.getElementById('sb-names');
   el.innerHTML='';
@@ -810,6 +1419,76 @@ function onNamesChanged() {
   renderOrder(); renderCfgPreview(); renderPerms();
 }
 
+// Reusable separator row: label + centered char input + preset dropdown (name-row shape).
+// getVal/setVal read/write the backing state; presets = candidate chars; rerender re-renders
+// the owning control (to refresh the `cur` marker); onChange re-renders previews.
+function makeSepRow(container, label, getVal, setVal, presets, rerender) {
+  const row=document.createElement('div'); row.className='name-row';
+  const idSpan=document.createElement('span'); idSpan.className='name-id'; idSpan.textContent=label;
+  const inp=document.createElement('input'); inp.className='name-inp'; inp.value=getVal(); inp.style.textAlign='center';
+  inp.addEventListener('input',()=>{ setVal(inp.value); onSepChanged(); });
+  const wrap=document.createElement('div'); wrap.className='preset-wrap';
+  const btn=document.createElement('button'); btn.className='preset-btn'; btn.textContent='▾';
+  const menu=document.createElement('div'); menu.className='preset-menu';
+  presets.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='preset-item'+(s===getVal()?' cur':'');
+    item.textContent=JSON.stringify(s).slice(1,-1);  // literal char
+    item.addEventListener('click',e=>{ e.stopPropagation(); setVal(s); inp.value=s; menu.classList.remove('open'); onSepChanged(); rerender(); });
+    menu.appendChild(item);
+  });
+  btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
+  wrap.appendChild(btn); wrap.appendChild(menu);
+  row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
+  container.appendChild(row);
+}
+
+// FW-56 chain separator pickers (hop + step). Only shown when the chain is on.
+function renderSepControls() {
+  const el=document.getElementById('sep-controls');
+  el.innerHTML='';
+  const DEFAULTS={hop:',',step:','};
+  [['hop','hop sep'],['step','step sep']].forEach(([which,label])=>{
+    makeSepRow(el, label,
+      ()=>S.chainSep[which],
+      v=>{ S.chainSep[which]=v||DEFAULTS[which]; },
+      SEP_PRESETS[which], renderSepControls);
+  });
+}
+
+// General value-separator picker (always visible — drives as:/use:/link folds).
+function renderValueSep() {
+  const el=document.getElementById('valuesep-controls');
+  if (!el) return;
+  el.innerHTML='';
+  makeSepRow(el, 'value sep',
+    ()=>S.valueSep,
+    v=>{ S.valueSep=v||','; },
+    VALUE_SEP_PRESETS, renderValueSep);
+}
+
+// FW-57 folded-slot separator pickers (opt-sep between tokens + kv char within a token).
+// bracket-kv/bracket-all use no kv char (the [] is the delimiter / block); the picker still shows
+// for the schemas that use it. Chars stay switchable off the schema default.
+function renderSlotSep() {
+  const el=document.getElementById('slotsep-controls');
+  if (!el) return;
+  el.innerHTML='';
+  makeSepRow(el, 'opt sep',
+    ()=>S.slotOptSep, v=>{ S.slotOptSep=v; }, RESPELL_OPT_PRESETS, renderSlotSep);
+  makeSepRow(el, 'kv char',
+    ()=>S.slotKvChar, v=>{ S.slotKvChar=v; }, RESPELL_KV_PRESETS, renderSlotSep);
+}
+// Apply a schema's default separators to S (called on schema switch + init).
+function applySlotSchemaDefaults() {
+  const sch = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
+  S.slotOptSep = sch.optSep;
+  S.slotKvChar = sch.kvChar;
+  S.chainSep.hop = sch.hopSep;   // schema drives the chain hop-sep ('+')
+}
+
+function onSepChanged() { renderCfgPreview(); renderPerms(); }
+
 // ── Render: order panel ──────────────────────────────────────────────────────
 function renderOrder() {
   const el=document.getElementById('order-list');
@@ -847,13 +1526,15 @@ function renderSlots() {
     }
     // Source block
     const sb=document.createElement('div'); sb.className='src-block';
-    const sbl=document.createElement('div'); sbl.className='src-block-lbl'; sbl.textContent='source';
+    const sbl=document.createElement('div'); sbl.className='src-block-lbl';
+    sbl.textContent = 'source (chain owns src when built)';
     sb.appendChild(sbl);
+    // Legacy src select is the Configure-preview fallback when no chain is built.
     appendSel(sb,i,'src','Source',[{value:'',label:'Current (unset)'},{value:'ref',label:'In Ref/Rel Field'},{value:'parent',label:'Parent'},{value:'ancestor',label:'Ancestor'},{value:'child',label:'Child(ren)'}],()=>{renderSlots();renderCfgPreview();});
     const refRow=appendTxt(sb,i,'ref','Ref Key');
     setDim(refRow,sv['src']!=='ref');
+    appendSrcChain(sb,i,sv);
     appendInTerm(sb,i,sv);
-    appendRelChain(sb,i,sv);
     card.appendChild(sb);
     // Template opts
     (TMPL[S.tmpl]||[]).forEach(schema=>{
@@ -866,7 +1547,54 @@ function renderSlots() {
       setDim(row,!evalShowIf(schema.showIf,sv));
     });
     el.appendChild(card);
+    // table (FW-53): column repeater below the base slot card
+    if (S.tmpl==='table' && i===0) appendColumnsCard(el);
   }
+}
+
+// table (FW-53) column repeater. Each column: label, its own mini src-chain (2-src value),
+// cell reader (use/key). Column N renders {N}-prefixed opts on the wire (buildColumnParts).
+function appendColumnsCard(container) {
+  const card=document.createElement('div'); card.className='card';
+  const h=document.createElement('h3'); h.textContent='Columns (each → {N}- prefix)'; card.appendChild(h);
+  S.columns.forEach((col,ci)=>{
+    const cp=`${ci+1}-`;
+    const block=document.createElement('div'); block.className='src-block'; block.style.borderLeftColor='#c07ad9';
+    const bl=document.createElement('div'); bl.className='src-block-lbl'; bl.style.color='#c07ad9';
+    bl.textContent=`Column ${ci+1} — prefix ${cp}`;
+    block.appendChild(bl);
+    // label
+    const lr=document.createElement('div'); lr.className='opt-row';
+    const ll=document.createElement('span'); ll.className='opt-lbl'; ll.textContent=kn('label');
+    const li=document.createElement('input'); li.type='text'; li.value=col.label||''; li.style.width='100%';
+    li.addEventListener('input',()=>{ col.label=li.value; renderCfgPreview(); });
+    lr.appendChild(ll); lr.appendChild(li); block.appendChild(lr);
+    // mini src-chain
+    if (!Array.isArray(col.chain)) col.chain=[];
+    appendChainEditor(block, ()=>col.chain, cp+kn('src'), ()=>{ renderSlots(); renderCfgPreview(); });
+    // cell reader: use (select-ish free text) + key
+    const ur=document.createElement('div'); ur.className='opt-row';
+    const ul=document.createElement('span'); ul.className='opt-lbl'; ul.textContent=kn('use');
+    const ui=document.createElement('input'); ui.type='text'; ui.placeholder='title / blank(meta)'; ui.value=col.use||''; ui.style.width='100%';
+    ui.addEventListener('input',()=>{ col.use=ui.value; renderCfgPreview(); });
+    ur.appendChild(ul); ur.appendChild(ui); block.appendChild(ur);
+    if (!S.fromKeyCombined) {
+      const kr=document.createElement('div'); kr.className='opt-row';
+      const kl=document.createElement('span'); kl.className='opt-lbl'; kl.textContent=kn('key');
+      const ki=document.createElement('input'); ki.type='text'; ki.placeholder='meta key'; ki.value=col.key||''; ki.style.width='100%';
+      ki.addEventListener('input',()=>{ col.key=ki.value; renderCfgPreview(); });
+      kr.appendChild(kl); kr.appendChild(ki); block.appendChild(kr);
+    }
+    // remove column
+    const rm=document.createElement('button'); rm.textContent='× remove column'; rm.style.cssText='font-size:11px;margin-top:4px';
+    rm.addEventListener('click',()=>{ S.columns.splice(ci,1); renderSlots(); renderCfgPreview(); });
+    block.appendChild(rm);
+    card.appendChild(block);
+  });
+  const add=document.createElement('button'); add.textContent='+ column'; add.style.cssText='font-size:11px';
+  add.addEventListener('click',()=>{ S.columns.push({label:'',use:'',key:'',chain:[]}); renderSlots(); renderCfgPreview(); });
+  card.appendChild(add);
+  container.appendChild(card);
 }
 
 function appendSel(parent,si,id,label,choices,onChange) {
@@ -898,18 +1626,12 @@ function appendInTerm(parent,si,sv) {
   const row=document.createElement('div'); row.className='opt-row';
   const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='In Term';
   const inner=document.createElement('div'); inner.className='interm-row';
-  if (S.inTermCombined) {
-    const inp=document.createElement('input'); inp.type='text'; inp.placeholder='tax slug or blank'; inp.value=sv['srcTerm']||''; inp.style.flex='1';
-    inp.addEventListener('input',()=>{ sv['srcTerm']=inp.value; renderCfgPreview(); });
-    inner.appendChild(inp);
-  } else {
-    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv['srcTerm']==='1';
-    const taxLbl=document.createElement('span'); taxLbl.className='interm-tax-lbl'; taxLbl.textContent=kn('tax')+':'; taxLbl.style.display=sv['srcTerm']==='1'?'':'none';
-    const taxInp=document.createElement('input'); taxInp.type='text'; taxInp.placeholder='taxonomy'; taxInp.value=sv['tax']||''; taxInp.style.cssText='width:80px;display:'+(sv['srcTerm']==='1'?'':'none');
-    taxInp.addEventListener('input',()=>{ sv['tax']=taxInp.value; renderCfgPreview(); });
-    cb.addEventListener('change',()=>{ sv['srcTerm']=cb.checked?'1':''; taxLbl.style.display=cb.checked?'':'none'; taxInp.style.display=cb.checked?'':'none'; renderCfgPreview(); });
-    inner.appendChild(cb); inner.appendChild(taxLbl); inner.appendChild(taxInp);
-  }
+  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv['srcTerm']==='1';
+  const taxLbl=document.createElement('span'); taxLbl.className='interm-tax-lbl'; taxLbl.textContent=kn('tax')+':'; taxLbl.style.display=sv['srcTerm']==='1'?'':'none';
+  const taxInp=document.createElement('input'); taxInp.type='text'; taxInp.placeholder='taxonomy'; taxInp.value=sv['tax']||''; taxInp.style.cssText='width:80px;display:'+(sv['srcTerm']==='1'?'':'none');
+  taxInp.addEventListener('input',()=>{ sv['tax']=taxInp.value; renderCfgPreview(); });
+  cb.addEventListener('change',()=>{ sv['srcTerm']=cb.checked?'1':''; taxLbl.style.display=cb.checked?'':'none'; taxInp.style.display=cb.checked?'':'none'; renderCfgPreview(); });
+  inner.appendChild(cb); inner.appendChild(taxLbl); inner.appendChild(taxInp);
   row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row); return row;
 }
 function appendFromKeyCombined(parent,si,sv,schema) {
@@ -919,7 +1641,7 @@ function appendFromKeyCombined(parent,si,sv,schema) {
   const inp=document.createElement('input'); inp.type='text'; inp.style.flex='1';
   inp.placeholder='meta,field_key or title';
   const fv=sv['use']||'', kv=sv['key']||'';
-  inp.value=kv?`${fv||'meta'},${kv}`:(fv||'');
+  inp.value=kv?`${fv||'key'},${kv}`:(fv||'');
   inp.addEventListener('input',()=>{
     const v=inp.value.trim();
     if(!v){sv['use']='';sv['key']='';}
@@ -932,33 +1654,48 @@ function appendFromKeyCombined(parent,si,sv,schema) {
   row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row);
   setDim(row,!evalShowIf(schema.showIf,sv)); return row;
 }
-// Hop-chain editor: rows of {type,arg}; add/remove to flip depth and watch readability.
-// Hidden unless the srcRel encoding is on.
-function appendRelChain(parent,si,sv) {
-  if (S.relChainEnc==='off') return;
-  if (!Array.isArray(sv['relChain'])) sv['relChain']=[];
-  const chain=sv['relChain'];
+// FW-56 src-chain editor: rows of {slug,arg,limit}. First step allows start-kinds (post/term/
+// user) + hops; later steps hops only. Reused for a slot's row-chain AND a table column's
+// mini-chain. `getChain` returns the mutable array; `labelText` names the row; `onMutate`
+// re-renders the owning UI (structure change) — arg/limit edits only re-render the preview.
+function appendChainEditor(parent, getChain, labelText, onMutate) {
+  if (!Array.isArray(getChain())) return;
+  const chain=getChain();
   const wrap=document.createElement('div'); wrap.className='opt-row'; wrap.style.alignItems='flex-start';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=kn('srcRel');
+  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=labelText;
   const box=document.createElement('div'); box.style.cssText='flex:1;display:flex;flex-direction:column;gap:4px';
-  const TYPES=[{value:'ref',label:'ref (relationship)'},{value:'termIn',label:'termIn (taxonomy)'},{value:'parent',label:'parent'},{value:'child',label:'child'}];
-  chain.forEach((hop,hi)=>{
+  chain.forEach((step,hi)=>{
+    const isFirst=hi===0;
+    const choices=chainSlugChoices(isFirst);
+    if (!step.slug || !choices.some(c=>c.value===step.slug)) step.slug=choices[0].value;
+    const isStart=CHAIN_STARTS.some(c=>c.value===step.slug);
     const r=document.createElement('div'); r.style.cssText='display:flex;gap:4px;align-items:center';
     const idx=document.createElement('span'); idx.style.cssText='font-size:10px;color:var(--muted);width:14px'; idx.textContent=(hi+1)+'.';
-    const sel=document.createElement('select'); sel.style.width='120px';
-    TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=t.label; if((hop.type||'')===t.value)o.selected=true; sel.appendChild(o); });
-    if(!hop.type) hop.type='ref';
-    sel.addEventListener('change',()=>{ hop.type=sel.value; renderCfgPreview(); });
-    const arg=document.createElement('input'); arg.type='text'; arg.placeholder='field / slug'; arg.value=hop.arg||''; arg.style.flex='1';
-    arg.addEventListener('input',()=>{ hop.arg=arg.value; renderCfgPreview(); });
+    const sel=document.createElement('select'); sel.style.width='130px';
+    choices.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=t.label; if(step.slug===t.value)o.selected=true; sel.appendChild(o); });
+    sel.addEventListener('change',()=>{ step.slug=sel.value; onMutate(); });
+    const arg=document.createElement('input'); arg.type='text'; arg.style.flex='1';
+    arg.placeholder = isStart ? 'id' : 'field key / taxonomy';
+    arg.value=step.arg||'';
+    arg.addEventListener('input',()=>{ step.arg=arg.value; renderCfgPreview(); });
+    const lim=document.createElement('input'); lim.type='text'; lim.style.width='42px';
+    lim.placeholder='lim'; lim.value=step.limit||''; lim.title='per-step limit (optional)';
+    lim.disabled=isStart;  // starts are cardinality-1, no fan-out to cap
+    lim.addEventListener('input',()=>{ step.limit=lim.value; renderCfgPreview(); });
     const del=document.createElement('button'); del.textContent='×'; del.style.cssText='width:22px;padding:0';
-    del.addEventListener('click',()=>{ chain.splice(hi,1); renderSlots(); renderCfgPreview(); });
-    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(del); box.appendChild(r);
+    del.addEventListener('click',()=>{ chain.splice(hi,1); onMutate(); });
+    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(lim); r.appendChild(del); box.appendChild(r);
   });
-  const add=document.createElement('button'); add.textContent='+ hop'; add.style.cssText='align-self:flex-start;font-size:11px';
-  add.addEventListener('click',()=>{ chain.push({type:'ref',arg:''}); renderSlots(); renderCfgPreview(); });
+  const add=document.createElement('button'); add.textContent='+ step'; add.style.cssText='align-self:flex-start;font-size:11px';
+  add.addEventListener('click',()=>{ chain.push({slug:'',arg:'',limit:''}); onMutate(); });
   box.appendChild(add);
   wrap.appendChild(lbl); wrap.appendChild(box); parent.appendChild(wrap);
+}
+
+// slot row-chain editor — shown in the source block when the src chain is on.
+function appendSrcChain(parent,si,sv) {
+  if (!Array.isArray(sv['srcChain'])) sv['srcChain']=[];
+  appendChainEditor(parent, ()=>sv['srcChain'], kn('src')+' chain', ()=>{ renderSlots(); renderCfgPreview(); });
 }
 function setDim(row,dim) { row.classList.toggle('dim',dim); }
 
@@ -1004,6 +1741,10 @@ function switchTmpl(t) {
   S.order=[...(DEFAULT_ORDER[t]||DEFAULT_ORDER.text)];
   const n=S.tryCount>0?S.tryCount:1;
   S.slotVals=Array.from({length:n},()=>({}));
+  // seed two example columns when entering table so the worked example is one click away
+  S.columns = t==='table'
+    ? [{label:'Name',use:'title',key:'',chain:[]},{label:'Office',use:'',key:'address',chain:[{slug:'refs',arg:'office',limit:''}]}]
+    : [];
 }
 function setTryCount(n) {
   S.tryCount=n;
@@ -1013,7 +1754,7 @@ function setTryCount(n) {
 }
 
 // ── Full re-render ────────────────────────────────────────────────────────────
-function fullRender() { renderSbNames(); renderOrder(); renderSlots(); renderCfgPreview(); renderPerms(); }
+function fullRender() { renderSbNames(); renderSepControls(); renderValueSep(); renderSlotSep(); renderOrder(); renderSlots(); renderCfgPreview(); renderPerms(); }
 
 // ── Events ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t=>{
@@ -1032,32 +1773,31 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>{
   r.addEventListener('change',()=>{ setTryCount(parseInt(r.value)); renderSlots(); renderCfgPreview(); });
 });
 
-document.querySelectorAll('input[name="pfx"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.pfxStyle=r.value; renderSlots(); renderCfgPreview(); renderPerms(); });
+document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
+  r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderCfgPreview(); renderPerms(); });
+});
+document.getElementById('cb-chainlimit').addEventListener('change',e=>{
+  S.chainLimitInPair=e.target.checked; renderCfgPreview(); renderPerms();
+});
+document.getElementById('cb-slotforcesrc').addEventListener('change',e=>{
+  S.slotForceSrc=e.target.checked; renderCfgPreview(); renderPerms();
+});
+document.getElementById('cb-readviause').addEventListener('change',e=>{
+  S.readViaUse=e.target.checked; renderCfgPreview(); renderPerms();
+});
+document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
+  r.addEventListener('change',()=>{ S.valuePair=r.value; renderCfgPreview(); renderPerms(); });
 });
 
-document.querySelectorAll('input[name="relenc"]').forEach(r=>{
-  r.addEventListener('change',()=>{
-    S.relChainEnc=r.value;
-    document.getElementById('rel-hoppfx-row').style.display = r.value==='repeater' ? 'flex' : 'none';
-    renderSlots(); renderCfgPreview();
-  });
-});
-document.querySelectorAll('input[name="relhoppfx"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.relHopPfx=r.value; renderCfgPreview(); });
-});
-
-document.getElementById('cb-interm').addEventListener('change',e=>{
-  S.inTermCombined=e.target.checked;
-  const n=S.tryCount>0?S.tryCount:1;
-  S.slotVals=Array.from({length:n},()=>({}));
-  renderSlots(); renderCfgPreview(); renderPerms();
-});
 document.getElementById('cb-fromkey').addEventListener('change',e=>{
   S.fromKeyCombined=e.target.checked;
   const n=S.tryCount>0?S.tryCount:1;
   S.slotVals=Array.from({length:n},()=>({}));
   renderSlots(); renderCfgPreview(); renderPerms();
+});
+document.getElementById('cb-linkcombined').addEventListener('change',e=>{
+  S.linkCombined=e.target.checked;
+  renderCfgPreview(); renderPerms();
 });
 
 document.getElementById('cfg-copy').addEventListener('click',()=>{
@@ -1077,6 +1817,7 @@ document.getElementById('cfg-clear').addEventListener('click',()=>{ S.snapshots=
 document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+applySlotSchemaDefaults();
 fullRender();
 </script>
 </body>
