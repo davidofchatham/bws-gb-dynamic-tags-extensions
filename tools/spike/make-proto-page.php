@@ -69,6 +69,14 @@ $sections[] = $section( 'PF-P — suspect-2 A/B: markup+non-ASCII (div host) vs 
 	$row_host( 'PFb1 [markup: malformed → non-ASCII warn glyph, div host]', '{{proto_fold 1:src(refs,office)+use(same)}}' ),
 	$row( 'PFb2 [PLAIN: same malformed wire, ASCII warn]', '{{proto_fold 1:src(refs,office)+use(same)|plain:1}}' ),
 ) );
+// MULTI-HOP rows (2026-07-30): saved multi-step src tokens survived the wire but
+// had no controls — the single-hop control silently TRUNCATED hops 2+ on any
+// source edit. These rows exercise the per-step controls (edit/remove/append).
+$sections[] = $section( 'PF-M — multi-hop chains (per-step controls)', array(
+	$row_host( 'PFm1 [2-hop: office->region, edit step 1 must KEEP step 2]', '{{proto_fold 1:src(refs,office+refs,region);key(name)}}' ),
+	$row_host( 'PFm2 [3-hop + start-kind + limit: post,9999 -> refs,5 -> refs]', '{{proto_fold 1:src(post,9999+refs,related_staff,5+refs,office);use(title)}}' ),
+	$row_host( 'PFm3 [slot 2 multi-hop w/ inherit read (Path A)]', '{{proto_fold 1:key(staff_name)|2:src(refs,office+refs,region);use(same)}}' ),
+) );
 $sections[] = $section( 'PF-C — editor playground (insert/edit proto_fold blocks here)', array(
 	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag]', '-' ),
 ) );

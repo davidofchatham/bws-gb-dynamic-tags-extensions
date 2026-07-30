@@ -37,6 +37,7 @@
 	var SelectControl = wp.components.SelectControl;
 	var TextControl   = wp.components.TextControl;
 	var RadioControl  = wp.components.RadioControl;
+	var Button        = wp.components.Button;
 	var __            = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
 	// ── Grammar (frontrunner chars — mirror of the PHP spike parser) ─────────
@@ -299,36 +300,88 @@
 		}
 
 		if ( showSource ) {
-			// First-hop slug (spike: single hop; multi-hop UX is the deferred
-			// append-a-step control). Empty chain = current (implicit — no src token).
-			var hop     = slot.chain.length ? slot.chain[ 0 ] : null;
-			var hopSame = hop && 'same' === hop.slug;
-			var srcVal  = ( hop && ! hopSame ) ? wireToEngine( hop.slug ) : '';
-			children.push( el( SelectControl, {
-				key:      'src',
-				label:    key + ': ' + __( 'Source', 'generateblocks' ),
-				value:    srcVal,
-				options:  srcEnum(),
-				onChange: function ( v ) {
-					var next = { chain: [], read: slot.read };
-					if ( v ) { next.chain = [ { slug: engineToWire( v ), arg: hop && ! hopSame ? hop.arg : null, limit: null } ]; }
-					if ( ordinal >= 2 && 'context' === intent ) { next.read = { kind: 'same' }; }
-					write( next );
-				},
-				__nextHasNoMarginBottom: true,
-			} ) );
-			if ( hop && 'refs' === hop.slug ) {
-				children.push( el( TextControl, {
-					key:         'srcArg',
-					label:       key + ': ' + __( 'Reference Field', 'generateblocks' ),
-					value:       hop.arg || '',
-					placeholder: 'field_name',
-					onChange:    function ( v ) {
-						var next = { chain: [ { slug: 'refs', arg: v || null, limit: hop.limit } ], read: slot.read };
-						write( next );
+			// PER-STEP controls. The wire supports an ordered chain
+			// (`src(refs,office+refs,region)`), so the control must edit EVERY step
+			// — an earlier single-hop version silently TRUNCATED hops 2+ whenever
+			// the author touched step 1 (found in editor trial 2026-07-30). Each
+			// step edit rebuilds the whole chain positionally; the value is
+			// rewritten in full on every commit (DECISION 2).
+			var chain = slot.chain.slice();
+
+			// Write a chain mutated at one index (null newStep = delete the step).
+			function writeChainAt( idx, newStep ) {
+				var next = chain.slice();
+				if ( null === newStep ) { next.splice( idx, 1 ); }
+				else                    { next[ idx ] = newStep; }
+				var upd = { chain: next, read: slot.read };
+				if ( ordinal >= 2 && 'context' === intent ) { upd.read = { kind: 'same' }; }
+				write( upd );
+			}
+
+			// The `same` inherit occupies the whole chain (no hops off an inherited
+			// source in the spike) — render it as a single step, no add affordance.
+			var isSameChain = chain.length === 1 && 'same' === chain[ 0 ].slug;
+
+			chain.forEach( function ( step, i ) {
+				if ( 'same' === step.slug ) { return; }   // inherit — shown via the radio
+				children.push( el( SelectControl, {
+					key:      'src-' + i,
+					label:    key + ': ' + __( 'Source', 'generateblocks' ) + ( chain.length > 1 ? ' — ' + __( 'step', 'generateblocks' ) + ' ' + ( i + 1 ) : '' ),
+					value:    wireToEngine( step.slug ),
+					options:  srcEnum().concat( [ { value: '__remove', label: '— ' + __( 'Remove this step', 'generateblocks' ) + ' —' } ] ),
+					onChange: function ( v ) {
+						if ( '__remove' === v || ! v ) { writeChainAt( i, null ); return; }
+						// Changing the hop kind keeps the arg only if still a ref hop.
+						var slug = engineToWire( v );
+						writeChainAt( i, { slug: slug, arg: 'refs' === slug ? step.arg : null, limit: step.limit } );
 					},
 					__nextHasNoMarginBottom: true,
 				} ) );
+				if ( 'refs' === step.slug ) {
+					children.push( el( TextControl, {
+						key:         'srcArg-' + i,
+						label:       key + ': ' + __( 'Reference Field', 'generateblocks' ) + ( chain.length > 1 ? ' (' + ( i + 1 ) + ')' : '' ),
+						value:       step.arg || '',
+						placeholder: 'field_name',
+						onChange:    function ( v ) {
+							writeChainAt( i, { slug: 'refs', arg: v || null, limit: step.limit } );
+						},
+						__nextHasNoMarginBottom: true,
+					} ) );
+				}
+			} );
+
+			// No chain yet → one empty source picker that seeds step 1.
+			if ( ! chain.length ) {
+				children.push( el( SelectControl, {
+					key:      'src-new',
+					label:    key + ': ' + __( 'Source', 'generateblocks' ),
+					value:    '',
+					options:  srcEnum(),
+					onChange: function ( v ) {
+						if ( ! v ) { return; }
+						var upd = { chain: [ { slug: engineToWire( v ), arg: null, limit: null } ], read: slot.read };
+						if ( ordinal >= 2 && 'context' === intent ) { upd.read = { kind: 'same' }; }
+						write( upd );
+					},
+					__nextHasNoMarginBottom: true,
+				} ) );
+			}
+
+			// Append-a-hop: only off a real (non-inherit) chain, and only once the
+			// last step is complete, so we never serialize a half-built step.
+			var last = chain.length ? chain[ chain.length - 1 ] : null;
+			var canAppend = ! isSameChain && last && ( 'refs' !== last.slug || last.arg );
+			if ( canAppend ) {
+				children.push( el( Button, {
+					key:      'addhop',
+					variant:  'secondary',
+					isSmall:  true,
+					style:    { marginBottom: '12px' },
+					onClick:  function () {
+						write( { chain: chain.concat( [ { slug: 'refs', arg: null, limit: null } ] ), read: slot.read } );
+					},
+				}, '+ ' + __( 'Add hop', 'generateblocks' ) ) );
 			}
 		}
 
