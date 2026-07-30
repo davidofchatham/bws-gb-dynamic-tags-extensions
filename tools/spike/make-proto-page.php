@@ -32,20 +32,20 @@ $section = static function ( $title, array $rows ) use ( $uid ) {
 };
 
 $sections   = array();
-$sections[] = $section( 'PF-A — folded wire (dump renderer echoes parsed structure)', array(
-	$row( 'PF1 [slot1 key read → "key:staff_name"]', '{{proto_fold 1:key(staff_name)}}' ),
-	$row( 'PF2 [3 slots: key / Path A refs+use(same) / Path B src(same)+key]', '{{proto_fold 1:key(staff_name)|2:src(refs,office);use(same)|3:src(same);key(city)}}' ),
-	$row( 'PF3 [Option-R type token → "type: title"]', '{{proto_fold 1:title;key(x)}}' ),
-	$row( 'PF4 [malformed close-then-reopen → ⚠ flagged, not mis-parsed]', '{{proto_fold 1:src(refs,office)+use(same)}}' ),
-	$row( 'PF5 [lenient separators ,/[] → same parse as PF2 slot2-3]', '{{proto_fold 1:key[staff_name]|2:src(refs;office),use[same]}}' ),
-) );
-$sections[] = $section( 'PF-B — legacy recovery (mount-reconcile + dual-read)', array(
-	$row( 'PF6 [legacy wire → both slots "(recovered from legacy)"]', '{{proto_fold key:staff_name|2-src:ref|2-ref:office|2-use:title}}' ),
-	$row( 'PF7 [FW-51 shape → slot 2 "⚑ needs author review", never guessed]', '{{proto_fold key:a|2-key:x}}' ),
-	$row( 'PF8 [mixed: legacy slots 1-2 + folded slot 3 coexist]', '{{proto_fold key:a|2-src:ref|2-ref:office|3:src(same);key(city)}}' ),
+
+// SUSPECT-2 PROBE LAYOUT (lockup triage 2026-07-29). Deliberately MINIMAL — the
+// earlier 9-row page kept the 16-child LSAPI pool saturated, which masked the
+// signal. Each pair renders the SAME wire twice: markup+non-ASCII vs `plain`
+// (ASCII, no wrapper). If only the non-plain rows wedge GB's preview response
+// path, the output is implicated; if both wedge equally, it is pool capacity.
+$sections[] = $section( 'PF-P — suspect-2 A/B: markup+non-ASCII vs plain ASCII', array(
+	$row( 'PFa1 [markup: 3 slots, <code> + non-ASCII glyphs]', '{{proto_fold 1:key(staff_name)|2:src(refs,office);use(same)|3:src(same);key(city)}}' ),
+	$row( 'PFa2 [PLAIN: identical wire, ASCII only, no wrapper]', '{{proto_fold 1:key(staff_name)|2:src(refs,office);use(same)|3:src(same);key(city)|plain:1}}' ),
+	$row( 'PFb1 [markup: malformed → non-ASCII warn glyph]', '{{proto_fold 1:src(refs,office)+use(same)}}' ),
+	$row( 'PFb2 [PLAIN: same malformed wire, ASCII warn]', '{{proto_fold 1:src(refs,office)+use(same)|plain:1}}' ),
 ) );
 $sections[] = $section( 'PF-C — editor playground (insert/edit proto_fold blocks here)', array(
-	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag]', '—' ),
+	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag]', '-' ),
 ) );
 
 $content = implode( "\n\n", $sections );

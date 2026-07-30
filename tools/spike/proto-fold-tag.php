@@ -273,6 +273,15 @@ function bws_spike_register_proto_fold_tag(): void {
 		$options[ (string) $n ] = $def;   // B5 — numeric string option keys
 	}
 
+	// Suspect-2 probe (lockup triage 2026-07-29): render the SAME parse as plain
+	// ASCII with NO markup, to test whether GB's preview response path wedges on
+	// returned markup / non-ASCII (⚠ ‖ ⚑ and the <code> wrapper). Same wire, same
+	// parser, different OUTPUT only — so a difference isolates the response path.
+	$options['plain'] = array(
+		'type'  => 'checkbox',
+		'label' => 'Probe: plain ASCII output (no markup)',
+	);
+
 	new GenerateBlocks_Register_Dynamic_Tag( array(
 		'title'       => 'Proto Fold (SPIKE — dev only)',
 		'tag'         => 'proto_fold',
@@ -302,6 +311,14 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 	if ( $dbg ) {
 		error_log( '[proto_fold] ENTER ' . wp_json_encode( $options ) );
 	}
+	// Suspect-2 probe: `plain` swaps every non-ASCII glyph + the markup wrapper
+	// for ASCII. Parse path is IDENTICAL, so a wedge that only happens without
+	// `plain` implicates GB's preview RESPONSE path, not our tag.
+	$plain = ! empty( $options['plain'] );
+	$g     = $plain
+		? array( 'flag' => '(!)', 'warn' => '(X)', 'arrow' => '->', 'join' => ' || ', 'dash' => '-' )
+		: array( 'flag' => '⚑', 'warn' => '⚠', 'arrow' => ' → ', 'join' => ' ‖ ', 'dash' => '—' );
+
 	$out = array();
 	for ( $n = 1; $n <= 3; $n++ ) {
 		$raw    = isset( $options[ (string) $n ] ) ? (string) $options[ (string) $n ] : ( isset( $options[ $n ] ) ? (string) $options[ $n ] : '' );
@@ -314,7 +331,7 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 				continue;
 			}
 			if ( isset( $rec['flag'] ) ) {
-				$out[] = sprintf( 'slot %d ⚑ %s', $n, $rec['flag'] );
+				$out[] = sprintf( 'slot %d %s %s', $n, $g['flag'], $rec['flag'] );
 				continue;
 			}
 			$slot   = $rec['slot'];
@@ -323,12 +340,12 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 			$slot = bws_spike_fold_parse_slot( $raw );
 		}
 		if ( isset( $slot['error'] ) ) {
-			$out[] = sprintf( 'slot %d ⚠ %s [raw: %s]', $n, $slot['error'], $raw );
+			$out[] = sprintf( 'slot %d %s %s [raw: %s]', $n, $g['warn'], $slot['error'], $raw );
 			continue;
 		}
 		$chain = empty( $slot['chain'] )
 			? 'current'
-			: implode( ' → ', array_map( static function ( $s ) {
+			: implode( $g['arrow'], array_map( static function ( $s ) {
 				return $s['slug']
 					. ( null !== $s['arg'] ? ':' . $s['arg'] : '' )
 					. ( null !== $s['limit'] ? ' (limit ' . $s['limit'] . ')' : '' );
@@ -354,7 +371,9 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 	if ( ! $out ) {
 		return '[proto_fold: no slots]';
 	}
-	return '<code>' . esc_html( implode( ' ‖ ', $out ) ) . '</code>';
+	$joined = implode( $g['join'], $out );
+	// Plain mode: NO markup wrapper at all (the other half of the probe).
+	return $plain ? esc_html( $joined ) : '<code>' . esc_html( $joined ) . '</code>';
 }
 
 /**
