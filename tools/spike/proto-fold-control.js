@@ -138,21 +138,55 @@
 		return toks.join( OPT_SEP );
 	}
 
-	// ── Lens (B2): infer the 2×2 intent cell from the WIRE alone ────────────
+	// ── Lens (B2): infer the 2×2 intent cell from the parsed slot ────────────
 	// source axis: chain [{slug:'same'}] → same, anything else (incl. empty=current) → new
 	// read axis:   read {kind:'same'} → same, else → new
 	// Cells: 'context' = new src + same read (A) · 'field' = same src + new read (B) · 'both' (C).
-	// Empty value → '' (radio unset — default-empty UX; slot stays "not real").
-	function inferIntent( value ) {
-		if ( ! value ) { return ''; }
-		var slot = parseSlot( value );
-		if ( ! slot ) { return ''; }
+	// null slot → '' (radio unset — default-empty UX; slot stays "not real").
+	function inferIntent( slot ) {
+		if ( ! slot || ( ! slot.chain.length && ! slot.read ) ) { return ''; }
 		var srcSame  = slot.chain.length === 1 && 'same' === slot.chain[ 0 ].slug;
 		var readSame = !! ( slot.read && 'same' === slot.read.kind );
 		if ( srcSame && readSame ) { return '';       }   // degenerate — treat as unset
 		if ( readSame )            { return 'context'; }
 		if ( srcSame )             { return 'field';   }
 		return 'both';
+	}
+
+	// ── Mount-reconcile: synthesize a fold struct from LEGACY separate keys ──
+	// JS port of bws_spike_fold_from_legacy (PHP is the reference — the shared
+	// mapping must not fork). Returns {slot, legacy:true} | {flag} | null.
+	function foldFromLegacy( n, state ) {
+		var p   = ( 1 === n ) ? '' : n + '-';
+		var src = state[ p + 'src' ] || '';
+		var ref = state[ p + 'ref' ] || '';
+		var use = state[ p + 'use' ] || '';
+		var key = state[ p + 'key' ] || '';
+		if ( ! src && ! ref && ! use && ! key ) { return null; }
+
+		var chain = [];
+		if ( 'ref' === src )                          { chain = [ { slug: 'refs', arg: ref || null, limit: null } ]; }
+		else if ( 'same' === src )                    { chain = [ { slug: 'same', arg: null, limit: null } ]; }
+		else if ( src && 'current' !== src )          { chain = [ { slug: src, arg: null, limit: null } ]; }
+
+		var read;
+		if ( 'key' === use || ( ! use && key && 1 === n ) ) {
+			read = { kind: 'key', field: key };
+		} else if ( use ) {
+			read = ( 'same' === use ) ? { kind: 'same' } : { kind: 'analog', slug: use };
+		} else if ( ! key ) {
+			read = ( n >= 2 ) ? { kind: 'same' } : null;   // S1 synth vs slot-1 default
+		} else {
+			return { flag: 'legacy slot ' + n + ': key set without use (ambiguous FW-51 shape) — needs author review' };
+		}
+		return { slot: { chain: chain, read: read }, legacy: true };
+	}
+
+	// Legacy sibling keys for slot n — cleared on ANY commit (delete-omit), so a
+	// confirmed modal writes the folded value and drops the old wire in one step.
+	function legacyKeys( n ) {
+		var p = ( 1 === n ) ? '' : n + '-';
+		return [ p + 'src', p + 'ref', p + 'use', p + 'key' ];
 	}
 
 	// ── Source enum — DERIVED from the base builder (window.bwsProtoFold) ────
@@ -181,20 +215,35 @@
 		var ordinal  = parseInt( key, 10 );
 		var raw      = state[ key ] || '';
 
-		var slot = parseSlot( raw ) || { chain: [], read: null };
+		// MOUNT-RECONCILE: folded value absent → recover from legacy separate
+		// keys (shared mapping). Display-only until the author commits (the
+		// modal-confirm boundary keeps the stored wire untouched on cancel).
+		var slot      = null;
+		var recovered = false;
+		var legacyFlag = '';
+		if ( raw ) {
+			slot = parseSlot( raw );
+		} else {
+			var rec = foldFromLegacy( ordinal, state );
+			if ( rec && rec.flag ) { legacyFlag = rec.flag; }
+			else if ( rec )        { slot = rec.slot; recovered = true; }
+		}
+		slot = slot || { chain: [], read: null };
 
-		// B2/B4 — the EPHEMERAL intent radio: seeded from the wire, never serialized.
-		// Radio state is React-local; a remount re-infers from the wire (Model 1).
-		var intentState = useState( inferIntent( raw ) );
+		// B2/B4 — the EPHEMERAL intent radio: seeded from the wire (or the
+		// recovered struct), never serialized. Remount re-infers (Model 1).
+		var intentState = useState( inferIntent( ( raw || recovered ) ? slot : null ) );
 		var intent      = intentState[ 0 ];
 		var setIntent   = intentState[ 1 ];
 
 		// Whole-object setState + delete-omit (param authority idiom): '' deletes
 		// the key so the folded reveal predicate (show_if_any not_empty) un-gates.
+		// ANY commit also drops this slot's legacy sibling keys — touch-migration.
 		function write( next ) {
 			var upd = Object.assign( {}, state );
 			var v   = serializeSlot( next );
 			if ( v ) { upd[ key ] = v; } else { delete upd[ key ]; }
+			legacyKeys( ordinal ).forEach( function ( k ) { delete upd[ k ]; } );
 			setState( upd );
 		}
 
@@ -223,6 +272,16 @@
 		var showRead   = ordinal === 1 || 'field' === intent || 'both' === intent;
 
 		var children = [];
+
+		// FW-51 ambiguous legacy shape — surface to the author instead of guessing
+		// (the flag the converter-run migrator has no UI for).
+		if ( legacyFlag ) {
+			children.push( el( 'p', { key: 'flag', style: { color: '#a00', fontSize: '12px' } }, '⚑ ' + legacyFlag ) );
+		}
+		if ( recovered ) {
+			children.push( el( 'p', { key: 'rec', style: { opacity: 0.7, fontSize: '12px', margin: '0 0 4px' } },
+				__( 'Recovered from legacy options — saving folds this slot and removes them.', 'generateblocks' ) ) );
+		}
 
 		if ( ordinal >= 2 ) {
 			children.push( el( RadioControl, {
@@ -310,7 +369,7 @@
 
 		// Wire echo — spike-only debug aid so the value rewrite is visible live.
 		children.push( el( 'code', { key: 'echo', style: { display: 'block', opacity: 0.6, fontSize: '11px', marginBottom: '12px' } },
-			key + ':' + ( state[ key ] || '∅' ) ) );
+			key + ':' + ( state[ key ] || '∅' ) + ( recovered ? '  [legacy → ' + serializeSlot( slot ) + ']' : '' ) ) );
 
 		return el( Fragment, null, children );
 	}

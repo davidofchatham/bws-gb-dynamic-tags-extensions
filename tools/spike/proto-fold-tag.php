@@ -174,6 +174,61 @@ function bws_spike_fold_parse_slot( string $value ): array {
 	return $slot;
 }
 
+// ── Legacy → fold mapping (mount-reconcile + render dual-read share THIS) ───
+
+/**
+ * Synthesize a folded slot struct from LEGACY separate options
+ * (`src`/`ref`/`use`/`key`, slot 1 bare, slot ≥2 `{N}-`-prefixed — the shipped
+ * try_/join wire shape). ONE mapping consumed by all three recovery paths
+ * (converter migrator / editor mount-reconcile / render dual-read) so the
+ * position-dependent absence rules live exactly once (JS port must mirror).
+ *
+ * Position rules (plan §Migration b):
+ *   - slot 1, read absent            → default analog (null read)
+ *   - slot ≥2, read absent           → `same` (S1 synthesis from old absence)
+ *   - slot ≥2, `key` set, `use` absent → FLAG unmigratable (FW-51 broken shape
+ *     — old wire rendered silently empty; do NOT guess)
+ *
+ * @param int   $n       Slot ordinal (1-based).
+ * @param array $options All tag options (GB-parsed).
+ * @return array|null array{slot, legacy:true} | array{flag:string} | null (no legacy keys).
+ */
+function bws_spike_fold_from_legacy( int $n, array $options ) {
+	$p   = ( 1 === $n ) ? '' : "{$n}-";
+	$src = (string) ( $options[ "{$p}src" ] ?? '' );
+	$ref = (string) ( $options[ "{$p}ref" ] ?? '' );
+	$use = (string) ( $options[ "{$p}use" ] ?? '' );
+	$key = (string) ( $options[ "{$p}key" ] ?? '' );
+	if ( '' === $src && '' === $ref && '' === $use && '' === $key ) {
+		return null;
+	}
+
+	$chain = array();
+	if ( 'ref' === $src ) {
+		$chain[] = array( 'slug' => 'refs', 'arg' => ( '' !== $ref ? $ref : null ), 'limit' => null );
+	} elseif ( 'same' === $src ) {
+		$chain[] = array( 'slug' => 'same', 'arg' => null, 'limit' => null );
+	} elseif ( '' !== $src && 'current' !== $src ) {
+		$chain[] = array( 'slug' => $src, 'arg' => null, 'limit' => null );
+	}
+
+	if ( 'key' === $use || ( '' === $use && '' !== $key && 1 === $n ) ) {
+		$read = array( 'kind' => 'key', 'field' => $key );
+	} elseif ( '' !== $use ) {
+		$read = ( 'same' === $use ) ? array( 'kind' => 'same' ) : array( 'kind' => 'analog', 'slug' => $use );
+	} elseif ( '' === $key ) {
+		$read = ( $n >= 2 ) ? array( 'kind' => 'same' ) : null;   // S1 synth vs slot-1 default
+	} else {
+		// slot ≥2: key set, use absent — ambiguous FW-51 shape. Flag, never guess.
+		return array( 'flag' => "legacy slot $n: key set without use (ambiguous FW-51 shape) — needs author review" );
+	}
+
+	return array(
+		'slot'   => array( 'type' => null, 'chain' => $chain, 'read' => $read, 'extra' => array() ),
+		'legacy' => true,
+	);
+}
+
 // ── Registration ─────────────────────────────────────────────────────────────
 
 /**
@@ -202,8 +257,18 @@ function bws_spike_register_proto_fold_tag(): void {
 		// B3 — the MIGRATED reveal predicate: slot N reveals when the FOLDED
 		// previous value is non-empty (the old {N}-key/{N}-use pair is dead
 		// under the fold; plan L735-738 flags this rewrite as mandatory).
+		// TRANSITION-ERA extension (mount-reconcile finding): an UNMIGRATED tag
+		// has no folded value, so the predicate must ALSO accept the previous
+		// slot's LEGACY keys or the recovering control never reveals — dual-read
+		// applies to the REVEAL layer, not just parse. Drop the legacy rows when
+		// the converter migration completes.
 		if ( $n >= 2 ) {
-			$def['show_if_any'] = array( (string) ( $n - 1 ) => 'not_empty' );
+			$prev_p = ( 2 === $n ) ? '' : ( $n - 1 ) . '-';
+			$def['show_if_any'] = array(
+				(string) ( $n - 1 ) => 'not_empty',
+				"{$prev_p}key"      => 'not_empty',
+				"{$prev_p}use"      => 'not_empty',
+			);
 		}
 		$options[ (string) $n ] = $def;   // B5 — numeric string option keys
 	}
@@ -232,11 +297,24 @@ function bws_spike_register_proto_fold_tag(): void {
 function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 	$out = array();
 	for ( $n = 1; $n <= 3; $n++ ) {
-		$raw = isset( $options[ (string) $n ] ) ? (string) $options[ (string) $n ] : ( isset( $options[ $n ] ) ? (string) $options[ $n ] : '' );
+		$raw    = isset( $options[ (string) $n ] ) ? (string) $options[ (string) $n ] : ( isset( $options[ $n ] ) ? (string) $options[ $n ] : '' );
+		$legacy = false;
 		if ( '' === $raw ) {
-			continue;
+			// Render DUAL-READ: folded value absent → recover from the legacy
+			// separate options via the shared mapping (unrewritten wires render).
+			$rec = bws_spike_fold_from_legacy( $n, $options );
+			if ( null === $rec ) {
+				continue;
+			}
+			if ( isset( $rec['flag'] ) ) {
+				$out[] = sprintf( 'slot %d ⚑ %s', $n, $rec['flag'] );
+				continue;
+			}
+			$slot   = $rec['slot'];
+			$legacy = true;
+		} else {
+			$slot = bws_spike_fold_parse_slot( $raw );
 		}
-		$slot = bws_spike_fold_parse_slot( $raw );
 		if ( isset( $slot['error'] ) ) {
 			$out[] = sprintf( 'slot %d ⚠ %s [raw: %s]', $n, $slot['error'], $raw );
 			continue;
@@ -254,8 +332,9 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 				: ( 'key' === $slot['read']['kind'] ? 'key:' . $slot['read']['field'] : 'analog:' . $slot['read']['slug'] );
 		}
 		$out[] = sprintf(
-			'slot %d { type: %s | chain: %s | read: %s%s }',
+			'slot %d%s { type: %s | chain: %s | read: %s%s }',
 			$n,
+			$legacy ? ' (recovered from legacy)' : '',
 			$slot['type'] ?: '—',
 			$chain,
 			$read,
