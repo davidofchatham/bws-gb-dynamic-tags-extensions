@@ -27,13 +27,20 @@ runs these; run them locally before commit.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
-there is a seeded WP site on the local OpenLiteSpeed/Docker env at `D:/Environments/wp-litespeed`,
-site `testbed`. **Prefer routing integration smoke tests through it over hand-built pages or
-live-site probes.**
+there is a seeded WP site on the local **wp-litespeed** OpenLiteSpeed/Docker env, site `testbed`.
+**Prefer routing integration smoke tests through it over hand-built pages or live-site probes.**
 
-**All `bin/*.sh` commands below live in the ENV repo, not this one — run them from
-`D:/Environments/wp-litespeed`** (e.g. `cd /d/Environments/wp-litespeed && bash bin/seed.sh …`).
-There is no `bin/` in this plugin repo. Two entrypoints:
+**All `bin/*.sh` commands below live in the ENV repo, not this one.** The env moved to WSL2 ext4
+on 2026-07-30 (Windows bind mounts were a ~22x render penalty); run them from the **WSL Ubuntu
+shell** in `~/wp-litespeed` — Windows Git Bash can no longer reach it. Name the env, not its
+location. There is no `bin/` in this plugin repo.
+
+**Location-independent alternative (prefer when scripting):** Docker Desktop shares one daemon
+across Windows and WSL, so addressing the container BY NAME works from either shell unchanged:
+```
+docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && wp <cmd> --allow-root'
+```
+Two entrypoints:
    - **Render a tag with real ambient context:**
      `bin/wp.sh testbed bws render-tag '{{...}}' --url=https://testbed.test/<context>/`
      (`--loop-item=<id>` for a synthetic query-loop row, `--porcelain` for output-only). Runs

@@ -251,8 +251,11 @@ function bws_dynamic_tags_register_all() {
 	// SPIKE B (FW-56/57) — {{proto_fold}} folded-slot + intent-radio prototype.
 	// tools/ is .distignore'd, so the file is absent in released builds; guard
 	// per the CLI-command pattern above. REMOVE when the spike concludes.
+	// BWS_SPIKE_PROTO_OFF is the A/B kill switch (define it true in wp-config to
+	// load the plugin with NO proto tag and NO spike control JS) — used to prove
+	// whether an editor symptom exists independently of the spike.
 	$spike = BWS_DYNAMIC_TAGS_PATH . 'tools/spike/proto-fold-tag.php';
-	if ( file_exists( $spike ) ) {
+	if ( file_exists( $spike ) && ! ( defined( 'BWS_SPIKE_PROTO_OFF' ) && BWS_SPIKE_PROTO_OFF ) ) {
 		require_once $spike;
 		bws_spike_register_proto_fold_tag();
 	}

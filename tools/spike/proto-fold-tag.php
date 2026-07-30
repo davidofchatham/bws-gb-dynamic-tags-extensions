@@ -386,6 +386,10 @@ function bws_spike_proto_fold_enqueue(): void {
 	if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 		return;
 	}
+	// Honor the A/B kill switch even if this file was somehow required.
+	if ( defined( 'BWS_SPIKE_PROTO_OFF' ) && BWS_SPIKE_PROTO_OFF ) {
+		return;
+	}
 	wp_enqueue_script(
 		'bws-spike-proto-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'tools/spike/proto-fold-control.js',
