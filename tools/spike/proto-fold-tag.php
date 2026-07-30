@@ -295,6 +295,13 @@ function bws_spike_register_proto_fold_tag(): void {
  * @return string HTML dump.
  */
 function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
+	// Lockup forensics (2026-07-29 incident): entry/exit markers, BWS_DEBUG_PROTO-
+	// gated. A wedged request shows ENTER with no EXIT + the exact wire; ENTER
+	// absent entirely = the hang is upstream of the callback (GB core).
+	$dbg = defined( 'BWS_DEBUG_PROTO' ) && BWS_DEBUG_PROTO;
+	if ( $dbg ) {
+		error_log( '[proto_fold] ENTER ' . wp_json_encode( $options ) );
+	}
 	$out = array();
 	for ( $n = 1; $n <= 3; $n++ ) {
 		$raw    = isset( $options[ (string) $n ] ) ? (string) $options[ (string) $n ] : ( isset( $options[ $n ] ) ? (string) $options[ $n ] : '' );
@@ -341,6 +348,9 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 			$slot['extra'] ? ' | extra: ' . implode( ' ', $slot['extra'] ) : ''
 		);
 	}
+	if ( $dbg ) {
+		error_log( '[proto_fold] EXIT ' . count( $out ) . ' slots' );
+	}
 	if ( ! $out ) {
 		return '[proto_fold: no slots]';
 	}
@@ -376,3 +386,15 @@ function bws_spike_proto_fold_enqueue(): void {
 	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_spike_proto_fold_enqueue' );
+
+// Lockup forensics: log every dynamic-tag-replacements request BODY before GB
+// dispatches it (BWS_DEBUG_PROTO-gated). Pairs with the callback ENTER/EXIT
+// markers: body logged + no ENTER = hang upstream of the callback (GB core);
+// ENTER + no EXIT = hang inside the callback. Remove with the spike.
+add_filter( 'rest_pre_dispatch', function ( $result, $server, $request ) {
+	if ( defined( 'BWS_DEBUG_PROTO' ) && BWS_DEBUG_PROTO
+		&& false !== strpos( $request->get_route(), 'dynamic-tag-replacements' ) ) {
+		error_log( '[proto_fold] REST body: ' . $request->get_body() );
+	}
+	return $result;
+}, 10, 3 );
