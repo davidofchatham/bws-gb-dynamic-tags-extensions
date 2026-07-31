@@ -317,19 +317,57 @@
 	// multi-hop chain read as N peer objects rather than one path, and stacked
 	// three nested borders deep once the field filters landed. Steps inside the
 	// source group are separated by the same rule the slots use, one level down.
+	// NO marginBottom: the modal content column already applies a 15px row-gap
+	// (.gb-dynamic-tag-modal__content), so a margin of our own double-spaces
+	// against it. Let the host own between-box spacing; the box owns only its
+	// own inset. (Found in trial 2026-07-31 with layout guides on.)
+	// Tinted fill, with INPUTS deliberately white on top of it (trial 2026-07-31):
+	// the group reads as a container and the fields read as fields. Stock
+	// ComboboxControl already paints its own white wrapper, which is the intended
+	// look, not the inset artifact it first appeared to be — so the fill stays and
+	// the other inputs are matched to it rather than the fill being dropped.
 	var GROUP_BOX = {
 		border: '1px solid #e0e0e0', borderRadius: '2px',
-		padding: '10px 12px', marginBottom: '10px', background: 'rgba(0,0,0,0.02)',
+		padding: '12px', background: 'rgba(0,0,0,0.02)',
 	};
 	// Between-step rule INSIDE the source group. Mirrors the slot separator
 	// (which is 2px/#bbb at the outer level) at a lighter weight, so the nesting
-	// reads by weight: slot rule > step rule.
+	// reads by weight: slot rule > step rule. Used between STEPS only — the field
+	// group does not need it (one decision, no internal boundary to draw).
 	var STEP_RULE = { borderTop: '1px solid #ddd', marginTop: '10px', paddingTop: '10px' };
 	// Group caption — same treatment as the slot header's title, one step down.
 	var GROUP_CAP = {
 		fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px',
-		opacity: 0.65, marginBottom: '6px', display: 'block',
+		opacity: 0.65, marginBottom: '10px', display: 'block',
 	};
+	// Stock control labels sit tight against whatever precedes them, so a label
+	// following another control reads as belonging to it. Space the OWNER, not
+	// the label (we do not control the stock components' internal markup).
+	var STACKED = { marginTop: '14px' };
+
+	// ComboboxControl renders grey-plus-white-inset INSIDE its own border when it
+	// sits on a tinted background (trial 2026-07-31). Cause, confirmed against
+	// WP's shipped CSS: `__suggestions-container` carries the BORDER and padding
+	// but declares NO background, so it is transparent — the group's tint shows
+	// through it while the `__input` within paints itself white. One control,
+	// two fills.
+	//
+	// So the fix is that one element, not the outer wrapper: give the bordered
+	// box an opaque white fill and it reads as a single field edge to edge.
+	// Scoped to the spike's own subtree; the stock component is untouched.
+	var COMBO_FILL_CSS =
+		'.bws-proto-fold .components-combobox-control__suggestions-container{background:#fff;}';
+
+	// Inject once per page (spike-only; a real build would ship this in a
+	// stylesheet rather than an inline <style>). DOM-guarded: the compaction
+	// probe loads this file headlessly to test the pure wire logic, so nothing
+	// at module scope may assume a document exists.
+	if ( 'undefined' !== typeof document && ! document.getElementById( 'bws-proto-fold-css' ) ) {
+		var styleEl = document.createElement( 'style' );
+		styleEl.id  = 'bws-proto-fold-css';
+		styleEl.appendChild( document.createTextNode( COMBO_FILL_CSS ) );
+		document.head.appendChild( styleEl );
+	}
 
 	// ── Field-combo bridge (the field FILTERS under the fold) ───────────────
 	//
@@ -742,9 +780,14 @@
 				// Falls back to free text if the shipped control is absent (its JS
 				// is enqueued independently; a spike must not hard-depend on load
 				// order it does not control).
+				// NO internal rule here: the read kind and the field picker are one
+				// decision, so there is no boundary to draw (unlike the source
+				// group, where each step is a separate hop). Spacing alone
+				// separates them — enough to stop the picker's label reading as
+				// part of the select above it.
 				var FieldCombo = window.bwsFieldComboControl;
 				if ( FieldCombo ) {
-					readNodes.push( el( 'div', { key: 'readArg', style: STEP_RULE },
+					readNodes.push( el( 'div', { key: 'readArg', style: STACKED, className: 'bws-proto-fold' },
 						el( FieldCombo, {
 							optionKey:    'key',
 							label:        __( 'Meta/Option Field', 'generateblocks' ),
@@ -755,7 +798,7 @@
 						} )
 					) );
 				} else {
-					readNodes.push( el( 'div', { key: 'readArg', style: STEP_RULE },
+					readNodes.push( el( 'div', { key: 'readArg', style: STACKED },
 						el( TextControl, {
 							label:       __( 'Meta/Option Field Key', 'generateblocks' ),
 							value:       read.field || '',
