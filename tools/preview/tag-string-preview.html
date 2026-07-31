@@ -461,7 +461,9 @@ const PRESETS = {
   ref:             ['ref','rel'],
   label:           ['label','head','col'],
   caption:         ['caption'],
-  srcTerm:         ['srcTerm','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm'],
+  // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
+  // only as a look-back alternative — see docs/deprecated-tags-options.md.
+  srcTermIn:       ['srcTermIn','inTerm','fromTerm','asTerm','useTerm','andTerm','viaTerm','srcTerm'],
   tax:             ['tax','taxonomy','termTax','inTax'],
   use:             ['use','from','field','type','in','get'],
   key:             ['key','meta_key','field_key'],
@@ -1484,8 +1486,13 @@ function renderSlotParts(parts, p, t2p) {
       continue;
     }
     if (id==='_inTerm') {
+      // SHIPPED form is the SINGLE `srcTermIn:<slug>` key. The `srcTerm` (bool) + `tax` (slug)
+      // PAIR it replaced is SUPERSEDED — see docs/deprecated-tags-options.md: the pair collapsed
+      // once `tax` was found to be a GB reserved key that gets silently dropped on cross-source
+      // base tags. Emitting the old pair here made the tool's shipped column show a wire the
+      // plugin no longer serializes (drift caught 2026-07-31 while verifying against render-tag).
       const slug = typeof rv==='string' ? rv : '';
-      out.push(`${p}${kn('srcTerm')}`); if(slug) out.push(`${p}${kn('tax')}:${slug}`);
+      out.push(`${p}${kn('srcTermIn')}${slug?`:${slug}`:''}`);
       continue;
     }
     if (id==='_content_key') {
@@ -1751,7 +1758,7 @@ function buildFoldedTag(group, sc) {
 
 // ── Render: sidebar names ────────────────────────────────────────────────────
 function renderSbNames() {
-  const allIds = ['src','ref','srcTerm','tax','use','key','label','caption','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
+  const allIds = ['src','ref','srcTermIn','tax','use','key','label','caption','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
   const TRY_IDS = new Set([]);
   const el = document.getElementById('sb-names');
   el.innerHTML='';
