@@ -234,6 +234,19 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .snap-del:hover { color: var(--text); }
 
 /* ── Permutations tab ───────────────────── */
+/* Invariant-check surfacing: a per-row badge plus a header summary. Deliberately loud on
+   failure and quiet on success — a stale green tick is worse than no tick. */
+.perm-summary {
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 14px;
+  font-size: 12px; font-weight: 600;
+}
+.perm-summary.ok  { background: #eef7ee; border: 1px solid #cfe6cf; color: #2b6b2b; }
+.perm-summary.bad { background: #fdecec; border: 1px solid #f5c2c2; color: #a11; }
+.perm-issue {
+  margin-top: 4px; font-size: 11px; font-family: ui-monospace, monospace;
+  color: #a11; background: #fdecec; border-left: 3px solid #e88;
+  padding: 3px 8px; border-radius: 0 4px 4px 0;
+}
 .dummy-bar {
   display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
   background: var(--surface); border: 1px solid var(--border);
@@ -435,6 +448,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <div class="dummy-item"><label>rangeSep</label><input id="d-rangeSep" value=" – "></div>
       <div class="dummy-item"><label>format</label><input id="d-format" value="F j, Y"></div>
     </div>
+    <div id="perm-issue-summary" class="perm-summary ok"></div>
     <div id="perm-output"></div>
   </div>
 
@@ -871,9 +885,13 @@ const S = {
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
   // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
   // 1-4 keys survive. No toggle: one src string is the decision.
-  chainSep: {hop:',', step:','},  // chain-value separators. Default BOTH ',' (user 2026-07-28:
-                                  // ',' universal separator, '()' subgrouping). '/' etc kept in
-                                  // SEP_PRESETS for comparison — chars still open, split not.
+  // chain-value separators — APPROVED 2026-07-31, no longer open: HOP ';' · STEP ','.
+  // Principle: separator WEIGHT is inverse to nesting depth, so the heavier ';' divides whole
+  // steps and the lighter ',' divides tokens inside one step. Defaulting BOTH to ',' (the
+  // pre-approval state) made a multi-hop chain read as undifferentiated commas — `refs,x,limit(3)`
+  // looked like four peers instead of one step plus a limit — which is the same illegibility that
+  // got '+' rejected. SEP_PRESETS still offers alternates for look-back only.
+  chainSep: {hop:';', step:','},
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
   // FW-52 canonical order. Three SCHEMAS to eyeball, each a preset of {optSep, kvChar, valWrap,
   // wrapScope}; chars stay switchable. Type always LEADS (primary format option).
@@ -901,13 +919,11 @@ const S = {
   //                                                 key(mobile)/phone,linkTo(permalink)
   //   'sibling'    → link only: separate {N}-linkTo: off the value (transform still piped).
   handlerMode: 'zone',
-  typeSep: '/',       // read↔type-tag separator (rule2/legacy paths).
   valueSep: ',',        // general composite-value glue (as:url,med / use:key,field / linkTo:key,field)
   chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain step BODIES are bare-comma
                         // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
                         // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
                         // decided 2026-07-31; see serializeStep. Not a knob either.
-  chainKvChar: '=',     // (legacy — kv chain mode retired with the radio; kept to avoid ref breaks)
   valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   columns: [],          // table (FW-53) columns: [{label,use,key,chain:[{slug,arg,limit}]}]
@@ -918,6 +934,69 @@ const S = {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function kn(id) { return S.keyNames[id] || id; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Wire INVARIANT CHECK ─────────────────────────────────────────────────────
+// Assert LOCKED grammar properties on a RENDERED tag string, independent of the emitter that
+// produced it. This exists because two emitter bugs (2026-07-31) shipped a wrong bracket char and
+// were caught by user eyeball, not by any check: both harnesses in play had been written from the
+// same wrong premise as the code, so they tested an extraction and passed while the output was
+// malformed. An invariant asserted on the OUTPUT cannot inherit the emitter's assumptions.
+//
+// Checks (all LOCKED, none of them open questions):
+//   1. balanced   — every ( [ closes, in order.
+//   2. alternation— no same-char IMMEDIATE nesting. `(…(…)…)` is malformed; `(…[…]…)` is correct.
+//                   This is the whole point of depth-alternating brackets: it is what keeps depth
+//                   trackable through nesting, which FW-24 (tag-in-slot) depends on.
+//   3. hop/step   — the two chain separators must differ, else a multi-hop chain reads as
+//                   undifferentiated peers (the failure that rejected '+').
+// SCOPE — grammar brackets ONLY. Free-form values (label/format/fallback/sep/…) may contain
+// LITERAL brackets that are author data, not structure: `label(Size (cm))` is correct output, and
+// an unbalanced `label(Note [TBD)` is a known hazard the emitter already flags itself via
+// unbalancedBrackets()/the '⚠' marker. Checking inside those spans made this function report
+// author content as a grammar violation and duplicate an existing check with a wrong diagnosis
+// (caught on first run over real permutations, 2026-07-31). Callers therefore pass `freeform` —
+// the literal value strings the emitter placed in this tag — and each is masked before the walk.
+//
+// PURE + standalone: no DOM, no S mutation. Kept exportable so a console runner (`node check.js`,
+// exit non-zero) can reuse it verbatim at build, and so the PHP port can mirror it 1:1.
+const BR_OPEN = { '(': ')', '[': ']' };
+function checkTag(str, freeform) {
+  const issues = [];
+  const stack = [];
+  // Mask free-form spans to same-length filler so offsets stay stable and their literal
+  // brackets cannot reach the structural walk.
+  let scan = String(str);
+  for (const raw of (freeform || [])) {
+    const v0 = String(raw);
+    if (!v0 || !/[()[\]]/.test(v0)) continue;   // only masks values that could confuse the walk
+    // A free-form value can reach the wire ESCAPED (`\:` / `\|`, see escFreeform) or wrapped by a
+    // schema, so mask every spelling the emitters can produce. Matching only the RAW form left
+    // `fallback(Status\: (pending))` exposed and produced a false positive on first real run.
+    for (const v of new Set([v0, escFreeform(v0), '"' + v0 + '"', '[' + v0 + ']'])) {
+      let at = scan.indexOf(v);
+      while (at !== -1) { scan = scan.slice(0, at) + ' '.repeat(v.length) + scan.slice(at + v.length); at = scan.indexOf(v, at + v.length); }
+    }
+  }
+  for (const ch of scan) {
+    if (BR_OPEN[ch]) {
+      if (stack.length && stack[stack.length - 1] === ch) {
+        issues.push(`same-char nesting: ${ch} directly inside ${ch}`);
+      }
+      stack.push(ch);
+    } else if (ch === ')' || ch === ']') {
+      const want = stack.length ? BR_OPEN[stack[stack.length - 1]] : null;
+      if (want === null)      issues.push(`unbalanced: stray ${ch}`);
+      else if (want !== ch)   issues.push(`mismatched: ${want} expected, got ${ch}`);
+      else                    stack.pop();
+    }
+  }
+  if (stack.length) issues.push(`unbalanced: ${stack.length} unclosed ${stack.join('')}`);
+  if (S.chainSep.hop === S.chainSep.step) {
+    issues.push(`ambiguous separators: hop and step are both '${S.chainSep.hop}'`);
+  }
+  // dedupe — one row repeating the same structural fault ten times is one finding.
+  return [...new Set(issues)];
+}
 
 // Slot prefix LOCKED to `N-` for all slots incl 1 (user 2026-07-29). Used for the sibling/
 // non-folded Configure preview; the FOLDED value key is `N:` (see foldedSlotKey).
@@ -1900,8 +1979,42 @@ function renderSnaps() {
 }
 
 // ── Render: permutations ─────────────────────────────────────────────────────
+// Harvest every FREE-FORM value a scenario feeds into its tag (labels, formats, fallbacks,
+// separators — anything whose content is author data rather than grammar). checkTag masks these
+// before its structural walk so a literal `(cm)` in a label is not read as a bracket.
+function scenarioFreeform(sc) {
+  const out = [];
+  const take = v => { if (typeof v === 'string' && v !== '') out.push(resolveVal(v)); };
+  take(sc.caption);
+  (sc.cols || []).forEach(c => take(c.label));
+  (sc.slots || []).forEach(s => {
+    if (!s || typeof s !== 'object') return;
+    take(s.label);
+    if (s.dtKeys) Object.values(s.dtKeys).forEach(take);
+    take(s.fallback);
+  });
+  (sc.parts || []).forEach(p => { if (Array.isArray(p) && RESPELL_FREEFORM.has(p[0])) take(p[1]); });
+  (sc.rest  || []).forEach(p => { if (Array.isArray(p) && RESPELL_FREEFORM.has(p[0])) take(p[1]); });
+  // dummy values that are free-form by nature and can carry punctuation
+  ['fallback','rangeSep','format'].forEach(k => take(S.dummies[k]));
+  return out;
+}
+
+// Attach an invariant-violation badge to a rendered string element, if it violates anything.
+// Returns the number of issues so callers can total them for the header.
+function flagIssues(container, str, freeform) {
+  const issues = checkTag(str, freeform);
+  if (!issues.length) return 0;
+  const b = document.createElement('div');
+  b.className = 'perm-issue';
+  b.textContent = '⚠ ' + issues.join(' · ');
+  container.appendChild(b);
+  return issues.length;
+}
+
 function renderPerms() {
   const el=document.getElementById('perm-output'); el.innerHTML='';
+  let totalIssues = 0;
   SCENARIO_GROUPS.forEach(group=>{
     const div=document.createElement('div'); div.className='perm-group';
     const title=document.createElement('div'); title.className='perm-group-title'; title.textContent=group.title;
@@ -1924,15 +2037,32 @@ function renderPerms() {
         stack.appendChild(mk('shipped', pair.shipped ?? '— no shipped equivalent —', pair.shipped?'':'perm-none'));
         stack.appendChild(mk('chain', pair.chained, 'perm-chain'));
         if (pair.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '+pair.note; stack.appendChild(n); }
+        // Only the PROPOSED string is checked: the shipped wire predates the locked grammar and
+        // legitimately does not satisfy it (no brackets at all), so checking it would be noise.
+        totalIssues += flagIssues(stack, pair.chained, scenarioFreeform(sc));
         row.appendChild(stack);
       } else {
-        const str=document.createElement('div'); str.className='perm-str'; str.textContent=buildPermTag(group,sc);
+        const tag=buildPermTag(group,sc);
+        const str=document.createElement('div'); str.className='perm-str'; str.textContent=tag;
         row.appendChild(str);
+        totalIssues += flagIssues(row, tag, scenarioFreeform(sc));
       }
       tags.appendChild(row);
     });
     div.appendChild(tags); el.appendChild(div);
   });
+  renderIssueSummary(totalIssues);
+}
+
+// Header banner: silent when clean, loud when not. Placed above the groups so a violation is
+// visible without scrolling the full permutation list.
+function renderIssueSummary(n) {
+  const bar = document.getElementById('perm-issue-summary');
+  if (!bar) return;
+  bar.className = n ? 'perm-summary bad' : 'perm-summary ok';
+  bar.textContent = n
+    ? `⚠ ${n} invariant violation${n===1?'':'s'} in rendered tags — see flagged rows`
+    : '✓ all rendered tags satisfy the locked wire invariants';
 }
 
 // ── Template/mode switches ───────────────────────────────────────────────────
