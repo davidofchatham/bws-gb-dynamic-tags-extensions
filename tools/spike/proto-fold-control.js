@@ -621,12 +621,9 @@
 			}, advisory ) );
 		}
 
-		children.push( el( 'div', {
-			key:   'hdr',
-			// Slot rule is the HEAVIEST (2px/#bbb): outer level. Step rules inside
-			// the source group are 1px/#ddd, so nesting reads by weight.
-			style: { margin: '14px 0 0', borderTop: '2px solid #bbb', paddingTop: '10px' },
-		}, headerKids ) );
+		// No top rule here — the slot's rule CLOSES it (see 'rule' below). The
+		// modal column's row-gap supplies the separation above.
+		children.push( el( 'div', { key: 'hdr' }, headerKids ) );
 
 		if ( showSource ) {
 			// PER-STEP controls. The wire supports an ordered chain
@@ -909,6 +906,25 @@
 		// Wire echo — spike-only debug aid so the value rewrite is visible live.
 		children.push( el( 'code', { key: 'echo', style: { display: 'block', opacity: 0.55, fontSize: '11px', margin: '0 0 10px' } },
 			key + ':' + ( state[ key ] || '∅' ) + ( recovered ? '  [legacy → ' + serializeSlot( slot ) + ']' : '' ) ) );
+
+		// SLOT RULE CLOSES the slot rather than opening it (2026-07-31). A leading
+		// rule made slot 1 open with a divider directly under the tag description,
+		// which read as chrome belonging to the header — and it is unlike every
+		// single-slot tag, where nothing precedes the first control. Closing each
+		// slot instead means the rule always follows content it summarises, and on
+		// the last slot it lands above Add slot, separating the repeater's
+		// add affordance from the slot it would extend.
+		//
+		// Heaviest rule in the control (2px/#bbb): step rules inside the source
+		// group are 1px/#ddd, so nesting still reads by weight.
+		// Suppressed on the final slot when no Add button follows (ceiling
+		// reached) — a closing rule with nothing after it just dangles.
+		if ( ! isLast || count < MAX_SLOTS ) {
+			children.push( el( 'div', {
+				key:   'rule',
+				style: { borderTop: '2px solid #bbb', margin: '4px 0 12px' },
+			} ) );
+		}
 
 		// ADD lives on the LAST slot only — one add affordance per tag, always at
 		// the bottom of the stack, which is where a repeater's "add another"
