@@ -415,7 +415,12 @@ function bws_spike_proto_fold_enqueue(): void {
 	wp_enqueue_script(
 		'bws-spike-proto-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'tools/spike/proto-fold-control.js',
-		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n' ),
+		// Depends on the SHIPPED field-combo control: the spike renders it directly
+		// (bridged through a synthetic context) for the slot's field picker, so the
+		// `window.bwsFieldComboControl` export must exist first. The spike degrades
+		// to free text if it does not, so this is an ordering guarantee, not a hard
+		// requirement.
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-i18n', 'bws-dynamic-tags-field-combo-control' ),
 		BWS_DYNAMIC_TAGS_VERSION . '-spike',
 		true
 	);

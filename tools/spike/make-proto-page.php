@@ -99,6 +99,25 @@ $sections[] = $section( 'PF-R — repeater: add / out-of-order remove with compa
 	$row_host( 'PFr8 [INCOMPLETE HOP mid-chain: hop 1 complete, hop 2 argless — flag must attach to hop 2 only]',
 		'{{proto_fold 1:key(staff_name)|2:src(refs,office+refs);key(city)}}' ),
 ) );
+// FIELD FILTERS under the fold (2026-07-31). The slot's field picker is now the
+// SHIPPED bws-field-combo (Location + Type filters + discovery combobox), bridged
+// through a synthetic context. What is under test is the kind PRESET: legacy read
+// a sibling `src` token, but under the fold the source is a chain, so the preset
+// must derive from the chain's TERMINAL step. These rows vary that terminal.
+// EDITOR-ONLY rows — open each and read the Location filter's default + the
+// dynamic label above the combobox; the front end only shows the resolved wire.
+$sections[] = $section( 'PF-F — field filters under the fold (terminal-step kind preset)', array(
+	$row_host( 'PFf1 [terminal src:site — Location filter should preset to Site, label "Site Option Field"]',
+		'{{proto_fold 1:src(site);key(company_name)}}' ),
+	$row_host( 'PFf2 [terminal src:current — no kind assertion; Location "All detected", generic label]',
+		'{{proto_fold 1:src(current);key(staff_name)}}' ),
+	$row_host( 'PFf3 [terminal refs — deliberately NOT preset (SPEC V3: hop target PT unknown); expect unscoped + generic label]',
+		'{{proto_fold 1:src(refs,office);key(city)}}' ),
+	$row_host( 'PFf4 [MULTI-HOP terminal: preset must follow the LAST step (site), not the first (refs). Chain is deliberately odd - a site terminal discards the hop - it tests preset SOURCING, not a sane authoring shape]',
+		'{{proto_fold 1:src(refs,office+site);key(company_name)}}' ),
+	$row_host( 'PFf5 [slot 2 with its OWN terminal — each slot presets independently, no bleed from slot 1]',
+		'{{proto_fold 1:src(site);key(company_name)|2:src(current);key(staff_name)}}' ),
+) );
 $sections[] = $section( 'PF-C — editor playground (insert/edit proto_fold blocks here)', array(
 	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag; expect 2 slots + Add slot]', '-' ),
 ) );

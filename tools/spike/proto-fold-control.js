@@ -311,6 +311,72 @@
 		{ value: 'key',   label: __( 'Meta/Option Field', 'generateblocks' ) },
 	];
 
+	// ── Field-combo bridge (the field FILTERS under the fold) ───────────────
+	//
+	// THE PROBLEM: the shipped `bws-field-combo` control (Location filter + Type
+	// filter + discovery combobox, ~760 lines) mounts per OPTION KEY and commits
+	// with `upd[key] = value`. Under the fold there IS no `{N}-key` option — the
+	// field lives INSIDE the slot value's `key(...)` token, owned by this control.
+	// Two controls cannot own one key, and reimplementing discovery in the spike
+	// would be both wasteful and a fidelity lie (the filters ARE the surface under
+	// test).
+	//
+	// THE SEAM: FieldComboControl is a plain component taking `{optionKey, context}`
+	// and touching state in exactly four places — `state[key]` (its own value),
+	// `state[p+'src']` + `state[p+'srcTermIn']` (sibling source, for the Location
+	// filter's kind preset), and `state.key` (tag-level repeater scope). So it can
+	// be driven by a SYNTHETIC context that presents folded state in the legacy
+	// shape it expects and funnels writes back into the folded value. No change to
+	// the shipped control — which is the point: if the bridge needs the control
+	// modified, the fold has broken it, and that is a finding.
+	//
+	// The kind preset is the interesting translation. Legacy read sibling `src`
+	// tokens; under the fold the source is the CHAIN, so the preset must derive
+	// from the chain's TERMINAL step (the step whose output the read applies to) —
+	// FW-56's stated editor-UX floor, exercised here for real.
+	function foldedFieldContext( slot, state, commitRead ) {
+		var terminal = slot.chain.length ? slot.chain[ slot.chain.length - 1 ] : null;
+		var synth    = {};
+
+		// NOTE — a real NAME COLLISION the fold exposes, worth recording even
+		// though the spike sidesteps it: the shipped control reads the BARE `key`
+		// two different ways. Under `scope:'row'` it is the TAG-LEVEL repeater
+		// name (field-combo-control.js:529); otherwise it is the control's own
+		// value. Legacy kept those apart by prefix — a slot's own key was `{N}-key`,
+		// never bare. Under the fold every slot's field arrives as bare `key` in
+		// the synthetic context, so both readings would land on one name. The
+		// spike does not pass `scope:'row'`, so only the value reading is live
+		// here; a real build combining the fold with {{table}}'s row-scoped columns
+		// must disambiguate (pass the repeater name as an explicit prop rather
+		// than smuggling it through state).
+
+		// Present the terminal step in the legacy sibling shape the preset reads.
+		// `refs` is deliberately NOT preset (SPEC V3: the hop target's post type is
+		// not reliably known until ref-hop parity), matching legacy behavior — so
+		// leaving it unmapped is correct, not an omission.
+		if ( terminal ) {
+			if ( 'site' === terminal.slug )      { synth.src = 'site'; }
+			else if ( 'termIn' === terminal.slug ) { synth.srcTermIn = terminal.arg || '1'; }
+			else if ( 'same' !== terminal.slug ) { synth.src = terminal.slug; }
+		}
+
+		// The control's own value: the folded read's field, under the bare `key`
+		// name it mounts on.
+		var read = slot.read;
+		synth.key = ( read && 'key' === read.kind ) ? ( read.field || '' ) : '';
+
+		return {
+			state: synth,
+			// FieldComboControl commits `upd.key = <field>` (or deletes it). Funnel
+			// that single key back into the folded read; ignore everything else it
+			// might carry, since the synthetic siblings are display-only.
+			setState: function ( upd ) {
+				var next = ( upd && 'undefined' !== typeof upd.key ) ? upd.key : '';
+				commitRead( next );
+			},
+		};
+	}
+
 	function ProtoFoldControl( props ) {
 		var ctx      = props.context;
 		var state    = ctx.state || {};
@@ -633,16 +699,41 @@
 				__nextHasNoMarginBottom: true,
 			} ) );
 			if ( read && 'key' === read.kind ) {
-				children.push( el( TextControl, {
-					key:         'readArg',
-					label:       key + ': ' + __( 'Meta/Option Field Key', 'generateblocks' ),
-					value:       read.field || '',
-					placeholder: 'field_name',
-					onChange:    function ( v ) {
-						write( { chain: slot.chain.slice(), read: { kind: 'key', field: v } } );
-					},
-					__nextHasNoMarginBottom: true,
-				} ) );
+				// THE FIELD FILTERS, bridged. Renders the SHIPPED bws-field-combo
+				// (Location filter + Type filter + discovery combobox) against a
+				// synthetic context, rather than the spike's old bare TextControl —
+				// so what is under test is the real surface, including whether the
+				// Location filter's kind preset still works when its input is a
+				// chain terminal instead of a sibling `src` token.
+				//
+				// Falls back to free text if the shipped control is absent (its JS
+				// is enqueued independently; a spike must not hard-depend on load
+				// order it does not control).
+				var FieldCombo = window.bwsFieldComboControl;
+				if ( FieldCombo ) {
+					children.push( el( 'div', { key: 'readArg' },
+						el( FieldCombo, {
+							optionKey:    'key',
+							label:        __( 'Meta/Option Field', 'generateblocks' ),
+							dynamicLabel: true,
+							context:      foldedFieldContext( slot, state, function ( field ) {
+								write( { chain: slot.chain.slice(), read: { kind: 'key', field: field } } );
+							} ),
+						} )
+					) );
+				} else {
+					children.push( el( TextControl, {
+						key:         'readArg',
+						label:       key + ': ' + __( 'Meta/Option Field Key', 'generateblocks' ),
+						value:       read.field || '',
+						placeholder: 'field_name',
+						help:        __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
+						onChange:    function ( v ) {
+							write( { chain: slot.chain.slice(), read: { kind: 'key', field: v } } );
+						},
+						__nextHasNoMarginBottom: true,
+					} ) );
+				}
 			}
 		}
 

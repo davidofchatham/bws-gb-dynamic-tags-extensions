@@ -758,4 +758,12 @@
 		fieldComboFilter
 	);
 
+	// Expose the component for COMPOSITION by other controls. The filter above
+	// mounts it per option key, which assumes the field key IS an option — true
+	// today, but not when a composite control owns a folded value that carries the
+	// field key inside it (FW-57). Such a parent renders this component directly
+	// against a synthetic context instead. Export only; no behavior change, and
+	// the mount path above is untouched.
+	window.bwsFieldComboControl = FieldComboControl;
+
 } )();
