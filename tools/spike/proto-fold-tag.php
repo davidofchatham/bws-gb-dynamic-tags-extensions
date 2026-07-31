@@ -52,6 +52,15 @@ const BWS_SPIKE_FOLD_BR_OPEN    = '(';
 const BWS_SPIKE_FOLD_BR_CLOSE   = ')';
 const BWS_SPIKE_FOLD_BR_PAIRS   = array( '(' => ')', '[' => ']' );
 
+// Repeater ceiling. GB registers options STATICALLY, so a control can never mint
+// a new option key at runtime — "add slot" can only fill a key that already
+// exists. Register generously; unused keys cost one registry row each and never
+// serialize (delete-omit). 8 is arbitrary-but-ample for the spike.
+const BWS_SPIKE_FOLD_MAX_SLOTS  = 8;
+
+// Slots always visible before the author adds any (the "starts with 2" rule).
+const BWS_SPIKE_FOLD_MIN_SLOTS  = 2;
+
 /**
  * Balance-aware tokenize of a slot value on the opt-sep (Spike A port).
  *
@@ -248,29 +257,26 @@ function bws_spike_register_proto_fold_tag(): void {
 	$registered = true;
 
 	$options = array();
-	for ( $n = 1; $n <= 3; $n++ ) {
-		$def = array(
+	for ( $n = 1; $n <= BWS_SPIKE_FOLD_MAX_SLOTS; $n++ ) {
+		// REPEATER MODEL (2026-07-30): NO show_if_any. The earlier build gated
+		// slot N on slot N-1's value (plus legacy sibling keys), which made
+		// cardinality a side effect of content — a slot could not exist while
+		// empty, so "add" and "configure" were the same act and out-of-order
+		// REMOVE left a hole that silently re-gated everything after it.
+		//
+		// Under the repeater the control owns cardinality outright: slots 1..2
+		// always render, slot N≥3 renders when it HOLDS A VALUE, and the add
+		// button creates that value (the `src(same);use(same)` seed). Reveal is
+		// therefore still "non-empty" — but the control, not the author's
+		// configuration progress, decides when that becomes true.
+		//
+		// Registration keeps every key up to the ceiling so the control always
+		// has a real key to write into; GB cannot mint option keys at runtime.
+		$options[ (string) $n ] = array(
 			'type'  => 'bws-proto-fold',
 			/* translators: %d: slot number */
 			'label' => sprintf( 'Slot %d (folded)', $n ),
-		);
-		// B3 — the MIGRATED reveal predicate: slot N reveals when the FOLDED
-		// previous value is non-empty (the old {N}-key/{N}-use pair is dead
-		// under the fold; plan L735-738 flags this rewrite as mandatory).
-		// TRANSITION-ERA extension (mount-reconcile finding): an UNMIGRATED tag
-		// has no folded value, so the predicate must ALSO accept the previous
-		// slot's LEGACY keys or the recovering control never reveals — dual-read
-		// applies to the REVEAL layer, not just parse. Drop the legacy rows when
-		// the converter migration completes.
-		if ( $n >= 2 ) {
-			$prev_p = ( 2 === $n ) ? '' : ( $n - 1 ) . '-';
-			$def['show_if_any'] = array(
-				(string) ( $n - 1 ) => 'not_empty',
-				"{$prev_p}key"      => 'not_empty',
-				"{$prev_p}use"      => 'not_empty',
-			);
-		}
-		$options[ (string) $n ] = $def;   // B5 — numeric string option keys
+		);   // B5 — numeric string option keys
 	}
 
 	// Suspect-2 probe (lockup triage 2026-07-29): render the SAME parse as plain
@@ -320,7 +326,7 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 		: array( 'flag' => '⚑', 'warn' => '⚠', 'arrow' => ' → ', 'join' => ' ‖ ', 'dash' => '—' );
 
 	$out = array();
-	for ( $n = 1; $n <= 3; $n++ ) {
+	for ( $n = 1; $n <= BWS_SPIKE_FOLD_MAX_SLOTS; $n++ ) {
 		$raw    = isset( $options[ (string) $n ] ) ? (string) $options[ (string) $n ] : ( isset( $options[ $n ] ) ? (string) $options[ $n ] : '' );
 		$legacy = false;
 		if ( '' === $raw ) {
@@ -343,11 +349,27 @@ function bws_spike_proto_fold_callback( $options, $block, $instance ): string {
 			$out[] = sprintf( 'slot %d %s %s [raw: %s]', $n, $g['warn'], $slot['error'], $raw );
 			continue;
 		}
+		// UNSET-MEANS-CURRENT WAS THE BUG (2026-07-30): an untouched slot ≥2 fell
+		// to ambient context, so it silently RESET rather than inheriting — the
+		// worst of both worlds (looks configured, resolves elsewhere). Under the
+		// explicit-seed model an added slot always carries `src(same)`, so a bare
+		// empty chain on slot ≥2 is now a MALFORMED wire, not a default. Flag it
+		// rather than resolving it. Slot 1 has no predecessor, so empty there is
+		// genuinely "current" and stays legal.
 		$chain = empty( $slot['chain'] )
-			? 'current'
-			: implode( $g['arrow'], array_map( static function ( $s ) {
+			? ( $n >= 2
+				? $g['warn'] . ' unset (no src token — hand-edited? slot ≥2 must state src(same) or a real source)'
+				: 'current' )
+			: implode( $g['arrow'], array_map( static function ( $s ) use ( $g ) {
+				// INCOMPLETE HOP: `refs` with no reference field has nothing to hop
+				// THROUGH, so it silently resolves to nothing. Same class as the
+				// unset-chain shape above — flag it rather than rendering a bare
+				// `refs` that looks configured (seen in editor trial 2026-07-31,
+				// wire `2:src(refs);use(same)`).
+				$incomplete = ( 'refs' === $s['slug'] && ( null === $s['arg'] || '' === $s['arg'] ) );
 				return $s['slug']
 					. ( null !== $s['arg'] ? ':' . $s['arg'] : '' )
+					. ( $incomplete ? ' ' . $g['warn'] . ' no reference field' : '' )
 					. ( null !== $s['limit'] ? ' (limit ' . $s['limit'] . ')' : '' );
 			}, $slot['chain'] ) );
 		$read = 'default (implicit)';

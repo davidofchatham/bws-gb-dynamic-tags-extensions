@@ -77,8 +77,30 @@ $sections[] = $section( 'PF-M — multi-hop chains (per-step controls)', array(
 	$row_host( 'PFm2 [3-hop + start-kind + limit: post,9999 -> refs,5 -> refs]', '{{proto_fold 1:src(post,9999+refs,related_staff,5+refs,office);use(title)}}' ),
 	$row_host( 'PFm3 [slot 2 multi-hop w/ inherit read (Path A)]', '{{proto_fold 1:key(staff_name)|2:src(refs,office+refs,region);use(same)}}' ),
 ) );
+// REPEATER rows (2026-07-30): add/remove slot cardinality replaced the show_if
+// reveal chain + intent radio. The interesting cases are all in the EDITOR — open
+// each block, use Remove/Add, and read the wire echo under each slot. The front
+// end shows what the wire currently resolves to (and flags malformed shapes).
+$sections[] = $section( 'PF-R — repeater: add / out-of-order remove with compaction', array(
+	$row_host( 'PFr1 [4 slots, all distinct: remove slot 2 -> expect 3 slots, old 3+4 slide to 2+3, NO hole]',
+		'{{proto_fold 1:key(staff_name)|2:src(refs,office);key(city)|3:src(refs,region);key(name)|4:src(post,9999);use(title)}}' ),
+	$row_host( 'PFr2 [MATERIALIZATION: slot 3 inherits src from slot 2 — removing slot 2 must make slot 3 state refs,office explicitly, not re-point same at slot 1]',
+		'{{proto_fold 1:key(staff_name)|2:src(refs,office);key(city)|3:src(same);key(region_name)}}' ),
+	$row_host( 'PFr3 [PROMOTION: slot 2 inherits BOTH axes — removing slot 1 promotes it to position 1, where same is illegal; expect both axes materialized from old slot 1]',
+		'{{proto_fold 1:src(refs,office);key(city)|2:src(same);use(same)}}' ),
+	$row_host( 'PFr4 [SEED shape: what Add slot writes — inherits both axes, resolves same as slot 1, advisory should say so]',
+		'{{proto_fold 1:key(staff_name)|2:src(same);use(same)}}' ),
+	$row_host( 'PFr5 [MALFORMED: slot 2 has no src token (the old unset-means-current shape) — must FLAG, not silently resolve to ambient]',
+		'{{proto_fold 1:key(staff_name)|2:key(city)}}' ),
+	$row_host( 'PFr6 [FLOOR: single serialized slot still renders 2 slots in editor; slot 2 empty until Add/configure]',
+		'{{proto_fold 1:key(staff_name)}}' ),
+	$row_host( 'PFr7 [INCOMPLETE HOP: refs with no reference field — must FLAG, not render a bare refs that looks configured]',
+		'{{proto_fold 1:key(staff_name)|2:src(refs);use(same)}}' ),
+	$row_host( 'PFr8 [INCOMPLETE HOP mid-chain: hop 1 complete, hop 2 argless — flag must attach to hop 2 only]',
+		'{{proto_fold 1:key(staff_name)|2:src(refs,office+refs);key(city)}}' ),
+) );
 $sections[] = $section( 'PF-C — editor playground (insert/edit proto_fold blocks here)', array(
-	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag]', '-' ),
+	$row( 'PF9 [start empty: open editor, add a Text block, insert Proto Fold tag; expect 2 slots + Add slot]', '-' ),
 ) );
 
 $content = implode( "\n\n", $sections );
