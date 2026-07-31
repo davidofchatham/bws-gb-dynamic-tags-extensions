@@ -120,6 +120,33 @@ var seedOk = 'src(same);use(same)' === seed;
 if ( ! seedOk ) { fail++; }
 console.log( ( seedOk ? 'PASS  ' : 'FAIL  ' ) + 'seed shape = src(same);use(same)   got: ' + seed );
 
+// An UNCONFIGURED floor-visible slot 2 must mount in the same all-inherit state
+// the Add-slot button writes — NOT `{chain:[], read:null}`, which displayed
+// "Default (intrinsic analog)" and is the silent-reset shape the renderer flags
+// (trial 2026-07-31, PFf2).
+//
+// Reimplements the control's position-aware fallback (it lives inside the
+// mounted component and cannot be called headlessly), so this asserts the RULE:
+// slot 1 unconfigured = empty/current, slot >=2 unconfigured = the seed.
+function mountDefault( ordinal ) {
+	return X.serializeSlot(
+		ordinal >= 2 ? X.seedSlot() : { chain: [], read: null }
+	) || '(empty — current, no read)';
+}
+var MOUNT_CASES = [
+	[ 1, '(empty — current, no read)' ],
+	[ 2, 'src(same);use(same)' ],
+	[ 3, 'src(same);use(same)' ],
+];
+MOUNT_CASES.forEach( function ( c ) {
+	var got = mountDefault( c[ 0 ] );
+	var ok  = got === c[ 1 ];
+	if ( ! ok ) { fail++; }
+	console.log( ( ok ? 'PASS  ' : 'FAIL  ' ) +
+		'unconfigured slot ' + c[ 0 ] + ' mounts as: ' + got );
+	if ( ! ok ) { console.log( '        want  : ' + c[ 1 ] ); }
+} );
+
 // ── HOP removal (writeChainAt's delete branch) ──────────────────────────────
 // Reimplemented here rather than imported: writeChainAt closes over the mounted
 // control's props, so it cannot be called headlessly. This mirrors ITS RULES —
@@ -155,6 +182,6 @@ HOP_CASES.forEach( function ( c ) {
 	if ( ! ok ) { console.log( '        want  : ' + c[ 4 ] ); }
 } );
 
-var total = CASES.length + 1 + HOP_CASES.length;
+var total = CASES.length + 1 + HOP_CASES.length + MOUNT_CASES.length;
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

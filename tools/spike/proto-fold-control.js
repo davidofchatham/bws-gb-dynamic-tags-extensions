@@ -361,7 +361,14 @@
 	// box an opaque white fill and it reads as a single field edge to edge.
 	// Scoped to the spike's own subtree; the stock component is untouched.
 	var COMBO_FILL_CSS =
-		'.bws-proto-fold .components-combobox-control__suggestions-container{background:#fff;}';
+		'.bws-proto-fold .components-combobox-control__suggestions-container{background:#fff;}' +
+		// The combobox's own LABEL sits flush against the two filter selects above
+		// it, so it reads as belonging to them rather than to the field picker it
+		// names. The label lives inside the shipped control's markup, so the
+		// wrapper's margin cannot reach it — space it here. Scoped to the spike's
+		// subtree; a real build would own this in its stylesheet.
+		'.bws-proto-fold .components-combobox-control .components-base-control__label' +
+		'{margin-top:12px;display:inline-block;}';
 
 	// Inject once per page (spike-only; a real build would ship this in a
 	// stylesheet rather than an inline <style>). DOM-guarded: the compaction
@@ -477,7 +484,18 @@
 			if ( rec && rec.flag ) { legacyFlag = rec.flag; }
 			else if ( rec )        { slot = rec.slot; recovered = true; }
 		}
-		slot = slot || { chain: [], read: null };
+		// UNCONFIGURED-SLOT DEFAULT is position-aware (2026-07-31). A blanket
+		// `{chain: [], read: null}` gave the floor-visible slot 2 an empty chain
+		// and a default read — which is precisely the silent-reset shape the
+		// renderer now FLAGS as malformed: it displayed "Default (intrinsic
+		// analog)" and would have resolved against ambient context rather than
+		// inheriting. Slot ≥2 mounts as the same all-inherit state the Add-slot
+		// seed writes, so an untouched slot 2 reads (and would serialize)
+		// identically whether it arrived by the floor or by the button.
+		//
+		// Slot 1 keeps the empty default: it has no predecessor, so `current` is
+		// genuinely its unset state.
+		slot = slot || ( ordinal >= 2 ? seedSlot() : { chain: [], read: null } );
 
 		// REPEATER CARDINALITY (2026-07-30): the intent radio is GONE. It was a
 		// per-slot ephemeral signpost that also drove axis VISIBILITY, which
@@ -688,12 +706,13 @@
 
 				stepKids.push( el( SelectControl, {
 					key: 'src',
-					// The group caption already says "Source" on a single-step
-					// chain, so the inner label would just repeat it (it did, in
-					// trial — `label: null` still renders the element, so the prop
-					// must be ABSENT, not null). Multi-step chains keep it because
-					// each step is its own source pick.
-					label:    chain.length > 1 ? __( 'Source', 'generateblocks' ) : undefined,
+					// Label is ALWAYS present (screen readers need it; omitting the
+					// prop leaves the control unlabelled). On a single-step chain
+					// the group caption says the same word, so the visible copy is
+					// suppressed there instead — see the caption below, which
+					// renders only for multi-step chains.
+					label:               __( 'Source', 'generateblocks' ),
+					hideLabelFromVision: chain.length <= 1,
 					value:    wireToEngine( step.slug ),
 					options:  srcRows(),
 					onChange: function ( v ) {
