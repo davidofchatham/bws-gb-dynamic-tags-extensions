@@ -584,7 +584,7 @@
 					? el( Button, {
 						key:      'rm',
 						variant:  'tertiary',
-						isSmall:  true,
+						size:     'small',
 						isDestructive: true,
 						onClick:  removeSelf,
 					}, __( 'Remove', 'generateblocks' ) )
@@ -697,7 +697,7 @@
 						el( Button, {
 							key:           'rm',
 							variant:       'tertiary',
-							isSmall:       true,
+							size:          'small',
 							isDestructive: true,
 							onClick:       function () { writeChainAt( i, null ); },
 						}, __( 'Remove step', 'generateblocks' ) ),
@@ -800,7 +800,7 @@
 					style: { marginTop: '8px' },
 				}, el( Button, {
 					variant: 'tertiary',
-					isSmall: true,
+					size: 'small',
 					onClick: function () {
 						write( { chain: chain.concat( [ { slug: 'refs', arg: null, limit: null } ] ), read: slot.read } );
 					},
@@ -904,11 +904,15 @@
 		// the bottom of the stack, which is where a repeater's "add another"
 		// belongs. Writing the seed is the whole operation (no arming state).
 		if ( isLast && count < MAX_SLOTS ) {
+			// Sizing follows the one in-repo precedent — the media picker's
+			// primary action (image-tag-controls.js:78): `secondary` at DEFAULT
+			// size. It was `isSmall` here only because the spike treated it as
+			// quiet chrome, which fights its role: this is the repeater's primary
+			// affordance and the only way to grow the tag. (`isSmall` is also the
+			// back-compat spelling — current Gutenberg reconciles it onto `size`.)
 			children.push( el( Button, {
 				key:     'addslot',
 				variant: 'secondary',
-				isSmall: true,
-				style:   { marginBottom: '12px' },
 				onClick: addSlot,
 			}, '+ ' + __( 'Add slot', 'generateblocks' ) ) );
 		}
