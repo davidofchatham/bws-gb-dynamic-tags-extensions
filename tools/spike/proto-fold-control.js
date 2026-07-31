@@ -519,26 +519,30 @@
 		// is no "can only remove the last one" restriction (the point of the
 		// exercise). Slots 1..MIN_SLOTS have no remove because the tag always has
 		// at least two.
-		children.push( el( 'div', {
-			key:   'hdr',
-			// Slot rule is the HEAVIEST (2px/#bbb): outer level. Step rules inside
-			// the source group are 1px/#ddd, so nesting reads by weight.
-			style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-			         gap: '8px', margin: '14px 0 8px', borderTop: '2px solid #bbb', paddingTop: '10px' },
-		}, [
-			el( 'strong', { key: 'ttl', style: { fontSize: '12px', textTransform: 'uppercase',
-			                                     letterSpacing: '0.4px' } },
-				( props.label || ( __( 'Slot', 'generateblocks' ) + ' ' + key ) ) ),
-			count > MIN_SLOTS
-				? el( Button, {
-					key:      'rm',
-					variant:  'tertiary',
-					isSmall:  true,
-					isDestructive: true,
-					onClick:  removeSelf,
-				}, __( 'Remove', 'generateblocks' ) )
-				: null,
-		] ) );
+		// The advisory rides INSIDE the header container rather than as its own
+		// child of the control (trial 2026-07-31): the modal column's 15px
+		// row-gap applies between children, so a standalone advisory was pushed a
+		// full gap away from the title it describes. Nested here, it sits tight
+		// under the title and the gap falls after the whole header block.
+		var headerKids = [
+			el( 'div', {
+				key:   'row',
+				style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' },
+			}, [
+				el( 'strong', { key: 'ttl', style: { fontSize: '12px', textTransform: 'uppercase',
+				                                     letterSpacing: '0.4px' } },
+					( props.label || ( __( 'Slot', 'generateblocks' ) + ' ' + key ) ) ),
+				count > MIN_SLOTS
+					? el( Button, {
+						key:      'rm',
+						variant:  'tertiary',
+						isSmall:  true,
+						isDestructive: true,
+						onClick:  removeSelf,
+					}, __( 'Remove', 'generateblocks' ) )
+					: null,
+			] ),
+		];
 
 		// ADVISORY (not a gate): describe what this slot varies vs its
 		// predecessor. Pure read of the wire — the former radio's only surviving
@@ -555,11 +559,18 @@
 			if ( ! advisory ) {
 				advisory = __( 'Inherits both axes — this slot duplicates the previous one until you change something.', 'generateblocks' );
 			}
-			children.push( el( 'p', {
+			headerKids.push( el( 'p', {
 				key:   'adv',
-				style: { fontSize: '11px', opacity: 0.7, margin: '0 0 6px' },
+				style: { fontSize: '11px', opacity: 0.7, margin: '4px 0 0' },
 			}, advisory ) );
 		}
+
+		children.push( el( 'div', {
+			key:   'hdr',
+			// Slot rule is the HEAVIEST (2px/#bbb): outer level. Step rules inside
+			// the source group are 1px/#ddd, so nesting reads by weight.
+			style: { margin: '14px 0 0', borderTop: '2px solid #bbb', paddingTop: '10px' },
+		}, headerKids ) );
 
 		if ( showSource ) {
 			// PER-STEP controls. The wire supports an ordered chain
@@ -648,9 +659,11 @@
 				stepKids.push( el( SelectControl, {
 					key: 'src',
 					// The group caption already says "Source" on a single-step
-					// chain, so the inner label would just repeat it; multi-step
-					// chains keep it because each step is its own source pick.
-					label:    chain.length > 1 ? __( 'Source', 'generateblocks' ) : null,
+					// chain, so the inner label would just repeat it (it did, in
+					// trial — `label: null` still renders the element, so the prop
+					// must be ABSENT, not null). Multi-step chains keep it because
+					// each step is its own source pick.
+					label:    chain.length > 1 ? __( 'Source', 'generateblocks' ) : undefined,
 					value:    wireToEngine( step.slug ),
 					options:  srcRows(),
 					onChange: function ( v ) {
