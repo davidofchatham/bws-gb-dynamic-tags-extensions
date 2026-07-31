@@ -580,12 +580,20 @@
 				// compacts the survivor down and leaves two visible (one carrying
 				// the value, one empty), so this widens the AFFORDANCE without
 				// changing cardinality.
+				// SIZE FOLLOWS HIERARCHY (2026-07-31): slot-level actions at
+				// default size, chain-level actions small. So slot Remove matches
+				// Add slot, and both outrank step Remove / Add hop inside the
+				// source box. Previously every button was small, which flattened
+				// the two levels the layout had just been restructured to separate.
 				count > 1
 					? el( Button, {
 						key:      'rm',
 						variant:  'tertiary',
-						size:     'small',
 						isDestructive: true,
+						// Trim the stock horizontal padding on the right edge so the
+						// larger button still aligns flush with the boxes below it
+						// (a tertiary button's padding otherwise insets the label).
+						style:    { marginRight: '-8px' },
 						onClick:  removeSelf,
 					}, __( 'Remove', 'generateblocks' ) )
 					: null,
@@ -699,6 +707,8 @@
 							variant:       'tertiary',
 							size:          'small',
 							isDestructive: true,
+							// Same flush-right trim as the slot Remove, one level down.
+							style:         { marginRight: '-6px' },
 							onClick:       function () { writeChainAt( i, null ); },
 						}, __( 'Remove step', 'generateblocks' ) ),
 					] ) );
