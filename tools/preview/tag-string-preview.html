@@ -273,6 +273,20 @@ button:hover { border-color: var(--accent); color: var(--accent); }
   user-select: all; min-height: 32px;
 }
 .perm-str:hover { background: var(--accent-light); border-color: var(--accent); }
+
+/* Contrast rows: shipped wire stacked above the chain form */
+.perm-row:has(.perm-stack) { align-items: flex-start; }
+.perm-row:has(.perm-stack) .perm-lbl { padding-top: 6px; white-space: normal; }
+.perm-stack { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.perm-line { display: flex; align-items: center; gap: 8px; }
+.perm-tagname {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--muted); width: 52px; flex-shrink: 0; text-align: right;
+}
+.perm-chain .perm-tagname { color: var(--accent); font-weight: 600; }
+.perm-chain .perm-str { border-color: var(--accent); background: var(--accent-light); }
+.perm-none .perm-str { color: var(--muted); font-style: italic; user-select: none; }
+.perm-note { font-size: 11px; color: var(--muted); padding-left: 60px; }
 </style>
 </head>
 <body>
@@ -566,6 +580,57 @@ const SCENARIO_GROUPS = [
     {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
     {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
   ]},
+  // ── BUILT src VALUES vs the SHIPPED wire (user 2026-07-31) ───────────────────
+  // The FW-56 chain slugs REPLACE two shipped source constructs:
+  //   src:ref | ref:<key>      →  src:refs,<key>[,<limit>]
+  //   srcTermIn:<tax>          →  src:terms,<tax>[,<limit>]
+  // isContrast groups render BOTH strings per row (shipped above, chain below) on a BASE tag —
+  // no fold, so the substitution is isolated from the FW-57 slot question. `sep` stays a plain
+  // tag option in both (it's a RENDER join of the list, not a traversal step); `limit` MOVES from
+  // a tag option into the step it limits — that's the visible cardinality win.
+  { tmpl:'text', title:'built src values — shipped wire ⟷ chain (FW-56)', isContrast:true, scenarios:[
+    {label:'ref hop → key',
+      parts:[['source','ref'],['ref','$ref'],['key','$key1']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1']]},
+    {label:'ref hop → title',
+      parts:[['source','ref'],['ref','$ref'],['use','title']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['use','title']]},
+    {label:'ref hop, limit 3 + sep',
+      parts:[['source','ref'],['ref','$ref'],['limit','3'],['sep',', '],['key','$key1']],
+      chain:[{slug:'refs',arg:'$ref',limit:'3'}], rest:[['sep',', '],['key','$key1']]},
+    {label:'term hop → title',
+      parts:[['_inTerm','$tax'],['use','title']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
+    {label:'term hop → term meta key',
+      parts:[['_inTerm','$tax'],['key','$key1']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[['key','$key1']]},
+    {label:'term hop, limit 5 + sep',
+      parts:[['_inTerm','$tax'],['limit','5'],['sep',' / '],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',limit:'5'}], rest:[['sep',' / '],['use','title']]},
+    {label:'ref hop THEN term hop',
+      parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['use','title']],
+      chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
+    {label:'ref+term hop, per-step limits',
+      parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['use','title']],
+      chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
+      note:'shipped limit binds the FINAL step only; chain limits EACH'},
+    {label:'ref hop → key + fallback + link',
+      parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
+    // NO shipped equivalent — the chain is strictly more expressive here.
+    {label:'term hop THEN ref hop',
+      parts:null,
+      chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}], rest:[['key','address']],
+      note:'no shipped form: srcTermIn is terminal, nothing hops off the term'},
+    {label:'2× ref hop (staff → dept)',
+      parts:null,
+      chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}], rest:[['use','title']],
+      note:'no shipped form: one ref key per tag'},
+    {label:'pinned term start → key',
+      parts:null,
+      chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
+      note:'no shipped form: no pinned-entity source (FW-32 sibling)'},
+  ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
   { tmpl:'image', title:'image', scenarios:[
@@ -666,6 +731,25 @@ const SCENARIO_GROUPS = [
     {label:'2: key, 2-hop staff→dept→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
     {label:'2: key, post→ref limited→title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
     {label:'3: key, term-hop, ref→ref→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}},{chain:[{slug:'refs',arg:'office'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
+    // BUILT-SRC scenarios (user 2026-07-31): the chain slugs `refs` / `terms` REPLACE the shipped
+    // `src:ref`+`ref:<key>` and `srcTermIn:<tax>` pairs. These exercise the replacements inside the
+    // fold, incl. list mode (limit rides the step; sep is a slot sibling — see the sep-carrier note).
+    {label:'refs replaces src:ref → key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'terms replaces srcTermIn → title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'terms → term meta key',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'terms + limit (list mode)',  slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'refs + limit (list mode)',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    // srcTermIn AT src:ref — shipped wire's `src:ref|ref:x|srcTermIn:cat` (term hop off the hopped
+    // post). Two flat options + a modifier collapse to ONE ordered 2-step chain.
+    {label:'refs→terms (srcTermIn at src:ref)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'refs→terms, both limited',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
+    // terminal modifier, no ref hop continues from it). Chain makes it expressible.
+    {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    // start-kind seeds a chain that then hops — pinned term / pinned post as the chain root.
+    {label:'term start → refs → key',    slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'term',arg:'42'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
+    {label:'post start → terms → title', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'3-hop refs→terms→refs',      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'},{slug:'refs',arg:'region'}],read:{kind:'key',field:'name'}}]},
   ]},
   // JOIN — AGNOSTIC combiner: each slot NAMES its processing tag (Option R type token).
   // Heterogeneous tags per slot for free (no recursive braces): 1:title | 2:phone,key(mobile).
@@ -683,6 +767,12 @@ const SCENARIO_GROUPS = [
     // DATETIME slot — the pivot case: datetime_range needs up to 4 keys (start/end date+time).
     // rule2 view can only carry ONE terminal key (breaks); respell view holds all as flat options.
     {label:'name + datetime_range (multi-key)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',endKey:'end_date',as:'date',format:'F j, Y'}}]},
+    // BUILT-SRC in an AGNOSTIC container (user 2026-07-31): type token AND a refs/terms chain in
+    // the same slot value — the two leading tokens must stay legible side by side.
+    {label:'name + terms hop (title of term)',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'name + refs hop email',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'contact_email'}}]},
+    {label:'terms limited + refs limited',slots:[{tag:'text',chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}},{tag:'phone',chain:[{slug:'refs',arg:'office',limit:'2'}],read:{kind:'key',field:'mobile'}}]},
+    {label:'refs→terms chain + link',  slots:[{tag:'title',chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'text',read:{kind:'key',field:'$key1'}}]},
   ]},
   // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
   // AGNOSTIC columns → Option R type token per column (like join).
@@ -704,6 +794,21 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    // BUILT-SRC in table (user 2026-07-31): rows and COLUMNS each carry their own refs/terms
+    // chain. Terms as the ROW SET is the srcTermIn replacement at tag level; a column chain is
+    // the per-cell hop the shipped wire has no form for at all.
+    {label:'terms rows, limited + per-col refs',
+      rowChain:[{slug:'terms',arg:'$tax',limit:'10'}],
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Lead',tag:'text',chain:[{slug:'refs',arg:'lead_staff'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'refs rows → per-col terms hop',
+      rowChain:[{slug:'refs',arg:'related_staff'}],
+      slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Depts',tag:'text',chain:[{slug:'terms',arg:'department',limit:'3'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'refs→terms rows (2-hop row set)',
+      rowChain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],
+      slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
   ]},
 
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
@@ -1254,6 +1359,27 @@ function groupOrder(group) {
   return DEFAULT_ORDER[t] || DEFAULT_ORDER.text;
 }
 
+// Contrast row (user 2026-07-31): the SAME read spelled two ways on a BASE tag —
+//   .parts = the shipped wire (src:ref|ref:x / srcTermIn:x), null when no shipped form exists
+//   .chain + .rest = the FW-56 built src value (src:refs,x / src:terms,x) + remaining options
+// Returns {shipped, chained, note} for the two-line renderer.
+function buildContrastPair(group, sc) {
+  const order = groupOrder(group);
+  const sortParts = (arr) => [...arr].sort((a,b)=>{
+    const ai=order.indexOf(partOrderKey(a[0])), bi=order.indexOf(partOrderKey(b[0]));
+    return (ai===-1?999:ai) - (bi===-1?999:bi);
+  });
+  const name = tmplName(group.tmpl);
+  const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
+  const shipped = sc.parts ? wrap(renderSlotParts(sortParts(sc.parts),'',false)) : null;
+  // chain form: src: leads the source group; the rest sort canonically behind it.
+  const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
+  const chainParts = [];
+  if (chainVal) chainParts.push(`${kn('src')}:${chainVal}`);
+  chainParts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
+  return { shipped, chained: wrap(chainParts), note: sc.note };
+}
+
 function buildPermTag(group, scenario) {
   if (group.foldClass) return buildFoldedTag(group, scenario);   // FW-57 folded slots
   if (group.isTable) return buildTablePermTag(scenario);
@@ -1284,13 +1410,13 @@ function buildPermTag(group, scenario) {
 // key-name presets + fromKeyCombined toggle as the Configure tab.
 function buildTablePermTag(sc) {
   const parts=[];
-  const rc=serializeChain(sc.rowChain);
+  const rc=serializeChain(resolveChainArgs(sc.rowChain));
   if (rc) parts.push(`${kn('src')}:${rc}`);
   if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
   (sc.cols||[]).forEach((col,ci)=>{
     const cp=`${ci+1}-`;
     if ((col.label||'')!=='') parts.push(`${cp}${kn('label')}:${col.label}`);
-    const cc=serializeChain(col.chain);
+    const cc=serializeChain(resolveChainArgs(col.chain));
     if (cc) parts.push(`${cp}${kn('src')}:${cc}`);
     const uv=col.use||'', kv=col.key||'';
     if (S.fromKeyCombined) { if(uv!==''||kv!=='') parts.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`); }
@@ -1321,9 +1447,14 @@ function foldedSlotKey(i) {
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
   return pfx(i).replace(/-$/, ':');         // '1-' → '1:', '2-' → '2:' (slot 1 included)
 }
+// Resolve $-dummy refs in a chain's step args, so scenario chains can use $ref/$tax like any
+// other permutation value. Used by both slot chains and table ROW chains.
+function resolveChainArgs(chain) {
+  return (chain||[]).map(s=>({...s, arg: s.arg!==undefined?String(resolveVal(s.arg)):s.arg}));
+}
 // Resolve $-dummy refs inside a folded slot's chain args + read field + link key (perms use $key1).
 function resolveSlot(slot) {
-  const chain=(slot.chain||[]).map(s=>({...s, arg: s.arg!==undefined?String(resolveVal(s.arg)):s.arg}));
+  const chain=resolveChainArgs(slot.chain);
   let read=slot.read;
   if (read && read.kind==='key') read={...read, field:String(resolveVal(read.field))};
   let link=slot.link;
@@ -1350,7 +1481,7 @@ function buildFoldedTag(group, sc) {
   const slots = sc.slots||[];
   if (group.foldClass==='table') {
     // table: row chain rides the tag-global src:; each column is a folded {N}: value.
-    const rc = serializeChain(sc.rowChain);
+    const rc = serializeChain(resolveChainArgs(sc.rowChain));
     if (rc) parts.push(`${kn('src')}:${rc}`);
     if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
     slots.forEach((col,ci)=>{
@@ -1728,8 +1859,26 @@ function renderPerms() {
     group.scenarios.forEach(sc=>{
       const row=document.createElement('div'); row.className='perm-row';
       const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label; lbl.textContent=sc.label;
-      const str=document.createElement('div'); str.className='perm-str'; str.textContent=buildPermTag(group,sc);
-      row.appendChild(lbl); row.appendChild(str); tags.appendChild(row);
+      row.appendChild(lbl);
+      if (group.isContrast) {
+        // two stacked strings: shipped wire (muted) above the chain form (accented).
+        const pair=buildContrastPair(group,sc);
+        const stack=document.createElement('div'); stack.className='perm-stack';
+        const mk=(tag,txt,cls)=>{
+          const line=document.createElement('div'); line.className='perm-line '+cls;
+          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=tag;
+          const s=document.createElement('div'); s.className='perm-str'; s.textContent=txt;
+          line.appendChild(t); line.appendChild(s); return line;
+        };
+        stack.appendChild(mk('shipped', pair.shipped ?? '— no shipped equivalent —', pair.shipped?'':'perm-none'));
+        stack.appendChild(mk('chain', pair.chained, 'perm-chain'));
+        if (pair.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '+pair.note; stack.appendChild(n); }
+        row.appendChild(stack);
+      } else {
+        const str=document.createElement('div'); str.className='perm-str'; str.textContent=buildPermTag(group,sc);
+        row.appendChild(str);
+      }
+      tags.appendChild(row);
     });
     div.appendChild(tags); el.appendChild(div);
   });
