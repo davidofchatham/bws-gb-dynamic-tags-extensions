@@ -687,34 +687,56 @@ const SCENARIO_GROUPS = [
     {label:'date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'via ref → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
   ]},
-  { tmpl:'text', title:'try_text', isTry:true, scenarios:[
-    {label:'2: key, key',           slots:[[['key','$key1']],[['key','$key2']]]},
-    {label:'2: key, title',         slots:[[['key','$key1']],[['use','title']]]},
-    {label:'2: key, via ref key',   slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']]]},
-    {label:'2: key, in term',       slots:[[['key','$key1']],[['_inTerm','$tax']]]},
-    {label:'3: key, ref key, title',slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]]},
+  // NB the unfolded `try_text` group was MERGED into the contrast group below (2026-07-31) — its
+  // scenarios now ride `shippedSlots` there so each shipped wire sits directly above its folded
+  // form. Two rows it carried that the fold does not yet model stay here:
+  { tmpl:'text', title:'try_text — shipped only (no folded model yet)', isTry:true, scenarios:[
     {label:'3: key, ref key, term', slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]]},
     // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
     // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink below.
     {label:'2: key, key + chain link', slots:[[['key','$key1']],[['key','$key2']]], chainLink:{to:'permalink',newTab:true}},
   ]},
-  { tmpl:'content', title:'try_content', isTry:true, scenarios:[
-    {label:'2: content, ACF',       slots:[[],[['_content_key','$key1']]]},
-    {label:'2: ACF, via ref',       slots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']]]},
-    {label:'3: ACF, ref, in term',  slots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']],[['_inTerm','$tax']]]},
+  // try_content / try_image — PAIRED (user 2026-07-31: the fold applies to ALL multi-slot tags,
+  // so these get folded counterparts rather than staying shipped-only). try_ is a format-FIXED
+  // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
+  // `image`'s are featured + the as/size format options, which stay slot options under the fold.
+  { tmpl:'content', title:'try_content — shipped ⟷ folded (FW-57)', isContrast:true,
+    variants:['shipped','folded'], foldClass:'try', scenarios:[
+    {label:'2: content, ACF',
+      shippedSlots:[[],[['_content_key','$key1']]],
+      slots:[{read:{kind:'analog',slug:'default'}},{read:{kind:'key',field:'$key1'}}]},
+    {label:'2: ACF, via ref',
+      shippedSlots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'default'}}]},
+    {label:'3: ACF, ref, in term',
+      shippedSlots:[[['_content_key','$key1']],[['source','ref'],['ref','$ref']],[['_inTerm','$tax']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'default'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'default'}}]},
+    {label:'2: ACF, excerpt',
+      shippedSlots:[[['_content_key','$key1']],[['use','excerpt']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
-  { tmpl:'image', title:'try_image', isTry:true, scenarios:[
-    {label:'2: key, featured',      slots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]]},
-    {label:'2: key, via ref key',   slots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]]},
-    {label:'2: key medium, fallback',slots:[[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]]},
+  { tmpl:'image', title:'try_image — shipped ⟷ folded (FW-57)', isContrast:true,
+    variants:['shipped','folded'], foldClass:'try', scenarios:[
+    {label:'2: key, featured',
+      shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
+      slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'analog',slug:'featured'}}]},
+    {label:'2: key, via ref key',
+      shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]],
+      slots:[{read:{kind:'key',field:'$imgKey'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$imgKey'}}]},
+    {label:'2: key medium, fallback',
+      shippedSlots:[[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]],
+      slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'key',field:'$imgKey'},fallback:'$fallback'}]},
+    {label:'2: featured, ref→featured',
+      shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['use','featured']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['use','featured']]],
+      slots:[{read:{kind:'analog',slug:'featured'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'featured'}}]},
   ]},
   // FW-53/FW-56 table: rowChain = the global src chain; cols = [{label,use,key,chain}].
   // Chains here are literal step arrays [{slug,arg,limit?}] — the tag string shows the DECIDED
   // value encoding (src:slug,arg/… + {N}-src column mini-chains).
-  { tmpl:'table', title:'table (FW-53/56)', isTable:true, scenarios:[
-    {label:'staff rows, name + office',
-      rowChain:[{slug:'refs',arg:'related_staff'}],
-      cols:[{label:'Name',use:'title'},{label:'Office',key:'address',chain:[{slug:'refs',arg:'office'}]}]},
+  // NB rows expressible in BOTH spellings moved to the 'table — current ⟷ folded' contrast group
+  // below (2026-07-31). What stays here is current-prototype-only: shapes the fold does not add
+  // anything to, kept so the prototype wire is still visible on its own terms.
+  { tmpl:'table', title:'table — current prototype only (FW-53/56)', isTable:true, scenarios:[
     {label:'2-hop rows (staff→dept)',
       rowChain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],
       cols:[{label:'Dept',use:'title'}]},
@@ -724,23 +746,40 @@ const SCENARIO_GROUPS = [
     {label:'repeater rows (entries)',
       rowChain:[{slug:'entries',arg:'staff_members'}],
       cols:[{label:'Name',key:'name'},{label:'Role',key:'role'}]},
-    {label:'terms rows + caption',
-      rowChain:[{slug:'terms',arg:'category'}],
-      caption:'Categories',
-      cols:[{label:'Term',use:'title'}]},
   ]},
 
   // ── FW-57 FOLDED slots (the proposed collapsed encoding) ────────────────────
   // Each slot = ONE `{N}:` value = chain + terminal read. Read forms:
   //   {kind:'analog',slug:'title'}  → bare nullary slug   ·   {kind:'key',field:'x'} → key(x)
   //   {kind:'same'}                 → inherit prior slot's read (S1: always explicit)
-  // try_ = format-FIXED container → NO type token. Contrast with the UNFOLDED 'try_text'
-  // group above (shipped separate-option wire) to see what the fold buys.
-  { tmpl:'text', title:'try_text — FOLDED (FW-57)', foldClass:'try', scenarios:[
-    {label:'2: key, key',            slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
-    {label:'2: key, title',          slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
-    {label:'2: key, via ref → key',  slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}}]},
-    {label:'3: key, ref→key, title', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+  // try_ = format-FIXED container → NO type token.
+  //
+  // CONTRAST GROUP (user 2026-07-31): rows carry BOTH the shipped `{N}-` separate-option wire
+  // (`parts`) and the folded `{N}:` value (`slots`), stacked, so the fold is read against what
+  // exists today instead of across two distant groups. Scenarios with no shipped equivalent —
+  // multi-hop chains, entity-start roots, per-step limits, all of which the shipped wire simply
+  // cannot spell — render an explicit "no shipped equivalent" line. That absence IS the argument
+  // for the fold, so it is shown rather than hidden.
+  { tmpl:'text', title:'try_text — shipped ⟷ folded (FW-57)', isContrast:true,
+    variants:['shipped','folded'], foldClass:'try', scenarios:[
+    {label:'2: key, key',
+      shippedSlots:[[['key','$key1']],[['key','$key2']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
+    {label:'2: key, title',
+      shippedSlots:[[['key','$key1']],[['use','title']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+    {label:'2: key, via ref → key',
+      shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}}]},
+    // NB the folded read is `use(title)`, NOT `use(same)`: shipped `2-srcTerm|2-tax:x` with no
+    // read option resolves the TERM'S TITLE, whereas `same` would inherit slot 1's meta key. The
+    // pair must express the same read or the contrast is misleading.
+    {label:'2: key, in term',
+      shippedSlots:[[['key','$key1']],[['_inTerm','$tax']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    {label:'3: key, ref→key, title',
+      shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
     // the three intent paths (2×2 of source[same|new] × read[same|new]):
     {label:'Path A: new ctx, SAME read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'same'}}]},
     {label:'Path B: SAME ctx, new read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'same'}],read:{kind:'key',field:'$key2'}}]},
@@ -771,12 +810,24 @@ const SCENARIO_GROUPS = [
   ]},
   // JOIN — AGNOSTIC combiner: each slot NAMES its processing tag (Option R type token).
   // Heterogeneous tags per slot for free (no recursive braces): 1:title | 2:phone,key(mobile).
-  { title:'join — FOLDED, heterogeneous (FW-57 Option R)', foldClass:'join', scenarios:[
+  // join — PAIRED. Its shipped wire IS real and matrix-verified (join-test-matrix J1/J15/J16:
+  // `{{join key:name_first|2-key:name_last}}`, slot 1 bare). Rows whose slots are HETEROGENEOUS
+  // (a phone slot beside a title slot) have no shipped equivalent — join is text-only today, which
+  // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
+  { title:'join — shipped ⟷ folded, heterogeneous (FW-57 Option R)', isContrast:true,
+    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
-    {label:'plain field (text, no tag token)', slots:[{tag:'text',read:{kind:'key',field:'$key1'}},{tag:'text',read:{kind:'key',field:'$key2'}}]},
+    {label:'plain field (text, no tag token)',
+      shippedSlots:[[['key','$key1']],[['key','$key2']]],
+      slots:[{tag:'text',read:{kind:'key',field:'$key1'}},{tag:'text',read:{kind:'key',field:'$key2'}}]},
+    {label:'two titles (homogeneous)',
+      shippedSlots:[[['use','title']],[['source','ref'],['ref','office'],['use','title']]],
+      slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
     {label:'ref-hop slot',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'title',chain:[{slug:'refs',arg:'office'}],read:{kind:'analog',slug:'title'}}]},
-    {label:'Path A across slots',    slots:[{tag:'text',read:{kind:'key',field:'first'}},{tag:'text',chain:[{slug:'refs',arg:'spouse'}],read:{kind:'same'}}]},
+    {label:'Path A across slots',
+      shippedSlots:[[['key','first']],[['source','ref'],['ref','spouse'],['key','first']]],
+      slots:[{tag:'text',read:{kind:'key',field:'first'}},{tag:'text',chain:[{slug:'refs',arg:'spouse'}],read:{kind:'same'}}]},
     // per-slot LINK (the primary case: name links to its own entity permalink)
     {label:'name→permalink + phone', slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'name→url field new tab + phone',slots:[{tag:'title',read:{kind:'analog',slug:'title'},link:{to:'key',key:'$urlKey',newTab:true}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
@@ -794,9 +845,17 @@ const SCENARIO_GROUPS = [
   ]},
   // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
   // AGNOSTIC columns → Option R type token per column (like join).
-  { title:'table — FOLDED cols (FW-53/56/57)', foldClass:'table', scenarios:[
+  //
+  // PAIRED as CURRENT ⟷ folded (user 2026-07-31). The left line is NOT a shipped wire — {{table}}
+  // is an unreleased PROTOTYPE (1.17.0, branch feat/table-tag), so the honest comparison is
+  // current-implementation vs proposed, and the variant is labelled 'current' rather than
+  // 'shipped'. Rows using a per-column type token (email/phone) have no current equivalent: the
+  // prototype's columns are untyped, which is what Option R adds.
+  { title:'table — current ⟷ folded (FW-53/56/57)', isContrast:true,
+    variants:['current','folded'], foldClass:'table', scenarios:[
     {label:'staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
+      cols:[{label:'Name',use:'title'},{label:'Office',key:'address',chain:[{slug:'refs',arg:'office'}]}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
     {label:'repeater rows: name + role + email',
@@ -806,6 +865,7 @@ const SCENARIO_GROUPS = [
              {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
     {label:'terms rows + caption',
       rowChain:[{slug:'terms',arg:'category'}], caption:'Categories',
+      cols:[{label:'Term',use:'title'},{label:'Count',key:'post_count'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
     {label:'start post → limited ref, 2 cols',
@@ -1489,11 +1549,44 @@ function groupOrder(group) {
   return DEFAULT_ORDER[t] || DEFAULT_ORDER.text;
 }
 
-// Contrast row (user 2026-07-31): the SAME read spelled two ways on a BASE tag —
-//   .parts = the shipped wire (src:ref|ref:x / srcTermIn:x), null when no shipped form exists
-//   .chain + .rest = the FW-56 built src value (src:refs,x / src:terms,x) + remaining options
-// Returns {shipped, chained, note} for the two-line renderer.
-function buildContrastPair(group, sc) {
+// ── CONTRAST ROWS: one read, N spellings ─────────────────────────────────────
+// The tool's primary view (user 2026-07-31: "my favorite view is today's shipped vs. proposed").
+// A contrast row renders the SAME underlying read in several labelled spellings, stacked, so a
+// proposal is read against what exists rather than in isolation.
+//
+// Generalized from a hardcoded shipped/chain PAIR to N variants so that future questions —
+// FW-24 (tag-in-slot), fold-link grouping, a new tag — are a COLUMN ADDED TO EXISTING ROWS
+// rather than a new section plus a renderer change. Each scenario declares only the data its
+// variants need; a variant whose data is absent is skipped, so rows stay ragged-but-honest
+// instead of inventing a spelling that was never proposed.
+//
+// Variant kinds (`how`):
+//   'parts' → flat option list, canonically sorted. The SHIPPED wire, and any flat proposal.
+//   'chain' → FW-56 built src value (src:refs,x) + remaining flat options.
+//   'fold'  → FW-57 folded slots, delegated to buildFoldedTag (multi-slot containers).
+// `variantsFor` resolves a group's variant set; a group may override with `group.variants`.
+// NB `slots` is overloaded by shape: the SHIPPED multi-slot wire uses arrays of [key,val] parts
+// (`slots:[[['key','a']],[['key','b']]]`) while the FOLDED value uses objects
+// (`slots:[{read:…},{read:…}]`). A contrast scenario needs both at once, so the shipped side of a
+// multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. Same distinction for
+// table: `cols`/`rowChain` (current prototype) vs folded `slots`.
+const CONTRAST_VARIANTS = {
+  shipped:  { label:'shipped',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
+  current:  { label:'current',  how:'table', cls:'',           needs:sc => !!sc.cols },
+  chain:    { label:'chain',    how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
+  folded:   { label:'folded',   how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+};
+function variantsFor(group) {
+  return (group.variants || ['shipped','chain']).map(k =>
+    typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k
+  );
+}
+
+// Build every applicable variant for one scenario. Returns [{label, str, cls, missing}].
+// `missing` marks a variant the group asks for but this scenario has no data for — rendered as
+// an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
+// unfolded form for a heterogeneous slot).
+function buildContrastVariants(group, sc) {
   const order = groupOrder(group);
   const sortParts = (arr) => [...arr].sort((a,b)=>{
     const ai=order.indexOf(partOrderKey(a[0])), bi=order.indexOf(partOrderKey(b[0]));
@@ -1501,13 +1594,35 @@ function buildContrastPair(group, sc) {
   });
   const name = tmplName(group.tmpl);
   const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
-  const shipped = sc.parts ? wrap(renderSlotParts(sortParts(sc.parts),'',false)) : null;
-  // chain form: src: leads the source group; the rest sort canonically behind it.
-  const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
-  const chainParts = [];
-  if (chainVal) chainParts.push(`${kn('src')}:${chainVal}`);
-  chainParts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
-  return { shipped, chained: wrap(chainParts), note: sc.note };
+
+  return variantsFor(group).map(v => {
+    if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
+    let str = null;
+    if (v.how === 'parts') {
+      if (sc.shippedSlots) {
+        // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
+        // tools/test/join-test-matrix.md; try_ the same shape).
+        const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
+        const parts = [];
+        sc.shippedSlots.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
+        str = `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
+      } else {
+        str = wrap(renderSlotParts(sortParts(sc.parts||[]),'',false));
+      }
+    } else if (v.how === 'table') {
+      str = buildTablePermTag(sc);           // current {{table}} prototype wire (1.17.0, unreleased)
+    } else if (v.how === 'chain') {
+      // src: leads the source group; the rest sort canonically behind it.
+      const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
+      const parts = [];
+      if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
+      parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
+      str = wrap(parts);
+    } else if (v.how === 'fold') {
+      str = buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
+    }
+    return { label:v.label, str, cls:v.cls, missing:false };
+  });
 }
 
 function buildPermTag(group, scenario) {
@@ -1517,7 +1632,12 @@ function buildPermTag(group, scenario) {
   const slots = scenario.slots || [scenario.parts];
   const parts=[];
   slots.forEach((slotParts,i)=>{
-    const p = group.isTry ? pfx(i) : '';
+    // SHIPPED wire prefixes slots 2+ ONLY — slot 1 is BARE. Verified against the test matrices:
+    // `{{join key:name_first|2-key:name_last}}` (join-test-matrix J1/J15/J16) and
+    // `{{try_text key:…|2-use:title}}` (src-site-test-matrix R4.6/R7.5). This previously emitted
+    // `1-key:` for slot 1, which matches no shipped row — a drift in the tool's shipped column,
+    // caught 2026-07-31 when pairing put the two spellings on adjacent lines.
+    const p = (group.isTry && i>0) ? pfx(i) : '';
     const t2p = group.isTry && i>0;
     // Sort parts by the GROUP's canonical order (KEY_MAP mirror), not Configure's S.order.
     const order = groupOrder(group);
@@ -2025,21 +2145,21 @@ function renderPerms() {
       const lbl=document.createElement('span'); lbl.className='perm-lbl'; lbl.title=sc.label; lbl.textContent=sc.label;
       row.appendChild(lbl);
       if (group.isContrast) {
-        // two stacked strings: shipped wire (muted) above the chain form (accented).
-        const pair=buildContrastPair(group,sc);
+        // N stacked strings, one per variant: existing spellings muted, proposals accented.
+        const variants=buildContrastVariants(group,sc);
         const stack=document.createElement('div'); stack.className='perm-stack';
-        const mk=(tag,txt,cls)=>{
-          const line=document.createElement('div'); line.className='perm-line '+cls;
-          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=tag;
-          const s=document.createElement('div'); s.className='perm-str'; s.textContent=txt;
-          line.appendChild(t); line.appendChild(s); return line;
-        };
-        stack.appendChild(mk('shipped', pair.shipped ?? '— no shipped equivalent —', pair.shipped?'':'perm-none'));
-        stack.appendChild(mk('chain', pair.chained, 'perm-chain'));
-        if (pair.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '+pair.note; stack.appendChild(n); }
-        // Only the PROPOSED string is checked: the shipped wire predates the locked grammar and
-        // legitimately does not satisfy it (no brackets at all), so checking it would be noise.
-        totalIssues += flagIssues(stack, pair.chained, scenarioFreeform(sc));
+        const ff=scenarioFreeform(sc);
+        variants.forEach(v=>{
+          const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls);
+          const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=v.label;
+          const s=document.createElement('div'); s.className='perm-str';
+          s.textContent = v.missing ? `— no ${v.label} equivalent —` : v.str;
+          line.appendChild(t); line.appendChild(s); stack.appendChild(line);
+          // Check only PROPOSED spellings. The shipped/current wire predates the locked grammar
+          // and legitimately does not satisfy it (no brackets at all), so checking it is noise.
+          if (!v.missing && v.cls==='perm-chain') totalIssues += flagIssues(stack, v.str, ff);
+        });
+        if (sc.note) { const n=document.createElement('div'); n.className='perm-note'; n.textContent='↳ '+sc.note; stack.appendChild(n); }
         row.appendChild(stack);
       } else {
         const tag=buildPermTag(group,sc);
