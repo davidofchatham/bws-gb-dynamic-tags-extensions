@@ -84,6 +84,17 @@ var CASES = [
 	[ 'chained inherit — only the IMMEDIATE successor referenced the removed slot',
 	  { '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same);key(c)', '4': 'src(same);key(d)' }, 2,
 	  '1:key(a) | 2:src(refs,office);key(c) | 3:src(same);key(d)' ],
+
+	// Remove is live on every slot once 2+ are visible (2026-07-31), so these two
+	// are newly REACHABLE — previously the button was gated off at the floor.
+	// The floor still holds: one value survives, slot 2 renders empty.
+	[ 'AT THE FLOOR — remove slot 1 of 2; survivor compacts into position 1',
+	  { '1': 'key(a)', '2': 'src(refs,office);key(b)' }, 1,
+	  '1:src(refs,office);key(b)' ],
+
+	[ 'AT THE FLOOR — remove slot 2 of 2; slot 1 untouched',
+	  { '1': 'key(a)', '2': 'src(refs,office);key(b)' }, 2,
+	  '1:key(a)' ],
 ];
 
 var fail = 0;

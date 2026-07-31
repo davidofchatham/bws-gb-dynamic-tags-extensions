@@ -214,6 +214,11 @@
 	// Highest slot ordinal holding a value. Cardinality = max(MIN, that) — the
 	// control derives slot count from CONTENT, so it survives remount with no
 	// external store (an "armed but empty" slot would not).
+	//
+	// MIN_SLOTS is a hard floor: slot 2 is always visible on a multislot tag,
+	// even when empty. Removing slot 1 or 2 while exactly two are present
+	// therefore compacts and leaves two visible (one carrying the survivor's
+	// value, one empty) rather than dropping to a single slot.
 	function slotCount( state ) {
 		var highest = 0;
 		for ( var i = 1; i <= MAX_SLOTS; i++ ) {
@@ -392,6 +397,22 @@
 	// tokens; under the fold the source is the CHAIN, so the preset must derive
 	// from the chain's TERMINAL step (the step whose output the read applies to) —
 	// FW-56's stated editor-UX floor, exercised here for real.
+	// Bridge for a HOP's reference field. The shipped `ref` option is itself a
+	// bws-field-combo (base-shared.php:146, "Relationship Field Key") — the spike
+	// had downgraded it to a bare TextControl, which understated the real surface.
+	// Deliberately UNSCOPED with no kind preset: `ref` names a relationship field
+	// on the SOURCE post, and the hop target's post type is not reliably known
+	// (SPEC V3), so presetting would falsely assert a kind. v2 type-filters this
+	// to relationship/post_object.
+	function foldedHopContext( step, commitArg ) {
+		return {
+			state: { key: step.arg || '' },
+			setState: function ( upd ) {
+				commitArg( ( upd && 'undefined' !== typeof upd.key ) ? upd.key : '' );
+			},
+		};
+	}
+
 	function foldedFieldContext( slot, state, commitRead ) {
 		var terminal = slot.chain.length ? slot.chain[ slot.chain.length - 1 ] : null;
 		var synth    = {};
@@ -532,7 +553,16 @@
 				el( 'strong', { key: 'ttl', style: { fontSize: '12px', textTransform: 'uppercase',
 				                                     letterSpacing: '0.4px' } },
 					( props.label || ( __( 'Slot', 'generateblocks' ) + ' ' + key ) ) ),
-				count > MIN_SLOTS
+				// Remove is live on EVERY slot whenever 2+ are visible (2026-07-31),
+				// matching the step UI: an author may want to drop either one and
+				// add anew. Gating it at the floor made slot 1 and slot 2 asymmetric
+				// for no reason visible to the author.
+				//
+				// The floor still holds — removing while exactly two are present
+				// compacts the survivor down and leaves two visible (one carrying
+				// the value, one empty), so this widens the AFFORDANCE without
+				// changing cardinality.
+				count > 1
 					? el( Button, {
 						key:      'rm',
 						variant:  'tertiary',
@@ -676,16 +706,32 @@
 				} ) );
 
 				if ( 'refs' === step.slug ) {
-					stepKids.push( el( TextControl, {
-						key:         'srcArg',
-						label:       __( 'Reference Field', 'generateblocks' ),
-						value:       step.arg || '',
-						placeholder: 'field_name',
-						onChange:    function ( v ) {
-							writeChainAt( i, { slug: 'refs', arg: v || null, limit: step.limit } );
-						},
-						__nextHasNoMarginBottom: true,
-					} ) );
+					// The SHIPPED ref option is a bws-field-combo, not a text box —
+					// mirror it here (filters visible, unscoped per SPEC V3) so the
+					// spike shows the real surface rather than understating it.
+					var HopCombo = window.bwsFieldComboControl;
+					stepKids.push( el( 'div', { key: 'srcArg', style: STACKED, className: 'bws-proto-fold' },
+						HopCombo
+							? el( HopCombo, {
+								optionKey:   'key',
+								label:       __( 'Relationship Field Key', 'generateblocks' ),
+								help:        __( 'ACF relationship or post object field key.', 'generateblocks' ),
+								placeholder: 'related_posts',
+								context:     foldedHopContext( step, function ( v ) {
+									writeChainAt( i, { slug: 'refs', arg: v || null, limit: step.limit } );
+								} ),
+							} )
+							: el( TextControl, {
+								label:       __( 'Relationship Field Key', 'generateblocks' ),
+								value:       step.arg || '',
+								placeholder: 'related_posts',
+								help:        __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
+								onChange:    function ( v ) {
+									writeChainAt( i, { slug: 'refs', arg: v || null, limit: step.limit } );
+								},
+								__nextHasNoMarginBottom: true,
+							} )
+					) );
 					// A `refs` hop with no field has nothing to hop THROUGH — it
 					// serializes as a bare `refs` and resolves to nothing. `canAppend`
 					// already blocks BUILDING past an incomplete hop, but nothing
