@@ -311,6 +311,26 @@
 		{ value: 'key',   label: __( 'Meta/Option Field', 'generateblocks' ) },
 	];
 
+	// ── Shared chrome (2026-07-31 trial) ────────────────────────────────────
+	// The box marks a GROUP (the whole source chain / the whole field picker),
+	// not an individual step — an earlier pass boxed each step, which made a
+	// multi-hop chain read as N peer objects rather than one path, and stacked
+	// three nested borders deep once the field filters landed. Steps inside the
+	// source group are separated by the same rule the slots use, one level down.
+	var GROUP_BOX = {
+		border: '1px solid #e0e0e0', borderRadius: '2px',
+		padding: '10px 12px', marginBottom: '10px', background: 'rgba(0,0,0,0.02)',
+	};
+	// Between-step rule INSIDE the source group. Mirrors the slot separator
+	// (which is 2px/#bbb at the outer level) at a lighter weight, so the nesting
+	// reads by weight: slot rule > step rule.
+	var STEP_RULE = { borderTop: '1px solid #ddd', marginTop: '10px', paddingTop: '10px' };
+	// Group caption — same treatment as the slot header's title, one step down.
+	var GROUP_CAP = {
+		fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px',
+		opacity: 0.65, marginBottom: '6px', display: 'block',
+	};
+
 	// ── Field-combo bridge (the field FILTERS under the fold) ───────────────
 	//
 	// THE PROBLEM: the shipped `bws-field-combo` control (Location filter + Type
@@ -463,8 +483,10 @@
 		// at least two.
 		children.push( el( 'div', {
 			key:   'hdr',
+			// Slot rule is the HEAVIEST (2px/#bbb): outer level. Step rules inside
+			// the source group are 1px/#ddd, so nesting reads by weight.
 			style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-			         gap: '8px', margin: '4px 0 6px', borderTop: '2px solid #bbb', paddingTop: '8px' },
+			         gap: '8px', margin: '14px 0 8px', borderTop: '2px solid #bbb', paddingTop: '10px' },
 		}, [
 			el( 'strong', { key: 'ttl', style: { fontSize: '12px', textTransform: 'uppercase',
 			                                     letterSpacing: '0.4px' } },
@@ -545,28 +567,28 @@
 				return rows;
 			}
 
-			// STEP GROUPS. Each hop renders as its own bordered group carrying an
-			// inline Remove, replacing the `__remove` ENUM ROW the select used to
-			// hold. That row was a category error (a non-value masquerading as a
-			// value), and it was unreachable at chain length 1 — so "remove" was
-			// missing exactly when the author most wanted to undo a bad first hop.
+			// ── SOURCE GROUP ────────────────────────────────────────────────
+			// ONE box for the whole chain (2026-07-31 trial). Boxing each step
+			// individually made a multi-hop chain read as N peer objects rather
+			// than one path, and once the field filters landed it stacked three
+			// nested borders deep. Steps are now separated INSIDE the group by a
+			// lighter rule — the same device the slots use, one level down, so
+			// nesting reads by weight rather than by more borders.
 			//
-			// COLLISION with the slot-level Remove is resolved by PLACEMENT:
-			//   slot remove — full-width header row, top of the slot.
-			//   hop remove  — inline, right-aligned inside the step's own box.
-			// The nesting reads correctly because the hop button is visibly INSIDE
-			// the box that the slot button sits above.
-			//
-			// COLOR is reserved for SEMANTICS and is deliberately NOT part of that
-			// distinction: both removes are red, both adds are blue. Placement
-			// already encodes the level, so spending color on it too was redundant
-			// (and made the destructive-vs-additive read weaker, 2026-07-31 trial).
+			// Hop remove stays inline in each step's header. Its collision with
+			// the slot-level Remove is resolved by PLACEMENT (slot remove sits in
+			// the slot header, above the box; hop remove sits inside it) — COLOR
+			// is reserved for semantics: both removes red, both adds blue.
+			var stepNodes = [];
+
 			chain.forEach( function ( step, i ) {
 				var stepKids = [];
 
-				// Step header: ordinal + inline remove. Only shown for real chains
-				// (a single `same` step is the inherit marker, not a hop).
-				if ( ! isSameChain ) {
+				// Step header: ordinal + inline remove. Shown only for real
+				// multi-step chains — a lone step needs no ordinal (the group
+				// caption already names the box), and a `same` chain is the
+				// inherit marker rather than a hop.
+				if ( ! isSameChain && chain.length > 1 ) {
 					stepKids.push( el( 'div', {
 						key:   'sh',
 						style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -586,8 +608,11 @@
 				}
 
 				stepKids.push( el( SelectControl, {
-					key:      'src',
-					label:    __( 'Source', 'generateblocks' ),
+					key: 'src',
+					// The group caption already says "Source" on a single-step
+					// chain, so the inner label would just repeat it; multi-step
+					// chains keep it because each step is its own source pick.
+					label:    chain.length > 1 ? __( 'Source', 'generateblocks' ) : null,
 					value:    wireToEngine( step.slug ),
 					options:  srcRows(),
 					onChange: function ( v ) {
@@ -623,12 +648,10 @@
 					}
 				}
 
-				children.push( el( 'div', {
+				// Separator rule between steps (never above the first).
+				stepNodes.push( el( 'div', {
 					key:   'step-' + i,
-					style: isSameChain
-						? { marginBottom: '8px' }
-						: { border: '1px solid #e0e0e0', borderRadius: '2px', padding: '8px',
-						    marginBottom: '8px', background: 'rgba(0,0,0,0.02)' },
+					style: i > 0 ? STEP_RULE : null,
 				}, stepKids ) );
 			} );
 
@@ -636,9 +659,9 @@
 			// on slot 1 (legitimately unset = current) and on a slot ≥2 whose wire
 			// was hand-edited to drop its src token.
 			if ( ! chain.length ) {
-				children.push( el( SelectControl, {
+				stepNodes.push( el( SelectControl, {
 					key:      'src-new',
-					label:    key + ': ' + __( 'Source', 'generateblocks' ),
+					label:    __( 'Source', 'generateblocks' ),
 					value:    '',
 					options:  srcRows(),
 					onChange: function ( v ) {
@@ -650,19 +673,15 @@
 			}
 
 			// Append-a-hop: only off a real (non-inherit) chain, and only once the
-			// last step is complete, so we never serialize a half-built step.
-			//
-			// "Add hop" and "Add slot" are the SECOND collision pair (the first
-			// being the two Removes). Same resolution — differentiate by depth,
-			// not by weight: Add hop is a tertiary link indented to sit under the
-			// step stack it appends to, while Add slot stays a full-width
-			// secondary button at the slot's outer edge.
+			// last step is complete, so we never serialize a half-built step. Lives
+			// INSIDE the source group — it appends to this chain, so it belongs to
+			// the box, unlike Add slot which sits at the slot's outer edge.
 			var last = chain.length ? chain[ chain.length - 1 ] : null;
 			var canAppend = ! isSameChain && last && ( 'refs' !== last.slug || last.arg );
 			if ( canAppend ) {
-				children.push( el( 'div', {
+				stepNodes.push( el( 'div', {
 					key:   'addhop-wrap',
-					style: { marginTop: '-2px', marginBottom: '10px' },
+					style: { marginTop: '8px' },
 				}, el( Button, {
 					variant: 'tertiary',
 					isSmall: true,
@@ -671,6 +690,13 @@
 					},
 				}, '+ ' + __( 'Add hop', 'generateblocks' ) ) ) );
 			}
+
+			children.push( el( 'div', { key: 'srcgroup', style: GROUP_BOX }, [
+				el( 'span', { key: 'cap', style: GROUP_CAP },
+					chain.length > 1
+						? __( 'Source path', 'generateblocks' )
+						: __( 'Source', 'generateblocks' ) ),
+			].concat( stepNodes ) ) );
 		}
 
 		if ( showRead ) {
@@ -684,9 +710,16 @@
 			var readRows = ( ordinal >= 2 )
 				? [ { value: 'same', label: __( 'Same as previous slot', 'generateblocks' ) } ].concat( READ_OPTIONS )
 				: READ_OPTIONS;
-			children.push( el( SelectControl, {
-				key:      'read',
-				label:    key + ': ' + __( 'Field', 'generateblocks' ),
+			// ── FIELD GROUP ─────────────────────────────────────────────────
+			// Same box as the source group. The read kind select plus (when the
+			// kind is `key`) the whole field-combo — two filters and a combobox —
+			// are ONE decision about what to read, so they share one container.
+			var readNodes = [];
+
+			readNodes.push( el( SelectControl, {
+				key: 'read',
+				// Caption carries the group name; the select picks the KIND.
+				label:    __( 'Read', 'generateblocks' ),
 				value:    readVal,
 				options:  readRows,
 				onChange: function ( v ) {
@@ -711,7 +744,7 @@
 				// order it does not control).
 				var FieldCombo = window.bwsFieldComboControl;
 				if ( FieldCombo ) {
-					children.push( el( 'div', { key: 'readArg' },
+					readNodes.push( el( 'div', { key: 'readArg', style: STEP_RULE },
 						el( FieldCombo, {
 							optionKey:    'key',
 							label:        __( 'Meta/Option Field', 'generateblocks' ),
@@ -722,23 +755,28 @@
 						} )
 					) );
 				} else {
-					children.push( el( TextControl, {
-						key:         'readArg',
-						label:       key + ': ' + __( 'Meta/Option Field Key', 'generateblocks' ),
-						value:       read.field || '',
-						placeholder: 'field_name',
-						help:        __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
-						onChange:    function ( v ) {
-							write( { chain: slot.chain.slice(), read: { kind: 'key', field: v } } );
-						},
-						__nextHasNoMarginBottom: true,
-					} ) );
+					readNodes.push( el( 'div', { key: 'readArg', style: STEP_RULE },
+						el( TextControl, {
+							label:       __( 'Meta/Option Field Key', 'generateblocks' ),
+							value:       read.field || '',
+							placeholder: 'field_name',
+							help:        __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
+							onChange:    function ( v ) {
+								write( { chain: slot.chain.slice(), read: { kind: 'key', field: v } } );
+							},
+							__nextHasNoMarginBottom: true,
+						} )
+					) );
 				}
 			}
+
+			children.push( el( 'div', { key: 'readgroup', style: GROUP_BOX }, [
+				el( 'span', { key: 'cap', style: GROUP_CAP }, __( 'Field', 'generateblocks' ) ),
+			].concat( readNodes ) ) );
 		}
 
 		// Wire echo — spike-only debug aid so the value rewrite is visible live.
-		children.push( el( 'code', { key: 'echo', style: { display: 'block', opacity: 0.6, fontSize: '11px', margin: '2px 0 10px' } },
+		children.push( el( 'code', { key: 'echo', style: { display: 'block', opacity: 0.55, fontSize: '11px', margin: '0 0 10px' } },
 			key + ':' + ( state[ key ] || '∅' ) + ( recovered ? '  [legacy → ' + serializeSlot( slot ) + ']' : '' ) ) );
 
 		// ADD lives on the LAST slot only — one add affordance per tag, always at
