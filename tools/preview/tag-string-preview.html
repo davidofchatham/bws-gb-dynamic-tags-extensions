@@ -313,14 +313,19 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
     <div class="sb-h">Slot Schema: bracket-kv</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Sole schema. <code>name[value]</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
-      Type LEADS, options FW-52-ordered, FORMAT-SAFE. LOCKED RULES: flat src chain
-      (<code>refs,office</code>), hop-sep <code>+</code>, opt-sep <code>,</code>, brackets ALTERNATE by
-      nesting depth (L1 <code>[]</code> → L2 <code>()</code>, no same-char nesting).
-      <br><code>3:src[refs,office+refs,region],key[name]</code>
+      Sole schema. <code>name(value)</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
+      Type LEADS, options FW-52-ordered, FORMAT-SAFE. APPROVED 2026-07-31: flat src chain
+      (<code>refs,office</code>), hop-sep <code>;</code>, opt-sep <code>;</code>, step-sep
+      <code>,</code>, brackets ALTERNATE by nesting depth (L1 <code>()</code> → L2 <code>[]</code>,
+      no same-char nesting).
+      <br><code>3:src(refs,office;refs,region);key(name)</code>
     </div>
     <div id="slotsep-controls" style="margin-top:6px"></div>
     <label class="toggle-row" style="margin-top:6px">
+      <input type="checkbox" id="cb-chainexplicitroot">
+      <span class="toggle-desc">[rejected 2026-07-31] chain states its ambient ROOT: <code>src(current;terms,category)</code> vs the DECIDED implied form <code>src(terms,category)</code>. Reviewed here and cut as too noisy — <code>current</code> now serializes ONLY as an override/reset (slot 2+, where absent means inherit). Kept as a look-back toggle; OFF is the decision.</span>
+    </label>
+    <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-slotforcesrc">
       <span class="toggle-desc">[future look] always serialize <code>src</code> on slot 1 (join / try_) → <code>src:current</code></span>
     </label>
@@ -357,15 +362,14 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
     <div class="sb-h">src Chain (FW-56) — FLAT (locked)</div>
     <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
-      One <code>src</code> key; value = sep-joined steps <code>slug,arg[,limit]</code> (FLAT, no step
+      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code> (FLAT step body, no step
       brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>entries</code>; starts
-      <code>post</code>/<code>term</code>/<code>user</code>. Hop-sep + intra-step-sep still tunable:
+      <code>post</code>/<code>term</code>/<code>user</code>. Root IMPLIED (<code>current</code> only as
+      an override/reset). Per-step limit is BRACKET-KV, not positional (decided 2026-07-31):
+      <code>refs,rel_post,limit[5]</code> — the bracket char alternates with depth like every other,
+      so a chain nested in a slot emits <code>limit(5)</code>. Hop-sep + intra-step-sep still tunable:
     </div>
     <div id="sep-controls" style="margin-top:8px"></div>
-    <label class="toggle-row" id="chainlimit-row">
-      <input type="checkbox" id="cb-chainlimit" checked>
-      <span class="toggle-desc">limit as last intra-step token → <code>refs,rel_post,5</code> (LOCKED)</span>
-    </label>
   </div>
 
   <!-- Configure tab -->
@@ -886,6 +890,7 @@ const S = {
   // e.g. slot `3:src[refs,office+refs,region],key[name]` — slot [] (L1); a nested read-target () (L2).
   bracketMode: 'depth-alt',
   bracketL1: '()',      // level-1 (outermost) bracket char; level 2 = the opposite. Frontrunner: L1=().
+  chainExplicitRoot: false, // lead every hop-only chain with its ambient root (current;refs,x) vs implied (refs,x).
   slotForceSrc: false,  // always serialize a src value (src:current) on slot 1 of join/try_.
   readViaUse: false,    // fold a slot's META read under use(key,field) for parity with use(same)/use(title).
   respellReadBracket: false, // read target: false → flat key=field; true → Rule-2 key(field).
@@ -898,10 +903,11 @@ const S = {
   handlerMode: 'zone',
   typeSep: '/',       // read↔type-tag separator (rule2/legacy paths).
   valueSep: ',',        // general composite-value glue (as:url,med / use:key,field / linkTo:key,field)
-  chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain steps are bare-comma `slug,arg,limit`,
-                        // no step brackets. (Radio dropped; 'off' is the decision, not a knob.)
+  chainPair: 'off',     // LOCKED FLAT (user 2026-07-29): src chain step BODIES are bare-comma
+                        // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
+                        // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
+                        // decided 2026-07-31; see serializeStep. Not a knob either.
   chainKvChar: '=',     // (legacy — kv chain mode retired with the radio; kept to avoid ref breaks)
-  chainLimitInPair: true, // limit as the last intra-step token — LOCKED.
   valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   columns: [],          // table (FW-53) columns: [{label,use,key,chain:[{slug,arg,limit}]}]
@@ -1016,13 +1022,11 @@ const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',lab
 const CHAIN_STARTS = [{value:'post',label:'post (kind,id)'},{value:'term',label:'term (kind,id)'},{value:'user',label:'user (kind,id)'}];
 function chainSlugChoices(isFirst) { return isFirst ? [...CHAIN_STARTS,...CHAIN_HOPS] : CHAIN_HOPS; }
 
-// Serialize one chain step. RULE 2 (locked 2026-07-28): a step's arg is a RESOLUTION
-// OPERAND (hop target / read target / entity ID) → ALWAYS bracketed. Brackets are no longer
-// a flat-vs-paired CHOICE for resolution args; only the bracket CHAR (`()` vs `[]`) is a knob
-// (S.chainPair, default '()'). limit rides INSIDE the bracket (locked): refs(field,5).
-// ID-FLIP (locked): entity-start args bracket too → post(9999). Argless steps (same/analog/
-// nullary starts) emit the bare slug. `S.chainPair==='off'` = the legacy flat mode, kept only
-// so the char knob can still show a bare-comma comparison; decided output is bracketed.
+// SUPERSEDED DRAFT (kept for the audit trail): RULE 2 of 2026-07-28 bracketed EVERY resolution
+// operand, so a step read `refs(field,5)` with limit inside the arg bracket. The 2026-07-29 FLAT
+// lock overrode it — a step BODY is now bare-comma `slug,arg` with no step bracket at all, and
+// `limit` is the sole bracketed intra-step token (`limit[5]`, decided 2026-07-31). See
+// serializeStep below for the live rule; `S.chainPair` survives only as a comparison knob.
 // Depth-alternating bracket char (user 2026-07-29): in 'depth-alt' mode the char is a function of
 // NESTING DEPTH, not role — level 1 = S.bracketL1, level 2 = the opposite, so no same-char nest.
 // depth 1 = base-tag chain (unnested) or slot token; depth 2 = a chain nested inside a slot bracket.
@@ -1031,20 +1035,66 @@ function bracketAt(depth) {
   if (S.bracketMode!=='depth-alt') return null;   // caller falls back to its own knob
   return (depth % 2 === 1) ? S.bracketL1 : otherBracket(S.bracketL1);
 }
-// Serialize one chain step. FLAT (locked 2026-07-29): `slug,arg[,limit]` — bare intra-step sep, NO
-// step brackets. depth-alt governs the SLOT-token + READ-target brackets, NOT chain steps (a chain
-// nested in a slot is still flat inside its slot's `src[…]`). `depth` is unused now (chain is always
-// flat); kept in the signature so callers needn't change if a bracketed chain mode ever returns.
+// Serialize one chain step. Step body stays FLAT (locked 2026-07-29): `slug,arg` — bare intra-step
+// sep, NO step brackets.
+//
+// `limit` — DECIDED 2026-07-31 (supersedes the positional form): BRACKET-KV `limit[5]`, appended as
+// its own intra-step token. The old positional `refs,rel_post,5` was cut as too fragile: it made
+// arg-vs-limit purely ordinal, so a blank arg shreds to an interior `,,` (`entries,,5`) that reads
+// as an empty operand, and any future third step token would be ambiguous against it. Bracket-kv
+// NAMES the token, so it is order-free, omissible without a hole, and extensible.
+//   DECIDED  → refs,rel_post,limit[5]        (named, holes impossible)
+//   rejected → refs,rel_post,5               (positional; `entries,,5` shreds)
+// The datetime `,,` precedent does NOT transfer — datetime's slots are dependency-ordered, so an
+// interior blank is structurally impossible there; a chain step's arg is independently omissible.
+// BRACKET CHAR follows the depth-alternation rule like every other bracket: `limit` nests one level
+// INSIDE whatever encloses the chain, so it takes the char for ITS OWN level = enclosing + 1.
+// `depth` = the level of the bracket ENCLOSING this chain. TWO wrapper styles exist and they differ:
+//   colon form  `src:refs,x`        → NO enclosing bracket, depth 0 → limit is L1 → limit(3)
+//   bracket form `2:src(refs,x)`    → enclosed by the L1 slot bracket, depth 1 → limit is L2 → limit[3]
+// Both spellings are correct IN THEIR OWN CONTEXT — that is the alternation rule working, not schema
+// drift. Callers MUST pass the level of the wrapper they are about to print; the default is 0 because
+// the colon form is the common case (every base-tag / table-column emitter uses it).
+// Two user-caught bugs live here (2026-07-31): passing 2 for slots gave `src(…,limit(2))` (same-char
+// nested), then defaulting to 1 gave `src:refs,x,limit[3]` on the colon form (skipped L1 entirely).
 function serializeStep(h, depth) {
-  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? h.limit : '';
-  if (arg==='') return slug;   // argless step (nullary start / analog / same) — bare slug
-  const bits = lim!=='' ? [slug,arg,lim] : [slug,arg];
-  return bits.join(S.chainSep.step);   // slug,arg[,limit]
+  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? String(h.limit) : '';
+  const bits = [];
+  if (arg==='') { if (lim==='') return slug; bits.push(slug); }   // argless step (nullary start / analog / same)
+  else bits.push(slug, arg);
+  if (lim!=='') {
+    // limit sits one level INSIDE the enclosing wrapper → its own level is depth+1.
+    const br = bracketAt(depth + 1) || S.bracketL1 || '()';
+    bits.push(kn('limit') + br[0] + lim + br[1]);
+  }
+  return bits.join(S.chainSep.step);   // slug,arg[,limit[N]]
 }
 // Serialize a chain [{slug,arg,limit}] into a src VALUE: hop-sep-joined steps. `depth` = the chain's
 // nesting level (1 = base-tag src:, 2 = a chain inside a slot bracket) — drives depth-alt bracketing.
+// ROOT-EXPLICIT vs ROOT-IMPLIED — DECIDED 2026-07-31 (preview review): ROOT IS IMPLIED.
+// `srcTermIn` migration surfaced it: a standalone `srcTermIn:category` on an AMBIENT tag becomes a
+// chain step, and the chain would have to say where it starts before it says the hop.
+//   DECIDED  → src:terms,category          (implied; strip-rule-consistent)
+//   rejected → src:current;terms,category  (explicit; too noisy across every chain)
+// Rule now: `current` serializes ONLY as an override/reset — slot 2+, where absent means inherit
+// the `same` carry-forward. Elsewhere it is the stripped default. (The "FW-32 will need the root
+// anyway" argument was withdrawn: FW-32's pick-primary-then-hop rides the entity-START roots
+// post/term/user, which state a DIFFERENT root — `current` is only ever the omittable value.)
+// This toggle is retained as a look-back; OFF is the decision.
+// Only HOP-first chains are affected — a chain already rooted at an entity-start (post/term/user)
+// or at `same` states its root, so there is nothing to make explicit.
+function chainNeedsRoot(chain) {
+  const first = (chain || []).filter(h => h.slug || h.arg)[0];
+  return !!first && CHAIN_HOPS.some(h => h.value === first.slug);
+}
+// `depth` = the level of the bracket that will ENCLOSE this chain (see serializeStep). Default 0 =
+// the COLON form `src:<chain>`, which has no enclosing bracket — that is every base-tag and
+// table-column emitter. Only serializeSlot, which wraps the chain in the L1 slot bracket, passes 1.
 function serializeChain(chain, depth) {
-  return (chain||[]).filter(h=>h.slug||h.arg).map(h=>serializeStep(h, depth)).join(S.chainSep.hop);
+  if (depth === undefined) depth = 0;
+  const steps = (chain||[]).filter(h=>h.slug||h.arg).map(h=>serializeStep(h, depth));
+  if (S.chainExplicitRoot && chainNeedsRoot(chain)) steps.unshift('current');
+  return steps.join(S.chainSep.hop);
 }
 
 // ── FW-57 slot-payload fold: read-step + slot value ──────────────────────────
@@ -1089,9 +1139,10 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
   const E=[];
   const rb = S.respellReadBracket;
   const push=(name,val,br)=>E.push({name,val,br:!!br,rank:RESPELL_KEY_MAP[name]||[1,99]});
-  // A slot's own chain is nested INSIDE the slot bracket → depth 2 in depth-alt mode (so it picks
-  // the opposite char of the slot token). Independent mode ignores depth (serializeStep uses chainPair).
-  const chainStr = serializeChain(chain, 2);
+  // A slot's chain is printed by serializeSlot as `src{SO}…{SC}` where SO/SC = bracketAt(1) — the
+  // SLOT bracket. So an ENCLOSING bracket exists here at L1 (unlike the colon form), and limit lands
+  // at L2. This is the ONLY caller that passes a non-zero depth.
+  const chainStr = serializeChain(chain, 1);
   if (chainStr) E.push({name:'src', val:chainStr, chainStr:true, rank:RESPELL_KEY_MAP.src});
   if (dtKeys) {
     if(dtKeys.as) push('as',dtKeys.as,false);
@@ -1162,7 +1213,7 @@ function unbalancedBrackets(v, open, close) {
 // Seps still under test (opt/kv/hop pickers live). `hopSep` schema-driven ('+' avoids ','-collision
 // with the opt-sep). The quote-freeform emit branch is retained but currently unreferenced.
 const SLOT_SCHEMAS = {
-  'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, hopSep: '+' },
+  'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, hopSep: ';' },
 };
 function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback) {
   const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback);
@@ -1925,8 +1976,8 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>{
 document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
   r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderCfgPreview(); renderPerms(); });
 });
-document.getElementById('cb-chainlimit').addEventListener('change',e=>{
-  S.chainLimitInPair=e.target.checked; renderCfgPreview(); renderPerms();
+document.getElementById('cb-chainexplicitroot').addEventListener('change',e=>{
+  S.chainExplicitRoot=e.target.checked; renderCfgPreview(); renderPerms();
 });
 document.getElementById('cb-slotforcesrc').addEventListener('change',e=>{
   S.slotForceSrc=e.target.checked; renderCfgPreview(); renderPerms();
