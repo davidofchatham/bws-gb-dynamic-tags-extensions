@@ -716,6 +716,16 @@ const SCENARIO_GROUPS = [
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['use','title']],
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
       note:'shipped limit binds the FINAL step only; chain limits EACH'},
+    // SPECULATIVE per-step `sep` (see serializeStep) — the ONLY rows where a step carries TWO kv
+    // tokens, which is the case that separates the two limit spellings. Read them under both.
+    {label:'ref+term hop, per-step limits AND per-step seps',
+      parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['sep',', '],['use','title']],
+      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']],
+      note:'SPECULATIVE sep — shipped has ONE tag-level sep for the whole fan-out'},
+    {label:'term hop, sep only (no limit)',
+      parts:[['_inTerm','$tax'],['sep',' / '],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']],
+      note:'SPECULATIVE sep — kv token with no limit neighbour'},
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
@@ -884,6 +894,10 @@ const SCENARIO_GROUPS = [
     // post). Two flat options + a modifier collapse to ONE ordered 2-step chain.
     {label:'refs→terms (srcTermIn at src:ref)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
     {label:'refs→terms, both limited',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    // SPECULATIVE per-step `sep` INSIDE a slot — the depth case: both kv tokens take the L2 bracket
+    // while the limit char (slash candidate) stays bare, so this is where the two spellings diverge
+    // most. See serializeStep.
+    {label:'refs→terms, limits AND seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
     // terminal modifier, no ref hop continues from it). Chain makes it expressible.
     {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
@@ -1165,6 +1179,23 @@ function checkTag(str, freeform) {
     const ls = S.limitSep || '/';
     if (ls === S.chainSep.hop)  issues.push(`ambiguous separators: limit and hop are both '${ls}'`);
     if (ls === S.chainSep.step) issues.push(`ambiguous separators: limit and step are both '${ls}'`);
+    // A FREE-FORM value may contain the limit char (`sep( / )` → `terms,category,sep( / )/3`). The
+    // parser survives it — the bracket delimits — but a READER does not, and neither does
+    // hand-editing (ADR 0004). Only reachable because the slash char is bare; a bracketed
+    // `limit[3]` never sits beside a value that could impersonate it.
+    // SCOPE — free-form brackets ONLY (`sep`/`label`/`format`/`fallback`/…). A slash inside a
+    // STRUCTURAL bracket is not a hazard, it is the feature: `src(terms,category/3)` puts the limit
+    // inside the slot wrapper by design. A first cut flagged bracket depth alone and reported all
+    // six of those as faults — the bracket a char sits in is not the question, WHOSE bracket is.
+    const names = [];   // key name owning each open bracket, '' when not a kv token
+    let buried = false, run = '';
+    for (const ch of scan) {
+      if (ch === '(' || ch === '[') { names.push(run); run = ''; continue; }
+      if (ch === ')' || ch === ']') { names.pop(); run = ''; continue; }
+      if (ch === ls && names.length && RESPELL_FREEFORM.has(names[names.length - 1])) { buried = true; break; }
+      run = /[A-Za-z0-9_]/.test(ch) ? run + ch : '';
+    }
+    if (buried) issues.push(`limit char '${ls}' appears inside a free-form value — reads as a limit`);
   }
   if (S.chainSep.hop === S.chainSep.step) {
     issues.push(`ambiguous separators: hop and step are both '${S.chainSep.hop}'`);
@@ -1311,23 +1342,33 @@ function bracketAt(depth) {
 // the colon form is the common case (every base-tag / table-column emitter uses it).
 // Two user-caught bugs live here (2026-07-31): passing 2 for slots gave `src(…,limit(2))` (same-char
 // nested), then defaulting to 1 gave `src:refs,x,limit[3]` on the colon form (skipped L1 entirely).
+// PER-STEP `sep` — SPECULATIVE, not a decided option (user 2026-08-01). Today `sep` is a single
+// TAG-level option; a fan-out chain with more than one multiplying hop has only one joiner for all
+// of them. If that is ever split per-step it lands here, as an ordinary bracket-kv intra-step token
+// (`sep(; )`), i.e. exactly the shape `limit` had before the slash candidate. It is modelled in the
+// tool ONLY so the /limit proposal can be judged against a step that carries a SECOND kv token —
+// with one token the two spellings look equally clean, and the arg-vs-limit binding question does
+// not bite. Default off (blank) everywhere except the dedicated fixtures.
+// TOKEN ORDER — `limit` LAST in the step string (user 2026-08-01). Under the slash candidate that is
+// forced, not stylistic: `/N` is appended to the whole step, so anything after it would sit on the
+// far side of the limit char and read as part of the count.
 function serializeStep(h, depth) {
   const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? String(h.limit) : '';
+  const sep=(h.sep||'')!=='' ? String(h.sep) : '';
+  // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
+  const br = bracketAt(depth + 1) || S.bracketL1 || '()';
   const bits = [];
-  // SLASH candidate: dedicated char, appended to the whole step. No bracket → no depth question,
-  // and an argless step needs no placeholder (`entries/5`, not `entries,,5`).
+  if (arg==='') bits.push(slug);          // argless step (nullary start / analog / same)
+  else bits.push(slug, arg);
+  if (sep!=='') bits.push(kn('sep') + br[0] + sep + br[1]);
+  // SLASH candidate: dedicated char, appended to the whole step AFTER every other token. No bracket
+  // → no depth question, and an argless step needs no placeholder (`entries/5`, not `entries,,5`).
   if (S.limitStyle === 'slash') {
-    const base = arg==='' ? slug : [slug, arg].join(S.chainSep.step);
+    const base = bits.join(S.chainSep.step);
     return lim==='' ? base : base + (S.limitSep || '/') + lim;
   }
-  if (arg==='') { if (lim==='') return slug; bits.push(slug); }   // argless step (nullary start / analog / same)
-  else bits.push(slug, arg);
-  if (lim!=='') {
-    // limit sits one level INSIDE the enclosing wrapper → its own level is depth+1.
-    const br = bracketAt(depth + 1) || S.bracketL1 || '()';
-    bits.push(kn('limit') + br[0] + lim + br[1]);
-  }
-  return bits.join(S.chainSep.step);   // slug,arg[,limit[N]]
+  if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
+  return bits.join(S.chainSep.step);   // slug,arg[,sep[X]][,limit[N]]
 }
 // Serialize a chain [{slug,arg,limit}] into a src VALUE: hop-sep-joined steps. `depth` = the chain's
 // nesting level (1 = base-tag src:, 2 = a chain inside a slot bracket) — drives depth-alt bracketing.
@@ -2185,16 +2226,21 @@ function appendChainEditor(parent, getChain, labelText, onMutate) {
     arg.placeholder = isStart ? 'id' : 'field key / taxonomy';
     arg.value=step.arg||'';
     arg.addEventListener('input',()=>{ step.arg=arg.value; renderCfgPreview(); });
+    // per-step sep is SPECULATIVE (see serializeStep) — present so a step can carry TWO kv tokens.
+    const sp=document.createElement('input'); sp.type='text'; sp.style.width='42px';
+    sp.placeholder='sep'; sp.value=step.sep||''; sp.title='per-step sep (SPECULATIVE — not a decided option)';
+    sp.disabled=isStart;   // starts are cardinality-1, nothing to join
+    sp.addEventListener('input',()=>{ step.sep=sp.value; renderCfgPreview(); });
     const lim=document.createElement('input'); lim.type='text'; lim.style.width='42px';
     lim.placeholder='lim'; lim.value=step.limit||''; lim.title='per-step limit (optional)';
     lim.disabled=isStart;  // starts are cardinality-1, no fan-out to cap
     lim.addEventListener('input',()=>{ step.limit=lim.value; renderCfgPreview(); });
     const del=document.createElement('button'); del.textContent='×'; del.style.cssText='width:22px;padding:0';
     del.addEventListener('click',()=>{ chain.splice(hi,1); onMutate(); });
-    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(lim); r.appendChild(del); box.appendChild(r);
+    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(sp); r.appendChild(lim); r.appendChild(del); box.appendChild(r);
   });
   const add=document.createElement('button'); add.textContent='+ step'; add.style.cssText='align-self:flex-start;font-size:11px';
-  add.addEventListener('click',()=>{ chain.push({slug:'',arg:'',limit:''}); onMutate(); });
+  add.addEventListener('click',()=>{ chain.push({slug:'',arg:'',sep:'',limit:''}); onMutate(); });
   box.appendChild(add);
   wrap.appendChild(lbl); wrap.appendChild(box); parent.appendChild(wrap);
 }
