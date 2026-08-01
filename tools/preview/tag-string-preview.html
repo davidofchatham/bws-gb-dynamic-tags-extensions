@@ -755,26 +755,26 @@ const SCENARIO_GROUPS = [
       chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
       rest:[['key','address']],
       note:'SPECULATIVE sep — the case the shipped single tag-level sep cannot express at all'},
-    // LIMIT 0 on an INTERMEDIATE step. ⚠ The VALUE is unresolved design, not just unrendered
-    // wire: `0` could mean "uncapped" (pass the whole fan-out through) or "none" (a cap of zero,
-    // which empties the chain and makes the tag unresolvable). Shipped has no precedent — the
-    // shipped tag-level `limit` is a positive count and WP's own convention for uncapped is -1,
-    // not 0. Rendered here so the SHAPE can be eyeballed; the semantics need a decision before
-    // any picker offers the value. See §Per-step `limit`.
+    // LIMIT 0 on an INTERMEDIATE step = UNLIMITED, following GB's editor-facing number-input
+    // convention (user 2026-08-01) rather than the arithmetic "cap of zero" reading, which would
+    // empty the chain and make the tag unresolvable. Our controls sit inside GB's editor, so an
+    // author carries one convention across both. NB GB's PHP query layer separately uses -1/10 for
+    // posts_per_page — this is an editor-INPUT convention, not a documented constant.
+    // The rows stay for SHAPE review: 0 renders as an ordinary count in both spellings.
     {label:'limit 0 on the INTERMEDIATE step',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
-      note:'⚠ 0 = uncapped or none? undecided — shape only'},
+      note:'0 = unlimited (GB editor convention) — loosen the multiply-guard for one hop'},
     {label:'limit 0 mid-chain of 3, capped ends',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'0'},{slug:'refs',arg:'office',limit:'3'}],
       rest:[['key','address']],
-      note:'⚠ 0 between two real caps — reads as a hole in the slash form'},
+      note:'0 = unlimited between two real caps'},
     {label:'limit 0 + per-step sep on the same step',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}],
       rest:[['use','title']],
-      note:'⚠ 0 beside a kv token — worst case for reading the slash form'},
+      note:'0 = unlimited beside a kv token'},
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
@@ -1419,8 +1419,8 @@ function bracketAt(depth) {
 // trailing position, not by the slash char. Bracket-kv is order-free (every token is named), so
 // there the order is cosmetic — matched only so a mode diff isolates the CHAR and nothing else.
 function serializeStep(h, depth) {
-  // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, which is exactly
-  // the value whose semantics are unresolved (uncapped vs none) and so most needs to be visible.
+  // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, and 0 is a
+  // MEANINGFUL value here (unlimited, per GB's editor convention), not an absent one.
   const slug=h.slug||'', arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
   const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
