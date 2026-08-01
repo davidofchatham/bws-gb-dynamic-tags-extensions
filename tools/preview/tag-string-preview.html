@@ -416,7 +416,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="slotsep-controls" style="margin-top:6px"></div>
     <label class="toggle-row" style="margin-top:6px">
       <input type="checkbox" id="cb-stepsep">
-      <span class="toggle-desc">[speculative, INDEPENDENT of the limit spelling] per-step <code>sep</code> — <code>terms,category,sep(; )</code>. Today ONE tag-level <code>sep</code> serves a whole fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it per-step is the obvious fix and is NOT a decided option. Ordinary bracket-kv token, so it obeys depth alternation (<code>sep(; )</code> at depth 0, <code>sep[; ]</code> inside a slot). Modelled here because a step carrying a SECOND kv token is the only case that separates the limit spellings — with one token they look identical. If per-step sep ever lands it lands whichever limit form wins, hence its own toggle.</span>
+      <span class="toggle-desc">[DEFERRED 2026-08-01 → FW-61; INDEPENDENT of the limit spelling] per-step <code>sep</code> — <code>terms,category,sep(; )</code>. Today ONE tag-level <code>sep</code> serves a whole fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it per-step is the obvious fix and is NOT a decided option. Ordinary bracket-kv token, so it obeys depth alternation (<code>sep(; )</code> at depth 0, <code>sep[; ]</code> inside a slot). Modelled here because a step carrying a SECOND kv token is the only case that separates the limit spellings — with one token they look identical. If per-step sep ever lands it lands whichever limit form wins, hence its own toggle.</span>
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-limitslash">
@@ -1147,6 +1147,9 @@ const S = {
   // spellings can be told apart, but they are not coupled: today one TAG-level `sep` serves a whole
   // fan-out, and splitting it per-step is a change that would arrive whichever limit form wins.
   // Own toggle so the four combinations are all reachable. OFF = the shipped single-sep model.
+  // ⏸ DEFERRED 2026-08-01 (user) — tracked as FW-61. Its job here is done: it existed to give a step
+  // a SECOND kv token, which is what let the slash-`limit` candidate be judged and rejected. Wire
+  // shape + escaping are settled by the render; the authoring surface is not. Toggle stays.
   perStepSep: false,
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
   // FW-52 canonical order. Three SCHEMAS to eyeball, each a preset of {optSep, kvChar, valWrap,
