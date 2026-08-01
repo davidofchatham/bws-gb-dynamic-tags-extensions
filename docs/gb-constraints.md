@@ -109,6 +109,24 @@ is impossible for reserved keys. (This is the stranded-reserved-token trap that 
 `tax` → `srcTermIn` rename, in a different guise; hit again by the 1.16.0 image `as`+`size` fold —
 see [`tag-reference.md` §`as` serialization opt-out + `as`+`size` fold](tag-reference.md).)
 
+### Switching tag type in the modal DISCARDS all options — there is no carry-over
+
+Picking a different tag in the modal's tag selector resets the option state: nothing the author had
+configured on the previous tag survives the switch, even where the two tags share option keys
+verbatim. GB tracks no per-tag option memory and offers no pre-switch hook, so a plugin cannot
+observe the outgoing state to migrate it forward.
+
+**Consequence for us:** a "convert this tag to that tag" affordance can never be built as a *tag-type
+switch*. Any conversion between two of our tags that must preserve configuration has to happen
+**inside a single tag's option set** — i.e. the target behavior must be reachable as an option on the
+tag the author already has, not as a different registered tag. This is what forces the
+absorb-into-base direction for the `try_` family (a per-tag "add another source" control rather than
+a `{{text}}` → `{{try_text}}` switch); see [`future-work.md`](future-work.md) FW-60.
+
+Today the author's workaround is hand-editing the tag string (retype the name, keep the options).
+That path holds only while both tags spell their options identically — the FW-57 slot fold ends it
+for base → `try_`, which is the trigger that surfaced this constraint.
+
 ### Serialization order is independent of control (render) order — GB itself proves it
 
 The order options **serialize** in the tag string is a separate axis from the order their controls **render** top-to-bottom in the modal. **GB's own `post_date` demonstrates the split:** its modal renders **Date Format ABOVE Link To**, yet it serializes `{{post_date id:100|link:author_archive|dateFormat:F j, Y}}` — **link before format** (render puts format first, serialization puts it last). Render order is fixed by the control-render sequence; serialization order is `extraTagParams` insertion order (above). The two need not agree, and for `post_date` they don't.
