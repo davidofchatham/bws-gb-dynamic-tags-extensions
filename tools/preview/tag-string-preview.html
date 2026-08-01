@@ -760,6 +760,8 @@ const SCENARIO_GROUPS = [
     // empty the chain and make the tag unresolvable. Our controls sit inside GB's editor, so an
     // author carries one convention across both. NB GB's PHP query layer separately uses -1/10 for
     // posts_per_page — this is an editor-INPUT convention, not a documented constant.
+    // ⚠ PROVISIONAL — user is checking the GB editor interface before this locks. Not urgent; no
+    // picker offers the value yet.
     // The rows stay for SHAPE review: 0 renders as an ordinary count in both spellings.
     {label:'limit 0 on the INTERMEDIATE step',
       parts:null,
@@ -1237,26 +1239,17 @@ function checkTag(str, freeform) {
     const ls = S.limitSep || '/';
     if (ls === S.chainSep.hop)  issues.push(`ambiguous separators: limit and hop are both '${ls}'`);
     if (ls === S.chainSep.step) issues.push(`ambiguous separators: limit and step are both '${ls}'`);
-    // A FREE-FORM value may contain the limit char (`sep( / )`). The parser survives it — the
-    // bracket delimits — but the glyph now carries a structural role the reader has to un-see, and
-    // hand-editing (ADR 0004) is the case that suffers. Only reachable because the limit char is
-    // bare; a bracketed `limit[3]` shares no glyph with author content.
-    // ⚠ WEAKER since limit moved FIRST (2026-08-01): the limit is now bound to the step ARG and can
-    // never float loose, so `sep( / )/3` — where the two genuinely abut — is no longer emittable.
-    // What remains is a readability flag, not an ambiguity one. Kept at that strength.
-    // SCOPE — free-form brackets ONLY (`sep`/`label`/`format`/`fallback`/…). A slash inside a
-    // STRUCTURAL bracket is not a hazard, it is the feature: `src(terms,category/3)` puts the limit
-    // inside the slot wrapper by design. A first cut flagged bracket depth alone and reported all
-    // six of those as faults — the bracket a char sits in is not the question, WHOSE bracket is.
-    const names = [];   // key name owning each open bracket, '' when not a kv token
-    let buried = false, run = '';
-    for (const ch of scan) {
-      if (ch === '(' || ch === '[') { names.push(run); run = ''; continue; }
-      if (ch === ')' || ch === ']') { names.pop(); run = ''; continue; }
-      if (ch === ls && names.length && RESPELL_FREEFORM.has(names[names.length - 1])) { buried = true; break; }
-      run = /[A-Za-z0-9_]/.test(ch) ? run + ch : '';
-    }
-    if (buried) issues.push(`limit char '${ls}' appears inside a free-form value — readability, not ambiguity`);
+    // ✂ REMOVED 2026-08-01 (user): a check that flagged the limit char inside a free-form value
+    // (`sep( / )`). The premise was wrong — **a separator char in a `sep` value is to be EXPECTED**,
+    // not exceptional. `sep` holds a joiner, and `/` is an ordinary one ("Sales / Marketing"), so
+    // the rule fired on correct, unremarkable authoring. A check that cries wolf on the common case
+    // is worse than no check: it trains the reader to ignore the column.
+    // The underlying observation survives, RE-CLASSIFIED — it is not a fault to detect per string
+    // but a standing characteristic of the slash candidate: its char overlaps with content authors
+    // routinely type into the one option most likely to hold a separator. Frequency, not severity.
+    // Recorded in the plan's §SLASH candidate ledger; deliberately NOT re-implemented as a check.
+    // (Two earlier cuts of this same rule were also wrong: depth-only, which condemned every
+    // correct `src(…/3)`; then free-form-scoped, which is the version cut here.)
   }
   if (S.chainSep.hop === S.chainSep.step) {
     issues.push(`ambiguous separators: hop and step are both '${S.chainSep.hop}'`);
