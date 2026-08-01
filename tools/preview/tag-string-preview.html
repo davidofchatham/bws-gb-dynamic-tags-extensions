@@ -1179,10 +1179,13 @@ function checkTag(str, freeform) {
     const ls = S.limitSep || '/';
     if (ls === S.chainSep.hop)  issues.push(`ambiguous separators: limit and hop are both '${ls}'`);
     if (ls === S.chainSep.step) issues.push(`ambiguous separators: limit and step are both '${ls}'`);
-    // A FREE-FORM value may contain the limit char (`sep( / )` → `terms,category,sep( / )/3`). The
-    // parser survives it — the bracket delimits — but a READER does not, and neither does
-    // hand-editing (ADR 0004). Only reachable because the slash char is bare; a bracketed
-    // `limit[3]` never sits beside a value that could impersonate it.
+    // A FREE-FORM value may contain the limit char (`sep( / )`). The parser survives it — the
+    // bracket delimits — but the glyph now carries a structural role the reader has to un-see, and
+    // hand-editing (ADR 0004) is the case that suffers. Only reachable because the limit char is
+    // bare; a bracketed `limit[3]` shares no glyph with author content.
+    // ⚠ WEAKER since limit moved FIRST (2026-08-01): the limit is now bound to the step ARG and can
+    // never float loose, so `sep( / )/3` — where the two genuinely abut — is no longer emittable.
+    // What remains is a readability flag, not an ambiguity one. Kept at that strength.
     // SCOPE — free-form brackets ONLY (`sep`/`label`/`format`/`fallback`/…). A slash inside a
     // STRUCTURAL bracket is not a hazard, it is the feature: `src(terms,category/3)` puts the limit
     // inside the slot wrapper by design. A first cut flagged bracket depth alone and reported all
@@ -1195,7 +1198,7 @@ function checkTag(str, freeform) {
       if (ch === ls && names.length && RESPELL_FREEFORM.has(names[names.length - 1])) { buried = true; break; }
       run = /[A-Za-z0-9_]/.test(ch) ? run + ch : '';
     }
-    if (buried) issues.push(`limit char '${ls}' appears inside a free-form value — reads as a limit`);
+    if (buried) issues.push(`limit char '${ls}' appears inside a free-form value — readability, not ambiguity`);
   }
   if (S.chainSep.hop === S.chainSep.step) {
     issues.push(`ambiguous separators: hop and step are both '${S.chainSep.hop}'`);
@@ -1349,9 +1352,14 @@ function bracketAt(depth) {
 // tool ONLY so the /limit proposal can be judged against a step that carries a SECOND kv token —
 // with one token the two spellings look equally clean, and the arg-vs-limit binding question does
 // not bite. Default off (blank) everywhere except the dedicated fixtures.
-// TOKEN ORDER — `limit` LAST in the step string (user 2026-08-01). Under the slash candidate that is
-// forced, not stylistic: `/N` is appended to the whole step, so anything after it would sit on the
-// far side of the limit char and read as part of the count.
+// TOKEN ORDER — `limit` FIRST, directly after `slug,arg`, kv tokens after it (user 2026-08-01,
+// flipping the same day's first cut). Under the slash spelling the limit is not a token in the
+// comma list at all — it binds to the step's ARG, so it belongs against the thing it caps:
+//   chosen   → refs,rel_post/2,sep(; )      (`/2` reads as "this hop, capped at 2")
+//   first cut→ refs,rel_post,sep(; )/2      (`/2` floats off the end, past an unrelated value)
+// That also RETIRES the "limit last is forced" argument: the constraint was self-inflicted by the
+// trailing position, not by the slash char. Bracket-kv is order-free (every token is named), so
+// there the order is cosmetic — matched only so a mode diff isolates the CHAR and nothing else.
 function serializeStep(h, depth) {
   const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? String(h.limit) : '';
   const sep=(h.sep||'')!=='' ? String(h.sep) : '';
@@ -1360,15 +1368,12 @@ function serializeStep(h, depth) {
   const bits = [];
   if (arg==='') bits.push(slug);          // argless step (nullary start / analog / same)
   else bits.push(slug, arg);
+  // SLASH candidate: dedicated char, suffixed to the step BASE. No bracket → no depth question, and
+  // an argless step needs no placeholder (`entries/5`, not `entries,,5`).
+  if (S.limitStyle === 'slash') { if (lim!=='') bits[bits.length-1] += (S.limitSep || '/') + lim; }
+  else if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
   if (sep!=='') bits.push(kn('sep') + br[0] + sep + br[1]);
-  // SLASH candidate: dedicated char, appended to the whole step AFTER every other token. No bracket
-  // → no depth question, and an argless step needs no placeholder (`entries/5`, not `entries,,5`).
-  if (S.limitStyle === 'slash') {
-    const base = bits.join(S.chainSep.step);
-    return lim==='' ? base : base + (S.limitSep || '/') + lim;
-  }
-  if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
-  return bits.join(S.chainSep.step);   // slug,arg[,sep[X]][,limit[N]]
+  return bits.join(S.chainSep.step);   // slug,arg[/N | ,limit[N]][,sep[X]]
 }
 // Serialize a chain [{slug,arg,limit}] into a src VALUE: hop-sep-joined steps. `depth` = the chain's
 // nesting level (1 = base-tag src:, 2 = a chain inside a slot bracket) — drives depth-alt bracketing.
