@@ -420,7 +420,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-limitslash">
-      <span class="toggle-desc">[candidate 2026-08-01, NOT a lock] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>entries/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. OFF is the approved form.</span>
+      <span class="toggle-desc">[REJECTED 2026-08-01 — kept as a look-back; OFF is the decision] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>entries/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. <strong>REJECTED once per-step <code>sep</code> entered the picture:</strong> a step that can carry more than one option must spell them ONE way, and <code>refs,rel_post/2,sep(; )</code> mixes a dedicated char with kv while <code>refs,rel_post,limit(2),sep(; )</code> is uniform. The asymmetry is permanent — every future per-step option arrives as kv, so the slash stays the sole exception rather than becoming one member of a set. OFF is the approved form.</span>
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-chainexplicitroot">
@@ -757,7 +757,7 @@ const SCENARIO_GROUPS = [
     {label:'per-step sep = the limit char (/)',
       parts:[['_inTerm','$tax'],['sep',' / '],['limit','3'],['use','title']],
       chain:[{slug:'terms',arg:'$tax',sep:' / ',limit:'3'}], rest:[['use','title']],
-      note:'the slash candidate’s glyph overlap, beside a real limit — no worse than , ; :'},
+      note:'glyph overlap under the rejected slash form — was no worse than , ; :'},
     {label:'3 hops, sep on each',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
@@ -1130,7 +1130,14 @@ const S = {
   // step less typeable, not empty. NB `+`'s own suitability differs per axis: it failed hop because
   // it pairs the text before+after rather than delimiting, and for a trailing limit it reads as
   // ARITHMETIC (`related_staff+5` = "plus 5", wrong sense) — so it is a live reserve for some future
-  // axis, not a drop-in alternate here. NOT A LOCK — a candidate to look at.
+  // axis, not a drop-in alternate here.
+  // ✖ REJECTED 2026-08-01 (user) once per-step `sep` was in the picture — the deciding reason is
+  // none of (a)/(b)/(c) above, all of which were spent: **a step that can carry more than one
+  // option must spell them ONE way.** `refs,rel_post/2,sep(; )` mixes a dedicated char with kv;
+  // `refs,rel_post,limit(2),sep(; )` is uniform. The asymmetry is permanent — every future per-step
+  // option arrives as kv (a dedicated char per option is not a grammar), so the slash stays the sole
+  // exception rather than becoming one member of a set. `sep` did not create this, it revealed it.
+  // Toggle KEPT as a look-back; 'bracket-kv' is the decision.
   limitStyle: 'bracket-kv',
   // Only consulted when limitStyle === 'slash'. Kept as its own key so the char is tunable on the
   // same footing as hop/step rather than hard-coded into the emitter.
@@ -1411,14 +1418,12 @@ function bracketAt(depth) {
 // tool ONLY so the /limit proposal can be judged against a step that carries a SECOND kv token —
 // with one token the two spellings look equally clean, and the arg-vs-limit binding question does
 // not bite. Default off (blank) everywhere except the dedicated fixtures.
-// TOKEN ORDER — `limit` FIRST, directly after `slug,arg`, kv tokens after it (user 2026-08-01,
-// flipping the same day's first cut). Under the slash spelling the limit is not a token in the
-// comma list at all — it binds to the step's ARG, so it belongs against the thing it caps:
-//   chosen   → refs,rel_post/2,sep(; )      (`/2` reads as "this hop, capped at 2")
-//   first cut→ refs,rel_post,sep(; )/2      (`/2` floats off the end, past an unrelated value)
-// That also RETIRES the "limit last is forced" argument: the constraint was self-inflicted by the
-// trailing position, not by the slash char. Bracket-kv is order-free (every token is named), so
-// there the order is cosmetic — matched only so a mode diff isolates the CHAR and nothing else.
+// TOKEN ORDER — `limit` FIRST, directly after `slug,arg`, kv tokens after it (user 2026-08-01).
+// SURVIVES the slash rejection: under the decided bracket-kv form every token is named, so order is
+// cosmetic and this is simply the emitted one. It mattered while the slash was live, where the limit
+// was not a member of the comma list at all but bound to the step's ARG:
+//   refs,rel_post/2,sep(; )   `/2` reads as "this hop, capped at 2"
+//   refs,rel_post,sep(; )/2   `/2` floats off the end, past an unrelated value
 function serializeStep(h, depth) {
   // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, and 0 is a
   // MEANINGFUL value here (unlimited, per GB's editor convention), not an absent one.
@@ -1429,8 +1434,9 @@ function serializeStep(h, depth) {
   const bits = [];
   if (arg==='') bits.push(slug);          // argless step (nullary start / analog / same)
   else bits.push(slug, arg);
-  // SLASH candidate: dedicated char, suffixed to the step BASE. No bracket → no depth question, and
-  // an argless step needs no placeholder (`entries/5`, not `entries,,5`).
+  // SLASH candidate (REJECTED — look-back only, see S.limitStyle): dedicated char suffixed to the
+  // step BASE. No bracket → no depth question, and an argless step needs no placeholder
+  // (`entries/5`, not `entries,,5`).
   if (S.limitStyle === 'slash') { if (lim!=='') bits[bits.length-1] += (S.limitSep || '/') + lim; }
   else if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
   // A step sep is FREE-FORM author text, so it takes the same escape as every other free-form value
