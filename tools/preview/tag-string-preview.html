@@ -965,8 +965,11 @@ const S = {
   // The slash candidate is worth eyeballing because it dissolves the `,,` interior-empty hole that
   // killed the ORIGINAL positional form: with a dedicated separator the limit is named-by-separator
   // rather than by position, so an argless step is `entries/5` — there is no gap to leave empty.
-  // Costs to weigh on review: (a) `/` must then be REMOVED from the lenient hop class, since a char
-  // cannot be both a hop twin and a limit marker; (b) it binds visually to the ARG (`related_staff/5`)
+  // Costs to weigh on review: (a) ~~`/` must be REMOVED from the lenient hop class~~ — NO LONGER A
+  // COST of this candidate (user, 2026-08-01, approved-twins-only rule): `/` was rejected as the
+  // canonical hop char, so accepting it leniently was an UNAPPROVED twin and comes out regardless.
+  // That frees `/` cleanly rather than making this proposal pay for it; (b) it binds visually to the
+  // ARG (`related_staff/5`)
   // while being semantically a property of the STEP; (c) it spends the last UNSHIFTED ASCII
   // separator — but NOT the last one: `+` stays available (user, 2026-08-01), since it was rejected
   // as the HOP char on visual grounds, not consumed. It is a shift-key char, so the reserve is one
