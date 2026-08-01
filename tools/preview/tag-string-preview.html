@@ -415,8 +415,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     </div>
     <div id="slotsep-controls" style="margin-top:6px"></div>
     <label class="toggle-row" style="margin-top:6px">
+      <input type="checkbox" id="cb-stepsep">
+      <span class="toggle-desc">[speculative, INDEPENDENT of the limit spelling] per-step <code>sep</code> — <code>terms,category,sep(; )</code>. Today ONE tag-level <code>sep</code> serves a whole fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it per-step is the obvious fix and is NOT a decided option. Ordinary bracket-kv token, so it obeys depth alternation (<code>sep(; )</code> at depth 0, <code>sep[; ]</code> inside a slot). Modelled here because a step carrying a SECOND kv token is the only case that separates the limit spellings — with one token they look identical. If per-step sep ever lands it lands whichever limit form wins, hence its own toggle.</span>
+    </label>
+    <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-limitslash">
-      <span class="toggle-desc">[candidate 2026-08-01, NOT a lock] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>entries/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. Costs: <code>/</code> must leave the lenient hop class (a char cannot be both a hop twin and a limit marker), and it binds visually to the ARG while being semantically a property of the STEP. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. OFF is the approved form.</span>
+      <span class="toggle-desc">[candidate 2026-08-01, NOT a lock] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>entries/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. OFF is the approved form.</span>
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-chainexplicitroot">
@@ -1073,6 +1077,12 @@ const S = {
   // Only consulted when limitStyle === 'slash'. Kept as its own key so the char is tunable on the
   // same footing as hop/step rather than hard-coded into the emitter.
   limitSep: '/',
+  // Per-step `sep` — SPECULATIVE, and DELIBERATELY INDEPENDENT of limitStyle (user, 2026-08-01).
+  // The two were introduced together because a step needs a SECOND kv token before the limit
+  // spellings can be told apart, but they are not coupled: today one TAG-level `sep` serves a whole
+  // fan-out, and splitting it per-step is a change that would arrive whichever limit form wins.
+  // Own toggle so the four combinations are all reachable. OFF = the shipped single-sep model.
+  perStepSep: false,
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
   // FW-52 canonical order. Three SCHEMAS to eyeball, each a preset of {optSep, kvChar, valWrap,
   // wrapScope}; chars stay switchable. Type always LEADS (primary format option).
@@ -1362,7 +1372,7 @@ function bracketAt(depth) {
 // there the order is cosmetic — matched only so a mode diff isolates the CHAR and nothing else.
 function serializeStep(h, depth) {
   const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? String(h.limit) : '';
-  const sep=(h.sep||'')!=='' ? String(h.sep) : '';
+  const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
   const br = bracketAt(depth + 1) || S.bracketL1 || '()';
   const bits = [];
@@ -2232,9 +2242,13 @@ function appendChainEditor(parent, getChain, labelText, onMutate) {
     arg.value=step.arg||'';
     arg.addEventListener('input',()=>{ step.arg=arg.value; renderCfgPreview(); });
     // per-step sep is SPECULATIVE (see serializeStep) — present so a step can carry TWO kv tokens.
+    // Disabled unless its own toggle is on, so the field cannot silently shape a string the shipped
+    // single-sep model could not produce.
     const sp=document.createElement('input'); sp.type='text'; sp.style.width='42px';
-    sp.placeholder='sep'; sp.value=step.sep||''; sp.title='per-step sep (SPECULATIVE — not a decided option)';
-    sp.disabled=isStart;   // starts are cardinality-1, nothing to join
+    sp.placeholder='sep'; sp.value=step.sep||'';
+    sp.title = S.perStepSep ? 'per-step sep (SPECULATIVE — not a decided option)'
+                            : 'per-step sep — enable the toggle above';
+    sp.disabled=isStart||!S.perStepSep;   // starts are cardinality-1, nothing to join
     sp.addEventListener('input',()=>{ step.sep=sp.value; renderCfgPreview(); });
     const lim=document.createElement('input'); lim.type='text'; lim.style.width='42px';
     lim.placeholder='lim'; lim.value=step.limit||''; lim.title='per-step limit (optional)';
@@ -2414,6 +2428,10 @@ document.querySelectorAll('input[name="mode"]').forEach(r=>{
 
 document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
   r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderCfgPreview(); renderPerms(); });
+});
+document.getElementById('cb-stepsep').addEventListener('change',e=>{
+  // Independent of limitStyle on purpose — per-step sep would arrive whichever limit form wins.
+  S.perStepSep=e.target.checked; renderSlots(); renderCfgPreview(); renderPerms();
 });
 document.getElementById('cb-limitslash').addEventListener('change',e=>{
   S.limitStyle = e.target.checked ? 'slash' : 'bracket-kv'; renderCfgPreview(); renderPerms();
