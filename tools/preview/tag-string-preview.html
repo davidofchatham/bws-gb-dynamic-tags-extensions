@@ -730,6 +730,51 @@ const SCENARIO_GROUPS = [
       parts:[['_inTerm','$tax'],['sep',' / '],['use','title']],
       chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']],
       note:'SPECULATIVE sep — kv token with no limit neighbour'},
+    // MORE per-step sep samples — the shape of the VALUE is the interesting axis, not the count.
+    // Each of these is a joiner an author would plausibly type, and each stresses a different part
+    // of the emitter: a bare punctuation glyph with no padding, a value carrying the STEP separator,
+    // a value carrying the OPT separator, and a value carrying a GB-reserved char that must escape.
+    {label:'per-step sep: bare glyph, no padding',
+      parts:[['_inTerm','$tax'],['sep','·'],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',sep:'·'}], rest:[['use','title']],
+      note:'SPECULATIVE sep — shortest possible value, no surrounding spaces'},
+    {label:'per-step sep CONTAINS the step sep (,)',
+      parts:[['_inTerm','$tax'],['sep',', and '],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',sep:', and '}], rest:[['use','title']],
+      note:'SPECULATIVE sep — bracket must hold a value carrying the STEP separator'},
+    {label:'per-step sep CONTAINS the opt/hop sep (;)',
+      parts:[['_inTerm','$tax'],['sep','; '],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',sep:'; '}], rest:[['use','title']],
+      note:'SPECULATIVE sep — same for the OPT/HOP separator; both are inert inside the bracket'},
+    {label:'per-step sep CONTAINS a GB-reserved char (|)',
+      parts:[['_inTerm','$tax'],['sep',' | '],['use','title']],
+      chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']],
+      note:'SPECULATIVE sep — brackets are inert to GB; the escape is what protects this'},
+    {label:'3 hops, sep on each',
+      parts:null,
+      chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
+      rest:[['key','address']],
+      note:'SPECULATIVE sep — the case the shipped single tag-level sep cannot express at all'},
+    // LIMIT 0 on an INTERMEDIATE step. ⚠ The VALUE is unresolved design, not just unrendered
+    // wire: `0` could mean "uncapped" (pass the whole fan-out through) or "none" (a cap of zero,
+    // which empties the chain and makes the tag unresolvable). Shipped has no precedent — the
+    // shipped tag-level `limit` is a positive count and WP's own convention for uncapped is -1,
+    // not 0. Rendered here so the SHAPE can be eyeballed; the semantics need a decision before
+    // any picker offers the value. See §Per-step `limit`.
+    {label:'limit 0 on the INTERMEDIATE step',
+      parts:null,
+      chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
+      note:'⚠ 0 = uncapped or none? undecided — shape only'},
+    {label:'limit 0 mid-chain of 3, capped ends',
+      parts:null,
+      chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'0'},{slug:'refs',arg:'office',limit:'3'}],
+      rest:[['key','address']],
+      note:'⚠ 0 between two real caps — reads as a hole in the slash form'},
+    {label:'limit 0 + per-step sep on the same step',
+      parts:null,
+      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}],
+      rest:[['use','title']],
+      note:'⚠ 0 beside a kv token — worst case for reading the slash form'},
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
@@ -902,6 +947,9 @@ const SCENARIO_GROUPS = [
     // while the limit char (slash candidate) stays bare, so this is where the two spellings diverge
     // most. See serializeStep.
     {label:'refs→terms, limits AND seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    // limit 0 INSIDE a slot — same undecided semantics as the base-tag rows above, at L2 brackets.
+    {label:'refs→terms, intermediate limit 0', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
+    {label:'refs→terms, limit 0 + seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
     // terminal modifier, no ref hop continues from it). Chain makes it expressible.
     {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
@@ -1371,7 +1419,9 @@ function bracketAt(depth) {
 // trailing position, not by the slash char. Bracket-kv is order-free (every token is named), so
 // there the order is cosmetic — matched only so a mode diff isolates the CHAR and nothing else.
 function serializeStep(h, depth) {
-  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit||'')!=='' ? String(h.limit) : '';
+  // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, which is exactly
+  // the value whose semantics are unresolved (uncapped vs none) and so most needs to be visible.
+  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
   const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
   const br = bracketAt(depth + 1) || S.bracketL1 || '()';
@@ -1382,7 +1432,10 @@ function serializeStep(h, depth) {
   // an argless step needs no placeholder (`entries/5`, not `entries,,5`).
   if (S.limitStyle === 'slash') { if (lim!=='') bits[bits.length-1] += (S.limitSep || '/') + lim; }
   else if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
-  if (sep!=='') bits.push(kn('sep') + br[0] + sep + br[1]);
+  // A step sep is FREE-FORM author text, so it takes the same escape as every other free-form value
+  // (`\:` / `\|`). The bracket is inert to GB — it delimits for OUR parser only, so a raw `|` inside
+  // it still splits the option list. Caught on the first render of a ` | ` sep fixture, 2026-08-01.
+  if (sep!=='') bits.push(kn('sep') + br[0] + escFreeform(sep) + br[1]);
   return bits.join(S.chainSep.step);   // slug,arg[/N | ,limit[N]][,sep[X]]
 }
 // Serialize a chain [{slug,arg,limit}] into a src VALUE: hop-sep-joined steps. `depth` = the chain's
