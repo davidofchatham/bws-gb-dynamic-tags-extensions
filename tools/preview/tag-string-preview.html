@@ -397,6 +397,18 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div class="sb-h">Option Key Names</div>
     <div id="sb-names"></div>
 
+    <div class="sb-h">⏳ Revision pending (2026-08-01)</div>
+    <div class="toggle-desc" style="line-height:1.5">
+      Full cleanup is <strong>DEFERRED to the end of the FW-56/57 build</strong>, so it reflects
+      the grammar as BUILT — implementation constraints and phasing may still move things
+      (the <code>step_class</code> narrowing to <code>{,}</code> already fell out that way).
+      The chars below are current as of the 2026-07-31 approval, but treat anything here as
+      <em>pending confirmation</em> until that pass runs.<br>
+      Pickers deliberately still offer REJECTED-but-safe candidates (<code>+</code>,
+      <code>/</code>): this is an exploration tool, and a candidate has to stay comparable to be
+      re-examined. Only UNSAFE chars are ever removed.
+    </div>
+
     <div class="sb-h">LOCKED decisions</div>
     <div class="toggle-desc" style="line-height:1.5">
       • Slot prefix: <code>N:</code> value + <code>N-</code> siblings, slot 1 included<br>
@@ -1152,9 +1164,11 @@ const S = {
   // shape + escaping are settled by the render; the authoring surface is not. Toggle stays.
   perStepSep: false,
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
-  // FW-52 canonical order. Three SCHEMAS to eyeball, each a preset of {optSep, kvChar, valWrap,
-  // wrapScope}; chars stay switchable. Type always LEADS (primary format option).
-  //   'bracket-kv'  → name[value] ; sep — the bracket IS the kv delimiter, no `=`. label[Milestone];key[name]
+  // FW-52 canonical order. Type always LEADS (primary format option).
+  // ONE schema survives — `unsafe-lit`, `bracket-all` and `bracket-uniform` were CUT 2026-07-29
+  // and are gone from SLOT_SCHEMAS; do not read the cut names below as live options.
+  //   'bracket-kv'  → name(value) ; sep — the bracket IS the kv delimiter, no `=`. label(Milestone);key(name)
+  // Cut, for the record only:
   //   'unsafe-lit'  → name=value , sep, FREE-FORM values wrapped: label=[Milestone],key=name
   //   'bracket-all' → [name=value] blocks, no sep, free-form quoted: [label="Milestone"][key=name]
   slotSchema: 'bracket-kv',
@@ -1586,11 +1600,17 @@ function unbalancedBrackets(v, open, close) {
 //   - is FORMAT-SAFE: free-form values (date formats etc.) can't collide with a separator.
 // Schemas differ on how a `name=value` pair is spelled and how tokens divide:
 // SOLE SCHEMA (user 2026-07-29 — dropped unsafe-lit, bracket-all, then bracket-uniform):
-//   bracket-kv → name[value]   opt-sep ',' , CHAIN hop-sep '+'  — the slot bracket IS the kv
-//                delimiter. Distinct seps: hop '+' inside src[…], opt ',' between tokens → eye
-//                separates hops from options. Lighter (no '=', single bracket per token).
-// Seps still under test (opt/kv/hop pickers live). `hopSep` schema-driven ('+' avoids ','-collision
-// with the opt-sep). The quote-freeform emit branch is retained but currently unreferenced.
+//   bracket-kv → name(value)   opt-sep ';' , CHAIN hop-sep ';'  — the slot bracket IS the kv
+//                delimiter. Lighter (no '=', single bracket per token). The BRACKET marks the
+//                level, so hop and opt can share ';' without ambiguity: a reader sees `src(`
+//                and knows everything to the matching `)` is chain-internal.
+// APPROVED 2026-07-31: opt ';' · hop ';' · step ',' · L1 '()' · L2 '[]'. `hopSep` is
+// schema-driven. NB '+' was the frontrunner hop and is now REJECTED (infix pairing — binds to
+// the tokens either side instead of reading as a boundary); '+' and '/' are both held RESERVED,
+// carrying no separator meaning, so neither may be re-admitted as a hop without changing what
+// already-saved wires parse as. The pickers still OFFER them — this tool is for exploration,
+// and a rejected-but-safe candidate must stay comparable (FW-59 and any future grammar change
+// need to re-examine why a char lost). The quote-freeform emit branch is retained but unreferenced.
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, hopSep: ';' },
 };
@@ -2110,7 +2130,7 @@ function applySlotSchemaDefaults() {
   const sch = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
   S.slotOptSep = sch.optSep;
   S.slotKvChar = sch.kvChar;
-  S.chainSep.hop = sch.hopSep;   // schema drives the chain hop-sep ('+')
+  S.chainSep.hop = sch.hopSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
 }
 
 function onSepChanged() { renderCfgPreview(); renderPerms(); }

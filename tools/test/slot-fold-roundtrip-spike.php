@@ -3,9 +3,9 @@
  * SPIKE A — FW-57 folded-slot value: parse ⇄ emit round-trip harness.
  *
  * NOT a shipped-code harness (nothing in includes/ implements this yet — the
- * grammar is the FW-56/57 FRONTRUNNER from .claude/plans/src-chain-encoding.md
- * §Sandbox convergence). This spike answers ONE question before any PHP/JS
- * lands: is the frontrunner grammar unambiguously PARSEABLE and round-trippable,
+ * grammar is the FW-56/57 APPROVED wire spec from .claude/plans/src-chain-encoding.md
+ * §WIRE SPEC, approved 2026-07-31). This spike answers ONE question before any
+ * PHP/JS lands: is that grammar unambiguously PARSEABLE and round-trippable,
  * including hand-edited (ADR 0004) and hostile inputs — not merely emittable
  * (the tools/preview sandbox only emits)?
  *
@@ -22,16 +22,17 @@
  *                    is a detected error, not silent corruption.
  *   P6 ERRORS      — malformed input yields a flagged error + no crash.
  *
- * Separator chars are PARAMETERIZED ($G) — still-open decision #1; the whole
- * suite re-runs under alternate char sets to prove the grammar doesn't secretly
- * depend on the provisional picks.
+ * Separator chars are PARAMETERIZED ($G); the whole suite re-runs under an
+ * alternate char set to prove the grammar doesn't secretly depend on the
+ * canonical picks. Canonical set approved 2026-07-31: OPT `;` · HOP `;` ·
+ * STEP `,` · L1 `()` · L2 `[]`.
  *
  * House pattern: pure PHP, no WP, no autoload; run `php tools/test/slot-fold-roundtrip-spike.php`;
  * exits non-zero on failure. Graduates to a real `*-test.php` harness when the
  * fold ships (rename + register in CLAUDE.md §Update triggers).
  */
 
-// ── Grammar config (chars provisional — frontrunner values) ────────────────
+// ── Grammar config (APPROVED chars, 2026-07-31 §WIRE SPEC) ────────────────
 // Canonical chars drive EMIT; each `*_class` is the LENIENT-ACCEPT set the
 // parser also honors (chosen-for-visual-distinctiveness chars have functional
 // twins: `,`≡`;`, `+`≡`/`, `()`≡`[]`). Roles are POSITION-disambiguated
@@ -43,10 +44,20 @@ function bws_spike_grammar( $over = array() ) {
 	return array_merge( array(
 		'opt_sep'    => ';',                 // between slot tokens (canonical emit)
 		'opt_class'  => array( ';', ',' ),   // lenient accept at depth 0
-		'hop_sep'    => '+',                 // between chain steps inside src(...)
-		'hop_class'  => array( '+', '/' ),
+		'hop_sep'    => ';',                 // between chain steps inside src(...)
+		// STRICT: `;` only. `+` and `/` are RESERVED for possible future roles.
+		// Leniently accepting either would bind it to `hop` meaning NOW, so any
+		// later use would silently CHANGE what already-saved wires parse as — a
+		// lenient class is not free, it SPENDS the char.
+		'hop_class'  => array( ';' ),
+		// Chars deliberately held UNSPENT. Declared explicitly so the guard cannot
+		// be disarmed by the same edit that breaks the property (see P8.r).
+		'reserved'   => array( '+', '/' ),
 		'step_sep'   => ',',                 // intra-step: slug,arg[,limit]
-		'step_class' => array( ',', ';' ),
+		// NARROWED to `{,}`: the approved hop-sep is `;`, and hop+step share a
+		// position (both inside the chain), so `;` can no longer be leniently
+		// accepted as a step separator — see bws_spike_grammar_validate().
+		'step_class' => array( ',' ),
 		'br_open'    => '(',                 // canonical L1 bracket (emit)
 		'br_close'   => ')',
 		// Accepted bracket pairs — PER-TOKEN delimiter rule: the open char after
@@ -474,7 +485,7 @@ function check( $label, $ok, $detail = '' ) {
 
 function run_suite( $G, $tag ) {
 
-	// ── P1 IDENTITY: canonical corpus (frontrunner + sandbox scenarios) ─────
+	// ── P1 IDENTITY: canonical corpus (approved-spec + sandbox scenarios) ───
 	// Format: [ container, canonical string ]
 	$s = $G['opt_sep'];
 	$h = $G['hop_sep'];
@@ -482,7 +493,7 @@ function run_suite( $G, $tag ) {
 	$O = $G['br_open'];
 	$C = $G['br_close'];
 	$corpus = array(
-		// try_text — frontrunner header strings
+		// try_text — worked-example header strings
 		array( 'try',  "key{$O}custom_field{$C}" ),
 		array( 'try',  "src{$O}terms{$c}category{$C}{$s}use{$O}title{$C}" ),
 		array( 'try',  "src{$O}refs{$c}office{$h}refs{$c}region{$C}{$s}key{$O}name{$C}" ),
@@ -733,14 +744,14 @@ function run_suite( $G, $tag ) {
 	check( "[$tag] P7.2 trailing-backslash fallback round trip", ! isset( $pt['error'] ) && 'ends with \\' === $pt['opts']['fallback'], "wire: $vt → " . var_export( $pt, true ) );
 }
 
-// ── P8 LENIENT SEPARATOR CLASSES (frontrunner grammar only) ─────────────────
+// ── P8 LENIENT SEPARATOR CLASSES (approved grammar only) ───────────────────
 // Visually-distinct canonical chars have functional twins; the parser accepts
 // the CLASS, emit stays canonical (normalize-on-commit). Position disambiguates
 // roles; bws_spike_grammar_validate() proves the class config is conflict-free.
 function run_lenient_suite( $G, $tag ) {
-	// Validator: frontrunner config safe; a hop/step overlap must be caught.
-	check( "[$tag] P8.v0 frontrunner classes validate", array() === bws_spike_grammar_validate( $G ), implode( '; ', bws_spike_grammar_validate( $G ) ) );
-	$bad_g = bws_spike_grammar( array( 'hop_class' => array( '+', ',' ) ) );   // ',' also in step_class
+	// Validator: approved config safe; a hop/step overlap must be caught.
+	check( "[$tag] P8.v0 approved classes validate", array() === bws_spike_grammar_validate( $G ), implode( '; ', bws_spike_grammar_validate( $G ) ) );
+	$bad_g = bws_spike_grammar( array( 'hop_class' => array( ';', ',' ) ) );   // ',' also in step_class
 	check( "[$tag] P8.v1 hop∩step overlap rejected", array() !== bws_spike_grammar_validate( $bad_g ), '' );
 	$bad_g = bws_spike_grammar( array( 'opt_class' => array( ';', '(' ) ) );   // bracket char as sep
 	check( "[$tag] P8.v2 bracket-as-sep rejected", array() !== bws_spike_grammar_validate( $bad_g ), '' );
@@ -752,13 +763,11 @@ function run_lenient_suite( $G, $tag ) {
 		// `[]` accepted as token bracket
 		array( 'try',  'key[name]',                          'key(name)' ),
 		array( 'try',  'src[refs,office];key[name]',        'src(refs,office);key(name)' ),
-		// `/` accepted as hop-sep
-		array( 'try',  'src(refs,office/refs,region);key(name)', 'src(refs,office+refs,region);key(name)' ),
-		// `;` accepted as step-sep inside the chain
-		array( 'try',  'src(refs;office);key(name)',        'src(refs,office);key(name)' ),
-		// everything at once, mixed pairs + mixed seps
-		array( 'join', 'phone,src[post;9999/refs;related_staff;5],key[mobile]',
-		               'phone;src(post,9999+refs,related_staff,5);key(mobile)' ),
+		// everything at once, mixed pairs + lenient opt-sep. NB the hop class is
+		// STRICT (`;` only), so no hop leniency case exists — `+`/`/` are reserved
+		// and must NOT parse as hops (asserted in the reserved-char suite below).
+		array( 'join', 'phone,src[post,9999;refs,related_staff,5],key[mobile]',
+		               'phone;src(post,9999;refs,related_staff,5);key(mobile)' ),
 		// per-token delimiter rule affordance: inert OTHER pair inside a free-form
 		array( 'table', 'label[Note (TBD];key(note)',       null /* parse-only check below */ ),
 	);
@@ -779,19 +788,49 @@ function run_lenient_suite( $G, $tag ) {
 	// Lone close char of the NON-canonical pair at depth 0 still errors.
 	$r = bws_spike_parse_slot_wire( 'key(note)]', 'try', $G );
 	check( "[$tag] P8.x stray alt-pair close flagged", isset( $r['error'] ), var_export( $r, true ) );
+
+	// ── RESERVED CHARS: must NOT parse as hops ─────────────────────────────
+	// `+` and `/` are held back for possible future roles. The guarantee under
+	// test is that neither currently CARRIES hop meaning — so if one is later
+	// given a job, no already-saved wire silently changes what it resolves to.
+	//
+	// The reserved set is declared PER-GRAMMAR ($G['reserved']), never inferred
+	// from hop_class: inferring it means a char that gets wrongly re-admitted as
+	// a hop also removes its own guard, so the suite goes quiet exactly when the
+	// property breaks. Asserted, not skipped.
+	foreach ( $G['reserved'] as $rc ) {
+		check(
+			"[$tag] P8.r'$rc' reserved char is not in hop_class",
+			! in_array( $rc, $G['hop_class'], true ),
+			"'$rc' is declared reserved but hop_class accepts it"
+		);
+		// Three intra-step tokens: the reserved char did NOT split, so `region`
+		// falls into the limit position and must be REJECTED, never silently kept.
+		$r = bws_spike_parse_slot_wire( "src(refs,office{$rc}refs,region);key(name)", 'try', $G );
+		check( "[$tag] P8.r'$rc' not a hop — misparse flagged, not silent", isset( $r['error'] ), var_export( $r, true ) );
+
+		// Two-token case: the reserved char is absorbed into the ARG verbatim and
+		// MUST round-trip unchanged (it is ordinary content until it is spent).
+		$r = bws_spike_parse_slot_wire( "src(refs,off{$rc}ice);key(name)", 'try', $G );
+		$ok = ! isset( $r['error'] ) && isset( $r['chain'][0]['arg'] ) && "off{$rc}ice" === $r['chain'][0]['arg'] && 1 === count( $r['chain'] );
+		check( "[$tag] P8.r'$rc' inert inside an arg (1 step, arg intact)", $ok, var_export( $r, true ) );
+	}
 }
 
-// Provisional frontrunner chars…
+// APPROVED chars (2026-07-31): OPT `;` · HOP `;` · STEP `,` · L1 `()` · L2 `[]`.
 $G_front = bws_spike_grammar();
-check( 'grammar validate: frontrunner', array() === bws_spike_grammar_validate( $G_front ), implode( '; ', bws_spike_grammar_validate( $G_front ) ) );
-run_suite( $G_front, 'frontrunner ;+,()' );
+check( 'grammar validate: approved', array() === bws_spike_grammar_validate( $G_front ), implode( '; ', bws_spike_grammar_validate( $G_front ) ) );
+run_suite( $G_front, 'approved ;;,()' );
 run_lenient_suite( $G_front, 'lenient' );
-// …and an alternate set (still-open decision #1: prove grammar ≠ char-dependent).
+// …and an alternate set (proves the grammar is not char-dependent).
 $G_alt = bws_spike_grammar( array(
 	'opt_sep' => ',', 'opt_class' => array( ',', ';' ),
-	'hop_sep' => '/', 'hop_class' => array( '/', '+' ),
+	'hop_sep' => '/', 'hop_class' => array( '/' ),
 	'step_sep' => '~', 'step_class' => array( '~' ),
 	'br_open' => '[', 'br_close' => ']',
+	// This set deliberately SPENDS `/` as its hop char, so only `+` stays
+	// reserved here — the reserved-char property is per-grammar, not global.
+	'reserved' => array( '+' ),
 ) );
 check( 'grammar validate: alt', array() === bws_spike_grammar_validate( $G_alt ), implode( '; ', bws_spike_grammar_validate( $G_alt ) ) );
 run_suite( $G_alt, 'alt ,/~[]' );

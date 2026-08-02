@@ -37,17 +37,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// ── Grammar (mirror of Spike A — frontrunner chars) ─────────────────────────
+// ── Grammar (mirror of Spike A — APPROVED chars, 2026-07-31) ────────────────
 
-// Canonical chars (emit) + lenient accept classes (parse) — `,`≡`;`, `+`≡`/`,
-// `()`≡`[]`. Roles are position-disambiguated; classes validated disjoint per
-// position in the Spike A harness (bws_spike_grammar_validate).
+// Canonical chars (emit) + lenient accept classes (parse) — opt `;`≡`,`,
+// hop `;` ONLY, step `,` only, `()`≡`[]`. Roles are position-disambiguated;
+// classes validated disjoint per position in the Spike A harness
+// (bws_spike_grammar_validate). STEP_CLASS is NARROWED to `{,}`: the approved
+// hop-sep is `;` and hop+step share a position (both inside the chain).
+// HOP_CLASS is STRICT: `+` and `/` are RESERVED for possible future roles, so
+// neither is accepted as a hop — a lenient class SPENDS the char, and any later
+// use would change what already-saved wires mean.
 const BWS_SPIKE_FOLD_OPT_SEP    = ';';
 const BWS_SPIKE_FOLD_OPT_CLASS  = array( ';', ',' );
-const BWS_SPIKE_FOLD_HOP_SEP    = '+';
-const BWS_SPIKE_FOLD_HOP_CLASS  = array( '+', '/' );
+const BWS_SPIKE_FOLD_HOP_SEP    = ';';
+const BWS_SPIKE_FOLD_HOP_CLASS  = array( ';' );
 const BWS_SPIKE_FOLD_STEP_SEP   = ',';
-const BWS_SPIKE_FOLD_STEP_CLASS = array( ',', ';' );
+const BWS_SPIKE_FOLD_STEP_CLASS = array( ',' );
 const BWS_SPIKE_FOLD_BR_OPEN    = '(';
 const BWS_SPIKE_FOLD_BR_CLOSE   = ')';
 const BWS_SPIKE_FOLD_BR_PAIRS   = array( '(' => ')', '[' => ']' );

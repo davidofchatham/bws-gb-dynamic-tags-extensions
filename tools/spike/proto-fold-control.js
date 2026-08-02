@@ -17,7 +17,7 @@
  * `src(same);use(same)`, so no arming state exists to lose on remount. The 2×2
  * intent cell survives only as advisory text (inferIntent), never as a gate.
  *
- * Wire grammar = the Spike A frontrunner (opt-sep `;`, hop-sep `+`, step-sep
+ * Wire grammar = the APPROVED wire spec (opt-sep `;`, hop-sep `;`, step-sep
  * `,`, L1 `()`); slot values here carry no free-form text, so no `\:`/`\|`
  * escaping is needed in the spike (real build: escape free-form per Spike A).
  *
@@ -46,14 +46,20 @@
 	var Button        = wp.components.Button;
 	var __            = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 
-	// ── Grammar (frontrunner chars — mirror of the PHP spike parser) ─────────
-	// Canonical (emit) + lenient accept classes (parse): `,`≡`;`, `+`≡`/`, `()`≡`[]`.
+	// ── Grammar (APPROVED chars, 2026-07-31 — mirror of the PHP spike parser) ─
+	// Canonical (emit) + lenient accept classes (parse): opt `;`≡`,`,
+	// hop `;` ONLY, step `,` only, brackets `()`≡`[]`.
+	// STEP_RE is NARROWED to `,`: the approved hop-sep is `;` and hop+step share
+	// a position (both inside the chain), so `;` there is always a hop boundary.
+	// HOP_RE is STRICT: `+` and `/` are RESERVED for possible future roles, so
+	// neither is accepted as a hop — a lenient class SPENDS the char, and any
+	// later use would change what already-saved wires mean.
 	var OPT_SEP    = ';';
 	var OPT_CLASS  = [ ';', ',' ];
-	var HOP_SEP    = '+';
-	var HOP_RE     = /[+/]/;
+	var HOP_SEP    = ';';
+	var HOP_RE     = /[;]/;
 	var STEP_SEP   = ',';
-	var STEP_RE    = /[,;]/;
+	var STEP_RE    = /[,]/;
 	var BR_OPEN    = '(';
 	var BR_CLOSE   = ')';
 	var BR_PAIRS   = { '(': ')', '[': ']' };
@@ -627,7 +633,7 @@
 
 		if ( showSource ) {
 			// PER-STEP controls. The wire supports an ordered chain
-			// (`src(refs,office+refs,region)`), so the control must edit EVERY step
+			// (`src(refs,office;refs,region)`), so the control must edit EVERY step
 			// — an earlier single-hop version silently TRUNCATED hops 2+ whenever
 			// the author touched step 1 (found in editor trial 2026-07-30). Each
 			// step edit rebuilds the whole chain positionally; the value is

@@ -78,8 +78,8 @@ var CASES = [
 	  '1:key(staff_name) | 2:src(refs,office);key(city)' ],
 
 	[ 'multi-hop materialization — the WHOLE chain carries, not just hop 1',
-	  { '1': 'key(a)', '2': 'src(refs,office+refs,region);key(city)', '3': 'src(same);key(zip)' }, 2,
-	  '1:key(a) | 2:src(refs,office+refs,region);key(zip)' ],
+	  { '1': 'key(a)', '2': 'src(refs,office;refs,region);key(city)', '3': 'src(same);key(zip)' }, 2,
+	  '1:key(a) | 2:src(refs,office;refs,region);key(zip)' ],
 
 	[ 'chained inherit — only the IMMEDIATE successor referenced the removed slot',
 	  { '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same);key(c)', '4': 'src(same);key(d)' }, 2,
@@ -165,9 +165,9 @@ function removeHop( chainStr, idx, ordinal ) {
 }
 
 var HOP_CASES = [
-	[ 'remove hop 1 of 2 keeps hop 2', 'refs,office+refs,region', 0, 1, 'src(refs,region)' ],
-	[ 'remove hop 2 of 2 keeps hop 1', 'refs,office+refs,region', 1, 1, 'src(refs,office)' ],
-	[ 'remove middle hop of 3',        'post,9999+refs,a+refs,b', 1, 1, 'src(post,9999+refs,b)' ],
+	[ 'remove hop 1 of 2 keeps hop 2', 'refs,office;refs,region', 0, 1, 'src(refs,region)' ],
+	[ 'remove hop 2 of 2 keeps hop 1', 'refs,office;refs,region', 1, 1, 'src(refs,office)' ],
+	[ 'remove middle hop of 3',        'post,9999;refs,a;refs,b', 1, 1, 'src(post,9999;refs,b)' ],
 	[ 'empty a 1-step chain on slot 1 — legitimately unset (current)',
 	  'refs,office', 0, 1, '(empty chain — slot 1 falls to current)' ],
 	[ 'empty a 1-step chain on slot >=2 — MUST fall back to explicit inherit, never absence',

@@ -66,6 +66,10 @@ $sections   = array();
 $sections[] = $section( 'PF-P — suspect-2 A/B: markup+non-ASCII (div host) vs plain ASCII (p row)', array(
 	$row_host( 'PFa1 [markup: 3 slots, code-wrapped + non-ASCII glyphs, div host]', '{{proto_fold 1:key(staff_name)|2:src(refs,office);use(same)|3:src(same);key(city)}}' ),
 	$row( 'PFa2 [PLAIN: identical wire, ASCII only, no wrapper]', '{{proto_fold 1:key(staff_name)|2:src(refs,office);use(same)|3:src(same);key(city)|plain:1}}' ),
+	// NB the `+` in PFb1/PFb2 is deliberate and must NOT be "corrected" to `;`:
+	// `+` carries NO separator meaning anywhere (reserved, unspent), so at depth 0
+	// between two tokens — where only the opt class (`;`/`,`) is legal — the wire
+	// stays malformed, which is the property under test.
 	$row_host( 'PFb1 [markup: malformed → non-ASCII warn glyph, div host]', '{{proto_fold 1:src(refs,office)+use(same)}}' ),
 	$row( 'PFb2 [PLAIN: same malformed wire, ASCII warn]', '{{proto_fold 1:src(refs,office)+use(same)|plain:1}}' ),
 ) );
@@ -73,9 +77,13 @@ $sections[] = $section( 'PF-P — suspect-2 A/B: markup+non-ASCII (div host) vs 
 // had no controls — the single-hop control silently TRUNCATED hops 2+ on any
 // source edit. These rows exercise the per-step controls (edit/remove/append).
 $sections[] = $section( 'PF-M — multi-hop chains (per-step controls)', array(
-	$row_host( 'PFm1 [2-hop: office->region, edit step 1 must KEEP step 2]', '{{proto_fold 1:src(refs,office+refs,region);key(name)}}' ),
-	$row_host( 'PFm2 [3-hop + start-kind + limit: post,9999 -> refs,5 -> refs]', '{{proto_fold 1:src(post,9999+refs,related_staff,5+refs,office);use(title)}}' ),
-	$row_host( 'PFm3 [slot 2 multi-hop w/ inherit read (Path A)]', '{{proto_fold 1:key(staff_name)|2:src(refs,office+refs,region);use(same)}}' ),
+	$row_host( 'PFm1 [2-hop: office->region, edit step 1 must KEEP step 2]', '{{proto_fold 1:src(refs,office;refs,region);key(name)}}' ),
+	$row_host( 'PFm2 [3-hop + start-kind + limit: post,9999 -> refs,5 -> refs]', '{{proto_fold 1:src(post,9999;refs,related_staff,5;refs,office);use(title)}}' ),
+	$row_host( 'PFm3 [slot 2 multi-hop w/ inherit read (Path A)]', '{{proto_fold 1:key(staff_name)|2:src(refs,office;refs,region);use(same)}}' ),
+	// RESERVED-CHAR row: `+` is deliberately NOT a hop (held unspent for a future
+	// role), so this must NOT read as a 2-hop chain. Expect ONE step whose arg is
+	// the literal `office+refs` — i.e. the char is inert content, not a separator.
+	$row_host( 'PFm4 [RESERVED +: must NOT split into 2 hops — expect 1 step, arg "office+refs", flagged/odd not silently traversed]', '{{proto_fold 1:src(refs,office+refs,region);key(name)}}' ),
 ) );
 // REPEATER rows (2026-07-30): add/remove slot cardinality replaced the show_if
 // reveal chain + intent radio. The interesting cases are all in the EDITOR — open
@@ -97,7 +105,7 @@ $sections[] = $section( 'PF-R — repeater: add / out-of-order remove with compa
 	$row_host( 'PFr7 [INCOMPLETE HOP: refs with no reference field — must FLAG, not render a bare refs that looks configured]',
 		'{{proto_fold 1:key(staff_name)|2:src(refs);use(same)}}' ),
 	$row_host( 'PFr8 [INCOMPLETE HOP mid-chain: hop 1 complete, hop 2 argless — flag must attach to hop 2 only]',
-		'{{proto_fold 1:key(staff_name)|2:src(refs,office+refs);key(city)}}' ),
+		'{{proto_fold 1:key(staff_name)|2:src(refs,office;refs);key(city)}}' ),
 ) );
 // FIELD FILTERS under the fold (2026-07-31). The slot's field picker is now the
 // SHIPPED bws-field-combo (Location + Type filters + discovery combobox), bridged
@@ -114,7 +122,7 @@ $sections[] = $section( 'PF-F — field filters under the fold (terminal-step ki
 	$row_host( 'PFf3 [terminal refs — deliberately NOT preset (SPEC V3: hop target PT unknown); expect unscoped + generic label]',
 		'{{proto_fold 1:src(refs,office);key(city)}}' ),
 	$row_host( 'PFf4 [MULTI-HOP terminal: preset must follow the LAST step (site), not the first (refs). Chain is deliberately odd - a site terminal discards the hop - it tests preset SOURCING, not a sane authoring shape]',
-		'{{proto_fold 1:src(refs,office+site);key(company_name)}}' ),
+		'{{proto_fold 1:src(refs,office;site);key(company_name)}}' ),
 	$row_host( 'PFf5 [slot 2 with its OWN terminal — each slot presets independently, no bleed from slot 1]',
 		'{{proto_fold 1:src(site);key(company_name)|2:src(current);key(staff_name)}}' ),
 ) );
