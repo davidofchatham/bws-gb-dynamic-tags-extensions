@@ -14,16 +14,27 @@ No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 
 **Two test layers — run the pure harness always, route integration through the testbed.**
 
-1. **Pure PHP harnesses** under `tools/test/` — no framework, no autoload; each copies the
-pure functions it exercises inline (house pattern) and runs via `php tools/test/<name>.php`,
-exiting non-zero on failure. Run the one whose domain you touched (see §Update triggers for the
-key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold engine),
-`phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
+1. **Pure harnesses** under `tools/test/` — no framework, no autoload; each runs via
+`php tools/test/<name>.php`, exiting non-zero on failure. Older ones copy the pure functions they
+exercise inline (house pattern); newer ones **require the real file** when it is pure, because a
+test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
+`slot-options-build-test.php`, `slot-fold-test.php`). Run the one whose domain you touched (see
+§Update triggers for the key→harness map): e.g. `traversal-pipeline-test.php` (source factory +
+fold engine), `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
 `slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`,
 `serialization-order-test.php`, `as-size-fold-test.php`, `table-assemble-test.php`,
-`inline-css-pipeline-test.php`, `limit-clamp-test.php`. No CI
+`inline-css-pipeline-test.php`, `limit-clamp-test.php`, `slot-fold-test.php`. No CI
 runs these; run them locally before commit.
+
+   **Not all PHP any more (1.17.0).** `slot-fold-twin-test.php` is still launched with `php`, but it
+   shells out to **`node`** to run the JS side of a cross-language property — the folded slot wire is
+   parsed in PHP and both parsed AND emitted in JS, so a PHP-only harness structurally cannot see a
+   twin divergence. It compares one shared input corpus (`slot-fold-corpus.json`) through two thin
+   drivers (`slot-fold-twin-driver.php` / `.js`, which load the SHIPPING files rather than porting
+   them). **A missing `node` FAILS the harness rather than skipping** — a silent pass would hide
+   exactly the drift it exists to catch. New twin coverage costs one corpus line and no expected
+   value; behavioural expectations stay in `slot-fold-test.php`.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
@@ -128,7 +139,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Text field-option or slot-read change (`bws_get_text_field_options` = the text `use`+`key` LEAF, `bws_build_slot_read_options` = the slot READ twin, both `base-shared.php`; or any of their consumers — base `{{text}}` registration, the `text` modifier template, the try_ slot loop, `bws_get_join_options`) | run `php tools/test/slot-options-build-test.php` (leaf shape + twin derive, incl. the byte-exact combining case). **Never re-inline the enum at a consumer** — four copies is what the leaf removed, and copies are how image's `Return type:`/`Return image as:` drift happened. A container that wants a different read enum takes a PARAMETER on the twin (`$allow_same` is the precedent), never its own literal |
 | `limit` interpretation change (`bws_clamp_limit` in `field-helpers.php` — THE single interpreter; its four call sites are `bws_resolve_field_values`, `bws_collect_value_list`, try_ slot dispatch in `class-tag-template-registry.php`, `bws_try_join_items`) | run `php tools/test/limit-clamp-test.php` (pure clamp rule + the caller slice/early-break contracts) + `php tools/test/try-join-seam-test.php`. Never re-inline the rule at a call site — the copies are what the extraction removed. **`0` = UNLIMITED (1.17.0):** a call site must slice `array_slice( $x, 0, $limit ?: null )` and guard early-breaks on `$limit &&` — a bare `0` truncates to nothing / breaks on the first item, and both read as "limit applied" in review |
 | Inline-CSS queue / content-extraction change (`bws_queue_inline_css` in `content-helpers.php`, or the `ContentProcessor` pure transforms `extract_and_queue_inline_styles` / `strip_block_comments` / `extract_css_from_block_comments` / `strip_dynamic_tags`) | run `php tools/test/inline-css-pipeline-test.php` (pure dedupe + extraction regexes) |
-| Folded slot-value grammar change (anything in `includes/helpers/slot-fold.php` — separators, brackets, tokenizer/splitters, chain steps, read precedence, `bws_fold_from_legacy`) | run `php tools/test/slot-fold-test.php` (grammar validator + round-trip + legacy mapping). **`slot-fold.php` is THE PHP owner of the wire; its JS twin carries no independent decisions** — a change here lands in both copies in the same edit, and agreement is tested (different languages, so elimination is unavailable). **Verify by MUTATION, not by a green count:** break the property deliberately and confirm the suite fails — the spike had a guard whose enabling condition derived from the thing it guarded, so it went quiet instead of failing |
+| Folded slot-value grammar change (anything in `includes/helpers/slot-fold.php` — separators, brackets, tokenizer/splitters, chain steps, read precedence, `bws_fold_from_legacy`) | run `php tools/test/slot-fold-test.php` (grammar validator + round-trip + legacy mapping) **AND `php tools/test/slot-fold-twin-test.php`** (PHP↔JS agreement; needs `node`). **`slot-fold.php` is THE PHP owner of the wire; `assets/js/slot-fold-grammar.js` is its twin and carries no independent decisions** — a change lands in BOTH files in the same edit, and the twin harness is what proves it did. **Verify by MUTATION, not by a green count:** break the property deliberately and confirm the suite fails — the spike had a guard whose enabling condition derived from the thing it guarded, so it went quiet instead of failing. Two live examples of coverage that only LOOKED present: the bracket-aware step split (nothing exercised a separator inside a step token's brackets) and a truthiness guard on `limit` (drops a numeric `0` = unlimited, invisible to a parse-only corpus — hence the `emitStructs` section) |
 | Pipeline / helper internals change | `post-content-processing-reference.md` (if content-rendering) or PHPDoc only (if narrow) |
 | User-visible feature ships | `README.md` overview update + CHANGELOG |
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references |
