@@ -453,9 +453,6 @@ class TagTemplateRegistry {
 				continue;
 			}
 
-			// Per-template use option label (drives slot N "X Field N" labels).
-			$use_label = $tpl_options['use']['label'] ?? __( 'Field', 'generateblocks' );
-
 			// Group 1 — global formatting (as, size, format, etc.). Link options appended after
 			// trailing field/fallback options below (after slot loop + trailing merge).
 			$link_opts_try = ( $supports_link && function_exists( 'bws_get_link_options' ) )
@@ -514,24 +511,14 @@ class TagTemplateRegistry {
 				$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
 
 				// N-use — per-slot field-type selector (try_per_slot_use templates only).
-				if ( $per_slot_use && ! empty( $tpl_options['use']['options'] ) ) {
-					$slot_use_options = ( 1 === $n )
-						? $tpl_options['use']['options']
-						: array_merge(
-							[ [ 'value' => 'same', 'label' => __( 'Same as Previous Field', 'generateblocks' ) ] ],
-							$tpl_options['use']['options']
-						);
-
-					$options[ $use_key ] = array_merge(
-						[
-							'type'           => 'select',
-							/* translators: 1: use option label (e.g. "Text Field"), 2: slot number */
-							'label'          => sprintf( '%2$d: %1$s', $use_label, $n ),
-							'options'        => $slot_use_options,
-							'_strip_default' => true,
-						],
-						$slot_trigger
-					);
+				// DERIVED from the template's own `use` definition via the read twin —
+				// enum, "N: <noun>" label and _strip_default all come off the base def;
+				// selecting containers take the `same` inherit row ($allow_same = true).
+				$slot_read = ( $per_slot_use && function_exists( 'bws_build_slot_read_options' ) )
+					? bws_build_slot_read_options( $n, $tpl_options['use'] ?? [], true )
+					: [];
+				if ( ! empty( $slot_read ) ) {
+					$options[ $use_key ] = array_merge( $slot_read, $slot_trigger );
 				}
 
 				// key — per-slot field key.

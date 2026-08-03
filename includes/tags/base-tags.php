@@ -57,6 +57,7 @@ function bws_register_base_tags(): void {
 
 	$source_opt     = bws_base_source_option();
 	$traversal_opts = bws_base_traversal_options();
+	$text_field     = bws_get_text_field_options();
 
 	// =========================================================
 	// text — ACF/meta field or entity title; supports_list
@@ -90,26 +91,19 @@ function bws_register_base_tags(): void {
 					'placeholder' => ', ',
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
-				'use'      => array(
-					'type'           => 'select',
-					'label'          => __( 'Text Field', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-						array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
-					),
-					'_strip_default' => true,
-				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
-					'placeholder'  => 'field_name',
-					// Key-mode = empty/'key'. Hidden for named data (title).
-					// Under src:site, key-mode reads a wp_options key. Site tagline has
-					// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
-					// (nothing unique to add until multislot-feed decouple — see #26).
-					'show_if'      => array( 'use' => 'not:title' ),
+				// use/key from the text FIELD LEAF (single source; the template, join
+				// and the folded control consume the same builder). show_if is the
+				// caller's overlay by leaf contract.
+				'use'      => $text_field['use'],
+				'key'      => array_merge(
+					$text_field['key'],
+					array(
+						// Key-mode = empty/'key'. Hidden for named data (title).
+						// Under src:site, key-mode reads a wp_options key. Site tagline has
+						// NO tag path (B7): GB native {{site_tagline}} or key:blogdescription
+						// (nothing unique to add until multislot-feed decouple — see #26).
+						'show_if' => array( 'use' => 'not:title' ),
+					)
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array(),
@@ -358,28 +352,19 @@ function bws_register_base_tags(): void {
 		'key'                   => 'text',
 		'title'                 => __( 'Text Fields', 'generateblocks' ),
 		'supports_link_wrap'    => true,
-		'options'               => array(
-			'use'      => array(
-				'type'           => 'select',
-				'label'          => __( 'Text Field', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+		'options'               => array_merge(
+			// Same LEAF the base {{text}} registration consumes — the template is a
+			// different COMPOSITION, not a second definition. No `show_if` overlay
+			// here: try_ encodes the identical fact declaratively below
+			// (try_use_no_key_values) and re-qualifies it per slot.
+			$text_field,
+			array(
+				'fallback' => array(
+					'type'  => 'text',
+					'label' => __( 'Fallback Text', 'generateblocks' ),
+					'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
 				),
-				'_strip_default' => true,
-			),
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
-				'placeholder'  => 'field_name',
-			),
-			'fallback' => array(
-				'type'  => 'text',
-				'label' => __( 'Fallback Text', 'generateblocks' ),
-				'help'  => __( 'Text to display if the field is empty or not found.', 'generateblocks' ),
-			),
+			)
 		),
 		'term_fn'               => 'bws_term_custom_text_core',
 		'post_fn'               => 'bws_post_custom_text_core',
@@ -839,12 +824,13 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * tag-level assembly options.
  *
  * Per slot: src/ref/srcTermIn from bws_build_slot_traversal_options() with the
- * site arm ALLOWED (the try_text site gap is not repeated), plus `use` (text's
- * full key/title enum — deliberately NO "Same as Previous Field" row: in
- * combining, same-use is redundant [use:key = the default] or pointless
- * [use:title twice reads the identical datum]; this is a concrete reason join
- * owns its build loop rather than reusing the try_ per_slot_use emit, which
- * hardcodes the same-prepend), `key` (never inherited), and `limit` (list-mode
+ * site arm ALLOWED (the try_text site gap is not repeated), plus `use` from
+ * bws_build_slot_read_options() at $allow_same = FALSE — no "Same as Previous
+ * Field" row because per-slot HANDLERS are not built yet, NOT because same-read
+ * is degenerate in combining (that argument is withdrawn: use(same) there means
+ * same field + same source, DIFFERENT handler — a decomposition). Flip the flag
+ * when handlers ship. The flag is why join no longer forks its own read emit.
+ * Then `key` (leaf shape, never inherited) and `limit` (list-mode
  * cap so a srcTermIn / src:ref slot reads >1 target; its own list-axis
  * show_if_any doubles as the reveal — an unconfigured slot has no list axis).
  *
@@ -863,8 +849,11 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * @return array Option definitions keyed by option name.
  */
 function bws_get_join_options(): array {
-	$base_src  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
-	$base_trav = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+	$base_src   = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
+	$base_trav  = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
+	$text_field = function_exists( 'bws_get_text_field_options' )
+		? bws_get_text_field_options()
+		: array( 'use' => array(), 'key' => array() );
 
 	$options = array();
 
@@ -902,32 +891,25 @@ function bws_get_join_options(): array {
 		$options[ $ref_key ] = $slot_defs['ref'];
 		$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
 
-		// use — text's full enum, no same-row (see PHPDoc).
+		// use — DERIVED from the text field leaf via the read twin, $allow_same
+		// FALSE: no inherit row until per-slot handlers exist (see PHPDoc). Same
+		// enum + "N: Text Field" label the base tag and try_ slots carry.
 		$options[ $use_key ] = array_merge(
-			array(
-				'type'           => 'select',
-				/* translators: %d: slot number */
-				'label'          => sprintf( __( '%d: Text Field', 'generateblocks' ), $n ),
-				'options'        => array(
-					array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
-				),
-				'_strip_default' => true,
-			),
+			function_exists( 'bws_build_slot_read_options' )
+				? bws_build_slot_read_options( $n, $text_field['use'], false )
+				: array(),
 			$slot_trigger
 		);
 
-		// key — per slot, never inherited. Hidden for use:title (no inherit
-		// mode, so slot ≥2 visibility = same rule as slot 1).
+		// key — leaf shape, per slot, never inherited. Slot label/help overlaid;
+		// hidden for use:title (no inherit mode, so slot ≥2 visibility = slot 1's rule).
 		$options[ $key_key ] = array_merge(
+			$text_field['key'],
 			array(
-				'type'         => 'bws-field-combo',
 				/* translators: %d: slot number */
-				'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-				'placeholder'  => 'field_name',
-				'show_if'      => array( $use_key => 'not:title' ),
+				'label'   => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
+				'help'    => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
+				'show_if' => array( $use_key => 'not:title' ),
 			),
 			$slot_trigger
 		);

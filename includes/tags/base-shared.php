@@ -170,6 +170,109 @@ function bws_base_traversal_options(): array {
 }
 
 /**
+ * Text-family FIELD leaf: the `use` (read selector) + `key` (field key) pair.
+ *
+ * GROUP-PURE LEAF (FW-52 discipline): every key returned belongs to the canonical
+ * SOURCE group, so the caller places the pair at that group's position in its own
+ * control order. A leaf returns the enum + control shape ONLY — callers overlay
+ * `show_if`, label prefixes and any context-specific help. Multi-group returns are
+ * COMPOSERS, not leaves; do not bundle format/fallback keys in here.
+ *
+ * Single source for what were FOUR byte-identical copies of the text read enum:
+ * base `{{text}}` registration, the `text` modifier template (feeding the term_ and
+ * try_ families), the {{join}} slot loop, and the folded-slot control. Copies is how the
+ * `Return type:` / `Return image as:` label drift on image happened; text is fixed
+ * first because the fold consumes it (image is NOT a fold consumer — a table cell
+ * needs a full <img>, which the image tag does not emit).
+ *
+ * Precedent: bws_get_base_datetime_single_options() /
+ * bws_get_datetime_single_template_options() have composed from shared leaves since
+ * 1.6.0 — same leaves, different composition per context, zero duplication.
+ *
+ * @since 1.17.0
+ * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
+ *               (base overlays `use:not:title`; the template encodes the same fact
+ *               declaratively via try_use_no_key_values).
+ */
+function bws_get_text_field_options(): array {
+	return array(
+		'use' => array(
+			'type'           => 'select',
+			'label'          => __( 'Text Field', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'key',   'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+				array( 'value' => 'title', 'label' => __( 'Title/Name', 'generateblocks' ) ),
+			),
+			'_strip_default' => true,
+		),
+		'key' => array(
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
+			'placeholder'  => 'field_name',
+		),
+	);
+}
+
+/**
+ * Build the READ (`use`) option definition for one numbered slot, derived from a
+ * base read definition. The read-axis twin of bws_build_slot_traversal_options()
+ * (source axis) — same derive-don't-copy contract, same `$n` duties.
+ *
+ * Derivation rules:
+ *   - options: base `use.options` verbatim. Slot ≥2 prepends the `same` (inherit)
+ *     row when $allow_same — the read-axis counterpart of "Same as Previous Source".
+ *   - label: the NOUN comes off the base definition's own label ("Text Field",
+ *     "Image Field", …), emitted as "N: <noun>". Never hand-author a per-container
+ *     read label: that is the drift this twin exists to kill.
+ *   - `_strip_default` preserved (V5).
+ *
+ * `$n` serves exactly TWO purposes: the same-row gate and the "N: " label prefix
+ * (V10). The FOLD consumes only the returned `['options']` ROWS and supplies its
+ * own slot heading; the prefixed label is for the legacy FLAT callers (try_/join),
+ * which register one option key per axis per slot. Do not "clean up" the prefix —
+ * join's shipped registration reads it.
+ *
+ * Pure fn of (slot ordinal, base read def, flag) — no WP beyond __(). Locally
+ * harnessable (tools/test/slot-options-build-test.php).
+ *
+ * @since 1.17.0
+ * @param int   $n           Slot ordinal (1-based).
+ * @param array $base_read   Base `use` definition (e.g. bws_get_text_field_options()['use']).
+ * @param bool  $allow_same  When true, slot ≥2 gets the inherit row. FALSE for
+ *                           COMBINING containers ({{join}}) because per-slot
+ *                           handlers are NOT BUILT YET, not because same-read is
+ *                           degenerate there: `use(same)` is legal in combining and
+ *                           useful as same field + same source, DIFFERENT handler.
+ *                           Flip to true when per-slot handlers ship.
+ * @return array One option definition (type/label/options/_strip_default). Empty
+ *               array when $base_read carries no options (nothing to select).
+ */
+function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same = true ): array {
+	$read_opts = $base_read['options'] ?? array();
+	if ( empty( $read_opts ) ) {
+		return array();
+	}
+
+	$rows = array_values( $read_opts );
+	if ( $n >= 2 && $allow_same ) {
+		array_unshift(
+			$rows,
+			array( 'value' => 'same', 'label' => __( 'Same as Previous Field', 'generateblocks' ) )
+		);
+	}
+
+	return array(
+		'type'           => 'select',
+		/* translators: 1: read option label (e.g. "Text Field"), 2: slot number */
+		'label'          => sprintf( '%2$d: %1$s', $base_read['label'] ?? __( 'Field', 'generateblocks' ), $n ),
+		'options'        => $rows,
+		'_strip_default' => ! empty( $base_read['_strip_default'] ),
+	);
+}
+
+/**
  * Re-qualify a base option's `show_if` condition keys for a numbered try_ slot.
  *
  * Base traversal options carry bare sibling-key conditions (e.g. `ref` shows when

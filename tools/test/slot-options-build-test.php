@@ -210,6 +210,76 @@ assert_same(
 // Source not mutated in place.
 assert_same( 'pick does not mutate source', true, in_array( 'site', array_column( bws_base_source_option()['src']['options'], 'value' ), true ) );
 
+// ============================================================
+// bws_get_text_field_options() — the text FIELD LEAF (build step 3)
+// ============================================================
+
+echo "\nbws_get_text_field_options (leaf)\n";
+
+$leaf = bws_get_text_field_options();
+
+// Group-pure: SOURCE-group keys only. A format/fallback key here means the leaf
+// grew into a composer and callers can no longer place it by group (FW-52).
+assert_same( 'leaf returns exactly use+key', array( 'use', 'key' ), array_keys( $leaf ) );
+
+// Enum + control shape (the four-copy definition, now one).
+assert_same( 'leaf use options = key,title', array( 'key', 'title' ), array_column( $leaf['use']['options'], 'value' ) );
+assert_same( 'leaf use label "Text Field"', 'Text Field', $leaf['use']['label'] );
+assert_same( 'leaf use _strip_default true', true, $leaf['use']['_strip_default'] );
+assert_same( 'leaf key control = bws-field-combo', 'bws-field-combo', $leaf['key']['type'] );
+assert_same( 'leaf key dynamicLabel true', true, $leaf['key']['dynamicLabel'] );
+
+// Leaf contract: NO show_if. Base overlays use:not:title; the template encodes the
+// same fact via try_use_no_key_values. Ship it on the leaf and both callers inherit
+// a condition one of them must then strip.
+assert_same( 'leaf use carries no show_if', false, isset( $leaf['use']['show_if'] ) );
+assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'] ) );
+
+// ============================================================
+// bws_build_slot_read_options() — the READ twin (build step 4)
+// ============================================================
+
+echo "\nbws_build_slot_read_options\n";
+
+// --- Slot 1: base enum verbatim, no inherit row regardless of $allow_same. ---
+$r1 = bws_build_slot_read_options( 1, $leaf['use'], true );
+assert_same( 'slot1 read options = key,title (no same)', array( 'key', 'title' ), array_column( $r1['options'], 'value' ) );
+assert_same( 'slot1 read label "1: Text Field"', '1: Text Field', $r1['label'] );
+assert_same( 'slot1 read type select', 'select', $r1['type'] );
+assert_same( 'slot1 read _strip_default derived from base', true, $r1['_strip_default'] );
+
+// --- Slot ≥2 SELECTING (try_): inherit row prepended, shipped string. ---
+$r2 = bws_build_slot_read_options( 2, $leaf['use'], true );
+assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title' ), array_column( $r2['options'], 'value' ) );
+assert_same( 'slot2 same row label', 'Same as Previous Field', $r2['options'][0]['label'] );
+assert_same( 'slot2 read label "2: Text Field"', '2: Text Field', $r2['label'] );
+
+// --- Slot ≥2 COMBINING ({{join}}): NO inherit row. Byte-for-byte the literal the
+// twin replaced — join's rejoin is a behavioral no-op. Not-built-yet (per-slot
+// handlers), NOT degenerate: flipping the flag is the whole change when they ship.
+$j2 = bws_build_slot_read_options( 2, $leaf['use'], false );
+assert_same(
+	'slot2 combining == pre-twin join literal',
+	array(
+		'type'           => 'select',
+		'label'          => '2: Text Field',
+		'options'        => array(
+			array( 'value' => 'key',   'label' => 'Meta/Option Field' ),
+			array( 'value' => 'title', 'label' => 'Title/Name' ),
+		),
+		'_strip_default' => true,
+	),
+	$j2
+);
+
+// --- Label NOUN comes off the base def, never hand-authored per container. ---
+$img = bws_build_slot_read_options( 3, array( 'label' => 'Image Field', 'options' => array( array( 'value' => 'url', 'label' => 'URL' ) ) ), true );
+assert_same( 'read label noun derives from base def', '3: Image Field', $img['label'] );
+assert_same( 'read _strip_default false when base omits it', false, $img['_strip_default'] );
+
+// --- No options = nothing to select: empty def, so the caller registers no key. ---
+assert_same( 'empty base read → empty def', array(), bws_build_slot_read_options( 2, array(), true ) );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";
