@@ -129,6 +129,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Pipeline / helper internals change | `post-content-processing-reference.md` (if content-rendering) or PHPDoc only (if narrow) |
 | User-visible feature ships | `README.md` overview update + CHANGELOG |
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references |
+| `limit`-default / list-slice change (the clamp at `bws_resolve_field_values`, `bws_collect_value_list`, or the try_ slot dispatch in `class-tag-template-registry.php` — or the single clamp helper once they converge) | run `tools/test/limit-default-test-matrix.md` against the testbed (§Development). **Unset `limit` MUST stay 1 on every pre-existing tag**, and each row asserts single-value AND link-present — the link gate is count-based, so a silent 1→many flip drops anchors while the text still reads fine |
 | Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files below |
 | ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | that plan owns the live §SETTLED index today (FW-56/57 + `{{table}}`); the general row above is what survives |
 
