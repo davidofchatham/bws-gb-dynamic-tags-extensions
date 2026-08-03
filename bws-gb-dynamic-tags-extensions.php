@@ -121,6 +121,10 @@ function bws_dynamic_tags_init() {
 	// FW-52 canonical serialization-order model (pure; PHP mirror of the editor-JS
 	// normalizer's ordering algorithm — the harness-tested spec of the ordering contract).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/serialization-order.php';
+	// Folded slot-value grammar (FW-56/57) — THE single PHP owner of the wire.
+	// Loads AFTER serialization-order.php: its emitter ranks tokens through
+	// bws_serialization_order_sort() rather than carrying its own copy of KEY_MAP.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold.php';
 
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';

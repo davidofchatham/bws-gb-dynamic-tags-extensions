@@ -1,0 +1,736 @@
+<?php
+/**
+ * Folded slot-value grammar — THE single PHP owner of the FW-56/57 wire.
+ *
+ * One option key per slot (`{{join 1:…|2:…}}`), whose VALUE carries the slot's
+ * whole configuration: an ordered source CHAIN, the field READ, and any per-slot
+ * options. Grammar (APPROVED 2026-07-31, `.claude/plans/src-chain-encoding.md`
+ * §WIRE SPEC):
+ *
+ *   slot value := token ( ';' token )*
+ *   token      := name '(' value ')'  |  bare-name          (bracket-kv, no `=`)
+ *   chain      := step ( ';' step )*                        (inside src(...), FLAT)
+ *   step       := slug [ ',' arg ] [ ',' limit'['N']' ]      (limit is NAMED, not positional)
+ *
+ *   OPT `;` · HOP `;` · STEP `,` · L1 `()` · L2 `[]` · RESERVED `+` `/`
+ *
+ * Load-bearing properties, each with the reason it exists:
+ *
+ * - **ONE grammar owner.** The spike carried FOUR copies of these constants and
+ *   all four sat on a superseded hop char at once. This file is the PHP owner;
+ *   `assets/js/slot-fold-grammar.js` is its unavoidable twin (different language,
+ *   so agreement must be TESTED, not assumed) and carries no independent decisions.
+ * - **Bracket ALTERNATION by depth, never a pinned char.** `limit` sits one level
+ *   INSIDE whatever encloses its chain, so its bracket is `bracket_pair(enclosing+1)`:
+ *   `limit(3)` on a base tag's `src:` (enclosing level 0) and `limit[3]` inside a
+ *   slot's `src(...)` (enclosing level 1). Same construct, two spellings — reviewed
+ *   and kept, because alternation is what keeps depth trackable for nesting (FW-24).
+ *   The emitter that prints the wrapper passes its own level down; nothing
+ *   recomputes depth independently (both shipped-spike emitter bugs came from that).
+ * - **Parse LENIENT, emit CANONICAL.** Parse accepts either bracket pair at either
+ *   depth, `,` as an opt separator, and both `0`/`-1` for unlimited; emit
+ *   re-canonicalizes on the next control commit. `+` and `/` are RESERVED — NOT
+ *   leniently accepted, because a lenient class SPENDS the char: binding it to
+ *   `hop` now would silently change what already-saved wires mean if it is ever
+ *   given a job. They are ordinary CONTENT inside a value.
+ * - **Reserved/grammar chars are INERT inside values.** `+ / ; , ( )` in an
+ *   author's `format`/`fallback`/`label` text are content, never grammar — shipped
+ *   defaults already contain them (`Date/time TBA`, `F j, Y g:i A`).
+ * - **Read axis is single-valued, resolved by NAME precedence, never by order.**
+ *   `use` wins when present and not `key`; otherwise `key` supplies the read. This
+ *   mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag that
+ *   renders today changes meaning — and it kills the order-dependence that a
+ *   last-token-wins switch would re-import into bracket-kv.
+ * - **Token ORDER is never semantic**, and canonical order is not restated here:
+ *   emit ranks tokens through `bws_serialization_order_sort()` (FW-52's canonical
+ *   KEY_MAP), so a fifth copy of the group ranks cannot drift.
+ *
+ * Pure: no WP or GB symbols (beyond the serialization-order helper, itself pure),
+ * so `tools/test/slot-fold-test.php` loads this file rather than copying it.
+ *
+ * @package BWS_Dynamic_Tags
+ * @since 1.17.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+// ── Grammar ─────────────────────────────────────────────────────────────────
+
+/** Canonical separator between tokens in a slot value. */
+const BWS_FOLD_OPT_SEP = ';';
+/** Lenient accept set at token level (`,` forgiven; depth disambiguates it from a step sep). */
+const BWS_FOLD_OPT_CLASS = array( ';', ',' );
+/** Canonical separator between chain steps. */
+const BWS_FOLD_HOP_SEP = ';';
+/** STRICT — `;` only. See the reserved-char note in the file header. */
+const BWS_FOLD_HOP_CLASS = array( ';' );
+/** Canonical separator inside one chain step (slug, arg, limit token). */
+const BWS_FOLD_STEP_SEP = ',';
+/**
+ * STRICT — `,` only. Narrowed when `;` became the canonical hop char: hop and step
+ * share a position (both inside the chain), so `;` can no longer be forgiven as a
+ * step separator. Machine-checked by bws_fold_grammar_validate().
+ */
+const BWS_FOLD_STEP_CLASS = array( ',' );
+/** Accepted bracket pairs, in alternation order: level 1 `()`, level 2 `[]`. */
+const BWS_FOLD_BR_PAIRS = array( '(' => ')', '[' => ']' );
+/** Chars held UNSPENT — never separators, always content. */
+const BWS_FOLD_RESERVED = array( '+', '/' );
+
+/**
+ * Slot TYPE tokens — the terminal tag a slot's value is processed as, in
+ * format-AGNOSTIC containers ({{join}}, {{table}}). `text` is a NON-type and is
+ * never on the wire ({{text}} = {{field}} identity), so a slot with no type token
+ * IS a text slot.
+ */
+const BWS_FOLD_TYPES = array( 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' );
+
+/** Bare (valueless) option tokens. */
+const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' );
+
+/**
+ * Option names whose values are ARBITRARY AUTHOR TEXT. Their content is escaped on
+ * emit / unescaped on parse for the GB layer, and grammar chars inside them are
+ * inert — a `/` in `Date/time TBA` is not a hop.
+ */
+const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' );
+
+/** Chain step slugs that FAN OUT (one → many). Used by the legacy limit mapping. */
+const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
+
+/**
+ * Bracket pair for a nesting level. Level 1 = `()`, level 2 = `[]`, alternating.
+ *
+ * Alternation is the mechanism, not decoration: same-char immediate nesting makes
+ * depth locally unreadable, which is exactly where FW-24 (tag-in-slot) needs to
+ * nest. Level 0 means "unwrapped" (a base tag's `src:` value) and has no pair.
+ *
+ * @param int $level 1-based nesting level.
+ * @return array{0:string,1:string} [open, close]
+ */
+function bws_fold_bracket_pair( int $level ): array {
+	$pairs = array_keys( BWS_FOLD_BR_PAIRS );
+	$open  = $pairs[ ( max( 1, $level ) - 1 ) % count( $pairs ) ];
+	return array( $open, BWS_FOLD_BR_PAIRS[ $open ] );
+}
+
+/**
+ * Machine-check the grammar's separator classes for per-position conflicts.
+ *
+ * THE safety condition for lenient accept classes: roles are disambiguated by
+ * POSITION, so two classes may overlap across positions (opt and step both once
+ * accepted `,;`) but must be disjoint WITHIN one. hop and step share a position.
+ * This caught the `;`-hop change putting `;` in two same-position classes.
+ *
+ * @return string[] Violation strings; empty array = safe.
+ */
+function bws_fold_grammar_validate(): array {
+	$bad    = array();
+	$br_all = array_merge( array_keys( BWS_FOLD_BR_PAIRS ), array_values( BWS_FOLD_BR_PAIRS ) );
+
+	if ( array_intersect( BWS_FOLD_HOP_CLASS, BWS_FOLD_STEP_CLASS ) ) {
+		$bad[] = 'hop_class ∩ step_class ≠ ∅';
+	}
+	$classes = array(
+		'opt_class'  => BWS_FOLD_OPT_CLASS,
+		'hop_class'  => BWS_FOLD_HOP_CLASS,
+		'step_class' => BWS_FOLD_STEP_CLASS,
+	);
+	foreach ( $classes as $name => $class ) {
+		if ( array_intersect( $class, $br_all ) ) {
+			$bad[] = "$name contains a bracket char";
+		}
+		if ( array_intersect( $class, BWS_FOLD_RESERVED ) ) {
+			$bad[] = "$name accepts a RESERVED char";
+		}
+	}
+	$canon = array(
+		'opt_sep'  => array( BWS_FOLD_OPT_SEP, BWS_FOLD_OPT_CLASS ),
+		'hop_sep'  => array( BWS_FOLD_HOP_SEP, BWS_FOLD_HOP_CLASS ),
+		'step_sep' => array( BWS_FOLD_STEP_SEP, BWS_FOLD_STEP_CLASS ),
+	);
+	foreach ( $canon as $name => $pair ) {
+		if ( ! in_array( $pair[0], $pair[1], true ) ) {
+			$bad[] = "$name not in its accept class";
+		}
+	}
+	return $bad;
+}
+
+// ── Escaping (the GB layer) ─────────────────────────────────────────────────
+
+/**
+ * Escape the GB-structural chars in a value. `:` and `|` split GB's own option
+ * grammar; a raw one inside a slot value merges slots or truncates the value (the
+ * GB JS parser splits with limit 2 and DISCARDS the tail).
+ *
+ * @param string $value Raw author text.
+ * @return string Wire form.
+ */
+function bws_fold_escape( string $value ): string {
+	return preg_replace( '/([:|])/', '\\\\$1', $value );
+}
+
+/**
+ * Reverse of bws_fold_escape(). Applied at parse so the struct always holds raw
+ * author text: GB's PHP parser already unescaped values before a callback sees
+ * them, but the JS side never does, so both arrive here and both must normalize.
+ *
+ * @param string $value Wire form.
+ * @return string Raw author text.
+ */
+function bws_fold_unescape( string $value ): string {
+	return preg_replace( '/\\\\([:|])/', '$1', $value );
+}
+
+// ── Splitting (bracket-aware; one implementation, three positions) ──────────
+
+/**
+ * Split a string on a separator CLASS, ignoring separators inside brackets.
+ *
+ * Per-token delimiter rule: the first accepted OPEN char fixes the active
+ * structural pair until it closes; the other pair is inert text inside it (so an
+ * author can pick the pair their content avoids — `label[Note (TBD]` is legal).
+ *
+ * Used at all three positions (slot tokens, chain hops, intra-step). It is
+ * bracket-aware at the STEP position too, which the spike's naive `preg_split`
+ * was not: `limit[5]` survived a naive split only because a bare integer cannot
+ * contain a separator, and the moment a step token carries free-form or nested
+ * content (FW-24's whole-tag-in-slot) a naive split shreds it mid-token.
+ *
+ * @param string   $value Input.
+ * @param string[] $class Accepted separator chars.
+ * @return array{0:array<int,string>}|array{error:string} Segments (raw, untrimmed) or an error.
+ */
+function bws_fold_split_depth( string $value, array $class ) {
+	$segments = array();
+	$buf      = '';
+	$depth    = 0;
+	$pair     = null;
+	$len      = strlen( $value );
+
+	for ( $i = 0; $i < $len; $i++ ) {
+		$c = $value[ $i ];
+		if ( 0 === $depth ) {
+			if ( isset( BWS_FOLD_BR_PAIRS[ $c ] ) ) {
+				$pair  = array( $c, BWS_FOLD_BR_PAIRS[ $c ] );
+				$depth = 1;
+			} elseif ( in_array( $c, BWS_FOLD_BR_PAIRS, true ) ) {
+				return array( 'error' => "unbalanced close bracket at $i" );
+			} elseif ( in_array( $c, $class, true ) ) {
+				$segments[] = $buf;
+				$buf        = '';
+				continue;
+			}
+		} elseif ( $c === $pair[0] ) {
+			$depth++;
+		} elseif ( $c === $pair[1] ) {
+			$depth--;
+		}
+		$buf .= $c;
+	}
+	if ( 0 !== $depth ) {
+		return array( 'error' => 'unbalanced open bracket' );
+	}
+	$segments[] = $buf;
+	return $segments;
+}
+
+/**
+ * Split a slot value into its tokens (empties dropped, each trimmed).
+ *
+ * @param string $value Slot value.
+ * @return array<int,string>|array{error:string}
+ */
+function bws_fold_tokenize( string $value ) {
+	$segments = bws_fold_split_depth( $value, BWS_FOLD_OPT_CLASS );
+	if ( isset( $segments['error'] ) ) {
+		return $segments;
+	}
+	return array_values( array_filter( array_map( 'trim', $segments ), 'strlen' ) );
+}
+
+/**
+ * Parse one token into `name` + `val` (`val` null for a bare token).
+ *
+ * The bracket opened after the name must be the one closed by the FINAL char:
+ * depth may not return to 0 early. That guard catches close-then-reopen junk
+ * arriving as ONE token (`src(a)+use(b)` — an author typing a reserved char where
+ * an opt separator belongs), which otherwise parses as a plausible-looking chain.
+ *
+ * @param string $tok Token string (trimmed).
+ * @return array{name:string,val:?string}|array{error:string}
+ */
+function bws_fold_parse_token( string $tok ) {
+	$at   = false;
+	$open = null;
+	foreach ( array_keys( BWS_FOLD_BR_PAIRS ) as $candidate ) {
+		$pos = strpos( $tok, $candidate );
+		if ( false !== $pos && ( false === $at || $pos < $at ) ) {
+			$at   = $pos;
+			$open = $candidate;
+		}
+	}
+	if ( false === $at ) {
+		return array( 'name' => $tok, 'val' => null );
+	}
+	$close = BWS_FOLD_BR_PAIRS[ $open ];
+	if ( substr( $tok, -1 ) !== $close ) {
+		return array( 'error' => "token '$tok' bracket not closed at end" );
+	}
+	$depth = 0;
+	$len   = strlen( $tok );
+	for ( $i = $at; $i < $len; $i++ ) {
+		if ( $tok[ $i ] === $open ) {
+			$depth++;
+		} elseif ( $tok[ $i ] === $close ) {
+			$depth--;
+			if ( 0 === $depth && $i < $len - 1 ) {
+				return array( 'error' => "token '$tok' has trailing content after its value bracket" );
+			}
+		}
+	}
+	return array(
+		'name' => substr( $tok, 0, $at ),
+		'val'  => substr( $tok, $at + 1, strlen( $tok ) - $at - 2 ),
+	);
+}
+
+// ── Chain (the ordered source steps) ───────────────────────────────────────
+
+/**
+ * Parse a chain value into ordered steps.
+ *
+ * Step shape: a positional SLUG, an optional positional ARG, and any number of
+ * NAMED bracket-kv tokens (`limit[5]` today; unknown names are preserved verbatim
+ * so a future keyword does not break an older parser). `limit` is named rather
+ * than positional because argless-with-limit is a reachable state, so a positional
+ * encoding needs an interior hole (`entries,,5`) that fails SILENTLY when it is
+ * missing — `entries,5` parses as arg=5.
+ *
+ * `limit` accepts `0` and `-1` (both mean unlimited in the wild — GB uses `-1`,
+ * WP's Query Loop uses `0`); emit normalizes to `0`. A non-numeric limit is a
+ * grammar error here, NOT a silent 0: under `0 = unlimited`, `(int)'abc' === 0`
+ * would fan out an entire relationship from a typo.
+ *
+ * @param string $chain_str Chain value (inside `src(...)` or after `src:`).
+ * @return array<int,array{slug:string,arg:?string,limit:?string,extra:array}>|array{error:string}
+ */
+function bws_fold_parse_chain( string $chain_str ) {
+	$hops = bws_fold_split_depth( $chain_str, BWS_FOLD_HOP_CLASS );
+	if ( isset( $hops['error'] ) ) {
+		return $hops;
+	}
+
+	$steps = array();
+	foreach ( $hops as $hop ) {
+		$hop = trim( $hop );
+		if ( '' === $hop ) {
+			continue;
+		}
+		$parts = bws_fold_split_depth( $hop, BWS_FOLD_STEP_CLASS );
+		if ( isset( $parts['error'] ) ) {
+			return $parts;
+		}
+		$parts = array_map( 'trim', $parts );
+
+		$step       = array(
+			'slug'  => $parts[0],
+			'arg'   => null,
+			'limit' => null,
+			'extra' => array(),
+		);
+		$positional = 0;
+		foreach ( array_slice( $parts, 1 ) as $part ) {
+			if ( '' === $part ) {
+				continue;   // interior/trailing empty normalizes to absent, never ''.
+			}
+			$tok = bws_fold_parse_token( $part );
+			if ( isset( $tok['error'] ) ) {
+				return $tok;
+			}
+			if ( null === $tok['val'] ) {
+				$positional++;
+				if ( $positional > 1 ) {
+					return array( 'error' => "chain step '$hop': unexpected extra positional token '$part'" );
+				}
+				$step['arg'] = $part;
+				continue;
+			}
+			if ( 'limit' === $tok['name'] ) {
+				if ( ! is_numeric( $tok['val'] ) ) {
+					return array( 'error' => "chain step '$hop': limit '{$tok['val']}' is not numeric" );
+				}
+				// Both `0` and `-1` are read as unlimited (GB uses `-1`, WP's Query
+				// Loop uses `0`); the STRUCT holds one representation so nothing
+				// downstream has to know both. Canonical `0` is what emit writes back.
+				$step['limit'] = (string) max( 0, (int) $tok['val'] );
+				continue;
+			}
+			$step['extra'][] = $part;
+		}
+		if ( '' === $step['slug'] ) {
+			return array( 'error' => "chain step '$hop': missing slug" );
+		}
+		$steps[] = $step;
+	}
+	return $steps;
+}
+
+/**
+ * Emit ordered steps as a chain value.
+ *
+ * @param array $steps           Step structs.
+ * @param int   $enclosing_level Nesting level of whatever WRAPS this chain: 0 for a
+ *                               base tag's `src:` (unwrapped), 1 for a slot's
+ *                               `src(...)`. `limit` is emitted one level inside it —
+ *                               the caller that prints the wrapper owns this number;
+ *                               never recompute depth locally.
+ * @return string Chain value.
+ */
+function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
+	list( $open, $close ) = bws_fold_bracket_pair( $enclosing_level + 1 );
+
+	$segments = array();
+	foreach ( $steps as $step ) {
+		$segment = $step['slug'];
+		$arg     = $step['arg'] ?? null;
+		if ( null !== $arg && '' !== $arg ) {
+			$segment .= BWS_FOLD_STEP_SEP . $arg;
+		}
+		$limit = $step['limit'] ?? null;
+		if ( null !== $limit && '' !== $limit ) {
+			// 0 = unlimited and MUST survive as a literal: an author who pinned "all"
+			// silently reverts if a falsy guard drops it. Negative forms normalize to 0.
+			$normalized = (int) $limit;
+			$segment   .= BWS_FOLD_STEP_SEP . 'limit' . $open . ( $normalized < 0 ? 0 : $normalized ) . $close;
+		}
+		foreach ( $step['extra'] ?? array() as $extra ) {
+			$segment .= BWS_FOLD_STEP_SEP . $extra;
+		}
+		$segments[] = $segment;
+	}
+	return implode( BWS_FOLD_HOP_SEP, $segments );
+}
+
+// ── Slot value ──────────────────────────────────────────────────────────────
+
+/**
+ * Parse a folded slot value into its structure.
+ *
+ * Container shapes the parse in exactly two places, both already-settled
+ * container sensitivities rather than new ones:
+ *   - a TYPE token leads only in format-AGNOSTIC containers ({{join}}, {{table}});
+ *     `try_*` slots inherit the template's fixed type, so a bare type word there is
+ *     an unknown token and is preserved as such;
+ *   - on a `datetime_*` type, `key` is that tag's own date field option, not the
+ *     read (the read of a datetime slot is the type).
+ *
+ * Both the read axis and the datetime `key` meaning are resolved AFTER the token
+ * loop, never inside it: a hand-edited wire may state the type last, and assigning
+ * during the scan is what made the spike's read order-dependent.
+ *
+ * @param string $value     Slot value (escaped or unescaped — normalized here).
+ * @param string $container 'try' (format-fixed) | 'join' | 'table' (agnostic).
+ * @return array{label:?string,type:?string,chain:array,read:?array,opts:array,extra:array}|array{error:string}
+ */
+function bws_fold_parse_slot( string $value, string $container = 'join' ) {
+	$tokens = bws_fold_tokenize( $value );
+	if ( isset( $tokens['error'] ) ) {
+		return $tokens;
+	}
+
+	$agnostic = ( 'try' !== $container );
+	$slot     = array(
+		'label' => null,
+		'type'  => null,
+		'chain' => array(),
+		'read'  => null,
+		'opts'  => array(),
+		'extra' => array(),
+	);
+	$use_tok  = null;
+	$key_tok  = null;
+
+	foreach ( $tokens as $token ) {
+		$parsed = bws_fold_parse_token( $token );
+		if ( isset( $parsed['error'] ) ) {
+			return $parsed;
+		}
+		$name = $parsed['name'];
+		$val  = $parsed['val'];
+
+		if ( null === $val ) {
+			if ( $agnostic && null === $slot['type'] && in_array( $name, BWS_FOLD_TYPES, true ) ) {
+				$slot['type'] = $name;
+			} elseif ( in_array( $name, BWS_FOLD_FLAGS, true ) ) {
+				$slot['opts'][ $name ] = true;
+			} else {
+				$slot['extra'][] = $token;
+			}
+			continue;
+		}
+
+		switch ( $name ) {
+			case 'label':
+				$slot['label'] = $val;
+				break;
+			case 'src':
+				$chain = bws_fold_parse_chain( $val );
+				if ( isset( $chain['error'] ) ) {
+					return $chain;
+				}
+				$slot['chain'] = $chain;
+				break;
+			case 'use':
+				$use_tok = $val;
+				break;
+			case 'key':
+				$key_tok = $val;
+				break;
+			default:
+				if ( isset( bws_serialization_order_key_map()[ $name ] ) ) {
+					$slot['opts'][ $name ] = $val;
+				} else {
+					$slot['extra'][] = $token;
+				}
+		}
+	}
+
+	// `key` on a datetime slot is that tag's own field option, not the read.
+	$is_datetime = null !== $slot['type'] && 0 === strpos( (string) $slot['type'], 'datetime' );
+	if ( $is_datetime && null !== $key_tok ) {
+		$slot['opts']['key'] = $key_tok;
+		$key_tok             = null;
+	}
+
+	// Read axis — NAME precedence, order-independent, mirroring the shipped
+	// `$use = $options['use'] ?? 'key'` dispatch: `use` is consulted first and
+	// `key` is read only in the keyed arm. Both-present is not author error (GB
+	// cannot unset one option from another's value, so a stale `key` legitimately
+	// rides the wire), so it resolves rather than flagging.
+	if ( null !== $use_tok && 'key' !== $use_tok ) {
+		$slot['read'] = ( 'same' === $use_tok )
+			? array( 'kind' => 'same' )
+			: array( 'kind' => 'analog', 'slug' => $use_tok );
+	} elseif ( null !== $key_tok ) {
+		$slot['read'] = array( 'kind' => 'key', 'field' => $key_tok );
+	} elseif ( 'key' === $use_tok ) {
+		// Legacy-shaped `use(key)` with no key token: tolerate on parse, never emit.
+		$slot['read'] = array( 'kind' => 'key', 'field' => '' );
+	}
+
+	if ( null !== $slot['label'] ) {
+		$slot['label'] = bws_fold_unescape( $slot['label'] );
+	}
+	foreach ( $slot['opts'] as $name => $val ) {
+		if ( true !== $val && in_array( $name, BWS_FOLD_FREEFORM, true ) ) {
+			$slot['opts'][ $name ] = bws_fold_unescape( $val );
+		}
+	}
+	return $slot;
+}
+
+/**
+ * Emit a slot structure as its canonical wire value.
+ *
+ * Order: `label` → type → canonically-ranked tokens → preserved unknowns. The rank
+ * comes from bws_serialization_order_sort() (FW-52's canonical KEY_MAP), so the
+ * fold adds no fifth copy of the group ranks. Redundancy drops: the `default`
+ * analog (absent IS default), and an analog naming the slot's own type.
+ *
+ * @param array $slot  Slot struct (as parsed).
+ * @param int   $level Nesting level of the slot's own tokens — 1 in a slot value.
+ * @return string Canonical slot value.
+ */
+function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
+	list( $open, $close ) = bws_fold_bracket_pair( $level );
+
+	$values = array();
+	if ( ! empty( $slot['chain'] ) ) {
+		$values['src'] = bws_fold_emit_chain( $slot['chain'], $level );
+	}
+	$read = $slot['read'] ?? null;
+	if ( $read ) {
+		if ( 'same' === $read['kind'] ) {
+			$values['use'] = 'same';
+		} elseif ( 'key' === $read['kind'] ) {
+			if ( '' !== $read['field'] ) {
+				$values['key'] = $read['field'];
+			}
+		} elseif ( 'analog' === $read['kind']
+			&& 'default' !== $read['slug']
+			&& ( $slot['type'] ?? null ) !== $read['slug'] ) {
+			$values['use'] = $read['slug'];
+		}
+	}
+	foreach ( $slot['opts'] ?? array() as $name => $val ) {
+		$values[ $name ] = $val;
+	}
+
+	$emit_one = static function ( $name, $val ) use ( $open, $close ) {
+		if ( true === $val ) {
+			return $name;
+		}
+		if ( in_array( $name, BWS_FOLD_FREEFORM, true ) ) {
+			$val = bws_fold_escape( (string) $val );
+		}
+		return $name . $open . $val . $close;
+	};
+
+	$tokens = array();
+	if ( null !== ( $slot['label'] ?? null ) && '' !== $slot['label'] ) {
+		$tokens[] = $emit_one( 'label', $slot['label'] );
+		unset( $values['label'] );
+	}
+	if ( null !== ( $slot['type'] ?? null ) && 'text' !== $slot['type'] ) {
+		$tokens[] = $slot['type'];
+	}
+	foreach ( bws_serialization_order_sort( array_keys( $values ) ) as $name ) {
+		$tokens[] = $emit_one( $name, $values[ $name ] );
+	}
+	foreach ( $slot['extra'] ?? array() as $extra ) {
+		$tokens[] = $extra;
+	}
+	return implode( BWS_FOLD_OPT_SEP, $tokens );
+}
+
+// ── Legacy → fold mapping (ONE mapping, three consumers) ───────────────────
+
+/**
+ * Build a folded slot struct from the LEGACY separate option keys.
+ *
+ * ONE mapping shared by the converter migrator, the editor mount-reconcile and
+ * the render dual-read, so the position-dependent absence rules exist exactly
+ * once (the JS twin mirrors it). Reads all SIX legacy keys — `srcTermIn` and
+ * `limit` are as load-bearing as `src`/`ref`/`use`/`key`, and dropping either is
+ * an output change.
+ *
+ * ABSENCE IS CONTAINER-SENSITIVE ON THE READ AXIS, and only there:
+ *   - SELECTING (`try_*`) with a per-slot read axis: an absent read at slot ≥2
+ *     inherits (the resolver carries `$last_use`/`$last_key` forward), so it
+ *     materializes as `use(same)` — identical behaviour, intent now explicit. A
+ *     slot whose ONLY legacy content was a `key` is SKIPPED by the shipped
+ *     resolver (the key is discarded first, then `$has_new` is false), so it maps
+ *     to nothing at all — this is the FW-51 shape, faithfully preserved.
+ *   - COMBINING ({{join}}, {{table}}) has NO read carry-forward: an absent read
+ *     means UNCONFIGURED and the slot is skipped. It maps to an UNSET read, not
+ *     to `same`. Synthesizing `same` here would make a previously-skipped slot
+ *     render AND — because the shipped `continue` precedes the carry-forward —
+ *     re-point a LATER slot's `src(same)` at this slot's source, changing output
+ *     at slots the migration never touched.
+ *
+ * `limit` attaches to the LAST FANNING step, which is unambiguous because legacy
+ * data cannot fan twice (there was no chain syntax before the fold). With no
+ * fanning step the chain has nothing to cap, so the limit stays a slot-level
+ * token — that case caps a multi-value READ rather than a hop, and is the one
+ * meaning a slot-level `limit` still has.
+ *
+ * @param int   $n            Slot ordinal (1-based).
+ * @param array $options      All tag options (GB-parsed).
+ * @param bool  $combining    True for {{join}}/{{table}}; false for `try_*`.
+ * @param bool  $per_slot_use True when the container gives each slot its own read
+ *                            axis (try_ templates with per_slot_use). Ignored for
+ *                            combining containers.
+ * @return array{slot:array,legacy:bool}|null Null when this slot holds no legacy
+ *                            keys, or when the shipped resolver skips it entirely.
+ */
+function bws_fold_from_legacy( int $n, array $options, bool $combining = false, bool $per_slot_use = true ) {
+	$prefix = ( 1 === $n ) ? '' : "{$n}-";
+	$src    = trim( (string) ( $options[ "{$prefix}src" ] ?? '' ) );
+	$ref    = trim( (string) ( $options[ "{$prefix}ref" ] ?? '' ) );
+	$tax    = trim( (string) ( $options[ "{$prefix}srcTermIn" ] ?? '' ) );
+	$use    = trim( (string) ( $options[ "{$prefix}use" ] ?? '' ) );
+	$key    = trim( (string) ( $options[ "{$prefix}key" ] ?? '' ) );
+	$limit  = trim( (string) ( $options[ "{$prefix}limit" ] ?? '' ) );
+
+	if ( '' === $src && '' === $ref && '' === $tax && '' === $use && '' === $key && '' === $limit ) {
+		return null;
+	}
+
+	// A selecting slot ≥2 with an absent read DISCARDS any stale key (the shipped
+	// resolver does this before testing whether the slot has new content at all).
+	$read_absent = ( '' === $use );
+	if ( ! $combining && $per_slot_use && $n >= 2 && $read_absent ) {
+		$key = '';
+		if ( '' === $src && '' === $ref && '' === $tax ) {
+			return null;   // shipped: $has_new false → slot skipped. Preserve the skip.
+		}
+	}
+
+	// ── src axis → chain ────────────────────────────────────────────────────
+	$chain = array();
+	$step  = static function ( string $slug, ?string $arg = null ): array {
+		return array( 'slug' => $slug, 'arg' => $arg, 'limit' => null, 'extra' => array() );
+	};
+	if ( 'ref' === $src ) {
+		// An orphan `ref` (src:ref with no field) is already dead at render; the
+		// incomplete step preserves that rather than inventing a source.
+		$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
+	} elseif ( 'same' === $src || ( '' === $src && $n >= 2 ) ) {
+		// Legacy absence at slot ≥2 already MEANT inherit, in both containers —
+		// only the read axis diverges. Materialize the sentinel.
+		$chain[] = $step( 'same' );
+	} elseif ( '' !== $src && 'current' !== $src ) {
+		$chain[] = $step( $src );
+	}
+	if ( '' !== $tax ) {
+		// srcTermIn always FOLLOWS ref: the term hop needs a post input, which the
+		// ref step produces (issue #44's order, one global rule in one builder).
+		$chain[] = $step( 'terms', $tax );
+	}
+
+	// ── read axis ──────────────────────────────────────────────────────────
+	if ( '' !== $use ) {
+		if ( 'same' === $use ) {
+			$read = array( 'kind' => 'same' );
+		} elseif ( 'key' === $use ) {
+			$read = array( 'kind' => 'key', 'field' => $key );
+		} else {
+			$read = array( 'kind' => 'analog', 'slug' => $use );
+		}
+	} elseif ( '' !== $key ) {
+		// `use` absent with a key set is the CANONICAL wire for a keyed read (`use`
+		// is _strip_default with `key` first) — not an ambiguous shape.
+		$read = array( 'kind' => 'key', 'field' => $key );
+	} elseif ( $combining ) {
+		$read = null;   // UNCONFIGURED — the shipped resolver skips this slot.
+	} else {
+		$read = ( $n >= 2 ) ? array( 'kind' => 'same' ) : null;
+	}
+
+	// ── limit → last fanning step, else slot-level ─────────────────────────
+	$opts = array();
+	if ( '' !== $limit && is_numeric( $limit ) ) {
+		// 0 / -1 were CLAMPED to 1 by the old rule, never designed to mean 1: an
+		// author wanting one result types 1 or leaves it unset. Honor the written
+		// value under the new semantics (0 = unlimited) rather than freezing a clamp.
+		$normalized = (int) $limit;
+		$normalized = ( $normalized < 0 ) ? 0 : $normalized;
+		$last_fan   = null;
+		foreach ( $chain as $i => $chain_step ) {
+			if ( in_array( $chain_step['slug'], BWS_FOLD_FANNING_SLUGS, true ) ) {
+				$last_fan = $i;
+			}
+		}
+		if ( null !== $last_fan ) {
+			$chain[ $last_fan ]['limit'] = (string) $normalized;
+		} else {
+			$opts['limit'] = (string) $normalized;
+		}
+	}
+
+	return array(
+		'slot'   => array(
+			'label' => null,
+			'type'  => null,
+			'chain' => $chain,
+			'read'  => $read,
+			'opts'  => $opts,
+			'extra' => array(),
+		),
+		'legacy' => true,
+	);
+}
