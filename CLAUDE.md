@@ -129,6 +129,25 @@ Single source of truth per content type. Other files link, never duplicate.
 | Pipeline / helper internals change | `post-content-processing-reference.md` (if content-rendering) or PHPDoc only (if narrow) |
 | User-visible feature ships | `README.md` overview update + CHANGELOG |
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references |
+| Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files below |
+| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | that plan owns the live §SETTLED index today (FW-56/57 + `{{table}}`); the general row above is what survives |
+
+### Long-lived plan files — the §SETTLED index
+
+A plan that accrues decisions across many passes fails a specific way: **supersession in place.** Live
+decisions and withdrawn drafts sit interleaved, and both read as authoritative unless the reader
+catches the banner. Length is not the mechanism — discoverability is. Symptom to watch for: an agent
+re-deriving from code a question the plan already closed.
+
+When a plan reaches that state, give it a **§SETTLED index at the top**: one row per decision, with
+the section title as the anchor (line numbers drift on every edit — record them as a convenience
+only, never as the identifier), a container-sensitivity column where the domain has one, and a
+**separate OPEN table**, which matters as much as the settled one — treating undecided things as
+decided is the more common failure.
+
+The index is pointers, never content; the sections stay authoritative. On archive, the index goes
+with the plan and the specific trigger row above is deleted — this section stays, because the
+practice is reusable and the next long-lived plan will need it.
 
 ### Cross-link rules
 
