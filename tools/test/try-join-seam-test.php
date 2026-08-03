@@ -37,6 +37,11 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 	}
 }
 
+// bws_try_join_items delegates its limit interpretation to bws_clamp_limit. Load
+// the REAL helper file rather than restating the rule here — a test-local copy of
+// the clamp is the exact drift the extraction exists to prevent. field-helpers.php
+// defines functions only (no load-time WP calls), so it loads inert.
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
 require __DIR__ . '/../../includes/tags/base-shared.php';
 
 $failures = 0;

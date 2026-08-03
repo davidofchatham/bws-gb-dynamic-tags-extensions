@@ -22,7 +22,7 @@ key→harness map): e.g. `traversal-pipeline-test.php` (source factory + fold en
 `slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
 `slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`,
 `serialization-order-test.php`, `as-size-fold-test.php`, `table-assemble-test.php`,
-`inline-css-pipeline-test.php`. No CI
+`inline-css-pipeline-test.php`, `limit-clamp-test.php`. No CI
 runs these; run them locally before commit.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
@@ -125,6 +125,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry |
 | `{{table}}` assembly / a11y change (`bws_table_assemble`, `bws_table_read_cell`, `bws_table_collect_columns`, the caption/wrapper markup, or `BWS_TABLE_INLINE_CSS`) | run `php tools/test/table-assemble-test.php` (pure assembly + caption-gated wrapper) + `tools/test/table-test-matrix.md` TB rows against the testbed (§Development); front-end curl to confirm the footer `<style>` prints once |
+| `limit` interpretation change (`bws_clamp_limit` in `field-helpers.php` — THE single interpreter; its four call sites are `bws_resolve_field_values`, `bws_collect_value_list`, try_ slot dispatch in `class-tag-template-registry.php`, `bws_try_join_items`) | run `php tools/test/limit-clamp-test.php` (pure clamp rule) + `php tools/test/try-join-seam-test.php`. Never re-inline the rule at a call site — the copies are what the extraction removed |
 | Inline-CSS queue / content-extraction change (`bws_queue_inline_css` in `content-helpers.php`, or the `ContentProcessor` pure transforms `extract_and_queue_inline_styles` / `strip_block_comments` / `extract_css_from_block_comments` / `strip_dynamic_tags`) | run `php tools/test/inline-css-pipeline-test.php` (pure dedupe + extraction regexes) |
 | Pipeline / helper internals change | `post-content-processing-reference.md` (if content-rendering) or PHPDoc only (if narrow) |
 | User-visible feature ships | `README.md` overview update + CHANGELOG |

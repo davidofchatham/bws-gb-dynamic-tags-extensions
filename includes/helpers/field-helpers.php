@@ -481,6 +481,43 @@ function bws_source_link_identity( array $source ): ?array {
 }
 
 /**
+ * THE single interpreter of a `limit` option value (list mode).
+ *
+ * One rule, three call sites — the seam (bws_resolve_field_values), the shared
+ * list fold (bws_collect_value_list), and try_ slot dispatch
+ * (class-tag-template-registry.php). Each carried its own inline copy of
+ * `max( 1, (int) $limit )` until 1.17.0; extracting them here is a deliberate
+ * PREREQUISITE for changing what `0` means, so that "unset", "0" and "garbage"
+ * cannot drift apart between the three paths mid-change.
+ *
+ * Current semantics (UNCHANGED from the three inline copies — this extraction is
+ * a behavioral no-op):
+ *   - non-numeric (null, '', 'abc') ⇒ treated as UNSET ⇒ 1;
+ *   - numeric ⇒ max( 1, (int) $raw ), so 0 and negatives clamp to 1.
+ *
+ * The is_numeric() gate is behaviorally invisible today ((int)'abc' === 0, which
+ * the clamp already lifts to 1) and lands NOW because it stops being invisible
+ * the moment 0 means UNLIMITED: without it a typo would silently fan out a whole
+ * relationship. Garbage must resolve to the DEFAULT, never to "no limit".
+ *
+ * Callers pass the RAW option value, not the options array — try_ slot dispatch
+ * reads `limit` off the chain options while the other two read it off the tag
+ * options, and the raw-value signature serves both without a key convention.
+ *
+ * @since 1.17.0
+ * @param mixed $raw Raw `limit` option value (unset/null, string or int).
+ * @return int Effective limit, always >= 1.
+ */
+if ( ! function_exists( 'bws_clamp_limit' ) ) {
+function bws_clamp_limit( $raw ): int {
+	if ( ! is_numeric( $raw ) ) {
+		return 1;
+	}
+	return max( 1, (int) $raw );
+}
+}
+
+/**
  * Shared L1/L2 source-resolution pipeline: resolve a (source + key) read target
  * to a list of raw candidate field-value strings.
  *
@@ -544,7 +581,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		: array( $base );
 
 	// list mode — slice plural source list to limit (default 1).
-	$limit   = max( 1, (int) ( $options['limit'] ?? 1 ) );
+	$limit   = bws_clamp_limit( $options['limit'] ?? null );
 	$sources = array_slice( $sources, 0, $limit );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
@@ -618,7 +655,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  */
 if ( ! function_exists( 'bws_collect_value_list' ) ) {
 function bws_collect_value_list( array $items, callable $render, array $options ): array {
-	$limit = max( 1, (int) ( $options['limit'] ?? 1 ) );
+	$limit = bws_clamp_limit( $options['limit'] ?? null );
 	$sep   = $options['sep'] ?? ', ';
 
 	$item_opts = $options;

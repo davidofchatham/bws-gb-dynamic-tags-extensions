@@ -746,9 +746,12 @@ class TagTemplateRegistry {
 					// slice-then-count, so a limit:1 chain over many non-empty terms still
 					// wraps the lone shown item). sep/limit read off the chain options;
 					// default limit 1 keeps existing try_ output byte-identical.
+					// `limit` is interpreted in ONE place (bws_clamp_limit, field-helpers) —
+					// this site read it via `?: 1` while the seam used `?? 1`, which agree
+					// today and diverge the moment 0 stops meaning 1. Unguarded: field-helpers
+					// is required at plugin init, this dispatch runs at render.
 					$sep      = $opts['sep'] ?? null;
-					$limit    = $opts['limit'] ?? null;
-					$slot_max = max( 1, (int) ( $limit ?: 1 ) );
+					$slot_max = bws_clamp_limit( $opts['limit'] ?? null );
 
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).

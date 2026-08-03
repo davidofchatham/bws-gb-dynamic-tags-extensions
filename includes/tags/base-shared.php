@@ -241,8 +241,13 @@ function bws_try_normalize_items( $raw ): array {
  * Limit / separator semantics MATCH the base text list-mode core
  * (bws_post_custom_text_core, content-tags.php) so a try_ slot in list mode
  * joins identically to the same underlying tag used standalone (I6 parity):
- *   - limit = max( 1, (int) $limit ?: 1 ) — DEFAULT 1, floored at 1 (never 0).
+ *   - limit = bws_clamp_limit( $limit ) — DEFAULT 1, floored at 1 (never 0).
  *     Not a ceiling: an author setting limit:5 joins up to 5 items.
+ *     This is a DEFENSIVE re-clamp: the only caller (try_ slot dispatch) already
+ *     passes a clamped $slot_max. It routes through the shared interpreter anyway
+ *     so a change to what `0` means cannot leave this copy behind — an
+ *     already-clamped value re-clamped is a no-op, an un-updated fourth copy is a
+ *     silent truncation.
  *   - sep   = $sep ?? ', ' — null (absent) → default ', '; an explicit empty
  *     string is honored (matches base `$options['sep'] ?? ', '`, which only
  *     defaults on an absent key — author may deliberately join with no sep).
@@ -252,19 +257,21 @@ function bws_try_normalize_items( $raw ): array {
  * byte-identical backward-compat gate for existing try_text/try_content/try_image.
  * [SPEC §32 V3,V4]
  *
- * Pure — no WP/GB symbols. Locally harnessable (tools/test/try-join-seam-test.php).
+ * Pure — no WP/GB symbols (bws_clamp_limit is itself pure). Locally harnessable
+ * (tools/test/try-join-seam-test.php).
  *
  * @since 1.11.0
+ * @since 1.17.0 Limit interpretation delegated to bws_clamp_limit.
  * @param array<int,string> $items Finished item strings (already non-empty).
  * @param mixed              $sep   Separator; null → ', '. Explicit '' honored.
- * @param mixed              $limit Max items to join; falsy → 1. Floored at 1.
+ * @param mixed              $limit Max items to join; non-numeric → 1. Floored at 1.
  * @return string Joined output (or '' if no items).
  */
 function bws_try_join_items( array $items, $sep = null, $limit = null ): string {
 	if ( empty( $items ) ) {
 		return '';
 	}
-	$max = max( 1, (int) ( $limit ?: 1 ) );
+	$max = bws_clamp_limit( $limit );
 	$s   = ( null === $sep ) ? ', ' : $sep;
 	return implode( $s, array_slice( $items, 0, $max ) );
 }
