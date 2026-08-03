@@ -280,6 +280,118 @@ assert_same( 'read _strip_default false when base omits it', false, $img['_strip
 // --- No options = nothing to select: empty def, so the caller registers no key. ---
 assert_same( 'empty base read → empty def', array(), bws_build_slot_read_options( 2, array(), true ) );
 
+// ===========================================================================
+// bws_build_fold_slot_options() — the FOLDED registration (FW-56/57)
+// ===========================================================================
+//
+// One option key per slot, each carrying the `fold` config the repeater control reads.
+// What matters here is that every enum in that config is DERIVED: the control
+// hand-authors no vocabulary, so a value it renders must be traceable to a shipped
+// builder. These asserts compare against the builders themselves rather than against
+// transcribed rows, so a base-list change can never leave the fold behind.
+
+echo "\nbws_build_fold_slot_options\n";
+
+$text  = bws_get_text_field_options();
+$joins = bws_build_fold_slot_options(
+	array(
+		'container'       => 'join',
+		'combining'       => true,
+		'max'             => 3,
+		'min'             => 2,
+		'base_read'       => $text['use'],
+		'base_key'        => $text['key'],
+		'allow_site'      => true,
+		'allow_same_read' => false,
+		'hops'            => array( 'srcTermIn' ),
+		'noun'            => 'field',
+		'label'           => 'Field %d',
+	)
+);
+
+// PHP normalizes an all-digit array key to an INT, on write and on lookup alike — so
+// the keys read back as 1,2,3 while `$joins['2']` still resolves. Pinned rather than
+// papered over: the wire spelling is the STRING `2:`, and a reader who assumes string
+// keys survive the array is one `array_keys()` comparison away from a false failure.
+assert_same( 'one option key per slot, numeric', array( 1, 2, 3 ), array_keys( $joins ) );
+assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins['2']['type'] );
+assert_same( 'per-slot label follows the caller pattern', 'Field 2', $joins['2']['label'] );
+
+$fold = $joins['1']['fold'];
+
+// Source enum: DERIVED through the slot twin, so the `site` arm and the inherit row
+// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does.
+assert_same(
+	'srcRows derive from the slot twin at slot 1',
+	bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'],
+	$fold['srcRows']
+);
+assert_same(
+	'srcRowsInherit derive from the slot twin at slot 2 (same-row included)',
+	bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'],
+	$fold['srcRowsInherit']
+);
+assert_same( 'site arm present when allowed', true, in_array( 'site', array_column( $fold['srcRows'], 'value' ), true ) );
+
+// Read enum: the twin's rows, with a COMBINING container's explicit unset row in front
+// — absent there means unconfigured (slot skipped), which is not what the first enum
+// row means. `allow_same_read` false ⇒ no inherit row, matching the resolver.
+assert_same(
+	'readRows = unset row + the read twin rows (combining)',
+	array_merge(
+		array( array( 'value' => '', 'label' => 'Select…' ) ),
+		bws_build_slot_read_options( 1, $text['use'], false )['options']
+	),
+	$fold['readRows']
+);
+assert_same( 'no read inherit row while allow_same_read is false', false, in_array( 'same', array_column( $fold['readRowsInherit'], 'value' ), true ) );
+assert_same( 'readLabel is the base read noun, not a container copy', 'Text Field', $fold['readLabel'] );
+
+// Hops are a CAPABILITY list: only what the container's resolver can express.
+assert_same( 'hopRows carry only the requested hops', array( 'srcTermIn' ), array_column( $fold['hopRows'], 'value' ) );
+assert_same( 'hop row label is step-shaped, not the checkbox question', 'In Taxonomy Term', $fold['hopRows'][0]['label'] );
+
+// DECISION 3: the wire names steps, the engine names options; one map, one place.
+assert_same(
+	'slugMap is the engine→wire step vocabulary',
+	array( 'ref' => 'refs', 'srcTermIn' => 'terms', 'rows' => 'entries' ),
+	$fold['slugMap']
+);
+
+// Picker configs come off the base definitions (label/help/placeholder), so the
+// repeater's field pickers read exactly like the flat ones did.
+assert_same( 'refOption label derives from base traversal', $base_trav['ref']['label'], $fold['refOption']['label'] );
+assert_same( 'keyOption label derives from the text leaf', $text['key']['label'], $fold['keyOption']['label'] );
+assert_same( 'keyOption keeps the dynamic-label flag', true, $fold['keyOption']['dynamicLabel'] );
+
+// Container facts the control and the renderer BOTH read.
+assert_same( 'combining flag is carried', true, $fold['combining'] );
+assert_same( 'floor + ceiling are carried', array( 2, 3 ), array( $fold['min'], $fold['max'] ) );
+assert_same( 'noun is carried for the add affordance', 'field', $fold['noun'] );
+
+// A SELECTING container: no unset read row (absent there IS the stripped default), and
+// the inherit row appears when the caller allows it.
+$sel = bws_build_fold_slot_options(
+	array(
+		'container'       => 'try',
+		'combining'       => false,
+		'max'             => 2,
+		'base_read'       => $text['use'],
+		'base_key'        => $text['key'],
+		'allow_site'      => false,
+		'allow_same_read' => true,
+	)
+);
+$sel_fold = $sel['1']['fold'];
+assert_same(
+	'selecting readRows are the twin rows with NO unset row',
+	bws_build_slot_read_options( 1, $text['use'], false )['options'],
+	$sel_fold['readRows']
+);
+assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 'same', array_column( $sel_fold['readRowsInherit'], 'value' ), true ) );
+assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
+assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";

@@ -734,3 +734,177 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
 		'legacy' => true,
 	);
 }
+
+// ── Render seam (folded struct → the shipped flat read) ────────────────────
+
+/**
+ * Read slot $n as a struct, whichever wire ERA it is stored in (the render/preview
+ * DUAL-READ).
+ *
+ * Mode purity is a property of a MIGRATED tag, not of the reader: a half-applied
+ * migration or a hand-edit can leave slot 2 folded between legacy slots 1 and 3, and
+ * a reader that picked one era per TAG would drop half of it. So the era is decided
+ * PER SLOT — folded value present ⇒ parse it; absent ⇒ recover through
+ * bws_fold_from_legacy(). Both feed the same caller-held carry accumulator, which is
+ * what makes a mixed-era wire resolve as its author last saw it.
+ *
+ * Malformed folded wire returns null (the slot contributes nothing) rather than
+ * falling back to the legacy keys: the folded value is the author's INTENT, and
+ * silently rendering a stale legacy sibling instead would be a wrong answer dressed
+ * as a working one.
+ *
+ * @since 1.17.0
+ * @param int    $n            Slot ordinal (1-based).
+ * @param array  $options      All tag options (GB-parsed).
+ * @param string $container    'try' (selecting) | 'join' | 'table' (combining).
+ * @param bool   $per_slot_use True when the container gives each slot its own read
+ *                             axis. Ignored for combining containers.
+ * @return array|null Slot struct, or null when this slot holds nothing (or unparsable
+ *                    folded wire).
+ */
+function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true ) {
+	$raw = trim( (string) ( $options[ (string) $n ] ?? '' ) );
+	if ( '' !== $raw ) {
+		$parsed = bws_fold_parse_slot( $raw, $container );
+		return isset( $parsed['error'] ) ? null : $parsed;
+	}
+	$rec = bws_fold_from_legacy( $n, $options, 'try' !== $container, $per_slot_use );
+	return ( $rec && isset( $rec['slot'] ) ) ? $rec['slot'] : null;
+}
+
+/**
+ * Flatten one folded slot into the FLAT option set the shipped read seam consumes,
+ * threading the caller's carry-forward accumulator.
+ *
+ * This is the whole adapter between the folded wire and the engine as it ships: a
+ * chain of steps becomes `src`/`ref`/`srcTermIn` (+ `limit`), and the read axis
+ * becomes `use`/`key`. Every container's slot loop goes through here, so the
+ * carry-forward rules exist exactly once — three copies of "'' src inherits" is what
+ * the pre-fold code had (join's loop, try_'s loop, the join PREVIEW walk), and the
+ * preview copy had already drifted from the renderer it claimed to match.
+ *
+ * ACCUMULATOR. `$carry` is `{src, ref, use, key}` and is updated ONLY by a slot that
+ * actually resolves. A skipped slot must not feed it: shipped join `continue`s before
+ * its carry-forward, so a half-configured slot 2 leaves slot 3 inheriting slot 1 —
+ * feeding the accumulator first would re-point slot 3 at a source the author never
+ * chose. `ref` is passed through even under a non-`ref` source (inert there, but a
+ * later slot carrying back to the same relationship needs it — shipped behaviour).
+ *
+ * CONTAINER SENSITIVITY IS ON THE READ AXIS, AND ONLY THERE — specifically on what
+ * ABSENCE means. An explicit `use(same)` inherits in BOTH containers (so the read is
+ * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
+ * container (skip the slot) and INHERIT in a selecting one.
+ *
+ * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat seam holds ONE ref hop and ONE term
+ * hop; a second relationship hop or a repeater `entries` step (both legal wire, both
+ * reachable only by hand-editing until FW-32/FW-56 extend the engine) cannot be
+ * represented. Rendering the expressible PREFIX would silently read a different
+ * source than the wire states, so the slot renders nothing instead.
+ *
+ * @since 1.17.0
+ * @param array $slot      Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
+ * @param array $carry     Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
+ * @param bool  $combining True for {{join}}/{{table}}; false for `try_*`.
+ * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
+ *                    null when the slot is skipped (unconfigured / inexpressible).
+ */
+function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining ) {
+	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
+
+	// ── read axis ──────────────────────────────────────────────────────────
+	$read = $slot['read'] ?? null;
+	if ( null === $read ) {
+		if ( $combining ) {
+			return null;   // UNCONFIGURED — shipped combining resolvers skip, before carry.
+		}
+		$use = $carry['use'];
+		$key = $carry['key'];
+	} else {
+		switch ( $read['kind'] ?? '' ) {
+			case 'same':
+				$use = $carry['use'];
+				$key = $carry['key'];
+				break;
+			case 'key':
+				$use = 'key';
+				$key = (string) ( $read['field'] ?? '' );
+				break;
+			default:
+				$use = (string) ( $read['slug'] ?? '' );
+				$key = '';
+		}
+	}
+
+	// ── source axis: chain → src / ref / srcTermIn ─────────────────────────
+	$steps = array_values( $slot['chain'] ?? array() );
+	$src   = '';
+	$ref   = $carry['ref'];
+	$tax   = '';
+	$first = true;
+
+	foreach ( $steps as $step ) {
+		$slug = (string) ( $step['slug'] ?? '' );
+		$arg  = $step['arg'] ?? null;
+
+		if ( 'entries' === $slug ) {
+			return null;   // repeater rows: no flat spelling (the {{table}} resolver owns them).
+		}
+
+		if ( $first ) {
+			$first = false;
+			if ( 'same' === $slug ) {
+				$src = $carry['src'];
+				$ref = $carry['ref'];
+				continue;
+			}
+			if ( 'refs' === $slug ) {
+				// An ARGLESS hop keeps the carried relationship field rather than
+				// blanking it: shipped `$last_ref` survives every src override, so
+				// `3-src:ref` with no `3-ref` hops through slot 1's field. With nothing
+				// carried it stays empty and the hop is dead — as it is today.
+				$src = 'ref';
+				$ref = ( null !== $arg && '' !== $arg ) ? (string) $arg : $carry['ref'];
+				continue;
+			}
+			if ( 'terms' !== $slug ) {
+				$src = $slug;
+				continue;
+			}
+			// A leading `terms` hop reads the AMBIENT entity's terms — src stays unset.
+		}
+
+		if ( 'terms' !== $slug || '' !== $tax ) {
+			return null;   // second term hop, second ref hop, or `entries`: not expressible.
+		}
+		$tax = (string) ( $arg ?? '' );
+	}
+
+	// ── limit: the LAST step that pins one, else the slot-level token ───────
+	$limit = null;
+	foreach ( $steps as $step ) {
+		if ( null !== ( $step['limit'] ?? null ) && '' !== $step['limit'] ) {
+			$limit = (string) $step['limit'];
+		}
+	}
+	if ( null === $limit && isset( $slot['opts']['limit'] ) && '' !== $slot['opts']['limit'] ) {
+		$limit = (string) $slot['opts']['limit'];
+	}
+
+	// The slot resolved: feed the accumulator (never before this point).
+	$carry['src'] = $src;
+	$carry['ref'] = $ref;
+	$carry['use'] = $use;
+	$carry['key'] = $key;
+
+	$flat = array(
+		'src'       => $src,
+		'ref'       => $ref,
+		'srcTermIn' => $tax,
+		'use'       => '' === $use ? 'key' : $use,   // '' = the stripped `key` default (I3).
+		'key'       => $key,
+	);
+	if ( null !== $limit ) {
+		$flat['limit'] = $limit;
+	}
+	return $flat;
+}

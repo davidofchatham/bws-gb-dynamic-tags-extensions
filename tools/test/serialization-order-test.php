@@ -147,6 +147,36 @@ assert_order(
 	$sort( array( 'sep', 'key', 'src', 'valueSep', 'srcTermIn', 'limit', 'fallback' ) )
 );
 
+// --- Folded slot keys (FW-56/57): one key per slot, source group, slot order ---
+// The whole slot lives in the key's VALUE, so a folded key ranks where `src` does and
+// sorts by slot — i.e. the tag-level format keys still lead and `fallback` still trails.
+assert_order(
+	'folded slot keys sort by slot inside the source group',
+	array( 'mode', 'valueSep', 'format', '1', '2', '3', 'fallback' ),
+	$sort( array( '3', 'fallback', '1', 'format', 'mode', '2', 'valueSep' ) )
+);
+// A folded key must NOT fall to the unknown TAIL — it ranks exactly where the flat
+// `N-src` it replaces did. Slot ordering still dominates within-rank (a slot-0 unknown
+// precedes every slot ≥1 key, folded or flat, which is shipped behaviour), so the
+// property to pin is same-slot: the folded key leads its own slot's unknowns.
+assert_order(
+	'a folded slot key leads unknown keys of the SAME slot',
+	array( '2', '2-zeta', '3' ),
+	$sort( array( '2-zeta', '3', '2' ) )
+);
+assert_order(
+	'a folded slot key ranks with src, not at the unknown tail',
+	array( '1', '1-zeta' ),
+	$sort( array( '1-zeta', '1' ) )
+);
+// Mixed era (half-applied migration / hand-edit): the folded slot and the flat keys of
+// a DIFFERENT slot both sort by their own slot number.
+assert_order(
+	'mixed-era wire sorts by slot, folded and flat alike',
+	array( '1', '2-src', '2-key', '3' ),
+	$sort( array( '3', '2-key', '1', '2-src' ) )
+);
+
 // --- Unknown key: tails the source group, keeps incoming order relative to peers ---
 assert_order(
 	'unknown keys tail source, before link/fallback, stable among themselves',
@@ -171,6 +201,66 @@ $count++;
 if ( array( 2, 'src' ) === bws_serialization_order_parse_slot( '2-src' ) ) { echo "  ok   2-src → slot 2, bare src\n"; } else { $failures++; echo "  FAIL 2-src → slot 2\n"; }
 $count++;
 if ( array( 10, 'key' ) === bws_serialization_order_parse_slot( '10-key' ) ) { echo "  ok   10-key → slot 10 (multi-digit)\n"; } else { $failures++; echo "  FAIL 10-key → slot 10\n"; }
+$count++;
+if ( array( 2, '' ) === bws_serialization_order_parse_slot( '2' ) ) { echo "  ok   folded slot key 2 → slot 2, empty bare name\n"; } else { $failures++; echo "  FAIL folded slot key 2 → [2, '']\n"; }
+$count++;
+if ( array( 12, '' ) === bws_serialization_order_parse_slot( '12' ) ) { echo "  ok   folded slot key 12 → slot 12 (multi-digit)\n"; } else { $failures++; echo "  FAIL folded slot key 12\n"; }
+
+// --- JS PORT AGREEMENT (assets/js/serialization-order-normalizer.js) ---
+//
+// The header used to claim asserting the PHP mirror pins what the JS enforces. It
+// pins the CONTRACT, not the port: two files, so agreement is a tested property, not
+// a discipline (the same reasoning as tools/test/slot-fold-twin-test.php, which is
+// where this convention landed first). The editor's normalizer is the side that
+// WRITES author-facing wire, so a divergence here is not a failing test in
+// production — it is churn in saved tags.
+//
+// `node` is a REAL dependency: a missing node FAILS rather than skips, because a
+// silent pass would hide exactly the drift this block exists to catch.
+echo "\nJS port agreement (node)\n";
+$twin_lists = array(
+	array( 'fallback', 'linkTo', 'src', 'key', 'use', 'ref', 'srcTermIn', 'limit', 'sep', 'linkKey', 'newTab' ),
+	array( 'as', 'key', 'src' ),
+	array( 'src', 'key', 'timeKey', 'fallback', 'as', 'format' ),
+	array( 'sep', 'key', 'src', 'valueSep', 'srcTermIn', 'limit', 'fallback' ),
+	array( 'zeta', 'src', 'linkTo', 'alpha', 'fallback', 'key' ),
+	array( '2-key', 'src', '3-src', 'key', '2-src', '3-key' ),
+	// Folded slot keys (FW-56/57) — the parseSlot branch added in 1.17.0.
+	array( '3', 'fallback', '1', 'format', 'mode', '2', 'valueSep' ),
+	array( '2-zeta', '3', '2' ),
+	array( '3', '2-key', '1', '2-src' ),
+	array( '12', '2', '1' ),
+);
+$expected_twin = array_map( $sort, $twin_lists );
+// Hand the corpus over as a FILE, not an argv string: Windows' escapeshellarg strips
+// the double quotes out of JSON, so an inline argument arrives as unparsable garbage.
+$twin_file     = tempnam( sys_get_temp_dir(), 'bws-order-' );
+file_put_contents( $twin_file, json_encode( $twin_lists ) );
+$cmd           = 'node ' . escapeshellarg( __DIR__ . '/serialization-order-driver.js' )
+	. ' ' . escapeshellarg( $twin_file ) . ' 2>&1';
+$raw           = (string) shell_exec( $cmd );
+unlink( $twin_file );
+$doc           = json_decode( $raw, true );
+$count++;
+if ( ! is_array( $doc ) || ! isset( $doc['reordered'] ) ) {
+	$failures++;
+	echo "  FAIL JS driver produced no result (node on PATH?)\n";
+	echo '       ' . substr( trim( $raw ), 0, 300 ) . "\n";
+} else {
+	echo "  ok   JS driver ran (node present, normalizer exported)\n";
+	foreach ( $expected_twin as $i => $php_order ) {
+		$count++;
+		$js_order = $doc['reordered'][ $i ] ?? null;
+		if ( $php_order === $js_order ) {
+			echo '  ok   twin agrees: ' . implode( ' ', $twin_lists[ $i ] ) . "\n";
+			continue;
+		}
+		$failures++;
+		echo '  FAIL twin diverges on: ' . implode( ' ', $twin_lists[ $i ] ) . "\n";
+		echo '       php: ' . implode( ' ', $php_order ) . "\n";
+		echo '       js:  ' . ( is_array( $js_order ) ? implode( ' ', $js_order ) : var_export( $js_order, true ) ) . "\n";
+	}
+}
 
 echo "\n";
 if ( $failures > 0 ) {

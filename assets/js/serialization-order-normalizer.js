@@ -80,17 +80,25 @@
 		noLink: [ 'link', 4 ],
 		// fallback (last)
 		fallback: [ 'fallback', 0 ],
+		// A FOLDED slot key (`1`, `2`, … — FW-56/57) parses to a bare name of '': one
+		// key holds the whole slot, so it takes the source group's leading rank and
+		// sorts by slot like the flat `N-src` it replaces.
+		'': [ 'source', 0 ],
 	};
 
 	var UNKNOWN_WITHIN = 100; // unknown keys tail the source group.
 
 	/**
-	 * Split `N-name` into [slot, bareName]; unprefixed → [0, key].
+	 * Split `N-name` into [slot, bareName]; unprefixed → [0, key]. An all-digit key is
+	 * a FOLDED slot key → [N, ''] (see the '' entry in KEY_MAP).
 	 */
 	function parseSlot( key ) {
 		var m = /^(\d+)-(.+)$/.exec( key );
 		if ( m ) {
 			return [ parseInt( m[ 1 ], 10 ), m[ 2 ] ];
+		}
+		if ( /^\d+$/.test( key ) ) {
+			return [ parseInt( key, 10 ), '' ];
 		}
 		return [ 0, key ];
 	}

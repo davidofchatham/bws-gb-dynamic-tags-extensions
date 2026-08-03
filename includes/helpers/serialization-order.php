@@ -117,6 +117,12 @@ function bws_serialization_order_key_map(): array {
 
 		// --- fallback group (last) ---
 		'fallback' => array( 'fallback', 0 ),
+
+		// A FOLDED slot key (`1`, `2`, … — FW-56/57) parses to a bare name of '': the
+		// whole slot is one key, so it takes the source group's LEADING rank and sorts
+		// by slot like the flat `N-src` it replaces. Without this it would fall to the
+		// unknown-key tail and serialize AFTER any stray key on the tag.
+		''         => array( 'source', 0 ),
 	);
 }
 
@@ -126,13 +132,21 @@ function bws_serialization_order_key_map(): array {
  * A key `N-name` (N ≥ 1) belongs to slot N with bare name `name`. An unprefixed key
  * is slot 0 (base / global). Only a leading `\d+-` counts as a slot prefix.
  *
+ * A key that is ONLY digits (`1`, `2`, …) is a FOLDED slot key (FW-56/57): the slot's
+ * whole configuration lives in that key's VALUE, so it belongs to slot N with an EMPTY
+ * bare name, which the canonical map ranks at the head of the source group.
+ *
  * @since 1.16.0
+ * @since 1.17.0 Folded slot keys (all-digit) → [N, ''].
  * @param string $key Full option key (possibly `N-`-prefixed).
  * @return array{0:int,1:string} [slot, bare-name]
  */
 function bws_serialization_order_parse_slot( string $key ): array {
 	if ( preg_match( '/^(\d+)-(.+)$/', $key, $m ) ) {
 		return array( (int) $m[1], $m[2] );
+	}
+	if ( preg_match( '/^(\d+)$/', $key, $m ) ) {
+		return array( (int) $m[1], '' );
 	}
 	return array( 0, $key );
 }

@@ -361,6 +361,33 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// Folded slot wire (FW-56/57). The GRAMMAR is the tested twin of
+	// includes/helpers/slot-fold.php and carries no decisions of its own; the CONTROL
+	// is the repeater that owns one folded slot value. Both must load after the
+	// order normalizer (the grammar emits token order through window.bwsReorderKeys)
+	// and after the field-combo control (the repeater renders it for field pickers) —
+	// hence the explicit script handles in the dependency list, not just the wp-* ones.
+	wp_enqueue_script(
+		'bws-dynamic-tags-slot-fold-grammar',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-grammar.js',
+		array( 'bws-dynamic-tags-order-normalizer' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	wp_enqueue_script(
+		'bws-dynamic-tags-slot-fold-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',
+		array(
+			'wp-hooks',
+			'wp-element',
+			'wp-components',
+			'wp-i18n',
+			'bws-dynamic-tags-slot-fold-grammar',
+			'bws-dynamic-tags-field-combo-control',
+		),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 

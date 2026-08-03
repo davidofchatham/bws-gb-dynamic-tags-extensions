@@ -819,116 +819,73 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Build the {{join}} option definitions: per-slot text-base specs (flat `{N}-`
- * prefix wire format, slot 1 bare — the SAME scheme try_ uses) followed by the
- * tag-level assembly options.
+ * Build the {{join}} option definitions: one FOLDED key per slot (`1`, `2`, …,
+ * FW-56/57) followed by the tag-level assembly options.
  *
- * Per slot: src/ref/srcTermIn from bws_build_slot_traversal_options() with the
- * site arm ALLOWED (the try_text site gap is not repeated), plus `use` from
- * bws_build_slot_read_options() at $allow_same = FALSE — no "Same as Previous
- * Field" row because per-slot HANDLERS are not built yet, NOT because same-read
- * is degenerate in combining (that argument is withdrawn: use(same) there means
- * same field + same source, DIFFERENT handler — a decomposition). Flip the flag
- * when handlers ship. The flag is why join no longer forks its own read emit.
- * Then `key` (leaf shape, never inherited) and `limit` (list-mode
- * cap so a srcTermIn / src:ref slot reads >1 target; its own list-axis
- * show_if_any doubles as the reveal — an unconfigured slot has no list axis).
+ * The slot definitions come from bws_build_fold_slot_options(), which derives every
+ * enum and label from the shipped builders and hands them to the `bws-slot-fold`
+ * repeater control. Join supplies the container facts: combining, site arm allowed,
+ * one term hop, no read-inherit row, and the slot noun.
  *
- * COMBINING-shaped reveal: a slot is "real" when it has a key OR a non-default
- * use, so slot N+1 (N ≥ 3) reveals on `{prev}-key not_empty` OR `{prev}-use
- * not_empty` — NOT `{prev}-src` (default-empty in combining; try_'s src-keyed
- * reveal is the selecting axis, wrong here). Slots 1–2 always visible.
+ * WHAT THE FOLD REPLACED, and why the reveal machinery went with it: through 1.16.x
+ * this registered SIX flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/
+ * `limit`, slot 1 bare) plus a combining-shaped `show_if_any` reveal that armed slot
+ * N+1 once slot N had a key or a non-default use. Cardinality is now EXPLICIT
+ * (add/remove in the repeater) rather than inferred from how far configuration got, so
+ * the reveal predicates have nothing left to express. Legacy wire still renders — the
+ * callback dual-reads it — and the editor rewrites a slot to folded form on first
+ * touch.
  *
- * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items
- * with text's default ', '. The original blocker — a slot-1 bare `sep`
- * colliding with the tag-level assembly `sep` on GB's flat option map —
- * dissolved when the assembly key was renamed to `valueSep` (1.16.0, FW-52),
- * so a per-slot `{N}-sep` is now free to add though still deferred.
+ * Per-slot `limit` moved INTO the slot value, attached to the step it caps (a chain
+ * can fan more than once, so a slot-level cap has no single meaning). It has no
+ * control surface yet; a migrated or hand-written one round-trips untouched.
+ *
+ * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items with
+ * text's default ', '. The original blocker — a slot-1 bare `sep` colliding with the
+ * tag-level assembly `sep` on GB's flat option map — dissolved twice over, first when
+ * the assembly key was renamed to `valueSep` (1.16.0, FW-52) and again under the fold,
+ * where a slot's options live inside its own value. Still deferred scope.
  *
  * @since 1.15.0
+ * @since 1.17.0 Folded slot keys replace the six flat per-slot keys (FW-56/57).
  * @return array Option definitions keyed by option name.
  */
 function bws_get_join_options(): array {
-	$base_src   = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : array();
-	$base_trav  = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : array();
 	$text_field = function_exists( 'bws_get_text_field_options' )
 		? bws_get_text_field_options()
 		: array( 'use' => array(), 'key' => array() );
 
-	$options = array();
-
-	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
-		$src_key = ( 1 === $n ) ? 'src'       : "{$n}-src";
-		$ref_key = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
-		$stm_key = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
-		$use_key = ( 1 === $n ) ? 'use'       : "{$n}-use";
-		$key_key = ( 1 === $n ) ? 'key'       : "{$n}-key";
-		$lim_key = ( 1 === $n ) ? 'limit'     : "{$n}-limit";
-
-		// Combining reveal: slots 1-2 up front; slot N ≥ 3 reveals when the
-		// PREVIOUS slot is "real" (has a key or a non-default use).
-		if ( $n <= 2 ) {
-			$slot_trigger = array();
-		} else {
-			$prev         = $n - 1;
-			$slot_trigger = array(
-				'show_if_any' => array(
-					( 2 === $prev ? '2-key' : "{$prev}-key" ) => 'not_empty',
-					( 2 === $prev ? '2-use' : "{$prev}-use" ) => 'not_empty',
-				),
-			);
-		}
-
-		// src / ref / srcTermIn — derived from the base builders; site arm
-		// allowed (join is standalone: the bool passes directly, no
-		// modifier-only flag). Slot ≥2 keeps the `same` inherit row: source
-		// can sensibly carry forward in combining; field identity cannot.
-		$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
-			? bws_build_slot_traversal_options( $n, $base_src, $base_trav, true )
-			: array( 'src' => array(), 'ref' => array(), 'srcTermIn' => array() );
-
-		$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
-		$options[ $ref_key ] = $slot_defs['ref'];
-		$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
-
-		// use — DERIVED from the text field leaf via the read twin, $allow_same
-		// FALSE: no inherit row until per-slot handlers exist (see PHPDoc). Same
-		// enum + "N: Text Field" label the base tag and try_ slots carry.
-		$options[ $use_key ] = array_merge(
-			function_exists( 'bws_build_slot_read_options' )
-				? bws_build_slot_read_options( $n, $text_field['use'], false )
-				: array(),
-			$slot_trigger
-		);
-
-		// key — leaf shape, per slot, never inherited. Slot label/help overlaid;
-		// hidden for use:title (no inherit mode, so slot ≥2 visibility = slot 1's rule).
-		$options[ $key_key ] = array_merge(
-			$text_field['key'],
+	// FOLDED slot keys (`1`, `2`, …) — one option per slot, the whole slot in its
+	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
+	// renderer dual-reads the old wire, and the editor rewrites a slot to folded form
+	// the first time it is touched.
+	$options = function_exists( 'bws_build_fold_slot_options' )
+		? bws_build_fold_slot_options(
 			array(
+				'container'       => 'join',
+				'combining'       => true,
+				'per_slot_use'    => true,
+				'min'             => 2,
+				'max'             => BWS_JOIN_MAX_SLOTS,
+				'base_read'       => $text_field['use'],
+				'base_key'        => $text_field['key'],
+				// Site arm allowed: join is standalone, so the base source list passes
+				// through whole (the try_ site filter is a modifier-only concern).
+				'allow_site'      => true,
+				// No read inherit row yet — per-slot HANDLERS are not built, which is
+				// also why bws_build_slot_read_options() is called at $allow_same=false
+				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
+				// honors a hand-written one, it just has no UI row until handlers ship).
+				'allow_same_read' => false,
+				// The flat render seam expresses one term hop; a second relationship hop
+				// is FW-32 work, so it is not offered.
+				'hops'            => array( 'srcTermIn' ),
+				'noun'            => __( 'field', 'generateblocks' ),
 				/* translators: %d: slot number */
-				'label'   => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-				'help'    => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-				'show_if' => array( $use_key => 'not:title' ),
-			),
-			$slot_trigger
-		);
-
-		// limit — per-slot list-mode cap (srcTermIn / src:ref). Threaded into
-		// the slot's text resolve; without it a list slot silently truncates
-		// to one item. The list-axis condition doubles as the reveal (an
-		// unconfigured slot's srcTermIn/src are empty → hidden).
-		$options[ $lim_key ] = array(
-			'type'        => 'number',
-			/* translators: %d: slot number */
-			'label'       => sprintf( __( '%d: Result Limit', 'generateblocks' ), $n ),
-			'help'        => __( 'Maximum number of results this slot returns. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-			'show_if_any' => array(
-				$stm_key => 'not_empty',
-				$src_key => 'ref',
-			),
-		);
-	}
+				'label'           => __( 'Field %d', 'generateblocks' ),
+			)
+		)
+		: array();
 
 	// Tag-level assembly options.
 	$options['mode'] = array(
@@ -976,21 +933,28 @@ function bws_get_join_options(): array {
  * mode. All-empty output falls back to `fallback` (or '' so GB's
  * empty-render handling hides the block).
  *
- * Source carry-forward asymmetry: slot ≥2 `''`/`same` src inherits the prior
- * resolved source; `use`/`key` NEVER inherit. $last_ref is deliberately NOT
- * cleared on a non-ref src override — the text resolve reads `ref` ONLY under
- * src:ref, so a stale carried ref alongside src:current/site is inert;
- * clearing it would break a later slot carrying back to the same ref.
+ * WIRE ERAS. Slot configuration reads through the FOLD seam
+ * (bws_fold_slot_struct + bws_fold_slot_flat_options), which resolves each slot from
+ * its folded value when it has one and recovers it from the legacy flat keys when it
+ * does not. Era is decided per SLOT, not per tag: a half-applied migration or a
+ * hand-edit can leave slot 2 folded between legacy slots 1 and 3, and both feed the
+ * ONE carry-forward accumulator this loop holds.
+ *
+ * Carry-forward semantics are unchanged and now live in the seam: source inherits
+ * ('' / `same` src = prior resolved source), the read never inherits unless the wire
+ * says `use(same)`, a read-less slot is unconfigured and is skipped BEFORE it can feed
+ * the accumulator, and a carried `ref` survives a non-ref source override (inert
+ * there, but a later slot hopping back to the same relationship needs it).
  *
  * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
  * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
  *
  * @since 1.15.0
+ * @since 1.17.0 Slots read through the folded-slot seam, dual-reading legacy wire.
  */
 function bws_join_callback( $options, $block, $instance ): string {
-	$values   = array(); // 1-based; $values[$n] = finished slot string or ''.
-	$last_src = '';
-	$last_ref = '';
+	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
+	$carry  = array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
 
 	// Tag-level explicit post id — GB's editor preview REST route injects
 	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
@@ -1005,47 +969,31 @@ function bws_join_callback( $options, $block, $instance ): string {
 	$explicit_id = $options['id'] ?? '';
 
 	for ( $n = 1; $n <= BWS_JOIN_MAX_SLOTS; $n++ ) {
-		$src = ( 1 === $n ) ? ( $options['src'] ?? '' )       : ( $options[ "{$n}-src" ] ?? '' );
-		$ref = ( 1 === $n ) ? ( $options['ref'] ?? '' )       : ( $options[ "{$n}-ref" ] ?? '' );
-		$use = ( 1 === $n ) ? ( $options['use'] ?? '' )       : ( $options[ "{$n}-use" ] ?? '' );
-		$key = ( 1 === $n ) ? ( $options['key'] ?? '' )       : ( $options[ "{$n}-key" ] ?? '' );
-		$stm = ( 1 === $n ) ? ( $options['srcTermIn'] ?? '' ) : ( $options[ "{$n}-srcTermIn" ] ?? '' );
-		$lim = ( 1 === $n ) ? ( $options['limit'] ?? '' )     : ( $options[ "{$n}-limit" ] ?? '' );
-
-		// Slot is "real" iff it has a key OR a non-default use. Reveal keeps
-		// gaps from occurring mid-chain; be defensive and just skip.
-		if ( '' === $key && '' === $use ) {
+		// Slot configuration, whichever wire era holds it. Null = nothing configured
+		// here (or unparsable folded wire) — the slot contributes nothing.
+		$slot = function_exists( 'bws_fold_slot_struct' )
+			? bws_fold_slot_struct( $n, (array) $options, 'join' )
+			: null;
+		if ( null === $slot ) {
 			continue;
 		}
 
-		// Carry-forward: '' src = inherit prior resolved source ('same');
-		// else override. $last_ref intentionally survives non-ref overrides
-		// (inert outside src:ref — see fn PHPDoc).
-		if ( '' !== $src && 'same' !== $src ) {
-			$last_src = $src;
-		}
-		if ( '' !== $ref ) {
-			$last_ref = $ref;
+		// Flatten to the option set the absorb seam consumes, threading the ONE
+		// carry-forward accumulator. Null = the slot is unconfigured (combining reads
+		// an absent field as "not set yet") or states a chain the flat seam cannot
+		// express — either way it renders nothing AND does not feed the accumulator.
+		// Join's tag-level `valueSep` (assembly) is NEVER passed through: a list-mode
+		// slot joins its own items with text's default ', ' (ADR 0003).
+		$slot_opts = bws_fold_slot_flat_options( $slot, $carry, true );
+		if ( null === $slot_opts ) {
+			continue;
 		}
 
-		// Single-slot text-tag option set for the absorb seam. Join's
-		// tag-level `valueSep` (assembly) is NEVER passed through — a list-mode
-		// slot joins its own items with text's default ', ' (ADR 0003).
-		$slot_opts = array(
-			'src'       => $last_src,
-			'ref'       => $last_ref,
-			'use'       => '' === $use ? 'key' : $use, // '' = stripped key default (I3).
-			'key'       => $key,
-			'srcTermIn' => $stm,
-		);
-		if ( '' !== $lim ) {
-			$slot_opts['limit'] = $lim;
-		}
 		// Thread the editor's injected post id into every post-based slot (see
 		// $explicit_id note). src:ref bases its hop on this id too (the current
 		// post is the ref origin), so it must carry. Only src:site is entity-blind
 		// — it reads an option, never a post — so the id is left off there.
-		if ( '' !== $explicit_id && 'site' !== $last_src ) {
+		if ( '' !== $explicit_id && 'site' !== ( $slot_opts['src'] ?? '' ) ) {
 			$slot_opts['id'] = $explicit_id;
 		}
 

@@ -259,6 +259,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `term_image`, `try_image` |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
+| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove cardinality; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `1`, `2`, … on `{{join}}` (v1.17.0); `try_*` + `{{table}}` to follow. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
@@ -326,6 +327,45 @@ Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269
 - `'not_in:v1,v2,...'` — passes when option equals none of the listed values *(new)*
 
 Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key is not implemented.
+
+## Folded slot wire (multislot containers)
+
+**One option key per slot** (FW-56/57, v1.17.0). A multislot container registers keys `1`, `2`, … `N` — each of type `bws-slot-fold` — and the whole slot lives in that key's **value**: its source chain, its field read, and its per-slot options. This replaces the six flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/`limit`, slot 1 bare) the same containers registered through v1.16.x.
+
+**Shipped in:** `{{join}}` (v1.17.0). `try_*` and `{{table}}` follow.
+
+```
+{{join 1:key(name_first)|2:src(same);key(name_last)}}
+{{join mode:template|format:%1 (%2)|1:src(refs,office,limit[2]);key(name)|2:src(same);use(title)}}
+```
+
+**Grammar** (owner: [`includes/helpers/slot-fold.php`](../includes/helpers/slot-fold.php); JS twin `assets/js/slot-fold-grammar.js`):
+
+| Construct | Separator / bracket | Notes |
+|---|---|---|
+| tokens in a slot value | `;` | `,` also accepted on parse, never emitted |
+| steps in a chain | `;` | inside `src(…)` |
+| slug / arg / limit within a step | `,` | `refs,office,limit[2]` |
+| value brackets | `()` at level 1, `[]` at level 2 | **alternation by depth**, never a pinned char: `limit(3)` on a base tag's own `src:`, `limit[3]` inside a slot's `src(…)` |
+| `+` `/` | — | **RESERVED**, unspent: never separators, ordinary content inside a value |
+
+`}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%N`.
+
+**Step slugs are wire vocabulary, distinct from the engine's option values:** `refs` (relationship hop, engine `src:ref`), `terms` (taxonomy hop, engine `srcTermIn`), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence; nothing else translates.
+
+**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold.
+
+**Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` inherits everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **inherit** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` inherits, an empty chain resolves against the ambient entity.
+
+**`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a legacy limit with no fanning step stays a slot-level token. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
+
+**Both eras render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the legacy flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between legacy slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
+
+**Serialization.** A folded key ranks where the `src` it replaces did — source group, leading, sorted by slot — so tag-level format keys still lead and `fallback` still trails ([§Option order](#option-order)).
+
+**Cardinality is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
+
+Harnesses: `php tools/test/slot-fold-test.php` (grammar + legacy mapping + render seam), `php tools/test/slot-fold-twin-test.php` (PHP↔JS agreement; needs `node`), `node tools/test/slot-fold-repeater-test.js` (repeater/compaction).
 
 ---
 
@@ -776,21 +816,26 @@ and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref
 loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
 (`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
 
-**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the same flat `{N}-` prefix wire format as
-`try_` (slot 1 bare keys). Per slot: `src` / `ref` / `srcTermIn` (from the shared slot builders,
-**site allowed** — the `try_text` site-slot gap is not repeated), `use` (text's key/title enum —
-**no "Same as Previous Field" row**: in combining, same-`use` is redundant or pointless), `key`
-(never inherited), and `limit` (list-mode cap so a term/ref slot reads >1 target). Slot ≥2 `src`
-keeps the `same`/inherit row — weave several fields off one entity (see J16b in the matrix for
-real ref carry-forward). A list-mode slot joins its own items with text's default inner `', '` —
-no per-slot inner separator in v1 ([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1
-decision was to thread `{N}-limit` only). NB the wire-collision that ADR 0003 cited (a slot-1 bare
-`sep` clashing with the tag-level assembly `sep`) **dissolved when the assembly key was renamed to
-`valueSep`** (1.16.0, FW-52) — a per-slot `{N}-sep` is now free to add, though still deferred.
+**Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option
+key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per slot: a source
+chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated —
+plus a `terms` taxonomy hop), the field read (text's key/title enum, **no "Same as Previous Field"
+row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and
+a per-step `limit` (list-mode cap so a term/ref slot reads >1 target; no control surface yet, but
+migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off
+one entity (see J16b in the matrix for real ref carry-forward). A list-mode slot joins its own
+items with text's default inner `', '` — no per-slot inner separator in v1
+([ADR 0003](adr/0003-join-per-slot-limit-not-sep.md): the v1 decision was to thread the slot limit
+only). NB the wire-collision that ADR 0003 cited (a slot-1 bare `sep` clashing with the tag-level
+assembly `sep`) dissolved twice over — first when the assembly key was renamed to `valueSep`
+(1.16.0, FW-52), then under the fold, where a slot's options live inside its own value. Still
+deferred.
 
-**Reveal (combining-shaped).** Slots 1–2 visible up front; slot N ≥ 3 reveals when the previous
-slot has a `key` OR a non-default `use` — NOT its `src` (default-empty in combining; `try_`'s
-src-keyed reveal is the selecting axis).
+**Cardinality (v1.17.0).** Explicit add/remove in the slot repeater; removal compacts. Through
+1.16.x cardinality was inferred from configuration and slot N ≥ 3 revealed when the previous slot
+had a `key` or a non-default `use` (the combining-shaped reveal — never its `src`, which is
+default-empty in combining); those predicates are gone with the flat keys they tested. Legacy wire
+still renders unchanged, and touching a slot rewrites it to folded form.
 
 **Tag-level options.**
 
@@ -885,14 +930,17 @@ instead of an empty block, built by `bws_build_join_preview_label()`. Shape + ex
 [`editor-tag-previews.md` §join](editor-tag-previews.md#join-preview).
 
 ```
-{{join key:name_first|2-key:name_last}}                          → Jane, Smith
-{{join key:name_first|2-key:name_last|valueSep: }}              → Jane Smith
-{{join mode:template|format:%1 (%2)|key:name_first|2-key:nickname}} → Jane (Nick) / Jane when empty
-{{join mode:template|format:%1′%2″|key:height_ft|2-key:height_in}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
-{{join mode:template|format:%1 / ~%2 lbs.~|key:position|2-key:weight}} → Center / 185 lbs. / Center when weight empty
-{{join use:title|2-use:key|2-key:role|valueSep: / }}            → Page Title / Captain
-{{join key:fname|2-src:site|2-key:organization_email}}           → Jane, info@example.test
+{{join 1:key(name_first)|2:src(same);key(name_last)}}                    → Jane, Smith
+{{join valueSep: |1:key(name_first)|2:src(same);key(name_last)}}         → Jane Smith
+{{join mode:template|format:%1 (%2)|1:key(name_first)|2:src(same);key(nickname)}} → Jane (Nick) / Jane when empty
+{{join mode:template|format:%1′%2″|1:key(height_ft)|2:src(same);key(height_in)}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
+{{join mode:template|format:%1 / ~%2 lbs.~|1:key(position)|2:src(same);key(weight)}} → Center / 185 lbs. / Center when weight empty
+{{join valueSep: / |1:use(title)|2:src(same);key(role)}}                 → Page Title / Captain
+{{join 1:key(fname)|2:src(site);key(organization_email)}}                → Jane, info@example.test
 ```
+
+Pre-1.17.0 wire (`{{join key:name_first|2-key:name_last}}`) still renders — see
+[§Folded slot wire](#folded-slot-wire-multislot-containers) "Both eras render".
 
 **Tests.** Pure algorithm: `php tools/test/join-template-test.php` (Steps 0–5, wire-token
 translation, `'0'`, full-name dense/sparse collapse). Integration: standing matrix

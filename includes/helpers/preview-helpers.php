@@ -84,13 +84,18 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *   [⚠ Join: {warnings}]                      — misconfigured slot(s) / no format
  * Trailing ` (fallback: “X”)` appended when `fallback` is set.
  *
- * Slot walk matches bws_join_callback(): a slot is "real" iff it has a `key` OR a
- * non-default `use`; src/ref carry forward (`same`/'' inherits the prior resolved
- * source), key/use never inherit. No link-wrap (join composes raw values).
+ * Slot walk goes through the SAME seam bws_join_callback() renders through
+ * (bws_fold_slot_struct + bws_fold_slot_flat_options), so it reads folded and legacy
+ * wire alike and cannot drift from the renderer. It used to hold its own transcription
+ * of the skip rule and the carry-forward, which is exactly the copy that made "the
+ * preview matches the callback" a claim rather than a property. No link-wrap (join
+ * composes raw values).
  *
  * @since 1.15.0
- * @param array $options Parsed tag options (slot fields prefixed N- for N≥2;
- *                       tag-level mode/valueSep/format/fallback).
+ * @since 1.17.0 Reads through the folded-slot seam (FW-56/57) instead of its own copy
+ *               of join's slot walk.
+ * @param array $options Parsed tag options (folded slot keys `1`,`2`,… or the legacy
+ *                       flat per-slot keys; tag-level mode/valueSep/format/fallback).
  * @return string Bracket preview label, or '' when nothing is configured.
  */
 if ( ! function_exists( 'bws_build_join_preview_label' ) ) {
@@ -101,42 +106,28 @@ function bws_build_join_preview_label( array $options ): string {
 	$sep      = $options['valueSep'] ?? '';
 	$fallback = $options['fallback'] ?? '';
 
-	// Walk slots 1..max with the callback's carry-forward. Collect field/source
-	// parts for the "real" slots only.
+	// Walk slots 1..max through the render seam. A slot the seam skips (unconfigured,
+	// or a chain the flat read cannot express) contributes nothing here either.
 	$field_parts  = array();
 	$source_parts = array();
 	$warnings     = array();
-	$last_src     = 'current';
-	$last_ref     = '';
+	$carry        = array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
 	for ( $n = 1; $n <= $max; $n++ ) {
-		$src_k = ( 1 === $n ) ? 'src'       : "{$n}-src";
-		$ref_k = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
-		$stm_k = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
-		$use_k = ( 1 === $n ) ? 'use'       : "{$n}-use";
-		$key_k = ( 1 === $n ) ? 'key'       : "{$n}-key";
-
-		$src = $options[ $src_k ] ?? '';
-		$ref = $options[ $ref_k ] ?? '';
-		$tax = $options[ $stm_k ] ?? '';
-		$use = $options[ $use_k ] ?? '';
-		$key = $options[ $key_k ] ?? '';
-
-		// Not a real slot (matches callback's skip rule).
-		if ( '' === $key && '' === $use ) {
+		$slot = function_exists( 'bws_fold_slot_struct' ) ? bws_fold_slot_struct( $n, $options, 'join' ) : null;
+		if ( null === $slot ) {
+			continue;
+		}
+		$flat = bws_fold_slot_flat_options( $slot, $carry, true );
+		if ( null === $flat ) {
 			continue;
 		}
 
-		// Carry-forward: '' / 'same' src inherits; ref survives non-ref overrides.
-		if ( '' !== $src && 'same' !== $src ) {
-			$last_src = $src;
-		}
-		if ( '' !== $ref ) {
-			$last_ref = $ref;
-		}
-		$eff_use = '' === $use ? 'key' : $use; // '' = stripped key default (I3).
+		$eff_src = '' === $flat['src'] ? 'current' : $flat['src'];
+		$eff_use = $flat['use'];   // Already defaulted to `key` by the seam (I3).
+		$key     = $flat['key'];
 
 		// Per-slot warnings: src:ref with no ref key; key-mode with no key.
-		if ( 'ref' === $last_src && '' === $last_ref ) {
+		if ( 'ref' === $eff_src && '' === $flat['ref'] ) {
 			$warnings[] = 'slot ' . $n . ' no ref';
 		}
 		if ( 'title' !== $eff_use && '' === $key ) {
@@ -144,7 +135,7 @@ function bws_build_join_preview_label( array $options ): string {
 		}
 
 		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
-		$source_parts[ $n ] = bws_try_preview_source_part( $last_src, $last_ref, $tax, true );
+		$source_parts[ $n ] = bws_try_preview_source_part( $eff_src, $flat['ref'], $flat['srcTermIn'], true );
 	}
 
 	// Template mode with no format is unresolvable — warn (matches the callback

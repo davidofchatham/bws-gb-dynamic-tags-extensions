@@ -60,6 +60,11 @@ if ( ! function_exists( 'get_taxonomy' ) ) {
 	}
 }
 
+// The join preview walks slots through the FOLDED-SLOT seam (FW-56/57) rather than its
+// own copy of join's slot walk, so the grammar owner and the canonical order it emits
+// through are real dependencies here. Both are pure.
+require __DIR__ . '/../../includes/helpers/serialization-order.php';
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/preview-helpers.php';
 
 $failures = 0;
@@ -497,6 +502,52 @@ check(
 	'empty → no preview',
 	bws_build_join_preview_label( [] ),
 	''
+);
+
+// --- FOLDED wire (FW-56/57): same previews, one option key per slot -------------
+// Each case is the folded twin of a legacy case above, asserted at the SAME expected
+// string: the preview reads both eras through the render seam, so an author's label
+// must not change when a tag migrates.
+check(
+	'folded: two slots, separator mode',
+	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(same);key(name_last)' ] ),
+	"[Join 'name_first', 'name_last']"
+);
+check(
+	'folded: analog read + keyed read',
+	bws_build_join_preview_label( [ '1' => 'use(title)', '2' => 'src(same);key(role)' ] ),
+	'[Join Title, ' . "'role']"
+);
+check(
+	'folded: ref source appended',
+	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(refs,rel_post);key(role)' ] ),
+	"[Join 'name_first', 'role' from Ref 'rel_post']"
+);
+check(
+	'folded: template mode substitutes tokens',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', '1' => 'key(name_first)', '2' => 'src(same);key(name_last)' ] ),
+	"[Join “'name_first' ('name_last')”]"
+);
+check(
+	'folded: an argless ref hop still warns',
+	bws_build_join_preview_label( [ '1' => 'src(refs);key(name_first)' ] ),
+	'[⚠ Join: slot 1 no ref]'
+);
+// A read-less combining slot is UNCONFIGURED, so it is skipped rather than warned
+// about — the repeater shows it with an empty field select, which says more than a
+// warning could. The legacy `2-use:key` twin above warns because that wire states a
+// keyed read with no key.
+check(
+	'folded: read-less slot 2 is skipped, not warned',
+	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(site)' ] ),
+	"[Join 'name_first']"
+);
+// MIXED era (half-applied migration): folded slot 2 between legacy slots 1 and 3, with
+// slot 3 inheriting slot 2's folded source through the shared accumulator.
+check(
+	'folded: mixed-era wire previews with one carry-forward',
+	bws_build_join_preview_label( [ 'key' => 'a', '2' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
+	"[Join 'a', 'b' from Ref 'rel_post', 'c' from Ref 'rel_post']"
 );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );

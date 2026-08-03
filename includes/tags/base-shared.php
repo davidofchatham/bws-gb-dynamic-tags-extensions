@@ -273,6 +273,184 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
 }
 
 /**
+ * Build the FOLDED slot option definitions for a multislot container (FW-56/57).
+ *
+ * One option key per slot — `1`, `2`, … — each of type `bws-slot-fold`, whose VALUE
+ * carries that slot's whole configuration (source chain + field read + per-slot
+ * options; grammar in includes/helpers/slot-fold.php). Replaces the six flat keys per
+ * slot the same container registered before the fold.
+ *
+ * THIS IS WHERE THE CONTROL'S VOCABULARY COMES FROM. GB passes an option's whole
+ * config through to `generateblocks.editor.tagSpecificControls`, so the `fold`
+ * sub-array carries every enum, label and noun the repeater renders — all of it
+ * DERIVED from the shipped builders (bws_base_source_option, bws_base_traversal_options,
+ * bws_build_slot_traversal_options, bws_build_slot_read_options and the caller's field
+ * leaf). assets/js/slot-fold-control.js hand-authors none of it: four copies of the
+ * text read enum, and image's `Return type:` / `Return image as:` drift, are what
+ * re-typing strings at a consumer produces.
+ *
+ * CONTAINER SENSITIVITY, all of it explicit in $args:
+ *   - `combining` ({{join}}, {{table}}) seeds a slot with its READ UNSET, because
+ *     choosing a field IS the configuration act there; SELECTING (`try_*`) seeds
+ *     `use(same)`. The control reads this flag; the renderer reads it again for what
+ *     an absent read MEANS (bws_fold_slot_flat_options).
+ *   - `allow_same_read` follows the read twin's flag, so the inherit row appears in
+ *     exactly the containers whose resolver honors it.
+ *   - `hops` names which traversal steps this container can express. It is a
+ *     CAPABILITY list, not decoration: the flat render seam holds one ref hop and one
+ *     term hop, so offering a step the seam cannot flatten would author unrenderable
+ *     wire.
+ *
+ * @since 1.17.0
+ * @param array $args {
+ *     @type string $container       'join' | 'table' | 'try' (required).
+ *     @type array  $base_read       Base read definition (e.g. bws_get_text_field_options()['use']).
+ *     @type array  $base_key        Base field-key definition (…['key']).
+ *     @type int    $max             Slot ceiling (required).
+ *     @type int    $min             Slots always visible. Default 2.
+ *     @type bool   $combining       True for join/table. Default true.
+ *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
+ *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
+ *     @type bool   $allow_same_read Offer the read inherit row at slot ≥2. Default false.
+ *     @type array  $hops            Engine step keys offered as hops. Default ['srcTermIn'].
+ *     @type string $noun            Slot noun for the Add button ("field", "column").
+ *     @type string $label           Per-slot label pattern with one %d. Default "Slot %d".
+ *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
+ *     @type string $scope_state_key Tag-level option whose value scopes the picker.
+ * }
+ * @return array Option definitions keyed '1'..'max' (PHP stores all-digit keys as
+ *               ints; lookups by either spelling resolve, and the WIRE spelling is
+ *               always the string, e.g. `2:`).
+ */
+function bws_build_fold_slot_options( array $args ): array {
+	$container       = (string) ( $args['container'] ?? 'join' );
+	$max             = (int) ( $args['max'] ?? 5 );
+	$min             = (int) ( $args['min'] ?? 2 );
+	$combining       = ! isset( $args['combining'] ) || (bool) $args['combining'];
+	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
+	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
+	$allow_same_read = ! empty( $args['allow_same_read'] );
+	$hops            = $args['hops'] ?? array( 'srcTermIn' );
+	$base_read       = $args['base_read'] ?? array();
+	$base_key        = $args['base_key'] ?? array();
+	$noun            = (string) ( $args['noun'] ?? '' );
+	$label_pattern   = (string) ( $args['label'] ?? __( 'Slot %d', 'generateblocks' ) );
+
+	$base_src  = bws_base_source_option();
+	$base_trav = bws_base_traversal_options();
+
+	// Source enum — through the SLOT twin, so the `site` filter and the "Same as
+	// Previous Source" inherit row are the shipped ones rather than new copies. Slot 1
+	// gets the plain list, slot ≥2 the list with the inherit row.
+	$src_rows         = bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'];
+	$src_rows_inherit = bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'];
+
+	// Hop enum. A hop is a step that CONTINUES a chain, so its row needs a step-shaped
+	// noun: `srcTermIn`'s own label is a checkbox question ("Get from taxonomy term?"),
+	// unusable in a step list. Phrasing parallels the shipped src row it sits beside
+	// ("In Reference/Relational Field").
+	$hop_labels = array(
+		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
+		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
+		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
+	);
+	$hop_rows   = array();
+	foreach ( $hops as $hop ) {
+		if ( isset( $hop_labels[ $hop ] ) ) {
+			$hop_rows[] = array( 'value' => $hop, 'label' => $hop_labels[ $hop ] );
+		}
+	}
+
+	// Read enum — through the read twin (its `['options']` rows only; the fold supplies
+	// its own slot heading). A COMBINING container needs an explicit unset row: there,
+	// absent means UNCONFIGURED (the slot is skipped), which is not what the first enum
+	// row means. In a selecting container absent IS the first row's stripped default,
+	// so no extra row — the flat UI's behaviour, unchanged.
+	$read_rows         = bws_build_slot_read_options( 1, $base_read, false )['options'] ?? array();
+	$read_rows_inherit = bws_build_slot_read_options( 2, $base_read, $allow_same_read )['options'] ?? array();
+	if ( $combining ) {
+		$unset_row         = array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) );
+		$read_rows         = array_merge( array( $unset_row ), $read_rows );
+		$read_rows_inherit = array_merge( array( $unset_row ), $read_rows_inherit );
+	}
+
+	// Taxonomy rows for a `terms` step. Mirrors what the shipped bws-term-hop control
+	// lists from the REST store (public taxonomies), read here instead so the whole
+	// enum arrives with the definition.
+	$tax_rows = array( array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) ) );
+	if ( function_exists( 'get_taxonomies' ) ) {
+		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $tax ) {
+			$tax_rows[] = array(
+				'value' => $tax->name,
+				'label' => $tax->labels->name ?? $tax->name,
+			);
+		}
+	}
+
+	/** Reduce an option definition to the fields the pickers need. */
+	$picker = static function ( array $def ): array {
+		return array_filter(
+			array(
+				'label'        => $def['label'] ?? '',
+				'help'         => $def['help'] ?? '',
+				'placeholder'  => $def['placeholder'] ?? '',
+				'dynamicLabel' => ! empty( $def['dynamicLabel'] ),
+				'typeDefault'  => $def['typeDefault'] ?? '',
+			),
+			static function ( $v ) {
+				return '' !== $v && false !== $v;
+			}
+		);
+	};
+
+	$fold = array(
+		'container'      => $container,
+		'combining'      => $combining,
+		'perSlotUse'     => $per_slot_use,
+		'min'            => $min,
+		'max'            => $max,
+		'noun'           => $noun,
+		'srcRows'        => $src_rows,
+		'srcRowsInherit' => $src_rows_inherit,
+		'hopRows'        => $hop_rows,
+		'readRows'       => $read_rows,
+		'readRowsInherit' => $read_rows_inherit,
+		'readLabel'      => $base_read['label'] ?? '',
+		// Engine option value → wire step slug (DECISION 3). The wire names a STEP
+		// (`refs` fans to related posts), the engine names an option (`src:ref`); the
+		// map is the only place the two vocabularies meet.
+		'slugMap'        => array(
+			'ref'       => 'refs',
+			'srcTermIn' => 'terms',
+			'rows'      => 'entries',
+		),
+		'taxonomies'     => $tax_rows,
+		'refOption'      => $picker( $base_trav['ref'] ),
+		'keyOption'      => $picker( $base_key ),
+	);
+	if ( ! empty( $args['entries_option'] ) ) {
+		$fold['entriesOption'] = $picker( (array) $args['entries_option'] );
+	}
+	if ( ! empty( $args['field_scope'] ) ) {
+		$fold['fieldScope'] = (string) $args['field_scope'];
+	}
+	if ( ! empty( $args['scope_state_key'] ) ) {
+		$fold['scopeStateKey'] = (string) $args['scope_state_key'];
+	}
+
+	$options = array();
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$options[ (string) $n ] = array(
+			'type'  => 'bws-slot-fold',
+			/* translators: %d: slot number */
+			'label' => sprintf( $label_pattern, $n ),
+			'fold'  => $fold,
+		);
+	}
+	return $options;
+}
+
+/**
  * Re-qualify a base option's `show_if` condition keys for a numbered try_ slot.
  *
  * Base traversal options carry bare sibling-key conditions (e.g. `ref` shows when

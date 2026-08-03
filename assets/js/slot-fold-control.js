@@ -530,8 +530,10 @@
 				next[ idx ] = newStep;
 			}
 			// Emptying the chain on slot ≥2 falls back to EXPLICIT inherit, never to
-			// absence: a bare empty chain there resolves to ambient context, i.e. a
-			// silent reset rather than an inherit, and the renderer flags that shape.
+			// absence: the renderer resolves a bare empty chain against the ambient
+			// entity (a RESET, not an inherit — legacy absence migrates to an explicit
+			// `src(same)`, so absence means what it says), and losing an inherit to a
+			// step deletion would be a silent meaning change.
 			// Slot 1 has no predecessor, so empty there is legitimately `current`.
 			if ( ordinal >= 2 && ! next.length ) {
 				next = [ step( 'same' ) ];
