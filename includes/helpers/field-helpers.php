@@ -490,15 +490,30 @@ function bws_source_link_identity( array $source ): ?array {
  * PREREQUISITE for changing what `0` means, so that "unset", "0" and "garbage"
  * cannot drift apart between the three paths mid-change.
  *
- * Current semantics (UNCHANGED from the three inline copies — this extraction is
- * a behavioral no-op):
- *   - non-numeric (null, '', 'abc') ⇒ treated as UNSET ⇒ 1;
- *   - numeric ⇒ max( 1, (int) $raw ), so 0 and negatives clamp to 1.
+ * Semantics:
+ *   - non-numeric (null, '', 'abc') ⇒ treated as UNSET ⇒ 1 (the default);
+ *   - numeric <= 0 (`0`, `-1`, `-3`) ⇒ 0, meaning UNLIMITED;
+ *   - numeric >= 1 ⇒ (int) $raw, truncating ('2.7' ⇒ 2).
  *
- * The is_numeric() gate is behaviorally invisible today ((int)'abc' === 0, which
- * the clamp already lifts to 1) and lands NOW because it stops being invisible
- * the moment 0 means UNLIMITED: without it a typo would silently fan out a whole
- * relationship. Garbage must resolve to the DEFAULT, never to "no limit".
+ * UNLIMITED is encoded as 0. Both `0` and `-1` PARSE as unlimited because both
+ * conventions ship in the wild (GB's Posts Per Page uses -1; WP's core Query Loop
+ * blocks -1 and documents 0), but 0 is the value this plugin EMITS — parse
+ * tolerant, emit exclusive. The number controls deliberately carry no `min`: a
+ * control that fights a hand-typed -1 works against ADR 0004, and tolerance
+ * already covers it.
+ *
+ * A pre-1.17.0 `limit:0` / `limit:-1` on saved wire therefore starts fanning out
+ * where it used to render one value. That is intentional: the old behavior was a
+ * `max( 1, … )` CLAMP silently discarding a written value, not a designed
+ * semantic — nobody typing 0 meant 1. Honor the written value.
+ *
+ * The is_numeric() gate is what keeps the new rule safe: (int)'abc' === 0, so
+ * without it a typo would silently fan out a whole relationship. Garbage must
+ * resolve to the DEFAULT, never to "no limit".
+ *
+ * CALLERS: 0 means "no slice". Slice with `array_slice( $x, 0, $limit ?: null )`
+ * and guard any early-break on `$limit &&` — a bare `count >= $limit` breaks
+ * immediately at 0.
  *
  * Callers pass the RAW option value, not the options array — try_ slot dispatch
  * reads `limit` off the chain options while the other two read it off the tag
@@ -506,14 +521,15 @@ function bws_source_link_identity( array $source ): ?array {
  *
  * @since 1.17.0
  * @param mixed $raw Raw `limit` option value (unset/null, string or int).
- * @return int Effective limit, always >= 1.
+ * @return int Effective limit: >= 1, or 0 for UNLIMITED.
  */
 if ( ! function_exists( 'bws_clamp_limit' ) ) {
 function bws_clamp_limit( $raw ): int {
 	if ( ! is_numeric( $raw ) ) {
 		return 1;
 	}
-	return max( 1, (int) $raw );
+	$n = (int) $raw;
+	return $n > 0 ? $n : 0;
 }
 }
 
@@ -580,9 +596,9 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		? bws_run_traversal( array( $base ), $steps )
 		: array( $base );
 
-	// list mode — slice plural source list to limit (default 1).
+	// list mode — slice plural source list to limit (default 1; 0 = unlimited).
 	$limit   = bws_clamp_limit( $options['limit'] ?? null );
-	$sources = array_slice( $sources, 0, $limit );
+	$sources = array_slice( $sources, 0, $limit ?: null );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
 	// carried out per KEPT value (FW-49) instead of being discarded with the
@@ -611,7 +627,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  * return is frozen (SPEC §V3); it only carries link identity out per value.
  *
  * Owns, in order:
- *  1. slice to `limit` (default 1);
+ *  1. slice to `limit` (bws_clamp_limit — default 1, `0` = unlimited);
  *  2. per-item fallback suppression — $render receives $options with
  *     'fallback' unset, so the fallback fires ONCE in the caller on all-empty
  *     output, never per item (GH #51: a per-item fallback would pollute the
@@ -662,7 +678,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 	unset( $item_opts['fallback'] );
 
 	$values = array();
-	foreach ( array_slice( $items, 0, $limit ) as $item ) {
+	foreach ( array_slice( $items, 0, $limit ?: null ) as $item ) {
 		$result = $render( $item, $item_opts );
 		if ( is_array( $result ) ) {
 			$value = (string) ( $result['value'] ?? '' );

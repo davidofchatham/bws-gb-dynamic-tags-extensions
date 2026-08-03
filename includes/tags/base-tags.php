@@ -80,7 +80,7 @@ function bws_register_base_tags(): void {
 				'limit'    => array(
 					'type'        => 'number',
 					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'      => array(
@@ -188,7 +188,7 @@ function bws_register_base_tags(): void {
 				'limit' => array(
 					'type'        => 'number',
 					'label'       => __( 'Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
 					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'   => array(
@@ -940,7 +940,7 @@ function bws_get_join_options(): array {
 			'type'        => 'number',
 			/* translators: %d: slot number */
 			'label'       => sprintf( __( '%d: Result Limit', 'generateblocks' ), $n ),
-			'help'        => __( 'Maximum number of results this slot returns. Default: 1.', 'generateblocks' ),
+			'help'        => __( 'Maximum number of results this slot returns. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
 			'show_if_any' => array(
 				$stm_key => 'not_empty',
 				$src_key => 'ref',

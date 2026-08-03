@@ -12,8 +12,8 @@
  * SCOPE — the SPEC §32 Phase-2 seam contract:
  *   normalize: string→[s], array→non-empty items, ''/false/null→[]
  *   join:      byte-identical gate (1 item + default = verbatim), N-item join,
- *              limit floored at 1 (never 0) but no ceiling, sep default ', ',
- *              explicit '' sep honored.
+ *              limit defaulting to 1 with no ceiling and `0` meaning UNLIMITED
+ *              (1.17.0), sep default ', ', explicit '' sep honored.
  *
  * Run:
  *   php tools/test/try-join-seam-test.php
@@ -94,11 +94,15 @@ assert_same( 'limit no ceiling — limit > count joins all', 'a, b', bws_try_joi
 assert_same( 'custom sep', 'a | b', bws_try_join_items( array( 'a', 'b' ), ' | ', 2 ) );
 assert_same( 'explicit empty sep joins with nothing', 'ab', bws_try_join_items( array( 'a', 'b' ), '', 2 ) );
 
-echo "\nbws_try_join_items — limit flooring\n";
+echo "\nbws_try_join_items — unset default vs UNLIMITED (1.17.0 semantics)\n";
 
-assert_same( 'limit 0 floored to 1', 'a', bws_try_join_items( array( 'a', 'b' ), null, 0 ) );
-assert_same( 'limit null floored to 1', 'a', bws_try_join_items( array( 'a', 'b' ), null, null ) );
-assert_same( 'limit negative floored to 1', 'a', bws_try_join_items( array( 'a', 'b' ), null, -3 ) );
+// Unset stays 1 — that is the byte-compat gate for every shipped try_ tag.
+assert_same( 'limit null → 1 (unset default)', 'a', bws_try_join_items( array( 'a', 'b' ), null, null ) );
+assert_same( 'limit garbage → 1 (is_numeric gate, never unlimited)', 'a', bws_try_join_items( array( 'a', 'b' ), null, 'abc' ) );
+// 0 / negatives INVERTED at 1.17.0: they joined one item under the old max(1,…)
+// clamp and now join everything.
+assert_same( 'limit 0 → unlimited', 'a, b, c', bws_try_join_items( array( 'a', 'b', 'c' ), null, 0 ) );
+assert_same( 'limit -3 → unlimited (tolerant parse)', 'a, b, c', bws_try_join_items( array( 'a', 'b', 'c' ), null, -3 ) );
 assert_same( 'empty items → empty string', '', bws_try_join_items( array(), ', ', 5 ) );
 
 echo "\nseam composition (normalize → join, the machinery path)\n";

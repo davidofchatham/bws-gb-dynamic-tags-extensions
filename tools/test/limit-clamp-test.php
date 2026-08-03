@@ -8,14 +8,20 @@
  * extraction exists to prevent. field-helpers.php defines functions only, so it
  * loads inert with ABSPATH defined.
  *
- * SCOPE — the rule as it stands BEFORE the `0 = unlimited` semantics change:
+ * SCOPE — the rule as it stands AFTER the `0 = unlimited` semantics change:
  *   - non-numeric (null, '', 'abc', array) ⇒ UNSET ⇒ 1;
- *   - numeric ⇒ max( 1, (int) $raw ), so 0 and negatives clamp to 1.
+ *   - numeric <= 0 (0, -1, -3) ⇒ 0, meaning UNLIMITED;
+ *   - numeric >= 1 ⇒ (int) $raw.
  *
- * These cases pin the pre-change behavior so the semantics step can be read as a
- * DELIBERATE diff: the 0 / -1 rows below are the ones expected to invert, and the
- * non-numeric rows are the ones that must NOT (garbage resolves to the default,
- * never to "no limit").
+ * The 0 / -1 rows are the ones that INVERTED at the semantics step (they asserted
+ * 1 under the old max(1,…) clamp); the non-numeric rows are the ones that did NOT
+ * (garbage resolves to the default, never to "no limit"). Both halves are pinned
+ * below so the diff between the two rules stays readable in one file.
+ *
+ * The CALLER contract is pinned too: 0 means "no slice", so every call site must
+ * write `array_slice( $x, 0, $limit ?: null )` and guard early-breaks on
+ * `$limit &&`. A site that passes a bare 0 to array_slice returns an EMPTY list —
+ * the exact regression the last section here exists to catch.
  *
  * Callers folded onto this rule (four sites, one rule):
  *   1. bws_resolve_field_values()  — field-helpers.php (the seam)
@@ -65,12 +71,17 @@ assert_same( 'array → 1', 1, bws_clamp_limit( array( 2 ) ) );
 assert_same( 'true → 1 (bool is not numeric)', 1, bws_clamp_limit( true ) );
 assert_same( 'false → 1', 1, bws_clamp_limit( false ) );
 
-echo "\nbws_clamp_limit — floor (these rows INVERT at the semantics change)\n";
+echo "\nbws_clamp_limit — UNLIMITED (0); parse 0 AND -1, canonical emit is 0\n";
 
-assert_same( 'int 0 → 1', 1, bws_clamp_limit( 0 ) );
-assert_same( "string '0' → 1", 1, bws_clamp_limit( '0' ) );
-assert_same( 'int -1 → 1', 1, bws_clamp_limit( -1 ) );
-assert_same( "string '-3' → 1", 1, bws_clamp_limit( -3 ) );
+// These four asserted 1 before 1.17.0. A pre-1.17.0 `limit:0` was an author's
+// written value silently discarded by a max(1,…) clamp, not a designed 1 — the
+// change honors the wire rather than freezing the clamp.
+assert_same( 'int 0 → 0 (unlimited)', 0, bws_clamp_limit( 0 ) );
+assert_same( "string '0' → 0", 0, bws_clamp_limit( '0' ) );
+assert_same( 'int -1 → 0 (GB Posts-Per-Page convention, parsed tolerantly)', 0, bws_clamp_limit( -1 ) );
+assert_same( "string '-3' → 0 (any negative is unlimited)", 0, bws_clamp_limit( -3 ) );
+assert_same( "'-0.5' → 0 (truncates to 0, then unlimited)", 0, bws_clamp_limit( '-0.5' ) );
+assert_same( "'0.9' → 0 (truncates below 1 ⇒ unlimited, not 1)", 0, bws_clamp_limit( '0.9' ) );
 
 echo "\nbws_clamp_limit — pass-through\n";
 
@@ -80,18 +91,43 @@ assert_same( "string '5' → 5 (the wire always arrives as a string)", 5, bws_cl
 assert_same( "'2.7' → 2 (truncates, does not round)", 2, bws_clamp_limit( '2.7' ) );
 assert_same( 'no ceiling — 999 passes through', 999, bws_clamp_limit( 999 ) );
 
-echo "\nbws_clamp_limit — the two legacy expressions it replaces AGREE today\n";
+echo "\nbws_clamp_limit — the caller slice contract (`?: null`)\n";
 
-// Site 3 read `$limit ?: 1`, sites 1-2 read `$limit ?? 1`. They diverge on '' and
-// '0' (falsy but set) — pinned equal here, which is why the extraction is a no-op
-// and why it had to land BEFORE 0 changes meaning.
-foreach ( array( null, '', '0', 0, -1, 'abc', '1', '5' ) as $raw ) {
-	$legacy_coalesce = max( 1, (int) ( $raw ?? 1 ) );
-	$legacy_elvis    = max( 1, (int) ( $raw ?: 1 ) );
-	$label           = var_export( $raw, true );
-	assert_same( "{$label}: matches legacy ?? expression", $legacy_coalesce, bws_clamp_limit( $raw ) );
-	assert_same( "{$label}: matches legacy ?: expression", $legacy_elvis, bws_clamp_limit( $raw ) );
+// Not testing array_slice; testing that the documented idiom yields the intended
+// list for each class of input. A site that drops the `?: null` truncates to
+// nothing on 0 while still reading as "limit applied" in review.
+$list = array( 'a', 'b', 'c', 'd' );
+foreach ( array(
+	array( 'unset',      null,  array( 'a' ) ),
+	array( 'garbage',    'abc', array( 'a' ) ),
+	array( 'explicit 2', 2,     array( 'a', 'b' ) ),
+	array( 'zero',       0,     array( 'a', 'b', 'c', 'd' ) ),
+	array( 'minus one',  -1,    array( 'a', 'b', 'c', 'd' ) ),
+	array( 'over-long',  99,    array( 'a', 'b', 'c', 'd' ) ),
+) as $case ) {
+	list( $label, $raw, $expected ) = $case;
+	$limit = bws_clamp_limit( $raw );
+	assert_same( "slice {$label}", $expected, array_slice( $list, 0, $limit ?: null ) );
 }
+
+echo "\nbws_clamp_limit — the early-break guard (try_ term-hop dispatch)\n";
+
+// class-tag-template-registry.php stops hopping terms once enough items are
+// collected. A bare `count >= $slot_max` breaks on the FIRST item when the limit
+// is 0, silently turning unlimited into one.
+$breaks = static function ( int $slot_max ): int {
+	$items = array();
+	foreach ( array( 'x', 'y', 'z' ) as $found ) {
+		$items[] = $found;
+		if ( $slot_max && count( $items ) >= $slot_max ) {
+			break;
+		}
+	}
+	return count( $items );
+};
+assert_same( 'limit 1 stops after one item', 1, $breaks( bws_clamp_limit( null ) ) );
+assert_same( 'limit 2 stops after two items', 2, $breaks( bws_clamp_limit( 2 ) ) );
+assert_same( 'limit 0 never breaks early', 3, $breaks( bws_clamp_limit( 0 ) ) );
 
 echo "\n";
 if ( $failures ) {

@@ -241,8 +241,9 @@ function bws_try_normalize_items( $raw ): array {
  * Limit / separator semantics MATCH the base text list-mode core
  * (bws_post_custom_text_core, content-tags.php) so a try_ slot in list mode
  * joins identically to the same underlying tag used standalone (I6 parity):
- *   - limit = bws_clamp_limit( $limit ) — DEFAULT 1, floored at 1 (never 0).
- *     Not a ceiling: an author setting limit:5 joins up to 5 items.
+ *   - limit = bws_clamp_limit( $limit ) — DEFAULT 1; `0` (or a legacy `-1`) means
+ *     UNLIMITED and slices nothing. Not a ceiling: an author setting limit:5 joins
+ *     up to 5 items.
  *     This is a DEFENSIVE re-clamp: the only caller (try_ slot dispatch) already
  *     passes a clamped $slot_max. It routes through the shared interpreter anyway
  *     so a change to what `0` means cannot leave this copy behind — an
@@ -261,10 +262,10 @@ function bws_try_normalize_items( $raw ): array {
  * (tools/test/try-join-seam-test.php).
  *
  * @since 1.11.0
- * @since 1.17.0 Limit interpretation delegated to bws_clamp_limit.
+ * @since 1.17.0 Limit interpretation delegated to bws_clamp_limit; `0` = unlimited.
  * @param array<int,string> $items Finished item strings (already non-empty).
  * @param mixed              $sep   Separator; null → ', '. Explicit '' honored.
- * @param mixed              $limit Max items to join; non-numeric → 1. Floored at 1.
+ * @param mixed              $limit Max items to join; non-numeric → 1, 0/negative → unlimited.
  * @return string Joined output (or '' if no items).
  */
 function bws_try_join_items( array $items, $sep = null, $limit = null ): string {
@@ -273,7 +274,7 @@ function bws_try_join_items( array $items, $sep = null, $limit = null ): string 
 	}
 	$max = bws_clamp_limit( $limit );
 	$s   = ( null === $sep ) ? ', ' : $sep;
-	return implode( $s, array_slice( $items, 0, $max ) );
+	return implode( $s, array_slice( $items, 0, $max ?: null ) );
 }
 
 /**

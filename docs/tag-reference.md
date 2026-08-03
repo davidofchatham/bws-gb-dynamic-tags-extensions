@@ -158,6 +158,20 @@ Selected templates support outputting multiple results as a delimited list. `lim
 
 `limit` applies to the **final traversal step**: terms when `srcTermIn:<tax>` is set; related posts at `src:ref`.
 
+**`limit` is interpreted in ONE place — `bws_clamp_limit()` (field-helpers.php).** Four call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), try_ slot dispatch (`class-tag-template-registry.php`), and `bws_try_join_items` (defensive re-clamp). The rule, as of 1.17.0:
+
+| Value | Effective limit |
+|---|---|
+| unset / `''` | **1** (the default; not serialized when unset) |
+| non-numeric (`abc`) | 1 — the `is_numeric()` gate. `(int)'abc'` is `0`, so without it a typo would read as *unlimited* |
+| `0` | **UNLIMITED** — no slice |
+| `-1`, any negative | UNLIMITED. Parsed tolerantly (GB's *Posts Per Page* uses `-1`); `0` is what the plugin emits, matching WP's own Query Loop, which blocks `-1` and documents `0` |
+| `1`, `5`, `999` | that value; there is no ceiling |
+
+The number controls carry **no `min`** deliberately: a control that fights a hand-typed `-1` works against [ADR 0004](adr/0004-serialized-tag-string-human-readable.md), and the parse already tolerates it.
+
+**Behavior change in 1.17.0.** Before, `0` and negatives were silently clamped to 1 by a `max( 1, … )` at each call site. A saved `limit:0` therefore rendered one result; from 1.17.0 it fans out. That was a clamp discarding a written value, not a designed semantic — an author wanting one result leaves `limit` unset or types `1` — so the change honors the wire rather than freezing the clamp. Regression rows: [`tools/test/limit-default-test-matrix.md`](../tools/test/limit-default-test-matrix.md).
+
 | Template | List mode | What is iterated |
 |---|---|---|
 | `text` | ✅ | Terms (when `srcTermIn`) or related posts (when `src:ref`) |
@@ -434,7 +448,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term hop on" and the taxonomy — **required** when hop is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | Maximum number of results to return. Default: 1. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **floored at 1** (there is no `0` = unlimited — set a high limit instead). |
+| `limit` | Result Limit | Maximum number of results to return. Default: 1. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric falls back to 1 — see [§List mode](#list-mode-limit--sep). |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1` | List-mode separator, same tag set as `limit`. |
 
 ### Field group
@@ -626,7 +640,7 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
 | `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
@@ -673,7 +687,7 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
 | `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
 | `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1. |
+| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |

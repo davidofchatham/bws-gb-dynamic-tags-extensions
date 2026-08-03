@@ -277,6 +277,43 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'O4.5', '{{image as:alt|size:large|key:feature_image|use:key}}' ),
 	) );
 
+	// limit-default matrix (limit-default-test-matrix.md, 1.17.0). Cross-cutting
+	// like the FW-52 rows above — named for the PROPERTY, not a tag family. L1
+	// pins the regression floor (unset limit stays 1 AND the count-based link gate
+	// still wraps); L2 pins explicit values; L3 exercises the new `0` = UNLIMITED
+	// semantics. Fixture state: this page carries two valid department terms
+	// (Support, Sales) and related_staff = jane, tom (jane FIRST), so every list
+	// row has ≥2 candidates and a 1→many flip is VISIBLE.
+	// The L1 rows are the ones to read first after any limit-touching change: a
+	// silent flip drops the <a> while the text still reads fine.
+	$sections[] = bws_fixture_gb_section( 'Limit L1 - unset limit MUST stay 1 (one value AND link present)', array(
+		bws_fixture_gb_row( 'L1.1 (expect ONE dept name, linked)', '{{text srcTermIn:department|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L1.2 (expect Jane Partner only, linked)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L1.3 (expect Jane Partner only, linked)', '{{title src:ref|ref:related_staff|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L1.4 (expect ONE dept name, linked)', '{{title srcTermIn:department|linkTo:permalink}}' ),
+		bws_fixture_gb_row( "L1.5 (expect ONE date - jane's - linked)", '{{datetime_single src:ref|ref:related_staff|key:event_datetime|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L1.6 (expect ONE date, no separator)', '{{datetime_range srcTermIn:department|startKey:event_date}}' ),
+		bws_fixture_gb_row( 'L1.7 (expect ONE dept name, no separator)', '{{try_text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'L1.8 (expect ONE mailto anchor)', '{{email src:ref|ref:related_staff|key:contact_email}}' ),
+		bws_fixture_gb_row( 'L1.9 (expect ONE tel anchor)', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
+		bws_fixture_gb_row( 'L1.10 (expect ONE dept name joined to the role)', '{{join srcTermIn:department|use:title|2-key:role}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Limit L2 - explicit values still behave', array(
+		bws_fixture_gb_row( 'L2.1 (expect BOTH names comma-joined, NO link)', '{{text src:ref|ref:related_staff|use:title|limit:2|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L2.2 (expect Jane Partner linked - explicit 1 === unset 1)', '{{text src:ref|ref:related_staff|use:title|limit:1|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L2.3 (expect both dept names - no ceiling)', '{{text srcTermIn:department|use:title|limit:99}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Limit L3 - 0 = UNLIMITED (1.17.0 semantics change)', array(
+		bws_fixture_gb_row( 'L3.1 (expect BOTH names - rendered ONE before 1.17.0)', '{{text src:ref|ref:related_staff|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'L3.2 (expect BOTH names - -1 parsed tolerantly)', '{{text src:ref|ref:related_staff|use:title|limit:-1}}' ),
+		bws_fixture_gb_row( 'L3.3 (expect Jane Partner linked - is_numeric guard, garbage is NOT unlimited)', '{{text src:ref|ref:related_staff|use:title|limit:abc|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L3.4 (expect both dept names - try_ dispatch does not break early at 0)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'L3.5 (expect both dept event dates)', '{{datetime_single srcTermIn:department|key:event_date|limit:0}}' ),
+		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
+	) );
+
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
 	// absorb: src:same, src:ref, src:site, srcTermIn limit). Name rows resolve
 	// on the staff singles (staff_join builder), NOT here. J23/J24 stay in the

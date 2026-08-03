@@ -611,7 +611,7 @@ class TagTemplateRegistry {
 				$options['limit'] = [
 					'type'        => 'number',
 					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1.', 'generateblocks' ),
+					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
 					'show_if_any' => $list_show_if_any,
 				];
 				$options['sep'] = [
@@ -774,12 +774,13 @@ class TagTemplateRegistry {
 										$first_term = (int) $term->term_id;
 									}
 								}
-								if ( count( $items ) >= $slot_max ) {
+								if ( $slot_max && count( $items ) >= $slot_max ) {
 									break; // Enough to satisfy limit — stop hopping terms.
+									// $slot_max 0 = UNLIMITED: never break early, hop every term.
 								}
 							}
 							if ( $items ) {
-								$shown  = array_slice( $items, 0, $slot_max );
+								$shown  = array_slice( $items, 0, $slot_max ?: null );
 								$joined = function_exists( 'bws_try_join_items' )
 									? bws_try_join_items( $shown, $sep, $slot_max )
 									: (string) reset( $shown );
@@ -813,7 +814,7 @@ class TagTemplateRegistry {
 							? bws_try_normalize_items( $raw )
 							: array_filter( [ $raw ], static fn( $v ) => '' !== $v && false !== $v );
 						if ( $items ) {
-							$shown  = array_slice( $items, 0, $slot_max );
+							$shown  = array_slice( $items, 0, $slot_max ?: null );
 							$joined = function_exists( 'bws_try_join_items' )
 								? bws_try_join_items( $shown, $sep, $slot_max )
 								: (string) reset( $shown );
@@ -840,7 +841,7 @@ class TagTemplateRegistry {
 								? bws_try_normalize_items( $tcf( $amb_term, $slot_opts, $inst ) )
 								: array_filter( [ $tcf( $amb_term, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
 							if ( $items ) {
-								$shown  = array_slice( $items, 0, $slot_max );
+								$shown  = array_slice( $items, 0, $slot_max ?: null );
 								$joined = function_exists( 'bws_try_join_items' )
 									? bws_try_join_items( $shown, $sep, $slot_max )
 									: (string) reset( $shown );
@@ -875,7 +876,7 @@ class TagTemplateRegistry {
 						? bws_try_normalize_items( $cf( $post_id, $slot_opts, $inst ) )
 						: array_filter( [ $cf( $post_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
 					if ( $items ) {
-						$shown  = array_slice( $items, 0, $slot_max );
+						$shown  = array_slice( $items, 0, $slot_max ?: null );
 						$joined = function_exists( 'bws_try_join_items' )
 							? bws_try_join_items( $shown, $sep, $slot_max )
 							: (string) reset( $shown );
