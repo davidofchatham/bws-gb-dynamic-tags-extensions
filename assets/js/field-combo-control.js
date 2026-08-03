@@ -526,7 +526,21 @@
 		// picker degrades to the full list; free-text of any key still works). This is a
 		// per-instance render conditional, deliberately NOT the FU-3 shared-state channel
 		// (see .claude/plans/field-selector.md FU-3): table ships without blocking on it.
-		var scopeRepeaterKey = ( 'row' === props.scope ) ? String( state.key || '' ).trim() : '';
+		//
+		// THE SCOPE HANDLE IS A PROP FIRST, a state read only as fallback (FW-56/57).
+		// Reading `state.key` is this control DISCOVERING its own scope by reaching
+		// outward into sibling tag state. That works only while "the bare `key`" has
+		// exactly one meaning — and under the folded slot wire it does not: a column's
+		// own READ is also spelled `key(...)`, one level in, so a folded slot's
+		// synthetic context presents its own field under the same bare name. The defect
+		// is the REACH, not the spelling: renaming either token would paper over one
+		// instance and leave any future two-level tag to re-break it. So whatever
+		// registers the column control — which alone knows the tag's shape — passes
+		// `scopeKey` explicitly. The state read stays for the shipped flat `{N}-key`
+		// registrations, which have no prop to pass.
+		var scopeRepeaterKey = ( 'row' === props.scope )
+			? String( ( void 0 !== props.scopeKey && null !== props.scopeKey ) ? props.scopeKey : ( state.key || '' ) ).trim()
+			: '';
 		var scopeToRepeater  = '' !== scopeRepeaterKey;
 
 		var records = useMemo( function () {
@@ -745,6 +759,9 @@
 			// #12: 'row' auto-scopes the picker to a sibling repeater's sub-fields
 			// (the {N}-key column controls) and hides the two filter selectors.
 			scope:        cfg.scope,
+			// Explicit scope handle when the registrar knows it. Absent on the flat
+			// `{N}-key` registrations, which fall back to the sibling state read.
+			scopeKey:     cfg.scopeKey,
 			// Pre-selects the type filter (e.g. 'repeater' for the {{table}} tag-level
 			// `key`) without hiding the filters — the OTHER scope axis vs `scope:'row'`.
 			typeDefault:  cfg.typeDefault,
