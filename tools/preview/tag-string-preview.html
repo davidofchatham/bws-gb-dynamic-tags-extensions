@@ -1909,8 +1909,12 @@ function buildContrastVariants(group, sc) {
         // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
         // tools/test/join-test-matrix.md; try_ the same shape).
         const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
-        const parts = [];
-        sc.shippedSlots.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
+        // TAG-LEVEL parts are emitted ONCE, unprefixed. Scenario data lists `_asSize` inside every
+        // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
+        // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
+        const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
+        const parts = renderSlotParts(sortParts(tagLevel), '', false);
+        perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
         str = `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
       } else {
         str = wrap(renderSlotParts(sortParts(sc.parts||[]),'',false));
@@ -2031,6 +2035,41 @@ function resolveSlot(slot) {
   if (link && link.key!==undefined) link={...link, key:String(resolveVal(link.key))};
   return {...slot, chain, read, link};
 }
+// TAG-LEVEL parts vs the ones that FOLD. Only the six legacy per-slot axes fold into a slot
+// value (BWS_FOLD_LEGACY_AXES: src, ref, srcTermIn, use, key, limit); everything else stays a
+// FLAT option on the tag, sitting beside the folded keys. Verified against the SHIPPED
+// registration (testbed dump 2026-08-04, not inferred):
+//   try_image           → as, 1..5, fallback
+//   try_text            → 1..5, fallback, linkTo, linkKey, newTab, limit, sep
+//   try_datetime_single → as, format, timeSep, showCurrentYear, showMidnight, 1..5, key, timeKey, …
+// So `as` is TAG-LEVEL on try_image — there is no `2-as`. This page used to emit `_asSize` per
+// slot (inventing a per-slot `as` the plugin never registers) and then omit it from the folded
+// wire entirely, so a folded image tag showed FEWER options than its shipped twin. Reported by
+// the user 2026-08-04, and it mattered: without a tag-level option there is nothing for the
+// folded slot keys to be ordered against, which is the whole question being tested.
+//
+// CONTAINER-SENSITIVE: `limit`/`sep` are TAG-level on try_ and SLOT axes on join, so the set
+// takes the container — one shared list would corrupt one of them.
+//
+// NOT handled: try_datetime_*'s tag-level `key`/`timeKey`/`startKey`… Those same names ARE
+// per-slot reads on try_text/try_image, so hoisting them by name would break those groups; it
+// needs the per-template read shape (try_per_slot_use/_key), which this tool does not model.
+function tagLevelPartKeys(foldClass) {
+  const base = [ '_asSize', 'as', 'format', 'timeSep', 'showCurrentYear', 'showMidnight' ];
+  return new Set( foldClass === 'try' ? [ ...base, '_link', 'limit', 'sep' ] : base );
+}
+// Split a scenario's shipped slot-part lists into the tag-level parts (deduped, FIRST
+// occurrence wins — they are one option on the tag) and the per-slot remainder.
+function splitTagLevelParts(shippedSlots, foldClass) {
+  const tagKeys = tagLevelPartKeys(foldClass);
+  const seen = new Set(), tagLevel = [];
+  const perSlot = (shippedSlots || []).map(slot => (slot || []).filter(part => {
+    if (!tagKeys.has(part[0])) return true;
+    if (!seen.has(part[0])) { seen.add(part[0]); tagLevel.push(part); }
+    return false;                      // never emitted per slot
+  }));
+  return { tagLevel, perSlot };
+}
 function slotValueFor(s, typeTag, label, forceSrc) {
   return serializeSlot(typeTag, s.chain||[], s.read||null, s.link||null, s.dtKeys||null, label, forceSrc, s.fallback);
 }
@@ -2069,6 +2108,13 @@ function buildFoldedTag(group, sc) {
       slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'')}`);
     });
   } else {
+    // Tag-level options the shipped twin carries (`as` on try_image, link/limit/sep on try_text)
+    // ride the FOLDED tag too — the fold moves the six per-slot axes into the value, nothing else.
+    // Read from the scenario's shipped parts so there is ONE source of truth per scenario.
+    if (sc.shippedSlots) {
+      const { tagLevel } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
+      if (tagLevel.length) tagParts.push(...renderSlotParts(tagLevel, '', false));
+    }
     slots.forEach((slot,i)=>{ slotParts.push(...buildFoldedSlot(i, slot, group.foldClass)); });
   }
   const parts = S.slotKeySpelling==='digit' ? [...slotParts, ...tagParts]
