@@ -19,6 +19,8 @@
     { "container": "try", "wire": "src(post,9999;refs,related_staff,limit[5]);use(title)" },
     { "container": "try", "wire": "src(refs,office);use(default)" },
     { "container": "try", "wire": "use(key);key(role)" },
+    { "container": "try", "wire": "use(key)" },
+    { "container": "join", "wire": "src(same);use(key)" },
     { "container": "try", "wire": "use(title);key(staff_role)" },
     { "container": "try", "wire": "key(staff_role);use(title)" },
     { "container": "try", "wire": "src(refs,office);use(same);key(old)" },
@@ -113,6 +115,10 @@
     {
       "level": 2,
       "slot": { "label": null, "type": null, "chain": [ { "slug": "terms", "arg": "department", "limit": 3, "extra": [] } ], "read": { "kind": "key", "field": "" }, "opts": {}, "extra": [] }
+    },
+    {
+      "level": 1,
+      "slot": { "label": null, "type": null, "chain": [ { "slug": "same", "arg": null, "limit": null, "extra": [] } ], "read": { "kind": "key", "field": "" }, "opts": {}, "extra": [] }
     }
   ],
   "legacy": [

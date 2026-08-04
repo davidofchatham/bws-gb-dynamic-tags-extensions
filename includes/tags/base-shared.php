@@ -316,11 +316,10 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type array  $tag_level       Legacy axes this container owns at TAG level, never per
  *                                   slot (e.g. a try_ template's `limit`). Ships to the
  *                                   editor as the complement, `legacyAxes`.
- *     @type string $noun            Slot noun for the Add button ("field", "column").
- *     @type string $label           Per-slot label pattern with one %s, which receives the
- *                                   slot's ORDINAL SPELLING (`A`, `B`, …) — the same string
- *                                   as its option key, so the panel header names what the
- *                                   author sees on the wire. Default "Slot %s".
+ *     @type string $noun            Slot noun, lower case ("attempt", "field", "column"). Drives
+ *                                   BOTH the Add button and the panel header ("Attempt A") —
+ *                                   there is deliberately no separate label parameter, because
+ *                                   two registered strings for one unit drift apart.
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  * }
@@ -339,7 +338,20 @@ function bws_build_fold_slot_options( array $args ): array {
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
-	$label_pattern   = (string) ( $args['label'] ?? __( 'Slot %s', 'generateblocks' ) );
+
+	// ONE registered noun drives BOTH surfaces — the Add button (`+ Add attempt`) and
+	// the panel header (`Attempt A`). Aligned, not verbatim: the button carries the
+	// verb, the header the ordinal. Registering the two as independent strings is
+	// exactly how they drift, so the header pattern is DERIVED here and containers pass
+	// no label. `%s` is the slot ORDINAL (`A`, `B`, …) — its option key and its `%A`
+	// format token, so the header, the wire and the format string name a slot alike.
+	$label_pattern = __( 'Slot %s', 'generateblocks' );
+	if ( '' !== $noun ) {
+		$first         = function_exists( 'mb_substr' ) ? mb_substr( $noun, 0, 1 ) : substr( $noun, 0, 1 );
+		$rest          = function_exists( 'mb_substr' ) ? mb_substr( $noun, 1 ) : substr( $noun, 1 );
+		$upper         = function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $first ) : strtoupper( $first );
+		$label_pattern = $upper . $rest . ' %s';
+	}
 
 	$base_src  = bws_base_source_option();
 	$base_trav = bws_base_traversal_options();

@@ -167,6 +167,35 @@
 		return ( conf.slugMap && conf.slugMap[ engine ] === slug ) ? engine : '';
 	}
 
+	// ── Incomplete-step / incomplete-read warnings ──────────────────────────
+	//
+	// One shape, one voice, one place: "This <noun> will be skipped unless …". The
+	// NOUN is the container's registered one (attempt / field / column), so the warning
+	// names what the author sees on the panel header and the Add button rather than a
+	// third word for the same thing.
+	//
+	// THE PROMISE IS THE SEAM'S, NOT THIS CONTROL'S. "Will be skipped" is true because
+	// bws_fold_slot_flat_options() skips an incomplete slot — including, since the
+	// `'step'` reason landed, a `terms` hop with no taxonomy. Before that it flattened
+	// such a hop to an empty `srcTermIn`, which is how "no term hop" is spelled, so the
+	// slot silently read the UN-HOPPED entity and handed the author a plausible wrong
+	// value. If that skip is ever relaxed, this wording is a lie that reads as
+	// reassurance, and it must move with it.
+
+	/** `sprintf` if wp.i18n has it, else naive %s substitution. */
+	function fmt( pattern, arg ) {
+		return ( wp.i18n && wp.i18n.sprintf )
+			? wp.i18n.sprintf( pattern, arg )
+			: pattern.replace( '%s', arg );
+	}
+
+	function warnNode( keyName, text ) {
+		return el( 'p', {
+			key: keyName,
+			style: { fontSize: '11px', color: '#a00', margin: '4px 0 0' }
+		}, text );
+	}
+
 	// ── Slot structs ────────────────────────────────────────────────────────
 
 	/** An empty slot struct in the grammar's shape. */
@@ -398,6 +427,10 @@
 		// parseInt: `AA` is slot 27, which parseInt reads as NaN.
 		var ordinal = fold.slotOrdinal( key );
 		var conf = props.conf;
+		// The word every warning below names the unit with. Registered per container
+		// (see the fold config); the fallback is inert vocabulary for a misregistered
+		// tag, not a default worth relying on.
+		var slotNoun = conf.noun || __( 'slot', 'generateblocks' );
 		var raw = state[ key ] || '';
 		var FieldCombo = window.bwsFieldComboControl;
 
@@ -685,10 +718,11 @@
 					// bare slug and resolves to nothing. Say so where it is fixable —
 					// `canAppend` blocks BUILDING past an incomplete hop but nothing stops
 					// one being serialized.
-					stepKids.push( el( 'p', {
-						key: 'argwarn',
-						style: { fontSize: '11px', color: '#a00', margin: '4px 0 0' }
-					}, __( 'Needs a field — this step resolves to nothing until set.', 'generateblocks' ) ) );
+					stepKids.push( warnNode( 'argwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
+						slotNoun
+					) ) );
 				}
 			} else if ( 'srcTermIn' === kind ) {
 				stepKids.push( el( 'div', { key: 'arg', style: STACKED },
@@ -702,6 +736,13 @@
 						__nextHasNoMarginBottom: true
 					} )
 				) );
+				if ( ! stepObj.arg ) {
+					stepKids.push( warnNode( 'argwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped unless a taxonomy is set.', 'generateblocks' ),
+						slotNoun
+					) ) );
+				}
 			}
 
 			stepNodes.push( el( 'div', {
@@ -831,6 +872,19 @@
 							__nextHasNoMarginBottom: true
 						} )
 				) );
+
+				// A keyed read with no field reads nothing — the read-axis twin of the
+				// hop's dead-step warning, in the same words for the same reason. Only
+				// where the kind was CHOSEN: in keyOnly an empty field IS the inherit
+				// (no enum row exists to say it with), so it is a resting state, not a
+				// hole.
+				if ( ! keyOnly && read && ! read.field ) {
+					readNodes.push( warnNode( 'readwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
+						slotNoun
+					) ) );
+				}
 			}
 
 			// keyOnly has no read definition to take a noun from, so the caption comes

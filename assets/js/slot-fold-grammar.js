@@ -392,7 +392,12 @@
 		} else if ( null !== keyTok ) {
 			slot.read = { kind: 'key', field: keyTok };
 		} else if ( 'key' === useTok ) {
-			// Legacy-shaped `use(key)` with no key token: tolerate on parse, never emit.
+			// `use(key)` with no key token is a KEYED READ WHOSE FIELD IS NOT CHOSEN YET —
+			// the state the editor is in between picking "Meta/Option Field" and picking
+			// the field. It round-trips (emitSlot writes it back), because the control
+			// rewrites the whole value on every commit and derives the read select's value
+			// by RE-PARSING it: a shape that parses but never emits made the kind
+			// un-selectable. With a field present the bare `key(x)` still wins.
 			slot.read = { kind: 'key', field: '' };
 		}
 
@@ -432,8 +437,13 @@
 			if ( 'same' === read.kind ) {
 				values.use = 'same';
 			} else if ( 'key' === read.kind ) {
+				// Field chosen → the bare `key(x)` IS the keyed read. Field not chosen yet
+				// → `use(key)` is the only spelling of "keyed, pending", and it must be
+				// written or the editor loses the author's kind choice on commit.
 				if ( '' !== read.field ) {
 					values.key = read.field;
+				} else {
+					values.use = 'key';
 				}
 			} else if ( 'analog' === read.kind && 'default' !== read.slug && ( slot.type || null ) !== read.slug ) {
 				values.use = read.slug;

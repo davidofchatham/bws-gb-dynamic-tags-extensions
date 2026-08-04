@@ -65,24 +65,35 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
 }
 
 /**
- * The preview warning for a slot whose CHAIN has no flat spelling.
+ * The preview warning for a SKIPPED slot, by the seam's reason.
  *
  * Both multislot previews (join and try_) report this, so the wording lives once. The
- * seam owns the REASON — bws_fold_slot_flat_options() reports `'chain'` through its
- * out-param and the preview never re-derives the rule — but the author-facing phrasing is
- * preview vocabulary (docs/editor-tag-previews.md), and two copies of the string is the
- * same drift one layer up: the previews already diverged once on the walk itself.
+ * seam owns the REASON — bws_fold_slot_flat_options() reports it through its out-param and
+ * the preview never re-derives the rule — but the author-facing phrasing is preview
+ * vocabulary (docs/editor-tag-previews.md), and two copies of the string is the same drift
+ * one layer up: the previews already diverged once on the walk itself.
  *
- * Only `'chain'` gets a warning. A `'read'` skip is an unconfigured slot, i.e. a normal
- * in-progress state, and stays silent.
+ * WHICH REASONS SPEAK, and why it is not "all of them":
+ *   - `'chain'` → wire that will never render. Flagged, or the preview silently omits a
+ *     slot the author configured and reads as if the tag were one slot smaller.
+ *   - `'step'`  → an incomplete step (a `terms` hop with no taxonomy). Flagged, and NAMED
+ *     for what is missing: the slot is skipped only because the seam refuses to flatten
+ *     an unfinished hop into the un-hopped read, so silence would leave the author
+ *     hunting for why a fully-sourced slot vanished.
+ *   - `'read'`  → an unconfigured slot: a normal in-progress state. SILENT.
  *
  * @since 1.17.0
- * @param int $n Slot ordinal (1-based).
- * @return string Warning text.
+ * @since 1.17.0 Takes the reason; `'step'` added with the incomplete-hop skip.
+ * @param int    $n      Slot ordinal (1-based).
+ * @param string $reason Skip reason from the seam. Default 'chain'.
+ * @return string Warning text, or '' when the reason is a silent one.
  */
 if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
-function bws_fold_skip_warning( int $n ): string {
-	return 'slot ' . $n . ' source not supported';
+function bws_fold_skip_warning( int $n, string $reason = 'chain' ): string {
+	if ( 'step' === $reason ) {
+		return 'slot ' . $n . ' no taxonomy';
+	}
+	return 'chain' === $reason ? 'slot ' . $n . ' source not supported' : '';
 }
 }
 
@@ -142,12 +153,12 @@ function bws_build_join_preview_label( array $options ): string {
 		$skip = '';
 		$flat = bws_fold_slot_flat_options( $slot, $carry, true, $skip );
 		if ( null === $flat ) {
-			// An UNCONFIGURED slot is a normal in-progress state and says nothing.
-			// A slot whose CHAIN has no flat spelling will never render, so it is
-			// flagged — otherwise the preview silently omits a slot the author
-			// configured, and reads as if the tag were one slot smaller.
-			if ( 'chain' === $skip ) {
-				$warnings[] = bws_fold_skip_warning( $n );
+			// Which reasons speak is the WARNING owner's call, not this walk's — an
+			// unconfigured slot is silent, an inexpressible chain and an unfinished
+			// step are not. Testing the reason here would be that rule's second copy.
+			$warning = bws_fold_skip_warning( $n, $skip );
+			if ( '' !== $warning ) {
+				$warnings[] = $warning;
 			}
 			continue;
 		}
@@ -321,9 +332,10 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		$flat = bws_fold_slot_flat_options( $slot, $carry, false, $skip );
 		if ( null === $flat ) {
 			// 'read' cannot happen here (an absent read INHERITS in a selecting
-			// container); 'chain' is wire that will never render, so flag it.
-			if ( 'chain' === $skip ) {
-				$skips[] = bws_fold_skip_warning( $n );
+			// container); 'chain' and 'step' both speak — the owner decides which.
+			$warning = bws_fold_skip_warning( $n, $skip );
+			if ( '' !== $warning ) {
+				$skips[] = $warning;
 			}
 			continue;
 		}

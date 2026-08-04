@@ -361,9 +361,11 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **Step slugs are wire vocabulary, distinct from the engine's option values:** `refs` (relationship hop, engine `src:ref`), `terms` (taxonomy hop, engine `srcTermIn`), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence; nothing else translates.
 
-**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold.
+**Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
 
 **Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` inherits everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **inherit** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` inherits, an empty chain resolves against the ambient entity.
+
+**An INCOMPLETE step skips the slot.** A `terms` hop with no taxonomy is authorable only under the fold (flat wire could not state a hop without its argument), and flattening it would be silently wrong: an empty `srcTermIn` is how *no term hop* is spelled, so the slot would read the un-hopped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason, so the editor preview can name what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). An argless `refs` hop is NOT incomplete — it inherits the carried relationship field.
 
 **`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a legacy limit with no fanning step stays a slot-level token. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
 

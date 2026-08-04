@@ -652,6 +652,20 @@ check(
 	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
 	'[⚠ Try: slot 1 source not supported]'
 );
+// An INCOMPLETE step is flagged too, but NAMED for what is missing rather than as an
+// unsupported source: the seam can express a term hop, this one just has no taxonomy
+// yet, and it skips rather than reading the un-hopped entity. Silence here would leave
+// the author hunting for why a fully-sourced slot vanished.
+check(
+	'join: a `terms` hop with no taxonomy is flagged as MISSING, not unsupported',
+	bws_build_join_preview_label( [ 'A' => 'src(terms);key(role)', 'B' => 'key(name)' ] ),
+	"[⚠ Join: slot 1 no taxonomy]"
+);
+check(
+	'try_: same, on a selecting container',
+	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms);key(x)' ], 'text' ),
+	'[⚠ Try: slot 2 no taxonomy]'
+);
 // An UNCONFIGURED combining slot stays SILENT — it is a normal in-progress state,
 // and flagging it would fire on every half-built join.
 check(

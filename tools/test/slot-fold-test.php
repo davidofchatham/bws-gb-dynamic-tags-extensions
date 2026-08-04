@@ -256,6 +256,12 @@ $hand = array(
 	array( 'join', 'fallback(TBA);key(x);as(date);linkTo(permalink)', 'as(date);key(x);linkTo(permalink);fallback(TBA)' ),
 	// legacy-shaped `use(key)` + key → plain keyed read, emitted as bare key()
 	array( 'try', 'use(key);key(role)', 'key(role)' ),
+	// `use(key)` with NO key → keyed read, field pending. SURVIVES emit: the control
+	// re-parses what it wrote to drive the read select, so dropping this shape made
+	// "Meta/Option Field" un-selectable (it reverted to unset on commit, taking the
+	// field picker with it).
+	array( 'join', 'src(same);use(key)', 'src(same);use(key)' ),
+	array( 'try', 'use(key)', 'use(key)' ),
 );
 foreach ( $hand as $i => $case ) {
 	list( $container, $in, $want ) = $case;
@@ -841,6 +847,29 @@ check( 'P13.5b an unconfigured combining slot reports reason `read`', 'read' ===
 $sr_carry = array();
 bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site);key(a)' ), $sr_carry, true, $sr );
 check( 'P13.5b a RESOLVING slot clears the reason (reused variable, no leak)', '' === $sr, var_export( $sr, true ) );
+
+// P13.5c — an INCOMPLETE step (a `terms` hop with no taxonomy) skips, with its own
+// reason. This is the fold's own hazard: the flat wire could not state a hop without its
+// argument, so the shape did not exist before. Flattening it is worse than skipping —
+// an empty `srcTermIn` is exactly how NO term hop is spelled, so the slot would read the
+// un-hopped entity and return a plausible WRONG value instead of nothing. `refs` is the
+// deliberate contrast: argless there means "inherit the carried relationship field".
+foreach ( array(
+	'leading, argless'   => 'src(terms);key(role)',
+	'after a real src'   => 'src(post,9;terms);key(role)',
+) as $why => $wire ) {
+	$w = t_seam_walk( array( 'A' => $wire ), 'join' );
+	check( "P13.5c incomplete term hop skips the slot ($why)", ! isset( $w[1] ), json_encode( $w[1] ?? null ) );
+}
+$sr_carry = array();
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(terms);key(role)' ), $sr_carry, true, $sr );
+check( 'P13.5c an incomplete step reports reason `step`, not `chain`', 'step' === $sr, var_export( $sr, true ) );
+$argless_ref = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(refs);key(b)' ), 'join' );
+check(
+	'P13.5c an argless `refs` hop still INHERITS rather than skipping',
+	array( 'src' => 'ref', 'ref' => 'office' ) === array_intersect_key( (array) ( $argless_ref[2] ?? array() ), array( 'src' => 1, 'ref' => 1 ) ),
+	json_encode( $argless_ref[2] ?? null )
+);
 
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
 $lead_terms = t_seam_walk( array( 'A' => 'src(terms,category);use(title)' ), 'join' );

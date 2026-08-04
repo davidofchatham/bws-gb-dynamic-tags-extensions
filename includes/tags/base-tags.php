@@ -880,12 +880,9 @@ function bws_get_join_options(): array {
 				// The flat render seam expresses one term hop; a second relationship hop
 				// is FW-32 work, so it is not offered.
 				'hops'            => array( 'srcTermIn' ),
+				// One noun, both surfaces: "+ Add field" and the header "Field A"
+				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
-				// %s is the slot ORDINAL (`A`, `B`, …) — its option key and its `%A`
-				// format token, so the panel header, the wire and the format string all
-				// name a slot the same way.
-				/* translators: %s: slot ordinal (A, B, …) */
-				'label'           => __( 'Field %s', 'generateblocks' ),
 			) )
 		)
 		: array();

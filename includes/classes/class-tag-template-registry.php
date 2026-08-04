@@ -551,10 +551,13 @@ class TagTemplateRegistry {
 						// position — same split, same owner, as the trailing-option strip
 						// below and the converter migrator.
 						'tag_level'       => self::try_slot_axes( $tpl )['tag_level'],
-						// "slot" is the word try_'s own preview warnings already use
-						// ("⚠ Try: slot 2 no key"); the fold introduces no second noun.
-						'noun'            => __( 'slot', 'generateblocks' ),
-						'label'           => __( 'Slot %s', 'generateblocks' ),
+						// "attempt" nouns ONE RUNG of the fallback chain, which is what a
+						// try_ slot is (src-chain-encoding.md §5.1a, user 2026-08-01).
+						// One noun, both surfaces: "+ Add attempt" and the header
+						// "Attempt A" — the header is derived, never registered beside it.
+						// The editor tag configuration PREVIEW still says "slot 2 no key";
+						// that string is `editor-tag-previews.md`'s to change.
+						'noun'            => __( 'attempt', 'generateblocks' ),
 					]
 				)
 				: [];

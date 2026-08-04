@@ -673,7 +673,14 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 	} elseif ( null !== $key_tok ) {
 		$slot['read'] = array( 'kind' => 'key', 'field' => $key_tok );
 	} elseif ( 'key' === $use_tok ) {
-		// Legacy-shaped `use(key)` with no key token: tolerate on parse, never emit.
+		// `use(key)` with no key token is a KEYED READ WHOSE FIELD IS NOT CHOSEN YET —
+		// the state the editor is in between picking "Meta/Option Field" and picking the
+		// field. It has to round-trip (emit writes it back), because the control rewrites
+		// the whole value on every commit and derives the read select's value by RE-PARSING
+		// it: a shape that parses but never emits made the kind un-selectable (it reverted
+		// to unset on commit, and with it the field picker it reveals). Legacy-shaped in
+		// origin, canonical now for the empty-field case only — with a field present the
+		// bare `key(x)` still wins (bws_fold_emit_slot).
 		$slot['read'] = array( 'kind' => 'key', 'field' => '' );
 	}
 
@@ -712,8 +719,14 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
 		if ( 'same' === $read['kind'] ) {
 			$values['use'] = 'same';
 		} elseif ( 'key' === $read['kind'] ) {
+			// Field chosen → the bare `key(x)` IS the keyed read (`use` is redundant).
+			// Field not chosen yet → `use(key)` is the only spelling of "keyed, pending",
+			// and it must be written or the editor loses the author's kind choice on
+			// commit. Renders exactly as the flat-era `use:key` with an empty key did.
 			if ( '' !== $read['field'] ) {
 				$values['key'] = $read['field'];
+			} else {
+				$values['use'] = 'key';
 			}
 		} elseif ( 'analog' === $read['kind']
 			&& 'default' !== $read['slug']
@@ -1024,13 +1037,18 @@ function bws_fold_empty_slot(): array {
  * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
  * bws_field_values_assemble_steps().
  *
- * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the two skips
- * apart — an unconfigured slot is a normal in-progress state and says nothing, while an
+ * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart —
+ * an unconfigured slot is a normal in-progress state and says nothing, while an
  * inexpressible chain is wire that will never render and has to be FLAGGED, or the author
  * reads a preview that silently omits a slot they configured. Deriving the reason in the
  * preview would be a second copy of the skip rule, i.e. the exact drift this seam removed,
  * so the reason is reported BY THE OWNER. Optional and by reference: the render callers
  * pass nothing and are unaffected.
+ *
+ * THREE reasons, and the third is the one the fold created: `'step'` is an INCOMPLETE
+ * step (a `terms` hop with no taxonomy). Unlike `'chain'` the flat read can express it —
+ * it just is not finished — and unlike `'read'` it must not be silent, because the
+ * alternative to skipping is a plausible WRONG value rather than an empty one.
  *
  * @since 1.17.0
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
@@ -1039,7 +1057,8 @@ function bws_fold_empty_slot(): array {
  *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
  *                            combining slot has no read configured; 'chain' when the chain
- *                            has no flat spelling.
+ *                            has no flat spelling; 'step' when a step is incomplete (a
+ *                            `terms` hop with no taxonomy).
  * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
  *                    null when the slot is skipped (unconfigured / inexpressible).
  */
@@ -1115,7 +1134,26 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 			$skip_reason = 'chain';
 			return null;   // second term hop, second ref hop, or `entries`: not expressible.
 		}
-		$tax = (string) ( $arg ?? '' );
+		if ( '' === (string) ( $arg ?? '' ) ) {
+			// A term hop with no TAXONOMY is INCOMPLETE, and flattening it would be
+			// silently wrong: an empty `srcTermIn` is precisely how "no term hop" is
+			// spelled, so the slot would read the UN-HOPPED entity and hand the author a
+			// plausible wrong value instead of an obvious empty one. Skip, so the slot
+			// says nothing until the step is finished.
+			//
+			// Not a `chain` skip (that names wire the flat read cannot EXPRESS — this
+			// shape it can, it just is not finished yet), and not `read` (which is silent
+			// because an unconfigured read is a resting state). Its own reason, so the
+			// previews can name what is missing.
+			//
+			// Only `terms` gets this. An argless `refs` hop is legitimate — it inherits
+			// the carried relationship field (see above) — and the fold is what made an
+			// incomplete step authorable at all: the flat wire had no way to state a hop
+			// without stating its argument.
+			$skip_reason = 'step';
+			return null;
+		}
+		$tax = (string) $arg;
 	}
 
 	// ── limit: the LAST step that pins one, else the slot-level token ───────

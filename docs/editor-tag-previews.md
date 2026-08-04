@@ -174,6 +174,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
 | Slot chain with no flat spelling | `[⚠ Try: slot 2 source not supported]` (1.17.0 — see the join warnings table for the rule; when it is the ONLY slot this reason replaces `no slots configured`, which would otherwise be actively misleading) | same |
+| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` (1.17.0 — a `terms` hop with no taxonomy; the seam skips it rather than reading the un-hopped entity) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
@@ -203,6 +204,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
 | Folded slot whose source chain has no flat spelling | `slot N source not supported` (1.17.0) |
+| Folded slot with an INCOMPLETE step (`terms` hop, no taxonomy) | `slot N no taxonomy` (1.17.0) |
 
 **`slot N source not supported`** is the author-facing signal for a slot the render seam SKIPS: a
 chain with a SECOND hop on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One ref hop
@@ -213,6 +215,14 @@ nothing — so the preview is the only place an author can see which happened. T
 in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
 normal in-progress state, and flagging it would fire on every half-built join. Same fragment, same
 mechanism, on `try_` tags: `[⚠ Try: slot N source not supported]`.
+
+**`slot N no taxonomy`** is the third skip reason, and it is separate because it names what is
+MISSING rather than what is unsupported. A `terms` hop with no taxonomy is expressible — it just is
+not finished — and the seam skips it deliberately: an empty `srcTermIn` is how "no term hop" is
+spelled, so flattening it would make the slot read the UN-HOPPED entity and return a plausible WRONG
+value rather than nothing. The shape only exists under the fold; flat wire could not state a hop
+without its argument. The slot's own control warns in parallel ("This *&lt;noun&gt;* will be skipped
+unless a taxonomy is set"), so the two surfaces agree on the promise.
 
 Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback` is set.
 

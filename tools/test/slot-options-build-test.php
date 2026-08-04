@@ -309,9 +309,14 @@ $joins = bws_build_fold_slot_options(
 		'allow_same_read' => false,
 		'hops'            => array( 'srcTermIn' ),
 		'noun'            => 'field',
-		'label'           => 'Field %s',
 	)
 );
+
+// ONE registered noun, BOTH surfaces. The Add button reads `noun` and the panel header
+// reads the derived `label` — a container registers no second string, because two
+// strings for one unit is how "Add attempt" ended up over a panel headed "Slot A".
+assert_same( 'noun ships to the control verbatim', 'field', $joins['A']['fold']['noun'] );
+assert_same( 'header derives from the noun + the slot ORDINAL', 'Field B', $joins['B']['label'] );
 
 // The registered key IS the wire spelling, so nothing downstream translates: a slot's
 // option key, its `{{join A:…}}` token and the control's `props.optionKey` are one string.
@@ -408,9 +413,11 @@ $sel = bws_build_fold_slot_options(
 		'allow_same_read' => true,
 		// try_'s bare `limit` is the TAG-level cap for every slot, so it is not a slot axis.
 		'tag_level'       => array( 'limit' ),
+		'noun'            => 'attempt',
 	)
 );
 $sel_fold = $sel['A']['fold'];
+assert_same( 'selecting header derives from ITS noun', 'Attempt A', $sel['A']['label'] );
 assert_same(
 	'selecting readRows are the twin rows with NO unset row',
 	bws_build_slot_read_options( 1, $text['use'], false )['options'],
