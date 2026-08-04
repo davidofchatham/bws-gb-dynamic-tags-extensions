@@ -485,23 +485,40 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       digit slots are PINNED to the front of the saved string and no sort can move them. Any spelling
       that is not an array index hands rank back to the canonical order (<code>format</code> can lead
       again). Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
-      <br><strong>Where to look:</strong> the <em>table</em> groups, which are the only folded
-      scenarios here that carry tag-level options (<code>src:</code>, <code>caption:</code>). Under
-      digits those options are FORCED after the columns; under a non-index spelling they lead. The
-      join / <code>try_</code> folded scenarios carry no tag-level option, so only the key changes
-      there.
+      <br><strong>Where to look:</strong> <em>join — TEMPLATE MODE</em> and the <em>table</em> groups.
+      Those are the folded scenarios that carry tag-level options (<code>format:</code>,
+      <code>valueSep:</code>, <code>src:</code>, <code>caption:</code>). Under digits those options are
+      FORCED behind the slots; under a non-index spelling they lead. Groups with no tag-level option
+      show only the key changing, which is why the ordering question was invisible on this page until
+      the join formats were added.
     </div>
     <div class="pfx-row">
       <label><input type="radio" name="slotkey" value="digit" checked> <code>1:</code> digits (shipped, pinned first)</label>
       <label><input type="radio" name="slotkey" value="alpha"> <code>A:</code> capitals (candidate)</label>
-      <label><input type="radio" name="slotkey" value="s"> <code>s1:</code> prefixed</label>
+      <label><input type="radio" name="slotkey" value="s"> <code>s1:</code> prefixed (rejected)</label>
     </div>
     <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
-      Under capitals, note the cost this tool makes visible: template mode still addresses slots as
-      <code>%1</code>…<code>%10</code> (brace tokens are impossible — GB's parser rejects <code>}</code>
-      inside options), so <code>format:%1 (%2)</code> sits beside <code>A:</code>/<code>B:</code> and the
-      author holds two ordinal alphabets for one set of slots. Switch to a join template-mode scenario
-      to see it.
+      <strong>Tokens follow the keys</strong> (user 2026-08-04). Template mode addresses slots as
+      <code>%1</code>…<code>%10</code> on the wire (brace tokens are impossible — GB's parser rejects
+      <code>}</code> inside options), and that ordinal was only ever the digit one, so it moves with the
+      spelling: under capitals the author reads <code>A:</code> beside <code>%A</code>, ONE alphabet
+      rather than two. Formats are authored in digit form and rewritten by <code>formatTokens()</code>,
+      so this picker moves keys and tokens together.<br>
+      Digit tokens stay readable as a FALLBACK, which is what makes the move migration-free:
+      <code>bws_join_wire_format()</code> maps both alphabets onto the same internal <code>{N}</code>,
+      so every stored <code>format:%1 (%2)</code> keeps rendering and no converter entry is needed. The
+      cost shows in the <code>%%</code> row — while both alphabets are live, the literal-percent escape
+      widens from "before a digit" to "before a digit or A-J".<br>
+      <code>s1:</code> is rejected twice over: <code>s</code> names nothing, and the word form it
+      implies (<code>slot1</code>…<code>slot10</code>) MIS-SORTS under any string comparator
+      (<code>slot1, slot10, slot2</code>), so it would need a numeric-aware sort in both
+      <code>serialization-order.php</code> and its JS port. <code>A</code>…<code>J</code> sort right for
+      free.<br>
+      <strong>Not modelled here:</strong> panel LABELS. This page renders wires only, but
+      <code>"2: Source"</code> (<code>base-shared.php</code>) and <code>"Column 2 Header"</code>
+      (<code>table-tags.php</code>) would have to move with the keys too, or the mapping tax just
+      relocates into the editor. One <code>bws_slot_ordinal()</code> helper should own digit→letter for
+      keys, labels and tokens alike.
     </div>
 
     <div class="sb-h">Value Separator</div>
@@ -712,6 +729,10 @@ const DEFAULT_ORDER = {
   datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
   // NB sep (source rank 4) precedes the datetime field keys (ranks 8-11) per KEY_MAP.
   table:           ['source','caption'],
+  // join: its TAG-level options are the format group (`format` = the template string, `valueSep` =
+  // separator mode's glue), which leads. The per-slot axes are not entries here — they are the
+  // folded `N:` values (or `N-` siblings on the shipped wire), ordered by slot.
+  join:            ['format','valueSep','source','limit','sep','use','key','link','fallback'],
 };
 
 // ── Permutation scenarios ────────────────────────────────────────────────────
@@ -1052,6 +1073,54 @@ const SCENARIO_GROUPS = [
     {label:'terms limited + refs limited',slots:[{tag:'text',chain:[{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'analog',slug:'title'}},{tag:'phone',chain:[{slug:'refs',arg:'office',limit:'2'}],read:{kind:'key',field:'mobile'}}]},
     {label:'refs→terms chain + link',  slots:[{tag:'title',chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'},link:{to:'permalink'}},{tag:'text',read:{kind:'key',field:'$key1'}}]},
   ]},
+  // JOIN — TEMPLATE MODE. Added 2026-08-04 (user: "{{join}} samples have no format strings; add
+  // them"). This is the group the KEY-spelling decision actually turns on, for two reasons:
+  //   1. `format` is a TAG-LEVEL option, so it is the thing the folded slot keys get ordered
+  //      AGAINST. Under digits it is FORCED behind them; under any non-index spelling it leads.
+  //      Every other join group here carries no tag-level option, so the keys had nothing to be
+  //      read against and the ordering question was invisible on this page.
+  //   2. Its `%N` tokens are a SECOND naming of the same slots. Tokens follow the keys (see
+  //      formatTokens) — formats are AUTHORED here in digit form and rewritten by the picker, so
+  //      switching spelling moves keys and tokens together. Under capitals the author reads `A:`
+  //      beside `%A`: one alphabet, not two.
+  // Digit tokens stay readable as a FALLBACK, which is what makes the token move migration-free —
+  // bws_join_wire_format() maps both alphabets onto the same internal {N}, so every stored
+  // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
+  { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
+    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
+    {label:'name (nickname) — 2 slots', format:'%1 (%2)',
+      shippedSlots:[[['key','name_first']],[['key','nickname']]],
+      slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'nickname'}}]},
+    {label:'3 slots, middle dot', format:'%1 %2 · %3',
+      shippedSlots:[[['key','name_first']],[['key','name_last']],[['key','suffix']]],
+      slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'name_last'}},{tag:'text',read:{kind:'key',field:'suffix'}}]},
+    // ~…~ unit group: a token and its unit text shed TOGETHER when the field is empty (the Format
+    // control's help text, base-tags.php). The tilde wraps a TOKEN, so it travels with the spelling.
+    {label:'unit group ~(%2 lbs.)~', format:'%1 ~(%2 lbs.)~',
+      shippedSlots:[[['key','name_first']],[['key','weight']]],
+      slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'weight'}}]},
+    // `%%` = literal percent before a digit. Under digits it protects `%2`; with the digit FALLBACK
+    // kept, `%2` stays a live token under capitals, so `%%` must STILL be typed. Read this row under
+    // both spellings — it is the one place the fallback costs something, and the escape rule widens
+    // from "before a digit" to "before a digit or A-J".
+    {label:'literal %% before a digit', format:'%1 (%%2 off)',
+      shippedSlots:[[['key','name_first']],[['key','discount']]],
+      slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'discount'}}]},
+    // TENTH slot: `%10` is why bws_join_wire_format() substitutes HIGH→LOW. Single-char letters have
+    // no prefix relation, so capitals delete that ordering rule — visible here as `%J`.
+    {label:'10 slots, %10 prefix hazard', format:'%1-%2-%3-%4-%5-%6-%7-%8-%9 (%10)',
+      shippedSlots:[...Array(10)].map((_,i)=>[['key',`f${i+1}`]]),
+      slots:[...Array(10)].map((_,i)=>({tag:'text',read:{kind:'key',field:`f${i+1}`}}))},
+    // SEPARATOR mode spelled out: no format, one tag-level valueSep. Every other join group on this
+    // page is implicitly this mode with the default ', ' — here it sits beside a template row.
+    {label:'separator mode (no format)', valueSep:' / ',
+      shippedSlots:[[['key','name_first']],[['key','name_last']]],
+      slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'name_last'}}]},
+    // The two proposals COMPOUND: a per-slot type token AND a token in the format. No shipped
+    // equivalent — join is text-only today, which is what Option R's type token buys.
+    {label:'title + phone in a format', format:'%1 - %2',
+      slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
+  ]},
   // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
   // AGNOSTIC columns → Option R type token per column (like join).
   //
@@ -1107,6 +1176,12 @@ const SCENARIO_GROUPS = [
     {label:'name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
     {label:'name + 4 key datetime range',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{startKey:'start_date',startTimeKey:'start_time',endKey:'end_date',endTimeKey:'end_time'}}]},
     {label:'range + link + name',        slots:[{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'},link:{to:'permalink'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    // NAME COLLISION worth seeing: `format` is join's TEMPLATE string AND datetime's DATE format.
+    // Folded, the date format rides INSIDE the slot value, so the tag-level `format` is unambiguous
+    // and both can coexist. On a flat wire both want the bare key `format:` — one more reason a
+    // datetime slot has no shipped join spelling at all.
+    {label:'template format + datetime slot format', format:'%1 - %2',
+      slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
   { title:'table — FOLDED datetime cols (multi-key)', foldClass:'table', scenarios:[
     {label:'event rows: name + date range',
@@ -1128,6 +1203,11 @@ const SCENARIO_GROUPS = [
     {label:'time format g:i A + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
     {label:'datetime l, F jS g:i A',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     {label:'fallback with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
+    // TAG-LEVEL free-form value: the join template is authored prose, so it carries colons as
+    // readily as a fallback does. Eyeball `format:Price\: %A (%B)` — the colon escaped, the tokens
+    // NOT (a `%` is inert to every parser layer).
+    {label:'format with a colon (Price: …)', format:'Price: %1 (%2)',
+      slots:[{tag:'text',read:{kind:'key',field:'price'}},{tag:'text',read:{kind:'key',field:'unit'}}]},
   ]},
   { title:'escape hazards — table labels (brackets + colon)', foldClass:'table', scenarios:[
     {label:'balanced brackets + colon in labels',
@@ -1830,10 +1910,17 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (val===true) { out.push(`${p}${kn(id)}`); continue; }
     const sv = typeof rv==='string' ? rv : String(rv);
-    if (sv!=='') out.push(`${p}${kn(id)}:${sv}`);
+    // FREE-FORM values escape `:`/`|` on the FLAT wire exactly as they do inside a folded value
+    // (escFreeform). Not a fold property: GB splits pairs on an unescaped `|` and key/value on an
+    // unescaped `:`, and the JS side's limit-2 split DISCARDS the tail (gb-constraints.md
+    // §Separator-safe), so a tag-level `format:Price: %1` loses " %1" on editor reopen. Our controls
+    // escape editor-side and GB unescapes server-side (CHANGELOG 1.13.0, email `subject`).
+    if (sv!=='') out.push(`${p}${kn(id)}:${FREEFORM_IDS.has(id)?escFreeform(sv):sv}`);
   }
   return out;
 }
+// Values an author types freely — anything that can legitimately contain a colon or a pipe.
+const FREEFORM_IDS = new Set(['format','fallback','label','caption','sep','valueSep','rangeSep','timeSep']);
 
 // Map a scenario part ID to its S.order slot for sorting.
 // Source-block items (source, ref, _inTerm) all map to 'source' slot index.
@@ -1851,6 +1938,9 @@ function partOrderKey(id) {
 // show canonical serialization order regardless of what template Configure has selected.
 function groupOrder(group) {
   const t=group.tmpl;
+  // The CONTAINER wins over the slot template: a join group carries `tmpl:'text'` to type its slots,
+  // but its tag-level options are join's (format/valueSep), which the text order does not name.
+  if (group.foldClass==='join') return DEFAULT_ORDER.join;
   if (t==='image') return DEFAULT_ORDER.image_post;   // image_post covers as/source/use/key/fallback
   return DEFAULT_ORDER[t] || DEFAULT_ORDER.text;
 }
@@ -1913,11 +2003,14 @@ function buildContrastVariants(group, sc) {
         // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
         // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
         const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
-        const parts = renderSlotParts(sortParts(tagLevel), '', false);
+        // Scenario-declared tag-level options (join's format/valueSep) LEAD — format group is rank 1
+        // in KEY_MAP, ahead of every axis the fold touches. One declaration feeds both sides of the
+        // row, so a scenario states its tag-level options once and the two wires cannot drift.
+        const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(tagLevel)], '', false);
         perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
         str = `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
       } else {
-        str = wrap(renderSlotParts(sortParts(sc.parts||[]),'',false));
+        str = wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
       }
     } else if (v.how === 'table') {
       str = buildTablePermTag(sc);           // current {{table}} prototype wire (1.17.0, unreleased)
@@ -2021,6 +2114,41 @@ function alphaOrdinal(n) {
   while (n > 0) { const r = (n - 1) % 26; out = String.fromCharCode(65 + r) + out; n = (n - 1 - r) / 26; }
   return out;
 }
+// ── FORMAT TOKENS follow the KEY spelling ────────────────────────────────────
+// Template mode addresses slots as `%1`…`%10` on the wire (brace tokens are impossible: GB's
+// find_matches() captures options as `[^}]+`, so a `}` kills the tag — see bws_join_wire_format(),
+// includes/helpers/join-helpers.php). That ordinal was only ever the DIGIT one, so it moves with the
+// key spelling (user 2026-08-04: "the token format was strictly based on the digit system; if we
+// change to capitals, the tokens go with it"). Under `s1:` the slot ordinal is still the digit, so
+// only 'alpha' moves anything.
+function slotTokenOrdinal(n, spelling) { return spelling === 'alpha' ? alphaOrdinal(n) : String(n); }
+const FMT_MAX_SLOTS = 10;   // mirrors BWS_JOIN_MAX_SLOTS
+// Rewrite a DIGIT-authored format into the current token spelling. Mirrors bws_join_wire_format():
+// `%%` is sentinel-protected FIRST, then tokens substitute HIGH→LOW so `%10` wins over its own `%1`
+// prefix (low-first would rewrite `%10` into `%A0`). That ordering rule is only NEEDED under digits —
+// single-char letters have no prefix relation, which is one foot-gun capitals delete outright.
+function formatTokens(fmt, spelling) {
+  const sp = spelling || S.slotKeySpelling;
+  let out = String(fmt).replace(/%%/g, '\x00');
+  for (let n = FMT_MAX_SLOTS; n >= 1; n--) out = out.split('%' + n).join('%' + slotTokenOrdinal(n, sp));
+  return out.replace(/\x00/g, '%%');
+}
+// TAG-LEVEL options a scenario declares directly, rather than deriving from its shipped slot parts.
+// join's `format` / `valueSep` are tag-level: the fold moves the six per-slot axes (src, ref,
+// srcTermIn, use, key, limit) into the slot value and NOTHING else, so these ride both spellings
+// unchanged — which is exactly what makes them the thing the folded keys get ordered against.
+//
+// `spelling` is passed EXPLICITLY rather than read from state, because the SHIPPED column must keep
+// digit tokens under every picker setting: the token move ships WITH the fold, so a shipped wire
+// reading `format:%A (%B)|2-key:nickname` — letter tokens beside digit slot prefixes — is a string
+// nothing writes. Keeping it digits also puts the fallback on screen: the two columns disagree on
+// the token alphabet and both render, which is the property that makes the move migration-free.
+function scenarioTagParts(sc, spelling) {
+  const out = [];
+  if ((sc.format || '') !== '')   out.push(['format', formatTokens(sc.format, spelling)]);
+  if ((sc.valueSep || '') !== '') out.push(['valueSep', sc.valueSep]);
+  return out;
+}
 // Resolve $-dummy refs in a chain's step args, so scenario chains can use $ref/$tax like any
 // other permutation value. Used by both slot chains and table ROW chains.
 function resolveChainArgs(chain) {
@@ -2108,6 +2236,9 @@ function buildFoldedTag(group, sc) {
       slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'')}`);
     });
   } else {
+    // Declared tag-level options (join's format/valueSep) first — format group leads the canonical
+    // order, and under a non-index spelling it can actually GET there.
+    tagParts.push(...renderSlotParts(scenarioTagParts(sc), '', false));
     // Tag-level options the shipped twin carries (`as` on try_image, link/limit/sep on try_text)
     // ride the FOLDED tag too — the fold moves the six per-slot axes into the value, nothing else.
     // Read from the scenario's shipped parts so there is ONE source of truth per scenario.
