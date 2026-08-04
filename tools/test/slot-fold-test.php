@@ -831,5 +831,234 @@ check( 'P13.7 malformed folded wire skips the slot', ! isset( $bad[1] ), json_en
 $reset = t_seam_walk( array( '1' => 'src(site);key(a)', '2' => 'key(b)' ), 'join' );
 check( 'P13.8 empty chain at slot 2 resets to current, not inherit', '' === ( $reset[2]['src'] ?? 'X' ), json_encode( $reset[2] ?? null ) );
 
+// ── P14 SELECTING CONTAINER (`try_*`) ───────────────────────────────────────
+//
+// The same migration-equivalence property as P13.1, for the container whose ABSENCE
+// rules are the mirror image: an absent read INHERITS instead of skipping the slot,
+// and slot 1 with every axis unset is still an attempt. Three READ SHAPES exist and
+// each resolves differently, so each is walked separately:
+//   psu  — per-slot `use` enum + key   (text / content / image)
+//   psk  — per-slot key, no `use` enum (email / phone)
+//   none — no per-slot read at all     (title / permalink / datetime_*)
+
+/**
+ * The flat option set the shipped try_ resolver built for one slot, transcribed from
+ * class-tag-template-registry.php before the flip. Models the loop's own variables —
+ * NOT the `$eval_opts` inheritance around them, which additionally leaked slot 1's
+ * bare `srcTermIn` into every later slot's core call (P14.5 covers that fix).
+ */
+function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '', $max = 5 ) {
+	$last_src = 'current';
+	$last_ref = '';
+	$last_key = '';
+	$last_use = '';
+	$out      = array();
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$p   = ( 1 === $n ) ? '' : "{$n}-";
+		$src = $options[ $p . 'src' ] ?? '';
+		$ref = $options[ $p . 'ref' ] ?? '';
+		$stm = $options[ $p . 'srcTermIn' ] ?? '';
+		$key = $options[ $p . 'key' ] ?? '';
+		$use = $options[ $p . 'use' ] ?? '';
+		if ( $n > 1 ) {
+			if ( 'same' === $src ) { $src = ''; }
+			if ( 'same' === $use ) { $use = ''; }
+		}
+		if ( 1 === $n ) {
+			$last_src = ( '' === $src ) ? 'current' : $src;
+			$last_ref = $ref;
+			$last_key = $key;
+			if ( $psu ) {
+				$last_use = ( '' === $use ) ? $default_use : $use;
+			}
+		} else {
+			if ( $psu && '' === $use ) {
+				$key = '';
+			}
+			$has_new = '' !== $src || '' !== $ref || '' !== $stm
+				|| ( ( $psk || $psu ) && '' !== $key )
+				|| ( $psu && '' !== $use );
+			if ( ! $has_new ) {
+				continue;
+			}
+			if ( '' !== $src ) { $last_src = $src; }
+			if ( '' !== $ref ) { $last_ref = $ref; }
+			if ( '' !== $key ) { $last_key = $key; }
+			if ( $psu && '' !== $use ) { $last_use = $use; }
+		}
+		if ( $psk || $psu ) {
+			$in_no_key = $psu && in_array( $last_use, $nku, true );
+			if ( ! $in_no_key && '' === $last_key ) {
+				continue;
+			}
+		}
+		$out[ $n ] = array(
+			'src'       => $last_src,
+			'ref'       => $last_ref,
+			'srcTermIn' => $stm,
+			'use'       => $psu ? $last_use : null,
+			'key'       => '' !== $last_key ? $last_key : null,
+		);
+	}
+	return $out;
+}
+
+/** The same walk through the seam, projected onto the shipped shape. */
+function t_seam_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '', $max = 5 ) {
+	$carry = array( 'src' => '', 'ref' => '', 'use' => $psu ? $default_use : '', 'key' => '' );
+	$out   = array();
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$slot = bws_fold_slot_struct( $n, $options, 'try', $psu );
+		if ( null === $slot ) {
+			continue;
+		}
+		$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+		if ( null === $flat ) {
+			continue;
+		}
+		if ( $psk || $psu ) {
+			$in_no_key = $psu && in_array( $flat['use'], $nku, true );
+			if ( ! $in_no_key && '' === $flat['key'] ) {
+				continue;
+			}
+		}
+		$out[ $n ] = array(
+			'src'       => '' === $flat['src'] ? 'current' : $flat['src'],
+			'ref'       => $flat['ref'],
+			'srcTermIn' => $flat['srcTermIn'],
+			'use'       => $psu ? $flat['use'] : null,
+			'key'       => '' !== $flat['key'] ? $flat['key'] : null,
+		);
+	}
+	return $out;
+}
+
+/** Migrate a legacy try_ option set to folded wire (what the 5e migrator will write). */
+function t_migrate_try( $options, $psu, $max = 5 ) {
+	$folded = $options;
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$p = ( 1 === $n ) ? '' : "{$n}-";
+		foreach ( array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ) as $axis ) {
+			unset( $folded[ $p . $axis ] );
+		}
+	}
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$rec = bws_fold_from_legacy( $n, $options, false, $psu );
+		if ( $rec ) {
+			$wire = bws_fold_emit_slot( $rec['slot'] );
+			if ( '' !== $wire ) {
+				$folded[ (string) $n ] = $wire;
+			}
+		}
+	}
+	return $folded;
+}
+
+// P14.1 — psu shape (text: default read `key`, no-key value `title`).
+$try_psu_cases = array(
+	'two keyed slots'        => array( 'key' => 'a', '2-use' => 'key', '2-key' => 'b' ),
+	'analog then keyed'      => array( 'use' => 'title', '2-use' => 'key', '2-key' => 'role' ),
+	'ref hop then inherit'   => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', '2-src' => 'current', '2-use' => 'key', '2-key' => 'phone' ),
+	'term hop at slot 1'     => array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ),
+	'site slot'              => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key', '2-key' => 'org_phone' ),
+	'slot 2 inherits read'   => array( 'key' => 'a', '2-src' => 'site' ),
+	'key-only slot 2 drops'  => array( 'key' => 'a', '2-key' => 'b' ),
+	'bare tag'               => array(),
+	'unset key mode slot 2'  => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key' ),
+);
+foreach ( $try_psu_cases as $name => $legacy ) {
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), 'key' );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true ), true, true, array( 'title' ), 'key' );
+	check( "P14.1 [psu: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
+	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), 'key' );
+	check( "P14.1 [psu: $name] dual-read of unmigrated wire resolves identically", $shipped === $dual, 'legacy: ' . json_encode( $shipped ) . "\n      dual:   " . json_encode( $dual ) );
+}
+
+// The ONE shape where the walks legitimately differ: a slot that inherits on BOTH
+// axes. The flat resolver skipped it (nothing new), the seam resolves it as a
+// DUPLICATE of its predecessor — output-identical either way, since a duplicate
+// returns what the previous slot already returned (or is empty like it). Reachable
+// only from hand-written `same` sentinels, because the shipped UI strips them as the
+// slot ≥2 default; the fold's own control seeds exactly this shape for a new slot,
+// which is why the seam must resolve it rather than treat it as absent.
+$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' );
+check(
+	'P14.1 all-inherit slot 2 resolves as a duplicate of slot 1',
+	isset( $all_inherit[2] ) && $all_inherit[1] === $all_inherit[2],
+	json_encode( $all_inherit )
+);
+check(
+	'P14.1 …and the flat resolver skipped it, so output is unchanged either way',
+	array() === array_diff_key( t_shipped_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' ), array( 1 => null ) ),
+	''
+);
+
+// P14.2 — psu with a NO-KEY default read (content: default `content`), where a bare
+// tag resolves instead of being dropped by the key gate.
+$content_cases = array(
+	'bare tag reads content' => array(),
+	'excerpt then key'       => array( 'use' => 'excerpt', '2-use' => 'key', '2-key' => 'body' ),
+	'key then inherit'       => array( 'use' => 'key', 'key' => 'body', '2-src' => 'ref', '2-ref' => 'office' ),
+);
+foreach ( $content_cases as $name => $legacy ) {
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), 'content' );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true ), true, true, array( 'content', 'excerpt' ), 'content' );
+	check( "P14.2 [content: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
+}
+$bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), 'content' );
+check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && 'current' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
+
+// P14.3 — psk shape (email/phone: per-slot key, NO `use` enum). An empty key at slot
+// ≥2 inherits, and no `use(same)` is written for an axis the tag does not have.
+$psk_cases = array(
+	'two keyed slots'      => array( 'key' => 'a', '2-key' => 'b' ),
+	'inherit the key'      => array( 'key' => 'a', '2-src' => 'site' ),
+	'ref hop'              => array( 'key' => 'a', '2-src' => 'ref', '2-ref' => 'office' ),
+	'bare tag drops'       => array(),
+);
+foreach ( $psk_cases as $name => $legacy ) {
+	$shipped = t_shipped_try_walk( $legacy, true, false );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false ), true, false );
+	check( "P14.3 [psk: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
+}
+$psk_wire = bws_fold_emit_slot( bws_fold_from_legacy( 2, array( '2-src' => 'site' ), false, false )['slot'] );
+check( 'P14.3 no read axis → no read token on the wire', 'src(site)' === $psk_wire, var_export( $psk_wire, true ) );
+
+// P14.4 — `none` shape (title/permalink/datetime_*): source chain only, read is a
+// TAG-level option, so the wire must carry no read token at all.
+$none_cases = array(
+	'bare tag reads ambient' => array(),
+	'ref hop at slot 2'      => array( '2-src' => 'ref', '2-ref' => 'office' ),
+	'term hop at slot 1'     => array( 'srcTermIn' => 'category' ),
+	'site fallback'          => array( '2-src' => 'site' ),
+);
+foreach ( $none_cases as $name => $legacy ) {
+	$shipped = t_shipped_try_walk( $legacy, false, false );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false ), false, false );
+	check( "P14.4 [none: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
+}
+$none_wire = bws_fold_emit_slot( bws_fold_from_legacy( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
+check( 'P14.4 read-less container emits a bare chain', 'src(refs,office)' === $none_wire, var_export( $none_wire, true ) );
+
+// P14.5 — `srcTermIn` does NOT carry forward in a selecting container (it names this
+// slot's entity hop). The flat resolver's own variable never carried it; what leaked
+// was the bare key riding along in $eval_opts, which the flipped loop now overwrites
+// with '' on every slot.
+$stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), 'key' );
+check( 'P14.5 term hop stays on its own slot', 'category' === ( $stm_walk[1]['srcTermIn'] ?? null ) && '' === ( $stm_walk[2]['srcTermIn'] ?? null ), json_encode( $stm_walk ) );
+
+// P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
+// needs no such exception (its unconfigured read skips the slot one step later).
+check( 'P14.6 selecting slot 1 with no keys at all is still a slot', null !== bws_fold_slot_struct( 1, array(), 'try' ), 'null' );
+check( 'P14.6 selecting slot 2 with no keys is absent', null === bws_fold_slot_struct( 2, array(), 'try' ), 'not null' );
+$empty_join = t_seam_walk( array(), 'join' );
+check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join, json_encode( $empty_join ) );
+
+// P14.7 — what the FOLD adds over the flat wire: an explicit per-slot read at slot ≥2
+// with no source of its own. Legacy `2-key` alone was DROPPED (FW-51) because a bare
+// key could not say whether it meant "override" or "left blank"; `2:key(b)` says it.
+$explicit = t_seam_try_walk( array( '1' => 'key(a)', '2' => 'key(b)' ), true, true, array( 'title' ), 'key' );
+check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && 'current' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

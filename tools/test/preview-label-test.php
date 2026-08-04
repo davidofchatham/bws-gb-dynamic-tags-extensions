@@ -550,5 +550,59 @@ check(
 	"[Join 'a', 'b' from Ref 'rel_post', 'c' from Ref 'rel_post']"
 );
 
+// ---------------------------------------------------------------------------
+echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";
+// The selecting twin of the block above. Same expected strings as the legacy cases
+// earlier in this file: the try_ preview now walks the SAME seam the callback resolves
+// with, so a label must not change when a tag migrates. It also inherits the seam's
+// container rules, which is what the last three cases pin.
+check(
+	'folded: single text slot',
+	bws_build_try_preview_label( [ '1' => 'key(sku)' ], 'text' ),
+	"[Try 'sku']"
+);
+check(
+	'folded: two slots vary source',
+	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(refs,rel)' ], 'text' ),
+	"[Try 'sku' from Current, Ref 'rel']"
+);
+check(
+	'folded: two slots vary field',
+	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(same);key(alt_sku)' ], 'text' ),
+	"[Try 'sku', 'alt_sku']"
+);
+check(
+	'folded: bare tag still warns on the missing slot-1 key',
+	bws_build_try_preview_label( [], 'text' ),
+	'[⚠ Try: slot 1 no key]'
+);
+// A read-less slot INHERITS in a selecting container (the mirror of join's skip), so
+// slot 2 previews with slot 1's field rather than vanishing — here with its own term
+// hop, which does NOT carry forward. Asserted at the legacy twin's exact string
+// (`2-srcTermIn:category` with no read of its own).
+check(
+	'folded: read-less slot 2 inherits the field, keeps its own term hop',
+	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(terms,category)' ], 'text' ),
+	"[Try 'sku' from Current, Current → Category Term]"
+);
+check(
+	'…and its legacy twin previews identically',
+	bws_build_try_preview_label( [ 'key' => 'sku', '2-srcTermIn' => 'category' ], 'text' ),
+	"[Try 'sku' from Current, Current → Category Term]"
+);
+// A container with no per-slot read axis: slots are source chains, and the label is
+// the template's own.
+check(
+	'folded: chain-only container (title) previews its sources',
+	bws_build_try_preview_label( [ '1' => '', '2' => 'src(refs,rel)' ], 'title' ),
+	"[Try Title from Current, Ref 'rel']"
+);
+// MIXED era: folded slot 2 between legacy slots 1 and 3, one accumulator.
+check(
+	'folded: mixed-era try_ wire previews with one carry-forward',
+	bws_build_try_preview_label( [ 'key' => 'a', '2' => 'src(refs,rel);key(b)', '3-use' => 'key', '3-key' => 'c' ], 'text' ),
+	"[Try 'a' from Current, 'b' from Ref 'rel', 'c' from Ref 'rel']"
+);
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

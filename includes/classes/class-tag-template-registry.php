@@ -35,8 +35,13 @@ class TagTemplateRegistry {
 	 *                    seam-routed templates (email/phone) byte-identical.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Group 1 options (global formatting: as, size, format, etc.) prepended before slots in try_ tags.
-	 *   try_per_slot_key      bool     Each try_ slot gets its own N-key.
-	 *   try_per_slot_use      bool     Each try_ slot gets its own use/N-use selector.
+	 *   try_per_slot_key      bool     Each try_ slot reads its own field key.
+	 *   try_per_slot_use      bool     Each try_ slot gets its own read (`use`) selector.
+	 *                    The PAIR names the slot's READ SHAPE, which is what the folded
+	 *                    slot control renders and what an absent read means: both →
+	 *                    enum + key picker; key only → picker alone (an empty picker is
+	 *                    the inherit); neither → no per-slot read at all, the tag-level
+	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
 	 */
@@ -370,31 +375,30 @@ class TagTemplateRegistry {
 	 * traversal and returns the first non-empty result across all slots.
 	 * Tags are registered with GB type 'first-available'.
 	 *
-	 * Source options per slot:
-	 *   ''    Current post context (no traversal).
-	 *   'ref' Post → Related Post (requires N-ref relationship field key).
-	 *
-	 * srcTerm modifier per slot (N-srcTerm checkbox + N-tax):
-	 *   When set, the resolved post's first matching term is used as the entity.
-	 *   Uses try_term_fn for dispatch; no srcTerm carry-forward between slots.
-	 *
-	 * Slot option naming (slot 1 un-prefixed; slots 2–5 use N- prefix):
-	 *   src, 2-src … 5-src   — source selector.
-	 *   ref, 2-ref … 5-ref   — relationship field key (shown when src = 'ref').
-	 *   srcTerm, 2-srcTerm … — term hop modifier (no carry-forward).
-	 *   tax, 2-tax …         — taxonomy slug (shown when srcTerm set).
-	 *   use, 2-use …         — source type (try_per_slot_use templates only).
-	 *   key, 2-key …         — field key (try_per_slot_key / try_per_slot_use templates).
+	 * FOLDED SLOT WIRE (FW-56/57). Each slot is ONE option key — `1`, `2`, … — of type
+	 * `bws-slot-fold`, whose value carries that slot's whole configuration: a source
+	 * chain (`src(refs,office;terms,category)`) plus a field read (`key(x)` / `use(title)`
+	 * / `use(same)`) plus per-slot options. Grammar and vocabulary:
+	 * includes/helpers/slot-fold.php (the PHP owner) and bws_build_fold_slot_options().
 	 *
 	 * Option order follows the three-group structure from tag-reference.md:
 	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
-	 *   Group 2 — per-slot options (src/N-src, ref/N-ref, srcTerm/N-srcTerm, tax/N-tax, use/N-use, key/N-key) × 5 slots.
-	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys (field keys, fallback, link options).
+	 *   Group 2 — the folded slot keys `1`..`5`.
+	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys
+	 *             (field keys, fallback, link options), then chain-level limit/sep.
 	 *
-	 * Sub-options carry forward from slot to slot when left blank (inherit semantics).
-	 * srcTerm does NOT carry forward — each slot independently chooses entity type.
-	 * For try_per_slot_key templates, N-key carries the field key per slot.
-	 * For try_per_slot_use templates, N-use carries the source-type selector per slot.
+	 * RESOLUTION runs through the shared render seam, so the inherit rules live in one
+	 * place for every container (bws_fold_slot_flat_options):
+	 *   - An axis left unset INHERITS from the previous resolving slot. Slot 1 seeds the
+	 *     accumulator: ambient source, and the template's stripped first `use` value.
+	 *   - A slot that does NOT resolve never feeds the accumulator, so a half-configured
+	 *     slot cannot re-point a later slot's inherit.
+	 *   - The term hop is the exception: it names THIS slot's entity and never carries.
+	 *   - Wire era is decided PER SLOT — a folded value parses, an absent one is
+	 *     recovered from that slot's legacy keys — so a half-migrated tag resolves.
+	 *
+	 * Slot 1 is never absent here: every axis unset IS the default attempt (the shape a
+	 * bare `{{try_title}}` renders). Slots ≥2 are absent when they hold nothing.
 	 *
 	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
 	 * after trailing options. The single linkTo/linkKey applies to the winning slot's entity —
@@ -410,16 +414,6 @@ class TagTemplateRegistry {
 
 		// Snapshot existing tags for dup-check.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
-
-		// Slot src/ref/srcTermIn option definitions DERIVE from the base builders
-		// (bws_base_source_option / bws_base_traversal_options) via
-		// bws_build_slot_traversal_options — single source of truth, no inline copies
-		// (kills slot-vs-base drift). `site` is filtered out of the derived slot src
-		// list (resolver has no site arm; #32 re-allows per-template). [SPEC §26 V1,V2]
-		$base_src_options  = function_exists( 'bws_base_source_option' ) ? bws_base_source_option() : [];
-		$base_trav_options = function_exists( 'bws_base_traversal_options' ) ? bws_base_traversal_options() : [];
-
-		// All slot-tied controls front-load the ordinal as an "N: " prefix (legibility).
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -460,110 +454,54 @@ class TagTemplateRegistry {
 				: [];
 			$options = $leading_options;
 
-			for ( $n = 1; $n <= 5; $n++ ) {
-				$prev    = $n - 1;
-				$src_key = ( 1 === $n ) ? 'src'       : "{$n}-src";
-				$use_key = ( 1 === $n ) ? 'use'       : "{$n}-use";
-				$ref_key = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
-				$stm_key = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
-				$key_key = ( 1 === $n ) ? 'key'       : "{$n}-key";
-
-				// Slot visibility trigger:
-				//   Slot 1 — always visible.
-				//   Slot 2 — always visible (matrix shape: at least two slots configurable up front).
-				//   Slot 3+ — visible when any prior slot's option carries a non-default value.
-				if ( $n <= 2 ) {
-					$slot_trigger = [];
-				} else {
-					$prev_src = ( 1 === $prev ) ? 'src'       : "{$prev}-src";
-					$prev_ref = ( 1 === $prev ) ? 'ref'       : "{$prev}-ref";
-					$prev_stm = ( 1 === $prev ) ? 'srcTermIn' : "{$prev}-srcTermIn";
-					$prev_any = [
-						$prev_src => 'not_empty',
-						$prev_ref => 'not_empty',
-						$prev_stm => 'not_empty',
-					];
-					if ( $per_slot_key || $per_slot_use ) {
-						$prev_key              = ( 1 === $prev ) ? 'key' : "{$prev}-key";
-						$prev_any[ $prev_key ] = 'not_empty';
-					}
-					if ( $per_slot_use ) {
-						$prev_use              = ( 1 === $prev ) ? 'use' : "{$prev}-use";
-						$prev_any[ $prev_use ] = 'not_empty';
-					}
-					$slot_trigger = [ 'show_if_any' => $prev_any ];
-				}
-
-				// src / ref / srcTermIn — DERIVED from the base builders (single source of
-				// truth; no inline copies). `site` filtered out by default, slot ≥2
-				// 'same'-prepended, _strip_default kept, "N: " label prefix overlaid, show_if
-				// re-qualified — all inside bws_build_slot_traversal_options. [SPEC §26
-				// V1,V2,V5,V6,V10]. $allow_site_slot re-allows `site` per-template (email/
-				// phone) now the slot resolver has a site arm [SPEC §32 V7,V8].
-				$slot_defs = function_exists( 'bws_build_slot_traversal_options' )
-					? bws_build_slot_traversal_options( $n, $base_src_options, $base_trav_options, $allow_site_slot )
-					: [ 'src' => [], 'ref' => [], 'srcTermIn' => [] ];
-
-				// $slot_trigger (show_if_any visibility) is a DISTINCT key from any base
-				// show_if the derived defs carry — merge preserves both, never overwrites (V3).
-				$options[ $src_key ] = array_merge( $slot_defs['src'], $slot_trigger );
-				$options[ $ref_key ] = $slot_defs['ref'];
-				$options[ $stm_key ] = array_merge( $slot_defs['srcTermIn'], $slot_trigger );
-
-				// N-use — per-slot field-type selector (try_per_slot_use templates only).
-				// DERIVED from the template's own `use` definition via the read twin —
-				// enum, "N: <noun>" label and _strip_default all come off the base def;
-				// selecting containers take the `same` inherit row ($allow_same = true).
-				$slot_read = ( $per_slot_use && function_exists( 'bws_build_slot_read_options' ) )
-					? bws_build_slot_read_options( $n, $tpl_options['use'] ?? [], true )
-					: [];
-				if ( ! empty( $slot_read ) ) {
-					$options[ $use_key ] = array_merge( $slot_read, $slot_trigger );
-				}
-
-				// key — per-slot field key.
-				// try_per_slot_key (no use): always shown within slot.
-				// try_per_slot_use: shown only when current slot's effective use mode needs a key.
-				//   Effective mode for slot ≥2 includes "same" (inherit) — visibility for inherit
-				//   case is approximated by show_if_any across this slot's use values that need keys.
-				if ( $per_slot_key && ! $per_slot_use ) {
-					$options[ $key_key ] = array_merge(
-						[
-							'type'         => 'bws-field-combo',
-							/* translators: %d: slot number */
-							'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-							'dynamicLabel' => true,
-							'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-							'placeholder'  => 'field_name',
-						],
-						$slot_trigger
-					);
-				} elseif ( $per_slot_use ) {
-					// Slot 1: '' wire = template's first 'use' value (key-mode for text/image, content for content).
-					//   Show key when current 'use' is NOT in no-key list (use === '' implies key-mode for text/image).
-					//   Builds 'show_if' = { use_key => 'not_in:<no-key values>' }.
-					// Slot ≥2: '' wire = 'same' (inherit prior carry-forward — inherits BOTH use AND key).
-					//   Show key only when user explicitly picks a key-needing 'use' value (override mode).
-					//   Same-as-previous keeps key field hidden because the inherited key is reused.
-					$use_values  = array_column( $tpl_options['use']['options'], 'value' );
-					$key_values  = array_values( array_diff( $use_values, $no_key_uses ) );
-					$key_show_if = ( 1 === $n )
-						? ( ! empty( $no_key_uses ) ? [ $use_key => 'not_in:' . implode( ',', $no_key_uses ) ] : [] )
-						: ( ! empty( $key_values ) ? [ $use_key => 'in:' . implode( ',', $key_values ) ] : [] );
-
-					$options[ $key_key ] = array_merge(
-						[
-							'type'         => 'bws-field-combo',
-							/* translators: %d: slot number */
-							'label'        => sprintf( __( '%d: Meta/Option Field Key', 'generateblocks' ), $n ),
-							'dynamicLabel' => true,
-							'help'         => __( 'ACF or meta field key for this slot.', 'generateblocks' ),
-							'placeholder'  => 'field_name',
-						],
-						$key_show_if ? [ 'show_if' => $key_show_if ] : [],
-						$slot_trigger
-					);
-				}
+			// Group 2 — FOLDED slot keys `1`..`5` (FW-56/57). One `bws-slot-fold` option
+			// per slot, whose VALUE carries that slot's whole configuration. Replaces the
+			// six flat keys per slot (src/ref/srcTermIn/use/key ×5 plus their show_if_any
+			// reveal cascade) this loop used to register. Every enum, label and noun the
+			// control renders is DERIVED inside bws_build_fold_slot_options from the same
+			// builders the flat registration read (the source twin, the read twin, the
+			// template's own key definition) — nothing is re-typed for the fold.
+			//
+			// The three READ shapes are the template flags, unchanged in meaning:
+			//   per_slot_use  — a `use` enum plus a key picker (text/content/image).
+			//   per_slot_key  — a key picker alone (email/phone: no `use` axis exists).
+			//   neither       — no per-slot read at all (title/permalink/datetime_*),
+			//                   whose `use`/`key`, where they exist, stay TAG-level
+			//                   options in the trailing group below.
+			// `base_read`/`base_key` are handed over empty for the shapes that lack the
+			// axis, and the control renders whichever shape the derived config describes.
+			//
+			// `hops` is a CAPABILITY list: the flat render seam holds one ref hop and one
+			// term hop, and `ref` is already a SOURCE row, so the term hop is the only
+			// step try_ can continue a chain with. Offering more would author wire the
+			// seam cannot flatten (bws_fold_slot_flat_options skips such a slot).
+			//
+			// NEVER array_merge() an option set that holds folded slot keys. PHP stores
+			// all-digit keys as INTEGERS, and array_merge RENUMBERS integer keys — slots
+			// `1`..`5` silently become `0`..`4`, which registers a slot 0 the grammar has
+			// no ordinal for and drops slot 5. Append by key instead, here and below.
+			$fold_slots = function_exists( 'bws_build_fold_slot_options' )
+				? bws_build_fold_slot_options(
+					[
+						'container'       => 'try',
+						'combining'       => false,
+						'per_slot_use'    => $per_slot_use,
+						'min'             => 2,
+						'max'             => 5,
+						'base_read'       => $per_slot_use ? ( $tpl_options['use'] ?? [] ) : [],
+						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
+						'allow_site'      => $allow_site_slot,
+						'allow_same_read' => true,
+						'hops'            => [ 'srcTermIn' ],
+						// "slot" is the word try_'s own preview warnings already use
+						// ("⚠ Try: slot 2 no key"); the fold introduces no second noun.
+						'noun'            => __( 'slot', 'generateblocks' ),
+						'label'           => __( 'Slot %d', 'generateblocks' ),
+					]
+				)
+				: [];
+			foreach ( $fold_slots as $slot_key => $slot_def ) {
+				$options[ (string) $slot_key ] = $slot_def;
 			}
 
 			// Append template-level trailing options (fallback, etc.).
@@ -578,35 +516,37 @@ class TagTemplateRegistry {
 			if ( $per_slot_use ) {
 				unset( $trailing_opts['use'], $trailing_opts['key'] );
 			}
-			$options = array_merge( $options, $trailing_opts, $link_opts_try );
+			foreach ( [ $trailing_opts, $link_opts_try ] as $group ) {
+				foreach ( $group as $opt_key => $opt_def ) {
+					$options[ $opt_key ] = $opt_def;   // see the array_merge warning above.
+				}
+			}
 
 			// List-mode chain options (try_list_options templates: text, title). A winning
 			// slot in list mode (any slot with a srcTermIn term-hop, or src:ref once the
 			// Phase-5 plural resolver lands) joins its finished items via the seam
 			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
-			// not per-slot) — the seam reads them off $opts. Shown when ANY slot declares a
-			// list axis (multi-slot OR over every slot's srcTermIn / src:ref). Mirrors the
-			// base text tag's limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			// not per-slot) — the seam reads them off $opts. Mirrors the base text tag's
+			// limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			//
+			// The pair is UNCONDITIONAL under the fold. Its reveal predicate used to be a
+			// show_if_any over every slot's `N-srcTermIn`/`N-src` — keys the fold removed.
+			// A list axis now lives INSIDE a slot value (`src(terms[category])`), and
+			// show_if compares whole option values, so no honest predicate exists: a
+			// `not_empty` on slot `1` fires for every configured slot, list axis or not.
+			// Two controls always visible beats a condition that lies about when the pair
+			// matters — and the same call was made for join's reveal rows (5d).
 			if ( $list_options ) {
-				$list_show_if_any = [];
-				foreach ( range( 1, 5 ) as $sn ) {
-					$stm = ( 1 === $sn ) ? 'srcTermIn' : "{$sn}-srcTermIn";
-					$src = ( 1 === $sn ) ? 'src'       : "{$sn}-src";
-					$list_show_if_any[ $stm ] = 'not_empty';
-					$list_show_if_any[ $src ] = 'ref';
-				}
 				$options['limit'] = [
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => $list_show_if_any,
+					'type'  => 'number',
+					'label' => __( 'Result Limit', 'generateblocks' ),
+					'help'  => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
 				];
 				$options['sep'] = [
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => $list_show_if_any,
 				];
 			}
 
@@ -643,73 +583,54 @@ class TagTemplateRegistry {
 				$link_key = $slnk ? ( $opts['linkKey'] ?? '' ) : '';
 				$new_tab  = $slnk && ! empty( $opts['newTab'] );
 
-				// Carry-forward state across slots. Canonical tokens stored:
-				// $last_src: 'current' | 'ref' (never empty after slot 1 normalize).
-				// $last_use: per-template default ('key' | 'content') | other tokens.
-				$last_src = 'current';
-				$last_ref = '';
-				$last_key = '';
-				$last_use = ''; // populated from slot 1 default below.
+				// ONE carry-forward accumulator for the whole chain, threaded through the
+				// fold seam (bws_fold_slot_flat_options), which owns the inherit rules for
+				// every container. Seeded with what slot 1's ABSENT axes mean here: `src`
+				// empty reads as 'current' below, and the read seeds the template's
+				// stripped first `use` value, so an unset slot-1 read inherits the same
+				// token the flat resolver derived at slot 1 — and so does a later
+				// `use(same)` that reaches back past a slot which never set one.
+				$carry = [
+					'src' => '',
+					'ref' => '',
+					'use' => $psu ? $default_use : '',
+					'key' => '',
+				];
 
 				foreach ( range( 1, 5 ) as $n ) {
-					$src_k = ( 1 === $n ) ? 'src'       : "{$n}-src";
-					$ref_k = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
-					$stm_k = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
-					$key_k = ( 1 === $n ) ? 'key'       : "{$n}-key";
-					$use_k = ( 1 === $n ) ? 'use'       : "{$n}-use";
-
-					$src_raw = $opts[ $src_k ] ?? '';
-					$ref_raw = $opts[ $ref_k ] ?? '';
-					$stm_raw = sanitize_key( $opts[ $stm_k ] ?? '' );
-					$key_raw = $opts[ $key_k ] ?? '';
-					$use_raw = $opts[ $use_k ] ?? '';
-
-					// 'same' is the inherit sentinel for slot ≥2 dropdowns; strip-at-registration
-					// normally renders this as '', but normalize defensively for hand-written tags.
-					if ( $n > 1 ) {
-						if ( 'same' === $src_raw ) { $src_raw = ''; }
-						if ( 'same' === $use_raw ) { $use_raw = ''; }
+					// Era per SLOT, not per tag: a folded value parses, an absent one is
+					// recovered from this slot's legacy keys, and both feed one accumulator
+					// (so a half-migrated tag resolves as its author last saw it).
+					$slot = function_exists( 'bws_fold_slot_struct' )
+						? bws_fold_slot_struct( $n, (array) $opts, 'try', $psu )
+						: null;
+					if ( null === $slot ) {
+						continue;   // nothing in either era, or the shipped resolver's own skip.
+					}
+					$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+					if ( null === $flat ) {
+						continue;   // chain the flat seam cannot express (second hop, repeater rows).
 					}
 
-					// Slot 1: '' = stripped first-option default (= 'current' for src, per-template for use).
-					// Slot ≥2: '' = 'same' (inherit prior carry-forward).
-					if ( 1 === $n ) {
-						$last_src = ( '' === $src_raw ) ? 'current' : $src_raw;
-						$last_ref = $ref_raw;
-						$last_key = $key_raw;
-						if ( $psu ) {
-							$last_use = ( '' === $use_raw ) ? $default_use : $use_raw;
-						}
-					} else {
-						// Slot ≥2 — when use=same (raw empty under psu), the slot fully inherits
-						// both `use` and `key` from prior carry-forward. UI hides the key field
-						// in this case; discard any stale `key_raw` left over from a prior
-						// explicit-use selection so it doesn't bleed through as an override.
-						if ( $psu && '' === $use_raw ) {
-							$key_raw = '';
-						}
-
-						// Skip slot if entirely empty (no override anywhere).
-						$has_new = '' !== $src_raw
-							|| '' !== $ref_raw
-							|| '' !== $stm_raw
-							|| ( ( $psk || $psu ) && '' !== $key_raw )
-							|| ( $psu && '' !== $use_raw );
-						if ( ! $has_new ) {
-							continue;
-						}
-
-						// Carry-forward semantics: '' = same/inherit, anything else = override.
-						if ( '' !== $src_raw ) { $last_src = $src_raw; }
-						if ( '' !== $ref_raw ) { $last_ref = $ref_raw; }
-						if ( '' !== $key_raw ) { $last_key = $key_raw; }
-						if ( $psu && '' !== $use_raw ) { $last_use = $use_raw; }
-					}
+					// The seam speaks the wire's vocabulary — an unset source. The arms
+					// below dispatch on the canonical token, so normalize once, here.
+					$last_src = '' === $flat['src'] ? 'current' : $flat['src'];
+					$last_ref = $flat['ref'];
+					$stm_raw  = sanitize_key( $flat['srcTermIn'] );
+					$last_key = $flat['key'];
+					$last_use = $flat['use'];
 
 					// Build slot-specific options (merged into core fn call).
-					$slot_opts          = $eval_opts;
-					$slot_opts['src']   = $last_src;
-					$slot_opts['ref']   = $last_ref;
+					// src/ref/srcTermIn are ALWAYS written, `srcTermIn` even when empty:
+					// $eval_opts still carries any bare legacy `srcTermIn` off a
+					// half-migrated tag, and bws_resolve_field_values appends a term hop
+					// for whatever it finds there — which is how slot 1's taxonomy used to
+					// leak into every later slot's read, contradicting "srcTermIn does not
+					// carry forward". Writing '' closes that.
+					$slot_opts              = $eval_opts;
+					$slot_opts['src']       = $last_src;
+					$slot_opts['ref']       = $last_ref;
+					$slot_opts['srcTermIn'] = $stm_raw;
 
 					if ( $psk || $psu ) {
 						$in_no_key_mode = $psu && in_array( $last_use, $nku, true );
@@ -737,13 +658,24 @@ class TagTemplateRegistry {
 					// this site read it via `?: 1` while the seam used `?? 1`, which agree
 					// today and diverge the moment 0 stops meaning 1. Unguarded: field-helpers
 					// is required at plugin init, this dispatch runs at render.
-					$sep      = $opts['sep'] ?? null;
-					$slot_max = bws_clamp_limit( $opts['limit'] ?? null );
+					//
+					// A folded slot may PIN its own limit (`src(terms[category] limit[3])`
+					// or a slot-level `limit(3)`), which then governs this slot only and is
+					// threaded into the core call too, so the seam's slice and the core's
+					// own read agree. Chain-level `limit` remains the default for every
+					// slot that pins nothing — and is what the legacy wire's bare `limit`
+					// recovers as at slot 1, identically.
+					$sep = $opts['sep'] ?? null;
+					if ( isset( $flat['limit'] ) ) {
+						$slot_opts['limit'] = $flat['limit'];
+						$slot_max           = bws_clamp_limit( $flat['limit'] );
+					} else {
+						$slot_max = bws_clamp_limit( $opts['limit'] ?? null );
+					}
 
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).
 					if ( '' !== $stm_raw && $tcf ) {
-						$slot_opts['srcTermIn'] = $stm_raw;
 						$post_id = function_exists( 'bws_resolve_post_by_source' )
 							? bws_resolve_post_by_source( $slot_opts, $inst )
 							: get_the_ID();

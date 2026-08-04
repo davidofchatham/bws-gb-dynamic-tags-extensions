@@ -249,71 +249,46 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		return '';
 	}
 
-	// Per-template defaults (mirrors bws_build_preview_label).
+	// Per-template defaults (mirrors bws_build_preview_label). A non-empty default is
+	// also exactly what "this template has a per-slot `use` axis" means: the three
+	// per_slot_use templates are the three with a default read token.
 	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
 	$use_default  = $use_defaults[ $base_template ] ?? '';
+	$per_slot_use = '' !== $use_default;
 
-	// Walk slots 1-5, normalize each into canonical-token struct.
-	// Apply carry-forward: slot ≥2 empty fields inherit prior slot's value.
-	$slots    = [];
-	$last_src = 'current';
-	$last_ref = '';
-	$last_key = '';
-	$last_use = $use_default;
-	$last_tax = '';
+	// Walk slots 1-5 through the SAME render seam the callback resolves with
+	// (bws_fold_slot_struct + bws_fold_slot_flat_options), so this preview reads folded
+	// and legacy wire alike and cannot drift from what will actually render. The walk
+	// this replaced was a private copy of the era rules, the skip rule and the
+	// carry-forward — the third such copy, and the one most likely to go stale, since
+	// nothing renders when it is wrong.
+	$slots = [];
+	$carry = array(
+		'src' => '',
+		'ref' => '',
+		'use' => $use_default,
+		'key' => '',
+	);
 	for ( $n = 1; $n <= 5; $n++ ) {
-		$src_k = ( 1 === $n ) ? 'src'       : "{$n}-src";
-		$ref_k = ( 1 === $n ) ? 'ref'       : "{$n}-ref";
-		$stm_k = ( 1 === $n ) ? 'srcTermIn' : "{$n}-srcTermIn";
-		$key_k = ( 1 === $n ) ? 'key'       : "{$n}-key";
-		$use_k = ( 1 === $n ) ? 'use'       : "{$n}-use";
-
-		$src_raw = $options[ $src_k ] ?? '';
-		$ref_raw = $options[ $ref_k ] ?? '';
-		$stm_raw = $options[ $stm_k ] ?? '';
-		$key_raw = $options[ $key_k ] ?? '';
-		$use_raw = $options[ $use_k ] ?? '';
-
-		// Slot ≥2 'same' sentinel normalizes to empty for inherit.
-		if ( $n > 1 ) {
-			if ( 'same' === $src_raw ) { $src_raw = ''; }
-			if ( 'same' === $use_raw ) { $use_raw = ''; }
-			// When use=same, key field is hidden in UI — discard stale key.
-			if ( '' === $use_raw ) { $key_raw = ''; }
+		$slot = function_exists( 'bws_fold_slot_struct' )
+			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use )
+			: null;
+		if ( null === $slot ) {
+			continue;
 		}
-
-		// Skip slot if no override (slot ≥2 only).
-		if ( $n > 1 ) {
-			$has_new = '' !== $src_raw
-				|| '' !== $ref_raw
-				|| '' !== $stm_raw
-				|| '' !== $key_raw
-				|| '' !== $use_raw;
-			if ( ! $has_new ) {
-				continue;
-			}
+		$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+		if ( null === $flat ) {
+			continue;
 		}
-
-		// Slot 1: '' = first-option default token.
-		if ( 1 === $n ) {
-			if ( '' === $src_raw ) { $src_raw = 'current'; }
-			if ( '' === $use_raw && '' !== $use_default ) { $use_raw = $use_default; }
-		}
-
-		// Apply carry-forward semantics. srcTermIn does NOT carry forward.
-		if ( '' !== $src_raw ) { $last_src = $src_raw; }
-		if ( '' !== $ref_raw ) { $last_ref = $ref_raw; }
-		$last_tax = $stm_raw;
-		if ( '' !== $key_raw ) { $last_key = $key_raw; }
-		if ( '' !== $use_raw ) { $last_use = $use_raw; }
 
 		$slots[] = [
 			'n'   => $n,
-			'src' => $last_src,
-			'ref' => $last_ref,
-			'tax' => $last_tax,
-			'key' => $last_key,
-			'use' => $last_use,
+			// The seam reports an unset source; the preview vocabulary names it.
+			'src' => '' === $flat['src'] ? 'current' : $flat['src'],
+			'ref' => $flat['ref'],
+			'tax' => $flat['srcTermIn'],
+			'key' => $flat['key'],
+			'use' => $flat['use'],
 		];
 	}
 

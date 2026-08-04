@@ -140,6 +140,10 @@
     { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "same", "2-key": "alt" } },
     { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "site", "2-key": "phone" } },
     { "n": 3, "combining": false, "perSlotUse": true, "options": { "3-use": "same" } },
-    { "n": 3, "combining": true, "perSlotUse": true, "options": { "3-srcTermIn": "department", "3-use": "title", "3-limit": "0" } }
+    { "n": 3, "combining": true, "perSlotUse": true, "options": { "3-srcTermIn": "department", "3-use": "title", "3-limit": "0" } },
+    { "n": 2, "combining": false, "perSlotUse": false, "options": { "2-src": "site" } },
+    { "n": 3, "combining": false, "perSlotUse": false, "options": { "3-src": "ref", "3-ref": "office" } },
+    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-src": "site", "2-use": "key" } },
+    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-use": "key" } }
   ]
 }

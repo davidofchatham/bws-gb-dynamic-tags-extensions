@@ -485,6 +485,13 @@
 			perSlotUse = true;
 		}
 
+		// An explicitly key-moded selecting slot ≥2 with NO key of its own BORROWED the
+		// carried key under the flat resolver — read it as the inherit it was (the PHP
+		// owner's docblock carries the reasoning).
+		if ( ! combining && perSlotUse && n >= 2 && 'key' === use && '' === key ) {
+			use = '';
+		}
+
 		// A selecting slot ≥2 with an absent read DISCARDS any stale key (the shipped
 		// resolver does that before testing whether the slot has new content at all).
 		if ( ! combining && perSlotUse && n >= 2 && '' === use ) {
@@ -531,7 +538,9 @@
 		} else if ( combining ) {
 			slotRead = null;   // UNCONFIGURED — the shipped resolver skips this slot.
 		} else {
-			slotRead = ( n >= 2 ) ? { kind: 'same' } : null;
+			// Selecting: absent read inherits either way, so materialize the sentinel
+			// only where a read axis exists to show it (PHP owner's docblock).
+			slotRead = ( n >= 2 && perSlotUse ) ? { kind: 'same' } : null;
 		}
 
 		var opts = {};

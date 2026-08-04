@@ -426,8 +426,14 @@ function bws_build_fold_slot_options( array $args ): array {
 		),
 		'taxonomies'     => $tax_rows,
 		'refOption'      => $picker( $base_trav['ref'] ),
-		'keyOption'      => $picker( $base_key ),
 	);
+	// OMITTED, not empty, when the container has no per-slot key (try_title and the
+	// other read-less templates). An empty array here would reach the control as JS
+	// `[]`, which is TRUTHY — enough to render a key picker with no label for a slot
+	// whose read is a tag-level option.
+	if ( ! empty( $base_key ) ) {
+		$fold['keyOption'] = $picker( $base_key );
+	}
 	if ( ! empty( $args['entries_option'] ) ) {
 		$fold['entriesOption'] = $picker( (array) $args['entries_option'] );
 	}

@@ -314,6 +314,15 @@ $joins = bws_build_fold_slot_options(
 // papered over: the wire spelling is the STRING `2:`, and a reader who assumes string
 // keys survive the array is one `array_keys()` comparison away from a false failure.
 assert_same( 'one option key per slot, numeric', array( 1, 2, 3 ), array_keys( $joins ) );
+// THE TRAP that follows from int keys, pinned because a registration hit it: array_merge
+// RENUMBERS integer keys, so folding these into a leading option group with array_merge
+// slides every slot down one (`1`..`5` → `0`..`4`) — a slot 0 the grammar has no ordinal
+// for, and the top slot dropped. Consumers must append by key.
+assert_same(
+	'array_merge would renumber the slot keys (append by key instead)',
+	array( 'as', 0, 1, 2 ),
+	array_keys( array_merge( array( 'as' => array() ), $joins ) )
+);
 assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins['2']['type'] );
 assert_same( 'per-slot label follows the caller pattern', 'Field 2', $joins['2']['label'] );
 
@@ -391,6 +400,49 @@ assert_same(
 assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 'same', array_column( $sel_fold['readRowsInherit'], 'value' ), true ) );
 assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
 assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
+
+// The other two READ SHAPES a selecting container comes in. Both are described by the
+// derived config alone — the control picks its rendering from these fields, never from
+// the container name, so the shapes must be distinguishable HERE.
+//
+// KEY-ONLY (try_email / try_phone: a per-slot key with no `use` enum). No read rows, a
+// key definition present: the control renders the picker alone, and an empty field is
+// how that slot says "inherit".
+$key_only = bws_build_fold_slot_options(
+	array(
+		'container'    => 'try',
+		'combining'    => false,
+		'per_slot_use' => false,
+		'max'          => 2,
+		'base_read'    => array(),                       // no `use` axis exists
+		'base_key'     => $text['key'],
+		'allow_site'   => true,
+	)
+);
+$key_fold = $key_only['1']['fold'];
+assert_same( 'key-only: no read enum', array(), $key_fold['readRows'] );
+assert_same( 'key-only: no read enum at slot ≥2 either', array(), $key_fold['readRowsInherit'] );
+assert_same( 'key-only: the key picker is still configured', $text['key']['label'], $key_fold['keyOption']['label'] );
+assert_same( 'key-only: perSlotUse false reaches the control', false, $key_fold['perSlotUse'] );
+assert_same( 'key-only: readLabel is empty, so the control falls back to the key noun', '', $key_fold['readLabel'] );
+
+// NO READ AXIS AT ALL (try_title / try_permalink / try_datetime_*): the read is a
+// TAG-level option, so a slot is a source chain and nothing else.
+$chain_only = bws_build_fold_slot_options(
+	array(
+		'container'    => 'try',
+		'combining'    => false,
+		'per_slot_use' => false,
+		'max'          => 2,
+		'base_read'    => array(),
+		'base_key'     => array(),
+		'allow_site'   => true,
+	)
+);
+$chain_fold = $chain_only['1']['fold'];
+assert_same( 'chain-only: no read enum', array(), $chain_fold['readRows'] );
+assert_same( 'chain-only: no key picker either', null, $chain_fold['keyOption'] ?? null );
+assert_same( 'chain-only: the source enum is still whole', true, count( $chain_fold['srcRows'] ) > 1 );
 
 echo "\n";
 if ( $failures > 0 ) {

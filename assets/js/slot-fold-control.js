@@ -173,11 +173,15 @@
 	 * choosing a field IS the configuration act there — seeding `same` would create a
 	 * slot that assembles the identical datum twice. The spike used one seed for both
 	 * because it only ever ran one container.
+	 *
+	 * A selecting container with NO per-slot read axis (`try_permalink` and friends,
+	 * whose read is a tag-level option) seeds no read either: the sentinel would name
+	 * an axis the tag does not have, and no control would render it.
 	 */
 	function seedSlot( conf ) {
 		var slot = emptySlot();
 		slot.chain = [ step( 'same' ) ];
-		slot.read = conf.combining ? null : { kind: 'same' };
+		slot.read = ( conf.combining || ! conf.perSlotUse ) ? null : { kind: 'same' };
 		return slot;
 	}
 
@@ -493,11 +497,24 @@
 		];
 
 		if ( ordinal >= 2 ) {
-			var advisory = {
-				context: __( 'Varies: source (field inherited)', 'generateblocks' ),
-				field: __( 'Varies: field (source inherited)', 'generateblocks' ),
-				both: __( 'Varies: source and field', 'generateblocks' )
-			}[ inferIntent( slot ) ];
+			// A container with NO per-slot read axis has ONE axis to vary, so the two-axis
+			// vocabulary would name a field the slot cannot configure. `readRows`/
+			// `keyOption` absent is the same test the read group makes — every shape is
+			// read off the derived config, never off the container name.
+			var intent   = inferIntent( slot );
+			var hasRead  = !! ( conf.readRows.length || conf.keyOption );
+			var advisory;
+			if ( ! hasRead ) {
+				advisory = 'both' === intent
+					? __( 'Varies: source', 'generateblocks' )
+					: __( 'Inherits the previous source — this slot repeats it until you change the source.', 'generateblocks' );
+			} else {
+				advisory = {
+					context: __( 'Varies: source (field inherited)', 'generateblocks' ),
+					field: __( 'Varies: field (source inherited)', 'generateblocks' ),
+					both: __( 'Varies: source and field', 'generateblocks' )
+				}[ intent ];
+			}
 			if ( ! advisory ) {
 				advisory = conf.combining
 					? __( 'Inherits the previous source — pick a field for this slot.', 'generateblocks' )
@@ -707,14 +724,23 @@
 		// The read-kind select plus (when the kind is `key`) the whole field picker are
 		// ONE decision about what to read, so they share one box and take no internal
 		// rule — unlike the source group, where each step is a separate hop.
-		if ( conf.readRows.length ) {
-			var read = slot.read;
+		//
+		// THREE read shapes, all read off the derived config rather than the container
+		// name: a KIND enum plus picker (readRows non-empty — text/content/image/join),
+		// a picker ALONE (`keyOnly`: a per-slot key with no `use` enum — try_email /
+		// try_phone, whose only read is "that field"), and NOTHING (neither — the read
+		// is a tag-level option, as on try_permalink). In keyOnly there is no row to
+		// select `same` with, so an EMPTY field is the inherit: it writes an absent
+		// read, which a selecting container already resolves by carry-forward.
+		var read = slot.read;
+		var keyOnly = ! conf.readRows.length && !! conf.keyOption;
+		if ( conf.readRows.length || keyOnly ) {
 			var readVal = '';
 			if ( read && 'key' === read.kind ) { readVal = 'key'; }
 			if ( read && 'analog' === read.kind ) { readVal = read.slug; }
 			if ( read && 'same' === read.kind ) { readVal = 'same'; }
 
-			var readNodes = [ el( SelectControl, {
+			var readNodes = keyOnly ? [] : [ el( SelectControl, {
 				key: 'read',
 				// The caption carries the group name; this select picks the KIND. Its
 				// label is the base read definition's own noun ("Text Field", …),
@@ -737,11 +763,18 @@
 				__nextHasNoMarginBottom: true
 			} ) ];
 
-			if ( read && 'key' === read.kind ) {
+			if ( keyOnly || ( read && 'key' === read.kind ) ) {
 				var keyCfg = conf.keyOption || {};
-				var commitField = function ( field ) {
-					writeRead( { kind: 'key', field: field } );
-				};
+				var commitField = keyOnly
+					// Clearing the field is how a keyOnly slot says "inherit" — there is
+					// no enum row to say it with. An empty `key()` would instead be an
+					// explicit read of nothing, which skips the slot.
+					? function ( field ) {
+						writeRead( field ? { kind: 'key', field: field } : null );
+					}
+					: function ( field ) {
+						writeRead( { kind: 'key', field: field } );
+					};
 				readNodes.push( el( 'div', { key: 'readArg', style: STACKED, className: 'bws-slot-fold' },
 					FieldCombo
 						? el( FieldCombo, {
@@ -760,7 +793,7 @@
 						} )
 						: el( TextControl, {
 							label: keyCfg.label,
-							value: read.field || '',
+							value: ( read && read.field ) || '',
 							placeholder: keyCfg.placeholder,
 							help: __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
 							onChange: commitField,
@@ -769,8 +802,13 @@
 				) );
 			}
 
+			// keyOnly has no read definition to take a noun from, so the caption comes
+			// off the KEY definition instead — still derived, never authored here.
+			var readCap = conf.readLabel
+				|| ( conf.keyOption && conf.keyOption.label )
+				|| __( 'Field', 'generateblocks' );
 			children.push( el( 'div', { key: 'readgroup', style: GROUP_BOX }, [
-				el( 'span', { key: 'cap', style: GROUP_CAP }, conf.readLabel || __( 'Field', 'generateblocks' ) )
+				el( 'span', { key: 'cap', style: GROUP_CAP }, readCap )
 			].concat( readNodes ) ) );
 		}
 

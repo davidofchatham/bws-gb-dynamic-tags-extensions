@@ -67,6 +67,15 @@ if ( ! fold || ! rep ) {
 // are supplied; enums/labels belong to the rendered control, not to these rules.
 const SELECTING = rep.foldConfig( { fold: { container: 'try', combining: false, perSlotUse: true, min: 2, max: 5 } } );
 const COMBINING = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10 } } );
+// The other two SELECTING read shapes (a selecting container is not one thing):
+//   KEY_ONLY  — per-slot key, no `use` enum          (try_email, try_phone)
+//   CHAIN_ONLY— no per-slot read at all              (try_title, try_permalink, try_datetime_*)
+// Both carry perSlotUse false, and the seed must follow: `use(same)` names an axis
+// neither container has a control for.
+const KEY_ONLY = rep.foldConfig( {
+	fold: { container: 'try', combining: false, perSlotUse: false, min: 2, max: 5, keyOption: { label: 'Meta/Option Field' } }
+} );
+const CHAIN_ONLY = rep.foldConfig( { fold: { container: 'try', combining: false, perSlotUse: false, min: 2, max: 5 } } );
 
 let fail = 0;
 let total = 0;
@@ -176,6 +185,24 @@ CASES.forEach( function ( c ) {
 // ── Seed shape — CONTAINER-DEPENDENT ───────────────────────────────────────
 check( 'SELECTING seed = src(same);use(same)', fold.emitSlot( rep.seedSlot( SELECTING ) ), 'src(same);use(same)' );
 check( 'COMBINING seed = src(same) with the read UNSET', fold.emitSlot( rep.seedSlot( COMBINING ) ), 'src(same)' );
+// Not a third container, a third READ SHAPE: selecting with no `use` axis. An absent
+// read already inherits in a selecting container, so the sentinel would only add a
+// token naming an axis with no control — and the renderer resolves both the same way.
+check( 'KEY-ONLY seed omits the read sentinel', fold.emitSlot( rep.seedSlot( KEY_ONLY ) ), 'src(same)' );
+check( 'CHAIN-ONLY seed omits the read sentinel', fold.emitSlot( rep.seedSlot( CHAIN_ONLY ) ), 'src(same)' );
+
+// Compaction is read-shape blind — it materializes whatever axes the wire holds. A
+// key-only successor inheriting its key must still carry it across a removal.
+check(
+	'KEY-ONLY compaction materializes an inherited key',
+	show( rep.removeSlotFrom( 2, { '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same)' }, 3, KEY_ONLY ), KEY_ONLY ),
+	'1:key(a) | 2:src(refs,office)'
+);
+check(
+	'CHAIN-ONLY compaction materializes the chain with no read to carry',
+	show( rep.removeSlotFrom( 2, { '1': 'src(post,9999)', '2': 'src(refs,office)', '3': 'src(same)' }, 3, CHAIN_ONLY ), CHAIN_ONLY ),
+	'1:src(post,9999) | 2:src(refs,office)'
+);
 
 // ── Cardinality — content-derived, in EITHER wire era ──────────────────────
 check( 'cardinality floors at the container minimum', rep.slotCount( {}, SELECTING ), 2 );

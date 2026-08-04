@@ -615,6 +615,13 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *     slot whose ONLY legacy content was a `key` is SKIPPED by the shipped
  *     resolver (the key is discarded first, then `$has_new` is false), so it maps
  *     to nothing at all — this is the FW-51 shape, faithfully preserved.
+ *     That materialization is COSMETIC — an absent read and `use(same)` resolve
+ *     identically in a selecting container — so it is written only where the UI
+ *     can show it: `$per_slot_use`. The four try_ templates with no per-slot read
+ *     axis at all (title/permalink/datetime_*, whose read is a TAG-level option)
+ *     get no read token, because `use(same)` there names an axis the tag does not
+ *     have. Their per-slot key inherit (email/phone, per-slot key WITHOUT a `use`
+ *     enum) is spelled the same way: absent read, key carried by the accumulator.
  *   - COMBINING ({{join}}, {{table}}) has NO read carry-forward: an absent read
  *     means UNCONFIGURED and the slot is skipped. It maps to an UNSET read, not
  *     to `same`. Synthesizing `same` here would make a previously-skipped slot
@@ -648,6 +655,17 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
 
 	if ( '' === $src && '' === $ref && '' === $tax && '' === $use && '' === $key && '' === $limit ) {
 		return null;
+	}
+
+	// An explicitly key-moded selecting slot ≥2 with NO key of its own BORROWED the
+	// carried key under the flat resolver: the picker sat there empty and the slot
+	// rendered a field named somewhere else — FW-51's ambiguity from the other side.
+	// Read it as the inherit it was, so `use(same)` carries both axes. That reproduces
+	// the shipped result whenever the carried read was itself key-moded, which is every
+	// shape the shipped UI could author: a slot in an ANALOG mode hides its key field,
+	// so a stale key surviving behind one is not a state the editor can produce.
+	if ( ! $combining && $per_slot_use && $n >= 2 && 'key' === $use && '' === $key ) {
+		$use = '';
 	}
 
 	// A selecting slot ≥2 with an absent read DISCARDS any stale key (the shipped
@@ -698,7 +716,9 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
 	} elseif ( $combining ) {
 		$read = null;   // UNCONFIGURED — the shipped resolver skips this slot.
 	} else {
-		$read = ( $n >= 2 ) ? array( 'kind' => 'same' ) : null;
+		// Selecting: absent read inherits either way, so materialize the sentinel
+		// only where a read axis exists to show it (see the docblock).
+		$read = ( $n >= 2 && $per_slot_use ) ? array( 'kind' => 'same' ) : null;
 	}
 
 	// ── limit → last fanning step, else slot-level ─────────────────────────
@@ -753,6 +773,13 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
  * silently rendering a stale legacy sibling instead would be a wrong answer dressed
  * as a working one.
  *
+ * SLOT 1 OF A SELECTING CONTAINER IS NEVER ABSENT. Every axis unset there IS a
+ * configuration — the ambient source read through the template's default — which is
+ * what a bare `{{try_title}}` renders. Returning null would make the first attempt
+ * of an unconfigured try_ tag vanish. A COMBINING container needs no exception: an
+ * empty struct has no read, and an absent read means unconfigured there, so
+ * bws_fold_slot_flat_options() skips it one step later anyway.
+ *
  * @since 1.17.0
  * @param int    $n            Slot ordinal (1-based).
  * @param array  $options      All tag options (GB-parsed).
@@ -769,7 +796,28 @@ function bws_fold_slot_struct( int $n, array $options, string $container = 'join
 		return isset( $parsed['error'] ) ? null : $parsed;
 	}
 	$rec = bws_fold_from_legacy( $n, $options, 'try' !== $container, $per_slot_use );
-	return ( $rec && isset( $rec['slot'] ) ) ? $rec['slot'] : null;
+	if ( $rec && isset( $rec['slot'] ) ) {
+		return $rec['slot'];
+	}
+	return ( 1 === $n && 'try' === $container ) ? bws_fold_empty_slot() : null;
+}
+
+/**
+ * An empty slot struct in the grammar's shape (the PHP twin of the control's
+ * emptySlot()). Every axis unset: no chain, no read, no options.
+ *
+ * @since 1.17.0
+ * @return array Slot struct.
+ */
+function bws_fold_empty_slot(): array {
+	return array(
+		'label' => null,
+		'type'  => null,
+		'chain' => array(),
+		'read'  => null,
+		'opts'  => array(),
+		'extra' => array(),
+	);
 }
 
 /**
