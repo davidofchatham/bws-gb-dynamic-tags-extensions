@@ -478,6 +478,32 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
     </div>
 
+    <div class="sb-h">⟳ REOPENED — folded slot KEY spelling</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
+      Shipped as <code>1:</code>. An all-digit key is a JS <em>array index</em>, which ECMAScript
+      enumerates ahead of every string key, and GB serializes with <code>Object.entries()</code> — so
+      digit slots are PINNED to the front of the saved string and no sort can move them. Any spelling
+      that is not an array index hands rank back to the canonical order (<code>format</code> can lead
+      again). Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
+      <br><strong>Where to look:</strong> the <em>table</em> groups, which are the only folded
+      scenarios here that carry tag-level options (<code>src:</code>, <code>caption:</code>). Under
+      digits those options are FORCED after the columns; under a non-index spelling they lead. The
+      join / <code>try_</code> folded scenarios carry no tag-level option, so only the key changes
+      there.
+    </div>
+    <div class="pfx-row">
+      <label><input type="radio" name="slotkey" value="digit" checked> <code>1:</code> digits (shipped, pinned first)</label>
+      <label><input type="radio" name="slotkey" value="alpha"> <code>A:</code> capitals (candidate)</label>
+      <label><input type="radio" name="slotkey" value="s"> <code>s1:</code> prefixed</label>
+    </div>
+    <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
+      Under capitals, note the cost this tool makes visible: template mode still addresses slots as
+      <code>%1</code>…<code>%10</code> (brace tokens are impossible — GB's parser rejects <code>}</code>
+      inside options), so <code>format:%1 (%2)</code> sits beside <code>A:</code>/<code>B:</code> and the
+      author holds two ordinal alphabets for one set of slots. Switch to a join template-mode scenario
+      to see it.
+    </div>
+
     <div class="sb-h">Value Separator</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
       glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
@@ -1122,6 +1148,10 @@ const S = {
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
+  // Folded slot KEY spelling — REOPENED 2026-08-04 (user). 'digit' is what shipped in 1.17.0;
+  // 'alpha'/'s' are the candidates. Drives foldedSlotKey() AND the tag-vs-slot part order in
+  // buildFoldedTag(), since only a non-array-index key can trail a tag-level option.
+  slotKeySpelling: 'digit',
   order: [...DEFAULT_ORDER.text],
   slotVals: [{}],
   fromKeyCombined: false,
@@ -1971,7 +2001,21 @@ function foldedSlotKey(i) {
   // axes). No bare `key:`/`use:`/`src:` for slot 1. This applies ONLY to the FW-57 fold; the
   // shipped unfolded wire keeps slot-1-bare until migration. (Table differs: its slot 1 IS the
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
-  return pfx(i).replace(/-$/, ':');         // '1-' → '1:', '2-' → '2:' (slot 1 included)
+  // SPELLING is REOPENED (2026-08-04) — see the sidebar picker. Only the folded slot KEY
+  // varies; `N-` SIBLING keys (label/sep carriers, table columns) keep their ordinal, since
+  // nothing pins their order. Beyond 26 slots alpha wraps to AA/AB (no container is close).
+  const ord = i + 1;
+  switch ( S.slotKeySpelling ) {
+    case 'alpha': return alphaOrdinal( ord ) + ':';
+    case 's':     return 's' + ord + ':';
+    default:      return pfx(i).replace(/-$/, ':');   // '1-' → '1:' (slot 1 included)
+  }
+}
+// 1 → A, 2 → B, … 26 → Z, 27 → AA. Spreadsheet-column ordinals.
+function alphaOrdinal(n) {
+  let out = '';
+  while (n > 0) { const r = (n - 1) % 26; out = String.fromCharCode(65 + r) + out; n = (n - 1 - r) / 26; }
+  return out;
 }
 // Resolve $-dummy refs in a chain's step args, so scenario chains can use $ref/$tax like any
 // other permutation value. Used by both slot chains and table ROW chains.
@@ -2003,22 +2047,32 @@ function buildFoldedSlot(i, slot, containerClass) {
 // Build a whole folded-container tag (try_ / join / table). scenario.slots = [slot,…].
 // try_: name = try_<baseTag>. join: name = join. table: name = table (row chain in src:, cols {N}:).
 function buildFoldedTag(group, sc) {
-  const parts=[];
+  // TAG-LEVEL parts and SLOT parts are collected separately, because their relative order is
+  // not ours to choose under every spelling. An ALL-DIGIT slot key is a JS array-index
+  // property: ECMAScript enumerates it ahead of every string key, GB serializes with
+  // Object.entries(), so the editor CANNOT emit a tag-level option before it. Any spelling
+  // that is not an array index hands the order back to the canonical sort, where the format
+  // group leads. Emitting `src:`/`caption:` before digit columns (which this function used to
+  // do) shows a string the editor cannot produce — the fidelity bug that made this page
+  // useless for judging the spelling.
+  const tagParts=[], slotParts=[];
   const slots = sc.slots||[];
   if (group.foldClass==='table') {
     // table: row chain rides the tag-global src:; each column is a folded {N}: value.
     const rc = serializeChain(resolveChainArgs(sc.rowChain));
-    if (rc) parts.push(`${kn('src')}:${rc}`);
-    if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
+    if (rc) tagParts.push(`${kn('src')}:${rc}`);
+    if ((sc.caption||'')!=='') tagParts.push(`${kn('caption')}:${sc.caption}`);
     slots.forEach((col,ci)=>{
-      // columns are 1-indexed {N}: values (no bare slot-1 — the row set is src:, not a column).
+      // columns are 1-indexed folded values (no bare slot-1 — the row set is src:, not a column).
       // label FOLDS into the slot value as the first token (user 2026-07-29), NOT a sibling.
       const c = resolveSlot(col);
-      parts.push(`${ci+1}:${slotValueFor(c, c.tag||'', col.label||'')}`);
+      slotParts.push(`${foldedSlotKey(ci)}${slotValueFor(c, c.tag||'', col.label||'')}`);
     });
   } else {
-    slots.forEach((slot,i)=>{ parts.push(...buildFoldedSlot(i, slot, group.foldClass)); });
+    slots.forEach((slot,i)=>{ slotParts.push(...buildFoldedSlot(i, slot, group.foldClass)); });
   }
+  const parts = S.slotKeySpelling==='digit' ? [...slotParts, ...tagParts]
+                                           : [...tagParts, ...slotParts];
   const name = group.foldClass==='try' ? `try_${tmplName(group.tmpl)}`
              : group.foldClass;   // 'join' | 'table'
   const opts = parts.length ? ' '+parts.join('|') : '';
@@ -2541,6 +2595,9 @@ document.getElementById('cb-readviause').addEventListener('change',e=>{
 });
 document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
   r.addEventListener('change',()=>{ S.valuePair=r.value; renderCfgPreview(); renderPerms(); });
+});
+document.querySelectorAll('input[name="slotkey"]').forEach(r=>{
+  r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderCfgPreview(); renderPerms(); });
 });
 
 document.getElementById('cb-fromkey').addEventListener('change',e=>{
