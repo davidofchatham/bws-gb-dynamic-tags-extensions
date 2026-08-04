@@ -43,11 +43,11 @@ If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exi
 Instead of stringing together multiple tags in separate `span` elements, use one tag to combine up to 10 text fields in either simple separator or advanced template mode:
 
 - **Separator mode** joins every non-empty value with a separator string (default `", "`), skipping empties so a missing middle value never leaves a doubled separator.
-- **Template mode** places values by position in a format string, using tokens `%1`-`%10` to represent the configured fields. Punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string can return both *Dr. Tom M. Smith Jr., PhD, USN (Ret.)* and *Jane Johnson*.
+- **Template mode** places values by position in a format string, using tokens `%A`-`%J` to represent the configured slots (the same letters the slot panels are labelled with). The older `%1`-`%10` tokens still work. Punctuation attached to an empty value drops with it: an empty bracketed part sheds its brackets, an empty middle part its comma, a missing unit value its mark. One format string can return both *Dr. Tom M. Smith Jr., PhD, USN (Ret.)* and *Jane Johnson*.
 
 Output is plain text; no link options are currently available.
 
-**Note:** For height and feet units, use the prime marks `′` and `″` rather than straight quotes (`%1′%2″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
+**Note:** For height and feet units, use the prime marks `′` and `″` rather than straight quotes (`%A′%B″` renders **5′11″**, or **5′** with no inches value). WordPress converts a straight `'`/`"` to a curly quote in normal page content, but not when the block renders through a GP Element or a hooked layout, so straight marks render inconsistently depending on where the block lives. The prime marks look the same everywhere.
 
 ## Return first available field with `try_` tags
 
@@ -60,9 +60,10 @@ All `try_` tags accept a site source per slot, so a chain can end in a site-wide
 `join` and the `try_` tags configure one slot at a time: add a slot, set its source and field, remove
 it when it is no longer wanted. Removing a middle slot closes the gap, and a later slot that inherits
 from the removed one keeps the value it was reading rather than re-pointing at something else. Each
-slot saves under a single option key, so its source and field stay together in the tag string. Tags
-saved before this release are converted when you open them, and the Tag Converter handles saved
-content you have not opened.
+slot saves under a single option key, so its source and field stay together in the tag string. The key
+is a letter (`A`, `B`, `C`, and so on) matching the slot's panel label, and in `join` template mode the
+same letter is the slot's format token. Tags saved before this release are converted when you open
+them, and the Tag Converter handles saved content you have not opened.
 
 ## Return custom function output with `call` tag
 

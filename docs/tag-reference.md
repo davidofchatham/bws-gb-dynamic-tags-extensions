@@ -259,7 +259,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `term_image`, `try_image` |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
-| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove cardinality; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `1`, `2`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
+| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove cardinality; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
@@ -307,9 +307,8 @@ Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269
 
 **Serialization order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is (corrected 2026-07-23 — link moved after source, see below):
 
-0. **`fold`** group — the folded slot keys (`1`, `2`, …), on a multislot tag only. Ahead of `format`, and not by choice: see [§Folded slot wire](#folded-slot-wire-multislot-containers). A tag with no folded keys starts at 1 below and `format` leads as stated.
 1. **`format`** group — `as` (image: the folded `as:url,<size>` — see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)), format/separator tokens (serialize-early so the return mode is visible up front when copying a tag).
-2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-limit`, `N-sep`, `N-use`, `N-key`, then the datetime field keys (`N-timeKey`, `N-startKey`, `N-startTimeKey`, `N-endKey`, `N-endTimeKey`) — canonical within-slot order (`limit`/`sep` precede the field keys: list length is a source property). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0.
+2. **`source`** group, **per slot, contiguous** — for slot *N*: `N-src`, `N-ref`, `N-srcTermIn`, `N-limit`, `N-sep`, `N-use`, `N-key`, then the datetime field keys (`N-timeKey`, `N-startKey`, `N-startTimeKey`, `N-endKey`, `N-endTimeKey`) — canonical within-slot order (`limit`/`sep` precede the field keys: list length is a source property). Each slot's keys stay adjacent; slots ascend `1-…`, `2-…`, … Global (non-`N-`) source keys sort as slot 0. A **folded slot key** (`A`, `B`, … — [§Folded slot wire](#folded-slot-wire-multislot-containers)) ranks here too, at its own slot and ahead of every named source key: the folded value IS the slot's whole source-and-read, so it holds the position `src` would. Tag-level source keys are slot 0, so they still precede it.
 3. **`link`** group — the `linkTo`/`linkKey`/`newTab` cluster (custom — NOT GB's reserved `link`) OR, on email/phone, the own-anchor set `subject → noLink`. A role-based group (link-affecting controls, whichever mechanism); one set per tag. Placed **after source** because link is source-relative (`linkTo:post/term` links the resolved entity; `linkKey` reads a field off it) — matching GB's own `post_meta`/`post_date` `source → field → link` serialize chain.
 4. **`fallback`** group — `fallback`, last.
 
@@ -331,14 +330,22 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 ## Folded slot wire (multislot containers)
 
-**One option key per slot** (FW-56/57, v1.17.0). A multislot container registers keys `1`, `2`, … `N` — each of type `bws-slot-fold` — and the whole slot lives in that key's **value**: its source chain, its field read, and its per-slot options. This replaces the six flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/`limit`, slot 1 bare) the same containers registered through v1.16.x.
+**One option key per slot** (FW-56/57, v1.17.0). A multislot container registers keys `A`, `B`, … — each of type `bws-slot-fold` — and the whole slot lives in that key's **value**: its source chain, its field read, and its per-slot options. This replaces the six flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/`limit`, slot 1 bare) the same containers registered through v1.16.x.
 
 **Shipped in:** `{{join}}` and `try_*` (v1.17.0). `{{table}}` arrives folded.
 
 ```
-{{join 1:key(name_first)|2:src(same);key(name_last)}}
-{{join mode:template|format:%1 (%2)|1:src(refs,office,limit[2]);key(name)|2:src(same);use(title)}}
+{{join A:key(name_first)|B:src(same);key(name_last)}}
+{{join mode:template|format:%A (%B)|A:src(refs,office,limit[2]);key(name)|B:src(same);use(title)}}
 ```
+
+**The key IS the slot ordinal, spelled `A`…`Z`** (`AA` at 27, spreadsheet-style). One owner, `bws_slot_ordinal()` / `bws_slot_ordinal_num()` in the grammar file, because the same answer is needed by two registrations, both migration paths, the editor control, both order parsers, the panel labels and `{{join}}`'s format tokens. Three consequences:
+
+- **No cap in the grammar.** The pattern is `^[A-Z]+$`, not `^[A-Z]$` — the cap is a CONTAINER property (`{{join}}` 10, `try_*` 5), and a single-letter pattern could reject wire its own encoder produced.
+- **Nothing may compare these keys as strings.** `AA` sorts after `Z` numerically and before it lexically; both order parsers DECODE to an int.
+- **Collision-free by construction.** Every option key in the plugin and every GB reserved key is lowercase or lowercase-initial camelCase, so an all-caps key can only be a slot.
+
+The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire was already written with digits; re-spelling its reader would orphan every pre-1.17.0 tag. Only the folded key moved.
 
 **Grammar** (owner: [`includes/helpers/slot-fold.php`](../includes/helpers/slot-fold.php); JS twin `assets/js/slot-fold-grammar.js`):
 
@@ -350,7 +357,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 | value brackets | `()` at level 1, `[]` at level 2 | **alternation by depth**, never a pinned char: `limit(3)` on a base tag's own `src:`, `limit[3]` inside a slot's `src(…)` |
 | `+` `/` | — | **RESERVED**, unspent: never separators, ordinary content inside a value |
 
-`}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%N`.
+`}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%A`…`%J` (following the slot keys; `%1`…`%10` is still read and always will be — both alphabets collapse to one internal token, so nothing downstream can tell them apart).
 
 **Step slugs are wire vocabulary, distinct from the engine's option values:** `refs` (relationship hop, engine `src:ref`), `terms` (taxonomy hop, engine `srcTermIn`), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence; nothing else translates.
 
@@ -362,7 +369,9 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 **Both eras render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the legacy flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between legacy slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
 
-**Serialization: folded keys LEAD the whole string**, ahead of the format group, sorted by slot. This is an ENVIRONMENT FACT, not a rank the plugin chose: an all-digit key is a JS array-index property, which ECMAScript enumerates before every string key regardless of insertion order, and GB serializes with `Object.entries( extraTagParams )`. Neither `bws_serialization_order_sort()` nor its JS port can move them by rebuilding the object, so both STATE it (a leading `fold` dimension) instead of ranking against it. It qualifies [§Option order](#option-order)'s "format leads": on a tag WITHOUT folded slots that still holds; on one with them, slots lead and format follows. `fallback` still trails.
+**Serialization: a folded key ranks as its slot's source** — after the `format` group, after any TAG-level (slot 0) source key, before `link`/`fallback`, slots ascending. So [§Option order](#option-order) needs no qualification: `format` leads on every tag, folded or not.
+
+**Why that is worth stating.** Until 2026-08-04 the slot keys were all DIGITS, and digits are not an ordinary key: an all-digit key is a JS array-index property, which ECMAScript enumerates before every string key regardless of insertion order, and GB serializes with `Object.entries( extraTagParams )`. Neither `bws_serialization_order_sort()` nor its JS port could move them by rebuilding the object, so both had to STATE that forced order — which cost `format`-first on `{{join}}`/`try_*` and tag-level-first on `{{table}}`. Capitals are ordinary string keys, so ordering came back to the sort. The spelling is otherwise a wash (a digit prefix reads marginally better than a letter, the `%A` format tokens read better than `%1`), and the ordering is what decided it.
 
 **Cardinality is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
 
@@ -414,11 +423,11 @@ tag instance level — there is no source prefix in the tag name.
 
 ### Per-slot configuration
 
-**One option key per slot** (v1.17.0) — `1`, `2`, … `5`, folded values on the shared multislot wire. Grammar, era handling, carry-forward and serialization: [§Folded slot wire](#folded-slot-wire-multislot-containers). What is specific to `try_`:
+**One option key per slot** (v1.17.0) — `A`…`E`, folded values on the shared multislot wire. Grammar, era handling, carry-forward and serialization: [§Folded slot wire](#folded-slot-wire-multislot-containers). What is specific to `try_`:
 
 ```
-{{try_text 1:key(sku)|2:src(refs,rel_post);key(alt_sku)}}
-{{try_title 1:|2:src(refs,rel_post)|3:src(site)}}
+{{try_text A:key(sku)|B:src(refs,rel_post);key(alt_sku)}}
+{{try_title A:|B:src(refs,rel_post)|C:src(site)}}
 ```
 
 Each slot holds a **source chain** and — depending on the template — a **field read**:
@@ -844,39 +853,51 @@ still renders unchanged, and touching a slot rewrites it to folded form.
 |---|---|---|
 | `mode` | select | `''` = Separator (default, stripped) / `template`. **Format group** (serialization). |
 | `valueSep` | text | Assembly separator between non-empty slot values, default `', '`. Shown in separator mode. Values are not trimmed — `valueSep: ` is a literal space. **Format group** (serialization). Renamed from `sep` (1.16.0, FW-52) to free the key name for the list-mode source-group `sep` — a slot-value joiner is a format concern, not a source one. |
-| `format` | text | Template-mode format string with **`%1`…`%10` positional tokens** and optional **`~…~` unit groups**. Shown in template mode. **Format group** (serialization). |
+| `format` | text | Template-mode format string with **`%A`…`%J` positional tokens** (the slot keys) and optional **`~…~` unit groups**. `%1`…`%10` also read. Shown in template mode. **Format group** (serialization). |
 | `fallback` | text | Renders when ALL slots resolve empty; absent → `''` (GB hides the block). **Fallback group.** |
 
 `mode`/`valueSep`/`format` are join's **format group** — they sort serialize-early per the canonical serialization order (see [§Option order](#option-order)). They are NOT the source-group list-mode `sep`, which stays `sep` and joins repeated results of one field.
 
-**Wire token syntax `%N` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
+**Wire token syntax `%A` (GB constraint response).** GB's tag matcher rejects `}` anywhere in a
 tag's options (captured as `[^}]+` — kills the whole tag match, no escape;
 [`gb-constraints.md` §Tag-string-unsafe values](gb-constraints.md#tag-string-unsafe-values)), so
-brace tokens `{1}` can never ride the wire. Authors write `%1`…`%10`; `%%` escapes a literal
-percent directly before a digit. Internally `bws_join_wire_format()` translates to the canonical
-`{N}` form the pure algorithm uses.
+brace tokens `{A}` can never ride the wire. Authors write `%A`…`%J`; `%%` escapes a literal
+percent directly before a slot letter. Internally `bws_join_wire_format()` translates to the
+canonical `{N}` form the pure algorithm uses.
+
+**Tokens follow the slot KEY spelling (1.17.0)**, so `{{join A:key(x)|format:%A}}` reads as one
+statement rather than two. `%1`…`%10` is **still read and always will be** — both alphabets
+collapse to the same internal token at that one translation point, so nothing downstream can tell
+which the author typed, and hand-pasted pre-1.17.0 wire keeps working ([ADR 0004](adr/): the wire
+is hand-editable and paste-portable). Stored digit tokens are deliberately NOT re-spelled.
+
+What DID have to migrate is the **literal**: before 1.17.0 a `%` not followed by a slot DIGIT
+passed through untouched, so `Up 10%APR, paid %1` was legal stored wire whose meaning changes the
+moment letters tokenize. `bws_migrate_join_format_escape()` escapes it to `%%`, gated on wire ERA
+(a folded slot key cannot predate the letters) because literal-or-token is undecidable from the
+format string alone — and a wrong guess would destroy an intended token.
 
 **Template mode — smart literal removal.** After token substitution, punctuation attached to
 EMPTY tokens is removed with them (ordered steps; full contract + edge cases pinned by
 `php tools/test/join-template-test.php`):
 
 0. **`~…~` unit groups (1.15.0)** — wrap a token and its unit text in tildes so they live or die
-   together: `~%5 lbs.~` sheds whole (including adjacent separators, Step 3 rules) when `%5` is
+   together: `~%E lbs.~` sheds whole (including adjacent separators, Step 3 rules) when `%E` is
    empty; with any token inside non-empty the delimiters unwrap invisibly and the contents run
    Steps 1–5 normally. Covers what Steps 1–3 can't: space-separated literal words belonging to a
-   token (`%5 lbs.` with empty `%5` keeps `lbs.` — bind it: `~%5 lbs.~`). `~~` = literal tilde; a
+   token (`%E lbs.` with empty `%E` keeps `lbs.` — bind it: `~%E lbs.~`). `~~` = literal tilde; a
    lone unpaired `~` and a token-less group render literally. `~` rides the GB wire unescaped
    (verified: both GB parsers pass it through raw).
 1. **Attached punctuation** — unit punct (`.` `'` `"`) trailing-attached sheds with the empty
-   token (`%1'%2"` with empty inches → `5'`); connective punct (`,` `:`) collapses only when the
-   empty token sits BETWEEN two connectives (`%4 %5, %6` with empty generation keeps ONE comma:
+   token (`%A'%B"` with empty inches → `5'`); connective punct (`,` `:`) collapses only when the
+   empty token sits BETWEEN two connectives (`%D %E, %F` with empty generation keeps ONE comma:
    `Smith, PhD`), else survives as the neighbors' separator.
-2. **Bracket pairs** around an empty token removed (`%1 (%2)` → `Jane`); kept around a survivor.
+2. **Bracket pairs** around an empty token removed (`%A (%B)` → `Jane`); kept around a survivor.
 3. **Floating separators** (`·` `•` `/` `|` `-` `–` `—`) adjacent to an empty token removed
    (look right; the format's last token looks left).
 4. **Whitespace collapse** + edge-orphan cleanup; a trailing `.` survives only when the format
    intentionally ends with one. Trailing quote marks never stripped (a surviving `5'` is intent).
-5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %1 · %2`
+5. **Single survivor** sheds remaining connective separators; literal text stays (`Mr. %A · %B`
    → `Mr. Smith`).
 
 **Unit marks and `wptexturize`.** WordPress's `wptexturize` converts straight `'`/`"` to curly
@@ -884,7 +905,7 @@ quotes (`5'11"` → `5’11”`). It is **not** a global output filter: core reg
 `the_content`, `the_title`, and `the_excerpt` (priority 10) only. Whether join's output hits it
 therefore depends on **which render path the block sits in**, not on the tag:
 
-| Render path | `the_content` runs? | `format:%1'%2"` renders |
+| Render path | `the_content` runs? | `format:%A'%B"` renders |
 |---|---|---|
 | Page/post body — static block **or** a GB query loop inside it | yes — the whole rendered body is filtered | `5’11”` (texturized) |
 | GP Element, hooked layout, block template | no — content is rendered via `do_blocks()` without the filter | `5'11"` (straight) |
@@ -903,7 +924,7 @@ plugin), so it neither adds nor suppresses this. The consequence is that one for
 two different ways depending on whether the same block lives in page content or in an Element.
 
 For height/dimension formats use the **prime marks** `′` (U+2032, feet) and `″` (U+2033, inches):
-`format:%1′%2″` renders `5′11″` identically in **both** paths (they are not quote characters, so
+`format:%A′%B″` renders `5′11″` identically in **both** paths (they are not quote characters, so
 `wptexturize` leaves them alone), and they are the typographically correct glyphs. That consistency
 is the main reason to prefer them, beyond avoiding the curling. Numeric entities `&#39;`/`&#34;` in
 the format also survive both paths (rendering literal straight marks) if straight quotes are
@@ -931,13 +952,13 @@ instead of an empty block, built by `bws_build_join_preview_label()`. Shape + ex
 [`editor-tag-previews.md` §join](editor-tag-previews.md#join-preview).
 
 ```
-{{join 1:key(name_first)|2:src(same);key(name_last)}}                    → Jane, Smith
-{{join valueSep: |1:key(name_first)|2:src(same);key(name_last)}}         → Jane Smith
-{{join mode:template|format:%1 (%2)|1:key(name_first)|2:src(same);key(nickname)}} → Jane (Nick) / Jane when empty
-{{join mode:template|format:%1′%2″|1:key(height_ft)|2:src(same);key(height_in)}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
-{{join mode:template|format:%1 / ~%2 lbs.~|1:key(position)|2:src(same);key(weight)}} → Center / 185 lbs. / Center when weight empty
-{{join valueSep: / |1:use(title)|2:src(same);key(role)}}                 → Page Title / Captain
-{{join 1:key(fname)|2:src(site);key(organization_email)}}                → Jane, info@example.test
+{{join A:key(name_first)|B:src(same);key(name_last)}}                    → Jane, Smith
+{{join valueSep: |A:key(name_first)|B:src(same);key(name_last)}}         → Jane Smith
+{{join mode:template|format:%A (%B)|A:key(name_first)|B:src(same);key(nickname)}} → Jane (Nick) / Jane when empty
+{{join mode:template|format:%A′%B″|A:key(height_ft)|B:src(same);key(height_in)}}  → 5′11″ / 5′ / 5′0″ (prime marks — texturize-safe)
+{{join mode:template|format:%A / ~%B lbs.~|A:key(position)|B:src(same);key(weight)}} → Center / 185 lbs. / Center when weight empty
+{{join valueSep: / |A:use(title)|B:src(same);key(role)}}                 → Page Title / Captain
+{{join A:key(fname)|B:src(site);key(organization_email)}}                → Jane, info@example.test
 ```
 
 Pre-1.17.0 wire (`{{join key:name_first|2-key:name_last}}`) still renders — see

@@ -228,6 +228,15 @@ Nothing configured at all → **no preview** (empty string; GB shows its own pla
 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
 | `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
 
+The rows above are **legacy flat wire** (`2-key`), which is why their format tokens are `%1`. The same tags in FOLDED form preview identically — both preview builders walk the same seam the renderer does, and the seam dual-reads eras:
+
+| Tag config (folded) | Preview |
+|---|---|
+| `{{join A:key(name_first)\|B:key(name_last)}}` | `[Join 'name_first', 'name_last']` |
+| `{{join mode:template\|format:%A (%B)\|A:key(name_first)\|B:key(name_last)}}` | `[Join “'name_first' ('name_last')”]` |
+| `{{join mode:template\|format:%1 (%2)\|A:key(name_first)\|B:key(name_last)}}` | same — the DIGIT token spelling is read forever, on folded wire too |
+| `{{join mode:template\|format:%A %%B %K\|A:key(name_first)}}` | `[Join “'name_first' %%B %K”]` — `%%` shows as typed, and a letter past the container's slot cap is not a token |
+
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 
 `{{call}}` (1.12.0) is the **deliberate exception** to the plugin's normal value-preview behavior. Most tags resolve a real value in the editor preview (outside template context). `{{call}}` does **NOT** — it never runs the allowlisted function to build its preview. This is a **safety refusal**, not an oversight:

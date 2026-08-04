@@ -617,6 +617,8 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'F1.1 folded (-> same)', '{{join A:key(name_first)|B:key(name_last)}}' ),
 		bws_fixture_gb_row( 'F1.8 legacy template mode (jane: Jane (Johnson) / tom: Tom (Smith))', '{{join mode:template|format:%1 (%2)|key:name_first|2-key:name_last}}' ),
 		bws_fixture_gb_row( 'F1.8 folded, canonical %A tokens (-> same)', '{{join mode:template|format:%A (%B)|A:key(name_first)|B:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.8b folded wire, DIGIT tokens still read (-> same)', '{{join mode:template|format:%1 (%2)|A:key(name_first)|B:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.8c %%B is a literal, so the ~ group sheds (jane: Jane / tom: Tom)', '{{join mode:template|format:%A ~(%%B)~|A:key(name_first)}}' ),
 		bws_fixture_gb_row( 'F1.10 legacy fallback (jane: em dash / tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.10 folded (-> same)', '{{join A:key(name_generation)|B:key(name_credential)|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%A %B %C. %D %E, %F, %G|A:key(name_honorific)|B:key(name_first)|C:key(name_middle_initial)|D:key(name_last)|E:key(name_generation)|F:key(name_credential)|G:key(name_service)}}' ),
