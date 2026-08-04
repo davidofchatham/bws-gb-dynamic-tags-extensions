@@ -425,7 +425,7 @@ class TagTemplateRegistry {
 	 * traversal and returns the first non-empty result across all slots.
 	 * Tags are registered with GB type 'first-available'.
 	 *
-	 * FOLDED SLOT WIRE (FW-56/57). Each slot is ONE option key — `1`, `2`, … — of type
+	 * FOLDED SLOT WIRE (FW-56/57). Each slot is ONE option key — `A`, `B`, … — of type
 	 * `bws-slot-fold`, whose value carries that slot's whole configuration: a source
 	 * chain (`src(refs,office;terms,category)`) plus a field read (`key(x)` / `use(title)`
 	 * / `use(same)`) plus per-slot options. Grammar and vocabulary:
@@ -433,7 +433,7 @@ class TagTemplateRegistry {
 	 *
 	 * Option order follows the three-group structure from tag-reference.md:
 	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
-	 *   Group 2 — the folded slot keys `1`..`5`.
+	 *   Group 2 — the folded slot keys `A`..`E`.
 	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys
 	 *             (field keys, fallback, link options), then chain-level limit/sep.
 	 *
@@ -591,7 +591,7 @@ class TagTemplateRegistry {
 			// show_if_any over every slot's `N-srcTermIn`/`N-src` — keys the fold removed.
 			// A list axis now lives INSIDE a slot value (`src(terms[category])`), and
 			// show_if compares whole option values, so no honest predicate exists: a
-			// `not_empty` on slot `1` fires for every configured slot, list axis or not.
+			// `not_empty` on slot `A` fires for every configured slot, list axis or not.
 			// Two controls always visible beats a condition that lies about when the pair
 			// matters — and the same call was made for join's reveal rows (5d).
 			if ( $list_options ) {

@@ -275,7 +275,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
 /**
  * Build the FOLDED slot option definitions for a multislot container (FW-56/57).
  *
- * One option key per slot — `1`, `2`, … — each of type `bws-slot-fold`, whose VALUE
+ * One option key per slot — `A`, `B`, … — each of type `bws-slot-fold`, whose VALUE
  * carries that slot's whole configuration (source chain + field read + per-slot
  * options; grammar in includes/helpers/slot-fold.php). Replaces the six flat keys per
  * slot the same container registered before the fold.

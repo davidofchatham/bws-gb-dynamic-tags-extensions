@@ -54,7 +54,7 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 >
 > **The folded spelling of every row in this file lives in
 > [`fold-test-matrix.md`](fold-test-matrix.md) §F1**, as legacy/folded PAIRS. Join is fully folded as
-> of 1.17.0 (`bws_get_join_options()` registers `1`…`10`, not `{N}-src`/`-use`/`-key`), so a JOIN
+> of 1.17.0 (`bws_get_join_options()` registers `A`…`J`, not `{N}-src`/`-use`/`-key`), so a JOIN
 > change now needs both files.
 
 ---

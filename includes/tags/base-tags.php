@@ -819,7 +819,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 }
 
 /**
- * Build the {{join}} option definitions: one FOLDED key per slot (`1`, `2`, …,
+ * Build the {{join}} option definitions: one FOLDED key per slot (`A`, `B`, …,
  * FW-56/57) followed by the tag-level assembly options.
  *
  * The slot definitions come from bws_build_fold_slot_options(), which derives every
@@ -855,7 +855,7 @@ function bws_get_join_options(): array {
 		? bws_get_text_field_options()
 		: array( 'use' => array(), 'key' => array() );
 
-	// FOLDED slot keys (`1`, `2`, …) — one option per slot, the whole slot in its
+	// FOLDED slot keys (`A`, `B`, …) — one option per slot, the whole slot in its
 	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
 	// renderer dual-reads the old wire, and the editor rewrites a slot to folded form
 	// the first time it is touched.

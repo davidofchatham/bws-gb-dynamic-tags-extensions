@@ -94,7 +94,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * @since 1.15.0
  * @since 1.17.0 Reads through the folded-slot seam (FW-56/57) instead of its own copy
  *               of join's slot walk.
- * @param array $options Parsed tag options (folded slot keys `1`,`2`,… or the legacy
+ * @param array $options Parsed tag options (folded slot keys `A`,`B`,… or the legacy
  *                       flat per-slot keys; tag-level mode/valueSep/format/fallback).
  * @return string Bracket preview label, or '' when nothing is configured.
  */

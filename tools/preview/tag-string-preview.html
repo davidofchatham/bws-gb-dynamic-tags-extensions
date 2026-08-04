@@ -409,10 +409,13 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       owns rides INSIDE its <code>N:</code> value — <code>label</code> folded in, link inlined,
       <code>sep</code> HELD (still open). The sibling model here is a live option for later
       carriers, not what join/<code>try_</code> emit.<br>
-      • <strong>Folded (all-digit) keys LEAD the whole tag string</strong>, ahead of
-      <code>format</code>. Not a preference — an all-digit key is a JS array-index property, which
-      ECMAScript enumerates before every string key, and GB serializes with
-      <code>Object.entries()</code>. Neither port can move them.<br>
+      • <strong>Folded slot keys are CAPITALS</strong> (<code>A:</code>, <code>B:</code>, …),
+      and rank came back to the sort with them: <code>format</code> leads again, then the tag-level
+      source, then the slots ascending. Digits were the FIRST cut and never shipped in a release —
+      an all-digit key is a JS array-index property, which ECMAScript enumerates before every string
+      key, and GB serializes with <code>Object.entries()</code>, so digit slots were PINNED to the
+      front and no sort could move them. Escaping that pin is the whole reason the keys are letters.
+      The digit radio below stays as a look-back.<br>
       • <code>+</code> and <code>/</code> are <strong>RESERVED, not merely rejected</strong>: they
       are ordinary CONTENT inside a value and are NOT leniently accepted as grammar, because a
       lenient class spends the char — binding one later would silently change what saved wires mean.
@@ -478,13 +481,14 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
     </div>
 
-    <div class="sb-h">⟳ REOPENED — folded slot KEY spelling</div>
+    <div class="sb-h">✅ SETTLED 2026-08-04 — folded slot KEY spelling</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Shipped as <code>1:</code>. An all-digit key is a JS <em>array index</em>, which ECMAScript
-      enumerates ahead of every string key, and GB serializes with <code>Object.entries()</code> — so
-      digit slots are PINNED to the front of the saved string and no sort can move them. Any spelling
-      that is not an array index hands rank back to the canonical order (<code>format</code> can lead
-      again). Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
+      Built first as <code>1:</code>, re-spelled to <code>A:</code> before 1.17.0 shipped. An
+      all-digit key is a JS <em>array index</em>, which ECMAScript enumerates ahead of every string
+      key, and GB serializes with <code>Object.entries()</code> — so digit slots were PINNED to the
+      front of the saved string and no sort could move them. A spelling that is not an array index
+      hands rank back to the canonical order, which is what 1.17.0 does: <code>format</code> leads
+      again. Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
       <br><strong>Where to look:</strong> <em>join — TEMPLATE MODE</em> and the <em>table</em> groups.
       Those are the folded scenarios that carry tag-level options (<code>format:</code>,
       <code>valueSep:</code>, <code>src:</code>, <code>caption:</code>). Under digits those options are
@@ -493,8 +497,8 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       the join formats were added.
     </div>
     <div class="pfx-row">
-      <label><input type="radio" name="slotkey" value="digit" checked> <code>1:</code> digits (shipped, pinned first)</label>
-      <label><input type="radio" name="slotkey" value="alpha"> <code>A:</code> capitals (candidate)</label>
+      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (first cut, pinned first — look-back)</label>
+      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (SHIPPED 1.17.0)</label>
       <label><input type="radio" name="slotkey" value="s"> <code>s1:</code> prefixed (rejected)</label>
     </div>
     <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
@@ -518,11 +522,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       (<code>slot1, slot10, slot2</code>), so it would need a numeric-aware sort in both
       <code>serialization-order.php</code> and its JS port. <code>A</code>…<code>J</code> sort right for
       free.<br>
-      <strong>Not modelled here:</strong> panel LABELS. This page renders wires only, but
-      <code>"2: Source"</code> (<code>base-shared.php</code>) and <code>"Column 2 Header"</code>
-      (<code>table-tags.php</code>) would have to move with the keys too, or the mapping tax just
-      relocates into the editor. One <code>bws_slot_ordinal()</code> helper should own digit→letter for
-      keys, labels and tokens alike.
+      <strong>Still not modelled here:</strong> panel LABELS — this page renders wires only. They
+      DID move with the keys (<code>"Slot B"</code>, <code>"Field B"</code>), because leaving them as
+      digits just relocates the mapping tax into the editor. <code>bws_slot_ordinal()</code> shipped as
+      the single owner of digit→letter for keys, labels and tokens alike; a <code>{N}-</code> SIBLING
+      key keeps its digit, and so does <code>{{table}}</code>'s <code>"Column 2 Header"</code>, since
+      nothing pins their order.
     </div>
 
     <div class="sb-h">Value Separator</div>
@@ -645,18 +650,24 @@ const PRESETS = {
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
 // characters: no `|` `:` `}` `{` `&` `<` `>` `"` `'`. (`>` and a 2nd `:` are UNSAFE — dropped.)
 // hop = between ordered chain steps; step = between kind,arg[,limit] inside one chain step.
+//
+// TYPEABLE ASCII ONLY. `»` and `·` were offered here through 5g and are now cut from every list:
+// ADR 0004 makes the wire hand-editable, so a separator an author cannot type on a US keyboard is a
+// dead candidate whatever it looks like. A picker that cannot produce an illegal option cannot lead
+// the next review astray — which is the only reason this page still exists. (A `·` sitting in a
+// scenario's `sep` VALUE stays: that is output content an author chose, not grammar we picked.)
 const SEP_PRESETS = {
-  hop:  ['/', '~', '»', '·', '+'],
-  step: [',', ';', '~', '·'],
+  hop:  ['/', '~', '+'],
+  step: [',', ';', '~'],
 };
 // General value-separator: the glue inside a composite OPTION VALUE (as:url,medium /
 // use:key,field / folded linkTo:key,field). Same safe pool. Applies across all folds.
-const VALUE_SEP_PRESETS = [',', ';', '~', '-', '_', '=', '+', '»', '·'];
+const VALUE_SEP_PRESETS = [',', ';', '~', '-', '_', '=', '+'];
 // FW-57 type-token separator (read ↔ processing-tag). Same safe pool; '/' leaned.
-const TYPE_SEP_PRESETS = ['/', ',', '~', '·', '»'];   // ':' excluded — gb-reserved
+const TYPE_SEP_PRESETS = ['/', ',', '~'];   // ':' excluded — gb-reserved
 // respell separators: option-sep (was '|') + key/value-sep (was ':'). All gb-safe.
-const RESPELL_OPT_PRESETS = ['/', '~', '»', '·', '+', ';'];
-const RESPELL_KV_PRESETS  = ['=', '~', '·', '-'];      // ':' and '|' excluded — gb-reserved
+const RESPELL_OPT_PRESETS = ['/', '~', '+', ';'];
+const RESPELL_KV_PRESETS  = ['=', '~', '-'];      // ':' and '|' excluded — gb-reserved
 
 // ── Template schemas ─────────────────────────────────────────────────────────
 const TMPL = {
@@ -1233,10 +1244,11 @@ const S = {
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
-  // Folded slot KEY spelling — REOPENED 2026-08-04 (user). 'digit' is what shipped in 1.17.0;
-  // 'alpha'/'s' are the candidates. Drives foldedSlotKey() AND the tag-vs-slot part order in
-  // buildFoldedTag(), since only a non-array-index key can trail a tag-level option.
-  slotKeySpelling: 'digit',
+  // Folded slot KEY spelling — SETTLED 2026-08-04 (user): 'alpha' is what 1.17.0 ships, and is
+  // the default here. 'digit' (the first cut) and 's' are kept as look-backs. Drives
+  // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(), since only a
+  // non-array-index key can trail a tag-level option.
+  slotKeySpelling: 'alpha',
   order: [...DEFAULT_ORDER.text],
   slotVals: [{}],
   fromKeyCombined: false,
@@ -2103,7 +2115,7 @@ function foldedSlotKey(i) {
   // axes). No bare `key:`/`use:`/`src:` for slot 1. This applies ONLY to the FW-57 fold; the
   // shipped unfolded wire keeps slot-1-bare until migration. (Table differs: its slot 1 IS the
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
-  // SPELLING is REOPENED (2026-08-04) — see the sidebar picker. Only the folded slot KEY
+  // SPELLING is SETTLED (2026-08-04) as 'alpha' — see the sidebar picker. Only the folded slot KEY
   // varies; `N-` SIBLING keys (label/sep carriers, table columns) keep their ordinal, since
   // nothing pins their order. The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
   // the cap is a CONTAINER property, so alphaOrdinal() encodes spreadsheet-style (27 → AA) and the

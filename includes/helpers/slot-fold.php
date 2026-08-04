@@ -2,7 +2,7 @@
 /**
  * Folded slot-value grammar — THE single PHP owner of the FW-56/57 wire.
  *
- * One option key per slot (`{{join 1:…|2:…}}`), whose VALUE carries the slot's
+ * One option key per slot (`{{join A:…|B:…}}`), whose VALUE carries the slot's
  * whole configuration: an ordered source CHAIN, the field READ, and any per-slot
  * options. Grammar (APPROVED 2026-07-31, `.claude/plans/src-chain-encoding.md`
  * §WIRE SPEC):
