@@ -117,8 +117,16 @@ function bws_build_join_preview_label( array $options ): string {
 		if ( null === $slot ) {
 			continue;
 		}
-		$flat = bws_fold_slot_flat_options( $slot, $carry, true );
+		$skip = '';
+		$flat = bws_fold_slot_flat_options( $slot, $carry, true, $skip );
 		if ( null === $flat ) {
+			// An UNCONFIGURED slot is a normal in-progress state and says nothing.
+			// A slot whose CHAIN has no flat spelling will never render, so it is
+			// flagged — otherwise the preview silently omits a slot the author
+			// configured, and reads as if the tag were one slot smaller.
+			if ( 'chain' === $skip ) {
+				$warnings[] = 'slot ' . $n . ' source not supported';
+			}
 			continue;
 		}
 
@@ -263,6 +271,9 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	// carry-forward — the third such copy, and the one most likely to go stale, since
 	// nothing renders when it is wrong.
 	$slots = [];
+	// Slots the seam cannot express. Kept separate from $slots so a tag whose ONLY
+	// slot is inexpressible reports the real reason instead of "no slots configured".
+	$skips = [];
 	$carry = array(
 		'src' => '',
 		'ref' => '',
@@ -276,8 +287,14 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		if ( null === $slot ) {
 			continue;
 		}
-		$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+		$skip = '';
+		$flat = bws_fold_slot_flat_options( $slot, $carry, false, $skip );
 		if ( null === $flat ) {
+			// 'read' cannot happen here (an absent read INHERITS in a selecting
+			// container); 'chain' is wire that will never render, so flag it.
+			if ( 'chain' === $skip ) {
+				$skips[] = 'slot ' . $n . ' source not supported';
+			}
 			continue;
 		}
 
@@ -293,15 +310,16 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	}
 
 	if ( empty( $slots ) ) {
-		$inner = '⚠ Try: no slots configured';
+		$inner = '⚠ Try: ' . ( empty( $skips ) ? 'no slots configured' : implode( ', ', $skips ) );
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
-	// Collect per-slot warnings.
-	$warnings = [];
+	// Collect per-slot warnings. Seeded with the inexpressible-chain flags, which are
+	// per-slot warnings from the same walk.
+	$warnings = $skips;
 	foreach ( $slots as $slot ) {
 		if ( 'ref' === $slot['src'] && '' === $slot['ref'] ) {
 			$warnings[] = 'slot ' . $slot['n'] . ' no ref';

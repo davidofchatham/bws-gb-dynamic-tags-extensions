@@ -124,6 +124,23 @@ function bws_fixture_gb_row( $label, $tag ) {
 }
 
 /**
+ * Shape 2c — row whose tag is EXPECTED to render empty.
+ *
+ * GB hides a text block whose dynamic tag resolves to nothing, and it hides the
+ * WHOLE block — so a one-block row takes its own static label down with it and
+ * the case reads as MISSING FIXTURE rather than as the asserted empty. Splitting
+ * the label into its own block keeps it visible with nothing after it, which is
+ * what "renders empty" should look like on the page.
+ *
+ * Use ONLY where empty is the expectation; a row that empties unexpectedly should
+ * disappear, because that is the signal.
+ */
+function bws_fixture_gb_empty_row( $label, $tag ) {
+	return bws_fixture_gb_text_block( $label . ':', 'emptyrow-label:' . $label )
+		. "\n\n" . bws_fixture_gb_text_block( $tag, 'emptyrow:' . $label . $tag );
+}
+
+/**
  * Page content: matrix-post-meta (page-matrix-post-meta).
  * Split axis is SOURCE-STATE: this page = explicit reads off the current post
  * (+ src:site, src:ref). One section group per tag family — phone now; other
@@ -438,6 +455,123 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'J19', '{{join srcTermIn:department|use:title|limit:2}}' ),
 	) );
 
+	// --- Folded slot wire + src chain (FW-56/57, 1.17.0) ---------------------
+	// Rows: tools/test/fold-test-matrix.md. PLACEMENT: this cluster sits between
+	// the Join group and the Table group deliberately. The fold is a WIRE-FORM
+	// axis, not a tag family, so Catalog order has no slot of its own for it —
+	// but its containers are join and try_ (both multislot) and {{table}} arrives
+	// folded, so "multislot wire" reads correctly exactly here.
+	//
+	// Every F1/F2 row is a PAIR: the legacy spelling then the folded one, adjacent
+	// on the page, because the assertion is that they render IDENTICALLY. An
+	// eyeball comparison is the whole point, so do NOT split the pairs.
+	$sections[] = bws_fixture_gb_section( 'Fold F1 - join folded == legacy (pairs must match)', array(
+		bws_fixture_gb_row( 'F1.1 legacy (-> Jane)', '{{join key:name_first|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'F1.1 folded (-> Jane, same as above)', '{{join 1:key(name_first)|2:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.2 legacy (-> Matrix: Post Meta / Captain)', '{{join use:title|2-use:key|2-key:role|valueSep: / }}' ),
+		bws_fixture_gb_row( 'F1.2 folded (-> same)', '{{join 1:use(title)|2:use(key);key(role)|valueSep: / }}' ),
+		bws_fixture_gb_row( 'F1.3 legacy (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'F1.3 folded (-> same)', '{{join 1:key(main_line)|2:src(same);key(booking_line)}}' ),
+		bws_fixture_gb_row( 'F1.4 legacy (-> (555) 200-3000, jane@example.test; slot 2 INHERITS the ref hop)', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
+		bws_fixture_gb_row( 'F1.4 folded (-> same)', '{{join 1:src(refs,related_staff);use(key);key(main_line)|2:src(same);key(contact_email)}}' ),
+		bws_fixture_gb_row( 'F1.5 legacy (-> Jane, Jane Partner)', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
+		bws_fixture_gb_row( 'F1.5 folded (-> same)', '{{join 1:key(name_first)|2:src(refs,related_staff);use(title)}}' ),
+		bws_fixture_gb_row( 'F1.6 legacy (-> Jane, info@example.test)', '{{join key:name_first|2-src:site|2-key:organization_email}}' ),
+		bws_fixture_gb_row( 'F1.6 folded (-> same)', '{{join 1:key(name_first)|2:src(site);key(organization_email)}}' ),
+		bws_fixture_gb_row( 'F1.7 legacy (-> Sales, Support)', '{{join srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F1.7 folded (-> same; the term hop WORKS in a slot - contrast F9.1)', '{{join 1:src(terms,department);use(title);limit(2)}}' ),
+		bws_fixture_gb_row( 'F1.10 folded (-> em dash: both slots empty on this page, fallback fires)', '{{join 1:key(name_generation)|2:key(name_credential)|fallback:—}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F2 - mixed-era wire (era is per SLOT, not per tag)', array(
+		bws_fixture_gb_row( 'F2.1 folded slot 1 + legacy slot 2 inheriting from it (-> (987) 654-3210, 987.654.3210)', '{{join 1:key(main_line)|2-src:same|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'F2.2 legacy slot 1 + folded slot 2 inheriting from it (-> same)', '{{join key:main_line|2:src(same);key(booking_line)}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F3-F5 - try_ slots, all three read shapes', array(
+		bws_fixture_gb_row( 'F3.1 enum+picker: slot 1 empty, slot 2 wins (-> Captain)', '{{try_text 1:key(missing_field)|2:key(role)}}' ),
+		bws_fixture_gb_row( 'F3.2 slot 1 resolves, slot 2 never runs (-> Captain)', '{{try_text 1:key(role)|2:key(name_first)}}' ),
+		bws_fixture_gb_row( 'F3.4 slot 2 hops a relationship (-> Jane Partner)', '{{try_text 1:key(missing_field)|2:src(refs,related_staff);use(title)}}' ),
+		bws_fixture_gb_row( 'F3.6 legacy twin of F3.1 (-> Captain)', '{{try_text key:missing_field|2-use:key|2-key:role}}' ),
+		bws_fixture_gb_row( 'F4.2 picker-alone shape: unused_line is EMPTY so slot 1 is a real skip (-> (987) 654-3210)', '{{try_phone 1:key(unused_line)|2:key(main_line)}}' ),
+		bws_fixture_gb_row( 'F4.4 legacy twin of F4.2 (-> same)', '{{try_phone key:unused_line|2-key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F4.5 EMPTY AND CORRECT: key is a SLOT axis on try_phone, so a tag-level key configures nothing', '{{try_phone 1:src(refs,related_staff)|2:src(current)|key:main_line}}' ),
+		bws_fixture_gb_row( 'F5.1 no-read shape: an EMPTY slot 1 value is the default attempt (-> Matrix: Post Meta)', '{{try_title 1:|2:src(site)}}' ),
+		bws_fixture_gb_row( 'F5.2 same, via an explicit src(current) - the 5f bug was this rendering NOTHING', '{{try_title 1:src(current)|2:src(site)}}' ),
+		bws_fixture_gb_row( 'F5.3 (-> https://testbed.test/staff/jane-partner/)', '{{try_permalink 1:src(refs,related_staff)|2:src(site)}}' ),
+		bws_fixture_gb_row( 'F5.5 slot 1 genuinely wins - jane\'s date, not the page\'s (-> May 1, 2030 10:00 AM)', '{{try_datetime_single 1:src(refs,related_staff)|2:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F5.6 legacy twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime_single src:ref|ref:missing_rel|2-src:current|key:event_datetime}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - inherit vs RESET, and slot-level limit', array(
+		bws_fixture_gb_row( 'F6.1 absent chain at slot 2 = RESET to the page, NOT an inherit (-> (987) 654-3210)', '{{try_text 1:src(refs,related_staff);key(missing)|2:key(main_line)}}' ),
+		bws_fixture_gb_row( 'F6.2 explicit src(same) inherits jane (-> (555) 200-3000)', '{{try_text 1:src(refs,related_staff);key(missing)|2:src(same);key(main_line)}}' ),
+		bws_fixture_gb_row( 'F6.4 both axes inherited = the same datum twice; inferIntent DESCRIBES, never blocks (-> Jane Partner, Jane Partner)', '{{join 1:src(refs,related_staff);use(title)|2:src(same);use(same)}}' ),
+		// The PAIRS CROSS here, and these four rows are the cheapest way to see it:
+		// legacy absence means INHERIT (it materializes to src(same) through the
+		// mapper), folded absence means RESET. So folded `2:key(x)` twins legacy
+		// `2-src:current|2-key:x`, and folded `2:src(same);key(x)` twins legacy
+		// `2-key:x`. jane carries no `role`, so the two readings differ VISIBLY:
+		// reset reads the page (Captain), inherit reads jane (nothing).
+		bws_fixture_gb_row( 'F7.1 folded, slot-level limit(2), slot 2 RESETS to the page (-> Jane Partner, Tom Associate, Captain)', '{{join 1:src(refs,related_staff);use(title);limit(2)|2:key(role)}}' ),
+		bws_fixture_gb_row( 'F7.1 legacy twin - needs an EXPLICIT 2-src:current to mean reset (-> same)', '{{join src:ref|ref:related_staff|use:title|limit:2|2-src:current|2-key:role}}' ),
+		bws_fixture_gb_row( 'F7.2 legacy absence = INHERIT jane, who has no role -> slot 2 drops (-> Jane Partner, Tom Associate)', '{{join src:ref|ref:related_staff|use:title|limit:2|2-key:role}}' ),
+		bws_fixture_gb_row( 'F7.2 folded twin - src(same) is how the fold spells that inherit (-> same)', '{{join 1:src(refs,related_staff);use(title);limit(2)|2:src(same);key(role)}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F8 - src CHAIN on base tags (5h compiler)', array(
+		bws_fixture_gb_row( 'F8.2 legacy (-> (555) 200-3000)', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
+		bws_fixture_gb_row( 'F8.2 chain (-> same)', '{{phone src:refs,related_staff|key:main_line}}' ),
+		bws_fixture_gb_row( 'F8.3 legacy (-> Jane Partner)', '{{text src:ref|ref:related_staff|use:title}}' ),
+		bws_fixture_gb_row( 'F8.3 chain (-> same)', '{{text src:refs,related_staff|use:title}}' ),
+		bws_fixture_gb_row( 'F8.4 chain, no hop cap (-> BOTH numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.5 PER-HOP cap limit(1) bounds the fan-out (-> ONE number, despite limit:0)', '{{phone src:refs,related_staff,limit(1)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.6 per-hop cap limit(2) (-> both numbers again)', '{{phone src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_empty_row( 'F11.1 unknown hop slug SHORT-CIRCUITS (-> empty, and that is correct)', '{{phone src:refs,related_staff;bogus,x|key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
+	) );
+
+	// F9 — the recorded DIVERGENCES. On the page deliberately: a reader who
+	// eyeballs the fold rows must see that chain wire on a BASE tag is not yet a
+	// supported authoring surface, and see it beside F1.7, which is the same term
+	// hop working in a slot. Do not "fix" these with a guard — the fix is the
+	// verb-agnostic resolver refactor (arms dispatching by terminal step KIND).
+	$sections[] = bws_fixture_gb_section( 'Fold F9 - KNOWN DIVERGENCES (arm-gated; NOT bugs to patch)', array(
+		bws_fixture_gb_row( 'F9.1 legacy term hop (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.1 chain term hop RENDERS THE PAGE TITLE instead - a DIFFERENT value, not empty (arm reads flat srcTermIn)', '{{text src:terms,department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.2 legacy list mode (-> Jane Partner, Tom Associate)', '{{text src:ref|ref:related_staff|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.2 chain gives ONE result - the plural path is gated on src being literally ref', '{{text src:refs,related_staff|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.3 a NON-LEADING hop is dropped on a post-semantic read (-> Jane Partner; should be empty, jane has no terms)', '{{text src:refs,related_staff;terms,department|use:title}}' ),
+		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
+		// a label is live wire, and GB renders it. Spelled out here, the empty
+		// {{table}} it produced hid this row's whole label block.
+		bws_fixture_gb_empty_row( 'F9.4 no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+	) );
+
+	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
+	// expressible — F10.3 is the negative control that says so, and all three rows
+	// print the same thing. A skip is indistinguishable from an empty read on the
+	// front end; the EDITOR PREVIEW is the author-facing signal (⚠ slot N source
+	// not supported), and the pure harness pins the mechanism.
+	$sections[] = bws_fixture_gb_section( 'Fold F10 - a slot the flat seam cannot express SKIPS', array(
+		bws_fixture_gb_row( 'F10.1 SECOND ref hop -> slot 1 skipped, slot 2 renders (-> Captain)', '{{join 1:src(refs,related_staff;refs,related_staff);use(title)|2:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.2 entries is not flattenable -> slot 1 skipped (-> Captain)', '{{join 1:src(entries,team_members);use(key);key(name)|2:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.3 NEGATIVE CONTROL: ref+term IS expressible, resolves, finds nothing (jane has no terms) (-> Captain)', '{{join 1:src(refs,related_staff;terms,department);use(title)|2:key(role)}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F12 - ref-hop RETURN FORMATS (blueprint v6; all three must agree)', array(
+		bws_fixture_gb_row( 'F12.1 relationship + return_format id (-> both numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F12.2 relationship + object = WP_Post[] (-> IDENTICAL to F12.1)', '{{phone src:refs,related_staff_obj|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F12.3 post_object + object = ONE WP_Post, the non-array wrap (-> (555) 200-3000 alone)', '{{phone src:refs,lead_staff_obj|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F12.4 the format is invisible to the flat spelling too (-> identical to F12.2)', '{{phone src:ref|ref:related_staff_obj|key:main_line|limit:0}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F13 - TAG-level axes must survive the fold', array(
+		bws_fixture_gb_row( 'F13.1 tag-level key on try_datetime_* is NOT slot 1\'s read (-> May 1, 2030 10:00 AM)', '{{try_datetime_single 1:src(refs,related_staff)|2:src(current)|key:event_datetime}}' ),
+		bws_fixture_gb_row( 'F13.2 tag-level limit on a try_ list template is the TAG cap (-> (555) 200-3000)', '{{try_phone 1:src(refs,related_staff);key(main_line)|2:src(current);key(main_line)|limit:2}}' ),
+		bws_fixture_gb_row( 'F13.3 legacy twin of F13.2 (-> same output; that agreement IS the property)', '{{try_phone src:ref|ref:related_staff|key:main_line|2-key:main_line|limit:2}}' ),
+	) );
+
 	// {{table}} structured-output (1.17.0, feat/table-tag). team_members repeater
 	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
 	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
@@ -469,8 +603,25 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'J1', '{{join key:name_first|2-key:name_last}}' ),
 		bws_fixture_gb_row( 'J1b', '{{join key:name_first|2-key:name_last|valueSep: }}' ),
 		bws_fixture_gb_row( 'J2', '{{join key:name_first|2-key:name_generation|3-key:name_last}}' ),
-		bws_fixture_gb_row( 'J3', '{{join key:name_generation|2-key:name_credential|fallback_text:—}}' ),
-		bws_fixture_gb_row( 'J3b', '{{join key:name_generation|2-key:name_credential}}' ),
+		// `fallback`, NOT `fallback_text` — renamed 1.16.0 (FW-50). This row carried
+		// the dead key and so rendered EMPTY where the matrix claimed the em dash.
+		bws_fixture_gb_row( 'J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
+		bws_fixture_gb_row( 'J3b (same without a fallback -> empty on jane, so GB hides the block)', '{{join key:name_generation|2-key:name_credential}}' ),
+	) );
+
+	// Folded twins of the name rows above (FW-56/57, fold-test-matrix.md §F1).
+	// Same fixture data, so each row must equal its legacy twin on BOTH staff
+	// singles — jane collapsed, tom dense. Pairs stay adjacent for the eyeball.
+	$sections[] = bws_fixture_gb_section( 'Fold F1 - join folded == legacy (name rows)', array(
+		bws_fixture_gb_row( 'F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith)', '{{join key:name_first|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'F1.1 folded (-> same)', '{{join 1:key(name_first)|2:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.8 legacy template mode (jane: Jane (Johnson) / tom: Tom (Smith))', '{{join mode:template|format:%1 (%2)|key:name_first|2-key:name_last}}' ),
+		bws_fixture_gb_row( 'F1.8 folded (-> same)', '{{join mode:template|format:%1 (%2)|1:key(name_first)|2:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.10 legacy fallback (jane: em dash / tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
+		bws_fixture_gb_row( 'F1.10 folded (-> same)', '{{join 1:key(name_generation)|2:key(name_credential)|fallback:—}}' ),
+		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%1 %2 %3. %4 %5, %6, %7|1:key(name_honorific)|2:key(name_first)|3:key(name_middle_initial)|4:key(name_last)|5:key(name_generation)|6:key(name_credential)|7:key(name_service)}}' ),
+		bws_fixture_gb_row( 'F5.7 try_permalink, no-read shape (-> this staff single\'s URL)', '{{try_permalink 1:src(current)|2:src(site)}}' ),
+		bws_fixture_gb_row( 'N6 try_text fallback on empty slots (jane: None / tom: Jr.)', '{{try_text 1:key(name_generation)|2:key(name_credential)|fallback:None}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Join - template mode (name)', array(

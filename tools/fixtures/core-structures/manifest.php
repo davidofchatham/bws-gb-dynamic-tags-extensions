@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 5, // 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 6, // 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -247,6 +247,12 @@ return array(
 			'short_code'       => '12345',                     // R3.6 length gate
 			'hacked_line'      => '+1-987"><script>654-3210',  // R6.1
 			'related_staff'    => array( 'staff-jane-partner', 'staff-tom-associate' ), // R4.4 + text T7 list mode (slugs resolved to IDs at seed; jane FIRST — limit:1 rows pin her)
+			// SAME targets, SAME order, ACF's other return_format (RF1) — the hop's
+			// output must be byte-identical to related_staff's, which is the whole
+			// assertion. lead_staff_obj (RF2) is post_object, so it is singular and
+			// pins jane alone.
+			'related_staff_obj' => array( 'staff-jane-partner', 'staff-tom-associate' ),
+			'lead_staff_obj'    => 'staff-jane-partner',
 			// join matrix — post-arm context rows. name_first is a deliberate
 			// slot-1 value for the ref/site-hop rows (J17/J18) — distinct entity
 			// from the staff name_first; the OTHER name_* parts stay unseeded on

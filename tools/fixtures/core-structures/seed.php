@@ -77,6 +77,10 @@ $field_keys = array(
 		'short_code'       => 'field_bwsfx_short_code',
 		'hacked_line'      => 'field_bwsfx_hacked_line',
 		'related_staff'    => 'field_bwsfx_related_staff',
+		// Same targets in ACF's OTHER return format — the ref hop's object arms
+		// (matrix RF1/RF2). lead_staff_obj is post_object, hence singular.
+		'related_staff_obj' => 'field_bwsfx_related_staff_obj',
+		'lead_staff_obj'    => 'field_bwsfx_lead_staff_obj',
 		// join matrix (manifest v2) — person-name / role / height fields.
 		'name_honorific'      => 'field_bwsfx_name_honorific',
 		'name_first'          => 'field_bwsfx_name_first',
@@ -362,11 +366,18 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 	$ptype = get_post_type( $pid );
 	foreach ( $fields as $name => $value ) {
 		$value = $resolve_tokens( $value );
-		// Resolve fixture-slug references (relationship fields) to post IDs.
-		if ( 'related_staff' === $name && is_array( $value ) ) {
-			$value = array_values( array_filter( array_map( function ( $ref ) use ( $post_ids ) {
+		// Resolve fixture-slug references (relationship / post_object fields) to
+		// post IDs. The field NAMES are a list rather than a chain of `if`s: ACF
+		// stores the id whatever the field's return_format is, so every such field
+		// resolves identically here and the format only shows up on the READ.
+		// A single-slug value (post_object) resolves to a scalar id, not a list.
+		if ( in_array( $name, array( 'related_staff', 'related_staff_obj', 'lead_staff_obj' ), true ) ) {
+			$slug_to_id = function ( $ref ) use ( $post_ids ) {
 				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
-			}, $value ) ) );
+			};
+			$value      = is_array( $value )
+				? array_values( array_filter( array_map( $slug_to_id, $value ) ) )
+				: $slug_to_id( $value );
 		}
 		// Resolve an image-field fixture slug → the seeded attachment ID.
 		if ( 'feature_image' === $name && is_string( $value ) && isset( $attachment_ids[ $value ] ) ) {

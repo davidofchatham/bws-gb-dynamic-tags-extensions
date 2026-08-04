@@ -160,6 +160,36 @@ function bws_fixture_core_structures_register_acf() {
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'id',
 				),
+				// --- ref-hop RETURN-FORMAT coverage (1.17.0) ---------------------
+				// bws_get_related_posts_data type-guards relationship|post_object and
+				// bws_pipeline_ref_to_posts / bws_extract_post_id handle WP_Post as
+				// well as ids, but every fixture field above returns an ID — so the
+				// object arms were pure-harness-only, asserted against a test shim's
+				// GUESS at what ACF hands back. These two fields carry the same
+				// targets in the other format, which makes the ref hop's output an
+				// EQUIVALENCE assertion (matrix rows RF1/RF2) with no new expected
+				// values to maintain.
+				array(
+					'key'           => 'field_bwsfx_related_staff_obj',
+					'name'          => 'related_staff_obj',
+					'label'         => 'Related Staff (object format)',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'object',
+				),
+				// post_object + object is the ONLY fixture shape that (a) exercises
+				// the post_object half of the type guard and (b) returns ONE WP_Post
+				// rather than a list, which is what reaches the non-array wrap in
+				// bws_get_related_posts_data. Singular by construction, so it is also
+				// the cheap probe for a fan-out gate keyed on cardinality.
+				array(
+					'key'           => 'field_bwsfx_lead_staff_obj',
+					'name'          => 'lead_staff_obj',
+					'label'         => 'Lead Staff (post object, object format)',
+					'type'          => 'post_object',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'object',
+				),
 				// FW-52 image editor rows — an ACF image field returning the
 				// attachment ID, so {{image use:key|key:feature_image}} resolves a
 				// real attachment for the as:url/alt/id/caption editor eyeball.

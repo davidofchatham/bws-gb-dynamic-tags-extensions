@@ -173,6 +173,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `try_email` / `try_phone` empty key | n/a | `[⚠ Try: slot 1 no key]` (always needs a key — no no-key values) |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
+| Slot chain with no flat spelling | `[⚠ Try: slot 2 source not supported]` (1.17.0 — see the join warnings table for the rule; when it is the ONLY slot this reason replaces `no slots configured`, which would otherwise be actively misleading) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
@@ -201,6 +202,17 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | `src:ref` slot, no `ref` | `slot N no ref` |
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
+| Folded slot whose source chain has no flat spelling | `slot N source not supported` (1.17.0) |
+
+**`slot N source not supported`** is the author-facing signal for a slot the render seam SKIPS: a
+chain with a SECOND hop on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One ref hop
+plus one term hop IS expressible and previews normally. The distinction matters because the two are
+indistinguishable in RENDERED output — a skipped slot and a slot that resolves to nothing both print
+nothing — so the preview is the only place an author can see which happened. The reason comes from
+`bws_fold_slot_flat_options()`'s `$skip_reason` out-param, not from a second copy of the skip rule
+in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
+normal in-progress state, and flagging it would fire on every half-built join. Same fragment, same
+mechanism, on `try_` tags: `[⚠ Try: slot N source not supported]`.
 
 Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback` is set.
 

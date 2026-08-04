@@ -47,6 +47,22 @@ $check( 'src:site option renders', strpos( (string) $out3, '987-555-0000' ) !== 
 $out4 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:ref|ref:related_staff|key:main_line}}', [], $instance );
 $check( 'src:ref hops to jane-partner', strpos( (string) $out4, '555-200-3000' ) !== false, 'out=' . var_export( $out4, true ) );
 
+// ref-hop RETURN-FORMAT equivalence (RF1/RF2). The reader type-guards
+// relationship|post_object and the coercer handles WP_Post as well as ids, but
+// until manifest v6 every fixture field returned an ID — so these arms were
+// asserted only against a harness shim's guess at ACF's shape. Compared to
+// $out4 rather than to a literal: the POINT is that the format is invisible.
+$out4b = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:ref|ref:related_staff_obj|key:main_line}}', [], $instance );
+$check( 'RF1 relationship return_format:object == id format', (string) $out4b === (string) $out4, 'obj=' . var_export( $out4b, true ) . ' id=' . var_export( $out4, true ) );
+
+$out4c = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:ref|ref:lead_staff_obj|key:main_line}}', [], $instance );
+$check( 'RF2 post_object return_format:object == id format', (string) $out4c === (string) $out4, 'obj=' . var_export( $out4c, true ) . ' id=' . var_export( $out4, true ) );
+
+// Same two fields through the CHAIN spelling (5h): `refs,<field>` compiles to
+// the same ref step, so all four spellings above must agree.
+$out4d = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line}}', [], $instance );
+$check( 'RF1 chain spelling == flat spelling', (string) $out4d === (string) $out4, 'chain=' . var_export( $out4d, true ) . ' flat=' . var_export( $out4, true ) );
+
 // datetime surface (manifest v3): ACF datetime pair + term date + site datetime.
 $check( 'page field event_datetime seeded', get_post_meta( $page->ID, 'event_datetime', true ) === '2030-08-12 09:00:00', var_export( get_post_meta( $page->ID, 'event_datetime', true ), true ) );
 $check( 'page field event_thisyear in current year', 0 === strpos( (string) get_post_meta( $page->ID, 'event_thisyear', true ), wp_date( 'Y' ) ), var_export( get_post_meta( $page->ID, 'event_thisyear', true ), true ) );

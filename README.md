@@ -55,6 +55,15 @@ Output is plain text; no link options are currently available.
 
 All `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
+## Multi-slot editing
+
+`join` and the `try_` tags configure one slot at a time: add a slot, set its source and field, remove
+it when it is no longer wanted. Removing a middle slot closes the gap, and a later slot that inherits
+from the removed one keeps the value it was reading rather than re-pointing at something else. Each
+slot saves under a single option key, so its source and field stay together in the tag string. Tags
+saved before this release are converted when you open them, and the Tag Converter handles saved
+content you have not opened.
+
 ## Return custom function output with `call` tag
 
 The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.

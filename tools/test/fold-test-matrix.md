@@ -1,0 +1,312 @@
+# Folded-Slot Wire + Src-Chain Regression Matrix (FW-56/57)
+
+**Standing manual regression suite** for the folded slot wire (`{{join 1:…|2:…}}`, `try_* 1:…`) and
+the depth-0 source CHAIN on base tags (`src:refs,<field>`). Covers what the pure harnesses
+structurally cannot: real ACF/meta reads, real ambient context, the container render arms, and the
+editor controls.
+
+> **Re-run trigger:** any change to the fold seam (`includes/helpers/slot-fold.php`,
+> `slot-fold-compile.php`, `slot-fold-migrate.php`), a container's slot loop (`bws_join_callback`,
+> `generate_base_try_tags()`), the fold config builder (`bws_build_fold_slot_options`), or the
+> editor pair (`assets/js/slot-fold-control.js`, `slot-fold-migrate.js`).
+> **Pure harnesses are the cheap gate — run them FIRST**, they own the algorithms:
+> `slot-fold-test.php`, `slot-fold-twin-test.php` (needs `node`), `fold-chain-compile-test.php`,
+> `fold-migration-test.php` (needs `node`), `slot-options-build-test.php`,
+> `traversal-pipeline-test.php`, `node slot-fold-repeater-test.js`. Rows here assert only what
+> needs real WP state. A row failure that implicates the ABSORB seam routes to
+> `text-test-matrix.md`; one that implicates join assembly routes to `join-test-matrix.md`.
+
+**How to run:** rows are `render-tag` one-liners against the seeded testbed (state:
+`core-structures` blueprint **v6** — `bin/seed.sh testbed core-structures`). From the wp-litespeed
+env:
+
+```bash
+bin/wp.sh testbed bws render-tag '{{TAG}}' --url=https://testbed.test/CONTEXT/ --porcelain
+```
+
+Contexts used:
+- `/matrix-post-meta/` — post arm. `main_line` `(987) 654-3210`, `booking_line` `987.654.3210`,
+  `role` `Captain`, `name_first` `Jane`, `related_staff` → **Jane Partner, Tom Associate** (that
+  order), department terms **Sales + Support**, `team_members` repeater (Alice/Bob), site options.
+- `/staff/jane-partner/` — SPARSE person: `name_first` `Jane`, `name_last` `Johnson`,
+  `name_generation`/`name_credential` empty; `main_line` `(555) 200-3000`,
+  `contact_email` `jane@example.test`, `event_datetime` `2030-05-01 10:00`. **No department terms.**
+- `/staff/tom-associate/` — DENSE person (every `name_*` populated).
+
+**Also browsable + editable.** The seed builds the renderable rows as visible GB blocks
+(`blocks.php`: a Fold section group on `matrix-post-meta`, folded name rows in the `staff_join`
+builder on both staff singles). Open a page on the front end to eyeball output, or open it in the
+editor for §F14 — the repeater, the per-slot pickers, the preview text and the mount migration are
+reachable ONLY there.
+
+**Rows whose expectation is EMPTY use a split label block** (`bws_fixture_gb_empty_row`): GB hides a
+text block whose dynamic tag resolves to nothing, and it hides the whole block — so a one-block row
+takes its own static label down with it and the case reads as MISSING FIXTURE. A row that empties
+UNEXPECTEDLY still vanishes, which is the signal.
+
+**Era note.** A tag is folded **iff any all-digit option key is present** — modes do not mix per
+KEY, but they do mix per SLOT (§F2), and the renderer dual-reads: a folded slot parses its value, a
+slot with no folded key maps its legacy axes through `bws_fold_from_legacy()`. Every §F1 row is
+therefore a PAIR: the legacy spelling and the folded one must render **byte-identically**. That
+equivalence — not the new capability — is what this matrix mostly asserts.
+
+**Wire note.** Slot options are `;`-separated `name(value)` tokens; chain steps live inside
+`src(...)`, `;`-separated, each `slug[,arg][,limit[N]]`. `limit` alternates bracket by depth —
+`limit(2)` as a slot option, `limit[2]` inside `src(...)`. Folded (all-digit) keys LEAD the saved
+string; see §F14.7.
+
+> Verified 2026-08-04 against the 1.17.0 build (`feat/table-tag`): every §F1–§F8 and §F10–§F13 row
+> below is a MEASURED value, not a predicted one. §F9 records four DIVERGENCES that are real and
+> deliberately unfixed.
+
+---
+
+## §F1 — join: folded ≡ legacy
+
+Each row is two tag strings that must produce identical output. Context `/matrix-post-meta/` unless
+stated.
+
+| # | Legacy | Folded | Expected |
+|---|---|---|---|
+| F1.1 | `{{join key:name_first\|2-key:name_last}}` | `{{join 1:key(name_first)\|2:key(name_last)}}` | `Jane` here; `Jane, Johnson` on jane; `Tom, Smith` on tom |
+| F1.2 | `{{join use:title\|2-use:key\|2-key:role\|valueSep: / }}` | `{{join 1:use(title)\|2:use(key);key(role)\|valueSep: / }}` | `Matrix: Post Meta / Captain` |
+| F1.3 | `{{join key:main_line\|2-src:same\|2-key:booking_line}}` | `{{join 1:key(main_line)\|2:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210` |
+| F1.4 | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `{{join 1:src(refs,related_staff);use(key);key(main_line)\|2:src(same);key(contact_email)}}` | `(555) 200-3000, jane@example.test` — slot 2 INHERITS the ref hop |
+| F1.5 | `{{join key:name_first\|2-src:ref\|2-ref:related_staff\|2-use:title}}` | `{{join 1:key(name_first)\|2:src(refs,related_staff);use(title)}}` | `Jane, Jane Partner` |
+| F1.6 | `{{join key:name_first\|2-src:site\|2-key:organization_email}}` | `{{join 1:key(name_first)\|2:src(site);key(organization_email)}}` | `Jane, info@example.test` |
+| F1.7 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `{{join 1:src(terms,department);use(title);limit(2)}}` | `Sales, Support` — the term hop WORKS in a slot (contrast §F9.1) |
+| F1.8 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `{{join mode:template\|format:%1 (%2)\|1:key(name_first)\|2:key(name_last)}}` | `Jane (Johnson)` on jane; `Tom (Smith)` on tom |
+| F1.9 | J21/J22's 7-slot full name, both spellings (see `join-test-matrix.md` for the format string) | | `Jane Johnson` on jane; `Dr. Tom M. Smith Jr., PhD, USN (Ret.)` on tom |
+| F1.10 | `{{join key:name_generation\|2-key:name_credential\|fallback:—}}` | `{{join 1:key(name_generation)\|2:key(name_credential)\|fallback:—}}` | `—` on jane (both slots empty → fallback); `Jr., PhD` on tom |
+
+> **The option is `fallback`, not `fallback_text`** (renamed 1.16.0, FW-50 removed the active read
+> path). Rows in `join-test-matrix.md` and the visible J3 fixture row still carried the dead key and
+> so rendered EMPTY where they claimed `—`; fixed with this matrix. A stored tag is converted by the
+> migration entry, but a hand-authored `fallback_text` is simply inert.
+
+## §F2 — mixed-era wire
+
+Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
+
+| # | Tag | Expected |
+|---|---|---|
+| F2.1 | `{{join 1:key(main_line)\|2-src:same\|2-key:booking_line}}` | `(987) 654-3210, 987.654.3210` — folded slot 1, legacy slot 2 inheriting from it |
+| F2.2 | `{{join key:main_line\|2:src(same);key(booking_line)}}` | same — legacy slot 1, folded slot 2 inheriting from it |
+
+## §F3 — try_: enum + picker read shape
+
+`try_text` / `try_content` / `try_image`. Context `/matrix-post-meta/`.
+
+| # | Tag | Expected |
+|---|---|---|
+| F3.1 | `{{try_text 1:key(missing_field)\|2:key(role)}}` | `Captain` — slot 1 empty, slot 2 wins |
+| F3.2 | `{{try_text 1:key(role)\|2:key(name_first)}}` | `Captain` — slot 1 resolves, slot 2 never runs |
+| F3.3 | `{{try_text 1:key(missing_field)\|2:src(site);key(organization_email)}}` | `info@example.test` |
+| F3.4 | `{{try_text 1:key(missing_field)\|2:src(refs,related_staff);use(title)}}` | `Jane Partner` |
+| F3.5 | `{{try_text 1:src(refs,related_staff);key(missing_field)\|2:src(same);key(main_line)}}` | `(555) 200-3000` — slot 2 inherits slot 1's hop |
+| F3.6 | `{{try_text key:missing_field\|2-use:key\|2-key:role}}` | `Captain` — legacy twin of F3.1 |
+| F3.7 | `{{try_content 1:key(missing_field)\|2:key(role)}}` | `Captain` |
+
+## §F4 — try_: picker-alone read shape
+
+`try_email` / `try_phone` — no `use` axis exists; an EMPTY picker is the inherit.
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| F4.1 | `{{try_email 1:key(missing_field)\|2:src(refs,related_staff);key(contact_email)}}` | post-meta | `jane@example.test` as a `mailto:` anchor (entities randomized per render — compare the DECODED address) |
+| F4.1b | `{{try_email key:missing_field\|2-src:ref\|2-ref:related_staff\|2-key:contact_email}}` | post-meta | legacy twin of F4.1 |
+| F4.2 | `{{try_phone 1:key(unused_line)\|2:key(main_line)}}` | post-meta | `(987) 654-3210` tel-linked — `unused_line` is seeded EMPTY, so slot 1 is a real skip |
+| F4.3 | `{{try_phone 1:src(refs,related_staff);key(missing_field)\|2:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` |
+| F4.4 | `{{try_phone key:unused_line\|2-key:main_line}}` | post-meta | legacy twin of F4.2 |
+| F4.5 | `{{try_phone 1:src(refs,related_staff)\|2:src(current)\|key:main_line}}` | post-meta | **EMPTY, and correct** — `key` is a SLOT axis on `try_phone`, so a tag-level `key` configures nothing and both slots have no read. Contrast F5.4, where `key` IS tag-level |
+
+## §F5 — try_: no-read shape
+
+`try_title` / `try_permalink` / `try_datetime_single` / `try_datetime_range` — the read is a
+TAG-level option; a slot is a bare source chain.
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| F5.1 | `{{try_title 1:\|2:src(site)}}` | post-meta | `Matrix: Post Meta` — an EMPTY slot 1 value is the default attempt |
+| F5.2 | `{{try_title 1:src(current)\|2:src(site)}}` | post-meta | same. **The 5f bug:** `current` must be a real step — mapping it to "no step" emitted an empty slot value, which is never written, which deletes the whole attempt |
+| F5.3 | `{{try_permalink 1:src(refs,related_staff)\|2:src(site)}}` | post-meta | `https://testbed.test/staff/jane-partner/` |
+| F5.4 | `{{try_datetime_single 1:src(refs,missing_rel)\|2:src(current)\|key:event_datetime}}` | post-meta | `August 12, 2030 9:00 AM` — slot 1's hop finds nothing, slot 2 reads the current post. TAG-level `key` survives the fold (§F13) |
+| F5.5 | `{{try_datetime_single 1:src(refs,related_staff)\|2:src(current)\|key:event_datetime}}` | post-meta | `May 1, 2030 10:00 AM` — jane's value, so slot 1 genuinely won |
+| F5.6 | `{{try_datetime_single src:ref\|ref:missing_rel\|2-src:current\|key:event_datetime}}` | post-meta | legacy twin of F5.4 |
+| F5.7 | `{{try_permalink 1:src(current)\|2:src(site)}}` | jane | `https://testbed.test/staff/jane-partner/` |
+
+## §F6 — carry-forward, inherit, and reset
+
+An absent chain at slot ≥2 is a **RESET to the ambient entity**, not an inherit — absence in folded
+wire means what it says, because legacy absence MATERIALIZES to `src(same)` through the mapper.
+
+| # | Tag | Context | Expected |
+|---|---|---|---|
+| F6.1 | `{{try_text 1:src(refs,related_staff);key(missing)\|2:key(main_line)}}` | post-meta | `(987) 654-3210` — slot 2 RESET to the page, NOT jane |
+| F6.2 | `{{try_text 1:src(refs,related_staff);key(missing)\|2:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` — explicit `same` inherits jane |
+| F6.3 | `{{join 1:src(refs,related_staff);use(key);key(main_line)\|2:key(contact_email)}}` | post-meta | `(555) 200-3000` — slot 2 resets to the page, which has no `contact_email`, so it drops out |
+| F6.4 | `{{join 1:src(refs,related_staff);use(title)\|2:src(same);use(same)}}` | post-meta | `Jane Partner, Jane Partner` — both axes inherited, i.e. the same datum twice. The control's `inferIntent` advisory DESCRIBES this; it does not block it |
+| F6.5 | `{{try_phone 1:src(refs,related_staff);key(unused_line)\|2:key(main_line)}}` | post-meta | `(987) 654-3210` — reset, on the picker-alone shape |
+
+## §F7 — slot-level `limit`, and the pairs that CROSS
+
+A legacy `limit` with no fanning step stays a slot-level token; with one, the mapper attaches it to
+the LAST fanning step. Both spellings are lossless.
+
+**The legacy↔folded pairing crosses on the source axis, and it is the easiest thing in the fold to
+get wrong.** Legacy ABSENCE means inherit (it materializes to `src(same)` through the mapper);
+folded absence means RESET to the ambient entity. So:
+
+| folded | legacy twin |
+|---|---|
+| `N:key(x)` | `N-src:current\|N-key:x` |
+| `N:src(same);key(x)` | `N-key:x` |
+
+jane carries no `role`, which makes the two readings differ VISIBLY rather than academically —
+reset reads the page (`Captain`), inherit reads jane (nothing). All four rows, `/matrix-post-meta/`:
+
+| # | Tag | Expected |
+|---|---|---|
+| F7.1 | `{{join 1:src(refs,related_staff);use(title);limit(2)\|2:key(role)}}` | `Jane Partner, Tom Associate, Captain` — slot 2 RESETS to the page |
+| F7.1b | `{{join src:ref\|ref:related_staff\|use:title\|limit:2\|2-src:current\|2-key:role}}` | same — the legacy twin needs the EXPLICIT `2-src:current` |
+| F7.2 | `{{join src:ref\|ref:related_staff\|use:title\|limit:2\|2-key:role}}` | `Jane Partner, Tom Associate` — legacy absence INHERITS jane, who has no `role`, so slot 2 drops. **This is the shape the shipped join UI writes** |
+| F7.2b | `{{join 1:src(refs,related_staff);use(title);limit(2)\|2:src(same);key(role)}}` | same — `src(same)` is how the fold spells that inherit |
+| F7.3 | `{{join 1:src(terms,department);use(title);limit(2)\|2:key(role)}}` | `Sales, Support, Captain` |
+
+> Caught by eyeballing the visible fixture rows, not by the harness: F7.1 and F7.2 were first
+> written into this matrix as a legacy/folded PAIR, and they are not one — they differ by exactly
+> the reset-vs-inherit rule §F6 states. The pure harness could not have caught it (both spellings
+> resolve correctly; only the PAIRING claim was wrong), which is the argument for the visible rows.
+
+## §F8 — depth-0 src chain on base tags (5h)
+
+The compiler translates chain wire into engine steps on every base tag. Pairs again — the legacy
+spelling is the reference.
+
+| # | Legacy | Chain | Expected |
+|---|---|---|---|
+| F8.1 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | `{{email src:refs,related_staff\|key:contact_email}}` | jane's address as a `mailto:` anchor. **Compare DECODED** — `antispambot` randomizes the entity encoding per render, so the two raw strings differ by design |
+| F8.2 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | `{{phone src:refs,related_staff\|key:main_line}}` | `(555) 200-3000`, tel-linked |
+| F8.3 | `{{text src:ref\|ref:related_staff\|use:title}}` | `{{text src:refs,related_staff\|use:title}}` | `Jane Partner` |
+| F8.4 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | `{{phone src:refs,related_staff\|key:main_line\|limit:0}}` | both numbers — `(555) 200-3000, (555) 200-4000` |
+| F8.5 | — | `{{phone src:refs,related_staff,limit(1)\|key:main_line\|limit:0}}` | ONE number. **Per-hop cap** — bounds the fan-out's spread |
+| F8.6 | — | `{{phone src:refs,related_staff,limit(2)\|key:main_line\|limit:0}}` | both numbers. F8.4/F8.5/F8.6 together are what separate the hop cap from the terminal `limit` |
+
+## §F9 — KNOWN DIVERGENCES (real, deliberately unfixed)
+
+**These rows FAIL as equivalences and that is the recorded state.** The compiler gave the ENGINE
+arbitrary hops, but a base tag's rendered output is chosen by ARMS that gate on the flat
+`src`/`srcTermIn` option tokens (~10 sites read `srcTermIn`; ~6 compare `src` to `'ref'`/`'site'`).
+Until those arms dispatch by the chain's TERMINAL STEP KIND (the verb-agnostic resolver refactor),
+chain wire on a base tag is not a supported authoring surface — which is exactly why the base
+depth-0 MIGRATION is not registered. Do not "fix" a row here with a guard; the fix is the refactor.
+
+| # | Tag | Renders | Should render | Cause |
+|---|---|---|---|---|
+| F9.1 | `{{text src:terms,department\|use:title\|limit:0}}` | `Matrix: Post Meta` (the PAGE title) | `Sales, Support` | the term-hop arm reads flat `srcTermIn`, which chain wire does not set — so the hop never happens and the read falls to the ambient post. **Not empty — a DIFFERENT value**, which is the worst failure shape |
+| F9.2 | `{{text src:refs,related_staff\|use:title\|limit:0}}` | `Jane Partner` | `Jane Partner, Tom Associate` | the list-mode plural path is gated on `src` being literally `'ref'` |
+| F9.3 | `{{text src:refs,related_staff;terms,department\|use:title}}` | `Jane Partner` | empty (jane has no department terms) | the post-semantic wrapper takes the chain's LEADING RUN of `ref` steps and stops; the term hop is then the caller's job (§V13/B2) and the caller reads flat `srcTermIn`. So a non-leading hop is silently dropped on `use:title`-style reads. A KEYED read (`use:key`) goes through the full step compile and does not have this hole |
+| F9.4 | `{{text src:entries,team_members\|use:key\|key:name\|limit:0}}` | empty | `Alice Adams, Bob Brown` | no base-tag arm consumes a `meta_row` source. This is the gap `{{table}}` fills with its own assembly (step 6), not something the base text arm should grow |
+
+**The sharpest contrast in this matrix:** F9.1 and F1.7 are the SAME term hop. It works in a join
+SLOT (the seam flattens it to `srcTermIn`, and join's arm dispatches on that) and silently reads the
+wrong entity on the base tag. One mechanism, two answers, decided by whether an arm was involved.
+
+## §F10 — a slot the flat seam cannot express SKIPS
+
+The flat triple holds ONE ref hop and ONE term hop, so `refs,x;terms,y` **is** expressible.
+Inexpressible means a SECOND hop on the same axis, or an `entries` step. Join's `hops` capability
+list offers the term hop only, so all of these are hand-edit-only shapes. The honest answer to a
+hand-edit the seam cannot flatten is to render nothing rather than resolve the expressible PREFIX,
+which would read a different source than the wire states.
+
+| # | Tag | Expected |
+|---|---|---|
+| F10.1 | `{{join 1:src(refs,related_staff;refs,related_staff);use(title)\|2:key(role)}}` | `Captain` — slot 1 skipped (second ref hop), slot 2 renders |
+| F10.2 | `{{join 1:src(entries,team_members);use(key);key(name)\|2:key(role)}}` | `Captain` — slot 1 skipped (`entries` is not flattenable) |
+| F10.3 | `{{join 1:src(refs,related_staff;terms,department);use(title)\|2:key(role)}}` | `Captain` — the NEGATIVE CONTROL. This chain is expressible, resolves, and finds nothing (jane carries no department terms). Identical output, different mechanism |
+
+> **A skip is INDISTINGUISHABLE from an empty read on the front end**, which F10.3 makes concrete:
+> all three rows print `Captain`. Render output therefore cannot be the evidence for a skip — the
+> pure harness (`slot-fold-test.php` §P13.5) pins the mechanism, and the EDITOR PREVIEW is the
+> author-facing signal: an inexpressible chain shows `[⚠ Join: slot N source not supported]`
+> (§F14.9), while an expressible chain that happens to resolve empty previews normally. That
+> asymmetry is why the flag exists; before 1.17.0 the preview silently omitted the slot and read as
+> if the tag had one slot fewer than the author configured.
+>
+> A first draft of this matrix claimed F10.3 as the skip case. It was a vacuous row — empty for the
+> other reason — and the preview harness is what caught it.
+
+## §F11 — unknown vocabulary short-circuits, never falls through
+
+| # | Tag | Expected |
+|---|---|---|
+| F11.1 | `{{phone src:refs,related_staff;bogus,x\|key:main_line}}` | EMPTY — an unknown hop slug compiles to an unknown engine TYPE, the engine answers empty, the chain short-circuits. Dropping the step would read a different source than the wire states |
+| F11.2 | `{{phone src:refs,related_staff;site\|key:main_line}}` | EMPTY — a ROOT slug at a HOP position takes the same path |
+
+## §F12 — ref-hop return formats (blueprint v6)
+
+`bws_get_related_posts_data` type-guards `relationship|post_object` and the coercer handles `WP_Post`
+as well as ids — but until v6 every fixture field returned an ID, so the object arms were asserted
+only against a harness shim's GUESS at ACF's shape. All three fields carry the SAME targets, so
+these are equivalences with no expected values of their own.
+
+| # | Tag | Expected |
+|---|---|---|
+| F12.1 | `{{phone src:refs,related_staff\|key:main_line\|limit:0}}` | `(555) 200-3000, (555) 200-4000` — the `id` reference |
+| F12.2 | `{{phone src:refs,related_staff_obj\|key:main_line\|limit:0}}` | identical to F12.1 — `relationship` + `return_format:object` → `WP_Post[]` |
+| F12.3 | `{{phone src:refs,lead_staff_obj\|key:main_line\|limit:0}}` | `(555) 200-3000` alone — `post_object` + `object` is SINGULAR (one `WP_Post`, not a list), the only fixture shape that reaches the reader's non-array wrap |
+| F12.4 | `{{phone src:ref\|ref:related_staff_obj\|key:main_line\|limit:0}}` | identical to F12.2 — the format is invisible to the flat spelling too |
+
+> Non-vacuity check (the fixture must really deliver the shapes, or these rows assert nothing):
+> `wp eval` on `/matrix-post-meta/` returns `related_staff` = `array(2) of integer`,
+> `related_staff_obj` = `array(2) of WP_Post`, `lead_staff_obj` = one `WP_Post`. Re-check after any
+> schema edit — a sanitizer case whose input is already sanitary asserts nothing, and so does a
+> format case whose fixture quietly returns ids.
+
+## §F13 — tag-level axes must survive the fold
+
+A TAG-level axis is spelled exactly like slot 1's, so a mapper that folds by position swallows the
+option the resolver actually reads. Both live traps, found by the 5f smoke:
+
+| # | Tag | Expected |
+|---|---|---|
+| F13.1 | `{{try_datetime_single 1:src(refs,related_staff)\|2:src(current)\|key:event_datetime}}` | `May 1, 2030 10:00 AM` — the tag-level `key` on `try_datetime_*` is NOT slot 1's read |
+| F13.2 | `{{try_phone 1:src(refs,related_staff);key(main_line)\|2:src(current);key(main_line)\|limit:2}}` | `(555) 200-3000` — a tag-level `limit` on a `try_` list template is the TAG cap, not a slot axis. `limit:0` gives the same single value here |
+| F13.3 | `{{try_phone src:ref\|ref:related_staff\|key:main_line\|2-key:main_line\|limit:2}}` | legacy twin of F13.2 — same output, which is the property |
+| F13.4 | Same as F13.1, then commit ANY slot in the editor | the tag-level `key` MUST still be present in the saved string. It is not in the delete-on-commit list because `bws_fold_slot_legacy_axes()` subtracts the container's `tag_level` set — editor row, see §F14.5 |
+
+## §F14 — EDITOR-ONLY rows
+
+Not reachable by `render-tag`. Open a page with fold rows in the block editor (the visible fixture
+rows are the fastest way in) and check each.
+
+| # | What to do | Expected |
+|---|---|---|
+| F14.1 | Open a folded `{{join}}` tag's modal | ONE control per live slot, not ten. "Add slot" appends; remove compacts. Registered keys run to the ceiling; the control renders only up to the live count |
+| F14.2 | Add a slot on `{{join}}` (combining) | the new slot seeds with the READ UNSET — choosing a field IS the configuration act in a combining container. The advisory reads "pick a field for this slot" |
+| F14.3 | Add a slot on `try_text` (selecting) | the new slot seeds `src(same);use(same)` — the inherit is the useful default for a fallback attempt |
+| F14.4 | Remove a middle slot whose successor inherits | the successor's inherit is MATERIALIZED to a real value before compaction renumbers, so removal never silently re-points a slot. A residual inherit at position 1 is stripped |
+| F14.5 | Open a LEGACY (unfolded) join or `try_*` tag, then commit any slot | the legacy `{N}-src`/`-ref`/`-srcTermIn`/`-use`/`-key`/`-limit` keys are deleted and replaced by folded values — EXCEPT the container's tag-level axes (F13.4). Both migration paths must agree: the mount migrator and the converter are twins over one corpus |
+| F14.6 | Open a legacy tag, make NO change, close | no spurious diff. The mount migration writes through a function updater, and returning `prev` unchanged is the loop guard |
+| F14.7 | Save a folded tag and read the tag string | the all-digit slot keys LEAD the whole string, ahead of `format`. **Environment fact, not a preference:** an all-digit key is a JS array-index property, which ECMAScript enumerates before every string key, and GB serializes with `Object.entries()`. Neither the JS normalizer nor the PHP sort can move them |
+| F14.8 | Check the field picker inside a slot | the picker is scoped by the `scopeKey` PROP, not by the outward `state.key`. An unmatched repeater key degrades to the full pool rather than stranding the author |
+| F14.9 | Read the editor tag configuration preview text on a folded tag | it matches what the tag renders, because both preview builders now walk the SAME seam. Shapes the renderer SKIPS (§F10) are flagged rather than shown as if they resolve — see `docs/editor-tag-previews.md` |
+| F14.10 | Hand-edit a slot value to a shape with a per-step `limit` | it round-trips. There is no control surface for a per-hop cap yet (deferred to the `{{table}}` authoring pass), so the guarantee is only that editing another slot does not silently drop it |
+
+---
+
+## Fail triage
+
+1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +
+   `fold-chain-compile-test.php` first; a green harness with a red matrix row means the CONTAINER
+   arm, not the grammar.
+2. **A §F9 row starts passing** → the arm refactor landed (or something is guarding). Check whether
+   the base depth-0 migration entry can now be registered, and re-read the OPEN row in
+   `.claude/plans/src-chain-encoding.md`.
+3. **A §F10 skip row starts rendering** → the seam grew a partial-resolve path. That is the failure
+   mode the skip exists to prevent (rendering a different source than the wire states).
+4. **§F12 rows all pass but the non-vacuity check fails** → the fixture regressed to ids; the rows
+   are asserting nothing.
+5. **Editor rows only** → `node tools/test/slot-fold-repeater-test.js` owns cardinality, seeding and
+   compaction; `fold-migration-test.php` owns the two migration paths' agreement.

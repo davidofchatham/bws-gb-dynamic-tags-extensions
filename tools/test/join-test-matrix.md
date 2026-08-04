@@ -13,7 +13,7 @@ collect-all slot loop (`bws_join_callback`), the absorb seam per slot
 > (run it first — it is the cheap gate); rows here assert only what needs real WP state.
 
 **How to run:** rows are `render-tag` one-liners against the seeded testbed
-(state: `core-structures` blueprint **v2** — `bin/seed.sh testbed core-structures`). From the
+(state: `core-structures` blueprint **v6** — `bin/seed.sh testbed core-structures`). From the
 wp-litespeed env:
 
 ```bash
@@ -45,6 +45,17 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 > Re-verified 2026-07-18 after the dense↔sparse fixture swap (DENSE now `tom-associate`,
 > SPARSE now `jane-partner`; `name_last` = Smith/Johnson) and the editor-preview add
 > (JP1–JP6 via the new `--preview` flag): J1/J1b/J2/J5/J7/J21/J22 + all JP rows pass.
+> **Corrected 2026-08-04 (1.17.0):** five rows still spelled the fallback option `fallback_text`,
+> renamed to `fallback` in 1.16.0 (FW-50 — a clean rename with NO migration entry, because join's
+> registration was one release old and the option unused). They rendered EMPTY where they claimed
+> `—`, verified on the testbed. The editor PREVIEW still tolerates the dead key
+> (`preview-helpers.php` reads `fallback ?? fallback_text`), so a hand-authored `fallback_text`
+> previews a fallback the renderer will not apply — noted, not changed here (FW-50's lane).
+>
+> **The folded spelling of every row in this file lives in
+> [`fold-test-matrix.md`](fold-test-matrix.md) §F1**, as legacy/folded PAIRS. Join is fully folded as
+> of 1.17.0 (`bws_get_join_options()` registers `1`…`10`, not `{N}-src`/`-use`/`-key`), so a JOIN
+> change now needs both files.
 
 ---
 
@@ -55,7 +66,7 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 | J1 | `{{join key:name_first\|2-key:name_last}}` | tom | `Tom, Smith` (default sep `, `) |
 | J1b | `{{join key:name_first\|2-key:name_last\|valueSep: }}` | tom | `Tom Smith` (space valueSep — option values are not trimmed) |
 | J2 | `{{join key:name_first\|2-key:name_generation\|3-key:name_last}}` | jane | `Jane, Johnson` — empty middle slot dropped, no doubled sep |
-| J3 | `{{join key:name_generation\|2-key:name_credential\|fallback_text:—}}` | jane | `—` — all slots empty → fallback |
+| J3 | `{{join key:name_generation\|2-key:name_credential\|fallback:—}}` | jane | `—` — all slots empty → fallback |
 | J3b | `{{join key:name_generation\|2-key:name_credential}}` | jane | `` (empty — no fallback → GB hides the block) |
 | J4 | `{{join key:height_in_zero\|2-key:role}}` | `/matrix-post-meta/` | `0, Captain` — `'0'` is a REAL value (survives the empty-filter) |
 
@@ -68,7 +79,7 @@ anywhere inside a tag's options (`find_matches` captures options as `[^}]+`,
 | J7 | `{{join mode:template\|format:%1 · %2\|key:name_generation\|2-key:name_last}}` | jane | `Johnson` — floating separator removed (`%1` empty) |
 | J8 | `{{join mode:template\|format:%1 (%2.)\|key:name_first\|2-key:name_generation}}` | jane | `Jane` — punct + brackets removed with empty `%2` |
 | J9 | `{{join mode:template\|format:%1 (%2.)\|key:name_generation\|2-key:name_first}}` | jane | `(Jane.)` — bracket KEPT around surviving token |
-| J10 | `{{join mode:template\|format:%1 (%2)\|key:name_generation\|2-key:name_credential\|fallback_text:—}}` | jane | `—` — all tokens empty → fallback |
+| J10 | `{{join mode:template\|format:%1 (%2)\|key:name_generation\|2-key:name_credential\|fallback:—}}` | jane | `—` — all tokens empty → fallback |
 
 ## Full-name assembly — the primary stress case
 
@@ -132,7 +143,7 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 | J11c | same as J11, inside a query-loop item | `5’11”` — **negative control: must EQUAL J11.** Loop-generated rows are still texturized (do_blocks@9 < wptexturize@10) |
 | J11d | same as J11b, inside a query-loop item | `5′11″` — primes unaffected by placement |
 | J12 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_blank}}` | `5'` — dangling `"` shed (Step 1) |
-| J13 | `{{join mode:template\|format:%1'%2"\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — both quote marks shed, all empty → fallback (`name_generation` unseeded on this page) |
+| J13 | `{{join mode:template\|format:%1'%2"\|key:name_generation\|2-key:height_in_blank\|fallback:—}}` | `—` — both quote marks shed, all empty → fallback (`name_generation` unseeded on this page) |
 | J14 | `{{join mode:template\|format:%1'%2"\|key:height_ft\|2-key:height_in_zero}}` | `5'0"` — absorbed `'0'` renders; `5'` needs author `''` or the future base-text zero-empty opt-in |
 
 ## `~…~` unit groups (Step 0, 1.15.0 — `/matrix-post-meta/`)
@@ -148,7 +159,7 @@ the wire round-trip (`~` rides GB's tag string unescaped — verified against GB
 |---|---|---|
 | J25 | `{{join mode:template\|format:%1 ~(%2)~\|key:name_first\|2-key:role}}` | `Jane (Captain)` — both present: group delimiters unwrap invisibly |
 | J26 | `{{join mode:template\|format:%1′ / ~%2 in~\|key:height_ft\|2-key:height_in_blank}}` | `5′` — empty group sheds whole (unit word `in` AND the `/` separator; contrast J12 where a space-separated unit would survive) |
-| J27 | `{{join mode:template\|format:~%1 ft~ / ~%2 in~\|key:name_generation\|2-key:height_in_blank\|fallback_text:—}}` | `—` — all groups empty → fallback (`name_generation` unseeded on this page) |
+| J27 | `{{join mode:template\|format:~%1 ft~ / ~%2 in~\|key:name_generation\|2-key:height_in_blank\|fallback:—}}` | `—` — all groups empty → fallback (`name_generation` unseeded on this page) |
 | J28 | `{{join mode:template\|format:%1 ~~ %2\|key:height_ft\|2-key:height_in}}` | `5 ~ 11` — `~~` renders a literal tilde |
 | J28b | `{{join mode:template\|format:~%1 in~ ~~ ~%2 cm~\|key:height_ft\|2-key:height_in}}` | `5 in ~ 11 cm` — literal `~~` BETWEEN two real groups: the escape is sentineled away from the group parser, so delimiter parity is unaffected (J28 alone can't prove this — with no real group present the parser never runs) |
 | J28c | `{{join mode:template\|format:~%1 ft~ ~~ ~%2 in~\|key:height_ft\|2-key:height_in_blank}}` | `5 ft ~` — empty group sheds beside a literal `~~`; output ends in a bare trailing tilde (eyeball on the page, not `--porcelain`) |
@@ -195,7 +206,7 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 | JP3b | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:related_staff\|key:name_first\|2-src:current\|2-key:role}}` | `[Join “'name_first' from Ref 'related_staff' / 'role'”]` — non-current source inline on its slot |
 | JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
 | JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
-| JP6 | `{{join key:name_first\|2-key:name_last\|fallback_text:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
+| JP6 | `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
 
 ## Fail triage
 

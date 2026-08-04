@@ -604,5 +604,46 @@ check(
 	"[Try 'a' from Current, 'b' from Ref 'rel', 'c' from Ref 'rel']"
 );
 
+// ── Inexpressible-chain FLAG (1.17.0, 5g) ────────────────────────────────────
+// A slot the render seam SKIPS because its chain has no flat spelling renders
+// nothing, so the preview must SAY so. Silence was the pre-5g behaviour and it
+// read as "this tag has one slot fewer than the author configured". The reason
+// comes from the seam's out-param, never re-derived here — the whole point of
+// routing both previews through the seam was to stop copying its rules.
+// NB `refs,x;terms,y` IS expressible — the flat triple holds one ref hop AND one
+// term hop. Inexpressible means a SECOND hop on the same axis, or `entries`.
+check(
+	'join: expressible ref+term chain previews normally (the negative control)',
+	bws_build_join_preview_label( [ '1' => 'src(refs,rel;terms,dept);use(title)', '2' => 'key(role)' ] ),
+	"[Join Title from Ref 'rel' → Dept Term, 'role']"
+);
+check(
+	'join: a SECOND ref hop is FLAGGED, not silently dropped',
+	bws_build_join_preview_label( [ '1' => 'src(refs,a;refs,b);use(title)', '2' => 'key(role)' ] ),
+	'[⚠ Join: slot 1 source not supported]'
+);
+check(
+	'join: an `entries` step is flagged the same way',
+	bws_build_join_preview_label( [ '1' => 'src(entries,rows);key(name)' ] ),
+	'[⚠ Join: slot 1 source not supported]'
+);
+check(
+	'try_: same flag, on a selecting container',
+	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
+	'[⚠ Try: slot 2 source not supported]'
+);
+check(
+	'try_: the ONLY slot inexpressible reports the reason, NOT "no slots configured"',
+	bws_build_try_preview_label( [ '1' => 'src(entries,rows);key(name)' ], 'text' ),
+	'[⚠ Try: slot 1 source not supported]'
+);
+// An UNCONFIGURED combining slot stays SILENT — it is a normal in-progress state,
+// and flagging it would fire on every half-built join.
+check(
+	'join: an unconfigured slot is silent (no read = in progress, not broken)',
+	bws_build_join_preview_label( [ '1' => 'key(a)', '2' => 'src(site)' ] ),
+	"[Join 'a']"
+);
+
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );
 exit( $failures ? 1 : 0 );

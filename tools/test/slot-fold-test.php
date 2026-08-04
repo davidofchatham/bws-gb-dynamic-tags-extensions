@@ -8,8 +8,9 @@
  * grammar is exactly the drift this file exists to catch — the spike carried four
  * copies of these constants and all four sat on a superseded separator at once.
  *
- * Graduated from tools/test/slot-fold-roundtrip-spike.php (178 cases on the spike
- * grammar). Two deliberate changes at graduation:
+ * Graduated from the FW-56/57 grammar spike (178 cases on the spike grammar;
+ * `tools/spike/` and the spike harness were deleted at 1.17.0 — history in git).
+ * Two deliberate changes at graduation:
  *   - The separator set is no longer PARAMETERIZED. The spike re-ran its whole
  *     suite under an alternate char set to prove the grammar was not
  *     char-dependent; the shipped grammar is a decided set of constants, so what
@@ -819,6 +820,28 @@ foreach ( array(
 	$w = t_seam_walk( array( '1' => $wire ), 'join' );
 	check( "P13.5 inexpressible chain skips the slot ($why)", ! isset( $w[1] ), json_encode( $w[1] ?? null ) );
 }
+// P13.5b — the seam REPORTS WHY it skipped, and the two reasons are not
+// interchangeable: the editor preview flags an inexpressible chain and stays silent
+// on an unconfigured slot. Asserted on the seam, not through the preview, because the
+// preview must never re-derive it (a second copy of the skip rule is the drift the
+// seam removed).
+//
+// The reset is part of the CONTRACT, not decoration: the out-param is by reference, so
+// a caller is entitled to reuse one variable across a whole slot walk. A reason that is
+// only ever WRITTEN on a skip leaks the previous slot's answer into a later resolving
+// slot — invisible while every caller happens to re-init, and a silent misflag the
+// moment one does not.
+$sr_carry = array();
+$sr       = 'STALE';
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(entries,rows);key(x)' ), $sr_carry, true, $sr );
+check( 'P13.5b an inexpressible chain reports reason `chain`', 'chain' === $sr, var_export( $sr, true ) );
+$sr_carry = array();
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site)' ), $sr_carry, true, $sr );
+check( 'P13.5b an unconfigured combining slot reports reason `read`', 'read' === $sr, var_export( $sr, true ) );
+$sr_carry = array();
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site);key(a)' ), $sr_carry, true, $sr );
+check( 'P13.5b a RESOLVING slot clears the reason (reused variable, no leak)', '' === $sr, var_export( $sr, true ) );
+
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
 $lead_terms = t_seam_walk( array( '1' => 'src(terms,category);use(title)' ), 'join' );
 check( 'P13.5 leading term hop resolves with src unset', array( 'src' => '', 'ref' => '', 'srcTermIn' => 'category', 'use' => 'title', 'key' => '' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );

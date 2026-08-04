@@ -901,20 +901,33 @@ function bws_fold_empty_slot(): array {
  * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
  * bws_field_values_assemble_steps().
  *
+ * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the two skips
+ * apart — an unconfigured slot is a normal in-progress state and says nothing, while an
+ * inexpressible chain is wire that will never render and has to be FLAGGED, or the author
+ * reads a preview that silently omits a slot they configured. Deriving the reason in the
+ * preview would be a second copy of the skip rule, i.e. the exact drift this seam removed,
+ * so the reason is reported BY THE OWNER. Optional and by reference: the render callers
+ * pass nothing and are unaffected.
+ *
  * @since 1.17.0
- * @param array $slot      Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
- * @param array $carry     Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
- * @param bool  $combining True for {{join}}/{{table}}; false for `try_*`.
+ * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
+ * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
+ * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`.
+ * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
+ *                            combining slot has no read configured; 'chain' when the chain
+ *                            has no flat spelling.
  * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
  *                    null when the slot is skipped (unconfigured / inexpressible).
  */
-function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining ) {
+function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining, &$skip_reason = null ) {
+	$skip_reason = '';
 	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
 	if ( null === $read ) {
 		if ( $combining ) {
+			$skip_reason = 'read';
 			return null;   // UNCONFIGURED — shipped combining resolvers skip, before carry.
 		}
 		$use = $carry['use'];
@@ -947,6 +960,7 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		$arg  = $step['arg'] ?? null;
 
 		if ( 'entries' === $slug ) {
+			$skip_reason = 'chain';
 			return null;   // repeater rows: no flat spelling (the {{table}} resolver owns them).
 		}
 
@@ -974,6 +988,7 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		}
 
 		if ( 'terms' !== $slug || '' !== $tax ) {
+			$skip_reason = 'chain';
 			return null;   // second term hop, second ref hop, or `entries`: not expressible.
 		}
 		$tax = (string) ( $arg ?? '' );

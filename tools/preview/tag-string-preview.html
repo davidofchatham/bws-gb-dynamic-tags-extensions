@@ -397,21 +397,32 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div class="sb-h">Option Key Names</div>
     <div id="sb-names"></div>
 
-    <div class="sb-h">⏳ Revision pending (2026-08-01)</div>
+    <div class="sb-h">✅ SHIPPED 1.17.0 — this tool is no longer the authority</div>
     <div class="toggle-desc" style="line-height:1.5">
-      Full cleanup is <strong>DEFERRED to the end of the FW-56/57 build</strong>, so it reflects
-      the grammar as BUILT — implementation constraints and phasing may still move things
-      (the <code>step_class</code> narrowing to <code>{,}</code> already fell out that way).
-      The chars below are current as of the 2026-07-31 approval, but treat anything here as
-      <em>pending confirmation</em> until that pass runs.<br>
-      Pickers deliberately still offer REJECTED-but-safe candidates (<code>+</code>,
-      <code>/</code>): this is an exploration tool, and a candidate has to stay comparable to be
-      re-examined. Only UNSAFE chars are ever removed.
+      The grammar SHIPPED (2026-08-03/04) and its owners are the authority now:
+      <code>includes/helpers/slot-fold.php</code> (PHP) and
+      <code>assets/js/slot-fold-grammar.js</code> (its tested twin). This page stays as the
+      EXPLORATION surface — comparing candidate spellings side by side is what it is for, and that
+      job outlives the decision.<br><br>
+      Three things shipped differently from the bullets below, so read them as design history:<br>
+      • <strong>No <code>N-</code> siblings in the shipped containers.</strong> Everything a slot
+      owns rides INSIDE its <code>N:</code> value — <code>label</code> folded in, link inlined,
+      <code>sep</code> HELD (still open). The sibling model here is a live option for later
+      carriers, not what join/<code>try_</code> emit.<br>
+      • <strong>Folded (all-digit) keys LEAD the whole tag string</strong>, ahead of
+      <code>format</code>. Not a preference — an all-digit key is a JS array-index property, which
+      ECMAScript enumerates before every string key, and GB serializes with
+      <code>Object.entries()</code>. Neither port can move them.<br>
+      • <code>+</code> and <code>/</code> are <strong>RESERVED, not merely rejected</strong>: they
+      are ordinary CONTENT inside a value and are NOT leniently accepted as grammar, because a
+      lenient class spends the char — binding one later would silently change what saved wires mean.
+      The pickers still offer them, as an exploration tool should.
     </div>
 
-    <div class="sb-h">LOCKED decisions</div>
+    <div class="sb-h">LOCKED decisions (as approved 2026-07-31)</div>
     <div class="toggle-desc" style="line-height:1.5">
-      • Slot prefix: <code>N:</code> value + <code>N-</code> siblings, slot 1 included<br>
+      • Slot prefix: <code>N:</code> value, slot 1 included (<code>N-</code> siblings explored, NOT
+      shipped — see above)<br>
       • <code>src</code> chain owns the source string (use+key excluded → the read)<br>
       • Type token LEADS the slot value (primary format option, FW-52 order)
     </div>

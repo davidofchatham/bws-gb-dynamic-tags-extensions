@@ -101,6 +101,12 @@ so the schema survives snapshot restores.
 - Media: one seeded image attachment `fixture-photo` (deterministic solid-color PNG,
   idempotent by `_bws_fixture_slug` meta) + a `feature_image` ACF image field
   (return_format `id`) on `matrix-post-meta` — backs the FW-52 `{{image}}` editor rows.
+- Ref-hop return formats, all THREE shapes ACF can hand back (manifest v6):
+  `related_staff` (relationship, `id`), `related_staff_obj` (relationship,
+  `object` → `WP_Post[]`) and `lead_staff_obj` (post_object, `object` → ONE
+  `WP_Post`, the only shape that reaches the reader's non-array wrap). All carry
+  the SAME targets, so the hop's output is an equivalence assertion with no new
+  expected values (fold matrix RF1/RF2).
 
 ## Known gaps
 
