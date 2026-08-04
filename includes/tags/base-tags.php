@@ -910,14 +910,19 @@ function bws_get_join_options(): array {
 		'placeholder' => ', ',
 		'show_if'     => array( 'mode' => 'not:template' ),
 	);
-	// %N (not {N}) — GB's tag parser rejects `}` anywhere in a tag's options
+	// %A (not {A}) — GB's tag parser rejects `}` anywhere in a tag's options
 	// (find_matches captures options as [^}]+; docs/gb-constraints.md), so the
 	// wire token syntax is brace-free. bws_join_wire_format() translates.
+	//
+	// The token letter IS the slot's option key, which is the whole reason it is a
+	// letter: `A:key(x)|format:%A` reads as one statement. The help names only the
+	// canonical spelling — `%1` still resolves, but documenting two alphabets would
+	// invite authors to mix them in one string.
 	$options['format'] = array(
 		'type'        => 'text',
 		'label'       => __( 'Format', 'generateblocks' ),
-		'help'        => __( 'Format string using %1, %2 … as positional tokens for the slots. Wrap a token and its unit text in tildes (~%5 lbs.~) so they disappear together when the field is empty. Use %% for a literal percent sign before a digit, ~~ for a literal tilde.', 'generateblocks' ),
-		'placeholder' => '%1 (%2)',
+		'help'        => __( 'Format string using %A, %B … as positional tokens, matching the slot letters. Wrap a token and its unit text in tildes (~%E lbs.~) so they disappear together when the field is empty. Use %% for a literal percent sign before a slot letter, ~~ for a literal tilde.', 'generateblocks' ),
+		'placeholder' => '%A (%B)',
 		'show_if'     => array( 'mode' => 'template' ),
 	);
 	$options['fallback'] = array(

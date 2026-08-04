@@ -372,5 +372,79 @@ if ( ! is_array( $js_doc ) ) {
 	}
 }
 
+// ── M8 — {{join}} format-token escape (the letters' latent regression) ─────
+//
+// NOT a token re-spell: `%1` and `%A` resolve to the same internal token, forever. What
+// migrates is the LITERAL. Before 1.17.0 a `%` not followed by a slot DIGIT passed
+// through bws_join_wire_format() untouched, so `10%APR` was legal stored wire; with the
+// letters tokenizing it becomes slot 1. join-template-test.php pins that the tokenizer
+// now does this; these pin that the migration is what keeps stored text intact.
+//
+// THE PROPERTY THAT MATTERS IS THE ERA GATE, and the first draft of this block is what
+// found it missing: `%A` is literal-or-token by ERA, not by inspection, so a
+// content-based test would escape an INTENDED token and break working output. A folded
+// slot key cannot predate the letters, so its presence is the decidable discriminator.
+
+require __DIR__ . '/../../includes/helpers/join-helpers.php';
+
+MigrationRegistry::register(
+	array(
+		'type'               => 'option',
+		'match_tag'          => 'join',
+		'match_any_options'  => array( 'format' ),
+		'new_tag'            => 'join',
+		'transform_callback' => 'bws_migrate_join_format_escape',
+		'label'              => 'join format escape',
+	)
+);
+
+$m8 = static fn( string $tag ): string => MigrationRegistry::apply_option_migration( 'join', $tag );
+
+// PRE-LETTERS wire: flat slot keys, digit tokens, and a literal `%APR` that 1.15.0
+// rendered verbatim. Every `%`+letter here is a literal, so every one is escaped.
+check(
+	'M8.1 a literal % before a slot letter is escaped on pre-letters wire',
+	'{{join mode:template|format:10%%APR from %1|key:rate}}' === $m8( '{{join mode:template|format:10%APR from %1|key:rate}}' ),
+	$m8( '{{join mode:template|format:10%APR from %1|key:rate}}' )
+);
+// THE ERA GATE. Same format text, but the tag carries a folded slot key — so it was
+// written after the letters went live and `%A` is a TOKEN. Escaping it here would turn a
+// working tag into literal text, which is why no content test can be used.
+check(
+	'M8.2 an intended letter TOKEN on folded wire is left alone',
+	'{{join mode:template|format:10%APR from %A|A:key(rate)}}' === $m8( '{{join mode:template|format:10%APR from %A|A:key(rate)}}' ),
+	$m8( '{{join mode:template|format:10%APR from %A|A:key(rate)}}' )
+);
+// FIXPOINT, from the lookbehind alone (this tag has no folded key, so the gate lets it
+// through and only the escape state stops a second pass).
+check(
+	'M8.3 running it twice changes nothing',
+	'{{join mode:template|format:10%%APR from %1|key:rate}}' === $m8( '{{join mode:template|format:10%%APR from %1|key:rate}}' ),
+	$m8( '{{join mode:template|format:10%%APR from %1|key:rate}}' )
+);
+// The token set is bounded by the CONTAINER, not by A–Z: `%K` is literal in a 10-slot
+// join in BOTH eras, so escaping it would rewrite text the renderer never looks at.
+check(
+	'M8.4 a letter past the container cap is left alone',
+	'{{join mode:template|format:%K of %%A|key:rate}}' === $m8( '{{join mode:template|format:%K of %A|key:rate}}' ),
+	$m8( '{{join mode:template|format:%K of %A|key:rate}}' )
+);
+check(
+	'M8.5 a digit-token format is untouched (both alphabets resolve alike)',
+	'{{join mode:template|format:%1 (%2)|key:a|2-key:b}}' === $m8( '{{join mode:template|format:%1 (%2)|key:a|2-key:b}}' ),
+	$m8( '{{join mode:template|format:%1 (%2)|key:a|2-key:b}}' )
+);
+check(
+	'M8.6 a trailing lone % is not a token and is not escaped',
+	'{{join mode:template|format:up 10%|key:a}}' === $m8( '{{join mode:template|format:up 10%|key:a}}' ),
+	$m8( '{{join mode:template|format:up 10%|key:a}}' )
+);
+// A separator-mode join has no `format`, so the entry must not match at all.
+check(
+	'M8.7 separator-mode join is untouched',
+	'{{join A:key(a)|valueSep: / }}' === $m8( '{{join A:key(a)|valueSep: / }}' ),
+	$m8( '{{join A:key(a)|valueSep: / }}' )
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

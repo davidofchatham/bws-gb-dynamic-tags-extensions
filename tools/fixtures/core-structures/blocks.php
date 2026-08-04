@@ -616,10 +616,10 @@ function bws_fixture_page_content_staff_join() {
 		bws_fixture_gb_row( 'F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith)', '{{join key:name_first|2-key:name_last}}' ),
 		bws_fixture_gb_row( 'F1.1 folded (-> same)', '{{join A:key(name_first)|B:key(name_last)}}' ),
 		bws_fixture_gb_row( 'F1.8 legacy template mode (jane: Jane (Johnson) / tom: Tom (Smith))', '{{join mode:template|format:%1 (%2)|key:name_first|2-key:name_last}}' ),
-		bws_fixture_gb_row( 'F1.8 folded (-> same)', '{{join mode:template|format:%1 (%2)|A:key(name_first)|B:key(name_last)}}' ),
+		bws_fixture_gb_row( 'F1.8 folded, canonical %A tokens (-> same)', '{{join mode:template|format:%A (%B)|A:key(name_first)|B:key(name_last)}}' ),
 		bws_fixture_gb_row( 'F1.10 legacy fallback (jane: em dash / tom: Jr., PhD)', '{{join key:name_generation|2-key:name_credential|fallback:—}}' ),
 		bws_fixture_gb_row( 'F1.10 folded (-> same)', '{{join A:key(name_generation)|B:key(name_credential)|fallback:—}}' ),
-		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%1 %2 %3. %4 %5, %6, %7|A:key(name_honorific)|B:key(name_first)|C:key(name_middle_initial)|D:key(name_last)|E:key(name_generation)|F:key(name_credential)|G:key(name_service)}}' ),
+		bws_fixture_gb_row( 'F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.))', '{{join mode:template|format:%A %B %C. %D %E, %F, %G|A:key(name_honorific)|B:key(name_first)|C:key(name_middle_initial)|D:key(name_last)|E:key(name_generation)|F:key(name_credential)|G:key(name_service)}}' ),
 		bws_fixture_gb_row( 'F5.7 try_permalink, no-read shape (-> this staff single\'s URL)', '{{try_permalink A:src(current)|B:src(site)}}' ),
 		bws_fixture_gb_row( 'N6 try_text fallback on empty slots (jane: None / tom: Jr.)', '{{try_text A:key(name_generation)|B:key(name_credential)|fallback:None}}' ),
 	) );

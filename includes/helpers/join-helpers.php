@@ -122,31 +122,126 @@ function bws_join_assemble( array $values, array $options ): string {
 }
 
 /**
- * Translate the WIRE format syntax (%1…%N) to the canonical internal token
+ * Translate the WIRE format syntax (%A…%N) to the canonical internal token
  * syntax ({1}…{N}).
  *
  * GB CONSTRAINT (docs/gb-constraints.md): find_matches() captures tag options
  * as `[^}]+` — a `}` anywhere inside a tag's options kills the whole tag
  * match, so brace tokens `{1}` can NEVER ride the wire inside {{join …}}.
- * Authors therefore write `%1`…`%N` in the Format control; this translates to
+ * Authors therefore write `%A`…`%J` in the Format control; this translates to
  * the brace form the pure algorithm (and its harness) canonically uses.
- * `%%` escapes a literal percent sign directly before a digit (printf
- * convention); a lone `%` not followed by a slot digit passes through as-is.
+ *
+ * TOKENS FOLLOW THE SLOT KEY SPELLING (1.17.0). A slot's key and its format token
+ * name the same thing, so they use the same alphabet: `{{join A:key(x)|format:%A}}`
+ * reads as one statement, where `A:…|format:%1` reads as two. The DIGIT spelling is
+ * still accepted and always will be — both alphabets collapse to the same internal
+ * `{N}`, so there is exactly one translation point and nothing downstream can tell
+ * which the author typed. That is what makes the move migration-free for authors, and
+ * it is required by ADR 0004 anyway: wire is hand-editable and paste-portable, and no
+ * scanner reaches wire on a clipboard.
+ *
+ * `%%` escapes a literal percent sign before a token (printf convention); a lone `%`
+ * followed by anything else passes through as-is. THE ESCAPE SURFACE WIDENED with the
+ * letters, and it follows the CONTAINER'S SLOT COUNT rather than the letter class —
+ * `%K` stays literal in a 10-slot join. A stored pre-1.17.0 format holding a literal
+ * `%` before A–J therefore changes meaning, which is why the escape is a real
+ * migration (bws_migrate_join_format_escape) and not a nicety.
  *
  * Pure — no WP/GB symbols. Harnessed in join-template-test.php.
  *
  * @since 1.15.0
- * @param string $format Author-written wire format (%N tokens).
+ * @since 1.17.0 Accepts `%A` alongside `%1`.
+ * @param string $format Author-written wire format (%A or %N tokens).
  * @return string Canonical format ({N} tokens).
  */
 function bws_join_wire_format( string $format ): string {
 	$format = str_replace( '%%', "\x00", $format ); // protect escaped %
-	// High → low so a two-digit token (`%10`) matches before its `%1` prefix;
-	// low-first would rewrite `%10` to `{1}0`.
+	// High → low so a multi-character token matches before its own prefix: `%10`
+	// before `%1` (low-first rewrites `%10` to `{1}0`), and `%AA` before `%A` if a
+	// container ever reaches 27 slots.
 	for ( $n = BWS_JOIN_MAX_SLOTS; $n >= 1; $n-- ) {
-		$format = str_replace( '%' . $n, '{' . $n . '}', $format );
+		$token  = '{' . $n . '}';
+		$format = str_replace( '%' . bws_slot_ordinal( $n ), $token, $format );
+		$format = str_replace( '%' . $n, $token, $format );
 	}
 	return str_replace( "\x00", '%', $format );
+}
+
+/**
+ * MigrationRegistry transform: escape a literal `%` that the letter tokens just made
+ * significant.
+ *
+ * THE REGRESSION THIS EXISTS FOR. Before 1.17.0 a `%` not followed by a slot DIGIT
+ * passed through `bws_join_wire_format()` untouched, so `Up 10%APR, paid %1` was a
+ * legal stored format. With `%A`…`%J` tokenizing, that `%A` becomes slot 1 and the
+ * output silently changes.
+ *
+ * GATED ON WIRE ERA, NOT ON CONTENT, and that is the whole design. A `%A` in a format
+ * string is INDISTINGUISHABLE as literal-or-token by inspection, so any content test
+ * ("does it also contain a digit token?", "which alphabet did the author mean?")
+ * corrupts the case it guesses wrong — and the wrong guess destroys an intended token,
+ * i.e. it breaks working output rather than failing to fix broken output. The era is
+ * decidable, though: a FOLDED slot key could not exist before 1.17.0, and after 1.17.0
+ * every join the editor writes has one. So a tag carrying any folded slot key is
+ * post-letters wire and its `%A` is a TOKEN, left alone; a tag with none is
+ * pre-letters wire and its `%A` is a LITERAL, escaped.
+ *
+ * That gate is why this entry must register BEFORE the fold entry (see
+ * bws_register_option_migrations): the fold ADDS folded keys, so running afterwards
+ * would see every tag as post-letters and never fire.
+ *
+ * FIXPOINT twice over: the lookbehind skips a `%` that is already escaped, and after
+ * the fold has run the era gate skips the tag outright.
+ *
+ * The DIGIT tokens are deliberately NOT re-spelled. Both alphabets resolve identically,
+ * so rewriting them would be churn on every stored template-mode join for no output
+ * change.
+ *
+ * SCANNER PATH ONLY, and that gap is known: a join inside a block widget lives in the
+ * `widget_block` option, which the content scanner never reads (the fold migration has
+ * a JS mount twin for exactly that reason). A second twin was not built here because
+ * the exposure is one rendering change in rare literal text, not lost configuration.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_migrate_join_format_escape( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	if ( ! class_exists( $reg ) || ! function_exists( 'bws_slot_ordinal' ) ) {
+		return $tag_string;
+	}
+
+	list( $tag_name, $options ) = $reg::parse_tag_string( $tag_string );
+	if ( 'join' !== $tag_name || ! isset( $options['format'] ) ) {
+		return $tag_string;
+	}
+
+	// Era gate. One folded slot key anywhere means the letters were already live when
+	// this tag was written, so its `%A` is a token.
+	foreach ( array_keys( $options ) as $option_key ) {
+		if ( bws_slot_ordinal_num( (string) $option_key ) > 0 ) {
+			return $tag_string;
+		}
+	}
+
+	// The token set is bounded by the CONTAINER, not by A–Z: a `%K` in a 10-slot join is
+	// literal today and must stay literal, or this migration escapes text the renderer
+	// never touches. An ALTERNATION rather than a character class, longest-first, because
+	// a container past 26 slots spells them `AA` — which no char class can match and
+	// which must be tried before its own `A` prefix.
+	$tokens = array();
+	for ( $n = BWS_JOIN_MAX_SLOTS; $n >= 1; $n-- ) {
+		$tokens[] = preg_quote( bws_slot_ordinal( $n ), '/' );
+	}
+
+	$escaped = preg_replace( '/(?<!%)%(' . implode( '|', $tokens ) . ')/', '%%$1', (string) $options['format'] );
+	if ( null === $escaped || $escaped === $options['format'] ) {
+		return $tag_string;
+	}
+
+	$options['format'] = $escaped;
+	return $reg::format_tag_string( $tag_name, $options );
 }
 
 /**

@@ -1343,6 +1343,27 @@ function bws_register_option_migrations(): void {
 		) );
 	}
 
+	// ── {{join}} format tokens: escape a `%` the slot LETTERS made significant ──
+	//
+	// BEFORE the fold entry, and that order is load-bearing. Not a token RE-SPELL: `%1`
+	// resolves identically to `%A` and always will, so there is nothing to migrate for
+	// authors. What has to move is the LITERAL — a `%` before A–J used to pass through
+	// untouched, so `Up 10%APR, paid %1` was legal stored wire whose meaning changes the
+	// moment letters tokenize. Literal-or-token is undecidable from the format string, so
+	// the transform gates on WIRE ERA: no folded slot key means pre-letters wire. The
+	// fold entry below ADDS folded keys, so registering this after it would make every
+	// tag look post-letters and the entry would never fire.
+	if ( function_exists( 'bws_migrate_join_format_escape' ) ) {
+		$reg::register( array(
+			'type'               => 'option',
+			'match_tag'          => 'join',
+			'match_any_options'  => array( 'format' ),
+			'new_tag'            => 'join',
+			'transform_callback' => 'bws_migrate_join_format_escape',
+			'label'              => __( '{{join}}: escape a literal % before a slot letter in the format string', 'generateblocks' ),
+		) );
+	}
+
 	// ── FW-56/57: legacy flat slot keys → folded `{N}:` slot values (1.17.0) ──
 	//
 	// LAST, deliberately. Every entry above rewrites keys the fold then consumes

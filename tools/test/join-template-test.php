@@ -45,6 +45,9 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 define( 'ABSPATH', __DIR__ );
 
 require __DIR__ . '/../../includes/helpers/join-helpers.php';
+// The wire tokens follow the SLOT KEY spelling (1.17.0), so the translator asks
+// slot-fold.php for each ordinal rather than keeping its own alphabet.
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
 
 $failures = 0;
 $count    = 0;
@@ -87,15 +90,33 @@ assert_same( 'bare source `sep` ignored by assemble (uses valueSep default)', 'a
 assert_same( 'template mode routes to format (wire %N tokens)', 'a (b)', bws_join_assemble( array( 1 => 'a', 2 => 'b' ), array( 'mode' => 'template', 'format' => '%1 (%2)' ) ) );
 assert_same( 'template mode, no format → empty', '', bws_join_assemble( array( 1 => 'a' ), array( 'mode' => 'template' ) ) );
 
-echo "bws_join_wire_format (wire %N → canonical {N}; GB bans } in options)\n";
+echo "bws_join_wire_format (wire %A / %N → canonical {N}; GB bans } in options)\n";
 
-assert_same( 'basic translation', '{1} ({2})', bws_join_wire_format( '%1 (%2)' ) );
-assert_same( 'all eight tokens', '{1}{2}{3}{4}{5}{6}{7}{8}', bws_join_wire_format( '%1%2%3%4%5%6%7%8' ) );
+// CANONICAL alphabet (1.17.0): the token letter IS the slot's option key, so
+// `A:key(x)|format:%A` reads as one statement.
+assert_same( 'basic translation (letters)', '{1} ({2})', bws_join_wire_format( '%A (%B)' ) );
+assert_same( 'all ten letter tokens', '{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}', bws_join_wire_format( '%A%B%C%D%E%F%G%H%I%J' ) );
+assert_same( 'letter past the container cap stays literal', '%K {1}', bws_join_wire_format( '%K %A' ) );
+assert_same( 'lowercase is not a token', '%a {1}', bws_join_wire_format( '%a %A' ) );
+assert_same( '%% escapes a literal percent before a slot letter', '50%A off {2}', bws_join_wire_format( '50%%A off %B' ) );
+assert_same( 'height format on the wire (letters)', "{1}'{2}\"", bws_join_wire_format( '%A\'%B"' ) );
+
+// DIGIT FALLBACK — accepted forever, not deprecated. Both alphabets collapse to the same
+// internal token at this single translation point, which is what makes the 1.17.0 move
+// migration-free for authors and keeps hand-pasted pre-1.17.0 wire renderable (ADR 0004).
+assert_same( 'digit fallback still translates', '{1} ({2})', bws_join_wire_format( '%1 (%2)' ) );
+assert_same( 'all eight digit tokens', '{1}{2}{3}{4}{5}{6}{7}{8}', bws_join_wire_format( '%1%2%3%4%5%6%7%8' ) );
 assert_same( 'two-digit token %10 wins over its %1 prefix', '{9} {10} {1}', bws_join_wire_format( '%9 %10 %1' ) );
 assert_same( '%% escapes a literal percent before a digit', '50%1 off {2}', bws_join_wire_format( '50%%1 off %2' ) );
-assert_same( 'lone % (no slot digit) passes through', '100% {1}', bws_join_wire_format( '100% %1' ) );
+assert_same( 'the two alphabets MIX in one string (same token space)', '{1} ({2})', bws_join_wire_format( '%A (%2)' ) );
+
+assert_same( 'lone % (no token) passes through', '100% {1}', bws_join_wire_format( '100% %A' ) );
 assert_same( 'no tokens → unchanged', 'plain text', bws_join_wire_format( 'plain text' ) );
-assert_same( 'height format on the wire', "{1}'{2}\"", bws_join_wire_format( '%1\'%2"' ) );
+// THE LATENT REGRESSION the letters introduced, pinned so its migration cannot be
+// dropped as cosmetic: this string was legal in 1.15.0 and rendered `%APR` verbatim.
+// It no longer does, and only the escape migration keeps a stored one intact.
+assert_same( 'a legacy literal %-before-A NOW TOKENIZES (hence the migration)', '10{1}PR paid {2}', bws_join_wire_format( '10%APR paid %B' ) );
+assert_same( '…and its escaped form is what preserves the author text', '10%APR paid {2}', bws_join_wire_format( '10%%APR paid %B' ) );
 
 echo "Step 1a — unit punct (. ' \") trailing-attached sheds with empty token\n";
 

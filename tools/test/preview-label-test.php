@@ -523,10 +523,25 @@ check(
 	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'src(refs,rel_post);key(role)' ] ),
 	"[Join 'name_first', 'role' from Ref 'rel_post']"
 );
+// CANONICAL token alphabet (1.17.0): the token letter IS the slot key, so a folded tag
+// reads as one statement. The preview substitutes through the same dual read the
+// renderer uses — a preview that knew only one alphabet would show an author their own
+// format string with half its tokens unsubstituted.
 check(
-	'folded: template mode substitutes tokens',
+	'folded: template mode substitutes LETTER tokens',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A (%B)', 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
+	"[Join “'name_first' ('name_last')”]"
+);
+check(
+	'folded: the DIGIT token fallback previews identically',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
 	"[Join “'name_first' ('name_last')”]"
+);
+// `%%` shows as typed, and a `%` before a letter past the container cap is not a token.
+check(
+	'folded: an escaped % and an out-of-range letter both stay literal',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A %%B %K', 'A' => 'key(name_first)' ] ),
+	"[Join “'name_first' %%B %K”]"
 );
 check(
 	'folded: an argless ref hop still warns',
