@@ -63,6 +63,12 @@ define( 'ABSPATH', __DIR__ );
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+// The MIGRATOR is loaded, not transcribed: P13.1/P14.x assert that migrated wire
+// resolves like the legacy wire it replaced, which is only evidence if the thing being
+// migrated by is the shipped one. Its container CONFIG is derived the same way (via
+// TagTemplateRegistry::try_slot_axes) rather than hand-listed here.
+require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
+require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 
 $pass = 0;
 $fail = 0;
@@ -691,22 +697,18 @@ function t_shipped_join_walk( $options, $max = 5 ) {
 
 /** Migrate a whole legacy join option set to folded wire (what the 5e migrator will write). */
 function t_migrate_join( $options, $max = 5 ) {
-	$folded = array();
-	foreach ( array( 'mode', 'valueSep', 'format', 'fallback' ) as $tag_level ) {
-		if ( isset( $options[ $tag_level ] ) ) {
-			$folded[ $tag_level ] = $options[ $tag_level ];
-		}
-	}
-	for ( $n = 1; $n <= $max; $n++ ) {
-		$rec = bws_fold_from_legacy( $n, $options, true );
-		if ( $rec ) {
-			$wire = bws_fold_emit_slot( $rec['slot'] );
-			if ( '' !== $wire ) {
-				$folded[ (string) $n ] = $wire;
-			}
-		}
-	}
-	return $folded;
+	$cfg = array(
+		'container'    => 'join',
+		'combining'    => true,
+		'per_slot_use' => true,
+		'max'          => $max,
+		// Join owns `limit` per slot (it registered `limit`/`N-limit` and threaded each
+		// into that slot's text resolve), so nothing is excluded here — the opposite of
+		// try_ below. bws_fold_migration_container('join') says the same.
+		'tag_level'    => array(),
+	);
+	$out = bws_fold_migrate_slots( $options, $cfg );
+	return null === $out ? $options : $out;
 }
 
 // P13.1 — MIGRATION EQUIVALENCE: legacy wire and its migrated folded twin must
@@ -933,25 +935,30 @@ function t_seam_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '
 	return $out;
 }
 
-/** Migrate a legacy try_ option set to folded wire (what the 5e migrator will write). */
-function t_migrate_try( $options, $psu, $max = 5 ) {
-	$folded = $options;
-	for ( $n = 1; $n <= $max; $n++ ) {
-		$p = ( 1 === $n ) ? '' : "{$n}-";
-		foreach ( array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ) as $axis ) {
-			unset( $folded[ $p . $axis ] );
-		}
-	}
-	for ( $n = 1; $n <= $max; $n++ ) {
-		$rec = bws_fold_from_legacy( $n, $options, false, $psu );
-		if ( $rec ) {
-			$wire = bws_fold_emit_slot( $rec['slot'] );
-			if ( '' !== $wire ) {
-				$folded[ (string) $n ] = $wire;
-			}
-		}
-	}
-	return $folded;
+/**
+ * Migrate a legacy try_ option set to folded wire — the SHIPPED migrator, with the
+ * container config derived from the shipped read-shape mapping for the shape under test.
+ * `$psk`/`$psu` are the two template flags, so the three read shapes are addressed the
+ * same way the registry addresses them.
+ */
+function t_migrate_try( $options, $psk, $psu, $max = 5 ) {
+	$axes = \BWS\DynamicTags\TagTemplateRegistry::try_slot_axes(
+		array(
+			'try_per_slot_key' => $psk,
+			'try_per_slot_use' => $psu,
+		)
+	);
+	$out = bws_fold_migrate_slots(
+		$options,
+		array(
+			'container'    => 'try',
+			'combining'    => false,
+			'per_slot_use' => $psu,
+			'max'          => $max,
+			'tag_level'    => $axes['tag_level'],
+		)
+	);
+	return null === $out ? $options : $out;
 }
 
 // P14.1 — psu shape (text: default read `key`, no-key value `title`).
@@ -968,7 +975,7 @@ $try_psu_cases = array(
 );
 foreach ( $try_psu_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), 'key' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true ), true, true, array( 'title' ), 'key' );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'title' ), 'key' );
 	check( "P14.1 [psu: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), 'key' );
 	check( "P14.1 [psu: $name] dual-read of unmigrated wire resolves identically", $shipped === $dual, 'legacy: ' . json_encode( $shipped ) . "\n      dual:   " . json_encode( $dual ) );
@@ -1002,7 +1009,7 @@ $content_cases = array(
 );
 foreach ( $content_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), 'content' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true ), true, true, array( 'content', 'excerpt' ), 'content' );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'content', 'excerpt' ), 'content' );
 	check( "P14.2 [content: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
 $bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), 'content' );
@@ -1018,7 +1025,7 @@ $psk_cases = array(
 );
 foreach ( $psk_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, true, false );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false ), true, false );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, false ), true, false );
 	check( "P14.3 [psk: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
 $psk_wire = bws_fold_emit_slot( bws_fold_from_legacy( 2, array( '2-src' => 'site' ), false, false )['slot'] );
@@ -1034,7 +1041,7 @@ $none_cases = array(
 );
 foreach ( $none_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, false, false );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false ), false, false );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false, false ), false, false );
 	check( "P14.4 [none: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
 $none_wire = bws_fold_emit_slot( bws_fold_from_legacy( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );

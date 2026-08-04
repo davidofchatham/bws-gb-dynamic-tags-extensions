@@ -1342,4 +1342,39 @@ function bws_register_option_migrations(): void {
 			),
 		) );
 	}
+
+	// ── FW-56/57: legacy flat slot keys → folded `{N}:` slot values (1.17.0) ──
+	//
+	// LAST, deliberately. Every entry above rewrites keys the fold then consumes
+	// (`src_2` → `2-src` → `2:src(...)`), and apply_option_migration applies matching
+	// entries in registration order — so registering the fold before them would fold a
+	// slot, then leave the earlier entry to re-introduce a flat key beside the folded
+	// value. This is also the entry that forced the no-op-halts-cascade fix in
+	// apply_option_migration: it matches on `src`/`key`, so on an image tag the as+size
+	// entry (which no-ops once folded) used to end the cascade before the fold ran.
+	//
+	// One registration per multislot tag, both list and container parameters DERIVED
+	// (bws_fold_migration_container) — the split is by DEPTH, and the base-tag depth-0
+	// half is not registered because no base tag reads a chain off the wire yet. Slot
+	// grammar + rules: includes/helpers/slot-fold-migrate.php.
+	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
+		foreach ( bws_fold_migration_multislot_tags() as $tag ) {
+			$cfg = bws_fold_migration_container( $tag );
+			if ( null === $cfg ) {
+				continue;
+			}
+			$reg::register( array(
+				'type'               => 'option',
+				'match_tag'          => $tag,
+				'match_any_options'  => bws_fold_migration_slot_keys( $cfg ),
+				'new_tag'            => $tag,
+				'transform_callback' => 'bws_migrate_src_chain_slots',
+				'label'              => sprintf(
+					/* translators: %s: tag name */
+					__( '{{%s}}: flat slot options → folded slot values', 'generateblocks' ),
+					$tag
+				),
+			) );
+		}
+	}
 }

@@ -368,6 +368,56 @@ class TagTemplateRegistry {
 	}
 
 	/**
+	 * Which read axes a try_ template owns PER SLOT, and which legacy source-group keys it
+	 * does NOT own per slot at any position.
+	 *
+	 * The `try_per_slot_use`/`try_per_slot_key` pair names the slot's READ SHAPE, and the
+	 * shape decides where `use`/`key` live. This method is that mapping, and it has TWO
+	 * consumers that must agree: generate_base_try_tags() strips `slot_read` from the
+	 * trailing tag-level options, and the FW-56/57 fold migrator refuses to fold a
+	 * `tag_level` key into a slot value (bws_fold_migrate_slots). Both consumers call this
+	 * so the split exists once.
+	 *
+	 * `tag_level` is an EXCLUSION AT EVERY POSITION, not just slot 1, and both directions
+	 * are output changes:
+	 *   - Slot 1's axis IS the bare key, so folding a tag-level `key` into `1:` relocates a
+	 *     working option into a slot value nothing reads. `{{try_datetime_single
+	 *     key:event_date}}` is that shape — its read is tag-level, and the four chain-only
+	 *     templates (title/permalink/datetime_*) never registered a per-slot `use`/`key`.
+	 *   - A prefixed `N-use`/`N-key` on such a template is DEAD wire (the resolver's psk/psu
+	 *     gate ignores it), so folding it would make it live.
+	 *
+	 * `src`/`ref`/`srcTermIn` are always slot-level. `limit` NEVER is: try_ has never
+	 * registered `N-limit`, and the resolver reads a bare `limit` as every slot's default
+	 * cap (`$slot_max`), list template or not — so folding it into slot 1 would take the cap
+	 * away from slots 2+. It stays tag-level on every template.
+	 *
+	 * @since 1.17.0
+	 * @param array $tpl Modifier template descriptor.
+	 * @return array{slot_read:string[],tag_level:string[]}
+	 */
+	public static function try_slot_axes( array $tpl ): array {
+		$per_slot_use = ! empty( $tpl['try_per_slot_use'] );
+		$per_slot_key = ! empty( $tpl['try_per_slot_key'] );
+
+		$slot_read = [];
+		if ( $per_slot_use ) {
+			$slot_read[] = 'use';
+		}
+		if ( $per_slot_use || $per_slot_key ) {
+			$slot_read[] = 'key';
+		}
+
+		$tag_level   = array_values( array_diff( [ 'use', 'key' ], $slot_read ) );
+		$tag_level[] = 'limit';
+
+		return [
+			'slot_read' => $slot_read,
+			'tag_level' => $tag_level,
+		];
+	}
+
+	/**
 	 * Generate try_ fallback-chain tags from modifier templates (base-tag system).
 	 *
 	 * One try_ tag per eligible modifier template (supports_try = true).
@@ -510,11 +560,11 @@ class TagTemplateRegistry {
 			foreach ( array_keys( $leading_options ) as $leading_key ) {
 				unset( $trailing_opts[ $leading_key ] );
 			}
-			if ( $per_slot_key ) {
-				unset( $trailing_opts['key'] );
-			}
-			if ( $per_slot_use ) {
-				unset( $trailing_opts['use'], $trailing_opts['key'] );
+			// Whichever read axes this template owns PER SLOT are not tag-level options.
+			// self::try_slot_axes() is the single owner of that split; the fold migrator
+			// reads its complement so a tag-level `use`/`key` is never folded into slot 1.
+			foreach ( self::try_slot_axes( $tpl )['slot_read'] as $slot_axis ) {
+				unset( $trailing_opts[ $slot_axis ] );
 			}
 			foreach ( [ $trailing_opts, $link_opts_try ] as $group ) {
 				foreach ( $group as $opt_key => $opt_def ) {

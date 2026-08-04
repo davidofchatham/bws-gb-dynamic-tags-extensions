@@ -249,9 +249,28 @@ class MigrationRegistry {
 	 *
 	 * @param string   $tag_name    Current (live) tag name.
 	 * @param string[] $option_keys Keys present in the parsed tag string.
-	 * @return array|null Matching entry, or null if none found.
+	 * @return array|null FIRST matching entry, or null if none found.
 	 */
 	public static function find_option_migration( string $tag_name, array $option_keys ): ?array {
+		$all = self::find_option_migrations( $tag_name, $option_keys );
+		return $all[0] ?? null;
+	}
+
+	/**
+	 * Find ALL option migration entries matching a tag name and the option keys present.
+	 *
+	 * Same predicate as find_option_migration(), returning every match in registration
+	 * order instead of stopping at the first. apply_option_migration() needs the full
+	 * list because a matching entry that produces NO CHANGE must not end the cascade —
+	 * see that method's docblock.
+	 *
+	 * @since 1.17.0
+	 * @param string   $tag_name    Current (live) tag name.
+	 * @param string[] $option_keys Keys present in the parsed tag string.
+	 * @return array[] Matching entries, registration order.
+	 */
+	public static function find_option_migrations( string $tag_name, array $option_keys ): array {
+		$found = array();
 		foreach ( self::$entries as $entry ) {
 			if ( 'option' !== ( $entry['type'] ?? 'tag' ) ) {
 				continue;
@@ -270,47 +289,67 @@ class MigrationRegistry {
 				}
 			}
 			if ( ! empty( $any ) ) {
-				$found = false;
+				$has_any = false;
 				foreach ( $any as $key ) {
 					if ( in_array( $key, $option_keys, true ) ) {
-						$found = true;
+						$has_any = true;
 						break;
 					}
 				}
-				if ( ! $found ) {
+				if ( ! $has_any ) {
 					continue;
 				}
 			}
-			return $entry;
+			$found[] = $entry;
 		}
-		return null;
+		return $found;
 	}
 
 	/**
-	 * Apply option migrations to a tag string. Loops until no further matching entry fires
-	 * or no change is produced, so overlapping/cascading migrations all apply in one call.
+	 * Apply option migrations to a tag string. Loops until no matching entry produces a
+	 * change, so overlapping/cascading migrations all apply in one call.
 	 *
-	 * Bounded by a hard iteration cap (16) as a safety against pathological registrations.
+	 * A NO-OP ENTRY DOES NOT END THE CASCADE (fixed 1.17.0). Multiple 'option' entries per
+	 * live tag is normal — `text` has ~5, `image` ~7 — and before this fix they only all
+	 * fired because every matched entry happened to change something: the loop asked for
+	 * the FIRST match and returned the moment that one produced no change, so a later
+	 * entry never ran and REGISTRATION ORDER silently decided whether that mattered. The
+	 * as+size fold is the live trigger: it matches on `as`, which survives its own
+	 * transform, so `{{try_image as:url,large|src:ref|…}}` no-ops there and everything
+	 * registered after it (including the FW-56/57 slot fold) was unreachable. So: walk
+	 * every matching entry, take the first that CHANGES the string, then re-derive the
+	 * matches from the new string (a transform can change which entries match) and go
+	 * again. Terminates when no matching entry changes anything.
 	 *
+	 * Bounded by a hard iteration cap as a safety against pathological registrations. Each
+	 * iteration applies at most one change, so the cap must exceed the longest legitimate
+	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
+	 * that fire.
+	 *
+	 * @since 1.17.0 No-op entries are skipped instead of halting the cascade.
 	 * @param string $tag_name   Current (live) tag name.
 	 * @param string $tag_string Full raw tag string.
-	 * @return string Migrated string, or original if no matching entry found.
+	 * @return string Migrated string, or original if nothing fired.
 	 */
 	public static function apply_option_migration( string $tag_name, string $tag_string ): string {
-		$max_iterations = 16;
+		$max_iterations = 32;
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			[ , $options ] = self::parse_tag_string( $tag_string );
-			$entry         = self::find_option_migration( $tag_name, array_keys( $options ) );
+			$entries       = self::find_option_migrations( $tag_name, array_keys( $options ) );
 
-			if ( null === $entry ) {
-				return $tag_string;
+			$changed = false;
+			foreach ( $entries as $entry ) {
+				$next = self::run_transform( $entry, $tag_string );
+				if ( $next !== $tag_string ) {
+					$tag_string = $next;
+					$changed    = true;
+					break;
+				}
 			}
 
-			$next = self::run_transform( $entry, $tag_string );
-			if ( $next === $tag_string ) {
+			if ( ! $changed ) {
 				return $tag_string;
 			}
-			$tag_string = $next;
 		}
 		return $tag_string;
 	}
@@ -533,6 +572,14 @@ class MigrationRegistry {
 	 * Format: `{{tag_name key1:val1|key2:val2}}`. Each pair splits on the first colon
 	 * so values may contain colons (e.g. `format:Y-m-d H:i`).
 	 *
+	 * TRAILING WHITESPACE INSIDE THE BRACES IS PART OF THE LAST VALUE, and is preserved
+	 * (fixed 1.17.0). GB's own parser does not trim option values — `parse_options()`
+	 * splits on `|` then `:` and stores the remainder verbatim — so `{{text sep:, }}`
+	 * renders with ", " and rtrimming here turned an authored separator into ",". Harmless
+	 * while option migrations were narrow single-key renames; the FW-56/57 fold entry
+	 * matches nearly every join/try_ tag, which made it reachable at scale.
+	 *
+	 * @since 1.17.0 The last option value keeps its trailing whitespace.
 	 * @param string $tag_string Full tag string including `{{` / `}}`.
 	 * @return array{0: string, 1: array<string,string>}
 	 */
@@ -545,7 +592,7 @@ class MigrationRegistry {
 		if ( str_ends_with( $inner, '}}' ) ) {
 			$inner = substr( $inner, 0, -2 );
 		}
-		$inner = trim( $inner );
+		$inner = ltrim( $inner );
 
 		$space = strpos( $inner, ' ' );
 		if ( false === $space ) {
@@ -553,7 +600,7 @@ class MigrationRegistry {
 		}
 
 		$tag_name    = substr( $inner, 0, $space );
-		$options_str = trim( substr( $inner, $space + 1 ) );
+		$options_str = ltrim( substr( $inner, $space + 1 ) );
 		$options     = array();
 
 		if ( '' !== $options_str ) {

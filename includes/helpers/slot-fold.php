@@ -101,6 +101,20 @@ const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'range
 const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
 
 /**
+ * The LEGACY per-slot option axes, i.e. exactly the keys bws_fold_from_legacy() reads
+ * (bare for slot 1, `{N}-`-prefixed for slots ≥2). Declared as data because the migrator
+ * has to STRIP the same set the mapper CONSUMES, and two hand-written lists is how a
+ * dropped axis becomes silent data loss.
+ *
+ * `limit` is in the set but is NOT slot-level on every container — a try_ list template
+ * owns a tag-level `limit` (TagTemplateRegistry::try_slot_axes()). The container's
+ * tag-level exclusions are applied before this set is consumed.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_LEGACY_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' );
+
+/**
  * Bracket pair for a nesting level. Level 1 = `()`, level 2 = `[]`, alternating.
  *
  * Alternation is the mechanism, not decoration: same-char immediate nesting makes
