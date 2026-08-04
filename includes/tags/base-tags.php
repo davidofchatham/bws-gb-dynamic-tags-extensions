@@ -887,8 +887,11 @@ function bws_get_join_options(): array {
 				// try_'s. Same data as bws_fold_migration_container()'s `tag_level`.
 				'tag_level'       => array(),
 				'noun'            => __( 'field', 'generateblocks' ),
-				/* translators: %d: slot number */
-				'label'           => __( 'Field %d', 'generateblocks' ),
+				// %s is the slot ORDINAL (`A`, `B`, …) — its option key and its `%A`
+				// format token, so the panel header, the wire and the format string all
+				// name a slot the same way.
+				/* translators: %s: slot ordinal (A, B, …) */
+				'label'           => __( 'Field %s', 'generateblocks' ),
 			)
 		)
 		: array();

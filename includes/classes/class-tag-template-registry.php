@@ -554,7 +554,7 @@ class TagTemplateRegistry {
 						// "slot" is the word try_'s own preview warnings already use
 						// ("⚠ Try: slot 2 no key"); the fold introduces no second noun.
 						'noun'            => __( 'slot', 'generateblocks' ),
-						'label'           => __( 'Slot %d', 'generateblocks' ),
+						'label'           => __( 'Slot %s', 'generateblocks' ),
 					]
 				)
 				: [];

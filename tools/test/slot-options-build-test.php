@@ -309,7 +309,7 @@ $joins = bws_build_fold_slot_options(
 		'allow_same_read' => false,
 		'hops'            => array( 'srcTermIn' ),
 		'noun'            => 'field',
-		'label'           => 'Field %d',
+		'label'           => 'Field %s',
 	)
 );
 
@@ -328,7 +328,10 @@ assert_same(
 	array_keys( array_merge( array( 'as' => array() ), $joins ) )
 );
 assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins['B']['type'] );
-assert_same( 'per-slot label follows the caller pattern', 'Field 2', $joins['B']['label'] );
+// The label carries the slot's ORDINAL SPELLING, not its number. That is the one place
+// the capital key prefix becomes legible: an author reading `B:` on the wire finds the
+// panel headed "Field B", and its {{join}} format token is `%B`.
+assert_same( 'per-slot label carries the ordinal spelling, not the number', 'Field B', $joins['B']['label'] );
 
 $fold = $joins['A']['fold'];
 

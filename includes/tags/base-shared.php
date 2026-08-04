@@ -317,7 +317,10 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *                                   slot (e.g. a try_ template's `limit`). Ships to the
  *                                   editor as the complement, `legacyAxes`.
  *     @type string $noun            Slot noun for the Add button ("field", "column").
- *     @type string $label           Per-slot label pattern with one %d. Default "Slot %d".
+ *     @type string $label           Per-slot label pattern with one %s, which receives the
+ *                                   slot's ORDINAL SPELLING (`A`, `B`, …) — the same string
+ *                                   as its option key, so the panel header names what the
+ *                                   author sees on the wire. Default "Slot %s".
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  * }
@@ -336,7 +339,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
-	$label_pattern   = (string) ( $args['label'] ?? __( 'Slot %d', 'generateblocks' ) );
+	$label_pattern   = (string) ( $args['label'] ?? __( 'Slot %s', 'generateblocks' ) );
 
 	$base_src  = bws_base_source_option();
 	$base_trav = bws_base_traversal_options();
@@ -456,10 +459,15 @@ function bws_build_fold_slot_options( array $args ): array {
 
 	$options = array();
 	for ( $n = 1; $n <= $max; $n++ ) {
-		$options[ bws_slot_ordinal( $n ) ] = array(
+		// The label carries the ORDINAL SPELLING, not the number: it is the one place the
+		// capital prefix becomes legible. An author reading `B:src(same);key(role)` on the
+		// wire finds the panel headed "Slot B", and the {{join}} format token for it is
+		// `%B` — one alphabet across the key, the label and the token.
+		$ordinal                = bws_slot_ordinal( $n );
+		$options[ $ordinal ] = array(
 			'type'  => 'bws-slot-fold',
-			/* translators: %d: slot number */
-			'label' => sprintf( $label_pattern, $n ),
+			/* translators: %s: slot ordinal (A, B, …) */
+			'label' => sprintf( $label_pattern, $ordinal ),
 			'fold'  => $fold,
 		);
 	}
