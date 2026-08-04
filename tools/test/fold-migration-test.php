@@ -135,12 +135,11 @@ check(
 	MigrationRegistry::apply_option_migration( 'chain_tag', '{{chain_tag a:1}}' )
 );
 
-// find_option_migration() (singular) must keep returning the FIRST match — the scanner
-// and the admin preview read it for the entry LABEL, not to apply anything.
-$first = MigrationRegistry::find_option_migration( 'cascade_tag', array( 'as', 'old' ) );
-$all   = MigrationRegistry::find_option_migrations( 'cascade_tag', array( 'as', 'old' ) );
-check( 'M1.5 singular finder still returns the first match', 'no-op' === ( $first['label'] ?? '' ), json_encode( $first['label'] ?? null ) );
-check( 'M1.6 plural finder returns every match in registration order', array( 'no-op', 'old → new' ) === array_column( $all, 'label' ), json_encode( array_column( $all, 'label' ) ) );
+// The finder returns EVERY match in registration order, which is what lets the cascade
+// step past a no-op entry. (The singular first-match sibling was deleted in 1.17.0: it had
+// no caller once this one existed, and this case was the only thing keeping it alive.)
+$all = MigrationRegistry::find_option_migrations( 'cascade_tag', array( 'as', 'old' ) );
+check( 'M1.5 finder returns every match in registration order', array( 'no-op', 'old → new' ) === array_column( $all, 'label' ), json_encode( array_column( $all, 'label' ) ) );
 
 // ── M2 — read shapes: which axes a try_ template owns per slot ──────────────
 

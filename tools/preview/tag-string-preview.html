@@ -2128,6 +2128,16 @@ function foldedSlotKey(i) {
   }
 }
 // 1 → A, 2 → B, … 26 → Z, 27 → AA. Spreadsheet-column ordinals.
+//
+// A DELIBERATE COPY of bws_slot_ordinal() (includes/helpers/slot-fold.php), which is the
+// single owner for the shipped code, and of its twin slotOrdinal() in
+// assets/js/slot-fold-grammar.js. This page is a standalone `file://` tool with no build
+// step and no server, so importing either owner means a relative <script src> that breaks
+// the moment the page is opened from anywhere but its own directory — and a silently
+// missing encoder here renders every slot key as `undefined:`. The copy is cheap to keep
+// honest (four lines, no branches) and the blast radius of drift is a wrong CANDIDATE on
+// an exploration page, not wrong output: nothing on this page is shipped or parsed.
+// If it ever grows a rule, move it behind the real owner and accept the load cost.
 function alphaOrdinal(n) {
   let out = '';
   while (n > 0) { const r = (n - 1) % 26; out = String.fromCharCode(65 + r) + out; n = (n - 1 - r) / 26; }

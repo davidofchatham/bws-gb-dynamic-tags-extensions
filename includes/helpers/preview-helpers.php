@@ -65,6 +65,28 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
 }
 
 /**
+ * The preview warning for a slot whose CHAIN has no flat spelling.
+ *
+ * Both multislot previews (join and try_) report this, so the wording lives once. The
+ * seam owns the REASON — bws_fold_slot_flat_options() reports `'chain'` through its
+ * out-param and the preview never re-derives the rule — but the author-facing phrasing is
+ * preview vocabulary (docs/editor-tag-previews.md), and two copies of the string is the
+ * same drift one layer up: the previews already diverged once on the walk itself.
+ *
+ * Only `'chain'` gets a warning. A `'read'` skip is an unconfigured slot, i.e. a normal
+ * in-progress state, and stays silent.
+ *
+ * @since 1.17.0
+ * @param int $n Slot ordinal (1-based).
+ * @return string Warning text.
+ */
+if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
+function bws_fold_skip_warning( int $n ): string {
+	return 'slot ' . $n . ' source not supported';
+}
+}
+
+/**
  * Build a structured editor preview label for the {{join}} combining tag.
  *
  * join is the standalone COMBINING tag (see join-helpers.php): it absorbs up to
@@ -125,7 +147,7 @@ function bws_build_join_preview_label( array $options ): string {
 			// flagged — otherwise the preview silently omits a slot the author
 			// configured, and reads as if the tag were one slot smaller.
 			if ( 'chain' === $skip ) {
-				$warnings[] = 'slot ' . $n . ' source not supported';
+				$warnings[] = bws_fold_skip_warning( $n );
 			}
 			continue;
 		}
@@ -301,7 +323,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			// 'read' cannot happen here (an absent read INHERITS in a selecting
 			// container); 'chain' is wire that will never render, so flag it.
 			if ( 'chain' === $skip ) {
-				$skips[] = 'slot ' . $n . ' source not supported';
+				$skips[] = bws_fold_skip_warning( $n );
 			}
 			continue;
 		}

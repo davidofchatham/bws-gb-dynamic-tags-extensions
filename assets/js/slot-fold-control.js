@@ -151,12 +151,20 @@
 		return found;
 	}
 
-	/** Slugs whose ARG is a field key discovered through the field picker. */
+	/**
+	 * What ARG a wire hop slug takes, named in the ENGINE vocabulary the PHP-supplied
+	 * `slugMap` already defines (`refs` → `ref`, `terms` → `srcTermIn`, `entries` →
+	 * `rows`). Derived, not re-typed: this used to return a local `'taxonomy'` — a THIRD
+	 * spelling of a slug that exists twice already — and then switch on it, which is the
+	 * hand-authored vocabulary the config exists to remove.
+	 *
+	 * '' means the slug takes no arg (or is not a hop at all), which is what gates the
+	 * Add-hop row. The round-trip test is what makes an unknown slug answer '' rather
+	 * than itself, since toEngine() passes unknowns straight through.
+	 */
 	function argKind( conf, slug ) {
-		if ( 'refs' === slug ) { return 'ref'; }
-		if ( 'entries' === slug ) { return 'entries'; }
-		if ( 'terms' === slug ) { return 'taxonomy'; }
-		return '';
+		var engine = toEngine( conf, slug );
+		return ( conf.slugMap && conf.slugMap[ engine ] === slug ) ? engine : '';
 	}
 
 	// ── Slot structs ────────────────────────────────────────────────────────
@@ -648,8 +656,8 @@
 			} ) );
 
 			var kind = argKind( conf, stepObj.slug );
-			if ( 'ref' === kind || 'entries' === kind ) {
-				var argCfg = ( 'entries' === kind ? conf.entriesOption : conf.refOption ) || {};
+			if ( 'ref' === kind || 'rows' === kind ) {
+				var argCfg = ( 'rows' === kind ? conf.entriesOption : conf.refOption ) || {};
 				var commitArg = function ( v ) {
 					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
 				};
@@ -682,7 +690,7 @@
 						style: { fontSize: '11px', color: '#a00', margin: '4px 0 0' }
 					}, __( 'Needs a field — this step resolves to nothing until set.', 'generateblocks' ) ) );
 				}
-			} else if ( 'taxonomy' === kind ) {
+			} else if ( 'srcTermIn' === kind ) {
 				stepKids.push( el( 'div', { key: 'arg', style: STACKED },
 					el( SelectControl, {
 						label: __( 'Taxonomy', 'generateblocks' ),
@@ -904,6 +912,7 @@
 		removeSlotFrom: removeSlotFrom,
 		legacyKeys: legacyKeys,
 		inferIntent: inferIntent,
-		foldConfig: foldConfig
+		foldConfig: foldConfig,
+		argKind: argKind
 	};
 }() );

@@ -171,6 +171,37 @@ Enforced at: `bws_collect_value_list()` PHPDoc (field-helpers.php). Consumer con
 
 ---
 
+## I13 — Wire ERA is decided PER SLOT, never per tag
+
+A multislot tag's slots are stored either in the folded form (one option key per slot, spelled as a capital ordinal) or in the pre-1.17.0 flat form (six keys per slot). **Mode purity is a property of a MIGRATED tag, not of the reader.** A half-applied migration, a hand-edit, or a block widget the converter never scanned can leave slot 2 folded between legacy slots 1 and 3 — so a reader that picked one era for the whole tag would silently drop half of it.
+
+**Rule:** decide the era per slot. Folded value present ⇒ parse it; absent ⇒ recover that slot from its legacy keys. Both paths feed the same caller-held carry-forward accumulator, which is what makes a mixed-era tag resolve as its author last saw it. Two corollaries that are easy to get backwards:
+
+- **Malformed folded wire resolves to NOTHING, not to the legacy sibling.** The folded value is the author's intent; rendering a stale legacy key instead is a wrong answer dressed as a working one.
+- **A folded value WINS over surviving legacy siblings** rather than merging with them — merging invents a configuration neither side wrote. This is also why the migration's equivalence property is blind to whether the legacy keys were stripped.
+
+The same rule is why the two migration paths are complementary rather than redundant: the converter reaches stored `post_content` a scanner can walk, and tag-modal mount reaches everything it cannot. Neither is a fallback for the other, and both must write the same tag the same way.
+
+Spans: the render seam, both previews, both migrators, the editor control, and their JS twins — four files in two languages, which is why it is here and not in one PHPDoc. Enforced at: `bws_fold_slot_struct()` PHPDoc (slot-fold.php). Schema: [`tag-reference.md` §Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers). Rationale + build record: `.claude/plans/src-chain-encoding.md`. Related: [I6] (a slot resolves as the same tag standalone), [I11].
+
+---
+
+## I14 — A source chain's ROOT is not a step
+
+A folded slot's source is an ordered CHAIN. Its first token is either an **entity root** (`current`, `site`, a registry source) or already a **hop** (`refs`, `terms`, `entries`), and which one it is is decidable **from the slug alone** — roots are singular, fanning hops are plural. The root binds *where* traversal starts, which is the factory's job ([I9] ambient resolution); the hops are what the engine folds.
+
+**Rule:** compile a chain by consuming the root into the source factory and the remaining steps into the engine. Do not model the root as a step-zero, and do not let a step stand in for it. Three consequences worth stating because each has a wrong-looking-right alternative:
+
+- **An argless fanning step is DROPPED, not compiled field-less.** A field-less hop short-circuits to empty, which changes what stored wire renders; the legacy shape it comes from read the ambient entity.
+- **An unknown hop slug compiles to an unknown engine TYPE, never to nothing.** The engine answers empty and the chain short-circuits, which is the wire's own meaning. Dropping the step would read a *different* source than the wire states.
+- **A per-hop cap and a terminal `limit` are different quantities.** The first bounds a fan-out's spread, the second bounds the caller's value list. A step carries a cap only when it actually caps, since absent is how the engine spells no-cap.
+
+**Currently contradicted, and tracked as a refactor rather than an exception** (per the reading posture above): container ARMS still dispatch on the flat `src`/`srcTermIn` tokens, so a slot whose chain has no flat spelling is skipped rather than run, and chain wire on a base tag can read a different entity than the same wire in a slot. The fix is dispatch by the chain's TERMINAL STEP KIND (the verb-agnostic resolver refactor), not a guard at each arm. Depth-0 chains resolve today.
+
+Enforced at: `bws_fold_chain_root()` / `bws_fold_chain_to_steps()` PHPDoc (slot-fold-compile.php). Vocabulary: [`deprecated-tags-options.md` §Folded slot wire](docs/deprecated-tags-options.md). Measured divergences: `tools/test/fold-test-matrix.md` §F9. Related: [I9] (the factory picks the base source by context), FW-32.
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).

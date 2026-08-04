@@ -49,19 +49,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function bws_fold_migration_container( string $tag_name ): ?array {
 	if ( 'join' === $tag_name ) {
-		return array(
-			'container'    => 'join',
-			'combining'    => true,
-			'per_slot_use' => true,
-			'max'          => defined( 'BWS_JOIN_MAX_SLOTS' ) ? BWS_JOIN_MAX_SLOTS : 10,
-			// Nothing excluded: join's tag-level options (mode/valueSep/format/fallback)
-			// share no name with a legacy slot axis, and `limit` IS a join slot axis — it
-			// registered one per slot (`limit`/`N-limit`) and threaded it into that slot's
-			// text resolve. That is the opposite of try_, where a bare `limit` is the
-			// tag-level cap for every slot, and it is why `tag_level` is per-container data
-			// rather than one shared list.
-			'tag_level'    => array(),
-		);
+		// Read from the OWNER, not re-listed here: bws_get_join_options() registers from
+		// the same array, and two hand-kept copies of `max`/`tag_level` disagree silently
+		// (see bws_join_fold_container(), which also records why `tag_level` is empty).
+		return function_exists( 'bws_join_fold_container' ) ? bws_join_fold_container() : null;
 	}
 
 	if ( 0 !== strpos( $tag_name, 'try_' ) || ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {

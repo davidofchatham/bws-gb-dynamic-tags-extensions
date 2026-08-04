@@ -537,7 +537,7 @@ class TagTemplateRegistry {
 				? bws_build_fold_slot_options(
 					[
 						'container'       => 'try',
-						'combining'       => false,
+						'combining'       => bws_fold_is_combining( 'try' ),
 						'per_slot_use'    => $per_slot_use,
 						'min'             => 2,
 						'max'             => 5,

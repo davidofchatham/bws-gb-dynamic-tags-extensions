@@ -326,5 +326,40 @@ check(
 	'src(site);key(event_date)'
 );
 
+// ── argKind — which ARG a hop slug takes, in the config's own vocabulary ─────
+//
+// Covered because it was NOT: `argKind` returned a hand-typed `'taxonomy'` (a third
+// spelling of a slug the config already names twice) until 1.17.0, and stubbing it to
+// return '' left the whole suite green — the rendered step controls it drives are React
+// code no harness reaches. These cases are the mutation guard: every answer must come
+// back through `slugMap`, so a hop added on the PHP side needs no edit here, and a
+// re-typed local string fails.
+// `slugMap` mirrors the one bws_build_fold_slot_options() emits — engine option value →
+// wire step slug (DECISION 3). It is INPUT here, not an expectation: the cases assert that
+// every answer is derived from whatever map arrives, never that the map holds these pairs.
+const HOPS = rep.foldConfig( {
+	fold: {
+		container: 'join', combining: true, min: 2, max: 10,
+		slugMap: { ref: 'refs', srcTermIn: 'terms', rows: 'entries' }
+	}
+} );
+check( 'argKind: refs takes the ref field arg', rep.argKind( HOPS, 'refs' ), 'ref' );
+check( 'argKind: terms takes the taxonomy arg, named as the engine names it', rep.argKind( HOPS, 'terms' ), 'srcTermIn' );
+check( 'argKind: entries takes the repeater field arg', rep.argKind( HOPS, 'entries' ), 'rows' );
+// A ROOT slug and an unknown one both take no arg, and the '' is load-bearing twice: it
+// gates the Add-hop row, and it is what stops toEngine()'s pass-through from reporting a
+// non-hop as its own kind.
+check( 'argKind: an entity root takes no arg', rep.argKind( HOPS, 'current' ), '' );
+check( 'argKind: an unknown slug takes no arg', rep.argKind( HOPS, 'sideways' ), '' );
+// The engine spellings themselves are NOT wire slugs — passing one in means a caller
+// mixed the vocabularies, and it must not round-trip into a kind.
+check( 'argKind: an engine option value is not a wire slug', rep.argKind( HOPS, 'srcTermIn' ), '' );
+// Derived means DEPENDENT: with no map on the option definition, no hop takes an arg and
+// every step renders bare. Same posture as `legacyAxes` in the migrate twin — an absent
+// list is a REGISTRATION bug, not a shape to tolerate — and asserted so the dependency is
+// visible rather than discovered in the editor.
+const NO_MAP = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10 } } );
+check( 'argKind: an absent slugMap yields no arg at all (registration bug)', rep.argKind( NO_MAP, 'refs' ), '' );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

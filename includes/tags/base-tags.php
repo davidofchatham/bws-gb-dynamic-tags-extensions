@@ -859,14 +859,14 @@ function bws_get_join_options(): array {
 	// value. Replaces the six flat keys per slot join registered through 1.16.x; the
 	// renderer dual-reads the old wire, and the editor rewrites a slot to folded form
 	// the first time it is touched.
-	$options = function_exists( 'bws_build_fold_slot_options' )
+	// `container`/`combining`/`per_slot_use`/`max`/`tag_level` come from
+	// bws_join_fold_container() — the MIGRATOR reads the same array, and a hand-kept
+	// second copy of `max` or `tag_level` disagrees with it silently. Everything below is
+	// registration-only (control shape, labels, enums), which the migrator has no use for.
+	$options = function_exists( 'bws_build_fold_slot_options' ) && function_exists( 'bws_join_fold_container' )
 		? bws_build_fold_slot_options(
-			array(
-				'container'       => 'join',
-				'combining'       => true,
-				'per_slot_use'    => true,
+			array_merge( bws_join_fold_container(), array(
 				'min'             => 2,
-				'max'             => BWS_JOIN_MAX_SLOTS,
 				'base_read'       => $text_field['use'],
 				'base_key'        => $text_field['key'],
 				// Site arm allowed: join is standalone, so the base source list passes
@@ -880,19 +880,13 @@ function bws_get_join_options(): array {
 				// The flat render seam expresses one term hop; a second relationship hop
 				// is FW-32 work, so it is not offered.
 				'hops'            => array( 'srcTermIn' ),
-				// NOTHING is tag-level here, and `limit` is the case worth stating: join
-				// registered one `limit` PER SLOT and threaded it into that slot's text
-				// resolve, the opposite of try_, where a bare `limit` caps every slot. So
-				// the editor folds join's `limit` into the slot value and must not fold
-				// try_'s. Same data as bws_fold_migration_container()'s `tag_level`.
-				'tag_level'       => array(),
 				'noun'            => __( 'field', 'generateblocks' ),
 				// %s is the slot ORDINAL (`A`, `B`, …) — its option key and its `%A`
 				// format token, so the panel header, the wire and the format string all
 				// name a slot the same way.
 				/* translators: %s: slot ordinal (A, B, …) */
 				'label'           => __( 'Field %s', 'generateblocks' ),
-			)
+			) )
 		)
 		: array();
 

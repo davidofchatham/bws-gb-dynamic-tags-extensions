@@ -331,7 +331,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$container       = (string) ( $args['container'] ?? 'join' );
 	$max             = (int) ( $args['max'] ?? 5 );
 	$min             = (int) ( $args['min'] ?? 2 );
-	$combining       = ! isset( $args['combining'] ) || (bool) $args['combining'];
+	$combining       = isset( $args['combining'] ) ? (bool) $args['combining'] : bws_fold_is_combining( $container );
 	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
 	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
 	$allow_same_read = ! empty( $args['allow_same_read'] );

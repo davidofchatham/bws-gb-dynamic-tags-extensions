@@ -205,6 +205,57 @@ function bws_fold_slot_legacy_axes( array $tag_level = array() ): array {
 }
 
 /**
+ * Is this container COMBINING ({{join}}, {{table}}) or SELECTING (`try_*`)?
+ *
+ * ONE derivation, and the reason it is worth a function: `container` is the
+ * representation everything passes around — it names all three containers, it is what
+ * bws_fold_parse_slot() takes and what the fold config carries — while `combining` is a
+ * derived PROPERTY of it that several seams branch on. Every site that spelled
+ * `'try' !== $x` inline was a place the two names could drift apart, and the failure is
+ * silent: a wrong bool swaps what an ABSENT read means (skip vs inherit), which changes
+ * rendered output with no error anywhere.
+ *
+ * @since 1.17.0
+ * @param string $container 'try' | 'join' | 'table'.
+ * @return bool True for the combining containers.
+ */
+function bws_fold_is_combining( string $container ): bool {
+	return 'try' !== $container;
+}
+
+/**
+ * {{join}}'s fold container facts — the parameters the option REGISTRATION and the
+ * MIGRATOR both need.
+ *
+ * SINGLE OWNER, for the same reason try_'s facts live on
+ * TagTemplateRegistry::try_slot_axes(): join is hand-described (there is no template
+ * descriptor to derive from), so without one home bws_get_join_options() and
+ * bws_fold_migration_container() are two hand-kept copies of the same four facts. They
+ * disagree silently and expensively — a stale `max` leaves a slot unmigrated, a stale
+ * `tag_level` folds an option the resolver reads at TAG level — and nothing fails until
+ * a stored tag is rewritten wrong.
+ *
+ * `tag_level` is EMPTY, which is the fact worth stating rather than just asserting.
+ * Join's tag-level options (mode/valueSep/format/fallback) share no name with a legacy
+ * slot axis, and `limit` IS a join SLOT axis: join registered one per slot
+ * (`limit`/`N-limit`) and threaded it into that slot's text resolve. try_ is the
+ * opposite — a bare `limit` there caps every slot — which is why this list is
+ * per-container data and not one shared constant.
+ *
+ * @since 1.17.0
+ * @return array{container:string,combining:bool,per_slot_use:bool,max:int,tag_level:string[]}
+ */
+function bws_join_fold_container(): array {
+	return array(
+		'container'    => 'join',
+		'combining'    => true,
+		'per_slot_use' => true,
+		'max'          => defined( 'BWS_JOIN_MAX_SLOTS' ) ? BWS_JOIN_MAX_SLOTS : 10,
+		'tag_level'    => array(),
+	);
+}
+
+/**
  * Bracket pair for a nesting level. Level 1 = `()`, level 2 = `[]`, alternating.
  *
  * Alternation is the mechanism, not decoration: same-char immediate nesting makes
@@ -546,7 +597,7 @@ function bws_fold_parse_slot( string $value, string $container = 'join' ) {
 		return $tokens;
 	}
 
-	$agnostic = ( 'try' !== $container );
+	$agnostic = bws_fold_is_combining( $container );
 	$slot     = array(
 		'label' => null,
 		'type'  => null,
@@ -741,7 +792,9 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *
  * @param int   $n            Slot ordinal (1-based).
  * @param array $options      All tag options (GB-parsed).
- * @param bool  $combining    True for {{join}}/{{table}}; false for `try_*`.
+ * @param bool  $combining    True for {{join}}/{{table}}; false for `try_*`. Derive it
+ *                            with bws_fold_is_combining(), never by comparing the
+ *                            container string at the call site.
  * @param bool  $per_slot_use True when the container gives each slot its own read
  *                            axis (try_ templates with per_slot_use). Ignored for
  *                            combining containers.
@@ -907,7 +960,7 @@ function bws_fold_slot_struct( int $n, array $options, string $container = 'join
 		$parsed = bws_fold_parse_slot( $raw, $container );
 		return isset( $parsed['error'] ) ? null : $parsed;
 	}
-	$rec = bws_fold_from_legacy( $n, $options, 'try' !== $container, $per_slot_use );
+	$rec = bws_fold_from_legacy( $n, $options, bws_fold_is_combining( $container ), $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
 		return $rec['slot'];
 	}
@@ -982,7 +1035,8 @@ function bws_fold_empty_slot(): array {
  * @since 1.17.0
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
  * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
- * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`.
+ * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`. Derive it
+ *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
  *                            combining slot has no read configured; 'chain' when the chain
  *                            has no flat spelling.

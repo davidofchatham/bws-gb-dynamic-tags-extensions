@@ -243,26 +243,17 @@ class MigrationRegistry {
 	// ===============================================
 
 	/**
-	 * Find an option migration entry matching a tag name and option keys present in a tag string.
-	 *
-	 * All keys listed in match_options must be present in $option_keys for an entry to match.
-	 *
-	 * @param string   $tag_name    Current (live) tag name.
-	 * @param string[] $option_keys Keys present in the parsed tag string.
-	 * @return array|null FIRST matching entry, or null if none found.
-	 */
-	public static function find_option_migration( string $tag_name, array $option_keys ): ?array {
-		$all = self::find_option_migrations( $tag_name, $option_keys );
-		return $all[0] ?? null;
-	}
-
-	/**
 	 * Find ALL option migration entries matching a tag name and the option keys present.
 	 *
-	 * Same predicate as find_option_migration(), returning every match in registration
-	 * order instead of stopping at the first. apply_option_migration() needs the full
-	 * list because a matching entry that produces NO CHANGE must not end the cascade —
-	 * see that method's docblock.
+	 * All keys listed in match_options must be present in $option_keys for an entry to
+	 * match; matches come back in registration order. apply_option_migration() needs the
+	 * full list because a matching entry that produces NO CHANGE must not end the cascade
+	 * — see that method's docblock.
+	 *
+	 * There is deliberately no singular first-match sibling. One shipped through 1.16.x
+	 * and 1.17.0 removed it: after the plural landed it was `find_option_migrations()[0]`
+	 * with no caller in this plugin or in bws-portal-system, and the admin scanner reads
+	 * get_option_migrations_by_tag() for its labels rather than either finder.
 	 *
 	 * @since 1.17.0
 	 * @param string   $tag_name    Current (live) tag name.
