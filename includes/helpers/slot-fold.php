@@ -115,6 +115,26 @@ const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
 const BWS_FOLD_LEGACY_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' );
 
 /**
+ * The legacy per-slot axes a container actually owns — the full set minus its TAG-LEVEL
+ * axes, which are excluded at EVERY slot position.
+ *
+ * THE SINGLE OWNER OF THAT SUBTRACTION, because three places need the same answer and
+ * they must not each compute it: the converter migrator strips these keys
+ * (bws_fold_migration_slot_keys), the registered fold config ships them to the editor as
+ * `legacyAxes` (bws_build_fold_slot_options), and the editor's mount migrator + control
+ * read that config to decide which siblings to fold and delete. A control that kept its
+ * own list deleted the tag-level `limit` off a `try_text` and the tag-level `key` off a
+ * `try_datetime_single` the first time a slot was touched.
+ *
+ * @since 1.17.0
+ * @param string[] $tag_level Axes this container owns at TAG level (never per slot).
+ * @return string[] Per-slot axes, in BWS_FOLD_LEGACY_AXES order.
+ */
+function bws_fold_slot_legacy_axes( array $tag_level = array() ): array {
+	return array_values( array_diff( BWS_FOLD_LEGACY_AXES, $tag_level ) );
+}
+
+/**
  * Bracket pair for a nesting level. Level 1 = `()`, level 2 = `[]`, alternating.
  *
  * Alternation is the mechanism, not decoration: same-char immediate nesting makes
@@ -705,7 +725,15 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
 		// Legacy absence at slot ≥2 already MEANT inherit, in both containers —
 		// only the read axis diverges. Materialize the sentinel.
 		$chain[] = $step( 'same' );
-	} elseif ( '' !== $src && 'current' !== $src ) {
+	} elseif ( '' !== $src ) {
+		// An EXPLICIT `current` becomes a step like any other source value, even though an
+		// empty chain also resolves against the ambient entity. Treating it as "nothing"
+		// DELETED slots: on a container with no per-slot read axis (try_permalink,
+		// try_title, try_datetime_*) a fallback attempt whose entire content was
+		// `{N}-src:current` folded to an empty struct, which emits the empty string, which
+		// means the slot key is never written — the attempt vanished. It renders under the
+		// legacy wire and under `{N}:src(current)`, verified both ways on the testbed, so
+		// the step is the output-preserving mapping and the omission was a bug.
 		$chain[] = $step( $src );
 	}
 	if ( '' !== $tax ) {

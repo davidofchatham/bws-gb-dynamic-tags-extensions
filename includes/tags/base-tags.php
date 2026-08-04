@@ -880,6 +880,12 @@ function bws_get_join_options(): array {
 				// The flat render seam expresses one term hop; a second relationship hop
 				// is FW-32 work, so it is not offered.
 				'hops'            => array( 'srcTermIn' ),
+				// NOTHING is tag-level here, and `limit` is the case worth stating: join
+				// registered one `limit` PER SLOT and threaded it into that slot's text
+				// resolve, the opposite of try_, where a bare `limit` caps every slot. So
+				// the editor folds join's `limit` into the slot value and must not fold
+				// try_'s. Same data as bws_fold_migration_container()'s `tag_level`.
+				'tag_level'       => array(),
 				'noun'            => __( 'field', 'generateblocks' ),
 				/* translators: %d: slot number */
 				'label'           => __( 'Field %d', 'generateblocks' ),

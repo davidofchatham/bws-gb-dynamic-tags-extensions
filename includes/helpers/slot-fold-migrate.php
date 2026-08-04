@@ -125,13 +125,11 @@ function bws_fold_migration_multislot_tags(): array {
  * @return string[] Option keys, slot order.
  */
 function bws_fold_migration_slot_keys( array $cfg ): array {
+	$axes = bws_fold_slot_legacy_axes( (array) ( $cfg['tag_level'] ?? array() ) );
 	$keys = array();
 	for ( $n = 1; $n <= (int) $cfg['max']; $n++ ) {
 		$prefix = ( 1 === $n ) ? '' : "{$n}-";
-		foreach ( BWS_FOLD_LEGACY_AXES as $axis ) {
-			if ( in_array( $axis, $cfg['tag_level'], true ) ) {
-				continue;
-			}
+		foreach ( $axes as $axis ) {
 			$keys[] = $prefix . $axis;
 		}
 	}

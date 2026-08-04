@@ -313,6 +313,9 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
  *     @type bool   $allow_same_read Offer the read inherit row at slot ≥2. Default false.
  *     @type array  $hops            Engine step keys offered as hops. Default ['srcTermIn'].
+ *     @type array  $tag_level       Legacy axes this container owns at TAG level, never per
+ *                                   slot (e.g. a try_ template's `limit`). Ships to the
+ *                                   editor as the complement, `legacyAxes`.
  *     @type string $noun            Slot noun for the Add button ("field", "column").
  *     @type string $label           Per-slot label pattern with one %d. Default "Slot %d".
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
@@ -426,6 +429,14 @@ function bws_build_fold_slot_options( array $args ): array {
 		),
 		'taxonomies'     => $tax_rows,
 		'refOption'      => $picker( $base_trav['ref'] ),
+		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold
+		// and delete exactly the keys the converter does. Derived through the single owner
+		// of the tag-level subtraction (bws_fold_slot_legacy_axes) — a hand-kept list in
+		// the control is what deleted a try_ template's TAG-level `limit`/`key` the first
+		// time an author touched slot 1.
+		'legacyAxes'     => function_exists( 'bws_fold_slot_legacy_axes' )
+			? bws_fold_slot_legacy_axes( (array) ( $args['tag_level'] ?? array() ) )
+			: array(),
 	);
 	// OMITTED, not empty, when the container has no per-slot key (try_title and the
 	// other read-less templates). An empty array here would reach the control as JS

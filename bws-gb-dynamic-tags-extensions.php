@@ -378,6 +378,18 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// The MOUNT migration path (FW-56/57, build step 5f): the twin of the converter's
+	// pure migrate layer, plus the invisible control that applies it on tag-modal mount.
+	// It reaches what the scanner cannot — a block widget's tag lives in the
+	// `widget_block` option, not in post content. Loads BEFORE the control, which is a
+	// hard dependency on it for the per-container legacy key surface.
+	wp_enqueue_script(
+		'bws-dynamic-tags-slot-fold-migrate',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-migrate.js',
+		array( 'wp-hooks', 'wp-element', 'bws-dynamic-tags-slot-fold-grammar' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-control',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-control.js',
@@ -387,6 +399,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'wp-components',
 			'wp-i18n',
 			'bws-dynamic-tags-slot-fold-grammar',
+			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,

@@ -147,33 +147,36 @@ assert_order(
 	$sort( array( 'sep', 'key', 'src', 'valueSep', 'srcTermIn', 'limit', 'fallback' ) )
 );
 
-// --- Folded slot keys (FW-56/57): one key per slot, source group, slot order ---
-// The whole slot lives in the key's VALUE, so a folded key ranks where `src` does and
-// sorts by slot — i.e. the tag-level format keys still lead and `fallback` still trails.
+// --- Folded slot keys (FW-56/57): all-digit keys LEAD the whole string, slot order ---
+// NOT a preference (1.17.0). An all-digit key is a JS array-index property, which
+// ECMAScript enumerates before every string key whatever order the object was built in;
+// GB serializes with `Object.entries(extraTagParams)`, so the editor CANNOT emit a named
+// option ahead of a folded slot. The canonical order states what the editor is forced to
+// write, so the converter and the editor stop writing one tag two ways. The JS-port block
+// below is what holds the two sides together — this expectation and that one cannot
+// disagree silently.
 assert_order(
-	'folded slot keys sort by slot inside the source group',
-	array( 'mode', 'valueSep', 'format', '1', '2', '3', 'fallback' ),
+	'folded slot keys LEAD, ahead of the format group, and sort by slot',
+	array( '1', '2', '3', 'mode', 'valueSep', 'format', 'fallback' ),
 	$sort( array( '3', 'fallback', '1', 'format', 'mode', '2', 'valueSep' ) )
 );
-// A folded key must NOT fall to the unknown TAIL — it ranks exactly where the flat
-// `N-src` it replaces did. Slot ordering still dominates within-rank (a slot-0 unknown
-// precedes every slot ≥1 key, folded or flat, which is shipped behaviour), so the
-// property to pin is same-slot: the folded key leads its own slot's unknowns.
+// Mixed era on ONE slot (a half-applied migration or hand-edit): folded leads flat,
+// because the fold dimension precedes slot — not because of any same-slot rule.
 assert_order(
-	'a folded slot key leads unknown keys of the SAME slot',
-	array( '2', '2-zeta', '3' ),
+	'a folded slot key leads the flat keys of the same slot',
+	array( '2', '3', '2-zeta' ),
 	$sort( array( '2-zeta', '3', '2' ) )
 );
 assert_order(
-	'a folded slot key ranks with src, not at the unknown tail',
+	'a folded slot key leads its slot\'s unknown flat key',
 	array( '1', '1-zeta' ),
 	$sort( array( '1-zeta', '1' ) )
 );
-// Mixed era (half-applied migration / hand-edit): the folded slot and the flat keys of
-// a DIFFERENT slot both sort by their own slot number.
+// Mixed era across slots: every folded key first (by slot), then the flat keys in their
+// own canonical order.
 assert_order(
-	'mixed-era wire sorts by slot, folded and flat alike',
-	array( '1', '2-src', '2-key', '3' ),
+	'mixed-era wire puts folded slots first, then the flat keys',
+	array( '1', '3', '2-src', '2-key' ),
 	$sort( array( '3', '2-key', '1', '2-src' ) )
 );
 

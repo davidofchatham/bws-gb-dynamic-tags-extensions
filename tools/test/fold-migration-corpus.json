@@ -1,0 +1,88 @@
+{
+	"_readme": [
+		"Shared input corpus for the fold MIGRATE twin (PHP bws_fold_migrate_slots ↔ JS",
+		"bwsSlotFoldMigrate.migrateSlots). One file, two thin drivers, so a divergence",
+		"between the converter's rewrite and the editor's mount rewrite fails a suite",
+		"instead of writing two different wires for one tag.",
+		"",
+		"`conf` speaks the EDITOR's vocabulary — it is the `fold` config PHP registration",
+		"ships to the control, `legacyAxes` included. The PHP driver converts back to the",
+		"migrator's `tag_level` (the complement), which is the direction the shipped code",
+		"already goes.",
+		"",
+		"Behavioural expectations live in fold-migration-test.php; a row here costs one",
+		"corpus entry and no expected value."
+	],
+	"cases": [
+		{
+			"label": "selecting text: both slots fold, tag-level keys survive",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "src": "ref", "ref": "office", "key": "name", "2-use": "key", "2-key": "role", "limit": "3", "sep": ", " }
+		},
+		{
+			"label": "combining join: per-slot limit onto the fanning step, slot 10 reachable",
+			"conf": { "combining": true, "perSlotUse": true, "max": 10, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
+			"options": { "srcTermIn": "category", "use": "title", "limit": "3", "10-key": "last", "mode": "template" }
+		},
+		{
+			"label": "an already-folded slot wins and its legacy siblings are dropped",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "1": "key(new)", "src": "ref", "ref": "office", "key": "old" }
+		},
+		{
+			"label": "FW-51: a selecting slot ≥2 with only a key maps to nothing, keys still stripped",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "key": "a", "2-key": "b" }
+		},
+		{
+			"label": "nothing to migrate → no-op",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "1": "key(name)", "2": "src(same);use(title)", "limit": "2" }
+		},
+		{
+			"label": "read-less try_: a TAG-level key stays tag-level and is not slot 1's read",
+			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn" ] },
+			"options": { "src": "site", "key": "event_date", "2-src": "ref", "2-ref": "office" }
+		},
+		{
+			"label": "key-only try_: no `use` axis exists, so a stale tag-level one is untouched",
+			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "key" ] },
+			"options": { "key": "work_email", "2-key": "personal_email", "use": "key" }
+		},
+		{
+			"label": "limit 0 = unlimited must SURVIVE the fold (PHP '0' is falsy, JS '0' is not)",
+			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
+			"options": { "src": "ref", "ref": "offices", "key": "name", "limit": "0" }
+		},
+		{
+			"label": "combining slot ≥2 with a source and no read stays UNCONFIGURED (skip preserved)",
+			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
+			"options": { "key": "name", "2-src": "ref", "2-ref": "office" }
+		},
+		{
+			"label": "selecting slot 2 with only a source materializes the read inherit",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "key": "name", "2-src": "ref", "2-ref": "office" }
+		},
+		{
+			"label": "a garbage limit is not numeric, so it neither caps nor survives",
+			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
+			"options": { "src": "current", "srcTermIn": "category", "use": "title", "limit": "lots" }
+		},
+		{
+			"label": "surviving tag-level keys are RE-ORDERED, not left in stored order (as → fallback)",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "fallback": "n/a", "src": "ref", "ref": "office", "key": "logo", "as": "url,large" }
+		},
+		{
+			"label": "chain-only container: a slot whose ONLY content is src:current must survive",
+			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn" ] },
+			"options": { "src": "ref", "ref": "bws_missing_ref", "2-src": "current" }
+		},
+		{
+			"label": "mid-chain gap: slot 3 legacy, slot 2 absent (hand-edited wire)",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
+			"options": { "key": "name", "3-src": "site", "3-use": "key", "3-key": "org_name" }
+		}
+	]
+}

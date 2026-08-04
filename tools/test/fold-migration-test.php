@@ -230,10 +230,12 @@ check( 'M5.1 legacy slot keys are gone', array() === array_intersect( array_keys
 check( 'M5.2 folded values arrive', 'src(refs,office);key(name)' === ( $t5['1'] ?? null ) && 'src(same);key(role)' === ( $t5['2'] ?? null ), json_encode( $t5 ) );
 check( 'M5.3 the tag-level limit survives, unfolded', '3' === ( $t5['limit'] ?? null ), json_encode( $t5 ) );
 check( 'M5.4 unrelated tag-level options survive', ', ' === ( $t5['sep'] ?? null ), json_encode( $t5 ) );
-// Canonical order is (group, SLOT, within-group): a tag-level source key is slot 0, so
-// it leads the folded slots. The editor's JS normalizer runs the same sort, which is the
-// point — a migrated tag shows no spurious diff the first time it is opened.
-check( 'M5.5 emitted keys are canonically ordered (tag-level source keys, then slots)', array( 'limit', 'sep', '1', '2' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
+// Canonical order leads with the FOLDED slots, then the tag-level keys in group order.
+// The lead is forced, not chosen: an all-digit key is a JS array-index property, so GB's
+// `Object.entries(extraTagParams)` emits it first no matter what the editor's normalizer
+// builds — and matching it is what keeps a migrated tag from showing a spurious diff the
+// first time it is opened and saved.
+check( 'M5.5 emitted keys are canonically ordered (folded slots, then tag-level)', array( '1', '2', 'limit', 'sep' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
 
 // Nothing to migrate → null, which is the callback's no-op contract.
 check( 'M5.6 an already-folded tag migrates to nothing', null === bws_fold_migrate_slots( array( '1' => 'key(a)', '2' => 'key(b)', 'limit' => '2' ), $text_cfg ), 'not null' );
@@ -254,7 +256,7 @@ check( 'M5.9 a slot that maps to nothing still has its legacy keys stripped', ar
 $j5 = bws_fold_migrate_slots( array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '10-key' => 'last', 'mode' => 'template' ), $join_cfg );
 check( 'M5.10 join folds its per-slot limit onto the fanning step', 'src(terms,category,limit[3]);use(title)' === ( $j5['1'] ?? null ), json_encode( $j5 ) );
 check( 'M5.11 join slot 10 folds (BWS_JOIN_MAX_SLOTS, not five)', 'src(same);key(last)' === ( $j5['10'] ?? null ), json_encode( $j5 ) );
-check( 'M5.12 join tag-level assembly options survive and lead', array( 'mode', '1', '10' ) === array_map( 'strval', array_keys( $j5 ) ), json_encode( array_keys( $j5 ) ) );
+check( 'M5.12 join tag-level assembly options survive, after the folded slots', array( '1', '10', 'mode' ) === array_map( 'strval', array_keys( $j5 ) ), json_encode( array_keys( $j5 ) ) );
 
 // ── M6 — end to end, through the registered entry ──────────────────────────
 
@@ -293,7 +295,7 @@ check(
 // tag, so an rtrim here would rewrite separators site-wide.
 check(
 	'M6.5 a trailing-space value on the last option survives the rewrite',
-	'{{try_text sep:, |1:key(name)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' ),
+	'{{try_text 1:key(name)|sep:, }}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' )
 );
 check(
@@ -301,6 +303,72 @@ check(
 	'{{try_text 1:key(name)|fallback:Name: TBA}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' )
 );
+
+// ── M7 — the JS TWIN: the editor's mount migrator must rewrite identically ──
+//
+// The converter (this file's subject) and the editor's mount migrator are ONE migration
+// in two languages, and they are COMPLEMENTARY rather than redundant: the scanner reads
+// post_content only, so a block widget is reachable only on mount, while a draft nobody
+// opens is reachable only by the scanner. A divergence between them therefore does not
+// show up as one path being wrong — it shows up as the same tag stored two ways
+// depending on which path found it first. A PHP-only harness structurally cannot see
+// that, so one shared corpus goes through both.
+//
+// KEY ORDER IS HALF THE PROPERTY, which is why the comparison is ordered pairs rather
+// than an associative map: an all-digit key is a JS array-index property, enumerated
+// ahead of every string key no matter how the object was built, so the folded slots
+// LEAD — and PHP's canonical order had to adopt that or every mount would rewrite what
+// the converter had just written.
+//
+// A missing `node` FAILS rather than skips: a silent pass here would hide exactly the
+// drift the twin exists to catch (house rule, see CLAUDE.md §Development).
+$corpus_file = __DIR__ . '/fold-migration-corpus.json';
+$corpus      = json_decode( (string) file_get_contents( $corpus_file ), true );
+check( 'M7.0 the shared corpus parses', is_array( $corpus ) && ! empty( $corpus['cases'] ), $corpus_file );
+
+$php_doc = array();
+foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
+	// The corpus speaks the EDITOR's vocabulary (`legacyAxes` — what registration ships
+	// to the control). The migrator wants the complement, which is the direction the
+	// shipped registration already goes.
+	$cfg = array(
+		'container'    => ! empty( $case['conf']['combining'] ) ? 'join' : 'try',
+		'combining'    => ! empty( $case['conf']['combining'] ),
+		'per_slot_use' => ! empty( $case['conf']['perSlotUse'] ),
+		'max'          => (int) $case['conf']['max'],
+		'tag_level'    => array_values( array_diff( BWS_FOLD_LEGACY_AXES, (array) $case['conf']['legacyAxes'] ) ),
+	);
+	$out = bws_fold_migrate_slots( (array) $case['options'], $cfg );
+	if ( null === $out ) {
+		$php_doc[] = null;
+		continue;
+	}
+	$pairs = array();
+	foreach ( $out as $key => $value ) {
+		$pairs[] = array( (string) $key, (string) $value );
+	}
+	$php_doc[] = $pairs;
+}
+
+$raw    = (string) shell_exec( 'node ' . escapeshellarg( __DIR__ . '/fold-migration-driver.js' ) . ' 2>&1' );
+$js_doc = json_decode( $raw, true );
+if ( ! is_array( $js_doc ) ) {
+	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', false, substr( trim( $raw ), 0, 400 ) );
+} else {
+	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', true );
+	check( 'M7.2 both sides answered every corpus case', count( $php_doc ) === count( $js_doc ), count( $php_doc ) . ' php vs ' . count( $js_doc ) . ' js' );
+	foreach ( $php_doc as $i => $php_case ) {
+		$label = $corpus['cases'][ $i ]['label'] ?? "case {$i}";
+		// array_key_exists, not `??`: a no-op case is legitimately NULL on both sides, and
+		// `?? false` would report agreement as a divergence.
+		$js_case = array_key_exists( $i, $js_doc ) ? $js_doc[ $i ] : '(missing)';
+		check(
+			'M7.3 twin agrees — ' . $label,
+			$php_case === $js_case,
+			'php: ' . json_encode( $php_case ) . "\n      js:  " . json_encode( $js_case )
+		);
+	}
+}
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

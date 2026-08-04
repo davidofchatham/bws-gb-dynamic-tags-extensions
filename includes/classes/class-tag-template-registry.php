@@ -543,6 +543,11 @@ class TagTemplateRegistry {
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
 						'hops'            => [ 'srcTermIn' ],
+						// The axes that are TAG-level on this template, so the editor's
+						// mount migrator and the control leave them alone at every slot
+						// position — same split, same owner, as the trailing-option strip
+						// below and the converter migrator.
+						'tag_level'       => self::try_slot_axes( $tpl )['tag_level'],
 						// "slot" is the word try_'s own preview warnings already use
 						// ("⚠ Try: slot 2 no key"); the fold introduces no second noun.
 						'noun'            => __( 'slot', 'generateblocks' ),

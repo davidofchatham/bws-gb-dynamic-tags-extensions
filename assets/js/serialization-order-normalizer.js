@@ -80,10 +80,8 @@
 		noLink: [ 'link', 4 ],
 		// fallback (last)
 		fallback: [ 'fallback', 0 ],
-		// A FOLDED slot key (`1`, `2`, … — FW-56/57) parses to a bare name of '': one
-		// key holds the whole slot, so it takes the source group's leading rank and
-		// sorts by slot like the flat `N-src` it replaces.
-		'': [ 'source', 0 ],
+		// A FOLDED slot key (`1`, `2`, … — FW-56/57) is deliberately ABSENT here: it is
+		// ranked by the leading `fold` dimension in reorderKeys(), not by group.
 	};
 
 	var UNKNOWN_WITHIN = 100; // unknown keys tail the source group.
@@ -106,6 +104,15 @@
 	/**
 	 * Reorder a list of option keys into canonical serialization order.
 	 * Pure: keys in → reordered keys out. Stable (incoming index breaks ties).
+	 *
+	 * The leading `fold` dimension puts FOLDED slot keys (all digits) first. That is not
+	 * a preference this file could choose otherwise: an all-digit key is an array-index
+	 * property, which ECMAScript enumerates before every string key regardless of
+	 * insertion order — so rebuilding the object below in any other order would not
+	 * survive GB's `Object.entries(extraTagParams)` serialization. Stating it here keeps
+	 * the returned list TRUTHFUL, and keeps this port equal to the PHP owner
+	 * (includes/helpers/serialization-order.php), which had to adopt the same rule so the
+	 * converter and the editor stop writing the same tag two ways.
 	 */
 	function reorderKeys( keys ) {
 		var decorated = keys.map( function ( key, idx ) {
@@ -120,11 +127,19 @@
 				group  = 'source';
 				within = UNKNOWN_WITHIN;
 			}
-			return { key: key, grank: GROUP_RANK[ group ], slot: slot, within: within, idx: idx };
+			return {
+				key: key,
+				fold: ( '' === bare && slot > 0 ) ? 0 : 1,
+				grank: GROUP_RANK[ group ],
+				slot: slot,
+				within: within,
+				idx: idx
+			};
 		} );
 
 		decorated.sort( function ( a, b ) {
-			return ( a.grank - b.grank )
+			return ( a.fold - b.fold )
+				|| ( a.grank - b.grank )
 				|| ( a.slot - b.slot )
 				|| ( a.within - b.within )
 				|| ( a.idx - b.idx );
@@ -163,19 +178,28 @@
 	/**
 	 * Invisible normalizer control. Renders nothing; on mount / state change it
 	 * rebuilds extraTagParams in canonical order if the order is off.
+	 *
+	 * A FUNCTION UPDATER (1.17.0), not a plain object: under the fold a second invisible
+	 * control on the same tag (the mount migrator) also rewrites the whole object, so two
+	 * whole-object writes can land in one React batch and the later one would discard the
+	 * earlier. Composing off `prev` means neither is lost. Returning `prev` unchanged is
+	 * the loop guard — React bails on an identical reference, so an already-canonical tag
+	 * re-renders zero extra times.
 	 */
 	function OrderNormalizer( props ) {
-		var state    = props.state || {};
 		var setState = props.setState;
 
 		useEffect( function () {
-			var keys       = Object.keys( state );
-			if ( keys.length < 2 ) { return; }
-			var reordered = reorderKeys( keys );
-			if ( ! orderChanged( keys, reordered ) ) { return; }
-			var next = {};
-			reordered.forEach( function ( k ) { next[ k ] = state[ k ]; } );
-			setState( next );
+			setState( function ( prev ) {
+				var state = prev || {};
+				var keys  = Object.keys( state );
+				if ( keys.length < 2 ) { return prev; }
+				var reordered = reorderKeys( keys );
+				if ( ! orderChanged( keys, reordered ) ) { return prev; }
+				var next = {};
+				reordered.forEach( function ( k ) { next[ k ] = state[ k ]; } );
+				return next;
+			} );
 		} );
 
 		return null;
@@ -195,7 +219,8 @@
 			null,
 			wp.element.createElement( OrderNormalizer, {
 				key: 'bws-order-normalizer',
-				state: context.state,
+				// No `state` prop: the effect reads it from the updater's `prev` so it can
+				// compose with the fold's mount migrator in the same batch.
 				setState: context.setState,
 			} ),
 			element

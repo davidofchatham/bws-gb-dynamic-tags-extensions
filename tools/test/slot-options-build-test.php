@@ -37,6 +37,10 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 }
 
 require __DIR__ . '/../../includes/tags/base-shared.php';
+// The fold config's `legacyAxes` derives through slot-fold.php's single owner of the
+// tag-level subtraction; without it the builder's function_exists guard silently ships an
+// empty list, which is exactly the drift the field exists to prevent.
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
 
 $failures = 0;
 $count    = 0;
@@ -373,6 +377,16 @@ assert_same( 'refOption label derives from base traversal', $base_trav['ref']['l
 assert_same( 'keyOption label derives from the text leaf', $text['key']['label'], $fold['keyOption']['label'] );
 assert_same( 'keyOption keeps the dynamic-label flag', true, $fold['keyOption']['dynamicLabel'] );
 
+// LEGACY AXES — the per-slot keys the editor may fold and delete. Join excludes nothing:
+// its `limit` was a SLOT axis (one per slot, threaded into that slot's resolve), the
+// opposite of try_'s tag-level cap. Shipping the list is what stops the control keeping
+// its own.
+assert_same(
+	'legacyAxes = every axis when the container excludes none',
+	array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ),
+	$fold['legacyAxes']
+);
+
 // Container facts the control and the renderer BOTH read.
 assert_same( 'combining flag is carried', true, $fold['combining'] );
 assert_same( 'floor + ceiling are carried', array( 2, 3 ), array( $fold['min'], $fold['max'] ) );
@@ -389,6 +403,8 @@ $sel = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => false,
 		'allow_same_read' => true,
+		// try_'s bare `limit` is the TAG-level cap for every slot, so it is not a slot axis.
+		'tag_level'       => array( 'limit' ),
 	)
 );
 $sel_fold = $sel['1']['fold'];
@@ -400,6 +416,11 @@ assert_same(
 assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 'same', array_column( $sel_fold['readRowsInherit'], 'value' ), true ) );
 assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
 assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
+assert_same(
+	'selecting legacyAxes drop the tag-level limit',
+	array( 'src', 'ref', 'srcTermIn', 'use', 'key' ),
+	$sel_fold['legacyAxes']
+);
 
 // The other two READ SHAPES a selecting container comes in. Both are described by the
 // derived config alone — the control picks its rendering from these fields, never from
@@ -417,6 +438,7 @@ $key_only = bws_build_fold_slot_options(
 		'base_read'    => array(),                       // no `use` axis exists
 		'base_key'     => $text['key'],
 		'allow_site'   => true,
+		'tag_level'    => array( 'use', 'limit' ),
 	)
 );
 $key_fold = $key_only['1']['fold'];
@@ -425,6 +447,11 @@ assert_same( 'key-only: no read enum at slot ≥2 either', array(), $key_fold['r
 assert_same( 'key-only: the key picker is still configured', $text['key']['label'], $key_fold['keyOption']['label'] );
 assert_same( 'key-only: perSlotUse false reaches the control', false, $key_fold['perSlotUse'] );
 assert_same( 'key-only: readLabel is empty, so the control falls back to the key noun', '', $key_fold['readLabel'] );
+assert_same(
+	'key-only: legacyAxes keep `key` and drop the tag-level `use`',
+	array( 'src', 'ref', 'srcTermIn', 'key' ),
+	$key_fold['legacyAxes']
+);
 
 // NO READ AXIS AT ALL (try_title / try_permalink / try_datetime_*): the read is a
 // TAG-level option, so a slot is a source chain and nothing else.
@@ -437,12 +464,21 @@ $chain_only = bws_build_fold_slot_options(
 		'base_read'    => array(),
 		'base_key'     => array(),
 		'allow_site'   => true,
+		'tag_level'    => array( 'use', 'key', 'limit' ),
 	)
 );
 $chain_fold = $chain_only['1']['fold'];
 assert_same( 'chain-only: no read enum', array(), $chain_fold['readRows'] );
 assert_same( 'chain-only: no key picker either', null, $chain_fold['keyOption'] ?? null );
 assert_same( 'chain-only: the source enum is still whole', true, count( $chain_fold['srcRows'] ) > 1 );
+// The shape where the axis list MATTERS MOST: `key` is this template's own datetime field
+// option. Folding it into slot 1 would duplicate it inside the slot value and delete the
+// tag-level key the resolver actually reads.
+assert_same(
+	'chain-only: legacyAxes are the chain axes alone',
+	array( 'src', 'ref', 'srcTermIn' ),
+	$chain_fold['legacyAxes']
+);
 
 echo "\n";
 if ( $failures > 0 ) {

@@ -513,7 +513,12 @@
 			// Legacy absence at slot ≥2 already MEANT inherit, in both containers —
 			// only the read axis diverges. Materialize the sentinel.
 			chain.push( step( 'same' ) );
-		} else if ( '' !== src && 'current' !== src ) {
+		} else if ( '' !== src ) {
+			// An EXPLICIT `current` is a step like any other source value, even though an
+			// empty chain also resolves against the ambient entity. Treating it as nothing
+			// DELETED slots on containers with no per-slot read axis (see the PHP owner's
+			// comment): the whole struct came out empty, and an empty emit means the slot
+			// key is never written.
 			chain.push( step( src ) );
 		}
 		if ( '' !== tax ) {

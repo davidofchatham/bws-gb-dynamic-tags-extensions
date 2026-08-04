@@ -38,10 +38,12 @@
 	if ( ! wp.components.SelectControl || ! wp.components.Button ) {
 		return;
 	}
-	// Hard dependency: the grammar owner's twin. Without it this control cannot read
-	// or write the wire, and a partial fallback would emit something the renderer does
-	// not parse — worse than not mounting.
-	if ( ! window.bwsSlotFold ) {
+	// Hard dependencies. The grammar twin owns reading and writing the wire; the migrate
+	// twin owns which legacy sibling keys this container has (so a commit does not delete
+	// a TAG-level option that happens to share a slot axis's name). A partial fallback for
+	// either would emit something the renderer does not parse, or strip wire that is still
+	// load-bearing — both worse than not mounting.
+	if ( ! window.bwsSlotFold || ! window.bwsSlotFoldMigrate ) {
 		return;
 	}
 
@@ -52,6 +54,7 @@
 	var Button        = wp.components.Button;
 	var __            = wp.i18n ? wp.i18n.__ : function ( s ) { return s; };
 	var fold          = window.bwsSlotFold;
+	var migrate       = window.bwsSlotFoldMigrate;
 
 	// ── Layout ───────────────────────────────────────────────────────────────
 	// The box marks a GROUP (the whole source chain / the whole field picker), not an
@@ -118,6 +121,11 @@
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
 			entriesOption: c.entriesOption || null,
+			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_legacy_axes) — this
+			// control never lists them. A hand-kept list deleted a try_ template's
+			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
+			// touch, because both are spelled exactly like slot 1's axes.
+			legacyAxes: c.legacyAxes || [],
 			// Which tag-level option names the repeater a row-scoped picker narrows to.
 			// The control passes its VALUE down as an explicit `scopeKey` prop rather
 			// than letting the picker reach outward for a bare `key` — under the fold
@@ -185,20 +193,32 @@
 		return slot;
 	}
 
-	/** Legacy sibling keys for slot n — dropped on ANY commit (touch-migration). */
-	function legacyKeys( n ) {
-		var p = ( 1 === n ) ? '' : n + '-';
-		return [ p + 'src', p + 'ref', p + 'srcTermIn', p + 'use', p + 'key', p + 'limit' ];
+	/**
+	 * Legacy sibling keys for slot n — dropped on ANY commit (touch-migration).
+	 *
+	 * Container-derived, never listed here: only the axes this container owns PER SLOT
+	 * are the slot's to delete. On a try_ template `limit` (and on the read-less shapes
+	 * `use`/`key`) is a TAG-level option spelled exactly like slot 1's axis, so a
+	 * hand-kept list deleted the option the resolver reads.
+	 */
+	function legacyKeys( n, conf ) {
+		return migrate.legacyKeys( conf || {}, n );
 	}
 
-	/** Read slot n as a struct whichever wire era it is stored in. */
+	/**
+	 * Read slot n as a struct whichever wire era it is stored in.
+	 *
+	 * The legacy read goes through the FILTERED state for the same reason the delete list
+	 * is derived: an unfiltered map hands a tag-level `key` to the mapper, which folds it
+	 * into slot 1 as that slot's read.
+	 */
 	function readSlot( n, state, conf ) {
 		var raw = state[ String( n ) ] || '';
 		if ( raw ) {
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
 		}
-		var rec = fold.foldFromLegacy( n, state, conf.combining, conf.perSlotUse );
+		var rec = fold.foldFromLegacy( n, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
 	}
 
@@ -208,11 +228,12 @@
 	 * slot count.
 	 */
 	function slotCount( state, conf ) {
+		var legacy = migrate.slotState( state, conf );
 		var highest = 0;
 		for ( var i = 1; i <= conf.max; i++ ) {
 			if ( state[ String( i ) ] ) {
 				highest = i;
-			} else if ( fold.foldFromLegacy( i, state, conf.combining, conf.perSlotUse ) ) {
+			} else if ( fold.foldFromLegacy( i, legacy, conf.combining, conf.perSlotUse ) ) {
 				highest = i;
 			}
 		}
@@ -272,7 +293,7 @@
 		var upd = Object.assign( {}, state );
 		for ( var k = 1; k <= conf.max; k++ ) {
 			delete upd[ String( k ) ];
-			legacyKeys( k ).forEach( function ( lk ) {
+			legacyKeys( k, conf ).forEach( function ( lk ) {
 				delete upd[ lk ];
 			} );
 		}
@@ -384,7 +405,7 @@
 				slot = parsed;
 			}
 		} else {
-			var rec = fold.foldFromLegacy( ordinal, state, conf.combining, conf.perSlotUse );
+			var rec = fold.foldFromLegacy( ordinal, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
 			if ( rec && rec.slot ) {
 				slot = rec.slot;
 				recovered = true;
@@ -422,7 +443,7 @@
 			} else {
 				delete upd[ key ];
 			}
-			legacyKeys( ordinal ).forEach( function ( lk ) {
+			legacyKeys( ordinal, conf ).forEach( function ( lk ) {
 				delete upd[ lk ];
 			} );
 			setState( upd );

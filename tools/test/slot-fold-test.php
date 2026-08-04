@@ -574,10 +574,19 @@ function t_legacy_wire( $n, $options, $combining = false, $per_slot_use = true )
 	return bws_fold_emit_slot( $rec['slot'] );
 }
 
-// Slot 1 — bare keys, `current` is the stripped default (no chain).
+// Slot 1 — bare keys. An ABSENT src is an empty chain (the stripped default); an
+// EXPLICIT `current` is a step, because a slot whose only content is that token has to
+// keep existing (see P12.2b).
 check( 'P12.0 no legacy keys → null', null === bws_fold_from_legacy( 1, array(), false ), '' );
 check( 'P12.1 slot 1 key only', 'key(role)' === t_legacy_wire( 1, array( 'key' => 'role' ) ), var_export( t_legacy_wire( 1, array( 'key' => 'role' ) ), true ) );
-check( 'P12.2 slot 1 src:current is an empty chain', 'key(role)' === t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), true ) );
+check( 'P12.2 slot 1 explicit src:current is a step, not nothing', 'src(current);key(role)' === t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), true ) );
+// THE CASE THAT FORCED IT (found 2026-08-04 by the mount-migration smoke, then verified
+// three ways with `bws render-tag`): on a container with NO per-slot read axis
+// (try_permalink / try_title / try_datetime_*) a fallback attempt's ENTIRE content can be
+// `{N}-src:current`. Mapping `current` to nothing left an empty struct, which emits '',
+// which means the slot key is never written — the attempt DISAPPEARED, while the legacy
+// wire rendered it and `{N}:src(current)` renders it too.
+check( 'P12.2b a chain-only slot whose only content is src:current still exists', 'src(current)' === t_legacy_wire( 2, array( '2-src' => 'current' ), false, false ), var_export( t_legacy_wire( 2, array( '2-src' => 'current' ), false, false ), true ) );
 check( 'P12.3 src:ref + ref → refs step', 'src(refs,office);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), true ) );
 check( 'P12.4 srcTermIn → terms step', 'src(terms,category);use(title)' === t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
 // #44: ref and srcTermIn COMPOUND, ref first (the term hop needs a post input).
@@ -1038,6 +1047,12 @@ $none_cases = array(
 	'ref hop at slot 2'      => array( '2-src' => 'ref', '2-ref' => 'office' ),
 	'term hop at slot 1'     => array( 'srcTermIn' => 'category' ),
 	'site fallback'          => array( '2-src' => 'site' ),
+	// The shape this walk did NOT cover, and the omission cost a whole slot: with no
+	// per-slot read axis, `{N}-src:current` can be a slot's ENTIRE content. It maps to a
+	// struct with nothing but a chain, so mapping `current` to no step at all emitted ''
+	// and the slot key was never written. Every other case here carries a second axis,
+	// which is why they all passed while the mapping was wrong.
+	'explicit current only'  => array( 'src' => 'ref', 'ref' => 'office', '2-src' => 'current' ),
 );
 foreach ( $none_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, false, false );

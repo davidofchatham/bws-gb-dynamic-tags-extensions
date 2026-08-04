@@ -53,6 +53,9 @@ function load( relative ) {
 
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
+// The migrate twin owns which legacy sibling keys a container has; the control is a hard
+// dependency on it (it will not mount without it), so it loads here too.
+load( 'assets/js/slot-fold-migrate.js' );
 load( 'assets/js/slot-fold-control.js' );
 
 const fold = global.window.bwsSlotFold;
@@ -270,14 +273,57 @@ INTENT.forEach( function ( c ) {
 	check( 'advisory cell for "' + ( c[ 0 ] || '(empty)' ) + '"', rep.inferIntent( parsed ), c[ 1 ] );
 } );
 
-// ── Touch-migration surface: all SIX legacy sibling keys are cleared ───────
+// ── Touch-migration surface: the legacy sibling keys a commit clears ───────
 // `srcTermIn` and `limit` were absent from the spike's list, and leaving either
 // behind produces a MIXED wire — the shape a half-applied migration makes, which
 // the renderer must flag rather than merge.
-const cleared = rep.legacyKeys( 2 ).sort().join( ',' );
-check( 'legacy sibling keys cover all six', cleared, '2-key,2-limit,2-ref,2-src,2-srcTermIn,2-use' );
-const slot1Cleared = rep.legacyKeys( 1 ).sort().join( ',' );
+//
+// The surface is CONTAINER-DERIVED (`legacyAxes`, from PHP), and the reason is a bug
+// this harness now pins: on a try_ template a bare `limit` is the TAG-level cap for
+// every slot, and on the read-less shapes a bare `use`/`key` is a TAG-level option
+// too. A control that listed the six axes itself deleted them on first touch, and
+// the mapper folded them into slot 1 as that slot's own read.
+const cleared = rep.legacyKeys( 2, COMBINING ).sort().join( ',' );
+check( 'legacy sibling keys cover all six when nothing is tag-level', cleared, '2-key,2-limit,2-ref,2-src,2-srcTermIn,2-use' );
+const slot1Cleared = rep.legacyKeys( 1, COMBINING ).sort().join( ',' );
 check( 'slot 1 legacy keys are UNPREFIXED', slot1Cleared, 'key,limit,ref,src,srcTermIn,use' );
+
+const TRY_TEXT = rep.foldConfig( {
+	fold: {
+		container: 'try', combining: false, perSlotUse: true, min: 2, max: 5,
+		legacyAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ]
+	}
+} );
+check(
+	'a try_ template\'s TAG-level limit is not a slot key',
+	rep.legacyKeys( 1, TRY_TEXT ).join( ',' ),
+	'src,ref,srcTermIn,use,key'
+);
+
+const TRY_DATETIME = rep.foldConfig( {
+	fold: {
+		container: 'try', combining: false, perSlotUse: false, min: 2, max: 5,
+		legacyAxes: [ 'src', 'ref', 'srcTermIn' ]
+	}
+} );
+check(
+	'a read-less template\'s TAG-level key/use/limit are not slot keys',
+	rep.legacyKeys( 1, TRY_DATETIME ).join( ',' ),
+	'src,ref,srcTermIn'
+);
+// The read consequence, which is the half a delete-list alone would not fix: slot 1 of
+// a read-less try_ tag carrying a TAG-level `key` must mount as a chain-only slot, NOT
+// with that key folded in as its read.
+check(
+	'a tag-level key does not become slot 1\'s read',
+	fold.emitSlot( rep.readSlot( 1, { key: 'event_date', src: 'site' }, TRY_DATETIME ) ),
+	'src(site)'
+);
+check(
+	'the same wire on a per-slot-read container DOES fold the key',
+	fold.emitSlot( rep.readSlot( 1, { key: 'event_date', src: 'site' }, TRY_TEXT ) ),
+	'src(site);key(event_date)'
+);
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );
