@@ -230,9 +230,16 @@
 		var firstKey = Object.keys( allOptions )[ 0 ];
 		if ( element.key !== firstKey ) { return element; }
 
+		// The wrapper CARRIES THE OPTION KEY. GB keys each control element by its option
+		// name, and every later filter in the chain anchors on `element.key` — including
+		// the fold's mount migrator, which runs at this same priority and would otherwise
+		// see a keyless Fragment and bail. That is not hypothetical: on every try_ template
+		// with no leading options (text/title/permalink/email/phone/content) the tag's first
+		// option IS its first `bws-slot-fold` option, so the two anchors are the same
+		// element and this wrap silently disabled mount migration for them.
 		return wp.element.createElement(
 			wp.element.Fragment,
-			null,
+			{ key: element.key },
 			wp.element.createElement( OrderNormalizer, {
 				key: 'bws-order-normalizer',
 				// No `state` prop: the effect reads it from the updater's `prev` so it can

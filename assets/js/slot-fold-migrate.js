@@ -225,9 +225,13 @@
 			return element;
 		}
 
+		// The wrapper CARRIES THE OPTION KEY — same rule as the order normalizer's wrap,
+		// and for the same reason: a later filter anchoring on `element.key` must still
+		// find it. Two keyless wraps at one priority is how the first one silently
+		// switched the second one off.
 		return wp.element.createElement(
 			wp.element.Fragment,
-			null,
+			{ key: element.key },
 			wp.element.createElement( MountMigrator, {
 				key: 'bws-slot-fold-mount-migrator',
 				setState: context.setState,
