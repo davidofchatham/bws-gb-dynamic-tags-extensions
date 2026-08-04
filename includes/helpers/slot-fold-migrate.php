@@ -18,9 +18,11 @@
  * (`src:refs,office`, `limit(2)`) and a slot's at L1 (`2:src(refs,office)`, `limit[2]`),
  * and MigrationRegistry matches `match_tag` by exact string — so container-ness is known
  * at REGISTRATION time. There is deliberately no base-tag callback here yet: nothing
- * reads a depth-0 chain off the wire (base tags still build their chain from the flat
- * `src`/`ref`/`srcTermIn` keys in bws_build_traversal_steps()), so migrating one would
- * write wire the renderer cannot resolve. It lands with the FW-56 authoring surface.
+ * COMPILES a chain into traversal steps. Both wire→steps assemblers read the flat keys
+ * and cap out at one ref hop plus one term hop (bws_field_values_assemble_steps in
+ * field-helpers.php, bws_wrapper_ref_steps in base-shared.php), so a depth-0
+ * `src:refs,office` would parse as an unknown source token. Migrating a base tag would
+ * write wire the renderer cannot resolve. It lands with the chain→steps compiler.
  *
  * Pure enough to harness: no WP or GB symbols (i18n lives with the registration, not
  * here). tools/test/fold-migration-test.php loads this file, not a copy of it.
