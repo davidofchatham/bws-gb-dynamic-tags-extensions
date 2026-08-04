@@ -134,7 +134,7 @@
 			} );
 
 			// An already-folded value for this slot wins outright.
-			if ( '' !== String( state[ String( n ) ] || '' ).trim() ) {
+			if ( '' !== String( state[ fold.slotKey( n ) ] || '' ).trim() ) {
 				continue;
 			}
 
@@ -144,7 +144,7 @@
 			}
 			var wire = fold.emitSlot( rec.slot );
 			if ( '' !== wire ) {
-				next[ String( n ) ] = wire;
+				next[ fold.slotKey( n ) ] = wire;
 			}
 		}
 
@@ -153,10 +153,9 @@
 		}
 
 		// Canonical key order, through the FW-52 normalizer's own sort so there is no
-		// second copy of the ranks. Folded slot keys lead either way — an all-digit key is
-		// an array-index property, which JS enumerates first no matter how the object was
-		// built — which is precisely why the PHP owner adopted the same order: the two
-		// paths must not write one tag two ways.
+		// second copy of the ranks. The two migration paths must not write one tag two
+		// ways, so the converter half canonicalizes through the PHP mirror of the same
+		// algorithm.
 		var keys = Object.keys( next );
 		if ( 'function' === typeof window.bwsReorderKeys ) {
 			keys = window.bwsReorderKeys( keys );

@@ -27,8 +27,10 @@
  *     datetime field keys). `limit`/`sep` precede the field keys — list length is a
  *     property of the source, not the field read.
  *   - Multi-slot: each `N-`-prefixed slot's keys stay contiguous; slots ascend.
- *   - FOLDED slot keys (`1`, `2`, … — FW-56/57) lead the WHOLE string, ahead of the
- *     format group. That is not a preference: see bws_serialization_order_sort().
+ *   - A FOLDED slot key (`A`, `B`, … — FW-56/57) ranks as its slot's source, so it
+ *     falls in the source group at its own slot: after `format` and after any
+ *     TAG-level (slot 0) source key, before `link`/`fallback`. See
+ *     bws_serialization_order_sort() for why that only became expressible in 1.17.0.
  *
  * This is a TRANSFORM, not a full re-sort: it is a STABLE sort by
  * (group_rank, slot, within_group_rank), so any key NOT in the canonical map keeps its
@@ -120,10 +122,14 @@ function bws_serialization_order_key_map(): array {
 		// --- fallback group (last) ---
 		'fallback' => array( 'fallback', 0 ),
 
-		// A FOLDED slot key (`1`, `2`, … — FW-56/57) is deliberately ABSENT: it is not
-		// ranked by group at all but by the leading fold dimension in
-		// bws_serialization_order_sort(). One mechanism, not a group rank that a second
-		// mechanism then overrides.
+		// A FOLDED slot key (`A`, `B`, … — FW-56/57) parses to the EMPTY bare name, so
+		// this is its entry. It ranks in the source group ahead of every named source
+		// key, because the folded value IS the slot's whole source-and-read: `src`,
+		// `use` and `key` are the axes it absorbed. The negative within-rank matters
+		// only in the half-migrated shape (a folded value beside a surviving legacy
+		// sibling at the same slot) — it makes that order deterministic rather than
+		// insertion-dependent.
+		''               => array( 'source', -1 ),
 	);
 }
 
@@ -131,14 +137,22 @@ function bws_serialization_order_key_map(): array {
  * Split an option key into (slot, bare name).
  *
  * A key `N-name` (N ≥ 1) belongs to slot N with bare name `name`. An unprefixed key
- * is slot 0 (base / global). Only a leading `\d+-` counts as a slot prefix.
+ * is slot 0 (base / global). Only a leading `\d+-` counts as a slot prefix — the LEGACY
+ * sibling prefix stays DIGITS even though the folded key does not, because that wire was
+ * already written with digits and re-spelling its reader would orphan every pre-1.17.0 tag.
  *
- * A key that is ONLY digits (`1`, `2`, …) is a FOLDED slot key (FW-56/57): the slot's
- * whole configuration lives in that key's VALUE, so it belongs to slot N with an EMPTY
- * bare name, which the canonical map ranks at the head of the source group.
+ * A FOLDED slot key (`A`, `B`, … — FW-56/57) is decoded through bws_slot_ordinal_num():
+ * the slot's whole configuration lives in that key's VALUE, so it belongs to slot N with an
+ * EMPTY bare name. Decoding rather than string-comparing is what keeps slot order NUMERIC —
+ * `AA` is slot 27 and must sort after `Z`, which a lexical compare gets backwards.
+ *
+ * DEPENDS on includes/helpers/slot-fold.php, the single owner of the spelling. A local
+ * `^[A-Z]+$` here would be the second copy of a mapping that already has one owner, and it
+ * is the copy nothing would notice going stale. The plugin loads that file immediately
+ * after this one (call-time, so the load order is not circular); harnesses require both.
  *
  * @since 1.16.0
- * @since 1.17.0 Folded slot keys (all-digit) → [N, ''].
+ * @since 1.17.0 Folded slot keys → [N, ''] (all-digit until 2026-08-04, then `A`..`Z`).
  * @param string $key Full option key (possibly `N-`-prefixed).
  * @return array{0:int,1:string} [slot, bare-name]
  */
@@ -146,8 +160,9 @@ function bws_serialization_order_parse_slot( string $key ): array {
 	if ( preg_match( '/^(\d+)-(.+)$/', $key, $m ) ) {
 		return array( (int) $m[1], $m[2] );
 	}
-	if ( preg_match( '/^(\d+)$/', $key, $m ) ) {
-		return array( (int) $m[1], '' );
+	$ordinal = bws_slot_ordinal_num( $key );
+	if ( $ordinal > 0 ) {
+		return array( $ordinal, '' );
 	}
 	return array( 0, $key );
 }
@@ -155,26 +170,27 @@ function bws_serialization_order_parse_slot( string $key ): array {
 /**
  * Reorder a list of option keys into canonical serialization order.
  *
- * STABLE sort by (fold, group_rank, slot, within_group_rank). Keys not in the canonical
- * map default to the `source` group at a within-rank past all known source keys, and —
- * being a stable sort — keep their incoming order among themselves.
+ * STABLE sort by (group_rank, slot, within_group_rank). Keys not in the canonical map
+ * default to the `source` group at a within-rank past all known source keys, and — being
+ * a stable sort — keep their incoming order among themselves.
  *
- * THE LEADING `fold` DIMENSION IS AN ENVIRONMENT FACT, NOT A PREFERENCE (1.17.0). A
- * FOLDED slot key is all digits, which in JS is an ARRAY-INDEX property: ECMAScript
- * enumerates those FIRST, ascending, before any string key, whatever order the object
- * was built in. GB serializes the tag string with `Object.entries(extraTagParams)`, so
- * every editor save emits the folded slots ahead of every named option and neither the
- * JS normalizer nor this function can move them — rebuilding the object in another
- * order does not survive the next enumeration. So the canonical order STATES what the
- * editor is forced to write. The alternative is not a nicer order, it is a permanent
- * disagreement between the converter's output and the editor's, on the same tag.
+ * THIS ORDER IS ONLY EXPRESSIBLE BECAUSE FOLDED SLOT KEYS ARE CAPITALS (1.17.0). While
+ * they were all digits they were JS ARRAY-INDEX properties, which ECMAScript enumerates
+ * FIRST, ascending, before any string key, whatever order the object was built in — and
+ * GB serializes with `Object.entries(extraTagParams)`, so every editor save emitted the
+ * slots ahead of `format` and neither the JS normalizer nor this function could move
+ * them. This file had to STATE that order to stay truthful, which cost `format`-first on
+ * join/try_ and tag-level-first on `{{table}}`. Capitals are ordinary string keys, so
+ * rank came back here and the canonical order below is a choice again. Both halves must
+ * therefore agree by DESIGN, not by accident: a disagreement between the converter and
+ * the editor writes the same tag two ways.
  *
  * Pure: input a key list (the `extraTagParams` insertion order), output the reordered
  * key list. No values, no WP/GB symbols. The JS normalizer runs the identical algorithm
  * on `Object.keys(extraTagParams)` then rebuilds the object in that order.
  *
  * @since 1.16.0
- * @since 1.17.0 Folded slot keys lead (forced by JS array-index enumeration).
+ * @since 1.17.0 Folded slot keys rank as their slot's source (see above).
  * @param string[] $keys Option keys in incoming (insertion / registration) order.
  * @return string[] Same keys, reordered canonically.
  */
@@ -199,7 +215,6 @@ function bws_serialization_order_sort( array $keys ): array {
 
 		$decorated[] = array(
 			'key'    => $key,
-			'fold'   => ( '' === $bare && $slot > 0 ) ? 0 : 1,
 			'grank'  => $groups[ $group ],
 			'slot'   => $slot,
 			'within' => $within,
@@ -210,8 +225,7 @@ function bws_serialization_order_sort( array $keys ): array {
 	usort(
 		$decorated,
 		static function ( $a, $b ) {
-			return ( $a['fold'] <=> $b['fold'] )
-				?: ( $a['grank'] <=> $b['grank'] )
+			return ( $a['grank'] <=> $b['grank'] )
 				?: ( $a['slot'] <=> $b['slot'] )
 				?: ( $a['within'] <=> $b['within'] )
 				?: ( $a['idx'] <=> $b['idx'] );

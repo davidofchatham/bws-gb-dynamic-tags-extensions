@@ -99,12 +99,13 @@ function check( label, got, want, extra ) {
 	}
 }
 
-/** Render a state map as `1:value | 2:value` for readable failures. */
+/** Render a state map as `1:value | B:value` for readable failures. */
 function show( state, conf ) {
 	const rows = [];
 	for ( let i = 1; i <= conf.max; i++ ) {
-		if ( state[ String( i ) ] ) {
-			rows.push( i + ':' + state[ String( i ) ] );
+		const k = fold.slotKey( i );
+		if ( state[ k ] ) {
+			rows.push( k + ':' + state[ k ] );
 		}
 	}
 	return rows.join( ' | ' ) || '(none)';
@@ -114,49 +115,49 @@ function show( state, conf ) {
 // [ name, conf, beforeState, removeOrdinal, expectedAfter ]
 const CASES = [
 	[ 'plain compaction — remove middle of 4, no inheritance anywhere', SELECTING,
-		{ '1': 'key(staff_name)', '2': 'src(refs,office);key(city)', '3': 'src(refs,region);key(name)', '4': 'src(post,9999);use(title)' }, 2,
-		'1:key(staff_name) | 2:src(refs,region);key(name) | 3:src(post,9999);use(title)' ],
+		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);key(name)', 'D': 'src(post,9999);use(title)' }, 2,
+		'A:key(staff_name) | B:src(refs,region);key(name) | C:src(post,9999);use(title)' ],
 
 	[ 'MATERIALIZE src — successor inherited the removed slot\'s source', SELECTING,
-		{ '1': 'key(staff_name)', '2': 'src(refs,office);key(city)', '3': 'src(same);key(region_name)' }, 2,
-		'1:key(staff_name) | 2:src(refs,office);key(region_name)' ],
+		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(same);key(region_name)' }, 2,
+		'A:key(staff_name) | B:src(refs,office);key(region_name)' ],
 
 	[ 'MATERIALIZE read — successor inherited the removed slot\'s read', SELECTING,
-		{ '1': 'key(staff_name)', '2': 'src(refs,office);key(city)', '3': 'src(refs,region);use(same)' }, 2,
-		'1:key(staff_name) | 2:src(refs,region);key(city)' ],
+		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);use(same)' }, 2,
+		'A:key(staff_name) | B:src(refs,region);key(city)' ],
 
 	[ 'PROMOTION — an all-inherit slot 2 promoted to position 1 drops its illegal `same`', SELECTING,
-		{ '1': 'src(refs,office);key(city)', '2': 'src(same);use(same)' }, 1,
-		'1:src(refs,office);key(city)' ],
+		{ 'A': 'src(refs,office);key(city)', 'B': 'src(same);use(same)' }, 1,
+		'A:src(refs,office);key(city)' ],
 
 	[ 'no successor — removing the last slot needs no materialization', SELECTING,
-		{ '1': 'key(staff_name)', '2': 'src(refs,office);key(city)', '3': 'src(refs,region);key(name)' }, 3,
-		'1:key(staff_name) | 2:src(refs,office);key(city)' ],
+		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);key(name)' }, 3,
+		'A:key(staff_name) | B:src(refs,office);key(city)' ],
 
 	[ 'multi-hop materialization — the WHOLE chain carries, not just hop 1', SELECTING,
-		{ '1': 'key(a)', '2': 'src(refs,office;refs,region);key(city)', '3': 'src(same);key(zip)' }, 2,
-		'1:key(a) | 2:src(refs,office;refs,region);key(zip)' ],
+		{ 'A': 'key(a)', 'B': 'src(refs,office;refs,region);key(city)', 'C': 'src(same);key(zip)' }, 2,
+		'A:key(a) | B:src(refs,office;refs,region);key(zip)' ],
 
 	[ 'chained inherit — only the IMMEDIATE successor referenced the removed slot', SELECTING,
-		{ '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same);key(c)', '4': 'src(same);key(d)' }, 2,
-		'1:key(a) | 2:src(refs,office);key(c) | 3:src(same);key(d)' ],
+		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same);key(c)', 'D': 'src(same);key(d)' }, 2,
+		'A:key(a) | B:src(refs,office);key(c) | C:src(same);key(d)' ],
 
 	// Remove is live on every slot once 2+ are visible. The floor still holds: one
 	// value survives and the second slot renders empty.
 	[ 'AT THE FLOOR — remove slot 1 of 2; survivor compacts into position 1', SELECTING,
-		{ '1': 'key(a)', '2': 'src(refs,office);key(b)' }, 1,
-		'1:src(refs,office);key(b)' ],
+		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)' }, 1,
+		'A:src(refs,office);key(b)' ],
 
 	[ 'AT THE FLOOR — remove slot 2 of 2; slot 1 untouched', SELECTING,
-		{ '1': 'key(a)', '2': 'src(refs,office);key(b)' }, 2,
-		'1:key(a)' ],
+		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)' }, 2,
+		'A:key(a)' ],
 
 	// A per-slot option that is NOT an axis must survive compaction untouched. The
 	// spike's struct had only chain+read, so a table column's `label` had nothing to
 	// be dropped from; under the shipped grammar it does.
 	[ 'compaction preserves non-axis slot options (label, type, link)', COMBINING,
-		{ '1': 'label(Name);title', '2': 'label(City);src(refs,office);key(city)', '3': 'label(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
-		'1:label(Name);title | 2:label(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
+		{ 'A': 'label(Name);title', 'B': 'label(City);src(refs,office);key(city)', 'C': 'label(Zip);src(same);key(zip);linkTo(permalink)' }, 2,
+		'A:label(Name);title | B:label(Zip);src(refs,office);key(zip);linkTo(permalink)' ],
 
 	// The position-1 strip is a SEPARATE guard from materialization, and only these
 	// two cases isolate it: materialization normally REPLACES the successor's `same`
@@ -164,18 +165,18 @@ const CASES = [
 	// REMOVED slot was itself inheriting (a hand-edited slot 1). Position 1 has no
 	// predecessor, so `same` there is illegal and must drop to a plain unset axis.
 	[ 'POSITION-1 STRIP (src) — removed slot was itself inheriting', SELECTING,
-		{ '1': 'src(same);key(a)', '2': 'src(same);key(b)' }, 1,
-		'1:key(b)' ],
+		{ 'A': 'src(same);key(a)', 'B': 'src(same);key(b)' }, 1,
+		'A:key(b)' ],
 
 	[ 'POSITION-1 STRIP (read) — removed slot inherited its read', SELECTING,
-		{ '1': 'src(refs,x);use(same)', '2': 'src(refs,y);use(same)' }, 1,
-		'1:src(refs,y)' ],
+		{ 'A': 'src(refs,x);use(same)', 'B': 'src(refs,y);use(same)' }, 1,
+		'A:src(refs,y)' ],
 
 	// Combining materialization: the successor's inherited SOURCE still carries, and
 	// its unset read stays unset (there is no read to inherit in a combining slot).
 	[ 'COMBINING — materialize src; an unset read stays unset', COMBINING,
-		{ '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same)' }, 2,
-		'1:key(a) | 2:src(refs,office)' ],
+		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same)' }, 2,
+		'A:key(a) | B:src(refs,office)' ],
 ];
 
 CASES.forEach( function ( c ) {
@@ -198,20 +199,20 @@ check( 'CHAIN-ONLY seed omits the read sentinel', fold.emitSlot( rep.seedSlot( C
 // key-only successor inheriting its key must still carry it across a removal.
 check(
 	'KEY-ONLY compaction materializes an inherited key',
-	show( rep.removeSlotFrom( 2, { '1': 'key(a)', '2': 'src(refs,office);key(b)', '3': 'src(same)' }, 3, KEY_ONLY ), KEY_ONLY ),
-	'1:key(a) | 2:src(refs,office)'
+	show( rep.removeSlotFrom( 2, { 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same)' }, 3, KEY_ONLY ), KEY_ONLY ),
+	'A:key(a) | B:src(refs,office)'
 );
 check(
 	'CHAIN-ONLY compaction materializes the chain with no read to carry',
-	show( rep.removeSlotFrom( 2, { '1': 'src(post,9999)', '2': 'src(refs,office)', '3': 'src(same)' }, 3, CHAIN_ONLY ), CHAIN_ONLY ),
-	'1:src(post,9999) | 2:src(refs,office)'
+	show( rep.removeSlotFrom( 2, { 'A': 'src(post,9999)', 'B': 'src(refs,office)', 'C': 'src(same)' }, 3, CHAIN_ONLY ), CHAIN_ONLY ),
+	'A:src(post,9999) | B:src(refs,office)'
 );
 
 // ── Cardinality — content-derived, in EITHER wire era ──────────────────────
 check( 'cardinality floors at the container minimum', rep.slotCount( {}, SELECTING ), 2 );
-check( 'cardinality counts the highest folded value', rep.slotCount( { '1': 'key(a)', '4': 'src(same);use(same)' }, SELECTING ), 4 );
+check( 'cardinality counts the highest folded value', rep.slotCount( { 'A': 'key(a)', 'D': 'src(same);use(same)' }, SELECTING ), 4 );
 check( 'cardinality counts an UNMIGRATED legacy slot', rep.slotCount( { 'key': 'a', '3-src': 'ref', '3-ref': 'office' }, SELECTING ), 3 );
-check( 'cardinality never exceeds the ceiling scan', rep.slotCount( { '5': 'key(a)' }, SELECTING ), 5 );
+check( 'cardinality never exceeds the ceiling scan', rep.slotCount( { 'E': 'key(a)' }, SELECTING ), 5 );
 
 // ── Mount default for an UNCONFIGURED slot — position-aware ────────────────
 // Reimplements the control's fallback rule (it lives inside the mounted component

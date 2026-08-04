@@ -313,24 +313,24 @@ $joins = bws_build_fold_slot_options(
 	)
 );
 
-// PHP normalizes an all-digit array key to an INT, on write and on lookup alike — so
-// the keys read back as 1,2,3 while `$joins['2']` still resolves. Pinned rather than
-// papered over: the wire spelling is the STRING `2:`, and a reader who assumes string
-// keys survive the array is one `array_keys()` comparison away from a false failure.
-assert_same( 'one option key per slot, numeric', array( 1, 2, 3 ), array_keys( $joins ) );
-// THE TRAP that follows from int keys, pinned because a registration hit it: array_merge
-// RENUMBERS integer keys, so folding these into a leading option group with array_merge
-// slides every slot down one (`1`..`5` → `0`..`4`) — a slot 0 the grammar has no ordinal
-// for, and the top slot dropped. Consumers must append by key.
+// The registered key IS the wire spelling, so nothing downstream translates: a slot's
+// option key, its `{{join A:…}}` token and the control's `props.optionKey` are one string.
+assert_same( 'one option key per slot, spelled as the ordinal', array( 'A', 'B', 'C' ), array_keys( $joins ) );
+// THE TRAP THIS SPELLING RETIRED, kept as a regression: while slot keys were all digits
+// PHP stored them as INTs, and array_merge RENUMBERS integer keys — folding them into a
+// leading option group slid every slot down one (`1`..`5` → `0`..`4`), inventing a slot 0
+// the grammar has no ordinal for and dropping the top slot. Capitals are ordinary string
+// keys, so array_merge now preserves them. (Consumers still append by key; the habit is
+// free and this assertion is what would notice the hazard coming back.)
 assert_same(
-	'array_merge would renumber the slot keys (append by key instead)',
-	array( 'as', 0, 1, 2 ),
+	'array_merge preserves the slot keys (the digit-era renumbering is gone)',
+	array( 'as', 'A', 'B', 'C' ),
 	array_keys( array_merge( array( 'as' => array() ), $joins ) )
 );
-assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins['2']['type'] );
-assert_same( 'per-slot label follows the caller pattern', 'Field 2', $joins['2']['label'] );
+assert_same( 'slot key declares the fold control type', 'bws-slot-fold', $joins['B']['type'] );
+assert_same( 'per-slot label follows the caller pattern', 'Field 2', $joins['B']['label'] );
 
-$fold = $joins['1']['fold'];
+$fold = $joins['A']['fold'];
 
 // Source enum: DERIVED through the slot twin, so the `site` arm and the inherit row
 // are the shipped ones. Slot 1 has no inherit row; slot ≥2 does.
@@ -407,7 +407,7 @@ $sel = bws_build_fold_slot_options(
 		'tag_level'       => array( 'limit' ),
 	)
 );
-$sel_fold = $sel['1']['fold'];
+$sel_fold = $sel['A']['fold'];
 assert_same(
 	'selecting readRows are the twin rows with NO unset row',
 	bws_build_slot_read_options( 1, $text['use'], false )['options'],
@@ -441,7 +441,7 @@ $key_only = bws_build_fold_slot_options(
 		'tag_level'    => array( 'use', 'limit' ),
 	)
 );
-$key_fold = $key_only['1']['fold'];
+$key_fold = $key_only['A']['fold'];
 assert_same( 'key-only: no read enum', array(), $key_fold['readRows'] );
 assert_same( 'key-only: no read enum at slot ≥2 either', array(), $key_fold['readRowsInherit'] );
 assert_same( 'key-only: the key picker is still configured', $text['key']['label'], $key_fold['keyOption']['label'] );
@@ -467,7 +467,7 @@ $chain_only = bws_build_fold_slot_options(
 		'tag_level'    => array( 'use', 'key', 'limit' ),
 	)
 );
-$chain_fold = $chain_only['1']['fold'];
+$chain_fold = $chain_only['A']['fold'];
 assert_same( 'chain-only: no read enum', array(), $chain_fold['readRows'] );
 assert_same( 'chain-only: no key picker either', null, $chain_fold['keyOption'] ?? null );
 assert_same( 'chain-only: the source enum is still whole', true, count( $chain_fold['srcRows'] ) > 1 );

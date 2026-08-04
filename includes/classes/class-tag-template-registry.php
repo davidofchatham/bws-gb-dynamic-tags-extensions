@@ -504,7 +504,7 @@ class TagTemplateRegistry {
 				: [];
 			$options = $leading_options;
 
-			// Group 2 — FOLDED slot keys `1`..`5` (FW-56/57). One `bws-slot-fold` option
+			// Group 2 — FOLDED slot keys `A`..`E` (FW-56/57). One `bws-slot-fold` option
 			// per slot, whose VALUE carries that slot's whole configuration. Replaces the
 			// six flat keys per slot (src/ref/srcTermIn/use/key ×5 plus their show_if_any
 			// reveal cascade) this loop used to register. Every enum, label and noun the
@@ -528,10 +528,11 @@ class TagTemplateRegistry {
 			// carries why the 1.17.0 chain compiler does not lift that — the ARMS gate on
 			// flat tokens, and only depth-0 chains bypass them).
 			//
-			// NEVER array_merge() an option set that holds folded slot keys. PHP stores
-			// all-digit keys as INTEGERS, and array_merge RENUMBERS integer keys — slots
-			// `1`..`5` silently become `0`..`4`, which registers a slot 0 the grammar has
-			// no ordinal for and drops slot 5. Append by key instead, here and below.
+			// The append-by-key below is a habit worth keeping, but no longer a trap:
+			// while slot keys were all-digit, PHP stored them as INTEGERS and
+			// array_merge RENUMBERED them (`1`..`5` → `0`..`4`, registering a slot 0 the
+			// grammar has no ordinal for and dropping slot 5). Capitals are ordinary
+			// string keys, so that failure mode retired with the digits.
 			$fold_slots = function_exists( 'bws_build_fold_slot_options' )
 				? bws_build_fold_slot_options(
 					[
@@ -558,7 +559,7 @@ class TagTemplateRegistry {
 				)
 				: [];
 			foreach ( $fold_slots as $slot_key => $slot_def ) {
-				$options[ (string) $slot_key ] = $slot_def;
+				$options[ $slot_key ] = $slot_def;
 			}
 
 			// Append template-level trailing options (fallback, etc.).

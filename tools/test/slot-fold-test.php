@@ -769,7 +769,7 @@ $mixed = array(
 	'src'   => 'ref',
 	'ref'   => 'office',
 	'key'   => 'a',
-	'2'     => 'src(site);key(org_phone)',
+	'B'     => 'src(site);key(org_phone)',
 	'3-key' => 'c',
 );
 $walk = t_seam_walk( $mixed, 'join' );
@@ -780,7 +780,7 @@ check( 'P13.2 mixed era: legacy slot 3 inherits the FOLDED slot 2 source', 'site
 $mixed_rev = array(
 	'2-src' => 'site',
 	'2-key' => 'org_phone',
-	'3'     => 'src(same);key(c)',
+	'C'     => 'src(same);key(c)',
 );
 $walk_rev = t_seam_walk( $mixed_rev, 'join' );
 check( 'P13.2 mixed era: folded slot 3 inherits a LEGACY slot 2 source', 'site' === ( $walk_rev[3]['src'] ?? '' ), json_encode( $walk_rev[3] ?? null ) );
@@ -788,18 +788,18 @@ check( 'P13.2 mixed era: folded slot 3 inherits a LEGACY slot 2 source', 'site' 
 // P13.3 — SKIP BEFORE CARRY. A combining slot with no read is unconfigured: it
 // renders nothing AND must not feed the accumulator, or a later slot's inherit
 // re-points at a source the author never chose.
-$skip = array( '1' => 'key(a)', '2' => 'src(site)', '3' => 'src(same);key(c)' );
+$skip = array( 'A' => 'key(a)', 'B' => 'src(site)', 'C' => 'src(same);key(c)' );
 $walk = t_seam_walk( $skip, 'join' );
 check( 'P13.3 combining: read-less slot 2 is skipped', ! isset( $walk[2] ), json_encode( $walk[2] ?? null ) );
 check( 'P13.3 combining: slot 3 inherits slot 1, NOT the skipped slot 2', '' === ( $walk[3]['src'] ?? 'X' ), json_encode( $walk[3] ?? null ) );
 // Selecting reads absence as inherit, and DOES resolve the slot.
-$walk_sel = t_seam_walk( array( '1' => 'key(a)', '2' => 'src(site)' ), 'try' );
+$walk_sel = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(site)' ), 'try' );
 check( 'P13.3 selecting: read-less slot 2 inherits the read and resolves', isset( $walk_sel[2] ) && 'a' === $walk_sel[2]['key'] && 'site' === $walk_sel[2]['src'], json_encode( $walk_sel[2] ?? null ) );
 
 // P13.4 — explicit `use(same)` inherits in BOTH containers (only ABSENCE diverges).
-$same_join = t_seam_walk( array( '1' => 'key(a)', '2' => 'src(site);use(same)' ), 'join' );
+$same_join = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) && 'a' === $same_join[2]['key'] && 'key' === $same_join[2]['use'], json_encode( $same_join[2] ?? null ) );
-$same_analog = t_seam_walk( array( '1' => 'use(title)', '2' => 'src(site);use(same)' ), 'join' );
+$same_analog = t_seam_walk( array( 'A' => 'use(title)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
 // P13.5 — chain shapes the flat TRIPLE cannot express SKIP the slot rather than
@@ -817,7 +817,7 @@ foreach ( array(
 	'repeater entry' => 'src(entries,rows);key(x)',
 	'ref after term' => 'src(terms,category;refs,a);key(x)',
 ) as $why => $wire ) {
-	$w = t_seam_walk( array( '1' => $wire ), 'join' );
+	$w = t_seam_walk( array( 'A' => $wire ), 'join' );
 	check( "P13.5 inexpressible chain skips the slot ($why)", ! isset( $w[1] ), json_encode( $w[1] ?? null ) );
 }
 // P13.5b — the seam REPORTS WHY it skipped, and the two reasons are not
@@ -843,33 +843,33 @@ bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site);key(a)' ), $sr_carry
 check( 'P13.5b a RESOLVING slot clears the reason (reused variable, no leak)', '' === $sr, var_export( $sr, true ) );
 
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
-$lead_terms = t_seam_walk( array( '1' => 'src(terms,category);use(title)' ), 'join' );
+$lead_terms = t_seam_walk( array( 'A' => 'src(terms,category);use(title)' ), 'join' );
 check( 'P13.5 leading term hop resolves with src unset', array( 'src' => '', 'ref' => '', 'srcTermIn' => 'category', 'use' => 'title', 'key' => '' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );
 
 // P13.6 — limit threading. A per-step limit reaches the flat `limit`; a pinned 0
 // (unlimited) must survive, which a truthiness guard would drop.
-$lim = t_seam_walk( array( '1' => 'src(refs,office,limit[3]);key(a)' ), 'join' );
+$lim = t_seam_walk( array( 'A' => 'src(refs,office,limit[3]);key(a)' ), 'join' );
 check( 'P13.6 per-step limit reaches the flat option', '3' === ( $lim[1]['limit'] ?? null ), json_encode( $lim[1] ?? null ) );
-$lim0 = t_seam_walk( array( '1' => 'src(refs,office,limit[0]);key(a)' ), 'join' );
+$lim0 = t_seam_walk( array( 'A' => 'src(refs,office,limit[0]);key(a)' ), 'join' );
 check( 'P13.6 a pinned limit 0 (unlimited) survives the seam', '0' === ( $lim0[1]['limit'] ?? null ), json_encode( $lim0[1] ?? null ) );
-$lim_slot = t_seam_walk( array( '1' => 'limit(4);key(prices)' ), 'join' );
+$lim_slot = t_seam_walk( array( 'A' => 'limit(4);key(prices)' ), 'join' );
 check( 'P13.6 a slot-level limit reaches the flat option', '4' === ( $lim_slot[1]['limit'] ?? null ), json_encode( $lim_slot[1] ?? null ) );
 // The slot-level twin of the pinned zero: a legacy `limit:0` with no fanning step
 // migrates to `limit(0)`, which caps an unlimited multi-value READ. PHP's '0' is
 // FALSY (unlike JS), so this is the one spelling a truthiness guard eats here.
-$lim_slot0 = t_seam_walk( array( '1' => 'limit(0);key(prices)' ), 'join' );
+$lim_slot0 = t_seam_walk( array( 'A' => 'limit(0);key(prices)' ), 'join' );
 check( 'P13.6 a slot-level limit 0 (unlimited) survives the seam', '0' === ( $lim_slot0[1]['limit'] ?? null ), json_encode( $lim_slot0[1] ?? null ) );
-$lim_none = t_seam_walk( array( '1' => 'key(a)' ), 'join' );
+$lim_none = t_seam_walk( array( 'A' => 'key(a)' ), 'join' );
 check( 'P13.6 no limit token → no limit key (the caller default stands)', ! isset( $lim_none[1]['limit'] ), json_encode( $lim_none[1] ?? null ) );
 
 // P13.7 — malformed folded wire contributes nothing and NEVER falls back to a stale
 // legacy sibling (that would render an intent the author replaced).
-$bad = t_seam_walk( array( '1' => 'key(a', '1-key' => 'ignored', 'key' => 'stale' ), 'join' );
+$bad = t_seam_walk( array( 'A' => 'key(a', '1-key' => 'ignored', 'key' => 'stale' ), 'join' );
 check( 'P13.7 malformed folded wire skips the slot', ! isset( $bad[1] ), json_encode( $bad[1] ?? null ) );
 
 // P13.8 — an empty chain at slot ≥2 is a RESET to the ambient entity, not an inherit
 // (legacy absence migrates to an explicit `src(same)`, so absence is unambiguous).
-$reset = t_seam_walk( array( '1' => 'src(site);key(a)', '2' => 'key(b)' ), 'join' );
+$reset = t_seam_walk( array( 'A' => 'src(site);key(a)', 'B' => 'key(b)' ), 'join' );
 check( 'P13.8 empty chain at slot 2 resets to current, not inherit', '' === ( $reset[2]['src'] ?? 'X' ), json_encode( $reset[2] ?? null ) );
 
 // ── P14 SELECTING CONTAINER (`try_*`) ───────────────────────────────────────
@@ -1109,7 +1109,7 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 // P14.7 — what the FOLD adds over the flat wire: an explicit per-slot read at slot ≥2
 // with no source of its own. Legacy `2-key` alone was DROPPED (FW-51) because a bare
 // key could not say whether it meant "override" or "left blank"; `2:key(b)` says it.
-$explicit = t_seam_try_walk( array( '1' => 'key(a)', '2' => 'key(b)' ), true, true, array( 'title' ), 'key' );
+$explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), 'key' );
 check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && 'current' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
 echo "\n$pass passed, $fail failed\n";

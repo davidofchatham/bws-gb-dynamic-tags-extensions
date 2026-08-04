@@ -321,9 +321,8 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  * }
- * @return array Option definitions keyed '1'..'max' (PHP stores all-digit keys as
- *               ints; lookups by either spelling resolve, and the WIRE spelling is
- *               always the string, e.g. `2:`).
+ * @return array Option definitions keyed by SLOT ORDINAL — `A`..`bws_slot_ordinal($max)`.
+ *               The key IS the wire spelling (`B:`), so nothing downstream translates.
  */
 function bws_build_fold_slot_options( array $args ): array {
 	$container       = (string) ( $args['container'] ?? 'join' );
@@ -457,7 +456,7 @@ function bws_build_fold_slot_options( array $args ): array {
 
 	$options = array();
 	for ( $n = 1; $n <= $max; $n++ ) {
-		$options[ (string) $n ] = array(
+		$options[ bws_slot_ordinal( $n ) ] = array(
 			'type'  => 'bws-slot-fold',
 			/* translators: %d: slot number */
 			'label' => sprintf( $label_pattern, $n ),

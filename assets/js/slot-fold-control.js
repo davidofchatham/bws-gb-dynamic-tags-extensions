@@ -213,7 +213,7 @@
 	 * into slot 1 as that slot's read.
 	 */
 	function readSlot( n, state, conf ) {
-		var raw = state[ String( n ) ] || '';
+		var raw = state[ fold.slotKey( n ) ] || '';
 		if ( raw ) {
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
@@ -231,7 +231,7 @@
 		var legacy = migrate.slotState( state, conf );
 		var highest = 0;
 		for ( var i = 1; i <= conf.max; i++ ) {
-			if ( state[ String( i ) ] ) {
+			if ( state[ fold.slotKey( i ) ] ) {
 				highest = i;
 			} else if ( fold.foldFromLegacy( i, legacy, conf.combining, conf.perSlotUse ) ) {
 				highest = i;
@@ -292,7 +292,7 @@
 
 		var upd = Object.assign( {}, state );
 		for ( var k = 1; k <= conf.max; k++ ) {
-			delete upd[ String( k ) ];
+			delete upd[ fold.slotKey( k ) ];
 			legacyKeys( k, conf ).forEach( function ( lk ) {
 				delete upd[ lk ];
 			} );
@@ -300,7 +300,7 @@
 		survivors.forEach( function ( s, idx ) {
 			var v = fold.emitSlot( s );
 			if ( v ) {
-				upd[ String( idx + 1 ) ] = v;
+				upd[ fold.slotKey( idx + 1 ) ] = v;
 			}
 		} );
 		return upd;
@@ -386,7 +386,9 @@
 		var state = ctx.state || {};
 		var setState = ctx.setState;
 		var key = props.optionKey;
-		var ordinal = parseInt( key, 10 );
+		// The option key IS the slot's wire spelling, so its ordinal is a DECODE, not a
+		// parseInt: `AA` is slot 27, which parseInt reads as NaN.
+		var ordinal = fold.slotOrdinal( key );
 		var conf = props.conf;
 		var raw = state[ key ] || '';
 		var FieldCombo = window.bwsFieldComboControl;
@@ -468,7 +470,7 @@
 				return;
 			}
 			var upd = Object.assign( {}, state );
-			upd[ String( count + 1 ) ] = fold.emitSlot( seedSlot( conf ) );
+			upd[ fold.slotKey( count + 1 ) ] = fold.emitSlot( seedSlot( conf ) );
 			setState( upd );
 		}
 

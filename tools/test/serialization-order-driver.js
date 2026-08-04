@@ -38,6 +38,14 @@ global.wp = {
 // is what a first run of this driver actually did.
 global.window = { wp: global.wp };
 
+// The grammar loads FIRST, as the enqueue orders it: the normalizer decodes folded slot
+// keys through window.bwsSlotFold.slotOrdinal (the single owner of the spelling), and it
+// does so on every reorder rather than lazily.
+vm.runInThisContext(
+	fs.readFileSync( path.join( root, 'assets/js/slot-fold-grammar.js' ), 'utf8' ),
+	{ filename: 'slot-fold-grammar.js' }
+);
+
 vm.runInThisContext(
 	fs.readFileSync( path.join( root, 'assets/js/serialization-order-normalizer.js' ), 'utf8' ),
 	{ filename: 'serialization-order-normalizer.js' }

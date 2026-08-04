@@ -80,23 +80,39 @@
 		noLink: [ 'link', 4 ],
 		// fallback (last)
 		fallback: [ 'fallback', 0 ],
-		// A FOLDED slot key (`1`, `2`, … — FW-56/57) is deliberately ABSENT here: it is
-		// ranked by the leading `fold` dimension in reorderKeys(), not by group.
+		// A FOLDED slot key (`A`, `B`, … — FW-56/57) parses to the EMPTY bare name, so
+		// this is its entry: the source group ahead of every named source key, because
+		// the folded value IS the slot's whole source-and-read. The negative rank only
+		// decides the half-migrated shape (folded value beside a surviving legacy
+		// sibling at the same slot), deterministically rather than by insertion order.
+		'': [ 'source', -1 ]
 	};
 
 	var UNKNOWN_WITHIN = 100; // unknown keys tail the source group.
 
 	/**
-	 * Split `N-name` into [slot, bareName]; unprefixed → [0, key]. An all-digit key is
-	 * a FOLDED slot key → [N, ''] (see the '' entry in KEY_MAP).
+	 * Split `N-name` into [slot, bareName]; unprefixed → [0, key]. An all-CAPS key is a
+	 * FOLDED slot key → [N, ''] (see the '' entry in KEY_MAP).
+	 *
+	 * The LEGACY sibling prefix stays digits (`2-key`) while the folded key does not:
+	 * that wire was already written with digits, and re-spelling its reader would orphan
+	 * every pre-1.17.0 tag.
+	 *
+	 * Decodes through window.bwsSlotFold (slot-fold-grammar.js, twin of the PHP owner)
+	 * rather than testing a local `^[A-Z]+$` — a second copy of the spelling is the copy
+	 * nothing would notice going stale. The enqueue makes the grammar load first for
+	 * exactly this call; the `hasOwnProperty` shape below means a missing decoder would
+	 * rank a slot as slot 0, which is why the dependency is a load-order guarantee and
+	 * not a runtime guard.
 	 */
 	function parseSlot( key ) {
 		var m = /^(\d+)-(.+)$/.exec( key );
 		if ( m ) {
 			return [ parseInt( m[ 1 ], 10 ), m[ 2 ] ];
 		}
-		if ( /^\d+$/.test( key ) ) {
-			return [ parseInt( key, 10 ), '' ];
+		var ordinal = window.bwsSlotFold.slotOrdinal( key );
+		if ( ordinal > 0 ) {
+			return [ ordinal, '' ];
 		}
 		return [ 0, key ];
 	}
@@ -105,14 +121,16 @@
 	 * Reorder a list of option keys into canonical serialization order.
 	 * Pure: keys in → reordered keys out. Stable (incoming index breaks ties).
 	 *
-	 * The leading `fold` dimension puts FOLDED slot keys (all digits) first. That is not
-	 * a preference this file could choose otherwise: an all-digit key is an array-index
-	 * property, which ECMAScript enumerates before every string key regardless of
-	 * insertion order — so rebuilding the object below in any other order would not
-	 * survive GB's `Object.entries(extraTagParams)` serialization. Stating it here keeps
-	 * the returned list TRUTHFUL, and keeps this port equal to the PHP owner
-	 * (includes/helpers/serialization-order.php), which had to adopt the same rule so the
-	 * converter and the editor stop writing the same tag two ways.
+	 * A FOLDED slot key ranks as its slot's source, so it lands after `format` and after
+	 * any tag-level (slot 0) source key. That is only expressible because the keys are
+	 * CAPITALS: while they were all digits they were array-index properties, which
+	 * ECMAScript enumerates before every string key regardless of insertion order — so
+	 * rebuilding the object below could not move them past GB's
+	 * `Object.entries(extraTagParams)` serialization, and both this file and the PHP owner
+	 * had to state that forced order instead. Capitals are ordinary string keys, so the
+	 * rebuild below is now what decides. Keep this port equal to
+	 * includes/helpers/serialization-order.php or the converter and the editor write the
+	 * same tag two ways.
 	 */
 	function reorderKeys( keys ) {
 		var decorated = keys.map( function ( key, idx ) {
@@ -129,7 +147,6 @@
 			}
 			return {
 				key: key,
-				fold: ( '' === bare && slot > 0 ) ? 0 : 1,
 				grank: GROUP_RANK[ group ],
 				slot: slot,
 				within: within,
@@ -138,8 +155,7 @@
 		} );
 
 		decorated.sort( function ( a, b ) {
-			return ( a.fold - b.fold )
-				|| ( a.grank - b.grank )
+			return ( a.grank - b.grank )
 				|| ( a.slot - b.slot )
 				|| ( a.within - b.within )
 				|| ( a.idx - b.idx );

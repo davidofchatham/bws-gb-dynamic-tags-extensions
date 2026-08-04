@@ -510,27 +510,27 @@ check(
 // must not change when a tag migrates.
 check(
 	'folded: two slots, separator mode',
-	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(same);key(name_last)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
 	"[Join 'name_first', 'name_last']"
 );
 check(
 	'folded: analog read + keyed read',
-	bws_build_join_preview_label( [ '1' => 'use(title)', '2' => 'src(same);key(role)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'use(title)', 'B' => 'src(same);key(role)' ] ),
 	'[Join Title, ' . "'role']"
 );
 check(
 	'folded: ref source appended',
-	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(refs,rel_post);key(role)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'src(refs,rel_post);key(role)' ] ),
 	"[Join 'name_first', 'role' from Ref 'rel_post']"
 );
 check(
 	'folded: template mode substitutes tokens',
-	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', '1' => 'key(name_first)', '2' => 'src(same);key(name_last)' ] ),
+	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
 	"[Join “'name_first' ('name_last')”]"
 );
 check(
 	'folded: an argless ref hop still warns',
-	bws_build_join_preview_label( [ '1' => 'src(refs);key(name_first)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'src(refs);key(name_first)' ] ),
 	'[⚠ Join: slot 1 no ref]'
 );
 // A read-less combining slot is UNCONFIGURED, so it is skipped rather than warned
@@ -539,14 +539,14 @@ check(
 // keyed read with no key.
 check(
 	'folded: read-less slot 2 is skipped, not warned',
-	bws_build_join_preview_label( [ '1' => 'key(name_first)', '2' => 'src(site)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'key(name_first)', 'B' => 'src(site)' ] ),
 	"[Join 'name_first']"
 );
 // MIXED era (half-applied migration): folded slot 2 between legacy slots 1 and 3, with
 // slot 3 inheriting slot 2's folded source through the shared accumulator.
 check(
 	'folded: mixed-era wire previews with one carry-forward',
-	bws_build_join_preview_label( [ 'key' => 'a', '2' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
+	bws_build_join_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
 	"[Join 'a', 'b' from Ref 'rel_post', 'c' from Ref 'rel_post']"
 );
 
@@ -558,17 +558,17 @@ echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";
 // container rules, which is what the last three cases pin.
 check(
 	'folded: single text slot',
-	bws_build_try_preview_label( [ '1' => 'key(sku)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'key(sku)' ], 'text' ),
 	"[Try 'sku']"
 );
 check(
 	'folded: two slots vary source',
-	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(refs,rel)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(refs,rel)' ], 'text' ),
 	"[Try 'sku' from Current, Ref 'rel']"
 );
 check(
 	'folded: two slots vary field',
-	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(same);key(alt_sku)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(same);key(alt_sku)' ], 'text' ),
 	"[Try 'sku', 'alt_sku']"
 );
 check(
@@ -582,7 +582,7 @@ check(
 // (`2-srcTermIn:category` with no read of its own).
 check(
 	'folded: read-less slot 2 inherits the field, keeps its own term hop',
-	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(terms,category)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms,category)' ], 'text' ),
 	"[Try 'sku' from Current, Current → Category Term]"
 );
 check(
@@ -594,13 +594,13 @@ check(
 // the template's own.
 check(
 	'folded: chain-only container (title) previews its sources',
-	bws_build_try_preview_label( [ '1' => '', '2' => 'src(refs,rel)' ], 'title' ),
+	bws_build_try_preview_label( [ 'A' => '', 'B' => 'src(refs,rel)' ], 'title' ),
 	"[Try Title from Current, Ref 'rel']"
 );
 // MIXED era: folded slot 2 between legacy slots 1 and 3, one accumulator.
 check(
 	'folded: mixed-era try_ wire previews with one carry-forward',
-	bws_build_try_preview_label( [ 'key' => 'a', '2' => 'src(refs,rel);key(b)', '3-use' => 'key', '3-key' => 'c' ], 'text' ),
+	bws_build_try_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel);key(b)', '3-use' => 'key', '3-key' => 'c' ], 'text' ),
 	"[Try 'a' from Current, 'b' from Ref 'rel', 'c' from Ref 'rel']"
 );
 
@@ -614,34 +614,34 @@ check(
 // term hop. Inexpressible means a SECOND hop on the same axis, or `entries`.
 check(
 	'join: expressible ref+term chain previews normally (the negative control)',
-	bws_build_join_preview_label( [ '1' => 'src(refs,rel;terms,dept);use(title)', '2' => 'key(role)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'src(refs,rel;terms,dept);use(title)', 'B' => 'key(role)' ] ),
 	"[Join Title from Ref 'rel' → Dept Term, 'role']"
 );
 check(
 	'join: a SECOND ref hop is FLAGGED, not silently dropped',
-	bws_build_join_preview_label( [ '1' => 'src(refs,a;refs,b);use(title)', '2' => 'key(role)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'src(refs,a;refs,b);use(title)', 'B' => 'key(role)' ] ),
 	'[⚠ Join: slot 1 source not supported]'
 );
 check(
 	'join: an `entries` step is flagged the same way',
-	bws_build_join_preview_label( [ '1' => 'src(entries,rows);key(name)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'src(entries,rows);key(name)' ] ),
 	'[⚠ Join: slot 1 source not supported]'
 );
 check(
 	'try_: same flag, on a selecting container',
-	bws_build_try_preview_label( [ '1' => 'key(sku)', '2' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
 	'[⚠ Try: slot 2 source not supported]'
 );
 check(
 	'try_: the ONLY slot inexpressible reports the reason, NOT "no slots configured"',
-	bws_build_try_preview_label( [ '1' => 'src(entries,rows);key(name)' ], 'text' ),
+	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
 	'[⚠ Try: slot 1 source not supported]'
 );
 // An UNCONFIGURED combining slot stays SILENT — it is a normal in-progress state,
 // and flagging it would fire on every half-built join.
 check(
 	'join: an unconfigured slot is silent (no read = in progress, not broken)',
-	bws_build_join_preview_label( [ '1' => 'key(a)', '2' => 'src(site)' ] ),
+	bws_build_join_preview_label( [ 'A' => 'key(a)', 'B' => 'src(site)' ] ),
 	"[Join 'a']"
 );
 

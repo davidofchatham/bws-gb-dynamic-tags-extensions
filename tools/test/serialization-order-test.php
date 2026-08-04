@@ -5,7 +5,9 @@
  *
  * Pure array transform — no WordPress required. `serialization-order.php` guards its
  * top level with ABSPATH and defines only pure functions, so we define ABSPATH and
- * require it directly (no WP shims needed).
+ * require it directly (no WP shims needed). `slot-fold.php` comes along because the slot
+ * parser DECODES folded slot keys through bws_slot_ordinal_num() — the single owner of
+ * that spelling — rather than keeping a second copy of it here.
  *
  * This harness is the committed, CI-runnable spec of the ordering contract the editor
  * JS normalizer (assets/js/serialization-order-normalizer.js) enforces. The JS runs the
@@ -34,6 +36,7 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 define( 'ABSPATH', __DIR__ );
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
 
 $failures = 0;
 $count    = 0;
@@ -147,37 +150,52 @@ assert_order(
 	$sort( array( 'sep', 'key', 'src', 'valueSep', 'srcTermIn', 'limit', 'fallback' ) )
 );
 
-// --- Folded slot keys (FW-56/57): all-digit keys LEAD the whole string, slot order ---
-// NOT a preference (1.17.0). An all-digit key is a JS array-index property, which
-// ECMAScript enumerates before every string key whatever order the object was built in;
-// GB serializes with `Object.entries(extraTagParams)`, so the editor CANNOT emit a named
-// option ahead of a folded slot. The canonical order states what the editor is forced to
-// write, so the converter and the editor stop writing one tag two ways. The JS-port block
-// below is what holds the two sides together — this expectation and that one cannot
-// disagree silently.
+// --- Folded slot keys (FW-56/57): capitals, ranked as their slot's source ---
+// THE REGRESSION THESE PIN is the one the spelling was changed to fix (1.17.0). While the
+// keys were all digits they were JS array-index properties, which ECMAScript enumerates
+// before every string key whatever order the object was built in; GB serializes with
+// `Object.entries(extraTagParams)`, so the editor COULD NOT emit `format` ahead of a slot
+// and this file had to state that forced order instead. Capitals are ordinary string keys,
+// so `format` leads again and a container's TAG-LEVEL (slot 0) source keys precede slot 1.
+// The JS-port block below is what holds the two sides together — this expectation and that
+// one cannot disagree silently.
 assert_order(
-	'folded slot keys LEAD, ahead of the format group, and sort by slot',
-	array( '1', '2', '3', 'mode', 'valueSep', 'format', 'fallback' ),
-	$sort( array( '3', 'fallback', '1', 'format', 'mode', '2', 'valueSep' ) )
+	'format group leads the folded slots, which then sort by slot',
+	array( 'mode', 'valueSep', 'format', 'A', 'B', 'C', 'fallback' ),
+	$sort( array( 'C', 'fallback', 'A', 'format', 'mode', 'B', 'valueSep' ) )
 );
-// Mixed era on ONE slot (a half-applied migration or hand-edit): folded leads flat,
-// because the fold dimension precedes slot — not because of any same-slot rule.
+// {{table}}'s shape: a tag-level source read (slot 0) ahead of the column slots. This is
+// the second thing digits forfeited, and it falls out of (grank, slot) with no extra rule.
+assert_order(
+	'tag-level source keys (slot 0) precede the folded slots',
+	array( 'src', 'key', 'caption', 'A', 'B' ),
+	$sort( array( 'B', 'key', 'A', 'caption', 'src' ) )
+);
+// Mixed era on ONE slot (a half-applied migration or hand-edit): the folded value leads
+// its slot's flat keys, from the negative within-rank on the empty bare name.
 assert_order(
 	'a folded slot key leads the flat keys of the same slot',
-	array( '2', '3', '2-zeta' ),
-	$sort( array( '2-zeta', '3', '2' ) )
+	array( 'B', '2-zeta', 'C' ),
+	$sort( array( '2-zeta', 'C', 'B' ) )
 );
 assert_order(
 	'a folded slot key leads its slot\'s unknown flat key',
-	array( '1', '1-zeta' ),
-	$sort( array( '1-zeta', '1' ) )
+	array( 'A', '1-zeta' ),
+	$sort( array( '1-zeta', 'A' ) )
 );
-// Mixed era across slots: every folded key first (by slot), then the flat keys in their
-// own canonical order.
+// Mixed era across slots: slot order dominates, so slot 2's flat keys sit BETWEEN the
+// folded slots 1 and 3 — the fold is no longer a leading dimension that hoists them out.
 assert_order(
-	'mixed-era wire puts folded slots first, then the flat keys',
-	array( '1', '3', '2-src', '2-key' ),
-	$sort( array( '3', '2-key', '1', '2-src' ) )
+	'mixed-era wire interleaves by slot, not by era',
+	array( 'A', '2-src', '2-key', 'C' ),
+	$sort( array( 'C', '2-key', 'A', '2-src' ) )
+);
+// Slot 27 is `AA`, which sorts BEFORE `B` lexically and after `Z` numerically. Nothing may
+// compare these keys as strings; both parsers decode to an int.
+assert_order(
+	'slot order is NUMERIC, not lexical (AA is slot 27)',
+	array( 'A', 'B', 'Z', 'AA' ),
+	$sort( array( 'AA', 'Z', 'A', 'B' ) )
 );
 
 // --- Unknown key: tails the source group, keeps incoming order relative to peers ---
@@ -205,9 +223,17 @@ if ( array( 2, 'src' ) === bws_serialization_order_parse_slot( '2-src' ) ) { ech
 $count++;
 if ( array( 10, 'key' ) === bws_serialization_order_parse_slot( '10-key' ) ) { echo "  ok   10-key → slot 10 (multi-digit)\n"; } else { $failures++; echo "  FAIL 10-key → slot 10\n"; }
 $count++;
-if ( array( 2, '' ) === bws_serialization_order_parse_slot( '2' ) ) { echo "  ok   folded slot key 2 → slot 2, empty bare name\n"; } else { $failures++; echo "  FAIL folded slot key 2 → [2, '']\n"; }
+if ( array( 2, '' ) === bws_serialization_order_parse_slot( 'B' ) ) { echo "  ok   folded slot key B → slot 2, empty bare name\n"; } else { $failures++; echo "  FAIL folded slot key B → [2, '']\n"; }
 $count++;
-if ( array( 12, '' ) === bws_serialization_order_parse_slot( '12' ) ) { echo "  ok   folded slot key 12 → slot 12 (multi-digit)\n"; } else { $failures++; echo "  FAIL folded slot key 12\n"; }
+if ( array( 27, '' ) === bws_serialization_order_parse_slot( 'AA' ) ) { echo "  ok   folded slot key AA → slot 27 (two letters)\n"; } else { $failures++; echo "  FAIL folded slot key AA → [27, '']\n"; }
+$count++;
+// An all-digit key is NO LONGER a folded slot: it is an unknown flat key at slot 0. That
+// matters because it is how a stale pre-respell wire reads — as garbage, loudly, not as a
+// slot that silently re-pins itself to the front of every save.
+if ( array( 0, '2' ) === bws_serialization_order_parse_slot( '2' ) ) { echo "  ok   a bare digit is NOT a slot key any more\n"; } else { $failures++; echo "  FAIL bare digit '2' should parse as [0, '2']\n"; }
+$count++;
+// Lowercase is not the slot alphabet either — a `b:` option would be an ordinary key.
+if ( array( 0, 'b' ) === bws_serialization_order_parse_slot( 'b' ) ) { echo "  ok   lowercase is not a slot key\n"; } else { $failures++; echo "  FAIL lowercase 'b' should parse as [0, 'b']\n"; }
 
 // --- JS PORT AGREEMENT (assets/js/serialization-order-normalizer.js) ---
 //
@@ -229,10 +255,14 @@ $twin_lists = array(
 	array( 'zeta', 'src', 'linkTo', 'alpha', 'fallback', 'key' ),
 	array( '2-key', 'src', '3-src', 'key', '2-src', '3-key' ),
 	// Folded slot keys (FW-56/57) — the parseSlot branch added in 1.17.0.
-	array( '3', 'fallback', '1', 'format', 'mode', '2', 'valueSep' ),
-	array( '2-zeta', '3', '2' ),
-	array( '3', '2-key', '1', '2-src' ),
-	array( '12', '2', '1' ),
+	array( 'C', 'fallback', 'A', 'format', 'mode', 'B', 'valueSep' ),
+	array( '2-zeta', 'C', 'B' ),
+	array( 'C', '2-key', 'A', '2-src' ),
+	array( 'B', 'key', 'A', 'caption', 'src' ),
+	// Both halves must decode, not compare: `AA` is slot 27.
+	array( 'AA', 'Z', 'A', 'B' ),
+	// And both halves must agree that a bare digit is no longer a slot.
+	array( '2', 'A', 'format' ),
 );
 $expected_twin = array_map( $sort, $twin_lists );
 // Hand the corpus over as a FILE, not an argv string: Windows' escapeshellarg strips

@@ -902,7 +902,7 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
  *                    folded wire).
  */
 function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true ) {
-	$raw = trim( (string) ( $options[ (string) $n ] ?? '' ) );
+	$raw = trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) );
 	if ( '' !== $raw ) {
 		$parsed = bws_fold_parse_slot( $raw, $container );
 		return isset( $parsed['error'] ) ? null : $parsed;

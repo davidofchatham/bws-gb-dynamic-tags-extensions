@@ -192,7 +192,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		}
 
 		// An already-folded value for this slot wins outright.
-		if ( '' !== trim( (string) ( $options[ (string) $n ] ?? '' ) ) ) {
+		if ( '' !== trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) ) ) {
 			continue;
 		}
 
@@ -202,7 +202,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		}
 		$wire = bws_fold_emit_slot( $rec['slot'] );
 		if ( '' !== $wire ) {
-			$folded[ (string) $n ] = $wire;
+			$folded[ bws_slot_ordinal( $n ) ] = $wire;
 		}
 	}
 

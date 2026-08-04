@@ -308,10 +308,18 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	// FW-52 serialization-order normalizer: rebuilds extraTagParams in canonical
 	// serialization order (format → source → link → fallback) so the saved tag string
 	// stays readable regardless of the order the author touched the controls.
+	//
+	// The normalizer and the fold grammar depend on each OTHER, and only one direction
+	// needs a load-order guarantee. The normalizer decodes folded slot KEYS through
+	// window.bwsSlotFold.slotOrdinal, and it runs on every setState — an absent decoder
+	// there would rank every slot as slot 0, i.e. silently wrong. So the grammar loads
+	// FIRST. The reverse (the grammar ranking its tokens through window.bwsReorderKeys)
+	// happens only when a slot is EMITTED, long after both files are up, and degrades
+	// visibly to insertion order.
 	wp_enqueue_script(
 		'bws-dynamic-tags-order-normalizer',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/serialization-order-normalizer.js',
-		array( 'wp-hooks', 'wp-element' ),
+		array( 'wp-hooks', 'wp-element', 'bws-dynamic-tags-slot-fold-grammar' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
@@ -360,14 +368,15 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	}
 	// Folded slot wire (FW-56/57). The GRAMMAR is the tested twin of
 	// includes/helpers/slot-fold.php and carries no decisions of its own; the CONTROL
-	// is the repeater that owns one folded slot value. Both must load after the
-	// order normalizer (the grammar emits token order through window.bwsReorderKeys)
-	// and after the field-combo control (the repeater renders it for field pickers) —
-	// hence the explicit script handles in the dependency list, not just the wp-* ones.
+	// is the repeater that owns one folded slot value. The control must load after the
+	// field-combo control (the repeater renders it for field pickers) — hence the
+	// explicit script handles in its dependency list, not just the wp-* ones. The
+	// grammar deliberately depends on NOTHING of ours: the order normalizer depends on
+	// IT (see that enqueue for which way round the mutual dependency has to load).
 	wp_enqueue_script(
 		'bws-dynamic-tags-slot-fold-grammar',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/slot-fold-grammar.js',
-		array( 'bws-dynamic-tags-order-normalizer' ),
+		array(),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

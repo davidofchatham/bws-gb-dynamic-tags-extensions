@@ -227,36 +227,38 @@ $t5 = bws_fold_migrate_slots(
 	$text_cfg
 );
 check( 'M5.1 legacy slot keys are gone', array() === array_intersect( array_keys( $t5 ), array( 'src', 'ref', 'key', '2-use', '2-key' ) ), json_encode( $t5 ) );
-check( 'M5.2 folded values arrive', 'src(refs,office);key(name)' === ( $t5['1'] ?? null ) && 'src(same);key(role)' === ( $t5['2'] ?? null ), json_encode( $t5 ) );
+check( 'M5.2 folded values arrive', 'src(refs,office);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
 check( 'M5.3 the tag-level limit survives, unfolded', '3' === ( $t5['limit'] ?? null ), json_encode( $t5 ) );
 check( 'M5.4 unrelated tag-level options survive', ', ' === ( $t5['sep'] ?? null ), json_encode( $t5 ) );
-// Canonical order leads with the FOLDED slots, then the tag-level keys in group order.
-// The lead is forced, not chosen: an all-digit key is a JS array-index property, so GB's
-// `Object.entries(extraTagParams)` emits it first no matter what the editor's normalizer
-// builds — and matching it is what keeps a migrated tag from showing a spurious diff the
-// first time it is opened and saved.
-check( 'M5.5 emitted keys are canonically ordered (folded slots, then tag-level)', array( '1', '2', 'limit', 'sep' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
+// Canonical order: a FOLDED slot ranks as its slot's source, so tag-level (slot 0) keys
+// lead and the slots follow in ordinal order. Matching what the editor's normalizer writes
+// is what keeps a migrated tag from showing a spurious diff the first time it is opened
+// and saved — and the M7 twin block below is what holds the two sides to one answer.
+// (Until 2026-08-04 the slots LED, because all-digit keys are JS array-index properties
+// that GB's `Object.entries(extraTagParams)` emits first whatever the normalizer builds.
+// Capitals gave the ordering back to the sort; see includes/helpers/slot-fold.php.)
+check( 'M5.5 emitted keys are canonically ordered (tag-level source, then folded slots)', array( 'limit', 'sep', 'A', 'B' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
 
 // Nothing to migrate → null, which is the callback's no-op contract.
-check( 'M5.6 an already-folded tag migrates to nothing', null === bws_fold_migrate_slots( array( '1' => 'key(a)', '2' => 'key(b)', 'limit' => '2' ), $text_cfg ), 'not null' );
+check( 'M5.6 an already-folded tag migrates to nothing', null === bws_fold_migrate_slots( array( 'A' => 'key(a)', 'B' => 'key(b)', 'limit' => '2' ), $text_cfg ), 'not null' );
 check( 'M5.7 a tag whose only source-group key is TAG-level migrates to nothing', null === bws_fold_migrate_slots( array( 'key' => 'event_date', 'use' => 'key' ), $dts_cfg ), json_encode( bws_fold_migrate_slots( array( 'key' => 'event_date', 'use' => 'key' ), $dts_cfg ) ) );
 
 // Half-applied migration / hand-edit: a folded value beside legacy siblings. The folded
 // value is the author's later intent (the render dual-read agrees), so the legacy keys
 // are DROPPED, never merged into it.
-$mixed = bws_fold_migrate_slots( array( '1' => 'key(new)', 'src' => 'ref', 'ref' => 'office', 'key' => 'old' ), $text_cfg );
-check( 'M5.8 an already-folded slot wins over its legacy siblings', array( '1' => 'key(new)' ) === array_map( 'strval', $mixed ), json_encode( $mixed ) );
+$mixed = bws_fold_migrate_slots( array( 'A' => 'key(new)', 'src' => 'ref', 'ref' => 'office', 'key' => 'old' ), $text_cfg );
+check( 'M5.8 an already-folded slot wins over its legacy siblings', array( 'A' => 'key(new)' ) === array_map( 'strval', $mixed ), json_encode( $mixed ) );
 
 // The FW-51 shape: a selecting slot ≥2 whose only content was a key renders nothing
 // today, so it maps to nothing — but its dead keys still leave the wire.
 $fw51 = bws_fold_migrate_slots( array( 'key' => 'a', '2-key' => 'b' ), $text_cfg );
-check( 'M5.9 a slot that maps to nothing still has its legacy keys stripped', array( '1' ) === array_map( 'strval', array_keys( $fw51 ) ), json_encode( $fw51 ) );
+check( 'M5.9 a slot that maps to nothing still has its legacy keys stripped', array( 'A' ) === array_map( 'strval', array_keys( $fw51 ) ), json_encode( $fw51 ) );
 
 // Join: `limit` IS a slot axis here, and slot 10 is reachable.
 $j5 = bws_fold_migrate_slots( array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '10-key' => 'last', 'mode' => 'template' ), $join_cfg );
-check( 'M5.10 join folds its per-slot limit onto the fanning step', 'src(terms,category,limit[3]);use(title)' === ( $j5['1'] ?? null ), json_encode( $j5 ) );
-check( 'M5.11 join slot 10 folds (BWS_JOIN_MAX_SLOTS, not five)', 'src(same);key(last)' === ( $j5['10'] ?? null ), json_encode( $j5 ) );
-check( 'M5.12 join tag-level assembly options survive, after the folded slots', array( '1', '10', 'mode' ) === array_map( 'strval', array_keys( $j5 ) ), json_encode( array_keys( $j5 ) ) );
+check( 'M5.10 join folds its per-slot limit onto the fanning step', 'src(terms,category,limit[3]);use(title)' === ( $j5['A'] ?? null ), json_encode( $j5 ) );
+check( 'M5.11 join slot 10 folds (BWS_JOIN_MAX_SLOTS, not five)', 'src(same);key(last)' === ( $j5['J'] ?? null ), json_encode( $j5 ) );
+check( 'M5.12 join tag-level assembly options lead the folded slots', array( 'mode', 'A', 'J' ) === array_map( 'strval', array_keys( $j5 ) ), json_encode( array_keys( $j5 ) ) );
 
 // ── M6 — end to end, through the registered entry ──────────────────────────
 
@@ -273,13 +275,13 @@ MigrationRegistry::register(
 
 check(
 	'M6.1 the registered entry folds a stored tag string',
-	'{{try_text 1:src(refs,office);key(name)|2:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
+	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' )
 );
 check(
 	'M6.2 running it twice is a fixpoint (the no-op contract)',
-	'{{try_text 1:src(refs,office);key(name)|2:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text 1:src(refs,office);key(name)|2:src(same);key(role)}}' ),
-	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text 1:src(refs,office);key(name)|2:src(same);key(role)}}' )
+	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' ),
+	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' )
 );
 check(
 	'M6.3 a tag the entry does not match is untouched',
@@ -295,12 +297,12 @@ check(
 // tag, so an rtrim here would rewrite separators site-wide.
 check(
 	'M6.5 a trailing-space value on the last option survives the rewrite',
-	'{{try_text 1:key(name)|sep:, }}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' ),
+	'{{try_text sep:, |A:key(name)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|sep:, }}' )
 );
 check(
 	'M6.4 tag-level free-form values are not disturbed by the fold',
-	'{{try_text 1:key(name)|fallback:Name: TBA}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' ),
+	'{{try_text A:key(name)|fallback:Name: TBA}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' )
 );
 
