@@ -62,44 +62,23 @@ require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 // sanitize_key shim — the assemble-steps helper (in field-helpers.php) uses it.
 // Reproduce just that one pure function so we can test step assembly WP-free.
 if ( ! function_exists( 'sanitize_key' ) ) {
-	function sanitize_key( $k ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', (string) $k ) ); }
+	// LOWERCASE FIRST, then strip (WP's order) — the reverse deletes every capital.
+	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 }
-// bws_field_values_assemble_steps is defined mid-file in field-helpers.php among
-// WP-dependent siblings; copy the pure function inline rather than require the
-// whole file (which pulls WP deps). Keep byte-equivalent to the shipped source.
-if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
-	function bws_field_values_assemble_steps( array $options ): array {
-		$steps = array();
-		$src = $options['src'] ?? $options['source'] ?? '';
-		if ( 'ref' === $src ) {
-			$ref = $options['ref'] ?? '';
-			if ( '' !== $ref ) {
-				$steps[] = array( 'type' => 'ref', 'field' => $ref );
-			}
-		}
-		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-		if ( '' !== $tax ) {
-			$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
-		}
-		return $steps;
-	}
-}
+// BOTH step assemblers are now REAL, not copies. Since 1.17.0 (5h) they are thin
+// adapters over the chain compiler and live together in slot-fold-compile.php, which is
+// pure (one sanitize_key, shimmed above) — so the file loads here and the assemble/§V13
+// rows below drive the shipped code. They used to be inline copies of two functions
+// buried among WP-dependent siblings in field-helpers.php / base-shared.php; the
+// compiler's own cases live in tools/test/fold-chain-compile-test.php, and the rows here
+// stay as the equivalence guard on the ENGINE side of the same seam.
+require __DIR__ . '/../../includes/helpers/serialization-order.php';
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
-// bws_wrapper_ref_steps + bws_base_ambient_term_id live in base-tags.php among
-// WP-dependent siblings; copy the pure functions inline (house pattern, keep
-// byte-equivalent to the shipped source) so their §V13/§V7 guards test WP-free.
-if ( ! function_exists( 'bws_wrapper_ref_steps' ) ) {
-	function bws_wrapper_ref_steps( array $options ): array {
-		$src = $options['src'] ?? $options['source'] ?? '';
-		if ( 'ref' === $src ) {
-			$ref = $options['ref'] ?? '';
-			if ( '' !== $ref ) {
-				return array( array( 'type' => 'ref', 'field' => $ref ) );
-			}
-		}
-		return array();
-	}
-}
+// bws_base_ambient_term_id lives in base-shared.php among WP-dependent siblings; copy
+// the pure function inline (house pattern, keep byte-equivalent to the shipped source)
+// so its §V7 guards test WP-free.
 if ( ! function_exists( 'bws_base_ambient_term_id' ) ) {
 	function bws_base_ambient_term_id( array $base, array $options ): int {
 		$tax = sanitize_key( $options['srcTermIn'] ?? '' );

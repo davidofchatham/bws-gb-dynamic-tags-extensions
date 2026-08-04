@@ -125,6 +125,11 @@ function bws_dynamic_tags_init() {
 	// Loads AFTER serialization-order.php: its emitter ranks tokens through
 	// bws_serialization_order_sort() rather than carrying its own copy of KEY_MAP.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold.php';
+	// Chain COMPILER (FW-56) — the wire's source chain → traversal engine steps, plus
+	// the two step assemblers that used to live in field-helpers.php / base-shared.php.
+	// Grouped with the grammar it compiles rather than with the engine it feeds; every
+	// call is at render time, so its position relative to either is immaterial.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-compile.php';
 	// Fold MIGRATOR (legacy flat slot keys → folded values). Consumed by the
 	// type:'option' migration entries in deprecated-tags.php; loads after the grammar
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).

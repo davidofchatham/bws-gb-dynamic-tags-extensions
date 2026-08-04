@@ -801,8 +801,15 @@ check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) &&
 $same_analog = t_seam_walk( array( '1' => 'use(title)', '2' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
-// P13.5 — chain shapes the flat seam cannot express SKIP the slot rather than
+// P13.5 — chain shapes the flat TRIPLE cannot express SKIP the slot rather than
 // resolving a truncated prefix (which would silently read a different source).
+//
+// The 1.17.0 chain compiler (slot-fold-compile.php, 5h) does NOT flip these: it gave
+// the ENGINE arbitrary hops, and depth-0 chains resolve through it, but a SLOT's output
+// is produced by container arms that dispatch on the flat `src`/`srcTermIn` tokens this
+// flattener returns. Handing them the nearest token is the truncated prefix again. They
+// flip when those arms dispatch on the chain's terminal step KIND (the verb-agnostic
+// resolver refactor) — see bws_fold_slot_flat_options()'s docblock.
 foreach ( array(
 	'two ref hops'   => 'src(refs,a;refs,b);key(x)',
 	'two term hops'  => 'src(terms,category;terms,post_tag);key(x)',

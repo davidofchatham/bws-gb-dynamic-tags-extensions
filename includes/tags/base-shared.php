@@ -703,30 +703,11 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 	return bws_first_post_id_from_sources( $sources );
 }
 
-/**
- * Assemble the wrapper's REF-ONLY step set (SPEC §V13, B2).
- *
- * Post-semantic: only a `src:ref` hop (post→post[]) is a wrapper step. A
- * `srcTermIn` post→term hop is DELIBERATELY excluded — the wrapper's callers own
- * that downstream on the returned post id (bws_get_srcterm_terms). Contrast the
- * seam's bws_field_values_assemble_steps(), which DOES emit a srcTermIn term-hop
- * (and compounds it after a ref step when both are set, #44) because it reads
- * term fields by kind (§V6/§V12).
- *
- * @since 1.14.0
- * @param array $options Tag options (src, ref).
- * @return array[] Zero or one ref step.
- */
-function bws_wrapper_ref_steps( array $options ): array {
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'ref' === $src ) {
-		$ref = $options['ref'] ?? '';
-		if ( '' !== $ref ) {
-			return array( array( 'type' => 'ref', 'field' => $ref ) );
-		}
-	}
-	return array();
-}
+// bws_wrapper_ref_steps() — the wrapper's REF-ONLY step set (SPEC §V13, B2) — MOVED to
+// includes/helpers/slot-fold-compile.php in 1.17.0 (5h). Its rule is now stated against
+// the compiled chain (the LEADING RUN of ref steps, stopping at the first hop of another
+// type), which keeps `srcTermIn` excluded exactly as before and lets a multi-hop
+// relationship chain hop every step instead of just the first.
 
 /**
  * Get taxonomy terms for a resolved post via the `srcTerm`/`tax` options.

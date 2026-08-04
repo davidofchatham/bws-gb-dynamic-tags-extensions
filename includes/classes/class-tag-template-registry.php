@@ -521,10 +521,12 @@ class TagTemplateRegistry {
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
 			// axis, and the control renders whichever shape the derived config describes.
 			//
-			// `hops` is a CAPABILITY list: the flat render seam holds one ref hop and one
-			// term hop, and `ref` is already a SOURCE row, so the term hop is the only
-			// step try_ can continue a chain with. Offering more would author wire the
-			// seam cannot flatten (bws_fold_slot_flat_options skips such a slot).
+			// `hops` is a CAPABILITY list: a slot FLATTENS to one ref hop plus one term
+			// hop, and `ref` is already a SOURCE row, so the term hop is the only step
+			// try_ can continue a chain with. Offering more would author wire the slot path
+			// cannot dispatch (bws_fold_slot_flat_options skips such a slot; its docblock
+			// carries why the 1.17.0 chain compiler does not lift that — the ARMS gate on
+			// flat tokens, and only depth-0 chains bypass them).
 			//
 			// NEVER array_merge() an option set that holds folded slot keys. PHP stores
 			// all-digit keys as INTEGERS, and array_merge RENUMBERS integer keys — slots

@@ -885,11 +885,21 @@ function bws_fold_empty_slot(): array {
  * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
  * container (skip the slot) and INHERIT in a selecting one.
  *
- * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat seam holds ONE ref hop and ONE term
+ * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat triple holds ONE ref hop and ONE term
  * hop; a second relationship hop or a repeater `entries` step (both legal wire, both
- * reachable only by hand-editing until FW-32/FW-56 extend the engine) cannot be
- * represented. Rendering the expressible PREFIX would silently read a different
- * source than the wire states, so the slot renders nothing instead.
+ * reachable only by hand-editing) cannot be represented. Rendering the expressible
+ * PREFIX would silently read a different source than the wire states, so the slot
+ * renders nothing instead.
+ *
+ * The 1.17.0 chain COMPILER (5h, slot-fold-compile.php) does NOT lift this: it gave the
+ * ENGINE arbitrary hops, but a slot's output is produced by its container's ARMS — the
+ * term-hop arm, the site arm, the list-mode gate, the ref plural path — and each of them
+ * dispatches on the flat `src`/`srcTermIn` TOKENS this function returns. A chain with no
+ * flat spelling has no token to dispatch on, and inventing the nearest one is the
+ * truncated-prefix hazard by another route. Slots gain multi-hop chains when those arms
+ * dispatch on the chain's TERMINAL STEP KIND instead (the verb-agnostic resolver
+ * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
+ * bws_field_values_assemble_steps().
  *
  * @since 1.17.0
  * @param array $slot      Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).

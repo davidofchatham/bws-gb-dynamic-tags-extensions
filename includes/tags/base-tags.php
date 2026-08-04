@@ -986,8 +986,9 @@ function bws_join_callback( $options, $block, $instance ): string {
 
 		// Flatten to the option set the absorb seam consumes, threading the ONE
 		// carry-forward accumulator. Null = the slot is unconfigured (combining reads
-		// an absent field as "not set yet") or states a chain the flat seam cannot
-		// express — either way it renders nothing AND does not feed the accumulator.
+		// an absent field as "not set yet") or states a chain with no flat spelling —
+		// either way it renders nothing AND does not feed the accumulator. (The 1.17.0
+		// chain compiler does not change that; see bws_fold_slot_flat_options().)
 		// Join's tag-level `valueSep` (assembly) is NEVER passed through: a list-mode
 		// slot joins its own items with text's default ', ' (ADR 0003).
 		$slot_opts = bws_fold_slot_flat_options( $slot, $carry, true );

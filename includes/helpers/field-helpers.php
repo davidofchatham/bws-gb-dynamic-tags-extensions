@@ -333,48 +333,11 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 }
 }
 
-/**
- * Assemble traversal steps from tag options (PURE — options → steps[]).
- *
- * The step-assembly half of the seam, extracted so the src:ref / srcTermIn →
- * step mapping is unit-testable without WP.
- *
- * **`src:ref` and `srcTermIn` COMPOUND** (issue #44 regression fix): a tag with
- * both emits `[ref, srcTermIn]` in that order — ref hops the source to its
- * related posts, then srcTermIn hops those posts to their terms. Order is
- * load-bearing: srcTermIn needs a POST input (it reads get_the_terms), which the
- * ref step produces; the reverse order would feed srcTermIn a term and short out.
- * (Pre-1.14.0 this compounded via bws_resolve_post_by_source honoring src:ref
- * before the term hop; the pipeline rewrite briefly dropped it — see #44.)
- * srcTermIn alone (no ref) emits `[srcTermIn]` and hops the base post's terms.
- *
- * @since 1.14.0
- * @since 1.14.0 #44: src:ref + srcTermIn now compound instead of dropping ref.
- * @param array $options Tag options (src, ref, srcTermIn).
- * @return array[] Ordered traversal steps (may be empty).
- */
-if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
-function bws_field_values_assemble_steps( array $options ): array {
-	$steps = array();
-
-	// ref first: source (post/term) → related posts. srcTermIn (below) then hops
-	// those posts to their terms, so ref must precede it (input-kind order, #44).
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'ref' === $src ) {
-		$ref = $options['ref'] ?? '';
-		if ( '' !== $ref ) {
-			$steps[] = array( 'type' => 'ref', 'field' => $ref );
-		}
-	}
-
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( '' !== $tax ) {
-		$steps[] = array( 'type' => 'srcTermIn', 'slug' => $tax );
-	}
-
-	return $steps;
-}
-}
+// bws_field_values_assemble_steps() — the step-assembly half of this seam — MOVED to
+// includes/helpers/slot-fold-compile.php in 1.17.0 (5h). It is now a thin adapter over
+// the chain COMPILE, so the flat `src`/`ref`/`srcTermIn` reading and the folded wire's
+// chain produce steps through one code path (and a multi-hop chain resolves instead of
+// capping at one ref hop plus one term hop). #44's compound order lives there too.
 
 /**
  * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
@@ -580,7 +543,11 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 	// src:site keeps its dot-path affordance (ACF options can be dotted); other
 	// sources require a valid flat meta key. Gate BEFORE resolution to preserve
 	// the historical early-return on invalid non-site keys.
-	$is_site = 'site' === ( $options['src'] ?? '' );
+	// Read the source ROOT, not the raw value: a depth-0 chain (`src:site;entries,rows`)
+	// still ROOTS at the site store, so its dot-path keys must survive the gate below.
+	$is_site = 'site' === ( function_exists( 'bws_fold_src_root_token' )
+		? bws_fold_src_root_token( $options )
+		: ( $options['src'] ?? '' ) );
 	if ( ! $is_site
 		&& function_exists( 'bws_is_valid_meta_key' )
 		&& ! bws_is_valid_meta_key( $key ) ) {

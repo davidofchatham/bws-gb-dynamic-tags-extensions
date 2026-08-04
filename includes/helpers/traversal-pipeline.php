@@ -48,14 +48,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                               steps; document order preserved (append order).
  *   - Short-circuit           → the FIRST step producing an empty list returns
  *                               array() immediately; later steps never run.
+ *   - Per-step cap (1.17.0)   → a step carrying `limit` slices ITS OWN output to
+ *                               that many sources before the next step runs.
  *
- * `limit`/`sep` are NOT applied here — the caller slices the final source list
+ * A step's `limit` is the author's PER-HOP cap (FW-56), a different quantity from
+ * the terminal `limit` option: the hop cap bounds how far a fan-out spreads
+ * (and how much downstream work it multiplies), while the terminal one bounds the
+ * VALUE list the caller renders. So the caller still slices the final source list
  * (list mode originates at the plural resolved source, CONTEXT.md §Target
- * cardinality). This engine is composition-blind.
+ * cardinality) — this engine remains composition-blind, and `sep` never reaches it.
+ * The cap is applied to the step's WHOLE output rather than per input source: that
+ * is the quantity the wire names ("at most N of these"), and it is what the
+ * legacy flat `limit` sliced when the fan-out was the last step.
+ *
+ * `limit` is absent unless it caps: `0`/`-1` mean unlimited (bws_fold_slot_flat_options
+ * and the chain compiler both normalize them away), so a falsy value here is never
+ * read as "cap at zero" — a guard the numeric-0 bug class makes worth stating.
  *
  * @since 1.14.0
+ * @since 1.17.0 Per-step `limit` (FW-56 per-hop cap).
  * @param array[] $sources Resolved sources (see file header typedef).
- * @param array[] $steps   Ordered steps; each: array( 'type' => 'ref'|'srcTermIn', … ).
+ * @param array[] $steps   Ordered steps; each: array( 'type' => 'ref'|'srcTermIn'|'rows',
+ *                         … , 'limit' => int|null ).
  * @param callable|null $reader Optional field reader injected for testing —
  *                              signature ( array $step, array $source ): array
  *                              returning raw ref-field / term data. Defaults to
@@ -74,7 +88,9 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
 		if ( empty( $next ) ) {
 			return array(); // Short-circuit: an emptied step ends the chain.
 		}
-		$sources = $next;
+		// Per-hop cap (FW-56). Only a POSITIVE limit caps; 0/-1/absent = unlimited.
+		$step_limit = isset( $step['limit'] ) && is_numeric( $step['limit'] ) ? (int) $step['limit'] : 0;
+		$sources    = ( $step_limit > 0 ) ? array_slice( $next, 0, $step_limit ) : $next;
 	}
 	return $sources;
 }
@@ -296,7 +312,14 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		$signals = bws_capture_ambient_signals( $instance );
 	}
 
-	$src = $options['src'] ?? $options['source'] ?? '';
+	// The factory reads a src TOKEN. Since 1.17.0 (FW-56) the option may hold a chain
+	// instead (`src:refs,office;terms,category`), whose ROOT is the token and whose hops
+	// belong to the step engine — so route through the compiler's root reader, which
+	// returns a legacy token unchanged (asserted in fold-chain-compile-test.php) and ''
+	// for a chain that leads with a hop off the ambient entity.
+	$src = function_exists( 'bws_fold_src_root_token' )
+		? bws_fold_src_root_token( $options )
+		: ( $options['src'] ?? $options['source'] ?? '' );
 	if ( 'current' === $src ) {
 		$src = '';
 	}
