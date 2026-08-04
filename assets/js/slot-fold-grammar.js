@@ -45,6 +45,36 @@
 	var BR_PAIRS = { '(': ')', '[': ']' };
 	var RESERVED = [ '+', '/' ];
 
+	// FOLDED slot key spelling — twin of bws_slot_ordinal() / BWS_FOLD_SLOT_KEY_RE
+	// (includes/helpers/slot-fold.php), where the reasoning lives. Deliberately the general
+	// `^[A-Z]+$`: slotKey() encodes spreadsheet-style (27 → AA), so a single-letter pattern
+	// could reject wire its own encoder produced. No cap in the grammar — the cap is a
+	// CONTAINER property. Nothing may rely on ASCII order of these keys; both order parsers
+	// DECODE to an int, because 'AA' sorts after 'Z' numerically but before it as a string.
+	var SLOT_KEY_RE = /^[A-Z]+$/;
+
+	function slotKey( n ) {
+		var out = '';
+		while ( n > 0 ) {
+			var r = ( n - 1 ) % 26;
+			out = String.fromCharCode( 65 + r ) + out;
+			n = ( n - 1 - r ) / 26;
+		}
+		return out;
+	}
+
+	function slotOrdinal( key ) {
+		if ( ! SLOT_KEY_RE.test( String( key ) ) ) {
+			return 0;
+		}
+		var s = String( key );
+		var n = 0;
+		for ( var i = 0; i < s.length; i++ ) {
+			n = n * 26 + ( s.charCodeAt( i ) - 64 );
+		}
+		return n;
+	}
+
 	var TYPES = [ 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' ];
 	var FLAGS = [ 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' ];
 	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' ];
@@ -579,6 +609,7 @@
 		// Grammar surface — exported so the twin harness can assert agreement with
 		// the PHP constants rather than trusting that both were edited together.
 		grammar: {
+			slotKeyRe: SLOT_KEY_RE.source,
 			optSep: OPT_SEP,
 			optClass: OPT_CLASS,
 			hopSep: HOP_SEP,
@@ -602,6 +633,8 @@
 		emitChain: emitChain,
 		parseSlot: parseSlot,
 		emitSlot: emitSlot,
-		foldFromLegacy: foldFromLegacy
+		foldFromLegacy: foldFromLegacy,
+		slotKey: slotKey,
+		slotOrdinal: slotOrdinal
 	};
 }() );

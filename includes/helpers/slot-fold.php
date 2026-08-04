@@ -101,6 +101,76 @@ const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'range
 const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
 
 /**
+ * Pattern a FOLDED slot key matches. Deliberately the GENERAL form, not `^[A-Z]$`:
+ * bws_slot_ordinal() encodes spreadsheet-style (27 → `AA`), so a single-letter pattern
+ * could reject wire its own encoder produced. There is therefore NO CAP IN THE GRAMMAR —
+ * the cap is a CONTAINER property (join 10, try_ 5), and baking one container's limit into
+ * the wire would mean re-cutting the pattern whenever a container changed.
+ *
+ * Safe against collision by construction: every option key in the plugin, and every GB
+ * reserved key, is lowercase or lowercase-initial camelCase, so an all-caps key cannot be
+ * anything but a slot.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_SLOT_KEY_RE = '/^[A-Z]+$/';
+
+/**
+ * The FOLDED slot key for slot $n — the wire spelling of a slot ordinal. `1` → `A`.
+ *
+ * THE SINGLE OWNER of the digit→letter mapping, because the same answer is needed by two
+ * registrations, the converter migrator, the editor control, both order parsers, nine
+ * option LABELS and `{{join}}`'s format tokens. Nine hand-typed `chr( 64 + $n )` calls is
+ * precisely the drift the leaf/twin extractions removed.
+ *
+ * WHY CAPITALS AND NOT DIGITS (decided 2026-08-04): an all-digit key is a JS array-index
+ * property, which ECMAScript enumerates ahead of every string key whatever order the
+ * object was built in, and GB serializes with `Object.entries( extraTagParams )`. Digit
+ * slots are therefore PINNED to the front of the saved string and no sort — ours or GB's —
+ * can move them. Capitals hand rank back to bws_serialization_order_sort() and its JS
+ * port, letting `format` and a container's tag-level options lead as
+ * docs/tag-reference.md §Option order intends. The prefix itself reads slightly worse than
+ * a digit; that was weighed and accepted against the ordering, and the format TOKENS
+ * (`%A`) read better.
+ *
+ * @since 1.17.0
+ * @param int $n 1-based slot ordinal.
+ * @return string Slot key (`A`, `B`, … `Z`, `AA`), or '' for $n < 1.
+ */
+function bws_slot_ordinal( int $n ): string {
+	$out = '';
+	while ( $n > 0 ) {
+		$r   = ( $n - 1 ) % 26;
+		$out = chr( 65 + $r ) . $out;
+		$n   = intdiv( $n - 1 - $r, 26 );
+	}
+	return $out;
+}
+
+/**
+ * Inverse of bws_slot_ordinal(): `A` → 1, `AA` → 27, anything else → 0.
+ *
+ * The order parsers DECODE rather than compare raw strings, which is what keeps slot order
+ * numeric: `AA` sorts after `Z` here but before it as a string. Nothing anywhere may rely
+ * on ASCII order of these keys.
+ *
+ * @since 1.17.0
+ * @param string $key Candidate option key.
+ * @return int 1-based ordinal, or 0 when $key is not a folded slot key.
+ */
+function bws_slot_ordinal_num( string $key ): int {
+	if ( ! preg_match( BWS_FOLD_SLOT_KEY_RE, $key ) ) {
+		return 0;
+	}
+	$n   = 0;
+	$len = strlen( $key );
+	for ( $i = 0; $i < $len; $i++ ) {
+		$n = $n * 26 + ( ord( $key[ $i ] ) - 64 );
+	}
+	return $n;
+}
+
+/**
  * The LEGACY per-slot option axes, i.e. exactly the keys bws_fold_from_legacy() reads
  * (bare for slot 1, `{N}-`-prefixed for slots ≥2). Declared as data because the migrator
  * has to STRIP the same set the mapper CONSUMES, and two hand-written lists is how a

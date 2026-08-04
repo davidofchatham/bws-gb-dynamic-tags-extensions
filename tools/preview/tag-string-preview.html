@@ -508,7 +508,11 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <code>bws_join_wire_format()</code> maps both alphabets onto the same internal <code>{N}</code>,
       so every stored <code>format:%1 (%2)</code> keeps rendering and no converter entry is needed. The
       cost shows in the <code>%%</code> row — while both alphabets are live, the literal-percent escape
-      widens from "before a digit" to "before a digit or A-J".<br>
+      widens from "before a digit" to "before a digit or a SLOT LETTER". The letter class is
+      <code>A</code>-<code>Z</code>, not <code>A</code>-<code>J</code> (user 2026-08-04): the cap is a
+      CONTAINER property (join 10, <code>try_</code> 5), so baking today's join limit into the grammar
+      would mean re-cutting it whenever a container changes. The tokenizer still only rewrites as far as
+      that container's slot count, so <code>%K</code> stays literal in a 10-slot join.<br>
       <code>s1:</code> is rejected twice over: <code>s</code> names nothing, and the word form it
       implies (<code>slot1</code>…<code>slot10</code>) MIS-SORTS under any string comparator
       (<code>slot1, slot10, slot2</code>), so it would need a numeric-aware sort in both
@@ -1102,7 +1106,8 @@ const SCENARIO_GROUPS = [
     // `%%` = literal percent before a digit. Under digits it protects `%2`; with the digit FALLBACK
     // kept, `%2` stays a live token under capitals, so `%%` must STILL be typed. Read this row under
     // both spellings — it is the one place the fallback costs something, and the escape rule widens
-    // from "before a digit" to "before a digit or A-J".
+    // from "before a digit" to "before a digit or a SLOT LETTER" (how far depends on the CONTAINER's
+    // slot count, not on the letter class — the grammar allows A-Z, join tokenizes 10).
     {label:'literal %% before a digit', format:'%1 (%%2 off)',
       shippedSlots:[[['key','name_first']],[['key','discount']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'discount'}}]},
@@ -2100,7 +2105,9 @@ function foldedSlotKey(i) {
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
   // SPELLING is REOPENED (2026-08-04) — see the sidebar picker. Only the folded slot KEY
   // varies; `N-` SIBLING keys (label/sep carriers, table columns) keep their ordinal, since
-  // nothing pins their order. Beyond 26 slots alpha wraps to AA/AB (no container is close).
+  // nothing pins their order. The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
+  // the cap is a CONTAINER property, so alphaOrdinal() encodes spreadsheet-style (27 → AA) and the
+  // real parsers must match `^[A-Z]+$`, else a validator could reject wire its own encoder produced.
   const ord = i + 1;
   switch ( S.slotKeySpelling ) {
     case 'alpha': return alphaOrdinal( ord ) + ':';
