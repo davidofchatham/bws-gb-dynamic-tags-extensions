@@ -183,7 +183,9 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 | Method | Return | Notes |
 |--------|--------|-------|
-| `resolve_id( array $options, $instance ): int\|false` | Entity ID | Override this (or legacy `resolve_post_id()`) |
+| `resolve_id( array $options, $instance ): int\|false` | Entity ID | Override this (or legacy `resolve_post_id()`). **Resolve a STARTING entity, never a traversal.** See the note below. |
+
+> **A source resolves a starting point; the pipeline does the hops.** Since v1.14.0 a relationship hop is a generic `ref` step the traversal engine runs off whatever entity the source factory resolved, and `register_modifier()`'s `traversal_source_key` has been accepted-but-ignored. A source whose `resolve_id()` reads its own relationship field is therefore doing work the engine already does, from an option key nothing else in the plugin honours — the compiler builds its `refs` step from `ref` alone. In v1.17.0 the four built-in related-post sources (`related_post`, `second_related_post`, `post_term_related_post`, `term_related_post`) were made inert for exactly this reason ([#56](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/56)); their registrations remain. If your plugin ships a source of this shape, it is safe to make it inert too — nothing in this plugin dispatches to it.
 | `format_id_for_acf( $id ): int\|string` | ACF object ID | Override when source resolves to a non-post entity. Post sources: pass-through. Term sources: return `"term_{$id}"`. User sources: return `"user_{$id}"`. |
 
 ### Default-enabled control
@@ -197,7 +199,7 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 | Method | Return | Default | Notes |
 |--------|--------|---------|-------|
-| `needs_relationship_field(): bool` | Whether this source requires a `ref` option to resolve | `false` | Return `true` for traversal sources (e.g. `RelatedPost`, `TermRelatedPost`). `SecondRelatedPost` retained internally for deprecated wrappers only — not used in v1.6.0 base/modifier model. Signals the try-tag machinery to carry forward `$last_ref`. |
+| `needs_relationship_field(): bool` | Whether this source requires a `ref` option to resolve | `false` | **Inert since v1.17.0 — nothing reads it.** Relationship traversal is a generic `ref` step off whatever source the factory resolved, not a property of the source (see below). Kept on the interface so existing implementations keep loading. |
 | `get_ui_group(): string` | Admin matrix group for this source | `get_context_type()` | Override when the source should appear in a different group than its context type. `TermRelatedPost` returns `'term'` even though its `context_type` is `'post'`. |
 
 ### Options

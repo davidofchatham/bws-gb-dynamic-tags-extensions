@@ -142,13 +142,22 @@ PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfa
 
 | Source class | Context | Use |
 |---|---|---|
-| `CurrentPost` | post | base tag callbacks at `src:''` in post context |
-| `RelatedPost` | post | base tag callbacks at `src:ref` in post context |
-| `TaxonomyTerm` | term | term_ modifier base; base tag callbacks when `srcTermIn:<tax>` set |
-| `TermRelatedPost` | post | term_ modifier at `src:ref` |
+| `CurrentPost` | post | the resolved starting entity in post context (`src:''` / `src:current`) |
+| `TaxonomyTerm` | term | term_ modifier base; the term the factory resolves on a term archive |
 | *(external source class)* | post or term | External modifier base, registered via `SourceRegistry::register_source()` |
 
-`SecondRelatedPost` and `PostTermRelatedPost` retained for deprecated wrapper callbacks only — no `src` value in v1.6.0 model.
+**A source resolves a STARTING entity; it never traverses.** Since 1.14.0 the relationship hop
+(`src:ref`) and the term hop (`srcTermIn`) are generic traversal STEPS the engine runs off whatever
+entity the factory resolved (`bws_resolve_base_source()` → `bws_run_traversal()`, `includes/helpers/traversal-pipeline.php`; the L1/L2/L3 read model is in [`CONTEXT.md`](../CONTEXT.md)).
+
+The four related-post classes — `RelatedPost`, `SecondRelatedPost`, `PostTermRelatedPost`,
+`TermRelatedPost` — are **registered but INERT as of 1.17.0** ([#56](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/56)).
+Their `resolve_id()` traversed a relationship field named by `rel` (or legacy `key`), a vocabulary no
+other reader honours: the chain compiler builds its `refs` step from `ref` alone. They return `false`,
+so the factory falls through to the ambient entity. Registration is kept (entries carry the source key
+and context type, and both admin surfaces read the registry). Stored wire naming `src:related_post` is
+rewritten to `src:ref` + `ref` — see the value row in
+[`deprecated-tags-options.md`](deprecated-tags-options.md#option-name-renaming-tracker).
 
 ---
 

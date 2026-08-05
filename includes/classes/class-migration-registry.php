@@ -243,12 +243,94 @@ class MigrationRegistry {
 	// ===============================================
 
 	/**
-	 * Find ALL option migration entries matching a tag name and the option keys present.
+	 * THE match rule for an 'option' entry — does this entry apply to these options?
 	 *
-	 * All keys listed in match_options must be present in $option_keys for an entry to
-	 * match; matches come back in registration order. apply_option_migration() needs the
-	 * full list because a matching entry that produces NO CHANGE must not end the cascade
-	 * — see that method's docblock.
+	 * Single owner, because two places need the same answer and used to each compute it:
+	 * find_option_migrations() (which decides what RUNS) and the admin scanner's
+	 * per-tag-string detection (which decides what the converter REPORTS). Two copies of
+	 * a match rule diverge quietly, and the two halves disagreeing is worse than either
+	 * being wrong — the converter then lists work it will not do, or does work it never
+	 * listed.
+	 *
+	 * Three independent gates, AND-ed, and an entry must declare at least one:
+	 *   - match_options           every listed key must be present
+	 *   - match_any_options       at least one listed key must be present
+	 *   - match_option_values     at least one listed key must HOLD one of its listed
+	 *                             values (map of key → accepted values)
+	 *
+	 * The value gate exists because key presence alone is far too coarse for a legacy
+	 * VALUE. `src:related_post` (#56) can only be recognised by its value — gating on the
+	 * key `src` would flag every tag that names a source at all, so the converter would
+	 * report a migration on virtually every post and run nothing. Value matching keeps
+	 * detection and application saying the same thing.
+	 *
+	 * Callers that have only the key list may omit $option_values; a value-gated entry
+	 * then cannot match, which is the safe direction (report nothing rather than
+	 * everything).
+	 *
+	 * @since 1.17.0
+	 * @param array               $entry         Registry entry (any type; non-'option' never matches).
+	 * @param string[]            $option_keys   Keys present in the parsed tag string.
+	 * @param array<string,mixed> $option_values Parsed options (key → value), when available.
+	 * @return bool
+	 */
+	public static function entry_matches( array $entry, array $option_keys, array $option_values = array() ): bool {
+		if ( 'option' !== ( $entry['type'] ?? 'tag' ) ) {
+			return false;
+		}
+
+		$required = $entry['match_options'] ?? array();
+		$any      = $entry['match_any_options'] ?? array();
+		$values   = $entry['match_option_values'] ?? array();
+
+		if ( empty( $required ) && empty( $any ) && empty( $values ) ) {
+			return false;
+		}
+
+		foreach ( $required as $key ) {
+			if ( ! in_array( $key, $option_keys, true ) ) {
+				return false;
+			}
+		}
+
+		if ( ! empty( $any ) ) {
+			$has_any = false;
+			foreach ( $any as $key ) {
+				if ( in_array( $key, $option_keys, true ) ) {
+					$has_any = true;
+					break;
+				}
+			}
+			if ( ! $has_any ) {
+				return false;
+			}
+		}
+
+		if ( ! empty( $values ) ) {
+			$has_value = false;
+			foreach ( $values as $key => $accepted ) {
+				if ( ! array_key_exists( $key, $option_values ) ) {
+					continue;
+				}
+				if ( in_array( trim( (string) $option_values[ $key ] ), (array) $accepted, true ) ) {
+					$has_value = true;
+					break;
+				}
+			}
+			if ( ! $has_value ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Find ALL option migration entries matching a tag name and the options present.
+	 *
+	 * Matching is delegated to entry_matches(); matches come back in registration order.
+	 * apply_option_migration() needs the full list because a matching entry that produces
+	 * NO CHANGE must not end the cascade — see that method's docblock.
 	 *
 	 * There is deliberately no singular first-match sibling. One shipped through 1.16.x
 	 * and 1.17.0 removed it: after the plural landed it was `find_option_migrations()[0]`
@@ -256,42 +338,21 @@ class MigrationRegistry {
 	 * get_option_migrations_by_tag() for its labels rather than either finder.
 	 *
 	 * @since 1.17.0
-	 * @param string   $tag_name    Current (live) tag name.
-	 * @param string[] $option_keys Keys present in the parsed tag string.
+	 * @since 1.17.0 #56: optional $option_values enables the match_option_values gate.
+	 * @param string              $tag_name      Current (live) tag name.
+	 * @param string[]            $option_keys   Keys present in the parsed tag string.
+	 * @param array<string,mixed> $option_values Parsed options (key → value), when available.
 	 * @return array[] Matching entries, registration order.
 	 */
-	public static function find_option_migrations( string $tag_name, array $option_keys ): array {
+	public static function find_option_migrations( string $tag_name, array $option_keys, array $option_values = array() ): array {
 		$found = array();
 		foreach ( self::$entries as $entry ) {
-			if ( 'option' !== ( $entry['type'] ?? 'tag' ) ) {
-				continue;
-			}
 			if ( ( $entry['match_tag'] ?? '' ) !== $tag_name ) {
 				continue;
 			}
-			$required = $entry['match_options'] ?? array();
-			$any      = $entry['match_any_options'] ?? array();
-			if ( empty( $required ) && empty( $any ) ) {
-				continue;
+			if ( self::entry_matches( $entry, $option_keys, $option_values ) ) {
+				$found[] = $entry;
 			}
-			foreach ( $required as $key ) {
-				if ( ! in_array( $key, $option_keys, true ) ) {
-					continue 2;
-				}
-			}
-			if ( ! empty( $any ) ) {
-				$has_any = false;
-				foreach ( $any as $key ) {
-					if ( in_array( $key, $option_keys, true ) ) {
-						$has_any = true;
-						break;
-					}
-				}
-				if ( ! $has_any ) {
-					continue;
-				}
-			}
-			$found[] = $entry;
 		}
 		return $found;
 	}
@@ -326,7 +387,7 @@ class MigrationRegistry {
 		$max_iterations = 32;
 		for ( $i = 0; $i < $max_iterations; $i++ ) {
 			[ , $options ] = self::parse_tag_string( $tag_string );
-			$entries       = self::find_option_migrations( $tag_name, array_keys( $options ) );
+			$entries       = self::find_option_migrations( $tag_name, array_keys( $options ), $options );
 
 			$changed = false;
 			foreach ( $entries as $entry ) {

@@ -67,36 +67,28 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Resolve to the second-degree related post via two ACF relationship hops.
+	 * Inert since 1.17.0 — a second-degree hop is now a two-step chain (#56).
 	 *
-	 * @param array  $options  Tag options ('rel' = first hop field, 'rel_2' = second hop field).
-	 * @param object $instance Block instance.
-	 * @return int|false Post ID or false if unresolvable.
+	 * This hand-rolled `rel` → `rel_2` double hop predates the traversal engine, which
+	 * chains arbitrary steps (`bws_run_traversal`) and preserves fan-out where this
+	 * collapsed to the first post at each hop. It also carried the stale `rel`/`rel_2`
+	 * vocabulary that no other reader in the plugin honours (#56).
+	 *
+	 * Nothing to migrate: `src:second_related_post` was never emitted as a source token —
+	 * `second_related_post_*` were TAG names, and they remain registry-only entries with
+	 * no migration target (no current tag reaches a second-hop relationship; the chain
+	 * wire that could express it has no authoring surface yet — FW-56).
+	 *
+	 * Registration stays — see RelatedPost::resolve_id() for why.
+	 *
+	 * @since 1.0.0
+	 * @since 1.17.0 Inert; chained `ref` steps own multi-hop traversal (#56).
+	 * @param array  $options  Unused.
+	 * @param object $instance Unused.
+	 * @return false Always — see above.
 	 */
 	public function resolve_id( array $options, $instance ) {
-		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
-			return false;
-		}
-
-		$base = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
-		$rel1 = $options['rel'] ?? '';
-
-		if ( ! $base || ! $rel1 ) {
-			return false;
-		}
-
-		$hop1 = bws_get_related_posts_data( (int) $base, $rel1 );
-		$mid  = ! empty( $hop1 ) ? bws_extract_post_id( $hop1[0] ) : false;
-
-		$rel2 = $options['rel_2'] ?? '';
-
-		if ( ! $mid || ! $rel2 ) {
-			return false;
-		}
-
-		$hop2 = bws_get_related_posts_data( (int) $mid, $rel2 );
-
-		return ! empty( $hop2 ) ? bws_extract_post_id( $hop2[0] ) : false;
+		return false;
 	}
 
 	/**

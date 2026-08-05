@@ -115,26 +115,11 @@ class TagConverter {
 					$option_keys   = array_keys( $options );
 
 					foreach ( $entries as $entry ) {
-						$required    = $entry['match_options'] ?? array();
-						$any         = $entry['match_any_options'] ?? array();
-						$all_present = ! empty( $required ) || ! empty( $any );
-						foreach ( $required as $key ) {
-							if ( ! in_array( $key, $option_keys, true ) ) {
-								$all_present = false;
-								break;
-							}
-						}
-						if ( $all_present && ! empty( $any ) ) {
-							$any_present = false;
-							foreach ( $any as $key ) {
-								if ( in_array( $key, $option_keys, true ) ) {
-									$any_present = true;
-									break;
-								}
-							}
-							$all_present = $any_present;
-						}
-						if ( $all_present ) {
+						// Match rule owned by MigrationRegistry::entry_matches() — this
+						// used to be a second, hand-kept copy of it. What the converter
+						// REPORTS and what apply_option_migration() RUNS must be the same
+						// predicate, or the list promises work that never happens.
+						if ( MigrationRegistry::entry_matches( $entry, $option_keys, $options ) ) {
 							$label           = $entry['label'] ?? $base_tag;
 							$existing_labels = array_column( $option_migrations_found, 'label' );
 							if ( ! in_array( $label, $existing_labels, true ) ) {

@@ -66,34 +66,29 @@ class TermRelatedPost extends AbstractSource {
 		return 'term_related';
 	}
 
+	/**
+	 * Inert since 1.17.0 — the term→post relationship hop is the `ref` step's job (#56).
+	 *
+	 * Superseded twice over: 1.14.0 replaced the per-combination traversal classes with a
+	 * generic `ref` step off the modifier's BASE source (make_modifier_callback resolves
+	 * TaxonomyTerm, then hops), and `traversal_source_key` has been accepted-but-ignored
+	 * since. What remained here was the stale `rel` spelling — no other reader in the
+	 * plugin honours it, so keeping it meant one question with two answers (#56).
+	 *
+	 * Unlike `related_post`, this source key never appeared in stored wire: no release
+	 * ever emitted `src:term_related_post`, and the `term_related_post_*` TAG names
+	 * migrate to `term_*` with `src:ref`. So there is nothing to migrate here.
+	 *
+	 * Registration stays — see RelatedPost::resolve_id() for why.
+	 *
+	 * @since 1.5.0
+	 * @since 1.17.0 Inert; the generic `ref` step owns the hop (#56).
+	 * @param array  $options  Unused.
+	 * @param object $instance Unused.
+	 * @return false Always — see above.
+	 */
 	public function resolve_id( array $options, $instance = null ) {
-		// 1. Resolve term from context (same logic as TaxonomyTerm).
-		$term_id = false;
-		if ( class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
-			$term_id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'term', $instance );
-		}
-		if ( ! $term_id && function_exists( 'bws_reliable_term_context_detection' ) ) {
-			$term_id = bws_reliable_term_context_detection( $options );
-		}
-		if ( ! $term_id ) {
-			return false;
-		}
-
-		// 2. Traverse ACF relationship field on the term to get a post ID.
-		$rel = $options['rel'] ?? '';
-		if ( ! $rel ) {
-			return false;
-		}
-
-		$value = function_exists( 'bws_read_term_field' )
-			? bws_read_term_field( $rel, (int) $term_id, false )
-			: ( function_exists( 'get_field' ) ? get_field( $rel, 'term_' . $term_id ) : null );
-
-		if ( ! $value ) {
-			return false;
-		}
-
-		return function_exists( 'bws_extract_post_id' ) ? bws_extract_post_id( $value ) : false;
+		return false;
 	}
 
 	public function get_source_options(): array {

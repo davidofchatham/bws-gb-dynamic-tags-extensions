@@ -1058,6 +1058,104 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
 }
 
 /**
+ * Migration transform_callback: `src:related_post` → `src:ref` + `ref:<field>` (#56).
+ *
+ * The `related_post` SOURCE TOKEN is the only one of the four related-post source classes
+ * that ever appeared in stored wire (as a `try_` slot `src` value; the tag-level `src`
+ * dropdown has only ever offered current/ref/site). Its class resolved the hop itself,
+ * reading the relationship field from `rel`, falling back to `key` — a vocabulary NOTHING
+ * else in the plugin honours, since the chain compiler builds its `refs` step from `ref`
+ * alone. 1.17.0 made those classes inert, so this rewrite is what keeps such a tag reading
+ * what it read before.
+ *
+ * Per slot (bare = tag level / slot 1, `N-` = legacy flat slot ≥2):
+ *   - `src:related_post`             → `src:ref`
+ *   - `rel:<field>` present          → MOVED to `ref:<field>` (orphan key, nothing reads it)
+ *   - no `rel`, `key:<field>` present → COPIED to `ref:<field>`, `key` KEPT
+ *   - `ref` already set              → it wins; a stale `rel` is dropped
+ *
+ * **`key` is copied, never moved, and that asymmetry is the whole correctness argument.**
+ * Under `src:related_post|key:foo` the source class consumed `foo` as the relationship
+ * field, AND the downstream field read consumed the same `foo` as the field key — the
+ * options array was never mutated between the two. Moving it would resolve the hop and
+ * then read no field, turning a working tag into an empty one. `rel` has no second reader,
+ * so moving it is lossless.
+ *
+ * Runs BEFORE the fold entry, which is load-bearing: the fold consumes flat `N-src` keys
+ * and rewrites them into folded `{N}:` slot values, after which this transform can no
+ * longer see the token.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string (unchanged when no slot names the legacy source).
+ */
+function bws_migrate_related_post_src( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
+
+	$touched = false;
+
+	foreach ( array_keys( $options ) as $key ) {
+		// Bare `src` (tag level / slot 1) or a legacy flat slot `N-src`. Folded slot keys
+		// are CAPITALS by construction (bws_slot_ordinal), so this cannot catch one.
+		if ( ! preg_match( '/^(\d+-)?src$/', (string) $key, $m ) ) {
+			continue;
+		}
+		if ( 'related_post' !== trim( (string) $options[ $key ] ) ) {
+			continue;
+		}
+
+		$touched = true;
+		$prefix  = $m[1] ?? '';
+		$ref_key = $prefix . 'ref';
+		$rel_key = $prefix . 'rel';
+		$fld_key = $prefix . 'key';
+
+		$options[ $key ] = 'ref';
+
+		$rel = isset( $options[ $rel_key ] ) ? trim( (string) $options[ $rel_key ] ) : '';
+		if ( '' !== $rel ) {
+			unset( $options[ $rel_key ] );
+		}
+
+		// An explicit `ref` already states the hop — the class ignored it, but it is the
+		// live spelling and the only one left standing. A `rel` beside it was stale.
+		if ( '' !== trim( (string) ( $options[ $ref_key ] ?? '' ) ) ) {
+			continue;
+		}
+
+		if ( '' !== $rel ) {
+			$options[ $ref_key ] = $rel;
+			continue;
+		}
+
+		$fld = isset( $options[ $fld_key ] ) ? trim( (string) $options[ $fld_key ] ) : '';
+		if ( '' !== $fld ) {
+			$options[ $ref_key ] = $fld; // COPY — see docblock.
+		}
+	}
+
+	// No-op returns the input VERBATIM, not a re-serialization of it: reformatting a tag
+	// this entry has nothing to do with would show as a spurious diff on every post the
+	// converter touches (the contract apply_option_migration() leans on).
+	if ( ! $touched ) {
+		return $tag_string;
+	}
+
+	// A migrated tag must come out in canonical key order, or the first person to open it
+	// sees the editor rewrite the string for no reason they can point at.
+	if ( function_exists( 'bws_serialization_order_sort' ) ) {
+		$ordered = array();
+		foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $options ) ) ) as $key ) {
+			$ordered[ $key ] = $options[ $key ];
+		}
+		$options = $ordered;
+	}
+
+	return $reg::format_tag_string( $tag_name, $options );
+}
+
+/**
  * Register option-key migration entries for base tags with deprecated option names.
  *
  * These entries fix posts that were partially migrated by a buggy converter run that
@@ -1338,6 +1436,51 @@ function bws_register_option_migrations(): void {
 			'label'             => sprintf(
 				/* translators: %s: tag name */
 				__( '{{%s}}: legacy slot keys (src_N/rel_N/key_N) → v1.6 slot syntax', 'generateblocks' ),
+				$tag
+			),
+		) );
+	}
+
+	// ── #56: the `related_post` SOURCE TOKEN → `src:ref` + `ref` ──
+	//
+	// BEFORE the fold entry (which consumes flat `N-src` and would hide the token), and
+	// after the try_ slot-key renames above (which produce `N-src` from `src_N`).
+	//
+	// VALUE-GATED, not key-gated. Every other entry here matches on a KEY being present,
+	// which is fine when the key is itself legacy (`rel`, `size`, `fallback_text`). Here
+	// the legacy thing is a VALUE sitting in the live `src` key, so a key gate would match
+	// every tag that names a source at all — the converter would list this migration on
+	// virtually every post and then change nothing. match_option_values (1.17.0) keeps
+	// detection and application saying the same thing.
+	//
+	// Only `related_post` migrates. `related` — the sibling value the old try_ slot
+	// value_renames also mapped — is deliberately NOT here: no source has ever registered
+	// under that key, so it already falls through to the ambient entity, and rewriting it
+	// to a hop would CHANGE rendered output rather than preserve it.
+	$related_post_src_keys = array( 'src' );
+	for ( $slot = 2; $slot <= 10; $slot++ ) {
+		$related_post_src_keys[] = $slot . '-src';
+	}
+	$related_post_src_values = array_fill_keys( $related_post_src_keys, array( 'related_post' ) );
+
+	$related_post_src_tags = array(
+		'text', 'content', 'title', 'permalink', 'image',
+		'datetime_single', 'datetime_range', 'email', 'phone',
+	);
+	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
+		$related_post_src_tags = array_merge( $related_post_src_tags, bws_fold_migration_multislot_tags() );
+	}
+
+	foreach ( array_unique( $related_post_src_tags ) as $tag ) {
+		$reg::register( array(
+			'type'                => 'option',
+			'match_tag'           => $tag,
+			'match_option_values' => $related_post_src_values,
+			'new_tag'             => $tag,
+			'transform_callback'  => 'bws_migrate_related_post_src',
+			'label'               => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: src:related_post → src:ref (relationship key moves to ref)', 'generateblocks' ),
 				$tag
 			),
 		) );

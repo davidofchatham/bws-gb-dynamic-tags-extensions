@@ -69,39 +69,28 @@ class PostTermRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Resolve to the related post via: current post → first term → relationship field on term.
+	 * Inert since 1.17.0 — post→term→post is now a two-step chain (#56).
 	 *
-	 * @param array  $options  Tag options ('taxonomy' = taxonomy slug, 'rel' = field key on term).
-	 * @param object $instance Block instance.
-	 * @return int|false Post ID or false if unresolvable.
+	 * The hand-rolled pair of hops (post → FIRST term in a taxonomy → relationship field
+	 * on that term) is what the traversal engine's `srcTermIn` + `ref` steps do
+	 * generically, without collapsing the term hop to `reset( $terms )`. What survived
+	 * here was the stale `rel` spelling no other reader honours (#56).
+	 *
+	 * Nothing to migrate: `src:post_term_related_post` was never emitted as a source
+	 * token — `post_term_related_post_*` were TAG names, and they remain registry-only
+	 * entries with no migration target (no current tag reaches a term-then-relationship
+	 * chain; the chain wire that could express it has no authoring surface yet — FW-56).
+	 *
+	 * Registration stays — see RelatedPost::resolve_id() for why.
+	 *
+	 * @since 1.0.0
+	 * @since 1.17.0 Inert; chained `srcTermIn` + `ref` steps own this traversal (#56).
+	 * @param array  $options  Unused.
+	 * @param object $instance Unused.
+	 * @return false Always — see above.
 	 */
 	public function resolve_id( array $options, $instance ) {
-		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
-			return false;
-		}
-
-		$post_id  = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
-		$taxonomy = $options['tax'] ?? $options['taxonomy'] ?? '';
-		$rel      = $options['rel'] ?? '';
-
-		if ( ! $post_id || ! $taxonomy || ! $rel ) {
-			return false;
-		}
-
-		// Hop 1: post → first term in taxonomy.
-		$terms = get_the_terms( (int) $post_id, $taxonomy );
-		if ( is_wp_error( $terms ) || empty( $terms ) ) {
-			return false;
-		}
-		$term_id = reset( $terms )->term_id;
-
-		// Hop 2: term → related post via relationship field on term entity.
-		$related = bws_get_related_posts_data( 'term_' . $term_id, $rel );
-		if ( empty( $related ) ) {
-			return false;
-		}
-
-		return bws_extract_post_id( $related[0] );
+		return false;
 	}
 
 	/**

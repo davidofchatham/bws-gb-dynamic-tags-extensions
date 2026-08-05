@@ -44,40 +44,38 @@ class RelatedPost extends AbstractSource {
 		return true;
 	}
 
+	/**
+	 * Inert since 1.17.0 — the relationship hop is the `ref` step's job (issue #56).
+	 *
+	 * This used to answer "which field holds the relationship?" from `rel`, falling back
+	 * to a legacy `key`. Nothing else in the plugin reads either spelling: the chain
+	 * compiler builds its `refs` step from `ref` alone (bws_fold_chain_from_options), and
+	 * so does the modifier callback's traversal arm. Two readers of one question, on
+	 * DISJOINT vocabularies, is what made a hand-typed `key:` silently read the ambient
+	 * entity under `src:ref` while resolving correctly under `src:related_post`.
+	 *
+	 * The `key` fallback was the sharper half: `key` is the live FIELD-key option on every
+	 * tag, so on a try_ slot spelled `2-src:related_post|2-key:job_title` this read
+	 * `job_title` as a relationship field — a wrong read, not an empty one.
+	 *
+	 * Returning false makes the source non-self-resolving, so bws_factory_registry_source()
+	 * falls through to the ambient entity. Stored wire naming this source is rewritten to
+	 * `src:ref|ref:<field>` by bws_migrate_related_post_src() (deprecated-tags.php), which
+	 * is the ONLY thing that keeps such a tag reading what it read before — a tag the
+	 * converter never reaches resolves the ambient entity instead.
+	 *
+	 * REGISTRATION STAYS. Never delete a register() call just for lacking resolve logic;
+	 * the entry still carries the source key + context type, and the Tag Converter and
+	 * settings page read the registry.
+	 *
+	 * @since 1.0.0
+	 * @since 1.17.0 Inert; the generic `ref` step owns the hop (#56).
+	 * @param array  $options  Unused.
+	 * @param object $instance Unused.
+	 * @return false Always — see above.
+	 */
 	public function resolve_id( array $options, $instance ) {
-		if ( ! class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
-			return false;
-		}
-
-		$current_post_id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'post', $instance );
-
-		// Prefer 'rel' (new dedicated option); fall back to legacy 'key' (old 'meta' support).
-		if ( ! empty( $options['rel'] ) ) {
-			$rel_field_key = $options['rel'];
-		} elseif ( ! empty( $options['key'] ) ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				_doing_it_wrong(
-					'BWS Related Post source',
-					__( 'The "key" option for relationship field resolution is deprecated. Use the "Relationship Field Key" (rel) option instead.', 'generateblocks' ),
-					'4.1.0'
-				);
-			}
-			$rel_field_key = $options['key'];
-		} else {
-			$rel_field_key = '';
-		}
-
-		if ( ! $current_post_id || empty( $rel_field_key ) ) {
-			return false;
-		}
-
-		$related_posts = bws_get_related_posts_data( $current_post_id, $rel_field_key );
-
-		if ( empty( $related_posts ) ) {
-			return false;
-		}
-
-		return bws_extract_post_id( $related_posts[0] );
+		return false;
 	}
 
 	public function get_source_options(): array {
