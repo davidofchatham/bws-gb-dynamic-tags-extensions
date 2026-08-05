@@ -51,7 +51,7 @@ function bws_register_phone_tag(): void {
 	}
 	$registered = true;
 
-	$source_opt     = bws_base_source_option();
+	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(

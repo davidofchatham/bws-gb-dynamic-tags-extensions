@@ -55,7 +55,9 @@ function bws_register_base_tags(): void {
 	}
 	$registered = true;
 
-	$source_opt     = bws_base_source_option();
+	// Base tags author their source as a CHAIN (FW-56): a root plus ordered fanning
+	// steps. The derived families keep the plain select — see bws_build_src_chain_option().
+	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
 	$text_field     = bws_get_text_field_options();
 

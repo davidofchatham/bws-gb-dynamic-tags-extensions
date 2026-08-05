@@ -418,6 +418,262 @@
 
 	// ── The control ─────────────────────────────────────────────────────────
 
+	/**
+	 * The CHAIN EDITOR — one box holding every step of a source chain.
+	 *
+	 * Extracted from SlotFoldControl so the base-tag source control edits chains
+	 * through the same component rather than a second copy of it. A copy would be
+	 * the drift the derived config exists to prevent: the enums, labels, nouns and
+	 * slug map all arrive on the PHP option definition, and a second renderer is
+	 * where a hand-authored third spelling of `terms` gets in.
+	 *
+	 * The wire supports an ordered chain, so this must edit EVERY step: a single-hop
+	 * version silently TRUNCATED hops 2+ whenever the author touched step 1.
+	 *
+	 * @param {Object}   props.conf           Derived fold/chain config (foldConfig shape).
+	 * @param {Array}    props.chain          Parsed chain (grammar shape).
+	 * @param {Function} props.onChange       fn( nextChain ) — the ONLY way out.
+	 * @param {boolean}  props.inheritOnEmpty Emptying the chain falls back to an
+	 *                                        explicit `same` rather than to absence.
+	 *                                        True for a slot ≥2 (losing an inherit to
+	 *                                        a step deletion is a silent meaning
+	 *                                        change); false where empty legitimately
+	 *                                        means the ambient entity.
+	 * @param {string}   props.slotNoun       The container's registered unit noun.
+	 * @param {Object}   props.hopContext     fn( step, commit ) — field-picker bridge.
+	 * @return {Array} Step nodes, ready to place inside the caller's group box.
+	 */
+	function chainSteps( props ) {
+		var conf = props.conf;
+		var slotNoun = props.slotNoun;
+		var FieldCombo = window.bwsFieldComboControl;
+		var hopContext = props.hopContext;
+		var chain = ( props.chain || [] ).slice();
+		var isSameChain = 1 === chain.length && 'same' === chain[ 0 ].slug;
+
+		/** Rewrite the chain with one index replaced (null step = delete it). */
+		function writeChainAt( idx, newStep ) {
+			var next = chain.slice();
+			if ( null === newStep ) {
+				next.splice( idx, 1 );
+			} else {
+				next[ idx ] = newStep;
+			}
+			// Emptying the chain on slot ≥2 falls back to EXPLICIT inherit, never to
+			// absence: the renderer resolves a bare empty chain against the ambient
+			// entity (a RESET, not an inherit — legacy absence migrates to an explicit
+			// `src(same)`, so absence means what it says), and losing an inherit to a
+			// step deletion would be a silent meaning change.
+			// Slot 1 has no predecessor, so empty there is legitimately `current`.
+			if ( props.inheritOnEmpty && ! next.length ) {
+				next = [ step( 'same' ) ];
+			}
+			props.onChange( next );
+		}
+
+		/** Rows for a step by POSITION: only the first step may start a source. */
+		function stepRows( idx ) {
+			if ( idx > 0 ) {
+				return conf.hopRows;
+			}
+			var rows = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
+			return rows.concat( conf.hopRows );
+		}
+
+		var stepNodes = [];
+		chain.forEach( function ( stepObj, i ) {
+			var stepKids = [];
+
+			// Step header (ordinal + inline remove) only for real multi-step chains: a
+			// lone step needs no ordinal, and a `same` chain is an inherit marker rather
+			// than a hop. Its collision with the slot-level Remove is resolved by
+			// PLACEMENT — slot remove sits above the box, step remove inside it. COLOR
+			// stays semantic: both removes red, both adds blue.
+			if ( ! isSameChain && chain.length > 1 ) {
+				stepKids.push( el( 'div', {
+					key: 'sh',
+					style: {
+						display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+						gap: '8px', marginBottom: '4px'
+					}
+				}, [
+					el( 'span', {
+						key: 'n',
+						style: { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px', opacity: 0.65 }
+					}, __( 'Step', 'generateblocks' ) + ' ' + ( i + 1 ) ),
+					el( Button, {
+						key: 'rm',
+						variant: 'tertiary',
+						size: 'small',
+						isDestructive: true,
+						style: { marginRight: '-6px' },
+						onClick: function () {
+							writeChainAt( i, null );
+						}
+					}, __( 'Remove step', 'generateblocks' ) )
+				] ) );
+			}
+
+			stepKids.push( el( SelectControl, {
+				key: 'src',
+				// The label is ALWAYS present (an unlabelled control is unusable to a
+				// screen reader); on a single-step chain the group caption says the same
+				// word, so only the VISIBLE copy is suppressed.
+				label: __( 'Source', 'generateblocks' ),
+				hideLabelFromVision: chain.length <= 1,
+				value: toEngine( conf, stepObj.slug ),
+				options: stepRows( i ),
+				onChange: function ( v ) {
+					if ( ! v ) {
+						writeChainAt( i, null );
+						return;
+					}
+					var slug = toWire( conf, v );
+					// Keep the arg only when the new slug consumes the same kind of arg;
+					// keep `limit` always (it bounds the step, not the arg).
+					var keepArg = argKind( conf, slug ) && argKind( conf, slug ) === argKind( conf, stepObj.slug );
+					writeChainAt( i, step( slug, keepArg ? stepObj.arg : null, stepObj.limit ) );
+				},
+				__nextHasNoMarginBottom: true
+			} ) );
+
+			var kind = argKind( conf, stepObj.slug );
+			if ( 'ref' === kind || 'rows' === kind ) {
+				var argCfg = ( 'rows' === kind ? conf.entriesOption : conf.refOption ) || {};
+				var commitArg = function ( v ) {
+					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
+				};
+				stepKids.push( el( 'div', { key: 'arg', style: STACKED, className: 'bws-slot-fold' },
+					FieldCombo
+						? el( FieldCombo, {
+							optionKey: 'key',
+							label: argCfg.label,
+							help: argCfg.help,
+							placeholder: argCfg.placeholder,
+							typeDefault: argCfg.typeDefault,
+							context: hopContext( stepObj, commitArg )
+						} )
+						: el( TextControl, {
+							label: argCfg.label,
+							value: stepObj.arg || '',
+							placeholder: argCfg.placeholder,
+							help: __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
+							onChange: commitArg,
+							__nextHasNoMarginBottom: true
+						} )
+				) );
+				if ( ! stepObj.arg ) {
+					// A hop with no field has nothing to hop THROUGH: it serializes as a
+					// bare slug and resolves to nothing. Say so where it is fixable —
+					// `canAppend` blocks BUILDING past an incomplete hop but nothing stops
+					// one being serialized.
+					stepKids.push( warnNode( 'argwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
+						slotNoun
+					) ) );
+				}
+			} else if ( 'srcTermIn' === kind ) {
+				stepKids.push( el( 'div', { key: 'arg', style: STACKED },
+					el( SelectControl, {
+						label: __( 'Taxonomy', 'generateblocks' ),
+						value: stepObj.arg || '',
+						options: conf.taxonomies,
+						onChange: function ( v ) {
+							writeChainAt( i, step( 'terms', v || null, stepObj.limit ) );
+						},
+						__nextHasNoMarginBottom: true
+					} )
+				) );
+				if ( ! stepObj.arg ) {
+					stepKids.push( warnNode( 'argwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped unless a taxonomy is set.', 'generateblocks' ),
+						slotNoun
+					) ) );
+				}
+			}
+
+			// ── Per-step cap ────────────────────────────────────────────────
+			// On every FANNING step, and only those: a step that resolves one source
+			// has nothing to cap. Scoped to the STEP — the tag-level `limit` keeps its
+			// own control, because the two are different quantities (per-input versus
+			// whole-list) and one field would misstate both.
+			//
+			// Empty means uncapped, and `0` is never serialized. The engine already
+			// agrees by construction: it treats `>0` as a cap and anything else as
+			// none, so absent and `0` are one behaviour under two spellings, and
+			// writing both would put a distinction on the wire that means nothing.
+			// `-1` is the older spelling of unlimited and normalizes away identically;
+			// it stays parseable for hand-edited wire.
+			//
+			// The placeholder names the VALUE that produces the behaviour rather than
+			// saying "all", so this field and the tag-level `limit` help teach one
+			// rule. It also dissolves the hazard that argued against normalizing: the
+			// box reads `0 (all)` before the author types and `0 (all)` again after
+			// the `0` is dropped. Same glyphs, same meaning, nothing silently lost.
+			if ( kind ) {
+				stepKids.push( el( 'div', { key: 'limit', style: STACKED },
+					el( TextControl, {
+						type: 'number',
+						label: __( 'Limit per source', 'generateblocks' ),
+						value: ( stepObj.limit === null || stepObj.limit === undefined ) ? '' : String( stepObj.limit ),
+						placeholder: __( '0 (all)', 'generateblocks' ),
+						help: __( 'At most this many results from EACH incoming source. Leave blank for all.', 'generateblocks' ),
+						onChange: function ( v ) {
+							var n = parseInt( v, 10 );
+							writeChainAt( i, step( stepObj.slug, stepObj.arg, ( isNaN( n ) || n <= 0 ) ? null : n ) );
+						},
+						__nextHasNoMarginBottom: true
+					} )
+				) );
+			}
+
+			stepNodes.push( el( 'div', {
+				key: 'step-' + i,
+				style: i > 0 ? STEP_RULE : null
+			}, stepKids ) );
+		} );
+
+		// No chain yet → one empty picker that seeds step 1. Reachable on slot 1
+		// (legitimately unset = current) and on a slot ≥2 whose wire was hand-edited
+		// to drop its src token.
+		if ( ! chain.length ) {
+			stepNodes.push( el( SelectControl, {
+				key: 'src-new',
+				label: __( 'Source', 'generateblocks' ),
+				value: '',
+				options: stepRows( 0 ),
+				onChange: function ( v ) {
+					if ( v ) {
+						props.onChange( [ step( toWire( conf, v ) ) ] );
+					}
+				},
+				__nextHasNoMarginBottom: true
+			} ) );
+		}
+
+		// Append-a-hop: only off a real (non-inherit) chain, and only once the last
+		// step is complete, so a half-built step is never serialized. Lives INSIDE the
+		// source box because it appends to THIS chain — unlike Add slot, which sits at
+		// the slot's outer edge.
+		var last = chain.length ? chain[ chain.length - 1 ] : null;
+		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && conf.hopRows.length;
+		if ( canAppend ) {
+			stepNodes.push( el( 'div', { key: 'addhop', style: { marginTop: '8px' } },
+				el( Button, {
+					variant: 'tertiary',
+					size: 'small',
+					onClick: function () {
+						props.onChange( chain.concat( [ step( toWire( conf, conf.hopRows[ 0 ].value ) ) ] ) );
+					}
+				}, '+ ' + __( 'Add hop', 'generateblocks' ) )
+			) );
+		}
+
+		return stepNodes;
+	}
+
 	function SlotFoldControl( props ) {
 		var ctx = props.context;
 		var state = ctx.state || {};
@@ -600,192 +856,14 @@
 		// step: a single-hop version silently TRUNCATED hops 2+ whenever the author
 		// touched step 1.
 		var chain = slot.chain.slice();
-		var isSameChain = 1 === chain.length && 'same' === chain[ 0 ].slug;
-
-		/** Rewrite the chain with one index replaced (null step = delete it). */
-		function writeChainAt( idx, newStep ) {
-			var next = chain.slice();
-			if ( null === newStep ) {
-				next.splice( idx, 1 );
-			} else {
-				next[ idx ] = newStep;
-			}
-			// Emptying the chain on slot ≥2 falls back to EXPLICIT inherit, never to
-			// absence: the renderer resolves a bare empty chain against the ambient
-			// entity (a RESET, not an inherit — legacy absence migrates to an explicit
-			// `src(same)`, so absence means what it says), and losing an inherit to a
-			// step deletion would be a silent meaning change.
-			// Slot 1 has no predecessor, so empty there is legitimately `current`.
-			if ( ordinal >= 2 && ! next.length ) {
-				next = [ step( 'same' ) ];
-			}
-			writeChain( next );
-		}
-
-		/** Rows for a step by POSITION: only the first step may start a source. */
-		function stepRows( idx ) {
-			if ( idx > 0 ) {
-				return conf.hopRows;
-			}
-			var rows = ( ordinal >= 2 ) ? conf.srcRowsInherit : conf.srcRows;
-			return rows.concat( conf.hopRows );
-		}
-
-		var stepNodes = [];
-		chain.forEach( function ( stepObj, i ) {
-			var stepKids = [];
-
-			// Step header (ordinal + inline remove) only for real multi-step chains: a
-			// lone step needs no ordinal, and a `same` chain is an inherit marker rather
-			// than a hop. Its collision with the slot-level Remove is resolved by
-			// PLACEMENT — slot remove sits above the box, step remove inside it. COLOR
-			// stays semantic: both removes red, both adds blue.
-			if ( ! isSameChain && chain.length > 1 ) {
-				stepKids.push( el( 'div', {
-					key: 'sh',
-					style: {
-						display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-						gap: '8px', marginBottom: '4px'
-					}
-				}, [
-					el( 'span', {
-						key: 'n',
-						style: { fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px', opacity: 0.65 }
-					}, __( 'Step', 'generateblocks' ) + ' ' + ( i + 1 ) ),
-					el( Button, {
-						key: 'rm',
-						variant: 'tertiary',
-						size: 'small',
-						isDestructive: true,
-						style: { marginRight: '-6px' },
-						onClick: function () {
-							writeChainAt( i, null );
-						}
-					}, __( 'Remove step', 'generateblocks' ) )
-				] ) );
-			}
-
-			stepKids.push( el( SelectControl, {
-				key: 'src',
-				// The label is ALWAYS present (an unlabelled control is unusable to a
-				// screen reader); on a single-step chain the group caption says the same
-				// word, so only the VISIBLE copy is suppressed.
-				label: __( 'Source', 'generateblocks' ),
-				hideLabelFromVision: chain.length <= 1,
-				value: toEngine( conf, stepObj.slug ),
-				options: stepRows( i ),
-				onChange: function ( v ) {
-					if ( ! v ) {
-						writeChainAt( i, null );
-						return;
-					}
-					var slug = toWire( conf, v );
-					// Keep the arg only when the new slug consumes the same kind of arg;
-					// keep `limit` always (it bounds the step, not the arg).
-					var keepArg = argKind( conf, slug ) && argKind( conf, slug ) === argKind( conf, stepObj.slug );
-					writeChainAt( i, step( slug, keepArg ? stepObj.arg : null, stepObj.limit ) );
-				},
-				__nextHasNoMarginBottom: true
-			} ) );
-
-			var kind = argKind( conf, stepObj.slug );
-			if ( 'ref' === kind || 'rows' === kind ) {
-				var argCfg = ( 'rows' === kind ? conf.entriesOption : conf.refOption ) || {};
-				var commitArg = function ( v ) {
-					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
-				};
-				stepKids.push( el( 'div', { key: 'arg', style: STACKED, className: 'bws-slot-fold' },
-					FieldCombo
-						? el( FieldCombo, {
-							optionKey: 'key',
-							label: argCfg.label,
-							help: argCfg.help,
-							placeholder: argCfg.placeholder,
-							typeDefault: argCfg.typeDefault,
-							context: hopContext( stepObj, commitArg )
-						} )
-						: el( TextControl, {
-							label: argCfg.label,
-							value: stepObj.arg || '',
-							placeholder: argCfg.placeholder,
-							help: __( 'Field discovery unavailable — free text only.', 'generateblocks' ),
-							onChange: commitArg,
-							__nextHasNoMarginBottom: true
-						} )
-				) );
-				if ( ! stepObj.arg ) {
-					// A hop with no field has nothing to hop THROUGH: it serializes as a
-					// bare slug and resolves to nothing. Say so where it is fixable —
-					// `canAppend` blocks BUILDING past an incomplete hop but nothing stops
-					// one being serialized.
-					stepKids.push( warnNode( 'argwarn', fmt(
-						/* translators: %s: the container's slot noun (attempt, field, column). */
-						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
-						slotNoun
-					) ) );
-				}
-			} else if ( 'srcTermIn' === kind ) {
-				stepKids.push( el( 'div', { key: 'arg', style: STACKED },
-					el( SelectControl, {
-						label: __( 'Taxonomy', 'generateblocks' ),
-						value: stepObj.arg || '',
-						options: conf.taxonomies,
-						onChange: function ( v ) {
-							writeChainAt( i, step( 'terms', v || null, stepObj.limit ) );
-						},
-						__nextHasNoMarginBottom: true
-					} )
-				) );
-				if ( ! stepObj.arg ) {
-					stepKids.push( warnNode( 'argwarn', fmt(
-						/* translators: %s: the container's slot noun (attempt, field, column). */
-						__( 'This %s will be skipped unless a taxonomy is set.', 'generateblocks' ),
-						slotNoun
-					) ) );
-				}
-			}
-
-			stepNodes.push( el( 'div', {
-				key: 'step-' + i,
-				style: i > 0 ? STEP_RULE : null
-			}, stepKids ) );
+		var stepNodes = chainSteps( {
+			conf: conf,
+			chain: chain,
+			onChange: writeChain,
+			inheritOnEmpty: ordinal >= 2,
+			slotNoun: slotNoun,
+			hopContext: hopContext
 		} );
-
-		// No chain yet → one empty picker that seeds step 1. Reachable on slot 1
-		// (legitimately unset = current) and on a slot ≥2 whose wire was hand-edited
-		// to drop its src token.
-		if ( ! chain.length ) {
-			stepNodes.push( el( SelectControl, {
-				key: 'src-new',
-				label: __( 'Source', 'generateblocks' ),
-				value: '',
-				options: stepRows( 0 ),
-				onChange: function ( v ) {
-					if ( v ) {
-						writeChain( [ step( toWire( conf, v ) ) ] );
-					}
-				},
-				__nextHasNoMarginBottom: true
-			} ) );
-		}
-
-		// Append-a-hop: only off a real (non-inherit) chain, and only once the last
-		// step is complete, so a half-built step is never serialized. Lives INSIDE the
-		// source box because it appends to THIS chain — unlike Add slot, which sits at
-		// the slot's outer edge.
-		var last = chain.length ? chain[ chain.length - 1 ] : null;
-		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && conf.hopRows.length;
-		if ( canAppend ) {
-			stepNodes.push( el( 'div', { key: 'addhop', style: { marginTop: '8px' } },
-				el( Button, {
-					variant: 'tertiary',
-					size: 'small',
-					onClick: function () {
-						writeChain( chain.concat( [ step( toWire( conf, conf.hopRows[ 0 ].value ) ) ] ) );
-					}
-				}, '+ ' + __( 'Add hop', 'generateblocks' ) )
-			) );
-		}
 
 		children.push( el( 'div', { key: 'srcgroup', style: GROUP_BOX }, [
 			el( 'span', { key: 'cap', style: GROUP_CAP },
@@ -967,6 +1045,11 @@
 		legacyKeys: legacyKeys,
 		inferIntent: inferIntent,
 		foldConfig: foldConfig,
-		argKind: argKind
+		argKind: argKind,
+		// The chain editor, so the base-tag source control renders the SAME steps.
+		chainSteps: chainSteps,
+		step: step,
+		toWire: toWire,
+		toEngine: toEngine
 	};
 }() );

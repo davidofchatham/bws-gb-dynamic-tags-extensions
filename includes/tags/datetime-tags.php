@@ -112,7 +112,7 @@ function bws_get_base_datetime_single_options(): array {
 	// The format block (as/format/timeSep/…) is control-LATE, serialize-EARLY (the
 	// normalizer lifts it to the front of the string). link then fallback last.
 	return array_merge(
-		bws_base_source_option(),
+		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
@@ -272,7 +272,7 @@ function bws_get_base_datetime_range_options(): array {
 	// format block (as/rangeSep/format/…) is control-LATE, serialize-EARLY (normalizer
 	// lifts it front). link then fallback last.
 	return array_merge(
-		bws_base_source_option(),
+		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( true ),
 		bws_get_datetime_range_field_key_options(),

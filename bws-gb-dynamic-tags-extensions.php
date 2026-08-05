@@ -413,6 +413,24 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// The BASE tag's source chain (FW-56). Loads after the slot-fold CONTROL because
+	// it renders that control's extracted step editor (window.bwsSlotFoldRepeater) —
+	// one component for both surfaces, so the base tag and a {{join}} slot cannot
+	// come to offer two vocabularies for one chain.
+	wp_enqueue_script(
+		'bws-dynamic-tags-src-chain-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/src-chain-control.js',
+		array(
+			'wp-hooks',
+			'wp-element',
+			'wp-components',
+			'wp-i18n',
+			'bws-dynamic-tags-slot-fold-grammar',
+			'bws-dynamic-tags-slot-fold-control',
+		),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'bws_dynamic_tags_enqueue_editor_assets' );
 

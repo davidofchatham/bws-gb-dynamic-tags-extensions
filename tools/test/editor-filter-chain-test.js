@@ -92,7 +92,11 @@ global.wp = {
 		useEffect: function ( fn ) { effects.push( fn ); },
 		useState: function ( initial ) { return [ initial, function () {} ]; }
 	},
-	i18n: { __: function ( s ) { return s; } }
+	i18n: { __: function ( s ) { return s; }, sprintf: function ( s, a ) { return String( s ).replace( '%s', a ); } },
+	// Identity stubs — the components are never rendered here, only referenced as
+	// element types. The slot-fold control and the src-chain control both bail out
+	// when wp.components is absent, so omitting these silently loads nothing.
+	components: { SelectControl: {}, TextControl: {}, Button: {}, ComboboxControl: {}, Flex: {}, FlexItem: {} }
 };
 global.window.wp = global.wp;
 
@@ -293,6 +297,105 @@ check(
 		{ state: { src: 'site' }, setState: function () {} }
 	),
 	'literal entry inside an array condition'
+);
+
+// ── The base-tag source chain: reading legacy keys, and what a conversion writes ──
+//
+// TWIN ASSERTIONS. chainFromOptions() is the JS half of bws_fold_chain_from_options(),
+// and the renderer reads that rule from PHP while this control writes wire against
+// it — so a divergence does not fail loudly, it stores a source the renderer reads
+// differently. The rows below mirror §C8 of fold-chain-compile-test.php one for one.
+console.log( '\nbase-tag source chain — legacy reading + conversion\n' );
+
+load( 'assets/js/slot-fold-control.js' );
+load( 'assets/js/src-chain-control.js' );
+
+const srcChain = global.window.bwsSrcChain;
+check( 'the src-chain control loaded', !! srcChain );
+
+/** Compact a parsed chain to `slug:arg` pairs, for readable expectations. */
+function shape( chain ) {
+	return chain.map( s => s.slug + ( s.arg ? ':' + s.arg : '' ) ).join( ';' );
+}
+
+[
+	[ 'bare tag', {}, '' ],
+	[ 'src:current', { src: 'current' }, 'current' ],
+	[ 'src:site', { src: 'site' }, 'site' ],
+	[ 'FLAT src:ref + ref', { src: 'ref', ref: 'office' }, 'refs:office' ],
+	[ 'FLAT srcTermIn alone', { srcTermIn: 'department' }, 'terms:department' ],
+	[ 'FLAT ref + srcTermIn compound, in that order', { src: 'ref', ref: 'office', srcTermIn: 'department' }, 'refs:office;terms:department' ],
+	// An orphan `src:ref` is already dead at render; the incomplete step preserves
+	// that rather than inventing a source out of the author's mistake.
+	[ 'orphan src:ref (no field) still contributes a step', { src: 'ref' }, 'refs' ],
+	// A SITE root never takes the legacy term hop — the pair is hand-edit only and
+	// every arm has always let the site read win.
+	[ 'src:site + srcTermIn keeps the site read', { src: 'site', srcTermIn: 'department' }, 'site' ],
+	[ 'CHAIN wire parses as itself', { src: 'refs,office;terms,department' }, 'refs:office;terms:department' ],
+	// Malformed chain wire falls back to the legacy reading (the raw value as a root
+	// token), which resolves the ambient entity — never a fabricated hop.
+	[ 'malformed chain wire falls back to a root token', { src: 'refs,office;;[' }, 'refs,office;;[' ]
+].forEach( function ( row ) {
+	check(
+		'chainFromOptions — ' + row[ 0 ],
+		shape( srcChain.chainFromOptions( row[ 1 ] ) ) === row[ 2 ],
+		'got ' + JSON.stringify( shape( srcChain.chainFromOptions( row[ 1 ] ) ) ) + ', want ' + JSON.stringify( row[ 2 ] )
+	);
+} );
+
+// ── The conversion ──────────────────────────────────────────────────────────
+//
+// Asserted at the pure function that MAKES the decision, because it is not
+// observable in anything this control renders: the author sees a number appear in
+// the `limit` field, and a test watching that field would be asserting the limit
+// control's behaviour rather than this one's.
+const AXES = [ 'ref', 'srcTermIn' ];
+const st = srcChain.step;
+
+function convert( state, chain ) {
+	return srcChain.convertUpdate( state, 'src', chain, AXES );
+}
+
+let out = convert( { src: 'ref', ref: 'office', key: 'name' }, [ st( 'refs', 'office' ) ] );
+check( 'conversion writes chain wire', 'refs,office' === out.src, JSON.stringify( out.src ) );
+check( 'conversion deletes the flat siblings it absorbed', undefined === out.ref, JSON.stringify( out.ref ) );
+check( 'conversion leaves unrelated options alone', 'name' === out.key );
+// THE LOAD-BEARING ROW. Chain wire defaults its cap to unlimited, so a conversion
+// that wrote nothing would fan the tag out under the author's hands -- extra values,
+// and dropped anchors, since the link gate is count-based.
+check( 'conversion serializes the cap the old spelling implied', '1' === out.limit, JSON.stringify( out.limit ) );
+
+out = convert( { src: 'ref', ref: 'office', limit: '3' }, [ st( 'refs', 'office' ) ] );
+check( 'an author-stated limit survives the conversion', '3' === out.limit, JSON.stringify( out.limit ) );
+
+out = convert( { src: 'current' }, [ st( 'current' ) ] );
+check( 'a root-only chain gets NO cap — there is nothing to cap', undefined === out.limit, JSON.stringify( out.limit ) );
+
+// Re-committing an ALREADY-chain tag is not a conversion, so it must not re-inject
+// a cap the author has since cleared.
+out = convert( { src: 'refs,office', limit: '' }, [ st( 'refs', 'office' ), st( 'terms', 'department' ) ] );
+check( 'editing a chain tag does not re-inject the cap', '' === out.limit, JSON.stringify( out.limit ) );
+check( 'the appended hop is written', 'refs,office;terms,department' === out.src, JSON.stringify( out.src ) );
+
+out = convert( { src: 'ref', ref: 'office' }, [] );
+check( 'clearing the chain DELETES the key (delete-omit)', undefined === out.src, JSON.stringify( out.src ) );
+
+// A per-step cap round-trips at enclosing level 0 — the base tag's `src:` IS the
+// wrapper, so the cap prints one level inside it and comes out in PARENS, matching
+// the hand-authored `{{phone src:refs,related_staff,limit(1)}}` the fold matrix
+// already pins. A slot's `src(...)` passes 1 and gets brackets; recomputing depth
+// locally is what both shipped bugs on this axis did.
+out = convert( { src: 'refs,office' }, [ st( 'refs', 'office', 2 ) ] );
+check( 'a per-step cap emits at the base tag\'s depth', 'refs,office,limit(2)' === out.src, JSON.stringify( out.src ) );
+
+check(
+	'the control mounts for a `bws-src-chain` option',
+	null !== applyFilters(
+		{ key: 'src', type: 'control' },
+		{ src: { type: 'bws-src-chain', fold: { srcRows: [], hopRows: [], slugMap: {}, taxonomies: [], legacyAxes: AXES } } },
+		{ state: { src: 'current' }, setState: function () {} }
+	),
+	'element returned'
 );
 
 console.log( '' );

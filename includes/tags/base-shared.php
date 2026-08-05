@@ -57,6 +57,126 @@ function bws_base_source_option(): array {
 }
 
 /**
+ * Upgrade a base tag's `src` option to the CHAIN control (FW-56).
+ *
+ * A base tag's source has always been a chain — a root plus fanning steps — but the
+ * flat option spelling (`src` + `ref` + `srcTermIn`) tops out at one relationship
+ * step plus one taxonomy step, so "the office of the staff member this event
+ * references" was not awkward, it was inexpressible. The engine has always been able
+ * to run an arbitrary chain; nothing let an author write one.
+ *
+ * DERIVED, never re-typed. The enum rows, the hop labels, the taxonomy list, the
+ * pickers and the engine↔wire slug map all come from the shipped builders that the
+ * folded-slot control already reads, so the base tag and a `{{join}}` slot offer one
+ * vocabulary. A second literal here is how the image tag's `Return type:` /
+ * `Return image as:` labels drifted.
+ *
+ * The base tag keeps its own `use`/`key` options — this control edits the SOURCE
+ * only. That is the difference from the folded slot, where the source and the read
+ * fold into one value.
+ *
+ * NOT applied to the derived families. `bws_base_source_option()` stays a plain
+ * select because `term_*`/`try_*`/`{{table}}` read its `options` rows to build their
+ * own surfaces (bws_pick_src_values, bws_filter_site_from_src,
+ * bws_build_slot_traversal_options); a slot authors its chain inside its folded
+ * value instead.
+ *
+ * @since 1.17.0
+ * @param array $args {
+ *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
+ *                             Default bws_base_source_option().
+ *     @type array $hops       Engine step keys offered as steps. Default
+ *                             ['ref','srcTermIn'] — `rows` is deliberately absent:
+ *                             the step type exists and runs, but no base-tag arm
+ *                             consumes a meta_row, so offering it would author a
+ *                             chain that renders nothing. It belongs with the table
+ *                             authoring pass.
+ * }
+ * @return array Single-entry array keyed 'src'.
+ */
+function bws_build_src_chain_option( array $args = array() ): array {
+	$source_opt = $args['source_opt'] ?? bws_base_source_option();
+	$hops       = $args['hops'] ?? array( 'ref', 'srcTermIn' );
+
+	if ( ! isset( $source_opt['src'] ) ) {
+		return $source_opt;
+	}
+
+	$base_trav = bws_base_traversal_options();
+
+	// Same hop nouns the folded slot uses. A hop CONTINUES a chain, so its row needs
+	// a step-shaped noun: `srcTermIn`'s own label is a checkbox question ("Get from
+	// taxonomy term?"), unusable in a step list.
+	$hop_labels = array(
+		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
+		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
+		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
+	);
+	$hop_rows   = array();
+	foreach ( $hops as $hop ) {
+		if ( isset( $hop_labels[ $hop ] ) ) {
+			$hop_rows[] = array( 'value' => $hop, 'label' => $hop_labels[ $hop ] );
+		}
+	}
+
+	$tax_rows = array( array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) ) );
+	if ( function_exists( 'get_taxonomies' ) ) {
+		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $tax ) {
+			$tax_rows[] = array(
+				'value' => $tax->name,
+				'label' => $tax->labels->name ?? $tax->name,
+			);
+		}
+	}
+
+	$picker = static function ( array $def ): array {
+		return array_filter(
+			array(
+				'label'        => $def['label'] ?? '',
+				'help'         => $def['help'] ?? '',
+				'placeholder'  => $def['placeholder'] ?? '',
+				'dynamicLabel' => ! empty( $def['dynamicLabel'] ),
+				'typeDefault'  => $def['typeDefault'] ?? '',
+			),
+			static function ( $v ) {
+				return '' !== $v && false !== $v;
+			}
+		);
+	};
+
+	// The source rows a STEP 0 root may take. `ref` is a hop, not a root, so it is
+	// dropped from the root enum: spelling it as a root is what the flat option had
+	// to do when a tag could hold only one source token.
+	$root_rows = array();
+	foreach ( (array) ( $source_opt['src']['options'] ?? array() ) as $row ) {
+		if ( 'ref' !== ( $row['value'] ?? '' ) ) {
+			$root_rows[] = $row;
+		}
+	}
+
+	$source_opt['src']['type'] = 'bws-src-chain';
+	$source_opt['src']['fold'] = array(
+		'container'  => 'base',
+		'srcRows'    => $root_rows,
+		'hopRows'    => $hop_rows,
+		'slugMap'    => array(
+			'ref'       => 'refs',
+			'srcTermIn' => 'terms',
+			'rows'      => 'entries',
+		),
+		'taxonomies' => $tax_rows,
+		'refOption'  => $picker( $base_trav['ref'] ),
+		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
+		// so leaving them beside it would store one source two ways — and the flat
+		// pair is what the retired arms used to dispatch on.
+		'legacyAxes' => array( 'ref', 'srcTermIn' ),
+		'retiredSrc' => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+	);
+
+	return $source_opt;
+}
+
+/**
  * Filter `site` out of a source-option definition.
  *
  * A rooting modifier (`term_*`, `view_*`) exists to surface ENTITY-DISTINCT data;
