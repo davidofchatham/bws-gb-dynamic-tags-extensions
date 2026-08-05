@@ -615,6 +615,67 @@
 		};
 	}
 
+	/**
+	 * Whether a `src` VALUE is chain wire rather than a plain legacy token.
+	 *
+	 * Twin of bws_fold_chain_is_wire(). Conservative by design: every shipped `src`
+	 * value is a single bare token (`current`, `site`, `ref`, a registry source
+	 * name) and cannot hold a chain separator or bracket — those chars are grammar.
+	 * So a value carrying one IS a chain, and a value that IS a fanning slug is a
+	 * one-hop chain (`src:refs`). Everything else stays a token.
+	 *
+	 * Lives HERE, with the grammar it reads, because three editor surfaces need it —
+	 * the list-mode reveal predicate, the base-tag chain control, and anything that
+	 * follows. Three copies of a wire rule is how the two languages come to disagree
+	 * about what a stored value means.
+	 *
+	 * @param {string} value Raw `src` value.
+	 * @return {boolean}
+	 */
+	function chainIsWire( value ) {
+		var v = String( ( value === null || value === undefined ) ? '' : value ).trim();
+		if ( '' === v ) {
+			return false;
+		}
+		if ( -1 !== FANNING_SLUGS.indexOf( v ) ) {
+			return true;
+		}
+		return /[;,[\]()]/.test( v );
+	}
+
+	/**
+	 * The chain's ROOT token — twin of bws_fold_chain_root().
+	 *
+	 * '' when the chain is empty or LEADS with a hop (the hop applies to the ambient
+	 * entity, which is what a bare tag resolves).
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {string}
+	 */
+	function chainRoot( chain ) {
+		if ( ! chain || ! chain.length ) {
+			return '';
+		}
+		var slug = chain[ 0 ].slug || '';
+		return ( -1 !== FANNING_SLUGS.indexOf( slug ) ) ? '' : slug;
+	}
+
+	/**
+	 * Whether a chain HOPS — the `fans` half of bws_fold_chain_resolution().
+	 *
+	 * CAPACITY read from the wire ("this chain may resolve more than one source"),
+	 * never a claim about a given render. A step at position 0 counts only when its
+	 * slug fans, because otherwise it is the chain's ROOT rather than a hop.
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {boolean}
+	 */
+	function chainFans( chain ) {
+		return ( chain || [] ).some( function ( link, i ) {
+			return i > 0 || -1 !== FANNING_SLUGS.indexOf( link.slug );
+		} );
+	}
+
 	window.bwsSlotFold = {
 		// Grammar surface — exported so the twin harness can assert agreement with
 		// the PHP constants rather than trusting that both were edited together.
@@ -645,6 +706,11 @@
 		emitSlot: emitSlot,
 		foldFromLegacy: foldFromLegacy,
 		slotKey: slotKey,
-		slotOrdinal: slotOrdinal
+		slotOrdinal: slotOrdinal,
+		// Depth-0 chain questions, twinned with slot-fold-compile.php. Exported so the
+		// editor surfaces that need them share ONE copy of each rule.
+		chainIsWire: chainIsWire,
+		chainRoot: chainRoot,
+		chainFans: chainFans
 	};
 }() );

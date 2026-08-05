@@ -317,7 +317,14 @@ function bws_fold_chain_from_options( array $options ): array {
 			return array( 'slug' => $slug, 'arg' => $arg, 'limit' => null, 'extra' => array() );
 		};
 		if ( 'ref' === $raw ) {
-			$chain[] = $step( 'refs', trim( (string) ( $options['ref'] ?? '' ) ) );
+			// An ORPHAN `src:ref` keeps its step with a NULL arg, not `''`. Both
+			// compile identically (the argless drop trims either to empty) and both
+			// emit the bare slug — but the JS twin spells absence `null`, and a struct
+			// that differs by spelling is a diff the twin harness reports on every
+			// case that touches it. `null` is also what bws_fold_from_legacy() already
+			// writes for the same shape.
+			$ref     = trim( (string) ( $options['ref'] ?? '' ) );
+			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
 		} elseif ( '' !== $raw ) {
 			$chain[] = $step( $raw );
 		}

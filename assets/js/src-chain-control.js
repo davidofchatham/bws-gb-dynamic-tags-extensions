@@ -138,32 +138,13 @@
 		};
 	}
 
-	/** Whether a `src` VALUE is chain wire rather than a plain legacy token. */
-	function chainIsWire( value ) {
-		var fanning = ( fold.grammar && fold.grammar.fanningSlugs ) || [];
-		if ( -1 !== fanning.indexOf( value ) ) {
-			return true;
-		}
-		return /[;,[\]()]/.test( value );
-	}
-
-	/** The chain's ROOT token — '' when it is empty or LEADS with a hop. */
-	function rootToken( chain ) {
-		var fanning = ( fold.grammar && fold.grammar.fanningSlugs ) || [];
-		if ( ! chain.length ) {
-			return '';
-		}
-		var slug = chain[ 0 ].slug || '';
-		return ( -1 !== fanning.indexOf( slug ) ) ? '' : slug;
-	}
-
-	/** Whether a chain HOPS — the same question the `chain_fans` reveal asks. */
-	function chainFans( chain ) {
-		var fanning = ( fold.grammar && fold.grammar.fanningSlugs ) || [];
-		return chain.some( function ( link, i ) {
-			return i > 0 || -1 !== fanning.indexOf( link.slug );
-		} );
-	}
+	// The three wire questions live in the GRAMMAR (assets/js/slot-fold-grammar.js),
+	// which is the twinned owner of everything the wire means. Aliased rather than
+	// re-implemented: three editor surfaces ask them, and three copies of a wire rule
+	// is how the two languages come to disagree about what a stored value means.
+	var chainIsWire = fold.chainIsWire;
+	var rootToken   = fold.chainRoot;
+	var chainFans   = fold.chainFans;
 
 	/**
 	 * The next option state for a committed chain — the whole conversion, as one
@@ -208,14 +189,21 @@
 			delete upd[ key ];
 		}
 
-		if ( ! wire || ! chainIsWire( wire ) ) {
-			return upd;
-		}
-
-		var wasWire = chainIsWire( String( state[ key ] || '' ) );
+		// The flat siblings go on EVERY commit, not only when the result happens to
+		// be chain-shaped. A root-only commit (`src:current`, `src:site`, or a
+		// cleared source) emits a plain token, and returning early there left
+		// `srcTermIn` behind — which bws_fold_chain_from_options() then re-appends as
+		// a `terms` step, so deleting a taxonomy step did not stick at render OR on
+		// reopen. This control owns the whole source; anything it leaves beside the
+		// value is a second spelling of the same source.
 		( legacyAxes || [] ).forEach( function ( axis ) {
 			delete upd[ axis ];
 		} );
+
+		if ( ! wire ) {
+			return upd;
+		}
+		var wasWire = chainIsWire( String( state[ key ] || '' ) );
 		if ( ! wasWire && chainFans( chain )
 			&& ( upd.limit === undefined || '' === upd.limit ) ) {
 			upd.limit = '1';

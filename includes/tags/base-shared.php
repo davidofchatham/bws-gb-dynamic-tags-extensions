@@ -913,29 +913,19 @@ function bws_base_resolve_source_for_callback( array $options, $instance ): arra
  * source take the SAME arm. Before FW-63 they did not: `{{text src:terms,department}}`
  * rendered the ambient post's title, a plausible wrong value rather than an empty one.
  *
- * The fallback (compiler absent) reproduces the pre-1.17.0 token tests exactly, so a
- * partial load degrades to the old dispatch rather than to no dispatch.
+ * NO FALLBACK, deliberately. A first draft carried a compiler-absent branch
+ * reproducing the pre-1.17.0 token tests — which is a FOURTH copy of the dispatch
+ * this refactor exists to remove, and one nothing exercises, so it would rot into a
+ * quietly different answer. `slot-fold-compile.php` is required at plugin load, well
+ * before any tag registers, so the guard was defending against a state that cannot
+ * occur.
  *
  * @since 1.17.0
  * @param array $options Tag options.
  * @return array{root:string, kind:string, fans:bool} See bws_fold_chain_resolution().
  */
 function bws_base_src_resolution( array $options ): array {
-	if ( function_exists( 'bws_fold_src_resolution' ) ) {
-		return bws_fold_src_resolution( $options );
-	}
-	$src = (string) ( $options['src'] ?? $options['source'] ?? '' );
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( 'site' === $src ) {
-		return array( 'root' => 'site', 'kind' => 'site', 'fans' => false );
-	}
-	if ( '' !== $tax ) {
-		return array( 'root' => $src, 'kind' => 'term', 'fans' => true );
-	}
-	if ( 'ref' === $src ) {
-		return array( 'root' => '', 'kind' => 'post', 'fans' => true );
-	}
-	return array( 'root' => $src, 'kind' => 'base', 'fans' => false );
+	return bws_fold_src_resolution( $options );
 }
 
 /**
@@ -1027,6 +1017,9 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  *   ref'd post. With `limit` unset the flat spelling still caps the source list at
  *   one, so the first rendered term is unchanged — the difference is reachable only
  *   with an explicit `limit` above one, of which the two-database survey found none.
+ *   This is a stated divergence, not an oversight: fold-test-matrix.md §F9.6 pins it,
+ *   and the alternative is keeping a first-only collapse the plural source model
+ *   already names a defect, in the one arm that was still performing it.
  * - Ids, not WP_Term objects. Every caller only ever read `->term_id`.
  *
  * @since 1.17.0

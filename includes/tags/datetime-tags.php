@@ -148,7 +148,7 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 		'limit' => array(
 			'type'        => 'number',
 			'label'       => __( 'Result Limit', 'generateblocks' ),
-			'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
+			'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
 			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 		),
 		'sep'   => array(

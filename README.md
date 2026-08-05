@@ -10,6 +10,14 @@ Our tags currently work across post, loop item, and taxonomy term archive contex
 
 Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
 
+### Sources that follow more than one step
+
+Starting in v1.17, a tag's Source is a path you build a step at a time: begin at the current entry, the site, or a relationship, then follow a relationship field or drop into a taxonomy term, then do it again. Before this you could follow one relationship and one taxonomy and no further, so something two relationships away (the office of the staff member an event references) could not be asked for at all.
+
+Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So capping a taxonomy step at one gives you one term from each referenced post, not one term overall. Leave it blank for all.
+
+Existing tags keep working exactly as they are, with nothing to run and nothing to review. One thing to know if you convert an old tag by hand: a source written the old way returns one result unless you say otherwise, while a path returns all of them, so the editor writes that old limit of 1 into Result Limit and leaves it there for you to see and clear.
+
 ### Unlocked field selector
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, starting in v1.13, every meta/option field key input allows you to search by label/name, as well as filter by context, field group, and field type, among all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields).

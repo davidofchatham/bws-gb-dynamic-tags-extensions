@@ -1,157 +1,824 @@
 {
-  "_readme": [
-    "Shared INPUT corpus for the PHP↔JS grammar-twin check (tools/test/slot-fold-twin-test.php).",
-    "Inputs only — no expected outputs. Expectations live in tools/test/slot-fold-test.php, which",
-    "pins the PHP owner's behaviour; this corpus asks a narrower question: do both implementations",
-    "produce the SAME thing. A case added here needs no expected value, which is the point — the",
-    "cheapest possible way to widen twin coverage.",
-    "Cover the FORM SPACE, not just the canonical example (the practice rule that caught the",
-    "separator findings): bare read vs analog vs same; zero/one/multi-hop chains; with and without",
-    "limit; free-form values carrying : | and inner brackets; hand-edited orderings; malformed input",
-    "(the two sides must AGREE on rejection, not merely both work on good input)."
-  ],
-  "slots": [
-    { "container": "try", "wire": "key(custom_field)" },
-    { "container": "try", "wire": "src(terms,category);use(title)" },
-    { "container": "try", "wire": "src(refs,office;refs,region);key(name)" },
-    { "container": "try", "wire": "src(refs,office);use(same)" },
-    { "container": "try", "wire": "src(same);key(second)" },
-    { "container": "try", "wire": "src(post,9999;refs,related_staff,limit[5]);use(title)" },
-    { "container": "try", "wire": "src(refs,office);use(default)" },
-    { "container": "try", "wire": "use(key);key(role)" },
-    { "container": "try", "wire": "use(key)" },
-    { "container": "join", "wire": "src(same);use(key)" },
-    { "container": "try", "wire": "use(title);key(staff_role)" },
-    { "container": "try", "wire": "key(staff_role);use(title)" },
-    { "container": "try", "wire": "src(refs,office);use(same);key(old)" },
-    { "container": "try", "wire": "mystery(x);key(name)" },
-    { "container": "try", "wire": " key(name) ; src( refs,office )" },
-    { "container": "try", "wire": "src(refs,office),key(name)" },
-    { "container": "try", "wire": "key[name]" },
-    { "container": "join", "wire": "title" },
-    { "container": "join", "wire": "phone;key(mobile)" },
-    { "container": "join", "wire": "key(mobile);phone" },
-    { "container": "join", "wire": "title;use(title)" },
-    { "container": "join", "wire": "src(same)" },
-    { "container": "join", "wire": "src(refs,office)" },
-    { "container": "join", "wire": "title;linkTo(key);linkKey(profile_url);newTab" },
-    { "container": "join", "wire": "fallback(TBA);key(x);as(date);linkTo(permalink)" },
-    { "container": "join", "wire": "datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)" },
-    { "container": "join", "wire": "datetime_single;key(event_date);timeKey(event_time)" },
-    { "container": "join", "wire": "datetime_single;key(d);format(F j, Y g\\:i A);fallback(Date/time TBA)" },
-    { "container": "join", "wire": "datetime_single;key(event);format(l, F jS \\a\\t g\\:i A)" },
-    { "container": "join", "wire": "phone,src[post,9999;refs,related_staff,limit(5)],key[mobile]" },
-    { "container": "table", "wire": "label(Name);title;linkTo(permalink)" },
-    { "container": "table", "wire": "label(Office);src(refs,office);key(address)" },
-    { "container": "table", "wire": "label(Depts);src(terms,department,limit[3]);use(title)" },
-    { "container": "table", "wire": "label(Price\\: USD);key(price)" },
-    { "container": "table", "wire": "label(Size (cm));key(size)" },
-    { "container": "table", "wire": "label(Price; USD);key(price)" },
-    { "container": "table", "wire": "label[Note (TBD];key(note)" },
-    { "container": "table", "wire": "src(entries,staff_members,limit[0]);key(name)" },
-    { "container": "table", "wire": "src(refs,office,limit[-1]);key(name)" },
-    { "container": "table", "wire": "src(refs,related_staff,label[A, B],limit[5])" },
-    { "container": "table", "wire": "src(refs,related_staff,tag[datetime_single,as[date]])" },
-    { "container": "table", "wire": "src(refs,related_staff,label[A; B])" },
-    { "container": "table", "wire": "limit(3);key(prices)" },
-    { "container": "table", "wire": "src(refs,off+ice);key(name)" },
-    { "container": "table", "wire": "src(refs,off/ice);key(name)" },
-    { "container": "table", "wire": "" },
-    { "container": "table", "wire": "label(Note (TBD);key(note)X" },
-    { "container": "table", "wire": "label(Note;key(note)" },
-    { "container": "table", "wire": "key(note))" },
-    { "container": "table", "wire": "key(a)x(b)" },
-    { "container": "table", "wire": "src(refs,office)+use(same)" },
-    { "container": "table", "wire": "src(refs,office+refs,region);key(name)" },
-    { "container": "table", "wire": "src(refs,office,extra,more)" },
-    { "container": "table", "wire": "src(refs,office,limit[abc])" },
-    { "container": "table", "wire": "src(,office)" },
-    { "container": "table", "wire": "key(note)]" }
-  ],
-  "chains": [
-    { "chain": "refs,related_staff,limit[5]", "enclosingLevel": 1 },
-    { "chain": "refs,related_staff,limit(5)", "enclosingLevel": 0 },
-    { "chain": "post,9999;refs,related_staff", "enclosingLevel": 1 },
-    { "chain": "terms,department,limit[0]", "enclosingLevel": 0 },
-    { "chain": "entries,limit[5]", "enclosingLevel": 1 },
-    { "chain": "same", "enclosingLevel": 1 },
-    { "chain": "refs", "enclosingLevel": 1 },
-    { "chain": "refs,x,limit[-1]", "enclosingLevel": 2 },
-    { "chain": "refs,x,limit[abc]", "enclosingLevel": 1 },
-    { "chain": "refs,x,y,z", "enclosingLevel": 1 }
-  ],
-  "_emitStructsReadme": [
-    "EMIT-from-STRUCT cases. The slot/chain sections above enter through PARSE, which normalizes",
-    "every value to a string — so they cannot reach a control-side struct holding a NUMBER. That",
-    "gap hid a real hazard: a JS `if (step.limit)` guard drops a numeric 0 (unlimited) while leaving",
-    "the string '0' alone, so a parse-only corpus reports agreement. Guard on null/undefined, never",
-    "truthiness — these rows are what proves it."
-  ],
-  "emitStructs": [
-    {
-      "level": 1,
-      "slot": { "label": null, "type": null, "chain": [ { "slug": "entries", "arg": "staff", "limit": 0, "extra": [] } ], "read": { "kind": "key", "field": "name" }, "opts": {}, "extra": [] }
-    },
-    {
-      "level": 0,
-      "slot": { "label": null, "type": null, "chain": [ { "slug": "refs", "arg": "related_staff", "limit": 5, "extra": [] } ], "read": null, "opts": {}, "extra": [] }
-    },
-    {
-      "level": 1,
-      "slot": { "label": null, "type": null, "chain": [ { "slug": "refs", "arg": "x", "limit": -1, "extra": [] } ], "read": { "kind": "same" }, "opts": {}, "extra": [] }
-    },
-    {
-      "level": 1,
-      "slot": { "label": "Price: USD", "type": "text", "chain": [], "read": { "kind": "key", "field": "price" }, "opts": { "limit": 0 }, "extra": [] }
-    },
-    {
-      "level": 1,
-      "slot": { "label": null, "type": "title", "chain": [], "read": { "kind": "analog", "slug": "title" }, "opts": { "newTab": true, "linkTo": "permalink" }, "extra": [] }
-    },
-    {
-      "level": 1,
-      "slot": { "label": null, "type": null, "chain": [], "read": { "kind": "analog", "slug": "default" }, "opts": {}, "extra": [ "mystery(x)" ] }
-    },
-    {
-      "level": 2,
-      "slot": { "label": null, "type": null, "chain": [ { "slug": "terms", "arg": "department", "limit": 3, "extra": [] } ], "read": { "kind": "key", "field": "" }, "opts": {}, "extra": [] }
-    },
-    {
-      "level": 1,
-      "slot": { "label": null, "type": null, "chain": [ { "slug": "same", "arg": null, "limit": null, "extra": [] } ], "read": { "kind": "key", "field": "" }, "opts": {}, "extra": [] }
-    }
-  ],
-  "legacy": [
-    { "n": 1, "combining": false, "perSlotUse": true, "options": {} },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "key": "role" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "current", "key": "role" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "key": "name" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "srcTermIn": "category", "use": "title" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "srcTermIn": "category", "use": "title" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "site", "key": "phone" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "key": "name" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "key": "name", "limit": "2" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "srcTermIn": "category", "use": "title", "limit": "3" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "key": "name", "limit": "0" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "key": "name", "limit": "-1" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "src": "ref", "ref": "office", "key": "name", "limit": "abc" } },
-    { "n": 1, "combining": false, "perSlotUse": true, "options": { "key": "prices", "limit": "4" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-use": "title" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-key": "b" } },
-    { "n": 2, "combining": false, "perSlotUse": false, "options": { "2-key": "b" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-src": "ref", "2-ref": "office" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-use": "same", "2-key": "stale" } },
-    { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-key": "alt" } },
-    { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "ref", "2-ref": "office" } },
-    { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "same", "2-key": "alt" } },
-    { "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "site", "2-key": "phone" } },
-    { "n": 3, "combining": false, "perSlotUse": true, "options": { "3-use": "same" } },
-    { "n": 3, "combining": true, "perSlotUse": true, "options": { "3-srcTermIn": "department", "3-use": "title", "3-limit": "0" } },
-    { "n": 2, "combining": false, "perSlotUse": false, "options": { "2-src": "site" } },
-    { "n": 3, "combining": false, "perSlotUse": false, "options": { "3-src": "ref", "3-ref": "office" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-src": "site", "2-use": "key" } },
-    { "n": 2, "combining": false, "perSlotUse": true, "options": { "2-use": "key" } },
-		{ "n": 2, "combining": false, "perSlotUse": false, "options": { "2-src": "current" } },
-		{ "n": 2, "combining": true, "perSlotUse": true, "options": { "2-src": "current", "2-key": "name" } }
+	"_readme": [
+		"Shared INPUT corpus for the PHP↔JS grammar-twin check (tools/test/slot-fold-twin-test.php).",
+		"Inputs only — no expected outputs. Expectations live in tools/test/slot-fold-test.php, which",
+		"pins the PHP owner's behaviour; this corpus asks a narrower question: do both implementations",
+		"produce the SAME thing. A case added here needs no expected value, which is the point — the",
+		"cheapest possible way to widen twin coverage.",
+		"Cover the FORM SPACE, not just the canonical example (the practice rule that caught the",
+		"separator findings): bare read vs analog vs same; zero/one/multi-hop chains; with and without",
+		"limit; free-form values carrying : | and inner brackets; hand-edited orderings; malformed input",
+		"(the two sides must AGREE on rejection, not merely both work on good input)."
+	],
+	"slots": [
+		{
+			"container": "try",
+			"wire": "key(custom_field)"
+		},
+		{
+			"container": "try",
+			"wire": "src(terms,category);use(title)"
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office;refs,region);key(name)"
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office);use(same)"
+		},
+		{
+			"container": "try",
+			"wire": "src(same);key(second)"
+		},
+		{
+			"container": "try",
+			"wire": "src(post,9999;refs,related_staff,limit[5]);use(title)"
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office);use(default)"
+		},
+		{
+			"container": "try",
+			"wire": "use(key);key(role)"
+		},
+		{
+			"container": "try",
+			"wire": "use(key)"
+		},
+		{
+			"container": "join",
+			"wire": "src(same);use(key)"
+		},
+		{
+			"container": "try",
+			"wire": "use(title);key(staff_role)"
+		},
+		{
+			"container": "try",
+			"wire": "key(staff_role);use(title)"
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office);use(same);key(old)"
+		},
+		{
+			"container": "try",
+			"wire": "mystery(x);key(name)"
+		},
+		{
+			"container": "try",
+			"wire": " key(name) ; src( refs,office )"
+		},
+		{
+			"container": "try",
+			"wire": "src(refs,office),key(name)"
+		},
+		{
+			"container": "try",
+			"wire": "key[name]"
+		},
+		{
+			"container": "join",
+			"wire": "title"
+		},
+		{
+			"container": "join",
+			"wire": "phone;key(mobile)"
+		},
+		{
+			"container": "join",
+			"wire": "key(mobile);phone"
+		},
+		{
+			"container": "join",
+			"wire": "title;use(title)"
+		},
+		{
+			"container": "join",
+			"wire": "src(same)"
+		},
+		{
+			"container": "join",
+			"wire": "src(refs,office)"
+		},
+		{
+			"container": "join",
+			"wire": "title;linkTo(key);linkKey(profile_url);newTab"
+		},
+		{
+			"container": "join",
+			"wire": "fallback(TBA);key(x);as(date);linkTo(permalink)"
+		},
+		{
+			"container": "join",
+			"wire": "datetime_range;as(date);format(M j);startKey(start_date);endKey(end_date)"
+		},
+		{
+			"container": "join",
+			"wire": "datetime_single;key(event_date);timeKey(event_time)"
+		},
+		{
+			"container": "join",
+			"wire": "datetime_single;key(d);format(F j, Y g\\:i A);fallback(Date/time TBA)"
+		},
+		{
+			"container": "join",
+			"wire": "datetime_single;key(event);format(l, F jS \\a\\t g\\:i A)"
+		},
+		{
+			"container": "join",
+			"wire": "phone,src[post,9999;refs,related_staff,limit(5)],key[mobile]"
+		},
+		{
+			"container": "table",
+			"wire": "label(Name);title;linkTo(permalink)"
+		},
+		{
+			"container": "table",
+			"wire": "label(Office);src(refs,office);key(address)"
+		},
+		{
+			"container": "table",
+			"wire": "label(Depts);src(terms,department,limit[3]);use(title)"
+		},
+		{
+			"container": "table",
+			"wire": "label(Price\\: USD);key(price)"
+		},
+		{
+			"container": "table",
+			"wire": "label(Size (cm));key(size)"
+		},
+		{
+			"container": "table",
+			"wire": "label(Price; USD);key(price)"
+		},
+		{
+			"container": "table",
+			"wire": "label[Note (TBD];key(note)"
+		},
+		{
+			"container": "table",
+			"wire": "src(entries,staff_members,limit[0]);key(name)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,office,limit[-1]);key(name)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,related_staff,label[A, B],limit[5])"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,related_staff,tag[datetime_single,as[date]])"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,related_staff,label[A; B])"
+		},
+		{
+			"container": "table",
+			"wire": "limit(3);key(prices)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,off+ice);key(name)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,off/ice);key(name)"
+		},
+		{
+			"container": "table",
+			"wire": ""
+		},
+		{
+			"container": "table",
+			"wire": "label(Note (TBD);key(note)X"
+		},
+		{
+			"container": "table",
+			"wire": "label(Note;key(note)"
+		},
+		{
+			"container": "table",
+			"wire": "key(note))"
+		},
+		{
+			"container": "table",
+			"wire": "key(a)x(b)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,office)+use(same)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,office+refs,region);key(name)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,office,extra,more)"
+		},
+		{
+			"container": "table",
+			"wire": "src(refs,office,limit[abc])"
+		},
+		{
+			"container": "table",
+			"wire": "src(,office)"
+		},
+		{
+			"container": "table",
+			"wire": "key(note)]"
+		}
+	],
+	"chains": [
+		{
+			"chain": "refs,related_staff,limit[5]",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "refs,related_staff,limit(5)",
+			"enclosingLevel": 0
+		},
+		{
+			"chain": "post,9999;refs,related_staff",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "terms,department,limit[0]",
+			"enclosingLevel": 0
+		},
+		{
+			"chain": "entries,limit[5]",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "same",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "refs",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "refs,x,limit[-1]",
+			"enclosingLevel": 2
+		},
+		{
+			"chain": "refs,x,limit[abc]",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "refs,x,y,z",
+			"enclosingLevel": 1
+		}
+	],
+	"_emitStructsReadme": [
+		"EMIT-from-STRUCT cases. The slot/chain sections above enter through PARSE, which normalizes",
+		"every value to a string — so they cannot reach a control-side struct holding a NUMBER. That",
+		"gap hid a real hazard: a JS `if (step.limit)` guard drops a numeric 0 (unlimited) while leaving",
+		"the string '0' alone, so a parse-only corpus reports agreement. Guard on null/undefined, never",
+		"truthiness — these rows are what proves it."
+	],
+	"emitStructs": [
+		{
+			"level": 1,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [
+					{
+						"slug": "entries",
+						"arg": "staff",
+						"limit": 0,
+						"extra": []
+					}
+				],
+				"read": {
+					"kind": "key",
+					"field": "name"
+				},
+				"opts": {},
+				"extra": []
+			}
+		},
+		{
+			"level": 0,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [
+					{
+						"slug": "refs",
+						"arg": "related_staff",
+						"limit": 5,
+						"extra": []
+					}
+				],
+				"read": null,
+				"opts": {},
+				"extra": []
+			}
+		},
+		{
+			"level": 1,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [
+					{
+						"slug": "refs",
+						"arg": "x",
+						"limit": -1,
+						"extra": []
+					}
+				],
+				"read": {
+					"kind": "same"
+				},
+				"opts": {},
+				"extra": []
+			}
+		},
+		{
+			"level": 1,
+			"slot": {
+				"label": "Price: USD",
+				"type": "text",
+				"chain": [],
+				"read": {
+					"kind": "key",
+					"field": "price"
+				},
+				"opts": {
+					"limit": 0
+				},
+				"extra": []
+			}
+		},
+		{
+			"level": 1,
+			"slot": {
+				"label": null,
+				"type": "title",
+				"chain": [],
+				"read": {
+					"kind": "analog",
+					"slug": "title"
+				},
+				"opts": {
+					"newTab": true,
+					"linkTo": "permalink"
+				},
+				"extra": []
+			}
+		},
+		{
+			"level": 1,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [],
+				"read": {
+					"kind": "analog",
+					"slug": "default"
+				},
+				"opts": {},
+				"extra": [
+					"mystery(x)"
+				]
+			}
+		},
+		{
+			"level": 2,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [
+					{
+						"slug": "terms",
+						"arg": "department",
+						"limit": 3,
+						"extra": []
+					}
+				],
+				"read": {
+					"kind": "key",
+					"field": ""
+				},
+				"opts": {},
+				"extra": []
+			}
+		},
+		{
+			"level": 1,
+			"slot": {
+				"label": null,
+				"type": null,
+				"chain": [
+					{
+						"slug": "same",
+						"arg": null,
+						"limit": null,
+						"extra": []
+					}
+				],
+				"read": {
+					"kind": "key",
+					"field": ""
+				},
+				"opts": {},
+				"extra": []
+			}
+		}
+	],
+	"legacy": [
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"key": "role"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "current",
+				"key": "role"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"srcTermIn": "category",
+				"use": "title"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "category",
+				"use": "title"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "site",
+				"key": "phone"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"key": "name"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"limit": "2"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "category",
+				"use": "title",
+				"limit": "3"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"limit": "0"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"limit": "-1"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"limit": "abc"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"key": "prices",
+				"limit": "4"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-use": "title"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-key": "b"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": false,
+			"options": {
+				"2-key": "b"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "ref",
+				"2-ref": "office"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-use": "same",
+				"2-key": "stale"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-key": "alt"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "ref",
+				"2-ref": "office"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "same",
+				"2-key": "alt"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "site",
+				"2-key": "phone"
+			}
+		},
+		{
+			"n": 3,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"3-use": "same"
+			}
+		},
+		{
+			"n": 3,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"3-srcTermIn": "department",
+				"3-use": "title",
+				"3-limit": "0"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": false,
+			"options": {
+				"2-src": "site"
+			}
+		},
+		{
+			"n": 3,
+			"combining": false,
+			"perSlotUse": false,
+			"options": {
+				"3-src": "ref",
+				"3-ref": "office"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "site",
+				"2-use": "key"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"2-use": "key"
+			}
+		},
+		{
+			"n": 2,
+			"combining": false,
+			"perSlotUse": false,
+			"options": {
+				"2-src": "current"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-src": "current",
+				"2-key": "name"
+			}
+		}
+	],
+	"_srcOptionsReadme": "Depth-0 base-tag OPTION SETS. The twin here is bws_fold_chain_from_options / bws_fold_chain_resolution (slot-fold-compile.php) against chainIsWire / chainRoot / chainFans (slot-fold-grammar.js). It is a separate section from `chains` because the input is an OPTION MAP, not a chain string: the legacy flat triple is half the rule, and the site-root guard on srcTermIn is only visible from the map.",
+	"srcOptions": [
+		{
+			"options": {}
+		},
+		{
+			"options": {
+				"src": "current"
+			}
+		},
+		{
+			"options": {
+				"src": "site"
+			}
+		},
+		{
+			"options": {
+				"src": "ref",
+				"ref": "office"
+			}
+		},
+		{
+			"options": {
+				"src": "ref"
+			}
+		},
+		{
+			"options": {
+				"srcTermIn": "department"
+			}
+		},
+		{
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "department"
+			}
+		},
+		{
+			"options": {
+				"src": "site",
+				"srcTermIn": "department"
+			}
+		},
+		{
+			"options": {
+				"src": "refs,office"
+			}
+		},
+		{
+			"options": {
+				"src": "refs"
+			}
+		},
+		{
+			"options": {
+				"src": "terms,department"
+			}
+		},
+		{
+			"options": {
+				"src": "entries,team"
+			}
+		},
+		{
+			"options": {
+				"src": "refs,office;terms,department"
+			}
+		},
+		{
+			"options": {
+				"src": "site;entries,team"
+			}
+		},
+		{
+			"options": {
+				"src": "refs,office,limit(2)"
+			}
+		},
+		{
+			"options": {
+				"src": "refs,office;bogus,x"
+			}
+		},
+		{
+			"options": {
+				"src": "related_post"
+			}
+		},
+		{
+			"options": {
+				"source": "refs,office"
+			}
+		},
+		{
+			"options": {
+				"src": "refs,office;;["
+			}
+		}
 	]
 }

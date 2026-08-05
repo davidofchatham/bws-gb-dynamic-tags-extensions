@@ -23,7 +23,9 @@
  *   'in:v1,v2,...'    — other option equals any value in the comma-separated list
  *   'not_in:v1,v2,..' — other option equals none of the values in the list
  *   'chain_fans'      — other option holds a SOURCE CHAIN that hops (see below)
- *   ['a', 'b', ...]   — other option equals any value in the array (OR match)
+ *   ['a', 'b', ...]   — ANY entry passes (OR). Entries are full conditions, not
+ *                       only literals, so one key can carry a literal and a
+ *                       predicate together: [ 'ref', 'chain_fans' ]
  *   'value'           — other option equals 'value' exactly
  *
  * Every condition but `chain_fans` compares a value to a literal. That is why the
@@ -59,34 +61,21 @@
 	 * @return {boolean}
 	 */
 	function srcChainFans( raw ) {
-		var value = String( ( raw === null || raw === undefined ) ? '' : raw ).trim();
-		if ( '' === value ) {
-			return false;
-		}
-
 		var api = window.bwsSlotFold;
-		if ( ! api || 'function' !== typeof api.parseChain ) {
+		if ( ! api || 'function' !== typeof api.chainIsWire ) {
 			return false;
 		}
-		var fanning = ( api.grammar && api.grammar.fanningSlugs ) || [];
-
-		if ( -1 !== fanning.indexOf( value ) ) {
-			return true;   // `src:refs` — argless one-hop chain.
-		}
-		// Conservative, as the PHP twin is: every legacy `src` value is a single
-		// bare token and cannot hold a chain separator or bracket, so a value
-		// carrying one IS a chain and everything else stays a token.
-		if ( ! /[;,[\]()]/.test( value ) ) {
+		var value = String( ( raw === null || raw === undefined ) ? '' : raw ).trim();
+		// A value that is not chain wire is a plain root token: a legacy `src:ref`
+		// or `srcTermIn` is matched by the literal beside this condition, not here.
+		if ( ! api.chainIsWire( value ) ) {
 			return false;
 		}
-
 		var chain = api.parseChain( value );
-		if ( ! chain || chain.error || ! chain.length ) {
+		if ( ! chain || chain.error ) {
 			return false;   // Malformed wire falls back to the legacy reading.
 		}
-		return chain.some( function ( link, i ) {
-			return i > 0 || -1 !== fanning.indexOf( link.slug );
-		} );
+		return api.chainFans( chain );
 	}
 
 	/**

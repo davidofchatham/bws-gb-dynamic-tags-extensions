@@ -219,11 +219,39 @@ fine" is not evidence.
 | F9.3b | — | `{{text src:refs,related_staff;terms,department\|use:title\|fallback:NOHOP}}` | `NOHOP` — the row that makes F9.3 non-vacuous. An empty read and a dropped hop both print nothing, so F9.3 alone cannot tell them apart; this pins that the tag resolved and found nothing |
 | F9.4 | `{{text src:site\|key:org_name}}` | — | the site value. **`src:site` still wins over a hand-edited `srcTermIn`** (`{{text src:site\|srcTermIn:department\|key:org_name}}` renders the same): the pair is hand-edit only (`show_if src: not:site`) and every arm has always let the site read win, so the compiler does not fold that hop in |
 
+### §F9a — per-family equivalence
+
+Arm dispatch is one query, but each family reaches it through its own callback, and a
+family with no list mode takes a different branch from one that has. One `refs` pair and one
+`terms` pair per family; `{{text}}`'s are F9.1/F9.2 above.
+
+| # | Legacy | Chain | Expected |
+|---|---|---|---|
+| F9a.1 | `{{title src:ref\|ref:related_staff\|limit:0}}` | `{{title src:refs,related_staff}}` | `Jane Partner, Tom Associate` (list-capable) |
+| F9a.2 | `{{title srcTermIn:department\|limit:0}}` | `{{title src:terms,department}}` | `Sales, Support` |
+| F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | jane's content. **NOT list-capable** — first non-empty wins, both spellings |
+| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb |
+| F9a.5 | `{{permalink src:ref\|ref:related_staff}}` | `{{permalink src:refs,related_staff}}` | jane's URL. Not list-capable |
+| F9a.6 | `{{permalink srcTermIn:department}}` | `{{permalink src:terms,department}}` | first term URL |
+| F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable |
+| F9a.8 | `{{image srcTermIn:department\|key:term_image\|as:url}}` | `{{image src:terms,department\|key:term_image\|as:url}}` | first non-empty term image |
+| F9a.9 | `{{email src:ref\|ref:related_staff\|key:contact_email\|limit:0}}` | `{{email src:refs,related_staff\|key:contact_email}}` | both addresses, each `mailto:`-wrapped. **Compare DECODED** — `antispambot` randomizes the encoding per render |
+| F9a.10 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | `{{phone src:refs,related_staff\|key:main_line}}` | `(555) 200-3000, (555) 200-4000` |
+| F9a.11 | `{{phone srcTermIn:department\|key:dept_line\|limit:0}}` | `{{phone src:terms,department\|key:dept_line}}` | whatever the department terms carry; the PAIR matching is the property |
+| F9a.12 | `{{datetime_single src:ref\|ref:related_staff\|key:event_datetime\|limit:0}}` | `{{datetime_single src:refs,related_staff\|key:event_datetime}}` | both dates |
+| F9a.13 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | `{{datetime_single src:terms,department\|key:event_date}}` | both term dates |
+| F9a.14 | `{{datetime_range srcTermIn:department\|startKey:event_date\|limit:0}}` | `{{datetime_range src:terms,department\|startKey:event_date}}` | both ranges, `sep`-joined |
+
+> The chain column carries no `limit` on the list-capable rows and the legacy column carries
+> `limit:0`, and that asymmetry IS the equivalence: flat wire caps at 1, chain wire does not.
+> A chain row that needs `limit:0` to match means `bws_limit_default` regressed.
+
 **Still divergent, deliberately:**
 
 | # | Tag | Renders | Cause |
 |---|---|---|---|
 | F9.5 | `{{text src:entries,team_members\|use:key\|key:name}}` | empty | no base-tag arm consumes a `meta_row` source. This is the gap `{{table}}` fills with its own assembly, not something the base text arm should grow — which is also why `entries` is absent from the base chain control's step enum. Authoring it requires a hand edit |
+| F9.6 | `{{text src:ref\|ref:related_staff\|srcTermIn:department\|limit:0}}` | terms of EVERY ref'd post | **A flat-wire behaviour change, stated rather than hidden.** The term arm used to collapse the relationship step to its FIRST post (`bws_get_srcterm_terms` took one post id) and read that post's terms; it now runs the whole compiled chain, which fans (§V6). Reachable ONLY with an explicit `limit` above one — with `limit` unset, flat wire still caps the source list at 1, so the first rendered term is unchanged, and the surveyed corpus contains **zero** explicit `limit` values. Accepted because the alternative is keeping a first-only collapse the plural source model already calls a defect, in the one arm that was still doing it |
 
 **The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
 by whether an arm was involved — is what closed. They are now the same hop with the same answer.

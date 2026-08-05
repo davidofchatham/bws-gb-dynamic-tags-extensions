@@ -23,8 +23,14 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 
 define( 'ABSPATH', __DIR__ );
 
+// One WP call in the compiled path (sanitize_key on a taxonomy slug). LOWERCASE
+// FIRST, then strip — WP's order; the inverse deletes every capital.
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+}
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
 /** Flatten a chain step list to ordered arrays. */
 function twin_canon_chain( $steps ) {
@@ -132,6 +138,20 @@ foreach ( $corpus['legacy'] as $case ) {
 	$doc['legacy'][] = array(
 		'slot' => null === $rec ? null : twin_canon_slot( $rec['slot'] ),
 		'emit' => null === $rec ? null : bws_fold_emit_slot( $rec['slot'] ),
+	);
+}
+
+// Depth-0 OPTION SETS. The JS half reads the same rules off the grammar, because the
+// base-tag chain control has to write wire the renderer reads identically -- and the
+// legacy flat triple plus the site-root guard are only visible from an option MAP.
+foreach ( $corpus['srcOptions'] as $case ) {
+	$chain = bws_fold_chain_from_options( $case['options'] );
+	$res   = bws_fold_chain_resolution( $chain );
+	$doc['srcOptions'][] = array(
+		'isWire' => bws_fold_chain_is_wire( trim( (string) ( $case['options']['src'] ?? $case['options']['source'] ?? '' ) ) ),
+		'chain'  => twin_canon_chain( $chain ),
+		'root'   => $res['root'],
+		'fans'   => $res['fans'],
 	);
 }
 
