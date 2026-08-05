@@ -22,8 +22,15 @@
  *   'not:value'       — other option does NOT equal 'value'
  *   'in:v1,v2,...'    — other option equals any value in the comma-separated list
  *   'not_in:v1,v2,..' — other option equals none of the values in the list
+ *   'chain_fans'      — other option holds a SOURCE CHAIN that hops (see below)
  *   ['a', 'b', ...]   — other option equals any value in the array (OR match)
  *   'value'           — other option equals 'value' exactly
+ *
+ * Every condition but `chain_fans` compares a value to a literal. That is why the
+ * list-mode options (`limit`, `sep`) hid the moment a source was spelled as a
+ * chain: their predicate named the two TOKENS that used to be the only fanning
+ * sources (`srcTermIn` not empty, `src` equal to `ref`), and chain wire is neither.
+ * `chain_fans` asks the question those tokens were standing in for.
  *
  * @package BWS_Dynamic_Tags
  * @since   1.4.0
@@ -33,6 +40,53 @@
 
 	if ( ! window.wp || ! window.wp.hooks ) {
 		return;
+	}
+
+	/**
+	 * Whether a `src` value states a chain that HOPS — the JS half of the render
+	 * path's fan question (bws_fold_chain_resolution()'s `fans`).
+	 *
+	 * Fanning is CAPACITY read from the wire, never a claim about a given render,
+	 * so this is decidable with no query and no resolve. It has to be: a control's
+	 * reveal predicate runs while the author is still typing the source.
+	 *
+	 * Mirrors the PHP rule exactly, including the two edges that look like
+	 * oversights and are not: a bare fanning slug (`src:refs`) IS a one-hop chain,
+	 * and a step at position 0 counts only when its slug fans, because otherwise it
+	 * is the chain's ROOT rather than a hop.
+	 *
+	 * @param {*} raw The `src` option value.
+	 * @return {boolean}
+	 */
+	function srcChainFans( raw ) {
+		var value = String( ( raw === null || raw === undefined ) ? '' : raw ).trim();
+		if ( '' === value ) {
+			return false;
+		}
+
+		var api = window.bwsSlotFold;
+		if ( ! api || 'function' !== typeof api.parseChain ) {
+			return false;
+		}
+		var fanning = ( api.grammar && api.grammar.fanningSlugs ) || [];
+
+		if ( -1 !== fanning.indexOf( value ) ) {
+			return true;   // `src:refs` — argless one-hop chain.
+		}
+		// Conservative, as the PHP twin is: every legacy `src` value is a single
+		// bare token and cannot hold a chain separator or bracket, so a value
+		// carrying one IS a chain and everything else stays a token.
+		if ( ! /[;,[\]()]/.test( value ) ) {
+			return false;
+		}
+
+		var chain = api.parseChain( value );
+		if ( ! chain || chain.error || ! chain.length ) {
+			return false;   // Malformed wire falls back to the legacy reading.
+		}
+		return chain.some( function ( link, i ) {
+			return i > 0 || -1 !== fanning.indexOf( link.slug );
+		} );
 	}
 
 	/**
@@ -46,9 +100,13 @@
 	function evaluateCondition( condKey, condValue, state ) {
 		var current = ( state && state[ condKey ] !== undefined ) ? state[ condKey ] : '';
 
-		// Array value: match any entry (OR).
+		// Array value: ANY entry passes (OR). Entries are full conditions, not just
+		// literals, so one key can carry a literal and a predicate together —
+		// `'src' => [ 'ref', 'chain_fans' ]`. That is not cosmetic: show_if_any is
+		// keyed BY OPTION, so two rules about `src` cannot be two entries.
+		// Back-compatible: a plain literal recurses straight to the equality arm.
 		if ( Array.isArray( condValue ) ) {
-			return condValue.some( function ( v ) { return String( current ) === String( v ); } );
+			return condValue.some( function ( v ) { return evaluateCondition( condKey, v, state ); } );
 		}
 
 		if ( condValue === 'not_empty' ) {
@@ -56,6 +114,9 @@
 		}
 		if ( condValue === 'empty' ) {
 			return current === '' || current === false || current === null || current === undefined;
+		}
+		if ( condValue === 'chain_fans' ) {
+			return srcChainFans( current );
 		}
 		if ( String( condValue ).indexOf( 'not:' ) === 0 ) {
 			return String( current ) !== String( condValue.substring( 4 ) );

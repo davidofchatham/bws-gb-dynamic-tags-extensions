@@ -149,14 +149,14 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 			'type'        => 'number',
 			'label'       => __( 'Result Limit', 'generateblocks' ),
 			'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 		),
 		'sep'   => array(
 			'type'        => 'text',
 			'label'       => __( 'Result Separator', 'generateblocks' ),
 			'help'        => $sep_help,
 			'placeholder' => ', ',
-			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 		),
 	);
 }

@@ -274,10 +274,16 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 		return;
 	}
+	// Depends on the fold GRAMMAR for one condition: `chain_fans` asks whether a
+	// `src` value states a chain that hops, which needs the chain parser. The
+	// predicate reads window.bwsSlotFold at call time (the filter runs long after
+	// every script has loaded), so the dependency is stated for the reader's sake
+	// rather than to fix an order — but an undeclared dependency is how the next
+	// person removes the wrong enqueue.
 	wp_enqueue_script(
 		'bws-dynamic-tags-conditional-options',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-conditional-options.js',
-		array( 'wp-hooks' ),
+		array( 'wp-hooks', 'bws-dynamic-tags-slot-fold-grammar' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);

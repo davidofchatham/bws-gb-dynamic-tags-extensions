@@ -227,6 +227,74 @@ Object.keys( MECHANISM_OPTIONS ).forEach( function ( name ) {
 	);
 } );
 
+// ── The list-mode reveal, across both source spellings (FW-63) ──────────────
+//
+// `limit` and `sep` are revealed by a show_if_any that named the two TOKENS which
+// used to be the only fanning spellings (`srcTermIn` not empty, `src` = `ref`).
+// Chain wire is neither, so both controls vanished the moment a source was spelled
+// as a chain. That read as the right outcome while chain wire had no cap of its
+// own; it is wrong now that chain wire defaults to unlimited and a migrated tag
+// carries an explicit `limit:1` — a control that does not render cannot be cleared.
+//
+// The predicate is loaded from the shipping file and driven through the real filter
+// chain, because a visibility rule is a property of the CHAIN (a filter ahead of it
+// that nulls an anchor switches it off) rather than of the predicate alone.
+console.log( '\nlist-mode reveal — flat and chain spellings answer alike\n' );
+
+load( 'assets/js/editor-conditional-options.js' );
+
+const LIST_OPTIONS = {
+	src:       PLAIN,
+	ref:       PLAIN,
+	srcTermIn: { type: 'bws-term-hop' },
+	limit:     { type: 'number', show_if_any: { srcTermIn: 'not_empty', src: [ 'ref', 'chain_fans' ] } },
+	sep:       { type: 'text', show_if_any: { srcTermIn: 'not_empty', src: [ 'ref', 'chain_fans' ] } },
+	key:       PLAIN
+};
+
+function limitVisible( state ) {
+	return null !== applyFilters( { key: 'limit', type: 'number' }, LIST_OPTIONS, { state: state, setState: function () {} } );
+}
+
+[
+	// [ label, state, expected visible ]
+	[ 'bare tag — nothing fans', {}, false ],
+	[ 'src:current — nothing fans', { src: 'current' }, false ],
+	[ 'src:site — nothing fans', { src: 'site' }, false ],
+	[ 'FLAT src:ref', { src: 'ref', ref: 'office' }, true ],
+	[ 'FLAT srcTermIn', { srcTermIn: 'department' }, true ],
+	[ 'CHAIN src:refs,office', { src: 'refs,office' }, true ],
+	[ 'CHAIN src:terms,department', { src: 'terms,department' }, true ],
+	[ 'CHAIN src:refs,office;terms,department', { src: 'refs,office;terms,department' }, true ],
+	// A bare fanning slug IS a one-hop chain, and a site ROOT that then hops fans.
+	[ 'CHAIN src:refs (argless one-hop)', { src: 'refs' }, true ],
+	[ 'CHAIN src:site;refs,partner', { src: 'site;refs,partner' }, true ],
+	// A registry-source root is root-only: no hop, no list mode. This is the row
+	// that catches a predicate widened to "anything unrecognised".
+	[ 'a registry source root does NOT fan', { src: 'related_post' }, false ]
+].forEach( function ( row ) {
+	const shown = limitVisible( row[ 1 ] );
+	check(
+		'`limit` ' + ( row[ 2 ] ? 'shows' : 'hides' ) + ' — ' + row[ 0 ],
+		shown === row[ 2 ],
+		'state = ' + JSON.stringify( row[ 1 ] )
+	);
+} );
+
+// An ARRAY condition entry is a full condition, not only a literal — which is what
+// lets one key carry `[ 'ref', 'chain_fans' ]` at all, since show_if_any is keyed BY
+// OPTION and two rules about `src` cannot be two entries. The literal half must keep
+// behaving exactly as it did.
+check(
+	'array conditions still match a plain literal (back-compat)',
+	null !== applyFilters(
+		{ key: 'sep', type: 'text' },
+		{ sep: { type: 'text', show_if_any: { src: [ 'ref', 'site' ] } } },
+		{ state: { src: 'site' }, setState: function () {} }
+	),
+	'literal entry inside an array condition'
+);
+
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );

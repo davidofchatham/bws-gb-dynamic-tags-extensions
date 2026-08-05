@@ -75,21 +75,25 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode only applies to the final traversal step: terms (srcTermIn set)
-				// or related posts (src:ref). Scalar sources return one value — hide both.
+				// List mode applies when the SOURCE FANS. The two tokens named below were
+				// the only fanning spellings before source chains; `chain_fans` asks the
+				// question they stood in for, so a chain-spelled source reveals the same
+				// pair. Not cosmetic since 1.17.0: chain wire defaults its cap to
+				// unlimited and a migrated tag carries an explicit `limit:1`, so a
+				// control the author cannot see is a cap the author cannot clear.
 				// Ordered before the field keys (list length is a source property, FW-52).
 				'limit'    => array(
 					'type'        => 'number',
 					'label'       => __( 'Result Limit', 'generateblocks' ),
 					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 				// use/key from the text FIELD LEAF (single source; the template, join
 				// and the folded control consume the same builder). show_if is the
@@ -177,20 +181,24 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode only applies to the final traversal step: terms (srcTermIn set)
-				// or related posts (src:ref). Scalar sources return one value — hide both.
+				// List mode applies when the SOURCE FANS. The two tokens named below were
+				// the only fanning spellings before source chains; `chain_fans` asks the
+				// question they stood in for, so a chain-spelled source reveals the same
+				// pair. Not cosmetic since 1.17.0: chain wire defaults its cap to
+				// unlimited and a migrated tag carries an explicit `limit:1`, so a
+				// control the author cannot see is a cap the author cannot clear.
 				'limit' => array(
 					'type'        => 'number',
 					'label'       => __( 'Limit', 'generateblocks' ),
 					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 				'sep'   => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
