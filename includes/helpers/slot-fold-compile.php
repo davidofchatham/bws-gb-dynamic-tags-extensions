@@ -5,8 +5,8 @@
  * THE MISSING MIDDLE. `slot-fold.php` owns the wire (an ordered chain of steps) and
  * `traversal-pipeline.php` owns execution (an ordered list of engine steps), but until
  * 1.17.0 nothing translated one into the other: two hand-written assemblers read the
- * FLAT `src`/`ref`/`srcTermIn` keys and capped at one relationship hop plus one term
- * hop. So the wire could state chains the renderer could not run, and a depth-0
+ * FLAT `src`/`ref`/`srcTermIn` keys and capped at one relationship step plus one term
+ * step. So the wire could state chains the renderer could not run, and a depth-0
  * `src:refs,office` parsed as an unknown SOURCE token. Both assemblers now live here as
  * thin adapters over one compile, which is what lets an arbitrary chain resolve.
  *
@@ -15,7 +15,7 @@
  * RUNS a chain — engine step types are render-side vocabulary the editor has no use for —
  * so this half is PHP-only and a reader should not go looking for its mirror.
  *
- * Vocabulary is DECOUPLED on purpose (plan DECISION 3): the wire slug names the hop
+ * Vocabulary is DECOUPLED on purpose (plan DECISION 3): the wire slug names the step
  * category and signals cardinality by number (`refs`/`terms`/`entries`, all plural),
  * while the engine `type` is an internal name that predates it (`ref`/`srcTermIn`/
  * `rows`). The map below is the only place the two meet.
@@ -24,14 +24,14 @@
  *
  * - **The ROOT is not a step.** A chain's first segment is either an entity ROOT
  *   (`site`, `current`, a registry source — SINGULAR by DECISION 3's disjointness rule)
- *   or already a hop off the ambient entity (PLURAL). Roots are consumed by the source
- *   FACTORY (bws_resolve_base_source), hops by the engine, so the compile splits them
+ *   or already a step off the ambient entity (PLURAL). Roots are consumed by the source
+ *   FACTORY (bws_resolve_base_source), steps by the engine, so the compile splits them
  *   rather than making the factory understand chains.
  * - **An ARGLESS fanning step is DROPPED, matching both retired assemblers.** A legacy
  *   `src:ref` with no `ref` field emitted NO step, so the tag read the ambient entity;
  *   compiling it into a field-less `ref` step would short-circuit the fold to empty and
  *   change what a (garbage but stored) wire renders.
- * - **An UNKNOWN hop slug compiles to an unknown engine type, never to nothing.** The
+ * - **An UNKNOWN step slug compiles to an unknown engine type, never to nothing.** The
  *   engine's default arm yields an empty list (V2 silent-empty), so the chain
  *   short-circuits and the tag renders nothing. Dropping the step instead would read a
  *   DIFFERENT source than the wire states — the same principle that makes an
@@ -57,7 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Wire slug → engine step type, and the step key each type reads its argument from.
  *
  * The FANNING family (plural slugs, BWS_FOLD_FANNING_SLUGS) in full. A slug absent from
- * this map at a hop position is unknown vocabulary, not a root — see the header.
+ * this map at a step position is unknown vocabulary, not a root — see the header.
  *
  * @since 1.17.0
  */
@@ -102,7 +102,7 @@ const BWS_FOLD_STEP_KINDS = array(
  * `kind` is a property of the CHAIN, not of its last step — a root-only chain has a
  * kind and has no steps:
  *
- *   'site'     the chain roots at the site store and never hops (`src:site`).
+ *   'site'     the chain roots at the site store and never steps (`src:site`).
  *   'post'     the last step is `refs`.
  *   'term'     the last step is `terms`.
  *   'meta_row' the last step is `entries`.
@@ -117,7 +117,7 @@ const BWS_FOLD_STEP_KINDS = array(
  *
  * `fans` is CAPACITY read from the wire — "this chain may resolve more than one
  * source" — never a claim about a given render. Every step slug fans, so it is true
- * iff the chain hops at all.
+ * iff the chain steps at all.
  *
  * The chain is read as PARSED, not as COMPILED: bws_fold_chain_to_steps() drops an
  * argless fanning step (a legacy `src:ref` with no `ref` field emitted no step), and
@@ -133,12 +133,12 @@ function bws_fold_chain_resolution( array $chain ): array {
 	$last  = '';
 	$fans  = false;
 
-	foreach ( array_values( $chain ) as $i => $link ) {
-		$slug = (string) ( $link['slug'] ?? '' );
+	foreach ( array_values( $chain ) as $i => $step ) {
+		$slug = (string) ( $step['slug'] ?? '' );
 		if ( '' === $slug ) {
 			continue;
 		}
-		// Position 0 may be a ROOT (factory-owned) instead of a hop.
+		// Position 0 may be a ROOT (factory-owned) instead of a step.
 		if ( 0 === $i && ! isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
 			continue;
 		}
@@ -180,7 +180,7 @@ function bws_fold_src_resolution( array $options ): array {
 /**
  * The chain's ROOT token — what the source factory reads as `src`.
  *
- * '' when the chain is empty or LEADS with a hop (the hop applies to the ambient
+ * '' when the chain is empty or LEADS with a step (the step applies to the ambient
  * entity, which is exactly what a bare tag resolves). Otherwise the first step's slug,
  * verbatim: `site`, `current`, a registry source name, or a slot sentinel (`same`) whose
  * meaning the container resolves BEFORE compiling — this function never interprets one.
@@ -202,8 +202,8 @@ function bws_fold_chain_root( array $chain ): string {
  * Compile a parsed chain into ordered traversal steps.
  *
  * The leading ROOT step (if any) is dropped — the factory owns it. Everything after is a
- * hop and compiles in wire order, so the #44 rule (`refs` before `terms`, because a term
- * hop needs a post input) is carried by the WIRE rather than re-imposed here.
+ * step and compiles in wire order, so the #44 rule (`refs` before `terms`, because a term
+ * step needs a post input) is carried by the WIRE rather than re-imposed here.
  *
  * @since 1.17.0
  * @param array $chain Parsed chain (bws_fold_parse_chain shape).
@@ -212,26 +212,30 @@ function bws_fold_chain_root( array $chain ): string {
 function bws_fold_chain_to_steps( array $chain ): array {
 	$steps = array();
 
-	foreach ( array_values( $chain ) as $i => $link ) {
-		$slug = (string) ( $link['slug'] ?? '' );
+	foreach ( array_values( $chain ) as $i => $step ) {
+		$slug = (string) ( $step['slug'] ?? '' );
 		if ( '' === $slug ) {
 			continue;
 		}
 		$known = BWS_FOLD_STEP_TYPES[ $slug ] ?? null;
 
-		// Position 0 may be a ROOT (factory-owned) instead of a hop.
+		// Position 0 may be a ROOT (factory-owned) instead of a step.
 		if ( 0 === $i && null === $known ) {
 			continue;
 		}
 
-		$arg = trim( (string) ( $link['arg'] ?? '' ) );
+		// TWO STEPS, TWO NAMES, and the distinction is the whole function: `$step` is the
+		// CHAIN step (the described structure, read off the wire), `$engine_step` is the
+		// PIPELINE step it compiles to. One name for both silently read the ENGINE step's
+		// `limit` — always absent — instead of the wire's, dropping every per-step cap.
+		$arg = trim( (string) ( $step['arg'] ?? '' ) );
 		if ( null === $known ) {
-			// Unknown hop vocabulary — an unknown engine type, which yields an empty
+			// Unknown step vocabulary — an unknown engine type, which yields an empty
 			// list and short-circuits the chain. Never silently dropped (see header).
-			$step = array( 'type' => $slug );
+			$engine_step = array( 'type' => $slug );
 		} else {
 			if ( '' === $arg ) {
-				continue;   // Argless fanning step: no hop, as the flat assemblers had it.
+				continue;   // Argless fanning step: no step, as the flat assemblers had it.
 			}
 			if ( 'terms' === $slug ) {
 				$arg = sanitize_key( $arg );
@@ -239,18 +243,18 @@ function bws_fold_chain_to_steps( array $chain ): array {
 					continue;
 				}
 			}
-			$step = array( 'type' => $known['type'], $known['arg'] => $arg );
+			$engine_step = array( 'type' => $known['type'], $known['arg'] => $arg );
 		}
 
 		// Only a REAL cap rides the step: 0/-1 are unlimited and the engine spells that
 		// as an absent key, which also keeps an uncapped step byte-identical to the flat
 		// assemblers' output.
-		$limit = $link['limit'] ?? null;
+		$limit = $step['limit'] ?? null;
 		if ( null !== $limit && '' !== $limit && is_numeric( $limit ) && (int) $limit > 0 ) {
-			$step['limit'] = (int) $limit;
+			$engine_step['limit'] = (int) $limit;
 		}
 
-		$steps[] = $step;
+		$steps[] = $engine_step;
 	}
 
 	return $steps;
@@ -262,7 +266,7 @@ function bws_fold_chain_to_steps( array $chain ): array {
  * Conservative by design: every shipped `src` value is a single bare token (`current`,
  * `site`, `ref`, a registry source name) and cannot hold a chain separator or bracket —
  * those chars are grammar. So a value carrying one IS a chain, and a value that IS a
- * fanning slug is a one-hop chain (`src:refs` argless, `src:terms,category`). Everything
+ * fanning slug is a one-step chain (`src:refs` argless, `src:terms,category`). Everything
  * else stays a token and reaches the factory untouched.
  *
  * @since 1.17.0
@@ -288,12 +292,12 @@ function bws_fold_chain_is_wire( string $value ): bool {
  *     (`src:ref` + `ref:<field>` → `refs,<field>`; `srcTermIn:<tax>` → `terms,<tax>`).
  *
  * A legacy `srcTermIn` is APPENDED to a chain that has no `terms` step of its own. It is
- * a separate option KEY describing a hop, not part of the `src` value, so a hand-edited
- * `src:refs,office|srcTermIn:category` would otherwise lose a configured hop; when the
- * chain already states a term hop, the chain wins and nothing is duplicated.
+ * a separate option KEY describing a step, not part of the `src` value, so a hand-edited
+ * `src:refs,office|srcTermIn:category` would otherwise lose a configured step; when the
+ * chain already states a term step, the chain wins and nothing is duplicated.
  *
  * Malformed chain wire falls back to the legacy reading (the raw value as a root token),
- * which resolves the ambient entity — never a fatal, and never a fabricated hop.
+ * which resolves the ambient entity — never a fatal, and never a fabricated step.
  *
  * @since 1.17.0
  * @param array $options Tag options (src|source, ref, srcTermIn).
@@ -321,7 +325,7 @@ function bws_fold_chain_from_options( array $options ): array {
 			// compile identically (the argless drop trims either to empty) and both
 			// emit the bare slug — but the JS twin spells absence `null`, and a struct
 			// that differs by spelling is a diff the twin harness reports on every
-			// case that touches it. `null` is also what bws_fold_from_legacy() already
+			// case that touches it. `null` is also what bws_fold_from_flat() already
 			// writes for the same shape.
 			$ref     = trim( (string) ( $options['ref'] ?? '' ) );
 			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
@@ -330,16 +334,16 @@ function bws_fold_chain_from_options( array $options ): array {
 		}
 	}
 
-	// A SITE root never takes the legacy term hop. `srcTermIn` is registered
+	// A SITE root never takes the legacy term step. `srcTermIn` is registered
 	// `show_if src: not:site` (bws_base_traversal_options), so the pair is
 	// hand-edit-only — and every arm has always let the site read win over it.
-	// Appending the hop here would flip that stored tag from "the site value" to
+	// Appending the step here would flip that stored tag from "the site value" to
 	// "empty" (the engine's `srcTermIn` step needs a POST input), which is a
 	// rendered-output change on flat wire the arm refactor must not make.
 	if ( '' !== $tax && 'site' !== bws_fold_chain_root( $chain ) ) {
 		$has_terms = false;
-		foreach ( $chain as $link ) {
-			if ( 'terms' === ( $link['slug'] ?? '' ) ) {
+		foreach ( $chain as $step ) {
+			if ( 'terms' === ( $step['slug'] ?? '' ) ) {
 				$has_terms = true;
 				break;
 			}
@@ -374,7 +378,7 @@ function bws_fold_src_root_token( array $options ): string {
  *
  * The step-assembly half of the value-list SEAM (bws_resolve_field_values). Since 1.17.0
  * a thin adapter over the chain compile: it reads the tag's depth-0 chain — from chain
- * wire or from the legacy flat keys — and compiles the whole thing, so a multi-hop chain
+ * wire or from the legacy flat keys — and compiles the whole thing, so a multi-step chain
  * resolves instead of capping at `[ref, srcTermIn]`.
  *
  * **`src:ref` and `srcTermIn` still COMPOUND** (issue #44): the legacy reading builds
@@ -388,7 +392,7 @@ function bws_fold_src_root_token( array $options ): string {
  *
  * @since 1.14.0
  * @since 1.14.0 #44: src:ref + srcTermIn now compound instead of dropping ref.
- * @since 1.17.0 Compiles the depth-0 chain (arbitrary hops); moved here from field-helpers.php.
+ * @since 1.17.0 Compiles the depth-0 chain (arbitrary steps); moved here from field-helpers.php.
  * @param array $options Tag options (src, ref, srcTermIn).
  * @return array[] Ordered traversal steps (may be empty).
  */
@@ -402,16 +406,16 @@ function bws_field_values_assemble_steps( array $options ): array {
  * Assemble the wrapper's REF-ONLY step set (SPEC §V13, B2).
  *
  * Post-semantic: bws_resolve_post_by_source() and the base helpers built on it collapse
- * to a POST id, and a `srcTermIn` post→term hop is DELIBERATELY excluded — the wrapper's
+ * to a POST id, and a `srcTermIn` post→term step is DELIBERATELY excluded — the wrapper's
  * callers own that downstream on the returned post id (bws_get_srcterm_terms). Contrast
  * bws_field_values_assemble_steps(), which compiles the WHOLE chain because it reads
  * fields by kind (§V6/§V12).
  *
- * Since 1.17.0 this is the chain's LEADING RUN of `ref` steps, stopping at the first hop
+ * Since 1.17.0 this is the chain's LEADING RUN of `ref` steps, stopping at the first step
  * of any other type. Two properties come out of that: a legacy `src:ref|srcTermIn:x`
- * still yields the ref step alone (unchanged), and a multi-hop relationship chain
- * (`refs,a;refs,b`) now hops BOTH instead of one. Stopping — rather than filtering — is
- * what keeps the result honest: steps after a dropped term/rows hop would run against
+ * still yields the ref step alone (unchanged), and a multi-step relationship chain
+ * (`refs,a;refs,b`) now steps BOTH instead of one. Stopping — rather than filtering — is
+ * what keeps the result honest: steps after a dropped term/rows step would run against
  * the wrong entity.
  *
  * MOVED from base-shared.php in 1.17.0 (5h).

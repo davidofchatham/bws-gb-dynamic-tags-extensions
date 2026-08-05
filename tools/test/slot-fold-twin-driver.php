@@ -83,10 +83,10 @@ $doc = array(
 	'grammar' => array(
 		'optSep'       => BWS_FOLD_OPT_SEP,
 		'optClass'     => BWS_FOLD_OPT_CLASS,
-		'hopSep'       => BWS_FOLD_HOP_SEP,
-		'hopClass'     => BWS_FOLD_HOP_CLASS,
-		'stepSep'      => BWS_FOLD_STEP_SEP,
-		'stepClass'    => BWS_FOLD_STEP_CLASS,
+		'stepSep'       => BWS_FOLD_STEP_SEP,
+		'stepClass'     => BWS_FOLD_STEP_CLASS,
+		'partSep'      => BWS_FOLD_PART_SEP,
+		'partClass'    => BWS_FOLD_PART_CLASS,
 		'brPairs'      => array_map( null, array_keys( BWS_FOLD_BR_PAIRS ), array_values( BWS_FOLD_BR_PAIRS ) ),
 		'reserved'     => BWS_FOLD_RESERVED,
 		'types'        => BWS_FOLD_TYPES,
@@ -129,7 +129,7 @@ foreach ( $corpus['emitStructs'] as $case ) {
 }
 
 foreach ( $corpus['legacy'] as $case ) {
-	$rec = bws_fold_from_legacy(
+	$rec = bws_fold_from_flat(
 		(int) $case['n'],
 		$case['options'],
 		(bool) $case['combining'],

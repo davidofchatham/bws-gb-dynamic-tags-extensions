@@ -47,7 +47,7 @@
  *   P11 READ        — read precedence is by token NAME, not order: `use` wins when
  *                     present and not `key`. Hand-edit-only, so the round-trip
  *                     property cannot reach it (the control never emits both).
- *   P12 LEGACY      — bws_fold_from_legacy(): the six-key input surface, and the
+ *   P12 LEGACY      — bws_fold_from_flat(): the six-key input surface, and the
  *                     read-axis CONTAINER divergence (selecting inherits, combining
  *                     leaves unset because a skipped combining slot must not start
  *                     rendering or re-point a later slot's `src(same)`).
@@ -137,7 +137,7 @@ check( 'V0 shipped grammar classes validate', array() === bws_fold_grammar_valid
 check( 'V1 bracket alternation: level 1 = ()', array( '(', ')' ) === bws_fold_bracket_pair( 1 ), var_export( bws_fold_bracket_pair( 1 ), true ) );
 check( 'V2 bracket alternation: level 2 = []', array( '[', ']' ) === bws_fold_bracket_pair( 2 ), var_export( bws_fold_bracket_pair( 2 ), true ) );
 check( 'V3 bracket alternation: level 3 wraps to ()', array( '(', ')' ) === bws_fold_bracket_pair( 3 ), var_export( bws_fold_bracket_pair( 3 ), true ) );
-check( 'V4 reserved chars are not separators', array() === array_intersect( BWS_FOLD_RESERVED, array_merge( BWS_FOLD_OPT_CLASS, BWS_FOLD_HOP_CLASS, BWS_FOLD_STEP_CLASS ) ), '' );
+check( 'V4 reserved chars are not separators', array() === array_intersect( BWS_FOLD_RESERVED, array_merge( BWS_FOLD_OPT_CLASS, BWS_FOLD_STEP_CLASS, BWS_FOLD_PART_CLASS ) ), '' );
 
 // ── P1 IDENTITY ─────────────────────────────────────────────────────────────
 
@@ -451,7 +451,7 @@ check( 'P8.5 stray alt-pair close flagged', isset( bws_fold_parse_slot( 'key(not
 // char wrongly re-admitted as a hop would otherwise disarm its own guard, so the
 // suite would go quiet exactly when the property breaks.
 foreach ( BWS_FOLD_RESERVED as $rc ) {
-	check( "P8.r'$rc' not in hop_class", ! in_array( $rc, BWS_FOLD_HOP_CLASS, true ), '' );
+	check( "P8.r'$rc' not in hop_class", ! in_array( $rc, BWS_FOLD_STEP_CLASS, true ), '' );
 	// It did NOT split, so `refs,region` lands as a second positional token and must
 	// be REJECTED rather than silently traversed as two hops.
 	$r = bws_fold_parse_slot( "src(refs,office{$rc}refs,region);key(name)", 'try' );
@@ -574,7 +574,7 @@ check( 'P11.4 emit is exclusive (never both tokens)', 'src(refs,office);use(same
 
 /** Convenience: map a legacy option set and return the emitted folded value ('' = dropped). */
 function t_legacy_wire( $n, $options, $combining = false, $per_slot_use = true ) {
-	$rec = bws_fold_from_legacy( $n, $options, $combining, $per_slot_use );
+	$rec = bws_fold_from_flat( $n, $options, $combining, $per_slot_use );
 	if ( null === $rec ) {
 		return null;
 	}
@@ -584,7 +584,7 @@ function t_legacy_wire( $n, $options, $combining = false, $per_slot_use = true )
 // Slot 1 — bare keys. An ABSENT src is an empty chain (the stripped default); an
 // EXPLICIT `current` is a step, because a slot whose only content is that token has to
 // keep existing (see P12.2b).
-check( 'P12.0 no legacy keys → null', null === bws_fold_from_legacy( 1, array(), false ), '' );
+check( 'P12.0 no legacy keys → null', null === bws_fold_from_flat( 1, array(), false ), '' );
 check( 'P12.1 slot 1 key only', 'key(role)' === t_legacy_wire( 1, array( 'key' => 'role' ) ), var_export( t_legacy_wire( 1, array( 'key' => 'role' ) ), true ) );
 check( 'P12.2 slot 1 explicit src:current is a step, not nothing', 'src(current);key(role)' === t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'current', 'key' => 'role' ) ), true ) );
 // THE CASE THAT FORCED IT (found 2026-08-04 by the mount-migration smoke, then verified
@@ -613,7 +613,7 @@ $com_src_only = t_legacy_wire( 2, array( '2-src' => 'ref', '2-ref' => 'office' )
 check( 'P12.11 combining: source set, read absent → read UNSET (skip preserved)', 'src(refs,office)' === $com_src_only, var_export( $com_src_only, true ) );
 // The FW-51 shape: a selecting slot whose only content was a key. The shipped
 // resolver discards the key, finds nothing new, and SKIPS — so it maps to nothing.
-check( 'P12.12 selecting psu: key-only slot 2 is dropped (FW-51 preserved)', null === bws_fold_from_legacy( 2, array( '2-key' => 'b' ), false, true ), var_export( t_legacy_wire( 2, array( '2-key' => 'b' ), false, true ), true ) );
+check( 'P12.12 selecting psu: key-only slot 2 is dropped (FW-51 preserved)', null === bws_fold_from_flat( 2, array( '2-key' => 'b' ), false, true ), var_export( t_legacy_wire( 2, array( '2-key' => 'b' ), false, true ), true ) );
 // psk-only (no per-slot read axis): the key is a real override, kept.
 check( 'P12.13 selecting psk-only: key-only slot 2 keeps the key', 'src(same);key(b)' === t_legacy_wire( 2, array( '2-key' => 'b' ), false, false ), var_export( t_legacy_wire( 2, array( '2-key' => 'b' ), false, false ), true ) );
 // Combining: `use` absent with a key set is the CANONICAL join slot-2 wire.
@@ -1096,7 +1096,7 @@ foreach ( $psk_cases as $name => $legacy ) {
 	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, false ), true, false );
 	check( "P14.3 [psk: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
-$psk_wire = bws_fold_emit_slot( bws_fold_from_legacy( 2, array( '2-src' => 'site' ), false, false )['slot'] );
+$psk_wire = bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site' ), false, false )['slot'] );
 check( 'P14.3 no read axis → no read token on the wire', 'src(site)' === $psk_wire, var_export( $psk_wire, true ) );
 
 // P14.4 — `none` shape (title/permalink/datetime_*): source chain only, read is a
@@ -1118,7 +1118,7 @@ foreach ( $none_cases as $name => $legacy ) {
 	$folded  = t_seam_try_walk( t_migrate_try( $legacy, false, false ), false, false );
 	check( "P14.4 [none: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
-$none_wire = bws_fold_emit_slot( bws_fold_from_legacy( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
+$none_wire = bws_fold_emit_slot( bws_fold_from_flat( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
 check( 'P14.4 read-less container emits a bare chain', 'src(refs,office)' === $none_wire, var_export( $none_wire, true ) );
 
 // P14.5 — `srcTermIn` does NOT carry forward in a selecting container (it names this

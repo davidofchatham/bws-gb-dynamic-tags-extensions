@@ -88,7 +88,7 @@
 	 * - An orphan `src:ref` (no `ref` field) still contributes a step. It is already
 	 *   dead at render; keeping the incomplete step preserves that rather than
 	 *   inventing a source out of the author's mistake.
-	 * - A SITE root never takes the legacy term hop. `srcTermIn` is registered
+	 * - A SITE root never takes the legacy term step. `srcTermIn` is registered
 	 *   `show_if src: not:site`, so the pair is hand-edit only, and every arm has
 	 *   always let the site read win. Folding it in would flip such a tag to empty.
 	 *
@@ -109,7 +109,7 @@
 
 		if ( null === chain ) {
 			// Malformed chain wire falls back to the legacy reading (the raw value as a
-			// root token), which resolves the ambient entity — never a fabricated hop.
+			// root token), which resolves the ambient entity — never a fabricated step.
 			chain = [];
 			if ( 'ref' === raw ) {
 				chain.push( step( 'refs', String( ( state && state.ref ) || '' ).trim() || null ) );
@@ -172,10 +172,10 @@
 	 * @param {Object}   state      Current extraTagParams.
 	 * @param {string}   key        The source option key (`src`).
 	 * @param {Array}    chain      The committed chain.
-	 * @param {string[]} legacyAxes Flat option names the chain replaces.
+	 * @param {string[]} flatAxes Flat option names the chain replaces.
 	 * @return {Object} The next extraTagParams.
 	 */
-	function convertUpdate( state, key, chain, legacyAxes ) {
+	function convertUpdate( state, key, chain, flatAxes ) {
 		var upd  = Object.assign( {}, state );
 		// Enclosing level 0 — a base tag's `src:` is the wrapper, so a step `limit`
 		// prints one level inside it (`refs,office,limit[2]`). A slot's `src(...)`
@@ -196,7 +196,7 @@
 		// a `terms` step, so deleting a taxonomy step did not stick at render OR on
 		// reopen. This control owns the whole source; anything it leaves beside the
 		// value is a second spelling of the same source.
-		( legacyAxes || [] ).forEach( function ( axis ) {
+		( flatAxes || [] ).forEach( function ( axis ) {
 			delete upd[ axis ];
 		} );
 
@@ -222,7 +222,7 @@
 
 		/** Commit a chain — the whole rule lives in convertUpdate(). */
 		function writeChain( next ) {
-			setState( convertUpdate( state, key, next, conf.legacyAxes ) );
+			setState( convertUpdate( state, key, next, conf.flatAxes ) );
 		}
 
 		var stepNodes = repeater.chainSteps( {
@@ -233,7 +233,7 @@
 			// legitimately means the ambient entity rather than an inherit.
 			inheritOnEmpty: false,
 			slotNoun: __( 'tag', 'generateblocks' ),
-			hopContext: function ( stepObj, commitArg ) {
+			stepContext: function ( stepObj, commitArg ) {
 				return {
 					state: { key: stepObj.arg || '' },
 					setState: function ( next ) {

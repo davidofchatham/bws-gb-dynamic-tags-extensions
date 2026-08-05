@@ -65,7 +65,7 @@ function bws_base_source_option(): array {
  * references" was not awkward, it was inexpressible. The engine has always been able
  * to run an arbitrary chain; nothing let an author write one.
  *
- * DERIVED, never re-typed. The enum rows, the hop labels, the taxonomy list, the
+ * DERIVED, never re-typed. The enum rows, the step labels, the taxonomy list, the
  * pickers and the engine↔wire slug map all come from the shipped builders that the
  * folded-slot control already reads, so the base tag and a `{{join}}` slot offer one
  * vocabulary. A second literal here is how the image tag's `Return type:` /
@@ -85,7 +85,7 @@ function bws_base_source_option(): array {
  * @param array $args {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
- *     @type array $hops       Engine step keys offered as steps. Default
+ *     @type array $steps       Engine step keys offered as steps. Default
  *                             ['ref','srcTermIn'] — `rows` is deliberately absent:
  *                             the step type exists and runs, but no base-tag arm
  *                             consumes a meta_row, so offering it would author a
@@ -96,7 +96,7 @@ function bws_base_source_option(): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$hops       = $args['hops'] ?? array( 'ref', 'srcTermIn' );
+	$steps       = $args['steps'] ?? array( 'ref', 'srcTermIn' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;
@@ -104,18 +104,18 @@ function bws_build_src_chain_option( array $args = array() ): array {
 
 	$base_trav = bws_base_traversal_options();
 
-	// Same hop nouns the folded slot uses. A hop CONTINUES a chain, so its row needs
+	// Same step nouns the folded slot uses. A step CONTINUES a chain, so its row needs
 	// a step-shaped noun: `srcTermIn`'s own label is a checkbox question ("Get from
 	// taxonomy term?"), unusable in a step list.
-	$hop_labels = array(
+	$step_labels = array(
 		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
 		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
 		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
 	);
-	$hop_rows   = array();
-	foreach ( $hops as $hop ) {
-		if ( isset( $hop_labels[ $hop ] ) ) {
-			$hop_rows[] = array( 'value' => $hop, 'label' => $hop_labels[ $hop ] );
+	$step_rows   = array();
+	foreach ( $steps as $step ) {
+		if ( isset( $step_labels[ $step ] ) ) {
+			$step_rows[] = array( 'value' => $step, 'label' => $step_labels[ $step ] );
 		}
 	}
 
@@ -144,7 +144,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		);
 	};
 
-	// The source rows a STEP 0 root may take. `ref` is a hop, not a root, so it is
+	// The source rows a STEP 0 root may take. `ref` is a step, not a root, so it is
 	// dropped from the root enum: spelling it as a root is what the flat option had
 	// to do when a tag could hold only one source token.
 	$root_rows = array();
@@ -158,7 +158,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt['src']['fold'] = array(
 		'container'  => 'base',
 		'srcRows'    => $root_rows,
-		'hopRows'    => $hop_rows,
+		'stepRows'    => $step_rows,
 		'slugMap'    => array(
 			'ref'       => 'refs',
 			'srcTermIn' => 'terms',
@@ -169,7 +169,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
 		// so leaving them beside it would store one source two ways — and the flat
 		// pair is what the retired arms used to dispatch on.
-		'legacyAxes' => array( 'ref', 'srcTermIn' ),
+		'flatAxes' => array( 'ref', 'srcTermIn' ),
 		'retiredSrc' => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 	);
 
@@ -250,7 +250,7 @@ function bws_pick_src_values( array $source_opt, array $keep ): array {
 /**
  * Build traversal sub-option definitions for the source dispatch.
  *
- * `ref` — shown when src:ref; the relationship field key for the hop.
+ * `ref` — shown when src:ref; the relationship field key for the step.
  * `srcTermIn` — combined control (checkbox + taxonomy ComboboxControl); when a
  *               taxonomy slug is selected, the resolved entity's taxonomy term
  *               is used as the final entity instead of the post itself. Empty =
@@ -268,7 +268,7 @@ function bws_base_traversal_options(): array {
 			'help'        => __( 'ACF relationship or post object field key.', 'generateblocks' ),
 			'placeholder' => 'related_posts',
 			// ref names the SOURCE-post relationship field. The control does NOT
-			// preset a kind for src:ref (presetKind returns null): the ref-hop target
+			// preset a kind for src:ref (presetKind returns null): the ref-step target
 			// post type is not reliably known, so the key list stays UNSCOPED with the
 			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
 			// relationship/post_object.
@@ -279,12 +279,16 @@ function bws_base_traversal_options(): array {
 			'show_if'     => array( 'src' => 'ref' ),
 		),
 		'srcTermIn' => array(
+			// `bws-term-hop` keeps the retired word ON PURPOSE. A control `type` is a
+			// registered identifier the JS matches on, so it is interface, not prose —
+			// renaming it here alone silently unregisters the control. Whether to rename
+			// it (and its file) in lockstep is a decision the vocabulary pass left open.
 			'type'      => 'bws-term-hop',
 			'label'     => __( 'Get from taxonomy term?', 'generateblocks' ),
 			'help'      => __( 'Field is in a taxonomy term on this source.', 'generateblocks' ),
 			'pickLabel' => __( 'Taxonomy', 'generateblocks' ),
 			'pickHelp'  => __( 'Pick the taxonomy.', 'generateblocks' ),
-			// Hidden for src:site — no entity to hop terms from. (Term-context tags
+			// Hidden for src:site — no entity to step terms from. (Term-context tags
 			// override this to src:ref in the template registry.)
 			'show_if'   => array( 'src' => 'not:site' ),
 		),
@@ -418,9 +422,9 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     an absent read MEANS (bws_fold_slot_flat_options).
  *   - `allow_same_read` follows the read twin's flag, so the inherit row appears in
  *     exactly the containers whose resolver honors it.
- *   - `hops` names which traversal steps this container can express. It is a
- *     CAPABILITY list, not decoration: the flat render seam holds one ref hop and one
- *     term hop, so offering a step the seam cannot flatten would author unrenderable
+ *   - `steps` names which traversal steps this container can express. It is a
+ *     CAPABILITY list, not decoration: the flat render seam holds one relationship step and one
+ *     term step, so offering a step the seam cannot flatten would author unrenderable
  *     wire.
  *
  * @since 1.17.0
@@ -434,10 +438,10 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
  *     @type bool   $allow_same_read Offer the read inherit row at slot ≥2. Default false.
- *     @type array  $hops            Engine step keys offered as hops. Default ['srcTermIn'].
+ *     @type array  $steps            Engine step keys offered as steps. Default ['srcTermIn'].
  *     @type array  $tag_level       Legacy axes this container owns at TAG level, never per
  *                                   slot (e.g. a try_ template's `limit`). Ships to the
- *                                   editor as the complement, `legacyAxes`.
+ *                                   editor as the complement, `flatAxes`.
  *     @type string $noun            Slot noun, lower case ("attempt", "field", "column"). Drives
  *                                   BOTH the Add button and the panel header ("Attempt A") —
  *                                   there is deliberately no separate label parameter, because
@@ -456,7 +460,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
 	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
 	$allow_same_read = ! empty( $args['allow_same_read'] );
-	$hops            = $args['hops'] ?? array( 'srcTermIn' );
+	$steps            = $args['steps'] ?? array( 'srcTermIn' );
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
@@ -484,19 +488,19 @@ function bws_build_fold_slot_options( array $args ): array {
 	$src_rows         = bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'];
 	$src_rows_inherit = bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'];
 
-	// Hop enum. A hop is a step that CONTINUES a chain, so its row needs a step-shaped
+	// Hop enum. A step is a step that CONTINUES a chain, so its row needs a step-shaped
 	// noun: `srcTermIn`'s own label is a checkbox question ("Get from taxonomy term?"),
 	// unusable in a step list. Phrasing parallels the shipped src row it sits beside
 	// ("In Reference/Relational Field").
-	$hop_labels = array(
+	$step_labels = array(
 		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
 		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
 		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
 	);
-	$hop_rows   = array();
-	foreach ( $hops as $hop ) {
-		if ( isset( $hop_labels[ $hop ] ) ) {
-			$hop_rows[] = array( 'value' => $hop, 'label' => $hop_labels[ $hop ] );
+	$step_rows   = array();
+	foreach ( $steps as $step ) {
+		if ( isset( $step_labels[ $step ] ) ) {
+			$step_rows[] = array( 'value' => $step, 'label' => $step_labels[ $step ] );
 		}
 	}
 
@@ -551,7 +555,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		'noun'           => $noun,
 		'srcRows'        => $src_rows,
 		'srcRowsInherit' => $src_rows_inherit,
-		'hopRows'        => $hop_rows,
+		'stepRows'        => $step_rows,
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
 		'readLabel'      => $base_read['label'] ?? '',
@@ -567,14 +571,14 @@ function bws_build_fold_slot_options( array $args ): array {
 		'refOption'      => $picker( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold
 		// and delete exactly the keys the converter does. Derived through the single owner
-		// of the tag-level subtraction (bws_fold_slot_legacy_axes) — a hand-kept list in
+		// of the tag-level subtraction (bws_fold_slot_flat_axes) — a hand-kept list in
 		// the control is what deleted a try_ template's TAG-level `limit`/`key` the first
 		// time an author touched slot 1.
-		'legacyAxes'     => function_exists( 'bws_fold_slot_legacy_axes' )
-			? bws_fold_slot_legacy_axes( (array) ( $args['tag_level'] ?? array() ) )
+		'flatAxes'     => function_exists( 'bws_fold_slot_flat_axes' )
+			? bws_fold_slot_flat_axes( (array) ( $args['tag_level'] ?? array() ) )
 			: array(),
 		// The RETIRED source tokens the mount migrator must decline rather than fold
-		// (#56). Shipped for the same reason as legacyAxes: the converter's own guard
+		// (#56). Shipped for the same reason as flatAxes: the converter's own guard
 		// reads the constant directly, and a hand-kept copy in JS is how the two paths
 		// would come to store one tag two ways.
 		'retiredSrc'     => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
@@ -650,7 +654,7 @@ function bws_slot_qualify_show_if( array $show_if, int $n, array $sibling_keys )
  * The try_ machinery is composition-blind (CONTEXT.md I6): a slot's dispatch
  * returns either ONE finished string (today's text/content/image/email/phone
  * single-result path) or an array of finished per-item strings (a slot in list
- * mode — e.g. a srcTermIn term-hop, or the shared L1/L2 resolver's plural
+ * mode — e.g. a srcTermIn term-step, or the shared L1/L2 resolver's plural
  * `src:ref`). This helper collapses both to a list, dropping empty items, so the
  * machinery can join uniformly without caring which producer it is.
  *
@@ -821,13 +825,13 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
  * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
  * false, never leaks a term/row id as a post id. That is byte-compatible with the
  * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
- * the V11 leak-fix (base the ref hop on the ambient term, not on get_the_ID()).
+ * the V11 leak-fix (base the relationship step on the ambient term, not on get_the_ID()).
  *
  * REF-ONLY (SPEC §V13): the wrapper NEVER assembles a `srcTermIn` step. srcTermIn
  * (post→term) is owned DOWNSTREAM by the wrapper's callers — datetime/text/title
  * srcTermIn branches call bws_get_srcterm_terms() on the returned POST id. Routing
  * the wrapper through the SEAM's bws_field_values_assemble_steps() (which emits a
- * srcTermIn term-hop) would collapse to false and empty those callers (B2). The
+ * srcTermIn term-step) would collapse to false and empty those callers (B2). The
  * seam reads term fields by kind; the wrapper cannot — its contract is a post id.
  *
  * @since 1.6.0
@@ -852,16 +856,16 @@ function bws_resolve_post_by_source( array $options, $instance ) {
 
 // bws_wrapper_ref_steps() — the wrapper's REF-ONLY step set (SPEC §V13, B2) — MOVED to
 // includes/helpers/slot-fold-compile.php in 1.17.0 (5h). Its rule is now stated against
-// the compiled chain (the LEADING RUN of ref steps, stopping at the first hop of another
-// type), which keeps `srcTermIn` excluded exactly as before and lets a multi-hop
-// relationship chain hop every step instead of just the first.
+// the compiled chain (the LEADING RUN of ref steps, stopping at the first step of another
+// type), which keeps `srcTermIn` excluded exactly as before and lets a multi-step
+// relationship chain step every step instead of just the first.
 
 /**
  * Get taxonomy terms for a resolved post via the `srcTerm`/`tax` options.
  *
  * Called by base tag callbacks when `srcTerm` is set. The post is already
  * resolved via bws_resolve_post_by_source(); this function performs the
- * final hop from that post to its taxonomy terms.
+ * final step from that post to its taxonomy terms.
  *
  * @since 1.6.0
  * @param int    $post_id Resolved post ID.
@@ -932,7 +936,7 @@ function bws_base_src_resolution( array $options ): array {
  * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
  *
  * The post-path counterpart of the ambient-term branch: runs the wrapper's
- * ref-only step set (src:ref → post→post[] hop; NEVER srcTermIn, which the
+ * ref-only step set (src:ref → post→post[] step; NEVER srcTermIn, which the
  * callback's own $tax branch owns) then takes the first post id. Mirrors
  * bws_resolve_post_by_source() for a base source already resolved once, so the
  * callback pays a single factory call (SPEC §V1).
@@ -956,8 +960,8 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * The plural read behind both list arms. Runs the tag's WHOLE compiled chain — not
  * the wrapper's leading run of ref steps — because the arm has already established
  * what the chain resolves to (bws_base_src_resolution), so every step in it is one
- * the caller asked for. That is what closes the §F9.3 hole, where a `terms` hop
- * after a `refs` hop was silently dropped and the tag read the ref'd POST instead.
+ * the caller asked for. That is what closes the §F9.3 hole, where a `terms` step
+ * after a `refs` step was silently dropped and the tag read the ref'd POST instead.
  *
  * Order is document order (the engine appends, never sorts). Only sources of the
  * requested kind contribute; the caller slices to `limit` and joins with `sep`.
@@ -1006,13 +1010,13 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  * The TERM ids a base tag's chain resolves to — the term arm's read.
  *
  * Replaces the arms' `bws_get_srcterm_terms( $post_id, $tax )` call, which could
- * only express ONE post→term hop off a single collapsed post id. Routing through
+ * only express ONE post→term step off a single collapsed post id. Routing through
  * the engine means the flat `srcTermIn` spelling and the chain `terms,<tax>`
  * spelling read the same terms, which is the equivalence the fold matrix asserts.
  *
  * Two differences from the retired call, both deliberate:
  *
- * - A relationship step BEFORE the term hop fans (§V6) instead of collapsing to the
+ * - A relationship step BEFORE the term step fans (§V6) instead of collapsing to the
  *   first ref'd post, so `src:ref|ref:x|srcTermIn:y` can now yield terms from every
  *   ref'd post. With `limit` unset the flat spelling still caps the source list at
  *   one, so the first rendered term is unchanged — the difference is reachable only
@@ -1034,7 +1038,7 @@ function bws_base_term_ids_from_source( array $base, array $options ): array {
 /**
  * Whether a base callback should read the AMBIENT TERM instead of a post.
  *
- * True iff (a) no explicit `srcTermIn` hop is set (that branch owns its own
+ * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own
  * post→term traversal and is incoherent from a term base), (b) `src` is neither
  * the site source (own early gate) NOR `ref` (SPEC §V11: src:ref on a term archive
  * HOPS the term's relationship field term→post[] via the post path's ref step,
@@ -1052,8 +1056,8 @@ function bws_base_term_ids_from_source( array $base, array $options ): array {
 function bws_base_ambient_term_id( array $base, array $options ): int {
 	// One test replaces three (FW-63): the ambient analog applies only when the
 	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
-	// branch that owns its own render — 'term' is the explicit post→term hop (which
-	// is incoherent from a term base), 'site' has its own gate, and 'post' hops
+	// branch that owns its own render — 'term' is the explicit post→term step (which
+	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
 	// term→post (§V11) so the post path must not be short-circuited to the term's
 	// own analog. A registry-source root still reads 'base' and still reaches the
 	// $base['kind'] test below, exactly as the old src test let it.
@@ -1137,8 +1141,8 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  *
  * The user-kind counterpart of bws_base_ambient_term_id(): true iff the factory's
  * base resolved source is a user (bare tag on an author archive, #19). Mirrors the
- * term gate's guards — an explicit srcTermIn hop, src:site, or src:ref keeps its
- * own meaning (no user ref hop exists yet, so src:ref falls through to the post
+ * term gate's guards — an explicit srcTermIn step, src:site, or src:ref keeps its
+ * own meaning (no user relationship step exists yet, so src:ref falls through to the post
  * path), and explicit src/loop/id already won inside the factory (SPEC §V1).
  *
  * @since 1.15.0

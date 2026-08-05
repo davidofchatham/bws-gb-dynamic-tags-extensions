@@ -155,10 +155,10 @@ function renderTag( allOptions ) {
 }
 
 // ── The anchor combinations that actually occur (live registration, 1.17.0) ──
-const FOLD = { type: 'bws-slot-fold', fold: { max: 5, combining: false, perSlotUse: true, legacyAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ] } };
+const FOLD = { type: 'bws-slot-fold', fold: { max: 5, combining: false, perSlotUse: true, flatAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ] } };
 const ASSIZE = { type: 'bws-as-size' };
 const PLAIN = { type: 'text' };
-const CHAIN = { type: 'bws-src-chain', fold: { legacyAxes: [ 'ref', 'srcTermIn' ] } };
+const CHAIN = { type: 'bws-src-chain', fold: { flatAxes: [ 'ref', 'srcTermIn' ] } };
 
 const CASES = [
 	{
@@ -409,7 +409,7 @@ check(
 	'the control mounts for a `bws-src-chain` option',
 	null !== applyFilters(
 		{ key: 'src', type: 'control' },
-		{ src: { type: 'bws-src-chain', fold: { srcRows: [], hopRows: [], slugMap: {}, taxonomies: [], legacyAxes: AXES } } },
+		{ src: { type: 'bws-src-chain', fold: { srcRows: [], stepRows: [], slugMap: {}, taxonomies: [], flatAxes: AXES } } },
 		{ state: { src: 'current' }, setState: function () {} }
 	),
 	'element returned'

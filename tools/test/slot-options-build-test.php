@@ -37,7 +37,7 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 }
 
 require __DIR__ . '/../../includes/tags/base-shared.php';
-// The fold config's `legacyAxes` derives through slot-fold.php's single owner of the
+// The fold config's `flatAxes` derives through slot-fold.php's single owner of the
 // tag-level subtraction; without it the builder's function_exists guard silently ships an
 // empty list, which is exactly the drift the field exists to prevent.
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
@@ -307,7 +307,7 @@ $joins = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => true,
 		'allow_same_read' => false,
-		'hops'            => array( 'srcTermIn' ),
+		'steps'            => array( 'srcTermIn' ),
 		'noun'            => 'field',
 	)
 );
@@ -369,8 +369,8 @@ assert_same( 'no read inherit row while allow_same_read is false', false, in_arr
 assert_same( 'readLabel is the base read noun, not a container copy', 'Text Field', $fold['readLabel'] );
 
 // Hops are a CAPABILITY list: only what the container's resolver can express.
-assert_same( 'hopRows carry only the requested hops', array( 'srcTermIn' ), array_column( $fold['hopRows'], 'value' ) );
-assert_same( 'hop row label is step-shaped, not the checkbox question', 'In Taxonomy Term', $fold['hopRows'][0]['label'] );
+assert_same( 'stepRows carry only the requested hops', array( 'srcTermIn' ), array_column( $fold['stepRows'], 'value' ) );
+assert_same( 'hop row label is step-shaped, not the checkbox question', 'In Taxonomy Term', $fold['stepRows'][0]['label'] );
 
 // DECISION 3: the wire names steps, the engine names options; one map, one place.
 assert_same(
@@ -390,9 +390,9 @@ assert_same( 'keyOption keeps the dynamic-label flag', true, $fold['keyOption'][
 // opposite of try_'s tag-level cap. Shipping the list is what stops the control keeping
 // its own.
 assert_same(
-	'legacyAxes = every axis when the container excludes none',
+	'flatAxes = every axis when the container excludes none',
 	array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ),
-	$fold['legacyAxes']
+	$fold['flatAxes']
 );
 
 // RETIRED SRC TOKENS — the slots the mount migrator must DECLINE rather than fold (#56).
@@ -441,9 +441,9 @@ assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 
 assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
 assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
 assert_same(
-	'selecting legacyAxes drop the tag-level limit',
+	'selecting flatAxes drop the tag-level limit',
 	array( 'src', 'ref', 'srcTermIn', 'use', 'key' ),
-	$sel_fold['legacyAxes']
+	$sel_fold['flatAxes']
 );
 
 // The other two READ SHAPES a selecting container comes in. Both are described by the
@@ -472,9 +472,9 @@ assert_same( 'key-only: the key picker is still configured', $text['key']['label
 assert_same( 'key-only: perSlotUse false reaches the control', false, $key_fold['perSlotUse'] );
 assert_same( 'key-only: readLabel is empty, so the control falls back to the key noun', '', $key_fold['readLabel'] );
 assert_same(
-	'key-only: legacyAxes keep `key` and drop the tag-level `use`',
+	'key-only: flatAxes keep `key` and drop the tag-level `use`',
 	array( 'src', 'ref', 'srcTermIn', 'key' ),
-	$key_fold['legacyAxes']
+	$key_fold['flatAxes']
 );
 
 // NO READ AXIS AT ALL (try_title / try_permalink / try_datetime_*): the read is a
@@ -499,9 +499,9 @@ assert_same( 'chain-only: the source enum is still whole', true, count( $chain_f
 // option. Folding it into slot 1 would duplicate it inside the slot value and delete the
 // tag-level key the resolver actually reads.
 assert_same(
-	'chain-only: legacyAxes are the chain axes alone',
+	'chain-only: flatAxes are the chain axes alone',
 	array( 'src', 'ref', 'srcTermIn' ),
-	$chain_fold['legacyAxes']
+	$chain_fold['flatAxes']
 );
 
 echo "\n";

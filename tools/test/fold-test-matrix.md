@@ -46,7 +46,7 @@ UNEXPECTEDLY still vanishes, which is the signal.
 
 **Era note.** A tag is folded **iff any all-CAPS option key is present** (`A`…`Z`; the legacy `N-` sibling prefixes stay digits) — modes do not mix per
 KEY, but they do mix per SLOT (§F2), and the renderer dual-reads: a folded slot parses its value, a
-slot with no folded key maps its legacy axes through `bws_fold_from_legacy()`. Every §F1 row is
+slot with no folded key maps its legacy axes through `bws_fold_from_flat()`. Every §F1 row is
 therefore a PAIR: the legacy spelling and the folded one must render **byte-identically**. That
 equivalence — not the new capability — is what this matrix mostly asserts.
 
@@ -323,7 +323,7 @@ option the resolver actually reads. Both live traps, found by the 5f smoke:
 | F13.1 | `{{try_datetime_single A:src(refs,related_staff)\|B:src(current)\|key:event_datetime}}` | `May 1, 2030 10:00 AM` — the tag-level `key` on `try_datetime_*` is NOT slot 1's read |
 | F13.2 | `{{try_phone A:src(refs,related_staff);key(main_line)\|B:src(current);key(main_line)\|limit:2}}` | `(555) 200-3000` — a tag-level `limit` on a `try_` list template is the TAG cap, not a slot axis. `limit:0` gives the same single value here |
 | F13.3 | `{{try_phone src:ref\|ref:related_staff\|key:main_line\|2-key:main_line\|limit:2}}` | legacy twin of F13.2 — same output, which is the property |
-| F13.4 | Same as F13.1, then commit ANY slot in the editor | the tag-level `key` MUST still be present in the saved string. It is not in the delete-on-commit list because `bws_fold_slot_legacy_axes()` subtracts the container's `tag_level` set — editor row, see §F14.5 |
+| F13.4 | Same as F13.1, then commit ANY slot in the editor | the tag-level `key` MUST still be present in the saved string. It is not in the delete-on-commit list because `bws_fold_slot_flat_axes()` subtracts the container's `tag_level` set — editor row, see §F14.5 |
 
 ## §F14 — EDITOR-ONLY rows
 
@@ -334,7 +334,7 @@ rows are the fastest way in) and check each.
 |---|---|---|
 | F14.1 | Open a folded `{{join}}` tag's modal | ONE control per live slot, not ten. "Add field" appends; remove compacts. The BUTTON and the panel HEADER come from one registered noun (`+ Add field` / `Field A`; `try_*` reads `+ Add attempt` / `Attempt A`) — two strings for one unit is how the header said "Slot A" over an "Add attempt" button. Registered keys run to the ceiling; the control renders only up to the live count |
 | F14.2 | Add a slot on `{{join}}` (combining) | the new slot seeds with the READ UNSET — choosing a field IS the configuration act in a combining container. The advisory reads "pick a field for this slot" |
-| F14.3 | Add a slot on `try_text` (selecting) | the new slot seeds `src(same);use(same)` — the inherit is the useful default for a fallback attempt |
+| F14.3 | Add a slot on `try_text` (selecting) | the new slot seeds `src(same);use(same)` — the inherit is the useful default for a later attempt |
 | F14.4 | Remove a middle slot whose successor inherits | the successor's inherit is MATERIALIZED to a real value before compaction renumbers, so removal never silently re-points a slot. A residual inherit at position 1 is stripped |
 | F14.5 | Open a LEGACY (unfolded) join or `try_*` tag, then commit any slot | the legacy `{N}-src`/`-ref`/`-srcTermIn`/`-use`/`-key`/`-limit` keys are deleted and replaced by folded values — EXCEPT the container's tag-level axes (F13.4). Both migration paths must agree: the mount migrator and the converter are twins over one corpus |
 | F14.6 | Open a legacy tag, make NO change, close | no spurious diff. The mount migration writes through a function updater, and returning `prev` unchanged is the loop guard |

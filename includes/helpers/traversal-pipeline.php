@@ -5,7 +5,7 @@
  * Replaces the O(N×M) source-class explosion (RelatedPost, TermRelatedPost,
  * SecondRelatedPost, PostTermRelatedPost, …) with a pure fold over resolved
  * sources. A source factory (bws_resolve_base_source, T2) produces the base
- * resolved source; this engine hops it through data-driven steps.
+ * resolved source; this engine steps it through data-driven steps.
  *
  * SPEC Phase 1: this file is the engine only (T1). Factory + call-site rewiring
  * land in later tasks. No load-time side effects — every WP/GB symbol touched
@@ -52,7 +52,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                               that many sources before the next step runs.
  *
  * A step's `limit` is the author's PER-HOP cap (FW-56), a different quantity from
- * the terminal `limit` option: the hop cap bounds how far a fan-out spreads
+ * the terminal `limit` option: the step cap bounds how far a fan-out spreads
  * (and how much downstream work it multiplies), while the terminal one bounds the
  * VALUE list the caller renders. So the caller still slices the final source list
  * (list mode originates at the plural resolved source, CONTEXT.md §Target
@@ -66,7 +66,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * read as "cap at zero" — a guard the numeric-0 bug class makes worth stating.
  *
  * @since 1.14.0
- * @since 1.17.0 Per-step `limit` (FW-56 per-hop cap).
+ * @since 1.17.0 Per-step `limit` (FW-56 per-step cap).
  * @param array[] $sources Resolved sources (see file header typedef).
  * @param array[] $steps   Ordered steps; each: array( 'type' => 'ref'|'srcTermIn'|'rows',
  *                         … , 'limit' => int|null ).
@@ -88,7 +88,7 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
 		if ( empty( $next ) ) {
 			return array(); // Short-circuit: an emptied step ends the chain.
 		}
-		// Per-hop cap (FW-56). Only a POSITIVE limit caps; 0/-1/absent = unlimited.
+		// Per-step cap (FW-56). Only a POSITIVE limit caps; 0/-1/absent = unlimited.
 		$step_limit = isset( $step['limit'] ) && is_numeric( $step['limit'] ) ? (int) $step['limit'] : 0;
 		$sources    = ( $step_limit > 0 ) ? array_slice( $next, 0, $step_limit ) : $next;
 	}
@@ -100,14 +100,14 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
  * Execute one traversal step against one resolved source.
  *
  * Two built-in step types (SPEC §I.engine):
- *   - ref       : hop via an ACF relationship/post_object field → post[]
+ *   - ref       : step via an ACF relationship/post_object field → post[]
  *                 Valid input kinds: post, term, user, meta_row, site (1.17.0).
  *                 Does NOT collapse to the first target — returns EVERY
  *                 extracted post id (SPEC §V6 plural fix; contrast the legacy
  *                 bws_extract_post_id first-only collapse).
- *   - srcTermIn : hop to taxonomy terms via get_the_terms → term[]
+ *   - srcTermIn : step to taxonomy terms via get_the_terms → term[]
  *                 Valid input kind: post only.
- *   - rows      : hop into a repeater field via get_field → meta_row[]
+ *   - rows      : step into a repeater field via get_field → meta_row[]
  *                 Valid input kinds: post, term, user, meta_row, site.
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
@@ -252,7 +252,7 @@ function bws_pipeline_terms_to_sources( $raw ) {
  * values. Every array row becomes one { kind:'meta_row', row } — preserving
  * document order (append order), NO first-only collapse. A column step then
  * reads sub-fields off each meta_row via the existing meta_row reader arm
- * (bws_pipeline_default_reader case 'meta_row') or hops a ref sub-field to a
+ * (bws_pipeline_default_reader case 'meta_row') or steps a ref sub-field to a
  * post (case 'ref' accepts meta_row).
  *
  * Non-array input (miss, scalar, null) → array() (V2 silent-empty, short-circuits
@@ -288,7 +288,7 @@ function bws_pipeline_rows_to_sources( $raw ) {
  *   1. EXPLICIT src token wins over ambient (SPEC §V7 "explicit always wins").
  *      src:site → { kind:'site' }; src:ref/registry sources → post via the
  *      registry / ref step (delegated by the caller — factory returns the
- *      current-context base they hop FROM, unless the token names a distinct
+ *      current-context base they step FROM, unless the token names a distinct
  *      pinned/registry source).
  *   2. loop_ctx.in_loop + row_post_id → { kind:'post', id:row } (loop wins over
  *      ambient — a bare tag inside a query loop reads the ROW, not the archive).
@@ -320,10 +320,10 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	}
 
 	// The factory reads a src TOKEN. Since 1.17.0 (FW-56) the option may hold a chain
-	// instead (`src:refs,office;terms,category`), whose ROOT is the token and whose hops
+	// instead (`src:refs,office;terms,category`), whose ROOT is the token and whose steps
 	// belong to the step engine — so route through the compiler's root reader, which
 	// returns a legacy token unchanged (asserted in fold-chain-compile-test.php) and ''
-	// for a chain that leads with a hop off the ambient entity.
+	// for a chain that leads with a step off the ambient entity.
 	$src = function_exists( 'bws_fold_src_root_token' )
 		? bws_fold_src_root_token( $options )
 		: ( $options['src'] ?? $options['source'] ?? '' );
@@ -337,7 +337,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	}
 
 	// 1b. Explicit non-current src (ref / registry source) — the factory returns
-	// the CURRENT-CONTEXT base the caller hops FROM. ref itself is a STEP (added
+	// the CURRENT-CONTEXT base the caller steps FROM. ref itself is a STEP (added
 	// by the assembler), not a base kind; so an explicit ref still bases on the
 	// ambient/current entity below. A registry source that resolves its OWN id
 	// (needs_relationship_field false, resolves independently) is honored here.
@@ -361,7 +361,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 
 	// 3. Ambient term archive → term source (SPEC §V7/§V11). queried_kind captured
 	//    from get_queried_object, NOT $post. Applies to src:ref too: the term is
-	//    the ambient resolved source, so a ref step hops its relationship field
+	//    the ambient resolved source, so a ref step steps its relationship field
 	//    FROM the term (ref I/O table: term → post[]). This FIXES today's leak —
 	//    GB get_id($options,'post') = get_the_ID() = the stale first-loop post on
 	//    an archive (probe 48418), so today src:ref reads a relationship field off
@@ -377,7 +377,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	//     $post — the author archive's $post leaks the first authored row. Entity
 	//     kind: carries an id, user-field reads via 'user_' . $id. Explicit src /
 	//     loop already returned above; only a bare tag on an author archive reaches
-	//     here. src:ref keeps its meaning (falls through — no user ref hop yet).
+	//     here. src:ref keeps its meaning (falls through — no user relationship step yet).
 	if ( 'user' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
 		return array( 'kind' => 'user', 'id' => (int) $signals['queried_id'] );
 	}
@@ -558,7 +558,7 @@ function bws_factory_current_post_id( array $options, $instance ) {
  *
  * @since 1.14.0
  * @param array $step   The step ( 'type', 'field'/'slug' ).
- * @param array $source The resolved source being hopped from.
+ * @param array $source The resolved source being stepped from.
  * @return mixed Raw field value (ref) or WP_Term[] (srcTermIn); '' / array() on miss.
  */
 if ( ! function_exists( 'bws_pipeline_default_reader' ) ) {

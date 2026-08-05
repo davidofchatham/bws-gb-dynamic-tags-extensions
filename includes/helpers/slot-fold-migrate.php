@@ -9,7 +9,7 @@
  *
  * ONE MAPPING, NOT A SECOND ONE. The legacy→folded rules — which absences mean inherit,
  * where a legacy `limit` attaches, which shapes map to nothing — live in
- * bws_fold_from_legacy() (slot-fold.php) and are shared with the render dual-read and the
+ * bws_fold_from_flat() (slot-fold.php) and are shared with the render dual-read and the
  * editor. This file is only the WIRE-LEVEL adapter around it: pick the container's
  * parameters, strip the keys the mapper consumed, emit the folded values, canonicalize
  * the order.
@@ -19,7 +19,7 @@
  * and MigrationRegistry matches `match_tag` by exact string — so container-ness is known
  * at REGISTRATION time. There is deliberately no base-tag callback here yet: nothing
  * COMPILES a chain into traversal steps. Both wire→steps assemblers read the flat keys
- * and cap out at one ref hop plus one term hop (bws_field_values_assemble_steps in
+ * and cap out at one relationship step plus one term step (bws_field_values_assemble_steps in
  * field-helpers.php, bws_wrapper_ref_steps in base-shared.php), so a depth-0
  * `src:refs,office` would parse as an unknown source token. Migrating a base tag would
  * write wire the renderer cannot resolve. It lands with the chain→steps compiler.
@@ -116,7 +116,7 @@ function bws_fold_migration_multislot_tags(): array {
  * @return string[] Option keys, slot order.
  */
 function bws_fold_migration_slot_keys( array $cfg ): array {
-	$axes = bws_fold_slot_legacy_axes( (array) ( $cfg['tag_level'] ?? array() ) );
+	$axes = bws_fold_slot_flat_axes( (array) ( $cfg['tag_level'] ?? array() ) );
 	$keys = array();
 	for ( $n = 1; $n <= (int) $cfg['max']; $n++ ) {
 		$prefix = ( 1 === $n ) ? '' : "{$n}-";
@@ -171,7 +171,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 	for ( $n = 1; $n <= (int) $cfg['max']; $n++ ) {
 		$prefix  = ( 1 === $n ) ? '' : "{$n}-";
 		$present = array();
-		foreach ( BWS_FOLD_LEGACY_AXES as $axis ) {
+		foreach ( BWS_FOLD_FLAT_AXES as $axis ) {
 			if ( array_key_exists( $prefix . $axis, $slot_src ) ) {
 				$present[] = $prefix . $axis;
 			}
@@ -198,7 +198,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 			continue;
 		}
 
-		$rec = bws_fold_from_legacy( $n, $slot_src, ! empty( $cfg['combining'] ), ! empty( $cfg['per_slot_use'] ) );
+		$rec = bws_fold_from_flat( $n, $slot_src, ! empty( $cfg['combining'] ), ! empty( $cfg['per_slot_use'] ) );
 		if ( null === $rec ) {
 			continue;
 		}
@@ -353,7 +353,7 @@ function bws_fold_migration_base_tags(): array {
  */
 function bws_migrate_src_chain_slots( string $tag_string ): string {
 	$reg = 'BWS\DynamicTags\MigrationRegistry';
-	if ( ! class_exists( $reg ) || ! function_exists( 'bws_fold_from_legacy' ) ) {
+	if ( ! class_exists( $reg ) || ! function_exists( 'bws_fold_from_flat' ) ) {
 		return $tag_string;
 	}
 

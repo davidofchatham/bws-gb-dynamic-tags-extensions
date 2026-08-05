@@ -17,7 +17,7 @@
  * Load-bearing properties, each with the reason it exists:
  *
  * - **ONE grammar owner.** The spike carried FOUR copies of these constants and
- *   all four sat on a superseded hop char at once. This file is the PHP owner;
+ *   all four sat on a superseded step char at once. This file is the PHP owner;
  *   `assets/js/slot-fold-grammar.js` is its unavoidable twin (different language,
  *   so agreement must be TESTED, not assumed) and carries no independent decisions.
  * - **Bracket ALTERNATION by depth, never a pinned char.** `limit` sits one level
@@ -31,7 +31,7 @@
  *   depth, `,` as an opt separator, and both `0`/`-1` for unlimited; emit
  *   re-canonicalizes on the next control commit. `+` and `/` are RESERVED — NOT
  *   leniently accepted, because a lenient class SPENDS the char: binding it to
- *   `hop` now would silently change what already-saved wires mean if it is ever
+ *   `step` now would silently change what already-saved wires mean if it is ever
  *   given a job. They are ordinary CONTENT inside a value.
  * - **Reserved/grammar chars are INERT inside values.** `+ / ; , ( )` in an
  *   author's `format`/`fallback`/`label` text are content, never grammar — shipped
@@ -63,17 +63,17 @@ const BWS_FOLD_OPT_SEP = ';';
 /** Lenient accept set at token level (`,` forgiven; depth disambiguates it from a step sep). */
 const BWS_FOLD_OPT_CLASS = array( ';', ',' );
 /** Canonical separator between chain steps. */
-const BWS_FOLD_HOP_SEP = ';';
+const BWS_FOLD_STEP_SEP = ';';
 /** STRICT — `;` only. See the reserved-char note in the file header. */
-const BWS_FOLD_HOP_CLASS = array( ';' );
+const BWS_FOLD_STEP_CLASS = array( ';' );
 /** Canonical separator inside one chain step (slug, arg, limit token). */
-const BWS_FOLD_STEP_SEP = ',';
+const BWS_FOLD_PART_SEP = ',';
 /**
- * STRICT — `,` only. Narrowed when `;` became the canonical hop char: hop and step
+ * STRICT — `,` only. Narrowed when `;` became the canonical step char: step and step
  * share a position (both inside the chain), so `;` can no longer be forgiven as a
  * step separator. Machine-checked by bws_fold_grammar_validate().
  */
-const BWS_FOLD_STEP_CLASS = array( ',' );
+const BWS_FOLD_PART_CLASS = array( ',' );
 /** Accepted bracket pairs, in alternation order: level 1 `()`, level 2 `[]`. */
 const BWS_FOLD_BR_PAIRS = array( '(' => ')', '[' => ']' );
 /** Chars held UNSPENT — never separators, always content. */
@@ -93,7 +93,7 @@ const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLi
 /**
  * Option names whose values are ARBITRARY AUTHOR TEXT. Their content is escaped on
  * emit / unescaped on parse for the GB layer, and grammar chars inside them are
- * inert — a `/` in `Date/time TBA` is not a hop.
+ * inert — a `/` in `Date/time TBA` is not a step.
  */
 const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' );
 
@@ -171,7 +171,7 @@ function bws_slot_ordinal_num( string $key ): int {
 }
 
 /**
- * The LEGACY per-slot option axes, i.e. exactly the keys bws_fold_from_legacy() reads
+ * The LEGACY per-slot option axes, i.e. exactly the keys bws_fold_from_flat() reads
  * (bare for slot 1, `{N}-`-prefixed for slots ≥2). Declared as data because the migrator
  * has to STRIP the same set the mapper CONSUMES, and two hand-written lists is how a
  * dropped axis becomes silent data loss.
@@ -182,7 +182,7 @@ function bws_slot_ordinal_num( string $key ): int {
  *
  * @since 1.17.0
  */
-const BWS_FOLD_LEGACY_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' );
+const BWS_FOLD_FLAT_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' );
 
 /**
  * Legacy `src` VALUES the fold must refuse to fold — the four retired source tokens.
@@ -218,17 +218,17 @@ const BWS_FOLD_RETIRED_SRC_TOKENS = array(
  * THE SINGLE OWNER OF THAT SUBTRACTION, because three places need the same answer and
  * they must not each compute it: the converter migrator strips these keys
  * (bws_fold_migration_slot_keys), the registered fold config ships them to the editor as
- * `legacyAxes` (bws_build_fold_slot_options), and the editor's mount migrator + control
+ * `flatAxes` (bws_build_fold_slot_options), and the editor's mount migrator + control
  * read that config to decide which siblings to fold and delete. A control that kept its
  * own list deleted the tag-level `limit` off a `try_text` and the tag-level `key` off a
  * `try_datetime_single` the first time a slot was touched.
  *
  * @since 1.17.0
  * @param string[] $tag_level Axes this container owns at TAG level (never per slot).
- * @return string[] Per-slot axes, in BWS_FOLD_LEGACY_AXES order.
+ * @return string[] Per-slot axes, in BWS_FOLD_FLAT_AXES order.
  */
-function bws_fold_slot_legacy_axes( array $tag_level = array() ): array {
-	return array_values( array_diff( BWS_FOLD_LEGACY_AXES, $tag_level ) );
+function bws_fold_slot_flat_axes( array $tag_level = array() ): array {
+	return array_values( array_diff( BWS_FOLD_FLAT_AXES, $tag_level ) );
 }
 
 /**
@@ -303,8 +303,8 @@ function bws_fold_bracket_pair( int $level ): array {
  *
  * THE safety condition for lenient accept classes: roles are disambiguated by
  * POSITION, so two classes may overlap across positions (opt and step both once
- * accepted `,;`) but must be disjoint WITHIN one. hop and step share a position.
- * This caught the `;`-hop change putting `;` in two same-position classes.
+ * accepted `,;`) but must be disjoint WITHIN one. step and step share a position.
+ * This caught the `;`-step change putting `;` in two same-position classes.
  *
  * @return string[] Violation strings; empty array = safe.
  */
@@ -312,13 +312,13 @@ function bws_fold_grammar_validate(): array {
 	$bad    = array();
 	$br_all = array_merge( array_keys( BWS_FOLD_BR_PAIRS ), array_values( BWS_FOLD_BR_PAIRS ) );
 
-	if ( array_intersect( BWS_FOLD_HOP_CLASS, BWS_FOLD_STEP_CLASS ) ) {
+	if ( array_intersect( BWS_FOLD_STEP_CLASS, BWS_FOLD_PART_CLASS ) ) {
 		$bad[] = 'hop_class ∩ step_class ≠ ∅';
 	}
 	$classes = array(
 		'opt_class'  => BWS_FOLD_OPT_CLASS,
-		'hop_class'  => BWS_FOLD_HOP_CLASS,
-		'step_class' => BWS_FOLD_STEP_CLASS,
+		'hop_class'  => BWS_FOLD_STEP_CLASS,
+		'step_class' => BWS_FOLD_PART_CLASS,
 	);
 	foreach ( $classes as $name => $class ) {
 		if ( array_intersect( $class, $br_all ) ) {
@@ -330,8 +330,8 @@ function bws_fold_grammar_validate(): array {
 	}
 	$canon = array(
 		'opt_sep'  => array( BWS_FOLD_OPT_SEP, BWS_FOLD_OPT_CLASS ),
-		'hop_sep'  => array( BWS_FOLD_HOP_SEP, BWS_FOLD_HOP_CLASS ),
-		'step_sep' => array( BWS_FOLD_STEP_SEP, BWS_FOLD_STEP_CLASS ),
+		'hop_sep'  => array( BWS_FOLD_STEP_SEP, BWS_FOLD_STEP_CLASS ),
+		'step_sep' => array( BWS_FOLD_PART_SEP, BWS_FOLD_PART_CLASS ),
 	);
 	foreach ( $canon as $name => $pair ) {
 		if ( ! in_array( $pair[0], $pair[1], true ) ) {
@@ -376,7 +376,7 @@ function bws_fold_unescape( string $value ): string {
  * structural pair until it closes; the other pair is inert text inside it (so an
  * author can pick the pair their content avoids — `label[Note (TBD]` is legal).
  *
- * Used at all three positions (slot tokens, chain hops, intra-step). It is
+ * Used at all three positions (slot tokens, chain steps, intra-step). It is
  * bracket-aware at the STEP position too, which the spike's naive `preg_split`
  * was not: `limit[5]` survived a naive split only because a bare integer cannot
  * contain a separator, and the moment a step token carries free-form or nested
@@ -501,18 +501,18 @@ function bws_fold_parse_token( string $tok ) {
  * @return array<int,array{slug:string,arg:?string,limit:?string,extra:array}>|array{error:string}
  */
 function bws_fold_parse_chain( string $chain_str ) {
-	$hops = bws_fold_split_depth( $chain_str, BWS_FOLD_HOP_CLASS );
-	if ( isset( $hops['error'] ) ) {
-		return $hops;
+	$step_parts = bws_fold_split_depth( $chain_str, BWS_FOLD_STEP_CLASS );
+	if ( isset( $step_parts['error'] ) ) {
+		return $step_parts;
 	}
 
 	$steps = array();
-	foreach ( $hops as $hop ) {
-		$hop = trim( $hop );
-		if ( '' === $hop ) {
+	foreach ( $step_parts as $step_str ) {
+		$step_str = trim( $step_str );
+		if ( '' === $step_str ) {
 			continue;
 		}
-		$parts = bws_fold_split_depth( $hop, BWS_FOLD_STEP_CLASS );
+		$parts = bws_fold_split_depth( $step_str, BWS_FOLD_PART_CLASS );
 		if ( isset( $parts['error'] ) ) {
 			return $parts;
 		}
@@ -536,14 +536,14 @@ function bws_fold_parse_chain( string $chain_str ) {
 			if ( null === $tok['val'] ) {
 				$positional++;
 				if ( $positional > 1 ) {
-					return array( 'error' => "chain step '$hop': unexpected extra positional token '$part'" );
+					return array( 'error' => "chain step '$step_str': unexpected extra positional token '$part'" );
 				}
 				$step['arg'] = $part;
 				continue;
 			}
 			if ( 'limit' === $tok['name'] ) {
 				if ( ! is_numeric( $tok['val'] ) ) {
-					return array( 'error' => "chain step '$hop': limit '{$tok['val']}' is not numeric" );
+					return array( 'error' => "chain step '$step_str': limit '{$tok['val']}' is not numeric" );
 				}
 				// Both `0` and `-1` are read as unlimited (GB uses `-1`, WP's Query
 				// Loop uses `0`); the STRUCT holds one representation so nothing
@@ -554,7 +554,7 @@ function bws_fold_parse_chain( string $chain_str ) {
 			$step['extra'][] = $part;
 		}
 		if ( '' === $step['slug'] ) {
-			return array( 'error' => "chain step '$hop': missing slug" );
+			return array( 'error' => "chain step '$step_str': missing slug" );
 		}
 		$steps[] = $step;
 	}
@@ -580,21 +580,21 @@ function bws_fold_emit_chain( array $steps, int $enclosing_level = 1 ): string {
 		$segment = $step['slug'];
 		$arg     = $step['arg'] ?? null;
 		if ( null !== $arg && '' !== $arg ) {
-			$segment .= BWS_FOLD_STEP_SEP . $arg;
+			$segment .= BWS_FOLD_PART_SEP . $arg;
 		}
 		$limit = $step['limit'] ?? null;
 		if ( null !== $limit && '' !== $limit ) {
 			// 0 = unlimited and MUST survive as a literal: an author who pinned "all"
 			// silently reverts if a falsy guard drops it. Negative forms normalize to 0.
 			$normalized = (int) $limit;
-			$segment   .= BWS_FOLD_STEP_SEP . 'limit' . $open . ( $normalized < 0 ? 0 : $normalized ) . $close;
+			$segment   .= BWS_FOLD_PART_SEP . 'limit' . $open . ( $normalized < 0 ? 0 : $normalized ) . $close;
 		}
 		foreach ( $step['extra'] ?? array() as $extra ) {
-			$segment .= BWS_FOLD_STEP_SEP . $extra;
+			$segment .= BWS_FOLD_PART_SEP . $extra;
 		}
 		$segments[] = $segment;
 	}
-	return implode( BWS_FOLD_HOP_SEP, $segments );
+	return implode( BWS_FOLD_STEP_SEP, $segments );
 }
 
 // ── Slot value ──────────────────────────────────────────────────────────────
@@ -827,7 +827,7 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  * `limit` attaches to the LAST FANNING step, which is unambiguous because legacy
  * data cannot fan twice (there was no chain syntax before the fold). With no
  * fanning step the chain has nothing to cap, so the limit stays a slot-level
- * token — that case caps a multi-value READ rather than a hop, and is the one
+ * token — that case caps a multi-value READ rather than a step, and is the one
  * meaning a slot-level `limit` still has.
  *
  * @param int   $n            Slot ordinal (1-based).
@@ -841,7 +841,7 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  * @return array{slot:array,legacy:bool}|null Null when this slot holds no legacy
  *                            keys, or when the shipped resolver skips it entirely.
  */
-function bws_fold_from_legacy( int $n, array $options, bool $combining = false, bool $per_slot_use = true ) {
+function bws_fold_from_flat( int $n, array $options, bool $combining = false, bool $per_slot_use = true ) {
 	$prefix = ( 1 === $n ) ? '' : "{$n}-";
 	$src    = trim( (string) ( $options[ "{$prefix}src" ] ?? '' ) );
 	$ref    = trim( (string) ( $options[ "{$prefix}ref" ] ?? '' ) );
@@ -900,7 +900,7 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
 		$chain[] = $step( $src );
 	}
 	if ( '' !== $tax ) {
-		// srcTermIn always FOLLOWS ref: the term hop needs a post input, which the
+		// srcTermIn always FOLLOWS ref: the term step needs a post input, which the
 		// ref step produces (issue #44's order, one global rule in one builder).
 		$chain[] = $step( 'terms', $tax );
 	}
@@ -970,7 +970,7 @@ function bws_fold_from_legacy( int $n, array $options, bool $combining = false, 
  * migration or a hand-edit can leave slot 2 folded between legacy slots 1 and 3, and
  * a reader that picked one era per TAG would drop half of it. So the era is decided
  * PER SLOT — folded value present ⇒ parse it; absent ⇒ recover through
- * bws_fold_from_legacy(). Both feed the same caller-held carry accumulator, which is
+ * bws_fold_from_flat(). Both feed the same caller-held carry accumulator, which is
  * what makes a mixed-era wire resolve as its author last saw it.
  *
  * Malformed folded wire returns null (the slot contributes nothing) rather than
@@ -1000,7 +1000,7 @@ function bws_fold_slot_struct( int $n, array $options, string $container = 'join
 		$parsed = bws_fold_parse_slot( $raw, $container );
 		return isset( $parsed['error'] ) ? null : $parsed;
 	}
-	$rec = bws_fold_from_legacy( $n, $options, bws_fold_is_combining( $container ), $per_slot_use );
+	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
 		return $rec['slot'];
 	}
@@ -1048,18 +1048,18 @@ function bws_fold_empty_slot(): array {
  * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
  * container (skip the slot) and INHERIT in a selecting one.
  *
- * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat triple holds ONE ref hop and ONE term
- * hop; a second relationship hop or a repeater `entries` step (both legal wire, both
+ * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat triple holds ONE ref step and ONE term
+ * step; a second relationship step or a repeater `entries` step (both legal wire, both
  * reachable only by hand-editing) cannot be represented. Rendering the expressible
  * PREFIX would silently read a different source than the wire states, so the slot
  * renders nothing instead.
  *
  * The 1.17.0 chain COMPILER (5h, slot-fold-compile.php) does NOT lift this: it gave the
- * ENGINE arbitrary hops, but a slot's output is produced by its container's ARMS — the
- * term-hop arm, the site arm, the list-mode gate, the ref plural path — and each of them
+ * ENGINE arbitrary steps, but a slot's output is produced by its container's ARMS — the
+ * term-step arm, the site arm, the list-mode gate, the ref plural path — and each of them
  * dispatches on the flat `src`/`srcTermIn` TOKENS this function returns. A chain with no
  * flat spelling has no token to dispatch on, and inventing the nearest one is the
- * truncated-prefix hazard by another route. Slots gain multi-hop chains when those arms
+ * truncated-prefix hazard by another route. Slots gain multi-step chains when those arms
  * dispatch on the chain's TERMINAL STEP KIND instead (the verb-agnostic resolver
  * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
  * bws_field_values_assemble_steps().
@@ -1073,19 +1073,19 @@ function bws_fold_empty_slot(): array {
  * pass nothing and are unaffected.
  *
  * THREE reasons, and the third is the one the fold created: `'step'` is an INCOMPLETE
- * step (a `terms` hop with no taxonomy). Unlike `'chain'` the flat read can express it —
+ * step (a `terms` step with no taxonomy). Unlike `'chain'` the flat read can express it —
  * it just is not finished — and unlike `'read'` it must not be silent, because the
  * alternative to skipping is a plausible WRONG value rather than an empty one.
  *
  * @since 1.17.0
- * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_legacy shape).
+ * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_flat shape).
  * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
  * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`. Derive it
  *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
  *                            combining slot has no read configured; 'chain' when the chain
  *                            has no flat spelling; 'step' when a step is incomplete (a
- *                            `terms` hop with no taxonomy).
+ *                            `terms` step with no taxonomy).
  * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
  *                    null when the slot is skipped (unconfigured / inexpressible).
  */
@@ -1142,10 +1142,10 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 				continue;
 			}
 			if ( 'refs' === $slug ) {
-				// An ARGLESS hop keeps the carried relationship field rather than
+				// An ARGLESS step keeps the carried relationship field rather than
 				// blanking it: shipped `$last_ref` survives every src override, so
-				// `3-src:ref` with no `3-ref` hops through slot 1's field. With nothing
-				// carried it stays empty and the hop is dead — as it is today.
+				// `3-src:ref` with no `3-ref` steps through slot 1's field. With nothing
+				// carried it stays empty and the step is dead — as it is today.
 				$src = 'ref';
 				$ref = ( null !== $arg && '' !== $arg ) ? (string) $arg : $carry['ref'];
 				continue;
@@ -1154,16 +1154,16 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 				$src = $slug;
 				continue;
 			}
-			// A leading `terms` hop reads the AMBIENT entity's terms — src stays unset.
+			// A leading `terms` step reads the AMBIENT entity's terms — src stays unset.
 		}
 
 		if ( 'terms' !== $slug || '' !== $tax ) {
 			$skip_reason = 'chain';
-			return null;   // second term hop, second ref hop, or `entries`: not expressible.
+			return null;   // second term step, second ref step, or `entries`: not expressible.
 		}
 		if ( '' === (string) ( $arg ?? '' ) ) {
-			// A term hop with no TAXONOMY is INCOMPLETE, and flattening it would be
-			// silently wrong: an empty `srcTermIn` is precisely how "no term hop" is
+			// A term step with no TAXONOMY is INCOMPLETE, and flattening it would be
+			// silently wrong: an empty `srcTermIn` is precisely how "no term step" is
 			// spelled, so the slot would read the UN-HOPPED entity and hand the author a
 			// plausible wrong value instead of an obvious empty one. Skip, so the slot
 			// says nothing until the step is finished.
@@ -1173,9 +1173,9 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 			// because an unconfigured read is a resting state). Its own reason, so the
 			// previews can name what is missing.
 			//
-			// Only `terms` gets this. An argless `refs` hop is legitimate — it inherits
+			// Only `terms` gets this. An argless `refs` step is legitimate — it inherits
 			// the carried relationship field (see above) — and the fold is what made an
-			// incomplete step authorable at all: the flat wire had no way to state a hop
+			// incomplete step authorable at all: the flat wire had no way to state a step
 			// without stating its argument.
 			$skip_reason = 'step';
 			return null;

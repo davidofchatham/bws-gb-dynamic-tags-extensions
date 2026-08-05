@@ -210,7 +210,7 @@ check(
 );
 check( 'M4.2 …while the source axes stay, bare and prefixed', in_array( 'src', $dts_keys, true ) && in_array( '5-srcTermIn', $dts_keys, true ), json_encode( $dts_keys ) );
 check( 'M4.3 join keeps limit as a slot key at every position', in_array( 'limit', bws_fold_migration_slot_keys( $join_cfg ), true ) && in_array( '10-limit', bws_fold_migration_slot_keys( $join_cfg ), true ), json_encode( bws_fold_migration_slot_keys( $join_cfg ) ) );
-check( 'M4.4 the key set is exactly axes × slots for the axes owned', count( bws_fold_migration_slot_keys( $text_cfg ) ) === 5 * ( count( BWS_FOLD_LEGACY_AXES ) - 1 ), count( bws_fold_migration_slot_keys( $text_cfg ) ) );
+check( 'M4.4 the key set is exactly axes × slots for the axes owned', count( bws_fold_migration_slot_keys( $text_cfg ) ) === 5 * ( count( BWS_FOLD_FLAT_AXES ) - 1 ), count( bws_fold_migration_slot_keys( $text_cfg ) ) );
 
 // ── M5 — the rewrite ───────────────────────────────────────────────────────
 
@@ -374,7 +374,7 @@ foreach ( (array) ( $corpus['baseSrc'] ?? array() ) as $case ) {
 
 $php_doc = array();
 foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
-	// The corpus speaks the EDITOR's vocabulary (`legacyAxes` — what registration ships
+	// The corpus speaks the EDITOR's vocabulary (`flatAxes` — what registration ships
 	// to the control). The migrator wants the complement, which is the direction the
 	// shipped registration already goes.
 	$cfg = array(
@@ -382,7 +382,7 @@ foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
 		'combining'    => ! empty( $case['conf']['combining'] ),
 		'per_slot_use' => ! empty( $case['conf']['perSlotUse'] ),
 		'max'          => (int) $case['conf']['max'],
-		'tag_level'    => array_values( array_diff( BWS_FOLD_LEGACY_AXES, (array) $case['conf']['legacyAxes'] ) ),
+		'tag_level'    => array_values( array_diff( BWS_FOLD_FLAT_AXES, (array) $case['conf']['flatAxes'] ) ),
 	);
 	$out = bws_fold_migrate_slots( (array) $case['options'], $cfg );
 	if ( null === $out ) {

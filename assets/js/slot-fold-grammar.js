@@ -33,15 +33,15 @@
 
 	var OPT_SEP = ';';
 	var OPT_CLASS = [ ';', ',' ];
-	var HOP_SEP = ';';
+	var STEP_SEP = ';';
 	// STRICT: `;` only. `+` and `/` are RESERVED — a lenient class SPENDS the char,
 	// so accepting one binds it to hop meaning now and would silently change what
 	// already-saved wires mean if it is ever given a job.
-	var HOP_CLASS = [ ';' ];
-	var STEP_SEP = ',';
+	var STEP_CLASS = [ ';' ];
+	var PART_SEP = ',';
 	// STRICT `,`: hop and step share a position (both inside the chain), so `;`
 	// cannot also be forgiven here.
-	var STEP_CLASS = [ ',' ];
+	var PART_CLASS = [ ',' ];
 	var BR_PAIRS = { '(': ')', '[': ']' };
 	var RESERVED = [ '+', '/' ];
 
@@ -228,7 +228,7 @@
 	 * relationship out of a typo.
 	 */
 	function parseChain( chainStr ) {
-		var hops = splitDepth( String( chainStr ), HOP_CLASS );
+		var hops = splitDepth( String( chainStr ), STEP_CLASS );
 		if ( hops.error ) {
 			return hops;
 		}
@@ -238,7 +238,7 @@
 			if ( '' === hop ) {
 				continue;
 			}
-			var parts = splitDepth( hop, STEP_CLASS );
+			var parts = splitDepth( hop, PART_CLASS );
 			if ( parts.error ) {
 				return parts;
 			}
@@ -298,20 +298,20 @@
 		return ( steps || [] ).map( function ( step ) {
 			var segment = step.slug;
 			if ( null !== step.arg && void 0 !== step.arg && '' !== step.arg ) {
-				segment += STEP_SEP + step.arg;
+				segment += PART_SEP + step.arg;
 			}
 			// Guard on null/undefined, NEVER truthiness: `0` means unlimited and must
 			// survive as a literal, or an author who pinned "all" silently reverts the
 			// next time the contextual default changes.
 			if ( null !== step.limit && void 0 !== step.limit && '' !== step.limit ) {
 				var n = parseInt( step.limit, 10 );
-				segment += STEP_SEP + 'limit' + pair[ 0 ] + ( n < 0 ? 0 : n ) + pair[ 1 ];
+				segment += PART_SEP + 'limit' + pair[ 0 ] + ( n < 0 ? 0 : n ) + pair[ 1 ];
 			}
 			( step.extra || [] ).forEach( function ( extra ) {
-				segment += STEP_SEP + extra;
+				segment += PART_SEP + extra;
 			} );
 			return segment;
-		} ).join( HOP_SEP );
+		} ).join( STEP_SEP );
 	}
 
 	/**
@@ -505,7 +505,7 @@
 	 * @return {Object|null} { slot, legacy: true }, or null when there are no legacy
 	 *                       keys or the shipped resolver skips the slot entirely.
 	 */
-	function foldFromLegacy( n, options, combining, perSlotUse ) {
+	function foldFromFlat( n, options, combining, perSlotUse ) {
 		var prefix = ( 1 === n ) ? '' : String( n ) + '-';
 		function read( name ) {
 			var v = options[ prefix + name ];
@@ -683,10 +683,10 @@
 			slotKeyRe: SLOT_KEY_RE.source,
 			optSep: OPT_SEP,
 			optClass: OPT_CLASS,
-			hopSep: HOP_SEP,
-			hopClass: HOP_CLASS,
 			stepSep: STEP_SEP,
 			stepClass: STEP_CLASS,
+			partSep: PART_SEP,
+			partClass: PART_CLASS,
 			brPairs: BR_PAIRS,
 			reserved: RESERVED,
 			types: TYPES,
@@ -704,7 +704,7 @@
 		emitChain: emitChain,
 		parseSlot: parseSlot,
 		emitSlot: emitSlot,
-		foldFromLegacy: foldFromLegacy,
+		foldFromFlat: foldFromFlat,
 		slotKey: slotKey,
 		slotOrdinal: slotOrdinal,
 		// Depth-0 chain questions, twinned with slot-fold-compile.php. Exported so the

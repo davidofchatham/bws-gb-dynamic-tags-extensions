@@ -6,7 +6,7 @@
 		"instead of writing two different wires for one tag.",
 		"",
 		"`conf` speaks the EDITOR's vocabulary — it is the `fold` config PHP registration",
-		"ships to the control, `legacyAxes` included. The PHP driver converts back to the",
+		"ships to the control, `flatAxes` included. The PHP driver converts back to the",
 		"migrator's `tag_level` (the complement), which is the direction the shipped code",
 		"already goes.",
 		"",
@@ -20,7 +20,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -44,7 +44,7 @@
 				"combining": true,
 				"perSlotUse": true,
 				"max": 10,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -67,7 +67,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -88,7 +88,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -107,7 +107,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -127,7 +127,7 @@
 				"combining": false,
 				"perSlotUse": false,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn"
@@ -146,7 +146,7 @@
 				"combining": false,
 				"perSlotUse": false,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -165,7 +165,7 @@
 				"combining": true,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -187,7 +187,7 @@
 				"combining": true,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -208,7 +208,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -228,7 +228,7 @@
 				"combining": true,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -250,7 +250,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -272,7 +272,7 @@
 				"combining": false,
 				"perSlotUse": false,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn"
@@ -290,7 +290,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -311,7 +311,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -338,7 +338,7 @@
 				"combining": false,
 				"perSlotUse": true,
 				"max": 5,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",
@@ -363,7 +363,7 @@
 				"combining": true,
 				"perSlotUse": true,
 				"max": 10,
-				"legacyAxes": [
+				"flatAxes": [
 					"src",
 					"ref",
 					"srcTermIn",

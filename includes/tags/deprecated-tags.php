@@ -1756,7 +1756,7 @@ function bws_register_option_migrations(): void {
 	// not read its existence as evidence such wire was found.
 	//
 	// BEFORE the fold entry, and here the ordering is not merely conventional: `rel` is
-	// NOT in BWS_FOLD_LEGACY_AXES, so the fold neither folds nor strips it. A `2-rel` that
+	// NOT in BWS_FOLD_FLAT_AXES, so the fold neither folds nor strips it. A `2-rel` that
 	// survives into a folded tag is orphaned permanently — no later pass can see it.
 
 	// Modifier (term_) tags. Derived from the registered templates so a template added

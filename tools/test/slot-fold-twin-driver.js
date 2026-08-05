@@ -117,10 +117,10 @@ const doc = {
 	grammar: {
 		optSep: g.optSep,
 		optClass: g.optClass,
-		hopSep: g.hopSep,
-		hopClass: g.hopClass,
 		stepSep: g.stepSep,
 		stepClass: g.stepClass,
+		partSep: g.partSep,
+		partClass: g.partClass,
 		brPairs: Object.keys( g.brPairs ).map( function ( open ) {
 			return [ open, g.brPairs[ open ] ];
 		} ),
@@ -153,7 +153,7 @@ const doc = {
 		return { emit: wire, reparse: canonSlot( fold.parseSlot( wire, 'table' ) ) };
 	} ),
 	legacy: corpus.legacy.map( function ( c ) {
-		const rec = fold.foldFromLegacy( c.n, c.options, c.combining, c.perSlotUse );
+		const rec = fold.foldFromFlat( c.n, c.options, c.combining, c.perSlotUse );
 		return {
 			slot: null === rec ? null : canonSlot( rec.slot ),
 			emit: null === rec ? null : fold.emitSlot( rec.slot )

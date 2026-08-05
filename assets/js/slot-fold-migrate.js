@@ -7,14 +7,14 @@
  * are reachable ONLY here — an author who opens a widget's tag modal is the only event
  * that can migrate it. Conversely the scanner reaches drafts and templates nobody
  * opens. Both paths run the SAME rules, which is why this file is a twin rather than a
- * second implementation: `bwsSlotFold.foldFromLegacy` (the grammar owner's twin) makes
+ * second implementation: `bwsSlotFold.foldFromFlat` (the grammar owner's twin) makes
  * every legacy→folded decision, and what remains here is the wire-level adapter —
  * strip, emit, canonicalize — mirroring bws_fold_migrate_slots().
  *
  * NO TAG-NAME TABLE HERE. The PHP migrator matches by tag name because
  * MigrationRegistry does; the editor instead reads the `fold` config off the option
  * definition GB hands to the filter, so a container's parameters — including which
- * legacy axes are per-slot at all (`legacyAxes`) — arrive DERIVED from registration.
+ * legacy axes are per-slot at all (`flatAxes`) — arrive DERIVED from registration.
  * Nothing in this file knows that `try_text` exists.
  *
  * MODAL-CONFIRM BOUNDARY. `setState` writes the modal's draft state, so a mount
@@ -43,7 +43,7 @@
 	/**
 	 * The legacy per-slot axes this container owns.
 	 *
-	 * PHP-DERIVED (`legacyAxes`, from bws_fold_slot_legacy_axes). The fallback is the
+	 * PHP-DERIVED (`flatAxes`, from bws_fold_slot_flat_axes). The fallback is the
 	 * full set, matching an unfiltered container: an absent list is a REGISTRATION bug,
 	 * and folding too much is visible immediately, whereas folding nothing looks like
 	 * "no legacy wire here" and silently strands it.
@@ -52,7 +52,7 @@
 	 * @return {Array} Axis names.
 	 */
 	function slotAxes( conf ) {
-		var axes = conf && conf.legacyAxes;
+		var axes = conf && conf.flatAxes;
 		return ( axes && axes.length ) ? axes : [ 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ];
 	}
 
@@ -60,9 +60,9 @@
 	 * Legacy `src` VALUES this container must refuse to fold.
 	 *
 	 * PHP-DERIVED (`retiredSrc`, from BWS_FOLD_RETIRED_SRC_TOKENS) for the same reason
-	 * `legacyAxes` is: a hand-kept copy of a rule the renderer owns is how the two paths
+	 * `flatAxes` is: a hand-kept copy of a rule the renderer owns is how the two paths
 	 * drift. The fallback is EMPTY, not the full list, and that direction is deliberate —
-	 * unlike `legacyAxes`, declining too much would silently stop migrating every slot,
+	 * unlike `flatAxes`, declining too much would silently stop migrating every slot,
 	 * which reads as "no legacy wire here". An absent list is a registration bug, and the
 	 * worst it costs is the pre-#56 behaviour on a token that barely exists.
 	 *
@@ -172,7 +172,7 @@
 				continue;
 			}
 
-			var rec = fold.foldFromLegacy( n, src, !! conf.combining, false !== conf.perSlotUse );
+			var rec = fold.foldFromFlat( n, src, !! conf.combining, false !== conf.perSlotUse );
 			if ( ! rec || ! rec.slot ) {
 				continue;
 			}

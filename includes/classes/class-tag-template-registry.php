@@ -83,7 +83,7 @@ class TagTemplateRegistry {
 	 *
 	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
 	 * after trailing field/fallback options. Entity type for URL resolution is determined by
-	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn hop.
+	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn step.
 	 * Templates without supports_link_wrap (content, permalink, image) never receive link options.
 	 *
 	 * @since 1.6.0
@@ -137,7 +137,7 @@ class TagTemplateRegistry {
 		$link_options = function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array();
 
 		// Detect term-context base source. Term entities are themselves terms — `srcTermIn`
-		// (term-hop on the resolved post) only makes sense after a post traversal (src=ref),
+		// (term-step on the resolved post) only makes sense after a post traversal (src=ref),
 		// not when the entity already IS the term (src=current).
 		$base_src_obj         = $base_src_key ? SourceRegistry::get_source( $base_src_key ) : null;
 		$base_is_term_context = $base_src_obj && 'term' === $base_src_obj->get_context_type();
@@ -211,7 +211,7 @@ class TagTemplateRegistry {
 	 *
 	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
 	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →
-	 * PortalSource post-kind), then hops `src:ref` through the generic `ref` step —
+	 * PortalSource post-kind), then steps `src:ref` through the generic `ref` step —
 	 * the per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
 	 * is no longer invoked. `$traversal_src_key` is ACCEPTED-BUT-IGNORED: kept in the
 	 * signature so register_modifier() (and external callers like bws-portal-system)
@@ -267,7 +267,7 @@ class TagTemplateRegistry {
 
 			// srcTermIn dispatch: resolve target post (current or via ref), then call term_fn
 			// against each taxonomy term on that post; first non-empty wins. Mirrors
-			// bws_base_image_callback's term-hop loop. For term-context base sources, the
+			// bws_base_image_callback's term-step loop. For term-context base sources, the
 			// option is hidden when src=current (UI gating), so this only runs when src=ref.
 			// Returns [ 'value' => string, 'term_id' => int ] so caller can apply link wrap.
 			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {
@@ -292,7 +292,7 @@ class TagTemplateRegistry {
 
 			// L1 — resolve the modifier's BASE resolved source via base_src_key (SPEC
 			// §V5): term_ → TaxonomyTerm (term kind), view_ → PortalSource (post kind).
-			// The pipeline engine then hops it; traversal_src_key is accepted-but-
+			// The pipeline engine then steps it; traversal_src_key is accepted-but-
 			// IGNORED (SPEC §V5 — portal still passes it, we never read it). The old
 			// per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
 			// is replaced by the generic `ref` step off this base source.
@@ -302,9 +302,9 @@ class TagTemplateRegistry {
 			$base_source = $base_id ? array( 'kind' => $base_kind, 'id' => $base_id ) : array();
 
 			if ( 'ref' === $source ) {
-				// Traversal: hop the base source's relationship field → post[] via the
+				// Traversal: step the base source's relationship field → post[] via the
 				// generic ref step (SPEC §V5/§V6). Modifier link semantics are single-
-				// valued, so collapse to the first post id after the hop.
+				// valued, so collapse to the first post id after the step.
 				$ref_field = $opts['ref'] ?? '';
 				$entity_id = 0;
 				if ( $base_source && '' !== $ref_field && function_exists( 'bws_run_traversal' ) ) {
@@ -443,7 +443,7 @@ class TagTemplateRegistry {
 	 *     accumulator: ambient source, and the template's stripped first `use` value.
 	 *   - A slot that does NOT resolve never feeds the accumulator, so a half-configured
 	 *     slot cannot re-point a later slot's inherit.
-	 *   - The term hop is the exception: it names THIS slot's entity and never carries.
+	 *   - The term step is the exception: it names THIS slot's entity and never carries.
 	 *   - Wire era is decided PER SLOT — a folded value parses, an absent one is
 	 *     recovered from that slot's legacy keys — so a half-migrated tag resolves.
 	 *
@@ -521,8 +521,8 @@ class TagTemplateRegistry {
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
 			// axis, and the control renders whichever shape the derived config describes.
 			//
-			// `hops` is a CAPABILITY list: a slot FLATTENS to one ref hop plus one term
-			// hop, and `ref` is already a SOURCE row, so the term hop is the only step
+			// `steps` is a CAPABILITY list: a slot FLATTENS to one ref step plus one term
+			// step, and `ref` is already a SOURCE row, so the term step is the only step
 			// try_ can continue a chain with. Offering more would author wire the slot path
 			// cannot dispatch (bws_fold_slot_flat_options skips such a slot; its docblock
 			// carries why the 1.17.0 chain compiler does not lift that — the ARMS gate on
@@ -545,7 +545,7 @@ class TagTemplateRegistry {
 						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
-						'hops'            => [ 'srcTermIn' ],
+						'steps'            => [ 'srcTermIn' ],
 						// The axes that are TAG-level on this template, so the editor's
 						// mount migrator and the control leave them alone at every slot
 						// position — same split, same owner, as the trailing-option strip
@@ -584,7 +584,7 @@ class TagTemplateRegistry {
 			}
 
 			// List-mode chain options (try_list_options templates: text, title). A winning
-			// slot in list mode (any slot with a srcTermIn term-hop, or src:ref once the
+			// slot in list mode (any slot with a srcTermIn term-step, or src:ref once the
 			// Phase-5 plural resolver lands) joins its finished items via the seam
 			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
 			// not per-slot) — the seam reads them off $opts. Mirrors the base text tag's
@@ -670,7 +670,7 @@ class TagTemplateRegistry {
 					}
 					$flat = bws_fold_slot_flat_options( $slot, $carry, false );
 					if ( null === $flat ) {
-						continue;   // chain the flat seam cannot express (second hop, repeater rows).
+						continue;   // chain the flat seam cannot express (second step, repeater rows).
 					}
 
 					// The seam speaks the wire's vocabulary — an unset source. The arms
@@ -684,7 +684,7 @@ class TagTemplateRegistry {
 					// Build slot-specific options (merged into core fn call).
 					// src/ref/srcTermIn are ALWAYS written, `srcTermIn` even when empty:
 					// $eval_opts still carries any bare legacy `srcTermIn` off a
-					// half-migrated tag, and bws_resolve_field_values appends a term hop
+					// half-migrated tag, and bws_resolve_field_values appends a term step
 					// for whatever it finds there — which is how slot 1's taxonomy used to
 					// leak into every later slot's read, contradicting "srcTermIn does not
 					// carry forward". Writing '' closes that.
@@ -759,7 +759,7 @@ class TagTemplateRegistry {
 								}
 								if ( $slot_max && count( $items ) >= $slot_max ) {
 									break; // Enough to satisfy limit — stop hopping terms.
-									// $slot_max 0 = UNLIMITED: never break early, hop every term.
+									// $slot_max 0 = UNLIMITED: never break early, step every term.
 								}
 							}
 							if ( $items ) {
@@ -813,7 +813,7 @@ class TagTemplateRegistry {
 					// a term archive resolves to the ambient TERM — the slot must read the
 					// term analog exactly as the standalone base tag does (T6), else try_
 					// is not transparent to the slot's own resolution (I6/C9). Fires ONLY
-					// for src:current (ref hops term→post via the post arm, V11; site handled
+					// for src:current (ref steps term→post via the post arm, V11; site handled
 					// above; srcTermIn handled above). Uses the template's existing try_term_fn
 					// ($tcf) — same term core the srcTermIn arm calls, no fork change (V8).
 					if ( 'current' === $last_src && $tcf && function_exists( 'bws_resolve_base_source' ) && function_exists( 'bws_base_ambient_term_id' ) ) {

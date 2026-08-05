@@ -13,8 +13,8 @@
  *     resolves the ambient/explicit base resolved source: loop row → ambient term
  *     (term archive) → current post, or an explicit `src:site` / registry source.
  *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
- *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship hop,
- *     plural), `srcTermIn` a term-hop step; run through `bws_run_traversal()`.
+ *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship step,
+ *     plural), `srcTermIn` a term-step step; run through `bws_run_traversal()`.
  *   L2 read — dispatched by resolved-source KIND (post → post cores /
  *     bws_read_field, term → term cores / bws_read_term_field, site → option read).
  *
@@ -637,7 +637,7 @@ function bws_register_base_tags(): void {
  * Resolve the `text` base tag's VALUE — the full read path minus link-wrap
  * and preview fallback.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches to the appropriate core function based on `use`:
  *
  * srcTerm + use unset   → bws_term_custom_text_core() (per-term; limit/sep applied)
@@ -831,7 +831,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * The slot definitions come from bws_build_fold_slot_options(), which derives every
  * enum and label from the shipped builders and hands them to the `bws-slot-fold`
  * repeater control. Join supplies the container facts: combining, site arm allowed,
- * one term hop, no read-inherit row, and the slot noun.
+ * one term step, no read-inherit row, and the slot noun.
  *
  * WHAT THE FOLD REPLACED, and why the reveal machinery went with it: through 1.16.x
  * this registered SIX flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/
@@ -883,9 +883,9 @@ function bws_get_join_options(): array {
 				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
 				// honors a hand-written one, it just has no UI row until handlers ship).
 				'allow_same_read' => false,
-				// The flat render seam expresses one term hop; a second relationship hop
+				// The flat render seam expresses one term step; a second relationship step
 				// is FW-32 work, so it is not offered.
-				'hops'            => array( 'srcTermIn' ),
+				'steps'            => array( 'srcTermIn' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
@@ -955,7 +955,7 @@ function bws_get_join_options(): array {
  * ('' / `same` src = prior resolved source), the read never inherits unless the wire
  * says `use(same)`, a read-less slot is unconfigured and is skipped BEFORE it can feed
  * the accumulator, and a carried `ref` survives a non-ref source override (inert
- * there, but a later slot hopping back to the same relationship needs it).
+ * there, but a later slot stepping back to the same relationship needs it).
  *
  * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
  * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
@@ -1002,7 +1002,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		}
 
 		// Thread the editor's injected post id into every post-based slot (see
-		// $explicit_id note). src:ref bases its hop on this id too (the current
+		// $explicit_id note). src:ref bases its step on this id too (the current
 		// post is the ref origin), so it must carry. Only src:site is entity-blind
 		// — it reads an option, never a post — so the id is left off there.
 		if ( '' !== $explicit_id && 'site' !== ( $slot_opts['src'] ?? '' ) ) {
@@ -1035,7 +1035,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `content` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
  * srcTerm + use unset   → bws_term_description_core() (first non-empty term)
@@ -1115,7 +1115,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `title` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set.
+ * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm iterates terms with limit/sep applied.
  *
  * @since 1.6.0
@@ -1230,7 +1230,7 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `permalink` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set.
+ * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm returns first non-empty term URL.
  *
  * @since 1.6.0
@@ -1267,7 +1267,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `image` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
  * srcTerm              → bws_term_custom_image_core() (first non-empty term)

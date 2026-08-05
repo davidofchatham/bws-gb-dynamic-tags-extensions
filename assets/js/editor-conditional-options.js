@@ -22,7 +22,7 @@
  *   'not:value'       — other option does NOT equal 'value'
  *   'in:v1,v2,...'    — other option equals any value in the comma-separated list
  *   'not_in:v1,v2,..' — other option equals none of the values in the list
- *   'chain_fans'      — other option holds a SOURCE CHAIN that hops (see below)
+ *   'chain_fans'      — other option holds a SOURCE CHAIN that steps (see below)
  *   ['a', 'b', ...]   — ANY entry passes (OR). Entries are full conditions, not
  *                       only literals, so one key can carry a literal and a
  *                       predicate together: [ 'ref', 'chain_fans' ]
@@ -53,9 +53,9 @@
 	 * reveal predicate runs while the author is still typing the source.
 	 *
 	 * Mirrors the PHP rule exactly, including the two edges that look like
-	 * oversights and are not: a bare fanning slug (`src:refs`) IS a one-hop chain,
+	 * oversights and are not: a bare fanning slug (`src:refs`) IS a one-step chain,
 	 * and a step at position 0 counts only when its slug fans, because otherwise it
-	 * is the chain's ROOT rather than a hop.
+	 * is the chain's ROOT rather than a step.
 	 *
 	 * @param {*} raw The `src` option value.
 	 * @return {boolean}

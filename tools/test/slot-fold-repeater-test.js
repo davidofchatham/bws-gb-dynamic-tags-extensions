@@ -279,7 +279,7 @@ INTENT.forEach( function ( c ) {
 // behind produces a MIXED wire — the shape a half-applied migration makes, which
 // the renderer must flag rather than merge.
 //
-// The surface is CONTAINER-DERIVED (`legacyAxes`, from PHP), and the reason is a bug
+// The surface is CONTAINER-DERIVED (`flatAxes`, from PHP), and the reason is a bug
 // this harness now pins: on a try_ template a bare `limit` is the TAG-level cap for
 // every slot, and on the read-less shapes a bare `use`/`key` is a TAG-level option
 // too. A control that listed the six axes itself deleted them on first touch, and
@@ -292,7 +292,7 @@ check( 'slot 1 legacy keys are UNPREFIXED', slot1Cleared, 'key,limit,ref,src,src
 const TRY_TEXT = rep.foldConfig( {
 	fold: {
 		container: 'try', combining: false, perSlotUse: true, min: 2, max: 5,
-		legacyAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ]
+		flatAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ]
 	}
 } );
 check(
@@ -304,7 +304,7 @@ check(
 const TRY_DATETIME = rep.foldConfig( {
 	fold: {
 		container: 'try', combining: false, perSlotUse: false, min: 2, max: 5,
-		legacyAxes: [ 'src', 'ref', 'srcTermIn' ]
+		flatAxes: [ 'src', 'ref', 'srcTermIn' ]
 	}
 } );
 check(
@@ -355,7 +355,7 @@ check( 'argKind: an unknown slug takes no arg', rep.argKind( HOPS, 'sideways' ),
 // mixed the vocabularies, and it must not round-trip into a kind.
 check( 'argKind: an engine option value is not a wire slug', rep.argKind( HOPS, 'srcTermIn' ), '' );
 // Derived means DEPENDENT: with no map on the option definition, no hop takes an arg and
-// every step renders bare. Same posture as `legacyAxes` in the migrate twin — an absent
+// every step renders bare. Same posture as `flatAxes` in the migrate twin — an absent
 // list is a REGISTRATION bug, not a shape to tolerate — and asserted so the dependency is
 // visible rather than discovered in the editor.
 const NO_MAP = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10 } } );

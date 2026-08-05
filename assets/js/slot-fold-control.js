@@ -58,7 +58,7 @@
 
 	// ── Layout ───────────────────────────────────────────────────────────────
 	// The box marks a GROUP (the whole source chain / the whole field picker), not an
-	// individual step: boxing each step made a multi-hop chain read as N peer objects
+	// individual step: boxing each step made a multi-step chain read as N peer objects
 	// rather than one path, and stacked three borders deep once the field filters
 	// landed. Nesting reads by WEIGHT instead — slot rule 2px > step rule 1px.
 	// No marginBottom anywhere: the modal content column already applies a 15px
@@ -112,7 +112,7 @@
 			noun: c.noun || '',
 			srcRows: c.srcRows || [],
 			srcRowsInherit: c.srcRowsInherit || [],
-			hopRows: c.hopRows || [],
+			stepRows: c.stepRows || [],
 			readRows: c.readRows || [],
 			readRowsInherit: c.readRowsInherit || [],
 			readLabel: c.readLabel || '',
@@ -121,11 +121,11 @@
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
 			entriesOption: c.entriesOption || null,
-			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_legacy_axes) — this
+			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_flat_axes) — this
 			// control never lists them. A hand-kept list deleted a try_ template's
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
 			// touch, because both are spelled exactly like slot 1's axes.
-			legacyAxes: c.legacyAxes || [],
+			flatAxes: c.flatAxes || [],
 			// Which tag-level option names the repeater a row-scoped picker narrows to.
 			// The control passes its VALUE down as an explicit `scopeKey` prop rather
 			// than letting the picker reach outward for a bare `key` — under the fold
@@ -152,14 +152,14 @@
 	}
 
 	/**
-	 * What ARG a wire hop slug takes, named in the ENGINE vocabulary the PHP-supplied
+	 * What ARG a wire step slug takes, named in the ENGINE vocabulary the PHP-supplied
 	 * `slugMap` already defines (`refs` → `ref`, `terms` → `srcTermIn`, `entries` →
 	 * `rows`). Derived, not re-typed: this used to return a local `'taxonomy'` — a THIRD
 	 * spelling of a slug that exists twice already — and then switch on it, which is the
 	 * hand-authored vocabulary the config exists to remove.
 	 *
-	 * '' means the slug takes no arg (or is not a hop at all), which is what gates the
-	 * Add-hop row. The round-trip test is what makes an unknown slug answer '' rather
+	 * '' means the slug takes no arg (or is not a step at all), which is what gates the
+	 * Add-step row. The round-trip test is what makes an unknown slug answer '' rather
 	 * than itself, since toEngine() passes unknowns straight through.
 	 */
 	function argKind( conf, slug ) {
@@ -176,8 +176,8 @@
 	//
 	// THE PROMISE IS THE SEAM'S, NOT THIS CONTROL'S. "Will be skipped" is true because
 	// bws_fold_slot_flat_options() skips an incomplete slot — including, since the
-	// `'step'` reason landed, a `terms` hop with no taxonomy. Before that it flattened
-	// such a hop to an empty `srcTermIn`, which is how "no term hop" is spelled, so the
+	// `'step'` reason landed, a `terms` step with no taxonomy. Before that it flattened
+	// such a step to an empty `srcTermIn`, which is how "no term step" is spelled, so the
 	// slot silently read the UN-HOPPED entity and handed the author a plausible wrong
 	// value. If that skip is ever relaxed, this wording is a lie that reads as
 	// reassurance, and it must move with it.
@@ -255,7 +255,7 @@
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
 		}
-		var rec = fold.foldFromLegacy( n, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
+		var rec = fold.foldFromFlat( n, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
 	}
 
@@ -270,7 +270,7 @@
 		for ( var i = 1; i <= conf.max; i++ ) {
 			if ( state[ fold.slotKey( i ) ] ) {
 				highest = i;
-			} else if ( fold.foldFromLegacy( i, legacy, conf.combining, conf.perSlotUse ) ) {
+			} else if ( fold.foldFromFlat( i, legacy, conf.combining, conf.perSlotUse ) ) {
 				highest = i;
 			}
 		}
@@ -371,8 +371,8 @@
 	// folded value. The shipped control is unmodified — if a bridge needed it
 	// modified, the fold would have broken it, and that is a finding, not a patch.
 
-	/** Context for a hop's reference/repeater field argument. */
-	function hopContext( stepObj, commitArg ) {
+	/** Context for a step's reference/repeater field argument. */
+	function stepContext( stepObj, commitArg ) {
 		return {
 			state: { key: stepObj.arg || '' },
 			setState: function ( upd ) {
@@ -390,8 +390,8 @@
 	 * That is FW-56's stated editor-UX floor (the terminal step's output kind must be
 	 * statically computable from the wire), exercised here for real.
 	 *
-	 * `refs` is deliberately NOT preset: the hop target's post type is not reliably
-	 * known until ref-hop parity, so presetting would falsely assert a kind. Leaving
+	 * `refs` is deliberately NOT preset: the step target's post type is not reliably
+	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving
 	 * it unmapped matches shipped behaviour and is not an omission.
 	 */
 	function fieldContext( slot, commitField ) {
@@ -427,8 +427,8 @@
 	 * slug map all arrive on the PHP option definition, and a second renderer is
 	 * where a hand-authored third spelling of `terms` gets in.
 	 *
-	 * The wire supports an ordered chain, so this must edit EVERY step: a single-hop
-	 * version silently TRUNCATED hops 2+ whenever the author touched step 1.
+	 * The wire supports an ordered chain, so this must edit EVERY step: a single-step
+	 * version silently TRUNCATED steps 2+ whenever the author touched step 1.
 	 *
 	 * @param {Object}   props.conf           Derived fold/chain config (foldConfig shape).
 	 * @param {Array}    props.chain          Parsed chain (grammar shape).
@@ -440,14 +440,14 @@
 	 *                                        change); false where empty legitimately
 	 *                                        means the ambient entity.
 	 * @param {string}   props.slotNoun       The container's registered unit noun.
-	 * @param {Object}   props.hopContext     fn( step, commit ) — field-picker bridge.
+	 * @param {Object}   props.stepContext     fn( step, commit ) — field-picker bridge.
 	 * @return {Array} Step nodes, ready to place inside the caller's group box.
 	 */
 	function chainSteps( props ) {
 		var conf = props.conf;
 		var slotNoun = props.slotNoun;
 		var FieldCombo = window.bwsFieldComboControl;
-		var hopContext = props.hopContext;
+		var stepContext = props.stepContext;
 		var chain = ( props.chain || [] ).slice();
 		var isSameChain = 1 === chain.length && 'same' === chain[ 0 ].slug;
 
@@ -474,10 +474,10 @@
 		/** Rows for a step by POSITION: only the first step may start a source. */
 		function stepRows( idx ) {
 			if ( idx > 0 ) {
-				return conf.hopRows;
+				return conf.stepRows;
 			}
 			var rows = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
-			return rows.concat( conf.hopRows );
+			return rows.concat( conf.stepRows );
 		}
 
 		var stepNodes = [];
@@ -486,7 +486,7 @@
 
 			// Step header (ordinal + inline remove) only for real multi-step chains: a
 			// lone step needs no ordinal, and a `same` chain is an inherit marker rather
-			// than a hop. Its collision with the slot-level Remove is resolved by
+			// than a step. Its collision with the slot-level Remove is resolved by
 			// PLACEMENT — slot remove sits above the box, step remove inside it. COLOR
 			// stays semantic: both removes red, both adds blue.
 			if ( ! isSameChain && chain.length > 1 ) {
@@ -551,7 +551,7 @@
 							help: argCfg.help,
 							placeholder: argCfg.placeholder,
 							typeDefault: argCfg.typeDefault,
-							context: hopContext( stepObj, commitArg )
+							context: stepContext( stepObj, commitArg )
 						} )
 						: el( TextControl, {
 							label: argCfg.label,
@@ -563,9 +563,9 @@
 						} )
 				) );
 				if ( ! stepObj.arg ) {
-					// A hop with no field has nothing to hop THROUGH: it serializes as a
+					// A step with no field has nothing to step THROUGH: it serializes as a
 					// bare slug and resolves to nothing. Say so where it is fixable —
-					// `canAppend` blocks BUILDING past an incomplete hop but nothing stops
+					// `canAppend` blocks BUILDING past an incomplete step but nothing stops
 					// one being serialized.
 					stepKids.push( warnNode( 'argwarn', fmt(
 						/* translators: %s: the container's slot noun (attempt, field, column). */
@@ -653,21 +653,21 @@
 			} ) );
 		}
 
-		// Append-a-hop: only off a real (non-inherit) chain, and only once the last
+		// Append-a-step: only off a real (non-inherit) chain, and only once the last
 		// step is complete, so a half-built step is never serialized. Lives INSIDE the
 		// source box because it appends to THIS chain — unlike Add slot, which sits at
 		// the slot's outer edge.
 		var last = chain.length ? chain[ chain.length - 1 ] : null;
-		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && conf.hopRows.length;
+		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && conf.stepRows.length;
 		if ( canAppend ) {
-			stepNodes.push( el( 'div', { key: 'addhop', style: { marginTop: '8px' } },
+			stepNodes.push( el( 'div', { key: 'addstep', style: { marginTop: '8px' } },
 				el( Button, {
 					variant: 'tertiary',
 					size: 'small',
 					onClick: function () {
-						props.onChange( chain.concat( [ step( toWire( conf, conf.hopRows[ 0 ].value ) ) ] ) );
+						props.onChange( chain.concat( [ step( toWire( conf, conf.stepRows[ 0 ].value ) ) ] ) );
 					}
-				}, '+ ' + __( 'Add hop', 'generateblocks' ) )
+				}, '+ ' + __( 'Add step', 'generateblocks' ) )
 			) );
 		}
 
@@ -704,7 +704,7 @@
 				slot = parsed;
 			}
 		} else {
-			var rec = fold.foldFromLegacy( ordinal, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
+			var rec = fold.foldFromFlat( ordinal, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
 			if ( rec && rec.slot ) {
 				slot = rec.slot;
 				recovered = true;
@@ -853,7 +853,7 @@
 		// ── Source group ────────────────────────────────────────────────────
 		// ONE box for the whole chain, with steps separated inside it by a lighter
 		// rule. The wire supports an ordered chain, so the control must edit EVERY
-		// step: a single-hop version silently TRUNCATED hops 2+ whenever the author
+		// step: a single-step version silently TRUNCATED steps 2+ whenever the author
 		// touched step 1.
 		var chain = slot.chain.slice();
 		var stepNodes = chainSteps( {
@@ -862,7 +862,7 @@
 			onChange: writeChain,
 			inheritOnEmpty: ordinal >= 2,
 			slotNoun: slotNoun,
-			hopContext: hopContext
+			stepContext: stepContext
 		} );
 
 		children.push( el( 'div', { key: 'srcgroup', style: GROUP_BOX }, [
@@ -873,7 +873,7 @@
 		// ── Field group ─────────────────────────────────────────────────────
 		// The read-kind select plus (when the kind is `key`) the whole field picker are
 		// ONE decision about what to read, so they share one box and take no internal
-		// rule — unlike the source group, where each step is a separate hop.
+		// rule — unlike the source group, where each step is a separate step.
 		//
 		// THREE read shapes, all read off the derived config rather than the container
 		// name: a KIND enum plus picker (readRows non-empty — text/content/image/join),
@@ -952,7 +952,7 @@
 				) );
 
 				// A keyed read with no field reads nothing — the read-axis twin of the
-				// hop's dead-step warning, in the same words for the same reason. Only
+				// step's dead-step warning, in the same words for the same reason. Only
 				// where the kind was CHOSEN: in keyOnly an empty field IS the inherit
 				// (no enum row exists to say it with), so it is a resting state, not a
 				// hole.

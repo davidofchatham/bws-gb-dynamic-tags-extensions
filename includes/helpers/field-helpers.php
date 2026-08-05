@@ -262,7 +262,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	}
 
 	// Mode 2 subtype detection.
-	// Explicit $post_id (e.g. resolved via src:ref hop) always wins — caller has already
+	// Explicit $post_id (e.g. resolved via src:relationship step) always wins — caller has already
 	// done entity resolution and the row entity is irrelevant to that target.
 	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
 		|| ( is_numeric( $post_id ) && (int) $post_id > 0 );
@@ -336,8 +336,8 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 // bws_field_values_assemble_steps() — the step-assembly half of this seam — MOVED to
 // includes/helpers/slot-fold-compile.php in 1.17.0 (5h). It is now a thin adapter over
 // the chain COMPILE, so the flat `src`/`ref`/`srcTermIn` reading and the folded wire's
-// chain produce steps through one code path (and a multi-hop chain resolves instead of
-// capping at one ref hop plus one term hop). #44's compound order lives there too.
+// chain produce steps through one code path (and a multi-step chain resolves instead of
+// capping at one relationship step plus one term step). #44's compound order lives there too.
 
 /**
  * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
@@ -350,7 +350,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * Returns '' on miss (caller drops empties).
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author hop).
+ * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author step).
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -379,7 +379,7 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 			// (bws_base_user_analog_read lives in base-shared, loaded AFTER this
 			// file — and it reads analogs, not meta; different concern). Currently
 			// unreachable at runtime — no traversal step or factory path yields a
-			// user-kind source into the seam until the post→author hop (FW-48
+			// user-kind source into the seam until the post→author step (FW-48
 			// proper) lands — but a user-less kind switch would ship a hole the
 			// ABSORB seam converged onto and force re-opening this function.
 			$user_id = (int) ( $source['id'] ?? 0 );
@@ -551,7 +551,7 @@ function bws_limit_default( array $options ): int {
  *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site,
  *     SPEC §V1) → base resolved source.
  *   - L1 traversal: bws_field_values_assemble_steps (src:ref → ref step,
- *     srcTermIn → term-hop step; both compound as [ref, srcTermIn] when set, #44)
+ *     srcTermIn → term-step step; both compound as [ref, srcTermIn] when set, #44)
  *     run through bws_run_traversal — ref now FANS OUT to all targets (SPEC §V6
  *     plural; no first-only collapse), and a term archive bases ref on the
  *     ambient term (SPEC §V11).
