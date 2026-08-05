@@ -652,10 +652,10 @@ function bws_register_base_tags(): void {
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
 	$use = $options['use'] ?? 'key';
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — no entity; site value with sentinel link identity (id 1, 'site' type).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
+	if ( 'site' === $res['kind'] ) {
 		return array(
 			'value'     => bws_site_resolve_value( 'text', $options, $instance ),
 			'link_id'   => 1,
@@ -685,14 +685,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			'link_type' => 'user',
 		);
 	}
-	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
-	// its own plural traversal (bws_base_post_ids_from_source) below, so computing
-	// $post_id here would run the ref hop twice (review #3). The srcTermIn branch
-	// still needs $post_id (the ref-hopped post it reads terms from), so only skip
-	// when there is no tax hop.
-	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
-
+	// Both list branches run their own plural traversal below, so the collapsing
+	// resolve is deferred into the singular arms — computing it here would run the
+	// chain twice (review #3).
 	$link_id   = 0;
 	$link_type = 'post';
 
@@ -705,17 +700,16 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// datetime's contract and try_'s (TagTemplateRegistry). The singular arms
 	// below keep the full $options: no list to pollute, and the cores' own
 	// fallback emit is the shipped behavior there.
-	if ( '' !== $tax ) {
-		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $use, $instance ) {
+			bws_base_term_ids_from_source( $base, $options ),
+			static function ( $tid, array $item_opts ) use ( $use, $instance ) {
 				$result = 'title' === $use
-					? bws_term_title_core( $term->term_id, $item_opts, $instance )
-					: bws_term_custom_text_core( $term->term_id, $item_opts, $instance );
+					? bws_term_title_core( (int) $tid, $item_opts, $instance )
+					: bws_term_custom_text_core( (int) $tid, $item_opts, $instance );
 				return array(
 					'value' => $result,
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$options
@@ -725,10 +719,10 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, not just
-		// the first. limit/sep are offered for src:ref, so honor them — mirrors the
-		// srcTermIn branch.
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, not just the
+		// first. limit/sep are offered whenever the chain fans, so honor them —
+		// mirrors the term branch.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -749,10 +743,12 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( 'title' === $use ) {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	} else {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_custom_text_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
@@ -1044,12 +1040,12 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = $options['use'] ?? 'content';
-	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res  = bws_base_src_resolution( $options );
 	// Local copy — the use:key arm sets $opts['type'] below.
 	$opts = $options;
 
-	// src:site — content option markup via shared pipeline (handled in resolver). No link wrap.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — content option markup via shared pipeline (handled in resolver). No link wrap.
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'content', $options, $instance );
 		if ( '' !== $value ) {
 			return $value;
@@ -1076,26 +1072,27 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
-
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
+	if ( 'term' === $res['kind'] ) {
+		// content has no list mode — first non-empty term wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
 			$result = 'key' === $use
-				? bws_term_custom_text_core( $term->term_id, $opts, $instance )
-				: bws_term_description_core( $term->term_id, $opts, $instance );
+				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
+				: bws_term_description_core( (int) $tid, $opts, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
 		}
 		$value = '';
-	} elseif ( 'excerpt' === $use ) {
-		$value = bws_post_excerpt_core( $post_id, $opts, $instance );
-	} elseif ( 'key' === $use ) {
-		$opts['type'] = 'custom_field';
-		$value = bws_post_content_core( $post_id, $opts, $instance );
 	} else {
-		$value = bws_post_content_core( $post_id, $opts, $instance );
+		$post_id = bws_base_post_id_from_source( $base, $options );
+		if ( 'excerpt' === $use ) {
+			$value = bws_post_excerpt_core( $post_id, $opts, $instance );
+		} elseif ( 'key' === $use ) {
+			$opts['type'] = 'custom_field';
+			$value = bws_post_content_core( $post_id, $opts, $instance );
+		} else {
+			$value = bws_post_content_core( $post_id, $opts, $instance );
+		}
 	}
 
 	if ( '' !== $value ) {
@@ -1117,13 +1114,13 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 function bws_base_title_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res      = bws_base_src_resolution( $options );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
 
-	// src:site — title base tag has no `use`; resolver returns site name. Link-wrap.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — title base tag has no `use`; resolver returns site name. Link-wrap.
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'title', $options, $instance );
 		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
 			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
@@ -1161,24 +1158,20 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
-	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	// Skip the single-collapse resolve for the pure src:ref list branch (review #3):
-	// it runs its own plural traversal below. srcTermIn still needs $post_id.
-	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
-
+	// Both list branches run their own plural traversal, so the collapsing resolve
+	// is deferred into the singular arm (review #3).
 	$link_id   = 0;
 	$link_type = 'post';
 
 	// List branches ride the shared fold (FW-49). Fallback suppression is inert
 	// here — the title cores never read 'fallback' (unlike the text cores).
-	if ( '' !== $tax ) {
-		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $instance ) {
+			bws_base_term_ids_from_source( $base, $options ),
+			static function ( $tid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => bws_term_title_core( $term->term_id, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'value' => bws_term_title_core( (int) $tid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$options
@@ -1188,9 +1181,9 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, honoring
-		// limit/sep (offered for src:ref) — mirrors the srcTermIn branch above.
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, honoring
+		// limit/sep — mirrors the term branch above.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -1208,6 +1201,7 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$link_type = $collected['link']['kind'];
 		}
 	} else {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
@@ -1232,10 +1226,10 @@ function bws_base_title_callback( $options, $block, $instance ): string {
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
+	if ( 'site' === $res['kind'] ) {
 		return bws_site_resolve_value( 'permalink', $options, $instance );
 	}
 
@@ -1245,12 +1239,11 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	if ( $term_id ) {
 		return bws_base_term_analog_read( 'permalink', $term_id, $options, $instance );
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
 
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
-			$result = bws_term_permalink_core( $term->term_id, $options, $instance );
+	if ( 'term' === $res['kind'] ) {
+		// permalink has no list mode — first non-empty term URL wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+			$result = bws_term_permalink_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
@@ -1258,7 +1251,7 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	return bws_post_permalink_core( $post_id, $options, $instance );
+	return bws_post_permalink_core( bws_base_post_id_from_source( $base, $options ), $options, $instance );
 }
 
 /**
@@ -1280,10 +1273,10 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use = $options['use'] ?? 'key';
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — logo/option via resolver (logo already routed through GB ::output()).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — logo/option via resolver (logo already routed through GB ::output()).
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'image', $options, $instance );
 		if ( '' !== $value ) {
 			return $value;
@@ -1303,21 +1296,20 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
-
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
-			$result = bws_term_custom_image_core( $term->term_id, $options, $instance );
+	if ( 'term' === $res['kind'] ) {
+		// image has no list mode — first non-empty term image wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+			$result = bws_term_custom_image_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
 		}
 		$value = '';
-	} elseif ( 'featured' === $use ) {
-		$value = bws_featured_image_core( $post_id, $options, $instance );
 	} else {
-		$value = bws_custom_image_core( $post_id, $options, $instance );
+		$post_id = bws_base_post_id_from_source( $base, $options );
+		$value   = 'featured' === $use
+			? bws_featured_image_core( $post_id, $options, $instance )
+			: bws_custom_image_core( $post_id, $options, $instance );
 	}
 
 	if ( '' !== $value ) {

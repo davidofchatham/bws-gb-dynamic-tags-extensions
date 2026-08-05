@@ -563,14 +563,15 @@ function bws_try_normalize_items( $raw ): array {
  * Limit / separator semantics MATCH the base text list-mode core
  * (bws_post_custom_text_core, content-tags.php) so a try_ slot in list mode
  * joins identically to the same underlying tag used standalone (I6 parity):
- *   - limit = bws_clamp_limit( $limit ) — DEFAULT 1; `0` (or a legacy `-1`) means
+ *   - limit — an ALREADY-RESOLVED int from the caller: >= 1 caps, `0` means
  *     UNLIMITED and slices nothing. Not a ceiling: an author setting limit:5 joins
  *     up to 5 items.
- *     This is a DEFENSIVE re-clamp: the only caller (try_ slot dispatch) already
- *     passes a clamped $slot_max. It routes through the shared interpreter anyway
- *     so a change to what `0` means cannot leave this copy behind — an
- *     already-clamped value re-clamped is a no-op, an un-updated fourth copy is a
- *     silent truncation.
+ *     THIS IS THE ONE SITE THAT CANNOT ASK. Since 1.17.0 the tag-level default is a
+ *     property of the tag's source SPELLING (bws_limit_default), and this function
+ *     receives no options — structurally it cannot know the era. So it stopped
+ *     re-clamping and takes the resolved value instead. The parameter is REQUIRED
+ *     and typed `int` for that reason: a defensive `?? 1` here would be the legacy
+ *     default silently applied to chain wire, which renders wrong and looks normal.
  *   - sep   = $sep ?? ', ' — null (absent) → default ', '; an explicit empty
  *     string is honored (matches base `$options['sep'] ?? ', '`, which only
  *     defaults on an absent key — author may deliberately join with no sep).
@@ -585,18 +586,18 @@ function bws_try_normalize_items( $raw ): array {
  *
  * @since 1.11.0
  * @since 1.17.0 Limit interpretation delegated to bws_clamp_limit; `0` = unlimited.
+ * @since 1.17.0 Takes an already-resolved int `limit`; the internal re-clamp is gone.
  * @param array<int,string> $items Finished item strings (already non-empty).
  * @param mixed              $sep   Separator; null → ', '. Explicit '' honored.
- * @param mixed              $limit Max items to join; non-numeric → 1, 0/negative → unlimited.
+ * @param int                $limit Resolved max items to join; 0 = unlimited. REQUIRED.
  * @return string Joined output (or '' if no items).
  */
-function bws_try_join_items( array $items, $sep = null, $limit = null ): string {
+function bws_try_join_items( array $items, $sep, int $limit ): string {
 	if ( empty( $items ) ) {
 		return '';
 	}
-	$max = bws_clamp_limit( $limit );
-	$s   = ( null === $sep ) ? ', ' : $sep;
-	return implode( $s, array_slice( $items, 0, $max ?: null ) );
+	$s = ( null === $sep ) ? ', ' : $sep;
+	return implode( $s, array_slice( $items, 0, $limit ?: null ) );
 }
 
 /**
@@ -782,6 +783,40 @@ function bws_base_resolve_source_for_callback( array $options, $instance ): arra
 }
 
 /**
+ * What this tag's source chain RESOLVES TO — the base callbacks' dispatch axis (FW-63).
+ *
+ * Load-order-guarded shim over bws_fold_src_resolution(). Every base arm asks this
+ * one question instead of comparing `$options['src']` to `'ref'`/`'site'` or reading
+ * `srcTermIn` directly, which is what makes a chain-spelled source and a flat-spelled
+ * source take the SAME arm. Before FW-63 they did not: `{{text src:terms,department}}`
+ * rendered the ambient post's title, a plausible wrong value rather than an empty one.
+ *
+ * The fallback (compiler absent) reproduces the pre-1.17.0 token tests exactly, so a
+ * partial load degrades to the old dispatch rather than to no dispatch.
+ *
+ * @since 1.17.0
+ * @param array $options Tag options.
+ * @return array{root:string, kind:string, fans:bool} See bws_fold_chain_resolution().
+ */
+function bws_base_src_resolution( array $options ): array {
+	if ( function_exists( 'bws_fold_src_resolution' ) ) {
+		return bws_fold_src_resolution( $options );
+	}
+	$src = (string) ( $options['src'] ?? $options['source'] ?? '' );
+	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	if ( 'site' === $src ) {
+		return array( 'root' => 'site', 'kind' => 'site', 'fans' => false );
+	}
+	if ( '' !== $tax ) {
+		return array( 'root' => $src, 'kind' => 'term', 'fans' => true );
+	}
+	if ( 'ref' === $src ) {
+		return array( 'root' => '', 'kind' => 'post', 'fans' => true );
+	}
+	return array( 'root' => $src, 'kind' => 'base', 'fans' => false );
+}
+
+/**
  * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
  *
  * The post-path counterpart of the ambient-term branch: runs the wrapper's
@@ -804,27 +839,32 @@ function bws_base_post_id_from_source( array $base, array $options ) {
 }
 
 /**
- * Collapse a base source to the FULL post-id LIST via ref-only steps (SPEC §V14).
+ * Ids of the resolved sources a base tag's chain produces, filtered to one KIND.
  *
- * The plural counterpart of bws_base_post_id_from_source(): for a tag that offers
- * list mode on `src:ref` (text/title, §V14 offered⟺resolvable), the src:ref post
- * branch reads EVERY fanned-out ref target (bws_run_traversal keeps all, §V6) — not
- * just the first. Order preserved; only post-kind sources contribute. The caller
- * slices to `limit` and joins with `sep`, mirroring the srcTermIn branch.
+ * The plural read behind both list arms. Runs the tag's WHOLE compiled chain — not
+ * the wrapper's leading run of ref steps — because the arm has already established
+ * what the chain resolves to (bws_base_src_resolution), so every step in it is one
+ * the caller asked for. That is what closes the §F9.3 hole, where a `terms` hop
+ * after a `refs` hop was silently dropped and the tag read the ref'd POST instead.
+ *
+ * Order is document order (the engine appends, never sorts). Only sources of the
+ * requested kind contribute; the caller slices to `limit` and joins with `sep`.
  *
  * @since 1.14.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
- * @return int[] Post ids in document order (may be empty).
+ * @since 1.17.0 Compiles the whole chain and takes a $kind; was ref-only steps.
+ * @param array  $base    Base resolved source.
+ * @param array  $options Tag options.
+ * @param string $kind    Resolved-source kind to keep ('post'|'term'|…).
+ * @return int[] Entity ids in document order (may be empty).
  */
-function bws_base_post_ids_from_source( array $base, array $options ): array {
-	if ( ! function_exists( 'bws_run_traversal' ) ) {
+function bws_base_source_ids_of_kind( array $base, array $options, string $kind ): array {
+	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 		return array();
 	}
-	$sources = bws_run_traversal( array( $base ), bws_wrapper_ref_steps( $options ) );
+	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
 	$ids     = array();
 	foreach ( $sources as $src ) {
-		if ( is_array( $src ) && 'post' === ( $src['kind'] ?? '' ) ) {
+		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
 			$id = (int) ( $src['id'] ?? 0 );
 			if ( $id > 0 ) {
 				$ids[] = $id;
@@ -832,6 +872,48 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
 		}
 	}
 	return $ids;
+}
+
+/**
+ * Collapse a base source to the FULL post-id LIST (SPEC §V14).
+ *
+ * For a tag that offers list mode on a post-resolving source (text/title/datetime,
+ * §V14 offered⟺resolvable), the post branch reads EVERY fanned-out target
+ * (bws_run_traversal keeps all, §V6) — not just the first.
+ *
+ * @since 1.14.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int[] Post ids in document order (may be empty).
+ */
+function bws_base_post_ids_from_source( array $base, array $options ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'post' );
+}
+
+/**
+ * The TERM ids a base tag's chain resolves to — the term arm's read.
+ *
+ * Replaces the arms' `bws_get_srcterm_terms( $post_id, $tax )` call, which could
+ * only express ONE post→term hop off a single collapsed post id. Routing through
+ * the engine means the flat `srcTermIn` spelling and the chain `terms,<tax>`
+ * spelling read the same terms, which is the equivalence the fold matrix asserts.
+ *
+ * Two differences from the retired call, both deliberate:
+ *
+ * - A relationship step BEFORE the term hop fans (§V6) instead of collapsing to the
+ *   first ref'd post, so `src:ref|ref:x|srcTermIn:y` can now yield terms from every
+ *   ref'd post. With `limit` unset the flat spelling still caps the source list at
+ *   one, so the first rendered term is unchanged — the difference is reachable only
+ *   with an explicit `limit` above one, of which the two-database survey found none.
+ * - Ids, not WP_Term objects. Every caller only ever read `->term_id`.
+ *
+ * @since 1.17.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int[] Term ids in document order (may be empty).
+ */
+function bws_base_term_ids_from_source( array $base, array $options ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'term' );
 }
 
 /**
@@ -853,13 +935,15 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  * @return int Term id when the ambient-term analog path applies, else 0.
  */
 function bws_base_ambient_term_id( array $base, array $options ): int {
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( '' !== $tax ) {
-		return 0; // Explicit post→term hop owns this render.
-	}
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'site' === $src || 'ref' === $src ) {
-		return 0; // Site: own gate. ref: hops term→post (V11), post path owns it.
+	// One test replaces three (FW-63): the ambient analog applies only when the
+	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
+	// branch that owns its own render — 'term' is the explicit post→term hop (which
+	// is incoherent from a term base), 'site' has its own gate, and 'post' hops
+	// term→post (§V11) so the post path must not be short-circuited to the term's
+	// own analog. A registry-source root still reads 'base' and still reaches the
+	// $base['kind'] test below, exactly as the old src test let it.
+	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
+		return 0;
 	}
 	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
 		return 0;
@@ -948,12 +1032,8 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  * @return int User id when the ambient-user analog path applies, else 0.
  */
 function bws_base_ambient_user_id( array $base, array $options ): int {
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-	if ( '' !== $tax ) {
-		return 0;
-	}
-	$src = $options['src'] ?? $options['source'] ?? '';
-	if ( 'site' === $src || 'ref' === $src ) {
+	// Same one-test gate as the term twin (FW-63) — see bws_base_ambient_term_id().
+	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
 		return 0;
 	}
 	if ( 'user' !== ( $base['kind'] ?? '' ) ) {

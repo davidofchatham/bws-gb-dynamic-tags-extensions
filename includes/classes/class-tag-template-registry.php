@@ -727,11 +727,14 @@ class TagTemplateRegistry {
 					// slot that pins nothing — and is what the legacy wire's bare `limit`
 					// recovers as at slot 1, identically.
 					$sep = $opts['sep'] ?? null;
+					// The DEFAULT comes from the SLOT's own source spelling when the slot
+					// pins a limit, and from the TAG's when it inherits the tag-level one —
+					// each `limit` is defaulted by the wire that would otherwise state it.
 					if ( isset( $flat['limit'] ) ) {
 						$slot_opts['limit'] = $flat['limit'];
-						$slot_max           = bws_clamp_limit( $flat['limit'] );
+						$slot_max           = bws_clamp_limit( $flat['limit'], bws_limit_default( $slot_opts ) );
 					} else {
-						$slot_max = bws_clamp_limit( $opts['limit'] ?? null );
+						$slot_max = bws_clamp_limit( $opts['limit'] ?? null, bws_limit_default( $opts ) );
 					}
 
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.

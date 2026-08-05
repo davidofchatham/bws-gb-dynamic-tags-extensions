@@ -551,6 +551,83 @@ assert_same(
 	)
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// §C8 — bws_fold_src_resolution(): the arm-dispatch axis (FW-63)
+//
+// THE HIGHEST SEAM AVAILABLE. Arm dispatch reduces to this one question, so the
+// ~19 render-path call sites need no individual tests — they need this to be right
+// and the fold integration matrix to confirm the wiring. Every case below states
+// the FLAT spelling and the CHAIN spelling of the same source and asserts they
+// answer identically; that identity is the whole deliverable.
+// ─────────────────────────────────────────────────────────────────────────────
+echo "\n§C8 — resolved-source kind + fan, from the wire alone\n";
+
+$res = static function ( array $options ): string {
+	$r = bws_fold_src_resolution( $options );
+	return $r['kind'] . '/' . ( $r['fans'] ? 'fans' : 'one' ) . '/' . $r['root'];
+};
+
+// Root-only chains. The case the previous framing could not express: a chain with
+// NO steps still has a kind.
+assert_same( 'bare tag → base kind, no fan', 'base/one/', $res( array() ) );
+assert_same( 'src:current → base kind (root token kept)', 'base/one/current', $res( array( 'src' => 'current' ) ) );
+assert_same( 'src:site → site kind, no fan', 'site/one/site', $res( array( 'src' => 'site' ) ) );
+assert_same(
+	'a registry source root reads as base — the factory decides its kind',
+	'base/one/related_post',
+	$res( array( 'src' => 'related_post' ) )
+);
+
+// Flat vs chain, per arm.
+assert_same( 'FLAT  src:ref + ref → post, fans', 'post/fans/', $res( array( 'src' => 'ref', 'ref' => 'office' ) ) );
+assert_same( 'CHAIN src:refs,office → post, fans', 'post/fans/', $res( array( 'src' => 'refs,office' ) ) );
+assert_same( 'FLAT  srcTermIn → term, fans', 'term/fans/', $res( array( 'srcTermIn' => 'department' ) ) );
+assert_same( 'CHAIN src:terms,department → term, fans', 'term/fans/', $res( array( 'src' => 'terms,department' ) ) );
+assert_same(
+	'FLAT  src:ref + ref + srcTermIn → term (the LAST step decides)',
+	'term/fans/',
+	$res( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department' ) )
+);
+assert_same(
+	'CHAIN refs;terms → term, same answer',
+	'term/fans/',
+	$res( array( 'src' => 'refs,office;terms,department' ) )
+);
+assert_same( 'CHAIN src:entries,rows → meta_row', 'meta_row/fans/', $res( array( 'src' => 'entries,team' ) ) );
+assert_same(
+	'CHAIN site;entries,rows → meta_row, ROOTED at site',
+	'meta_row/fans/site',
+	$res( array( 'src' => 'site;entries,team' ) )
+);
+
+// An ARGLESS fanning step is dropped by the COMPILER but is still a step on the
+// WIRE. Dispatching off the compiled list would send `src:ref` with no `ref` down
+// the ambient arm, when the flat spelling has always sent it down the post arm.
+assert_same(
+	'src:ref with NO ref field → still post kind (parsed, not compiled)',
+	'post/fans/',
+	$res( array( 'src' => 'ref' ) )
+);
+assert_same( 'and the compiler still drops the step', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+
+// Unknown vocabulary is honestly unknown, never guessed back to the root — the
+// engine answers empty for an unknown type, so the chain short-circuits.
+assert_same( 'unknown last slug → kind unknown, still fans', '/fans/', $res( array( 'src' => 'refs,a;bogus,b' ) ) );
+
+// A SITE root never takes the legacy term hop: `srcTermIn` is registered
+// `show_if src: not:site`, so the pair is hand-edit-only, and every arm has always
+// let the site read win. Folding it in would flip a stored tag to empty.
+assert_same(
+	'src:site + srcTermIn → still the SITE read, hop not folded in',
+	'site/one/site',
+	$res( array( 'src' => 'site', 'srcTermIn' => 'department' ) )
+);
+assert_same(
+	'and no term step is compiled for it either',
+	array(),
+	bws_field_values_assemble_steps( array( 'src' => 'site', 'srcTermIn' => 'department' ) )
+);
+
 echo "\n";
 if ( $failures ) {
 	echo "FAILED: {$failures}/{$count}\n";

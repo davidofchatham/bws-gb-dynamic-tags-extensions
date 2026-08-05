@@ -68,6 +68,116 @@ const BWS_FOLD_STEP_TYPES = array(
 );
 
 /**
+ * Wire slug → the RESOLVED-SOURCE KIND a step of that type produces.
+ *
+ * The dispatch axis FW-63 replaced the flat token tests with. Deliberately a
+ * separate map from BWS_FOLD_STEP_TYPES: that one names the ENGINE's internal step
+ * type (`ref`/`srcTermIn`/`rows`), this one names the KIND that step's output
+ * carries (`post`/`term`/`meta_row`, the traversal-pipeline typedef). A render arm
+ * asks the second question and never the first.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_STEP_KINDS = array(
+	'refs'    => 'post',
+	'terms'   => 'term',
+	'entries' => 'meta_row',
+);
+
+/**
+ * What a chain RESOLVES TO — the render path's dispatch axis (FW-63).
+ *
+ * Roughly nineteen arms used to pick a resolution branch by comparing the flat
+ * `src` value to `'ref'`/`'site'` or by reading `srcTermIn` directly. Those tests
+ * conflate two axes the compiler already separates: where a chain ROOTS (owned by
+ * bws_fold_src_root_token, which the source factory consumes) and what it RESOLVES
+ * TO. This answers the second, so an arm dispatches on the same fact whichever way
+ * the source is spelled.
+ *
+ * PURE and STATIC — a function of the wire alone, with no query and no render. That
+ * is a hard requirement, not an optimisation: the editor's field pickers and the
+ * `limit` control's reveal predicate both have to scope themselves before anything
+ * resolves.
+ *
+ * `kind` is a property of the CHAIN, not of its last step — a root-only chain has a
+ * kind and has no steps:
+ *
+ *   'site'     the chain roots at the site store and never hops (`src:site`).
+ *   'post'     the last step is `refs`.
+ *   'term'     the last step is `terms`.
+ *   'meta_row' the last step is `entries`.
+ *   'base'     root-only, rooted at the ambient entity or a registry source — the
+ *              kind is whatever the FACTORY resolves at render (post on a singular
+ *              page, term on a term archive, user on an author archive, meta_row in
+ *              a flat repeater row). Static analysis cannot say which, and an arm
+ *              that needs to know branches on `$base['kind']` as it always has.
+ *   ''         the last step is unknown vocabulary. The engine answers empty for an
+ *              unknown type, so the chain short-circuits; the kind is honestly
+ *              unknown rather than guessed back to the root.
+ *
+ * `fans` is CAPACITY read from the wire — "this chain may resolve more than one
+ * source" — never a claim about a given render. Every step slug fans, so it is true
+ * iff the chain hops at all.
+ *
+ * The chain is read as PARSED, not as COMPILED: bws_fold_chain_to_steps() drops an
+ * argless fanning step (a legacy `src:ref` with no `ref` field emitted no step), and
+ * dispatching off the compiled list would send that tag down the ambient arm when
+ * the flat spelling has always sent it down the post arm.
+ *
+ * @since 1.17.0
+ * @param array $chain Parsed chain (bws_fold_parse_chain shape).
+ * @return array{root:string, kind:string, fans:bool}
+ */
+function bws_fold_chain_resolution( array $chain ): array {
+	$root  = bws_fold_chain_root( $chain );
+	$last  = '';
+	$fans  = false;
+
+	foreach ( array_values( $chain ) as $i => $link ) {
+		$slug = (string) ( $link['slug'] ?? '' );
+		if ( '' === $slug ) {
+			continue;
+		}
+		// Position 0 may be a ROOT (factory-owned) instead of a hop.
+		if ( 0 === $i && ! isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
+			continue;
+		}
+		$last = $slug;
+		$fans = true;
+	}
+
+	if ( ! $fans ) {
+		return array(
+			'root' => $root,
+			'kind' => ( 'site' === $root ) ? 'site' : 'base',
+			'fans' => false,
+		);
+	}
+
+	return array(
+		'root' => $root,
+		'kind' => BWS_FOLD_STEP_KINDS[ $last ] ?? '',
+		'fans' => true,
+	);
+}
+
+/**
+ * bws_fold_chain_resolution() for a tag's OPTIONS — the arms' entry point.
+ *
+ * Reads the depth-0 chain the same way every other consumer does
+ * (bws_fold_chain_from_options), so a flat `src:ref|ref:x` and a chain
+ * `src:refs,x` answer identically. That identity IS the equivalence property the
+ * fold integration matrix asserts per base tag family.
+ *
+ * @since 1.17.0
+ * @param array $options Tag options.
+ * @return array{root:string, kind:string, fans:bool}
+ */
+function bws_fold_src_resolution( array $options ): array {
+	return bws_fold_chain_resolution( bws_fold_chain_from_options( $options ) );
+}
+
+/**
  * The chain's ROOT token — what the source factory reads as `src`.
  *
  * '' when the chain is empty or LEADS with a hop (the hop applies to the ambient
@@ -213,7 +323,13 @@ function bws_fold_chain_from_options( array $options ): array {
 		}
 	}
 
-	if ( '' !== $tax ) {
+	// A SITE root never takes the legacy term hop. `srcTermIn` is registered
+	// `show_if src: not:site` (bws_base_traversal_options), so the pair is
+	// hand-edit-only — and every arm has always let the site read win over it.
+	// Appending the hop here would flip that stored tag from "the site value" to
+	// "empty" (the engine's `srcTermIn` step needs a POST input), which is a
+	// rendered-output change on flat wire the arm refactor must not make.
+	if ( '' !== $tax && 'site' !== bws_fold_chain_root( $chain ) ) {
 		$has_terms = false;
 		foreach ( $chain as $link ) {
 			if ( 'terms' === ( $link['slug'] ?? '' ) ) {
