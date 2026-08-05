@@ -346,6 +346,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L4.6 CHAIN + garbage limit (expect BOTH names - the is_numeric guard falls to the CHAIN default, not to 1)', '{{text src:refs,related_staff|use:title|limit:abc}}' ),
 		bws_fixture_gb_row( 'L4.7 root-only chain does not fan (expect Captain, linked)', '{{text src:current|key:role|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.8 PER-STEP cap is a different quantity (expect Jane Partner only, linked)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.9 L4.8-s partner - without it a per-step cap that did nothing would still pass (expect BOTH names)', '{{text src:refs,related_staff,limit(2)|use:title}}' ),
 	) );
 
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
@@ -578,6 +579,17 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// a label is live wire, and GB renders it. Spelled out here, the empty
 		// {{table}} it produced hid this row's whole label block.
 		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+		// The one flat-wire behaviour change, shown rather than hidden. It uses
+		// portal_visibility, NOT department: jane and tom carry no department terms,
+		// so that taxonomy makes the row empty either way and it asserts nothing.
+		// Drop the limit:0 and this reads All Users on both eras - the floor holding.
+		bws_fixture_gb_row( 'F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
+		// Matches on the AMBIENT page's content, not jane's: {{content}} ignores the
+		// relationship step entirely (issue #58, measured identically on main). The
+		// PAIR agreeing is the arm-dispatch property; it is not proof the hop works.
+		bws_fixture_gb_row( 'F9a.3 legacy content ref - see issue #58, reads the AMBIENT page (pair must still MATCH)', '{{content src:ref|ref:related_staff|use:excerpt}}' ),
+		bws_fixture_gb_row( 'F9a.3 chain content ref (-> same as the legacy row above)', '{{content src:refs,related_staff|use:excerpt}}' ),
 	) );
 
 	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS

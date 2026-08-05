@@ -108,6 +108,11 @@ rows pin the other half, and every one is a **pair of spellings for the same sou
 ⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
 defaulting to many means link-wrapping differs by spelling, on new wire.
 
+> **MEASURED 2026-08-05** against the branch on `/matrix-post-meta/`; every row below is an
+> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
+> renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately
+> gone because the output really is multi-value.
+
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
@@ -118,6 +123,7 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 | L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy cap on chain wire |
 | L4.7 | `{{text src:current\|key:role\|linkTo:permalink}}` | `Captain`, in `<a>` | a root-only chain does not fan, so nothing changes. `src:current` is chain-shaped in the control but a plain token on the wire |
 | L4.8 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | the PER-STEP cap and the tag-level one are different quantities. This caps the step at one source per input; the tag-level default stays uncapped and has nothing left to cut |
+| L4.9 | `{{text src:refs,related_staff,limit(2)\|use:title}}` | BOTH names | L4.8's partner — without the pair, a per-step cap that did nothing at all would still pass L4.8 |
 
 ## L5 — the author conversion (editor only)
 

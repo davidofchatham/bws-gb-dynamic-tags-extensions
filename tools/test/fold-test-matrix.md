@@ -211,6 +211,11 @@ so the two spellings take the same arm.
 shape is the bad one: a wrong arm renders a PLAUSIBLE value, not an empty one, so a row that "looks
 fine" is not evidence.
 
+> **MEASURED 2026-08-05** against the branch, every pair matching. Two caveats a reader must carry:
+> §F9a.3/§F9a.4 match on the WRONG entity ([#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58), pre-existing on `main`), and §F9a.7/§F9a.8 are vacuous
+> until the blueprint seeds attachments. An equivalence row proves the two spellings AGREE; it
+> never proves either is right.
+
 | # | Legacy | Chain | Expected |
 |---|---|---|---|
 | F9.1 | `{{text srcTermIn:department\|use:title\|limit:0}}` | `{{text src:terms,department\|use:title}}` | `Sales, Support`. **The chain spelling needs no `limit`** — flat wire caps at 1, chain wire does not (`bws_limit_default`), which is the whole compatibility mechanism. Pre-1.17.0 the chain rendered `Matrix: Post Meta`, the PAGE title |
@@ -229,12 +234,12 @@ family with no list mode takes a different branch from one that has. One `refs` 
 |---|---|---|---|
 | F9a.1 | `{{title src:ref\|ref:related_staff\|limit:0}}` | `{{title src:refs,related_staff}}` | `Jane Partner, Tom Associate` (list-capable) |
 | F9a.2 | `{{title srcTermIn:department\|limit:0}}` | `{{title src:terms,department}}` | `Sales, Support` |
-| F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | jane's content. **NOT list-capable** — first non-empty wins, both spellings |
-| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb |
+| F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | the two must MATCH. ⚠ They match on the AMBIENT page's content, not jane's — `{{content}}` ignores the relationship step entirely, measured identically on `main`, so it is [#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58) and not an arm-dispatch failure. **Do not read this green pair as proof the hop works** |
+| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb. Same caveat as F9a.3 |
 | F9a.5 | `{{permalink src:ref\|ref:related_staff}}` | `{{permalink src:refs,related_staff}}` | jane's URL. Not list-capable |
 | F9a.6 | `{{permalink srcTermIn:department}}` | `{{permalink src:terms,department}}` | first term URL |
-| F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable |
-| F9a.8 | `{{image srcTermIn:department\|key:term_image\|as:url}}` | `{{image src:terms,department\|key:term_image\|as:url}}` | first non-empty term image |
+| F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable. ⚠ **VACUOUS TODAY** — the blueprint seeds no attachments, so both sides render empty and the row asserts nothing. It needs a fixture (a featured image on a staff single and an image field on a department term) before it is worth trusting |
+| F9a.8 | `{{image srcTermIn:department\|key:term_image\|as:url}}` | `{{image src:terms,department\|key:term_image\|as:url}}` | first non-empty term image. Same vacuity as F9a.7 |
 | F9a.9 | `{{email src:ref\|ref:related_staff\|key:contact_email\|limit:0}}` | `{{email src:refs,related_staff\|key:contact_email}}` | both addresses, each `mailto:`-wrapped. **Compare DECODED** — `antispambot` randomizes the encoding per render |
 | F9a.10 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | `{{phone src:refs,related_staff\|key:main_line}}` | `(555) 200-3000, (555) 200-4000` |
 | F9a.11 | `{{phone srcTermIn:department\|key:dept_line\|limit:0}}` | `{{phone src:terms,department\|key:dept_line}}` | whatever the department terms carry; the PAIR matching is the property |
@@ -251,7 +256,7 @@ family with no list mode takes a different branch from one that has. One `refs` 
 | # | Tag | Renders | Cause |
 |---|---|---|---|
 | F9.5 | `{{text src:entries,team_members\|use:key\|key:name}}` | empty | no base-tag arm consumes a `meta_row` source. This is the gap `{{table}}` fills with its own assembly, not something the base text arm should grow — which is also why `entries` is absent from the base chain control's step enum. Authoring it requires a hand edit |
-| F9.6 | `{{text src:ref\|ref:related_staff\|srcTermIn:department\|limit:0}}` | terms of EVERY ref'd post | **A flat-wire behaviour change, stated rather than hidden.** The term arm used to collapse the relationship step to its FIRST post (`bws_get_srcterm_terms` took one post id) and read that post's terms; it now runs the whole compiled chain, which fans (§V6). Reachable ONLY with an explicit `limit` above one — with `limit` unset, flat wire still caps the source list at 1, so the first rendered term is unchanged, and the surveyed corpus contains **zero** explicit `limit` values. Accepted because the alternative is keeping a first-only collapse the plural source model already calls a defect, in the one arm that was still doing it |
+| F9.6 | `{{text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title\|limit:0}}` | `All Users, All Users` (was `All Users`) | **A flat-wire behaviour change, stated rather than hidden — and MEASURED, both sides.** The term arm used to collapse the relationship step to its FIRST post (`bws_get_srcterm_terms` took one post id) and read that post's terms; it now runs the whole compiled chain, which fans (§V6). Reachable ONLY with an explicit `limit` above one: drop the `limit:0` and both `main` and this branch render `All Users`, which is the compatibility floor holding. The surveyed corpus contains **zero** explicit `limit` values. Accepted because the alternative is keeping a first-only collapse the plural source model already calls a defect, in the one arm still performing it. **`department` will NOT do for this row** — jane and tom carry none, so the pair is empty either way and asserts nothing; `portal_visibility` is the taxonomy the blueprint actually puts on them |
 
 **The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
 by whether an arm was involved — is what closed. They are now the same hop with the same answer.
