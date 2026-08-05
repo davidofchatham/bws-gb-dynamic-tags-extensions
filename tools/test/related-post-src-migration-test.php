@@ -54,10 +54,13 @@ if ( ! function_exists( 'apply_filters' ) ) {
 
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
+require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 
 use BWS\DynamicTags\MigrationRegistry;
+use BWS\DynamicTags\TagTemplateRegistry;
 
 $failures = 0;
 $count    = 0;
@@ -189,6 +192,91 @@ assert_eq( 'R3.2 live wire is neither reported nor changed', array( false, false
 assert_eq( 'R3.3 one pass reaches a fixed point',
 	'{{text src:ref|ref:x}}',
 	MigrationRegistry::apply_option_migration( 'text', '{{text src:related_post|rel:x}}' ) );
+
+// ===========================================================================
+echo "\nR4 — rel → ref on the modifier and try_ families (the \$rel_fix extension)\n";
+
+// The entries are DERIVED from the registered templates, so the harness registers the
+// templates first. Registering after the R1-R3 sections keeps their assertions clear of
+// the ~60 entries this pulls in.
+TagTemplateRegistry::register_modifier_template( array(
+	'key'              => 'text',
+	'supports_try'     => true,
+	'try_per_slot_use' => true,
+	'try_per_slot_key' => true,
+) );
+TagTemplateRegistry::register_modifier_template( array( 'key' => 'permalink', 'supports_try' => true ) );
+
+bws_register_option_migrations();
+
+$migrate = static function ( string $tag_string ): string {
+	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );
+	return MigrationRegistry::apply_option_migration( $tag_name, $tag_string );
+};
+
+// The base-tag half has shipped since 1.6.0 — pinned here as the reference behaviour the
+// two new families are brought into line with, not as new coverage. Note the emitted key
+// order is NOT canonical: the declarative pipeline appends a renamed key rather than
+// re-sorting. Pre-existing, unchanged here, and pinned so a future canonicalization is a
+// deliberate edit rather than a surprise.
+assert_eq( 'R4.1 base tag (pre-existing): rel → ref, src:ref injected',
+	'{{text src:ref|key:title|ref:vendor}}',
+	$migrate( '{{text rel:vendor|key:title}}' ) );
+
+assert_eq( 'R4.2 term_ modifier: same repair, derived from the template list',
+	'{{term_text src:ref|key:title|ref:vendor}}',
+	$migrate( '{{term_text rel:vendor|key:title}}' ) );
+
+assert_eq( 'R4.3 term_ modifier with no per-slot read still repairs',
+	'{{term_permalink src:ref|ref:vendor}}',
+	$migrate( '{{term_permalink rel:vendor}}' ) );
+
+// An existing src WINS over source_inject (array_merge order), so a tag that already
+// states its source keeps it and only gains the renamed key. Faithful: `rel` was never
+// read under src:current either.
+assert_eq( 'R4.4 an explicit src is not overwritten by the inject',
+	'{{term_text src:current|ref:vendor}}',
+	$migrate( '{{term_text src:current|rel:vendor}}' ) );
+
+// try_ — END TO END, i.e. through the fold entry that runs in the SAME cascade. These
+// assert the folded result on purpose: a first draft renamed the keys and injected no
+// `src`, reasoning that a bare `N-ref` is inert rather than wrong. It is not inert. The
+// fold maps a legacy `ref` with no `src:ref` beside it to NO STEP, folds the slot without
+// it and strips the legacy keys — erasing the relationship in the pass meant to rescue
+// it. Every case below must show the field surviving into `src(refs,<field>)`.
+assert_eq( 'R4.5 try_ slot 1: bare rel survives the fold as a refs step',
+	'{{try_text A:src(refs,vendor);key(title)}}',
+	$migrate( '{{try_text rel:vendor|key:title}}' ) );
+
+assert_eq( 'R4.6 try_ slot 3: 3-rel lands on slot C, not on slot 1',
+	'{{try_text A:key(a)|C:src(refs,vendor);use(same)}}',
+	$migrate( '{{try_text key:a|3-src:ref|3-rel:vendor}}' ) );
+
+assert_eq( 'R4.7 several slots migrate in one pass, each keeping its OWN field',
+	'{{try_text A:src(refs,a)|B:src(refs,b);use(same)|E:src(refs,c);use(same)}}',
+	$migrate( '{{try_text rel:a|2-rel:b|5-rel:c}}' ) );
+
+// `rel` is a registered option on NO current tag, so there is nothing live to collide
+// with — but the transform must still be a strict no-op when none is present (the
+// contract apply_option_migration leans on). Asserted against the transform directly,
+// since end-to-end the fold entry legitimately rewrites the tag.
+assert_eq( 'R4.8 no rel present → the transform returns the input verbatim',
+	'{{try_text src:ref|ref:vendor|key:title}}',
+	bws_migrate_slot_rel_to_ref( '{{try_text src:ref|ref:vendor|key:title}}' ) );
+
+assert_eq( 'R4.9 an explicit slot src is not overwritten',
+	'{{try_text 2-src:current|2-ref:vendor}}',
+	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:current|2-rel:vendor}}' ) );
+
+assert_eq( 'R4.10 an existing slot ref wins; the stale rel is dropped',
+	'{{try_text 2-src:ref|2-ref:live}}',
+	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:ref|2-ref:live|2-rel:stale}}' ) );
+
+// {{join}} postdates the rel → ref rename by nine releases; no entry is registered for
+// it, so a hand-typed `rel` there is left alone rather than given a meaning it never had.
+assert_eq( 'R4.11 {{join}} has no rel entry — left alone',
+	'{{join rel:vendor}}',
+	$migrate( '{{join rel:vendor}}' ) );
 
 echo "\n";
 if ( $failures > 0 ) {

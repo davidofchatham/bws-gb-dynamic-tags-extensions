@@ -1156,6 +1156,79 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 }
 
 /**
+ * Migration transform_callback: PER-SLOT `rel` → `ref` on a try_ tag, with the matching
+ * slot `src:ref` (#56).
+ *
+ * The declarative pipeline cannot express this, and the reason is worth stating because
+ * the obvious spelling looks correct and destroys data:
+ *
+ *   1. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
+ *   2. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
+ *      `3-rel` must set `3-src`, not `src`.
+ *
+ * The first draft therefore renamed the keys and injected NOTHING, on the reasoning that
+ * a `3-ref` with no `3-src` is inert rather than wrong. **That is false, and the harness
+ * caught it:** the fold entry runs in the SAME cascade, and a legacy `ref` with no
+ * `src:ref` beside it maps to no step — so the fold folds the slot without it and strips
+ * the legacy keys. The relationship is not left inert, it is ERASED, in the one pass that
+ * was supposed to rescue it. A slot that named a relationship must come out of this
+ * transform already spelling `N-src:ref|N-ref:<field>`, which the fold then folds intact.
+ *
+ * Per slot (bare = slot 1, `N-` = slots 2..5), when `rel` is present and non-empty:
+ *   - `ref` already set → it wins; the stale `rel` is dropped
+ *   - otherwise         → `rel` MOVED to `ref` (nothing else reads `rel`)
+ *   - `src` absent      → set to `ref` (a slot naming a relationship descends from a
+ *                         relationship hop — the same premise $rel_fix rests on)
+ *   - `src` present     → left alone; an explicit source is the author's statement
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string (unchanged when no slot carries a `rel`).
+ */
+function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
+
+	$touched = false;
+
+	// Slot 1 is bare; 2..5 mirror what generate_base_try_tags() registers.
+	foreach ( array( '', '2-', '3-', '4-', '5-' ) as $prefix ) {
+		$rel_key = $prefix . 'rel';
+		$rel     = isset( $options[ $rel_key ] ) ? trim( (string) $options[ $rel_key ] ) : '';
+		if ( '' === $rel ) {
+			continue;
+		}
+
+		$touched = true;
+		unset( $options[ $rel_key ] );
+
+		$ref_key = $prefix . 'ref';
+		if ( '' === trim( (string) ( $options[ $ref_key ] ?? '' ) ) ) {
+			$options[ $ref_key ] = $rel;
+		}
+
+		$src_key = $prefix . 'src';
+		if ( '' === trim( (string) ( $options[ $src_key ] ?? '' ) ) ) {
+			$options[ $src_key ] = 'ref';
+		}
+	}
+
+	if ( ! $touched ) {
+		return $tag_string;
+	}
+
+	if ( function_exists( 'bws_serialization_order_sort' ) ) {
+		$ordered = array();
+		foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $options ) ) ) as $key ) {
+			$ordered[ $key ] = $options[ $key ];
+		}
+		$options = $ordered;
+	}
+
+	return $reg::format_tag_string( $tag_name, $options );
+}
+
+/**
  * Register option-key migration entries for base tags with deprecated option names.
  *
  * These entries fix posts that were partially migrated by a buggy converter run that
@@ -1439,6 +1512,79 @@ function bws_register_option_migrations(): void {
 				$tag
 			),
 		) );
+	}
+
+	// ── #56: `rel` → `ref` on the MODIFIER and try_ families ──
+	//
+	// The $rel_fix foreach near the top of this function has covered the seven base tags
+	// since 1.6.0; these two entries close the same gap on the families it skipped. Same
+	// premise as that one: a `rel` present AT ALL means the tag descends from a
+	// `*_related_post_*` ancestor via a converter run that renamed the tag but left the
+	// pre-1.6.0 option spelling. `rel` is a registered option on NO current tag, so there
+	// is no live meaning to collide with.
+	//
+	// POPULATION UNKNOWN BY CONSTRUCTION. Nobody can enumerate what a historic buggy
+	// converter wrote; this is insurance against a shape, not a fix for a counted set. Do
+	// not read its existence as evidence such wire was found.
+	//
+	// BEFORE the fold entry, and here the ordering is not merely conventional: `rel` is
+	// NOT in BWS_FOLD_LEGACY_AXES, so the fold neither folds nor strips it. A `2-rel` that
+	// survives into a folded tag is orphaned permanently — no later pass can see it.
+
+	// Modifier (term_) tags. Derived from the registered templates so a template added
+	// later is covered without a second list to keep.
+	//
+	// `term` is HARDCODED rather than derived from the registered modifier prefixes, and
+	// that is a real limit rather than an oversight: this function runs at init:20 and an
+	// external modifier registers later (bws-portal-system's `view_` is init:21), so a
+	// derived prefix list would hold exactly `term` anyway while promising more. An
+	// external plugin that needs the same repair registers its own entry — the registry
+	// is public API.
+	if ( class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+		foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+			if ( empty( $tpl['key'] ) ) {
+				continue;
+			}
+			$modifier_tag = 'term_' . $tpl['key'];
+			$reg::register( array_merge( $rel_fix, array(
+				'type'          => 'option',
+				'match_tag'     => $modifier_tag,
+				'match_options' => array( 'rel' ),
+				'new_tag'       => $modifier_tag,
+				'label'         => sprintf(
+					/* translators: %s: tag name */
+					__( '{{%s}}: rel → source:ref|ref (broken converter output)', 'generateblocks' ),
+					$modifier_tag
+				),
+			) ) );
+		}
+	}
+
+	// try_ tags. A transform_callback rather than option_renames + source_inject, for two
+	// reasons that only show up together — see bws_migrate_slot_rel_to_ref().
+	$try_rel_keys = array( 'rel' );
+	for ( $slot = 2; $slot <= 5; $slot++ ) {
+		$try_rel_keys[] = $slot . '-rel';
+	}
+
+	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
+		foreach ( bws_fold_migration_multislot_tags() as $tag ) {
+			if ( 0 !== strpos( $tag, 'try_' ) ) {
+				continue; // {{join}} postdates the rename by nine releases — no exposure.
+			}
+			$reg::register( array(
+				'type'               => 'option',
+				'match_tag'          => $tag,
+				'match_any_options'  => $try_rel_keys,
+				'new_tag'            => $tag,
+				'transform_callback' => 'bws_migrate_slot_rel_to_ref',
+				'label'              => sprintf(
+					/* translators: %s: tag name */
+					__( '{{%s}}: slot rel → ref (broken converter output)', 'generateblocks' ),
+					$tag
+				),
+			) );
+		}
 	}
 
 	// ── #56: the `related_post` SOURCE TOKEN → `src:ref` + `ref` ──
