@@ -1068,11 +1068,22 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * alone. 1.17.0 made those classes inert, so this rewrite is what keeps such a tag reading
  * what it read before.
  *
+ * **WHICH KEY WINS IS DECIDED BY `src`, NOT BY A RANKING OF THE KEYS.** The two spellings
+ * are not competing candidates with a fixed precedence; each is live under exactly one
+ * source token and inert under the other:
+ *
+ *   `src:related_post`  the retired class read `rel`, then `key`. It never read `ref`.
+ *   `src:ref`           the compiler reads `ref`. Nothing reads `rel`.
+ *
+ * So under the token this transform fires on, an existing `ref` is INERT — letting it win
+ * would migrate the tag to hop somewhere the old tag never hopped. That is the same defect
+ * in miniature that #56 is about: answering one question from the wrong reader.
+ *
  * Per slot (bare = tag level / slot 1, `N-` = legacy flat slot ≥2):
- *   - `src:related_post`             → `src:ref`
- *   - `rel:<field>` present          → MOVED to `ref:<field>` (orphan key, nothing reads it)
+ *   - `src:related_post`              → `src:ref`
+ *   - `rel:<field>` present           → MOVED to `ref:<field>`, overwriting any inert `ref`
  *   - no `rel`, `key:<field>` present → COPIED to `ref:<field>`, `key` KEPT
- *   - `ref` already set              → it wins; a stale `rel` is dropped
+ *   - neither present                 → any existing `ref` is LEFT ALONE (see below)
  *
  * **`key` is copied, never moved, and that asymmetry is the whole correctness argument.**
  * Under `src:related_post|key:foo` the source class consumed `foo` as the relationship
@@ -1080,6 +1091,14 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * options array was never mutated between the two. Moving it would resolve the hop and
  * then read no field, turning a working tag into an empty one. `rel` has no second reader,
  * so moving it is lossless.
+ *
+ * The last row is the one deliberate departure from strict preservation, named rather than
+ * hidden: `src:related_post|ref:A` with no `rel`/`key` resolved to FALSE and fell through
+ * to the ambient entity, so preserving output would mean deleting `ref:A`. This transform
+ * does not, because its mandate is to move a relationship key OUT of a dead vocabulary,
+ * not to delete one already written in the live vocabulary — and that wire can only come
+ * from a hand-edit mixing two eras (`ref` postdates the `related_post` token), where the
+ * literal current-vocabulary reading is the better guess at intent.
  *
  * Runs BEFORE the fold entry, which is load-bearing: the fold consumes flat `N-src` keys
  * and rewrites them into folded `{N}:` slot values, after which this transform can no
@@ -1113,17 +1132,13 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 
 		$options[ $key ] = 'ref';
 
+		// `rel` leaves whatever happens — it is dead vocabulary under every src token.
 		$rel = isset( $options[ $rel_key ] ) ? trim( (string) $options[ $rel_key ] ) : '';
-		if ( '' !== $rel ) {
-			unset( $options[ $rel_key ] );
-		}
+		unset( $options[ $rel_key ] );
 
-		// An explicit `ref` already states the hop — the class ignored it, but it is the
-		// live spelling and the only one left standing. A `rel` beside it was stale.
-		if ( '' !== trim( (string) ( $options[ $ref_key ] ?? '' ) ) ) {
-			continue;
-		}
-
+		// Only what THIS src made live may name the hop, and an existing `ref` is not it —
+		// under `related_post` the class read `rel`, then `key`, and never `ref`. So `rel`
+		// OVERWRITES a stale `ref` rather than losing to it.
 		if ( '' !== $rel ) {
 			$options[ $ref_key ] = $rel;
 			continue;
@@ -1133,6 +1148,9 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 		if ( '' !== $fld ) {
 			$options[ $ref_key ] = $fld; // COPY — see docblock.
 		}
+
+		// Neither present: nothing this src made live. Any `ref` already on the tag stays
+		// (the named departure from strict preservation — see docblock).
 	}
 
 	// No-op returns the input VERBATIM, not a re-serialization of it: reformatting a tag
@@ -1174,12 +1192,23 @@ function bws_migrate_related_post_src( string $tag_string ): string {
  * was supposed to rescue it. A slot that named a relationship must come out of this
  * transform already spelling `N-src:ref|N-ref:<field>`, which the fold then folds intact.
  *
- * Per slot (bare = slot 1, `N-` = slots 2..5), when `rel` is present and non-empty:
- *   - `ref` already set → it wins; the stale `rel` is dropped
- *   - otherwise         → `rel` MOVED to `ref` (nothing else reads `rel`)
- *   - `src` absent      → set to `ref` (a slot naming a relationship descends from a
- *                         relationship hop — the same premise $rel_fix rests on)
- *   - `src` present     → left alone; an explicit source is the author's statement
+ * **WHEN BOTH SPELLINGS ARE PRESENT, THE SLOT'S `src` DECIDES — not a ranking of the keys.**
+ * Each spelling is live under exactly one source token and inert under the other, so the
+ * winner changes with the token (see bws_migrate_related_post_src() for the same rule
+ * stated from the other side):
+ *
+ *   `N-src:ref`           the compiler reads `ref`; `rel` is inert  → `ref` WINS
+ *   `N-src:related_post`  the retired class read `rel`; `ref` inert → `rel` WINS
+ *   `N-src` absent        NEITHER was read — the slot hopped nowhere. No faithful answer
+ *                         exists, so this is a repair: `ref` if set, else `rel`, and
+ *                         `src:ref` is injected on the premise a slot naming a
+ *                         relationship descends from a relationship hop ($rel_fix's).
+ *
+ * The `related_post` case must be settled HERE even though a later entry owns that token,
+ * because this transform runs first in the cascade and deleting `rel` would destroy the
+ * evidence bws_migrate_related_post_src() needs to apply the same rule.
+ *
+ * An explicit `src` is never overwritten — only an absent one is filled.
  *
  * @since 1.17.0
  * @param string $tag_string Raw tag string.
@@ -1203,12 +1232,18 @@ function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
 		unset( $options[ $rel_key ] );
 
 		$ref_key = $prefix . 'ref';
-		if ( '' === trim( (string) ( $options[ $ref_key ] ?? '' ) ) ) {
+		$src_key = $prefix . 'src';
+		$src     = trim( (string) ( $options[ $src_key ] ?? '' ) );
+		$has_ref = '' !== trim( (string) ( $options[ $ref_key ] ?? '' ) );
+
+		// The slot's own src decides which spelling was ever read — see docblock. Only
+		// `related_post` makes `rel` the live one, and there it must overwrite the inert
+		// `ref` rather than lose to it.
+		if ( ! $has_ref || 'related_post' === $src ) {
 			$options[ $ref_key ] = $rel;
 		}
 
-		$src_key = $prefix . 'src';
-		if ( '' === trim( (string) ( $options[ $src_key ] ?? '' ) ) ) {
+		if ( '' === $src ) {
 			$options[ $src_key ] = 'ref';
 		}
 	}

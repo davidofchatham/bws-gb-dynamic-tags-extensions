@@ -93,9 +93,19 @@ assert_eq( 'R1.3 rel wins over key, and key survives as the field key',
 	'{{text src:ref|ref:vendor|key:title}}',
 	bws_migrate_related_post_src( '{{text src:related_post|rel:vendor|key:title}}' ) );
 
-assert_eq( 'R1.4 an explicit ref wins; a stale rel beside it is dropped',
-	'{{text src:ref|ref:live|key:title}}',
-	bws_migrate_related_post_src( '{{text src:related_post|ref:live|rel:stale|key:title}}' ) );
+// Under THIS src token the class read `rel` and never `ref`, so `rel` overwrites the inert
+// `ref`. See §R5 for the criterion this is one face of.
+assert_eq( 'R1.4 rel overwrites an inert ref (this src never read ref)',
+	'{{text src:ref|ref:rel-wins|key:title}}',
+	bws_migrate_related_post_src( '{{text src:related_post|ref:inert|rel:rel-wins|key:title}}' ) );
+
+// The one named departure from strict preservation: with no `rel`/`key` the old tag
+// resolved false and read the ambient entity, so preserving output would mean DELETING
+// `ref`. The transform does not — its mandate is moving a key out of a dead vocabulary,
+// not deleting one written in the live one.
+assert_eq( 'R1.4b no rel and no key → an existing ref is left alone',
+	'{{text src:ref|ref:live}}',
+	bws_migrate_related_post_src( '{{text src:related_post|ref:live}}' ) );
 
 assert_eq( 'R1.5 no relationship field anywhere → src:ref alone (no fabricated hop)',
 	'{{text src:ref}}',
@@ -268,9 +278,50 @@ assert_eq( 'R4.9 an explicit slot src is not overwritten',
 	'{{try_text 2-src:current|2-ref:vendor}}',
 	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:current|2-rel:vendor}}' ) );
 
-assert_eq( 'R4.10 an existing slot ref wins; the stale rel is dropped',
+assert_eq( 'R4.10 under 2-src:ref the ref is the live one and wins',
 	'{{try_text 2-src:ref|2-ref:live}}',
-	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:ref|2-ref:live|2-rel:stale}}' ) );
+	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:ref|2-ref:live|2-rel:inert}}' ) );
+
+// ===========================================================================
+echo "\nR5 — WHICH SPELLING WINS IS DECIDED BY src, NOT BY A RANKING\n";
+
+// THE property, stated once. `ref` and `rel` are not competing candidates with a fixed
+// precedence: each is live under exactly one source token and inert under the other.
+//
+//   src:ref           the chain compiler reads `ref`     → ref wins
+//   src:related_post  the retired class read `rel`       → rel wins
+//   src absent        NEITHER was read — no hop happened → repair, not preservation
+//
+// Getting this backwards does not error. It migrates a tag to hop somewhere the old tag
+// never hopped, permanently, which is the defect #56 exists to stop — so the same
+// ref+rel pair is run past every token here and each must pick a different winner.
+$pair = static function ( string $src ) {
+	$src_opt = '' === $src ? '' : 'src:' . $src . '|';
+	return '{{try_text ' . $src_opt . 'ref:from-ref|rel:from-rel}}';
+};
+
+assert_eq( 'R5.1 src:ref → the ref is live, it wins',
+	'{{try_text src:ref|ref:from-ref}}',
+	bws_migrate_slot_rel_to_ref( $pair( 'ref' ) ) );
+
+assert_eq( 'R5.2 src:related_post → the rel is live, it OVERWRITES the ref',
+	'{{try_text src:related_post|ref:from-rel}}',
+	bws_migrate_slot_rel_to_ref( $pair( 'related_post' ) ) );
+
+assert_eq( 'R5.3 src absent → neither was read; repair keeps ref and injects src:ref',
+	'{{try_text src:ref|ref:from-ref}}',
+	bws_migrate_slot_rel_to_ref( $pair( '' ) ) );
+
+// The two transforms must agree, because they run in one cascade over one tag: the slot
+// transform fires first and would otherwise delete the `rel` the second one needs. Slot 2
+// carries the same pair end to end, through the fold.
+assert_eq( 'R5.4 cascade: a related_post slot keeps the rel-named field through the fold',
+	'{{try_text A:key(x)|B:src(refs,from-rel);use(same)}}',
+	$migrate( '{{try_text key:x|2-src:related_post|2-ref:inert|2-rel:from-rel}}' ) );
+
+assert_eq( 'R5.5 cascade: a src:ref slot keeps the ref-named field through the fold',
+	'{{try_text A:key(x)|B:src(refs,from-ref);use(same)}}',
+	$migrate( '{{try_text key:x|2-src:ref|2-ref:from-ref|2-rel:inert}}' ) );
 
 // {{join}} postdates the rel → ref rename by nine releases; no entry is registered for
 // it, so a hand-typed `rel` there is left alone rather than given a meaning it never had.
