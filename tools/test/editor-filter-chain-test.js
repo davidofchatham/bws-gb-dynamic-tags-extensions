@@ -113,8 +113,8 @@ load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-migrate.js' );
 
 check(
-	'both invisible controls loaded and registered at the same priority',
-	2 === filters.filter( f => 20 === f.priority ).length,
+	'all three invisible controls loaded and registered at the same priority',
+	3 === filters.filter( f => 20 === f.priority ).length,
 	filters.map( f => f.ns + '@' + f.priority ).join( ', ' )
 );
 
@@ -129,7 +129,8 @@ function applyFilters( element, allOptions, context ) {
 // components' own labels, not this file's invention.
 const INVISIBLE = {
 	'bws-order-normalizer': 'order normalizer',
-	'bws-slot-fold-mount-migrator': 'fold mount migrator'
+	'bws-slot-fold-mount-migrator': 'fold mount migrator',
+	'bws-base-src-mount-migrator': 'base src mount migrator'
 };
 
 /** Sweep every option through the chain and report which invisible controls ran. */
@@ -157,6 +158,7 @@ function renderTag( allOptions ) {
 const FOLD = { type: 'bws-slot-fold', fold: { max: 5, combining: false, perSlotUse: true, legacyAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ] } };
 const ASSIZE = { type: 'bws-as-size' };
 const PLAIN = { type: 'text' };
+const CHAIN = { type: 'bws-src-chain', fold: { legacyAxes: [ 'ref', 'srcTermIn' ] } };
 
 const CASES = [
 	{
@@ -178,7 +180,22 @@ const CASES = [
 		expect: [ 'bws-order-normalizer', 'bws-slot-fold-mount-migrator' ]
 	},
 	{
-		label: 'image — no folded slots at all, so only the normalizer fires',
+		// A BASE tag: the normalizer's anchor (the tag's FIRST option) and the base-src
+		// migrator's anchor (the `bws-src-chain` option) are THE SAME ELEMENT. That is
+		// the shipped-bug shape again, one depth down — a keyless wrap here switches the
+		// other filter off silently.
+		label: 'text — the chain control IS the first option, so two filters share one anchor',
+		options: { src: CHAIN, use: PLAIN, key: PLAIN, limit: PLAIN, fallback: PLAIN },
+		expect: [ 'bws-order-normalizer', 'bws-base-src-mount-migrator' ]
+	},
+	{
+		// The shape where they are DISTINCT — datetime leads with `format`.
+		label: 'datetime_single — leads with `format`, so the two anchors differ',
+		options: { format: PLAIN, src: CHAIN, key: PLAIN, fallback: PLAIN },
+		expect: [ 'bws-order-normalizer', 'bws-base-src-mount-migrator' ]
+	},
+	{
+		label: 'image — no folded slots and no chain control, so only the normalizer fires',
 		options: { src: PLAIN, use: PLAIN, key: PLAIN, as: ASSIZE, fallback: PLAIN },
 		expect: [ 'bws-order-normalizer' ]
 	},
@@ -221,7 +238,7 @@ CASES.forEach( function ( c ) {
 // harmless the moment a third filter anchors on a folded slot — which is exactly how this
 // bug arrived the first time. So: sweep EVERY anchor, not just the contested one.
 console.log( '' );
-const MECHANISM_OPTIONS = { as: ASSIZE, A: FOLD, B: FOLD, fallback: PLAIN };
+const MECHANISM_OPTIONS = { as: ASSIZE, A: FOLD, B: FOLD, src: CHAIN, fallback: PLAIN };
 Object.keys( MECHANISM_OPTIONS ).forEach( function ( name ) {
 	const wrapped = applyFilters( { key: name, type: 'control' }, MECHANISM_OPTIONS, { state: {}, setState: function () {} } );
 	check(

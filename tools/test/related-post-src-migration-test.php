@@ -56,6 +56,7 @@ require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
+require __DIR__ . '/../../includes/classes/class-deprecated-tag-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 
@@ -218,10 +219,22 @@ TagTemplateRegistry::register_modifier_template( array(
 TagTemplateRegistry::register_modifier_template( array( 'key' => 'permalink', 'supports_try' => true ) );
 
 bws_register_option_migrations();
+// The 25 N×M families are TAG-type entries, registered by the v1 wrapper pass. The
+// harness ran only the option pass until 1.17.0, because those entries had no target
+// and therefore nothing to assert.
+bws_register_v1_deprecated_tag_wrappers();
 
 $migrate = static function ( string $tag_string ): string {
 	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );
 	return MigrationRegistry::apply_option_migration( $tag_name, $tag_string );
+};
+
+// The 25 N×M families are TAG-type entries, not option-type, so they run through the
+// other half of the registry. Same converter, different door: a deprecated TAG NAME is
+// rewritten whole, where an option entry rewrites keys in place.
+$migrate_tag = static function ( string $tag_string ): string {
+	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );
+	return MigrationRegistry::transform_tag( $tag_name, $tag_string );
 };
 
 // The base-tag half has shipped since 1.6.0 — pinned here as the reference behaviour the
@@ -336,6 +349,51 @@ assert_eq( 'R4.12 {{join}} has no related_post entry either, and the fold declin
 	$migrate( '{{join src:related_post|key:x}}' ) );
 
 echo "\n";
+// ── R6 — the 25 N×M entries that finally have targets (1.17.0) ─────────────
+//
+// They carried `old_tag` + `since` and nothing else for four releases: no current tag
+// reached a second-hop relationship or a term-then-relationship chain. Source CHAINS
+// state both shapes. RISK IS ONE-DIRECTIONAL — the renderers were stripped in 1.14.0,
+// so these tags produce nothing today and migration moves them from broken to correct.
+echo "
+R6 — second_related_post_* / post_term_related_post_* get chain targets
+";
+
+assert_eq( 'R6.1 second_related_post: two refs steps, capped to preserve the old single value',
+	'{{text src:refs,office;refs,manager|limit:1|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name}}' ) );
+
+assert_eq( 'R6.2 post_term_related_post: a terms step, then a refs step',
+	'{{title src:terms,department;refs,lead|limit:1}}',
+	$migrate_tag( '{{post_term_related_post_title tax:department|rel:lead}}' ) );
+
+// The option was renamed in 1.4.x and the retired class accepted both spellings, so
+// stored wire can hold either.
+assert_eq( 'R6.3 the pre-rename `taxonomy` spelling is read too',
+	'{{title src:terms,department;refs,lead|limit:1}}',
+	$migrate_tag( '{{post_term_related_post_title taxonomy:department|rel:lead}}' ) );
+
+// The suffix decides the TAG; the family decides the CHAIN. A `*_term_*` suffix lands
+// on the term_ modifier, because its last hop was post->term.
+assert_eq( 'R6.4 a *_term_* suffix targets the term_ modifier',
+	'{{term_text src:refs,office;refs,manager|limit:1}}',
+	$migrate_tag( '{{second_related_post_term_custom_text rel:office|rel_2:manager}}' ) );
+
+// A CHAIN WITH A HOLE IS NEVER WRITTEN, and the tag is not renamed either — it comes
+// through byte-identical, still deprecated, still rendering nothing. Inventing a
+// one-hop chain from a missing second key would silently make the tag read the FIRST
+// relationship's target as though that were the author's intent, converting a broken
+// tag into a permanently WRONG one; renaming it without the chain would strand it as a
+// live tag with no source. Both are worse than leaving it for a human.
+assert_eq( 'R6.5 a missing second relationship key leaves the tag ENTIRELY alone',
+	'{{second_related_post_custom_text rel:office|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|key:name}}' ) );
+
+// An author-stated limit is not overwritten — ordinary option precedence.
+assert_eq( 'R6.7 an explicit limit survives',
+	'{{text src:refs,office;refs,manager|limit:3|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name|limit:3}}' ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED — {$failures} of {$count} checks failed\n";
 	exit( 1 );

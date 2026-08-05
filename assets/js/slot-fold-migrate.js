@@ -201,13 +201,86 @@
 		return ordered;
 	}
 
+	/**
+	 * Rewrite a BASE tag's flat source triple into depth-0 CHAIN wire.
+	 *
+	 * TWIN of bws_fold_migrate_base_src() (includes/helpers/slot-fold-migrate.php),
+	 * which is where every rule below is decided and explained. The two paths must
+	 * write BYTE-IDENTICAL output, key order included: a divergence does not surface
+	 * as one path being wrong, it surfaces as one tag stored two ways depending on
+	 * which found it first. The shared corpus proves it.
+	 *
+	 * Returns null when there is nothing to migrate -- which is also the mount
+	 * migrator's loop guard, since returning the previous reference makes React bail.
+	 *
+	 * @param {Object} state The tag's extraTagParams.
+	 * @param {Object} conf  The chain config (for the PHP-derived retired-token list).
+	 * @return {Object|null} Rewritten options, or null.
+	 */
+	function baseSrcState( state, conf ) {
+		var s = state || {};
+		var src = String( ( s.src || s.source ) || '' ).trim();
+		var tax = String( s.srcTermIn || '' ).trim();
+
+		if ( fold.chainIsWire( src ) ) {
+			return null;   // already respelled
+		}
+		if ( -1 !== retiredSrc( conf || {} ).indexOf( src ) ) {
+			return null;   // declined whole, exactly as a slot is (#56)
+		}
+		if ( 'site' === src ) {
+			return null;   // the site read wins; the honest rewrite would DROP a key
+		}
+		if ( 'ref' !== src && '' === tax ) {
+			return null;   // nothing fans, so there is no chain to state
+		}
+
+		var chain = [];
+		if ( 'ref' === src ) {
+			var ref = String( s.ref || '' ).trim();
+			chain.push( { slug: 'refs', arg: '' !== ref ? ref : null, limit: null, extra: [] } );
+		}
+		if ( '' !== tax ) {
+			chain.push( { slug: 'terms', arg: tax, limit: null, extra: [] } );
+		}
+
+		// Enclosing level 0 -- a base tag's `src:` IS the wrapper.
+		var wire = fold.emitChain( chain, 0 );
+		if ( '' === wire || ! fold.chainIsWire( wire ) ) {
+			return null;
+		}
+
+		var out = Object.assign( {}, s );
+		delete out.source;
+		out.src = wire;
+		delete out.ref;
+		delete out.srcTermIn;
+		// Migration changes the SPELLING, and the spelling selects the tag-level
+		// default -- so it must write the default it is leaving behind.
+		if ( out.limit === undefined || '' === String( out.limit ).trim() ) {
+			out.limit = '1';
+		}
+		// Canonical key order, through the SAME normalizer the slot half uses -- the two
+		// paths must not write one tag two ways, and key order is half the property.
+		var keys = Object.keys( out );
+		if ( 'function' === typeof window.bwsReorderKeys ) {
+			keys = window.bwsReorderKeys( keys );
+		}
+		var ordered = {};
+		keys.forEach( function ( key ) {
+			ordered[ key ] = out[ key ];
+		} );
+		return ordered;
+	}
+
 	window.bwsSlotFoldMigrate = {
 		slotAxes: slotAxes,
 		retiredSrc: retiredSrc,
 		legacyKeys: legacyKeys,
 		slotKeys: slotKeys,
 		slotState: slotState,
-		migrateSlots: migrateSlots
+		migrateSlots: migrateSlots,
+		baseSrcState: baseSrcState
 	};
 
 	// ── The mount control ───────────────────────────────────────────────────
@@ -275,6 +348,73 @@
 			element
 		);
 	}
+
+	/** Renders nothing; rewrites this BASE tag's flat source on mount. */
+	function BaseSrcMountMigrator( props ) {
+		var setState = props.setState;
+		var conf = props.conf;
+
+		useEffect( function () {
+			setState( function ( prev ) {
+				var migrated = baseSrcState( prev || {}, conf );
+				// Same reference = same loop guard as the slot half.
+				return migrated || prev;
+			} );
+		} );
+
+		return null;
+	}
+
+	/**
+	 * Fire once per BASE tag, on its `bws-src-chain` source option.
+	 *
+	 * The depth-0 counterpart of mountFilter(). It anchors on the CHAIN CONTROL rather
+	 * than on the tag's first option for the same two reasons the slot half anchors on
+	 * a folded key: the control's presence IS the "does this tag author chains" gate,
+	 * and the source option always renders, whereas a leading option can be hidden by a
+	 * conditional filter.
+	 *
+	 * Reaches what the content scanner cannot -- a block widget's tag lives in the
+	 * `widget_block` option, not in post content -- and misses what only the scanner
+	 * reaches, a draft nobody opens. Complementary, which is why both exist.
+	 */
+	function baseMountFilter( element, allOptions, context ) {
+		if ( ! element || ! allOptions || ! context || 'function' !== typeof context.setState ) {
+			return element;
+		}
+		var first = null;
+		Object.keys( allOptions ).forEach( function ( name ) {
+			var cfg = allOptions[ name ];
+			if ( null === first && cfg && 'bws-src-chain' === cfg.type ) {
+				first = name;
+			}
+		} );
+		if ( null === first || element.key !== first ) {
+			return element;
+		}
+
+		// The wrapper CARRIES THE OPTION KEY -- a later filter anchoring on
+		// `element.key` must still find it. Two keyless wraps at one priority is how the
+		// first one silently switched the second one off, and this control's own filter
+		// anchors on exactly this key.
+		return wp.element.createElement(
+			wp.element.Fragment,
+			{ key: element.key },
+			wp.element.createElement( BaseSrcMountMigrator, {
+				key: 'bws-base-src-mount-migrator',
+				setState: context.setState,
+				conf: ( allOptions[ first ] && allOptions[ first ].fold ) || {}
+			} ),
+			element
+		);
+	}
+
+	wp.hooks.addFilter(
+		'generateblocks.editor.tagSpecificControls',
+		'bws/base-src-mount-migrate',
+		baseMountFilter,
+		20
+	);
 
 	wp.hooks.addFilter(
 		'generateblocks.editor.tagSpecificControls',

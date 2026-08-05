@@ -12,7 +12,7 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 == Upgrade Notice ==
 
 = 1.17.0 =
-Behavior change: a Result Limit of 0 (or -1) now means no limit, not one result. Tags saved with 0 or -1 list every result, and a linked tag showing several results stops being a link. Set it to 1 to keep the old output. Multi-slot tags rewrite their saved options on open; output is unchanged.
+Heads up: 25 old tag names the converter could never fix are now convertible, so a blank spot can start showing content. Also, a Result Limit of 0 or -1 now means no limit, not one result, and a tag showing several results stops being a link. Set it to 1 to keep the old output.
 
 = 1.16.0 =
 Heads up: {{join}} options Fallback Text and Separator have been revised from 1.15.0 and require manual reconfiguration in the editor if already used. Image tags now fold size into the Return option string; rendering is unchanged, but run the Tag Converter to avoid mixed options after future edits.

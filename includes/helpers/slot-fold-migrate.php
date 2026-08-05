@@ -216,6 +216,130 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 }
 
 /**
+ * Rewrite a BASE tag's flat source triple into depth-0 CHAIN wire.
+ *
+ * PURE — options in, options out; null when there is nothing to migrate. The depth-0
+ * half of the fold: `bws_fold_migrate_slots()` rewrites a container's per-slot keys,
+ * this rewrites the tag's own source. Same posture, different depth.
+ *
+ * @invariant BOTH MIGRATION PATHS WRITE BYTE-IDENTICAL OUTPUT. A divergence does not
+ * surface as one path being wrong — it surfaces as one tag stored two ways depending
+ * on which path found it first. The scanner reads `post_content` only, so a block
+ * widget is reachable ONLY on tag-modal mount, while a draft nobody opens is
+ * reachable ONLY by the scanner; the two are complementary, not redundant. The JS
+ * twin is `baseSrcState()` in assets/js/slot-fold-migrate.js and the shared corpus
+ * proves they agree, key ORDER included.
+ *
+ * Four rules, each of which changes what gets stored:
+ *
+ * - **ONLY A FANNING SOURCE IS REWRITTEN.** `src:current`, `src:site` and a bare tag
+ *   are already the chain their token states, so respelling them is churn with no
+ *   reader benefit — and a `limit` beside a source that resolves one entity is noise
+ *   a reader has to decide is meaningless.
+ * - **A SITE ROOT IS LEFT ALONE**, even beside a hand-edited `srcTermIn`. Every arm
+ *   has always let the site read win and the compiler agrees, so the honest rewrite
+ *   would have to DROP the taxonomy key — which changes what the stored tag says
+ *   about itself, on a shape the editor never produced.
+ * - **A RETIRED SOURCE TOKEN IS DECLINED WHOLE**, exactly as a slot is: not
+ *   rewritten, and its keys not stripped, which leaves the token's own migration
+ *   entry able to fix it afterwards (#56).
+ * - **`limit:1` IS SERIALIZED** when the source fans and the author stated none —
+ *   and DEPTH-0 ONLY. A folded SLOT needs nothing, which is worth stating because the
+ *   symmetry invites the opposite conclusion: `bws_fold_slot_flat_options()` collapses
+ *   a slot's chain back to a flat `src`/`ref`/`srcTermIn` triple before any container
+ *   arm resolves a limit, so `bws_limit_default()` sees flat wire on a folded slot
+ *   exactly as on a legacy one and answers 1 either way. Folding a slot cannot change
+ *   its cap; respelling a base tag's source can, because nothing re-flattens it.
+ *   Migration changes the SPELLING, the spelling selects the tag-level default
+ *   (`bws_limit_default`), so migration must write the default it is leaving behind.
+ *   Writing nothing would silently fan out exactly the tags it touched — extra
+ *   values, dropped anchors (the link gate is count-based), on live pages, with no
+ *   author present to warn. That is what keeps this a pure rewrite with no output
+ *   delta, which is the equivalence the harness asserts.
+ *
+ * @since 1.17.0
+ * @param array $options All tag options (GB-parsed).
+ * @return array|null Rewritten options, or null when there is nothing to migrate.
+ */
+function bws_fold_migrate_base_src( array $options ) {
+	$src = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
+	$tax = trim( (string) ( $options['srcTermIn'] ?? '' ) );
+
+	// Already chain wire — nothing to respell.
+	if ( function_exists( 'bws_fold_chain_is_wire' ) && bws_fold_chain_is_wire( $src ) ) {
+		return null;
+	}
+	if ( in_array( $src, BWS_FOLD_RETIRED_SRC_TOKENS, true ) ) {
+		return null;
+	}
+	if ( 'site' === $src ) {
+		return null;
+	}
+	// Fanning iff the flat triple states a relationship step or a term step.
+	if ( 'ref' !== $src && '' === $tax ) {
+		return null;
+	}
+
+	$chain = bws_fold_chain_from_options( $options );
+	$wire  = bws_fold_emit_chain( $chain, 0 );
+	if ( '' === $wire || ! bws_fold_chain_is_wire( $wire ) ) {
+		return null;
+	}
+
+	$out = $options;
+	unset( $out['source'] );
+	$out['src'] = $wire;
+	unset( $out['ref'], $out['srcTermIn'] );
+
+	if ( ! isset( $out['limit'] ) || '' === trim( (string) $out['limit'] ) ) {
+		$out['limit'] = '1';
+	}
+
+	return bws_serialization_order_sort_map( $out );
+}
+
+/**
+ * MigrationRegistry transform_callback: rewrite one BASE tag's source to chain wire.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_migrate_base_src_chain( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	if ( ! class_exists( $reg ) || ! function_exists( 'bws_fold_chain_from_options' ) ) {
+		return $tag_string;
+	}
+
+	list( $tag_name, $options ) = $reg::parse_tag_string( $tag_string );
+
+	$migrated = bws_fold_migrate_base_src( $options );
+	if ( null === $migrated ) {
+		return $tag_string;
+	}
+
+	return $reg::format_tag_string( $tag_name, $migrated );
+}
+
+/**
+ * The BASE tags whose source is authored as a chain, and therefore migrated to one.
+ *
+ * Deliberately not derived from "every registered tag": the migration target is the
+ * AUTHORING surface, so this list must track `bws_build_src_chain_option()`'s callers
+ * and nothing else. A `term_*` modifier or a `try_` slot keeps the flat select and
+ * would be migrated to wire its own control cannot edit.
+ *
+ * @since 1.17.0
+ * @return string[]
+ */
+function bws_fold_migration_base_tags(): array {
+	return array(
+		'text', 'content', 'title', 'permalink', 'image',
+		'email', 'phone', 'datetime_single', 'datetime_range',
+	);
+}
+
+/**
  * MigrationRegistry transform_callback: fold one multislot tag string.
  *
  * Returns the input unchanged when there is nothing to do — the no-op contract

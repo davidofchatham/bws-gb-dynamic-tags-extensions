@@ -63,14 +63,25 @@ if ( 'function' !== typeof global.window.bwsReorderKeys ) {
 
 const corpus = JSON.parse( fs.readFileSync( path.join( __dirname, 'fold-migration-corpus.json' ), 'utf8' ) );
 
-const doc = corpus.cases.map( function ( c ) {
-	const out = migrate.migrateSlots( c.options, c.conf );
+/** Ordered key/value pairs, or null -- key ORDER is half the property. */
+function pairs( out ) {
 	if ( null === out ) {
 		return null;
 	}
 	return Object.keys( out ).map( function ( key ) {
 		return [ key, String( out[ key ] ) ];
 	} );
-} );
+}
+
+const doc = {
+	cases: corpus.cases.map( function ( c ) {
+		return pairs( migrate.migrateSlots( c.options, c.conf ) );
+	} ),
+	// DEPTH-0: the base tag's own source triple. Its own section, because nothing in
+	// the slot cases reaches it.
+	baseSrc: corpus.baseSrc.map( function ( c ) {
+		return pairs( migrate.baseSrcState( c.options, c.conf ) );
+	} )
+};
 
 process.stdout.write( JSON.stringify( doc, null, 4 ) + '\n' );

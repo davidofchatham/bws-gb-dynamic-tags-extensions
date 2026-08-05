@@ -43,6 +43,8 @@ define( 'ABSPATH', __DIR__ );
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+// The depth-0 base migrator reads the chain through the COMPILER, so it comes along.
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
@@ -348,6 +350,27 @@ check(
 $corpus_file = __DIR__ . '/fold-migration-corpus.json';
 $corpus      = json_decode( (string) file_get_contents( $corpus_file ), true );
 check( 'M7.0 the shared corpus parses', is_array( $corpus ) && ! empty( $corpus['cases'] ), $corpus_file );
+check( 'M7.0b the corpus covers DEPTH-0 base source too', ! empty( $corpus['baseSrc'] ), count( (array) ( $corpus['baseSrc'] ?? array() ) ) . ' base cases' );
+
+/** Ordered key/value pairs, or null — key ORDER is half the property. */
+$pairs_of = static function ( $out ) {
+	if ( null === $out ) {
+		return null;
+	}
+	$pairs = array();
+	foreach ( $out as $key => $value ) {
+		$pairs[] = array( (string) $key, (string) $value );
+	}
+	return $pairs;
+};
+
+// DEPTH-0 — the base tag's own source triple. Built here rather than folded into the
+// slot loop because the two migrators take different inputs: a container config versus
+// none at all.
+$php_base = array();
+foreach ( (array) ( $corpus['baseSrc'] ?? array() ) as $case ) {
+	$php_base[] = $pairs_of( bws_fold_migrate_base_src( (array) $case['options'] ) );
+}
 
 $php_doc = array();
 foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
@@ -379,7 +402,23 @@ if ( ! is_array( $js_doc ) ) {
 	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', false, substr( trim( $raw ), 0, 400 ) );
 } else {
 	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', true );
-	check( 'M7.2 both sides answered every corpus case', count( $php_doc ) === count( $js_doc ), count( $php_doc ) . ' php vs ' . count( $js_doc ) . ' js' );
+	$js_slots = (array) ( $js_doc['cases'] ?? array() );
+	$js_base  = (array) ( $js_doc['baseSrc'] ?? array() );
+	check( 'M7.2 both sides answered every corpus case', count( $php_doc ) === count( $js_slots ), count( $php_doc ) . ' php vs ' . count( $js_slots ) . ' js' );
+	check( 'M7.2b both sides answered every BASE case', count( $php_base ) === count( $js_base ), count( $php_base ) . ' php vs ' . count( $js_base ) . ' js' );
+
+	foreach ( $php_base as $i => $php_case ) {
+		$label   = $corpus['baseSrc'][ $i ]['label'] ?? "base case {$i}";
+		$js_case = array_key_exists( $i, $js_base ) ? $js_base[ $i ] : '(missing)';
+		check(
+			'M7.4 base twin agrees — ' . $label,
+			$php_case === $js_case,
+			'php: ' . json_encode( $php_case ) . "
+      js:  " . json_encode( $js_case )
+		);
+	}
+
+	$js_doc = $js_slots;
 	foreach ( $php_doc as $i => $php_case ) {
 		$label = $corpus['cases'][ $i ]['label'] ?? "case {$i}";
 		// array_key_exists, not `??`: a no-op case is legitimately NULL on both sides, and
