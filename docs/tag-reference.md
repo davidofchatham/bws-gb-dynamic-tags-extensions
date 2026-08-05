@@ -7,7 +7,7 @@ See [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership
 **How this doc is organized.** Three parts, each a different reader-mode:
 
 - **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, custom editor controls, the option layout & visibility model.
-- **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its control order — plus the try_ chains. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
+- **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its control order — plus the try_ tags. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
 - **[Part III — Trackers](#part-iii--trackers)** — read on change. Potential future templates; how to keep this document current.
 
 ---
@@ -42,7 +42,7 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 | `src` value | Resolves to | Status |
 |---|---|---|
 | unset (default) | Current entity (post or term per template context) | Implemented |
-| `ref` | Reference/relational field hop — requires `ref` sub-option (field key) | Implemented |
+| `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
@@ -89,7 +89,7 @@ Before adding a named `use:` value (or a per-source analog) for a new field targ
 | `datetime_*` site field | **Yes** — format chain (custom → ACF return-format → site default) | — | **keep** |
 | `title` site → site name | No — GB `{{site_title}}` exists | **Yes** — the title/name slot across post/term/site | **keep** |
 | `text` `use:tagline` (site) | **No** — GB `{{site_tagline}}` covers it, nothing to format | **No** — site has no title/content-shaped slot the tagline fills; it's a one-off datum, not a cross-source parallel | **rejected** (fails both tests) |
-| `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "specific resource + site fallback" is an ID source (a probable `src:<type>,<ID>`-style construct — **not final**; the author-serialized-entity-id flavor, see CONTEXT.md §Language "Source binding") inside a try_ chain (which keeps its site rung via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
+| `src:site` on a **single-slot rooted modifier** (`term_*`, `view_*`) | **No** — the site datum is the *identical* read the unrooted base tag gives (`{{email src:site}}`); the term/view rooting is discarded | **No** — site is entity-blind, so it fills no term-/view-distinct slot; a rooting modifier exists to surface entity-distinct data | **rejected** — `site` is filtered from the modifier's `src` dropdown. *Likely future home for "specific resource + site fallback" is an ID source (a probable `src:<type>,<ID>`-style construct — **not final**; the author-serialized-entity-id flavor, see CONTEXT.md §Language "Source binding") as a try_ attempt (which keeps its site attempt via `try_allow_site_slot`), NOT a `try_term_` form — `term_` is a transitional N×M surface on a deprecation glide-path (base tags + context-awareness + a pinned-resource source subsume it).* |
 | `src:site` / `srcTermIn` on `{{call}}` | **No** — neither yields a post id, and a `$post_id`-contract function cannot consume a wp_options namespace or a term set | **No** — `{{call}}` exists to bind a POST for a post-shaped function; a non-post source fills no post-binding slot | **rejected** — `{{call}}` offers `src:current` + `src:ref` ONLY (both post-yielding). Same I4 gate applied at the **source** level rather than the `use:`-value level. Post-context-only is a stated design non-goal, not a gap to close. See [§Call tag](#call-tag). |
 
 The tagline is the cautionary case because it fails **both** tests: the datum is reachable (GB native, or `key:blogdescription`), there is no traversal/format value-add, *and* it is not a strong analog — site has no conceptual slot it parallels (unlike `title`'s name-slot or `content`'s body-slot). A datum that is "just there" for one source, with no cross-source shape, is not an analog.
@@ -117,7 +117,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 
 **`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): implicit mode = `home_url()`, no option read.
 
-**Suppressed for site:** `srcTermIn` (no entity to hop terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
+**Suppressed for site:** `srcTermIn` (no entity to step to terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
 
 **Link wrapping** (text/title/datetime_* only): `linkTo:permalink` → `home_url()` under `src:site` (the site permalink-analog — no separate `linkTo:site`); `linkTo:key` → option-stored URL (allowlist-gated).
 
@@ -242,8 +242,8 @@ as:<mode>        // nullary return (id/alt/title/caption) — bare mode, NO size
 
 - **Wire schema:** `as:<mode>[,<size>]`. Size sub-slot present **iff** mode is `url`. Size enum = registered sizes (see `bws_get_image_size_options()`), default `full`, never stripped (rides the `as` opt-out). No interior `,,` possible — a nullary mode has no arg slot.
 - **GB `image-size` support DROPPED.** Image tags no longer register `'image-size'`; the `bws-as-size` composite control (`assets/js/as-size-control.js`) renders the mode dropdown + a size dropdown (shown only under `url`) and owns the whole `as` token. GB's native size control is retired — the composite ships pretty size labels GB never had (respects the `image_size_names_choose` filter).
-- **Read seam:** cores parse `as` via `bws_parse_as_option()` (`includes/helpers/image-helpers.php`), which splits `mode,size` and falls back to a legacy separate `size:` then `full`, so pre-fold saved tags still render at their size.
-- **Migration — Tag Converter ONLY:** `bws_migrate_image_as_size_fold()` (a `transform_callback` migration, `includes/tags/deprecated-tags.php`) folds a legacy `size:` (bare or per-slot `N-size:`) into `as` value-conditionally — into `url,<size>` for url, dropped for a nullary mode (size was dead there). It runs **through the Tag Converter, which rewrites the raw tag string before GB parses it**. It does **NOT** run on editor-open, and no control-side fold can replace it: `size` is GB-reserved, so GB destructures it into its own private `imageSize` state and re-serializes it even though the tag no longer registers `image-size` support — unreachable from `extraTagParams` (see [`gb-constraints.md` §Reserved keys are destructured into GB-private state](gb-constraints.md#reserved-keys-are-destructured-into-gb-private-state-and-re-serialized-even-when-unsupported)). Opening a pre-fold tag in the editor therefore leaves its `size:` token in place (reordered, not folded); the read seam above keeps it rendering correctly meanwhile.
+- **Read seam:** cores parse `as` via `bws_parse_as_option()` (`includes/helpers/image-helpers.php`), which splits `mode,size` and falls back to a separate `size:` then `full`, so a tag still holding the flat `size:` key renders at its size.
+- **Migration — Tag Converter ONLY:** `bws_migrate_image_as_size_fold()` (a `transform_callback` migration, `includes/tags/deprecated-tags.php`) folds a legacy `size:` (bare or per-slot `N-size:`) into `as` value-conditionally — into `url,<size>` for url, dropped for a nullary mode (size was dead there). It runs **through the Tag Converter, which rewrites the raw tag string before GB parses it**. It does **NOT** run on editor-open, and no control-side fold can replace it: `size` is GB-reserved, so GB destructures it into its own private `imageSize` state and re-serializes it even though the tag no longer registers `image-size` support — unreachable from `extraTagParams` (see [`gb-constraints.md` §Reserved keys are destructured into GB-private state](gb-constraints.md#reserved-keys-are-destructured-into-gb-private-state-and-re-serialized-even-when-unsupported)). Opening such a tag in the editor therefore leaves its `size:` token in place (reordered, not folded); the read seam above keeps it rendering correctly meanwhile.
 
 All other image options follow the standard rule. `as` is the documented exception.
 
@@ -259,7 +259,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-as-size` | Composite: return-mode `SelectControl` + a size `SelectControl` shown only under `url`. Owns the whole `as` token, folding size into its value (`as:url,medium`; nullary modes serialize bare). Size enum + pretty labels localized from PHP (`window.bwsImageSizes` ← `bws_get_image_size_options()`). Last-picked size stashed in React state so `url→alt→url` restores it (wire stays model-pure). Replaces GB's native `as` select AND `image-size` control. | `assets/js/as-size-control.js` | `as` on `image`, `term_image`, `try_image` |
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
-| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove cardinality; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
+| `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
@@ -359,25 +359,27 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 `}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%A`…`%J` (following the slot keys; `%1`…`%10` is still read and always will be — both alphabets collapse to one internal token, so nothing downstream can tell them apart).
 
-**Step slugs are wire vocabulary, distinct from the engine's option values:** `refs` (relationship hop, engine `src:ref`), `terms` (taxonomy hop, engine `srcTermIn`), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence; nothing else translates.
+**Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
+
+**A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field capped at 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
 **Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
 
 **Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` inherits everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **inherit** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` inherits, an empty chain resolves against the ambient entity.
 
-**An INCOMPLETE step skips the slot.** A `terms` hop with no taxonomy is authorable only under the fold (flat wire could not state a hop without its argument), and flattening it would be silently wrong: an empty `srcTermIn` is how *no term hop* is spelled, so the slot would read the un-hopped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason, so the editor preview can name what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). An argless `refs` hop is NOT incomplete — it inherits the carried relationship field.
+**An INCOMPLETE step skips the slot.** A `terms` step with no taxonomy is authorable only under the fold (flat wire could not state a step without its argument), and flattening it would be silently wrong: an empty `srcTermIn` is how *no term step* is spelled, so the slot would read the un-stepped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason, so the editor preview can name what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). An argless `refs` step is NOT incomplete — it inherits the carried relationship field.
 
-**`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a legacy limit with no fanning step stays a slot-level token. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
+**`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a flat limit with no fanning step stays a slot-level token. A **step `limit` is PER-INPUT** — at most N resolved sources per input source — which is a different quantity from the **tag-level `limit`**, capping the resolved-source list once before the read. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
 
-**Both eras render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the legacy flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between legacy slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
+**Both FORMS render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between flat slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
 
 **Serialization: a folded key ranks as its slot's source** — after the `format` group, after any TAG-level (slot 0) source key, before `link`/`fallback`, slots ascending. So [§Option order](#option-order) needs no qualification: `format` leads on every tag, folded or not.
 
 **Why that is worth stating.** Until 2026-08-04 the slot keys were all DIGITS, and digits are not an ordinary key: an all-digit key is a JS array-index property, which ECMAScript enumerates before every string key regardless of insertion order, and GB serializes with `Object.entries( extraTagParams )`. Neither `bws_serialization_order_sort()` nor its JS port could move them by rebuilding the object, so both had to STATE that forced order — which cost `format`-first on `{{join}}`/`try_*` and tag-level-first on `{{table}}`. Capitals are ordinary string keys, so ordering came back to the sort. The spelling is otherwise a wash (a digit prefix reads marginally better than a letter, the `%A` format tokens read better than `%1`), and the ordering is what decided it.
 
-**Cardinality is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
+**The slot count is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
 
-**A chain with no flat spelling SKIPS the slot too**, and for a different reason than an unconfigured read: the flat triple every container arm dispatches on holds ONE ref hop and ONE term hop, so a second hop on either axis or a repeater `entries` step cannot be represented, and resolving the expressible PREFIX would silently read a different source than the wire states. The two skips need different author-facing answers, so the seam reports which one it was: an unconfigured slot stays silent (a normal in-progress state), an inexpressible chain is flagged `slot N source not supported` in the editor tag configuration preview ([`editor-tag-previews.md`](editor-tag-previews.md)). Rendered output cannot tell them apart, because both print nothing.
+**A chain with no flat spelling SKIPS the slot too**, and for a different reason than an unconfigured read: the flat triple every container arm dispatches on holds ONE `refs` step and ONE `terms` step, so a second step on either axis or a repeater `entries` step cannot be represented, and resolving the expressible PREFIX would silently read a different source than the wire states. The two skips need different author-facing answers, so the seam reports which one it was: an unconfigured slot stays silent (a normal in-progress state), an inexpressible chain is flagged `slot N source not supported` in the editor tag configuration preview ([`editor-tag-previews.md`](editor-tag-previews.md)). Rendered output cannot tell them apart, because both print nothing.
 
 Harnesses: `php tools/test/slot-fold-test.php` (grammar + legacy mapping + render seam), `php tools/test/slot-fold-twin-test.php` (PHP↔JS agreement; needs `node`), `node tools/test/slot-fold-repeater-test.js` (repeater/compaction). Integration + editor rows: [`tools/test/fold-test-matrix.md`](../tools/test/fold-test-matrix.md).
 
@@ -411,7 +413,7 @@ The term_ modifier produces additional tags with GB type `'term'`: `term_text`, 
 
 **`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
 
-**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots, one folded option key each; cardinality is explicit (add/remove), not revealed by configuration progress.
+**try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots, one folded option key each; the slot count is explicit (add/remove), not revealed by configuration progress.
 
 See [§Default serialization strategy](#default-serialization-strategy) for the registration-boundary mechanism that controls which option defaults survive into the saved tag string (and the intentional `as` opt-out for `image` / `term_image`).
 
@@ -434,7 +436,7 @@ tag instance level — there is no source prefix in the tag name.
 
 Each slot holds a **source chain** and — depending on the template — a **field read**:
 
-1. **Source chain** — `src(…)`, or absent. Slot 1 absent = the ambient entity; slot 2+ absent inherits the previous resolving slot, and `src(same)` says so explicitly. The `terms` hop is offered as a chain step (`src(refs,rel;terms,category)`); it names **this** slot's entity and never carries forward.
+1. **Source chain** — `src(…)`, or absent. Slot 1 absent = the ambient entity; slot 2+ absent inherits the previous resolving slot, and `src(same)` says so explicitly. The `terms` step is offered as a chain step (`src(refs,rel;terms,category)`); it names **this** slot's entity and never carries forward.
 
 2. **Field read** — three shapes, set by the template's `try_per_slot_use` / `try_per_slot_key` pair, and the control renders whichever the registration describes:
 
@@ -448,7 +450,7 @@ Each slot holds a **source chain** and — depending on the template — a **fie
 
 A slot still needs a key to produce output where its read mode requires one; a keyless slot in a key-needing mode is skipped, not an error.
 
-**Cardinality is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `limit`/`sep` on list-mode templates are likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists.
+**The slot count is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `limit`/`sep` on list-mode templates are likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists.
 
 ### Available try_ tags
 
@@ -498,8 +500,8 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 
 | Option name | Option label | Help text | Shown when | Notes |
 |---|---|---|---|---|
-| `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal hop. **Required** when `src:ref` selected. |
-| `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term hop on" and the taxonomy — **required** when hop is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
+| `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
+| `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term step on" and the taxonomy — **required** when the step is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
 | `limit` | Result Limit | Maximum number of results to return. Default: 1. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set. **Unconditional on a multislot container** — the list axis is inside a slot value, which `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric falls back to 1 — see [§List mode](#list-mode-limit--sep). |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1`; unconditional on a multislot container | List-mode separator, same tag set as `limit`. |
 
@@ -690,8 +692,8 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
+| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
 | `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
@@ -737,8 +739,8 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
 | `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal hop key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term hop (list mode). |
+| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
+| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
 | `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
 | `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
@@ -831,7 +833,7 @@ loop-row context, term-analog arm) works inside a join slot by construction. One
 **Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option
 key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per slot: a source
 chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated —
-plus a `terms` taxonomy hop), the field read (text's key/title enum, **no "Same as Previous Field"
+plus a `terms` taxonomy step), the field read (text's key/title enum, **no "Same as Previous Field"
 row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and
 a per-step `limit` (list-mode cap so a term/ref slot reads >1 target; no control surface yet, but
 migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off
@@ -843,8 +845,8 @@ assembly `sep`) dissolved twice over — first when the assembly key was renamed
 (1.16.0, FW-52), then under the fold, where a slot's options live inside its own value. Still
 deferred.
 
-**Cardinality (v1.17.0).** Explicit add/remove in the slot repeater; removal compacts. Through
-1.16.x cardinality was inferred from configuration and slot N ≥ 3 revealed when the previous slot
+**Slot count (v1.17.0).** Explicit add/remove in the slot repeater; removal compacts. Through
+1.16.x the count was inferred from configuration and slot N ≥ 3 revealed when the previous slot
 had a `key` or a non-default `use` (the combining-shaped reveal — never its `src`, which is
 default-empty in combining); those predicates are gone with the flat keys they tested. Legacy wire
 still renders unchanged, and touching a slot rewrites it to folded form.
@@ -982,7 +984,7 @@ translation, `'0'`, full-name dense/sparse collapse). Integration: standing matr
 - **Per-slot field key**, no per-slot `use` (single key-mode — no `use` enum, mirroring the base tags).
 - **`src:site` slot is allowed** (re-allowed past the generic [#26 slot-src filter](#src-option-values)) — site is the canonical contact-fallback slot (personal address → site-wide address). The slot resolver has a `src:site` arm that reads the option (not current-post meta). datetime/text/image try_ slots still filter `site` (their site arm is deferred).
 - **`subject`/`noLink`** (email) and **`noLink`** (phone) are chain-level options (inputs to each slot's own compose).
-- **List mode** (`limit`/`sep`) — a slot in list mode (term-hop, or `src:ref`) joins its finished per-item strings, same as the base tag's list mode.
+- **List mode** (`limit`/`sep`) — a slot in list mode (a `terms` step, or `src:ref`) joins its finished per-item strings, same as the base tag's list mode.
 - **`visibility`** — the same `tagName NOT_IN ['a','button','img','picture']` gate plus a **runtime media-block backstop**: a media block's empty `tagName` slips the native gate, so the `try_` callback returns `''` inside a media block rather than corrupting the `<img src>` with a `mailto:`/`tel:` anchor. (The tag still *appears* in the media source picker — same documented limitation as the base tags.)
 
 **`term_email` / `term_phone`** — read the email/phone field off a taxonomy-term entity (the term itself at `src:current`, or a related post at `src:ref`). Same compose path as `{{email}}`/`{{phone}}`.

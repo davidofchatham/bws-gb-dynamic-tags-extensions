@@ -20,7 +20,7 @@ Not on front end — gated by `$instance->context['bwsEditorPreview']`, injected
 | `,` | List item delimiter |
 | ` from ` | Field-to-source binding |
 | ` like ` | Datetime formatted-value preview |
-| `→` | Term-hop traversal arrow |
+| `→` | Term-step traversal arrow |
 | `⚠` | Warning prefix (replaces the full preview) |
 
 ## Assembly
@@ -36,17 +36,17 @@ Fallback appended when set: ` (fallback: “{value}”)`.
 
 ## Context part
 
-Space-joined segments. The `→` separator precedes the term-hop segment only.
+Space-joined segments. The `→` separator precedes the term-step segment only.
 
 | Condition | Segment |
 |---|---|
 | Modifier tag (e.g. `term_`) | Modifier `label` value (e.g. `Term`) |
-| `src:site` (base tags + try_ slots) | `Site` (yields `… from Site`; never combines with ref/term-hop — site has no entity. Since 1.15.0 every try_ tag offers a site slot (FW-4), previously only try_email/try_phone. On a modifier it is the invalid-combo warning instead) |
+| `src:site` (base tags + try_ slots) | `Site` (yields `… from Site`; never combines with a `refs`/`terms` step today, for two DIFFERENT reasons: `refs` is **unwired, not undefined** (an options store holds relationship fields like any other field store — `base-shared.php:155` records the Stage A suppression as *"not 'never applies'"*), while a `terms` step names *the terms attached to this entity* and a site is not an object terms attach to. A taxonomy field on an options page would be a field READ that yields terms, not a `terms` step. Since 1.15.0 every try_ tag offers a site slot (FW-4), previously only try_email/try_phone. On a modifier it is the invalid-combo warning instead) |
 | `src:ref` + `ref:X` set | `Ref 'X'` |
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
 | `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
-| No modifier, `src` unset, no term-hop | *(omit — no `from` clause)* |
+| No modifier, `src` unset, no `terms` step | *(omit — no `from` clause)* |
 
 ## Field part
 
@@ -174,7 +174,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
 | Slot chain with no flat spelling | `[⚠ Try: slot 2 source not supported]` (1.17.0 — see the join warnings table for the rule; when it is the ONLY slot this reason replaces `no slots configured`, which would otherwise be actively misleading) | same |
-| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` (1.17.0 — a `terms` hop with no taxonomy; the seam skips it rather than reading the un-hopped entity) | same |
+| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` (1.17.0 — a `terms` step with no taxonomy; the seam skips it rather than reading the un-stepped entity) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
@@ -204,11 +204,11 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
 | Folded slot whose source chain has no flat spelling | `slot N source not supported` (1.17.0) |
-| Folded slot with an INCOMPLETE step (`terms` hop, no taxonomy) | `slot N no taxonomy` (1.17.0) |
+| Folded slot with an INCOMPLETE step (`terms` step, no taxonomy) | `slot N no taxonomy` (1.17.0) |
 
 **`slot N source not supported`** is the author-facing signal for a slot the render seam SKIPS: a
-chain with a SECOND hop on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One ref hop
-plus one term hop IS expressible and previews normally. The distinction matters because the two are
+chain with a SECOND step on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One `refs`
+step plus one `terms` step IS expressible and previews normally. The distinction matters because the two are
 indistinguishable in RENDERED output — a skipped slot and a slot that resolves to nothing both print
 nothing — so the preview is the only place an author can see which happened. The reason comes from
 `bws_fold_slot_flat_options()`'s `$skip_reason` out-param, not from a second copy of the skip rule
@@ -217,10 +217,10 @@ normal in-progress state, and flagging it would fire on every half-built join. S
 mechanism, on `try_` tags: `[⚠ Try: slot N source not supported]`.
 
 **`slot N no taxonomy`** is the third skip reason, and it is separate because it names what is
-MISSING rather than what is unsupported. A `terms` hop with no taxonomy is expressible — it just is
-not finished — and the seam skips it deliberately: an empty `srcTermIn` is how "no term hop" is
-spelled, so flattening it would make the slot read the UN-HOPPED entity and return a plausible WRONG
-value rather than nothing. The shape only exists under the fold; flat wire could not state a hop
+MISSING rather than what is unsupported. A `terms` step with no taxonomy is expressible — it just is
+not finished — and the seam skips it deliberately: an empty `srcTermIn` is how "no term step" is
+spelled, so flattening it would make the slot read the UN-STEPPED entity and return a plausible WRONG
+value rather than nothing. The shape only exists under the fold; flat wire could not state a step
 without its argument. The slot's own control warns in parallel ("This *&lt;noun&gt;* will be skipped
 unless a taxonomy is set"), so the two surfaces agree on the promise.
 
@@ -277,6 +277,6 @@ php tools/test/preview-label-test.php
 
 Behaviors the harness locks in (correct-by-design, easy to regress):
 
-- **`→` hop arrow is positional** — emitted only when the term-hop segment *follows* another (modifier label or `Ref 'x'`). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
+- **`→` step arrow is positional** — emitted only when the term-step segment *follows* another (modifier label or `Ref 'x'`). Standalone current-post→term drops it: `['sku' from Event Category Term]`, not `… from → …`.
 - **Slot ≥2 key-only override is discarded** — an empty `use` on slot N≥2 wipes that slot's `key` (the `use:same` UI hides the key field). A key override only registers when its `N-use` is also sent.
 - **`text` try "no slots configured" is unreachable** — slot 1 is always default-filled, so a misconfigured slot-1 trips the missing-key warning first.
