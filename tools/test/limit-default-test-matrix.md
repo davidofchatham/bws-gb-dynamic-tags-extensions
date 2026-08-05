@@ -9,7 +9,7 @@ and four code paths, and the regression this matrix guards is cross-cutting.
 
 | Input | Before 1.17.0 | 1.17.0 |
 |---|---|---|
-| unset / `''` | 1 | **1 (unchanged — this is what the L1 rows pin)** |
+| unset / `''` | 1 | **1 on FLAT wire (unchanged — what the L1 rows pin); 0 on CHAIN wire (§L4)** |
 | non-numeric (`abc`) | 1 | 1 (explicit `is_numeric()` gate) |
 | `0` | 1 (silently clamped) | **UNLIMITED** |
 | `-1`, `-3` | 1 (silently clamped) | **UNLIMITED** (parse tolerant, emit `0`) |
@@ -29,7 +29,12 @@ merely lengthen output — **it drops the anchor while the text still reads plau
 | the seam — `bws_resolve_field_values()` | `field-helpers.php` | text, title, email, phone |
 | the shared list fold — `bws_collect_value_list()` | `field-helpers.php` | datetime_single / _range |
 | try_ slot dispatch (own implementation) | `class-tag-template-registry.php` | L1.7, L3.4 |
-| `bws_try_join_items()` (defensive re-clamp) | `base-shared.php` | covered via the try_ rows |
+| `bws_try_join_items()` | `base-shared.php` | covered via the try_ rows. **No longer a clamp site** (1.17.0): it holds no options, so it structurally cannot know which spelling the tag uses, and it now takes an already-resolved int |
+
+Since 1.17.0 the DEFAULT each of those sites passes comes from one more function,
+[`bws_limit_default()`](../../includes/helpers/field-helpers.php) — see §L4. No call site is
+new-or-old; all of them serve both eras, so the era is read off the tag's wire rather than
+chosen per site.
 
 `{{content}}` is **NOT list-capable** (registers no `limit`) — out of scope BY DESIGN. Do not
 add rows for it.
@@ -89,6 +94,44 @@ rows — one anchor, not two.
 | L3.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | both dept names, `, `-joined | the try_ dispatch honors unlimited AND does not break out of the term hop after the first item (the `$slot_max &&` guard) |
 | L3.5 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | both dept event dates | the list fold slices with `?: null` |
 | L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, **NO** `<a>` | unlimited feeds the same count gate — it drops the anchor legitimately, because the output really is multi-value |
+
+## L4 — the SPELLING selects the default (1.17.0, base-tag source chains)
+
+**The unset default is no longer one number.** Flat wire caps its resolved-source list at 1;
+chain wire does not. That single rule is the whole compatibility mechanism for base-tag source
+chains, and it is chosen because it works on wire NO MIGRATION CAN REACH — a draft nobody opens,
+a block widget the content scanner never sees, a tag stored inside an ACF field.
+
+So the L1 rows above are only half the floor: they pin that FLAT wire still caps at one. These
+rows pin the other half, and every one is a **pair of spellings for the same source**.
+
+⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
+defaulting to many means link-wrapping differs by spelling, on new wire.
+
+| Row | Tag | Expected | What it proves |
+|---|---|---|---|
+| L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
+| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — uncapped. The anchor is legitimately gone: the output really is multi-value |
+| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT value beats the spelling-selected default. This is what a migrated or author-converted tag looks like, so it is not an anomaly — ordinary option precedence |
+| L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
+| L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — uncapped |
+| L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy cap on chain wire |
+| L4.7 | `{{text src:current\|key:role\|linkTo:permalink}}` | `Captain`, in `<a>` | a root-only chain does not fan, so nothing changes. `src:current` is chain-shaped in the control but a plain token on the wire |
+| L4.8 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | the PER-STEP cap and the tag-level one are different quantities. This caps the step at one source per input; the tag-level default stays uncapped and has nothing left to cut |
+
+## L5 — the author conversion (editor only)
+
+Not reachable by `render-tag`. Open `/matrix-post-meta/` in the block editor.
+
+| Row | What to do | Expected |
+|---|---|---|
+| L5.1 | Open a tag whose source is FLAT `src:ref\|ref:related_staff`; the Source control shows one step | the chain is READ from the flat keys — display only. Cancel the modal and the stored string is untouched |
+| L5.2 | Commit any change to that source | the saved tag is `src:refs,related_staff`, the `ref` key is GONE, and **`limit:1` has appeared** — visible in the Result Limit field, not just on the wire. Without it the tag would silently start rendering both names and drop its anchor |
+| L5.3 | Clear the `1` from Result Limit | both names render. The point of showing the number is that it is clearable |
+| L5.4 | Re-commit the source on an ALREADY-chain tag whose limit you cleared | the `1` does NOT come back. Only the conversion writes it |
+| L5.5 | Set the source to `Current` (root only) and commit | no `limit` is written — a source with no step has nothing to cap, and a number there is noise a reader has to decide is meaningless |
+| L5.6 | Add a step, leave its field empty | the step warns *"This tag will be skipped unless a field is set"*, and **Add hop is unavailable** until the step is complete |
+| L5.7 | On a fanning step, check the cap input | placeholder reads `0 (all)`. Type `0`, commit, reopen — the field shows `0 (all)` again and the wire carries no cap. Same glyphs, same meaning, nothing silently lost |
 
 ## Editor check (no front-end surface)
 

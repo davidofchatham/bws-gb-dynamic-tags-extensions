@@ -264,7 +264,7 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 
 **`fanning` is a STATIC property, read off the wire: capacity, not outcome.** A fanning step routinely resolves exactly one (a relationship field capped at 1, a single-term taxonomy, a one-row repeater), and that is not a different kind of source. The runtime count is a **length**, and needs no adjective. This split is what FW-63's dispatch depends on — I8 forbids a live probe, so "does it fan" must be answerable from the wire alone.
 
-(Today `refs` is collapsed to the first by `bws_extract_post_id` — a latent single-read defect the fanning model exposes.)
+(Scoped: the RETIRED source-class path collapsed `refs` to the first via `bws_extract_post_id`. The ENGINE's step has never collapsed, and the flat assemblers retired behind the chain compiler in 1.17.0. What survives of that defect is the tag-level `limit` default of 1, which is now selected by the source SPELLING — flat wire keeps it, chain wire does not; see `bws_limit_default`.)
 
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
 

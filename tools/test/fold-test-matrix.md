@@ -58,8 +58,10 @@ LED the whole string while the keys were digits, which is an array-index propert
 first — escaping that pin is why the keys are capitals.)
 
 > Verified 2026-08-04 against the 1.17.0 build (`feat/table-tag`): every §F1–§F8 and §F10–§F13 row
-> below is a MEASURED value, not a predicted one. §F9 records four DIVERGENCES that are real and
-> deliberately unfixed.
+> below is a MEASURED value, not a predicted one. §F9 recorded four DIVERGENCES at that point; the
+> arm refactor (FW-63) turned three of them into equivalences, and those rows are now ACCEPTANCE
+> CRITERIA rather than a record. The fourth (`entries` on a base tag) stays divergent by decision.
+> **Re-measure §F9 after any arm change** — a wrong arm renders a plausible value, not an empty one.
 
 ---
 
@@ -196,25 +198,35 @@ spelling is the reference.
 | F8.5 | — | `{{phone src:refs,related_staff,limit(1)\|key:main_line\|limit:0}}` | ONE number. **Per-hop cap** — bounds the fan-out's spread |
 | F8.6 | — | `{{phone src:refs,related_staff,limit(2)\|key:main_line\|limit:0}}` | both numbers. F8.4/F8.5/F8.6 together are what separate the hop cap from the terminal `limit` |
 
-## §F9 — KNOWN DIVERGENCES (real, deliberately unfixed)
+## §F9 — ARM DISPATCH: chain wire on a BASE tag (FW-63)
 
-**These rows FAIL as equivalences and that is the recorded state.** The compiler gave the ENGINE
-arbitrary hops, but a base tag's rendered output is chosen by ARMS that gate on the flat
-`src`/`srcTermIn` option tokens (~10 sites read `srcTermIn`; ~6 compare `src` to `'ref'`/`'site'`).
-Until those arms dispatch by the chain's TERMINAL STEP KIND (the verb-agnostic resolver refactor),
-chain wire on a base tag is not a supported authoring surface — which is exactly why the base
-depth-0 MIGRATION is not registered. Do not "fix" a row here with a guard; the fix is the refactor.
+**These rows were the recorded failing state, and they are now the acceptance criteria.** They used
+to carry an instruction not to patch them with guards, because a base tag's rendered output was
+chosen by ARMS gating on the flat `src`/`srcTermIn` option tokens (~10 sites read `srcTermIn`; ~6
+compared `src` to `'ref'`/`'site'`) while the compiler gave the ENGINE arbitrary hops. Since 1.17.0
+every arm asks `bws_fold_src_resolution()` — the chain's resolved-source KIND plus whether it fans —
+so the two spellings take the same arm.
 
-| # | Tag | Renders | Should render | Cause |
-|---|---|---|---|---|
-| F9.1 | `{{text src:terms,department\|use:title\|limit:0}}` | `Matrix: Post Meta` (the PAGE title) | `Sales, Support` | the term-hop arm reads flat `srcTermIn`, which chain wire does not set — so the hop never happens and the read falls to the ambient post. **Not empty — a DIFFERENT value**, which is the worst failure shape |
-| F9.2 | `{{text src:refs,related_staff\|use:title\|limit:0}}` | `Jane Partner` | `Jane Partner, Tom Associate` | the list-mode plural path is gated on `src` being literally `'ref'` |
-| F9.3 | `{{text src:refs,related_staff;terms,department\|use:title}}` | `Jane Partner` | empty (jane has no department terms) | the post-semantic wrapper takes the chain's LEADING RUN of `ref` steps and stops; the term hop is then the caller's job (§V13/B2) and the caller reads flat `srcTermIn`. So a non-leading hop is silently dropped on `use:title`-style reads. A KEYED read (`use:key`) goes through the full step compile and does not have this hole |
-| F9.4 | `{{text src:entries,team_members\|use:key\|key:name\|limit:0}}` | empty | `Alice Adams, Bob Brown` | no base-tag arm consumes a `meta_row` source. This is the gap `{{table}}` fills with its own assembly (step 6), not something the base text arm should grow |
+**Run each pair and compare. A divergence here is the arm refactor regressing**, and the failure
+shape is the bad one: a wrong arm renders a PLAUSIBLE value, not an empty one, so a row that "looks
+fine" is not evidence.
 
-**The sharpest contrast in this matrix:** F9.1 and F1.7 are the SAME term hop. It works in a join
-SLOT (the seam flattens it to `srcTermIn`, and join's arm dispatches on that) and silently reads the
-wrong entity on the base tag. One mechanism, two answers, decided by whether an arm was involved.
+| # | Legacy | Chain | Expected |
+|---|---|---|---|
+| F9.1 | `{{text srcTermIn:department\|use:title\|limit:0}}` | `{{text src:terms,department\|use:title}}` | `Sales, Support`. **The chain spelling needs no `limit`** — flat wire caps at 1, chain wire does not (`bws_limit_default`), which is the whole compatibility mechanism. Pre-1.17.0 the chain rendered `Matrix: Post Meta`, the PAGE title |
+| F9.2 | `{{text src:ref\|ref:related_staff\|use:title\|limit:0}}` | `{{text src:refs,related_staff\|use:title}}` | `Jane Partner, Tom Associate`. Pre-1.17.0 the chain rendered `Jane Partner` alone — list mode was gated on `src` being literally `'ref'` |
+| F9.3 | — | `{{text src:refs,related_staff;terms,department\|use:title}}` | EMPTY (jane and tom carry no department terms). Pre-1.17.0 it rendered `Jane Partner`: the post-semantic wrapper took the chain's LEADING RUN of `ref` steps and stopped, so a non-leading hop was silently dropped and the tag read the ref'd POST. **Negative control below** |
+| F9.3b | — | `{{text src:refs,related_staff;terms,department\|use:title\|fallback:NOHOP}}` | `NOHOP` — the row that makes F9.3 non-vacuous. An empty read and a dropped hop both print nothing, so F9.3 alone cannot tell them apart; this pins that the tag resolved and found nothing |
+| F9.4 | `{{text src:site\|key:org_name}}` | — | the site value. **`src:site` still wins over a hand-edited `srcTermIn`** (`{{text src:site\|srcTermIn:department\|key:org_name}}` renders the same): the pair is hand-edit only (`show_if src: not:site`) and every arm has always let the site read win, so the compiler does not fold that hop in |
+
+**Still divergent, deliberately:**
+
+| # | Tag | Renders | Cause |
+|---|---|---|---|
+| F9.5 | `{{text src:entries,team_members\|use:key\|key:name}}` | empty | no base-tag arm consumes a `meta_row` source. This is the gap `{{table}}` fills with its own assembly, not something the base text arm should grow — which is also why `entries` is absent from the base chain control's step enum. Authoring it requires a hand edit |
+
+**The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
+by whether an arm was involved — is what closed. They are now the same hop with the same answer.
 
 ## §F10 — a slot the flat seam cannot express SKIPS
 
@@ -309,9 +321,10 @@ rows are the fastest way in) and check each.
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +
    `fold-chain-compile-test.php` first; a green harness with a red matrix row means the CONTAINER
    arm, not the grammar.
-2. **A §F9 row starts passing** → the arm refactor landed (or something is guarding). Check whether
-   the base depth-0 migration entry can now be registered, and re-read the OPEN row in
-   `.claude/plans/src-chain-encoding.md`.
+2. **A §F9 pair diverges** → arm dispatch regressed. `bws_fold_src_resolution()` is the single
+   question every arm asks, so start at `fold-chain-compile-test.php` §C8; a green §C8 with a red
+   §F9 row means an arm stopped asking it (grep for a revived `'ref' === $src` /
+   `$options['srcTermIn']` test) rather than that the query is wrong.
 3. **A §F10 skip row starts rendering** → the seam grew a partial-resolve path. That is the failure
    mode the skip exists to prevent (rendering a different source than the wire states).
 4. **§F12 rows all pass but the non-vacuity check fails** → the fixture regressed to ids; the rows
