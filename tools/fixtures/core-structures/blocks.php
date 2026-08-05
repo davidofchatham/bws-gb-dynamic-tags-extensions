@@ -331,6 +331,23 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
 	) );
 
+	// L4 — the unset default is no longer ONE number. Flat wire caps at 1, chain
+	// wire does not (bws_limit_default), which is the whole compatibility
+	// mechanism for base-tag source chains: it works on wire no migration can
+	// reach. Rows are PAIRS OF SPELLINGS for the same source, and each asserts the
+	// link too, because the gate is count-based — chain wire defaulting to many
+	// changes link-wrapping as well as output.
+	$sections[] = bws_fixture_gb_section( 'Limit L4 - the SPELLING selects the unset default (1.17.0)', array(
+		bws_fixture_gb_row( 'L4.1 FLAT unset (expect Jane Partner only, linked - the floor)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - uncapped, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked - what a converted tag looks like)', '{{text src:refs,related_staff|use:title|limit:1|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.4 FLAT term hop unset (expect ONE dept name)', '{{text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'L4.5 CHAIN term hop unset (expect Sales, Support)', '{{text src:terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'L4.6 CHAIN + garbage limit (expect BOTH names - the is_numeric guard falls to the CHAIN default, not to 1)', '{{text src:refs,related_staff|use:title|limit:abc}}' ),
+		bws_fixture_gb_row( 'L4.7 root-only chain does not fan (expect Captain, linked)', '{{text src:current|key:role|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.8 PER-STEP cap is a different quantity (expect Jane Partner only, linked)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+	) );
+
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
 	// absorb: src:same, src:ref, src:site, srcTermIn limit). Name rows resolve
 	// on the staff singles (staff_join builder), NOT here. J23/J24 stay in the
@@ -536,16 +553,31 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// supported authoring surface, and see it beside F1.7, which is the same term
 	// hop working in a slot. Do not "fix" these with a guard — the fix is the
 	// verb-agnostic resolver refactor (arms dispatching by terminal step KIND).
-	$sections[] = bws_fixture_gb_section( 'Fold F9 - KNOWN DIVERGENCES (arm-gated; NOT bugs to patch)', array(
+	// Was the DIVERGENCE section; the arm refactor (FW-63) turned it into
+	// acceptance criteria. Every arm now asks bws_fold_src_resolution() — what the
+	// chain RESOLVES TO plus whether it fans — instead of comparing src to
+	// 'ref'/'site' or reading flat srcTermIn, so the two spellings take the same
+	// arm. Read the PAIRS: a wrong arm renders a PLAUSIBLE value, not an empty
+	// one, so a row that "looks fine" on its own is not evidence.
+	// NB the chain rows carry NO limit — flat wire caps at 1, chain wire does not
+	// (bws_limit_default), which is the whole compatibility mechanism.
+	$sections[] = bws_fixture_gb_section( 'Fold F9 - arm dispatch: chain wire on a BASE tag (pairs must match)', array(
 		bws_fixture_gb_row( 'F9.1 legacy term hop (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.1 chain term hop RENDERS THE PAGE TITLE instead - a DIFFERENT value, not empty (arm reads flat srcTermIn)', '{{text src:terms,department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.1 chain term hop, no limit needed (-> Sales, Support; rendered the PAGE TITLE before FW-63)', '{{text src:terms,department|use:title}}' ),
 		bws_fixture_gb_row( 'F9.2 legacy list mode (-> Jane Partner, Tom Associate)', '{{text src:ref|ref:related_staff|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.2 chain gives ONE result - the plural path is gated on src being literally ref', '{{text src:refs,related_staff|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.3 a NON-LEADING hop is dropped on a post-semantic read (-> Jane Partner; should be empty, jane has no terms)', '{{text src:refs,related_staff;terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F9.2 chain list mode, no limit needed (-> Jane Partner, Tom Associate; gave ONE before FW-63)', '{{text src:refs,related_staff|use:title}}' ),
+		// F9.3's expectation is EMPTY, so it needs the split label form AND a
+		// non-vacuity twin: an empty read and a dropped hop both print nothing, and
+		// before FW-63 this rendered "Jane Partner" (the wrapper took the leading run
+		// of ref steps and stopped, so the term hop vanished).
+		bws_fixture_gb_empty_row( 'F9.3 a NON-LEADING hop now runs (-> empty; jane and tom carry no department terms). Rendered Jane Partner before FW-63', '{{text src:refs,related_staff;terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F9.3b non-vacuity control for F9.3 (-> NOHOP; proves the chain resolved and found nothing)', '{{text src:refs,related_staff;terms,department|use:title|fallback:NOHOP}}' ),
+		bws_fixture_gb_row( 'F9.4 site read (-> the org name)', '{{text src:site|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F9.4 site read still WINS over a hand-edited term hop - the pair is hand-edit only, and every arm has always let site win (-> same value)', '{{text src:site|srcTermIn:department|key:organization_email}}' ),
 		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
 		// a label is live wire, and GB renders it. Spelled out here, the empty
 		// {{table}} it produced hid this row's whole label block.
-		bws_fixture_gb_empty_row( 'F9.4 no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
 	) );
 
 	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
