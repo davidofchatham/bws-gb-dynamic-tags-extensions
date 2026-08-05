@@ -76,43 +76,21 @@ require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
-// bws_base_ambient_term_id lives in base-shared.php among WP-dependent siblings; copy
-// the pure function inline (house pattern, keep byte-equivalent to the shipped source)
-// so its §V7 guards test WP-free.
-if ( ! function_exists( 'bws_base_ambient_term_id' ) ) {
-	function bws_base_ambient_term_id( array $base, array $options ): int {
-		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-		if ( '' !== $tax ) {
-			return 0;
-		}
-		$src = $options['src'] ?? $options['source'] ?? '';
-		if ( 'site' === $src || 'ref' === $src ) {
-			return 0;
-		}
-		if ( 'term' !== ( $base['kind'] ?? '' ) ) {
-			return 0;
-		}
-		return (int) ( $base['id'] ?? 0 );
+// The ambient TERM/USER gates are loaded from base-shared.php, not copied. They
+// used to be inline copies "kept byte-equivalent to the shipped source", and when
+// FW-63 replaced their three token tests with one chain query the copies went on
+// passing against a rule the plugin no longer had — the exact drift the house
+// pattern's own caveat warns about. base-shared.php defines functions only, so it
+// loads inert behind the shims below (same approach as try-join-seam-test.php).
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = null ) { return $s; }
+}
+foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $wp_fn ) {
+	if ( ! function_exists( $wp_fn ) ) {
+		eval( "function {$wp_fn}() { return func_num_args() > 1 ? func_get_arg(1) : null; }" );
 	}
 }
-// User-ambient gate (#19 author kind, 1.15.0) — same guards as the term gate,
-// kind:'user'. House pattern: copy the pure fn inline (mirror base-shared.php).
-if ( ! function_exists( 'bws_base_ambient_user_id' ) ) {
-	function bws_base_ambient_user_id( array $base, array $options ): int {
-		$tax = sanitize_key( $options['srcTermIn'] ?? '' );
-		if ( '' !== $tax ) {
-			return 0;
-		}
-		$src = $options['src'] ?? $options['source'] ?? '';
-		if ( 'site' === $src || 'ref' === $src ) {
-			return 0;
-		}
-		if ( 'user' !== ( $base['kind'] ?? '' ) ) {
-			return 0;
-		}
-		return (int) ( $base['id'] ?? 0 );
-	}
-}
+require __DIR__ . '/../../includes/tags/base-shared.php';
 
 // §V14 src:ref list-mode collapse — the post-kind id extraction from a fanned-out
 // ref source list. Mirrors bws_base_post_ids_from_source's filter (post-kind only,
@@ -229,8 +207,27 @@ eq( 'V2 malformed source no kind', array(), bws_run_step( array( 'type' => 'ref'
 // Malformed step (no type) → [].
 eq( 'V2 malformed step no type', array(), bws_run_step( array( 'field' => 'x' ), post_src( 1 ) ) );
 
-// site is terminal — ref off site → [].
-eq( 'V2 ref off terminal site', array(), bws_run_step( array( 'type' => 'ref', 'field' => 'x' ), array( 'kind' => 'site' ) ) );
+// A SITE-ROOTED relationship step resolves (1.17.0). An ACF options page holds
+// relationship fields like any other field store, and the `rows` arm has always
+// accepted site for exactly that reason — so the old refusal here was an asymmetry
+// in one allowlist, not a rule. It was unreachable while `src:site` and `src:ref`
+// were alternative values of one flat option; a chain makes it authorable, and it
+// would have failed silently (empty chain, no warning).
+eq(
+	'site-rooted ref hop resolves through the options store',
+	array( post_src( 91 ), post_src( 92 ) ),
+	bws_run_step(
+		array( 'type' => 'ref', 'field' => 'featured_partner' ),
+		array( 'kind' => 'site' ),
+		make_reader( array( 'site:?' => array( 91, 92 ) ) )
+	)
+);
+// A MISS off the site store is still empty, so the chain short-circuits as ever.
+eq(
+	'site-rooted ref miss is still empty',
+	array(),
+	bws_run_step( array( 'type' => 'ref', 'field' => 'nope' ), array( 'kind' => 'site' ), make_reader( array() ) )
+);
 
 // srcTermIn valid input is post only — term input → [].
 eq( 'V2 srcTermIn rejects term input', array(), bws_run_step( array( 'type' => 'srcTermIn', 'slug' => 'category' ), term_src( 3 ), make_reader( array() ) ) );
@@ -586,6 +583,20 @@ eq( 'V7 meta_row base -> 0', 0, bws_base_ambient_term_id( array( 'kind' => 'meta
 
 // user base → 0 on the TERM gate (author archive is not a term archive).
 eq( 'V7 user base -> 0 (term gate)', 0, bws_base_ambient_term_id( user_src( 7 ), array() ) );
+
+// FW-63: the gate now asks ONE question — is the chain root-only and rooted at the
+// ambient entity — so the CHAIN spelling of each source above answers identically.
+// These are the rows that would have caught the arm bug: before the refactor the
+// gate saw no `srcTermIn` and no `src:ref` token, fired, and read the ambient
+// term's analog on a tag whose source states a hop.
+eq( 'FW-63 chain terms hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'terms,category' ) ) );
+eq( 'FW-63 chain refs hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'refs,related' ) ) );
+eq( 'FW-63 chain entries hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'entries,rows' ) ) );
+// A REGISTRY-source root is root-only, so it still reaches the $base['kind'] test —
+// exactly as the old "src is not site/ref" test let it through.
+eq( 'FW-63 registry root still reaches the kind test', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'related_post' ) ) );
+// And the user twin, so the pair cannot drift.
+eq( 'FW-63 chain hop on user base -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'refs,related' ) ) );
 
 // ── #19 author kind — ambient-user analog gate (bws_base_ambient_user_id) ──────
 //

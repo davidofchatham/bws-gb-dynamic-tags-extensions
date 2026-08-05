@@ -101,7 +101,7 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
  *
  * Two built-in step types (SPEC §I.engine):
  *   - ref       : hop via an ACF relationship/post_object field → post[]
- *                 Valid input kinds: post, term, user, meta_row.
+ *                 Valid input kinds: post, term, user, meta_row, site (1.17.0).
  *                 Does NOT collapse to the first target — returns EVERY
  *                 extracted post id (SPEC §V6 plural fix; contrast the legacy
  *                 bws_extract_post_id first-only collapse).
@@ -134,8 +134,15 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 
 	switch ( $type ) {
 		case 'ref':
-			// Valid input: entity kinds only. site/query-context are terminal.
-			if ( ! in_array( $kind, array( 'post', 'term', 'user', 'meta_row' ), true ) ) {
+			// Valid input: entity kinds, PLUS site (1.17.0). An ACF options page holds
+			// relationship fields like any other field store, and `case 'rows'` below
+			// has always accepted site for exactly that reason — so refusing a
+			// relationship out of the same store the engine already reads a repeater
+			// from was an asymmetry in this allowlist, not a rule. It stayed
+			// unreachable while `src:site` and `src:ref` were alternative values of one
+			// flat option; a chain (`src:site;refs,x`) makes it authorable, and it
+			// would have failed SILENTLY.
+			if ( ! in_array( $kind, array( 'post', 'term', 'user', 'meta_row', 'site' ), true ) ) {
 				return array();
 			}
 			$raw = call_user_func( $reader, $step, $source );
@@ -655,6 +662,11 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 				return function_exists( 'get_field' )
 					? get_field( $field, 'user_' . (int) ( $source['id'] ?? 0 ) )
 					: get_user_meta( (int) ( $source['id'] ?? 0 ), $field, true );
+			case 'site':
+				// The options store, via the SAME 'option' selector the `rows` arm
+				// uses — a globally configured "featured partner" reads the way a
+				// per-post one does. Non-ACF fallback mirrors the other kinds'.
+				return function_exists( 'get_field' ) ? get_field( $field, 'option' ) : get_option( $field );
 			case 'meta_row':
 				$row = $source['row'] ?? array();
 				return is_array( $row ) ? ( $row[ $field ] ?? '' ) : '';

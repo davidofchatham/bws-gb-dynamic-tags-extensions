@@ -152,8 +152,10 @@ function bws_base_traversal_options(): array {
 			// post type is not reliably known, so the key list stays UNSCOPED with the
 			// generic "Meta/Option Field" label (SPEC V3). v2 will type-filter this to
 			// relationship/post_object.
-			// src:ref only. src:site suppressed in Stage A — no site→ref wiring yet
-			// (not "never applies"; re-expose when a site→ref path ships).
+			// This is the FLAT spelling's relationship key, so it belongs to `src:ref`
+			// alone — a flat tag has one `src`, and site and ref are alternative
+			// values of it. A site-rooted relationship is a CHAIN (`src:site;refs,x`),
+			// which the engine has read since 1.17.0 and the chain control authors.
 			'show_if'     => array( 'src' => 'ref' ),
 		),
 		'srcTermIn' => array(
