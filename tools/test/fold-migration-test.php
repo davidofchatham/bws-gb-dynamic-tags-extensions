@@ -259,6 +259,28 @@ check( 'M5.10 join folds its per-slot limit onto the fanning step', 'src(terms,c
 check( 'M5.11 join slot 10 folds (BWS_JOIN_MAX_SLOTS, not five)', 'src(same);key(last)' === ( $j5['J'] ?? null ), json_encode( $j5 ) );
 check( 'M5.12 join tag-level assembly options lead the folded slots', array( 'mode', 'A', 'J' ) === array_map( 'strval', array_keys( $j5 ) ), json_encode( array_keys( $j5 ) ) );
 
+// A slot naming a RETIRED source token (#56) is declined WHOLE — the one case where "not
+// folded" and "not stripped" come apart. The fold cannot rewrite the token faithfully: the
+// relationship field lives in `rel`, which is not a fold axis, or in a `key` that may be
+// tag-level and already filtered out. The converter's own entry does it beforehand from
+// the undifferentiated option array; the MOUNT path has no entry chain, so without this it
+// would fold `related_post` into a chain root that resolves to nothing and store the tag
+// differently from the converter. Leaving the legacy keys in place is what lets the
+// converter still fix it afterwards.
+$retired = bws_fold_migrate_slots( array( 'key' => 'name', '2-src' => 'related_post', '2-use' => 'key', '2-key' => 'role' ), $text_cfg );
+check( 'M5.13 a retired-token slot is not folded', ! isset( $retired['B'] ), json_encode( $retired ) );
+check(
+	'M5.14 and its legacy keys SURVIVE, so the converter can still reach it',
+	isset( $retired['2-src'], $retired['2-use'], $retired['2-key'] ),
+	json_encode( $retired )
+);
+check( 'M5.15 the other slots still fold normally', 'key(name)' === ( $retired['A'] ?? null ), json_encode( $retired ) );
+check(
+	'M5.16 a tag whose ONLY slot is retired migrates to nothing (no-op, not an empty rewrite)',
+	null === bws_fold_migrate_slots( array( 'src' => 'related_post', 'key' => 'name' ), $text_cfg ),
+	json_encode( bws_fold_migrate_slots( array( 'src' => 'related_post', 'key' => 'name' ), $text_cfg ) )
+);
+
 // ── M6 — end to end, through the registered entry ──────────────────────────
 
 MigrationRegistry::register(

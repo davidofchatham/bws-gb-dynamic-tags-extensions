@@ -19,7 +19,7 @@
 ### Fixed
 
 - **The Tag Converter now repairs an old-style relationship key on `term_` and `try_` tags too.** It has always fixed tags whose relationship field was still named the pre-1.6 way (`rel:` rather than `ref:`) on the main tags, but the term-based and first-available families were never covered, so a tag left half-converted by an old run stayed broken. Both are now repaired, each `try_` attempt on its own rather than all of them together. This only affects content old enough to predate that rename; nothing built since is touched.
-- **A relationship field key written as `key:` is no longer read as two different things.** On a tag using the older `related_post` source, a relationship named through `key` was used both to find the related post and, separately, as the field to read on it. Two live tags were found doing this. The conversion above keeps both readings intact rather than dropping one, so such a tag renders the same after conversion as before it.
+- **A relationship field key written as `key:` is no longer read as two different things.** On a tag using the older `related_post` source, a relationship named through `key` was used both to find the related post and, separately, as the field to read on it. The conversion above keeps both readings intact rather than dropping one, so such a tag renders the same after conversion as before it.
 
 ## [1.16.0] — 2026-07-23
 

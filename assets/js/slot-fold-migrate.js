@@ -56,6 +56,24 @@
 		return ( axes && axes.length ) ? axes : [ 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ];
 	}
 
+	/**
+	 * Legacy `src` VALUES this container must refuse to fold.
+	 *
+	 * PHP-DERIVED (`retiredSrc`, from BWS_FOLD_RETIRED_SRC_TOKENS) for the same reason
+	 * `legacyAxes` is: a hand-kept copy of a rule the renderer owns is how the two paths
+	 * drift. The fallback is EMPTY, not the full list, and that direction is deliberate —
+	 * unlike `legacyAxes`, declining too much would silently stop migrating every slot,
+	 * which reads as "no legacy wire here". An absent list is a registration bug, and the
+	 * worst it costs is the pre-#56 behaviour on a token that barely exists.
+	 *
+	 * @param {Object} conf Fold config.
+	 * @return {Array} Source tokens.
+	 */
+	function retiredSrc( conf ) {
+		var tokens = conf && conf.retiredSrc;
+		return ( tokens && tokens.length ) ? tokens : [];
+	}
+
 	/** Legacy option keys for slot n (bare at slot 1, `N-` beyond). */
 	function legacyKeys( conf, n ) {
 		var prefix = ( 1 === n ) ? '' : String( n ) + '-';
@@ -105,7 +123,17 @@
 	 *   - an ALREADY-FOLDED slot wins, and its legacy siblings are dropped rather than
 	 *     merged (merging invents a configuration neither side wrote);
 	 *   - a slot that maps to NOTHING still loses its legacy keys (the FW-51 shape, which
-	 *     the shipped resolver already discards).
+	 *     the shipped resolver already discards);
+	 *   - a slot naming a RETIRED source token is declined WHOLE — not folded, and not
+	 *     stripped either, the one case where those two come apart (#56).
+	 *
+	 * The retired-token rule matters most HERE, on the path that has no entry chain. The
+	 * converter rewrites `src:related_post` to `src:ref` in a separate migration entry
+	 * before the fold ever runs, reading the undifferentiated option array — exactly what
+	 * the retired source class read. This path cannot: `rel` is not a fold axis, and a
+	 * container's `key` may be tag-level and already filtered out. Folding the token
+	 * verbatim would store the tag one way while the converter stores it another. Leaving
+	 * it alone cannot: writing NOTHING is not a second way to store a tag.
 	 *
 	 * @param {Object} state Whole option map.
 	 * @param {Object} conf  Fold config.
@@ -128,6 +156,12 @@
 			if ( ! present.length ) {
 				continue;
 			}
+
+			// Declined whole: no fold, no strip. See the docblock.
+			if ( retiredSrc( conf ).indexOf( String( src[ ( 1 === n ? '' : String( n ) + '-' ) + 'src' ] || '' ).trim() ) > -1 ) {
+				continue;
+			}
+
 			touched = true;
 			present.forEach( function ( key ) {
 				delete next[ key ];
@@ -169,6 +203,7 @@
 
 	window.bwsSlotFoldMigrate = {
 		slotAxes: slotAxes,
+		retiredSrc: retiredSrc,
 		legacyKeys: legacyKeys,
 		slotKeys: slotKeys,
 		slotState: slotState,

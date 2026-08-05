@@ -395,6 +395,20 @@ assert_same(
 	$fold['legacyAxes']
 );
 
+// RETIRED SRC TOKENS — the slots the mount migrator must DECLINE rather than fold (#56).
+// Asserted against the constant rather than a literal, because the property is that the
+// two migration paths read ONE list: the converter's guard reads the constant directly
+// and the mount path can only see what registration ships. A missing field does not
+// error — the JS falls back to an empty list, silently folds a retired token into a
+// chain root that resolves to nothing, and stores the tag differently from the converter.
+// That is exactly the divergence the fold-migration twin exists to catch, and it would be
+// INVISIBLE there, because the twin's corpus supplies its own conf.
+assert_same(
+	'retiredSrc ships to the editor, and IS the constant (not a copy of it)',
+	BWS_FOLD_RETIRED_SRC_TOKENS,
+	$fold['retiredSrc']
+);
+
 // Container facts the control and the renderer BOTH read.
 assert_same( 'combining flag is carried', true, $fold['combining'] );
 assert_same( 'floor + ceiling are carried', array( 2, 3 ), array( $fold['min'], $fold['max'] ) );

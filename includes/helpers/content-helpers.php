@@ -91,52 +91,18 @@ function bws_queue_inline_css( string $id, string $css ): void {
 // RELATIONSHIP FIELD OPTIONS
 // ===============================================
 
-/**
- * Get ACF relationship field option for related post tags.
- *
- * Returns a single-option array with key 'rel' identifying the ACF
- * relationship or post_object field that links to the related post.
- * Use with array_merge() alongside other tag-specific options.
- *
- * @since 1.1.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_relationship_field_options' ) ) {
-function bws_get_relationship_field_options() {
-	return array(
-		'rel' => array(
-			'type'        => 'text',
-			'label'       => __( 'Relationship Field Key', 'generateblocks' ),
-			'help'        => __( 'Relationship or post object field key that links to the related post.', 'generateblocks' ),
-			'placeholder' => 'related_posts',
-		),
-	);
-}
-}
-
-/**
- * Get ACF second-hop relationship field option for SecondRelatedPost tags.
- *
- * Returns a single-option array with key 'rel_2' identifying the ACF
- * relationship or post_object field on the first related post that links
- * to the second-degree related post.
- * Use with array_merge() alongside bws_get_relationship_field_options().
- *
- * @since 1.2.0
- * @return array
- */
-if ( ! function_exists( 'bws_get_second_relationship_field_options' ) ) {
-function bws_get_second_relationship_field_options() {
-	return array(
-		'rel_2' => array(
-			'type'        => 'text',
-			'label'       => __( 'Second Relationship Field Key', 'generateblocks' ),
-			'help'        => __( 'ACF relationship or post object field key on the first related post that links to the second-degree related post.', 'generateblocks' ),
-			'placeholder' => 'related_posts',
-		),
-	);
-}
-}
+// bws_get_relationship_field_options() (`rel`) and bws_get_second_relationship_field_options()
+// (`rel_2`) — REMOVED in 1.17.0 (#56).
+//
+// They were the last definitions of the `rel`/`rel_2` option vocabulary anywhere in the
+// plugin, and their only callers were the two related-post sources' get_source_options().
+// Those sources are now inert, so the definitions would have registered controls for a
+// traversal that cannot fire. The live spelling is `ref`, defined once in
+// bws_base_traversal_options() (base-shared.php) and read by the chain compiler.
+//
+// Deleted rather than emptied: a builder returning array() is a Middle Man that reads like
+// a supported extension point. Both were guarded by function_exists(), so an external
+// plugin that defines its own is unaffected.
 
 // ===============================================
 // POST CONTENT: SAFETY LAYER (thin wrappers over ContentProcessor)

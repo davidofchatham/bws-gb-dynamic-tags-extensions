@@ -15,14 +15,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 use BWS\DynamicTags\AbstractSource;
 
 /**
- * Resolves from a term context to a related post via an ACF relationship field on the term.
+ * Term → Related Post — REGISTRY-ONLY since 1.17.0 (#56).
  *
- * - Context type: post (resolves to a post)
+ * It used to resolve from a term context to a related post via an ACF relationship field
+ * on the term, reading that field from `rel`. The hop is now a generic `ref` step off the
+ * modifier's base source (1.14.0), and `ref` is the only spelling anything honours;
+ * resolve_id() is inert and documents why.
+ *
+ * - Context type: post (the entity it used to resolve to)
  * - GB type: term (needs term selector in editor)
  * - UI group: term (appears in Term matrix)
- * - Requires a relationship field option (needs_relationship_field = true)
  *
  * @since 1.5.0
+ * @since 1.17.0 Inert (#56); registration retained.
  */
 class TermRelatedPost extends AbstractSource {
 

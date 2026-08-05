@@ -1,9 +1,12 @@
 <?php
 /**
- * Second Related Post source - resolves to a post via two ACF relationship hops.
+ * Second Related Post source — REGISTRY-ONLY since 1.17.0 (#56).
  *
- * Hop 1: current post → 'rel'  field → first related post (mid).
- * Hop 2: mid post     → 'rel_2' field → first second-degree related post.
+ * It used to resolve a post via two hand-rolled ACF relationship hops (`rel`, then
+ * `rel_2`). Both the traversal and that option vocabulary are retired: the engine chains
+ * arbitrary steps and reads the relationship field from `ref`. resolve_id() is inert and
+ * documents why; the registration stays so the entry still carries its source key and
+ * context type for the admin surfaces.
  *
  * The source is enabled by default (source_default_enabled() = true). When the source is
  * enabled, all individual tags are on by default (tag_default_enabled() = true).
@@ -92,15 +95,18 @@ class SecondRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Source options: two relationship field keys (first hop and second hop).
+	 * No options, since 1.17.0 (#56).
 	 *
+	 * This used to return the two relationship field keys the hops read (`rel`, `rel_2`).
+	 * With resolve_id() inert they would be controls advertising a traversal that cannot
+	 * fire — an author could fill them in and get nothing, with no way to tell why. An
+	 * inert resolver and a live option surface is the worse half of both states.
+	 *
+	 * @since 1.17.0 Emptied alongside resolve_id() (#56).
 	 * @return array
 	 */
 	public function get_source_options(): array {
-		return array_merge(
-			bws_get_relationship_field_options(),        // 'rel'   — first hop
-			bws_get_second_relationship_field_options()  // 'rel_2' — second hop
-		);
+		return array();
 	}
 
 }

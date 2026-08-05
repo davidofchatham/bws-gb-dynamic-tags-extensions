@@ -451,6 +451,11 @@ function bws_build_fold_slot_options( array $args ): array {
 		'legacyAxes'     => function_exists( 'bws_fold_slot_legacy_axes' )
 			? bws_fold_slot_legacy_axes( (array) ( $args['tag_level'] ?? array() ) )
 			: array(),
+		// The RETIRED source tokens the mount migrator must decline rather than fold
+		// (#56). Shipped for the same reason as legacyAxes: the converter's own guard
+		// reads the constant directly, and a hand-kept copy in JS is how the two paths
+		// would come to store one tag two ways.
+		'retiredSrc'     => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 	);
 	// OMITTED, not empty, when the container has no per-slot key (try_title and the
 	// other read-less templates). An empty array here would reach the control as JS

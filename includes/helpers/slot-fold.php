@@ -185,6 +185,33 @@ function bws_slot_ordinal_num( string $key ): int {
 const BWS_FOLD_LEGACY_AXES = array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' );
 
 /**
+ * Legacy `src` VALUES the fold must refuse to fold — the four retired source tokens.
+ *
+ * These name the related-post source classes made inert in 1.17.0 (#56). A slot spelling
+ * one is not foldable HERE, because the information needed to rewrite it faithfully is
+ * the relationship field in `rel` (or `key`), and `rel` is not a fold axis at all while a
+ * container's `key` may be tag-level and filtered out before the mapper sees it. The
+ * converter's own entry (bws_migrate_related_post_src) reads the undifferentiated option
+ * array — exactly what the retired class read — and rewrites the token to `src:ref`
+ * BEFORE the fold entry runs, so on that path this list is never reached.
+ *
+ * The MOUNT path has no entry chain, so without this guard it would fold `related_post`
+ * verbatim into a chain root that now resolves to nothing — storing the tag one way while
+ * the converter stores it another, which is the exact divergence the twin exists to stop.
+ * Declining is what keeps that impossible: the slot keeps its legacy keys, the tag is
+ * left as it was, and the converter (or a later mount, once it has run) still fixes it.
+ * Writing NOTHING is not a second way to store a tag; writing the wrong wire is.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_RETIRED_SRC_TOKENS = array(
+	'related_post',
+	'second_related_post',
+	'post_term_related_post',
+	'term_related_post',
+);
+
+/**
  * The legacy per-slot axes a container actually owns — the full set minus its TAG-LEVEL
  * axes, which are excluded at EVERY slot position.
  *

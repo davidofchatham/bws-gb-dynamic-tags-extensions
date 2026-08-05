@@ -83,6 +83,21 @@
 			"label": "mid-chain gap: slot 3 legacy, slot 2 absent (hand-edited wire)",
 			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
 			"options": { "key": "name", "3-src": "site", "3-use": "key", "3-key": "org_name" }
+		},
+		{
+			"label": "retired src token: slot 2 is DECLINED whole — not folded, keys NOT stripped",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
+			"options": { "key": "name", "2-src": "related_post", "2-use": "key", "2-key": "role" }
+		},
+		{
+			"label": "retired src token on the ONLY slot: nothing to migrate at all (null, not an empty rewrite)",
+			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
+			"options": { "src": "related_post", "key": "name" }
+		},
+		{
+			"label": "combining join: a retired token declines its slot while the others still fold",
+			"conf": { "combining": true, "perSlotUse": true, "max": 10, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
+			"options": { "use": "title", "2-src": "term_related_post", "2-key": "role", "3-src": "site", "3-use": "key", "3-key": "org_name" }
 		}
 	]
 }

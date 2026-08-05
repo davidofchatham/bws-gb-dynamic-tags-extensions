@@ -1162,12 +1162,8 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 
 	// A migrated tag must come out in canonical key order, or the first person to open it
 	// sees the editor rewrite the string for no reason they can point at.
-	if ( function_exists( 'bws_serialization_order_sort' ) ) {
-		$ordered = array();
-		foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $options ) ) ) as $key ) {
-			$ordered[ $key ] = $options[ $key ];
-		}
-		$options = $ordered;
+	if ( function_exists( 'bws_serialization_order_sort_map' ) ) {
+		$options = bws_serialization_order_sort_map( $options );
 	}
 
 	return $reg::format_tag_string( $tag_name, $options );
@@ -1252,12 +1248,8 @@ function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
 		return $tag_string;
 	}
 
-	if ( function_exists( 'bws_serialization_order_sort' ) ) {
-		$ordered = array();
-		foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $options ) ) ) as $key ) {
-			$ordered[ $key ] = $options[ $key ];
-		}
-		$options = $ordered;
+	if ( function_exists( 'bws_serialization_order_sort_map' ) ) {
+		$options = bws_serialization_order_sort_map( $options );
 	}
 
 	return $reg::format_tag_string( $tag_name, $options );
@@ -1644,12 +1636,20 @@ function bws_register_option_migrations(): void {
 	}
 	$related_post_src_values = array_fill_keys( $related_post_src_keys, array( 'related_post' ) );
 
+	// try_ only among the containers: `{{join}}` (1.15.0) and `{{table}}` (1.17.0) postdate
+	// the token by nine releases and more, exactly the argument that excludes them from the
+	// `rel` repair above. Registering an entry that can never match is a dead entry the
+	// converter still walks and a reader still has to rule out.
 	$related_post_src_tags = array(
 		'text', 'content', 'title', 'permalink', 'image',
 		'datetime_single', 'datetime_range', 'email', 'phone',
 	);
 	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
-		$related_post_src_tags = array_merge( $related_post_src_tags, bws_fold_migration_multislot_tags() );
+		foreach ( bws_fold_migration_multislot_tags() as $multislot_tag ) {
+			if ( 0 === strpos( $multislot_tag, 'try_' ) ) {
+				$related_post_src_tags[] = $multislot_tag;
+			}
+		}
 	}
 
 	foreach ( array_unique( $related_post_src_tags ) as $tag ) {

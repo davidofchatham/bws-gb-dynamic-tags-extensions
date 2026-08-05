@@ -329,6 +329,12 @@ assert_eq( 'R4.11 {{join}} has no rel entry — left alone',
 	'{{join rel:vendor}}',
 	$migrate( '{{join rel:vendor}}' ) );
 
+// Nor a related_post entry, on the same argument. And the fold declines a retired token
+// rather than folding it, so the tag comes through whole rather than half-rewritten.
+assert_eq( 'R4.12 {{join}} has no related_post entry either, and the fold declines the token',
+	'{{join src:related_post|key:x}}',
+	$migrate( '{{join src:related_post|key:x}}' ) );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED — {$failures} of {$count} checks failed\n";

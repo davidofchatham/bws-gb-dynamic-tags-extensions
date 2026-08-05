@@ -79,7 +79,7 @@ class RelatedPost extends AbstractSource {
 	}
 
 	public function get_source_options(): array {
-		return array(); // Relationship field key is provided via the 'rel' custom option on each tag.
+		return array(); // Was already empty; the relationship field is `ref`, on the tag.
 	}
 
 }

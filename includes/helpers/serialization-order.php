@@ -241,3 +241,33 @@ function bws_serialization_order_sort( array $keys ): array {
 }
 
 } // function_exists guard.
+
+/**
+ * Reorder an OPTION MAP canonically — the map-shaped sibling of the key-list sort.
+ *
+ * Every migration transform that rewrites a tag ends the same way: sort the keys, rebuild
+ * the map in that order. Three copies of that four-line shape had accumulated (the fold
+ * migrator plus both #56 transforms), which is the drift the sort itself was extracted to
+ * remove — the sort had one owner while its CALLING CONVENTION did not.
+ *
+ * Why it matters that this is canonical at all: a migrated tag whose keys come out in
+ * stored order shows a spurious diff the first time an author opens it, because the editor
+ * writes the canonical order back on save. The two migration paths would then also
+ * disagree, and the fold twin's whole property is that they do not.
+ *
+ * The `strval` map is not incidental — `array_keys()` returns an all-digit key as an INT,
+ * and the sort is typed against strings.
+ *
+ * @since 1.17.0
+ * @param array $options Option map in any order.
+ * @return array Same pairs, canonical key order.
+ */
+if ( ! function_exists( 'bws_serialization_order_sort_map' ) ) {
+function bws_serialization_order_sort_map( array $options ): array {
+	$ordered = array();
+	foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $options ) ) ) as $key ) {
+		$ordered[ $key ] = $options[ $key ];
+	}
+	return $ordered;
+}
+}

@@ -94,25 +94,18 @@ class PostTermRelatedPost extends AbstractSource {
 	}
 
 	/**
-	 * Source options: taxonomy (hop 1) then relationship field key (hop 2, on the term entity).
+	 * No options, since 1.17.0 (#56).
 	 *
+	 * This used to return the taxonomy (hop 1) and the relationship field key on the term
+	 * (hop 2). With resolve_id() inert they would be controls advertising a traversal that
+	 * cannot fire — an author could fill them in and get nothing, with no way to tell why.
+	 * An inert resolver and a live option surface is the worse half of both states.
+	 *
+	 * @since 1.17.0 Emptied alongside resolve_id() (#56).
 	 * @return array
 	 */
 	public function get_source_options(): array {
-		return array(
-			'tax' => array(
-				'type'        => 'text',
-				'label'       => __( 'Taxonomy', 'generateblocks' ),
-				'help'        => __( 'Taxonomy slug used to find the post\'s term (e.g. category, post_tag). The first term is used.', 'generateblocks' ),
-				'placeholder' => 'category',
-			),
-			'rel'      => array(
-				'type'        => 'text',
-				'label'       => __( 'Relationship Field Key', 'generateblocks' ),
-				'help'        => __( 'Relationship or post object field key on the term that links to the related post.', 'generateblocks' ),
-				'placeholder' => 'related_post',
-			),
-		);
+		return array();
 	}
 
 }

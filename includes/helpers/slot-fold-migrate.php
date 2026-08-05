@@ -146,6 +146,9 @@ function bws_fold_migration_slot_keys( array $cfg ): array {
  *     shape (a selecting slot ≥2 whose only content was a `key`): the shipped resolver
  *     discards it before the carry-forward, so it renders nothing today and dropping it
  *     is the output-preserving branch.
+ *   - A SLOT NAMING A RETIRED SOURCE TOKEN IS DECLINED WHOLE — not folded, and NOT
+ *     stripped, which is the one case where those two come apart. See
+ *     BWS_FOLD_RETIRED_SRC_TOKENS.
  *
  * Emitted keys are canonically ordered (bws_serialization_order_sort) so the converter's
  * output matches what the editor would write on next save — otherwise every migrated tag
@@ -177,6 +180,14 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 			continue;
 		}
 
+		// A slot naming a RETIRED source token is declined whole — not folded, and its
+		// legacy keys not stripped. See BWS_FOLD_RETIRED_SRC_TOKENS for why the fold is
+		// structurally the wrong layer to rewrite one, and why leaving the tag untouched
+		// is the only answer that cannot store it differently from the converter.
+		if ( in_array( trim( (string) ( $slot_src[ $prefix . 'src' ] ?? '' ) ), BWS_FOLD_RETIRED_SRC_TOKENS, true ) ) {
+			continue;
+		}
+
 		$touched = true;
 		foreach ( $present as $legacy_key ) {
 			unset( $folded[ $legacy_key ] );
@@ -201,11 +212,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		return null;
 	}
 
-	$ordered = array();
-	foreach ( bws_serialization_order_sort( array_map( 'strval', array_keys( $folded ) ) ) as $key ) {
-		$ordered[ $key ] = $folded[ $key ];
-	}
-	return $ordered;
+	return bws_serialization_order_sort_map( $folded );
 }
 
 /**
