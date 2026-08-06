@@ -73,7 +73,7 @@ function bws_register_base_tags(): void {
 		// Canonical CONTROL order (FW-52): source → format → link → fallback.
 		// text has no format group. Within source: src → ref → srcTermIn → limit → sep
 		// → use → key (limit/sep before field keys — list length is a source property).
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -133,7 +133,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'content',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -179,7 +179,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'title',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -220,7 +220,7 @@ function bws_register_base_tags(): void {
 		// No `key` control under src:site — permalink is the source entity's own URL,
 		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
 		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts
 		) ),
@@ -248,7 +248,7 @@ function bws_register_base_tags(): void {
 		// (the normalizer lifts it to the front of the string for copy-visibility — the
 		// `as` serialization opt-out means it is always present). Its `size` argument
 		// rides inside the `as` value (as+size fold) — no separate size option.
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -304,7 +304,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_base_datetime_single_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
 		'return'   => 'bws_base_datetime_single_callback',
 	) );
 
@@ -317,7 +317,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_base_datetime_range_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
 		'return'   => 'bws_base_datetime_range_callback',
 	) );
 
@@ -334,7 +334,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'join',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_join_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_join_options() ),
 		'return'   => 'bws_join_callback',
 	) );
 

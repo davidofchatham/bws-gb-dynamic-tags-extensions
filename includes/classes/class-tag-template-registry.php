@@ -961,8 +961,8 @@ class TagTemplateRegistry {
 		callable $callback,
 		array $visibility = []
 	): void {
-		if ( function_exists( 'bws_strip_default_select_values' ) ) {
-			$options = bws_strip_default_select_values( $options );
+		if ( function_exists( 'bws_prepare_registration_options' ) ) {
+			$options = bws_prepare_registration_options( $options );
 		}
 		$args = [
 			'title'    => $title,

@@ -184,8 +184,8 @@ function bws_get_table_options(): array {
 		);
 	}
 
-	return function_exists( 'bws_strip_default_select_values' )
-		? bws_strip_default_select_values( array_merge( $tag_level, $columns ) )
+	return function_exists( 'bws_prepare_registration_options' )
+		? bws_prepare_registration_options( array_merge( $tag_level, $columns ) )
 		: array_merge( $tag_level, $columns );
 }
 

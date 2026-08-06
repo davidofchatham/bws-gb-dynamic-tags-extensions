@@ -72,7 +72,7 @@ function bws_register_phone_tag(): void {
 		// Canonical CONTROL order (FW-52): source → format(none) → link → fallback.
 		// Source group = src → ref/srcTermIn → limit/sep → key. The phone own-anchor
 		// `noLink` is the tag's `link` group → after source, before fallback.
-		'options'    => bws_strip_default_select_values( array_merge(
+		'options'    => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(

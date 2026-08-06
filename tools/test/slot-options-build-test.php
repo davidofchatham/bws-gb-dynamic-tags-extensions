@@ -562,7 +562,7 @@ assert_same(
 
 // ── The REGISTRATION pass ────────────────────────────────────────────────────
 //
-// bws_strip_default_select_values() is the single pass every BWS registration goes
+// bws_prepare_registration_options() is the single pass every BWS registration goes
 // through, so two things ride it: the visual group stamp, and dropping the flat source
 // options a chain control has taken over. Both are gated — the stamp on our registrations
 // (a name-keyed map applied in JS would also wrap GB core tags' `key`/`source`), the drop
@@ -578,7 +578,7 @@ require_once __DIR__ . '/../../includes/helpers/registration-helpers.php';
 // three keys and their reveal conditions are what decide when the box appears.
 require_once __DIR__ . '/../../includes/helpers/link-helpers.php';
 
-$chain_tag = bws_strip_default_select_values(
+$chain_tag = bws_prepare_registration_options(
 	array_merge( bws_build_src_chain_option(), bws_base_traversal_options(), bws_get_text_field_options() )
 );
 assert_same( 'chain tag: the absorbed `ref` control is gone', false, isset( $chain_tag['ref'] ) );
@@ -614,7 +614,7 @@ assert_same(
 	$base_fold['defaultRoot']
 );
 
-$flat_tag = bws_strip_default_select_values(
+$flat_tag = bws_prepare_registration_options(
 	array_merge( bws_base_source_option(), bws_base_traversal_options() )
 );
 assert_same( 'plain-select tag: `ref` KEPT', true, isset( $flat_tag['ref'] ) );
@@ -627,7 +627,7 @@ assert_same( 'stamp: src leads the source group', 'source', $chain_tag['src']['_
 assert_same( 'stamp: src is a lead', true, ! empty( $chain_tag['src']['_group_lead'] ) );
 assert_same( 'stamp: use is a field lead', true, ! empty( $chain_tag['use']['_group_lead'] ) );
 assert_same( 'stamp: key is a field lead too', true, ! empty( $chain_tag['key']['_group_lead'] ) );
-$ungrouped = bws_strip_default_select_values( array( 'fallback' => array( 'type' => 'text' ) ) );
+$ungrouped = bws_prepare_registration_options( array( 'fallback' => array( 'type' => 'text' ) ) );
 assert_same( 'stamp: an unmapped option gets no group', false, isset( $ungrouped['fallback']['_group'] ) );
 
 // The FORMAT group holds one lead and one deliberate non-lead, and the pair is the whole
@@ -636,7 +636,7 @@ assert_same( 'stamp: an unmapped option gets no group', false, isset( $ungrouped
 // wrapper cannot see inside a composite. `format` alone is {{join}}'s assembly template,
 // one control, where a border is noise; on datetime it sits in a run with `as` and boxes
 // anyway. One name-keyed map, no per-tag knowledge.
-$fmt = bws_strip_default_select_values( array(
+$fmt = bws_prepare_registration_options( array(
 	'as'              => array( 'type' => 'bws-as-size' ),
 	'format'          => array( 'type' => 'bws-format-input' ),
 	'showCurrentYear' => array( 'type' => 'checkbox' ),
@@ -653,7 +653,7 @@ assert_same(
 // {{join}}'s assembly pair lands in the SAME group as datetime's formatting — both answer
 // "how is the value rendered". `mode` reveals exactly one of `valueSep`/`format`, so two
 // members are always visible and the group boxes without a lead.
-$join_fmt = bws_strip_default_select_values( array(
+$join_fmt = bws_prepare_registration_options( array(
 	'mode'     => array( 'type' => 'select' ),
 	'valueSep' => array( 'type' => 'text' ),
 	'format'   => array( 'type' => 'bws-format-input' ),
@@ -668,7 +668,7 @@ assert_same(
 // appears when a link is configured. Decided by trying both (user, 2026-08-05): the link
 // is the one OPTIONAL group here — a source and a field read are what every tag does, so
 // those boxes stand whether or not they are configured.
-$link = bws_strip_default_select_values( bws_get_link_options() );
+$link = bws_prepare_registration_options( bws_get_link_options() );
 assert_same(
 	'stamp: no lead in the link group — box only once a link is configured',
 	array( false, false, false ),

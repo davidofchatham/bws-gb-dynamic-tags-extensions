@@ -71,7 +71,7 @@ function bws_register_email_tag(): void {
 		// Source group = src → ref/srcTermIn → limit/sep → key. The email own-anchor
 		// set (subject → noLink) is the tag's `link` group → after source, before
 		// fallback (serialization normalizer keeps it that way in the string too).
-		'options'    => bws_strip_default_select_values( array_merge(
+		'options'    => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(

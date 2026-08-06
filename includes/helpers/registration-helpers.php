@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * modifier), so one map keeps the panels consistent and gives a new tag its grouping
  * for free.
  *
- * Applied by bws_strip_default_select_values(), i.e. only to OUR registrations — a map
+ * Applied by bws_prepare_registration_options(), i.e. only to OUR registrations — a map
  * the editor JS applied by name would also wrap GB core tags' identically-named options.
  *
  * The three groups mirror the canonical CONTROL order (FW-52: source → format → link →
@@ -45,18 +45,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * caption. Every other lone member renders bare (see assets/js/option-group.js).
  *
  * @since 1.17.0
- * @return array[] option name => [ group, is_lead ].
+ * @return array<string,array{group:string,lead:bool}> Option name => group + lead flag.
  */
 if ( ! function_exists( 'bws_option_visual_groups' ) ) {
 function bws_option_visual_groups(): array {
 	return array(
 		// Where the value comes from: the source chain, the legacy flat siblings it
 		// absorbs, and the list-mode pair (list length is a source property, FW-52).
-		'src'       => array( 'source', true ),
-		'ref'       => array( 'source', false ),
-		'srcTermIn' => array( 'source', false ),
-		'limit'     => array( 'source', false ),
-		'sep'       => array( 'source', false ),
+		'src'             => array( 'group' => 'source', 'lead' => true ),
+		'ref'             => array( 'group' => 'source', 'lead' => false ),
+		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),
+		'limit'           => array( 'group' => 'source', 'lead' => false ),
+		'sep'             => array( 'group' => 'source', 'lead' => false ),
 		// What to read off it. BOTH are leads, and `key` has to be: on `{{email}}`,
 		// `{{phone}}` and `{{table}}` the field key is the tag's ENTIRE read — there is no
 		// `use` enum to lead the group — so a lone-member opt-out would give exactly the
@@ -64,19 +64,19 @@ function bws_option_visual_groups(): array {
 		// has one. The opt-out exists for a control that has no group to show (a lone
 		// `linkTo` reading "No Link", a `try_` template's tag-level `limit`), not for a
 		// group that happens to have one member.
-		'use'          => array( 'field', true ),
-		'key'          => array( 'field', true ),
+		'use'             => array( 'group' => 'field', 'lead' => true ),
+		'key'             => array( 'group' => 'field', 'lead' => true ),
 		// The datetime key family, ALL in the one field box (user, 2026-08-05). A range's
 		// four keys are one decision about what the tag reads, and its optional time
 		// overrides are part of that decision rather than a separate one — leaving them
 		// outside gave `datetime_single` a boxed `key` with a loose `timeKey` under it,
 		// which reads as two groups where there is one. Whether a range wants an inner
 		// start/end split is still open; that is a second box, not a different map.
-		'timeKey'      => array( 'field', false ),
-		'startKey'     => array( 'field', true ),
-		'startTimeKey' => array( 'field', false ),
-		'endKey'       => array( 'field', false ),
-		'endTimeKey'   => array( 'field', false ),
+		'timeKey'         => array( 'group' => 'field', 'lead' => false ),
+		'startKey'        => array( 'group' => 'field', 'lead' => true ),
+		'startTimeKey'    => array( 'group' => 'field', 'lead' => false ),
+		'endKey'          => array( 'group' => 'field', 'lead' => false ),
+		'endTimeKey'      => array( 'group' => 'field', 'lead' => false ),
 		// How the value is rendered.
 		//
 		// `as` LEADS, and the reason is that it is not one control: `bws-as-size` renders
@@ -89,29 +89,29 @@ function bws_option_visual_groups(): array {
 		// where a border would be noise. On the datetime tags it sits in a run with `as`
 		// and boxes anyway. So one name-keyed map serves both, decided by how many members
 		// are on screen rather than by which tag is being rendered.
-		'as'              => array( 'format', true ),
-		'rangeSep'        => array( 'format', false ),
-		'format'          => array( 'format', false ),
+		'as'              => array( 'group' => 'format', 'lead' => true ),
+		'rangeSep'        => array( 'group' => 'format', 'lead' => false ),
+		'format'          => array( 'group' => 'format', 'lead' => false ),
 		// `{{join}}`'s assembly pair. `mode` picks separator-vs-template and the two
 		// alternatives sit behind it, exactly one revealed at a time — so the group always
 		// has two visible members and needs no lead of its own. (Name-keyed, so a future
 		// tag registering an unrelated `mode` would inherit this; join is the only one
 		// today, and a second meaning is the signal to scope the map, not to special-case
 		// a tag here.)
-		'mode'            => array( 'format', false ),
-		'valueSep'        => array( 'format', false ),
-		'timeSep'         => array( 'format', false ),
-		'showCurrentYear' => array( 'format', false ),
-		'showMidnight'    => array( 'format', false ),
+		'mode'            => array( 'group' => 'format', 'lead' => false ),
+		'valueSep'        => array( 'group' => 'format', 'lead' => false ),
+		'timeSep'         => array( 'group' => 'format', 'lead' => false ),
+		'showCurrentYear' => array( 'group' => 'format', 'lead' => false ),
+		'showMidnight'    => array( 'group' => 'format', 'lead' => false ),
 		// The entity-link set. NO LEAD, decided by trying both (user, 2026-08-05):
 		// `linkKey` and `newTab` are both revealed by `linkTo`, so the box appears exactly
 		// when a link is configured, and a tag left on "No Link" keeps a bare select —
 		// compact, and less prominent until the feature is actually in use. The link is
 		// the one group here that is genuinely OPTIONAL: a source and a field read are
 		// what every tag does, so their boxes stand whether or not they are configured.
-		'linkTo'    => array( 'link', false ),
-		'linkKey'   => array( 'link', false ),
-		'newTab'    => array( 'link', false ),
+		'linkTo'          => array( 'group' => 'link', 'lead' => false ),
+		'linkKey'         => array( 'group' => 'link', 'lead' => false ),
+		'newTab'          => array( 'group' => 'link', 'lead' => false ),
 	);
 }
 }
@@ -160,8 +160,22 @@ function bws_drop_chain_flat_options( array $options ): array {
 }
 
 /**
- * Strip default-marked select options' first-entry value to '' before GB registration,
- * and stamp each option with its visual group.
+ * THE registration pass — every BWS options array goes through this before GB sees it.
+ *
+ * Three rules ride it, and they ride it together for one reason: this is the single pass
+ * our registrations already share, and none of the three may reach GB CORE tags. The
+ * group map is keyed by option NAME, and a core `post_meta` tag has a `key` and a
+ * `source` too, so a JS-side equivalent would wrap controls that are not ours.
+ *
+ *   1. Strip default-marked selects (below).
+ *   2. Stamp the visual group (bws_option_visual_groups()).
+ *   3. Drop the flat source options a chain control absorbed
+ *      (bws_drop_chain_flat_options()).
+ *
+ * RENAMED in 1.17.0, from `bws_strip_default_select_values()`. The old name described
+ * rule 1 alone and had stopped describing the function; the new one names the pass, so
+ * a fourth rule does not drift it again. No alias — the old spelling is gone, and
+ * docs/plugin-integration.md carries the new one.
  *
  * Options array entries flagged `_strip_default => true` get their first option's
  * value flipped to '' so the wire format omits the default token (GB drops empty
@@ -171,19 +185,16 @@ function bws_drop_chain_flat_options( array $options ): array {
  *
  * The `_strip_default` marker itself is removed before passing to GB.
  *
- * GROUPING and the chain flat-axis drop ride along here because this is the one pass every
- * BWS registration already goes through, and neither must reach GB core tags (see
- * bws_option_visual_groups() / bws_drop_chain_flat_options()).
  * `_group` / `_group_lead` are inert to GB — it spreads unknown option keys through to
  * `allOptions`, which is the same route `show_if` and `fold` take.
  *
  * @since 1.7.0
- * @since 1.17.0 Stamps `_group` / `_group_lead`.
+ * @since 1.17.0 Stamps `_group` / `_group_lead`; renamed from bws_strip_default_select_values().
  * @param array $options Options array as registered in PHP.
  * @return array Options with strip + grouping applied.
  */
-if ( ! function_exists( 'bws_strip_default_select_values' ) ) {
-function bws_strip_default_select_values( array $options ): array {
+if ( ! function_exists( 'bws_prepare_registration_options' ) ) {
+function bws_prepare_registration_options( array $options ): array {
 	$groups  = bws_option_visual_groups();
 	$options = bws_drop_chain_flat_options( $options );
 
@@ -194,8 +205,8 @@ function bws_strip_default_select_values( array $options ): array {
 		unset( $opt['_strip_default'] );
 
 		if ( isset( $groups[ $name ] ) && ! isset( $opt['_group'] ) ) {
-			$opt['_group'] = $groups[ $name ][0];
-			if ( $groups[ $name ][1] ) {
+			$opt['_group'] = $groups[ $name ]['group'];
+			if ( $groups[ $name ]['lead'] ) {
 				$opt['_group_lead'] = true;
 			}
 		}

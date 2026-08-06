@@ -264,7 +264,7 @@ Context: GB serializes named option defaults verbatim into the saved tag string 
 
 **Mechanism — canonical tokens + registration-boundary strip:**
 
-Option definitions declare semantic tokens (`current`, `key`, `content`, etc.) as their first value so the source files read naturally. `bws_strip_default_select_values()` (in `content-helpers.php`) runs at registration time and flips the first option's `value` to `''` for any option we want stripped from the saved tag string. GB drops `''` values from serialization; callbacks then apply `?? '<canonical>'` defaults on read to recover the semantic token.
+Option definitions declare semantic tokens (`current`, `key`, `content`, etc.) as their first value so the source files read naturally. `bws_prepare_registration_options()` (in [`registration-helpers.php`](../includes/helpers/registration-helpers.php); named `bws_strip_default_select_values()` before v1.17.0) runs at registration time and flips the first option's `value` to `''` for any option we want stripped from the saved tag string. GB drops `''` values from serialization; callbacks then apply `?? '<canonical>'` defaults on read to recover the semantic token.
 
 Result:
 - Source code reads `'value' => 'current'` (intent is obvious).

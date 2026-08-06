@@ -161,7 +161,7 @@ function assert_same( string $label, $expected, $actual ): void {
  * The group each registered option landed in, in registration order.
  *
  * Reads the `_group` the registration pass STAMPED rather than re-consulting the map:
- * an option that never went through bws_strip_default_select_values() carries no stamp,
+ * an option that never went through bws_prepare_registration_options() carries no stamp,
  * and that is itself worth catching — an unstamped option renders unboxed no matter
  * what the map says about its name.
  *
@@ -295,8 +295,8 @@ echo "\n§4 A group's LEAD is present wherever the group is\n";
 
 $leads = array();
 foreach ( bws_option_visual_groups() as $name => $spec ) {
-	if ( $spec[1] ) {
-		$leads[ $spec[0] ][] = $name;
+	if ( $spec['lead'] ) {
+		$leads[ $spec['group'] ][] = $name;
 	}
 }
 

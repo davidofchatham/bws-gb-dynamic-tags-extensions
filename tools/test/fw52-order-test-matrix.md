@@ -126,7 +126,7 @@ converting to reproduce O4.6.
 ## Notes
 
 - The exact `src` token may be absent when the default `current` source is stripped at
-  registration (`bws_strip_default_select_values`) — the expected strings above show
+  registration (`bws_prepare_registration_options`) — the expected strings above show
   `src:...` where a non-default source would sit; a bare `{{image}}` with default source
   simply omits it, and the surrounding order still holds.
 - These rows do not need term/ref state, so they live on `matrix-post-meta` (the current

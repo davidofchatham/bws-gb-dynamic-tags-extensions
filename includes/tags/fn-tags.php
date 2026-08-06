@@ -307,7 +307,7 @@ function bws_register_call_tag(): void {
 		'tag'      => 'call',
 		'type'     => 'post',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			bws_call_source_option(),
 			array(
 				'ref'      => $ref_opt,

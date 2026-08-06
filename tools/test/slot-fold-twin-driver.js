@@ -46,6 +46,10 @@ function load( relative ) {
 	vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
 }
 
+// ENQUEUE ORDER. The wrapper owns the box class names both chain controls paint with and
+// is a declared script dependency of each, so they decline to mount without it — loading
+// it here models the real load rather than propping the driver up.
+load( 'assets/js/option-group.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
 // The base-tag chain control, for its depth-0 option reading. It renders the fold
