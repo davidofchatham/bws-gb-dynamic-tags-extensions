@@ -288,7 +288,7 @@ function bws_register_base_tags(): void {
 				// `url,full` seeds fine even though it is not one of them.
 				'as'       => array(
 					'type'    => 'bws-as-size',
-					'label'   => __( 'Return type', 'generateblocks' ),
+					'label'   => __( 'Return As', 'generateblocks' ),
 					'default' => 'url,full',
 					'options' => array(
 						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
@@ -484,7 +484,7 @@ function bws_register_base_tags(): void {
 			// it is load-bearing rather than decorative.
 			'as' => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return type', 'generateblocks' ),
+				'label'   => __( 'Return As', 'generateblocks' ),
 				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
@@ -498,7 +498,7 @@ function bws_register_base_tags(): void {
 		'options'               => array(
 			'as'       => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return type', 'generateblocks' ),
+				'label'   => __( 'Return As', 'generateblocks' ),
 				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),

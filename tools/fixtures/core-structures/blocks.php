@@ -277,7 +277,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	$sections[] = bws_fixture_gb_section( 'FW-52 O4 - image as+size fold (open in editor)', array(
 		// O4.1 media block: {{image as:url,medium}} → real <img src>. Authored
 		// scrambled (key/use before as); on open the folded `as:url,medium` token
-		// should lead (format group). In the modal, flip Return type URL->alt->URL:
+		// should lead (format group). In the modal, flip Return As URL->alt->URL:
 		// the size dropdown hides on nullary and RESTORES `medium` back on URL.
 		bws_fixture_gb_media_block( '{{image use:key|key:feature_image|as:url,medium}}', 'fw52-o4-1' ),
 		// O4.2 size arg absent: composite writes the default (`full`) on open, so

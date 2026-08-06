@@ -151,7 +151,7 @@
 		var children = [
 			el( SelectControl, {
 				key:      'mode',
-				label:    props.label || __( 'Return type', 'generateblocks' ),
+				label:    props.label || __( 'Return As', 'generateblocks' ),
 				value:    mode,
 				options:  MODE_OPTIONS,
 				onChange: onModeChange,

@@ -699,8 +699,8 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 | 1 | source | | `[source options]` | [Source group](#source-group); no `limit`/`sep` for image |
 | 2 | source | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
 | 3 | source | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
-| 4 | format | Return type | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
-| — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return type when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
+| 4 | format | Return As | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
+| — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return As when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
 | 6 | fallback | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
 
 ---
