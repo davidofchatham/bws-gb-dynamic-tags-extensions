@@ -409,6 +409,19 @@ assert_same(
 	$fold['retiredSrc']
 );
 
+// The root an absent chain SPELLS — the control displays it rather than rendering a
+// picker whose value matches no row, which paints the first row while believing nothing
+// is selected (so the row on screen cannot be picked, and Add step never appears). Two
+// properties, and the second is the one worth asserting: it must BE the enum's own first
+// row, not a literal beside it. A hand-typed 'current' here would keep working right up
+// until the source list's lead row changed, and then display a selection the author
+// cannot reproduce from the list.
+assert_same(
+	'defaultRoot ships, and IS the source enum\'s first row',
+	$fold['srcRows'][0]['value'],
+	$fold['defaultRoot']
+);
+
 // Container facts the control and the renderer BOTH read.
 assert_same( 'combining flag is carried', true, $fold['combining'] );
 assert_same( 'floor + ceiling are carried', array( 2, 3 ), array( $fold['min'], $fold['max'] ) );

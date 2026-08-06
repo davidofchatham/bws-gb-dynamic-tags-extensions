@@ -40,7 +40,21 @@ const root = path.resolve( __dirname, '../..' );
 global.window = {};
 global.wp = {
 	hooks: { addFilter: function () {} },
-	element: { createElement: function () {}, Fragment: 'F', useEffect: function () {} },
+	// Recording createElement — chainSteps is the one export whose subject is the
+	// RENDERED tree (which picker exists, what it is showing, whether Add step is
+	// reachable), so the stub has to keep what it was handed. Everything else in this
+	// harness is pure and never calls it.
+	element: {
+		createElement: function ( type, props ) {
+			return {
+				type: type,
+				props: props || {},
+				children: Array.prototype.slice.call( arguments, 2 )
+			};
+		},
+		Fragment: 'F',
+		useEffect: function () {}
+	},
 	components: { SelectControl: {}, TextControl: {}, Button: {}, ComboboxControl: {}, Flex: {}, FlexItem: {} },
 	i18n: { __: function ( s ) { return s; }, sprintf: function ( f, v ) { return f.replace( '%s', v ); } }
 };
@@ -360,6 +374,92 @@ check( 'argKind: an engine option value is not a wire slug', rep.argKind( HOPS, 
 // visible rather than discovered in the editor.
 const NO_MAP = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10 } } );
 check( 'argKind: an absent slugMap yields no arg at all (registration bug)', rep.argKind( NO_MAP, 'refs' ), '' );
+
+// ── An absent chain DISPLAYS the root it spells ─────────────────────────────
+// A SelectControl whose value matches no row paints its FIRST row while believing
+// nothing is selected, so the row on screen cannot be picked (selecting the displayed
+// value fires no change) and, with no step in hand, `+ Add step` never appears. That
+// shipped twice — once on the base-tag control, once here — which is why the display
+// rule now lives in chainSteps, where both callers reach it.
+//
+// The assertions are on the RENDERED tree because that is where the bug was: the value
+// and the enum were each individually correct.
+
+const CHAIN_CONF = rep.foldConfig( { fold: {
+	container: 'try',
+	combining: false,
+	perSlotUse: true,
+	min: 2,
+	max: 5,
+	srcRows: [
+		{ value: 'current', label: 'Current' },
+		{ value: 'ref', label: 'In Reference/Relational Field' }
+	],
+	srcRowsInherit: [
+		{ value: 'same', label: 'Same as Previous Source' },
+		{ value: 'current', label: 'Current' }
+	],
+	stepRows: [ { value: 'srcTermIn', label: 'In Taxonomy Term' } ],
+	slugMap: { ref: 'refs', srcTermIn: 'terms', rows: 'entries' },
+	defaultRoot: 'current'
+} } );
+
+/** Flatten a rendered node tree to the SelectControls in it, in order. */
+function selectsIn( nodes ) {
+	const out = [];
+	( function walk( n ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === global.wp.components.SelectControl ) { out.push( n.props ); }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return out;
+}
+
+/** Whether the tree holds the append-a-step button. */
+function hasAddStep( nodes ) {
+	let found = false;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.props && 'addstep' === n.props.key ) { found = true; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+function renderChain( chain, inheritOnEmpty ) {
+	return rep.chainSteps( {
+		conf: CHAIN_CONF,
+		chain: chain,
+		onChange: function () {},
+		inheritOnEmpty: !! inheritOnEmpty,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} );
+}
+
+const empty1 = renderChain( [], false );
+const sel1   = selectsIn( empty1 );
+check( 'slot 1, no chain: exactly one source picker', sel1.length, 1 );
+check( 'slot 1, no chain: it SHOWS the root absence spells', sel1[ 0 ] && sel1[ 0 ].value, 'current' );
+// The doubled caption the user reported: the box is already captioned "Source", so the
+// lone picker inside it must not print the word again. Only the step picker suppresses
+// it; the seed picker this replaced did not, which is why the pair appeared together.
+check( 'slot 1, no chain: the visible label is suppressed', sel1[ 0 ] && sel1[ 0 ].hideLabelFromVision, true );
+check( 'slot 1, no chain: the label still EXISTS for screen readers', sel1[ 0 ] && sel1[ 0 ].label, 'Source' );
+check( 'slot 1, no chain: Add step is reachable', hasAddStep( empty1 ), true );
+
+const empty2 = renderChain( [], true );
+const sel2   = selectsIn( empty2 );
+check( 'slot ≥2, no chain: shows the INHERIT row, not `current`', sel2[ 0 ] && sel2[ 0 ].value, 'same' );
+// An inherit is not a chain to continue — appending to it would state a step off a
+// source this slot has not chosen.
+check( 'slot ≥2, no chain: Add step is NOT offered off an inherit', hasAddStep( empty2 ), false );
+
+// A real chain is untouched by the display rule.
+const real = renderChain( [ { slug: 'refs', arg: 'office', limit: null } ], false );
+check( 'a configured chain still shows its own root', selectsIn( real )[ 0 ].value, 'ref' );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

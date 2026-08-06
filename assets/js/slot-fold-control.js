@@ -100,8 +100,12 @@
 			noun: c.noun || '',
 			srcRows: c.srcRows || [],
 			srcRowsInherit: c.srcRowsInherit || [],
-			// The root an absent source spells (base tags only — a slot's absent source
-			// is an inherit, which has its own row). See bws_build_src_chain_option().
+			// The root an absent source spells. On a base tag that is the tag's ambient
+			// entity; on a SLOT it is slot 1's `current` (a slot ≥2 spells its absence
+			// `same`, which chainSteps holds rather than reading from here). Both are
+			// derived from the row their own enum leads with, so neither can disagree
+			// with the list the author picks from. See bws_build_src_chain_option() /
+			// bws_build_fold_slot_options().
 			defaultRoot: c.defaultRoot || '',
 			stepRows: c.stepRows || [],
 			readRows: c.readRows || [],
@@ -440,6 +444,26 @@
 		var FieldCombo = window.bwsFieldComboControl;
 		var stepContext = props.stepContext;
 		var chain = ( props.chain || [] ).slice();
+
+		// DISPLAY the root that absence spells, rather than rendering an empty picker.
+		// A SelectControl whose value is `''` matches no row, so the browser paints the
+		// first one — "Current" on slot 1, "Same as Previous Source" on slot ≥2 — while
+		// the control believes nothing is selected. The row on screen then cannot be
+		// chosen (selecting the displayed value fires no change event), and with no step
+		// in hand there is nothing for `+ Add step` to append to, so it never appears.
+		// Same defect the base-tag control carried, same fix; it lives HERE now so both
+		// callers get it from one place.
+		//
+		// Display only: the phantom step is never written. A commit that would restate
+		// slot 1's default root is stripped back to absence at the caller, so the wire
+		// is byte-identical to what an untouched slot already serializes.
+		if ( ! chain.length ) {
+			var implied = props.inheritOnEmpty ? 'same' : ( conf.defaultRoot || '' );
+			if ( implied ) {
+				chain = [ step( implied ) ];
+			}
+		}
+
 		var isSameChain = 1 === chain.length && 'same' === chain[ 0 ].slug;
 
 		/** Rewrite the chain with one index replaced (null step = delete it). */
@@ -626,23 +650,16 @@
 			}, stepKids ) );
 		} );
 
-		// No chain yet → one empty picker that seeds step 1. Reachable on slot 1
-		// (legitimately unset = current) and on a slot ≥2 whose wire was hand-edited
-		// to drop its src token.
-		if ( ! chain.length ) {
-			stepNodes.push( el( SelectControl, {
-				key: 'src-new',
-				label: __( 'Source', 'generateblocks' ),
-				value: '',
-				options: stepRows( 0 ),
-				onChange: function ( v ) {
-					if ( v ) {
-						props.onChange( [ step( toWire( conf, v ) ) ] );
-					}
-				},
-				__nextHasNoMarginBottom: true
-			} ) );
-		}
+		// No seed picker: an absent chain is DISPLAYED as the root it spells (above), so
+		// the ordinary step picker renders and the author sees a selection that is real.
+		// The seed picker that used to stand here is what painted an unselectable row
+		// and doubled the group's own caption — it labelled itself "Source" inside a box
+		// already captioned "Source", because only the step picker suppresses the
+		// visible label on a single-step chain.
+		//
+		// The one case it still leaves bare is a config with NO defaultRoot on slot 1,
+		// which cannot happen from a shipped registration (the field derives from the
+		// enum's own first row) and would mean the enum itself is empty.
 
 		// Append-a-step: only off a real (non-inherit) chain, and only once the last
 		// step is complete, so a half-built step is never serialized. Lives INSIDE the
@@ -742,8 +759,27 @@
 		/** Write the chain, preserving every other axis of the slot. */
 		function writeChain( chain ) {
 			var next = Object.assign( {}, slot );
-			next.chain = chain;
+			next.chain = stripDefaultRoot( chain );
 			write( next );
+		}
+
+		/**
+		 * Drop a lone root that only RESTATES what an absent chain already spells.
+		 *
+		 * Reachable now that the default root is displayed: picking another source and
+		 * picking `Current` back would otherwise serialize `src(current)` where the slot
+		 * previously held nothing, so merely LOOKING at a slot could change its wire.
+		 *
+		 * Slot 1 only. A slot ≥2's `same` is written on purpose — absence there is a
+		 * RESET rather than an inherit, so an explicit inherit has to be stated (see
+		 * writeChainAt). Stripping it would silently convert one into the other.
+		 */
+		function stripDefaultRoot( chain ) {
+			if ( ordinal >= 2 || 1 !== chain.length || ! conf.defaultRoot ) {
+				return chain;
+			}
+			var only = chain[ 0 ];
+			return ( only.slug === conf.defaultRoot && ! only.arg && ! only.limit ) ? [] : chain;
 		}
 
 		/** Write the read, preserving every other axis of the slot. */

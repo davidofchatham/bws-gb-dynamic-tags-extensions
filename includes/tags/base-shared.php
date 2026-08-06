@@ -561,6 +561,14 @@ function bws_build_fold_slot_options( array $args ): array {
 		'noun'           => $noun,
 		'srcRows'        => $src_rows,
 		'srcRowsInherit' => $src_rows_inherit,
+		// The root an absent chain SPELLS on slot 1 — derived from the very row the
+		// enum leads with, so the two cannot disagree. The control DISPLAYS it rather
+		// than rendering an empty picker: a picker whose value is `''` matches no row,
+		// so the browser paints the first one ("Current") while the control believes
+		// nothing is selected — the row on screen cannot then be picked, because
+		// selecting it fires no change event. Slot ≥2 spells its absence `same`
+		// instead, which the control holds (writeChainAt already materializes it).
+		'defaultRoot'    => (string) ( $src_rows[0]['value'] ?? '' ),
 		'stepRows'        => $step_rows,
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
