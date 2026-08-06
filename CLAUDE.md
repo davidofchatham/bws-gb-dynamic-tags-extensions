@@ -122,6 +122,13 @@ skips, so the visible rows are also a bug surface render-tag can't reach.
 
 Single source of truth per content type. Other files link, never duplicate.
 
+**On doc/code drift the OWNER DOC wins and the CODE moves to match it.** The doc is where
+a decision was recorded; shipped code is only evidence of what happened to get written.
+Resolving the other way — editing the doc to describe what shipped — is an EXCEPTION, needs
+saying out loud, and gets a note at the site of the change explaining why it was allowed
+there (see `tools/test/control-order-test.php`'s `showCurrentYear` comment, the one
+standing instance). An exception is not precedent: the next drift moves the code.
+
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
@@ -132,7 +139,7 @@ Single source of truth per content type. Other files link, never duplicate.
 | Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
-| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via SPEC.md → PHPDoc on ship.** |
+| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, **the option-group WRAPPER** = `_group`/`_group_lead` + `option-group.js`'s CSS-joined run, lead-boxes-alone, captions-belong-to-controls — currently written up in `tag-reference.md` §Option grouping (visual), which migrates here) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via SPEC.md → PHPDoc on ship.** |
 | Historical N×M tag names + **completed** rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info. In-progress / under-consideration renames stay in `tag-reference.md` until completed, then move here. |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |

@@ -23,11 +23,17 @@
  * second place for the canonical control order to drift.
  *
  * THE LEAD, and why a lone member is usually bare. A group's LEAD member is boxed even
- * when it is alone (a source chain is a group whether or not it currently fans, and its
- * box carries the caption). Any other member alone gets NO box, because a border around a
- * single stock control is noise rather than structure — which is also how a "Link To: No
- * Link" tag ends up with no empty link box, and how a `try_` template's tag-level `limit`
- * stays a plain field.
+ * when it is alone — a source chain is a group whether or not it currently fans. Any
+ * other member alone gets NO box, because a border around a single stock control is noise
+ * rather than structure — which is also how a "Link To: No Link" tag ends up with no empty
+ * link box, and how a `try_` template's tag-level `limit` stays a plain field.
+ *
+ * NO CAPTION IS RENDERED HERE. `CLS.cap` is STYLED by this file and EMITTED by the two
+ * chain controls, which draw their own captions inside the box the wrapper puts around
+ * them. That is why the source group reads "SOURCE" on a chain-sourced tag and sits bare
+ * on a plain-select one. Rendering it here instead would mean reading the lead control's
+ * state (the chain caption changes with chain length), which is the coupling the
+ * composite tracked as FW-64 exists to do properly.
  *
  * @package BWS_Dynamic_Tags
  * @since   1.17.0

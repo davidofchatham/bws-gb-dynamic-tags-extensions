@@ -28,7 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Applied by bws_prepare_registration_options(), i.e. only to OUR registrations — a map
  * the editor JS applied by name would also wrap GB core tags' identically-named options.
  *
- * The three groups mirror the canonical CONTROL order (FW-52: source → format → link →
+ * The FOUR groups mirror the canonical CONTROL order (FW-52: source → format → link →
  * fallback), SPLIT at one place: the field read (`use`/`key`) is its own box even though
  * it serializes inside the source group, because "where do I read from" and "what do I
  * read" are the two questions an author actually asks, and the folded-slot control has
@@ -36,13 +36,23 @@ if ( ! defined( 'ABSPATH' ) ) {
  * `{{join}}` slot's panel read alike.
  *
  * NOT grouped, on purpose:
- * - `format`, `fallback`, `as`, and the email/phone own-anchor pair (`subject`/`noLink`):
- *   each is a standalone decision, and a border around one control is noise.
+ * - `fallback`, and the email/phone own-anchor pair (`subject`/`noLink`): each is a
+ *   standalone decision, and a border around one control is noise.
  * - Folded slot keys (`A`, `B`, …): the slot control draws its own boxes inside one value.
  *
- * The LEAD is the member that stays boxed when it is the group's only visible control —
- * a source chain is a group whether or not it currently fans, and its box carries the
- * caption. Every other lone member renders bare (see assets/js/option-group.js).
+ * The LEAD is the member that stays boxed when it is the group's only visible control.
+ * Every other lone member renders bare (see assets/js/option-group.js) — the per-group
+ * reasoning is on each block below, because the leads were decided one at a time and for
+ * different reasons.
+ *
+ * CAPTIONS BELONG TO CONTROLS, NOT TO GROUPS (v1.17.0). The wrapper renders no caption at
+ * all; a control that draws its own captions inside the wrapper's box is what puts one
+ * there. So the source group reads "SOURCE" / "SOURCE PATH" on the tags whose source is a
+ * chain control, and shows the same box bare on `term_*`, `try_*`, `{{table}}` and
+ * `{{call}}`, whose source is a plain select. That asymmetry is accepted for v1 and
+ * tracked on FW-64: making it uniform means the wrapper renders the caption, and the
+ * chain control's is DYNAMIC (it changes with chain length), so the wrapper would have to
+ * read chain state — the coupling FW-64's composite exists to do properly.
  *
  * @since 1.17.0
  * @return array<string,array{group:string,lead:bool}> Option name => group + lead flag.
