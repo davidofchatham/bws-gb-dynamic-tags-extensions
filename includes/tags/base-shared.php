@@ -57,6 +57,70 @@ function bws_base_source_option(): array {
 }
 
 /**
+ * A field picker's editor-facing config, trimmed to what it actually declares.
+ *
+ * Both chain-config builders ship pickers (`refOption`, `keyOption`, `entriesOption`)
+ * derived from the shipped option definitions rather than re-typed, and both want the
+ * same subset with the empty entries dropped — an empty `placeholder` reaching JS as
+ * `''` is falsy and harmless, but an empty `label` renders a blank label strip above
+ * the control.
+ *
+ * @since 1.17.0
+ * @param array $def A shipped option definition (label/help/placeholder/…).
+ * @return array Non-empty picker fields only.
+ */
+function bws_fold_picker_config( array $def ): array {
+	return array_filter(
+		array(
+			'label'        => $def['label'] ?? '',
+			'help'         => $def['help'] ?? '',
+			'placeholder'  => $def['placeholder'] ?? '',
+			'dynamicLabel' => ! empty( $def['dynamicLabel'] ),
+			'typeDefault'  => $def['typeDefault'] ?? '',
+		),
+		static function ( $v ) {
+			return '' !== $v && false !== $v;
+		}
+	);
+}
+
+/**
+ * The chain-config keys that are properties of the WIRE, not of a container.
+ *
+ * A base tag, a `{{join}}` slot and a `try_` attempt disagree about nearly everything in
+ * a fold config — which roots they offer, whether a read axis exists, what the add
+ * affordance is called — but they cannot disagree about these three, because all three
+ * describe the wire itself:
+ *
+ *   slugMap     engine option value → wire step slug. The only place the two
+ *               vocabularies meet (DECISION 3).
+ *   stepApplies which steps are OFFERABLE where, derived from the engine's own refusal
+ *               list so the editor cannot come to disagree with what renders. Display
+ *               only — a stored step is always shown in its own picker.
+ *   retiredSrc  the retired source tokens the mount migrator must DECLINE rather than
+ *               fold (#56), read from the same constant the converter's guard reads.
+ *
+ * They were byte-identical in both builders, comments included, which is the state that
+ * precedes a divergence rather than evidence one is impossible.
+ *
+ * @since 1.17.0
+ * @return array Chain-config fragment to merge into a container's `fold` array.
+ */
+function bws_fold_wire_vocabulary(): array {
+	return array(
+		'slugMap'     => array(
+			'ref'       => 'refs',
+			'srcTermIn' => 'terms',
+			'rows'      => 'entries',
+		),
+		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
+			? bws_fold_step_applicability()
+			: array(),
+		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+	);
+}
+
+/**
  * Upgrade a base tag's `src` option to the CHAIN control (FW-56).
  *
  * A base tag's source has always been a chain — a root plus fanning steps — but the
@@ -129,21 +193,6 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		}
 	}
 
-	$picker = static function ( array $def ): array {
-		return array_filter(
-			array(
-				'label'        => $def['label'] ?? '',
-				'help'         => $def['help'] ?? '',
-				'placeholder'  => $def['placeholder'] ?? '',
-				'dynamicLabel' => ! empty( $def['dynamicLabel'] ),
-				'typeDefault'  => $def['typeDefault'] ?? '',
-			),
-			static function ( $v ) {
-				return '' !== $v && false !== $v;
-			}
-		);
-	};
-
 	// The source rows a STEP 0 root may take. `ref` is a step, not a root, so it is
 	// dropped from the root enum: spelling it as a root is what the flat option had
 	// to do when a tag could hold only one source token.
@@ -156,8 +205,8 @@ function bws_build_src_chain_option( array $args = array() ): array {
 
 	$source_opt['src']['type'] = 'bws-src-chain';
 	$source_opt['src']['fold'] = array(
-		'container'  => 'base',
-		'srcRows'    => $root_rows,
+		'container'   => 'base',
+		'srcRows'     => $root_rows,
 		// The root an ABSENT `src` means. Derived from the row `_strip_default` is about
 		// to blank, so the two cannot disagree: the stripped default IS what absence
 		// spells. The control shows it as the chain's root (an unset tag reads the
@@ -165,25 +214,18 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// tag does) and strips it back out on commit, keeping the wire as it was.
 		'defaultRoot' => (string) ( $source_opt['src']['options'][0]['value'] ?? '' ),
 		'stepRows'    => $step_rows,
-		'slugMap'    => array(
-			'ref'       => 'refs',
-			'srcTermIn' => 'terms',
-			'rows'      => 'entries',
-		),
-		// Which steps are OFFERABLE where — derived from the engine's own refusal list
-		// (BWS_TRAVERSAL_STEP_INPUT_KINDS) plus the produced-kind map, so the control
-		// never offers a step the engine would answer empty for. Display only; a stored
-		// step still renders and still shows in its own picker.
-		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
-			? bws_fold_step_applicability()
-			: array(),
-		'taxonomies' => $tax_rows,
-		'refOption'  => $picker( $base_trav['ref'] ),
+		'taxonomies'  => $tax_rows,
+		'refOption'   => bws_fold_picker_config( $base_trav['ref'] ),
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
 		// so leaving them beside it would store one source two ways — and the flat
 		// pair is what the retired arms used to dispatch on.
-		'flatAxes' => array( 'ref', 'srcTermIn' ),
-		'retiredSrc' => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+		'flatAxes'    => array( 'ref', 'srcTermIn' ),
+	);
+	// The wire's own vocabulary — slugMap / stepApplies / retiredSrc, identical in every
+	// container because all three describe the wire rather than the container.
+	$source_opt['src']['fold'] = array_merge(
+		bws_fold_wire_vocabulary(),
+		$source_opt['src']['fold']
 	);
 
 	return $source_opt;
@@ -543,22 +585,6 @@ function bws_build_fold_slot_options( array $args ): array {
 		}
 	}
 
-	/** Reduce an option definition to the fields the pickers need. */
-	$picker = static function ( array $def ): array {
-		return array_filter(
-			array(
-				'label'        => $def['label'] ?? '',
-				'help'         => $def['help'] ?? '',
-				'placeholder'  => $def['placeholder'] ?? '',
-				'dynamicLabel' => ! empty( $def['dynamicLabel'] ),
-				'typeDefault'  => $def['typeDefault'] ?? '',
-			),
-			static function ( $v ) {
-				return '' !== $v && false !== $v;
-			}
-		);
-	};
-
 	$fold = array(
 		'container'      => $container,
 		'combining'      => $combining,
@@ -580,46 +606,30 @@ function bws_build_fold_slot_options( array $args ): array {
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
 		'readLabel'      => $base_read['label'] ?? '',
-		// Engine option value → wire step slug (DECISION 3). The wire names a STEP
-		// (`refs` fans to related posts), the engine names an option (`src:ref`); the
-		// map is the only place the two vocabularies meet.
-		'slugMap'        => array(
-			'ref'       => 'refs',
-			'srcTermIn' => 'terms',
-			'rows'      => 'entries',
-		),
-		// Which steps are OFFERABLE where — derived from the engine's own refusal list
-		// (BWS_TRAVERSAL_STEP_INPUT_KINDS) plus the produced-kind map, so the control
-		// never offers a step the engine would answer empty for. Display only; a stored
-		// step still renders and still shows in its own picker.
-		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
-			? bws_fold_step_applicability()
-			: array(),
 		'taxonomies'     => $tax_rows,
-		'refOption'      => $picker( $base_trav['ref'] ),
+		'refOption'      => bws_fold_picker_config( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold
 		// and delete exactly the keys the converter does. Derived through the single owner
 		// of the tag-level subtraction (bws_fold_slot_flat_axes) — a hand-kept list in
 		// the control is what deleted a try_ template's TAG-level `limit`/`key` the first
 		// time an author touched slot 1.
-		'flatAxes'     => function_exists( 'bws_fold_slot_flat_axes' )
+		'flatAxes'       => function_exists( 'bws_fold_slot_flat_axes' )
 			? bws_fold_slot_flat_axes( (array) ( $args['tag_level'] ?? array() ) )
 			: array(),
-		// The RETIRED source tokens the mount migrator must decline rather than fold
-		// (#56). Shipped for the same reason as flatAxes: the converter's own guard
-		// reads the constant directly, and a hand-kept copy in JS is how the two paths
-		// would come to store one tag two ways.
-		'retiredSrc'     => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 	);
+	// The wire's own vocabulary — slugMap / stepApplies / retiredSrc, identical in every
+	// container because all three describe the wire rather than the container.
+	$fold = array_merge( bws_fold_wire_vocabulary(), $fold );
+
 	// OMITTED, not empty, when the container has no per-slot key (try_title and the
 	// other read-less templates). An empty array here would reach the control as JS
 	// `[]`, which is TRUTHY — enough to render a key picker with no label for a slot
 	// whose read is a tag-level option.
 	if ( ! empty( $base_key ) ) {
-		$fold['keyOption'] = $picker( $base_key );
+		$fold['keyOption'] = bws_fold_picker_config( $base_key );
 	}
 	if ( ! empty( $args['entries_option'] ) ) {
-		$fold['entriesOption'] = $picker( (array) $args['entries_option'] );
+		$fold['entriesOption'] = bws_fold_picker_config( (array) $args['entries_option'] );
 	}
 	if ( ! empty( $args['field_scope'] ) ) {
 		$fold['fieldScope'] = (string) $args['field_scope'];
