@@ -63,36 +63,24 @@
 	// landed. Nesting reads by WEIGHT instead — slot rule 2px > step rule 1px.
 	// No marginBottom anywhere: the modal content column already applies a 15px
 	// row-gap, so a margin of our own double-spaces against it.
-	var GROUP_BOX = {
-		border: '1px solid #e0e0e0', borderRadius: '2px',
-		padding: '12px', background: 'rgba(0,0,0,0.02)'
-	};
+	//
+	// The box ITSELF is not declared here. `bws-group` is owned by option-group.js,
+	// which draws the same box around a BASE tag's separately-rendered controls — and a
+	// slot's box and a base tag's box being two declarations is exactly how the base-tag
+	// chain control came to ship an untinted variant with a differently-placed caption.
 	var STEP_RULE = { borderTop: '1px solid #ddd', marginTop: '10px', paddingTop: '10px' };
-	var GROUP_CAP = {
-		fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px',
-		opacity: 0.65, marginBottom: '10px', display: 'block'
-	};
+	var CLS = ( window.bwsOptionGroup && window.bwsOptionGroup.CLS ) || { group: 'bws-group', cap: 'bws-group__cap' };
 	// Stock control labels sit tight against whatever precedes them, so a label
 	// following another control reads as belonging to it. Space the OWNER — we do not
 	// control the stock components' internal markup.
 	var STACKED = { marginTop: '14px' };
 
-	// ComboboxControl's `__suggestions-container` carries the border and padding but
-	// declares NO background, so a tinted group shows through it while the `__input`
-	// within paints itself white — one control, two fills. Fix that one element, not
-	// the wrapper. Its own label also sits flush against the filters above it and
-	// lives inside the shipped control's markup, out of reach of our wrapper margin.
-	var SCOPED_CSS =
-		'.bws-slot-fold .components-combobox-control__suggestions-container{background:#fff;}' +
-		'.bws-slot-fold .components-combobox-control .components-base-control__label' +
-		'{margin-top:12px;display:inline-block;}';
-
-	if ( 'undefined' !== typeof document && ! document.getElementById( 'bws-slot-fold-css' ) ) {
-		var styleEl = document.createElement( 'style' );
-		styleEl.id = 'bws-slot-fold-css';
-		styleEl.appendChild( document.createTextNode( SCOPED_CSS ) );
-		document.head.appendChild( styleEl );
-	}
+	// No stylesheet of its own any more. Both rules this file used to inject — the tinted
+	// box showing through a ComboboxControl's suggestions container, and that control's
+	// label sitting flush against the filters above it — are properties of being INSIDE A
+	// BOX, not of being inside a slot, and base tags have boxes now. They live with the
+	// box, in option-group.js. The `bws-slot-fold` class stays on the picker wrappers as
+	// a hook for anything genuinely slot-specific.
 
 	// ── Config (all of it PHP-derived; see the header) ───────────────────────
 
@@ -112,6 +100,9 @@
 			noun: c.noun || '',
 			srcRows: c.srcRows || [],
 			srcRowsInherit: c.srcRowsInherit || [],
+			// The root an absent source spells (base tags only — a slot's absent source
+			// is an inherit, which has its own row). See bws_build_src_chain_option().
+			defaultRoot: c.defaultRoot || '',
 			stepRows: c.stepRows || [],
 			readRows: c.readRows || [],
 			readRowsInherit: c.readRowsInherit || [],
@@ -865,8 +856,8 @@
 			stepContext: stepContext
 		} );
 
-		children.push( el( 'div', { key: 'srcgroup', style: GROUP_BOX }, [
-			el( 'span', { key: 'cap', style: GROUP_CAP },
+		children.push( el( 'div', { key: 'srcgroup', className: CLS.group }, [
+			el( 'span', { key: 'cap', className: CLS.cap },
 				chain.length > 1 ? __( 'Source path', 'generateblocks' ) : __( 'Source', 'generateblocks' ) )
 		].concat( stepNodes ) ) );
 
@@ -970,8 +961,8 @@
 			var readCap = conf.readLabel
 				|| ( conf.keyOption && conf.keyOption.label )
 				|| __( 'Field', 'generateblocks' );
-			children.push( el( 'div', { key: 'readgroup', style: GROUP_BOX }, [
-				el( 'span', { key: 'cap', style: GROUP_CAP }, readCap )
+			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
+				el( 'span', { key: 'cap', className: CLS.cap }, readCap )
 			].concat( readNodes ) ) );
 		}
 

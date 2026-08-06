@@ -111,6 +111,11 @@ function load( relative ) {
 load( 'assets/js/slot-fold-grammar.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-migrate.js' );
+// The option-group wrapper runs at priority 30, BEHIND both anchored filters — so it is
+// the one most exposed to the keyless-wrap failure and the one whose own wrap is
+// currently load-bearing for nobody. That is exactly the shape the mechanism sweep at
+// the bottom exists for.
+load( 'assets/js/option-group.js' );
 
 check(
 	'all three invisible controls loaded and registered at the same priority',
@@ -238,7 +243,15 @@ CASES.forEach( function ( c ) {
 // harmless the moment a third filter anchors on a folded slot — which is exactly how this
 // bug arrived the first time. So: sweep EVERY anchor, not just the contested one.
 console.log( '' );
-const MECHANISM_OPTIONS = { as: ASSIZE, A: FOLD, B: FOLD, src: CHAIN, fallback: PLAIN };
+const MECHANISM_OPTIONS = {
+	as: ASSIZE,
+	A: FOLD,
+	B: FOLD,
+	// Grouped, so the option-group wrapper is in the sweep rather than skipped by it.
+	src: Object.assign( { _group: 'source', _group_lead: true }, CHAIN ),
+	limit: { type: 'number', _group: 'source' },
+	fallback: PLAIN
+};
 Object.keys( MECHANISM_OPTIONS ).forEach( function ( name ) {
 	const wrapped = applyFilters( { key: name, type: 'control' }, MECHANISM_OPTIONS, { state: {}, setState: function () {} } );
 	check(
@@ -373,6 +386,42 @@ function convert( state, chain ) {
 	return srcChain.convertUpdate( state, 'src', chain, AXES );
 }
 
+// THE DEFAULT ROOT round-trip. `src` is _strip_default, so absence IS `current` — the
+// control shows that root (otherwise its step select displays "Current" while holding
+// nothing, which is what made picking Current fire no change event and left Add step
+// with no step to append to) and convertUpdate writes it back as absence. Both halves
+// are asserted, because either alone is a different bug: display without the strip puts
+// `src:current` on every tag an author opens, and the strip without the display leaves
+// the seed picker exactly as it was.
+let rooted = srcChain.convertUpdate( { key: 'name' }, 'src', [ st( 'current' ) ], AXES, 'current' );
+check( 'a lone default root is stored as ABSENCE', undefined === rooted.src, JSON.stringify( rooted.src ) );
+check( 'stripping the root leaves the rest of the tag alone', 'name' === rooted.key );
+rooted = srcChain.convertUpdate( {}, 'src', [ st( 'current' ), st( 'terms', 'department' ) ], AXES, 'current' );
+check( 'a default root with a step behind it is written in full', 'current;terms,department' === rooted.src, JSON.stringify( rooted.src ) );
+rooted = srcChain.convertUpdate( {}, 'src', [ st( 'site' ) ], AXES, 'current' );
+check( 'a NON-default root is written', 'site' === rooted.src, JSON.stringify( rooted.src ) );
+// The other half of the round trip: what the control SHOWS for a stored value. Kept
+// separate from chainFromOptions(), which is the twin of the PHP reader and must stay
+// byte-faithful to it — the default root is a display decision, not a wire one.
+[
+	[ 'bare tag shows the default root', {}, 'current' ],
+	[ 'an explicit root is shown as itself', { src: 'site' }, 'site' ],
+	[ 'chain wire is shown as parsed', { src: 'refs,office' }, 'refs:office' ],
+	// A legacy term step with no `src` is NOT bare: it already has a chain, so the
+	// default root must not be prepended in front of it.
+	[ 'a legacy step suppresses the default root', { srcTermIn: 'department' }, 'terms:department' ]
+].forEach( function ( row ) {
+	check(
+		'displayChain — ' + row[ 0 ],
+		shape( srcChain.displayChain( row[ 1 ], 'current' ) ) === row[ 2 ],
+		'got ' + JSON.stringify( shape( srcChain.displayChain( row[ 1 ], 'current' ) ) ) + ', want ' + JSON.stringify( row[ 2 ] )
+	);
+} );
+check(
+	'with no default root registered, display is the faithful reading',
+	'' === shape( srcChain.displayChain( {}, '' ) )
+);
+
 let out = convert( { src: 'ref', ref: 'office', key: 'name' }, [ st( 'refs', 'office' ) ] );
 check( 'conversion writes chain wire', 'refs,office' === out.src, JSON.stringify( out.src ) );
 check( 'conversion deletes the flat siblings it absorbed', undefined === out.ref, JSON.stringify( out.ref ) );
@@ -414,6 +463,61 @@ check(
 	),
 	'element returned'
 );
+
+// ── Visual grouping (option-group.js) ───────────────────────────────────────
+//
+// The wrapper is presentation, so most of it is not assertable here. Three things are,
+// and all three have bitten: it must not wrap what the conditional gate HID (a box with
+// nothing in it), it must not wrap an option the tag did not register (the map is keyed
+// by name, and GB core tags have a `key` and a `source` too — which is why the marker
+// rides on the option DEFINITION rather than on a name list in JS), and the generated
+// CSS must carry a join rule per group (the attribute selector cannot say "same value as
+// my sibling", so a missing group name silently means no joining, i.e. N stacked boxes).
+console.log( '\noption grouping\n' );
+
+const GROUPED = {
+	src:      { type: 'bws-src-chain', fold: { srcRows: [], stepRows: [], slugMap: {}, taxonomies: [], flatAxes: [] }, _group: 'source', _group_lead: true },
+	limit:    { type: 'number', _group: 'source', show_if_any: { src: [ 'ref', 'chain_fans' ] } },
+	use:      { type: 'select', _group: 'field', _group_lead: true },
+	// A lead too, and the reason is `{{email}}`/`{{phone}}`/`{{table}}`: the field key is
+	// their whole read, with no `use` enum in front of it, so a lone-member opt-out would
+	// leave the simplest reads as the only ones with no field group.
+	key:      { type: 'bws-field-combo', _group: 'field', _group_lead: true },
+	fallback: { type: 'text' }
+};
+
+function wrapped( name, state ) {
+	return applyFilters( { key: name, type: 'control' }, GROUPED, { state: state || {}, setState: function () {} } );
+}
+
+const srcOut = wrapped( 'src' );
+check( 'a grouped option is wrapped in a group member', 'div' === srcOut.type, JSON.stringify( srcOut.type ) );
+check( 'the member names its group', 'source' === srcOut.props[ 'data-bws-group' ], JSON.stringify( srcOut.props[ 'data-bws-group' ] ) );
+check( 'the LEAD member is marked (it stays boxed when alone)', /bws-optgroup--lead/.test( srcOut.props.className ), srcOut.props.className );
+// The field key leads its own group — the `{{email}}`/`{{phone}}` shape, where it is the
+// only member and the group must still show.
+check( 'a lone field key leads its group', /bws-optgroup--lead/.test( wrapped( 'key', { src: 'refs,x' } ).props.className ), wrapped( 'key' ).props.className );
+check( 'a non-lead member is not marked', ! /--lead/.test( wrapped( 'limit', { src: 'refs,office' } ).props.className ), wrapped( 'limit', { src: 'refs,office' } ).props.className );
+check( 'an ungrouped option is left alone', 'control' === wrapped( 'fallback' ).type );
+
+// `limit` is hidden until the source fans. The gate runs at 10 and returns null; a
+// wrapper that boxed it anyway would draw an empty bordered strip on every base tag.
+check( 'a HIDDEN option is not wrapped', null === wrapped( 'limit' ), JSON.stringify( wrapped( 'limit' ) ) );
+check( 'the same option IS wrapped once revealed', 'div' === wrapped( 'limit', { src: 'refs,office' } ).type );
+
+// An option the tag never registered: no definition, so no marker, so no box —
+// the reason grouping is stamped at registration instead of matched by name in JS.
+check(
+	'an unregistered option name is never wrapped',
+	'control' === applyFilters( { key: 'key', type: 'control' }, { source: PLAIN, key: undefined }, { state: {}, setState: function () {} } ).type
+);
+
+const css = global.window.bwsOptionGroup.buildCss( [ 'source', 'field' ] );
+[ 'source', 'field' ].forEach( function ( name ) {
+	const sel = '.bws-optgroup[data-bws-group="' + name + '"]';
+	check( '`' + name + '` gets a continuation rule', css.indexOf( sel + '+' + sel ) !== -1 );
+	check( '`' + name + '` gets a lone-member opt-out', css.indexOf( ':not(.bws-optgroup--lead)' ) !== -1 );
+} );
 
 console.log( '' );
 if ( fail ) {

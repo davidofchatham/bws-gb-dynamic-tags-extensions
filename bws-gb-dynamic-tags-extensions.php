@@ -287,6 +287,17 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
+	// VISUAL GROUPING for the separately-rendered option controls (source / field /
+	// link). Loads before every control that draws a box, because they take the class
+	// names off it — one declaration of what a group box looks like, whether it is drawn
+	// around a folded slot's axes or around a base tag's own controls.
+	wp_enqueue_script(
+		'bws-dynamic-tags-option-group',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/option-group.js',
+		array( 'wp-hooks', 'wp-element' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	wp_enqueue_script(
 		'bws-dynamic-tags-image-controls',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/image-tag-controls.js',
@@ -409,6 +420,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
+			'bws-dynamic-tags-option-group',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
@@ -427,6 +439,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'wp-i18n',
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-control',
+			'bws-dynamic-tags-option-group',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true

@@ -504,6 +504,93 @@ assert_same(
 	$chain_fold['flatAxes']
 );
 
+// ── The REGISTRATION pass ────────────────────────────────────────────────────
+//
+// bws_strip_default_select_values() is the single pass every BWS registration goes
+// through, so two things ride it: the visual group stamp, and dropping the flat source
+// options a chain control has taken over. Both are gated — the stamp on our registrations
+// (a name-keyed map applied in JS would also wrap GB core tags' `key`/`source`), the drop
+// on the control TYPE (a `term_`/`table`/`call` source is a plain select and still
+// authors the flat pair).
+//
+// The drop is asserted DERIVED, not by name: it reads the chain option's own `flatAxes`,
+// the same list the control deletes by, so a change to what the chain absorbs cannot
+// leave a stray control behind it.
+
+require_once __DIR__ . '/../../includes/helpers/registration-helpers.php';
+// The link group is asserted against its SHIPPED definitions, not a local literal — the
+// three keys and their reveal conditions are what decide when the box appears.
+require_once __DIR__ . '/../../includes/helpers/link-helpers.php';
+
+$chain_tag = bws_strip_default_select_values(
+	array_merge( bws_build_src_chain_option(), bws_base_traversal_options(), bws_get_text_field_options() )
+);
+assert_same( 'chain tag: the absorbed `ref` control is gone', false, isset( $chain_tag['ref'] ) );
+assert_same( 'chain tag: the absorbed `srcTermIn` control is gone', false, isset( $chain_tag['srcTermIn'] ) );
+assert_same( 'chain tag: the source itself survives', 'bws-src-chain', $chain_tag['src']['type'] );
+assert_same( 'chain tag: unabsorbed options survive', true, isset( $chain_tag['use'], $chain_tag['key'] ) );
+
+$flat_tag = bws_strip_default_select_values(
+	array_merge( bws_base_source_option(), bws_base_traversal_options() )
+);
+assert_same( 'plain-select tag: `ref` KEPT', true, isset( $flat_tag['ref'] ) );
+assert_same( 'plain-select tag: `srcTermIn` KEPT', true, isset( $flat_tag['srcTermIn'] ) );
+
+// The stamp. `key` leads its group as well as `use`, because on {{email}}/{{phone}}/
+// {{table}} the field key IS the whole read and a lone-member opt-out would leave the
+// simplest reads as the only ones with no field group.
+assert_same( 'stamp: src leads the source group', 'source', $chain_tag['src']['_group'] );
+assert_same( 'stamp: src is a lead', true, ! empty( $chain_tag['src']['_group_lead'] ) );
+assert_same( 'stamp: use is a field lead', true, ! empty( $chain_tag['use']['_group_lead'] ) );
+assert_same( 'stamp: key is a field lead too', true, ! empty( $chain_tag['key']['_group_lead'] ) );
+$ungrouped = bws_strip_default_select_values( array( 'fallback' => array( 'type' => 'text' ) ) );
+assert_same( 'stamp: an unmapped option gets no group', false, isset( $ungrouped['fallback']['_group'] ) );
+
+// The FORMAT group holds one lead and one deliberate non-lead, and the pair is the whole
+// mechanism: `as` is a COMPOSITE (return type + image size from one key), so on {{image}}
+// it is already a group of two and must keep its box when the size control hides — the
+// wrapper cannot see inside a composite. `format` alone is {{join}}'s assembly template,
+// one control, where a border is noise; on datetime it sits in a run with `as` and boxes
+// anyway. One name-keyed map, no per-tag knowledge.
+$fmt = bws_strip_default_select_values( array(
+	'as'              => array( 'type' => 'bws-as-size' ),
+	'format'          => array( 'type' => 'bws-format-input' ),
+	'showCurrentYear' => array( 'type' => 'checkbox' ),
+) );
+assert_same( 'stamp: the datetime format cluster shares one group', 'format', $fmt['as']['_group'] );
+assert_same( 'stamp: ...and its siblings agree', array( 'format', 'format' ), array( $fmt['format']['_group'], $fmt['showCurrentYear']['_group'] ) );
+assert_same( 'stamp: `as` LEADS (a composite keeps its box when a sub-control hides)', true, ! empty( $fmt['as']['_group_lead'] ) );
+assert_same(
+	'stamp: `format` does NOT lead (it never stands alone once `mode` joins it)',
+	array( false, false ),
+	array( ! empty( $fmt['format']['_group_lead'] ), ! empty( $fmt['showCurrentYear']['_group_lead'] ) )
+);
+
+// {{join}}'s assembly pair lands in the SAME group as datetime's formatting — both answer
+// "how is the value rendered". `mode` reveals exactly one of `valueSep`/`format`, so two
+// members are always visible and the group boxes without a lead.
+$join_fmt = bws_strip_default_select_values( array(
+	'mode'     => array( 'type' => 'select' ),
+	'valueSep' => array( 'type' => 'text' ),
+	'format'   => array( 'type' => 'bws-format-input' ),
+) );
+assert_same(
+	'stamp: join mode + valueSep + format share the format group',
+	array( 'format', 'format', 'format' ),
+	array( $join_fmt['mode']['_group'], $join_fmt['valueSep']['_group'], $join_fmt['format']['_group'] )
+);
+
+// The link group has no lead, so a tag left on "No Link" shows a bare select and the box
+// appears when a link is configured. Decided by trying both (user, 2026-08-05): the link
+// is the one OPTIONAL group here — a source and a field read are what every tag does, so
+// those boxes stand whether or not they are configured.
+$link = bws_strip_default_select_values( bws_get_link_options() );
+assert_same(
+	'stamp: no lead in the link group — box only once a link is configured',
+	array( false, false, false ),
+	array( ! empty( $link['linkTo']['_group_lead'] ), ! empty( $link['linkKey']['_group_lead'] ), ! empty( $link['newTab']['_group_lead'] ) )
+);
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";

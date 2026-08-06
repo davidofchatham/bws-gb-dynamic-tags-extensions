@@ -133,6 +133,23 @@ The order options **serialize** in the tag string is a separate axis from the or
 
 This is the affordance the plugin's reorder normalizer stands on: a per-tag JS normalizer (gated by tag name via `generateblocks.editor.tagSpecificControls`) rebuilds `extraTagParams` in a canonical serialization order inside `setState`, WITHOUT touching control render order (which stays the registration/PHP option-definition order). The gate is per-tag-name so a tag with a value-writing composite and the order-normalizer can coexist: they converge iff their guards test **disjoint** properties — the normalizer touches key-ORDER only, a composite touches key-VALUE only (spread-preserve `setState`), so neither perturbs the other's axis. The plugin's canonical orders and the normalizer's status live in [`tag-reference.md` §Option order](tag-reference.md#option-order); this is the pure GB fact that makes the decoupling possible.
 
+### Option controls are flat siblings in a 15px-gap flex column
+
+`applyFilters( 'generateblocks.editor.tagSpecificControls', … )` is called once **per option**, and
+the returned elements are spread as siblings into the modal's content column — there is no per-option
+wrapper GB adds, and no seam that sees two options at once. The column is
+`.gb-dynamic-tag-modal__content{display:flex;flex-direction:column;gap:15px}` (GB 2.3.0 editor CSS).
+
+Two consequences the plugin depends on:
+
+- **A filter cannot group options structurally.** Any visual grouping of separately-registered
+  options has to be drawn per member and joined by CSS across siblings, or else one control has to
+  swallow the others (and then own their `show_if` reveal). `assets/js/option-group.js` takes the
+  first route; FW-64 tracks the second.
+- **The 15px is a load-bearing number**, since closing the gap between two joined members means
+  cancelling exactly it. It is a `--bws-optgroup-gap` custom property rather than a literal for that
+  reason. The same gap is why controls inside our own boxes carry no `marginBottom`.
+
 ## Replacement is gated on block NAME — and the gate is filterable
 
 GB hooks WP's `render_block` at priority 10 (`includes/dynamic-tags/class-dynamic-tags.php:25`), so

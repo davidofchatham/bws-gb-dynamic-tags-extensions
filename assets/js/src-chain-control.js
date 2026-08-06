@@ -57,24 +57,12 @@
 	var fold      = window.bwsSlotFold;
 	var repeater  = window.bwsSlotFoldRepeater;
 
-	var GROUP_BOX = {
-		border: '1px solid #e0e0e0',
-		borderRadius: '2px',
-		padding: '12px',
-		marginBottom: '16px',
-		position: 'relative'
-	};
-	var GROUP_CAP = {
-		position: 'absolute',
-		top: '-8px',
-		left: '8px',
-		background: '#fff',
-		padding: '0 4px',
-		fontSize: '11px',
-		textTransform: 'uppercase',
-		letterSpacing: '0.4px',
-		opacity: 0.65
-	};
+	// The BOX is drawn by the option-group wrapper (option-group.js), which also joins
+	// `limit`/`sep` onto it — they are source properties and belong inside the same
+	// border. This control contributes the caption and the steps, and nothing about how
+	// the group is painted: a second declaration here is precisely what shipped, and it
+	// is why the base tag's source box looked nothing like a `{{join}}` slot's.
+	var CLS = ( window.bwsOptionGroup && window.bwsOptionGroup.CLS ) || { cap: 'bws-group__cap' };
 
 	/**
 	 * The depth-0 chain a base tag's options describe — the JS half of
@@ -128,6 +116,34 @@
 		return chain;
 	}
 
+	/**
+	 * The chain the control SHOWS — the stored one, plus the root that absence spells.
+	 *
+	 * THE DISPLAYED CHAIN IS NOT THE STORED ONE, and the difference is one step. `src` is
+	 * `_strip_default`, so an unset base tag holds no `src` at all and chainFromOptions()
+	 * — faithfully, as the twin of the PHP reader — answers with an empty chain. The step
+	 * editor then rendered its "no chain yet" seed picker, whose value is `''`: no option
+	 * matches it, so the browser DISPLAYS the first row ("Current") while the control
+	 * believes nothing is selected. Two reported bugs came out of that one gap. Picking
+	 * the row already on screen fires no change event, so the source could not be set to
+	 * Current at all until something else had been chosen first; and with no step in hand
+	 * there was nothing to append to, so Add step never appeared on a fresh tag.
+	 *
+	 * Showing the root the tag actually resolves against fixes both and is the honest
+	 * display besides. It lives HERE rather than in chainFromOptions() because that
+	 * function is the twin of a PHP reader and must keep answering exactly what the
+	 * renderer would; this is a display decision, and convertUpdate() strips the root
+	 * back out on commit so the wire never learns about it.
+	 *
+	 * @param {Object} state       The tag's extraTagParams.
+	 * @param {string} defaultRoot The root an absent `src` spells ('' = none registered).
+	 * @return {Array} Chain to render (grammar shape).
+	 */
+	function displayChain( state, defaultRoot ) {
+		var chain = chainFromOptions( state );
+		return ( ! chain.length && defaultRoot ) ? [ step( defaultRoot ) ] : chain;
+	}
+
 	/** A chain step, in the grammar's shape. */
 	function step( slug, arg, limit ) {
 		return {
@@ -169,19 +185,32 @@
 	 *    nothing to cap, so a number there would be noise a reader must decide is
 	 *    meaningless.
 	 *
-	 * @param {Object}   state      Current extraTagParams.
-	 * @param {string}   key        The source option key (`src`).
-	 * @param {Array}    chain      The committed chain.
-	 * @param {string[]} flatAxes Flat option names the chain replaces.
+	 * @param {Object}   state       Current extraTagParams.
+	 * @param {string}   key         The source option key (`src`).
+	 * @param {Array}    chain       The committed chain.
+	 * @param {string[]} flatAxes    Flat option names the chain replaces.
+	 * @param {string}   defaultRoot The root an absent `src` spells (PHP-derived). A
+	 *                               chain that is only this root is written as ABSENCE.
 	 * @return {Object} The next extraTagParams.
 	 */
-	function convertUpdate( state, key, chain, flatAxes ) {
+	function convertUpdate( state, key, chain, flatAxes, defaultRoot ) {
 		var upd  = Object.assign( {}, state );
 		// Enclosing level 0 — a base tag's `src:` is the wrapper, so a step `limit`
 		// prints one level inside it (`refs,office,limit[2]`). A slot's `src(...)`
 		// passes 1. The caller that prints the wrapper owns this number; both shipped
 		// bugs on this axis came from recomputing depth locally.
 		var wire = fold.emitChain( chain, 0 );
+
+		// A chain that is JUST the default root already IS what an absent `src` means,
+		// so it is stored as absence. The control DISPLAYS that root (see
+		// SrcChainControl) because the tag really does resolve against the ambient
+		// entity; serializing it would undo `_strip_default` for the one option that has
+		// always been omitted when unset, and would do it to every tag an author merely
+		// opened. Round-trips exactly: absence reads back as this root.
+		if ( defaultRoot && 1 === chain.length && defaultRoot === chain[ 0 ].slug
+			&& ! chain[ 0 ].arg && ! chain[ 0 ].limit ) {
+			wire = '';
+		}
 
 		if ( wire ) {
 			upd[ key ] = wire;
@@ -218,11 +247,11 @@
 		var key      = props.optionKey;
 		var conf     = repeater.foldConfig( { fold: props.fold } );
 
-		var chain = chainFromOptions( state );
+		var chain = displayChain( state, conf.defaultRoot );
 
 		/** Commit a chain — the whole rule lives in convertUpdate(). */
 		function writeChain( next ) {
-			setState( convertUpdate( state, key, next, conf.flatAxes ) );
+			setState( convertUpdate( state, key, next, conf.flatAxes, conf.defaultRoot ) );
 		}
 
 		var stepNodes = repeater.chainSteps( {
@@ -243,8 +272,10 @@
 			}
 		} );
 
-		return el( 'div', { style: GROUP_BOX }, [
-			el( 'span', { key: 'cap', style: GROUP_CAP },
+		// No box of our own: the option-group wrapper draws it around this element AND
+		// around `limit`/`sep` below, so the whole source group reads as one box.
+		return el( Fragment, null, [
+			el( 'span', { key: 'cap', className: CLS.cap },
 				chain.length > 1 ? __( 'Source path', 'generateblocks' ) : __( 'Source', 'generateblocks' ) )
 		].concat( stepNodes ) );
 	}
@@ -276,6 +307,7 @@
 	// render assertion can reach.
 	window.bwsSrcChain = {
 		chainFromOptions: chainFromOptions,
+		displayChain: displayChain,
 		convertUpdate: convertUpdate,
 		chainIsWire: chainIsWire,
 		rootToken: rootToken,

@@ -158,6 +158,12 @@ function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt['src']['fold'] = array(
 		'container'  => 'base',
 		'srcRows'    => $root_rows,
+		// The root an ABSENT `src` means. Derived from the row `_strip_default` is about
+		// to blank, so the two cannot disagree: the stripped default IS what absence
+		// spells. The control shows it as the chain's root (an unset tag reads the
+		// ambient entity, so displaying nothing was showing the author less than the
+		// tag does) and strips it back out on commit, keeping the wire as it was.
+		'defaultRoot' => (string) ( $source_opt['src']['options'][0]['value'] ?? '' ),
 		'stepRows'    => $step_rows,
 		'slugMap'    => array(
 			'ref'       => 'refs',
