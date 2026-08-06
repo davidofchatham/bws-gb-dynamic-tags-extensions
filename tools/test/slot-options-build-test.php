@@ -447,8 +447,22 @@ assert_same(
 // or a term — a guess would hide the taxonomy step on every ordinary tag.
 assert_same(
 	'only `site` has a static root kind',
-	array( 'site' => 'site' ),
+	BWS_FOLD_STATIC_ROOT_KINDS,
 	$fold['stepApplies']['roots']
+);
+// ...and the map the EDITOR filters by is the same one the RENDER path dispatches on.
+// The two read it in opposite directions (render answers "what did this resolve to",
+// the editor asks "what may follow this"), so a divergence would not error anywhere —
+// the editor would simply offer, or withhold, a step against a kind the renderer does
+// not agree the root has. Driven through the shipped resolution rather than compared to
+// the constant twice, so the assertion covers the `?? 'base'` fallback too.
+assert_same(
+	'the static root map agrees with what a root-only chain RESOLVES to',
+	array( 'site', 'base' ),
+	array(
+		bws_fold_chain_resolution( array( array( 'slug' => 'site' ) ) )['kind'],
+		bws_fold_chain_resolution( array( array( 'slug' => 'current' ) ) )['kind'],
+	)
 );
 
 // Container facts the control and the renderer BOTH read.

@@ -85,6 +85,26 @@ const BWS_FOLD_STEP_KINDS = array(
 );
 
 /**
+ * Root token → the resolved-source KIND it carries, for the roots where that is STATIC.
+ *
+ * Only `site` is. Every other root — `current`, a registry source name — is the source
+ * FACTORY's to resolve at render, and comes back `base` (see bws_fold_chain_resolution's
+ * `kind` list), so static analysis cannot say more than "ask the factory".
+ *
+ * A map rather than the inline ternary it replaces, because there are TWO readers and
+ * they read it in opposite directions: bws_fold_chain_resolution() answers what a
+ * root-only chain resolved to (render authority), and bws_fold_step_applicability()
+ * ships it to the editor to decide which steps to OFFER off that root. A second copy
+ * would let the editor come to disagree with what renders — the class of drift the
+ * whole applicability derive exists to prevent.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_STATIC_ROOT_KINDS = array(
+	'site' => 'site',
+);
+
+/**
  * What a chain RESOLVES TO — the render path's dispatch axis (FW-63).
  *
  * Roughly nineteen arms used to pick a resolution branch by comparing the flat
@@ -149,7 +169,7 @@ function bws_fold_chain_resolution( array $chain ): array {
 	if ( ! $fans ) {
 		return array(
 			'root' => $root,
-			'kind' => ( 'site' === $root ) ? 'site' : 'base',
+			'kind' => BWS_FOLD_STATIC_ROOT_KINDS[ $root ] ?? 'base',
 			'fans' => false,
 		);
 	}
@@ -190,11 +210,10 @@ function bws_fold_src_resolution( array $options ): array {
  *            BWS_TRAVERSAL_STEP_INPUT_KINDS (the engine's own refusal list, so the
  *            editor cannot come to disagree with what renders).
  *   kinds  — step slug → the kind that step PRODUCES (BWS_FOLD_STEP_KINDS verbatim).
- *   roots  — root token → the kind it resolves to, for the roots where that is STATIC.
- *            Only `site` is: every other root is the factory's to resolve at render
- *            (`base` in bws_fold_chain_resolution's vocabulary), so the editor must
- *            treat it as permissive rather than guess. Mirrors that function's tail,
- *            which is the single owner of the rule.
+ *   roots  — root token → the kind it resolves to, for the roots where that is STATIC
+ *            (BWS_FOLD_STATIC_ROOT_KINDS verbatim). Only `site` is: every other root is
+ *            the factory's to resolve at render (`base` in bws_fold_chain_resolution's
+ *            vocabulary), so the editor must treat it as permissive rather than guess.
  *
  * The consumer is a DISPLAY filter, so an absent entry means "offer it" rather than
  * "refuse it": a stored step is always shown in its own picker whatever this says,
@@ -215,7 +234,7 @@ function bws_fold_step_applicability(): array {
 	return array(
 		'inputs' => $inputs,
 		'kinds'  => BWS_FOLD_STEP_KINDS,
-		'roots'  => array( 'site' => 'site' ),
+		'roots'  => BWS_FOLD_STATIC_ROOT_KINDS,
 	);
 }
 
