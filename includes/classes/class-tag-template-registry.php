@@ -34,7 +34,10 @@ class TagTemplateRegistry {
 	 *                    over bws_site_resolve_value('<tag>',…). Absent → $cf(0,…) fallback keeps
 	 *                    seam-routed templates (email/phone) byte-identical.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
-	 *   leading_options       array    Group 1 options (global formatting: as, size, format, etc.) prepended before slots in try_ tags.
+	 *   leading_options       array    Global formatting options (as, size, the datetime format
+	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
+	 *                    constructor registers them in canonical control order, i.e. after the
+	 *                    attempts and their field reads. Both read the same key.
 	 *   try_per_slot_key      bool     Each try_ slot reads its own field key.
 	 *   try_per_slot_use      bool     Each try_ slot gets its own read (`use`) selector.
 	 *                    The PAIR names the slot's READ SHAPE, which is what the folded
@@ -162,10 +165,17 @@ class TagTemplateRegistry {
 			$is_image         = ! empty( $tpl['is_image'] );
 			$supports_link    = ! $is_image && ! empty( $tpl['supports_link_wrap'] ) && ! empty( $link_options );
 
-			// Inject source + traversal after leading format controls. Link options go after
-			// all field/fallback options (trailing part), so they appear at the bottom.
+			// Inject source + traversal after leading format controls. `fallback` is lifted
+			// out of the template's options and re-appended LAST — it is global and closes
+			// every panel (canonical control order, and what base tags register). It rode the
+			// trailing part until 1.17.0, which put it ahead of the link cluster on exactly
+			// the templates that have both (term_text, term_datetime_*); the try_ constructor
+			// had the same bug from the same cause.
 			$tpl_options  = $tpl['options'] ?? [];
 			$leading_keys = array_keys( $tpl['leading_options'] ?? [] );
+
+			$fallback_part = array_intersect_key( $tpl_options, [ 'fallback' => null, 'fallback_text' => null ] );
+			$tpl_options   = array_diff_key( $tpl_options, $fallback_part );
 
 			if ( $is_image && isset( $tpl_options['as'] ) ) {
 				$as_opt = [ 'as' => $tpl_options['as'] ];
@@ -182,6 +192,8 @@ class TagTemplateRegistry {
 			} else {
 				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
 			}
+
+			$options = array_merge( $options, $fallback_part );
 
 			// Per-tag supports (do not mutate the shared $base_supports across templates).
 			// Image tags no longer declare native 'image-size' (as+size fold, FW-52):
@@ -431,11 +443,24 @@ class TagTemplateRegistry {
 	 * / `use(same)`) plus per-slot options. Grammar and vocabulary:
 	 * includes/helpers/slot-fold.php (the PHP owner) and bws_build_fold_slot_options().
 	 *
-	 * Option order follows the three-group structure from tag-reference.md:
-	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
-	 *   Group 2 — the folded slot keys `A`..`E`.
-	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys
-	 *             (field keys, fallback, link options), then chain-level limit/sep.
+	 * CONTROL order is REGISTRATION order (GB renders `options` as declared, and nothing
+	 * reorders it — the FW-52 normalizer moves the SERIALIZED key order only). So this
+	 * assembly is the panel, and since 1.17.0 it follows the same canonical control order
+	 * every base tag registers in — `source → format → link → fallback`:
+	 *   1. the folded slot keys `A`..`E`   — the attempt chain, i.e. this tag's source
+	 *   2. chain-level `limit`/`sep`       — list length is a source property (FW-52)
+	 *   3. tag-level field reads           — tpl['options'] minus format, per-slot and fallback
+	 *   4. format options                  — as/size, the datetime format cluster
+	 *   5. link options                    — linkTo/linkKey/newTab
+	 *   6. fallback                        — last, as on every base tag
+	 *
+	 * It did NOT until then: format led (the SERIALIZATION order, on the one tag family
+	 * that renders its format cluster), fallback preceded link, and `limit`/`sep` were
+	 * appended dead last. Harmless while every control was a bare sibling; visible the
+	 * moment 1.17.0 started boxing options by group, because a group draws as one box only
+	 * where its members register CONTIGUOUSLY (assets/js/option-group.js). Registering out
+	 * of canonical order does not just look wrong — it splits a group into two boxes, or
+	 * strands one member in a box of its own with nothing to name it.
 	 *
 	 * RESOLUTION runs through the shared render seam, so the inherit rules live in one
 	 * place for every container (bws_fold_slot_flat_options):
@@ -490,21 +515,22 @@ class TagTemplateRegistry {
 			$list_options    = ! empty( $tpl['try_list_options'] );
 			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
-			$leading_options = $tpl['leading_options'] ?? [];
+			// The descriptor key still reads `leading_options` — it is the term_ constructor's
+			// too, where these DO lead. On try_ they no longer do (canonical control order,
+			// 1.17.0), so the local name states what they are rather than where they sit.
+			$format_options  = $tpl['leading_options'] ?? [];
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
 
 			if ( ! $try_core_fn ) {
 				continue;
 			}
 
-			// Group 1 — global formatting (as, size, format, etc.). Link options appended after
-			// trailing field/fallback options below (after slot loop + trailing merge).
 			$link_opts_try = ( $supports_link && function_exists( 'bws_get_link_options' ) )
 				? bws_get_link_options()
 				: [];
-			$options = $leading_options;
+			$options = [];
 
-			// Group 2 — FOLDED slot keys `A`..`E` (FW-56/57). One `bws-slot-fold` option
+			// 1 — FOLDED slot keys `A`..`E` (FW-56/57). One `bws-slot-fold` option
 			// per slot, whose VALUE carries that slot's whole configuration. Replaces the
 			// six flat keys per slot (src/ref/srcTermIn/use/key ×5 plus their show_if_any
 			// reveal cascade) this loop used to register. Every enum, label and noun the
@@ -565,30 +591,18 @@ class TagTemplateRegistry {
 				$options[ $slot_key ] = $slot_def;
 			}
 
-			// Append template-level trailing options (fallback, etc.).
-			// Strip options already emitted as leading (Group 1) or replaced by per-slot equivalents.
-			$trailing_opts = $tpl_options;
-			foreach ( array_keys( $leading_options ) as $leading_key ) {
-				unset( $trailing_opts[ $leading_key ] );
-			}
-			// Whichever read axes this template owns PER SLOT are not tag-level options.
-			// self::try_slot_axes() is the single owner of that split; the fold migrator
-			// reads its complement so a tag-level `use`/`key` is never folded into slot 1.
-			foreach ( self::try_slot_axes( $tpl )['slot_read'] as $slot_axis ) {
-				unset( $trailing_opts[ $slot_axis ] );
-			}
-			foreach ( [ $trailing_opts, $link_opts_try ] as $group ) {
-				foreach ( $group as $opt_key => $opt_def ) {
-					$options[ $opt_key ] = $opt_def;   // see the array_merge warning above.
-				}
-			}
-
-			// List-mode chain options (try_list_options templates: text, title). A winning
+			// 2 — List-mode chain options (try_list_options templates: text, title). A winning
 			// slot in list mode (any slot with a srcTermIn term-step, or src:ref once the
 			// Phase-5 plural resolver lands) joins its finished items via the seam
 			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
 			// not per-slot) — the seam reads them off $opts. Mirrors the base text tag's
 			// limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			//
+			// Registered HERE, right behind the attempts, because they are SOURCE-group
+			// options (list length is a property of the source, FW-52) and a group boxes
+			// only where its members are contiguous. Appended last — which is where they sat
+			// until 1.17.0 — the pair drew its own captionless box at the foot of the panel,
+			// below link and fallback, describing a source that was nowhere near it.
 			//
 			// The pair is UNCONDITIONAL under the fold. Its reveal predicate used to be a
 			// show_if_any over every slot's `N-srcTermIn`/`N-src` — keys the fold removed.
@@ -609,6 +623,30 @@ class TagTemplateRegistry {
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
 				];
+			}
+
+			// 3 — Template-level options that are neither format nor per-slot: the TAG-level
+			// field reads (`use`/`key` on templates with no per-slot axis, the datetime key
+			// family) plus `fallback`, which is split back out and re-appended LAST below.
+			$trailing_opts = $tpl_options;
+			foreach ( array_keys( $format_options ) as $format_key ) {
+				unset( $trailing_opts[ $format_key ] );
+			}
+			// Whichever read axes this template owns PER SLOT are not tag-level options.
+			// self::try_slot_axes() is the single owner of that split; the fold migrator
+			// reads its complement so a tag-level `use`/`key` is never folded into slot 1.
+			foreach ( self::try_slot_axes( $tpl )['slot_read'] as $slot_axis ) {
+				unset( $trailing_opts[ $slot_axis ] );
+			}
+			$fallback_opts = array_intersect_key( $trailing_opts, [ 'fallback' => null, 'fallback_text' => null ] );
+			$trailing_opts = array_diff_key( $trailing_opts, $fallback_opts );
+
+			// 4 → 6 — format, then link, then fallback. Each group contiguous, and the
+			// sequence is the canonical control order (see the docblock).
+			foreach ( [ $trailing_opts, $format_options, $link_opts_try, $fallback_opts ] as $group ) {
+				foreach ( $group as $opt_key => $opt_def ) {
+					$options[ $opt_key ] = $opt_def;   // see the array_merge warning above.
+				}
 			}
 
 			// --- Build callback ---
