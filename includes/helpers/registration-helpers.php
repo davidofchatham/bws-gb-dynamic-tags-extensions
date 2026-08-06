@@ -81,7 +81,8 @@ function bws_option_visual_groups(): array {
 		// overrides are part of that decision rather than a separate one — leaving them
 		// outside gave `datetime_single` a boxed `key` with a loose `timeKey` under it,
 		// which reads as two groups where there is one. Whether a range wants an inner
-		// start/end split is still open; that is a second box, not a different map.
+		// start/end split is still open (FW-65); that is a second box, not a different
+		// map, so it belongs to whatever owns group boxes rather than to this list.
 		'timeKey'         => array( 'group' => 'field', 'lead' => false ),
 		'startKey'        => array( 'group' => 'field', 'lead' => true ),
 		'startTimeKey'    => array( 'group' => 'field', 'lead' => false ),
