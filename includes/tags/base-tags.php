@@ -273,11 +273,23 @@ function bws_register_base_tags(): void {
 					'show_if'      => array( 'use' => 'not:featured' ),
 				),
 				// Folded return-mode + size. The bws-as-size composite renders the mode
-				// dropdown + a size dropdown (url only) and owns the whole token. No
-				// `default` (always-serialized; the composite writes url,full on open).
+				// dropdown + a size dropdown (url only) and owns the whole token.
+				//
+				// `default` IS the always-serialize mechanism, and it is not decorative:
+				// GB seeds extraTagParams from every non-empty `default` at tag-SELECT
+				// time (DynamicTagSelect.jsx `updateDynamicTag`), which is the only thing
+				// that puts an untouched `as` on the wire. The fold dropped it in 1.16.0
+				// on the theory that the composite would write on mount; it writes on
+				// CHANGE only, so `{{image}}` serialized no `as` at all. Mount-writing
+				// instead would mean opening a tag edits it — see the fold control's
+				// stripDefaultRoot for why that is the wrong trade.
+				//
+				// GB does not validate a default against the option rows, so the folded
+				// `url,full` seeds fine even though it is not one of them.
 				'as'       => array(
 					'type'    => 'bws-as-size',
-					'label'   => __( 'Return type:', 'generateblocks' ),
+					'label'   => __( 'Return type', 'generateblocks' ),
+					'default' => 'url,full',
 					'options' => array(
 						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -467,11 +479,13 @@ function bws_register_base_tags(): void {
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
 		'leading_options'       => array(
-			// Folded return-mode + size (bws-as-size, FW-52). No `default` — always
-			// serialized; the composite writes url,full on open.
+			// Folded return-mode + size (bws-as-size, FW-52). `default` carries the
+			// always-serialize rule — see the base {{image}} registration above for why
+			// it is load-bearing rather than decorative.
 			'as' => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'label'   => __( 'Return type', 'generateblocks' ),
+				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -484,7 +498,8 @@ function bws_register_base_tags(): void {
 		'options'               => array(
 			'as'       => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'label'   => __( 'Return type', 'generateblocks' ),
+				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),

@@ -315,6 +315,32 @@ foreach ( $registered as $tag => $args ) {
 	}
 }
 
+// ===========================================================================
+echo "\n§5 The always-serialized `as` still carries the default that serializes it\n";
+// ===========================================================================
+// Not an ordering property, but this harness is the only one that sees all three
+// constructors, and all three register a `bws-as-size` `as` (base {{image}}, the image
+// modifier template's leading + trailing sets, which term_image and try_image are built
+// from). GB writes an untouched option only if it SEEDED it, and it seeds from non-empty
+// `default`s at tag-select time — so on this option the default is not a convenience, it
+// is the whole always-serialize mechanism (docs/tag-reference.md §`as` serialization
+// opt-out). v1.16.0's fold dropped it believing the composite wrote on mount; it writes
+// on change, so every {{image}} authored under 1.16.0 has no `as` at all. Nothing failed:
+// the read seam defaults to url/full, so the tags render right and only the wire is
+// silent — which is exactly why it wants an assertion rather than an eyeball.
+
+$seen_as_size = 0;
+foreach ( $registered as $tag => $args ) {
+	foreach ( $args['options'] ?? array() as $name => $opt ) {
+		if ( 'bws-as-size' !== ( $opt['type'] ?? '' ) ) {
+			continue;
+		}
+		++$seen_as_size;
+		assert_same( "{{{$tag}}} — `{$name}` seeds its default", 'url,full', $opt['default'] ?? null );
+	}
+}
+assert_same( 'every image family member registered an as+size control', true, $seen_as_size >= 3 );
+
 // ---------------------------------------------------------------------------
 
 echo "\n";

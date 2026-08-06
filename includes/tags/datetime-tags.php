@@ -56,7 +56,7 @@ function bws_get_datetime_single_leading_options(): array {
 	return array(
 		'as'                => array(
 			'type'    => 'select',
-			'label'   => __( 'Show:', 'generateblocks' ),
+			'label'   => __( 'Return As', 'generateblocks' ),
 			'options' => array(
 				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
 				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
@@ -198,7 +198,7 @@ function bws_get_datetime_range_leading_options(): array {
 	return array(
 		'as'                => array(
 			'type'    => 'select',
-			'label'   => __( 'Show:', 'generateblocks' ),
+			'label'   => __( 'Return As', 'generateblocks' ),
 			'options' => array(
 				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
 				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),

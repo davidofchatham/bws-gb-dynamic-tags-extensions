@@ -151,7 +151,7 @@
 		var children = [
 			el( SelectControl, {
 				key:      'mode',
-				label:    props.label || __( 'Return type:', 'generateblocks' ),
+				label:    props.label || __( 'Return type', 'generateblocks' ),
 				value:    mode,
 				options:  MODE_OPTIONS,
 				onChange: onModeChange,
@@ -160,16 +160,25 @@
 		];
 
 		// Size dropdown only for the unary `url` return — nullary modes take no arg.
+		//
+		// Spaced by a wrapper of our own, the same way the fold control stacks controls
+		// inside its boxes (STACKED, slot-fold-control.js). A composite renders its
+		// children directly, so nothing else can space them: the modal column's 15px
+		// row-gap only reaches the option elements GB renders as siblings, and every
+		// control here suppresses its own margin so a run of them does not double up
+		// against that gap. Not a job for the group wrapper's stylesheet — a control
+		// that draws its own children owns their layout.
 		if ( 'url' === mode ) {
 			children.push(
-				el( SelectControl, {
-					key:      'size',
-					label:    __( 'Image Size', 'generateblocks' ),
-					value:    size,
-					options:  sizeOptions(),
-					onChange: onSizeChange,
-					__nextHasNoMarginBottom: true,
-				} )
+				el( 'div', { key: 'size', style: { marginTop: '14px' } },
+					el( SelectControl, {
+						label:    __( 'Image Size', 'generateblocks' ),
+						value:    size,
+						options:  sizeOptions(),
+						onChange: onSizeChange,
+						__nextHasNoMarginBottom: true,
+					} )
+				)
 			);
 		}
 
