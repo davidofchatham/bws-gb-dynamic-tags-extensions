@@ -41,6 +41,12 @@ require __DIR__ . '/../../includes/tags/base-shared.php';
 // tag-level subtraction; without it the builder's function_exists guard silently ships an
 // empty list, which is exactly the drift the field exists to prevent.
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+// Step applicability is DERIVED at registration from the engine's input-kind allowlist
+// (traversal-pipeline.php) through the compiler's slug↔type map — the whole point being
+// that the editor cannot hold a second copy. Without both, the builder's function_exists
+// guard ships an empty map and every step is offered everywhere, silently.
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
 $failures = 0;
 $count    = 0;
@@ -420,6 +426,29 @@ assert_same(
 	'defaultRoot ships, and IS the source enum\'s first row',
 	$fold['srcRows'][0]['value'],
 	$fold['defaultRoot']
+);
+
+// Step applicability — the editor offers a step only where the ENGINE accepts it, and
+// the list it filters by IS the engine's refusal list rather than a second copy. A copy
+// would not error; it would drift, and the symptom is an author writing a chain that
+// renders nothing with no control saying why. `terms` is the sharp case: post only.
+assert_same(
+	'stepApplies.inputs derives from the engine\'s own refusal list',
+	BWS_TRAVERSAL_STEP_INPUT_KINDS['srcTermIn'],
+	$fold['stepApplies']['inputs']['terms']
+);
+assert_same(
+	'...keyed by WIRE slug, not by engine type',
+	array( 'refs', 'terms', 'entries' ),
+	array_keys( $fold['stepApplies']['inputs'] )
+);
+// Only `site` has a statically-known root kind. Every other root resolves at render, so
+// the editor must offer everything there rather than guess whether `current` is a post
+// or a term — a guess would hide the taxonomy step on every ordinary tag.
+assert_same(
+	'only `site` has a static root kind',
+	array( 'site' => 'site' ),
+	$fold['stepApplies']['roots']
 );
 
 // Container facts the control and the renderer BOTH read.

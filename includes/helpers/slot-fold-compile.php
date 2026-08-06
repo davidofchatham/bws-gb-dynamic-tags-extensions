@@ -178,6 +178,48 @@ function bws_fold_src_resolution( array $options ): array {
 }
 
 /**
+ * The step-applicability facts the editor needs, in the wire's own vocabulary.
+ *
+ * A step is offerable at a position iff the engine would ACCEPT what the chain has
+ * resolved to by then. Offering one it refuses authors wire that renders nothing and
+ * says so nowhere — a `terms` step after a `site` root is the live case (the engine
+ * takes `srcTermIn` off a post and nothing else), and it was offered on every root.
+ *
+ * Three maps, all DERIVED, none authored here:
+ *   inputs — step slug → the resolved-source kinds that step accepts, translated from
+ *            BWS_TRAVERSAL_STEP_INPUT_KINDS (the engine's own refusal list, so the
+ *            editor cannot come to disagree with what renders).
+ *   kinds  — step slug → the kind that step PRODUCES (BWS_FOLD_STEP_KINDS verbatim).
+ *   roots  — root token → the kind it resolves to, for the roots where that is STATIC.
+ *            Only `site` is: every other root is the factory's to resolve at render
+ *            (`base` in bws_fold_chain_resolution's vocabulary), so the editor must
+ *            treat it as permissive rather than guess. Mirrors that function's tail,
+ *            which is the single owner of the rule.
+ *
+ * The consumer is a DISPLAY filter, so an absent entry means "offer it" rather than
+ * "refuse it": a stored step is always shown in its own picker whatever this says,
+ * because a value missing from its list is the unselectable-row bug the fold control
+ * just fixed. Render authority stays entirely with the engine.
+ *
+ * @since 1.17.0
+ * @return array{inputs:array<string,string[]>, kinds:array<string,string>, roots:array<string,string>}
+ */
+function bws_fold_step_applicability(): array {
+	$inputs = array();
+	foreach ( BWS_FOLD_STEP_TYPES as $slug => $spec ) {
+		$type = (string) ( $spec['type'] ?? '' );
+		if ( defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) && isset( BWS_TRAVERSAL_STEP_INPUT_KINDS[ $type ] ) ) {
+			$inputs[ $slug ] = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $type ];
+		}
+	}
+	return array(
+		'inputs' => $inputs,
+		'kinds'  => BWS_FOLD_STEP_KINDS,
+		'roots'  => array( 'site' => 'site' ),
+	);
+}
+
+/**
  * The chain's ROOT token — what the source factory reads as `src`.
  *
  * '' when the chain is empty or LEADS with a step (the step applies to the ambient

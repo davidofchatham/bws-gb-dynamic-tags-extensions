@@ -399,18 +399,42 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 		{ value: 'same', label: 'Same as Previous Source' },
 		{ value: 'current', label: 'Current' }
 	],
-	stepRows: [ { value: 'srcTermIn', label: 'In Taxonomy Term' } ],
+	stepRows: [
+		{ value: 'srcTermIn', label: 'In Taxonomy Term' },
+		{ value: 'ref', label: 'In Reference/Relational Field' }
+	],
 	slugMap: { ref: 'refs', srcTermIn: 'terms', rows: 'entries' },
-	defaultRoot: 'current'
+	defaultRoot: 'current',
+	// Shaped exactly as bws_fold_step_applicability() ships it: the engine's own
+	// refusal list translated to wire slugs, the produced-kind map, and the roots
+	// whose kind is STATIC (only `site` — every other root resolves at render).
+	stepApplies: {
+		inputs: {
+			refs: [ 'post', 'term', 'user', 'meta_row', 'site' ],
+			terms: [ 'post' ],
+			entries: [ 'post', 'term', 'user', 'meta_row', 'site' ]
+		},
+		kinds: { refs: 'post', terms: 'term', entries: 'meta_row' },
+		roots: { site: 'site' }
+	}
 } } );
 
-/** Flatten a rendered node tree to the SelectControls in it, in order. */
+/**
+ * The STEP pickers in a rendered tree, in order.
+ *
+ * Keyed `src`, which is what distinguishes them from a step's ARG picker — a `terms`
+ * step renders a taxonomy SelectControl right beside its own, so a type-only walk
+ * returns the arg picker as the last select and quietly answers questions about the
+ * wrong control.
+ */
 function selectsIn( nodes ) {
 	const out = [];
 	( function walk( n ) {
 		if ( ! n ) { return; }
 		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
-		if ( n.type === global.wp.components.SelectControl ) { out.push( n.props ); }
+		if ( n.type === global.wp.components.SelectControl && n.props && 'src' === n.props.key ) {
+			out.push( n.props );
+		}
 		( n.children || [] ).forEach( walk );
 	}( nodes ) );
 	return out;
@@ -460,6 +484,80 @@ check( 'slot ≥2, no chain: Add step is NOT offered off an inherit', hasAddStep
 // A real chain is untouched by the display rule.
 const real = renderChain( [ { slug: 'refs', arg: 'office', limit: null } ], false );
 check( 'a configured chain still shows its own root', selectsIn( real )[ 0 ].value, 'ref' );
+
+// ── A step is offered only where the ENGINE would accept it ─────────────────
+// Offering a step off a source it refuses authors wire that renders nothing and says
+// so nowhere. The allowlist is the engine's own, reaching the control through the
+// option definition — never a second list here.
+
+/** Option values of the LAST picker in a rendered chain (the one a step would follow). */
+function lastPickerValues( nodes ) {
+	const sels = selectsIn( nodes );
+	return ( sels[ sels.length - 1 ].options || [] ).map( function ( r ) { return r.value; } );
+}
+
+const afterSite = renderChain( [ { slug: 'site', arg: null, limit: null }, { slug: 'refs', arg: 'partner', limit: null } ], false );
+check(
+	'a `terms` step after a SITE root is not offered (the engine takes srcTermIn off a post only)',
+	lastPickerValues( afterSite ).indexOf( 'srcTermIn' ),
+	-1
+);
+check(
+	'a `refs` step after a SITE root IS offered (an options page holds relationship fields)',
+	lastPickerValues( afterSite ).indexOf( 'ref' ) !== -1,
+	true
+);
+
+// A step already STORED at a refused position stays in its OWN list, filter or not: a
+// value missing from its own options paints a different row while believing nothing is
+// selected — the seed-picker defect, arrived at from the other direction. Only what the
+// author may ADD is filtered.
+const storedDead = renderChain( [ { slug: 'site', arg: null, limit: null }, { slug: 'terms', arg: 'department', limit: null } ], false );
+check( 'a stored-but-refused step still shows its own value', selectsIn( storedDead )[ 1 ].value, 'srcTermIn' );
+check(
+	'...and its own row is in its own list',
+	lastPickerValues( storedDead ).indexOf( 'srcTermIn' ) !== -1,
+	true
+);
+
+// Add step is gated on the OFFER, not on the registered list: with every registered
+// step refused, an Add could only produce a dead step.
+const siteOnly = renderChain( [ { slug: 'site', arg: null, limit: null } ], false );
+check( 'Add step is still offered off site (refs applies)', hasAddStep( siteOnly ), true );
+
+const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
+	container: 'try',
+	combining: false,
+	perSlotUse: true,
+	srcRows: [ { value: 'current', label: 'Current' }, { value: 'site', label: 'Site' } ],
+	srcRowsInherit: [],
+	stepRows: [ { value: 'srcTermIn', label: 'In Taxonomy Term' } ],
+	slugMap: { ref: 'refs', srcTermIn: 'terms', rows: 'entries' },
+	defaultRoot: 'current',
+	stepApplies: {
+		inputs: { terms: [ 'post' ] },
+		kinds: { refs: 'post', terms: 'term', entries: 'meta_row' },
+		roots: { site: 'site' }
+	}
+} ) } );
+const siteTermsOnly = rep.chainSteps( {
+	conf: TERMS_ONLY,
+	chain: [ { slug: 'site', arg: null, limit: null } ],
+	onChange: function () {},
+	inheritOnEmpty: false,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} );
+check( 'Add step is withheld when every registered step is refused', hasAddStep( siteTermsOnly ), false );
+
+// An ambient root has no static kind, so nothing is filtered — the editor must not
+// guess whether `current` is a post or a term.
+const fromCurrent = renderChain( [ { slug: 'current', arg: null, limit: null } ], false );
+check( 'an ambient root filters nothing', lastPickerValues( fromCurrent ).indexOf( 'srcTermIn' ) !== -1, true );
+
+// A term cannot step to terms again; it can step to a relationship.
+const afterTerms = renderChain( [ { slug: 'terms', arg: 'department', limit: null }, { slug: 'refs', arg: 'lead', limit: null } ], false );
+check( 'a second `terms` step off a term is not offered', lastPickerValues( afterTerms ).indexOf( 'srcTermIn' ), -1 );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

@@ -107,6 +107,10 @@
 			// with the list the author picks from. See bws_build_src_chain_option() /
 			// bws_build_fold_slot_options().
 			defaultRoot: c.defaultRoot || '',
+			// Which steps may follow what, derived from the ENGINE's own refusal list.
+			// See bws_fold_step_applicability(). An absent map offers everything, which
+			// is the pre-1.17.0 behaviour and the safe direction for a DISPLAY filter.
+			stepApplies: c.stepApplies || {},
 			stepRows: c.stepRows || [],
 			readRows: c.readRows || [],
 			readRowsInherit: c.readRowsInherit || [],
@@ -486,13 +490,67 @@
 			props.onChange( next );
 		}
 
-		/** Rows for a step by POSITION: only the first step may start a source. */
-		function stepRows( idx ) {
-			if ( idx > 0 ) {
+		/**
+		 * What the chain has resolved to by position `idx` — the kind a step there
+		 * would be handed.
+		 *
+		 * Mirrors bws_fold_chain_resolution()'s tail: the last step's produced kind, or
+		 * the root's where that is STATIC. Every other root resolves at render (a bare
+		 * tag is a post on a single, a term on a term archive), so it answers '' and
+		 * every step is offered — the editor must not guess an ambient kind.
+		 */
+		function kindAt( idx ) {
+			var applies = conf.stepApplies || {};
+			var prev = chain[ idx - 1 ];
+			if ( ! prev ) {
+				return '';
+			}
+			var produced = ( applies.kinds || {} )[ prev.slug ];
+			if ( produced ) {
+				return produced;
+			}
+			return ( idx > 1 ) ? '' : ( ( applies.roots || {} )[ prev.slug ] || '' );
+		}
+
+		/**
+		 * Steps offerable at `idx`, given what the chain resolves to just before it.
+		 *
+		 * Offering a step the engine refuses authors wire that renders nothing and says
+		 * so nowhere — a `terms` step after a `site` root was the reported case, and it
+		 * was offered off every root. The allowlist is the engine's own
+		 * (BWS_TRAVERSAL_STEP_INPUT_KINDS, reaching here through the option definition),
+		 * never a second list.
+		 *
+		 * `keep` is the slug the step at `idx` ALREADY holds. It is always included,
+		 * whatever the filter says: a SelectControl whose value is missing from its own
+		 * options paints a different row while believing nothing is selected, which is
+		 * the defect this control just fixed at the other end. Stored wire is shown as
+		 * stored; only what the author may ADD is filtered.
+		 */
+		function offerableSteps( idx, keep ) {
+			var inputs = ( conf.stepApplies || {} ).inputs;
+			var kind = kindAt( idx );
+			if ( ! inputs || ! kind ) {
 				return conf.stepRows;
 			}
+			return conf.stepRows.filter( function ( row ) {
+				var slug = toWire( conf, row.value );
+				if ( keep && slug === keep ) {
+					return true;
+				}
+				var allowed = inputs[ slug ];
+				return ! allowed || allowed.indexOf( kind ) !== -1;
+			} );
+		}
+
+		/** Rows for a step by POSITION: only the first step may start a source. */
+		function stepRows( idx ) {
+			var held = chain[ idx ] ? chain[ idx ].slug : '';
+			if ( idx > 0 ) {
+				return offerableSteps( idx, held );
+			}
 			var rows = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
-			return rows.concat( conf.stepRows );
+			return rows.concat( offerableSteps( 0, held ) );
 		}
 
 		var stepNodes = [];
@@ -665,15 +723,20 @@
 		// step is complete, so a half-built step is never serialized. Lives INSIDE the
 		// source box because it appends to THIS chain — unlike Add slot, which sits at
 		// the slot's outer edge.
+		// The offer is what decides, not the registered list: on a `site` root the only
+		// step a try_ slot registers (`terms`) is one the engine refuses, so there is
+		// nothing to add and the button must not appear. Reading conf.stepRows here
+		// instead would offer an Add that can only produce a dead step.
 		var last = chain.length ? chain[ chain.length - 1 ] : null;
-		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && conf.stepRows.length;
+		var nextSteps = offerableSteps( chain.length, '' );
+		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && nextSteps.length;
 		if ( canAppend ) {
 			stepNodes.push( el( 'div', { key: 'addstep', style: { marginTop: '8px' } },
 				el( Button, {
 					variant: 'tertiary',
 					size: 'small',
 					onClick: function () {
-						props.onChange( chain.concat( [ step( toWire( conf, conf.stepRows[ 0 ].value ) ) ] ) );
+						props.onChange( chain.concat( [ step( toWire( conf, nextSteps[ 0 ].value ) ) ] ) );
 					}
 				}, '+ ' + __( 'Add step', 'generateblocks' ) )
 			) );
@@ -1002,17 +1065,24 @@
 			].concat( readNodes ) ) );
 		}
 
-		// The slot rule CLOSES the slot rather than opening it: a leading rule made
-		// slot 1 open with a divider under the tag description, reading as header
-		// chrome, and unlike every single-slot tag where nothing precedes the first
-		// control. Closing means the rule always follows content it summarises, and on
-		// the last slot it separates Add from the slot it would extend. Heaviest rule
-		// in the control (2px) so nesting reads by weight. Suppressed on the final slot
-		// when no Add follows — a closing rule with nothing after it dangles.
-		if ( ! isLast || count < conf.max ) {
+		// The slot rule separates one slot from the NEXT, so it renders between slots and
+		// nowhere else. It closes the slot rather than opening it (a leading rule made
+		// slot 1 open with a divider under the tag description, reading as header chrome
+		// and unlike every single-slot tag, where nothing precedes the first control) —
+		// but "closes" is about placement, not about appearing after the last one.
+		//
+		// It used to also render on the final slot whenever an Add was coming, on the
+		// reasoning that it separated Add from the slot it would extend. It does not:
+		// Add belongs to the whole repeater rather than to the slot above it, so a rule
+		// there divides a thing from its own control. Margins are symmetric for the same
+		// reason — an asymmetric rule reads as attached to whichever side it sits closer
+		// to, which is a claim about grouping this rule is not making.
+		//
+		// Heaviest rule in the control (2px) so the nesting reads by weight.
+		if ( ! isLast ) {
 			children.push( el( 'div', {
 				key: 'rule',
-				style: { borderTop: '2px solid #bbb', margin: '4px 0 12px' }
+				style: { borderTop: '2px solid #bbb', margin: '8px 0' }
 			} ) );
 		}
 

@@ -170,6 +170,13 @@ function bws_build_src_chain_option( array $args = array() ): array {
 			'srcTermIn' => 'terms',
 			'rows'      => 'entries',
 		),
+		// Which steps are OFFERABLE where — derived from the engine's own refusal list
+		// (BWS_TRAVERSAL_STEP_INPUT_KINDS) plus the produced-kind map, so the control
+		// never offers a step the engine would answer empty for. Display only; a stored
+		// step still renders and still shows in its own picker.
+		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
+			? bws_fold_step_applicability()
+			: array(),
 		'taxonomies' => $tax_rows,
 		'refOption'  => $picker( $base_trav['ref'] ),
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
@@ -581,6 +588,13 @@ function bws_build_fold_slot_options( array $args ): array {
 			'srcTermIn' => 'terms',
 			'rows'      => 'entries',
 		),
+		// Which steps are OFFERABLE where — derived from the engine's own refusal list
+		// (BWS_TRAVERSAL_STEP_INPUT_KINDS) plus the produced-kind map, so the control
+		// never offers a step the engine would answer empty for. Display only; a stored
+		// step still renders and still shows in its own picker.
+		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
+			? bws_fold_step_applicability()
+			: array(),
 		'taxonomies'     => $tax_rows,
 		'refOption'      => $picker( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold

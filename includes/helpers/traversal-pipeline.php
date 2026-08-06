@@ -97,6 +97,30 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
 }
 
 /**
+ * Which resolved-source KINDS each step type accepts as INPUT.
+ *
+ * Lifted out of the three inline guards in bws_run_step() (1.17.0) so the editor can
+ * derive what to OFFER from the same list the engine refuses by. A step offered off a
+ * source it cannot take authors wire that silently renders nothing — a `terms` step
+ * after a `site` root was the live case — and a second list in the control would be
+ * the drift the derived config exists to prevent.
+ *
+ * Keyed by ENGINE step type. The wire's slugs (`refs`/`terms`/`entries`) map onto these
+ * through BWS_FOLD_STEP_TYPES, which stays the only place the two vocabularies meet.
+ *
+ * A kind absent from a step's list is a REFUSAL, not an omission: bws_run_step returns
+ * empty rather than attempting the read. Widening one is a behaviour change on the
+ * render path first and an editor change second, in that order.
+ *
+ * @since 1.17.0
+ */
+const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
+	'ref'       => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'srcTermIn' => array( 'post' ),
+	'rows'      => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+);
+
+/**
  * Execute one traversal step against one resolved source.
  *
  * Two built-in step types (SPEC §I.engine):
@@ -132,6 +156,13 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 		$reader = 'bws_pipeline_default_reader';
 	}
 
+	// ONE gate for every step type, off the map the editor also reads. Each arm below
+	// keeps the note explaining WHY its list is what it is; what it no longer keeps is
+	// its own copy of the list.
+	if ( ! in_array( $kind, BWS_TRAVERSAL_STEP_INPUT_KINDS[ $type ] ?? array(), true ) ) {
+		return array(); // Unknown step type, or an input kind this step refuses.
+	}
+
 	switch ( $type ) {
 		case 'ref':
 			// Valid input: entity kinds, PLUS site (1.17.0). An ACF options page holds
@@ -142,17 +173,11 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			// unreachable while `src:site` and `src:ref` were alternative values of one
 			// flat option; a chain (`src:site;refs,x`) makes it authorable, and it
 			// would have failed SILENTLY.
-			if ( ! in_array( $kind, array( 'post', 'term', 'user', 'meta_row', 'site' ), true ) ) {
-				return array();
-			}
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_ref_to_posts( $raw );
 
 		case 'srcTermIn':
 			// Valid input: post only (get_the_terms needs a post id).
-			if ( 'post' !== $kind ) {
-				return array();
-			}
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_terms_to_sources( $raw );
 
@@ -163,9 +188,6 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			// held in a parent row). site is terminal — a site-option repeater is
 			// read directly by the reader's 'option' selector, but a { kind:'site' }
 			// still carries no id, so allow it: the reader switches on kind.
-			if ( ! in_array( $kind, array( 'post', 'term', 'user', 'meta_row', 'site' ), true ) ) {
-				return array();
-			}
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_rows_to_sources( $raw );
 
