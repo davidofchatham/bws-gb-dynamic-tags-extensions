@@ -207,12 +207,23 @@ function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt['src']['fold'] = array(
 		'container'   => 'base',
 		'srcRows'     => $root_rows,
-		// The root an ABSENT `src` means. Derived from the row `_strip_default` is about
-		// to blank, so the two cannot disagree: the stripped default IS what absence
-		// spells. The control shows it as the chain's root (an unset tag reads the
-		// ambient entity, so displaying nothing was showing the author less than the
-		// tag does) and strips it back out on commit, keeping the wire as it was.
-		'defaultRoot' => (string) ( $source_opt['src']['options'][0]['value'] ?? '' ),
+		// The root an ABSENT `src` means. The control shows it as the chain's root (an
+		// unset tag reads the ambient entity, so displaying nothing was showing the
+		// author less than the tag does) and strips it back out on commit, keeping the
+		// wire as it was.
+		//
+		// Derived from the ROOT rows — the list the picker actually paints — and not from
+		// the unfiltered enum those rows are filtered out of. The two agree today only
+		// because `current` happens to lead both; if `ref` ever led the enum, this would
+		// display a value absent from its own options, which paints a different row while
+		// the control believes nothing is selected. That is the unselectable-row defect
+		// the display fix was written to remove, re-entering through its own fix.
+		//
+		// The stripped default is what absence means on the WIRE, so the two must still
+		// agree — slot-options-build-test.php asserts it rather than leaving the
+		// coincidence load-bearing. A disagreement is a bug in the enum's ordering, not
+		// something this line should paper over.
+		'defaultRoot' => (string) ( $root_rows[0]['value'] ?? '' ),
 		'stepRows'    => $step_rows,
 		'taxonomies'  => $tax_rows,
 		'refOption'   => bws_fold_picker_config( $base_trav['ref'] ),

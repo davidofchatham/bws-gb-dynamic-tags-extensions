@@ -586,6 +586,34 @@ assert_same( 'chain tag: the absorbed `srcTermIn` control is gone', false, isset
 assert_same( 'chain tag: the source itself survives', 'bws-src-chain', $chain_tag['src']['type'] );
 assert_same( 'chain tag: unabsorbed options survive', true, isset( $chain_tag['use'], $chain_tag['key'] ) );
 
+// ── The BASE control's defaultRoot answers TWO questions that must not diverge ───────
+//
+// It is a DISPLAY value, so it has to be a row the picker paints: a SelectControl whose
+// value matches no option paints its FIRST row while believing nothing is selected, so
+// the row on screen cannot be picked (selecting it fires no change event) and `+ Add
+// step`, needing a step to append to, never appears. That is why it derives from the ROOT
+// rows and not from the enum they are filtered out of — `ref` is a step, not a root, so
+// the two lists differ by a row.
+//
+// It also STANDS FOR what an absent `src` means, and that is decided by `_strip_default`,
+// which blanks the UNFILTERED enum's first row. So the two derives must agree, and they
+// agree today only because `current` leads both. Asserted rather than assumed: if `ref`
+// ever led the enum, the editor would display `current` as the root while the wire's
+// absence meant `ref` — a silent lie about a stored tag, and a bug in the enum's ordering
+// rather than something the fold config should absorb.
+$base_chain = bws_build_src_chain_option();
+$base_fold  = $base_chain['src']['fold'];
+assert_same(
+	'base chain: defaultRoot IS a row the picker paints',
+	$base_fold['srcRows'][0]['value'],
+	$base_fold['defaultRoot']
+);
+assert_same(
+	'base chain: ...and IS the row `_strip_default` blanks',
+	$base_chain['src']['options'][0]['value'],
+	$base_fold['defaultRoot']
+);
+
 $flat_tag = bws_strip_default_select_values(
 	array_merge( bws_base_source_option(), bws_base_traversal_options() )
 );
