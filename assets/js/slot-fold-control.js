@@ -42,8 +42,11 @@
 	// twin owns which legacy sibling keys this container has (so a commit does not delete
 	// a TAG-level option that happens to share a slot axis's name). A partial fallback for
 	// either would emit something the renderer does not parse, or strip wire that is still
-	// load-bearing — both worse than not mounting.
-	if ( ! window.bwsSlotFold || ! window.bwsSlotFoldMigrate ) {
+	// load-bearing — both worse than not mounting. The option-group wrapper owns the class
+	// names the boxes here are painted with, for the same reason: a fallback copy of them
+	// is a second declaration of the box, which is the drift this control's boxes exist
+	// downstream of.
+	if ( ! window.bwsSlotFold || ! window.bwsSlotFoldMigrate || ! window.bwsOptionGroup ) {
 		return;
 	}
 
@@ -69,7 +72,7 @@
 	// slot's box and a base tag's box being two declarations is exactly how the base-tag
 	// chain control came to ship an untinted variant with a differently-placed caption.
 	var STEP_RULE = { borderTop: '1px solid #ddd', marginTop: '10px', paddingTop: '10px' };
-	var CLS = ( window.bwsOptionGroup && window.bwsOptionGroup.CLS ) || { group: 'bws-group', cap: 'bws-group__cap' };
+	var CLS = window.bwsOptionGroup.CLS;
 	// Stock control labels sit tight against whatever precedes them, so a label
 	// following another control reads as belonging to it. Space the OWNER — we do not
 	// control the stock components' internal markup.

@@ -65,6 +65,12 @@ function load( relative ) {
 	vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
 }
 
+// ENQUEUE ORDER, matching the plugin's own registration — the control declares all three
+// of these as script dependencies and will not mount without them, so loading them here
+// is modelling the real load rather than propping the harness up. The wrapper is what
+// owns the box class names; a fallback copy of them in the control is what this ordering
+// replaced, and a harness that skipped the file would have kept that copy alive.
+load( 'assets/js/option-group.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
 // The migrate twin owns which legacy sibling keys a container has; the control is a hard

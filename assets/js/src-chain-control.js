@@ -46,8 +46,9 @@
 	if ( ! window.wp || ! wp.hooks || ! wp.element || ! wp.components ) {
 		return;
 	}
-	// Hard dependencies: the grammar owns the wire, the repeater owns the step rows.
-	if ( ! window.bwsSlotFold || ! window.bwsSlotFoldRepeater ) {
+	// Hard dependencies: the grammar owns the wire, the repeater owns the step rows, the
+	// option-group wrapper owns the class names this control captions with.
+	if ( ! window.bwsSlotFold || ! window.bwsSlotFoldRepeater || ! window.bwsOptionGroup ) {
 		return;
 	}
 
@@ -62,7 +63,7 @@
 	// border. This control contributes the caption and the steps, and nothing about how
 	// the group is painted: a second declaration here is precisely what shipped, and it
 	// is why the base tag's source box looked nothing like a `{{join}}` slot's.
-	var CLS = ( window.bwsOptionGroup && window.bwsOptionGroup.CLS ) || { cap: 'bws-group__cap' };
+	var CLS = window.bwsOptionGroup.CLS;
 
 	/**
 	 * The depth-0 chain a base tag's options describe — the JS half of
