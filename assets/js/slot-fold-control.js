@@ -1077,15 +1077,22 @@
 		// It used to also render on the final slot whenever an Add was coming, on the
 		// reasoning that it separated Add from the slot it would extend. It does not:
 		// Add belongs to the whole repeater rather than to the slot above it, so a rule
-		// there divides a thing from its own control. Margins are symmetric for the same
-		// reason — an asymmetric rule reads as attached to whichever side it sits closer
-		// to, which is a claim about grouping this rule is not making.
+		// there divides a thing from its own control.
+		//
+		// NO MARGIN, for the reason stated at the top of this file: this control returns
+		// a Fragment, so the rule is a direct flex item of the modal's 15px-gap column
+		// and is already spaced on both sides. It shipped with `margin: 8px 0`, which
+		// bought 23px a side — the one place in the control that broke the file's own
+		// no-margin rule. Spacing stays symmetric whichever way it is set: an asymmetric
+		// rule reads as attached to the side it sits closer to, which is a claim about
+		// grouping this rule is not making. Any residual unevenness is optical (a box
+		// edge above, uppercase text below) and is not fixed by biasing the margin.
 		//
 		// Heaviest rule in the control (2px) so the nesting reads by weight.
 		if ( ! isLast ) {
 			children.push( el( 'div', {
 				key: 'rule',
-				style: { borderTop: '2px solid #bbb', margin: '8px 0' }
+				style: { borderTop: '2px solid #bbb' }
 			} ) );
 		}
 
