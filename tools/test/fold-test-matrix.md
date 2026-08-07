@@ -17,7 +17,7 @@ editor controls.
 > `text-test-matrix.md`; one that implicates join assembly routes to `join-test-matrix.md`.
 
 **How to run:** rows are `render-tag` one-liners against the seeded testbed (state:
-`core-structures` blueprint **v6** — `bin/seed.sh testbed core-structures`). From the wp-litespeed
+`core-structures` blueprint **v7** — `bin/seed.sh testbed core-structures`). From the wp-litespeed
 env:
 
 ```bash
@@ -30,8 +30,12 @@ Contexts used:
   order), department terms **Sales + Support**, `team_members` repeater (Alice/Bob), site options.
 - `/staff/jane-partner/` — SPARSE person: `name_first` `Jane`, `name_last` `Johnson`,
   `name_generation`/`name_credential` empty; `main_line` `(555) 200-3000`,
-  `contact_email` `jane@example.test`, `event_datetime` `2030-05-01 10:00`. **No department terms.**
-- `/staff/tom-associate/` — DENSE person (every `name_*` populated).
+  `contact_email` `jane@example.test`, `event_datetime` `2030-05-01 10:00`. **No department terms**,
+  and **no `reports_to`** — that emptiness is load-bearing for F8.8.
+- `/staff/tom-associate/` — DENSE person (every `name_*` populated). Carries **`reports_to` → Jane**
+  (blueprint v7), the blueprint's only staff→staff link and the second degree every two-relationship
+  chain hops through. Every other relationship value in the fixture sits on `matrix-post-meta`, so
+  before v7 a second `refs` step had nowhere to land and §F8.7's case was untestable.
 
 **Also browsable + editable.** The seed builds the renderable rows as visible GB blocks
 (`blocks.php`: a Fold section group on `matrix-post-meta`, folded name rows in the `staff_join`
@@ -317,6 +321,9 @@ twin of this is `limit-default-test-matrix.md` §L4.1/L4.2/L4.10; §F8's value i
 | F8.4 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | `{{phone src:refs,related_staff\|key:main_line\|limit:0}}` | both numbers — `(555) 200-3000, (555) 200-4000` |
 | F8.5 | — | `{{phone src:refs,related_staff,limit(1)\|key:main_line\|limit:0}}` | ONE number. **Per-hop limit** — bounds the fan-out's spread |
 | F8.6 | — | `{{phone src:refs,related_staff,limit(2)\|key:main_line\|limit:0}}` | both numbers. F8.4/F8.5/F8.6 together are what separate the hop limit from the terminal `limit` |
+| F8.7 | — (INEXPRESSIBLE) | `{{text src:refs,related_staff;refs,reports_to\|use:title}}` | `Jane Partner`. **THE SPEC'S OWN HEADLINE CASE** (#55: "the office of the staff member this event references") — data two relationships away, which the flat spelling cannot state at all, hence the empty Legacy column. Blueprint **v7** added the second-degree link: `reports_to` (staff→staff) on tom only, so Tom→Jane resolves and Jane's own empty branch DROPS rather than erroring |
+| F8.8 | — | `{{text src:refs,related_staff,limit(1);refs,reports_to\|use:title}}` | **EMPTY.** Step 1 is bounded to Jane (first target), Jane reports to nobody, so the chain short-circuits. F8.7's partner: without it, a step limit that bounded the WRONG step — or nothing — still passes F8.7 |
+| F8.9 | — | `{{text src:refs,related_staff;refs,reports_to\|use:key\|key:main_line}}` | `(555) 200-3000`, Jane's line. Reads a FIELD off the second-degree post rather than its title, so the chain is proven to land on a real entity and not merely to produce a plausible string |
 
 ## §F9 — ARM DISPATCH: chain wire on a BASE tag (FW-63)
 

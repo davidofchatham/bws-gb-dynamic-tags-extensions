@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 6, // 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 7, // 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -208,6 +208,14 @@ return array(
 		'staff-tom-associate' => array(
 			'main_line'     => '(555) 200-4000',
 			'contact_email' => 'tom@example.test',
+			// SECOND-DEGREE relationship (#55): the only staff→staff link in the
+			// blueprint, and the whole point of it is that `src:refs,related_staff;
+			// refs,reports_to` from matrix-post-meta has somewhere to land. An
+			// associate reporting to a partner is the plausible direction; Jane is
+			// deliberately left with NO `reports_to`, so the second step is sparse
+			// and the chain also pins that an empty second degree DROPS rather than
+			// erroring (fold matrix F8.7).
+			'reports_to'    => array( 'staff-jane-partner' ),
 			// join matrix — DENSE full personal name (J21 stress fixture). Male
 			// name carries a plausible generation suffix.
 			'name_honorific'      => 'Dr.',

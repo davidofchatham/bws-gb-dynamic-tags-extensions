@@ -190,6 +190,27 @@ function bws_fixture_core_structures_register_acf() {
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'object',
 				),
+				// --- SECOND-DEGREE relationship (1.17.0, #55) --------------------
+				// The field that makes a TWO-RELATIONSHIP chain expressible in the
+				// fixture: `src:refs,related_staff;refs,reports_to`. Distinct from
+				// the first step's field ON PURPOSE — a chain that hops the same
+				// field twice passes even if the second step re-reads the first
+				// step's, so it cannot tell composition from repetition.
+				//
+				// This group is located on page AND staff, so `related_staff` was
+				// already reachable on a staff post; what was missing was any
+				// SECOND relationship to hop to. Every relationship value in the
+				// blueprint sat on `matrix-post-meta`, which left the spec's own
+				// headline case ("the office of the staff member this event
+				// references") unexercised by every harness and matrix.
+				array(
+					'key'           => 'field_bwsfx_reports_to',
+					'name'          => 'reports_to',
+					'label'         => 'Reports To',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'id',
+				),
 				// FW-52 image editor rows — an ACF image field returning the
 				// attachment ID, so {{image use:key|key:feature_image}} resolves a
 				// real attachment for the as:url/alt/id/caption editor eyeball.
