@@ -72,22 +72,18 @@ function bws_option_visual_groups(): array {
 		// The SERIALIZATION rank in serialization-order.php is a different matter and stays:
 		// stored wire still carries the key and the normalizer has to sort it.
 		//
-		// If a flat `limit` control ever does return it needs a row here, and what catches a
-		// missing one depends entirely on WHICH family registers it (both verified by
-		// mutation, 2026-08-07):
-		//   - a CHAIN-authoring tag → caught immediately, but by §5 of control-order-test.php
-		//     ("registers no tag-level `limit`") rather than by anything about grouping. §5
-		//     sweeps by the control a tag authors its source with, so it is the direct net.
-		//   - a FLAT-select family (term_*, {{table}}, {{call}}) → NOT CAUGHT AT ALL. §5 does
-		//     not sweep them by construction, and §1's contiguity check cannot see it either:
-		//     grouped_sequence() filters to options that HAVE a `_group`, so an ungrouped one
-		//     spliced into the middle of the source run is dropped before the check and the
-		//     run still reads as contiguous. Splicing an ungrouped `limit` between `srcTermIn`
-		//     and `sep` on every term_ tag passes 122/122 — while breaking the box in the
-		//     panel, since option-group.js joins ADJACENT siblings and an ungrouped control
-		//     between two grouped ones ends the run.
-		// So for the families this entry was being held open for, the map is its own only
-		// safeguard. That asymmetry is a harness gap, not a property worth relying on.
+		// If a flat `limit` control ever does return it needs a row here, and a missing row is
+		// now caught on both families (#65, verified by mutation 2026-08-07):
+		//   - a CHAIN-authoring tag → §5 of control-order-test.php ("registers no tag-level
+		//     `limit`"), which sweeps by the control a tag authors its source with.
+		//   - a FLAT-select family (term_*, {{table}}, {{call}}) → §1, but only since it began
+		//     reading the FULL option sequence. While it walked the stamped options alone, an
+		//     ungrouped control spliced BETWEEN two grouped ones was dropped before the check
+		//     and the survivors still read as contiguous, so the split it makes in the panel
+		//     (option-group.js joins ADJACENT siblings) was invisible: the probe passed 122/122.
+		//     Position is the whole property — spliced after `srcTermIn` on a term_ tag it
+		//     breaks nothing, because term_ registers no `sep` and the source run ENDS there;
+		//     between `src` and `ref` it splits the box, and now fails.
 		'src'             => array( 'group' => 'source', 'lead' => true ),
 		'ref'             => array( 'group' => 'source', 'lead' => false ),
 		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),

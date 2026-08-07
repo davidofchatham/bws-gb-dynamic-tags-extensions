@@ -23,6 +23,10 @@
  * not), but no constructor may SPLIT a group. Contiguity is exactly what the boxes need
  * and it generalizes to a family this file does not yet enumerate.
  *
+ * Contiguity is read over the FULL option sequence, ungrouped controls included (#65) —
+ * the CSS run ends at any sibling, so what splits a group is a POSITION, not a group
+ * name. Asking the question of the stamped options alone answered a narrower one.
+ *
  * Per-tag expected sequences are asserted on top of that for the shapes whose order was
  * wrong, so a regression names itself instead of showing up as a vague box complaint.
  *
@@ -169,7 +173,12 @@ function assert_same( string $label, $expected, $actual ): void {
  * Reads the `_group` the registration pass STAMPED rather than re-consulting the map:
  * an option that never went through bws_prepare_registration_options() carries no stamp,
  * and that is itself worth catching — an unstamped option renders unboxed no matter
- * what the map says about its name.
+ * what the map says about its name. §1 asserts the stamp directly, since a walk over
+ * stamped options cannot notice one that is missing.
+ *
+ * GROUPED ONLY, so it answers "what order do the boxes come in" (§2) and "which groups
+ * have one member" (§4). CONTIGUITY is a question about the FULL sequence and is asked
+ * through group_spans() instead.
  *
  * @param array $options Registered options, in declaration order.
  * @return array<int,array{0:string,1:string}> [ option name, group ] for grouped options only.
@@ -184,31 +193,89 @@ function grouped_sequence( array $options ): array {
 	return $seq;
 }
 
+/**
+ * Where each group's members sit in the FULL registration sequence.
+ *
+ * Positions are indexes into the tag's whole option list — ungrouped options included —
+ * because that list IS the sibling order the CSS reads. A group is one box iff its
+ * members occupy an unbroken span of it; anything else in between, grouped or not,
+ * ends the run.
+ *
+ * @param array $options Registered options, in declaration order.
+ * @return array<string,array{first:int,last:int,count:int,names:string[]}> Group => span.
+ */
+function group_spans( array $options ): array {
+	$spans = array();
+	$i     = 0;
+	foreach ( $options as $name => $def ) {
+		$group = ! empty( $def['_group'] ) ? (string) $def['_group'] : '';
+		if ( '' !== $group ) {
+			if ( ! isset( $spans[ $group ] ) ) {
+				$spans[ $group ] = array( 'first' => $i, 'last' => $i, 'count' => 0, 'names' => array() );
+			}
+			$spans[ $group ]['last']    = $i;
+			$spans[ $group ]['names'][] = (string) $name;
+			$spans[ $group ]['count']++;
+		}
+		$i++;
+	}
+	return $spans;
+}
+
 // ===========================================================================
 echo "\n§1 Every group's members register CONTIGUOUSLY\n";
 // ===========================================================================
 // The invariant the boxes stand on. A group that appears, stops, and appears again
 // draws TWO boxes for one decision — which is what the author reads as a stray
 // control, and is undiagnosable from the CSS end.
+//
+// A SPAN, not a run of stamps (#65). The break the CSS sees is any sibling between two
+// members, and an UNGROUPED option is the most direct way to put one there — a splice
+// between `srcTermIn` and `sep` splits the source box on every term_ tag. The earlier
+// walk filtered to stamped options first, so the intruder was gone before the check and
+// the survivors still read as contiguous; the mutation passed 122/122. Stating the
+// property as "the members occupy one unbroken span of the FULL option list" covers both
+// intruders at once and needs no exception for an ungrouped option OUTSIDE a group's
+// span (a `try_` template's bare `sep`, a lone `linkTo`), which is nobody's break.
 
 foreach ( $registered as $tag => $args ) {
-	$seq    = grouped_sequence( $args['options'] ?? array() );
-	$seen   = array();
-	$broken = array();
-	$prev   = '';
+	$options = $args['options'] ?? array();
+	$names   = array_keys( $options );
+	$broken  = array();
 
-	foreach ( $seq as $pair ) {
-		list( $name, $group ) = $pair;
-		if ( $group !== $prev ) {
-			if ( isset( $seen[ $group ] ) ) {
-				$broken[] = $group . ' resumes at ' . $name;
-			}
-			$seen[ $group ] = true;
-			$prev           = $group;
+	foreach ( group_spans( $options ) as $group => $span ) {
+		if ( $span['last'] - $span['first'] + 1 === $span['count'] ) {
+			continue;
 		}
+		// Name what intervened rather than where the group resumes: the intruder is the
+		// thing to move, and it is the half a failure cannot infer from the group name.
+		$intruders = array();
+		for ( $i = $span['first']; $i <= $span['last']; $i++ ) {
+			if ( ! in_array( $names[ $i ], $span['names'], true ) ) {
+				$intruders[] = $names[ $i ];
+			}
+		}
+		$broken[] = $group . ' split by ' . implode( ', ', $intruders );
 	}
 
 	assert_same( "{{{$tag}}} — no group is split", array(), $broken );
+}
+
+// A mapped option that never went through bws_prepare_registration_options() carries no
+// stamp. It renders UNBOXED whatever the map says about its name, and it is invisible to
+// every group walk in this file — so it splits a run without being counted as a member of
+// anything. The span check above catches it only where it happens to land inside another
+// group, which is why the stamp is asserted on its own.
+$mapped = array_keys( bws_option_visual_groups() );
+
+foreach ( $registered as $tag => $args ) {
+	$unstamped = array();
+	foreach ( $args['options'] ?? array() as $name => $def ) {
+		if ( in_array( (string) $name, $mapped, true ) && empty( $def['_group'] ) ) {
+			$unstamped[] = (string) $name;
+		}
+	}
+	assert_same( "{{{$tag}}} — every mapped option carries its stamp", array(), $unstamped );
 }
 
 // ===========================================================================
