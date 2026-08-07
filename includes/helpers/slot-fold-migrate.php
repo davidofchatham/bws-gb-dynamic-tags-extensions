@@ -129,6 +129,33 @@ function bws_fold_migration_slot_keys( array $cfg ): array {
 }
 
 /**
+ * What the fold entry MATCHES on — the per-slot surface, plus what else it now rewrites.
+ *
+ * Separate from bws_fold_migration_slot_keys() because the two answer different
+ * questions, and conflating them re-creates the bug the filter exists to stop: that
+ * function names the keys the MAPPER may see, and a tag-level `limit` handed to the
+ * mapper is folded into slot 1 and deleted (TagTemplateRegistry::try_slot_axes). This
+ * one names the keys whose PRESENCE means there is work to do.
+ *
+ * They diverge for exactly one key. A SELECTING container's tag-level `limit` is
+ * retired by this entry (#61), so a tag whose slots are ALREADY FOLDED and whose only
+ * remaining legacy artefact is that key must still match — otherwise the one shape the
+ * ticket names goes unmigrated. The entry no-ops when there is no slot to push the
+ * number into, which apply_option_migration() tolerates by design.
+ *
+ * @since 1.17.0
+ * @param array $cfg Container config from bws_fold_migration_container().
+ * @return string[]
+ */
+function bws_fold_migration_match_keys( array $cfg ): array {
+	$keys = bws_fold_migration_slot_keys( $cfg );
+	if ( empty( $cfg['combining'] ) ) {
+		$keys[] = 'limit';
+	}
+	return array_values( array_unique( $keys ) );
+}
+
+/**
  * Fold a multislot tag's LEGACY flat slot keys into folded `{N}` slot values.
  *
  * PURE — options in, options out. The caller owns parse/serialize, which is what lets the
@@ -170,8 +197,8 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 	// tag-level `limit` is each attempt's own default (try_slot_axes), so the mapper has
 	// to see it or the materialized flat-era default writes a `1` over the author's
 	// number. Added to the mapper's VIEW only — never to $present — so the tag-level key
-	// is neither stripped here nor counted as something to migrate. Retiring the key
-	// itself is #61; this is only what stops #60 from changing output.
+	// is neither stripped by the per-slot loop nor counted as something to migrate; it is
+	// retired below, once, as a tag-level decision.
 	// The gate is exactly bws_fold_from_flat()'s own — SELECTING container, and never where
 	// the slot already owns the key — so the two cannot disagree about which map the mapper
 	// is reading. A derived "is `limit` a per-slot axis here" test was tried and dropped: it
@@ -184,17 +211,70 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		$slot_view['limit'] = $options['limit'];
 	}
 
-	$folded  = $options;
-	$touched = false;
+	// #61 — THE SELECTING CONTAINER'S TAG-LEVEL `limit` STOPS EXISTING. It was never a
+	// bound across attempts; it was each attempt's own default, and once an attempt's
+	// source is a chain nothing says which step such a number aims at. So it is pushed
+	// into the slots that consumed it and the key goes.
+	//
+	// A LEGACY slot takes it through $slot_view above. This is the other half: a slot that
+	// is ALREADY FOLDED — reachable by hand-edit (ADR 0004) and from every tag the pre-#61
+	// rule migrated — takes it onto its own chain, through the same three owners the rest
+	// of the fold uses, so there is no second mapping to drift.
+	//
+	// NUMERIC ONLY. An uninterpretable value is not a number to push anywhere, and
+	// deleting an author's text on the strength of bws_clamp_limit's is_numeric guard is a
+	// bigger move than this rewrite is entitled to (the depth-0 half declines it for the
+	// same reason). A slot that fans only by INHERITING takes nothing here and needs
+	// nothing: bws_fold_slot_flat_options() carries the bound with the source it inherits.
+	$tag_limit = null;
+	if ( empty( $cfg['combining'] ) ) {
+		$raw = trim( (string) ( $options['limit'] ?? '' ) );
+		if ( '' !== $raw && is_numeric( $raw ) ) {
+			$tag_limit = $raw;
+		}
+	}
+
+	$folded   = $options;
+	$touched  = false;
+	$has_slot = false;
 
 	for ( $n = 1; $n <= (int) $cfg['max']; $n++ ) {
-		$prefix  = ( 1 === $n ) ? '' : "{$n}-";
-		$present = array();
+		$prefix     = ( 1 === $n ) ? '' : "{$n}-";
+		$folded_key = bws_slot_ordinal( $n );
+		$folded_val = trim( (string) ( $options[ $folded_key ] ?? '' ) );
+		$present    = array();
 		foreach ( BWS_FOLD_FLAT_AXES as $axis ) {
 			if ( array_key_exists( $prefix . $axis, $slot_src ) ) {
 				$present[] = $prefix . $axis;
 			}
 		}
+		// A slot naming a RETIRED source token does NOT count: it is declined whole below,
+		// so the number has nowhere to land in it, and consuming the tag-level key on its
+		// account would leave the tag half-treated — the legacy keys still there for the
+		// converter to fix later, but the bound they need already deleted. That is the one
+		// way this rewrite can move output on a tag it deliberately did not touch.
+		$declined = '' === $folded_val
+			&& ! empty( $present )
+			&& in_array( trim( (string) ( $slot_src[ $prefix . 'src' ] ?? '' ) ), BWS_FOLD_RETIRED_SRC_TOKENS, true );
+		if ( ! $declined && ( '' !== $folded_val || ! empty( $present ) ) ) {
+			$has_slot = true;
+		}
+
+		// An already-folded slot: the retiring number lands on its own last fanning step,
+		// by the same positional rule everything else uses. A slot that pins its own limit
+		// is left alone — the tag-level number was a DEFAULT, and a default never
+		// overwrites a stated value (bws_fold_chain_apply_legacy_limit decides both).
+		if ( '' !== $folded_val && null !== $tag_limit ) {
+			$parsed = bws_fold_parse_slot( $folded_val, $cfg['container'] ?? 'try' );
+			if ( is_array( $parsed ) ) {
+				$applied = bws_fold_chain_apply_legacy_limit( (array) ( $parsed['chain'] ?? array() ), $tag_limit );
+				if ( $applied['consumed'] ) {
+					$parsed['chain']       = $applied['chain'];
+					$folded[ $folded_key ] = bws_fold_emit_slot( $parsed );
+				}
+			}
+		}
+
 		if ( empty( $present ) ) {
 			continue;
 		}
@@ -203,7 +283,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		// legacy keys not stripped. See BWS_FOLD_RETIRED_SRC_TOKENS for why the fold is
 		// structurally the wrong layer to rewrite one, and why leaving the tag untouched
 		// is the only answer that cannot store it differently from the converter.
-		if ( in_array( trim( (string) ( $slot_src[ $prefix . 'src' ] ?? '' ) ), BWS_FOLD_RETIRED_SRC_TOKENS, true ) ) {
+		if ( $declined ) {
 			continue;
 		}
 
@@ -213,7 +293,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		}
 
 		// An already-folded value for this slot wins outright.
-		if ( '' !== trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) ) ) {
+		if ( '' !== $folded_val ) {
 			continue;
 		}
 
@@ -223,8 +303,16 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 		}
 		$wire = bws_fold_emit_slot( $rec['slot'] );
 		if ( '' !== $wire ) {
-			$folded[ bws_slot_ordinal( $n ) ] = $wire;
+			$folded[ $folded_key ] = $wire;
 		}
+	}
+
+	// The key goes only where there was a slot to push it into. A tag with no slot at all
+	// has nowhere for the number to land, so the rewrite declines rather than emitting a
+	// diff that changes nothing an author can see.
+	if ( null !== $tag_limit && $has_slot ) {
+		unset( $folded['limit'] );
+		$touched = true;
 	}
 
 	if ( ! $touched ) {

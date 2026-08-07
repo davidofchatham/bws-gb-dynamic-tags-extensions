@@ -209,11 +209,11 @@ output, taken from `MigrationRegistry::apply_option_migration()` rather than han
 | # | Legacy | Migrated | Expected |
 |---|---|---|---|
 | F7a.7 | `{{try_text srcTermIn:department\|use:title}}` | `{{try_text A:src(terms,department,limit[1]);use(title)}}` | `Sales` |
-| F7a.8 | `{{try_text srcTermIn:department\|use:title\|limit:2}}` | `{{try_text limit:2\|A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support`. The tag-level `limit` reaches every attempt — it was each attempt's own default, not a bound across them — so it lands on the slot's own fanning step. The tag-level key survives here; #61 retires it |
+| F7a.8 | `{{try_text srcTermIn:department\|use:title\|limit:2}}` | `{{try_text A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support`. The tag-level `limit` reaches every attempt — it was each attempt's own default, not a bound across them — so it lands on the slot's own fanning step, and the key itself is retired (#61, §F7b) |
 | F7a.9 | `{{join srcTermIn:department\|use:title}}` | `{{join A:src(terms,department,limit[1]);use(title)}}` | `Sales` |
 | F7a.10 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `{{join A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support` |
-| F7a.11 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | unchanged shape — the explicit `0` KEEPS its carrier | `Sales, Support`. Not redundant with the chain default: the same mapper renders UNMIGRATED flat wire, which takes the flat era's 1, so dropping the token would re-bound a tag its author deliberately unbounded |
-| F7a.12 | `{{try_text key:role\|limit:4}}` | `{{try_text limit:4\|A:key(role)}}` | `Captain` on `/matrix-post-meta/`. **A slot with no fanning step gets no limit** — the tag-level key is left standing and still reaches the container arm, so nothing is lost. Slot 1's prefix is `''`, so without the rule it would swallow the tag-level key as a slot-level token bounding nothing |
+| F7a.11 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | `{{try_text A:src(terms,department,limit[0]);use(title)}}` | `Sales, Support`. The explicit `0` KEEPS its carrier on the STEP: the same mapper renders UNMIGRATED flat wire, which takes the flat era's 1, so dropping the token would re-bound a tag its author deliberately unbounded |
+| F7a.12 | `{{try_text key:role\|limit:4}}` | `{{try_text A:key(role)}}` | `Captain` on `/matrix-post-meta/`. **A slot with no fanning step gets no limit, and the key goes anyway** — it bounded nothing, so nothing is lost. Slot 1's prefix is `''`, so without the tag-level exclusion it would swallow the key as a slot-level token bounding nothing |
 | F7a.13 | `{{join key:main_line\|limit:4\|2-key:booking_line}}` | `{{join A:limit(4);key(main_line)\|B:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210`. The COMBINING contrast: `{{join}}` owns `limit` per slot, so slot 1's bare key IS its own and stays a slot-level token |
 
 > **The `try_` `refs` arm is still first-only, and #60 did not change that.** `{{try_text
@@ -221,6 +221,40 @@ output, taken from `MigrationRegistry::apply_option_migration()` rather than han
 > an EXPLICIT `limit:0` — which is what proves it is the ARM rather than the default. Same family as
 > the §F9 divergences; it clears with FW-63. The `terms` arm (F7a.2) already fans, which is why the
 > ticket's own measurement used it.
+
+## §F7b — the `try_` tag-level `limit` is retired (#61)
+
+**`try_`'s tag-level `limit` was never a bound ACROSS attempts — it was each attempt's own default.**
+Once an attempt's source is a chain, nothing says which step such a number aims at and there is no
+per-step lever to aim it with, so it stops existing: the number is pushed into the slots that
+consumed it and the key is deleted. `{{join}}` is untouched — its `limit` has always been a SLOT
+axis, which is what F7a.13 pins.
+
+Every pair below was RUN on the testbed and renders identically; the migrated column is the shipped
+migrator's actual output. Context `/matrix-terms-valid/` unless noted.
+
+| # | Legacy / pre-#61 | Migrated | Expected |
+|---|---|---|---|
+| F7b.1 | `{{try_text srcTermIn:department\|use:title\|limit:2}}` | `{{try_text A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support` — F7a.8 with the key now gone |
+| F7b.2 | `{{try_text A:src(terms,department);use(title)\|limit:2}}` | `{{try_text A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support`. **The shape the ticket names**: slots ALREADY folded, only the key left. It carries no legacy slot key at all, so it reaches the entry only because `limit` is on the MATCH surface (`bws_fold_migration_match_keys`) |
+| F7b.3 | `{{try_text key:role\|limit:4}}` | `{{try_text A:key(role)}}` | `Captain` on `/matrix-post-meta/` — nothing to bound, so nothing is pushed and the key still goes |
+| F7b.4 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | `{{try_text A:src(terms,department,limit[0]);use(title)}}` | `Sales, Support` — an explicit unlimited moves onto the step like any other number |
+| F7b.5 | `{{join A:src(terms,department);use(title)\|limit:3}}` | unchanged wire; the migrator only DROPS the bare `limit` as slot 1's legacy sibling | `Sales, Support` both ways — the COMBINING contrast. The bare key is slot 1's own axis, never pushed into a folded slot, and join's arm has no tag-level fallback to read it with, so the folded slot is unlimited before and after |
+
+**What the front end cannot show, and why that is not a gap.** The one shape where output could have
+moved is a slot that fans only by INHERITING (`src(same)`, or an argless `refs`): it has no fanning
+step of its own to take the number. It does not move, because `src(same)` means the same SOURCE and a
+limit is one of a source's parameters — `bws_fold_slot_flat_options()` carries the bound along with
+the source, on a selecting container only. That is unobservable here for a structural reason worth
+recording: `srcTermIn` does not carry forward in a selecting container (§P14.5), so an inheriting
+slot after a `terms` slot reads the ambient entity rather than the terms; and the `refs` arm is
+first-only (the note above). So the evidence is `slot-fold-test.php` §P15, which walks the resolved
+quantity slot by slot, plus the pairs above. Both spellings measured identical either way:
+
+| # | Legacy | Migrated | Measured |
+|---|---|---|---|
+| F7b.6 | `{{try_text src:ref\|ref:related_staff\|use:key\|key:no_such\|2-src:same\|2-use:title\|limit:2}}` | `{{try_text A:src(refs,related_staff,limit[2]);key(no_such)\|B:src(same);use(title)}}` | `Jane Partner` both, on `/matrix-post-meta/` — first-only arm, so the carried bound is invisible until FW-63 |
+| F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support` both — the combining slot does NOT inherit the bound, and does not need to |
 
 ## §F8 — depth-0 src chain on base tags (5h)
 

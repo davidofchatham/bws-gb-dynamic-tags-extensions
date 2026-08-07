@@ -1237,5 +1237,86 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 $explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), 'key' );
 check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && 'current' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
+// ── P15 THE INHERITED LIMIT (#61) ───────────────────────────────────────────
+//
+// `src(same)` means the SAME SOURCE, and a limit is one of that source's parameters.
+// A slot that inherits its source therefore inherits its bound — which is what lets
+// the try_ tag-level `limit` be retired without moving output: the number it used to
+// supply to every attempt now reaches an inheriting attempt through the carry.
+//
+// CONTAINER-SENSITIVE, and the gate is the one the file already draws twice: a
+// COMBINING container registered `limit` per slot (`{N}-limit`), so an absent one
+// there genuinely means "this slot states none" and must take the default. A
+// SELECTING container never had a per-slot limit at all, so absence there can only
+// mean inherit. Getting this uniform breaks {{join}} — P13.1's `term hop with limit`
+// is the case that says so.
+
+/** Walk a container's slots through the seam, returning [ n => resolved limit ]. */
+function t_limit_walk( $options, $container = 'try', $per_slot_use = true, $max = 5 ) {
+	$carry = array();
+	$out   = array();
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$slot = bws_fold_slot_struct( $n, $options, $container, $per_slot_use );
+		if ( null === $slot ) {
+			continue;
+		}
+		$skip          = '';
+		$limit_default = 1;
+		$flat          = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
+		if ( null === $flat ) {
+			continue;
+		}
+		$out[ $n ] = bws_clamp_limit( $flat['limit'] ?? null, $limit_default );
+	}
+	return $out;
+}
+
+$inherit_try = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(same);use(name)' ) );
+check( 'P15.1 a selecting slot that inherits its SOURCE inherits its LIMIT', array( 1 => 3, 2 => 3 ) === $inherit_try, json_encode( $inherit_try ) );
+
+// An argless fanning step inherits the same way: it re-states the step but takes its
+// relationship field from the carried source, so the bound it fans under is that
+// source's. bws_fold_chain_fanning_steps() already treats the two as one shape.
+$inherit_argless = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(refs);use(name)' ) );
+check( 'P15.2 …and so does an ARGLESS fanning step', array( 1 => 3, 2 => 3 ) === $inherit_argless, json_encode( $inherit_argless ) );
+
+// A slot that states its own source states its own bound — inheriting there would
+// silently bound a list the earlier slot knows nothing about.
+$own_src = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(terms,category);use(name)' ) );
+check( 'P15.3 a slot that states its OWN fanning source takes the chain default, not the carry', array( 1 => 3, 2 => 0 ) === $own_src, json_encode( $own_src ) );
+
+// What is carried is the QUANTITY the earlier slot resolved, including where that slot
+// stated nothing — an attempt inheriting `src(refs,office)` reads every office because
+// that is what the slot it inherits from reads. Falling back to a default chosen for the
+// FLAT wire this slot does not have is the #60 defect one level down.
+$no_carry = t_limit_walk( array( 'A' => 'src(refs,office);use(title)', 'B' => 'src(same);use(name)' ) );
+check( 'P15.4 an inheriting slot takes the resolved quantity, not its own default', array( 1 => 0, 2 => 0 ) === $no_carry, json_encode( $no_carry ) );
+
+// The same, one era down: the flat spelling's implied 1 is what an inheriting slot gets,
+// which is what the shipped legacy walk resolved (P14) and must keep resolving.
+$flat_carry = t_limit_walk( array( 'src' => 'ref', 'ref' => 'office', 'use' => 'title', '2-src' => 'same', '2-use' => 'key', '2-key' => 'name' ) );
+check( 'P15.4b …and a FLAT-spelled slot carries its implied 1', array( 1 => 1, 2 => 1 ) === $flat_carry, json_encode( $flat_carry ) );
+
+// The guard is literally "my chain does not fan", which is WIDER than inheritance: a slot
+// stating its own NON-FANNING root takes the carried number too. Pinned rather than left
+// to the comment, because the reason it is harmless is a property rather than an accident
+// — a non-fanning source resolves one entity, so any limit over it is inert.
+$own_static = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(site);key(org_name)' ) );
+check( 'P15.7 a slot stating its own NON-fanning root also takes the carry (inert: one source)', array( 1 => 3, 2 => 3 ) === $own_static, json_encode( $own_static ) );
+
+// COMBINING is the deliberate contrast — and P13.1 `term hop with limit` is the
+// shipped-legacy case that would otherwise move.
+$inherit_join = t_limit_walk( array( 'A' => 'src(terms,category,limit[3]);use(title)', 'B' => 'src(same);key(blurb)' ), 'join' );
+check( 'P15.5 a COMBINING slot does NOT inherit the limit (it owns one per slot)', array( 1 => 3, 2 => 1 ) === $inherit_join, json_encode( $inherit_join ) );
+
+// #61's own equivalence, end to end: the legacy wire the tag-level key served, and the
+// migrated wire that no longer has it, must resolve the same quantity at every slot.
+$legacy_tag_level = array( 'src' => 'ref', 'ref' => 'office', 'use' => 'title', 'limit' => '3', '2-src' => 'same', '2-use' => 'key', '2-key' => 'name' );
+check(
+	'P15.6 retiring the tag-level limit does not move what any attempt resolves',
+	t_limit_walk( $legacy_tag_level ) === t_limit_walk( t_migrate_try( $legacy_tag_level, true, true ) ),
+	'legacy: ' . json_encode( t_limit_walk( $legacy_tag_level ) ) . "\n      migrated: " . json_encode( t_limit_walk( t_migrate_try( $legacy_tag_level, true, true ) ) )
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

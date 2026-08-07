@@ -430,6 +430,141 @@
 			}
 		},
 		{
+			"label": "#61 selecting text: slots ALREADY FOLDED, the tag-level limit still to retire",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"A": "src(refs,office);use(title)",
+				"B": "src(terms,department);key(name)",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a folded slot that PINS its own limit, beside one that inherits",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"A": "src(refs,office,limit[2]);use(title)",
+				"B": "src(same);key(name)",
+				"C": "key(role)",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a slotless tag has nowhere to push the number, so it is a no-op",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"limit": "3",
+				"sep": ", "
+			}
+		},
+		{
+			"label": "#61 selecting text: the ONLY slot names a RETIRED token, so it is declined and the key stays",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "second_related_post",
+				"key": "name",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a DECLINED slot beside a real one — the number still lands, the key still goes",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "second_related_post",
+				"key": "name",
+				"2-src": "ref",
+				"2-ref": "office",
+				"2-use": "title",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 combining join: an already-folded slot beside a bare limit — slot 1's own axis, never pushed",
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"A": "src(terms,category);use(title)",
+				"limit": "3"
+			}
+		},
+		{
 			"label": "combining join: slot 2 fans only by INHERITANCE, so it states no bound of its own",
 			"conf": {
 				"combining": true,

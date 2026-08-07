@@ -763,9 +763,14 @@ class TagTemplateRegistry {
 					// A folded slot may PIN its own limit (`src(terms[category] limit[3])`
 					// or a slot-level `limit(3)`), which then governs this slot only and is
 					// threaded into the core call too, so the seam's slice and the core's
-					// own read agree. Chain-level `limit` remains the default for every
-					// slot that pins nothing — and is what the legacy wire's bare `limit`
-					// recovers as at slot 1, identically.
+					// own read agree.
+					//
+					// THE TAG-LEVEL `limit` IS RETIRED (#61) AND STILL READ. Migration
+					// pushes an author's number into the slots that consumed it and deletes
+					// the key, so on migrated wire this fallback resolves to nothing. It
+					// stays because the value outlives the key: neither migration path
+					// reaches a tag stored in ACF meta, and ADR 0004 makes hand-edited wire
+					// mean what it says. #62 retires the CONTROL, never this read.
 					$sep = $opts['sep'] ?? null;
 					// THE DEFAULT IS THE SLOT'S OWN, and only the seam can say what it is:
 					// $slot_opts holds the FLATTENED triple, whose `src` is a legacy token on

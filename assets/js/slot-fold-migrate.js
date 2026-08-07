@@ -121,8 +121,9 @@
 	 * own default rather than a bound across attempts. The mapper has to see it, or the
 	 * flat era's materialized default writes a `1` that SHADOWS the author's number — a
 	 * slot's own limit wins over the tag-level one in every container arm. It is a READ
-	 * and never a fold: the key is not on the delete list, so it is neither stripped here
-	 * nor counted as something to migrate (#61 retires it).
+	 * and never a fold: the key is not on the per-slot delete list, so the slot loop neither
+	 * strips it nor counts it as something to migrate. migrateSlots() retires it once, as a
+	 * tag-level decision (#61).
 	 *
 	 * The gate is exactly foldFromFlat()'s own — SELECTING container, and never where the
 	 * slot already owns the key — so the two cannot disagree about which map is being read.
@@ -176,22 +177,66 @@
 		var view = mapperState( state, conf );
 		var next = {};
 		var touched = false;
+		var hasSlot = false;
 		var n;
 
 		Object.keys( state ).forEach( function ( key ) {
 			next[ key ] = state[ key ];
 		} );
 
+		// #61 — the SELECTING container's tag-level `limit` stops existing. Mirrors
+		// bws_fold_migrate_slots(): a LEGACY slot takes the number through the mapper view
+		// above, an ALREADY-FOLDED one takes it onto its own chain here, and a slot that
+		// fans only by INHERITING takes nothing (the render seam carries the bound with the
+		// source it inherits). NUMERIC only — an uninterpretable value is not a number to
+		// push anywhere, and deleting an author's text on that basis is a bigger move than
+		// this rewrite is entitled to.
+		var tagLimit = null;
+		if ( ! conf.combining ) {
+			var rawLimit = String( ( state.limit === null || state.limit === undefined ) ? '' : state.limit ).trim();
+			if ( '' !== rawLimit && fold.isNumericLike( rawLimit ) ) {
+				tagLimit = rawLimit;
+			}
+		}
+
 		for ( n = 1; n <= ( conf.max || 5 ); n++ ) {
+			var foldedKey = fold.slotKey( n );
+			var foldedVal = String( state[ foldedKey ] || '' ).trim();
 			var present = legacyKeys( conf, n ).filter( function ( key ) {
 				return Object.prototype.hasOwnProperty.call( src, key );
 			} );
+			// A slot naming a RETIRED source token does NOT count — it is declined whole
+			// below, so the number has nowhere to land in it, and consuming the tag-level
+			// key on its account would leave the tag half-treated: legacy keys still there
+			// for the converter to fix later, but the bound they need already deleted.
+			var declined = '' === foldedVal
+				&& present.length
+				&& retiredSrc( conf ).indexOf( String( src[ ( 1 === n ? '' : String( n ) + '-' ) + 'src' ] || '' ).trim() ) > -1;
+			if ( ! declined && ( '' !== foldedVal || present.length ) ) {
+				hasSlot = true;
+			}
+
+			// The retiring number lands on an already-folded slot's own last fanning step,
+			// through the same three owners the rest of the fold uses. A slot that pins its
+			// own limit is left alone: the tag-level number was a DEFAULT, and a default
+			// never overwrites a stated value (applyLegacyLimit decides both).
+			if ( '' !== foldedVal && null !== tagLimit ) {
+				var parsed = fold.parseSlot( foldedVal, conf.container || 'try' );
+				if ( parsed ) {
+					var applied = fold.applyLegacyLimit( parsed.chain || [], tagLimit );
+					if ( applied.consumed ) {
+						parsed.chain = applied.chain;
+						next[ foldedKey ] = fold.emitSlot( parsed );
+					}
+				}
+			}
+
 			if ( ! present.length ) {
 				continue;
 			}
 
 			// Declined whole: no fold, no strip. See the docblock.
-			if ( retiredSrc( conf ).indexOf( String( src[ ( 1 === n ? '' : String( n ) + '-' ) + 'src' ] || '' ).trim() ) > -1 ) {
+			if ( declined ) {
 				continue;
 			}
 
@@ -201,7 +246,7 @@
 			} );
 
 			// An already-folded value for this slot wins outright.
-			if ( '' !== String( state[ fold.slotKey( n ) ] || '' ).trim() ) {
+			if ( '' !== foldedVal ) {
 				continue;
 			}
 
@@ -211,8 +256,15 @@
 			}
 			var wire = fold.emitSlot( rec.slot );
 			if ( '' !== wire ) {
-				next[ fold.slotKey( n ) ] = wire;
+				next[ foldedKey ] = wire;
 			}
+		}
+
+		// The key goes only where there was a slot to push it into — a tag with no slot at
+		// all has nowhere for the number to land.
+		if ( null !== tagLimit && hasSlot ) {
+			delete next.limit;
+			touched = true;
 		}
 
 		if ( ! touched ) {

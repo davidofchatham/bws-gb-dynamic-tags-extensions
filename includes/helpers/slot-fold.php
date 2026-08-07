@@ -961,8 +961,9 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	// Read AFTER the emptiness test above, never before: a tag-level limit is not content,
 	// and folding it in earlier would conjure a slot out of every unused ordinal. And read
 	// only where THIS slot's chain fans — the same predicate everything else here shares —
-	// so a slot with nothing to bound gets no limit, per #60. It loses nothing: the
-	// container arm still falls back to the tag-level key for a slot that pins none.
+	// so a slot with nothing to bound gets no limit, per #60. It loses nothing: a slot that
+	// fans by INHERITING is handed the bound with the source it inherits
+	// (bws_fold_slot_flat_options), which is what let the key itself be retired (#61).
 	if ( '' === $limit && ! $combining && bws_fold_chain_fanning_steps( $chain ) ) {
 		$limit = trim( (string) ( $options['limit'] ?? '' ) );
 	}
@@ -1312,12 +1313,26 @@ function bws_fold_empty_slot(): array {
  * states no list of its own: it fans only by INHERITING an earlier slot's source, and that
  * slot already stated its own bound. Giving it the chain default instead would make a
  * migrated `{{join A:src(refs,office,limit[1])…|B:src(same)…}}` return every related post
- * at B where the flat wire it replaced returned one — a limit does not carry forward, and
- * never did.
+ * at B where the flat wire it replaced returned one.
+ *
+ * WHICH IS WHY, ON A SELECTING CONTAINER, THAT BOUND IS CARRIED (#61). `src(same)` names
+ * the same SOURCE and a limit is one of a source's parameters, so an attempt that inherits
+ * the source inherits what bounds it. That is what let `try_`'s TAG-LEVEL `limit` be
+ * retired without moving output: the number it used to hand every attempt now reaches an
+ * inheriting attempt the same way its `src` and `ref` already did.
+ *
+ * CONTAINER-SENSITIVE, and it is the contrast this file already draws twice
+ * (bws_fold_from_flat's tag-level read is the other). A COMBINING container registered
+ * `limit` PER SLOT, so an absent `{N}-limit` there is a slot saying "I state none" and must
+ * take the default — carrying it there moves shipped {{join}} output, which
+ * slot-fold-test.php §P13.1 `term hop with limit` is the case that says so. A SELECTING
+ * container never had a per-slot limit at all, so absence there can only mean inherit.
  *
  * @since 1.17.0
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_flat shape).
- * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
+ * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key,limit}.
+ *                            `limit` is WRITTEN on every container so the accumulator
+ *                            means one thing, and READ only on a selecting one.
  * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`. Derive it
  *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
@@ -1336,7 +1351,7 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	$limit_default = ( 'chain' === ( $slot['era'] ?? 'flat' ) && bws_fold_chain_fanning_steps( $slot['chain'] ?? array() ) )
 		? 0
 		: 1;
-	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
+	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '', 'limit' => null );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
@@ -1438,12 +1453,33 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	if ( null === $limit && isset( $slot['opts']['limit'] ) && '' !== $slot['opts']['limit'] ) {
 		$limit = (string) $slot['opts']['limit'];
 	}
+	// …and where the slot states none and its OWN chain does not fan, the bound comes
+	// along with the source (see the docblock: selecting containers only).
+	//
+	// The predicate is literally "my chain does not fan", which is WIDER than the case it
+	// exists for — a slot stating its own non-fanning root (`src(site)`, `src(current)`)
+	// takes the carried number too. That is deliberate rather than tolerated: a
+	// non-fanning source resolves exactly one entity, so any limit over it is inert
+	// (CONTEXT.md §Language — the read is 1:1), and narrowing the test would mean a
+	// SECOND spelling of "does this flat triple fan" beside the one the migrator already
+	// owns. §P15.7 pins the wider case so the reasoning is tested, not asserted.
+	if ( null === $limit && ! $combining && ! bws_fold_chain_fanning_steps( $steps ) ) {
+		$limit = $carry['limit'];
+	}
 
 	// The slot resolved: feed the accumulator (never before this point).
 	$carry['src'] = $src;
 	$carry['ref'] = $ref;
 	$carry['use'] = $use;
 	$carry['key'] = $key;
+	// What is carried is the QUANTITY this slot resolved, which is its own default where
+	// it states nothing — an attempt inheriting `src(refs,office)` should read every
+	// office, as that slot does, not fall back to a default chosen for wire it does not
+	// have. An UNINTERPRETABLE token is not a parameter and is not carried: it renders as
+	// the default here (bws_clamp_limit's is_numeric guard) and must do so downstream too.
+	$carry['limit'] = ( null !== $limit && is_numeric( trim( (string) $limit ) ) )
+		? (string) $limit
+		: (string) $limit_default;
 
 	$flat = array(
 		'src'       => $src,

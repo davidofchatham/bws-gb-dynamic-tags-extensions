@@ -595,7 +595,10 @@
 		// shadows the author's number. Combining containers own `limit` per slot, so an
 		// absent one there means the slot states none. Read AFTER the emptiness test, never
 		// before: a tag-level limit is not content — and only where THIS slot's chain fans,
-		// so a slot with nothing to bound gets no limit. See the PHP owner's comment.
+		// so a slot with nothing to bound gets no limit. A slot that fans by INHERITING is
+		// handed the bound with the source it inherits, on the render seam PHP owns alone
+		// (bws_fold_slot_flat_options), which is what let the key be retired (#61). See the
+		// PHP owner's comment.
 		if ( '' === limit && ! combining && chainFanningSteps( chain ).length ) {
 			var tagLimit = options.limit;
 			limit = ( void 0 === tagLimit || null === tagLimit || true === tagLimit ) ? '' : String( tagLimit ).trim();
@@ -836,6 +839,10 @@
 		chainIsWire: chainIsWire,
 		chainRoot: chainRoot,
 		chainFans: chainFans,
+		// Exported for the mount migrator, which decides whether a tag-level `limit` is a
+		// number to push down at all. Its own docblock is why: ONE predicate, or the two
+		// languages disagree about hex and exponents where PHP's is_numeric() does not.
+		isNumericLike: isNumericLike,
 		applyLegacyLimit: applyLegacyLimit
 	};
 }() );

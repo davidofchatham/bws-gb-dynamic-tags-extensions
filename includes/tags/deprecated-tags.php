@@ -1945,8 +1945,11 @@ function bws_register_option_migrations(): void {
 	//
 	// One registration per multislot tag, both list and container parameters DERIVED
 	// (bws_fold_migration_container) — the split is by DEPTH, and the base-tag depth-0
-	// half is not registered because no base tag reads a chain off the wire yet. Slot
-	// grammar + rules: includes/helpers/slot-fold-migrate.php.
+	// half registers above, on its own list. Slot grammar + rules:
+	// includes/helpers/slot-fold-migrate.php. The match surface is NOT the mapper's
+	// surface (bws_fold_migration_match_keys says why): a selecting container's
+	// tag-level `limit` is something this entry retires, so its presence means work,
+	// but handing it to the mapper would fold it into slot 1.
 	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
 		foreach ( bws_fold_migration_multislot_tags() as $tag ) {
 			$cfg = bws_fold_migration_container( $tag );
@@ -1956,7 +1959,7 @@ function bws_register_option_migrations(): void {
 			$reg::register( array(
 				'type'               => 'option',
 				'match_tag'          => $tag,
-				'match_any_options'  => bws_fold_migration_slot_keys( $cfg ),
+				'match_any_options'  => bws_fold_migration_match_keys( $cfg ),
 				'new_tag'            => $tag,
 				'transform_callback' => 'bws_migrate_src_chain_slots',
 				'label'              => sprintf(

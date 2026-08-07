@@ -541,9 +541,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F7a.4 a refs-spelled slot returns EVERY target - no limit anywhere (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)}}' ),
 		bws_fixture_gb_row( 'F7a.4b the legacy spelling still bounds at 1 - the row that makes F7a.4 non-vacuous (-> (555) 200-3000)', '{{join src:ref|ref:related_staff|use:key|key:main_line}}' ),
 		bws_fixture_gb_row( 'F7a.12 legacy: no fanning step, so limit:4 bounds nothing (-> Captain)', '{{try_text key:role|limit:4}}' ),
-		bws_fixture_gb_row( 'F7a.12b MIGRATED twin - the slot gets NO limit, the tag-level key stays (-> same)', '{{try_text limit:4|A:key(role)}}' ),
+		bws_fixture_gb_row( 'F7b.3 MIGRATED twin - nothing to bound, so nothing is pushed and the tag-level key still goes (-> same)', '{{try_text A:key(role)}}' ),
 		bws_fixture_gb_row( 'F7a.13 join legacy: join owns limit PER SLOT, so slot 1 bare key IS its own (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|limit:4|2-key:booking_line}}' ),
 		bws_fixture_gb_row( 'F7a.13b MIGRATED twin - it stays a slot-level token (-> same)', '{{join A:limit(4);key(main_line)|B:src(same);key(booking_line)}}' ),
+		// F7b (#61) - the refs half of the inheriting-slot pair. Both sides render
+		// `Jane Partner` because the try_ refs arm is first-only, so the carried bound
+		// is invisible here until FW-63; the row exists to show the pair does not MOVE.
+		bws_fixture_gb_row( 'F7b.6 legacy: slot 1 fans on refs and misses, slot 2 inherits the source (-> Jane Partner)', '{{try_text src:ref|ref:related_staff|use:key|key:no_such|2-src:same|2-use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.6b MIGRATED twin - the tag-level key is gone and slot 2 inherits the bound with the source (-> same)', '{{try_text A:src(refs,related_staff,limit[2]);key(no_such)|B:src(same);use(title)}}' ),
 		// The PAIRS CROSS here, and these four rows are the cheapest way to see it:
 		// legacy absence means INHERIT (it materializes to src(same) through the
 		// mapper), folded absence means RESET. So folded `2:key(x)` twins legacy
@@ -735,12 +740,20 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7a.5 the FLAT spelling still bounds at 1 - makes the three above non-vacuous (-> ONE term)', '{{try_text srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'F7a.7 MIGRATED twin of F7a.5 - limit[1] states what the flat spelling implied (-> same as F7a.5)', '{{try_text A:src(terms,department,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.8 legacy tag-level limit:2 (-> two terms)', '{{try_text srcTermIn:department|use:title|limit:2}}' ),
-		bws_fixture_gb_row( 'F7a.8b MIGRATED twin - the tag-level number lands on the slot own fanning step (-> same as F7a.8)', '{{try_text limit:2|A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7b.1 MIGRATED twin - the number lands on the slot own fanning step and the tag-level key is RETIRED (-> same as F7a.8)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
+		// F7b (#61) - the shape the ticket names: slots ALREADY folded, only the
+		// retiring key left. It carries no legacy slot key, so it reaches the entry
+		// only because `limit` is on the MATCH surface.
+		bws_fixture_gb_row( 'F7b.2 already-folded slot beside the retiring key - pre-#61 storage (-> two terms)', '{{try_text A:src(terms,department);use(title)|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.2b MIGRATED twin - the number moved onto the slot own last fanning step (-> same as F7b.2)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7b.5 join CONTRAST - a bare limit is slot 1 own axis, never pushed into a folded slot, and join has no tag-level fallback to read it with (-> every term)', '{{join A:src(terms,department);use(title)|limit:3}}' ),
+		bws_fixture_gb_row( 'F7b.7 join inheriting slot - the combining slot does NOT inherit the bound (-> two terms)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
 		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),
 		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
 		// The LINK GATE half (limit-default-test-matrix.md L4a). It is count-based, so a
 		// slot that starts returning several values stops being wrappable - eyeball the
 		// anchors, not just the text.
