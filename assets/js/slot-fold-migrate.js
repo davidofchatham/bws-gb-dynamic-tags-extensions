@@ -334,7 +334,9 @@
 		// The mapping is the grammar's (bws_fold_chain_apply_legacy_limit), shared with the
 		// converter half and the author-conversion commit so three surfaces cannot store
 		// one tag three ways.
-		var bound = fold.applyLegacyLimit( chain, s.limit );
+		// Depth 0, so an explicit `limit:0`/`-1` is CONSUMED rather than left behind:
+		// chain wire already means unlimited, and since #62 no control can reach the key.
+		var bound = fold.applyLegacyLimit( chain, s.limit, true );
 
 		// Enclosing level 0 -- a base tag's `src:` IS the wrapper.
 		var wire = fold.emitChain( bound.chain, 0 );

@@ -746,12 +746,17 @@
 	 * the converter, the mount migrator and the author-conversion commit — and they must
 	 * write one tag ONE way, so none of them owns a copy of the rule.
 	 *
-	 * @param {Array} chain Parsed chain, freshly built from legacy keys.
-	 * @param {*}     limit The legacy tag-level `limit` value, or null/undefined.
+	 * @param {Array}   chain            Parsed chain, freshly built from legacy keys.
+	 * @param {*}       limit            The legacy tag-level `limit` value, or null/undefined.
+	 * @param {boolean} [consumeUnlimited] Depth-0 callers pass true: an explicit `0`/`-1`
+	 *                                   is reported consumed so the caller deletes the key.
+	 *                                   A SLOT caller must not — its mapper also renders
+	 *                                   unmigrated flat wire, where the carrier is what
+	 *                                   keeps absence from meaning the flat era's 1.
 	 * @return {{chain: Array, consumed: boolean}} `consumed` = the caller must now
 	 *                                             delete the tag-level key.
 	 */
-	function applyLegacyLimit( chain, limit ) {
+	function applyLegacyLimit( chain, limit, consumeUnlimited ) {
 		var steps   = chain || [];
 		var stated  = false;
 
@@ -783,7 +788,9 @@
 		var value = explicit ? Math.trunc( Number( raw ) ) : 1;
 
 		if ( ! ( value > 0 ) ) {
-			return { chain: steps, consumed: false };   // unlimited either way
+			// Unlimited either way, so no step limit is written. The KEY goes only at
+			// depth 0, and only when it was EXPLICIT (see the PHP owner).
+			return { chain: steps, consumed: !! ( consumeUnlimited && explicit ) };
 		}
 
 		// The stated number rides the LAST fanning step, 1 every earlier one: per-step

@@ -206,7 +206,10 @@
 		// on chain wire is not converting, and re-running the rule on every commit would
 		// re-inject a limit the author had just cleared.
 		var converting = ! chainIsWire( String( state[ key ] || '' ) );
-		var bound      = converting ? fold.applyLegacyLimit( chain, state.limit ) : { chain: chain, consumed: false };
+		// Depth 0 (a base tag's own `src`), so the third argument: an explicit `limit:0`
+		// or `-1` is consumed and the key deleted below, rather than left on chain wire
+		// where nothing can reach it now the tag-level control is gone (#62).
+		var bound      = converting ? fold.applyLegacyLimit( chain, state.limit, true ) : { chain: chain, consumed: false };
 
 		// Enclosing level 0 — a base tag's `src:` is the wrapper, so a step `limit`
 		// prints one level inside it (`refs,office,limit[2]`). A slot's `src(...)`
@@ -246,8 +249,10 @@
 			return upd;
 		}
 		if ( bound.consumed ) {
-			// The author's own number MOVED onto a step — leaving it here as well would
-			// store one limit twice, and the two spellings mean different quantities.
+			// Either the author's own number MOVED onto a step — leaving it here as well
+			// would store one limit twice, and the two spellings mean different
+			// quantities — or it was an explicit `0`/`-1`, which chain wire already means
+			// and which no control could reach once it survived the rewrite (#62).
 			delete upd.limit;
 		}
 		return upd;

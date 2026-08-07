@@ -275,7 +275,7 @@ Context `/matrix-post-meta/`. All RUN.
 |---|---|---|
 | F7c.1 | `{{text srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` |
 | F7c.2 | `{{text srcTermIn:department\|use:title}}` | `Sales` — unset is still 1 on flat wire, which is what makes F7c.1 mean something |
-| F7c.3 | `{{text srcTermIn:department\|use:title\|limit:0}}` | `Sales, Support` — `0` is still UNLIMITED |
+| F7c.3 | `{{text srcTermIn:department\|use:title\|limit:0}}` | `Sales, Support` — `0` is still UNLIMITED. **On MIGRATION this key is deleted, not carried** (#62): the wire becomes `{{text src:terms,department\|use:title}}`, which means the same thing (chain spelling selects unlimited) and leaves nothing the panel cannot reach. Measured identical for all three spellings, including the intermediate `src:terms,department,limit(0)` |
 | F7c.4 | `{{title srcTermIn:department\|limit:2}}` | `Sales, Support` |
 | F7c.5 | `{{email src:ref\|ref:related_staff\|key:contact_email\|limit:2\|noLink}}` | `jane@example.test, tom@example.test` (entity-encoded by `antispambot`) |
 | F7c.6 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:2\|noLink}}` | `(555) 200-3000, (555) 200-4000` |

@@ -632,16 +632,49 @@ check(
 	json_encode( $m9 )
 );
 
-// 0 and -1 both already mean unlimited, which is what chain wire defaults to. Nothing to
-// carry, and the author's own token stays as written.
+// 0 and -1 both already mean unlimited, which is what chain wire defaults to — so there
+// is no step limit to write, and AT DEPTH 0 the key itself goes. It stayed until #62 for
+// a reason that expired with it: the author could see the `0` in the Result Limit field
+// and clear it. With no such control, keeping it leaves a token nothing in the editor can
+// reach, on chain wire, which is the one shape migration promises never to write. Deleting
+// is faithful because the chain spelling already selects unlimited (bws_limit_default) —
+// measured identical on the testbed, §F7c.3.
+//
+// The SLOT half does NOT do this and must not: bws_fold_from_flat's output also renders
+// UNMIGRATED flat wire, where absence takes the flat era's 1, so the carrier is load-
+// bearing there. §P12.18/19 in slot-fold-test.php are that pin.
 foreach ( array( '0', '-1' ) as $unlimited ) {
 	$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => $unlimited ) );
 	check(
-		"M9.6 an explicit limit:{$unlimited} writes no step limit and stays where it is",
-		'refs,office' === ( $m9['src'] ?? null ) && $unlimited === ( $m9['limit'] ?? null ),
+		"M9.6 an explicit limit:{$unlimited} writes no step limit and takes the key with it",
+		'refs,office' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', $m9 ),
 		json_encode( $m9 )
 	);
 }
+
+// The consume is scoped to the explicit non-positive value, not to "anything that means
+// unlimited": a chain that already states its own per-step limits stands down whole
+// (M9.9), and a tag-level `0` beside them is left rather than reached for on the way past.
+$pre_stated = array(
+	array( 'slug' => 'refs', 'arg' => 'office', 'limit' => '2', 'extra' => array() ),
+);
+$m9 = bws_fold_chain_apply_legacy_limit( $pre_stated, '0', true );
+check(
+	'M9.6b a stated step limit still wins outright, and the tag-level 0 is not consumed',
+	$pre_stated === $m9['chain'] && false === $m9['consumed'],
+	json_encode( $m9 )
+);
+
+// Same call WITHOUT the depth-0 flag is the slot behaviour, unchanged.
+$m9 = bws_fold_chain_apply_legacy_limit(
+	array( array( 'slug' => 'refs', 'arg' => 'office', 'limit' => null, 'extra' => array() ) ),
+	'0'
+);
+check(
+	'M9.6c the slot half leaves an explicit 0 for its caller to carry',
+	false === $m9['consumed'] && null === $m9['chain'][0]['limit'],
+	json_encode( $m9 )
+);
 
 // bws_clamp_limit's is_numeric guard already gives a non-numeric value the default, so
 // it MEANS absent — but deleting an author's text on that basis is a bigger move than

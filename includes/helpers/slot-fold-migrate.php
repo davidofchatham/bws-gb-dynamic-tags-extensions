@@ -391,7 +391,9 @@ function bws_fold_migrate_base_src( array $options ) {
 	}
 
 	$chain  = bws_fold_chain_from_options( $options );
-	$bound  = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null );
+	// Depth 0, so an explicit `limit:0`/`-1` is CONSUMED rather than left: chain wire
+	// already means unlimited, and since #62 no control can reach the key it would leave.
+	$bound  = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null, true );
 	$wire   = bws_fold_emit_chain( $bound['chain'], 0 );
 	if ( '' === $wire || ! bws_fold_chain_is_wire( $wire ) ) {
 		return null;

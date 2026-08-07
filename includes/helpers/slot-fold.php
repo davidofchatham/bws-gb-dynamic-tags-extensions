@@ -1097,7 +1097,8 @@ function bws_fold_chain_fanning_steps( array $chain ): array {
  * an intent:
  *
  * - **An explicit `0` / `-1`.** Already unlimited, which is what chain wire defaults to,
- *   so there is nothing to carry — and the author's own token stays exactly as written.
+ *   so there is nothing to carry. Whether the KEY survives is the caller's position, not
+ *   this rule's — see `$consume_unlimited`.
  * - **An ARGLESS fanning step.** bws_fold_chain_to_steps() drops it (a field-less `refs`
  *   would short-circuit to empty), so the chain does not fan and a limit on it is inert
  *   noise. A source that resolves one entity has nothing to bound.
@@ -1110,14 +1111,30 @@ function bws_fold_chain_fanning_steps( array $chain ): array {
  * that basis is a bigger move than this rewrite is entitled to, and leaving it renders
  * identically.
  *
+ * `$consume_unlimited` IS THE DEPTH-0 POSITION, and the asymmetry is the point. At depth 0
+ * the rewrite is the whole story: the chain spelling itself selects unlimited
+ * (`bws_limit_default`), so an explicit `0`/`-1` left behind states nothing the wire does
+ * not already say — and since #62 retired the tag-level control there is no field left to
+ * see or clear it in, which makes it a token on chain wire that no editor surface can
+ * reach. So the depth-0 callers ask for it to be consumed. A SLOT caller must NOT: the
+ * same mapper renders UNMIGRATED flat wire, where an absent limit takes the flat era's 1,
+ * so there the `0` carrier is load-bearing (slot-fold-test.php §P12.18/19).
+ *
+ * Narrow on purpose. Only the explicit non-positive value is consumed, and only where the
+ * chain actually FANS — a stated per-step limit still stands the whole mapping down
+ * (above), and a source with no fanning step never reaches this at depth 0.
+ *
  * @since 1.17.0
- * @param array $chain Parsed chain, freshly built from legacy keys (grammar shape).
- * @param mixed $limit The legacy tag-level `limit` value, or null when absent.
+ * @since 1.17.0 `$consume_unlimited` (#62).
+ * @param array $chain             Parsed chain, freshly built from legacy keys (grammar shape).
+ * @param mixed $limit             The legacy tag-level `limit` value, or null when absent.
+ * @param bool  $consume_unlimited Depth-0 callers pass true: an explicit `0`/`-1` is
+ *                                 reported consumed so the caller deletes the key.
  * @return array{chain: array, consumed: bool} The chain with the implied limit
  *               materialized where one was implied, and whether the caller must now
  *               delete the tag-level key.
  */
-function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
+function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_unlimited = false ): array {
 	foreach ( $chain as $chain_step ) {
 		if ( ! in_array( (string) ( $chain_step['slug'] ?? '' ), BWS_FOLD_FANNING_SLUGS, true ) ) {
 			continue;
@@ -1149,7 +1166,10 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
 	$value = $explicit ? (int) $raw : 1;
 
 	if ( $value <= 0 ) {
-		return array( 'chain' => $chain, 'consumed' => false );   // unlimited either way
+		// Unlimited either way, so no step limit is written. The KEY goes only at depth 0
+		// (see $consume_unlimited) — and only when it was EXPLICIT, since an absent or
+		// empty value is not the author's token to delete.
+		return array( 'chain' => $chain, 'consumed' => ( $consume_unlimited && $explicit ) );
 	}
 
 	$last = array_pop( $fanning );

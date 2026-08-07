@@ -1293,7 +1293,7 @@ function bws_nxm_migrate_chain( string $tag_string, string $prefix, callable $st
 	// limits are per-input and multiply, and `1` on the last alone would give one target per
 	// parent rather than the one value the old tag rendered. The mapping is shared with the
 	// base source migration rather than restated (bws_fold_chain_apply_legacy_limit).
-	$bound = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null );
+	$bound = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null, true );
 
 	// Enclosing level 0 — a base tag's `src:` IS the wrapper.
 	$wire = bws_fold_emit_chain( $bound['chain'], 0 );
