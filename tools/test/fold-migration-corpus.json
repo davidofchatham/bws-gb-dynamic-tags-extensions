@@ -386,6 +386,71 @@
 				"3-use": "key",
 				"3-key": "org_name"
 			}
+		},
+		{
+			"label": "selecting text: NO tag-level limit — the flat era's implied 1 lands on the fanning step",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"2-use": "key",
+				"2-key": "role"
+			}
+		},
+		{
+			"label": "selecting text: an explicit unlimited keeps its carrier (dual-read takes the flat default)",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"srcTermIn": "department",
+				"use": "title",
+				"limit": "0"
+			}
+		},
+		{
+			"label": "combining join: slot 2 fans only by INHERITANCE, so it states no bound of its own",
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "a",
+				"limit": "4",
+				"2-key": "b"
+			}
 		}
 	],
 	"_baseSrcReadme": "DEPTH-0 base-tag source migration (bws_fold_migrate_base_src / baseSrcState). Its own section, not a borrowed slot case: the slot cases exercise a container's per-slot keys, and nothing about them reaches the tag's own source triple. Results are compared as ORDERED KEY PAIRS because key order is half the property -- the two paths must write one tag ONE way.",

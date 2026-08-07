@@ -1029,10 +1029,19 @@ function bws_join_callback( $options, $block, $instance ): string {
 		// chain compiler does not change that; see bws_fold_slot_flat_options().)
 		// Join's tag-level `valueSep` (assembly) is NEVER passed through: a list-mode
 		// slot joins its own items with text's default ', ' (ADR 0003).
-		$slot_opts = bws_fold_slot_flat_options( $slot, $carry, true );
+		$skip_reason   = '';
+		$limit_default = 1;
+		$slot_opts     = bws_fold_slot_flat_options( $slot, $carry, true, $skip_reason, $limit_default );
 		if ( null === $slot_opts ) {
 			continue;
 		}
+
+		// A SLOT'S OWN SOURCE SPELLING DECIDES ITS OWN LIMIT DEFAULT (#60) — chain wire
+		// returns everything, flat wire bounds at 1. The seam reports the era because the
+		// triple above no longer carries it, and the resolved number is written back
+		// explicitly: bws_base_text_resolve_value() re-resolves the default from this same
+		// flattened `src`, which is blind to how the slot was spelled.
+		$slot_opts['limit'] = (string) bws_clamp_limit( $slot_opts['limit'] ?? null, $limit_default );
 
 		// Thread the editor's injected post id into every post-based slot (see
 		// $explicit_id note). src:ref bases its step on this id too (the current

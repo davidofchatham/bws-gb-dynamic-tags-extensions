@@ -268,15 +268,15 @@ assert_eq( 'R4.4 an explicit src is not overwritten by the inject',
 // it and strips the legacy keys — erasing the relationship in the pass meant to rescue
 // it. Every case below must show the field surviving into `src(refs,<field>)`.
 assert_eq( 'R4.5 try_ slot 1: bare rel survives the fold as a refs step',
-	'{{try_text A:src(refs,vendor);key(title)}}',
+	'{{try_text A:src(refs,vendor,limit[1]);key(title)}}',
 	$migrate( '{{try_text rel:vendor|key:title}}' ) );
 
 assert_eq( 'R4.6 try_ slot 3: 3-rel lands on slot C, not on slot 1',
-	'{{try_text A:key(a)|C:src(refs,vendor);use(same)}}',
+	'{{try_text A:key(a)|C:src(refs,vendor,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:a|3-src:ref|3-rel:vendor}}' ) );
 
 assert_eq( 'R4.7 several slots migrate in one pass, each keeping its OWN field',
-	'{{try_text A:src(refs,a)|B:src(refs,b);use(same)|E:src(refs,c);use(same)}}',
+	'{{try_text A:src(refs,a,limit[1])|B:src(refs,b,limit[1]);use(same)|E:src(refs,c,limit[1]);use(same)}}',
 	$migrate( '{{try_text rel:a|2-rel:b|5-rel:c}}' ) );
 
 // `rel` is a registered option on NO current tag, so there is nothing live to collide
@@ -329,11 +329,11 @@ assert_eq( 'R5.3 src absent → neither was read; repair keeps ref and injects s
 // transform fires first and would otherwise delete the `rel` the second one needs. Slot 2
 // carries the same pair end to end, through the fold.
 assert_eq( 'R5.4 cascade: a related_post slot keeps the rel-named field through the fold',
-	'{{try_text A:key(x)|B:src(refs,from-rel);use(same)}}',
+	'{{try_text A:key(x)|B:src(refs,from-rel,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:x|2-src:related_post|2-ref:inert|2-rel:from-rel}}' ) );
 
 assert_eq( 'R5.5 cascade: a src:ref slot keeps the ref-named field through the fold',
-	'{{try_text A:key(x)|B:src(refs,from-ref);use(same)}}',
+	'{{try_text A:key(x)|B:src(refs,from-ref,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:x|2-src:ref|2-ref:from-ref|2-rel:inert}}' ) );
 
 // {{join}} postdates the rel → ref rename by nine releases; no entry is registered for

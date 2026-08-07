@@ -501,9 +501,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F1.3 legacy (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
 		bws_fixture_gb_row( 'F1.3 folded (-> same)', '{{join A:key(main_line)|B:src(same);key(booking_line)}}' ),
 		bws_fixture_gb_row( 'F1.4 legacy (-> (555) 200-3000, jane@example.test; slot 2 INHERITS the ref hop)', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
-		bws_fixture_gb_row( 'F1.4 folded (-> same)', '{{join A:src(refs,related_staff);use(key);key(main_line)|B:src(same);key(contact_email)}}' ),
+		bws_fixture_gb_row( 'F1.4 folded, as MIGRATION writes it - limit[1] states what the flat spelling implied (-> same)', '{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)|B:src(same);key(contact_email)}}' ),
 		bws_fixture_gb_row( 'F1.5 legacy (-> Jane, Jane Partner)', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
-		bws_fixture_gb_row( 'F1.5 folded (-> same)', '{{join A:key(name_first)|B:src(refs,related_staff);use(title)}}' ),
+		bws_fixture_gb_row( 'F1.5 folded, as MIGRATION writes it (-> same; drop the limit[1] and it reads Jane, Jane Partner, Tom Associate)', '{{join A:key(name_first)|B:src(refs,related_staff,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F1.6 legacy (-> Jane, info@example.test)', '{{join key:name_first|2-src:site|2-key:organization_email}}' ),
 		bws_fixture_gb_row( 'F1.6 folded (-> same)', '{{join A:key(name_first)|B:src(site);key(organization_email)}}' ),
 		bws_fixture_gb_row( 'F1.7 legacy (-> Sales, Support)', '{{join srcTermIn:department|use:title|limit:2}}' ),
@@ -534,7 +534,16 @@ function bws_fixture_page_content_matrix_post_meta() {
 	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - inherit vs RESET, and slot-level limit', array(
 		bws_fixture_gb_row( 'F6.1 absent chain at slot 2 = RESET to the page, NOT an inherit (-> (987) 654-3210)', '{{try_text A:src(refs,related_staff);key(missing)|B:key(main_line)}}' ),
 		bws_fixture_gb_row( 'F6.2 explicit src(same) inherits jane (-> (555) 200-3000)', '{{try_text A:src(refs,related_staff);key(missing)|B:src(same);key(main_line)}}' ),
-		bws_fixture_gb_row( 'F6.4 both axes inherited = the same datum twice; inferIntent DESCRIBES, never blocks (-> Jane Partner, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F6.3 slot 2 RESETS to the page, which has no contact_email, so it drops (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)|B:key(contact_email)}}' ),
+		bws_fixture_gb_row( 'F6.4 slot 1 chain-spelled = UNBOUNDED, slot 2 inherits both axes and keeps the flat 1 (-> Jane Partner, Tom Associate, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
+		// F7a - a slot's own spelling decides its own limit (#60). The refs half; the
+		// terms half lives on the term-hop pages, where the fixture has real terms.
+		bws_fixture_gb_row( 'F7a.4 a refs-spelled slot returns EVERY target - no limit anywhere (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)}}' ),
+		bws_fixture_gb_row( 'F7a.4b the legacy spelling still bounds at 1 - the row that makes F7a.4 non-vacuous (-> (555) 200-3000)', '{{join src:ref|ref:related_staff|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'F7a.12 legacy: no fanning step, so limit:4 bounds nothing (-> Captain)', '{{try_text key:role|limit:4}}' ),
+		bws_fixture_gb_row( 'F7a.12b MIGRATED twin - the slot gets NO limit, the tag-level key stays (-> same)', '{{try_text limit:4|A:key(role)}}' ),
+		bws_fixture_gb_row( 'F7a.13 join legacy: join owns limit PER SLOT, so slot 1 bare key IS its own (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|limit:4|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'F7a.13b MIGRATED twin - it stays a slot-level token (-> same)', '{{join A:limit(4);key(main_line)|B:src(same);key(booking_line)}}' ),
 		// The PAIRS CROSS here, and these four rows are the cheapest way to see it:
 		// legacy absence means INHERIT (it materializes to src(same) through the
 		// mapper), folded absence means RESET. So folded `2:key(x)` twins legacy
@@ -712,6 +721,32 @@ function bws_fixture_page_content_matrix_term_hop() {
 	// run it via `render-tag --url=/department/support/` (matrix T4.1/T4.2).
 	. "\n\n" . bws_fixture_gb_section( 'Text - term field via srcTermIn hop', array(
 		bws_fixture_gb_row( 'text-term-hop', '{{text srcTermIn:department|key:email|limit:2}}' ),
+	) )
+	// F7a (#60) — a slot's own source spelling decides its own limit, exactly as a
+	// base tag's does. The base tag is the reference; the two containers must match
+	// it; the flat row is what stops the set being vacuous. Only meaningful where the
+	// page actually carries department terms, which is why it lives here.
+	. "
+
+" . bws_fixture_gb_section( 'Fold F7a - a slot spelling decides its own limit (#60)', array(
+		bws_fixture_gb_row( 'F7a.1 BASE tag, chain-spelled - the reference (-> every department term)', '{{text src:terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.2 try_ slot, same spelling - must MATCH F7a.1 (was one term)', '{{try_text A:src(terms,department);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.3 join slot, same spelling - must MATCH F7a.1', '{{join A:src(terms,department);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.5 the FLAT spelling still bounds at 1 - makes the three above non-vacuous (-> ONE term)', '{{try_text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.7 MIGRATED twin of F7a.5 - limit[1] states what the flat spelling implied (-> same as F7a.5)', '{{try_text A:src(terms,department,limit[1]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.8 legacy tag-level limit:2 (-> two terms)', '{{try_text srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7a.8b MIGRATED twin - the tag-level number lands on the slot own fanning step (-> same as F7a.8)', '{{try_text limit:2|A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
+		// The LINK GATE half (limit-default-test-matrix.md L4a). It is count-based, so a
+		// slot that starts returning several values stops being wrappable - eyeball the
+		// anchors, not just the text.
+		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),
 	) )
 	// datetime matrix D4 (#30) — srcTermIn list rows. The page's assigned terms
 	// make the case (valid / mixed-junk / all-junk), same as the phone rows.

@@ -101,6 +101,18 @@ const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'range
 const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
 
 /**
+ * The largest magnitude a `limit` can hold IDENTICALLY in both languages — JS's
+ * Number.MAX_SAFE_INTEGER, named here so the twin anchor is symmetric rather than a bare
+ * literal on one side. Beyond it PHP's `(int)` saturates at PHP_INT_MAX where JS reaches
+ * Infinity, so a migration that materialized such a value would put a DIFFERENT number on
+ * the wire in each language. Both halves treat it as the unlimited case instead, which is
+ * what it already reads as in either era.
+ *
+ * @since 1.17.0
+ */
+const BWS_FOLD_MAX_SAFE_LIMIT = 9007199254740991.0;
+
+/**
  * Pattern a FOLDED slot key matches. Deliberately the GENERAL form, not `^[A-Z]$`:
  * bws_slot_ordinal() encodes spreadsheet-style (27 → `AA`), so a single-letter pattern
  * could reject wire its own encoder produced. The grammar therefore states NO MAXIMUM —
@@ -824,11 +836,15 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *     re-point a LATER slot's `src(same)` at this slot's source, changing output
  *     at slots the migration never touched.
  *
- * `limit` attaches to the LAST FANNING step, which is unambiguous because legacy
- * data cannot fan twice (there was no chain syntax before the fold). With no
- * fanning step the chain has nothing to bound, so the limit stays a slot-level
- * token — that case bounds a multi-value READ rather than a step, and is the one
- * meaning a slot-level `limit` still has.
+ * `limit` goes onto the chain's FANNING STEPS, through the same owner a base tag's
+ * migration uses (bws_fold_chain_apply_legacy_limit): an explicit `N` on the last
+ * one with `1` on every earlier one, and a bare `1` on each when the legacy wire
+ * stated none. The unset case is not decoration — a folded slot defaults to
+ * UNLIMITED like any other chain wire, so the flat era's implied `1` must be
+ * written or a migrated slot fans out where the stored tag rendered one value.
+ * With no fanning step there is nothing to bound and an explicit positive limit
+ * stays a slot-level token — that case bounds a multi-value READ rather than a
+ * step, and is the one meaning a slot-level `limit` still has.
  *
  * @param int   $n            Slot ordinal (1-based).
  * @param array $options      All tag options (GB-parsed).
@@ -848,7 +864,12 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	$tax    = trim( (string) ( $options[ "{$prefix}srcTermIn" ] ?? '' ) );
 	$use    = trim( (string) ( $options[ "{$prefix}use" ] ?? '' ) );
 	$key    = trim( (string) ( $options[ "{$prefix}key" ] ?? '' ) );
-	$limit  = trim( (string) ( $options[ "{$prefix}limit" ] ?? '' ) );
+	// SLOT 1's prefix is '', so on a SELECTING container the bare `limit` it would read here
+	// is the TAG-level key, not this slot's own. Skipping it is what makes every attempt
+	// take that key the same way — through the gated fallback below — instead of slot 1
+	// alone swallowing it as a slot-level token with nothing to bound. Combining containers
+	// own `limit` per slot, so there the bare key IS slot 1's.
+	$limit  = ( $combining || $n >= 2 ) ? trim( (string) ( $options[ "{$prefix}limit" ] ?? '' ) ) : '';
 
 	if ( '' === $src && '' === $ref && '' === $tax && '' === $use && '' === $key && '' === $limit ) {
 		return null;
@@ -926,23 +947,66 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 		$read = ( $n >= 2 && $per_slot_use ) ? array( 'kind' => 'same' ) : null;
 	}
 
-	// ── limit → last fanning step, else slot-level ─────────────────────────
-	$opts = array();
-	if ( '' !== $limit && is_numeric( $limit ) ) {
-		// 0 / -1 were CLAMPED to 1 by the old rule, never designed to mean 1: an
-		// author wanting one result types 1 or leaves it unset. Honor the written
-		// value under the new semantics (0 = unlimited) rather than freezing a clamp.
-		$normalized = (int) $limit;
-		$normalized = ( $normalized < 0 ) ? 0 : $normalized;
-		$last_fan   = null;
-		foreach ( $chain as $i => $chain_step ) {
-			if ( in_array( $chain_step['slug'], BWS_FOLD_FANNING_SLUGS, true ) ) {
-				$last_fan = $i;
-			}
-		}
-		if ( null !== $last_fan ) {
-			$chain[ $last_fan ]['limit'] = (string) $normalized;
+	// A SELECTING container states `limit` ONCE, at TAG level, and it is EVERY attempt's
+	// own default rather than a bound across attempts (TagTemplateRegistry::try_slot_axes
+	// puts it on `tag_level`, so no `{N}-limit` key exists to read). Slot 1's prefix is ''
+	// so it already reads that key; slots ≥2 must read the SAME one, or the materialized
+	// default below writes a `1` that SHADOWS the author's number — a slot's own limit
+	// wins over the tag-level one in every container arm.
+	//
+	// Combining containers are the deliberate contrast: {{join}}/{{table}} own `limit` per
+	// slot, so an absent `{N}-limit` genuinely means "this slot states none" and must take
+	// the default rather than reach back to slot 1's.
+	//
+	// Read AFTER the emptiness test above, never before: a tag-level limit is not content,
+	// and folding it in earlier would conjure a slot out of every unused ordinal. And read
+	// only where THIS slot's chain fans — the same predicate everything else here shares —
+	// so a slot with nothing to bound gets no limit, per #60. It loses nothing: the
+	// container arm still falls back to the tag-level key for a slot that pins none.
+	if ( '' === $limit && ! $combining && bws_fold_chain_fanning_steps( $chain ) ) {
+		$limit = trim( (string) ( $options['limit'] ?? '' ) );
+	}
+
+	// ── limit → the chain's fanning steps ──────────────────────────────────
+	//
+	// A FOLDED SLOT DEFAULTS TO UNLIMITED, exactly as a base tag spelled the same way
+	// does (bws_limit_default). So the flat era's implied `1` has to be MATERIALIZED
+	// here. It used to arrive for free — bws_fold_slot_flat_options() re-spelled every
+	// slot as a flat triple before any container arm resolved a limit, so the default
+	// was chosen from wire the slot no longer had, and every slot answered 1 whatever
+	// it was spelled as. Once the seam hands its ERA back (#60), that prop is gone and
+	// migration has to state what the old spelling implied.
+	//
+	// ONE OWNER FOR BOTH DEPTHS: the rule that bounds a migrated base tag's chain
+	// bounds a migrated slot's, positional `N`-on-the-last-fanning-step and all
+	// (bws_fold_chain_apply_legacy_limit — read its docblock for why the earlier
+	// steps are not decoration).
+	$opts    = array();
+	$applied = bws_fold_chain_apply_legacy_limit( $chain, '' !== $limit ? $limit : null );
+	$chain   = $applied['chain'];
+	if ( ! $applied['consumed']
+		&& '' !== $limit
+		&& is_numeric( $limit )
+		&& abs( (float) $limit ) <= BWS_FOLD_MAX_SAFE_LIMIT ) {
+		// An explicit limit that owner declined to relocate — `0`/`-1` (unlimited), or a
+		// positive one with no fanning step to carry it. IT STILL NEEDS A CARRIER HERE,
+		// and the reason is the dual-read rather than migration: this same mapping serves
+		// the render path for UNMIGRATED flat wire, which takes the FLAT era's default of
+		// 1, so dropping an author's explicit `0` would re-bound a tag they deliberately
+		// unbounded. (On migrated wire the token is merely redundant with the chain-era
+		// default, which is the safe direction to be wrong in.)
+		//
+		// The one shape still left unwritten: a magnitude neither language holds
+		// identically (PHP saturates at PHP_INT_MAX where JS reaches Infinity). It reads
+		// as unlimited in both eras already, so writing it would buy nothing and risk the
+		// one divergence a twin exists to make impossible.
+		$normalized = max( 0, (int) $limit );
+		$fanning    = bws_fold_chain_fanning_steps( $chain );
+		if ( $fanning ) {
+			$chain[ end( $fanning ) ]['limit'] = (string) $normalized;
 		} else {
+			// Nothing fans, so there is no step to bound: the token keeps its slot-level
+			// meaning (bound a multi-value READ).
 			$opts['limit'] = (string) $normalized;
 		}
 	}
@@ -961,17 +1025,51 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 }
 
 /**
+ * Which steps of a chain FAN — the single owner of that question.
+ *
+ * Two readers that must never disagree: the migrator, which materializes the flat era's
+ * implied limit onto exactly these steps, and the render seam, which hands a slot the
+ * UNLIMITED default only where the slot states a list to bound. A slot that gets the
+ * chain-era default on a step the migrator declined to stamp fans out where its stored
+ * twin returned one value, which is the one thing the fold must never do.
+ *
+ * AN ARGLESS FANNING STEP DOES NOT COUNT. bws_fold_chain_to_steps() drops it (a
+ * field-less `refs` would short-circuit to empty), so the chain does not fan on its own
+ * account. It may still resolve a fanning source by INHERITANCE — the flattener hands an
+ * argless `refs` the carried relationship field — and that is precisely why it must not
+ * count: the source it fans over belongs to an earlier slot, which stated its own bound.
+ * Same reasoning covers `src(same)`, which states no step at all.
+ *
+ * @since 1.17.0
+ * @param array $chain Parsed chain (grammar shape).
+ * @return int[] Indexes of the fanning steps, in chain order.
+ */
+function bws_fold_chain_fanning_steps( array $chain ): array {
+	$out = array();
+	foreach ( $chain as $i => $chain_step ) {
+		if ( ! in_array( (string) ( $chain_step['slug'] ?? '' ), BWS_FOLD_FANNING_SLUGS, true ) ) {
+			continue;
+		}
+		if ( '' === trim( (string) ( $chain_step['arg'] ?? '' ) ) ) {
+			continue;
+		}
+		$out[] = $i;
+	}
+	return $out;
+}
+
+/**
  * Materialize the limit a LEGACY flat source implied, as per-step limits on the chain
  * that respells it.
  *
- * The depth-0 counterpart of the `limit` block inside bws_fold_from_flat() above, and
- * deliberately a SEPARATE function rather than a shared one: a folded SLOT needs only
- * the explicit half, because bws_fold_slot_flat_options() collapses its chain back to
- * a flat triple before any container arm resolves a limit, so folding a slot cannot
- * change what it renders. Nothing re-flattens a base tag's source, so respelling one
- * DOES change what bounds it — chain wire defaults to unlimited where flat wire
- * defaults to 1 (bws_limit_default) — and the migration must carry the old default
- * across.
+ * THE ONE OWNER, at both depths. It was first written as the base tag's half alone, on
+ * the reasoning that a folded SLOT needed only the explicit case: the flatten seam
+ * collapsed a slot's chain back to a flat triple before any container arm resolved a
+ * limit, so the default was chosen from wire the slot no longer had and folding a slot
+ * could not change what it rendered. That prop is gone — the seam now hands its ERA back
+ * (#60) and a slot's own spelling decides its own default exactly as a base tag's does —
+ * so bws_fold_from_flat() materializes through this same function, and the two depths
+ * cannot drift into two rules for one idea.
  *
  * A LIMIT IS STATED WHERE THE SOURCE IS STATED (user, 2026-08-06; ADR 0005). A chain
  * states its source as steps, so migration writes the limit onto the steps and never as
@@ -1019,8 +1117,7 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
  *               delete the tag-level key.
  */
 function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
-	$fanning = array();
-	foreach ( $chain as $i => $chain_step ) {
+	foreach ( $chain as $chain_step ) {
 		if ( ! in_array( (string) ( $chain_step['slug'] ?? '' ), BWS_FOLD_FANNING_SLUGS, true ) ) {
 			continue;
 		}
@@ -1028,11 +1125,8 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
 		if ( null !== $step_limit && '' !== (string) $step_limit ) {
 			return array( 'chain' => $chain, 'consumed' => false );   // the author's own limits win
 		}
-		if ( '' === trim( (string) ( $chain_step['arg'] ?? '' ) ) ) {
-			continue;   // argless: the compiler drops it, so it does not fan
-		}
-		$fanning[] = $i;
 	}
+	$fanning = bws_fold_chain_fanning_steps( $chain );
 
 	if ( ! $fanning ) {
 		return array( 'chain' => $chain, 'consumed' => false );
@@ -1047,7 +1141,7 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
 	// each language — the one divergence a twin exists to make impossible. Nothing is lost:
 	// a limit that large already reads as unlimited in both eras, and the tag-level key is
 	// left exactly as authored, so the reader still answers what it always answered.
-	if ( $explicit && abs( (float) $raw ) > 9007199254740991.0 ) {
+	if ( $explicit && abs( (float) $raw ) > BWS_FOLD_MAX_SAFE_LIMIT ) {
 		return array( 'chain' => $chain, 'consumed' => false );
 	}
 
@@ -1091,26 +1185,45 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
  * empty struct has no read, and an absent read means unconfigured there, so
  * bws_fold_slot_flat_options() skips it one step later anyway.
  *
+ * THE ERA RIDES ON THE STRUCT, under a non-grammar `era` key, because this is the only
+ * function that can see it: one step later the chain has been collapsed to a flat
+ * `src`/`ref`/`srcTermIn` triple, which is structurally blind to how the slot was
+ * SPELLED. Reading the default off that triple is what made every slot answer 1
+ * whatever it was spelled as (#60). `era` is provenance, not wire — bws_fold_emit_slot()
+ * reads the six grammar keys by name and never sees it, and nothing round-trips it.
+ *
  * @since 1.17.0
  * @param int    $n            Slot ordinal (1-based).
  * @param array  $options      All tag options (GB-parsed).
  * @param string $container    'try' (selecting) | 'join' | 'table' (combining).
  * @param bool   $per_slot_use True when the container gives each slot its own read
  *                             axis. Ignored for combining containers.
- * @return array|null Slot struct, or null when this slot holds nothing (or unparsable
- *                    folded wire).
+ * @return array|null Slot struct + an `era` key ('chain' when the slot is stored as
+ *                    folded wire, 'flat' when recovered from the legacy keys), or null
+ *                    when this slot holds nothing (or unparsable folded wire).
  */
 function bws_fold_slot_struct( int $n, array $options, string $container = 'join', bool $per_slot_use = true ) {
 	$raw = trim( (string) ( $options[ bws_slot_ordinal( $n ) ] ?? '' ) );
 	if ( '' !== $raw ) {
 		$parsed = bws_fold_parse_slot( $raw, $container );
-		return isset( $parsed['error'] ) ? null : $parsed;
+		if ( isset( $parsed['error'] ) ) {
+			return null;
+		}
+		$parsed['era'] = 'chain';
+		return $parsed;
 	}
 	$rec = bws_fold_from_flat( $n, $options, bws_fold_is_combining( $container ), $per_slot_use );
 	if ( $rec && isset( $rec['slot'] ) ) {
-		return $rec['slot'];
+		$slot        = $rec['slot'];
+		$slot['era'] = 'flat';
+		return $slot;
 	}
-	return ( 1 === $n && 'try' === $container ) ? bws_fold_empty_slot() : null;
+	if ( 1 === $n && 'try' === $container ) {
+		$slot        = bws_fold_empty_slot();
+		$slot['era'] = 'flat';
+		return $slot;
+	}
+	return null;
 }
 
 /**
@@ -1183,6 +1296,25 @@ function bws_fold_empty_slot(): array {
  * it just is not finished — and unlike `'read'` it must not be silent, because the
  * alternative to skipping is a plausible WRONG value rather than an empty one.
  *
+ * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO. A SLOT'S OWN SOURCE SPELLING DECIDES ITS
+ * OWN DEFAULT, exactly as a base tag's does — chain wire returns everything, flat wire
+ * bounds at 1 (bws_limit_default). The triple this function returns cannot answer that
+ * question: flattening is what ERASES the spelling, so a container reading
+ * bws_limit_default() off `$flat['src']` sees a legacy token on every slot and answers 1
+ * whatever the slot was spelled as (#60 — measured: `{{text src:terms,department|use:title}}`
+ * returned two terms where the identically-spelled `try_text` slot returned one). The seam
+ * knows the era, so the seam reports it, rather than each container inferring it from wire
+ * this function just rewrote.
+ *
+ * A CHAIN-SPELLED SLOT ONLY TAKES THE UNLIMITED DEFAULT WHERE ITS OWN CHAIN FANS
+ * (bws_fold_chain_fanning_steps — the same predicate the migrator stamps by, which is the
+ * whole point of sharing it). A slot spelling `src(same)`, or an argless `src(refs)`,
+ * states no list of its own: it fans only by INHERITING an earlier slot's source, and that
+ * slot already stated its own bound. Giving it the chain default instead would make a
+ * migrated `{{join A:src(refs,office,limit[1])…|B:src(same)…}}` return every related post
+ * at B where the flat wire it replaced returned one — a limit does not carry forward, and
+ * never did.
+ *
  * @since 1.17.0
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_flat shape).
  * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key}.
@@ -1192,11 +1324,18 @@ function bws_fold_empty_slot(): array {
  *                            combining slot has no read configured; 'chain' when the chain
  *                            has no flat spelling; 'step' when a step is incomplete (a
  *                            `terms` step with no taxonomy).
+ * @param int    $limit_default OUT, by reference. The limit this slot takes when its wire
+ *                            states none: 0 (unlimited) for a chain-spelled slot, 1 for a
+ *                            flat-spelled one. Written before any early return, same
+ *                            reset contract as $skip_reason.
  * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
  *                    null when the slot is skipped (unconfigured / inexpressible).
  */
-function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining, &$skip_reason = null ) {
-	$skip_reason = '';
+function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining, &$skip_reason = null, &$limit_default = null ) {
+	$skip_reason   = '';
+	$limit_default = ( 'chain' === ( $slot['era'] ?? 'flat' ) && bws_fold_chain_fanning_steps( $slot['chain'] ?? array() ) )
+		? 0
+		: 1;
 	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
 
 	// ── read axis ──────────────────────────────────────────────────────────

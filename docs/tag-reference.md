@@ -222,14 +222,25 @@ Two costs, both deliberate. The same conceptual source is bounded differently by
 
 The `default` parameter is **required**. A site that omitted it would silently render legacy behaviour on chain wire — wrong output that looks normal in review — so omission is an `ArgumentCountError`, the same posture the cross-language twin harnesses take on a missing `node`.
 
+**A SLOT'S OWN SPELLING DECIDES ITS OWN DEFAULT** (1.17.0, #60), on `{{join}}` and every `try_` template, exactly as a base tag's does. `{{try_text A:src(terms,department);use(title)}}` returns every term, matching `{{text src:terms,department|use:title}}`; the flat `{{try_text srcTermIn:department|use:title}}` still returns one.
+
+Getting there needed a seam change, because the question is not answerable where it used to be asked. A container's slot loop resolves against the FLAT triple `bws_fold_slot_flat_options()` returns, and flattening is what ERASES the spelling — `bws_limit_default()` read off that triple sees a legacy token on every slot and answers 1 whatever the slot was spelled as. So the seam **reports the era it just erased**, through a `$limit_default` out-param beside its existing `$skip_reason` one, and the loop uses that rather than inferring.
+
+Two qualifications, each of which is a real case rather than a hedge:
+
+- **Only where the slot's OWN chain fans.** A slot spelling `src(same)`, or an argless `src(refs)`, fans solely by INHERITING an earlier slot's source — and that slot stated its own bound. Giving it the chain default would make a migrated `{{join A:src(refs,office,limit[1])…|B:src(same)…}}` return every related post at B where the flat wire it replaced returned one. A limit does not carry forward, and never did. The predicate (`bws_fold_chain_fanning_steps()`) is shared with the migrator's stamp, so a slot can never take a default the migration declined to state.
+- **A SELECTING container's `limit` is TAG-level and reaches every slot** — including slot 1, whose prefix is `''` and which would otherwise swallow the tag-level key as a slot-level token. On `try_` the key is each attempt's own default rather than a bound across attempts, so every attempt takes it the same way: onto its own last fanning step, and nowhere at all when it has no fanning step to bound. `{{join}}`/`{{table}}` own `limit` per slot, so there the bare key IS slot 1's and an absent `{N}-limit` genuinely means "this slot states none".
+
+Migration states what the old spelling implied, so no stored tag changes output — the slot half writes through the same `bws_fold_chain_apply_legacy_limit()` the base half does (`{{join srcTermIn:department|use:title}}` → `{{join A:src(terms,department,limit[1]);use(title)}}`). One case is NOT redundant with the chain default and must keep its carrier: an explicit `limit:0`. The same mapper renders UNMIGRATED flat wire, which takes the flat era's 1, so dropping the token would re-bound a tag its author deliberately unbounded. Rows: [`tools/test/fold-test-matrix.md`](../tools/test/fold-test-matrix.md) §F7a.
+
 An EXPLICIT value beats the spelling-selected default in both directions. That is ordinary option precedence and needs no extra rule.
 
-**Migration does not write one, though** — A LIMIT IS STATED WHERE THE SOURCE IS STATED, so a rewritten tag carries its limit on the STEPS (`src:refs,x,limit(1)`) and no tag-level `limit` at all:
+**Migration does not write one, though** — A LIMIT IS STATED WHERE THE SOURCE IS STATED, so a rewritten tag carries its limit on the STEPS (`src:refs,x,limit(1)`) and no tag-level `limit` at all. One table, both depths — a base tag's `src` and a folded slot's chain go through the same owner:
 
 | legacy `limit` | what migration writes |
 |---|---|
 | absent, or non-numeric | `limit(1)` on EVERY fanning step; the tag-level key is untouched (a non-numeric value is left as the author typed it) |
-| explicit `N > 0` | `N` on the LAST fanning step, `1` on every earlier one; the tag-level key is DELETED |
+| explicit `N > 0` | `N` on the LAST fanning step, `1` on every earlier one; the tag-level key is DELETED — **except in a SELECTING container**, where `limit` is TAG-level (`try_slot_axes`) and is each attempt's own default rather than a bound across attempts. There the number is COPIED onto each fanning slot's own last step and the key is left standing, because deleting it would strip the default from every slot that pins none. Retiring it is #61 |
 | explicit `0` / `-1` | nothing — unlimited is what chain wire already means; the key stays as written |
 
 Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last fanning step. The earlier steps are not decoration — per-step limits are per-input and MULTIPLY, so `N` on the last step alone would yield `N` per parent rather than the `N` total the flat spelling meant. An argless fanning step gets nothing (the compiler drops it, so the chain does not fan), and a chain that already carries a step limit is left entirely alone. See [`bws_fold_chain_apply_legacy_limit()`](../includes/helpers/slot-fold.php) — one mapping, shared by the converter, the editor mount migrator and the author-conversion commit.

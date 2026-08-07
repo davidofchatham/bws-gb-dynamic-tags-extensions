@@ -70,6 +70,11 @@ require __DIR__ . '/../../includes/helpers/slot-fold.php';
 // TagTemplateRegistry::try_slot_axes) rather than hand-listed here.
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
+// bws_clamp_limit — the single limit INTERPRETER. §P13/§P14 compare what each era
+// RESOLVES rather than what it spells, so the walks below must clamp exactly as the
+// container arms do; re-inlining the rule here is what the extraction removed.
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
 
 $pass = 0;
 $fail = 0;
@@ -594,10 +599,16 @@ check( 'P12.2 slot 1 explicit src:current is a step, not nothing', 'src(current)
 // which means the slot key is never written — the attempt DISAPPEARED, while the legacy
 // wire rendered it and `{N}:src(current)` renders it too.
 check( 'P12.2b a chain-only slot whose only content is src:current still exists', 'src(current)' === t_legacy_wire( 2, array( '2-src' => 'current' ), false, false ), var_export( t_legacy_wire( 2, array( '2-src' => 'current' ), false, false ), true ) );
-check( 'P12.3 src:ref + ref → refs step', 'src(refs,office);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), true ) );
-check( 'P12.4 srcTermIn → terms step', 'src(terms,category);use(title)' === t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
-// #44: ref and srcTermIn COMPOUND, ref first (the term hop needs a post input).
-check( 'P12.5 ref + srcTermIn compound in order', 'src(refs,office;terms,category);use(title)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
+// A FANNING step carries the limit the flat era implied (`limit[1]`): folded wire
+// defaults to UNLIMITED, so the old default has to be stated or the migrated slot
+// fans out where the stored tag rendered one value (#60). Non-fanning shapes above
+// get nothing — there is no list to bound.
+check( 'P12.3 src:ref + ref → refs step, carrying the flat era default', 'src(refs,office,limit[1]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) ), true ) );
+check( 'P12.4 srcTermIn → terms step, carrying the flat era default', 'src(terms,category,limit[1]);use(title)' === t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
+// #44: ref and srcTermIn COMPOUND, ref first (the term hop needs a post input). BOTH
+// fanning steps take the 1 — per-step limits are per-input and MULTIPLY, so a bare 1
+// on the last one alone would still fan the first.
+check( 'P12.5 ref + srcTermIn compound in order', 'src(refs,office,limit[1];terms,category,limit[1]);use(title)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
 check( 'P12.6 src:site is a chain step', 'src(site);key(phone)' === t_legacy_wire( 1, array( 'src' => 'site', 'key' => 'phone' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'site', 'key' => 'phone' ) ), true ) );
 
 // Slot ≥2, src axis — absence and the `same` sentinel both mean inherit, in BOTH
@@ -608,9 +619,9 @@ check( 'P12.9 explicit same sentinel → src(same)', 'src(same);key(alt)' === t_
 
 // Slot ≥2, READ axis — THE container divergence.
 $sel_src_only = t_legacy_wire( 2, array( '2-src' => 'ref', '2-ref' => 'office' ), false, true );
-check( 'P12.10 selecting: source set, read absent → use(same)', 'src(refs,office);use(same)' === $sel_src_only, var_export( $sel_src_only, true ) );
+check( 'P12.10 selecting: source set, read absent → use(same)', 'src(refs,office,limit[1]);use(same)' === $sel_src_only, var_export( $sel_src_only, true ) );
 $com_src_only = t_legacy_wire( 2, array( '2-src' => 'ref', '2-ref' => 'office' ), true );
-check( 'P12.11 combining: source set, read absent → read UNSET (skip preserved)', 'src(refs,office)' === $com_src_only, var_export( $com_src_only, true ) );
+check( 'P12.11 combining: source set, read absent → read UNSET (skip preserved)', 'src(refs,office,limit[1])' === $com_src_only, var_export( $com_src_only, true ) );
 // The FW-51 shape: a selecting slot whose only content was a key. The shipped
 // resolver discards the key, finds nothing new, and SKIPS — so it maps to nothing.
 check( 'P12.12 selecting psu: key-only slot 2 is dropped (FW-51 preserved)', null === bws_fold_from_flat( 2, array( '2-key' => 'b' ), false, true ), var_export( t_legacy_wire( 2, array( '2-key' => 'b' ), false, true ), true ) );
@@ -621,13 +632,36 @@ check( 'P12.14 combining: key-only slot 2 is a plain keyed read', 'src(same);key
 // A selecting slot with a stale key beside an explicit use → use wins, key discarded.
 check( 'P12.15 selecting: explicit use:same discards the stale key', 'src(same);use(same)' === t_legacy_wire( 2, array( '2-use' => 'same', '2-key' => 'stale' ), false, true ), var_export( t_legacy_wire( 2, array( '2-use' => 'same', '2-key' => 'stale' ), false, true ), true ) );
 
-// limit — attaches to the LAST fanning step; unlimited is honored, not clamped.
+// limit — the same owner a base tag's migration uses (bws_fold_chain_apply_legacy_limit):
+// an explicit N on the LAST fanning step, 1 on every earlier one, and unlimited honored
+// by writing nothing at all, because that is what folded wire already defaults to.
 check( 'P12.16 limit → the fanning step', 'src(refs,office,limit[2]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '2' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '2' ) ), true ) );
-check( 'P12.17 limit → the LAST fanning step of a compound chain', 'src(refs,office;terms,category,limit[3]);use(title)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3' ) ), true ) );
+check( 'P12.17 limit → the LAST fanning step of a compound chain, 1 on the earlier one', 'src(refs,office,limit[1];terms,category,limit[3]);use(title)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3' ) ), true ) );
+// An explicit `0`/`-1` KEEPS its carrier even though folded wire defaults to unlimited,
+// and the reason is the dual-read rather than migration: this same mapping renders
+// UNMIGRATED flat wire, which takes the flat era's default of 1, so dropping the token
+// would re-bound a tag its author deliberately unbounded.
 check( 'P12.18 legacy limit:0 → unlimited, NOT 1', 'src(refs,office,limit[0]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '0' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '0' ) ), true ) );
 check( 'P12.19 legacy limit:-1 → unlimited', 'src(refs,office,limit[0]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '-1' ) ), '' );
-check( 'P12.20 non-numeric legacy limit is dropped, never 0', 'src(refs,office);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => 'abc' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => 'abc' ) ), true ) );
-check( 'P12.21 limit with no fanning step stays slot-level', 'limit(4);key(prices)' === t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ) ), var_export( t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ) ), true ) );
+check( 'P12.20 non-numeric legacy limit reads as ABSENT, so the era default is stated', 'src(refs,office,limit[1]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => 'abc' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => 'abc' ) ), true ) );
+// A slot-level `limit` is a COMBINING container's shape: {{join}} owns `limit` per slot, so
+// slot 1's bare key is genuinely its own and with nothing fanning it bounds a multi-value
+// READ — the one meaning a slot-level limit still has.
+check( 'P12.21 limit with no fanning step stays slot-level (combining)', 'limit(4);key(prices)' === t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ), true ), var_export( t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ), true ), true ) );
+// The SELECTING contrast, and the reason slot 1 must not read the bare key as its own:
+// there `limit` is TAG-level and is every attempt's default, so slot 1 takes it exactly as
+// slots ≥2 do — through the fanning-gated fallback. With nothing fanning that writes
+// nothing, per #60 ("a slot with no fanning step gets no limit"), and the tag-level key
+// still reaches the container arm for any slot that pins none.
+check( 'P12.21b selecting: slot 1 does NOT swallow the tag-level limit as its own', 'key(prices)' === t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ) ), var_export( t_legacy_wire( 1, array( 'key' => 'prices', 'limit' => '4' ) ), true ) );
+check( 'P12.21c selecting: a FANNING slot 1 does take it, on its own step', 'src(refs,office,limit[4]);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '4' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '4' ) ), true ) );
+// Nothing FANS, so there is no list to bound and no default to state — an unset limit
+// on a singular source writes nothing in either era.
+check( 'P12.21b no fanning step and no limit writes nothing', 'key(prices)' === t_legacy_wire( 1, array( 'key' => 'prices' ) ), var_export( t_legacy_wire( 1, array( 'key' => 'prices' ) ), true ) );
+// A magnitude the two languages cannot hold identically (PHP saturates at PHP_INT_MAX,
+// JS reaches Infinity) is left UNWRITTEN rather than materialized — it already reads as
+// unlimited in both eras, so writing it buys nothing and risks a twin divergence.
+check( 'P12.21c an unholdable magnitude is left unwritten, not saturated', 'src(refs,office);key(name)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '9007199254740993' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '9007199254740993' ) ), true ) );
 
 // Every mapped legacy slot must re-parse (the mapping cannot emit wire its own
 // parser rejects — the property that lets one mapping serve three consumers).
@@ -656,7 +690,14 @@ foreach ( $legacy_sets as $i => $case ) {
 // a migrated tag renders byte-identically — and that a MIXED-era wire threads one
 // accumulator, which no spike fixture ever exercised.
 
-/** Walk slots 1..$max through the seam, returning [ n => flat options ] for the resolved ones. */
+/**
+ * Walk slots 1..$max through the seam, returning [ n => flat options ] for the resolved ones.
+ *
+ * The `limit` is MATERIALIZED from the seam's era out-param, exactly as the shipped
+ * container arms do it. That is the whole point of the out-param: the triple's `src` is a
+ * legacy token on every slot, so a comparison that left `limit` absent would be comparing
+ * two option sets that resolve DIFFERENT quantities and calling them equal (#60).
+ */
 function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = true ) {
 	$carry = array();
 	$out   = array();
@@ -665,11 +706,14 @@ function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = t
 		if ( null === $slot ) {
 			continue;
 		}
-		$flat = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container );
+		$skip          = '';
+		$limit_default = 1;
+		$flat          = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
 		if ( null === $flat ) {
 			continue;
 		}
-		$out[ $n ] = $flat;
+		$flat['limit'] = (string) bws_clamp_limit( $flat['limit'] ?? null, $limit_default );
+		$out[ $n ]     = $flat;
 	}
 	return $out;
 }
@@ -702,10 +746,11 @@ function t_shipped_join_walk( $options, $max = 5 ) {
 			'srcTermIn' => $stm,
 			'use'       => '' === $use ? 'key' : $use,
 			'key'       => $key,
+			// The shipped loop resolved every slot against FLAT wire, so its default is
+			// the flat era's 1, unconditionally. Materialized rather than left absent so
+			// the equivalence below compares the QUANTITY each era resolves.
+			'limit'     => (string) bws_clamp_limit( '' !== $lim ? $lim : null, 1 ),
 		);
-		if ( '' !== $lim ) {
-			$flat['limit'] = $lim;
-		}
 		$out[ $n ] = $flat;
 	}
 	return $out;
@@ -779,8 +824,8 @@ $mixed = array(
 	'3-key' => 'c',
 );
 $walk = t_seam_walk( $mixed, 'join' );
-check( 'P13.2 mixed era: legacy slot 1 resolves', array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'a' ) === ( $walk[1] ?? null ), json_encode( $walk[1] ?? null ) );
-check( 'P13.2 mixed era: folded slot 2 resolves', array( 'src' => 'site', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'org_phone' ) === ( $walk[2] ?? null ), json_encode( $walk[2] ?? null ) );
+check( 'P13.2 mixed era: legacy slot 1 resolves', array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'a', 'limit' => '1' ) === ( $walk[1] ?? null ), json_encode( $walk[1] ?? null ) );
+check( 'P13.2 mixed era: folded slot 2 resolves', array( 'src' => 'site', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'org_phone', 'limit' => '1' ) === ( $walk[2] ?? null ), json_encode( $walk[2] ?? null ) );
 check( 'P13.2 mixed era: legacy slot 3 inherits the FOLDED slot 2 source', 'site' === ( $walk[3]['src'] ?? '' ), json_encode( $walk[3] ?? null ) );
 // The reverse threading: a FOLDED slot inheriting from a LEGACY predecessor.
 $mixed_rev = array(
@@ -873,7 +918,10 @@ check(
 
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
 $lead_terms = t_seam_walk( array( 'A' => 'src(terms,category);use(title)' ), 'join' );
-check( 'P13.5 leading term hop resolves with src unset', array( 'src' => '', 'ref' => '', 'srcTermIn' => 'category', 'use' => 'title', 'key' => '' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );
+// The limit is the walk's materialized EFFECTIVE value (see t_seam_walk): a chain-spelled
+// slot whose own chain FANS takes the unlimited default, which is the whole of #60 — the
+// identically-spelled base tag `{{text src:terms,category|use:title}}` returns every term.
+check( 'P13.5 leading term hop resolves with src unset, and unbounded', array( 'src' => '', 'ref' => '', 'srcTermIn' => 'category', 'use' => 'title', 'key' => '', 'limit' => '0' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );
 
 // P13.6 — limit threading. A per-step limit reaches the flat `limit`; a pinned 0
 // (unlimited) must survive, which a truthiness guard would drop.
@@ -888,8 +936,56 @@ check( 'P13.6 a slot-level limit reaches the flat option', '4' === ( $lim_slot[1
 // FALSY (unlike JS), so this is the one spelling a truthiness guard eats here.
 $lim_slot0 = t_seam_walk( array( 'A' => 'limit(0);key(prices)' ), 'join' );
 check( 'P13.6 a slot-level limit 0 (unlimited) survives the seam', '0' === ( $lim_slot0[1]['limit'] ?? null ), json_encode( $lim_slot0[1] ?? null ) );
-$lim_none = t_seam_walk( array( 'A' => 'key(a)' ), 'join' );
-check( 'P13.6 no limit token → no limit key (the caller default stands)', ! isset( $lim_none[1]['limit'] ), json_encode( $lim_none[1] ?? null ) );
+// The RAW seam still writes no `limit` key when the wire states none — t_seam_walk
+// materializes the effective value the way a container arm does, so this one asks the
+// seam directly rather than through the walk.
+$lim_none_carry = array();
+$lim_none_raw   = bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => 'key(a)' ), 'join' ), $lim_none_carry, true );
+check( 'P13.6 no limit token → no limit key (the caller default stands)', ! isset( $lim_none_raw['limit'] ), json_encode( $lim_none_raw ) );
+
+// P13.6b — THE ERA THE FLATTEN ERASES, handed back (#60). A slot's own source spelling
+// decides its own default exactly as a base tag's does, and the flat triple below cannot
+// answer that question: its `src` is a legacy token on every slot, which is why every slot
+// used to answer 1 however it was spelled. Measured before the fix:
+// `{{text src:terms,department|use:title}}` → two terms, `{{try_text
+// A:src(terms,department);use(title)}}` → one.
+//
+// The predicate is the slot's OWN chain fanning, shared with the migrator's stamp
+// (bws_fold_chain_fanning_steps). A slot that only fans by INHERITING an earlier slot's
+// source keeps the flat default — see the seam's docblock for why a limit must not carry
+// forward — and the mutation that matters is the one that flips `src(same)` to 0, since
+// that is what silently unbounds a migrated join slot.
+$era_cases = array(
+	// folded wire, container, expected default, why
+	array( 'src(terms,department);use(title)', 'try', 0, 'chain-spelled and fans → unlimited' ),
+	array( 'src(refs,related_staff);key(name)', 'join', 0, 'a refs-spelled slot fans too' ),
+	array( 'src(entries,rows);key(a)', 'table', 0, 'a repeater step fans (skipped later, era still reported)' ),
+	array( 'src(site);key(org_phone)', 'join', 1, 'a singular chain states no list to bound' ),
+	array( 'key(a)', 'join', 1, 'no chain at all' ),
+	array( 'src(same);key(b)', 'join', 1, 'inherits a source, so states no bound of its own' ),
+	array( 'src(refs);key(b)', 'join', 1, 'an ARGLESS refs step fans only by inheritance' ),
+);
+foreach ( $era_cases as $i => $case ) {
+	list( $wire, $container, $want, $why ) = $case;
+	$era_carry   = array();
+	$era_skip    = '';
+	$era_default = 99;
+	bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => $wire ), $container ), $era_carry, bws_fold_is_combining( $container ), $era_skip, $era_default );
+	check( "P13.6b [$wire] limit default $want — $why", $want === $era_default, "got: " . var_export( $era_default, true ) );
+}
+// The LEGACY era, read through the same seam: recovered flat wire keeps the 1 it always
+// had, whatever its recovered chain looks like.
+$era_carry   = array();
+$era_skip    = '';
+$era_default = 99;
+bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'srcTermIn' => 'department', 'use' => 'title' ), 'try' ), $era_carry, false, $era_skip, $era_default );
+check( 'P13.6b legacy flat wire still bounds at 1 through the same seam', 1 === $era_default, var_export( $era_default, true ) );
+// The out-param is written BEFORE any early return, same reset contract as $skip_reason:
+// a caller reusing one variable across a walk must not read the previous slot's answer.
+$era_carry   = array();
+$era_default = 0;
+bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => 'src(site)' ), 'join' ), $era_carry, true, $era_skip, $era_default );
+check( 'P13.6b a SKIPPED slot still reports its default (no leak into the next slot)', 1 === $era_default, var_export( $era_default, true ) );
 
 // P13.7 — malformed folded wire contributes nothing and NEVER falls back to a stale
 // legacy sibling (that would render an intent the author replaced).
@@ -1119,7 +1215,7 @@ foreach ( $none_cases as $name => $legacy ) {
 	check( "P14.4 [none: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
 $none_wire = bws_fold_emit_slot( bws_fold_from_flat( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
-check( 'P14.4 read-less container emits a bare chain', 'src(refs,office)' === $none_wire, var_export( $none_wire, true ) );
+check( 'P14.4 read-less container emits a bare chain (carrying the flat era default)', 'src(refs,office,limit[1])' === $none_wire, var_export( $none_wire, true ) );
 
 // P14.5 — `srcTermIn` does NOT carry forward in a selecting container (it names this
 // slot's entity hop). The flat resolver's own variable never carried it; what leaked

@@ -242,7 +242,43 @@ $t5 = bws_fold_migrate_slots(
 	$text_cfg
 );
 check( 'M5.1 legacy slot keys are gone', array() === array_intersect( array_keys( $t5 ), array( 'src', 'ref', 'key', '2-use', '2-key' ) ), json_encode( $t5 ) );
-check( 'M5.2 folded values arrive', 'src(refs,office);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
+// The TAG-LEVEL `limit` reaches a FANNING slot (#60). It is not a bound across attempts —
+// it was each attempt's own default — so it has to land where that attempt states its
+// source, or the flat era's materialized 1 overwrites the author's number. Slot B gets
+// nothing: it fans only by inheriting A's source, so it has no list of its own to bound,
+// and the container arm still falls back to the tag-level key for a slot that pins none.
+// The tag-level key itself is left standing here; retiring it is #61.
+check( 'M5.2 folded values arrive, carrying the tag-level limit into the FANNING attempt', 'src(refs,office,limit[3]);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
+// …and with NO tag-level limit it is the flat era's implied 1 that lands, on the fanning
+// step only — a slot that fans by inheritance states no bound of its own.
+$t5b = bws_fold_migrate_slots(
+	array(
+		'src'   => 'ref',
+		'ref'   => 'office',
+		'key'   => 'name',
+		'2-use' => 'key',
+		'2-key' => 'role',
+	),
+	$text_cfg
+);
+// Slot 1 reads the tag-level key DIRECTLY (its prefix is ''), so the selecting-container
+// fallback is reachable only from a fanning slot ≥2 — which is where dropping it goes
+// unnoticed. Without the fallback slot C takes the materialized 1 and the author's 4 is
+// silently overwritten, on the one shape that can show it.
+$t5c = bws_fold_migrate_slots(
+	array(
+		'key'     => 'a',
+		'limit'   => '4',
+		'3-src'   => 'ref',
+		'3-ref'   => 'office',
+		'3-use'   => 'title',
+	),
+	$text_cfg
+);
+check( 'M5.2c a FANNING slot ≥2 takes the tag-level limit, not the materialized 1', 'src(refs,office,limit[4]);use(title)' === ( $t5c['C'] ?? null ), json_encode( $t5c ) );
+check( 'M5.2c …and a NON-fanning slot beside it still takes nothing', 'key(a)' === ( $t5c['A'] ?? null ), json_encode( $t5c ) );
+
+check( 'M5.2b no tag-level limit → the flat era default lands on the fanning step alone', 'src(refs,office,limit[1]);key(name)' === ( $t5b['A'] ?? null ) && 'src(same);key(role)' === ( $t5b['B'] ?? null ), json_encode( $t5b ) );
 check( 'M5.3 the tag-level limit survives, unfolded', '3' === ( $t5['limit'] ?? null ), json_encode( $t5 ) );
 check( 'M5.4 unrelated tag-level options survive', ', ' === ( $t5['sep'] ?? null ), json_encode( $t5 ) );
 // Canonical order: a FOLDED slot ranks as its slot's source, so tag-level (slot 0) keys
@@ -312,13 +348,13 @@ MigrationRegistry::register(
 
 check(
 	'M6.1 the registered entry folds a stored tag string',
-	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
+	'{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' )
 );
 check(
 	'M6.2 running it twice is a fixpoint (the no-op contract)',
-	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' ),
-	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' )
+	'{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' ),
+	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' )
 );
 check(
 	'M6.3 a tag the entry does not match is untouched',

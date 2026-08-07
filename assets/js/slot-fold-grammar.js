@@ -516,7 +516,9 @@
 		var tax = read( 'srcTermIn' );
 		var use = read( 'use' );
 		var key = read( 'key' );
-		var limit = read( 'limit' );
+		// Slot 1's prefix is '', so on a SELECTING container the bare `limit` here is the
+		// TAG-level key rather than this slot's own — see the PHP owner's comment.
+		var limit = ( combining || n >= 2 ) ? read( 'limit' ) : '';
 
 		if ( '' === src && '' === ref && '' === tax && '' === use && '' === key && '' === limit ) {
 			return null;
@@ -588,20 +590,36 @@
 			slotRead = ( n >= 2 && perSlotUse ) ? { kind: 'same' } : null;
 		}
 
+		// A SELECTING container states `limit` ONCE, at TAG level, and it is every attempt's
+		// own default — slots ≥2 must read the same key or the materialized default below
+		// shadows the author's number. Combining containers own `limit` per slot, so an
+		// absent one there means the slot states none. Read AFTER the emptiness test, never
+		// before: a tag-level limit is not content — and only where THIS slot's chain fans,
+		// so a slot with nothing to bound gets no limit. See the PHP owner's comment.
+		if ( '' === limit && ! combining && chainFanningSteps( chain ).length ) {
+			var tagLimit = options.limit;
+			limit = ( void 0 === tagLimit || null === tagLimit || true === tagLimit ) ? '' : String( tagLimit ).trim();
+		}
+
+		// The limit goes onto the chain's FANNING STEPS, through the same owner a base
+		// tag's migration uses. A folded slot defaults to UNLIMITED like any other chain
+		// wire, so the flat era's implied 1 has to be materialized here too — see the PHP
+		// owner's docblock for why that stopped arriving for free (#60).
 		var opts = {};
-		if ( '' !== limit && ! isNaN( Number( limit ) ) ) {
-			// 0 / -1 were CLAMPED to 1 by the old rule, never designed to mean 1: an
-			// author wanting one result types 1 or leaves it unset. Honor the written
-			// value under the new semantics rather than freezing a clamp.
-			var normalized = Math.max( 0, parseInt( limit, 10 ) );
-			var lastFan = -1;
-			chain.forEach( function ( chainStep, i ) {
-				if ( -1 !== FANNING_SLUGS.indexOf( chainStep.slug ) ) {
-					lastFan = i;
-				}
-			} );
-			if ( -1 !== lastFan ) {
-				chain[ lastFan ].limit = String( normalized );
+		var applied = applyLegacyLimit( chain, '' !== limit ? limit : null );
+		chain = applied.chain;
+		if ( ! applied.consumed
+			&& '' !== limit
+			&& isNumericLike( limit )
+			&& Math.abs( Number( limit ) ) <= Number.MAX_SAFE_INTEGER ) {
+			// An explicit limit that owner declined to relocate — 0/-1 (unlimited), or a
+			// positive one with no fanning step to carry it. It still needs a carrier: the
+			// same mapping serves the render dual-read of UNMIGRATED flat wire, which takes
+			// the flat era's default of 1. See the PHP owner's comment.
+			var normalized = Math.max( 0, Math.trunc( Number( limit ) ) );
+			var fanning = chainFanningSteps( chain );
+			if ( fanning.length ) {
+				chain[ fanning[ fanning.length - 1 ] ].limit = String( normalized );
 			} else {
 				// Nothing fans, so there is no step to bound: the token keeps its
 				// slot-level meaning (bound a multi-value READ).
@@ -677,6 +695,46 @@
 	}
 
 	/**
+	 * PHP's is_numeric(), spelled out rather than approximated with Number().
+	 *
+	 * Number() accepts hex (`0x10` → 16) where PHP refuses it, and parseInt() reads an
+	 * exponent as its mantissa. So the two languages would disagree about a value neither
+	 * author would ever type — exactly the divergence a twin exists to make impossible.
+	 * ONE predicate, because every place that decides whether a `limit` is stated at all
+	 * must decide it the same way. (Math.trunc, at the call sites, mirrors PHP's `(int)`
+	 * cast, toward zero.)
+	 *
+	 * @param {*} value Raw value.
+	 * @return {boolean}
+	 */
+	function isNumericLike( value ) {
+		var raw = String( ( value === null || value === undefined ) ? '' : value ).trim();
+		return /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test( raw );
+	}
+
+	/**
+	 * Which steps of a chain FAN — twin of bws_fold_chain_fanning_steps(), which owns the
+	 * reasoning. An argless fanning step does not count: the compiler drops it, so it fans
+	 * only by inheriting an earlier slot's source, and that slot stated its own bound.
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {number[]} Indexes of the fanning steps, in chain order.
+	 */
+	function chainFanningSteps( chain ) {
+		var out = [];
+		( chain || [] ).forEach( function ( chainStep, i ) {
+			if ( -1 === FANNING_SLUGS.indexOf( chainStep.slug ) ) {
+				return;
+			}
+			if ( '' === String( chainStep.arg === null || chainStep.arg === undefined ? '' : chainStep.arg ).trim() ) {
+				return;
+			}
+			out.push( i );
+		} );
+		return out;
+	}
+
+	/**
 	 * Materialize the limit a LEGACY flat source implied, as per-step limits on the
 	 * chain that respells it.
 	 *
@@ -692,35 +750,25 @@
 	 */
 	function applyLegacyLimit( chain, limit ) {
 		var steps   = chain || [];
-		var fanning = [];
 		var stated  = false;
 
-		steps.forEach( function ( chainStep, i ) {
+		steps.forEach( function ( chainStep ) {
 			if ( -1 === FANNING_SLUGS.indexOf( chainStep.slug ) ) {
 				return;
 			}
 			var stepLimit = ( chainStep.limit === null || chainStep.limit === undefined ) ? '' : String( chainStep.limit );
 			if ( '' !== stepLimit ) {
 				stated = true;   // the author's own limits win
-				return;
 			}
-			if ( '' === String( chainStep.arg === null || chainStep.arg === undefined ? '' : chainStep.arg ).trim() ) {
-				return;          // argless: the compiler drops it, so it does not fan
-			}
-			fanning.push( i );
 		} );
+		var fanning = chainFanningSteps( steps );
 
 		if ( stated || ! fanning.length ) {
 			return { chain: steps, consumed: false };
 		}
 
-		// PHP's is_numeric(), spelled out rather than approximated with Number(): it
-		// accepts hex and JS's parseInt() reads an exponent as its mantissa, so the two
-		// languages would disagree about a value neither author would ever type — which
-		// is exactly the divergence a twin exists to make impossible. Math.trunc mirrors
-		// PHP's (int) cast, toward zero.
 		var raw      = String( ( limit === null || limit === undefined ) ? '' : limit ).trim();
-		var explicit = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test( raw );
+		var explicit = isNumericLike( raw );
 
 
 		// Twin of the PHP guard: a magnitude the two languages cannot hold identically is

@@ -114,6 +114,38 @@
 	}
 
 	/**
+	 * The view the legacy MAPPER reads — slotState(), plus the one key it must see that is
+	 * not a per-slot axis.
+	 *
+	 * A SELECTING container states `limit` ONCE, at tag level, and it is every attempt's
+	 * own default rather than a bound across attempts. The mapper has to see it, or the
+	 * flat era's materialized default writes a `1` that SHADOWS the author's number — a
+	 * slot's own limit wins over the tag-level one in every container arm. It is a READ
+	 * and never a fold: the key is not on the delete list, so it is neither stripped here
+	 * nor counted as something to migrate (#61 retires it).
+	 *
+	 * The gate is exactly foldFromFlat()'s own — SELECTING container, and never where the
+	 * slot already owns the key — so the two cannot disagree about which map is being read.
+	 *
+	 * ONE function because two readers need one answer: migrateSlots() writes the wire and
+	 * the fold CONTROL reads a legacy slot to display it. A control showing `1` where the
+	 * mount migration is about to commit `3` is the drift this seam exists to prevent.
+	 *
+	 * @param {Object} state Whole option map.
+	 * @param {Object} conf  Fold config.
+	 * @return {Object} Filtered map, plus a tag-level `limit` where the container has one.
+	 */
+	function mapperState( state, conf ) {
+		var src = slotState( state, conf );
+		if ( ! conf.combining
+			&& ! Object.prototype.hasOwnProperty.call( src, 'limit' )
+			&& '' !== String( ( state.limit === null || state.limit === undefined ) ? '' : state.limit ).trim() ) {
+			return Object.assign( {}, src, { limit: state.limit } );
+		}
+		return src;
+	}
+
+	/**
 	 * Fold a tag's legacy flat slot keys into folded `{N}` values.
 	 *
 	 * PURE — state in, state out (or null when there is nothing to migrate), so the twin
@@ -141,6 +173,7 @@
 	 */
 	function migrateSlots( state, conf ) {
 		var src = slotState( state, conf );
+		var view = mapperState( state, conf );
 		var next = {};
 		var touched = false;
 		var n;
@@ -172,7 +205,7 @@
 				continue;
 			}
 
-			var rec = fold.foldFromFlat( n, src, !! conf.combining, false !== conf.perSlotUse );
+			var rec = fold.foldFromFlat( n, view, !! conf.combining, false !== conf.perSlotUse );
 			if ( ! rec || ! rec.slot ) {
 				continue;
 			}
@@ -284,6 +317,7 @@
 		legacyKeys: legacyKeys,
 		slotKeys: slotKeys,
 		slotState: slotState,
+		mapperState: mapperState,
 		migrateSlots: migrateSlots,
 		baseSrcState: baseSrcState
 	};

@@ -75,8 +75,8 @@ stated.
 | F1.1 | `{{join key:name_first\|2-key:name_last}}` | `{{join A:key(name_first)\|B:key(name_last)}}` | `Jane` here; `Jane, Johnson` on jane; `Tom, Smith` on tom |
 | F1.2 | `{{join use:title\|2-use:key\|2-key:role\|valueSep: / }}` | `{{join A:use(title)\|B:use(key);key(role)\|valueSep: / }}` | `Matrix: Post Meta / Captain` |
 | F1.3 | `{{join key:main_line\|2-src:same\|2-key:booking_line}}` | `{{join A:key(main_line)\|B:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210` |
-| F1.4 | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `{{join A:src(refs,related_staff);use(key);key(main_line)\|B:src(same);key(contact_email)}}` | `(555) 200-3000, jane@example.test` — slot 2 INHERITS the ref hop |
-| F1.5 | `{{join key:name_first\|2-src:ref\|2-ref:related_staff\|2-use:title}}` | `{{join A:key(name_first)\|B:src(refs,related_staff);use(title)}}` | `Jane, Jane Partner` |
+| F1.4 | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)\|B:src(same);key(contact_email)}}` | `(555) 200-3000, jane@example.test` — slot 2 INHERITS the ref hop. **The folded column is what MIGRATION writes** (#60): a chain-spelled slot returns everything, so the flat era's implied 1 has to be stated or the pair stops being one — see §F7a |
+| F1.5 | `{{join key:name_first\|2-src:ref\|2-ref:related_staff\|2-use:title}}` | `{{join A:key(name_first)\|B:src(refs,related_staff,limit[1]);use(title)}}` | `Jane, Jane Partner`. Drop the `limit[1]` and the folded side reads `Jane, Jane Partner, Tom Associate` — measured, and the point of §F7a |
 | F1.6 | `{{join key:name_first\|2-src:site\|2-key:organization_email}}` | `{{join A:key(name_first)\|B:src(site);key(organization_email)}}` | `Jane, info@example.test` |
 | F1.7 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `{{join A:src(terms,department);use(title);limit(2)}}` | `Sales, Support` — the term hop WORKS in a slot (contrast §F9.1) |
 | F1.8 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `{{join mode:template\|format:%A (%B)\|A:key(name_first)\|B:key(name_last)}}` | `Jane (Johnson)` on jane; `Tom (Smith)` on tom. **The tokens follow the KEYS** — the legacy column keeps `%1` and the folded column uses `%A`, and equal output is the property |
@@ -150,8 +150,8 @@ wire means what it says, because legacy absence MATERIALIZES to `src(same)` thro
 |---|---|---|---|
 | F6.1 | `{{try_text A:src(refs,related_staff);key(missing)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` — slot 2 RESET to the page, NOT jane |
 | F6.2 | `{{try_text A:src(refs,related_staff);key(missing)\|B:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` — explicit `same` inherits jane |
-| F6.3 | `{{join A:src(refs,related_staff);use(key);key(main_line)\|B:key(contact_email)}}` | post-meta | `(555) 200-3000` — slot 2 resets to the page, which has no `contact_email`, so it drops out |
-| F6.4 | `{{join A:src(refs,related_staff);use(title)\|B:src(same);use(same)}}` | post-meta | `Jane Partner, Jane Partner` — both axes inherited, i.e. the same datum twice. The control's `inferIntent` advisory DESCRIBES this; it does not block it |
+| F6.3 | `{{join A:src(refs,related_staff);use(key);key(main_line)\|B:key(contact_email)}}` | post-meta | `(555) 200-3000, (555) 200-4000` — slot 1 is chain-spelled and unbounded, so it returns BOTH staff numbers (#60; it read one before). Slot 2 still resets to the page, which has no `contact_email`, so it drops out — which is what the row is for |
+| F6.4 | `{{join A:src(refs,related_staff);use(title)\|B:src(same);use(same)}}` | post-meta | `Jane Partner, Tom Associate, Jane Partner` — slot 1 unbounded (#60), slot 2 inherits BOTH axes and reads the same datum once, because a slot that fans only by inheritance keeps the flat default of 1. That asymmetry is the row's new content. The control's `inferIntent` advisory DESCRIBES it; it does not block it |
 | F6.5 | `{{try_phone A:src(refs,related_staff);key(unused_line)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` — reset, on the picker-alone shape |
 
 ## §F7 — slot-level `limit`, and the pairs that CROSS
@@ -183,6 +183,44 @@ reset reads the page (`Captain`), inherit reads jane (nothing). All four rows, `
 > written into this matrix as a legacy/folded PAIR, and they are not one — they differ by exactly
 > the reset-vs-inherit rule §F6 states. The pure harness could not have caught it (both spellings
 > resolve correctly; only the PAIRING claim was wrong), which is the argument for the visible rows.
+
+## §F7a — a slot's own spelling decides its own limit (#60)
+
+**A SLOT'S SOURCE SPELLING DECIDES ITS OWN DEFAULT, exactly as a base tag's does.** A chain-spelled
+slot with no limit returns everything; a flat-spelled one bounds at 1. Before #60 the dispatch read
+its default off the FLATTENED triple, which is structurally blind to how the slot was spelled, so
+every slot answered 1 whatever it was. The first pair is the measurement the ticket was filed on.
+
+Context `/matrix-terms-valid/` for the `terms` rows, `/matrix-post-meta/` for the `refs` rows.
+
+| # | Tag | Expected |
+|---|---|---|
+| F7a.1 | `{{text src:terms,department\|use:title}}` | `Sales, Support` — the base tag, unchanged; the reference the slots must now match |
+| F7a.2 | `{{try_text A:src(terms,department);use(title)}}` | `Sales, Support` — **was `Sales`**. Identical spelling, identical answer |
+| F7a.3 | `{{join A:src(terms,department);use(title)}}` | `Sales, Support` — same, in the combining container |
+| F7a.4 | `{{join A:src(refs,related_staff);use(key);key(main_line)}}` | `(555) 200-3000, (555) 200-4000` — the `refs`-spelled twin of F7a.3 |
+| F7a.5 | `{{try_text srcTermIn:department\|use:title}}` | `Sales` — the FLAT spelling still bounds at 1. This row is what makes the four above non-vacuous |
+| F7a.6 | `{{join A:src(same);key(b)}}` after a fanning slot 1 | see §F6.4 — a slot that fans only by INHERITING keeps the flat default, because the slot it inherits from stated its own bound. A limit does not carry forward, and never did |
+
+**Migration states what the old spelling implied**, so no stored tag changes output. Each pair below
+was run on the testbed and renders identically; the folded column is the shipped migrator's actual
+output, taken from `MigrationRegistry::apply_option_migration()` rather than hand-written:
+
+| # | Legacy | Migrated | Expected |
+|---|---|---|---|
+| F7a.7 | `{{try_text srcTermIn:department\|use:title}}` | `{{try_text A:src(terms,department,limit[1]);use(title)}}` | `Sales` |
+| F7a.8 | `{{try_text srcTermIn:department\|use:title\|limit:2}}` | `{{try_text limit:2\|A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support`. The tag-level `limit` reaches every attempt — it was each attempt's own default, not a bound across them — so it lands on the slot's own fanning step. The tag-level key survives here; #61 retires it |
+| F7a.9 | `{{join srcTermIn:department\|use:title}}` | `{{join A:src(terms,department,limit[1]);use(title)}}` | `Sales` |
+| F7a.10 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `{{join A:src(terms,department,limit[2]);use(title)}}` | `Sales, Support` |
+| F7a.11 | `{{try_text srcTermIn:department\|use:title\|limit:0}}` | unchanged shape — the explicit `0` KEEPS its carrier | `Sales, Support`. Not redundant with the chain default: the same mapper renders UNMIGRATED flat wire, which takes the flat era's 1, so dropping the token would re-bound a tag its author deliberately unbounded |
+| F7a.12 | `{{try_text key:role\|limit:4}}` | `{{try_text limit:4\|A:key(role)}}` | `Captain` on `/matrix-post-meta/`. **A slot with no fanning step gets no limit** — the tag-level key is left standing and still reaches the container arm, so nothing is lost. Slot 1's prefix is `''`, so without the rule it would swallow the tag-level key as a slot-level token bounding nothing |
+| F7a.13 | `{{join key:main_line\|limit:4\|2-key:booking_line}}` | `{{join A:limit(4);key(main_line)\|B:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210`. The COMBINING contrast: `{{join}}` owns `limit` per slot, so slot 1's bare key IS its own and stays a slot-level token |
+
+> **The `try_` `refs` arm is still first-only, and #60 did not change that.** `{{try_text
+> A:src(refs,related_staff);use(title)}}` renders `Jane Partner`, and so does the flat spelling with
+> an EXPLICIT `limit:0` — which is what proves it is the ARM rather than the default. Same family as
+> the §F9 divergences; it clears with FW-63. The `terms` arm (F7a.2) already fans, which is why the
+> ticket's own measurement used it.
 
 ## §F8 — depth-0 src chain on base tags (5h)
 

@@ -257,7 +257,7 @@
 			var parsed = fold.parseSlot( raw, conf.container );
 			return parsed.error ? null : parsed;
 		}
-		var rec = fold.foldFromFlat( n, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
+		var rec = fold.foldFromFlat( n, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
 		return ( rec && rec.slot ) ? rec.slot : null;
 	}
 
@@ -267,7 +267,7 @@
 	 * slot count.
 	 */
 	function slotCount( state, conf ) {
-		var legacy = migrate.slotState( state, conf );
+		var legacy = migrate.mapperState( state, conf );
 		var highest = 0;
 		for ( var i = 1; i <= conf.max; i++ ) {
 			if ( state[ fold.slotKey( i ) ] ) {
@@ -778,7 +778,7 @@
 				slot = parsed;
 			}
 		} else {
-			var rec = fold.foldFromFlat( ordinal, migrate.slotState( state, conf ), conf.combining, conf.perSlotUse );
+			var rec = fold.foldFromFlat( ordinal, migrate.mapperState( state, conf ), conf.combining, conf.perSlotUse );
 			if ( rec && rec.slot ) {
 				slot = rec.slot;
 				recovered = true;

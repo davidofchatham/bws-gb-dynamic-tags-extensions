@@ -166,6 +166,24 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 	$slot_keys = bws_fold_migration_slot_keys( $cfg );
 	$slot_src  = array_intersect_key( $options, array_flip( $slot_keys ) );
 
+	// …with ONE exception, and it is a read rather than a fold: a SELECTING container's
+	// tag-level `limit` is each attempt's own default (try_slot_axes), so the mapper has
+	// to see it or the materialized flat-era default writes a `1` over the author's
+	// number. Added to the mapper's VIEW only — never to $present — so the tag-level key
+	// is neither stripped here nor counted as something to migrate. Retiring the key
+	// itself is #61; this is only what stops #60 from changing output.
+	// The gate is exactly bws_fold_from_flat()'s own — SELECTING container, and never where
+	// the slot already owns the key — so the two cannot disagree about which map the mapper
+	// is reading. A derived "is `limit` a per-slot axis here" test was tried and dropped: it
+	// is a SECOND spelling of one rule, and the reader that matters (from_flat, on the
+	// render path) has no access to the axis list anyway.
+	$slot_view = $slot_src;
+	if ( empty( $cfg['combining'] )
+		&& ! array_key_exists( 'limit', $slot_view )
+		&& '' !== trim( (string) ( $options['limit'] ?? '' ) ) ) {
+		$slot_view['limit'] = $options['limit'];
+	}
+
 	$folded  = $options;
 	$touched = false;
 
@@ -199,7 +217,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 			continue;
 		}
 
-		$rec = bws_fold_from_flat( $n, $slot_src, ! empty( $cfg['combining'] ), ! empty( $cfg['per_slot_use'] ) );
+		$rec = bws_fold_from_flat( $n, $slot_view, ! empty( $cfg['combining'] ), ! empty( $cfg['per_slot_use'] ) );
 		if ( null === $rec ) {
 			continue;
 		}
@@ -245,13 +263,13 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
  *   rewritten, and its keys not stripped, which leaves the token's own migration
  *   entry able to fix it afterwards (#56).
  * - **THE LIMIT IS CARRIED ONTO THE STEPS**, never written as a tag-level `limit`, and
- *   DEPTH-0 ONLY. A folded SLOT needs nothing, which is worth stating because the
- *   symmetry invites the opposite conclusion: `bws_fold_slot_flat_options()` collapses
- *   a slot's chain back to a flat `src`/`ref`/`srcTermIn` triple before any container
- *   arm resolves a limit, so `bws_limit_default()` sees flat wire on a folded slot
- *   exactly as on a legacy one and answers 1 either way. Folding a slot cannot change
- *   what bounds it; respelling a base tag's source can, because nothing re-flattens it.
- *   Migration changes the SPELLING, the spelling selects the tag-level default
+ *   AT BOTH DEPTHS. The slot half was once exempt, on the reasoning that
+ *   `bws_fold_slot_flat_options()` collapses a slot's chain back to a flat triple before
+ *   any container arm resolves a limit, so `bws_limit_default()` saw flat wire on a
+ *   folded slot exactly as on a legacy one and answered 1 either way. That is no longer
+ *   true: the seam hands its ERA back and a slot's own spelling decides its own default
+ *   (#60), so `bws_fold_from_flat()` materializes the same way this does.
+ *   Migration changes the SPELLING, the spelling selects the default
  *   (`bws_limit_default`), so migration must carry the default it is leaving behind.
  *   Writing nothing would silently fan out exactly the tags it touched — extra
  *   values, dropped anchors (the link gate is count-based), on live pages, with no

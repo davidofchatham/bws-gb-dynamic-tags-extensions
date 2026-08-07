@@ -706,7 +706,9 @@ class TagTemplateRegistry {
 					if ( null === $slot ) {
 						continue;   // nothing in either era, or the shipped resolver's own skip.
 					}
-					$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+					$skip_reason   = '';
+					$limit_default = 1;
+					$flat          = bws_fold_slot_flat_options( $slot, $carry, false, $skip_reason, $limit_default );
 					if ( null === $flat ) {
 						continue;   // chain the flat seam cannot express (second step, repeater rows).
 					}
@@ -765,15 +767,17 @@ class TagTemplateRegistry {
 					// slot that pins nothing — and is what the legacy wire's bare `limit`
 					// recovers as at slot 1, identically.
 					$sep = $opts['sep'] ?? null;
-					// The DEFAULT comes from the SLOT's own source spelling when the slot
-					// pins a limit, and from the TAG's when it inherits the tag-level one —
-					// each `limit` is defaulted by the wire that would otherwise state it.
-					if ( isset( $flat['limit'] ) ) {
-						$slot_opts['limit'] = $flat['limit'];
-						$slot_max           = bws_clamp_limit( $flat['limit'], bws_limit_default( $slot_opts ) );
-					} else {
-						$slot_max = bws_clamp_limit( $opts['limit'] ?? null, bws_limit_default( $opts ) );
-					}
+					// THE DEFAULT IS THE SLOT'S OWN, and only the seam can say what it is:
+					// $slot_opts holds the FLATTENED triple, whose `src` is a legacy token on
+					// every slot, so bws_limit_default() read off it answered 1 whatever the
+					// slot was spelled as (#60). The seam reports the era it just erased.
+					//
+					// The resolved value is written BACK into $slot_opts, not left implicit:
+					// the core call below resolves its own limit through the same flat-blind
+					// bws_limit_default(), so an absent key there would re-introduce the 1 this
+					// line just decided against. An explicit number is spelling-independent.
+					$slot_max           = bws_clamp_limit( $flat['limit'] ?? $opts['limit'] ?? null, $limit_default );
+					$slot_opts['limit'] = (string) $slot_max;
 
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).

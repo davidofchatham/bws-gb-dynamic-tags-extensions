@@ -134,6 +134,27 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 | L4.11b | `{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)\|use:title}}` | `All Users` — identical to L4.11a | what MIGRATION writes for L4.11a. BOTH steps are limited, because per-step limits are per-input and multiply |
 | L4.11c | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` | L4.11b's partner — the same chain with no step limits. Without it, a mapping that wrote nothing at all would still pass the pair |
 
+## L4a — the SPELLING selects a SLOT's default too (#60)
+
+`bws_clamp_limit`'s two container call sites changed with #60: a slot's own source spelling now
+selects its default, exactly as a base tag's does. Before, the dispatch read the default off the
+FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
+it was spelled as.
+
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the
+fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is
+the link gate, for the same count-based reason L1 and L4 carry it: a slot that starts returning
+several values stops being wrappable.
+
+> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
+
+| Row | Tag | Expected | What it proves |
+|---|---|---|---|
+| L4a.1 | `{{try_text srcTermIn:department\|use:title\|linkTo:permalink}}` | ONE dept name, in `<a>` | FLAT slot, unset — the floor, unchanged |
+| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **NO** `<a>` | CHAIN slot, unset — unlimited, and the anchor legitimately gone. The slot twin of L4.2 |
+| L4a.3 | `{{try_text A:src(terms,department,limit[1]);use(title)\|linkTo:permalink}}` | ONE dept name, in `<a>` | what MIGRATION writes for L4a.1 — identical output, anchor included |
+| L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by INHERITING keeps the flat default: the slot it inherits from stated its own bound, and a limit does not carry forward |
+
 ## L5 — the author conversion (editor only)
 
 Not reachable by `render-tag`. Open `/matrix-post-meta/` in the block editor.

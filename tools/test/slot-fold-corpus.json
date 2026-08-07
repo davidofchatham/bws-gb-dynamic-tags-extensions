@@ -719,6 +719,48 @@
 				"2-src": "current",
 				"2-key": "name"
 			}
+		},
+		{
+			"n": 3,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"3-src": "ref",
+				"3-ref": "office",
+				"3-use": "key",
+				"3-key": "x",
+				"limit": "4"
+			}
+		},
+		{
+			"n": 3,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"3-src": "ref",
+				"3-ref": "office",
+				"3-key": "x",
+				"limit": "4"
+			}
+		},
+		{
+			"n": 1,
+			"combining": false,
+			"perSlotUse": true,
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"limit": "9007199254740993"
+			}
+		},
+		{
+			"n": 2,
+			"combining": true,
+			"perSlotUse": true,
+			"options": {
+				"2-key": "b"
+			}
 		}
 	],
 	"_srcOptionsReadme": "Depth-0 base-tag OPTION SETS. The twin here is bws_fold_chain_from_options / bws_fold_chain_resolution (slot-fold-compile.php) against chainIsWire / chainRoot / chainFans (slot-fold-grammar.js). It is a separate section from `chains` because the input is an OPTION MAP, not a chain string: the legacy flat triple is half the rule, and the site-root guard on srcTermIn is only visible from the map.",
