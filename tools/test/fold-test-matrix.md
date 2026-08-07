@@ -256,6 +256,36 @@ quantity slot by slot, plus the pairs above. Both spellings measured identical e
 | F7b.6 | `{{try_text src:ref\|ref:related_staff\|use:key\|key:no_such\|2-src:same\|2-use:title\|limit:2}}` | `{{try_text A:src(refs,related_staff,limit[2]);key(no_such)\|B:src(same);use(title)}}` | `Jane Partner` both, on `/matrix-post-meta/` — first-only arm, so the carried bound is invisible until FW-63 |
 | F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support` both — the combining slot does NOT inherit the bound, and does not need to |
 
+## §F7c — the tag-level Result Limit CONTROL is gone; the VALUE is not (#62)
+
+**Removing an option never removes its value.** GB seeds `extraTagParams` from the parsed tag
+string, not from the option registry, and re-serializes the whole state object — so a stored
+`limit` on any of the six chain-authoring base tags still round-trips and still bounds the list,
+with no control anywhere in the panel. That is what keeps unmigrated flat wire (the scanner reads
+`post_content` only, so wire in an ACF field is unreachable) and hand-edited wire meaning what they
+say (ADR 0004).
+
+The reader is untouched by #62 — these rows exist to PROVE that, so each family gets its own,
+and F7c.2 is what makes the rest non-vacuous: unset still bounds at 1 on flat wire, so a row
+printing two terms is the limit being read rather than the tag fanning by default.
+
+Context `/matrix-post-meta/`. All RUN.
+
+| # | Stored wire (no control writes this any more) | Expected |
+|---|---|---|
+| F7c.1 | `{{text srcTermIn:department\|use:title\|limit:2}}` | `Sales, Support` |
+| F7c.2 | `{{text srcTermIn:department\|use:title}}` | `Sales` — unset is still 1 on flat wire, which is what makes F7c.1 mean something |
+| F7c.3 | `{{text srcTermIn:department\|use:title\|limit:0}}` | `Sales, Support` — `0` is still UNLIMITED |
+| F7c.4 | `{{title srcTermIn:department\|limit:2}}` | `Sales, Support` |
+| F7c.5 | `{{email src:ref\|ref:related_staff\|key:contact_email\|limit:2\|noLink}}` | `jane@example.test, tom@example.test` (entity-encoded by `antispambot`) |
+| F7c.6 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:2\|noLink}}` | `(555) 200-3000, (555) 200-4000` |
+| F7c.7 | `{{datetime_single src:ref\|ref:related_staff\|key:event_datetime\|limit:2\|as:date}}` | `May 1, 2030, June 1, 2030` |
+
+`try_`'s half of the same property is §F7b (the value survives the key's retirement). The
+registration side — that no panel offers the control, and that `sep` stayed — is a pure assertion,
+`php tools/test/control-order-test.php` §5, because the ABSENCE of a control is not visible in
+rendered output.
+
 ## §F8 — depth-0 src chain on base tags (5h)
 
 The compiler translates chain wire into engine steps on every base tag. Pairs again — the legacy
@@ -419,6 +449,7 @@ rows are the fastest way in) and check each.
 | F14.11 | In any slot, pick the read kind "Meta/Option Field" and pick nothing else | the select STAYS on it and the field picker appears. The control re-parses the value it just wrote to drive that select, so the pending state needs a wire spelling: `use(key)` with no `key(…)`. It is written only while the field is empty — once a field is picked the canonical bare `key(x)` is what saves. Picking an analog row (Title/Name) was never affected, which is what the bug looked like from outside. The empty picker also warns, in the hop warning's words: "This *&lt;noun&gt;* will be skipped unless a field is set". NOT shown on a picker-alone (`keyOnly`) container — there an empty field IS the inherit |
 | F14.12 | Add a `terms` hop to a slot and leave the Taxonomy on "Select…" | it warns in the same words as the field warnings — "This *&lt;noun&gt;* will be skipped unless a taxonomy is set" — and the seam keeps that promise: `{{join A:src(terms);key(role)|B:key(name_first)}}` on `/matrix-post-meta/` renders `Jane`, NOT `Captain, Jane`. **`Captain` is the pre-fix answer** (the post's own `role`, read through a hop that silently vanished), so a row that renders it means the incomplete-step skip regressed. The preview says `[⚠ Join: slot 1 no taxonomy]` — flagged, unlike an unconfigured read, because the author configured a source and would otherwise hunt for the missing slot |
 | F14.13 | Open a legacy BASE tag (`{{text src:ref\|ref:related_staff\|use:title}}`) and commit | the mount migrator rewrites it to `src:refs,related_staff,limit(1)` — the limit on the STEP, no tag-level `limit` written, the flat `ref` gone. The wire must match byte-for-byte what the converter writes for the same tag (`fold-migration-corpus.json` §baseSrc holds the pair): a divergence stores one tag two ways depending on which path reached it first, and neither path is wrong in isolation |
+| F14.14 | Open any of `{{text}}` `{{title}}` `{{email}}` `{{phone}}` `{{datetime_single}}` `{{datetime_range}}` or a `try_*` tag, on a tag that STORES a `limit` (the §F7c rows) | NO "Result Limit" control anywhere in the panel (#62), while the per-step **Limit** field is still there on each fanning step of the source chain — that is where a limit is now stated. "Result Separator" is still present and unchanged; on a `try_*` it renders BARE (no box), because a try_ tag's source is its attempts and they draw their own boxes. The stored value must survive a no-change open+close: the panel has no control for it, so nothing may clear it. **NOT YET EYEBALLED** (added with #62; the render half, §F7c, was run) |
 
 ---
 

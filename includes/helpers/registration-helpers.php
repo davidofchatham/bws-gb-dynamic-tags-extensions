@@ -62,6 +62,13 @@ function bws_option_visual_groups(): array {
 	return array(
 		// Where the value comes from: the source chain, the legacy flat siblings it
 		// absorbs, and the list-mode pair (list length is a source property, FW-52).
+		//
+		// `limit` stays mapped although #62 unregistered the tag-level control from every
+		// chain-authoring tag, which leaves NO tag registering the name today. It is kept
+		// because the flat-select families state their source as one step, so the key is
+		// theirs to carry (#63 is due to register it on `term_*`), and because a map entry
+		// costs nothing while no tag uses the name — deleting it would silently unbox the
+		// control the moment one does.
 		'src'             => array( 'group' => 'source', 'lead' => true ),
 		'ref'             => array( 'group' => 'source', 'lead' => false ),
 		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),
@@ -72,8 +79,8 @@ function bws_option_visual_groups(): array {
 		// `use` enum to lead the group — so a lone-member opt-out would give exactly the
 		// tags whose read is simplest no field group at all, while `{{text}}` beside them
 		// has one. The opt-out exists for a control that has no group to show (a lone
-		// `linkTo` reading "No Link", a `try_` template's tag-level `limit`), not for a
-		// group that happens to have one member.
+		// `linkTo` reading "No Link", a `try_` template's `sep` — whose source is the
+		// ungrouped attempt keys), not for a group that happens to have one member.
 		'use'             => array( 'group' => 'field', 'lead' => true ),
 		'key'             => array( 'group' => 'field', 'lead' => true ),
 		// The datetime key family, ALL in the one field box (user, 2026-08-05). A range's

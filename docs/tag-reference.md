@@ -541,7 +541,7 @@ Each slot holds a **source chain** and — depending on the template — a **fie
 
 A slot still needs a key to produce output where its read mode requires one; a keyless slot in a key-needing mode is skipped, not an error.
 
-**The slot count is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `limit`/`sep` on list-mode templates are likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists.
+**The slot count is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `sep` on list-mode templates is likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists. (It used to be the `limit`/`sep` pair; the tag-level `limit` control retired in v1.17.0 — [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62).)
 
 ### Available try_ tags
 
@@ -593,8 +593,8 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term step on" and the taxonomy — **required** when the step is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set — the two FLAT fanning tokens, deliberately NOT `chain_fans`: a chain states its limits on its steps, so the tag-level control retires with the flat spelling it belongs to (the VALUE is still read wherever it is written). `sep` is the other way round and DOES ask `chain_fans`, because it joins printed output whatever the source spelling. **Unconditional on a multislot container** — the list axis is inside a slot value, which `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value. |
-| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1`; unconditional on a multislot container | List-mode separator, same tag set as `limit`. |
+| `limit` | Result Limit | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | **No control on any chain-authoring tag** (v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): a limit is stated where the source is stated, and a chain states its source as steps, so the limit rides the fanning step. Unregistered rather than gated on flat wire — the mount migrator rewrites a flat tag to a chain before the panel paints, so a flat-only predicate would be unreachable. No tag registers it as of #62; the flat-select `term_*` family is where it belongs and is due to gain it ([#63](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/63)), gated on the flat fanning pair: `src` = `ref`, or `srcTermIn` set | The VALUE is still read wherever it is written — removing a control never removes an option ([ADR 0004](adr/0004-serialized-tag-string-human-readable.md); GB seeds state from the tag string, not the registry), so unmigrated flat wire and hand-edited wire keep rendering. Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value. |
+| `sep` | Result Separator | Separator between results (defaults to “, “). | `srcTermIn` set, or `src` = `ref` or a fanning chain (`chain_fans`) — unlike `limit` it DOES ask `chain_fans`, because it joins printed output whatever the source spelling; unconditional on a multislot container, where the list axis sits inside a slot value that `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` and the `try_` list templates (`try_text`, `try_title`, `try_email`, `try_phone`). Alone in the source group on a `try_` tag, so it renders unboxed there — the attempts are that tag's source and draw their own boxes. |
 
 ### Field group
 
@@ -717,7 +717,7 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 
 | # | Group | Option label | Option name | Notes |
 |---|---|---|---|---|
-| 1 | source | | `[source options]` | [Source group](#source-group); no `limit`/`sep` for image |
+| 1 | source | | `[source options]` | [Source group](#source-group); no `sep` for image (and no tag-level `limit` control on any of them since v1.17.0) |
 | 2 | source | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
 | 3 | source | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
 | 4 | format | Return As | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
@@ -737,26 +737,25 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | Group | Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
 |---|---|---|---|---|---|
 | source | | `[source options]` | 1 | 1 | `src` / `srcTermIn` / `ref` |
-| source | Result Limit | `limit` | 2 | 2 | list mode ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)): shown when `srcTermIn` set or `src:ref`; default 1 |
-| source | Result Separator | `sep` | 3 | 3 | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
-| source | Date/Time Field Key | `key` | 4 | — | primary date/time field key |
-| source | Time Field Key (optional) | `timeKey` | 5 | — | separate time field |
-| source | Start Date/Time Field Key | `startKey` | — | 4 | |
-| source | Start Time Field Key (optional) | `startTimeKey` | — | 5 | |
-| source | End Date/Time Field Key | `endKey` | — | 6 | |
-| source | End Time Field Key (optional) | `endTimeKey` | — | 7 | |
-| format | Return As | `as` | 6 | 8 | `datetime`; `date`; `time` |
-| format | Start & End Separator | `rangeSep` | — | 9 | separator between start and end values within one result |
-| format | Custom Format | `format` | 7 | 10 | PHP format string; empty = auto |
-| format | Date & Time Separator | `timeSep` | 8 | 11 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
-| format | Show current year in date? | `showCurrentYear` | 9 | 12 | checkbox, false by default; shown when `as` ≠ `time` |
-| format | Show time when stored as midnight? | `showMidnight` | 10 | 13 | checkbox, false by default; shown when `as` ≠ `date` |
-| link | Link To | `linkTo` | 11 | 14 | `permalink`; `key`; unset = no link |
-| link | Link URL Field Key | `linkKey` | 12 | 15 | shown when `linkTo:key` |
-| link | Open in new tab | `newTab` | 13 | 16 | checkbox; shown when `linkTo` not empty |
-| fallback | | `[fallback option]` | 14 | 17 | |
+| source | Result Separator | `sep` | 2 | 2 | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
+| source | Date/Time Field Key | `key` | 3 | — | primary date/time field key |
+| source | Time Field Key (optional) | `timeKey` | 4 | — | separate time field |
+| source | Start Date/Time Field Key | `startKey` | — | 3 | |
+| source | Start Time Field Key (optional) | `startTimeKey` | — | 4 | |
+| source | End Date/Time Field Key | `endKey` | — | 5 | |
+| source | End Time Field Key (optional) | `endTimeKey` | — | 6 | |
+| format | Return As | `as` | 5 | 7 | `datetime`; `date`; `time` |
+| format | Start & End Separator | `rangeSep` | — | 8 | separator between start and end values within one result |
+| format | Custom Format | `format` | 6 | 9 | PHP format string; empty = auto |
+| format | Date & Time Separator | `timeSep` | 7 | 10 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| format | Show current year in date? | `showCurrentYear` | 8 | 11 | checkbox, false by default; shown when `as` ≠ `time` |
+| format | Show time when stored as midnight? | `showMidnight` | 9 | 12 | checkbox, false by default; shown when `as` ≠ `date` |
+| link | Link To | `linkTo` | 10 | 13 | `permalink`; `key`; unset = no link |
+| link | Link URL Field Key | `linkKey` | 11 | 14 | shown when `linkTo:key` |
+| link | Open in new tab | `newTab` | 12 | 15 | checkbox; shown when `linkTo` not empty |
+| fallback | | `[fallback option]` | 13 | 16 | |
 
-**Design rationale:** Canonical control order `source → format → link → fallback`. Source selector + list-mode `limit`/`sep` + per-slot field keys (`src`/`srcTermIn`/`ref` → `limit`/`sep` → `key`/`startKey`/…) lead — the author picks *what to read* first. `limit`/`sep` precede the field keys (list length is a source property, not a field one). Global formatting (`as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`) follows. Link cluster, then `fallback`, close. **NB the serialization order differs** (`format → source → link → fallback` — format lifts to front for copy-visibility); the reorder normalizer reconciles the two (built v1.16.0, FW-52).
+**Design rationale:** Canonical control order `source → format → link → fallback`. Source selector + list-mode `sep` + per-slot field keys (`src`/`srcTermIn`/`ref` → `sep` → `key`/`startKey`/…) lead — the author picks *what to read* first. `sep` precedes the field keys (list length is a source property, not a field one). **No tag-level `limit` control** since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)) — these tags author their source as a chain, so a limit rides the fanning step; a stored `limit` is still read (see [§List mode](#list-mode-limit--sep)). Global formatting (`as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`) follows. Link cluster, then `fallback`, close. **NB the serialization order differs** (`format → source → link → fallback` — format lifts to front for copy-visibility); the reorder normalizer reconciles the two (built v1.16.0, FW-52).
 
 > **⚠ CODE PENDING (FW-52 build).** The time-field keys (`timeKey`/`startTimeKey`/`endTimeKey`) shed their `as ≠ date` `show_if` reveal — they now render unconditionally with the source group (a field key is *what to read*, independent of *how to format*). The option definitions in [`base-tags.php`](../includes/tags/base-tags.php) still carry the old `show_if`; this doc reflects the FW-52 target. Reconcile on build.
 
@@ -782,15 +781,14 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
-| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
-| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
+| `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
 | `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
 | `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
+
+No tag-level `limit` control since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): the source is a chain, so a limit rides the fanning step that it bounds. A stored `limit` still bounds the list — see [§List mode](#list-mode-limit--sep).
 
 Plus the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON) — not a per-tag option; gates `antispambot()` for all `{{email}}` output.
 
@@ -829,14 +827,13 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
-| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
-| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
+| `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `fallback` | text | Fallback Phone Number | always | A fallback **phone number** (normalized, wrapped). Fires only when no valid number resolves. |
+
+No tag-level `limit` control since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): the source is a chain, so a limit rides the fanning step that it bounds. A stored `limit` still bounds the list — see [§List mode](#list-mode-limit--sep).
 
 Plus two global **Settings → Tag Extensions → Phone** options (not per-tag): **Default country code** (digits, empty default) and **Strip a leading country code matching the default** (default OFF).
 

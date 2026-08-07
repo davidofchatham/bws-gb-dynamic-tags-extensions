@@ -125,6 +125,12 @@ foreach ( array(
 }
 
 bws_register_base_tags();
+// {{email}} and {{phone}} register from the plugin bootstrap, not from
+// bws_register_base_tags() — their MODIFIER TEMPLATES are what base registration pulls in.
+// Called here so the two GB tags' own panels are read as well; without them every
+// assertion naming `email`/`phone` passes vacuously against an unregistered tag.
+bws_register_email_tag();
+bws_register_phone_tag();
 \BWS\DynamicTags\TagTemplateRegistry::generate_base_try_tags();
 
 $registered = GenerateBlocks_Register_Dynamic_Tag::get_tags();
@@ -245,7 +251,7 @@ foreach ( $try_groups as $tag => $order ) {
 // the option rather than the group.
 assert_same(
 	'{{try_text}} — full option order',
-	array( 'A', 'B', 'C', 'D', 'E', 'limit', 'sep', 'linkTo', 'linkKey', 'newTab', 'fallback' ),
+	array( 'A', 'B', 'C', 'D', 'E', 'sep', 'linkTo', 'linkKey', 'newTab', 'fallback' ),
 	array_keys( $registered['try_text']['options'] ?? array() )
 );
 
@@ -300,6 +306,24 @@ foreach ( bws_option_visual_groups() as $name => $spec ) {
 	}
 }
 
+// DELIBERATE bare controls: tag + group pairs where the lone member is meant to render
+// with no box. The four `try_` list templates are the whole list, and they became bare
+// in 1.17.0 when the tag-level `limit` retired (#62) and left `sep` alone in the source
+// group. There is no box to want: a try_ tag's SOURCE is its attempts, and a folded slot
+// key is ungrouped on purpose (it draws its own boxes inside one value), so a border
+// around the separator would caption nothing. Contrast the base tags, where `sep` shares
+// the source box with the chain control that leads it.
+//
+// Asserted as EXERCISED below, so a stale entry fails instead of quietly widening the
+// rule the rest of this section enforces.
+$bare_by_design = array(
+	'try_text'  => array( 'source' ),
+	'try_title' => array( 'source' ),
+	'try_email' => array( 'source' ),
+	'try_phone' => array( 'source' ),
+);
+$exercised      = array();
+
 foreach ( $registered as $tag => $args ) {
 	$options = $args['options'] ?? array();
 	$members = array();
@@ -310,13 +334,68 @@ foreach ( $registered as $tag => $args ) {
 		if ( 'link' === $group || count( $names ) > 1 ) {
 			continue;
 		}
+		if ( in_array( $group, $bare_by_design[ $tag ] ?? array(), true ) ) {
+			$exercised[ $tag ][] = $group;
+			continue;
+		}
 		$has_lead = (bool) array_intersect( $names, $leads[ $group ] ?? array() );
 		assert_same( "{{{$tag}}} — lone `{$group}` member is a lead", true, $has_lead );
 	}
 }
 
+assert_same( 'every bare-by-design exception is exercised', $bare_by_design, $exercised );
+
 // ===========================================================================
-echo "\n§5 The always-serialized `as` still carries the default that serializes it\n";
+echo "\n§5 The tag-level `limit` is UNREGISTERED wherever the source is a chain\n";
+// ===========================================================================
+// A LIMIT IS STATED WHERE THE SOURCE IS STATED (#62). A chain-authoring tag states its
+// source as steps, so its limits live on the steps and the tag-level control retires —
+// with one fanning step it is the same knob as that step's own limit, and with two it
+// slices the flattened walk at a position set by fan-out widths the author cannot see.
+// `try_` retires it for the same reason: its attempts author chains too.
+//
+// UNREGISTERED, not gated: the mount migrator rewrites flat wire to a chain before the
+// panel paints, so a predicate naming the flat tokens would be effectively unreachable.
+//
+// Removing the OPTION does not remove the VALUE — GB seeds `extraTagParams` from the
+// parsed tag string, not from the registry, so a stored `limit` still round-trips and
+// still renders (bws_clamp_limit reads it untouched). That is what keeps unmigrated flat
+// wire and hand-edited wire meaning what they say (ADR 0004).
+//
+// `sep` STAYS on every one of them: it joins the final printed list, so it has no "which
+// step" question to answer and is genuinely tag-level.
+
+// ONE list, two properties: `limit` gone everywhere, `sep` kept where the tag had one.
+// Written as a map rather than two arrays because the pair was SPLIT, not dropped, and
+// two hand-kept lists let a tag fall out of the `sep` half unnoticed while still passing
+// the `limit` half. `try_content`/`image`/`permalink`/`datetime_*` are the false entries:
+// they never carried `sep` (not list templates), so their row asserts its ABSENCE and the
+// map states the whole family rather than the convenient part of it.
+$chain_authoring = array(
+	'text'            => true,
+	'title'           => true,
+	'email'           => true,
+	'phone'           => true,
+	'datetime_single' => true,
+	'datetime_range'  => true,
+);
+foreach ( array_keys( $registered ) as $tag ) {
+	if ( 0 === strpos( $tag, 'try_' ) ) {
+		$chain_authoring[ $tag ] = in_array( $tag, array( 'try_text', 'try_title', 'try_email', 'try_phone' ), true );
+	}
+}
+
+foreach ( $chain_authoring as $tag => $has_sep ) {
+	// Named tags are asserted PRESENT first: an absent tag has no options, so every
+	// "does not register X" check below would pass on a typo or a load-order change.
+	assert_same( "{{{$tag}}} — is registered at all", true, isset( $registered[ $tag ] ) );
+	$keys = array_keys( $registered[ $tag ]['options'] ?? array() );
+	assert_same( "{{{$tag}}} — registers no tag-level `limit`", false, in_array( 'limit', $keys, true ) );
+	assert_same( "{{{$tag}}} — `sep` registration unchanged", $has_sep, in_array( 'sep', $keys, true ) );
+}
+
+// ===========================================================================
+echo "\n§6 The always-serialized `as` still carries the default that serializes it\n";
 // ===========================================================================
 // Not an ordering property, but this harness is the only one that sees all three
 // constructors, and all three register a `bws-as-size` `as` (base {{image}}, the image

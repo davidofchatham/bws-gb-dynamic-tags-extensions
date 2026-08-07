@@ -168,16 +168,25 @@ Not reachable by `render-tag`. Open `/matrix-post-meta/` in the block editor.
 | L5.5 | Set the source to `Current` (root only) and commit | no `limit` is written — a source with no step has nothing to bound, and a number there is noise a reader has to decide is meaningless |
 | L5.6 | Add a step, leave its field empty | the step warns *"This tag will be skipped unless a field is set"*, and **Add hop is unavailable** until the step is complete |
 | L5.7 | On a fanning step, check the limit input | placeholder reads `0 (all)`. Type `0`, commit, reopen — the field shows `0 (all)` again and the wire carries no limit. Same glyphs, same meaning, nothing silently lost |
-| L5.8 | Convert the `L5.8 subject` row — a flat tag already carrying a tag-level `limit:3` | the `3` MOVES: the wire is `src:refs,related_staff,limit(3)` and the Result Limit field is now empty. One limit, one place — leaving it in both would state one bound in two spellings that mean different quantities |
+| L5.8 | Convert the `L5.8 subject` row — a flat tag already carrying a tag-level `limit:3` | the `3` MOVES onto the step: the wire is `src:refs,related_staff,limit(3)` and the tag-level key is gone. One limit, one place — leaving it in both would state one bound in two spellings that mean different quantities |
 
 ## Editor check (no front-end surface)
 
-Open any `limit`-bearing block on `/matrix-post-meta/` in the GB editor:
+**There is no tag-level Result Limit control any more** on the tags that build a source path
+(v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)) — a
+limit is stated where the source is stated, so the input to check is the STEP's own Limit field.
+Its absence is asserted by `php tools/test/control-order-test.php` §5, since a missing control
+leaves no trace in rendered output. A stored tag-level `limit` is still READ, which is what every
+L1/L3 row above exercises.
 
-- the **Result Limit** help text reads *"Maximum number of results to return. Default: 1. Enter 0
-  for no limit."*;
-- the number input accepts `0` and `-1` — **there is deliberately no `min`** (a control that
+Open a `limit`-bearing block on `/matrix-post-meta/` in the GB editor and check the step's Limit
+input:
+
+- the placeholder reads `0 (all)` and the step's own help names the per-input meaning (at most N
+  from EACH incoming result);
+- the input accepts `0` and `-1` — **there is deliberately no `min`** (a control that
   fights a hand-typed value works against
   [ADR 0004](../../docs/adr/0004-serialized-tag-string-human-readable.md), and the parse is already
   tolerant);
-- `0` survives a save/reopen round trip (GB serializes every value except strict `false`).
+- `0` survives a save/reopen round trip (it normalizes back to absence, and absence and `0` read
+  the same — L5.7).

@@ -561,6 +561,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F7.2 folded twin - src(same) is how the fold spells that inherit (-> same)', '{{join A:src(refs,related_staff);use(title);limit(2)|B:src(same);key(role)}}' ),
 	) );
 
+	// F7c (#62) - the tag-level Result Limit CONTROL is unregistered on every
+	// chain-authoring base tag, and the VALUE is still read. Removing an option never
+	// removes its value: GB seeds state from the parsed tag string, not the registry.
+	// F7c.2 is the non-vacuous partner - unset still bounds at 1 on flat wire, so a row
+	// printing two terms is the stored limit being honored rather than a default fan-out.
+	$sections[] = bws_fixture_gb_section( 'Fold F7c - stored limit renders with NO control (#62)', array(
+		bws_fixture_gb_row( 'F7c.1 text, stored limit:2 (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7c.2 text, limit UNSET - still 1 on flat wire, which makes F7c.1 mean something (-> Sales)', '{{text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7c.3 text, stored limit:0 is still UNLIMITED (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F7c.4 title, stored limit:2 (-> Sales, Support)', '{{title srcTermIn:department|limit:2}}' ),
+		bws_fixture_gb_row( 'F7c.5 email, stored limit:2 (-> jane@example.test, tom@example.test)', '{{email src:ref|ref:related_staff|key:contact_email|limit:2|noLink}}' ),
+		bws_fixture_gb_row( 'F7c.6 phone, stored limit:2 (-> (555) 200-3000, (555) 200-4000)', '{{phone src:ref|ref:related_staff|key:main_line|limit:2|noLink}}' ),
+		bws_fixture_gb_row( 'F7c.7 datetime_single, stored limit:2 (-> May 1, 2030, June 1, 2030)', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:2|as:date}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Fold F8 - src CHAIN on base tags (5h compiler)', array(
 		bws_fixture_gb_row( 'F8.2 legacy (-> (555) 200-3000)', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
 		bws_fixture_gb_row( 'F8.2 chain (-> same)', '{{phone src:refs,related_staff|key:main_line}}' ),

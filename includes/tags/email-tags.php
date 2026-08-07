@@ -68,7 +68,7 @@ function bws_register_email_tag(): void {
 			),
 		),
 		// Canonical CONTROL order (FW-52): source → format(none) → link → fallback.
-		// Source group = src → ref/srcTermIn → limit/sep → key. The email own-anchor
+		// Source group = src → ref/srcTermIn → sep → key. The email own-anchor
 		// set (subject → noLink) is the tag's `link` group → after source, before
 		// fallback (serialization normalizer keeps it that way in the string too).
 		'options'    => bws_prepare_registration_options( array_merge(
@@ -76,18 +76,11 @@ function bws_register_email_tag(): void {
 			$traversal_opts,
 			array(
 				// List mode only applies to the final traversal step (terms / related
-				// posts). Scalar sources return one address — hide both. Before the
+				// posts). Scalar sources return one address — hide it. Before the
 				// field key (list length is a source property, FW-52).
-				// `limit` is LEGACY WIRE ONLY — its predicate omits `chain_fans`, so the
-				// control retires once a source becomes a chain, where it is redundant
-				// (one fanning step) or arbitrary (two). `sep` keeps it. Full reasoning
-				// on the same pair in includes/tags/base-tags.php.
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
+				// NO TAG-LEVEL `limit` (#62): this tag's source is a CHAIN, which states
+				// its limits on its steps. `sep` stays — it joins printed output, so it
+				// has no "which step" question. Full reasoning in base-tags.php.
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),

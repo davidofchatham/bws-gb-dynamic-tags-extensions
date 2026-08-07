@@ -402,7 +402,10 @@ class TagTemplateRegistry {
 	 * `src`/`ref`/`srcTermIn` are always slot-level. `limit` NEVER is: try_ has never
 	 * registered `N-limit`, and the resolver reads a bare `limit` as every slot's default
 	 * limit (`$slot_max`), list template or not — so folding it into slot 1 would take that
-	 * bound away from slots 2+. It stays tag-level on every template.
+	 * bound away from slots 2+. It is TAG-level on every template for as long as it exists
+	 * in wire, which is what this list states. The CONTROL is gone (#62, 1.17.0) and the key
+	 * is retired by migration (#61) — neither changes the axis split: an unmigrated or
+	 * hand-written `limit` still arrives here and must still be kept out of a slot value.
 	 *
 	 * @since 1.17.0
 	 * @param array $tpl Modifier template descriptor.
@@ -448,7 +451,9 @@ class TagTemplateRegistry {
 	 * assembly is the panel, and since 1.17.0 it follows the same canonical control order
 	 * every base tag registers in — `source → format → link → fallback`:
 	 *   1. the folded slot keys `A`..`E`   — the attempt chain, i.e. this tag's source
-	 *   2. chain-level `limit`/`sep`       — list length is a source property (FW-52)
+	 *   2. chain-level `sep`               — list length is a source property (FW-52).
+	 *                                        `limit` stood beside it until #62 retired the
+	 *                                        tag-level control from every chain-authoring tag
 	 *   3. tag-level field reads           — tpl['options'] minus format, per-slot and fallback
 	 *   4. format options                  — as/size, the datetime format cluster
 	 *   5. link options                    — linkTo/linkKey/newTab
@@ -591,32 +596,36 @@ class TagTemplateRegistry {
 				$options[ $slot_key ] = $slot_def;
 			}
 
-			// 2 — List-mode chain options (try_list_options templates: text, title). A winning
-			// slot in list mode (any slot with a srcTermIn term-step, or src:ref once the
-			// Phase-5 plural resolver lands) joins its finished items via the seam
-			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
-			// not per-slot) — the seam reads them off $opts. Mirrors the base text tag's
-			// limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
+			// 2 — List-mode chain option (try_list_options templates: text, title, email,
+			// phone). A winning slot in list mode (any slot with a srcTermIn term-step, or
+			// src:ref once the Phase-5 plural resolver lands) joins its finished items via
+			// the seam (bws_try_join_items). `sep` is CHAIN-level (one for the whole try_,
+			// not per-slot) — the seam reads it off $opts. [SPEC §32 V4,V5 / I6 parity]
 			//
-			// Registered HERE, right behind the attempts, because they are SOURCE-group
-			// options (list length is a property of the source, FW-52) and a group boxes
-			// only where its members are contiguous. Appended last — which is where they sat
-			// until 1.17.0 — the pair drew its own captionless box at the foot of the panel,
-			// below link and fallback, describing a source that was nowhere near it.
+			// NO TAG-LEVEL `limit` since 1.17.0 (#62). A LIMIT IS STATED WHERE THE SOURCE
+			// IS STATED, and a try_ attempt authors its source as a CHAIN, so the limit
+			// belongs to the fanning STEP inside the slot value. The tag-level key was also
+			// the one limit an author could set for FIVE different sources at once, which
+			// #61 retired into the slots that consumed it — the value is still read here
+			// ($slot_max, below) so unmigrated and hand-edited wire keeps rendering.
 			//
-			// The pair is UNCONDITIONAL under the fold. Its reveal predicate used to be a
-			// show_if_any over every slot's `N-srcTermIn`/`N-src` — keys the fold removed.
-			// A list axis now lives INSIDE a slot value (`src(terms[category])`), and
-			// show_if compares whole option values, so no honest predicate exists: a
-			// `not_empty` on slot `A` fires for every configured slot, list axis or not.
-			// Two controls always visible beats a condition that lies about when the pair
-			// matters — and the same call was made for join's reveal rows (5d).
+			// `sep` is registered HERE, right behind the attempts, because it is a
+			// SOURCE-group option (list length is a property of the source, FW-52) and a
+			// group boxes only where its members are contiguous. Appended last — which is
+			// where the pair sat until 1.17.0 — it drew its own captionless box at the foot
+			// of the panel, below link and fallback, describing a source nowhere near it.
+			// Alone in the group now, it renders BARE (option-group.js's lone-non-lead
+			// opt-out), which is right: a try_ tag's source is its attempts, and those draw
+			// their own boxes inside each slot value.
+			//
+			// UNCONDITIONAL under the fold. Its reveal predicate used to be a show_if_any
+			// over every slot's `N-srcTermIn`/`N-src` — keys the fold removed. A list axis
+			// now lives INSIDE a slot value (`src(terms[category])`), and show_if compares
+			// whole option values, so no honest predicate exists: a `not_empty` on slot `A`
+			// fires for every configured slot, list axis or not. A control always visible
+			// beats a condition that lies about when it matters — same call as join's
+			// reveal rows (5d).
 			if ( $list_options ) {
-				$options['limit'] = [
-					'type'  => 'number',
-					'label' => __( 'Result Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-				];
 				$options['sep'] = [
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),

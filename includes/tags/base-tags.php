@@ -71,34 +71,36 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		// Canonical CONTROL order (FW-52): source → format → link → fallback.
-		// text has no format group. Within source: src → ref → srcTermIn → limit → sep
-		// → use → key (limit/sep before field keys — list length is a source property).
+		// text has no format group. Within source: src → ref → srcTermIn → sep → use
+		// → key (sep before the field keys — list length is a source property). The
+		// tag-level `limit` CONTROL retired in 1.17.0 (#62); the KEY still ranks between
+		// srcTermIn and sep when stored wire carries one (serialization-order.php).
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
-				// LEGACY WIRE ONLY, deliberately: the predicate names the two flat
-				// fanning tokens and does NOT ask `chain_fans`, so this control retires
-				// the moment a source becomes a chain. On a chain it is either redundant
-				// or arbitrary and never useful — with one fanning step it is the same
-				// knob as that step's own limit, and with two it slices the flattened walk
-				// at a position set by fan-out widths the author cannot see, parent-major
-				// only because bws_run_traversal happens to iterate that way. Migration
-				// carries the old limit onto the STEPS for exactly this reason, so nothing
-				// arrives here needing to be cleared.
+				// NO TAG-LEVEL `limit` (#62). A LIMIT IS STATED WHERE THE SOURCE IS STATED:
+				// this tag authors its source as a CHAIN, so each fanning step carries its
+				// own limit and a tag-level one is never useful — with one fanning step it
+				// is the same knob as that step's, and with two it slices the flattened
+				// walk at a position set by fan-out widths the author cannot see,
+				// parent-major only because bws_run_traversal happens to iterate that way.
+				// The flat-select families state one step, so `term_*` keeps the key (#63).
+				//
+				// UNREGISTERED, not gated on flat wire: the mount migrator rewrites a flat
+				// tag to a chain before the panel paints, so a flat-only predicate would be
+				// effectively unreachable.
 				//
 				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
 				// other bound, and hand-edited chain wire carrying one still renders it —
 				// removing a control never removes an option (ADR 0004; GB seeds state
-				// from the tag string, not the registry). `sep` KEEPS `chain_fans`: it
-				// joins printed output, which a chain does as much as a flat source.
-				// Ordered before the field keys (list length is a source property, FW-52).
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
+				// from the tag string, not the registry). Migration carries an author's
+				// number onto the STEPS, so nothing arrives here needing to be cleared.
+				//
+				// `sep` STAYS, and keeps `chain_fans`: it joins printed output, which a
+				// chain does as much as a flat source, so it has no "which step" question
+				// to answer. Ordered before the field keys (list length is a source
+				// property, FW-52).
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
@@ -192,28 +194,11 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// LEGACY WIRE ONLY, deliberately: the predicate names the two flat
-				// fanning tokens and does NOT ask `chain_fans`, so this control retires
-				// the moment a source becomes a chain. On a chain it is either redundant
-				// or arbitrary and never useful — with one fanning step it is the same
-				// knob as that step's own limit, and with two it slices the flattened walk
-				// at a position set by fan-out widths the author cannot see, parent-major
-				// only because bws_run_traversal happens to iterate that way. Migration
-				// carries the old limit onto the STEPS for exactly this reason, so nothing
-				// arrives here needing to be cleared.
-				//
-				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
-				// other bound, and hand-edited chain wire carrying one still renders it —
-				// removing a control never removes an option (ADR 0004; GB seeds state
-				// from the tag string, not the registry). `sep` KEEPS `chain_fans`: it
-				// joins printed output, which a chain does as much as a flat source.
-				'limit' => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
-				'sep'   => array(
+				// NO TAG-LEVEL `limit` (#62) — same call as {{text}} above, and the full
+				// reasoning is there: a chain states its limits on its STEPS, the value is
+				// still read wherever it is written, and `sep` stays because it joins
+				// printed output whatever the source spelling.
+				'sep' => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
@@ -764,7 +749,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		}
 	} elseif ( 'post' === $res['kind'] ) {
 		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, not just the
-		// first. limit/sep are offered whenever the chain fans, so honor them —
+		// first. `sep` is offered whenever the chain fans and a stored `limit` still
+		// bounds the list whether or not a control ever wrote it (#62), so honor both —
 		// mirrors the term branch.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
