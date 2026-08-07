@@ -307,26 +307,45 @@
 		var src = String( ( s.src || s.source ) || '' ).trim();
 		var tax = String( s.srcTermIn || '' ).trim();
 
-		if ( fold.chainIsWire( src ) ) {
-			return null;   // already respelled
-		}
-		if ( -1 !== retiredSrc( conf || {} ).indexOf( src ) ) {
-			return null;   // declined whole, exactly as a slot is (#56)
-		}
-		if ( 'site' === src ) {
-			return null;   // the site read wins; the honest rewrite would DROP a key
-		}
-		if ( 'ref' !== src && '' === tax ) {
-			return null;   // nothing fans, so there is no chain to state
-		}
-
 		var chain = [];
-		if ( 'ref' === src ) {
-			var ref = String( s.ref || '' ).trim();
-			chain.push( { slug: 'refs', arg: '' !== ref ? ref : null, limit: null, extra: [] } );
-		}
-		if ( '' !== tax ) {
-			chain.push( { slug: 'terms', arg: tax, limit: null, extra: [] } );
+
+		if ( fold.chainIsWire( src ) ) {
+			// Already respelled -- but a TAG-LEVEL LIMIT is legacy by POSITION rather
+			// than by spelling, and it is the one shape where a bound is INVISIBLE (the
+			// step's own Limit field reads unlimited, and #62 left no control that can
+			// reach the key). So it is absorbed onto the step it bounds here too.
+			//
+			// NUMERIC ONLY, unlike the flat branch below: that one materializes the flat
+			// ERA's default when the key is absent or unreadable, because the spelling it
+			// leaves behind meant 1. Chain wire is not changing era, so there is no
+			// default to carry. See the PHP owner (bws_fold_migrate_base_src).
+			var rawLimit = String( ( s.limit === null || s.limit === undefined ) ? '' : s.limit ).trim();
+			if ( '' === rawLimit || ! fold.isNumericLike( rawLimit ) ) {
+				return null;
+			}
+			var parsed = fold.parseChain( src );
+			if ( ! parsed || parsed.error || ! parsed.length ) {
+				return null;
+			}
+			chain = parsed;
+		} else {
+			if ( -1 !== retiredSrc( conf || {} ).indexOf( src ) ) {
+				return null;   // declined whole, exactly as a slot is (#56)
+			}
+			if ( 'site' === src ) {
+				return null;   // the site read wins; the honest rewrite would DROP a key
+			}
+			if ( 'ref' !== src && '' === tax ) {
+				return null;   // nothing fans, so there is no chain to state
+			}
+
+			if ( 'ref' === src ) {
+				var ref = String( s.ref || '' ).trim();
+				chain.push( { slug: 'refs', arg: '' !== ref ? ref : null, limit: null, extra: [] } );
+			}
+			if ( '' !== tax ) {
+				chain.push( { slug: 'terms', arg: tax, limit: null, extra: [] } );
+			}
 		}
 
 		// Migration changes the SPELLING, and the spelling selects the tag-level
@@ -341,6 +360,14 @@
 		// Enclosing level 0 -- a base tag's `src:` IS the wrapper.
 		var wire = fold.emitChain( bound.chain, 0 );
 		if ( '' === wire || ! fold.chainIsWire( wire ) ) {
+			return null;
+		}
+
+		// On the absorb branch the KEY is the point, so a mapping that stood down -- the
+		// chain states its own step limits, or it does not fan -- is no rewrite at all.
+		// Returning an unchanged map would re-serialize on every open, which is what the
+		// mount path's loop guard exists to avoid.
+		if ( ! bound.consumed && src === wire ) {
 			return null;
 		}
 

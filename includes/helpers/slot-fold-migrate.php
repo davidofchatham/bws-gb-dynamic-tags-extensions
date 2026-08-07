@@ -372,30 +372,59 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
  * @return array|null Rewritten options, or null when there is nothing to migrate.
  */
 function bws_fold_migrate_base_src( array $options ) {
-	$src = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
-	$tax = trim( (string) ( $options['srcTermIn'] ?? '' ) );
+	$src   = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
+	$tax   = trim( (string) ( $options['srcTermIn'] ?? '' ) );
+	$chain = null;
 
-	// Already chain wire — nothing to respell.
+	// ALREADY CHAIN WIRE. There is no spelling to respell, but there may still be a
+	// TAG-LEVEL LIMIT, and a tag-level limit is legacy by POSITION rather than by
+	// spelling: it is the one shape where a bound is INVISIBLE, since the step's own
+	// Limit field reads unlimited and #62 left no control that can reach the key. So the
+	// number is absorbed onto the step it bounds here too.
+	//
+	// NUMERIC ONLY, which is the whole difference from the flat branch below. That branch
+	// materializes the flat ERA's default (1) when the key is absent or unreadable,
+	// because the spelling it is leaving behind meant 1. Chain wire is not changing era,
+	// so there is no default to carry — materializing one would bound a tag that renders
+	// unlimited today. Everything else about the mapping is shared, so a tag absorbed here
+	// and the same tag converted from flat wire land byte-identically.
 	if ( function_exists( 'bws_fold_chain_is_wire' ) && bws_fold_chain_is_wire( $src ) ) {
-		return null;
-	}
-	if ( in_array( $src, BWS_FOLD_RETIRED_SRC_TOKENS, true ) ) {
-		return null;
-	}
-	if ( 'site' === $src ) {
-		return null;
-	}
-	// Fanning iff the flat triple states a relationship step or a term step.
-	if ( 'ref' !== $src && '' === $tax ) {
-		return null;
+		$raw_limit = trim( (string) ( $options['limit'] ?? '' ) );
+		if ( '' === $raw_limit || ! is_numeric( $raw_limit ) ) {
+			return null;
+		}
+		$parsed = bws_fold_parse_chain( $src );
+		if ( ! is_array( $parsed ) || isset( $parsed['error'] ) || ! $parsed ) {
+			return null;
+		}
+		$chain = $parsed;
+	} else {
+		if ( in_array( $src, BWS_FOLD_RETIRED_SRC_TOKENS, true ) ) {
+			return null;
+		}
+		if ( 'site' === $src ) {
+			return null;
+		}
+		// Fanning iff the flat triple states a relationship step or a term step.
+		if ( 'ref' !== $src && '' === $tax ) {
+			return null;
+		}
+		$chain = bws_fold_chain_from_options( $options );
 	}
 
-	$chain  = bws_fold_chain_from_options( $options );
 	// Depth 0, so an explicit `limit:0`/`-1` is CONSUMED rather than left: chain wire
 	// already means unlimited, and since #62 no control can reach the key it would leave.
 	$bound  = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null, true );
 	$wire   = bws_fold_emit_chain( $bound['chain'], 0 );
 	if ( '' === $wire || ! bws_fold_chain_is_wire( $wire ) ) {
+		return null;
+	}
+
+	// On the absorb branch the KEY is the entire point, so a mapping that stood down —
+	// the chain states its own step limits, or it does not fan — is no rewrite at all.
+	// Returning the map unchanged would re-serialize a tag nobody can improve every time
+	// it is opened, and a no-op diff is what the mount path's loop guard exists to avoid.
+	if ( ! $bound['consumed'] && $src === $wire ) {
 		return null;
 	}
 

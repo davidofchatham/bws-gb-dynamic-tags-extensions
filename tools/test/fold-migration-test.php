@@ -731,6 +731,62 @@ check(
 	json_encode( $m9 )
 );
 
+// A TAG-LEVEL LIMIT IS LEGACY BY POSITION, NOT BY SPELLING (#62, user 2026-08-07). Wire
+// that is already a chain was skipped whole until now — nothing to respell — which left
+// the one shape where a bound is INVISIBLE: `{{text src:terms,department|use:title|
+// limit:1}}` renders one term while the step's own Limit field reads `0 (all)` and no
+// control can reach the number. So a numeric tag-level `limit` is absorbed onto the step
+// it bounds whatever the source spelling, and the key goes with it.
+//
+// NUMERIC ONLY on this branch, and that is the whole difference from the flat one. The
+// flat branch materializes the ERA's default (1) when the key is absent or unreadable,
+// because the spelling it is leaving behind meant 1. Chain wire is not changing era, so
+// there is no default to carry: materializing 1 from an absent or non-numeric key would
+// bound a tag that renders unlimited today.
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => '1' ) );
+check(
+	'M9.10 a numeric limit on CHAIN wire moves onto the step and the key goes',
+	'terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'refs,office;terms,department', 'limit' => '3' ) );
+check(
+	'M9.10b two fanning steps take the same mapping as the flat branch',
+	'refs,office,limit(1);terms,department,limit(3)' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => '0' ) );
+check(
+	'M9.10c an explicit 0 on chain wire writes no step limit and still loses the key',
+	'terms,department' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+// The three stand-downs. Each returns NULL — no rewrite at all — rather than an
+// identical map, so a tag nobody can improve is not re-serialized on every open.
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => 'lots' ) );
+check(
+	'M9.10d a NON-numeric limit on chain wire is left entirely alone',
+	null === $m9,
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department,limit(2)', 'use' => 'title', 'limit' => '1' ) );
+check(
+	'M9.10e a chain that states its own step limit keeps it, and keeps the tag-level key',
+	null === $m9,
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title' ) );
+check(
+	'M9.10f chain wire with NO tag-level limit is untouched (nothing to absorb)',
+	null === $m9,
+	json_encode( $m9 )
+);
+
 // The N×M families ride this same mapping rather than a second copy of it. Their wire
 // expectations live with the entries themselves, in
 // tools/test/related-post-src-migration-test.php §R6 — one owner per assertion.

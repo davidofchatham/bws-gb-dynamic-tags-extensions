@@ -690,6 +690,42 @@
 			}
 		},
 		{
+			"label": "CHAIN wire + a numeric tag-level limit: absorbed onto the step, key gone",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "1"
+			}
+		},
+		{
+			"label": "CHAIN wire + limit:0 -- no step limit, and the key still goes",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "0"
+			}
+		},
+		{
+			"label": "CHAIN wire + a NON-numeric limit is declined whole (no era change, no default to carry)",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "lots"
+			}
+		},
+		{
+			"label": "CHAIN wire whose steps state their own limit keeps both, and is declined",
+			"conf": {},
+			"options": {
+				"src": "terms,department,limit(2)",
+				"use": "title",
+				"limit": "1"
+			}
+		},
+		{
 			"label": "legacy `source` key is read and dropped",
 			"conf": {},
 			"options": {

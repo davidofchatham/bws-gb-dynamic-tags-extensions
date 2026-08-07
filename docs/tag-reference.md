@@ -235,6 +235,8 @@ Migration states what the old spelling implied, so no stored tag changes output 
 
 An EXPLICIT value beats the spelling-selected default in both directions. That is ordinary option precedence and needs no extra rule.
 
+**A tag-level `limit` is legacy by POSITION, not by spelling** (v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)). Wire that is ALREADY a chain used to be skipped whole — there is no spelling to respell — which left the one shape where a bound is invisible: `{{text src:terms,department|use:title|limit:1}}` renders one term while the step's own Limit field reads unlimited and no control can reach the key. Both migration paths now absorb such a number onto the step it bounds and delete the key. **NUMERIC ONLY on that branch**, which is the whole difference from the flat one: the flat branch materializes the flat era's default of 1 when the key is absent or unreadable, because the spelling it leaves behind meant 1, where chain wire is not changing era and has no default to carry — materializing one would bound a tag that renders unlimited today. A stand-down (non-numeric, a chain that states its own step limits, a chain that does not fan) is a NO-OP rather than an identical rewrite, so a tag nobody can improve is not re-serialized every time it is opened.
+
 **Migration does not write one, though** — A LIMIT IS STATED WHERE THE SOURCE IS STATED, so a rewritten tag carries its limit on the STEPS (`src:refs,x,limit(1)`) and no tag-level `limit` at all. One table, both depths — a base tag's `src` and a folded slot's chain go through the same owner:
 
 | legacy `limit` | what migration writes |
