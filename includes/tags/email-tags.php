@@ -78,9 +78,8 @@ function bws_register_email_tag(): void {
 				// List mode only applies to the final traversal step (terms / related
 				// posts). Scalar sources return one address — hide it. Before the
 				// field key (list length is a source property, FW-52).
-				// NO TAG-LEVEL `limit` (#62): this tag's source is a CHAIN, which states
-				// its limits on its steps. `sep` stays — it joins printed output, so it
-				// has no "which step" question. Full reasoning in base-tags.php.
+				// NO TAG-LEVEL `limit` (#62), and `sep` stays. Reasoning in base-tags.php,
+				// on the same pair — not restated here, since a copy is what drifts.
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),

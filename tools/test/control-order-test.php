@@ -343,6 +343,21 @@ foreach ( $registered as $tag => $args ) {
 	}
 }
 
+// Compared SORTED, both levels: the exception list is a set, and registration order is a
+// different property with its own sections above. An `===` on the raw arrays passes only
+// while the try_ constructor happens to emit these four in the literal's order, so a
+// Catalog reorder would fail this on a question it is not asking.
+ksort( $bare_by_design );
+ksort( $exercised );
+foreach ( $exercised as &$exercised_groups ) {
+	sort( $exercised_groups );
+}
+unset( $exercised_groups );
+foreach ( $bare_by_design as &$expected_groups ) {
+	sort( $expected_groups );
+}
+unset( $expected_groups );
+
 assert_same( 'every bare-by-design exception is exercised', $bare_by_design, $exercised );
 
 // ===========================================================================
@@ -365,33 +380,57 @@ echo "\n§5 The tag-level `limit` is UNREGISTERED wherever the source is a chain
 // `sep` STAYS on every one of them: it joins the final printed list, so it has no "which
 // step" question to answer and is genuinely tag-level.
 
-// ONE list, two properties: `limit` gone everywhere, `sep` kept where the tag had one.
-// Written as a map rather than two arrays because the pair was SPLIT, not dropped, and
-// two hand-kept lists let a tag fall out of the `sep` half unnoticed while still passing
-// the `limit` half. `try_content`/`image`/`permalink`/`datetime_*` are the false entries:
-// they never carried `sep` (not list templates), so their row asserts its ABSENCE and the
-// map states the whole family rather than the convenient part of it.
-$chain_authoring = array(
-	'text'            => true,
-	'title'           => true,
-	'email'           => true,
-	'phone'           => true,
-	'datetime_single' => true,
-	'datetime_range'  => true,
-);
-foreach ( array_keys( $registered ) as $tag ) {
-	if ( 0 === strpos( $tag, 'try_' ) ) {
-		$chain_authoring[ $tag ] = in_array( $tag, array( 'try_text', 'try_title', 'try_email', 'try_phone' ), true );
+// SWEPT, not listed. The set is decided by the CONTROL a tag authors its source with —
+// a chain (`bws-src-chain`) or folded attempts (`bws-slot-fold`) — which is the property
+// the rule is actually about, so a NEW tag joins the sweep by registering a chain source
+// and a tag family that keeps the flat select (`term_*`, `{{call}}`) stays out of it
+// without being named. A hand list would have passed a `limit` re-added to `{{content}}`,
+// `{{permalink}}` or `{{image}}` while the docs claim no tag registers one.
+$chain_authoring = array();
+foreach ( $registered as $tag => $args ) {
+	$options = $args['options'] ?? array();
+	$folded  = false;
+	foreach ( $options as $opt ) {
+		if ( 'bws-slot-fold' === ( $opt['type'] ?? '' ) ) {
+			$folded = true;
+			break;
+		}
+	}
+	if ( 'bws-src-chain' === ( $options['src']['type'] ?? '' ) || $folded ) {
+		$chain_authoring[] = $tag;
 	}
 }
 
-foreach ( $chain_authoring as $tag => $has_sep ) {
-	// Named tags are asserted PRESENT first: an absent tag has no options, so every
-	// "does not register X" check below would pass on a typo or a load-order change.
-	assert_same( "{{{$tag}}} — is registered at all", true, isset( $registered[ $tag ] ) );
+// The sweep is only worth its name if it actually reaches the families the ticket names,
+// so the floor is asserted rather than assumed: an empty or half-loaded registry would
+// otherwise sail through every "does not register" check below.
+foreach ( array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range', 'try_text' ) as $named ) {
+	assert_same( "{{{$named}}} — is in the swept set", true, in_array( $named, $chain_authoring, true ) );
+}
+
+foreach ( $chain_authoring as $tag ) {
 	$keys = array_keys( $registered[ $tag ]['options'] ?? array() );
 	assert_same( "{{{$tag}}} — registers no tag-level `limit`", false, in_array( 'limit', $keys, true ) );
-	assert_same( "{{{$tag}}} — `sep` registration unchanged", $has_sep, in_array( 'sep', $keys, true ) );
+}
+
+// `sep` was SPLIT from the pair, not dropped with it — asserted separately because the two
+// halves fail differently and a copy-paste removal of both should name itself. The base
+// six are the ticket's own list; the `try_` half is DERIVED from the template flag that
+// decides it (`try_list_options`), so this file holds no third copy of that set.
+$sep_expected = array( 'text', 'title', 'email', 'phone', 'datetime_single', 'datetime_range' );
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+	if ( ! empty( $tpl['supports_try'] ) && ! empty( $tpl['try_list_options'] ) ) {
+		$sep_expected[] = 'try_' . $tpl['key'];
+	}
+}
+
+foreach ( $chain_authoring as $tag ) {
+	$keys = array_keys( $registered[ $tag ]['options'] ?? array() );
+	assert_same(
+		"{{{$tag}}} — `sep` registration unchanged",
+		in_array( $tag, $sep_expected, true ),
+		in_array( 'sep', $keys, true )
+	);
 }
 
 // ===========================================================================

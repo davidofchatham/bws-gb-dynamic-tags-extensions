@@ -1159,6 +1159,13 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
 	// each language — the one divergence a twin exists to make impossible. Nothing is lost:
 	// a limit that large already reads as unlimited in both eras, and the tag-level key is
 	// left exactly as authored, so the reader still answers what it always answered.
+	//
+	// It is NOT consumed at depth 0 either, and that is the one acknowledged hole in #62's
+	// promise: the key survives on chain wire with no control to reach it. Left deliberately
+	// — the value is a stated BOUND, not the explicit unlimited the consume rule is written
+	// for, so deleting it would answer a question the author asked with a number of our own.
+	// Hand-written wire only (no control could ever produce a magnitude this large), which
+	// is also the wire ADR 0004 says must keep meaning what it says.
 	if ( $explicit && abs( (float) $raw ) > BWS_FOLD_MAX_SAFE_LIMIT ) {
 		return array( 'chain' => $chain, 'consumed' => false );
 	}
