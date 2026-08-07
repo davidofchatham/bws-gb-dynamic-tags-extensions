@@ -1893,14 +1893,32 @@ function bws_register_option_migrations(): void {
 	// complete first (fold-test-matrix.md §F9/§F9a, measured 2026-08-05).
 	//
 	// Matches on the KEYS rather than on values: `src:ref` and `srcTermIn` are the two
-	// spellings that fan, and the transform declines everything else — so the entry is
-	// reported on exactly the tags it will rewrite.
+	// spellings that fan, plus `limit` for the absorb branch below.
+	//
+	// `limit` IS ON THIS LIST AND MUST STAY (#66). A tag-level limit is legacy by POSITION,
+	// not by spelling, so the transform also absorbs one sitting on wire that is ALREADY a
+	// chain — and that shape carries neither `ref` nor `srcTermIn`, so without `limit` here
+	// it never reaches the transform at all. That shipped: #62 added the branch and left the
+	// match list alone, which made the branch dead code on the CONVERTER path while the mount
+	// path (which has no entry chain) ran it — one tag stored two ways depending on which
+	// path found it first, the divergence both halves exist to prevent. The slot half already
+	// carries the same rule for the same reason (bws_fold_migration_match_keys() adds `limit`
+	// on a non-combining container).
+	//
+	// COST, accepted: the entry is no longer reported on EXACTLY the tags it rewrites. A
+	// non-numeric `limit`, or a chain that already states its own step limits, matches here
+	// and is then declined by the transform. Harmless to the RUN since 1.17.0 — a no-op entry
+	// no longer halts the cascade — so the cost is confined to what the converter ADVERTISES,
+	// over a set that only shrinks. The alternative was a value-gated match (the `related_post`
+	// entry's posture), but `match_option_values` matches literal values and cannot express
+	// "numeric, on a chain that fans without stated limits"; that needs a new match_callback
+	// capability on the registry, for one entry.
 	if ( function_exists( 'bws_fold_migration_base_tags' ) ) {
 		foreach ( bws_fold_migration_base_tags() as $base_tag ) {
 			$reg::register( array(
 				'type'               => 'option',
 				'match_tag'          => $base_tag,
-				'match_any_options'  => array( 'ref', 'srcTermIn' ),
+				'match_any_options'  => array( 'ref', 'srcTermIn', 'limit' ),
 				'new_tag'            => $base_tag,
 				'transform_callback' => 'bws_migrate_base_src_chain',
 				'label'              => sprintf(

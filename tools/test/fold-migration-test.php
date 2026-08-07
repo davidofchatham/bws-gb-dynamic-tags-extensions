@@ -900,5 +900,120 @@ check(
 	json_encode( bws_fold_migrate_slots( array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '2-key' => 'b' ), $join_cfg ) )
 );
 
+// ===========================================================================
+echo "\n§M11 A VALUELESS option survives the migration round trip (#67)\n";
+// ===========================================================================
+// GB's bare-key boolean. serialize_tag_string() has always emitted `true` as a bare key
+// — its docblock names `showMidnight` as the example — but parse_tag_string() never
+// produced one, so the branch was unreachable and every migration DELETED the flag it
+// parsed. For `noLink` that turned the mailto wrap back ON and removed the setting that
+// said otherwise: a migration changing rendered output, which is the one thing migration
+// promises not to do. Shipped 1.6.x → 1.17.0.
+//
+// Asserted at the apply_option_migration() level as well as the parser, because the loss
+// happened in the ROUND TRIP: a parser-only test passes on a serializer that drops it and
+// vice versa.
+
+foreach ( array( 'noLink', 'newTab', 'showCurrentYear', 'showMidnight' ) as $flag ) {
+	list( , $parsed ) = MigrationRegistry::parse_tag_string( '{{text key:x|' . $flag . '}}' );
+	check(
+		"M11.1 `$flag` parses as a bare-key boolean",
+		array_key_exists( $flag, $parsed ) && true === $parsed[ $flag ],
+		json_encode( $parsed )
+	);
+}
+
+$round = MigrationRegistry::format_tag_string(
+	'text',
+	MigrationRegistry::parse_tag_string( '{{text src:ref|ref:related_staff|key:x|noLink}}' )[1]
+);
+check(
+	'M11.2 …and round-trips back to a BARE key, not `noLink:1` and not dropped',
+	'{{text src:ref|ref:related_staff|key:x|noLink}}' === $round,
+	$round
+);
+
+// Through a real transform, which is where it was actually being lost. The base src-chain
+// migrator rewrites the source; the flag is none of its business and must come out untouched.
+$flagged = bws_migrate_base_src_chain( '{{text src:ref|ref:related_staff|use:title|limit:2|noLink}}' );
+check(
+	'M11.3 a transform that rewrites the SOURCE leaves an unrelated bare flag alone',
+	false !== strpos( $flagged, '|noLink' ) && false === strpos( $flagged, 'noLink:' ),
+	$flagged
+);
+
+// The empty-string case is NOT the same thing and must keep its GB meaning (omitted).
+check(
+	'M11.4 an EMPTY-string value is still omitted — that is GB convention, not the bug',
+	'{{text key:x}}' === MigrationRegistry::format_tag_string( 'text', array( 'key' => 'x', 'sep' => '' ) ),
+	MigrationRegistry::format_tag_string( 'text', array( 'key' => 'x', 'sep' => '' ) )
+);
+
+// ===========================================================================
+echo "\n§M12 The base entry's MATCH surface reaches already-chain wire (#66)\n";
+// ===========================================================================
+// A tag-level limit is legacy by POSITION, not by spelling, so the transform absorbs one
+// sitting on wire that is ALREADY a chain. That shape carries neither `ref` nor
+// `srcTermIn` — so with a match list of just those two it never reaches the transform,
+// and #62's branch was dead code on the CONVERTER path while the mount path (no entry
+// chain) ran it. One tag stored two ways depending on which path found it first.
+//
+// Driven through apply_option_migration(), NOT the transform: the gate is the whole bug,
+// and §M9's transform-level cases all passed while it was broken.
+
+MigrationRegistry::register( array(
+	'type'               => 'option',
+	'match_tag'          => 'base_gate_tag',
+	'match_any_options'  => array( 'ref', 'srcTermIn', 'limit' ),
+	'new_tag'            => 'base_gate_tag',
+	'transform_callback' => 'bws_migrate_base_src_chain',
+	'label'              => 'base gate probe',
+) );
+
+check(
+	'M12.1 already-chain wire + a numeric tag-level limit is REACHED and absorbed',
+	'{{base_gate_tag src:refs,related_staff,limit(1)|use:title}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:1}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:1}}' )
+);
+check(
+	'M12.2 an explicit limit:0 on chain wire is CONSUMED at depth 0, not stranded',
+	'{{base_gate_tag src:refs,related_staff|key:main_line}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|key:main_line|limit:0}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|key:main_line|limit:0}}' )
+);
+// The accepted COST of a key gate: matched, then declined. Must be a clean no-op — a
+// re-serialized identical tag is what the mount path's loop guard exists to avoid.
+check(
+	'M12.3 a non-numeric limit MATCHES and is then declined, unchanged',
+	'{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}' )
+);
+check(
+	'M12.4 a chain that already states its own step limit is declined, unchanged',
+	'{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}' )
+);
+
+// The probe above proves the gate+transform COMPOSE. It cannot prove the SHIPPED entry
+// carries the key, because deprecated-tags.php's registration needs a WP surface this
+// harness does not stub. Asserted against the source instead — narrow and precise, so it
+// fails on the one edit that matters rather than on any reformatting nearby.
+$src_file = file_get_contents( __DIR__ . '/../../includes/tags/deprecated-tags.php' );
+check(
+	'M12.5 the SHIPPED base src-chain entry lists `limit` in match_any_options',
+	1 === preg_match(
+		'/transform_callback\'\s*=>\s*\'bws_migrate_base_src_chain\'/',
+		$src_file
+	)
+	&& 1 === preg_match(
+		'/match_any_options\'\s*=>\s*array\(\s*\'ref\',\s*\'srcTermIn\',\s*\'limit\'\s*\)/',
+		$src_file
+	),
+	'match_any_options for bws_migrate_base_src_chain must be ref + srcTermIn + limit'
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
