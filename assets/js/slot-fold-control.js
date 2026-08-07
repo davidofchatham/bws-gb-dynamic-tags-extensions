@@ -670,14 +670,14 @@
 				}
 			}
 
-			// ── Per-step cap ────────────────────────────────────────────────
+			// ── Per-step limit ──────────────────────────────────────────────
 			// On every FANNING step, and only those: a step that resolves one source
-			// has nothing to cap. Scoped to the STEP — the tag-level `limit` keeps its
+			// has nothing to bound. Scoped to the STEP — the tag-level `limit` keeps its
 			// own control, because the two are different quantities (per-input versus
 			// whole-list) and one field would misstate both.
 			//
-			// Empty means uncapped, and `0` is never serialized. The engine already
-			// agrees by construction: it treats `>0` as a cap and anything else as
+			// Empty means unlimited, and `0` is never serialized. The engine already
+			// agrees by construction: it treats `>0` as a bound and anything else as
 			// none, so absent and `0` are one behaviour under two spellings, and
 			// writing both would put a distinction on the wire that means nothing.
 			// `-1` is the older spelling of unlimited and normalizes away identically;
@@ -959,7 +959,7 @@
 		} );
 
 		children.push( el( 'div', { key: 'srcgroup', className: CLS.group }, [
-			el( 'span', { key: 'cap', className: CLS.cap },
+			el( 'span', { key: 'caption', className: CLS.caption },
 				chain.length > 1 ? __( 'Source path', 'generateblocks' ) : __( 'Source', 'generateblocks' ) )
 		].concat( stepNodes ) ) );
 
@@ -1060,11 +1060,11 @@
 
 			// keyOnly has no read definition to take a noun from, so the caption comes
 			// off the KEY definition instead — still derived, never authored here.
-			var readCap = conf.readLabel
+			var readCaption = conf.readLabel
 				|| ( conf.keyOption && conf.keyOption.label )
 				|| __( 'Field', 'generateblocks' );
 			children.push( el( 'div', { key: 'readgroup', className: CLS.group }, [
-				el( 'span', { key: 'cap', className: CLS.cap }, readCap )
+				el( 'span', { key: 'caption', className: CLS.caption }, readCaption )
 			].concat( readNodes ) ) );
 		}
 

@@ -884,7 +884,7 @@ check( 'P13.6 a pinned limit 0 (unlimited) survives the seam', '0' === ( $lim0[1
 $lim_slot = t_seam_walk( array( 'A' => 'limit(4);key(prices)' ), 'join' );
 check( 'P13.6 a slot-level limit reaches the flat option', '4' === ( $lim_slot[1]['limit'] ?? null ), json_encode( $lim_slot[1] ?? null ) );
 // The slot-level twin of the pinned zero: a legacy `limit:0` with no fanning step
-// migrates to `limit(0)`, which caps an unlimited multi-value READ. PHP's '0' is
+// migrates to `limit(0)`, which bounds an unlimited multi-value READ. PHP's '0' is
 // FALSY (unlike JS), so this is the one spelling a truthiness guard eats here.
 $lim_slot0 = t_seam_walk( array( 'A' => 'limit(0);key(prices)' ), 'join' );
 check( 'P13.6 a slot-level limit 0 (unlimited) survives the seam', '0' === ( $lim_slot0[1]['limit'] ?? null ), json_encode( $lim_slot0[1] ?? null ) );

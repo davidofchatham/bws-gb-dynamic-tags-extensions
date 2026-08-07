@@ -359,24 +359,29 @@ echo "
 R6 — second_related_post_* / post_term_related_post_* get chain targets
 ";
 
-assert_eq( 'R6.1 second_related_post: two refs steps, capped to preserve the old single value',
-	'{{text src:refs,office;refs,manager|limit:1|key:name}}',
+// THE LIMIT IS PER STEP, AND BOTH STEPS CARRY ONE. These families are two fanning steps
+// by construction, and per-step limits are per-input and MULTIPLY — bounding only the last
+// would read one target per referenced post, where the old tag collapsed to one at every
+// hop. The mapping is bws_fold_chain_apply_legacy_limit(), shared with the base source
+// migration so a converted tag and a scanned one cannot disagree.
+assert_eq( 'R6.1 second_related_post: two refs steps, BOTH limited to preserve the old single value',
+	'{{text src:refs,office,limit(1);refs,manager,limit(1)|key:name}}',
 	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name}}' ) );
 
 assert_eq( 'R6.2 post_term_related_post: a terms step, then a refs step',
-	'{{title src:terms,department;refs,lead|limit:1}}',
+	'{{title src:terms,department,limit(1);refs,lead,limit(1)}}',
 	$migrate_tag( '{{post_term_related_post_title tax:department|rel:lead}}' ) );
 
 // The option was renamed in 1.4.x and the retired class accepted both spellings, so
 // stored wire can hold either.
 assert_eq( 'R6.3 the pre-rename `taxonomy` spelling is read too',
-	'{{title src:terms,department;refs,lead|limit:1}}',
+	'{{title src:terms,department,limit(1);refs,lead,limit(1)}}',
 	$migrate_tag( '{{post_term_related_post_title taxonomy:department|rel:lead}}' ) );
 
 // The suffix decides the TAG; the family decides the CHAIN. A `*_term_*` suffix lands
 // on the term_ modifier, because its last hop was post->term.
 assert_eq( 'R6.4 a *_term_* suffix targets the term_ modifier',
-	'{{term_text src:refs,office;refs,manager|limit:1}}',
+	'{{term_text src:refs,office,limit(1);refs,manager,limit(1)}}',
 	$migrate_tag( '{{second_related_post_term_custom_text rel:office|rel_2:manager}}' ) );
 
 // A CHAIN WITH A HOLE IS NEVER WRITTEN, and the tag is not renamed either — it comes
@@ -389,9 +394,11 @@ assert_eq( 'R6.5 a missing second relationship key leaves the tag ENTIRELY alone
 	'{{second_related_post_custom_text rel:office|key:name}}',
 	$migrate_tag( '{{second_related_post_custom_text rel:office|key:name}}' ) );
 
-// An author-stated limit is not overwritten — ordinary option precedence.
-assert_eq( 'R6.7 an explicit limit survives',
-	'{{text src:refs,office;refs,manager|limit:3|key:name}}',
+// An author-stated limit is not overwritten — it MOVES onto the last fanning step, and
+// the earlier one still holds at 1 so the ceiling stays the N the flat spelling meant
+// rather than N per parent. Nothing is left at tag level: one limit, one place.
+assert_eq( 'R6.7 an explicit limit moves onto the last step, the earlier one holding at 1',
+	'{{text src:refs,office,limit(1);refs,manager,limit(3)|key:name}}',
 	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name|limit:3}}' ) );
 
 if ( $failures > 0 ) {

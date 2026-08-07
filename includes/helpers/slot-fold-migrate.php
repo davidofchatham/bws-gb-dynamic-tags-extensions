@@ -17,12 +17,13 @@
  * SPLIT BY DEPTH, not by a runtime branch. A base tag's chain rides at depth 0
  * (`src:refs,office`, `limit(2)`) and a slot's at L1 (`2:src(refs,office)`, `limit[2]`),
  * and MigrationRegistry matches `match_tag` by exact string — so container-ness is known
- * at REGISTRATION time. There is deliberately no base-tag callback here yet: nothing
- * COMPILES a chain into traversal steps. Both wire→steps assemblers read the flat keys
- * and cap out at one relationship step plus one term step (bws_field_values_assemble_steps in
- * field-helpers.php, bws_wrapper_ref_steps in base-shared.php), so a depth-0
- * `src:refs,office` would parse as an unknown source token. Migrating a base tag would
- * write wire the renderer cannot resolve. It lands with the chain→steps compiler.
+ * at REGISTRATION time. Both halves live here: bws_fold_migrate_slots() rewrites a
+ * container's per-slot keys, bws_fold_migrate_base_src() rewrites a base tag's own
+ * source. The depth-0 half was held back until the chain→steps compiler existed —
+ * before it, both wire→steps assemblers read the flat keys and stopped at one
+ * relationship step plus one term step, so a migrated `src:refs,office` would have
+ * parsed as an unknown source token and the rewrite would have written wire the
+ * renderer could not resolve.
  *
  * Pure enough to harness: no WP or GB symbols (i18n lives with the registration, not
  * here). tools/test/fold-migration-test.php loads this file, not a copy of it.
@@ -243,19 +244,22 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
  * - **A RETIRED SOURCE TOKEN IS DECLINED WHOLE**, exactly as a slot is: not
  *   rewritten, and its keys not stripped, which leaves the token's own migration
  *   entry able to fix it afterwards (#56).
- * - **`limit:1` IS SERIALIZED** when the source fans and the author stated none —
- *   and DEPTH-0 ONLY. A folded SLOT needs nothing, which is worth stating because the
+ * - **THE LIMIT IS CARRIED ONTO THE STEPS**, never written as a tag-level `limit`, and
+ *   DEPTH-0 ONLY. A folded SLOT needs nothing, which is worth stating because the
  *   symmetry invites the opposite conclusion: `bws_fold_slot_flat_options()` collapses
  *   a slot's chain back to a flat `src`/`ref`/`srcTermIn` triple before any container
  *   arm resolves a limit, so `bws_limit_default()` sees flat wire on a folded slot
  *   exactly as on a legacy one and answers 1 either way. Folding a slot cannot change
- *   its cap; respelling a base tag's source can, because nothing re-flattens it.
+ *   what bounds it; respelling a base tag's source can, because nothing re-flattens it.
  *   Migration changes the SPELLING, the spelling selects the tag-level default
- *   (`bws_limit_default`), so migration must write the default it is leaving behind.
+ *   (`bws_limit_default`), so migration must carry the default it is leaving behind.
  *   Writing nothing would silently fan out exactly the tags it touched — extra
  *   values, dropped anchors (the link gate is count-based), on live pages, with no
  *   author present to warn. That is what keeps this a pure rewrite with no output
- *   delta, which is the equivalence the harness asserts.
+ *   delta, which is the equivalence the harness asserts. The mapping itself —
+ *   including why every earlier fanning step is bounded too — belongs to
+ *   `bws_fold_chain_apply_legacy_limit()`, shared with the N×M chain migrators and the
+ *   author-conversion commit so that three surfaces cannot store one tag three ways.
  *
  * @since 1.17.0
  * @param array $options All tag options (GB-parsed).
@@ -280,8 +284,9 @@ function bws_fold_migrate_base_src( array $options ) {
 		return null;
 	}
 
-	$chain = bws_fold_chain_from_options( $options );
-	$wire  = bws_fold_emit_chain( $chain, 0 );
+	$chain  = bws_fold_chain_from_options( $options );
+	$bound  = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null );
+	$wire   = bws_fold_emit_chain( $bound['chain'], 0 );
 	if ( '' === $wire || ! bws_fold_chain_is_wire( $wire ) ) {
 		return null;
 	}
@@ -291,8 +296,8 @@ function bws_fold_migrate_base_src( array $options ) {
 	$out['src'] = $wire;
 	unset( $out['ref'], $out['srcTermIn'] );
 
-	if ( ! isset( $out['limit'] ) || '' === trim( (string) $out['limit'] ) ) {
-		$out['limit'] = '1';
+	if ( $bound['consumed'] ) {
+		unset( $out['limit'] );
 	}
 
 	return bws_serialization_order_sort_map( $out );

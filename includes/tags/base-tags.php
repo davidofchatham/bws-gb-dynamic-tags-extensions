@@ -77,18 +77,27 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode applies when the SOURCE FANS. The two tokens named below were
-				// the only fanning spellings before source chains; `chain_fans` asks the
-				// question they stood in for, so a chain-spelled source reveals the same
-				// pair. Not cosmetic since 1.17.0: chain wire defaults its cap to
-				// unlimited and a migrated tag carries an explicit `limit:1`, so a
-				// control the author cannot see is a cap the author cannot clear.
+				// LEGACY WIRE ONLY, deliberately: the predicate names the two flat
+				// fanning tokens and does NOT ask `chain_fans`, so this control retires
+				// the moment a source becomes a chain. On a chain it is either redundant
+				// or arbitrary and never useful — with one fanning step it is the same
+				// knob as that step's own limit, and with two it slices the flattened walk
+				// at a position set by fan-out widths the author cannot see, parent-major
+				// only because bws_run_traversal happens to iterate that way. Migration
+				// carries the old limit onto the STEPS for exactly this reason, so nothing
+				// arrives here needing to be cleared.
+				//
+				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
+				// other bound, and hand-edited chain wire carrying one still renders it —
+				// removing a control never removes an option (ADR 0004; GB seeds state
+				// from the tag string, not the registry). `sep` KEEPS `chain_fans`: it
+				// joins printed output, which a chain does as much as a flat source.
 				// Ordered before the field keys (list length is a source property, FW-52).
 				'limit'    => array(
 					'type'        => 'number',
 					'label'       => __( 'Result Limit', 'generateblocks' ),
 					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'      => array(
 					'type'        => 'text',
@@ -183,17 +192,26 @@ function bws_register_base_tags(): void {
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode applies when the SOURCE FANS. The two tokens named below were
-				// the only fanning spellings before source chains; `chain_fans` asks the
-				// question they stood in for, so a chain-spelled source reveals the same
-				// pair. Not cosmetic since 1.17.0: chain wire defaults its cap to
-				// unlimited and a migrated tag carries an explicit `limit:1`, so a
-				// control the author cannot see is a cap the author cannot clear.
+				// LEGACY WIRE ONLY, deliberately: the predicate names the two flat
+				// fanning tokens and does NOT ask `chain_fans`, so this control retires
+				// the moment a source becomes a chain. On a chain it is either redundant
+				// or arbitrary and never useful — with one fanning step it is the same
+				// knob as that step's own limit, and with two it slices the flattened walk
+				// at a position set by fan-out widths the author cannot see, parent-major
+				// only because bws_run_traversal happens to iterate that way. Migration
+				// carries the old limit onto the STEPS for exactly this reason, so nothing
+				// arrives here needing to be cleared.
+				//
+				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
+				// other bound, and hand-edited chain wire carrying one still renders it —
+				// removing a control never removes an option (ADR 0004; GB seeds state
+				// from the tag string, not the registry). `sep` KEEPS `chain_fans`: it
+				// joins printed output, which a chain does as much as a flat source.
 				'limit' => array(
 					'type'        => 'number',
-					'label'       => __( 'Limit', 'generateblocks' ),
+					'label'       => __( 'Result Limit', 'generateblocks' ),
 					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'   => array(
 					'type'        => 'text',
@@ -857,8 +875,8 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * callback dual-reads it — and the editor rewrites a slot to folded form on first
  * touch.
  *
- * Per-slot `limit` moved INTO the slot value, attached to the step it caps (a chain
- * can fan more than once, so a slot-level cap has no single meaning). It has no
+ * Per-slot `limit` moved INTO the slot value, attached to the step it bounds (a chain
+ * can fan more than once, so a slot-level limit has no single meaning). It has no
  * control surface yet; a migrated or hand-written one round-trips untouched.
  *
  * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items with

@@ -78,11 +78,15 @@ function bws_register_email_tag(): void {
 				// List mode only applies to the final traversal step (terms / related
 				// posts). Scalar sources return one address — hide both. Before the
 				// field key (list length is a source property, FW-52).
+				// `limit` is LEGACY WIRE ONLY — its predicate omits `chain_fans`, so the
+				// control retires once a source becomes a chain, where it is redundant
+				// (one fanning step) or arbitrary (two). `sep` keeps it. Full reasoning
+				// on the same pair in includes/tags/base-tags.php.
 				'limit'    => array(
 					'type'        => 'number',
 					'label'       => __( 'Result Limit', 'generateblocks' ),
 					'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 				),
 				'sep'      => array(
 					'type'        => 'text',

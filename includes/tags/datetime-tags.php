@@ -145,11 +145,15 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 		? __( 'Text to place between results. Default: ", ". This joins whole ranges; the Range Separator stays between each start and end.', 'generateblocks' )
 		: __( 'Text to place between results. Default: ", ".', 'generateblocks' );
 	return array(
+		// `limit` is LEGACY WIRE ONLY — its predicate omits `chain_fans`, so the control
+		// retires once a source becomes a chain, where it is redundant (one fanning step)
+		// or arbitrary (two). `sep` keeps it. Full reasoning on the same pair in
+		// includes/tags/base-tags.php.
 		'limit' => array(
 			'type'        => 'number',
 			'label'       => __( 'Result Limit', 'generateblocks' ),
 			'help'        => __( 'Maximum number of results to return. Enter 0 for no limit. Left blank: one result, unless the source is a path, which returns all of them.', 'generateblocks' ),
-			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
+			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
 		),
 		'sep'   => array(
 			'type'        => 'text',

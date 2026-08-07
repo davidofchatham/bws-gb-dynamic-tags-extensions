@@ -245,7 +245,7 @@ The rows above are **legacy flat wire** (`2-key`), which is why their format tok
 | `{{join A:key(name_first)\|B:key(name_last)}}` | `[Join 'name_first', 'name_last']` |
 | `{{join mode:template\|format:%A (%B)\|A:key(name_first)\|B:key(name_last)}}` | `[Join “'name_first' ('name_last')”]` |
 | `{{join mode:template\|format:%1 (%2)\|A:key(name_first)\|B:key(name_last)}}` | same — the DIGIT token spelling is read forever, on folded wire too |
-| `{{join mode:template\|format:%A %%B %K\|A:key(name_first)}}` | `[Join “'name_first' %%B %K”]` — `%%` shows as typed, and a letter past the container's slot cap is not a token |
+| `{{join mode:template\|format:%A %%B %K\|A:key(name_first)}}` | `[Join “'name_first' %%B %K”]` — `%%` shows as typed, and a letter past the container's slot maximum is not a token |
 
 ## `{{call}}` preview — intentionally inert (does NOT execute the function)
 

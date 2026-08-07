@@ -5,7 +5,7 @@
  * THE MISSING MIDDLE. `slot-fold.php` owns the wire (an ordered chain of steps) and
  * `traversal-pipeline.php` owns execution (an ordered list of engine steps), but until
  * 1.17.0 nothing translated one into the other: two hand-written assemblers read the
- * FLAT `src`/`ref`/`srcTermIn` keys and capped at one relationship step plus one term
+ * FLAT `src`/`ref`/`srcTermIn` keys and stopped at one relationship step plus one term
  * step. So the wire could state chains the renderer could not run, and a depth-0
  * `src:refs,office` parsed as an unknown SOURCE token. Both assemblers now live here as
  * thin adapters over one compile, which is what lets an arbitrary chain resolve.
@@ -36,8 +36,9 @@
  *   short-circuits and the tag renders nothing. Dropping the step instead would read a
  *   DIFFERENT source than the wire states — the same principle that makes an
  *   inexpressible slot chain skip rather than render its prefix.
- * - **Per-step `limit` is emitted ONLY when it caps.** `0`/`-1` mean unlimited, and an
- *   absent key is how the engine spells "no cap", so an uncapped step compiles to the
+ * - **Per-step `limit` is emitted ONLY when it BOUNDS the step.** `0`/`-1` mean
+ *   unlimited, and an absent key is how the engine spells no limit, so an unlimited
+ *   step compiles to the
  *   byte-identical step array the flat assemblers produced. That exact equality is what
  *   the equivalence cases in tools/test/fold-chain-compile-test.php assert.
  *
@@ -288,7 +289,7 @@ function bws_fold_chain_to_steps( array $chain ): array {
 		// TWO STEPS, TWO NAMES, and the distinction is the whole function: `$step` is the
 		// CHAIN step (the described structure, read off the wire), `$engine_step` is the
 		// PIPELINE step it compiles to. One name for both silently read the ENGINE step's
-		// `limit` — always absent — instead of the wire's, dropping every per-step cap.
+		// `limit` — always absent — instead of the wire's, dropping every per-step limit.
 		$arg = trim( (string) ( $step['arg'] ?? '' ) );
 		if ( null === $known ) {
 			// Unknown step vocabulary — an unknown engine type, which yields an empty
@@ -307,8 +308,8 @@ function bws_fold_chain_to_steps( array $chain ): array {
 			$engine_step = array( 'type' => $known['type'], $known['arg'] => $arg );
 		}
 
-		// Only a REAL cap rides the step: 0/-1 are unlimited and the engine spells that
-		// as an absent key, which also keeps an uncapped step byte-identical to the flat
+		// Only a REAL bound rides the step: 0/-1 are unlimited and the engine spells that
+		// as an absent key, which also keeps an unlimited step byte-identical to the flat
 		// assemblers' output.
 		$limit = $step['limit'] ?? null;
 		if ( null !== $limit && '' !== $limit && is_numeric( $limit ) && (int) $limit > 0 ) {
@@ -440,7 +441,7 @@ function bws_fold_src_root_token( array $options ): string {
  * The step-assembly half of the value-list SEAM (bws_resolve_field_values). Since 1.17.0
  * a thin adapter over the chain compile: it reads the tag's depth-0 chain — from chain
  * wire or from the legacy flat keys — and compiles the whole thing, so a multi-step chain
- * resolves instead of capping at `[ref, srcTermIn]`.
+ * resolves instead of stopping at `[ref, srcTermIn]`.
  *
  * **`src:ref` and `srcTermIn` still COMPOUND** (issue #44): the legacy reading builds
  * `refs` then `terms`, and the compile preserves wire order, so the emitted steps are

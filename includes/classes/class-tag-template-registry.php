@@ -401,8 +401,8 @@ class TagTemplateRegistry {
 	 *
 	 * `src`/`ref`/`srcTermIn` are always slot-level. `limit` NEVER is: try_ has never
 	 * registered `N-limit`, and the resolver reads a bare `limit` as every slot's default
-	 * cap (`$slot_max`), list template or not — so folding it into slot 1 would take the cap
-	 * away from slots 2+. It stays tag-level on every template.
+	 * limit (`$slot_max`), list template or not — so folding it into slot 1 would take that
+	 * bound away from slots 2+. It stays tag-level on every template.
 	 *
 	 * @since 1.17.0
 	 * @param array $tpl Modifier template descriptor.

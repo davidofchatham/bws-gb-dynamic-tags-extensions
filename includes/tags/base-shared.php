@@ -738,7 +738,7 @@ function bws_try_normalize_items( $raw ): array {
  * Limit / separator semantics MATCH the base text list-mode core
  * (bws_post_custom_text_core, content-tags.php) so a try_ slot in list mode
  * joins identically to the same underlying tag used standalone (I6 parity):
- *   - limit — an ALREADY-RESOLVED int from the caller: >= 1 caps, `0` means
+ *   - limit — an ALREADY-RESOLVED int from the caller: >= 1 bounds, `0` means
  *     UNLIMITED and slices nothing. Not a ceiling: an author setting limit:5 joins
  *     up to 5 items.
  *     THIS IS THE ONE SITE THAT CANNOT ASK. Since 1.17.0 the tag-level default is a
@@ -1067,7 +1067,7 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  *
  * - A relationship step BEFORE the term step fans (§V6) instead of collapsing to the
  *   first ref'd post, so `src:ref|ref:x|srcTermIn:y` can now yield terms from every
- *   ref'd post. With `limit` unset the flat spelling still caps the source list at
+ *   ref'd post. With `limit` unset the flat spelling still bounds the source list at
  *   one, so the first rendered term is unchanged — the difference is reachable only
  *   with an explicit `limit` above one, of which the two-database survey found none.
  *   This is a stated divergence, not an oversight: fold-test-matrix.md §F9.6 pins it,

@@ -300,7 +300,7 @@ INTENT.forEach( function ( c ) {
 // the renderer must flag rather than merge.
 //
 // The surface is CONTAINER-DERIVED (`flatAxes`, from PHP), and the reason is a bug
-// this harness now pins: on a try_ template a bare `limit` is the TAG-level cap for
+// this harness now pins: on a try_ template a bare `limit` is the TAG-level limit for
 // every slot, and on the read-less shapes a bare `use`/`key` is a TAG-level option
 // too. A control that listed the six axes itself deleted them on first touch, and
 // the mapper folded them into slot 1 as that slot's own read.

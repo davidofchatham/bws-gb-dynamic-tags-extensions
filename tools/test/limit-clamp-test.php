@@ -14,7 +14,7 @@
  *   - numeric >= 1 ⇒ (int) $raw.
  *
  * `$default` is REQUIRED (1.17.0). It is not a convenience: since the tag-level
- * default is selected by the source SPELLING (bws_limit_default — flat wire caps at
+ * default is selected by the source SPELLING (bws_limit_default — flat wire bounds at
  * 1, chain wire does not), a site that forgets to state which default it wants
  * would silently render legacy behaviour on chain wire, which is wrong output that
  * looks normal in review. Omission must be an ArgumentCountError, which §L0 pins.
@@ -98,7 +98,7 @@ assert_same( "src:current → 1", 1, bws_limit_default( array( 'src' => 'current
 assert_same( 'src:site → 1', 1, bws_limit_default( array( 'src' => 'site' ) ) );
 assert_same( 'FLAT src:ref → 1 (the legacy default it has always had)', 1, bws_limit_default( array( 'src' => 'ref', 'ref' => 'office' ) ) );
 assert_same( 'FLAT srcTermIn → 1 — srcTermIn is not part of the src VALUE', 1, bws_limit_default( array( 'srcTermIn' => 'department' ) ) );
-assert_same( 'CHAIN src:refs,office → 0 (uncapped)', 0, bws_limit_default( array( 'src' => 'refs,office' ) ) );
+assert_same( 'CHAIN src:refs,office → 0 (unlimited)', 0, bws_limit_default( array( 'src' => 'refs,office' ) ) );
 assert_same( 'CHAIN src:terms,department → 0', 0, bws_limit_default( array( 'src' => 'terms,department' ) ) );
 assert_same( 'CHAIN src:site;entries,rows → 0', 0, bws_limit_default( array( 'src' => 'site;entries,rows' ) ) );
 assert_same( 'a bare fanning slug is one-hop chain wire → 0', 0, bws_limit_default( array( 'src' => 'refs' ) ) );
@@ -108,7 +108,7 @@ assert_same( 'legacy `source` key is read too', 0, bws_limit_default( array( 'so
 // spelling-selected default in both directions. This is what a migrated or
 // author-converted tag looks like, so it is not an anomaly.
 assert_same(
-	'explicit limit:1 on chain wire caps at 1',
+	'explicit limit:1 on chain wire bounds at 1',
 	1,
 	bws_clamp_limit( '1', bws_limit_default( array( 'src' => 'refs,office' ) ) )
 );

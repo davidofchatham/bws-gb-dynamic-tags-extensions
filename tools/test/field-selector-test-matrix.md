@@ -34,7 +34,7 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 | M0.1 | `{{text}}` → use = Meta/Option Field | The **Meta/Option Field Key** input is a searchable combobox, not a text box |
 | M0.2 | Open the field combobox | Lists ACF fields, sub-fields, options-page fields, term-meta, registered meta |
 | M0.3 | Network tab on editor load | NO runtime request to `/bws-dynamic-tags/v1/fields`; `window.bwsFieldEnvelope` present in page source |
-| M0.4 | Direct GET `/wp-json/bws-dynamic-tags/v1/fields` logged OUT | 401 `rest_forbidden` (edit_posts cap, V6) |
+| M0.4 | Direct GET `/wp-json/bws-dynamic-tags/v1/fields` logged OUT | 401 `rest_forbidden` (the `edit_posts` capability, V6) |
 | M0.5 | Force the REST fallback (unset `window.bwsFieldEnvelope` in console, reopen a tag) under **plain permalinks** (`?rest_route=`) | Combobox still populates; `apiFetch` path has a leading slash (`/bws-dynamic-tags/v1/fields`), so no 404 to an empty picker |
 
 ## M1 — free-text + clear (V11)

@@ -537,7 +537,7 @@ check(
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
 	"[Join “'name_first' ('name_last')”]"
 );
-// `%%` shows as typed, and a `%` before a letter past the container cap is not a token.
+// `%%` shows as typed, and a `%` before a letter past the container maximum is not a token.
 check(
 	'folded: an escaped % and an out-of-range letter both stay literal',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A %%B %K', 'A' => 'key(name_first)' ] ),

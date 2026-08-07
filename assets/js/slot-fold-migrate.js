@@ -244,8 +244,15 @@
 			chain.push( { slug: 'terms', arg: tax, limit: null, extra: [] } );
 		}
 
+		// Migration changes the SPELLING, and the spelling selects the tag-level
+		// default -- so it must carry the default it is leaving behind, onto the STEPS.
+		// The mapping is the grammar's (bws_fold_chain_apply_legacy_limit), shared with the
+		// converter half and the author-conversion commit so three surfaces cannot store
+		// one tag three ways.
+		var bound = fold.applyLegacyLimit( chain, s.limit );
+
 		// Enclosing level 0 -- a base tag's `src:` IS the wrapper.
-		var wire = fold.emitChain( chain, 0 );
+		var wire = fold.emitChain( bound.chain, 0 );
 		if ( '' === wire || ! fold.chainIsWire( wire ) ) {
 			return null;
 		}
@@ -255,10 +262,8 @@
 		out.src = wire;
 		delete out.ref;
 		delete out.srcTermIn;
-		// Migration changes the SPELLING, and the spelling selects the tag-level
-		// default -- so it must write the default it is leaving behind.
-		if ( out.limit === undefined || '' === String( out.limit ).trim() ) {
-			out.limit = '1';
+		if ( bound.consumed ) {
+			delete out.limit;
 		}
 		// Canonical key order, through the SAME normalizer the slot half uses -- the two
 		// paths must not write one tag two ways, and key order is half the property.

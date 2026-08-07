@@ -27,7 +27,7 @@
  *     is quarantined — a bare label string is the whole header story for v1).
  *
  * DEFERRED (do NOT infer from this file): header label-mode config, final option
- * names, slot-cap const naming, composite controls, {{list}}. See handoff §11.
+ * names, slot-maximum const naming, composite controls, {{list}}. See handoff §11.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0

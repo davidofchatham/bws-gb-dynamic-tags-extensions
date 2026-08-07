@@ -377,7 +377,7 @@ control itself** for the round-trip to be clean. PHP render is fine either way.
 
 **The limit-2 discard is the sharp edge — JS `split` ≠ PHP `explode`.** PHP's
 `explode( ':', $pair, 2 )` keeps *everything* after the first colon in element `[1]`. JavaScript's
-`String.split( regex, 2 )` **caps the result at 2 elements and throws the rest away.** So a pair with
+`String.split( regex, 2 )` **bounds the result to 2 elements and throws the rest away.** So a pair with
 a **second** colon loses its tail on the JS side:
 
 | Pair on the wire | PHP `explode(':',_,2)` → value | JS `split(/…:/,2)` → value | Round-trips? |

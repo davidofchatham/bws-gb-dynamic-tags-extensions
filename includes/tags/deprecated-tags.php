@@ -1178,42 +1178,40 @@ function bws_nxm_chain_target( string $old_tag, string $prefix ): string {
 }
 
 /**
- * Build depth-0 chain wire from an ordered list of [slug, arg] steps.
+ * Build a depth-0 chain from an ordered list of [slug, arg] steps.
  *
- * Emits through the grammar rather than concatenating: the separators, the escaping
- * and the bracket depth are the wire's rules, and a second hand-rolled emitter here
- * is how a migrated tag comes to be spelled differently from an authored one.
- * Returns '' when any step lacks its argument — a chain with a hole resolves to
- * nothing, so writing one would convert a broken tag into a permanently broken one.
+ * Returns an empty array when any step lacks its argument — a chain with a hole
+ * resolves to nothing, so writing one would convert a broken tag into a permanently
+ * broken one. The caller emits through the grammar rather than concatenating: the
+ * separators, the escaping and the bracket depth are the wire's rules, and a second
+ * hand-rolled emitter here is how a migrated tag comes to be spelled differently from
+ * an authored one.
  *
  * @since 1.17.0
  * @param array $steps List of array( slug, arg ).
- * @return string Chain wire, or '' when incomplete.
+ * @return array Chain in the grammar's shape, or empty when incomplete.
  */
-function bws_nxm_chain_wire( array $steps ): string {
-	if ( ! function_exists( 'bws_fold_emit_chain' ) ) {
-		return '';
-	}
+function bws_nxm_chain_steps( array $steps ): array {
 	$chain = array();
 	foreach ( $steps as $step ) {
 		$arg = trim( (string) ( $step[1] ?? '' ) );
 		if ( '' === $arg ) {
-			return '';
+			return array();
 		}
 		$chain[] = array( 'slug' => (string) $step[0], 'arg' => $arg, 'limit' => null, 'extra' => array() );
 	}
-	// Enclosing level 0 — a base tag's `src:` IS the wrapper.
-	return $chain ? bws_fold_emit_chain( $chain, 0 ) : '';
+	return $chain;
 }
 
 /**
  * `second_related_post_*` → a chain of TWO relationship steps.
  *
  * The old tag hopped `rel` then `rel_2`, collapsing to the first post at each hop.
- * The chain preserves fan-out, so the migrated tag caps at `limit:1` to keep the
+ * The chain preserves fan-out, so the migrated tag limits BOTH steps to 1 to keep the
  * single-value output the old tag had — the same rule the base source migration
- * follows, for the same reason, and the reason `limit` is written rather than left to
- * the spelling: chain wire defaults to uncapped.
+ * follows, for the same reason, and the reason a limit is written at all rather than
+ * left to the spelling: chain wire defaults to unlimited. Bounding only the last step
+ * would read one post per referenced post, which is not what either spelling meant.
  *
  * Both relationship keys must be present. Without `rel_2` there is no second hop to
  * state, and inventing a one-hop chain would silently make the tag read the FIRST
@@ -1236,10 +1234,10 @@ function bws_migrate_second_related_post_chain( string $tag_string ): string {
  * `post_term_related_post_*` → a `terms` step followed by a `refs` step.
  *
  * The old tag took the FIRST term in `tax` and read a relationship field on it. The
- * chain does not collapse the term hop, so `limit:1` preserves the single-value
- * output for the same reason as the sibling above. `taxonomy` is read as well as
- * `tax`: the option was renamed in 1.4.x and the retired class still accepted both,
- * so stored wire can hold either.
+ * chain does not collapse the term hop, so a limit on each step preserves the
+ * single-value output for the same reason as the sibling above. `taxonomy` is read as
+ * well as `tax`: the option was renamed in 1.4.x and the retired class still accepted
+ * both, so stored wire can hold either.
  *
  * @since 1.17.0
  * @param string $tag_string Raw tag string.
@@ -1255,8 +1253,8 @@ function bws_migrate_post_term_related_post_chain( string $tag_string ): string 
 }
 
 /**
- * Shared body for the two N×M chain transforms: rename the tag, build the chain, strip
- * the option keys it consumed, cap at 1.
+ * Shared body for the two N×M chain transforms: rename the tag, build the chain, carry
+ * the old limit onto its steps, strip the option keys it consumed.
  *
  * IT RENAMES THE TAG ITSELF, and must: MigrationRegistry::transform_tag() returns a
  * `transform_callback`'s result verbatim, so the declarative `new_tag` rename never
@@ -1286,7 +1284,19 @@ function bws_nxm_migrate_chain( string $tag_string, string $prefix, callable $st
 		return $tag_string;
 	}
 
-	$wire = bws_nxm_chain_wire( (array) call_user_func( $steps_fn, $options ) );
+	$chain = bws_nxm_chain_steps( (array) call_user_func( $steps_fn, $options ) );
+	if ( ! $chain || ! function_exists( 'bws_fold_emit_chain' ) ) {
+		return $tag_string;
+	}
+
+	// Both families are TWO fanning steps, so the limit has to reach both of them: per-step
+	// limits are per-input and multiply, and `1` on the last alone would give one target per
+	// parent rather than the one value the old tag rendered. The mapping is shared with the
+	// base source migration rather than restated (bws_fold_chain_apply_legacy_limit).
+	$bound = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null );
+
+	// Enclosing level 0 — a base tag's `src:` IS the wrapper.
+	$wire = bws_fold_emit_chain( $bound['chain'], 0 );
 	if ( '' === $wire ) {
 		return $tag_string;
 	}
@@ -1298,8 +1308,8 @@ function bws_nxm_migrate_chain( string $tag_string, string $prefix, callable $st
 	foreach ( $consumed as $key ) {
 		unset( $options[ $key ] );
 	}
-	if ( ! isset( $options['limit'] ) || '' === trim( (string) $options['limit'] ) ) {
-		$options['limit'] = '1';
+	if ( $bound['consumed'] ) {
+		unset( $options['limit'] );
 	}
 
 	if ( function_exists( 'bws_serialization_order_sort_map' ) ) {

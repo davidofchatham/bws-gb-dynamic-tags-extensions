@@ -103,9 +103,9 @@ const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
 /**
  * Pattern a FOLDED slot key matches. Deliberately the GENERAL form, not `^[A-Z]$`:
  * bws_slot_ordinal() encodes spreadsheet-style (27 → `AA`), so a single-letter pattern
- * could reject wire its own encoder produced. There is therefore NO CAP IN THE GRAMMAR —
- * the cap is a CONTAINER property (join 10, try_ 5), and baking one container's limit into
- * the wire would mean re-cutting the pattern whenever a container changed.
+ * could reject wire its own encoder produced. The grammar therefore states NO MAXIMUM —
+ * the slot count is a CONTAINER property (join 10, try_ 5), and baking one container's
+ * count into the wire would mean re-cutting the pattern whenever a container changed.
  *
  * Safe against collision by construction: every option key in the plugin, and every GB
  * reserved key, is lowercase or lowercase-initial camelCase, so an all-caps key cannot be
@@ -266,7 +266,7 @@ function bws_fold_is_combining( string $container ): bool {
  * Join's tag-level options (mode/valueSep/format/fallback) share no name with a legacy
  * slot axis, and `limit` IS a join SLOT axis: join registered one per slot
  * (`limit`/`N-limit`) and threaded it into that slot's text resolve. try_ is the
- * opposite — a bare `limit` there caps every slot — which is why this list is
+ * opposite — a bare `limit` there bounds every slot — which is why this list is
  * per-container data and not one shared constant.
  *
  * @since 1.17.0
@@ -826,8 +826,8 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *
  * `limit` attaches to the LAST FANNING step, which is unambiguous because legacy
  * data cannot fan twice (there was no chain syntax before the fold). With no
- * fanning step the chain has nothing to cap, so the limit stays a slot-level
- * token — that case caps a multi-value READ rather than a step, and is the one
+ * fanning step the chain has nothing to bound, so the limit stays a slot-level
+ * token — that case bounds a multi-value READ rather than a step, and is the one
  * meaning a slot-level `limit` still has.
  *
  * @param int   $n            Slot ordinal (1-based).
@@ -958,6 +958,112 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 		),
 		'legacy' => true,
 	);
+}
+
+/**
+ * Materialize the limit a LEGACY flat source implied, as per-step limits on the chain
+ * that respells it.
+ *
+ * The depth-0 counterpart of the `limit` block inside bws_fold_from_flat() above, and
+ * deliberately a SEPARATE function rather than a shared one: a folded SLOT needs only
+ * the explicit half, because bws_fold_slot_flat_options() collapses its chain back to
+ * a flat triple before any container arm resolves a limit, so folding a slot cannot
+ * change what it renders. Nothing re-flattens a base tag's source, so respelling one
+ * DOES change what bounds it — chain wire defaults to unlimited where flat wire
+ * defaults to 1 (bws_limit_default) — and the migration must carry the old default
+ * across.
+ *
+ * A LIMIT IS STATED WHERE THE SOURCE IS STATED (user, 2026-08-06; ADR 0005). A chain
+ * states its source as steps, so migration writes the limit onto the steps and never as
+ * a tag-level `limit`: a number attached to the step it bounds says which quantity it
+ * bounds, where a tag-level `1` beside a two-step chain does not. The tag-level control
+ * retires with the flat spelling it belongs to, so nothing arrives here needing to be
+ * cleared afterwards.
+ *
+ * AN EXPLICIT `limit:N` MOVES ONTO THE LAST FANNING STEP, with `1` on every earlier one,
+ * and the tag-level key is deleted. Positional, not `terms`-specific — `refs` takes the
+ * `N` when `refs` is the last fanning step; the terms step is merely what "last" always
+ * is in legacy wire, since `srcTermIn` follows `ref`. Two alternatives were examined and
+ * rejected: `N` on the FIRST fanning step (per-input and total coincide there, which is
+ * elegant, but it restates the author's number rather than preserving what the tag did),
+ * and leaving `N` at tag level untouched (output-preserving by ordinary option
+ * precedence, since the reader slices by `$options['limit']` without inspecting `src` —
+ * but it keeps the incoherent object alive on exactly the tags that have one).
+ *
+ * The earlier fanning steps are NOT optional. Per-step limits are PER-INPUT and MULTIPLY
+ * (`∏ limitₙ`), so `N` on the last step alone yields `N` per parent × every parent; `1`
+ * on the earlier ones bounds the product at `N`, which is what the flat limit meant.
+ *
+ * Three shapes are left alone, each because touching them would change output or invent
+ * an intent:
+ *
+ * - **An explicit `0` / `-1`.** Already unlimited, which is what chain wire defaults to,
+ *   so there is nothing to carry — and the author's own token stays exactly as written.
+ * - **An ARGLESS fanning step.** bws_fold_chain_to_steps() drops it (a field-less `refs`
+ *   would short-circuit to empty), so the chain does not fan and a limit on it is inert
+ *   noise. A source that resolves one entity has nothing to bound.
+ * - **A chain that ALREADY carries a step limit.** The author has stated per-step intent;
+ *   materializing a default on top of it would overwrite a decision with a guess. Only
+ *   reachable from the author-conversion path, where the same commit can do both.
+ *
+ * A NON-NUMERIC value is treated as absent — `bws_clamp_limit`'s `is_numeric` gate
+ * already gives it the default — but it is NOT consumed: deleting an author's text on
+ * that basis is a bigger move than this rewrite is entitled to, and leaving it renders
+ * identically.
+ *
+ * @since 1.17.0
+ * @param array $chain Parsed chain, freshly built from legacy keys (grammar shape).
+ * @param mixed $limit The legacy tag-level `limit` value, or null when absent.
+ * @return array{chain: array, consumed: bool} The chain with the implied limit
+ *               materialized where one was implied, and whether the caller must now
+ *               delete the tag-level key.
+ */
+function bws_fold_chain_apply_legacy_limit( array $chain, $limit ): array {
+	$fanning = array();
+	foreach ( $chain as $i => $chain_step ) {
+		if ( ! in_array( (string) ( $chain_step['slug'] ?? '' ), BWS_FOLD_FANNING_SLUGS, true ) ) {
+			continue;
+		}
+		$step_limit = $chain_step['limit'] ?? null;
+		if ( null !== $step_limit && '' !== (string) $step_limit ) {
+			return array( 'chain' => $chain, 'consumed' => false );   // the author's own limits win
+		}
+		if ( '' === trim( (string) ( $chain_step['arg'] ?? '' ) ) ) {
+			continue;   // argless: the compiler drops it, so it does not fan
+		}
+		$fanning[] = $i;
+	}
+
+	if ( ! $fanning ) {
+		return array( 'chain' => $chain, 'consumed' => false );
+	}
+
+	$raw      = trim( (string) ( $limit ?? '' ) );
+	$explicit = ( '' !== $raw && is_numeric( $raw ) );
+
+	// A magnitude the two languages cannot hold identically is treated as the unlimited
+	// case rather than materialized: PHP's (int) saturates at PHP_INT_MAX (with a warning)
+	// where JS reaches Infinity, so writing it would put a DIFFERENT number on the wire in
+	// each language — the one divergence a twin exists to make impossible. Nothing is lost:
+	// a limit that large already reads as unlimited in both eras, and the tag-level key is
+	// left exactly as authored, so the reader still answers what it always answered.
+	if ( $explicit && abs( (float) $raw ) > 9007199254740991.0 ) {
+		return array( 'chain' => $chain, 'consumed' => false );
+	}
+
+	$value = $explicit ? (int) $raw : 1;
+
+	if ( $value <= 0 ) {
+		return array( 'chain' => $chain, 'consumed' => false );   // unlimited either way
+	}
+
+	$last = array_pop( $fanning );
+	foreach ( $fanning as $i ) {
+		$chain[ $i ]['limit'] = '1';
+	}
+	$chain[ $last ]['limit'] = (string) $value;
+
+	return array( 'chain' => $chain, 'consumed' => $explicit );
 }
 
 // ── Render seam (folded struct → the shipped flat read) ────────────────────

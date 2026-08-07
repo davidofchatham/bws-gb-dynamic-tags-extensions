@@ -48,8 +48,8 @@
 	// FOLDED slot key spelling — twin of bws_slot_ordinal() / BWS_FOLD_SLOT_KEY_RE
 	// (includes/helpers/slot-fold.php), where the reasoning lives. Deliberately the general
 	// `^[A-Z]+$`: slotKey() encodes spreadsheet-style (27 → AA), so a single-letter pattern
-	// could reject wire its own encoder produced. No cap in the grammar — the cap is a
-	// CONTAINER property. Nothing may rely on ASCII order of these keys; both order parsers
+	// could reject wire its own encoder produced. No maximum in the grammar — the slot
+	// count is a CONTAINER property. Nothing may rely on ASCII order of these keys; both order parsers
 	// DECODE to an int, because 'AA' sorts after 'Z' numerically but before it as a string.
 	var SLOT_KEY_RE = /^[A-Z]+$/;
 
@@ -603,8 +603,8 @@
 			if ( -1 !== lastFan ) {
 				chain[ lastFan ].limit = String( normalized );
 			} else {
-				// Nothing fans, so there is no step to cap: the token keeps its
-				// slot-level meaning (cap a multi-value READ).
+				// Nothing fans, so there is no step to bound: the token keeps its
+				// slot-level meaning (bound a multi-value READ).
 				opts.limit = String( normalized );
 			}
 		}
@@ -676,6 +676,82 @@
 		} );
 	}
 
+	/**
+	 * Materialize the limit a LEGACY flat source implied, as per-step limits on the
+	 * chain that respells it.
+	 *
+	 * TWIN of bws_fold_chain_apply_legacy_limit() (includes/helpers/slot-fold.php),
+	 * which is where every rule below is decided and explained. Three surfaces call it —
+	 * the converter, the mount migrator and the author-conversion commit — and they must
+	 * write one tag ONE way, so none of them owns a copy of the rule.
+	 *
+	 * @param {Array} chain Parsed chain, freshly built from legacy keys.
+	 * @param {*}     limit The legacy tag-level `limit` value, or null/undefined.
+	 * @return {{chain: Array, consumed: boolean}} `consumed` = the caller must now
+	 *                                             delete the tag-level key.
+	 */
+	function applyLegacyLimit( chain, limit ) {
+		var steps   = chain || [];
+		var fanning = [];
+		var stated  = false;
+
+		steps.forEach( function ( chainStep, i ) {
+			if ( -1 === FANNING_SLUGS.indexOf( chainStep.slug ) ) {
+				return;
+			}
+			var stepLimit = ( chainStep.limit === null || chainStep.limit === undefined ) ? '' : String( chainStep.limit );
+			if ( '' !== stepLimit ) {
+				stated = true;   // the author's own limits win
+				return;
+			}
+			if ( '' === String( chainStep.arg === null || chainStep.arg === undefined ? '' : chainStep.arg ).trim() ) {
+				return;          // argless: the compiler drops it, so it does not fan
+			}
+			fanning.push( i );
+		} );
+
+		if ( stated || ! fanning.length ) {
+			return { chain: steps, consumed: false };
+		}
+
+		// PHP's is_numeric(), spelled out rather than approximated with Number(): it
+		// accepts hex and JS's parseInt() reads an exponent as its mantissa, so the two
+		// languages would disagree about a value neither author would ever type — which
+		// is exactly the divergence a twin exists to make impossible. Math.trunc mirrors
+		// PHP's (int) cast, toward zero.
+		var raw      = String( ( limit === null || limit === undefined ) ? '' : limit ).trim();
+		var explicit = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test( raw );
+
+
+		// Twin of the PHP guard: a magnitude the two languages cannot hold identically is
+		// the unlimited case, never a materialized step limit. See slot-fold.php.
+		if ( explicit && Math.abs( Number( raw ) ) > Number.MAX_SAFE_INTEGER ) {
+			return { chain: steps, consumed: false };
+		}
+
+		var value = explicit ? Math.trunc( Number( raw ) ) : 1;
+
+		if ( ! ( value > 0 ) ) {
+			return { chain: steps, consumed: false };   // unlimited either way
+		}
+
+		// The stated number rides the LAST fanning step, 1 every earlier one: per-step
+		// limits are per-input and multiply, so the last step alone would give N per
+		// parent rather than the N total the flat spelling meant.
+		var last = fanning.pop();
+		var out  = steps.map( function ( chainStep, i ) {
+			if ( i === last ) {
+				return Object.assign( {}, chainStep, { limit: String( value ) } );
+			}
+			if ( -1 !== fanning.indexOf( i ) ) {
+				return Object.assign( {}, chainStep, { limit: '1' } );
+			}
+			return chainStep;
+		} );
+
+		return { chain: out, consumed: explicit };
+	}
+
 	window.bwsSlotFold = {
 		// Grammar surface — exported so the twin harness can assert agreement with
 		// the PHP constants rather than trusting that both were edited together.
@@ -711,6 +787,7 @@
 		// editor surfaces that need them share ONE copy of each rule.
 		chainIsWire: chainIsWire,
 		chainRoot: chainRoot,
-		chainFans: chainFans
+		chainFans: chainFans,
+		applyLegacyLimit: applyLegacyLimit
 	};
 }() );

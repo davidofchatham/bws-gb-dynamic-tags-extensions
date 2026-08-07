@@ -331,7 +331,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
 	) );
 
-	// L4 — the unset default is no longer ONE number. Flat wire caps at 1, chain
+	// L4 — the unset default is no longer ONE number. Flat wire bounds at 1, chain
 	// wire does not (bws_limit_default), which is the whole compatibility
 	// mechanism for base-tag source chains: it works on wire no migration can
 	// reach. Rows are PAIRS OF SPELLINGS for the same source, and each asserts the
@@ -339,14 +339,24 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// changes link-wrapping as well as output.
 	$sections[] = bws_fixture_gb_section( 'Limit L4 - the SPELLING selects the unset default (1.17.0)', array(
 		bws_fixture_gb_row( 'L4.1 FLAT unset (expect Jane Partner only, linked - the floor)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - uncapped, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - unlimited, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked - what a converted tag looks like)', '{{text src:refs,related_staff|use:title|limit:1|linkTo:permalink}}' ),
 		bws_fixture_gb_row( 'L4.4 FLAT term hop unset (expect ONE dept name)', '{{text srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'L4.5 CHAIN term hop unset (expect Sales, Support)', '{{text src:terms,department|use:title}}' ),
 		bws_fixture_gb_row( 'L4.6 CHAIN + garbage limit (expect BOTH names - the is_numeric guard falls to the CHAIN default, not to 1)', '{{text src:refs,related_staff|use:title|limit:abc}}' ),
 		bws_fixture_gb_row( 'L4.7 root-only chain does not fan (expect Captain, linked)', '{{text src:current|key:role|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.8 PER-STEP cap is a different quantity (expect Jane Partner only, linked)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
-		bws_fixture_gb_row( 'L4.9 L4.8-s partner - without it a per-step cap that did nothing would still pass (expect BOTH names)', '{{text src:refs,related_staff,limit(2)|use:title}}' ),
+		bws_fixture_gb_row( 'L4.8 PER-STEP limit is a different quantity (expect Jane Partner only, linked)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.9 L4.8-s partner - without it a per-step limit that did nothing would still pass (expect BOTH names)', '{{text src:refs,related_staff,limit(2)|use:title}}' ),
+		// L4.10/L4.11 — what MIGRATION writes, as opposed to what a hand-authored
+		// limit does. Each is paired with its flat original, and L4.11 additionally
+		// with an unlimited partner, so a mapping that did nothing cannot pass.
+		bws_fixture_gb_row( 'L4.10 what MIGRATION writes for L4.1 (expect Jane Partner only, linked - identical to the flat row it replaces)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.11a TWO fanning steps, FLAT original (expect All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11b the same source MIGRATED - both steps limited (expect All Users, same as L4.11a)', '{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11c L4.11b-s partner, no step limits (expect All Users, All Users - this is what makes the pair non-vacuous)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
+		// L5.8's SUBJECT: a flat tag carrying an author-stated limit, there to be
+		// converted in the editor. Front-end expectation is the pre-conversion one.
+		bws_fixture_gb_row( 'L5.8 subject - FLAT with an author-stated limit:3 (expect BOTH names; convert it in the editor and the 3 moves onto the last step)', '{{text src:ref|ref:related_staff|use:title|limit:3}}' ),
 	) );
 
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
@@ -542,9 +552,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F8.2 chain (-> same)', '{{phone src:refs,related_staff|key:main_line}}' ),
 		bws_fixture_gb_row( 'F8.3 legacy (-> Jane Partner)', '{{text src:ref|ref:related_staff|use:title}}' ),
 		bws_fixture_gb_row( 'F8.3 chain (-> same)', '{{text src:refs,related_staff|use:title}}' ),
-		bws_fixture_gb_row( 'F8.4 chain, no hop cap (-> BOTH numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
-		bws_fixture_gb_row( 'F8.5 PER-HOP cap limit(1) bounds the fan-out (-> ONE number, despite limit:0)', '{{phone src:refs,related_staff,limit(1)|key:main_line|limit:0}}' ),
-		bws_fixture_gb_row( 'F8.6 per-hop cap limit(2) (-> both numbers again)', '{{phone src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.4 chain, no hop limit (-> BOTH numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.5 PER-HOP limit(1) bounds the fan-out (-> ONE number, despite limit:0)', '{{phone src:refs,related_staff,limit(1)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.6 per-hop limit(2) (-> both numbers again)', '{{phone src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
 		bws_fixture_gb_empty_row( 'F11.1 unknown hop slug SHORT-CIRCUITS (-> empty, and that is correct)', '{{phone src:refs,related_staff;bogus,x|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
 	) );
@@ -560,7 +570,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// 'ref'/'site' or reading flat srcTermIn, so the two spellings take the same
 	// arm. Read the PAIRS: a wrong arm renders a PLAUSIBLE value, not an empty
 	// one, so a row that "looks fine" on its own is not evidence.
-	// NB the chain rows carry NO limit — flat wire caps at 1, chain wire does not
+	// NB the chain rows carry NO limit — flat wire bounds at 1, chain wire does not
 	// (bws_limit_default), which is the whole compatibility mechanism.
 	$sections[] = bws_fixture_gb_section( 'Fold F9 - arm dispatch: chain wire on a BASE tag (pairs must match)', array(
 		bws_fixture_gb_row( 'F9.1 legacy term hop (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
@@ -612,7 +622,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	$sections[] = bws_fixture_gb_section( 'Fold F13 - TAG-level axes must survive the fold', array(
 		bws_fixture_gb_row( 'F13.1 tag-level key on try_datetime_* is NOT slot 1\'s read (-> May 1, 2030 10:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
-		bws_fixture_gb_row( 'F13.2 tag-level limit on a try_ list template is the TAG cap (-> (555) 200-3000)', '{{try_phone A:src(refs,related_staff);key(main_line)|B:src(current);key(main_line)|limit:2}}' ),
+		bws_fixture_gb_row( 'F13.2 tag-level limit on a try_ list template is the TAG limit (-> (555) 200-3000)', '{{try_phone A:src(refs,related_staff);key(main_line)|B:src(current);key(main_line)|limit:2}}' ),
 		bws_fixture_gb_row( 'F13.3 legacy twin of F13.2 (-> same output; that agreement IS the property)', '{{try_phone src:ref|ref:related_staff|key:main_line|2-key:main_line|limit:2}}' ),
 	) );
 

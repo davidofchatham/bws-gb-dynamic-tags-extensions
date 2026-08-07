@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone unit harness for the FW-56 chain COMPILER
- * (includes/helpers/slot-fold-compile.php) and the engine's per-step cap.
+ * (includes/helpers/slot-fold-compile.php) and the engine's per-step limit.
  *
  * The real files are loaded, never copied — the compile is pure but for one
  * sanitize_key (shimmed below), and a test-local copy of a mapping rule is the drift
@@ -13,10 +13,10 @@
  *   §C1  bws_fold_chain_is_wire()        chain-vs-token detection (conservative)
  *   §C2  bws_fold_chain_root()           the factory token; ROOT is not a step
  *   §C3  bws_fold_chain_to_steps()       slug→type map, argless drop, unknown slug
- *   §C4  per-step `limit`                emitted only when it CAPS (0/-1 = unlimited)
+ *   §C4  per-step `limit`                emitted only when it BOUNDS (0/-1 = unlimited)
  *   §C5  bws_fold_chain_from_options()   depth-0 chain: chain wire OR legacy triple
  *   §C6  bws_field_values_assemble_steps / bws_wrapper_ref_steps
- *   §C7  bws_run_traversal()             per-hop cap, incl. an INTERMEDIATE step
+ *   §C7  bws_run_traversal()             per-hop limit, incl. an INTERMEDIATE step
  *
  * THE LOAD-BEARING PROPERTY IS EQUIVALENCE, not the new capability. §C5/§C6 pin the
  * pre-1.17.0 assembler outputs byte-for-byte for every legacy option shape, and §C2
@@ -283,7 +283,7 @@ assert_same(
 	bws_run_traversal( array( array( 'kind' => 'post', 'id' => 1 ) ), array( array( 'type' => 'authors' ) ) )
 );
 
-echo "\n§C4 per-step limit — emitted ONLY when it caps\n";
+echo "\n§C4 per-step limit — emitted ONLY when it bounds the step\n";
 
 assert_same(
 	'limit(2) rides the step',
@@ -316,7 +316,7 @@ assert_same(
 // Struct-level guard: a hand-built chain (the migrator's, the control's) may carry a
 // limit the grammar never validated.
 assert_same(
-	"struct limit '3' caps as an int",
+	"struct limit '3' bounds as an int",
 	array( array( 'type' => 'ref', 'field' => 'o', 'limit' => 3 ) ),
 	bws_fold_chain_to_steps( array( link_step( 'refs', 'o', '3' ) ) )
 );
@@ -464,12 +464,12 @@ assert_same(
 	bws_wrapper_ref_steps( array( 'src' => 'entries,rows;refs,a' ) )
 );
 assert_same(
-	'wrapper carries a per-hop cap',
+	'wrapper carries a per-hop limit',
 	array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a,limit(2)' ) )
 );
 
-echo "\n§C7 bws_run_traversal — the per-hop cap\n";
+echo "\n§C7 bws_run_traversal — the per-hop limit\n";
 
 $post = static function ( int $id ): array {
 	return array( 'kind' => 'post', 'id' => $id );
@@ -488,35 +488,35 @@ $reader = static function ( array $step, array $source ) {
 };
 
 assert_same(
-	'no cap → full fan-out',
+	'no limit → full fan-out',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
 	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a' ) ), $reader )
 );
 assert_same(
-	'cap 2 slices the step OUTPUT',
+	'limit 2 slices the step OUTPUT',
 	array( $post( 11 ), $post( 12 ) ),
 	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ), $reader )
 );
 assert_same(
-	'cap larger than the fan-out is inert',
+	'a limit larger than the fan-out is inert',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
 	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 9 ) ), $reader )
 );
 // The falsy-zero class, on the engine side this time.
 assert_same(
-	'cap 0 = UNLIMITED, never "cap at zero"',
+	'limit 0 = UNLIMITED, never "bound at zero"',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
 	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 0 ) ), $reader )
 );
 assert_same(
-	'a non-numeric cap is ignored (not read as 0)',
+	'a non-numeric limit is ignored (not read as 0)',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
 	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 'lots' ) ), $reader )
 );
-// An INTERMEDIATE cap is the reason the quantity exists: it bounds how much work the
+// An INTERMEDIATE limit is the reason the quantity exists: it bounds how much work the
 // rest of the chain multiplies, not just the visible row count.
 assert_same(
-	'INTERMEDIATE cap bounds downstream fan-out',
+	'an INTERMEDIATE limit bounds downstream fan-out',
 	array( $post( 1100 ) ),
 	bws_run_traversal(
 		array( $post( 1 ) ),
@@ -528,7 +528,7 @@ assert_same(
 	)
 );
 assert_same(
-	'without the intermediate cap the same chain yields three',
+	'without the intermediate limit the same chain yields three',
 	array( $post( 1100 ), $post( 1200 ), $post( 1300 ) ),
 	bws_run_traversal(
 		array( $post( 1 ) ),
@@ -539,10 +539,10 @@ assert_same(
 		$reader
 	)
 );
-// The cap applies to the step's WHOLE output, not per input source — that is the
+// The limit applies to the step's WHOLE output, not per input source — that is the
 // quantity the wire names ("at most N of these").
 assert_same(
-	'the cap is on the step, not per input source',
+	'the limit is on the step, not per input source',
 	array( $post( 11 ), $post( 12 ) ),
 	bws_run_traversal(
 		array( $post( 1 ), $post( 2 ) ),

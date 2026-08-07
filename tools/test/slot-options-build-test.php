@@ -393,7 +393,7 @@ assert_same( 'keyOption keeps the dynamic-label flag', true, $fold['keyOption'][
 
 // LEGACY AXES — the per-slot keys the editor may fold and delete. Join excludes nothing:
 // its `limit` was a SLOT axis (one per slot, threaded into that slot's resolve), the
-// opposite of try_'s tag-level cap. Shipping the list is what stops the control keeping
+// opposite of try_'s tag-level limit. Shipping the list is what stops the control keeping
 // its own.
 assert_same(
 	'flatAxes = every axis when the container excludes none',
@@ -481,7 +481,7 @@ $sel = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => false,
 		'allow_same_read' => true,
-		// try_'s bare `limit` is the TAG-level cap for every slot, so it is not a slot axis.
+		// try_'s bare `limit` is the TAG-level limit for every slot, so it is not a slot axis.
 		'tag_level'       => array( 'limit' ),
 		'noun'            => 'attempt',
 	)

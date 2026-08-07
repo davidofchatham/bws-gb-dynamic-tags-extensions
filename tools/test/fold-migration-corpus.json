@@ -223,7 +223,7 @@
 			}
 		},
 		{
-			"label": "a garbage limit is not numeric, so it neither caps nor survives",
+			"label": "a garbage limit is not numeric, so it neither bounds nor survives",
 			"conf": {
 				"combining": true,
 				"perSlotUse": true,
@@ -391,7 +391,7 @@
 	"_baseSrcReadme": "DEPTH-0 base-tag source migration (bws_fold_migrate_base_src / baseSrcState). Its own section, not a borrowed slot case: the slot cases exercise a container's per-slot keys, and nothing about them reaches the tag's own source triple. Results are compared as ORDERED KEY PAIRS because key order is half the property -- the two paths must write one tag ONE way.",
 	"baseSrc": [
 		{
-			"label": "flat src:ref + ref -> chain, cap serialized",
+			"label": "flat src:ref + ref -> chain, implied limit lands on the step",
 			"conf": {},
 			"options": {
 				"src": "ref",
@@ -418,11 +418,21 @@
 			}
 		},
 		{
-			"label": "an author-stated limit survives",
+			"label": "an author-stated limit MOVES onto the fanning step",
 			"conf": {},
 			"options": {
 				"src": "ref",
 				"ref": "office",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "an author-stated limit over TWO fanning steps holds the earlier one at 1",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "department",
 				"limit": "3"
 			}
 		},
@@ -433,6 +443,42 @@
 				"src": "ref",
 				"ref": "office",
 				"limit": "0"
+			}
+		},
+		{
+			"label": "an explicit limit:-1 is the older spelling of the same",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "-1"
+			}
+		},
+		{
+			"label": "an EMPTY limit: is absent, and is not deleted either",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": ""
+			}
+		},
+		{
+			"label": "a magnitude the two languages cannot hold identically writes no step limit",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "99999999999999999999"
+			}
+		},
+		{
+			"label": "a NON-NUMERIC limit is left where it is (it already means the default)",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "lots"
 			}
 		},
 		{

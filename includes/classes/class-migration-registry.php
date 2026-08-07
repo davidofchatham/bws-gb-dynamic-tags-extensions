@@ -373,8 +373,8 @@ class MigrationRegistry {
 	 * matches from the new string (a transform can change which entries match) and go
 	 * again. Terminates when no matching entry changes anything.
 	 *
-	 * Bounded by a hard iteration cap as a safety against pathological registrations. Each
-	 * iteration applies at most one change, so the cap must exceed the longest legitimate
+	 * Bounded by a hard iteration ceiling as a safety against pathological registrations. Each
+	 * iteration applies at most one change, so the ceiling must exceed the longest legitimate
 	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
 	 * that fire.
 	 *

@@ -135,7 +135,7 @@ function t_table_assemble( array $headers, array $matrix, string $caption = '', 
 // ---------------------------------------------------------------------------
 
 echo "Empty matrix\n";
-assert_eq( 'T1 no rows → empty string', '', t_table_assemble( array( 'A' ), array(), 'Cap', 'c1' ) );
+assert_eq( 'T1 no rows → empty string', '', t_table_assemble( array( 'A' ), array(), 'Caption', 'c1' ) );
 
 echo "\nNo-caption table = bare <table>, no wrapper, no classes\n";
 $out = t_table_assemble( array(), array( array( 'x' ) ) );
@@ -176,12 +176,12 @@ echo "\nEscaping\n";
 $out = t_table_assemble(
 	array( '<b>H</b>' ),
 	array( array( 'a&b<c>' ) ),
-	'Cap "quoted" & <script>',
+	'Caption "quoted" & <script>',
 	'id"with<bad'
 );
 assert_contains( 'T8 header escaped', '<th>&lt;b&gt;H&lt;/b&gt;</th>', $out );
 assert_contains( 'T8 cell escaped', '<td>a&amp;b&lt;c&gt;</td>', $out );
-assert_contains( 'T8 caption text escaped', 'Cap &quot;quoted&quot; &amp; &lt;script&gt;', $out );
+assert_contains( 'T8 caption text escaped', 'Caption &quot;quoted&quot; &amp; &lt;script&gt;', $out );
 assert_contains( 'T8 caption id attr escaped', '<caption id="id&quot;with&lt;bad">', $out );
 
 echo "\nFull shape (caption + header + multi-row)\n";

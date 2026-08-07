@@ -97,12 +97,12 @@ rows — one anchor, not two.
 
 ## L4 — the SPELLING selects the default (1.17.0, base-tag source chains)
 
-**The unset default is no longer one number.** Flat wire caps its resolved-source list at 1;
+**The unset default is no longer one number.** Flat wire bounds its resolved-source list at 1;
 chain wire does not. That single rule is the whole compatibility mechanism for base-tag source
 chains, and it is chosen because it works on wire NO MIGRATION CAN REACH — a draft nobody opens,
 a block widget the content scanner never sees, a tag stored inside an ACF field.
 
-So the L1 rows above are only half the floor: they pin that FLAT wire still caps at one. These
+So the L1 rows above are only half the floor: they pin that FLAT wire still bounds at one. These
 rows pin the other half, and every one is a **pair of spellings for the same source**.
 
 ⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
@@ -112,18 +112,27 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 > observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
 > renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately
 > gone because the output really is multi-value.
+>
+> **L4.10 / L4.11 measured 2026-08-07 on the testbed**, when the limit moved from the tag onto the
+> steps. They are the rows that pin what migration WRITES, as opposed to what a hand-authored limit
+> does — L4.3 used to serve both and now serves only the second. Each migrated row is paired with the
+> flat original it replaces AND with an unlimited partner, so neither pair can pass vacuously.
 
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
-| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — uncapped. The anchor is legitimately gone: the output really is multi-value |
-| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT value beats the spelling-selected default. This is what a migrated or author-converted tag looks like, so it is not an anomaly — ordinary option precedence |
+| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — unlimited. The anchor is legitimately gone: the output really is multi-value |
+| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work |
 | L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
-| L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — uncapped |
-| L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy cap on chain wire |
+| L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — unlimited |
+| L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy limit on chain wire |
 | L4.7 | `{{text src:current\|key:role\|linkTo:permalink}}` | `Captain`, in `<a>` | a root-only chain does not fan, so nothing changes. `src:current` is chain-shaped in the control but a plain token on the wire |
-| L4.8 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | the PER-STEP cap and the tag-level one are different quantities. This caps the step at one source per input; the tag-level default stays uncapped and has nothing left to cut |
-| L4.9 | `{{text src:refs,related_staff,limit(2)\|use:title}}` | BOTH names | L4.8's partner — without the pair, a per-step cap that did nothing at all would still pass L4.8 |
+| L4.8 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | the PER-STEP limit and the tag-level one are different quantities. This bounds the step at one source per input; the tag-level default stays unlimited and has nothing left to cut |
+| L4.9 | `{{text src:refs,related_staff,limit(2)\|use:title}}` | BOTH names | L4.8's partner — without the pair, a per-step limit that did nothing at all would still pass L4.8 |
+| L4.10 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | **what MIGRATION now writes.** Identical output to the flat L4.1 it replaces, which is the equivalence the rewrite claims. Same wire as L4.8 — the row is duplicated on purpose, because L4.8 asks whether a per-step limit works and this one asks whether migration produces it |
+| L4.11a | `{{text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title}}` | `All Users` | **TWO fanning steps, the shape the limit mapping exists for** — the FLAT original. Uses `portal_visibility` deliberately: `department` is a taxonomy the fixture's staff do not carry, so that spelling renders empty in BOTH eras and asserts nothing (the §F9.6 lesson) |
+| L4.11b | `{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)\|use:title}}` | `All Users` — identical to L4.11a | what MIGRATION writes for L4.11a. BOTH steps are limited, because per-step limits are per-input and multiply |
+| L4.11c | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` | L4.11b's partner — the same chain with no step limits. Without it, a mapping that wrote nothing at all would still pass the pair |
 
 ## L5 — the author conversion (editor only)
 
@@ -132,12 +141,13 @@ Not reachable by `render-tag`. Open `/matrix-post-meta/` in the block editor.
 | Row | What to do | Expected |
 |---|---|---|
 | L5.1 | Open a tag whose source is FLAT `src:ref\|ref:related_staff`; the Source control shows one step | the chain is READ from the flat keys — display only. Cancel the modal and the stored string is untouched |
-| L5.2 | Commit any change to that source | the saved tag is `src:refs,related_staff`, the `ref` key is GONE, and **`limit:1` has appeared** — visible in the Result Limit field, not just on the wire. Without it the tag would silently start rendering both names and drop its anchor |
-| L5.3 | Clear the `1` from Result Limit | both names render. The point of showing the number is that it is clearable |
-| L5.4 | Re-commit the source on an ALREADY-chain tag whose limit you cleared | the `1` does NOT come back. Only the conversion writes it |
-| L5.5 | Set the source to `Current` (root only) and commit | no `limit` is written — a source with no step has nothing to cap, and a number there is noise a reader has to decide is meaningless |
+| L5.2 | Commit any change to that source | the saved tag is `src:refs,related_staff,limit(1)`, the `ref` key is GONE, and **the step's own Limit field shows `1`** — the limit lands in the step row the author is looking at, and NO tag-level `limit` is written. Without it the tag would silently start rendering both names and drop its anchor |
+| L5.3 | Clear the `1` from the step's Limit field | both names render, and the wire is back to `src:refs,related_staff`. The point of showing the number is that it is clearable |
+| L5.4 | Re-commit the source on an ALREADY-chain tag whose step limit you cleared | the `1` does NOT come back. Only the conversion writes it |
+| L5.5 | Set the source to `Current` (root only) and commit | no `limit` is written — a source with no step has nothing to bound, and a number there is noise a reader has to decide is meaningless |
 | L5.6 | Add a step, leave its field empty | the step warns *"This tag will be skipped unless a field is set"*, and **Add hop is unavailable** until the step is complete |
-| L5.7 | On a fanning step, check the cap input | placeholder reads `0 (all)`. Type `0`, commit, reopen — the field shows `0 (all)` again and the wire carries no cap. Same glyphs, same meaning, nothing silently lost |
+| L5.7 | On a fanning step, check the limit input | placeholder reads `0 (all)`. Type `0`, commit, reopen — the field shows `0 (all)` again and the wire carries no limit. Same glyphs, same meaning, nothing silently lost |
+| L5.8 | Convert the `L5.8 subject` row — a flat tag already carrying a tag-level `limit:3` | the `3` MOVES: the wire is `src:refs,related_staff,limit(3)` and the Result Limit field is now empty. One limit, one place — leaving it in both would state one bound in two spellings that mean different quantities |
 
 ## Editor check (no front-end surface)
 

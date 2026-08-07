@@ -41,6 +41,20 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 
 define( 'ABSPATH', __DIR__ );
 
+// The WP surface the loaded files touch when CALLED (nothing runs at load time).
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = null ) { return $s; }
+}
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : $s; }
+}
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $s ) { return strtolower( preg_replace( '/[^a-zA-Z0-9_\-]/', '', (string) $s ) ); }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value ) { return $value; }
+}
+
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 // The depth-0 base migrator reads the chain through the COMPILER, so it comes along.
@@ -485,7 +499,7 @@ check(
 // The token set is bounded by the CONTAINER, not by A–Z: `%K` is literal in a 10-slot
 // join in BOTH eras, so escaping it would rewrite text the renderer never looks at.
 check(
-	'M8.4 a letter past the container cap is left alone',
+	'M8.4 a letter past the container maximum is left alone',
 	'{{join mode:template|format:%K of %%A|key:rate}}' === $m8( '{{join mode:template|format:%K of %A|key:rate}}' ),
 	$m8( '{{join mode:template|format:%K of %A|key:rate}}' )
 );
@@ -505,6 +519,131 @@ check(
 	'{{join A:key(a)|valueSep: / }}' === $m8( '{{join A:key(a)|valueSep: / }}' ),
 	$m8( '{{join A:key(a)|valueSep: / }}' )
 );
+
+// ── M9 — the legacy limit lands on the STEPS, at depth 0 ─────────────────────
+//
+// The M7 twin proves the two languages AGREE; it cannot prove either is right, and it
+// carries no expected values by design. These are the expectations.
+//
+// The rule under test (bws_fold_chain_apply_legacy_limit): a base tag's flat source
+// implied a limit of 1, chain wire defaults to unlimited, so the respelling must carry
+// the old default across — onto the steps, never as a tag-level `limit`. THE EARLIER
+// FANNING STEPS MATTER: per-step limits are per-input and multiply, so `N` on the last
+// one alone yields N per parent rather than the N total the flat spelling meant.
+
+$base = static function ( array $options ) {
+	$out = bws_fold_migrate_base_src( $options );
+	return ( null === $out ) ? null : $out;
+};
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) );
+check(
+	'M9.1 an implied limit lands on the one fanning step, not on the tag',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'srcTermIn' => 'department', 'use' => 'title' ) );
+check(
+	'M9.2 a terms-only source is limited the same way',
+	'terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department' ) );
+check(
+	'M9.3 TWO fanning steps are BOTH limited (the product is the ceiling)',
+	'refs,office,limit(1);terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '3' ) );
+check(
+	'M9.4 an author-stated limit MOVES onto the step and leaves no tag-level key',
+	'refs,office,limit(3)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// The shape with no faithful per-input mapping, pinned to the CHOSEN one: 1 on the
+// earlier step bounds the total at N, where leaving it unlimited would give N per parent.
+// It picks the same element as the flat walk unless parent 1 has fewer than N children —
+// the documented residual hole, zero instances in either surveyed database.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department', 'limit' => '3' ) );
+check(
+	'M9.5 an author-stated limit over two fanning steps holds the EARLIER one at 1',
+	'refs,office,limit(1);terms,department,limit(3)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// 0 and -1 both already mean unlimited, which is what chain wire defaults to. Nothing to
+// carry, and the author's own token stays as written.
+foreach ( array( '0', '-1' ) as $unlimited ) {
+	$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => $unlimited ) );
+	check(
+		"M9.6 an explicit limit:{$unlimited} writes no step limit and stays where it is",
+		'refs,office' === ( $m9['src'] ?? null ) && $unlimited === ( $m9['limit'] ?? null ),
+		json_encode( $m9 )
+	);
+}
+
+// bws_clamp_limit's is_numeric guard already gives a non-numeric value the default, so
+// it MEANS absent — but deleting an author's text on that basis is a bigger move than
+// this rewrite is entitled to, and leaving it renders identically.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => 'lots' ) );
+check(
+	'M9.7 a non-numeric limit is treated as absent but is NOT consumed',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && 'lots' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// An EMPTY value is absent by the same reading, and is not deleted for the same reason:
+// the rewrite consumes a key only when it has moved the author's number onto a step.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '' ) );
+check(
+	'M9.7b an empty limit: is treated as absent and is NOT consumed',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && '' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// A magnitude the two languages cannot hold identically is the unlimited case, never a
+// materialized step limit: PHP's (int) saturates at PHP_INT_MAX where JS reaches
+// Infinity, so materializing it would write a different number in each language. The
+// twin corpus carries the same case, which is what proves they agree rather than that
+// PHP alone is right.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '99999999999999999999' ) );
+check(
+	'M9.7c an unrepresentable magnitude writes no step limit and stays where it is',
+	'refs,office' === ( $m9['src'] ?? null ) && '99999999999999999999' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// An argless fanning step is DROPPED by the compiler, so the chain does not fan and a
+// limit on it would be inert noise. The old tag rendered one value because its source
+// resolved one entity, not because anything bounded it.
+$m9 = $base( array( 'src' => 'ref', 'key' => 'name' ) );
+check(
+	'M9.8 an orphan src:ref respells with no limit at all',
+	'refs' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// The author-conversion path can limit a step in the same commit that converts. That is a
+// stated per-step intent, and materializing a default on top of it would overwrite a
+// decision with a guess — so the whole mapping stands down.
+$pre = array(
+	array( 'slug' => 'refs', 'arg' => 'office', 'limit' => '2', 'extra' => array() ),
+	array( 'slug' => 'terms', 'arg' => 'department', 'limit' => null, 'extra' => array() ),
+);
+$m9 = bws_fold_chain_apply_legacy_limit( $pre, null );
+check(
+	'M9.9 a chain that already carries a step limit is left entirely alone',
+	$pre === $m9['chain'] && false === $m9['consumed'],
+	json_encode( $m9 )
+);
+
+// The N×M families ride this same mapping rather than a second copy of it. Their wire
+// expectations live with the entries themselves, in
+// tools/test/related-post-src-migration-test.php §R6 — one owner per assertion.
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -28,7 +28,7 @@
  * rather than structure — which is also how a "Link To: No Link" tag ends up with no empty
  * link box, and how a `try_` template's tag-level `limit` stays a plain field.
  *
- * NO CAPTION IS RENDERED HERE. `CLS.cap` is STYLED by this file and EMITTED by the two
+ * NO CAPTION IS RENDERED HERE. `CLS.caption` is STYLED by this file and EMITTED by the two
  * chain controls, which draw their own captions inside the box the wrapper puts around
  * them. That is why the source group reads "SOURCE" on a chain-sourced tag and sits bare
  * on a plain-select one. Rendering it here instead would mean reading the lead control's
@@ -55,7 +55,7 @@
 		// A box a control draws itself, around content it already owns.
 		group: 'bws-group',
 		// The caption strip at the top of a box.
-		cap: 'bws-group__cap',
+		caption: 'bws-group__caption',
 		// One member of a CSS-joined run.
 		member: 'bws-optgroup',
 		// A member that is boxed even when alone.
@@ -78,7 +78,7 @@
 			box + '{' +
 				'border:1px solid #e0e0e0;border-radius:2px;padding:12px;' +
 				'background:rgba(0,0,0,0.02);}' +
-			'.' + CLS.cap + '{font-size:11px;text-transform:uppercase;letter-spacing:.4px;' +
+			'.' + CLS.caption + '{font-size:11px;text-transform:uppercase;letter-spacing:.4px;' +
 				'opacity:.65;margin-bottom:10px;display:block;}' +
 			// ComboboxControl's `__suggestions-container` carries the border and padding
 			// but declares NO background, so the tint shows through it while the `__input`

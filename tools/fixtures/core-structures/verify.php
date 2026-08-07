@@ -61,8 +61,8 @@ $check( 'RF2 post_object return_format:object == id format', (string) $out4c ===
 // Same two fields through the CHAIN spelling (5h): `refs,<field>` compiles to
 // the same ref step, so all four spellings above must agree.
 //
-// BOTH SIDES STATE THE CAP EXPLICITLY, and that is not tidiness. Since 1.17.0 the
-// UNSET tag-level default is selected by the source SPELLING — flat wire caps at 1,
+// BOTH SIDES STATE THE LIMIT EXPLICITLY, and that is not tidiness. Since 1.17.0 the
+// UNSET tag-level default is selected by the source SPELLING — flat wire bounds at 1,
 // chain wire does not (bws_limit_default) — so comparing a bare chain against a bare
 // flat tag compares two different quantities and fails by design. Pinning `limit:1`
 // on both asks the question this check exists to ask: do the two spellings reach the
@@ -70,13 +70,13 @@ $check( 'RF2 post_object return_format:object == id format', (string) $out4c ===
 // tools/test/limit-default-test-matrix.md §L4.
 $out4e = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:ref|ref:related_staff_obj|key:main_line|limit:1}}', [], $instance );
 $out4d = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line|limit:1}}', [], $instance );
-$check( 'RF1 chain spelling == flat spelling (cap stated on both)', (string) $out4d === (string) $out4e, 'chain=' . var_export( $out4d, true ) . ' flat=' . var_export( $out4e, true ) );
+$check( 'RF1 chain spelling == flat spelling (limit stated on both)', (string) $out4d === (string) $out4e, 'chain=' . var_export( $out4d, true ) . ' flat=' . var_export( $out4e, true ) );
 
 // And the DIFFERING default is itself asserted, so a future change that quietly
 // re-unified the two spellings shows up here rather than only in the matrix.
 $out4f = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line}}', [], $instance );
 $check(
-	'unset limit: chain wire fans where flat wire caps at 1',
+	'unset limit: chain wire fans where flat wire bounds at 1',
 	(string) $out4f !== (string) $out4 && '' !== (string) $out4f,
 	'chain=' . var_export( $out4f, true ) . ' flat=' . var_export( $out4, true )
 );

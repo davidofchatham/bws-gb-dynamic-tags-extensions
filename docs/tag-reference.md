@@ -69,10 +69,10 @@ once an author converts it or the Tag Converter rewrites it.
 
 - **The root is not a step.** A chain's first segment is either an entity root the source FACTORY
   consumes (`site`, `current`, a registry source) or already a step off the ambient entity.
-- **A step `limit` is PER-INPUT** — at most N results from EACH incoming result, so capping a
-  `terms` step at one yields one term per referenced post rather than one term overall. Product
-  semantics across a chain. Uncapped by default, for every step type. Distinct from the tag-level
-  `limit`, which caps the resolved-source list ONCE, before the read — see
+- **A step `limit` is PER-INPUT** — at most N results from EACH incoming result, so limiting a
+  `terms` step to one yields one term per referenced post rather than one term overall. Product
+  semantics across a chain. Unlimited by default, for every step type. Distinct from the tag-level
+  `limit`, which bounds the resolved-source list ONCE, before the read — see
   [§List mode](#list-mode-limit--sep).
 - **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`:
   kind ∈ `post|term|meta_row|site|base`, plus whether it fans). Pure and static, from the wire
@@ -200,29 +200,39 @@ rewritten to `src:ref` + `ref` — see the value row in
 
 Selected templates support outputting multiple results as a delimited list. When more than one result renders, they are joined with `sep` (default: `, `).
 
-`limit` caps the **resolved-source list**, once, before the read — the last step's output. It never caps values: the read is one value per resolved source with empties dropped afterwards, so `limit:3` can print two.
+`limit` bounds the **resolved-source list**, once, before the read — the last step's output. It never bounds values: the read is one value per resolved source with empties dropped afterwards, so `limit:3` can print two.
 
 **`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Three call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), and try_ slot dispatch (`class-tag-template-registry.php`). `bws_try_join_items` takes an already-resolved int — it holds no options, so it structurally cannot know which default applies. The rule, as of 1.17.0:
 
 | Value | Effective limit |
 |---|---|
 | unset / `''` | **the default for the tag's source SPELLING** — see below (not serialized when unset) |
-| non-numeric (`abc`) | 1 — the `is_numeric()` gate. `(int)'abc'` is `0`, so without it a typo would read as *unlimited* |
+| non-numeric (`abc`) | **the spelling's default**, exactly as unset — the `is_numeric()` gate. `(int)'abc'` is `0`, so without it a typo would read as *unlimited* on flat wire, where the default is 1 |
 | `0` | **UNLIMITED** — no slice |
 | `-1`, any negative | UNLIMITED. Parsed tolerantly (GB's *Posts Per Page* uses `-1`); `0` is what the plugin emits, matching WP's own Query Loop, which blocks `-1` and documents `0` |
 | `1`, `5`, `999` | that value; there is no ceiling |
 
 The number controls carry **no `min`** deliberately: a control that fights a hand-typed `-1` works against [ADR 0004](adr/0004-serialized-tag-string-human-readable.md), and the parse already tolerates it.
 
-**The unset default is selected by the source SPELLING** (`bws_limit_default()`, 1.17.0). Flat wire — `src:ref`, `srcTermIn`, a bare tag — caps at **1**, as it always has. Chain wire (`src:refs,x`) caps at **0 (unlimited)**.
+**The unset default is selected by the source SPELLING** (`bws_limit_default()`, 1.17.0). Flat wire — `src:ref`, `srcTermIn`, a bare tag — bounds its list at **1**, as it always has. Chain wire (`src:refs,x`) is **unlimited (`0`)**.
 
 That one rule is the whole compatibility mechanism for [source chains](#source-chains-1170), and it is chosen because it works on wire **no migration can reach**: a draft nobody opens, a block widget the content scanner never sees, a tag stored inside an ACF field. An unmigrated tag gets its default from its own spelling, wherever it lives.
 
-Two costs, both deliberate. The same conceptual source caps differently by spelling — an [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) readability cost, paid to avoid touching a stored row, and confined to a spelling that is now deprecated. And the top-level link gate is COUNT-BASED, so link-wrapping differs by spelling too; that is why the regression matrix carries rows per SPELLING, not only per `limit` value.
+Two costs, both deliberate. The same conceptual source is bounded differently by spelling — an [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) readability cost, paid to avoid touching a stored row, and confined to a spelling that is now deprecated. And the top-level link gate is COUNT-BASED, so link-wrapping differs by spelling too; that is why the regression matrix carries rows per SPELLING, not only per `limit` value.
 
 The `default` parameter is **required**. A site that omitted it would silently render legacy behaviour on chain wire — wrong output that looks normal in review — so omission is an `ArgumentCountError`, the same posture the cross-language twin harnesses take on a missing `node`.
 
-An EXPLICIT value beats the spelling-selected default in both directions. That is ordinary option precedence and needs no extra rule: it is also exactly what a migrated or author-converted tag looks like.
+An EXPLICIT value beats the spelling-selected default in both directions. That is ordinary option precedence and needs no extra rule.
+
+**Migration does not write one, though** — A LIMIT IS STATED WHERE THE SOURCE IS STATED, so a rewritten tag carries its limit on the STEPS (`src:refs,x,limit(1)`) and no tag-level `limit` at all:
+
+| legacy `limit` | what migration writes |
+|---|---|
+| absent, or non-numeric | `limit(1)` on EVERY fanning step; the tag-level key is untouched (a non-numeric value is left as the author typed it) |
+| explicit `N > 0` | `N` on the LAST fanning step, `1` on every earlier one; the tag-level key is DELETED |
+| explicit `0` / `-1` | nothing — unlimited is what chain wire already means; the key stays as written |
+
+Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last fanning step. The earlier steps are not decoration — per-step limits are per-input and MULTIPLY, so `N` on the last step alone would yield `N` per parent rather than the `N` total the flat spelling meant. An argless fanning step gets nothing (the compiler drops it, so the chain does not fan), and a chain that already carries a step limit is left entirely alone. See [`bws_fold_chain_apply_legacy_limit()`](../includes/helpers/slot-fold.php) — one mapping, shared by the converter, the editor mount migrator and the author-conversion commit.
 
 **Behavior change in 1.17.0.** Before, `0` and negatives were silently clamped to 1 by a `max( 1, … )` at each call site. A saved `limit:0` therefore rendered one result; from 1.17.0 it fans out. That was a clamp discarding a written value, not a designed semantic — an author wanting one result leaves `limit` unset or types `1` — so the change honors the wire rather than freezing the clamp. Regression rows: [`tools/test/limit-default-test-matrix.md`](../tools/test/limit-default-test-matrix.md).
 
@@ -316,7 +326,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 | `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
-| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step cap. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and serializes the tag-level `limit:1` the old spelling implied — visible in the Result Limit control, because chain wire defaults to uncapped and a conversion that wrote nothing would fan the tag out under the author's hands. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `term_*`/`try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
+| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `term_*`/`try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
@@ -411,7 +421,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 **The key IS the slot ordinal, spelled `A`…`Z`** (`AA` at 27, spreadsheet-style). One owner, `bws_slot_ordinal()` / `bws_slot_ordinal_num()` in the grammar file, because the same answer is needed by two registrations, both migration paths, the editor control, both order parsers, the panel labels and `{{join}}`'s format tokens. Three consequences:
 
-- **No cap in the grammar.** The pattern is `^[A-Z]+$`, not `^[A-Z]$` — the cap is a CONTAINER property (`{{join}}` 10, `try_*` 5), and a single-letter pattern could reject wire its own encoder produced.
+- **No maximum in the grammar.** The pattern is `^[A-Z]+$`, not `^[A-Z]$` — the slot count is a CONTAINER property (`{{join}}` 10, `try_*` 5), and a single-letter pattern could reject wire its own encoder produced.
 - **Nothing may compare these keys as strings.** `AA` sorts after `Z` numerically and before it lexically; both order parsers DECODE to an int.
 - **Collision-free by construction.** Every option key in the plugin and every GB reserved key is lowercase or lowercase-initial camelCase, so an all-caps key can only be a slot.
 
@@ -431,7 +441,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
 
-**A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field capped at 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
+**A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
 **Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
 
@@ -439,7 +449,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **An INCOMPLETE step skips the slot.** A `terms` step with no taxonomy is authorable only under the fold (flat wire could not state a step without its argument), and flattening it would be silently wrong: an empty `srcTermIn` is how *no term step* is spelled, so the slot would read the un-stepped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason, so the editor preview can name what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). An argless `refs` step is NOT incomplete — it inherits the carried relationship field.
 
-**`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a flat limit with no fanning step stays a slot-level token. A **step `limit` is PER-INPUT** — at most N resolved sources per input source — which is a different quantity from the **tag-level `limit`**, capping the resolved-source list once before the read. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
+**`limit` folds onto the step it bounds** (a chain can fan more than once, so a slot-level limit has no single meaning); a flat limit with no fanning step stays a slot-level token. A **step `limit` is PER-INPUT** — at most N resolved sources per input source — which is a different quantity from the **tag-level `limit`**, bounding the resolved-source list once before the read. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
 
 **Both FORMS render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between flat slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
 
@@ -572,7 +582,7 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term step on" and the taxonomy — **required** when the step is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | Maximum number of results to return. Default: 1. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set. **Unconditional on a multislot container** — the list axis is inside a slot value, which `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric falls back to 1 — see [§List mode](#list-mode-limit--sep). |
+| `limit` | Result Limit | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set — the two FLAT fanning tokens, deliberately NOT `chain_fans`: a chain states its limits on its steps, so the tag-level control retires with the flat spelling it belongs to (the VALUE is still read wherever it is written). `sep` is the other way round and DOES ask `chain_fans`, because it joins printed output whatever the source spelling. **Unconditional on a multislot container** — the list axis is inside a slot value, which `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value. |
 | `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1`; unconditional on a multislot container | List-mode separator, same tag set as `limit`. |
 
 ### Field group
@@ -905,7 +915,7 @@ key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per
 chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated —
 plus a `terms` taxonomy step), the field read (text's key/title enum, **no "Same as Previous Field"
 row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and
-a per-step `limit` (list-mode cap so a term/ref slot reads >1 target; no control surface yet, but
+a per-step `limit` (list-mode bound so a term/ref slot reads >1 target; no control surface yet, but
 migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off
 one entity (see J16b in the matrix for real ref carry-forward). A list-mode slot joins its own
 items with text's default inner `', '` — no per-slot inner separator in v1

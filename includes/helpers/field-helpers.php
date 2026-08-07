@@ -337,7 +337,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 // includes/helpers/slot-fold-compile.php in 1.17.0 (5h). It is now a thin adapter over
 // the chain COMPILE, so the flat `src`/`ref`/`srcTermIn` reading and the folded wire's
 // chain produce steps through one code path (and a multi-step chain resolves instead of
-// capping at one relationship step plus one term step). #44's compound order lives there too.
+// stopping at one relationship step plus one term step). #44's compound order lives there too.
 
 /**
  * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
@@ -503,8 +503,8 @@ function bws_clamp_limit( $raw, int $default ): int {
  * The tag-level `limit` a tag gets when its wire states none — decided by SPELLING.
  *
  * @invariant THE FLAT SOURCE SPELLING SELECTS THE OLD DEFAULT. Flat wire
- * (`src:ref|ref:x`, `srcTermIn:x`, a bare tag) caps its resolved-source list at
- * ONE, as it always has. Chain wire (`src:refs,x`) does not cap. This one rule is
+ * (`src:ref|ref:x`, `srcTermIn:x`, a bare tag) bounds its resolved-source list at
+ * ONE, as it always has. Chain wire (`src:refs,x`) is unlimited. This one rule is
  * the entire compatibility mechanism for base-tag source chains, and it is chosen
  * precisely because it works on wire NO MIGRATION CAN REACH — a draft nobody opens,
  * a block widget the content scanner never sees, a tag stored inside an ACF field.
@@ -519,7 +519,7 @@ function bws_clamp_limit( $raw, int $default ): int {
  * it cannot just be flipped. Naming the spelling that is entitled to it keeps every
  * stored tag rendering exactly as before while new wire gets the honest default.
  *
- * Two costs, both accepted: the same conceptual source caps differently by spelling
+ * Two costs, both accepted: the same conceptual source is bounded differently by spelling
  * (an ADR-0004 readability cost, paid to avoid touching a stored row), and the
  * link gate is COUNT-BASED, so link-wrapping differs by spelling too — on new wire
  * only, which is why the limit-default matrix needs rows per SPELLING and not just
@@ -609,7 +609,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		: array( $base );
 
 	// list mode — slice plural source list to limit. The DEFAULT is selected by the
-	// source SPELLING (bws_limit_default): flat wire caps at 1, chain wire does not.
+	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
 	$limit   = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
 	$sources = array_slice( $sources, 0, $limit ?: null );
 

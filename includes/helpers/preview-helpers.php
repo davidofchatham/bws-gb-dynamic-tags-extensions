@@ -250,7 +250,7 @@ function bws_build_join_preview_label( array $options ): string {
  * @since 1.17.0 Reads `%A` alongside `%1`.
  * @param string $format Author-written wire format.
  * @param array  $parts  Slot-number-keyed display parts (field + optional src).
- * @param int    $max    Slot cap (BWS_JOIN_MAX_SLOTS).
+ * @param int    $max    Slot maximum (BWS_JOIN_MAX_SLOTS).
  * @return string Display format.
  */
 if ( ! function_exists( 'bws_join_preview_format' ) ) {

@@ -96,7 +96,7 @@ echo "bws_join_wire_format (wire %A / %N → canonical {N}; GB bans } in options
 // `A:key(x)|format:%A` reads as one statement.
 assert_same( 'basic translation (letters)', '{1} ({2})', bws_join_wire_format( '%A (%B)' ) );
 assert_same( 'all ten letter tokens', '{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}', bws_join_wire_format( '%A%B%C%D%E%F%G%H%I%J' ) );
-assert_same( 'letter past the container cap stays literal', '%K {1}', bws_join_wire_format( '%K %A' ) );
+assert_same( 'letter past the container maximum stays literal', '%K {1}', bws_join_wire_format( '%K %A' ) );
 assert_same( 'lowercase is not a token', '%a {1}', bws_join_wire_format( '%a %A' ) );
 assert_same( '%% escapes a literal percent before a slot letter', '50%A off {2}', bws_join_wire_format( '50%%A off %B' ) );
 assert_same( 'height format on the wire (letters)', "{1}'{2}\"", bws_join_wire_format( '%A\'%B"' ) );

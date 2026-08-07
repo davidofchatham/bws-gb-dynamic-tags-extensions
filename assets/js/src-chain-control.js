@@ -24,14 +24,14 @@
  * cancelled modal leaves stored wire untouched. The first commit writes chain wire
  * and deletes the two flat siblings.
  *
- * That commit also serializes `limit:1` when the source fans, and leaves it visible
- * in the `limit` control for the author to clear. It is not a courtesy: since 1.17.0
- * the tag-level cap DEFAULT is selected by the source spelling — flat wire caps at
- * one, chain wire does not — so a conversion that wrote nothing would silently fan
- * out the tag under the author's hands, adding values and dropping anchors (the link
- * gate is count-based). Writing the default it is leaving behind keeps conversion a
- * pure respelling, and writing it into a field the author can see makes the change
- * evidence rather than a surprise.
+ * That commit also limits the fanning steps to 1, in the step rows the author is looking
+ * at. It is not a courtesy: since 1.17.0 the DEFAULT limit is selected by the source
+ * spelling — flat wire bounds at one, chain wire does not — so a conversion that wrote
+ * nothing would silently fan out the tag under the author's hands, adding values and
+ * dropping anchors (the link gate is count-based). Writing the default it is leaving
+ * behind keeps conversion a pure respelling, and writing it into the step's own field
+ * makes the change evidence rather than a surprise — a `1` next to `In Taxonomy Term:
+ * Department` says which quantity it bounds, where a tag-level number does not.
  *
  * One stored shape across every path. The scanner, the mount migrator and this
  * control all produce the identical tag; inline help instead of serialization would
@@ -178,13 +178,16 @@
 	 *    absent `src` is the bare tag's genuine unset state).
 	 * 2. The flat siblings whose meaning it absorbed are deleted. Leaving them beside
 	 *    the chain would store one source two ways.
-	 * 3. On the CONVERSION only, and only where the source fans, the tag-level cap
-	 *    the old spelling implied is made explicit. See the file header: chain wire
-	 *    defaults to uncapped, so a conversion that wrote nothing would fan the tag
-	 *    out under the author's hands. An author who already stated a limit keeps it
-	 *    — ordinary option precedence, no extra rule. A source with no step has
-	 *    nothing to cap, so a number there would be noise a reader must decide is
-	 *    meaningless.
+	 * 3. On the CONVERSION only, and only where the source fans, the limit the old
+	 *    spelling implied is carried onto the STEPS. See the file header: chain wire
+	 *    defaults to unlimited, so a conversion that wrote nothing would fan the tag
+	 *    out under the author's hands. The mapping is the grammar's
+	 *    (bws_fold_chain_apply_legacy_limit), shared with both migration paths — an
+	 *    author-converted tag and a scanner-migrated one must be the same tag. It also
+	 *    owns every case this used to state inline: an author's own tag-level number
+	 *    MOVES onto the last fanning step rather than being left behind, a step the
+	 *    author limited in the same commit wins outright, and a source with no fanning
+	 *    step gets nothing, a limit there being noise a reader must decide is meaningless.
 	 *
 	 * @param {Object}   state       Current extraTagParams.
 	 * @param {string}   key         The source option key (`src`).
@@ -196,11 +199,20 @@
 	 */
 	function convertUpdate( state, key, chain, flatAxes, defaultRoot ) {
 		var upd  = Object.assign( {}, state );
+
+		// THE LIMIT IS DECIDED BEFORE THE WIRE IS EMITTED, because it now lives INSIDE the
+		// wire. This is the commit that changes the spelling, so it is the commit that
+		// carries the old spelling's default across — and only this one: a tag already
+		// on chain wire is not converting, and re-running the rule on every commit would
+		// re-inject a limit the author had just cleared.
+		var converting = ! chainIsWire( String( state[ key ] || '' ) );
+		var bound      = converting ? fold.applyLegacyLimit( chain, state.limit ) : { chain: chain, consumed: false };
+
 		// Enclosing level 0 — a base tag's `src:` is the wrapper, so a step `limit`
 		// prints one level inside it (`refs,office,limit[2]`). A slot's `src(...)`
 		// passes 1. The caller that prints the wrapper owns this number; both shipped
 		// bugs on this axis came from recomputing depth locally.
-		var wire = fold.emitChain( chain, 0 );
+		var wire = fold.emitChain( bound.chain, 0 );
 
 		// A chain that is JUST the default root already IS what an absent `src` means,
 		// so it is stored as absence. The control DISPLAYS that root (see
@@ -233,10 +245,10 @@
 		if ( ! wire ) {
 			return upd;
 		}
-		var wasWire = chainIsWire( String( state[ key ] || '' ) );
-		if ( ! wasWire && chainFans( chain )
-			&& ( upd.limit === undefined || '' === upd.limit ) ) {
-			upd.limit = '1';
+		if ( bound.consumed ) {
+			// The author's own number MOVED onto a step — leaving it here as well would
+			// store one limit twice, and the two spellings mean different quantities.
+			delete upd.limit;
 		}
 		return upd;
 	}
@@ -276,7 +288,7 @@
 		// No box of our own: the option-group wrapper draws it around this element AND
 		// around `limit`/`sep` below, so the whole source group reads as one box.
 		return el( Fragment, null, [
-			el( 'span', { key: 'cap', className: CLS.cap },
+			el( 'span', { key: 'caption', className: CLS.caption },
 				chain.length > 1 ? __( 'Source path', 'generateblocks' ) : __( 'Source', 'generateblocks' ) )
 		].concat( stepNodes ) );
 	}

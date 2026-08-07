@@ -134,7 +134,7 @@ public static function can_process( string $cache_key ): bool {
 
 Rules:
 - **Block** when the key is already on the stack (circular reference: A → B → A).
-- **Block** when the stack is already at the depth cap (`bws_content_max_recursion_depth`, default 3).
+- **Block** when the stack is already at the depth limit (`bws_content_max_recursion_depth`, default 3).
 - **Allow** in all other cases — including a query loop where each iteration displays its own content (each iteration pushes and pops cleanly).
 
 **Cache key contract.** Callers MUST pick stable, unique keys per logical entity. Collisions defeat the guard. Convention:

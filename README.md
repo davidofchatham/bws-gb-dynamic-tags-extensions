@@ -14,7 +14,7 @@ Not only can you start from post, loop, and term contexts without changing tags,
 
 Starting in v1.17, a tag's Source is a path you build a step at a time: begin at the current entry, the site, or a relationship, then follow a relationship field or drop into a taxonomy term, then do it again. Before this you could follow one relationship and one taxonomy and no further, so something two relationships away (the office of the staff member an event references) could not be asked for at all.
 
-Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So capping a taxonomy step at one gives you one term from each referenced post, not one term overall. Leave it blank for all.
+Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So limiting a taxonomy step to one gives you one term from each referenced post, not one term overall. Leave it blank for all.
 
 Existing tags keep working exactly as they are, with nothing to run and nothing to review. One thing to know if you convert an old tag by hand: a source written the old way returns one result unless you say otherwise, while a path returns all of them, so the editor writes that old limit of 1 into Result Limit and leaves it there for you to see and clear.
 

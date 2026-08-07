@@ -266,7 +266,7 @@ Object.keys( MECHANISM_OPTIONS ).forEach( function ( name ) {
 // `limit` and `sep` are revealed by a show_if_any that named the two TOKENS which
 // used to be the only fanning spellings (`srcTermIn` not empty, `src` = `ref`).
 // Chain wire is neither, so both controls vanished the moment a source was spelled
-// as a chain. That read as the right outcome while chain wire had no cap of its
+// as a chain. That read as the right outcome while chain wire had no limit of its
 // own; it is wrong now that chain wire defaults to unlimited and a migrated tag
 // carries an explicit `limit:1` — a control that does not render cannot be cleared.
 //
@@ -396,8 +396,11 @@ function convert( state, chain ) {
 let rooted = srcChain.convertUpdate( { key: 'name' }, 'src', [ st( 'current' ) ], AXES, 'current' );
 check( 'a lone default root is stored as ABSENCE', undefined === rooted.src, JSON.stringify( rooted.src ) );
 check( 'stripping the root leaves the rest of the tag alone', 'name' === rooted.key );
+// The step carries the implied limit, which is the conversion rule below — the root is
+// what this row is about, so it asserts the whole value rather than pretending the two
+// are separable.
 rooted = srcChain.convertUpdate( {}, 'src', [ st( 'current' ), st( 'terms', 'department' ) ], AXES, 'current' );
-check( 'a default root with a step behind it is written in full', 'current;terms,department' === rooted.src, JSON.stringify( rooted.src ) );
+check( 'a default root with a step behind it is written in full', 'current;terms,department,limit(1)' === rooted.src, JSON.stringify( rooted.src ) );
 rooted = srcChain.convertUpdate( {}, 'src', [ st( 'site' ) ], AXES, 'current' );
 check( 'a NON-default root is written', 'site' === rooted.src, JSON.stringify( rooted.src ) );
 // The other half of the round trip: what the control SHOWS for a stored value. Kept
@@ -423,36 +426,66 @@ check(
 );
 
 let out = convert( { src: 'ref', ref: 'office', key: 'name' }, [ st( 'refs', 'office' ) ] );
-check( 'conversion writes chain wire', 'refs,office' === out.src, JSON.stringify( out.src ) );
 check( 'conversion deletes the flat siblings it absorbed', undefined === out.ref, JSON.stringify( out.ref ) );
 check( 'conversion leaves unrelated options alone', 'name' === out.key );
-// THE LOAD-BEARING ROW. Chain wire defaults its cap to unlimited, so a conversion
-// that wrote nothing would fan the tag out under the author's hands -- extra values,
-// and dropped anchors, since the link gate is count-based.
-check( 'conversion serializes the cap the old spelling implied', '1' === out.limit, JSON.stringify( out.limit ) );
+// THE LOAD-BEARING ROW. Chain wire defaults to unlimited, so a conversion that
+// wrote nothing would fan the tag out under the author's hands -- extra values, and
+// dropped anchors, since the link gate is count-based. The limit goes ON THE STEP, in the
+// row the author is looking at, and no tag-level `limit` is written at all: a `1` beside
+// `In Reference/Relational Field: office` says which quantity it bounds.
+check( 'conversion writes chain wire, limited on the step', 'refs,office,limit(1)' === out.src, JSON.stringify( out.src ) );
+check( 'conversion writes NO tag-level limit', undefined === out.limit, JSON.stringify( out.limit ) );
 
+// An author-stated limit MOVES rather than staying behind: one limit, one place. Leaving
+// it at tag level beside a step limit would store one bound in two spellings that mean
+// different quantities (whole-list versus per-input).
 out = convert( { src: 'ref', ref: 'office', limit: '3' }, [ st( 'refs', 'office' ) ] );
-check( 'an author-stated limit survives the conversion', '3' === out.limit, JSON.stringify( out.limit ) );
+check( 'an author-stated limit moves onto the step', 'refs,office,limit(3)' === out.src, JSON.stringify( out.src ) );
+check( 'and does not stay at tag level', undefined === out.limit, JSON.stringify( out.limit ) );
+
+// TWO fanning steps is the shape the mapping exists for, and the third writer has to
+// land it exactly where the other two do (`fold-migration-test.php` §M9.3/§M9.5,
+// `related-post-src-migration-test.php` §R6). The earlier step is not decoration:
+// per-step limits are per-input and multiply, so `3` on the last one alone would give
+// three per office rather than the three total the flat spelling meant.
+out = convert(
+	{ src: 'ref', ref: 'office', srcTermIn: 'department' },
+	[ st( 'refs', 'office' ), st( 'terms', 'department' ) ]
+);
+check( 'an implied limit reaches BOTH fanning steps', 'refs,office,limit(1);terms,department,limit(1)' === out.src, JSON.stringify( out.src ) );
+check( 'and the flat term key goes with it', undefined === out.srcTermIn, JSON.stringify( out.srcTermIn ) );
+
+out = convert(
+	{ src: 'ref', ref: 'office', srcTermIn: 'department', limit: '3' },
+	[ st( 'refs', 'office' ), st( 'terms', 'department' ) ]
+);
+check( 'an author-stated limit rides the LAST fanning step', 'refs,office,limit(1);terms,department,limit(3)' === out.src, JSON.stringify( out.src ) );
+check( 'the tag-level key is consumed, not duplicated', undefined === out.limit, JSON.stringify( out.limit ) );
+
+// A step the author limited in the SAME commit is a stated per-step intent; materializing
+// a default on top of it would overwrite a decision with a guess.
+out = convert( { src: 'ref', ref: 'office' }, [ st( 'refs', 'office', '2' ) ] );
+check( 'a step the author already limited is left alone', 'refs,office,limit(2)' === out.src, JSON.stringify( out.src ) );
 
 out = convert( { src: 'current' }, [ st( 'current' ) ] );
-check( 'a root-only chain gets NO cap — there is nothing to cap', undefined === out.limit, JSON.stringify( out.limit ) );
+check( 'a root-only chain gets NO limit — there is nothing to bound', undefined === out.limit, JSON.stringify( out.limit ) );
 
 // Re-committing an ALREADY-chain tag is not a conversion, so it must not re-inject
-// a cap the author has since cleared.
+// a limit the author has since cleared.
 out = convert( { src: 'refs,office', limit: '' }, [ st( 'refs', 'office' ), st( 'terms', 'department' ) ] );
-check( 'editing a chain tag does not re-inject the cap', '' === out.limit, JSON.stringify( out.limit ) );
+check( 'editing a chain tag does not re-inject the limit', '' === out.limit, JSON.stringify( out.limit ) );
 check( 'the appended hop is written', 'refs,office;terms,department' === out.src, JSON.stringify( out.src ) );
 
 out = convert( { src: 'ref', ref: 'office' }, [] );
 check( 'clearing the chain DELETES the key (delete-omit)', undefined === out.src, JSON.stringify( out.src ) );
 
-// A per-step cap round-trips at enclosing level 0 — the base tag's `src:` IS the
-// wrapper, so the cap prints one level inside it and comes out in PARENS, matching
+// A per-step limit round-trips at enclosing level 0 — the base tag's `src:` IS the
+// wrapper, so the limit prints one level inside it and comes out in PARENS, matching
 // the hand-authored `{{phone src:refs,related_staff,limit(1)}}` the fold matrix
 // already pins. A slot's `src(...)` passes 1 and gets brackets; recomputing depth
 // locally is what both shipped bugs on this axis did.
 out = convert( { src: 'refs,office' }, [ st( 'refs', 'office', 2 ) ] );
-check( 'a per-step cap emits at the base tag\'s depth', 'refs,office,limit(2)' === out.src, JSON.stringify( out.src ) );
+check( 'a per-step limit emits at the base tag\'s depth', 'refs,office,limit(2)' === out.src, JSON.stringify( out.src ) );
 
 check(
 	'the control mounts for a `bws-src-chain` option',
