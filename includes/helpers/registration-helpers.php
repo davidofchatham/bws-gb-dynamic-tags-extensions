@@ -61,18 +61,36 @@ if ( ! function_exists( 'bws_option_visual_groups' ) ) {
 function bws_option_visual_groups(): array {
 	return array(
 		// Where the value comes from: the source chain, the legacy flat siblings it
-		// absorbs, and the list-mode pair (list length is a source property, FW-52).
+		// absorbs, and the list-mode `sep` (list length is a source property, FW-52).
 		//
-		// `limit` stays mapped although #62 unregistered the tag-level control from every
-		// chain-authoring tag, which leaves NO tag registering the name today. It is kept
-		// because the flat-select families state their source as one step, so the key is
-		// theirs to carry (#63 is due to register it on `term_*`), and because a map entry
-		// costs nothing while no tag uses the name — deleting it would silently unbox the
-		// control the moment one does.
+		// `limit` is NOT here, and its absence is a decision (1.17.0). #62 unregistered the
+		// tag-level control from every chain-authoring tag; the entry was kept for one
+		// release on the grounds that a flat-select family would register it (#63), and that
+		// premise was withdrawn — a limit is stated on the step it bounds, so `term_` gets
+		// step limits when its arm learns to compile a chain, and step limits live in the
+		// fold control, not here. See docs/adr/0005-limits-are-stated-where-the-source-is-stated.md.
+		// The SERIALIZATION rank in serialization-order.php is a different matter and stays:
+		// stored wire still carries the key and the normalizer has to sort it.
+		//
+		// If a flat `limit` control ever does return it needs a row here, and what catches a
+		// missing one depends entirely on WHICH family registers it (both verified by
+		// mutation, 2026-08-07):
+		//   - a CHAIN-authoring tag → caught immediately, but by §5 of control-order-test.php
+		//     ("registers no tag-level `limit`") rather than by anything about grouping. §5
+		//     sweeps by the control a tag authors its source with, so it is the direct net.
+		//   - a FLAT-select family (term_*, {{table}}, {{call}}) → NOT CAUGHT AT ALL. §5 does
+		//     not sweep them by construction, and §1's contiguity check cannot see it either:
+		//     grouped_sequence() filters to options that HAVE a `_group`, so an ungrouped one
+		//     spliced into the middle of the source run is dropped before the check and the
+		//     run still reads as contiguous. Splicing an ungrouped `limit` between `srcTermIn`
+		//     and `sep` on every term_ tag passes 122/122 — while breaking the box in the
+		//     panel, since option-group.js joins ADJACENT siblings and an ungrouped control
+		//     between two grouped ones ends the run.
+		// So for the families this entry was being held open for, the map is its own only
+		// safeguard. That asymmetry is a harness gap, not a property worth relying on.
 		'src'             => array( 'group' => 'source', 'lead' => true ),
 		'ref'             => array( 'group' => 'source', 'lead' => false ),
 		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),
-		'limit'           => array( 'group' => 'source', 'lead' => false ),
 		'sep'             => array( 'group' => 'source', 'lead' => false ),
 		// What to read off it. BOTH are leads, and `key` has to be: on `{{email}}`,
 		// `{{phone}}` and `{{table}}` the field key is the tag's ENTIRE read — there is no
