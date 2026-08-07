@@ -118,11 +118,19 @@ defaulting to many means link-wrapping differs by spelling, on new wire.
 > does — L4.3 used to serve both and now serves only the second. Each migrated row is paired with the
 > flat original it replaces AND with an unlimited partner, so neither pair can pass vacuously.
 
+> **OPENING one of these rows in the editor MIGRATES it** (#62, 2026-08-07): a tag-level `limit` is
+> legacy by POSITION, not by spelling, so a numeric one on chain wire is absorbed onto the step it
+> bounds and the key is deleted. Affects L4.3 here, and F8.4 / F12.1-F12.3 in the fold matrix.
+> Output is unchanged in every case, and a reseed restores the authored wire. Rows that STAND DOWN
+> are untouched: L4.6 (non-numeric — there is no era default to carry on chain wire) and L4.8/L4.9
+> (the chain already states its own step limit). So eyeball these on the FRONT END, or reseed after
+> opening one; the editor-side behaviour is `fold-test-matrix.md` §F14.14b, whose subject is L4.3.
+
 | Row | Tag | Expected | What it proves |
 |---|---|---|---|
 | L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
 | L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — unlimited. The anchor is legitimately gone: the output really is multi-value |
-| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work |
+| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work — until it is OPENED, which absorbs the `1` onto the step and makes it L4.10 (see the note above; reseed to get it back) |
 | L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
 | L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — unlimited |
 | L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy limit on chain wire |
