@@ -62,6 +62,14 @@ first — escaping that pin is why the keys are capitals.)
 > arm refactor (FW-63) turned three of them into equivalences, and those rows are now ACCEPTANCE
 > CRITERIA rather than a record. The fourth (`entries` on a base tag) stays divergent by decision.
 > **Re-measure §F9 after any arm change** — a wrong arm renders a plausible value, not an empty one.
+>
+> **Re-run 2026-08-07 (#64 release pass).** Every legacy/folded PAIR in this file — 42 of them — was
+> re-measured in all three contexts (`/matrix-post-meta/`, `/staff/jane-partner/`, `/staff/tom-associate/`)
+> and all 42 are equivalent in all three. Compare DECODED where a row says so: `antispambot`
+> randomizes email entity encoding per render, so F8.1 and F9a.9 differ as raw strings on every run
+> and are equal decoded. The pass found and fixed one defect — **§F8.1-F8.3 were stale**, written
+> 2026-08-04 and invalidated by `bws_limit_default()` the next day; see the note on §F8. Nothing else
+> moved. **The EDITOR rows (§F14) are not covered by this run** and still need a human.
 
 ---
 
@@ -291,11 +299,21 @@ rendered output.
 The compiler translates chain wire into engine steps on every base tag. Pairs again — the legacy
 spelling is the reference.
 
+⚠ **The pair is legacy vs MIGRATED, not legacy vs bare chain** (corrected 2026-08-07 by re-running
+these rows). F8.1-F8.3 were written 2026-08-04, one day before `bws_limit_default()` landed, and
+they asserted that a bare chain matches the legacy spelling it replaces. It does not, deliberately:
+a flat source bounds its list at 1 and a chain source is unlimited, which is the whole compatibility
+mechanism (`tag-reference.md` §List mode, [ADR 0005](../../docs/adr/0005-limits-are-stated-where-the-source-is-stated.md)).
+The equivalence that holds is against what MIGRATION writes — `limit(1)` on the fanning step — and
+the bare chain is a THIRD, different expectation rather than a failure. The rows below now state all
+three, which is also what makes them catch a migration that stops writing the step limit. `{{text}}`'s
+twin of this is `limit-default-test-matrix.md` §L4.1/L4.2/L4.10; §F8's value is the OTHER families.
+
 | # | Legacy | Chain | Expected |
 |---|---|---|---|
-| F8.1 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | `{{email src:refs,related_staff\|key:contact_email}}` | jane's address as a `mailto:` anchor. **Compare DECODED** — `antispambot` randomizes the entity encoding per render, so the two raw strings differ by design |
-| F8.2 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | `{{phone src:refs,related_staff\|key:main_line}}` | `(555) 200-3000`, tel-linked |
-| F8.3 | `{{text src:ref\|ref:related_staff\|use:title}}` | `{{text src:refs,related_staff\|use:title}}` | `Jane Partner` |
+| F8.1 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | `{{email src:refs,related_staff,limit(1)\|key:contact_email}}` | both: jane's address as a `mailto:` anchor. Bare `src:refs,related_staff` renders **jane AND tom** — unlimited, by design. **Compare DECODED** — `antispambot` randomizes the entity encoding per render, so the two raw strings differ even when equal |
+| F8.2 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | `{{phone src:refs,related_staff,limit(1)\|key:main_line}}` | both: `(555) 200-3000`, tel-linked. Bare `src:refs,related_staff` renders **both numbers** — see F8.4, which is that expectation stated on purpose |
+| F8.3 | `{{text src:ref\|ref:related_staff\|use:title}}` | `{{text src:refs,related_staff,limit(1)\|use:title}}` | both: `Jane Partner`. Bare `src:refs,related_staff` renders `Jane Partner, Tom Associate`. This row and `limit-default-test-matrix.md` §L4.1/L4.2 are the same three tags; if they ever disagree, L4 is the newer statement |
 | F8.4 | `{{phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | `{{phone src:refs,related_staff\|key:main_line\|limit:0}}` | both numbers — `(555) 200-3000, (555) 200-4000` |
 | F8.5 | — | `{{phone src:refs,related_staff,limit(1)\|key:main_line\|limit:0}}` | ONE number. **Per-hop limit** — bounds the fan-out's spread |
 | F8.6 | — | `{{phone src:refs,related_staff,limit(2)\|key:main_line\|limit:0}}` | both numbers. F8.4/F8.5/F8.6 together are what separate the hop limit from the terminal `limit` |
