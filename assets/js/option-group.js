@@ -169,6 +169,13 @@
 	// (20), whose anchors are `element.key` and must keep seeing the elements they expect.
 	// The wrapper carries the key forward for the same reason — a keyless wrap silently
 	// switches off every filter behind it (tools/test/editor-filter-chain-test.js).
+	//
+	// LAST is also load-bearing, not just late (#68). The join rules above are `sel+sel` /
+	// `sel:has(+sel)` — ADJACENT SIBLINGS — so this div has to be what GB's modal column
+	// receives as its child. A filter registered ABOVE 30 that wraps in a real element
+	// nests it one level down and flattens every group on every tag, while each member is
+	// still registered contiguously and still carrying its key. That is asserted, with the
+	// mutation, in the harness named above.
 	wp.hooks.addFilter(
 		'generateblocks.editor.tagSpecificControls',
 		'bws/option-group',

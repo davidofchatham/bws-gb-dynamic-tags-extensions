@@ -24,6 +24,14 @@
  * this asserts it once, against the shipping files, for every anchor combination that
  * actually occurs.
  *
+ * A SECOND, INDEPENDENT PROPERTY of the same chain (#68): the option-group boxes join by
+ * CSS on ADJACENT SIBLINGS, so each grouped option's `.bws-optgroup` div has to BE what the
+ * modal column receives. A key and a DOM node are independent — `createElement('div', {key:
+ * element.key}, element)` satisfies the anchor rule above exactly and, from a filter behind
+ * the group wrapper, nests the box a level down and silently flattens every panel. So the
+ * §option grouping block asserts the rendered result too, not only that the key survived.
+ * `control-order-test.php` §1 owns the registration-order half of the same invariant.
+ *
  * WHAT THIS DOES NOT COVER: React batching, GB's real element tree, or whether a migration
  * produces the right VALUE (fold-migration-test.php §M7 owns that). This is reachability.
  *
@@ -551,6 +559,93 @@ const css = global.window.bwsOptionGroup.buildCss( [ 'source', 'field' ] );
 	check( '`' + name + '` gets a continuation rule', css.indexOf( sel + '+' + sel ) !== -1 );
 	check( '`' + name + '` gets a lone-member opt-out', css.indexOf( ':not(.bws-optgroup--lead)' ) !== -1 );
 } );
+
+// ── The box's OTHER half: what the modal COLUMN receives as its child (#68) ──
+//
+// The joining rules are `sel+sel` and `sel:has(+sel)` — ADJACENT SIBLINGS. GB renders one
+// filter return per option as a flat child of the modal column, so a run reads as one box
+// only while each member's `.bws-optgroup` div IS that child. §1 of control-order-test.php
+// owns the registration-order half (members must register contiguously); this is the
+// rendering half, and neither is sufficient alone — contiguous registration draws nothing
+// if a later filter nests the member div a level down or emits a second node beside it.
+//
+// Asserted on the RENDERED result rather than on filter priorities, because a node in the
+// wrong place breaks the run however it got there. One wrap shape is FREE and must not
+// fail here: anything below priority 30, which lands INSIDE the box — the group wrapper is
+// last, so it is outermost, and a div nested within it is invisible to the sibling
+// selectors. What breaks the run is a wrap ABOVE 30, which is why the mutation that proves
+// this assertion is a PRIORITY change and not only a `Fragment`→`div` one (header note).
+//
+// CONSERVATIVE, deliberately: a late `Fragment` carrying a null-rendering sibling emits no
+// node in React but counts as one here, because nothing static can tell a component that
+// renders null from one that does not. It fails, and that is the intended reading — the
+// group wrapper running last is the property, and a wrap behind it has an unbroken place
+// to go.
+//
+// MUTATIONS RUN (serialization-order-normalizer.js, 2026-08-07). Only the third is the
+// defect; the first is the one #68 named, and it is not:
+//   1. `Fragment` → `'div'`, priority 20  → PASSED 99/99. The wrap lands INSIDE the box.
+//   2. `Fragment` kept, priority 20 → 40  → FAILED (2 nodes + the tripwire), the
+//      conservative case above.
+//   3. `Fragment` → `'div'`, priority 40  → FAILED on `src` — the box is no longer the
+//      column's child, which is the shape that would ship.
+console.log( '' );
+
+/** Flatten Fragments away — the nodes GB's flex column would actually receive. */
+function renderedNodes( node ) {
+	if ( ! node || 'object' !== typeof node ) {
+		return [];
+	}
+	if ( wp.element.Fragment === node.type ) {
+		return ( node.children || [] ).reduce( function ( acc, child ) {
+			return acc.concat( renderedNodes( child ) );
+		}, [] );
+	}
+	return [ node ];
+}
+
+function isMemberBox( node ) {
+	return !! node && 'div' === node.type &&
+		/(^|\s)bws-optgroup(\s|$)/.test( String( node.props.className || '' ) );
+}
+
+[
+	// `src` is the contested one: it is the tag's FIRST option, so the priority-20
+	// normalizer wraps it before the group wrapper ever sees it, and it is a
+	// `bws-src-chain`, so the base-src mount migrator anchors on that same element.
+	// (No grouped option carries the FOLD migrator's wrap: it anchors on the first
+	// `bws-slot-fold` option and slot keys are not in the group map.)
+	[ 'src', {} ],
+	[ 'use', {} ],
+	[ 'key', {} ],
+	// Revealed, so the conditional gate at 10 passes it through instead of nulling it.
+	[ 'limit', { src: 'refs,office' } ]
+].forEach( function ( row ) {
+	const nodes = renderedNodes( wrapped( row[ 0 ], row[ 1 ] ) );
+	check(
+		'`' + row[ 0 ] + '` reaches the column as exactly one node',
+		1 === nodes.length,
+		nodes.length + ' node(s): ' + nodes.map( n => 'function' === typeof n.type ? ( n.type.name || 'component' ) : String( n.type ) ).join( ', ' )
+	);
+	check(
+		'`' + row[ 0 ] + '` — and that node IS the member box',
+		isMemberBox( nodes[ 0 ] ),
+		JSON.stringify( nodes[ 0 ] ? { type: nodes[ 0 ].type, className: nodes[ 0 ].props.className } : null )
+	);
+} );
+
+// The same rule stated where a NEW filter trips it. The rows above catch a late element
+// wrap for the option shapes this file fixtures; a filter that wraps only shapes it does
+// not fixture would slip past them, and every such wrap has to run after 30 to do damage.
+const groupReg = filters.filter( f => 'bws/option-group' === f.ns )[ 0 ];
+check(
+	'the group wrapper is still the LAST filter on the hook',
+	!! groupReg && filters
+		.filter( f => 'generateblocks.editor.tagSpecificControls' === f.name && f !== groupReg )
+		.every( f => f.priority < groupReg.priority ),
+	filters.filter( f => 'generateblocks.editor.tagSpecificControls' === f.name )
+		.map( f => f.ns + '@' + f.priority ).join( ', ' )
+);
 
 console.log( '' );
 if ( fail ) {
