@@ -315,7 +315,7 @@ function bws_fold_bracket_pair( int $level ): array {
  *
  * THE safety condition for lenient accept classes: roles are disambiguated by
  * POSITION, so two classes may overlap across positions (opt and step both once
- * accepted `,;`) but must be disjoint WITHIN one. step and step share a position.
+ * accepted `,;`) but must be disjoint WITHIN one. step and part share a position.
  * This caught the `;`-step change putting `;` in two same-position classes.
  *
  * @return string[] Violation strings; empty array = safe.
@@ -325,12 +325,12 @@ function bws_fold_grammar_validate(): array {
 	$br_all = array_merge( array_keys( BWS_FOLD_BR_PAIRS ), array_values( BWS_FOLD_BR_PAIRS ) );
 
 	if ( array_intersect( BWS_FOLD_STEP_CLASS, BWS_FOLD_PART_CLASS ) ) {
-		$bad[] = 'hop_class ∩ step_class ≠ ∅';
+		$bad[] = 'step_class ∩ part_class ≠ ∅';
 	}
 	$classes = array(
 		'opt_class'  => BWS_FOLD_OPT_CLASS,
-		'hop_class'  => BWS_FOLD_STEP_CLASS,
-		'step_class' => BWS_FOLD_PART_CLASS,
+		'step_class' => BWS_FOLD_STEP_CLASS,
+		'part_class' => BWS_FOLD_PART_CLASS,
 	);
 	foreach ( $classes as $name => $class ) {
 		if ( array_intersect( $class, $br_all ) ) {
@@ -342,8 +342,8 @@ function bws_fold_grammar_validate(): array {
 	}
 	$canon = array(
 		'opt_sep'  => array( BWS_FOLD_OPT_SEP, BWS_FOLD_OPT_CLASS ),
-		'hop_sep'  => array( BWS_FOLD_STEP_SEP, BWS_FOLD_STEP_CLASS ),
-		'step_sep' => array( BWS_FOLD_PART_SEP, BWS_FOLD_PART_CLASS ),
+		'step_sep' => array( BWS_FOLD_STEP_SEP, BWS_FOLD_STEP_CLASS ),
+		'part_sep' => array( BWS_FOLD_PART_SEP, BWS_FOLD_PART_CLASS ),
 	);
 	foreach ( $canon as $name => $pair ) {
 		if ( ! in_array( $pair[0], $pair[1], true ) ) {

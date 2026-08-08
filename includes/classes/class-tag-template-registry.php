@@ -320,12 +320,12 @@ class TagTemplateRegistry {
 				$ref_field = $opts['ref'] ?? '';
 				$entity_id = 0;
 				if ( $base_source && '' !== $ref_field && function_exists( 'bws_run_traversal' ) ) {
-					$hopped    = bws_run_traversal(
+					$stepped   = bws_run_traversal(
 						array( $base_source ),
 						array( array( 'type' => 'refs', 'field' => $ref_field ) )
 					);
 					$entity_id = function_exists( 'bws_first_post_id_from_sources' )
-						? (int) bws_first_post_id_from_sources( $hopped )
+						? (int) bws_first_post_id_from_sources( $stepped )
 						: 0;
 				}
 

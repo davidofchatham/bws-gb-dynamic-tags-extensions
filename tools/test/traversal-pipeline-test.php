@@ -625,19 +625,19 @@ eq( 'author srcTermIn set -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), arr
 
 // term base + ref step → post[]; first post id (mirrors term_ modifier src:ref).
 $reader = make_reader( array( 'term:34' => array( 91, 92 ) ) );
-$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
-eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $hopped );
-eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $hopped ) );
+$stepped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
+eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $stepped );
+eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $stepped ) );
 
 // post base + ref step → post[] (view_ modifier src:ref: PortalSource post -> rel).
 $reader = make_reader( array( 'post:70' => 88 ) );
-$hopped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader );
-eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $hopped ) );
+$stepped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader );
+eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $stepped ) );
 
 // No ref target → empty hop → false (modifier renders empty, not a leak).
 $reader = make_reader( array() );
-$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
-eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hopped ) );
+$stepped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
+eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $stepped ) );
 
 // ── §V14 — base text/title src:ref LIST mode (B3 fix) ────────────────────────
 //
@@ -648,13 +648,13 @@ eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hop
 // A 2-target ref field (the B3 repro: 2 posts in benefit_vendor) yields BOTH ids,
 // in document order — NOT just the first.
 $reader = make_reader( array( 'post:5' => array( 61, 62 ) ) );
-$hopped = bws_run_traversal( array( post_src( 5 ) ), array( array( 'type' => 'refs', 'field' => 'benefit_vendor' ) ), $reader );
-eq( 'V14 src:ref keeps BOTH targets (B3 repro)', array( 61, 62 ), ids_post_kind_only( $hopped ) );
+$stepped = bws_run_traversal( array( post_src( 5 ) ), array( array( 'type' => 'refs', 'field' => 'benefit_vendor' ) ), $reader );
+eq( 'V14 src:ref keeps BOTH targets (B3 repro)', array( 61, 62 ), ids_post_kind_only( $stepped ) );
 
 // Order preserved across a 3-target field.
 $reader = make_reader( array( 'post:1' => array( 30, 31, 32 ) ) );
-$hopped = bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'refs', 'field' => 'r' ) ), $reader );
-eq( 'V14 src:ref order preserved', array( 30, 31, 32 ), ids_post_kind_only( $hopped ) );
+$stepped = bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'refs', 'field' => 'r' ) ), $reader );
+eq( 'V14 src:ref order preserved', array( 30, 31, 32 ), ids_post_kind_only( $stepped ) );
 
 // Post-kind filter: non-post kinds are dropped (defensive — ref yields posts, but
 // the extractor must never surface a term/site id as a post id).

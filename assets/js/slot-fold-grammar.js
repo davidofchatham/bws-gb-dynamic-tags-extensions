@@ -228,17 +228,17 @@
 	 * relationship out of a typo.
 	 */
 	function parseChain( chainStr ) {
-		var hops = splitDepth( String( chainStr ), STEP_CLASS );
-		if ( hops.error ) {
-			return hops;
+		var rawSteps = splitDepth( String( chainStr ), STEP_CLASS );
+		if ( rawSteps.error ) {
+			return rawSteps;
 		}
 		var steps = [];
-		for ( var h = 0; h < hops.length; h++ ) {
-			var hop = hops[ h ].trim();
-			if ( '' === hop ) {
+		for ( var h = 0; h < rawSteps.length; h++ ) {
+			var rawStep = rawSteps[ h ].trim();
+			if ( '' === rawStep ) {
 				continue;
 			}
-			var parts = splitDepth( hop, PART_CLASS );
+			var parts = splitDepth( rawStep, PART_CLASS );
 			if ( parts.error ) {
 				return parts;
 			}
@@ -259,14 +259,14 @@
 				if ( null === tok.val ) {
 					positional++;
 					if ( positional > 1 ) {
-						return { error: "chain step '" + hop + "': unexpected extra positional token '" + part + "'" };
+						return { error: "chain step '" + rawStep + "': unexpected extra positional token '" + part + "'" };
 					}
 					step.arg = part;
 					continue;
 				}
 				if ( 'limit' === tok.name ) {
 					if ( '' === tok.val.trim() || isNaN( Number( tok.val ) ) ) {
-						return { error: "chain step '" + hop + "': limit '" + tok.val + "' is not numeric" };
+						return { error: "chain step '" + rawStep + "': limit '" + tok.val + "' is not numeric" };
 					}
 					step.limit = String( Math.max( 0, parseInt( tok.val, 10 ) ) );
 					continue;
@@ -274,7 +274,7 @@
 				step.extra.push( part );
 			}
 			if ( '' === step.slug ) {
-				return { error: "chain step '" + hop + "': missing slug" };
+				return { error: "chain step '" + rawStep + "': missing slug" };
 			}
 			steps.push( step );
 		}

@@ -456,7 +456,7 @@ check( 'P8.5 stray alt-pair close flagged', isset( bws_fold_parse_slot( 'key(not
 // char wrongly re-admitted as a hop would otherwise disarm its own guard, so the
 // suite would go quiet exactly when the property breaks.
 foreach ( BWS_FOLD_RESERVED as $rc ) {
-	check( "P8.r'$rc' not in hop_class", ! in_array( $rc, BWS_FOLD_STEP_CLASS, true ), '' );
+	check( "P8.r'$rc' not in step_class", ! in_array( $rc, BWS_FOLD_STEP_CLASS, true ), '' );
 	// It did NOT split, so `refs,region` lands as a second positional token and must
 	// be REJECTED rather than silently traversed as two hops.
 	$r = bws_fold_parse_slot( "src(refs,office{$rc}refs,region);key(name)", 'try' );
