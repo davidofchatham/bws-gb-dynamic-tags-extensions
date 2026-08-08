@@ -12,7 +12,7 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 == Upgrade Notice ==
 
 = 1.17.0 =
-Important: on earlier releases the Tag Converter dropped on/off settings. If you ran it, check email and phone tags set not to link, and tags set to open in a new tab. A Result Limit of 0 or -1 now means no limit, not one result, so such a tag stops being a link. Set it to 1 for the old output.
+Two separate warnings. 1) Earlier Tag Converter runs dropped on/off settings - re-check email and phone tags set not to link, and tags set to open in a new tab. 2) A Result Limit of 0 or -1 used to render one result; it is now honored as no limit. Set 1 to keep the old output.
 
 = 1.16.0 =
 Heads up: {{join}} options Fallback Text and Separator have been revised from 1.15.0 and require manual reconfiguration in the editor if already used. Image tags now fold size into the Return option string; rendering is unchanged, but run the Tag Converter to avoid mixed options after future edits.
