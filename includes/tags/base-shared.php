@@ -153,6 +153,23 @@ function bws_fold_wire_vocabulary(): array {
 }
 
 /**
+ * A container's step OFFER — the only genuinely per-container step fact (#70).
+ *
+ * An ordered slug list, shipped as-is on the fold config; labels and everything else
+ * about a step live on the shared vocabulary. Filtered against it because a slug with
+ * no record has no row text to paint. ONE owner for both builders: the derive was
+ * born byte-identical in each, which is the state that precedes a divergence.
+ *
+ * @since 1.17.0
+ * @param array $steps Requested wire step slugs, in offer order.
+ * @param array $vocab bws_fold_wire_vocabulary() result.
+ * @return string[] The offer.
+ */
+function bws_fold_step_offer( array $steps, array $vocab ): array {
+	return array_values( array_intersect( $steps, array_keys( $vocab['steps'] ?? array() ) ) );
+}
+
+/**
  * Upgrade a base tag's `src` option to the CHAIN control (FW-56).
  *
  * A base tag's source has always been a chain — a root plus fanning steps — but the
@@ -200,11 +217,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 
 	$base_trav = bws_base_traversal_options();
 	$vocab     = bws_fold_wire_vocabulary();
-
-	// The OFFER — the only genuinely per-container step fact (#70). An ordered slug
-	// list; labels and everything else about a step live on the shared vocabulary.
-	// Filtered against it because a slug with no record has no row text to paint.
-	$offer = array_values( array_intersect( $steps, array_keys( $vocab['steps'] ) ) );
+	$offer     = bws_fold_step_offer( $steps, $vocab );
 
 	$tax_rows = array( array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) ) );
 	if ( function_exists( 'get_taxonomies' ) ) {
@@ -571,11 +584,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$base_src  = bws_base_source_option();
 	$base_trav = bws_base_traversal_options();
 	$vocab     = bws_fold_wire_vocabulary();
-
-	// The OFFER — the only genuinely per-container step fact (#70). An ordered slug
-	// list; labels and everything else about a step live on the shared vocabulary.
-	// Filtered against it because a slug with no record has no row text to paint.
-	$offer = array_values( array_intersect( $steps, array_keys( $vocab['steps'] ) ) );
+	$offer     = bws_fold_step_offer( $steps, $vocab );
 
 	// Source enum — through the SLOT twin, so the `site` filter and the "Same as
 	// Previous Source" inherit row are the shipped ones rather than new copies. Slot 1
