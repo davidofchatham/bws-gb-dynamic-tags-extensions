@@ -152,7 +152,7 @@ $reader = make_reader( array( 'post:10' => array( 21, 22, 23 ) ) );
 eq(
 	'V9/V6 ref fan-out 1->N',
 	array( post_src( 21 ), post_src( 22 ), post_src( 23 ) ),
-	bws_run_traversal( array( post_src( 10 ) ), array( array( 'type' => 'ref', 'field' => 'rel' ) ), $reader )
+	bws_run_traversal( array( post_src( 10 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader )
 );
 
 // Fan-out preserves document order across multiple input sources.
@@ -160,7 +160,7 @@ $reader = make_reader( array( 'post:1' => array( 100, 101 ), 'post:2' => array( 
 eq(
 	'V9 order preserved across sources',
 	array( post_src( 100 ), post_src( 101 ), post_src( 200 ) ),
-	bws_run_traversal( array( post_src( 1 ), post_src( 2 ) ), array( array( 'type' => 'ref', 'field' => 'rel' ) ), $reader )
+	bws_run_traversal( array( post_src( 1 ), post_src( 2 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader )
 );
 
 // Chained steps: ref → ref.
@@ -170,7 +170,7 @@ eq(
 	array( post_src( 9 ), post_src( 8 ) ),
 	bws_run_traversal(
 		array( post_src( 1 ) ),
-		array( array( 'type' => 'ref', 'field' => 'a' ), array( 'type' => 'ref', 'field' => 'b' ) ),
+		array( array( 'type' => 'refs', 'field' => 'a' ), array( 'type' => 'refs', 'field' => 'b' ) ),
 		$reader
 	)
 );
@@ -187,7 +187,7 @@ eq(
 	array(),
 	bws_run_traversal(
 		array( post_src( 1 ) ),
-		array( array( 'type' => 'ref', 'field' => 'a' ), array( 'type' => 'ref', 'field' => 'b' ) ),
+		array( array( 'type' => 'refs', 'field' => 'a' ), array( 'type' => 'refs', 'field' => 'b' ) ),
 		$spy
 	)
 );
@@ -199,10 +199,10 @@ eq( 'V9 short-circuit skips later step', false, $touched );
 eq( 'V2 unknown step type', array(), bws_run_step( array( 'type' => 'bogus' ), post_src( 1 ) ) );
 
 // Unknown source kind → [].
-eq( 'V2 unknown source kind', array(), bws_run_step( array( 'type' => 'ref', 'field' => 'x' ), array( 'kind' => 'galaxy', 'id' => 1 ) ) );
+eq( 'V2 unknown source kind', array(), bws_run_step( array( 'type' => 'refs', 'field' => 'x' ), array( 'kind' => 'galaxy', 'id' => 1 ) ) );
 
 // Malformed source (no kind) → [].
-eq( 'V2 malformed source no kind', array(), bws_run_step( array( 'type' => 'ref', 'field' => 'x' ), array( 'id' => 1 ) ) );
+eq( 'V2 malformed source no kind', array(), bws_run_step( array( 'type' => 'refs', 'field' => 'x' ), array( 'id' => 1 ) ) );
 
 // Malformed step (no type) → [].
 eq( 'V2 malformed step no type', array(), bws_run_step( array( 'field' => 'x' ), post_src( 1 ) ) );
@@ -217,7 +217,7 @@ eq(
 	'site-rooted ref hop resolves through the options store',
 	array( post_src( 91 ), post_src( 92 ) ),
 	bws_run_step(
-		array( 'type' => 'ref', 'field' => 'featured_partner' ),
+		array( 'type' => 'refs', 'field' => 'featured_partner' ),
 		array( 'kind' => 'site' ),
 		make_reader( array( 'site:?' => array( 91, 92 ) ) )
 	)
@@ -226,11 +226,11 @@ eq(
 eq(
 	'site-rooted ref miss is still empty',
 	array(),
-	bws_run_step( array( 'type' => 'ref', 'field' => 'nope' ), array( 'kind' => 'site' ), make_reader( array() ) )
+	bws_run_step( array( 'type' => 'refs', 'field' => 'nope' ), array( 'kind' => 'site' ), make_reader( array() ) )
 );
 
 // srcTermIn valid input is post only — term input → [].
-eq( 'V2 srcTermIn rejects term input', array(), bws_run_step( array( 'type' => 'srcTermIn', 'slug' => 'category' ), term_src( 3 ), make_reader( array() ) ) );
+eq( 'V2 srcTermIn rejects term input', array(), bws_run_step( array( 'type' => 'terms', 'slug' => 'category' ), term_src( 3 ), make_reader( array() ) ) );
 
 // ── §V6 — ref plural core (no first-only collapse) ───────────────────────────
 
@@ -297,7 +297,7 @@ $reader = make_reader( array( 'post:50' => array( new WP_Term( 60 ), new WP_Term
 eq(
 	'srcTermIn step fan-out via fold',
 	array( term_src( 60 ), term_src( 61 ) ),
-	bws_run_traversal( array( post_src( 50 ) ), array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ), $reader )
+	bws_run_traversal( array( post_src( 50 ) ), array( array( 'type' => 'terms', 'slug' => 'category' ) ), $reader )
 );
 
 // #44: compound [ref, srcTermIn] through the fold — ref off a TERM base yields
@@ -314,8 +314,8 @@ eq(
 	bws_run_traversal(
 		array( term_src( 3 ) ),
 		array(
-			array( 'type' => 'ref', 'field' => 'related' ),
-			array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+			array( 'type' => 'refs', 'field' => 'related' ),
+			array( 'type' => 'terms', 'slug' => 'category' ),
 		),
 		$reader
 	)
@@ -473,14 +473,14 @@ eq(
 // srcTermIn → single term-hop step, terminal (no ref appended).
 eq(
 	'assemble srcTermIn -> term-hop step',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'category' ) )
 );
 
 // src:ref + ref key → ref step (V6 plural fan-out happens at run time).
 eq(
 	'assemble src:ref -> ref step',
-	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
 	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 
@@ -490,8 +490,8 @@ eq(
 eq(
 	'assemble src:ref + srcTermIn -> [ref, srcTermIn] (compound, #44)',
 	array(
-		array( 'type' => 'ref', 'field' => 'x' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ),
+		array( 'type' => 'refs', 'field' => 'x' ),
+		array( 'type' => 'terms', 'slug' => 'post_tag' ),
 	),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'post_tag', 'src' => 'ref', 'ref' => 'x' ) )
 );
@@ -539,7 +539,7 @@ eq( 'V4 post id 0 -> false', false, bws_first_post_id_from_sources( array( post_
 // emit srcTermIn (tested above under T4).
 
 // src:ref + key → ref step (same as seam here).
-eq( 'V13 wrapper src:ref -> ref step', array( array( 'type' => 'ref', 'field' => 'related' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'related' ) ) );
+eq( 'V13 wrapper src:ref -> ref step', array( array( 'type' => 'refs', 'field' => 'related' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'related' ) ) );
 
 // srcTermIn set → NO step (wrapper excludes it; caller owns the term hop). The
 // load-bearing B2 assertion: seam would emit a srcTermIn step here, wrapper must not.
@@ -548,7 +548,7 @@ eq( 'V13 wrapper srcTermIn -> NO step', array(), bws_wrapper_ref_steps( array( '
 // srcTermIn + stray src:ref → still no step from the wrapper? src:ref present →
 // wrapper emits ITS ref step; srcTermIn is simply ignored by the wrapper (caller
 // owns it). Confirms the wrapper only ever cares about ref.
-eq( 'V13 wrapper ref beside srcTermIn -> ref step only', array( array( 'type' => 'ref', 'field' => 'x' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'x', 'srcTermIn' => 'category' ) ) );
+eq( 'V13 wrapper ref beside srcTermIn -> ref step only', array( array( 'type' => 'refs', 'field' => 'x' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'x', 'srcTermIn' => 'category' ) ) );
 
 // Bare / current / site → no wrapper step.
 eq( 'V13 wrapper bare -> no step', array(), bws_wrapper_ref_steps( array() ) );
@@ -625,18 +625,18 @@ eq( 'author srcTermIn set -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), arr
 
 // term base + ref step → post[]; first post id (mirrors term_ modifier src:ref).
 $reader = make_reader( array( 'term:34' => array( 91, 92 ) ) );
-$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'ref', 'field' => 'related' ) ), $reader );
+$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
 eq( 'V5 term modifier ref hop -> post[]', array( post_src( 91 ), post_src( 92 ) ), $hopped );
 eq( 'V5 term modifier ref collapses to first', 91, bws_first_post_id_from_sources( $hopped ) );
 
 // post base + ref step → post[] (view_ modifier src:ref: PortalSource post -> rel).
 $reader = make_reader( array( 'post:70' => 88 ) );
-$hopped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'ref', 'field' => 'rel' ) ), $reader );
+$hopped = bws_run_traversal( array( post_src( 70 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader );
 eq( 'V5 post modifier ref hop -> first post', 88, bws_first_post_id_from_sources( $hopped ) );
 
 // No ref target → empty hop → false (modifier renders empty, not a leak).
 $reader = make_reader( array() );
-$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'ref', 'field' => 'related' ) ), $reader );
+$hopped = bws_run_traversal( array( term_src( 34 ) ), array( array( 'type' => 'refs', 'field' => 'related' ) ), $reader );
 eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hopped ) );
 
 // ── §V14 — base text/title src:ref LIST mode (B3 fix) ────────────────────────
@@ -648,12 +648,12 @@ eq( 'V5 modifier ref miss -> false', false, bws_first_post_id_from_sources( $hop
 // A 2-target ref field (the B3 repro: 2 posts in benefit_vendor) yields BOTH ids,
 // in document order — NOT just the first.
 $reader = make_reader( array( 'post:5' => array( 61, 62 ) ) );
-$hopped = bws_run_traversal( array( post_src( 5 ) ), array( array( 'type' => 'ref', 'field' => 'benefit_vendor' ) ), $reader );
+$hopped = bws_run_traversal( array( post_src( 5 ) ), array( array( 'type' => 'refs', 'field' => 'benefit_vendor' ) ), $reader );
 eq( 'V14 src:ref keeps BOTH targets (B3 repro)', array( 61, 62 ), ids_post_kind_only( $hopped ) );
 
 // Order preserved across a 3-target field.
 $reader = make_reader( array( 'post:1' => array( 30, 31, 32 ) ) );
-$hopped = bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'ref', 'field' => 'r' ) ), $reader );
+$hopped = bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'refs', 'field' => 'r' ) ), $reader );
 eq( 'V14 src:ref order preserved', array( 30, 31, 32 ), ids_post_kind_only( $hopped ) );
 
 // Post-kind filter: non-post kinds are dropped (defensive — ref yields posts, but
@@ -856,19 +856,19 @@ foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => use
 	eq(
 		"rows step accepts {$kname} input",
 		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
-		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
+		bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), $src, $rows_reader )
 	);
 }
 eq(
 	'rows step rejects unknown kind -> []',
 	array(),
-	bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
+	bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
 );
 
 // --- fold: rows then bare column read (meta_row reader arm) ------------------
 // rows fans a post to 3 meta_rows; the meta_row source then reads a scalar column.
 $rows_then = function ( $step, $source ) {
-	if ( 'rows' === $step['type'] ) {
+	if ( 'entries' === $step['type'] ) {
 		return array(
 			array( 'name' => 'Ann', 'role' => 'Lead' ),
 			array( 'name' => 'Bo',  'role' => 'Dev' ),
@@ -876,13 +876,13 @@ $rows_then = function ( $step, $source ) {
 		);
 	}
 	// ref off a meta_row -> the sub-field's post id list (column-as-ref case).
-	if ( 'ref' === $step['type'] && 'meta_row' === $source['kind'] ) {
+	if ( 'refs' === $step['type'] && 'meta_row' === $source['kind'] ) {
 		$v = $source['row'][ $step['field'] ] ?? '';
 		return '' === $v ? '' : array( $v );
 	}
 	return '';
 };
-$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $rows_then );
+$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $rows_then );
 eq(
 	'rows fold: post -> 3 meta_rows',
 	array(
@@ -894,7 +894,7 @@ eq(
 );
 // Bare column read off each produced meta_row (the {{table}} cell read) — the
 // default reader's meta_row arm returns $row[field].
-eq( 'rows cell: meta_row scalar column via reader', 'Ann', bws_pipeline_default_reader( array( 'type' => 'ref', 'field' => 'name' ), $rows_out[0] ) );
+eq( 'rows cell: meta_row scalar column via reader', 'Ann', bws_pipeline_default_reader( array( 'type' => 'refs', 'field' => 'name' ), $rows_out[0] ) );
 eq( 'rows cell: meta_row scalar column', 'Ann', $rows_out[0]['row']['name'] );
 eq( 'rows cell: blank column empty', '', $rows_out[2]['row']['role'] );
 
@@ -905,13 +905,13 @@ $mr = row_src( array( 'lead' => 77 ) );
 eq(
 	'rows column ref: meta_row -> post',
 	array( post_src( 77 ) ),
-	bws_run_step( array( 'type' => 'ref', 'field' => 'lead' ), $mr, $rows_then )
+	bws_run_step( array( 'type' => 'refs', 'field' => 'lead' ), $mr, $rows_then )
 );
 $mr_blank = row_src( array( 'lead' => '' ) );
 eq(
 	'rows column ref: blank sub-field -> []',
 	array(),
-	bws_run_step( array( 'type' => 'ref', 'field' => 'lead' ), $mr_blank, $rows_then )
+	bws_run_step( array( 'type' => 'refs', 'field' => 'lead' ), $mr_blank, $rows_then )
 );
 
 // --- short-circuit: empty repeater ends the fold ----------------------------
@@ -919,7 +919,7 @@ $empty_rows = function ( $step, $source ) { return array(); };
 eq(
 	'rows fold: empty repeater short-circuits',
 	array(),
-	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $empty_rows )
+	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $empty_rows )
 );
 
 // ── report ───────────────────────────────────────────────────────────────────

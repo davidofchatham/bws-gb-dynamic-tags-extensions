@@ -55,27 +55,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Wire slug → engine step type, and the step key each type reads its argument from.
+ * Wire slug → the step key each step type reads its argument from.
  *
  * The FANNING family (plural slugs, BWS_FOLD_FANNING_SLUGS) in full. A slug absent from
  * this map at a step position is unknown vocabulary, not a root — see the header.
  *
+ * Still the SEAM — the single owner of "which slugs are steps, and what each one
+ * consumes" — but narrowed to the one fact the slug does not carry. It used to also map
+ * each slug onto a differently-spelled engine type (`ref`/`srcTermIn`/`rows`); the V9
+ * alignment retired that spelling (a serialization token leaked inward as a category
+ * name, and a one-letter `ref`/`refs` slip hazard), so the engine now dispatches on the
+ * wire's own slugs and an identity column would say nothing.
+ *
  * @since 1.17.0
+ * @since 1.17.0 V9: narrowed from slug => { type, arg } — engine types align to the slugs.
  */
 const BWS_FOLD_STEP_TYPES = array(
-	'refs'    => array( 'type' => 'ref', 'arg' => 'field' ),
-	'terms'   => array( 'type' => 'srcTermIn', 'arg' => 'slug' ),
-	'entries' => array( 'type' => 'rows', 'arg' => 'field' ),
+	'refs'    => 'field',
+	'terms'   => 'slug',
+	'entries' => 'field',
 );
 
 /**
  * Wire slug → the RESOLVED-SOURCE KIND a step of that type produces.
  *
  * The dispatch axis FW-63 replaced the flat token tests with. Deliberately a
- * separate map from BWS_FOLD_STEP_TYPES: that one names the ENGINE's internal step
- * type (`ref`/`srcTermIn`/`rows`), this one names the KIND that step's output
- * carries (`post`/`term`/`meta_row`, the traversal-pipeline typedef). A render arm
- * asks the second question and never the first.
+ * separate map from BWS_FOLD_STEP_TYPES: that one names the ARG KEY a step consumes,
+ * this one names the KIND that step's output carries (`post`/`term`/`meta_row`, the
+ * traversal-pipeline typedef). A render arm asks the second question and never the
+ * first.
  *
  * @since 1.17.0
  */
@@ -226,10 +234,9 @@ function bws_fold_src_resolution( array $options ): array {
  */
 function bws_fold_step_applicability(): array {
 	$inputs = array();
-	foreach ( BWS_FOLD_STEP_TYPES as $slug => $spec ) {
-		$type = (string) ( $spec['type'] ?? '' );
-		if ( defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) && isset( BWS_TRAVERSAL_STEP_INPUT_KINDS[ $type ] ) ) {
-			$inputs[ $slug ] = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $type ];
+	foreach ( array_keys( BWS_FOLD_STEP_TYPES ) as $slug ) {
+		if ( defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) && isset( BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ] ) ) {
+			$inputs[ $slug ] = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ];
 		}
 	}
 	return array(
@@ -305,7 +312,7 @@ function bws_fold_chain_to_steps( array $chain ): array {
 					continue;
 				}
 			}
-			$engine_step = array( 'type' => $known['type'], $known['arg'] => $arg );
+			$engine_step = array( 'type' => $slug, $known => $arg );
 		}
 
 		// Only a REAL bound rides the step: 0/-1 are unlimited and the engine spells that
@@ -473,7 +480,7 @@ function bws_field_values_assemble_steps( array $options ): array {
  * bws_field_values_assemble_steps(), which compiles the WHOLE chain because it reads
  * fields by kind (§V6/§V12).
  *
- * Since 1.17.0 this is the chain's LEADING RUN of `ref` steps, stopping at the first step
+ * Since 1.17.0 this is the chain's LEADING RUN of `refs` steps, stopping at the first step
  * of any other type. Two properties come out of that: a legacy `src:ref|srcTermIn:x`
  * still yields the ref step alone (unchanged), and a multi-step relationship chain
  * (`refs,a;refs,b`) now steps BOTH instead of one. Stopping — rather than filtering — is
@@ -491,7 +498,7 @@ if ( ! function_exists( 'bws_wrapper_ref_steps' ) ) {
 function bws_wrapper_ref_steps( array $options ): array {
 	$leading = array();
 	foreach ( bws_field_values_assemble_steps( $options ) as $step ) {
-		if ( 'ref' !== ( $step['type'] ?? '' ) ) {
+		if ( 'refs' !== ( $step['type'] ?? '' ) ) {
 			break;
 		}
 		$leading[] = $step;

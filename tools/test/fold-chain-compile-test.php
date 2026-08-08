@@ -216,38 +216,38 @@ echo "\n§C3 bws_fold_chain_to_steps — slug→type, argless drop, unknown slug
 assert_same( 'empty chain → no steps', array(), bws_fold_chain_to_steps( array() ) );
 assert_same(
 	'refs → ref/field',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office' ) )
 );
 assert_same(
 	'terms → srcTermIn/slug',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,category' ) )
 );
 assert_same(
 	'entries → rows/field (the repeater step, author-facing since 1.17.0)',
-	array( array( 'type' => 'rows', 'field' => 'staff_rows' ) ),
+	array( array( 'type' => 'entries', 'field' => 'staff_rows' ) ),
 	bws_fold_chain_to_steps( chain_of( 'entries,staff_rows' ) )
 );
 assert_same(
 	'root is dropped, hops are kept in WIRE order',
 	array(
-		array( 'type' => 'ref', 'field' => 'office' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
+		array( 'type' => 'terms', 'slug' => 'category' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'current;refs,office;terms,category' ) )
 );
 assert_same(
 	'TWO ref hops — the chain the flat assemblers could not express',
 	array(
-		array( 'type' => 'ref', 'field' => 'related_staff' ),
-		array( 'type' => 'ref', 'field' => 'office' ),
+		array( 'type' => 'refs', 'field' => 'related_staff' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'refs,related_staff;refs,office' ) )
 );
 assert_same(
 	'terms slug is sanitized (as the retired assembler did)',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'mytax' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'mytax' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,My Tax!' ) )
 );
 // Argless fanning step: NO step, so the tag reads the ambient entity — byte-identical
@@ -272,7 +272,7 @@ assert_same(
 assert_same(
 	'a ROOT slug in a HOP position is unknown vocabulary there',
 	array(
-		array( 'type' => 'ref', 'field' => 'office' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
 		array( 'type' => 'site' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'refs,office;site' ) )
@@ -287,12 +287,12 @@ echo "\n§C4 per-step limit — emitted ONLY when it bounds the step\n";
 
 assert_same(
 	'limit(2) rides the step',
-	array( array( 'type' => 'ref', 'field' => 'office', 'limit' => 2 ) ),
+	array( array( 'type' => 'refs', 'field' => 'office', 'limit' => 2 ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(2)' ) )
 );
 assert_same(
 	'limit[2] — the same construct one level in (slot depth)',
-	array( array( 'type' => 'ref', 'field' => 'office', 'limit' => 2 ) ),
+	array( array( 'type' => 'refs', 'field' => 'office', 'limit' => 2 ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit[2]' ) )
 );
 // 0 = unlimited and the engine spells that as an ABSENT key. Emitting `limit => 0`
@@ -300,12 +300,12 @@ assert_same(
 // the byte-equality with the flat assemblers' output that §C5/§C6 rest on.
 assert_same(
 	'limit(0) = unlimited → no limit key at all',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(0)' ) )
 );
 assert_same(
 	'limit(-1) parses to 0 → no limit key',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(-1)' ) )
 );
 assert_same(
@@ -317,12 +317,12 @@ assert_same(
 // limit the grammar never validated.
 assert_same(
 	"struct limit '3' bounds as an int",
-	array( array( 'type' => 'ref', 'field' => 'o', 'limit' => 3 ) ),
+	array( array( 'type' => 'refs', 'field' => 'o', 'limit' => 3 ) ),
 	bws_fold_chain_to_steps( array( link_step( 'refs', 'o', '3' ) ) )
 );
 assert_same(
 	'struct limit garbage is ignored, not read as 0',
-	array( array( 'type' => 'ref', 'field' => 'o' ) ),
+	array( array( 'type' => 'refs', 'field' => 'o' ) ),
 	bws_fold_chain_to_steps( array( link_step( 'refs', 'o', 'abc' ) ) )
 );
 assert_same(
@@ -397,19 +397,19 @@ assert_same( 'assemble src:site → no steps', array(), bws_field_values_assembl
 assert_same( 'assemble src:ref no field → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'assemble srcTermIn → [srcTermIn]',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'category' ) )
 );
 assert_same(
 	'assemble src:ref → [ref]',
-	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
 	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 assert_same(
 	'assemble #44 compound → [ref, srcTermIn] in that order',
 	array(
-		array( 'type' => 'ref', 'field' => 'x' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ),
+		array( 'type' => 'refs', 'field' => 'x' ),
+		array( 'type' => 'terms', 'slug' => 'post_tag' ),
 	),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'post_tag', 'src' => 'ref', 'ref' => 'x' ) )
 );
@@ -417,9 +417,9 @@ assert_same(
 assert_same(
 	'assemble a depth-0 CHAIN → every hop',
 	array(
-		array( 'type' => 'ref', 'field' => 'a' ),
-		array( 'type' => 'ref', 'field' => 'b' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+		array( 'type' => 'refs', 'field' => 'a' ),
+		array( 'type' => 'refs', 'field' => 'b' ),
+		array( 'type' => 'terms', 'slug' => 'category' ),
 	),
 	bws_field_values_assemble_steps( array( 'src' => 'refs,a;refs,b;terms,category' ) )
 );
@@ -432,7 +432,7 @@ assert_same( 'wrapper src:site → no step', array(), bws_wrapper_ref_steps( arr
 assert_same( 'wrapper src:ref no field → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'wrapper src:ref → ref step',
-	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 // §V13/B2: the term hop is the CALLERS' job on the returned post id. Routing it
@@ -440,14 +440,14 @@ assert_same(
 assert_same( 'wrapper srcTermIn → NO step', array(), bws_wrapper_ref_steps( array( 'srcTermIn' => 'category' ) ) );
 assert_same(
 	'wrapper ref beside srcTermIn → ref step only',
-	array( array( 'type' => 'ref', 'field' => 'x' ) ),
+	array( array( 'type' => 'refs', 'field' => 'x' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'x', 'srcTermIn' => 'category' ) )
 );
 assert_same(
 	'wrapper hops a MULTI-ref chain (new in 1.17.0)',
 	array(
-		array( 'type' => 'ref', 'field' => 'a' ),
-		array( 'type' => 'ref', 'field' => 'b' ),
+		array( 'type' => 'refs', 'field' => 'a' ),
+		array( 'type' => 'refs', 'field' => 'b' ),
 	),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a;refs,b' ) )
 );
@@ -455,7 +455,7 @@ assert_same(
 // term hop would run against the wrong entity, which is the truncated-prefix hazard.
 assert_same(
 	'wrapper STOPS at a term hop, it does not filter past it',
-	array( array( 'type' => 'ref', 'field' => 'a' ) ),
+	array( array( 'type' => 'refs', 'field' => 'a' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a;terms,category;refs,b' ) )
 );
 assert_same(
@@ -465,7 +465,7 @@ assert_same(
 );
 assert_same(
 	'wrapper carries a per-hop limit',
-	array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ),
+	array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a,limit(2)' ) )
 );
 
@@ -490,28 +490,28 @@ $reader = static function ( array $step, array $source ) {
 assert_same(
 	'no limit → full fan-out',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a' ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a' ) ), $reader )
 );
 assert_same(
 	'limit 2 slices the step OUTPUT',
 	array( $post( 11 ), $post( 12 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ), $reader )
 );
 assert_same(
 	'a limit larger than the fan-out is inert',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 9 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 9 ) ), $reader )
 );
 // The falsy-zero class, on the engine side this time.
 assert_same(
 	'limit 0 = UNLIMITED, never "bound at zero"',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 0 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 0 ) ), $reader )
 );
 assert_same(
 	'a non-numeric limit is ignored (not read as 0)',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 'lots' ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 'lots' ) ), $reader )
 );
 // An INTERMEDIATE limit is the reason the quantity exists: it bounds how much work the
 // rest of the chain multiplies, not just the visible row count.
@@ -521,8 +521,8 @@ assert_same(
 	bws_run_traversal(
 		array( $post( 1 ) ),
 		array(
-			array( 'type' => 'ref', 'field' => 'a', 'limit' => 1 ),
-			array( 'type' => 'ref', 'field' => 'b' ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+			array( 'type' => 'refs', 'field' => 'b' ),
 		),
 		$reader
 	)
@@ -533,8 +533,8 @@ assert_same(
 	bws_run_traversal(
 		array( $post( 1 ) ),
 		array(
-			array( 'type' => 'ref', 'field' => 'a' ),
-			array( 'type' => 'ref', 'field' => 'b' ),
+			array( 'type' => 'refs', 'field' => 'a' ),
+			array( 'type' => 'refs', 'field' => 'b' ),
 		),
 		$reader
 	)
@@ -546,7 +546,7 @@ assert_same(
 	array( $post( 11 ), $post( 12 ) ),
 	bws_run_traversal(
 		array( $post( 1 ), $post( 2 ) ),
-		array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ),
+		array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ),
 		$reader
 	)
 );

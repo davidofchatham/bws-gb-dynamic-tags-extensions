@@ -432,9 +432,12 @@ assert_same(
 // the list it filters by IS the engine's refusal list rather than a second copy. A copy
 // would not error; it would drift, and the symptom is an author writing a chain that
 // renders nothing with no control saying why. `terms` is the sharp case: post only.
+// Since V9 the engine list is itself keyed by the wire slug, so this reads as a
+// tautology — it is not: it pins that the SHIPPED config is the engine constant and
+// not a re-typed copy that agrees today.
 assert_same(
 	'stepApplies.inputs derives from the engine\'s own refusal list',
-	BWS_TRAVERSAL_STEP_INPUT_KINDS['srcTermIn'],
+	BWS_TRAVERSAL_STEP_INPUT_KINDS['terms'],
 	$fold['stepApplies']['inputs']['terms']
 );
 assert_same(
