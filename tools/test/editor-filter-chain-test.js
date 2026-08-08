@@ -499,7 +499,7 @@ check(
 	'the control mounts for a `bws-src-chain` option',
 	null !== applyFilters(
 		{ key: 'src', type: 'control' },
-		{ src: { type: 'bws-src-chain', fold: { srcRows: [], stepRows: [], slugMap: {}, taxonomies: [], flatAxes: AXES } } },
+		{ src: { type: 'bws-src-chain', fold: { srcRows: [], offer: [], steps: {}, taxonomies: [], flatAxes: AXES } } },
 		{ state: { src: 'current' }, setState: function () {} }
 	),
 	'element returned'
@@ -517,7 +517,7 @@ check(
 console.log( '\noption grouping\n' );
 
 const GROUPED = {
-	src:      { type: 'bws-src-chain', fold: { srcRows: [], stepRows: [], slugMap: {}, taxonomies: [], flatAxes: [] }, _group: 'source', _group_lead: true },
+	src:      { type: 'bws-src-chain', fold: { srcRows: [], offer: [], steps: {}, taxonomies: [], flatAxes: [] }, _group: 'source', _group_lead: true },
 	limit:    { type: 'number', _group: 'source', show_if_any: { src: [ 'ref', 'chain_fans' ] } },
 	use:      { type: 'select', _group: 'field', _group_lead: true },
 	// A lead too, and the reason is `{{email}}`/`{{phone}}`/`{{table}}`: the field key is

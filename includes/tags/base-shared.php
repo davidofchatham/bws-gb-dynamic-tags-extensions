@@ -92,31 +92,63 @@ function bws_fold_picker_config( array $def ): array {
  * affordance is called — but they cannot disagree about these three, because all three
  * describe the wire itself:
  *
- *   slugMap     engine option value → wire step slug. The only place the two
- *               vocabularies meet (DECISION 3).
- *   stepApplies which steps are OFFERABLE where, derived from the engine's own refusal
- *               list so the editor cannot come to disagree with what renders. Display
- *               only — a stored step is always shown in its own picker.
- *   retiredSrc  the retired source tokens the mount migrator must DECLINE rather than
- *               fold (#56), read from the same constant the converter's guard reads.
+ *   steps      the FULL step vocabulary, one record per WIRE slug (#70):
+ *                label    — the step's row label, declared HERE and nowhere else.
+ *                arg      — the key a step's argument rides (the compiler seam's own
+ *                           value, BWS_FOLD_STEP_TYPES). Comparing two slugs' `arg` is
+ *                           what decides whether a slug switch keeps the field.
+ *                accepts  — the resolved-source kinds the step accepts, from the
+ *                           ENGINE's own refusal list (BWS_TRAVERSAL_STEP_INPUT_KINDS),
+ *                           so the editor cannot come to disagree with what renders.
+ *                           Display only — a stored step is always shown in its own
+ *                           picker; an absent list means "offer it", never "refuse it".
+ *                produces — the kind the step's output carries (BWS_FOLD_STEP_KINDS).
+ *   roots      root token → static resolved kind (BWS_FOLD_STATIC_ROOT_KINDS). A fact
+ *              about roots, not steps — only `site` is static; every other root is the
+ *              factory's to resolve at render, so the editor filters nothing off it.
+ *   retiredSrc the retired source tokens the mount migrator must DECLINE rather than
+ *              fold (#56), read from the same constant the converter's guard reads.
  *
- * They were byte-identical in both builders, comments included, which is the state that
- * precedes a divergence rather than evidence one is impossible.
+ * This record replaced a hand-typed `slugMap` (the exact inverse of the compiler's
+ * seam, declared twice — an invisible identity once the V9 alignment made the engine
+ * speak the wire's slugs), per-builder `stepRows` label arrays (byte-identical in both
+ * builders, the state that precedes a divergence), and a `stepApplies` bundle whose
+ * three maps now live on the records they describe.
  *
  * @since 1.17.0
+ * @since 1.17.0 #70: one `steps` record per slug; slugMap/stepApplies retired.
  * @return array Chain-config fragment to merge into a container's `fold` array.
  */
 function bws_fold_wire_vocabulary(): array {
+	// The one authored fact per step is its LABEL; everything else is derived from the
+	// engine/compiler constants below. A slug missing from this list has no row text,
+	// so it is not offerable — which is why a new engine step type ships to the editor
+	// only once it is named here.
+	$labels = array(
+		'refs'    => __( 'In Reference/Relational Field', 'generateblocks' ),
+		'terms'   => __( 'In Taxonomy Term', 'generateblocks' ),
+		'entries' => __( 'In Repeater Rows', 'generateblocks' ),
+	);
+
+	$steps = array();
+	foreach ( $labels as $slug => $label ) {
+		$step = array( 'label' => $label );
+		if ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
+			$step['arg'] = BWS_FOLD_STEP_TYPES[ $slug ];
+		}
+		if ( defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) && isset( BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ] ) ) {
+			$step['accepts'] = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ];
+		}
+		if ( defined( 'BWS_FOLD_STEP_KINDS' ) && isset( BWS_FOLD_STEP_KINDS[ $slug ] ) ) {
+			$step['produces'] = BWS_FOLD_STEP_KINDS[ $slug ];
+		}
+		$steps[ $slug ] = $step;
+	}
+
 	return array(
-		'slugMap'     => array(
-			'ref'       => 'refs',
-			'srcTermIn' => 'terms',
-			'rows'      => 'entries',
-		),
-		'stepApplies' => function_exists( 'bws_fold_step_applicability' )
-			? bws_fold_step_applicability()
-			: array(),
-		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+		'steps'      => $steps,
+		'roots'      => defined( 'BWS_FOLD_STATIC_ROOT_KINDS' ) ? BWS_FOLD_STATIC_ROOT_KINDS : array(),
+		'retiredSrc' => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 	);
 }
 
@@ -149,10 +181,10 @@ function bws_fold_wire_vocabulary(): array {
  * @param array $args {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
- *     @type array $steps       Engine step keys offered as steps. Default
- *                             ['ref','srcTermIn'] — `rows` is deliberately absent:
- *                             the step type exists and runs, but no base-tag arm
- *                             consumes a meta_row, so offering it would author a
+ *     @type array $steps       WIRE step slugs offered as steps, in offer order.
+ *                             Default ['refs','terms'] — `entries` is deliberately
+ *                             absent: the step type exists and runs, but no base-tag
+ *                             arm consumes a meta_row, so offering it would author a
  *                             chain that renders nothing. It belongs with the table
  *                             authoring pass.
  * }
@@ -160,28 +192,19 @@ function bws_fold_wire_vocabulary(): array {
  */
 function bws_build_src_chain_option( array $args = array() ): array {
 	$source_opt = $args['source_opt'] ?? bws_base_source_option();
-	$steps       = $args['steps'] ?? array( 'ref', 'srcTermIn' );
+	$steps       = $args['steps'] ?? array( 'refs', 'terms' );
 
 	if ( ! isset( $source_opt['src'] ) ) {
 		return $source_opt;
 	}
 
 	$base_trav = bws_base_traversal_options();
+	$vocab     = bws_fold_wire_vocabulary();
 
-	// Same step nouns the folded slot uses. A step CONTINUES a chain, so its row needs
-	// a step-shaped noun: `srcTermIn`'s own label is a checkbox question ("Get from
-	// taxonomy term?"), unusable in a step list.
-	$step_labels = array(
-		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
-		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
-		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
-	);
-	$step_rows   = array();
-	foreach ( $steps as $step ) {
-		if ( isset( $step_labels[ $step ] ) ) {
-			$step_rows[] = array( 'value' => $step, 'label' => $step_labels[ $step ] );
-		}
-	}
+	// The OFFER — the only genuinely per-container step fact (#70). An ordered slug
+	// list; labels and everything else about a step live on the shared vocabulary.
+	// Filtered against it because a slug with no record has no row text to paint.
+	$offer = array_values( array_intersect( $steps, array_keys( $vocab['steps'] ) ) );
 
 	$tax_rows = array( array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) ) );
 	if ( function_exists( 'get_taxonomies' ) ) {
@@ -224,7 +247,7 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// coincidence load-bearing. A disagreement is a bug in the enum's ordering, not
 		// something this line should paper over.
 		'defaultRoot' => (string) ( $root_rows[0]['value'] ?? '' ),
-		'stepRows'    => $step_rows,
+		'offer'       => $offer,
 		'taxonomies'  => $tax_rows,
 		'refOption'   => bws_fold_picker_config( $base_trav['ref'] ),
 		// The flat keys a commit REPLACES. Their meaning moves into the chain value,
@@ -232,10 +255,10 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// pair is what the retired arms used to dispatch on.
 		'flatAxes'    => array( 'ref', 'srcTermIn' ),
 	);
-	// The wire's own vocabulary — slugMap / stepApplies / retiredSrc, identical in every
+	// The wire's own vocabulary — steps / roots / retiredSrc, identical in every
 	// container because all three describe the wire rather than the container.
 	$source_opt['src']['fold'] = array_merge(
-		bws_fold_wire_vocabulary(),
+		$vocab,
 		$source_opt['src']['fold']
 	);
 
@@ -504,7 +527,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
  *     @type bool   $allow_same_read Offer the read inherit row at slot ≥2. Default false.
- *     @type array  $steps            Engine step keys offered as steps. Default ['srcTermIn'].
+ *     @type array  $steps            WIRE step slugs offered as steps, in offer order. Default ['terms'].
  *     @type array  $tag_level       Legacy axes this container owns at TAG level, never per
  *                                   slot (e.g. a try_ template's `limit`). Ships to the
  *                                   editor as the complement, `flatAxes`.
@@ -526,7 +549,7 @@ function bws_build_fold_slot_options( array $args ): array {
 	$per_slot_use    = ! isset( $args['per_slot_use'] ) || (bool) $args['per_slot_use'];
 	$allow_site      = ! isset( $args['allow_site'] ) || (bool) $args['allow_site'];
 	$allow_same_read = ! empty( $args['allow_same_read'] );
-	$steps            = $args['steps'] ?? array( 'srcTermIn' );
+	$steps            = $args['steps'] ?? array( 'terms' );
 	$base_read       = $args['base_read'] ?? array();
 	$base_key        = $args['base_key'] ?? array();
 	$noun            = (string) ( $args['noun'] ?? '' );
@@ -547,28 +570,33 @@ function bws_build_fold_slot_options( array $args ): array {
 
 	$base_src  = bws_base_source_option();
 	$base_trav = bws_base_traversal_options();
+	$vocab     = bws_fold_wire_vocabulary();
+
+	// The OFFER — the only genuinely per-container step fact (#70). An ordered slug
+	// list; labels and everything else about a step live on the shared vocabulary.
+	// Filtered against it because a slug with no record has no row text to paint.
+	$offer = array_values( array_intersect( $steps, array_keys( $vocab['steps'] ) ) );
 
 	// Source enum — through the SLOT twin, so the `site` filter and the "Same as
 	// Previous Source" inherit row are the shipped ones rather than new copies. Slot 1
 	// gets the plain list, slot ≥2 the list with the inherit row.
-	$src_rows         = bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'];
-	$src_rows_inherit = bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'];
-
-	// Hop enum. A step is a step that CONTINUES a chain, so its row needs a step-shaped
-	// noun: `srcTermIn`'s own label is a checkbox question ("Get from taxonomy term?"),
-	// unusable in a step list. Phrasing parallels the shipped src row it sits beside
-	// ("In Reference/Relational Field").
-	$step_labels = array(
-		'srcTermIn' => __( 'In Taxonomy Term', 'generateblocks' ),
-		'ref'       => __( 'In Reference/Relational Field', 'generateblocks' ),
-		'rows'      => __( 'In Repeater Rows', 'generateblocks' ),
-	);
-	$step_rows   = array();
-	foreach ( $steps as $step ) {
-		if ( isset( $step_labels[ $step ] ) ) {
-			$step_rows[] = array( 'value' => $step, 'label' => $step_labels[ $step ] );
+	//
+	// The twin's `ref` row is RESPELLED to the wire slug `refs`: on a slot the
+	// relationship is a fanning STEP at position 0, and that row has always been its
+	// UI — the flat enum just had to spell it as a root token when a tag could hold
+	// only one source value. The picker's value is now the stored step's own slug, so
+	// nothing translates between the row and the wire (#70; the `slugMap` this
+	// retired is what used to bridge them).
+	$respell = static function ( array $rows ): array {
+		foreach ( $rows as &$row ) {
+			if ( 'ref' === ( $row['value'] ?? '' ) ) {
+				$row['value'] = 'refs';
+			}
 		}
-	}
+		return $rows;
+	};
+	$src_rows         = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
+	$src_rows_inherit = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
 
 	// Read enum — through the read twin (its `['options']` rows only; the fold supplies
 	// its own slot heading). A COMBINING container needs an explicit unset row: there,
@@ -613,7 +641,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		// selecting it fires no change event. Slot ≥2 spells its absence `same`
 		// instead, which the control holds (writeChainAt already materializes it).
 		'defaultRoot'    => (string) ( $src_rows[0]['value'] ?? '' ),
-		'stepRows'        => $step_rows,
+		'offer'          => $offer,
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
 		'readLabel'      => $base_read['label'] ?? '',
@@ -628,9 +656,9 @@ function bws_build_fold_slot_options( array $args ): array {
 			? bws_fold_slot_flat_axes( (array) ( $args['tag_level'] ?? array() ) )
 			: array(),
 	);
-	// The wire's own vocabulary — slugMap / stepApplies / retiredSrc, identical in every
+	// The wire's own vocabulary — steps / roots / retiredSrc, identical in every
 	// container because all three describe the wire rather than the container.
-	$fold = array_merge( bws_fold_wire_vocabulary(), $fold );
+	$fold = array_merge( $vocab, $fold );
 
 	// OMITTED, not empty, when the container has no per-slot key (try_title and the
 	// other read-less templates). An empty array here would reach the control as JS

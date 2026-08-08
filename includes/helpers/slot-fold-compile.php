@@ -102,10 +102,10 @@ const BWS_FOLD_STEP_KINDS = array(
  *
  * A map rather than the inline ternary it replaces, because there are TWO readers and
  * they read it in opposite directions: bws_fold_chain_resolution() answers what a
- * root-only chain resolved to (render authority), and bws_fold_step_applicability()
- * ships it to the editor to decide which steps to OFFER off that root. A second copy
- * would let the editor come to disagree with what renders — the class of drift the
- * whole applicability derive exists to prevent.
+ * root-only chain resolved to (render authority), and bws_fold_wire_vocabulary()
+ * ships it to the editor (the fold config's `roots`) to decide which steps to OFFER
+ * off that root. A second copy would let the editor come to disagree with what
+ * renders — the class of drift the whole derive exists to prevent.
  *
  * @since 1.17.0
  */
@@ -204,46 +204,6 @@ function bws_fold_chain_resolution( array $chain ): array {
  */
 function bws_fold_src_resolution( array $options ): array {
 	return bws_fold_chain_resolution( bws_fold_chain_from_options( $options ) );
-}
-
-/**
- * The step-applicability facts the editor needs, in the wire's own vocabulary.
- *
- * A step is offerable at a position iff the engine would ACCEPT what the chain has
- * resolved to by then. Offering one it refuses authors wire that renders nothing and
- * says so nowhere — a `terms` step after a `site` root is the live case (the engine
- * takes `srcTermIn` off a post and nothing else), and it was offered on every root.
- *
- * Three maps, all DERIVED, none authored here:
- *   inputs — step slug → the resolved-source kinds that step accepts, translated from
- *            BWS_TRAVERSAL_STEP_INPUT_KINDS (the engine's own refusal list, so the
- *            editor cannot come to disagree with what renders).
- *   kinds  — step slug → the kind that step PRODUCES (BWS_FOLD_STEP_KINDS verbatim).
- *   roots  — root token → the kind it resolves to, for the roots where that is STATIC
- *            (BWS_FOLD_STATIC_ROOT_KINDS verbatim). Only `site` is: every other root is
- *            the factory's to resolve at render (`base` in bws_fold_chain_resolution's
- *            vocabulary), so the editor must treat it as permissive rather than guess.
- *
- * The consumer is a DISPLAY filter, so an absent entry means "offer it" rather than
- * "refuse it": a stored step is always shown in its own picker whatever this says,
- * because a value missing from its list is the unselectable-row bug the fold control
- * just fixed. Render authority stays entirely with the engine.
- *
- * @since 1.17.0
- * @return array{inputs:array<string,string[]>, kinds:array<string,string>, roots:array<string,string>}
- */
-function bws_fold_step_applicability(): array {
-	$inputs = array();
-	foreach ( array_keys( BWS_FOLD_STEP_TYPES ) as $slug ) {
-		if ( defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) && isset( BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ] ) ) {
-			$inputs[ $slug ] = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ];
-		}
-	}
-	return array(
-		'inputs' => $inputs,
-		'kinds'  => BWS_FOLD_STEP_KINDS,
-		'roots'  => BWS_FOLD_STATIC_ROOT_KINDS,
-	);
 }
 
 /**

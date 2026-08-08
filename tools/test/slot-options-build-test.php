@@ -41,10 +41,11 @@ require __DIR__ . '/../../includes/tags/base-shared.php';
 // tag-level subtraction; without it the builder's function_exists guard silently ships an
 // empty list, which is exactly the drift the field exists to prevent.
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
-// Step applicability is DERIVED at registration from the engine's input-kind allowlist
-// (traversal-pipeline.php) through the compiler's slug↔type map — the whole point being
-// that the editor cannot hold a second copy. Without both, the builder's function_exists
-// guard ships an empty map and every step is offered everywhere, silently.
+// The step vocabulary's `arg`/`accepts`/`produces` facts are DERIVED at registration
+// from the compiler seam and the engine's input-kind allowlist (traversal-pipeline.php)
+// — the whole point being that the editor cannot hold a second copy. Without both, the
+// builder's defined() guards ship label-only records and every step is offered
+// everywhere, silently.
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
@@ -313,7 +314,7 @@ $joins = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => true,
 		'allow_same_read' => false,
-		'steps'            => array( 'srcTermIn' ),
+		'steps'            => array( 'terms' ),
 		'noun'            => 'field',
 	)
 );
@@ -347,17 +348,29 @@ assert_same( 'per-slot label carries the ordinal spelling, not the number', 'Fie
 $fold = $joins['A']['fold'];
 
 // Source enum: DERIVED through the slot twin, so the `site` arm and the inherit row
-// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does.
+// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does. The twin's `ref` row
+// is respelled to the wire slug `refs` (#70): that row is the relationship STEP's UI,
+// and with the slugMap retired the picker's value must BE the stored step's slug.
+$respell_ref = static function ( array $rows ): array {
+	foreach ( $rows as &$row ) {
+		if ( 'ref' === ( $row['value'] ?? '' ) ) {
+			$row['value'] = 'refs';
+		}
+	}
+	return $rows;
+};
 assert_same(
-	'srcRows derive from the slot twin at slot 1',
-	bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'],
+	'srcRows derive from the slot twin at slot 1, `ref` respelled to the wire slug',
+	$respell_ref( bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'] ),
 	$fold['srcRows']
 );
 assert_same(
 	'srcRowsInherit derive from the slot twin at slot 2 (same-row included)',
-	bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'],
+	$respell_ref( bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'] ),
 	$fold['srcRowsInherit']
 );
+assert_same( 'the respelled row keeps its label (only the value moves)', true, in_array( 'refs', array_column( $fold['srcRows'], 'value' ), true ) );
+assert_same( '...and no legacy `ref` value survives in the enum', false, in_array( 'ref', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( 'site arm present when allowed', true, in_array( 'site', array_column( $fold['srcRows'], 'value' ), true ) );
 
 // Read enum: the twin's rows, with a COMBINING container's explicit unset row in front
@@ -374,16 +387,11 @@ assert_same(
 assert_same( 'no read inherit row while allow_same_read is false', false, in_array( 'same', array_column( $fold['readRowsInherit'], 'value' ), true ) );
 assert_same( 'readLabel is the base read noun, not a container copy', 'Text Field', $fold['readLabel'] );
 
-// Hops are a CAPABILITY list: only what the container's resolver can express.
-assert_same( 'stepRows carry only the requested hops', array( 'srcTermIn' ), array_column( $fold['stepRows'], 'value' ) );
-assert_same( 'hop row label is step-shaped, not the checkbox question', 'In Taxonomy Term', $fold['stepRows'][0]['label'] );
-
-// DECISION 3: the wire names steps, the engine names options; one map, one place.
-assert_same(
-	'slugMap is the engine→wire step vocabulary',
-	array( 'ref' => 'refs', 'srcTermIn' => 'terms', 'rows' => 'entries' ),
-	$fold['slugMap']
-);
+// The OFFER is a CAPABILITY list: only what the container's resolver can express,
+// shipped as an ordered slug array — the builders' `steps` parameter as-is, not rows.
+// Labels live on the shared vocabulary record, declared once (#70).
+assert_same( 'offer carries only the requested steps, as wire slugs', array( 'terms' ), $fold['offer'] );
+assert_same( 'step label declared once on the vocabulary, step-shaped', 'In Taxonomy Term', $fold['steps']['terms']['label'] );
 
 // Picker configs come off the base definitions (label/help/placeholder), so the
 // repeater's field pickers read exactly like the flat ones did.
@@ -428,30 +436,43 @@ assert_same(
 	$fold['defaultRoot']
 );
 
-// Step applicability — the editor offers a step only where the ENGINE accepts it, and
-// the list it filters by IS the engine's refusal list rather than a second copy. A copy
-// would not error; it would drift, and the symptom is an author writing a chain that
-// renders nothing with no control saying why. `terms` is the sharp case: post only.
-// Since V9 the engine list is itself keyed by the wire slug, so this reads as a
-// tautology — it is not: it pins that the SHIPPED config is the engine constant and
-// not a re-typed copy that agrees today.
+// THE CONSOLIDATED STEP RECORD (#70) — one `steps[slug]` per WIRE slug, every fact
+// derived, none re-typed. A copy would not error; it would drift, and the symptom is
+// an author writing a chain that renders nothing with no control saying why.
 assert_same(
-	'stepApplies.inputs derives from the engine\'s own refusal list',
+	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
+	array( 'refs', 'terms', 'entries' ),
+	array_keys( $fold['steps'] )
+);
+// `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the
+// wire slug, so this reads as a tautology — it is not: it pins that the SHIPPED config
+// is the engine constant and not a re-typed copy that agrees today. `terms` is the
+// sharp case: post only.
+assert_same(
+	'steps[*].accepts derives from the engine\'s own refusal list',
 	BWS_TRAVERSAL_STEP_INPUT_KINDS['terms'],
-	$fold['stepApplies']['inputs']['terms']
+	$fold['steps']['terms']['accepts']
+);
+// `arg` is the compiler seam's value, shipped for the first time — comparing two
+// slugs' `arg` is what decides whether a slug switch keeps the field.
+assert_same(
+	'steps[*].arg IS the compiler seam\'s map',
+	BWS_FOLD_STEP_TYPES,
+	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'arg' ) )
 );
 assert_same(
-	'...keyed by WIRE slug, not by engine type',
-	array( 'refs', 'terms', 'entries' ),
-	array_keys( $fold['stepApplies']['inputs'] )
+	'steps[*].produces IS the produced-kind map',
+	BWS_FOLD_STEP_KINDS,
+	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'produces' ) )
 );
 // Only `site` has a statically-known root kind. Every other root resolves at render, so
 // the editor must offer everything there rather than guess whether `current` is a post
-// or a term — a guess would hide the taxonomy step on every ordinary tag.
+// or a term — a guess would hide the taxonomy step on every ordinary tag. `roots` is
+// its own top-level key: a fact about roots, not about steps.
 assert_same(
-	'only `site` has a static root kind',
+	'roots is its own key and only `site` is static',
 	BWS_FOLD_STATIC_ROOT_KINDS,
-	$fold['stepApplies']['roots']
+	$fold['roots']
 );
 // ...and the map the EDITOR filters by is the same one the RENDER path dispatches on.
 // The two read it in opposite directions (render answers "what did this resolve to",
@@ -616,6 +637,12 @@ assert_same(
 	$base_chain['src']['options'][0]['value'],
 	$base_fold['defaultRoot']
 );
+// The base tag OFFERS both steps (`entries` deliberately absent — no base-tag arm
+// consumes a meta_row), and the vocabulary record it ships is BYTE-IDENTICAL to the
+// slot builder's: container-invariant by construction, both consuming one helper (#70).
+assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
+assert_same( 'the step vocabulary is container-invariant (base ≡ slot record)', $fold['steps'], $base_fold['steps'] );
+assert_same( '...and so is roots', $fold['roots'], $base_fold['roots'] );
 
 $flat_tag = bws_prepare_registration_options(
 	array_merge( bws_base_source_option(), bws_base_traversal_options() )

@@ -11,7 +11,7 @@
  * `window.bwsSlotFoldRepeater.chainSteps` — the SAME component the folded-slot
  * control uses. A second renderer would be a second place for a hand-authored
  * spelling of `terms` to get in, which is exactly the drift the derived config
- * removed. Likewise every enum, label, noun and slug map arrives on the PHP option
+ * removed. Likewise every enum, label, noun and step vocabulary arrives on the PHP option
  * definition (bws_build_src_chain_option); nothing here is typed twice.
  *
  * The base tag keeps its own `use`/`key` controls: this edits the SOURCE only. That

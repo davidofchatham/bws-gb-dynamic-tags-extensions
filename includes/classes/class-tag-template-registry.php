@@ -576,7 +576,7 @@ class TagTemplateRegistry {
 						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
-						'steps'            => [ 'srcTermIn' ],
+						'steps'            => [ 'terms' ],
 						// The axes that are TAG-level on this template, so the editor's
 						// mount migrator and the control leave them alone at every slot
 						// position — same split, same owner, as the trailing-option strip

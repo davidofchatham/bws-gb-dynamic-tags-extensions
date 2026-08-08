@@ -110,15 +110,19 @@
 			// with the list the author picks from. See bws_build_src_chain_option() /
 			// bws_build_fold_slot_options().
 			defaultRoot: c.defaultRoot || '',
-			// Which steps may follow what, derived from the ENGINE's own refusal list.
-			// See bws_fold_step_applicability(). An absent map offers everything, which
-			// is the pre-1.17.0 behaviour and the safe direction for a DISPLAY filter.
-			stepApplies: c.stepApplies || {},
-			stepRows: c.stepRows || [],
+			// The full step vocabulary, one record per WIRE slug (#70): label, which arg
+			// key the step consumes, the kinds it accepts (the ENGINE's own refusal
+			// list) and the kind it produces. See bws_fold_wire_vocabulary(). Absent
+			// facts stay permissive — this feeds a DISPLAY filter, never a gate.
+			steps: c.steps || {},
+			// The per-container OFFER: an ordered slug list, the only per-container
+			// step fact. Labels come off `steps`, never typed beside the offer.
+			offer: c.offer || [],
+			// Root token → static resolved kind (only `site` is static).
+			roots: c.roots || {},
 			readRows: c.readRows || [],
 			readRowsInherit: c.readRowsInherit || [],
 			readLabel: c.readLabel || '',
-			slugMap: c.slugMap || {},
 			taxonomies: c.taxonomies || [],
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
@@ -137,36 +141,37 @@
 		};
 	}
 
-	/** Engine option value → wire step slug (DECISION 3: `ref` → `refs`). */
-	function toWire( conf, value ) {
-		return conf.slugMap[ value ] || value;
-	}
-
-	/** Wire step slug → engine option value (the inverse of the PHP-supplied map). */
-	function toEngine( conf, slug ) {
-		var found = slug;
-		Object.keys( conf.slugMap ).forEach( function ( engine ) {
-			if ( conf.slugMap[ engine ] === slug ) {
-				found = engine;
-			}
-		} );
-		return found;
+	/** The step record a wire slug names, or null — known-ness IS presence in `steps`. */
+	function stepDef( conf, slug ) {
+		return ( conf.steps && conf.steps[ slug ] ) || null;
 	}
 
 	/**
-	 * What ARG a wire step slug takes, named in the ENGINE vocabulary the PHP-supplied
-	 * `slugMap` already defines (`refs` → `ref`, `terms` → `srcTermIn`, `entries` →
-	 * `rows`). Derived, not re-typed: this used to return a local `'taxonomy'` — a THIRD
-	 * spelling of a slug that exists twice already — and then switch on it, which is the
-	 * hand-authored vocabulary the config exists to remove.
+	 * The ARG a step consumes — the compiler seam's own value (`field` / `slug`),
+	 * arriving on the vocabulary record, never typed here. Comparing two slugs' answers
+	 * is what decides whether a slug switch keeps the field: two steps that both
+	 * consume a FIELD keep it across the switch. (The retired comparison used engine
+	 * spellings, under which `refs` ↔ `entries` compared unequal and dropped the field
+	 * — unreachable only because no container offered both.)
 	 *
-	 * '' means the slug takes no arg (or is not a step at all), which is what gates the
-	 * Add-step row. The round-trip test is what makes an unknown slug answer '' rather
-	 * than itself, since toEngine() passes unknowns straight through.
+	 * '' means the slug takes no arg — a root, an unknown slug, or a registration that
+	 * shipped no vocabulary — which is what gates the Add-step row.
 	 */
-	function argKind( conf, slug ) {
-		var engine = toEngine( conf, slug );
-		return ( conf.slugMap && conf.slugMap[ engine ] === slug ) ? engine : '';
+	function stepArg( conf, slug ) {
+		var def = stepDef( conf, slug );
+		return ( def && def.arg ) || '';
+	}
+
+	/**
+	 * Select rows for the per-container OFFER, labelled from the one vocabulary. A slug
+	 * with no record keeps its slug as its label — display-permissive, matching the
+	 * stored-slug rule below.
+	 */
+	function offerRows( conf ) {
+		return ( conf.offer || [] ).map( function ( slug ) {
+			var def = stepDef( conf, slug );
+			return { value: slug, label: ( def && def.label ) || slug };
+		} );
 	}
 
 	// ── Incomplete-step / incomplete-read warnings ──────────────────────────
@@ -426,7 +431,7 @@
 	 * Extracted from SlotFoldControl so the base-tag source control edits chains
 	 * through the same component rather than a second copy of it. A copy would be
 	 * the drift the derived config exists to prevent: the enums, labels, nouns and
-	 * slug map all arrive on the PHP option definition, and a second renderer is
+	 * step vocabulary all arrive on the PHP option definition, and a second renderer is
 	 * where a hand-authored third spelling of `terms` gets in.
 	 *
 	 * The wire supports an ordered chain, so this must edit EVERY step: a single-step
@@ -503,16 +508,15 @@
 		 * every step is offered — the editor must not guess an ambient kind.
 		 */
 		function kindAt( idx ) {
-			var applies = conf.stepApplies || {};
 			var prev = chain[ idx - 1 ];
 			if ( ! prev ) {
 				return '';
 			}
-			var produced = ( applies.kinds || {} )[ prev.slug ];
-			if ( produced ) {
-				return produced;
+			var def = stepDef( conf, prev.slug );
+			if ( def && def.produces ) {
+				return def.produces;
 			}
-			return ( idx > 1 ) ? '' : ( ( applies.roots || {} )[ prev.slug ] || '' );
+			return ( idx > 1 ) ? '' : ( ( conf.roots || {} )[ prev.slug ] || '' );
 		}
 
 		/**
@@ -531,29 +535,43 @@
 		 * stored; only what the author may ADD is filtered.
 		 */
 		function offerableSteps( idx, keep ) {
-			var inputs = ( conf.stepApplies || {} ).inputs;
 			var kind = kindAt( idx );
-			if ( ! inputs || ! kind ) {
-				return conf.stepRows;
+			var rows = offerRows( conf );
+			if ( ! kind ) {
+				return rows;
 			}
-			return conf.stepRows.filter( function ( row ) {
-				var slug = toWire( conf, row.value );
-				if ( keep && slug === keep ) {
+			return rows.filter( function ( row ) {
+				if ( keep && row.value === keep ) {
 					return true;
 				}
-				var allowed = inputs[ slug ];
+				var def = stepDef( conf, row.value );
+				var allowed = def && def.accepts;
 				return ! allowed || allowed.indexOf( kind ) !== -1;
 			} );
 		}
 
-		/** Rows for a step by POSITION: only the first step may start a source. */
-		function stepRows( idx ) {
+		/**
+		 * Rows for a step by POSITION: only the first step may start a source.
+		 *
+		 * A STORED slug always gets its own row, whatever the offer says — absence from
+		 * `steps` means "offer it", never "refuse it". A SelectControl whose value is
+		 * missing from its own options paints a different row while believing nothing
+		 * is selected, which is the unselectable-row defect this control fixed twice.
+		 */
+		function rowsAt( idx ) {
 			var held = chain[ idx ] ? chain[ idx ].slug : '';
+			var rows;
 			if ( idx > 0 ) {
-				return offerableSteps( idx, held );
+				rows = offerableSteps( idx, held );
+			} else {
+				var roots = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
+				rows = roots.concat( offerableSteps( 0, held ) );
 			}
-			var rows = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
-			return rows.concat( offerableSteps( 0, held ) );
+			if ( held && ! rows.some( function ( r ) { return r.value === held; } ) ) {
+				var def = stepDef( conf, held );
+				rows = rows.concat( [ { value: held, label: ( def && def.label ) || held } ] );
+			}
+			return rows;
 		}
 
 		var stepNodes = [];
@@ -597,25 +615,28 @@
 				// word, so only the VISIBLE copy is suppressed.
 				label: __( 'Source', 'generateblocks' ),
 				hideLabelFromVision: chain.length <= 1,
-				value: toEngine( conf, stepObj.slug ),
-				options: stepRows( i ),
+				value: stepObj.slug,
+				options: rowsAt( i ),
 				onChange: function ( v ) {
 					if ( ! v ) {
 						writeChainAt( i, null );
 						return;
 					}
-					var slug = toWire( conf, v );
-					// Keep the arg only when the new slug consumes the same kind of arg;
+					// Keep the arg only when the new slug consumes the SAME arg (the
+					// vocabulary record's `arg`, so `refs` ↔ `entries` keep the field);
 					// keep `limit` always (it bounds the step, not the arg).
-					var keepArg = argKind( conf, slug ) && argKind( conf, slug ) === argKind( conf, stepObj.slug );
-					writeChainAt( i, step( slug, keepArg ? stepObj.arg : null, stepObj.limit ) );
+					var keepArg = stepArg( conf, v ) && stepArg( conf, v ) === stepArg( conf, stepObj.slug );
+					writeChainAt( i, step( v, keepArg ? stepObj.arg : null, stepObj.limit ) );
 				},
 				__nextHasNoMarginBottom: true
 			} ) );
 
-			var kind = argKind( conf, stepObj.slug );
-			if ( 'ref' === kind || 'rows' === kind ) {
-				var argCfg = ( 'rows' === kind ? conf.entriesOption : conf.refOption ) || {};
+			// Which arg control a step renders is the SLUG's to answer; whether it is a
+			// step at all is presence in the vocabulary. Two questions the retired
+			// argKind() answered with one engine-spelled string.
+			var known = !! stepDef( conf, stepObj.slug );
+			if ( known && ( 'refs' === stepObj.slug || 'entries' === stepObj.slug ) ) {
+				var argCfg = ( 'entries' === stepObj.slug ? conf.entriesOption : conf.refOption ) || {};
 				var commitArg = function ( v ) {
 					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
 				};
@@ -649,7 +670,7 @@
 						slotNoun
 					) ) );
 				}
-			} else if ( 'srcTermIn' === kind ) {
+			} else if ( known && 'terms' === stepObj.slug ) {
 				stepKids.push( el( 'div', { key: 'arg', style: STACKED },
 					el( SelectControl, {
 						label: __( 'Taxonomy', 'generateblocks' ),
@@ -688,7 +709,7 @@
 			// rule. It also dissolves the hazard that argued against normalizing: the
 			// box reads `0 (all)` before the author types and `0 (all)` again after
 			// the `0` is dropped. Same glyphs, same meaning, nothing silently lost.
-			if ( kind ) {
+			if ( known ) {
 				stepKids.push( el( 'div', { key: 'limit', style: STACKED },
 					el( TextControl, {
 						type: 'number',
@@ -728,18 +749,18 @@
 		// the slot's outer edge.
 		// The offer is what decides, not the registered list: on a `site` root the only
 		// step a try_ slot registers (`terms`) is one the engine refuses, so there is
-		// nothing to add and the button must not appear. Reading conf.stepRows here
+		// nothing to add and the button must not appear. Reading the raw offer here
 		// instead would offer an Add that can only produce a dead step.
 		var last = chain.length ? chain[ chain.length - 1 ] : null;
 		var nextSteps = offerableSteps( chain.length, '' );
-		var canAppend = ! isSameChain && last && ( ! argKind( conf, last.slug ) || last.arg ) && nextSteps.length;
+		var canAppend = ! isSameChain && last && ( ! stepArg( conf, last.slug ) || last.arg ) && nextSteps.length;
 		if ( canAppend ) {
 			stepNodes.push( el( 'div', { key: 'addstep', style: { marginTop: '8px' } },
 				el( Button, {
 					variant: 'tertiary',
 					size: 'small',
 					onClick: function () {
-						props.onChange( chain.concat( [ step( toWire( conf, nextSteps[ 0 ].value ) ) ] ) );
+						props.onChange( chain.concat( [ step( nextSteps[ 0 ].value ) ] ) );
 					}
 				}, '+ ' + __( 'Add step', 'generateblocks' ) )
 			) );
@@ -1152,11 +1173,9 @@
 		legacyKeys: legacyKeys,
 		inferIntent: inferIntent,
 		foldConfig: foldConfig,
-		argKind: argKind,
+		stepArg: stepArg,
 		// The chain editor, so the base-tag source control renders the SAME steps.
 		chainSteps: chainSteps,
-		step: step,
-		toWire: toWire,
-		toEngine: toEngine
+		step: step
 	};
 }() );

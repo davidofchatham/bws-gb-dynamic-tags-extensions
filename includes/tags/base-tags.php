@@ -904,7 +904,7 @@ function bws_get_join_options(): array {
 				'allow_same_read' => false,
 				// The flat render seam expresses one term step; a second relationship step
 				// is FW-32 work, so it is not offered.
-				'steps'            => array( 'srcTermIn' ),
+				'steps'            => array( 'terms' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
