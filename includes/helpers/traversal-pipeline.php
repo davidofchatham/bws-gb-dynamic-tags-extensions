@@ -48,18 +48,27 @@ if ( ! defined( 'ABSPATH' ) ) {
  *                               steps; document order preserved (append order).
  *   - Short-circuit           → the FIRST step producing an empty list returns
  *                               array() immediately; later steps never run.
- *   - Per-step limit (1.17.0) → a step carrying `limit` slices ITS OWN output to
- *                               that many sources before the next step runs.
+ *   - Per-step limit (1.17.0) → a step carrying `limit` keeps at most that many
+ *                               produced sources from EACH input source (per-input,
+ *                               #72; the slice runs inside the per-source loop).
  *
- * A step's `limit` is the author's PER-HOP limit (FW-56), a different quantity from
+ * A step's `limit` is the author's PER-STEP limit (FW-56), a different quantity from
  * the terminal `limit` option: the step limit bounds how far a fan-out spreads
  * (and how much downstream work it multiplies), while the terminal one bounds the
  * VALUE list the caller renders. So the caller still slices the final source list
  * (list mode originates at the plural resolved source, CONTEXT.md §Target
  * cardinality) — this engine remains composition-blind, and `sep` never reaches it.
- * The limit is applied to the step's WHOLE output rather than per input source: that
- * is the quantity the wire names ("at most N of these"), and it is what the
- * legacy flat `limit` sliced when the fan-out was the last step.
+ *
+ * PER-INPUT, not whole-output (per-step-limit.md §Per-input, not whole-output;
+ * fixed here by #72 after the engine shipped the superseded semantic):
+ * `limit(1)` on a terms step after a fanning refs step means one term from EACH
+ * ref'd post, not one term overall. Three mechanics follow:
+ *   - The slice applies per input source, then concatenates — whole-output would
+ *     read later inputs and discard everything they produced.
+ *   - Order is not symmetric: an earlier step's limit bounds what later steps can
+ *     SEE; a later step's limit only bounds what survives.
+ *   - The chain's ceiling is the PRODUCT of its step limits, which is why the
+ *     legacy-limit migration stamps `1` on every earlier fanning step.
  *
  * `limit` is absent unless it bounds something: `0`/`-1` mean unlimited
  * (bws_fold_slot_flat_options and the chain compiler both normalize them away), so a
@@ -80,18 +89,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! function_exists( 'bws_run_traversal' ) ) {
 function bws_run_traversal( array $sources, array $steps, $reader = null ) {
 	foreach ( $steps as $step ) {
-		$next = array();
+		// Per-step limit (FW-56), applied PER INPUT SOURCE (#72). Only a POSITIVE
+		// value bounds; 0/-1/absent = unlimited.
+		$step_limit = isset( $step['limit'] ) && is_numeric( $step['limit'] ) ? (int) $step['limit'] : 0;
+		$next       = array();
 		foreach ( $sources as $source ) {
-			foreach ( bws_run_step( $step, $source, $reader ) as $produced ) {
-				$next[] = $produced;
+			$produced = bws_run_step( $step, $source, $reader );
+			if ( $step_limit > 0 ) {
+				$produced = array_slice( $produced, 0, $step_limit );
+			}
+			foreach ( $produced as $p ) {
+				$next[] = $p;
 			}
 		}
 		if ( empty( $next ) ) {
 			return array(); // Short-circuit: an emptied step ends the chain.
 		}
-		// Per-step limit (FW-56). Only a POSITIVE value bounds; 0/-1/absent = unlimited.
-		$step_limit = isset( $step['limit'] ) && is_numeric( $step['limit'] ) ? (int) $step['limit'] : 0;
-		$sources    = ( $step_limit > 0 ) ? array_slice( $next, 0, $step_limit ) : $next;
+		$sources = $next;
 	}
 	return $sources;
 }

@@ -539,14 +539,43 @@ assert_same(
 		$reader
 	)
 );
-// The limit applies to the step's WHOLE output, not per input source — that is the
-// quantity the wire names ("at most N of these").
+// The limit is PER-INPUT, not whole-output (#72; per-step-limit.md §Per-input, not
+// whole-output): at most N produced sources from EACH incoming source. This case
+// distinguishes the two semantics — whole-output would return [11] and discard
+// post 2's read entirely.
 assert_same(
-	'the limit is on the step, not per input source',
-	array( $post( 11 ), $post( 12 ) ),
+	'the limit is per input source, not on the step\'s whole output',
+	array( $post( 11 ), $post( 21 ) ),
 	bws_run_traversal(
 		array( $post( 1 ), $post( 2 ) ),
-		array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ),
+		array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ) ),
+		$reader
+	)
+);
+// Order asymmetry: an earlier limit bounds what later steps can SEE; a later one
+// only bounds what survives. Same limit multiset {2,1}, same product ceiling (2),
+// DIFFERENT surviving sets — which is what makes limit placement authorial.
+assert_same(
+	'limit(2) then limit(1): one grandchild from each of two children',
+	array( $post( 111 ), $post( 121 ) ),
+	bws_run_traversal(
+		array( $post( 1 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+		),
+		$reader
+	)
+);
+assert_same(
+	'limit(1) then limit(2): two grandchildren from one child',
+	array( $post( 111 ), $post( 112 ) ),
+	bws_run_traversal(
+		array( $post( 1 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ),
+		),
 		$reader
 	)
 );
