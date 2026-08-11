@@ -655,6 +655,20 @@ check(
 	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
 	'[⚠ Try: slot 1 source not supported]'
 );
+// A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
+// "source not supported" would send the author after the wrong thing: the chain IS
+// expressible, and what is missing is an earlier slot that resolves. Reachable in a
+// COMBINING container, where an unconfigured read skips slot A without feeding the carry.
+check(
+	'join: `same` with nothing carried says what to fix, not "unsupported"',
+	bws_build_join_preview_label( [ 'A' => 'src(site)', 'B' => 'src(same);key(x)' ] ),
+	'[⚠ Join: slot 2 no previous source]'
+);
+check(
+	'…and an argless `refs` names the RIGHT missing thing, not the term hop\'s noun',
+	bws_build_join_preview_label( [ 'A' => 'src(refs);key(x)' ] ),
+	'[⚠ Join: slot 1 no ref]'
+);
 // An INCOMPLETE step is flagged too, but NAMED for what is missing rather than as an
 // unsupported source: the seam can express a term hop, this one just has no taxonomy
 // yet, and it skips rather than reading the un-hopped entity. Silence here would leave

@@ -1366,9 +1366,12 @@ function bws_fold_empty_slot(): array {
  *                            combining slot has no read configured; 'chain' when the chain
  *                            has no flat spelling; 'step:<slug>' when that step is
  *                            incomplete — 'step:terms' (no taxonomy) or 'step:refs' (no
- *                            relationship field AND nothing carried to inherit one from).
- *                            The slug rides the reason so the preview can name what is
- *                            missing without re-deriving the skip rule.
+ *                            relationship field AND nothing carried to inherit one from);
+ *                            'inherit' when a `same` root has nothing to be the same AS
+ *                            (no earlier slot resolved). The slug rides the reason so the
+ *                            preview can name what is missing without re-deriving the skip
+ *                            rule, and `inherit` is kept apart from `chain` because that
+ *                            one means INEXPRESSIBLE wire, which this is not.
  * @param int    $limit_default OUT, by reference. The limit this slot takes when its wire
  *                            states none: 0 (unlimited) for a chain-spelled slot, 1 for a
  *                            flat-spelled one. Written before any early return, same
@@ -1381,11 +1384,11 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	$limit_default = ( 'chain' === ( $slot['era'] ?? 'flat' ) && bws_fold_chain_fanning_steps( $slot['chain'] ?? array() ) )
 		? 0
 		: 1;
-	// `_resolved` is not a wire axis — it records whether ANY slot has fed the accumulator
+	// `_fed` is not a wire axis — it records whether ANY slot has fed the accumulator
 	// yet, which the `same` root needs and no other key can answer: `src` initialises to
 	// '', and '' is also how the ambient entity is spelled, so an inherit off a fresh
 	// accumulator is indistinguishable from an inherit off an ambient slot 1 (#74).
-	$carry += array( 'src' => '', 'ref' => '', 'tax' => '', 'use' => '', 'key' => '', 'limit' => null, '_resolved' => false );
+	$carry += array( 'src' => '', 'ref' => '', 'tax' => '', 'use' => '', 'key' => '', 'limit' => null, '_fed' => false );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
@@ -1441,8 +1444,12 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 				// combining container, where an unconfigured read skips slot A without
 				// feeding the carry, so `{{join A:src(site)|B:src(same);key(x)}}` read the
 				// page while the only source on screen said the site.
-				if ( empty( $carry['_resolved'] ) ) {
-					$skip_reason = 'chain';
+				// Its OWN reason, not `chain`: that one means wire the flat read cannot
+				// EXPRESS, and this chain is perfectly expressible — there is simply
+				// nothing yet to be the same as. The author-facing answer differs too
+				// ("finish an earlier slot", not "this source is unsupported").
+				if ( empty( $carry['_fed'] ) ) {
+					$skip_reason = 'inherit';
 					return null;
 				}
 				$src = $carry['src'];
@@ -1562,7 +1569,7 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	}
 
 	// The slot resolved: feed the accumulator (never before this point).
-	$carry['_resolved'] = true;
+	$carry['_fed'] = true;
 	$carry['src']       = $src;
 	$carry['ref']       = $ref;
 	$carry['tax']       = $tax;

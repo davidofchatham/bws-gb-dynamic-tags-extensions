@@ -174,7 +174,8 @@ Datetime tags compute a live preview from the current time rather than a static 
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
 | Slot chain with no flat spelling | `[⚠ Try: slot 2 source not supported]` (1.17.0 — see the join warnings table for the rule; when it is the ONLY slot this reason replaces `no slots configured`, which would otherwise be actively misleading) | same |
-| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` (1.17.0 — a `terms` step with no taxonomy; the seam skips it rather than reading the un-stepped entity) | same |
+| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` / `[⚠ Try: slot 2 no ref]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished) | same |
+| Slot inheriting with nothing to inherit | `[⚠ Try: slot 2 no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
@@ -204,7 +205,9 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
 | Folded slot whose source chain has no flat spelling | `slot N source not supported` (1.17.0) |
-| Folded slot with an INCOMPLETE step (`terms` step, no taxonomy) | `slot N no taxonomy` (1.17.0) |
+| Slot with an INCOMPLETE `terms` step (no taxonomy) | `slot N no taxonomy` (1.17.0) |
+| Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `slot N no ref` (1.17.0) |
+| Slot whose source is `same` with no earlier slot resolved | `slot N no previous source` (1.17.0) |
 
 **`slot N source not supported`** is the author-facing signal for a slot the render seam SKIPS: a
 chain with a SECOND step on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One `refs`
@@ -216,13 +219,30 @@ in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SI
 normal in-progress state, and flagging it would fire on every half-built join. Same fragment, same
 mechanism, on `try_` tags: `[⚠ Try: slot N source not supported]`.
 
-**`slot N no taxonomy`** is the third skip reason, and it is separate because it names what is
-MISSING rather than what is unsupported. A `terms` step with no taxonomy is expressible — it just is
-not finished — and the seam skips it deliberately: an empty `srcTermIn` is how "no term step" is
-spelled, so flattening it would make the slot read the UN-STEPPED entity and return a plausible WRONG
-value rather than nothing. The shape only exists under the fold; flat wire could not state a step
-without its argument. The slot's own control warns in parallel ("This *&lt;noun&gt;* will be skipped
-unless a taxonomy is set"), so the two surfaces agree on the promise.
+**`slot N no taxonomy`** and **`slot N no ref`** name an INCOMPLETE step, and are separate from
+"unsupported" because they name what is MISSING rather than what cannot be expressed. Such a step is
+expressible — it just is not finished — and the seam skips it deliberately: an empty argument is how
+"no step" is spelled, so flattening it would make the slot read the UN-STEPPED entity and return a
+plausible WRONG value rather than nothing. The slot's own control warns in parallel ("This
+*&lt;noun&gt;* will be skipped unless a field/taxonomy is set"), so the two surfaces agree on the
+promise.
+
+One asymmetry between the two, and it is the reason the seam reports the step's SLUG rather than a
+bare `step`: an argless `refs` step is COMPLETE when the carry supplies its field (`3-src:ref` with
+no `3-ref` steps through an earlier slot's relationship), so it is flagged only when nothing was ever
+carried. An argless `terms` step has no such inheritance and is always unfinished. Deriving which
+noun to print from the slot's chain would be a second copy of the skip rule, which is what routing
+both previews through the seam exists to prevent.
+
+**`slot N no previous source`** covers a `same` root with nothing to be the same AS — every earlier
+slot skipped, so there is no carried source. Kept apart from `source not supported` because the chain
+here IS expressible and the author-facing answer is different: finish an earlier slot, rather than
+this source is unusable. Reachable in a COMBINING container, where an unconfigured read skips a slot
+without feeding the carry.
+
+A SKIPPED slot reports its skip reason ALONE — the per-slot warnings above (`no key`, `no ref` for a
+resolved slot) are not also emitted for it. The slot will not read anything, so its field key is not
+what the author should go and fix.
 
 Nothing configured at all → **no preview** (empty string; GB shows its own placeholder). Trailing `(fallback: “X”)` appended whenever `fallback` is set.
 

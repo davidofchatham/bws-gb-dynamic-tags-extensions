@@ -1412,6 +1412,16 @@ check( 'P16.1 a COMBINING slot inherits the term hop', array( 1 => 'department',
 $tax_try = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same);use(key);key(phone)' ), 'try' );
 check( 'P16.1 …and so does a SELECTING attempt (uniform, not container-sensitive)', array( 1 => 'department', 2 => 'department' ) === $tax_try, json_encode( $tax_try ) );
 
+// P16.1b — ERA UNIFORMITY, witnessed WITHOUT the reference walks. §P13.1/§P14 compare the
+// seam against `t_shipped_*_walk`, and those models were edited to carry the hop too — so
+// they can no longer independently witness that the two ERAS agree about it. This drives
+// legacy wire and its folded twin through the SEAM alone and compares the two, which is the
+// property "no era gate" actually names.
+$tax_legacy_wire = array( 'srcTermIn' => 'department', 'use' => 'title', 'limit' => '2', '2-src' => 'same', '2-key' => 'phone' );
+$tax_legacy = t_tax_walk( $tax_legacy_wire );
+$tax_folded = t_tax_walk( array( 'A' => 'src(terms,department,limit[2]);use(title)', 'B' => 'src(same);key(phone)' ) );
+check( 'P16.1b legacy wire and its folded twin inherit the hop identically (no era gate)', $tax_legacy === $tax_folded && array( 1 => 'department', 2 => 'department' ) === $tax_legacy, 'legacy: ' . json_encode( $tax_legacy ) . ' folded: ' . json_encode( $tax_folded ) );
+
 // P16.2 — CARRY DISCIPLINE: the taxonomy follows `src`, not `ref`.
 //
 // `ref` is init-carried on EVERY slot and survives a non-ref source, which is deliberate:
@@ -1458,6 +1468,13 @@ check( 'P16.4 …but two REAL term steps in one chain are still inexpressible', 
 // something else.
 $never_carried = t_tax_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ) );
 check( 'P16.5 `same` skips when NOTHING was ever carried', ! isset( $never_carried[2] ), json_encode( $never_carried ) );
+// Its OWN reason, not `chain`. That one means the flat read cannot EXPRESS the wire; this
+// chain is expressible and simply has nothing yet to be the same as, so telling the author
+// "source not supported" would send them after the wrong thing.
+$inh_carry = array( '_fed' => false );
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(same);key(x)' ), $inh_carry, true, $isr );
+// The WORDING for it is the preview's to own (preview-label-test.php §skip warnings).
+check( 'P16.5 …reporting `inherit`, which is not the inexpressible-wire reason', 'inherit' === $isr, var_export( $isr, true ) );
 $never_carried_flat = t_seam_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ), 'join' );
 check( 'P16.5 …and does not silently read the ambient entity instead', ! isset( $never_carried_flat[2] ), json_encode( $never_carried_flat[2] ?? null ) );
 

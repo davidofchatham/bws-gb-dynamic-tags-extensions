@@ -588,6 +588,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_empty_row( 'F8.8 F8.7 with step 1 bounded to Jane, who reports to nobody (-> EMPTY: the step limit bounds step 1 and the chain short-circuits)', '{{text src:refs,related_staff,limit(1);refs,reports_to|use:title}}' ),
 		bws_fixture_gb_row( 'F8.9 F8.7 reading a FIELD off the second-degree post, not its title (-> (555) 200-3000, Jane\'s line)', '{{text src:refs,related_staff;refs,reports_to|use:key|key:main_line}}' ),
 		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref\'d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,portal_visibility,limit(1)|use:title}}' ),
+		// F8b (#74) - an ARGLESS step on a base tag reads EMPTY, not the ambient entity.
+		// Through 1.16.x the compiler DROPPED it, leaving a chain with no steps, and a
+		// chain with no steps resolves the ambient entity - so these returned THIS page's
+		// own main_line from a tag naming a relationship. Empty rows: GB hides a block
+		// whose tag renders nothing, taking a single-block row's label with it.
+		bws_fixture_gb_empty_row( 'F8b.1 argless src:ref reads EMPTY, not this page\'s own main_line', '{{text src:ref|use:key|key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F8b.2 same in chain spelling - argless refs step, EMPTY', '{{text src:refs|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'F8b.3 NEGATIVE CONTROL - a step WITH its argument is untouched (-> (555) 200-3000)', '{{text src:ref|ref:related_staff|use:key|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.1 unknown hop slug SHORT-CIRCUITS (-> empty, and that is correct)', '{{phone src:refs,related_staff;bogus,x|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
 	) );
@@ -774,7 +782,7 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7d.2 same-read inheriting slot reads the TERM title, not the page title (-> Sales, Support, Sales)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);use(same)}}' ),
 		bws_fixture_gb_row( 'F7d.2b LEGACY twin of F7d.2 - the fix is uniform across eras (-> same as F7d.2)', '{{join srcTermIn:department|use:title|limit:2|2-src:same|2-use:same}}' ),
 		bws_fixture_gb_row( 'F7d.3 a slot stating its OWN root does not acquire the carried hop (-> two titles only, page has no phone)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(current);key(phone)}}' ),
-		bws_fixture_gb_row( 'F7d.4 an inherited hop is a DEFAULT - the slot own terms step REPLACES it (-> office terms, not a skipped slot)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
+		bws_fixture_gb_row( 'F7d.4 an inherited hop is a DEFAULT - the slot own terms step REPLACES it (-> Sales, Support, Warehouse)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),

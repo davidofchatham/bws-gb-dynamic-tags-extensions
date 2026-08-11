@@ -81,23 +81,30 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *     un-hopped read, so silence would leave the author hunting for why a fully-sourced
  *     slot vanished. The SLUG comes from the seam — this maps it to author vocabulary and
  *     never re-derives which step was unfinished.
+ *   - `'inherit'` → a `same` root with nothing to be the same AS (no earlier slot
+ *     resolved). Flagged, and worded for what the author can DO about it: the chain is
+ *     expressible, so "source not supported" would send them after the wrong thing.
  *   - `'read'`  → an unconfigured slot: a normal in-progress state. SILENT.
  *
  * @since 1.17.0
- * @since 1.17.0 Takes the reason; `'step:<slug>'` added with the incomplete-hop skip.
+ * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'inherit'` added with the
+ *               ambient-fallback skips (#74).
  * @param int    $n      Slot ordinal (1-based).
  * @param string $reason Skip reason from the seam. Default 'chain'.
  * @return string Warning text, or '' when the reason is a silent one.
  */
 if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
 function bws_fold_skip_warning( int $n, string $reason = 'chain' ): string {
-	if ( 0 === strpos( $reason, 'step:' ) ) {
-		// Same nouns the per-slot warnings below use, so a skipped slot and a resolved
-		// one complain about the same thing in the same words.
-		$missing = ( 'step:refs' === $reason ) ? 'no ref' : 'no taxonomy';
-		return 'slot ' . $n . ' ' . $missing;
-	}
-	return 'chain' === $reason ? 'slot ' . $n . ' source not supported' : '';
+	// Keyed by the seam's reason so a new step slug adds a ROW rather than an if-arm, and
+	// so the nouns sit together with the per-slot warnings below that they must agree with
+	// ("no ref" / "no taxonomy" are the same words a RESOLVED slot uses for the same gap).
+	$phrases = array(
+		'step:refs'  => 'no ref',
+		'step:terms' => 'no taxonomy',
+		'inherit'    => 'no previous source',
+		'chain'      => 'source not supported',
+	);
+	return isset( $phrases[ $reason ] ) ? 'slot ' . $n . ' ' . $phrases[ $reason ] : '';
 }
 }
 
@@ -336,7 +343,8 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		$flat = bws_fold_slot_flat_options( $slot, $carry, false, $skip );
 		if ( null === $flat ) {
 			// 'read' cannot happen here (an absent read INHERITS in a selecting
-			// container); 'chain' and 'step' both speak — the owner decides which.
+			// container); every other reason speaks — bws_fold_skip_warning() owns which
+			// and in what words, so a new reason is added there and not tested here.
 			$warning = bws_fold_skip_warning( $n, $skip );
 			if ( '' !== $warning ) {
 				$skips[] = $warning;

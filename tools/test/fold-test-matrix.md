@@ -313,7 +313,7 @@ whole point is that it rendered something rather than nothing.
 | F7d.1 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(phone)}}` | `Sales, Support` — slot B silently contributed nothing | `Sales, Support, (987) 333-4444` |
 | F7d.2 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);use(same)}}` | `Sales, Support, Matrix: Terms (mixed junk)` — the PAGE title, which is what named the bug | `Sales, Support, Sales` |
 | F7d.3 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(current);key(phone)}}` | — | `Sales, Support` — a slot stating its OWN root does not acquire the carried hop, and the page has no `phone` |
-| F7d.4 | `{{join A:src(terms,department);use(title)\|B:src(same;terms,office);key(a)}}` | — | an inherited hop is a DEFAULT: slot B's own `terms` REPLACES it rather than colliding, so this is a term read of `office`, not a skipped slot |
+| F7d.4 | `{{join A:src(terms,department);use(title)\|B:src(same;terms,office);use(title)}}` | — | `Sales, Support, Warehouse` — an inherited hop is a DEFAULT: slot B's own `terms` REPLACES it rather than colliding, so this is a term read of `office`, not a skipped slot |
 
 The legacy twin of F7d.1/.2 is `{{join srcTermIn:department|use:title|limit:2|2-src:same|2-key:phone}}`
 and renders identically — the fix is uniform across both eras, so there is no era gate and the
@@ -350,6 +350,38 @@ twin of this is `limit-default-test-matrix.md` §L4.1/L4.2/L4.10; §F8's value i
 | F8.8 | — | `{{text src:refs,related_staff,limit(1);refs,reports_to\|use:title}}` | **EMPTY.** Step 1 is bounded to Jane (first target), Jane reports to nobody, so the chain short-circuits. F8.7's partner: without it, a step limit that bounded the WRONG step — or nothing — still passes F8.7 |
 | F8.9 | — | `{{text src:refs,related_staff;refs,reports_to\|use:key\|key:main_line}}` | `(555) 200-3000`, Jane's line. Reads a FIELD off the second-degree post rather than its title, so the chain is proven to land on a real entity and not merely to produce a plausible string |
 | F8.10 | — | `{{text src:refs,related_staff;terms,portal_visibility,limit(1)\|use:title}}` | `All Users, All Users` — **a LATER step's limit is PER-INPUT (#72)**: one term from EACH ref'd staff, not one overall. The whole-output engine rendered `All Users` here — the semantic the decision record, the migration's stamps and the Limit control's help text had already denied. Step 1 must stay UNBOUNDED (two inputs reach the limited step); `portal_visibility` because jane and tom carry no department terms (same fixture fact as F9.6). Pure pins: `fold-chain-compile-test.php` §C7 per-input cases |
+
+### §F8b — an ARGLESS step on a base tag reads EMPTY, not the ambient entity (#74)
+
+The base-tag half of the same fix as §F7d, and the only part of it that moves BASE-tag output.
+Through 1.16.x the compiler DROPPED an argument-less fanning step, which left the chain with no
+steps — and a chain with no steps resolves the ambient entity. So a tag whose wire said "follow a
+relationship" read the entry it sat on.
+
+**A skip and an empty read are indistinguishable in rendered output**, so these rows use
+`bws_fixture_gb_empty_row`: GB hides a block whose tag renders nothing, taking a single-block row's
+own label with it, and the row would read as a MISSING FIXTURE. The pure pins are
+`fold-chain-compile-test.php` §C3/§C6 and `traversal-pipeline-test.php`.
+
+Run on `/matrix-post-meta/`, where `related_staff` resolves and the page carries its own `main_line`
+— that contrast is the whole point, since the defect returned the PAGE's value.
+
+| # | Tag | Before (1.16.x) | Now |
+|---|---|---|---|
+| F8b.1 | `{{text src:ref\|use:key\|key:main_line}}` | `(987) 654-3210` — the PAGE's own field, from a tag naming a relationship | **EMPTY** |
+| F8b.2 | `{{text src:refs\|use:key\|key:main_line}}` | same, in chain spelling | **EMPTY** |
+| F8b.3 | `{{text src:ref\|ref:related_staff\|use:key\|key:main_line}}` | `(555) 200-3000` | unchanged — the negative control: a step WITH its argument is untouched |
+| F8b.4 | `{{text src:terms\|use:title}}` (on `/matrix-terms-mixed/`) | the page title | **EMPTY.** Hand-edit-only, twice over: the `bws-term-hop` control never writes an empty slug, and the chain control never commits a step it cannot complete |
+| F8b.5 | `{{text src:terms,department\|use:title}}` (on `/matrix-terms-mixed/`) | — | `Sales, Support, Warehouse` — the negative control for F8b.4 |
+
+**A flat `srcTermIn:` set to empty is NOT this shape and did not change.** The compiler appends a
+term step only when the value is non-empty, so an empty one never becomes an argless step — it means
+"no term step", which is exactly what the flat spelling has always meant. Only chain wire can state a
+`terms` step without its taxonomy.
+
+The SLOT half of the same rule is §F7d's neighbourhood, and differs in one way worth restating: on a
+slot an argless `refs` step is COMPLETE when the carry supplies its field, so it is skipped only when
+nothing was ever carried. A base tag has no carry, so it is always unfinished.
 
 ## §F9 — ARM DISPATCH: chain wire on a BASE tag (FW-63)
 
