@@ -339,10 +339,12 @@ so the two spellings take the same arm.
 shape is the bad one: a wrong arm renders a PLAUSIBLE value, not an empty one, so a row that "looks
 fine" is not evidence.
 
-> **MEASURED 2026-08-05** against the branch, every pair matching. Two caveats a reader must carry:
-> §F9a.3/§F9a.4 match on the WRONG entity ([#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58), pre-existing on `main`), and §F9a.7/§F9a.8 are vacuous
-> until the blueprint seeds attachments. An equivalence row proves the two spellings AGREE; it
-> never proves either is right.
+> **MEASURED 2026-08-05** against the branch, every pair matching. One caveat a reader must
+> carry: §F9a.7/§F9a.8 are vacuous until the blueprint seeds attachments. An equivalence row
+> proves the two spellings AGREE; it never proves either is right — which is exactly how
+> §F9a.3/§F9a.4 sat green for a release while `{{content}}`'s hop rendered the ambient entity's
+> VALUES inside the hopped post's structure ([#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58), fixed 1.17.0; correctness now lives in
+> [`content-test-matrix.md`](content-test-matrix.md), which is where a wrong entity fails).
 
 | # | Legacy | Chain | Expected |
 |---|---|---|---|
@@ -362,8 +364,8 @@ family with no list mode takes a different branch from one that has. One `refs` 
 |---|---|---|---|
 | F9a.1 | `{{title src:ref\|ref:related_staff\|limit:0}}` | `{{title src:refs,related_staff}}` | `Jane Partner, Tom Associate` (list-capable) |
 | F9a.2 | `{{title srcTermIn:department\|limit:0}}` | `{{title src:terms,department}}` | `Sales, Support` |
-| F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | the two must MATCH. ⚠ They match on the AMBIENT page's content, not jane's — `{{content}}` ignores the relationship step entirely, measured identically on `main`, so it is [#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58) and not an arm-dispatch failure. **Do not read this green pair as proof the hop works** |
-| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb. Same caveat as F9a.3 |
+| F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | the two must MATCH, on JANE's content — her `J1` row reads `Jane, Johnson`. The pair is an EQUIVALENCE only; that the entity is right is [`content-test-matrix.md`](content-test-matrix.md) §CT1/§CT2's property, and was [#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58) |
+| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb — the Sales blurb (support carries none). Correctness lives in §CT5 |
 | F9a.5 | `{{permalink src:ref\|ref:related_staff}}` | `{{permalink src:refs,related_staff}}` | jane's URL. Not list-capable |
 | F9a.6 | `{{permalink srcTermIn:department}}` | `{{permalink src:terms,department}}` | first term URL |
 | F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable. ⚠ **VACUOUS TODAY** — the blueprint seeds no attachments, so both sides render empty and the row asserts nothing. It needs a fixture (a featured image on a staff single and an image field on a department term) before it is worth trusting |

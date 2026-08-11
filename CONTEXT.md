@@ -155,6 +155,8 @@ GB's editor **preview REST route** resolves the edited post by appending `id:<po
 
 This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot resolves identically to the same tag standalone — which fails silently in the editor if the id isn't propagated). Enforced at: `bws_join_callback` `$explicit_id` PHPDoc (base-tags.php). Schema/behavior: `tag-reference.md` §join (editor preview) + `tools/test/join-test-matrix.md` §Editor preview.
 
+**Front-end analog — a RENDERED entity's inner tags.** The same "a sub-read with no id falls back to ambient" mechanism bites on the front end wherever we render another entity's block markup: `{{content}}`'s inner dynamic tags go through `do_blocks()` carrying no block context, so they read the global `$post`. On a hopped read that is the viewing page, not the post being rendered — the hopped post's structure filled with the ambient page's values. The correction is the same shape (make the target reachable to the sub-read) with a different mechanism: swap the global post for the duration, `bws_with_post_context()`. Enforced at: that function's PHPDoc; mechanism: [`post-content-processing-reference.md` §Post-context swap](docs/post-content-processing-reference.md#post-context-swap-1170); coverage: `tools/test/content-test-matrix.md`.
+
 ---
 
 ## I12 — Link-wrappability is a property of the VALUE, not of the source kind

@@ -594,6 +594,9 @@ function bws_fixture_core_structures_register_acf() {
 					'label' => 'Email',
 					'type'  => 'email',
 				),
+				// content matrix CT4 / fold F9a.4 — the term-hop {{content use:key}}
+				// read. Sparse on warehouse so the first-non-empty walk is visible.
+				$text( 'blurb', 'Department Blurb' ),
 				array(
 					// datetime matrix D4 — srcTermIn list rows (valid on support/sales,
 					// junk on warehouse per the manifest).

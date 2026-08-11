@@ -631,7 +631,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// Matches on the AMBIENT page's content, not jane's: {{content}} ignores the
 		// relationship step entirely (issue #58, measured identically on main). The
 		// PAIR agreeing is the arm-dispatch property; it is not proof the hop works.
-		bws_fixture_gb_row( 'F9a.3 legacy content ref - see issue #58, reads the AMBIENT page (pair must still MATCH)', '{{content src:ref|ref:related_staff|use:excerpt}}' ),
+		bws_fixture_gb_row( "F9a.3 legacy content ref (-> jane's excerpt, HER values: Jane, Johnson - the pair must MATCH; entity correctness is CT1-CT3 on /matrix-content/)", '{{content src:ref|ref:related_staff|use:excerpt}}' ),
 		bws_fixture_gb_row( 'F9a.3 chain content ref (-> same as the legacy row above)', '{{content src:refs,related_staff|use:excerpt}}' ),
 	) );
 
@@ -791,11 +791,54 @@ function bws_fixture_page_content_matrix_term_hop() {
 	) );
 }
 
+/**
+ * Page content: matrix-content (page-matrix-content) — content-test-matrix.md.
+ *
+ * Its own page because the property under test is WHICH ENTITY the read lands
+ * on, and a hopped {{content}} renders a whole other page's blocks inline. The
+ * matrix pages carry values that would then appear twice from two entities on
+ * one screen; here the page's own field values are deliberately distinct from
+ * the staff singles' so ambient-vs-hopped is legible at a glance (#58).
+ *
+ * A BARE {{content}} row is absent by design: it would recurse into the page
+ * being rendered, which the ContentProcessor stack guard answers with '' — the
+ * recursion guard's own coverage, not this page's.
+ */
+function bws_fixture_page_content_matrix_content() {
+	$sections = array();
+
+	// CT1-CT3 — the hop reads the TARGET post, inner tags included (#58). Jane's
+	// content is the join NAME rows off her own name_* fields, so her rows read
+	// `Jane, Johnson` here; before the context swap they read this page's values.
+	$sections[] = bws_fixture_gb_section( 'Content CT1-CT3 - a hopped read lands on the TARGET entity (#58)', array(
+		bws_fixture_gb_row( "CT1 plain hop (-> jane's blocks, and her J1 row reads Jane, Johnson - NOT this page's values)", '{{content src:ref|ref:related_staff}}' ),
+		bws_fixture_gb_row( "CT2 chain-spelled twin (-> same as CT1)", '{{content src:refs,related_staff}}' ),
+		bws_fixture_gb_row( "CT3 excerpt hop (-> jane's content trimmed, her values, and the read-more link points at /staff/jane-partner/)", '{{content src:ref|ref:related_staff|use:excerpt}}' ),
+	) );
+
+	// CT4-CT5 — the other two arms of the same callback. Neither renders blocks,
+	// so neither can drift on entity the way CT1-CT3 did; they are here so the
+	// content family's arms are covered in one place.
+	$sections[] = bws_fixture_gb_section( 'Content CT4-CT5 - the field-read arms', array(
+		bws_fixture_gb_row( "CT4 post arm, use:key (-> jane's main line, (555) 200-3000)", '{{content src:ref|ref:related_staff|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'CT5 term arm, use:key - support carries no blurb, so the walk skips to sales (-> the Sales blurb)', '{{content srcTermIn:department|use:key|key:blurb}}' ),
+	) );
+
+	// CT6 — the ambient read is the contrast that makes CT1 non-vacuous: same tag,
+	// no hop, so it must show THIS page's own values.
+	$sections[] = bws_fixture_gb_section( 'Content CT6 - the ambient contrast', array(
+		bws_fixture_gb_row( "CT6 no hop, this page's own field (-> (321) 555-0100, this page's line, NOT jane's)", '{{text key:main_line}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
 		'matrix_post_meta' => 'bws_fixture_page_content_matrix_post_meta',
 		'matrix_term_hop'  => 'bws_fixture_page_content_matrix_term_hop',
+		'matrix_content'   => 'bws_fixture_page_content_matrix_content',
 		'staff_join'       => 'bws_fixture_page_content_staff_join',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {

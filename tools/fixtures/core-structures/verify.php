@@ -107,5 +107,33 @@ $check( 'render {{datetime_single key:event_datetime}} on /matrix-post-meta/', s
 $out6 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{datetime_single src:site|key:org_party_datetime}}', [], $instance );
 $check( 'src:site datetime option renders', strpos( (string) $out6, '2030' ) !== false, 'out=' . var_export( $out6, true ) );
 
+// content surface (#58): the fixture state the CT rows need. The hop's own
+// correctness is the matrix's job — this asserts only that the state exists,
+// i.e. that a CT row failing means the CODE moved and not the seed.
+$content_page = get_page_by_path( 'matrix-content' );
+$check( 'page matrix-content exists', $content_page instanceof WP_Post );
+$check(
+	'matrix-content field values differ from jane\'s (CT rows need the contrast)',
+	$content_page && '(321) 555-0100' === get_post_meta( $content_page->ID, 'main_line', true ),
+	$content_page ? var_export( get_post_meta( $content_page->ID, 'main_line', true ), true ) : ''
+);
+// CT3 asserts the excerpt's read-more link points at the EXCERPTED post, which
+// is only readable if the two permalinks differ — cheap to assert, and a seed
+// change that collapsed them would make the row silently vacuous.
+$jane = get_page_by_path( 'jane-partner', OBJECT, 'staff' );
+$check(
+	'jane\'s permalink differs from matrix-content\'s (CT3 read-more target)',
+	$jane && $content_page && get_permalink( $jane->ID ) !== get_permalink( $content_page->ID ),
+	$jane && $content_page ? get_permalink( $jane->ID ) . ' vs ' . get_permalink( $content_page->ID ) : 'missing fixture'
+);
+$sales = get_term_by( 'slug', 'sales', 'department' );
+$check(
+	'term blurb seeded on sales, absent on support (CT5 walk)',
+	$sales && '' !== (string) get_term_meta( $sales->term_id, 'blurb', true )
+		&& $term && '' === (string) get_term_meta( $term->term_id, 'blurb', true ),
+	'sales=' . ( $sales ? var_export( get_term_meta( $sales->term_id, 'blurb', true ), true ) : 'no term' )
+		. ' support=' . ( $term ? var_export( get_term_meta( $term->term_id, 'blurb', true ), true ) : 'no term' )
+);
+
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );
