@@ -34,6 +34,21 @@ $check( 'term meta phone', $term && get_term_meta( $term->term_id, 'phone', true
 
 $check( 'option org_phone', get_option( 'options_org_phone' ) === '(987) 555-0000', var_export( get_option( 'options_org_phone' ), true ) );
 
+// AMBIENT-CONTEXT GATE. Everything below this line reads the current post, so
+// without --url the main query resolves nothing, $post is null, and every
+// context-rooted row fails with an empty render — five FAILs that look like a
+// code regression and are not. Bail with the invocation instead.
+if ( ! $page instanceof WP_Post || get_queried_object_id() !== $page->ID ) {
+	printf(
+		"\nABORT — no ambient context (queried object: %s, expected matrix-post-meta: %s).\n"
+		. "Re-run with the page URL, or every context-rooted check below fails empty:\n"
+		. "  wp eval-file <repo>/tools/fixtures/core-structures/verify.php --url=https://<site-domain>/matrix-post-meta/\n",
+		var_export( get_queried_object_id(), true ),
+		$page instanceof WP_Post ? $page->ID : 'MISSING'
+	);
+	exit( 2 );
+}
+
 // Render seam end-to-end: phone tag off the matrix-post-meta page context.
 $out = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone key:main_line}}', [], $instance );
 $check( 'render {{phone key:main_line}} on /matrix-post-meta/ (CC 1 baseline)', strpos( (string) $out, 'tel:+1-987-654-3210' ) !== false, 'out=' . var_export( $out, true ) );
