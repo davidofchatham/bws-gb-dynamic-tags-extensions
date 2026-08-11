@@ -76,22 +76,26 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * WHICH REASONS SPEAK, and why it is not "all of them":
  *   - `'chain'` → wire that will never render. Flagged, or the preview silently omits a
  *     slot the author configured and reads as if the tag were one slot smaller.
- *   - `'step'`  → an incomplete step (a `terms` hop with no taxonomy). Flagged, and NAMED
- *     for what is missing: the slot is skipped only because the seam refuses to flatten
- *     an unfinished hop into the un-hopped read, so silence would leave the author
- *     hunting for why a fully-sourced slot vanished.
+ *   - `'step:<slug>'` → an incomplete step. Flagged, and NAMED for what is missing: the
+ *     slot is skipped only because the seam refuses to flatten an unfinished hop into the
+ *     un-hopped read, so silence would leave the author hunting for why a fully-sourced
+ *     slot vanished. The SLUG comes from the seam — this maps it to author vocabulary and
+ *     never re-derives which step was unfinished.
  *   - `'read'`  → an unconfigured slot: a normal in-progress state. SILENT.
  *
  * @since 1.17.0
- * @since 1.17.0 Takes the reason; `'step'` added with the incomplete-hop skip.
+ * @since 1.17.0 Takes the reason; `'step:<slug>'` added with the incomplete-hop skip.
  * @param int    $n      Slot ordinal (1-based).
  * @param string $reason Skip reason from the seam. Default 'chain'.
  * @return string Warning text, or '' when the reason is a silent one.
  */
 if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
 function bws_fold_skip_warning( int $n, string $reason = 'chain' ): string {
-	if ( 'step' === $reason ) {
-		return 'slot ' . $n . ' no taxonomy';
+	if ( 0 === strpos( $reason, 'step:' ) ) {
+		// Same nouns the per-slot warnings below use, so a skipped slot and a resolved
+		// one complain about the same thing in the same words.
+		$missing = ( 'step:refs' === $reason ) ? 'no ref' : 'no taxonomy';
+		return 'slot ' . $n . ' ' . $missing;
 	}
 	return 'chain' === $reason ? 'slot ' . $n . ' source not supported' : '';
 }

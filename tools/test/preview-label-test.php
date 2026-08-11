@@ -376,14 +376,17 @@ check(
 	),
 	"[Try 'sku' from Current, 'alt' from Ref 'rel']"
 );
-// Slot ref with no ref key → warning.
+// Slot ref with no ref key → warning. Since #74 the slot is SKIPPED rather than resolved
+// with an empty ref, so the skip warning is the whole message: the per-slot "no key" check
+// never runs, and complaining about the key of a slot that will not read anything would
+// send the author after the wrong thing.
 check(
 	'slot ref no ref → warn',
 	bws_build_try_preview_label(
 		[ 'src' => 'ref' ],
 		'text'
 	),
-	'[⚠ Try: slot 1 no ref, slot 1 no key]'
+	'[⚠ Try: slot 1 no ref]'
 );
 // Fallback annotation on try.
 check(

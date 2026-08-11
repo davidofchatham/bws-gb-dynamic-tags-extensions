@@ -27,10 +27,15 @@
  *   or already a step off the ambient entity (PLURAL). Roots are consumed by the source
  *   FACTORY (bws_resolve_base_source), steps by the engine, so the compile splits them
  *   rather than making the factory understand chains.
- * - **An ARGLESS fanning step is DROPPED, matching both retired assemblers.** A legacy
- *   `src:ref` with no `ref` field emitted NO step, so the tag read the ambient entity;
- *   compiling it into a field-less `ref` step would short-circuit the fold to empty and
- *   change what a (garbage but stored) wire renders.
+ * - **An ARGLESS fanning step KEEPS its step and loses only its argument** (#74). The
+ *   engine answers empty for it, so the chain short-circuits and the tag renders nothing.
+ *   The retired assemblers dropped it — and so did this compiler through 1.16.x — which
+ *   left the chain with NO steps, and a chain with no steps resolves the AMBIENT entity.
+ *   A legacy `src:ref` with no `ref` therefore read the post you were standing on rather
+ *   than nothing: a plausible value from the wrong entity, worse than an empty one because
+ *   nothing looks broken. This is the same principle as the unknown-slug rule below, and
+ *   the slot control has always TOLD authors it works this way ("This attempt will be
+ *   skipped unless a field is set") while only the slot path did it.
  * - **An UNKNOWN step slug compiles to an unknown engine type, never to nothing.** The
  *   engine's default arm yields an empty list (V2 silent-empty), so the chain
  *   short-circuits and the tag renders nothing. Dropping the step instead would read a
@@ -148,10 +153,11 @@ const BWS_FOLD_STATIC_ROOT_KINDS = array(
  * source" — never a claim about a given render. Every step slug fans, so it is true
  * iff the chain steps at all.
  *
- * The chain is read as PARSED, not as COMPILED: bws_fold_chain_to_steps() drops an
- * argless fanning step (a legacy `src:ref` with no `ref` field emitted no step), and
- * dispatching off the compiled list would send that tag down the ambient arm when
- * the flat spelling has always sent it down the post arm.
+ * The chain is read as PARSED, not as COMPILED. The two no longer disagree about argless
+ * steps (#74 stopped the compiler dropping them), but the distinction still matters and
+ * must not be "simplified" away: position 0 is a ROOT here and is consumed by the factory
+ * rather than compiled, so the compiled list cannot answer what the chain's root is. Read
+ * the parsed chain, which still holds it.
  *
  * @since 1.17.0
  * @param array $chain Parsed chain (bws_fold_parse_chain shape).
@@ -263,16 +269,25 @@ function bws_fold_chain_to_steps( array $chain ): array {
 			// list and short-circuits the chain. Never silently dropped (see header).
 			$engine_step = array( 'type' => $slug );
 		} else {
-			if ( '' === $arg ) {
-				continue;   // Argless fanning step: no step, as the flat assemblers had it.
-			}
 			if ( 'terms' === $slug ) {
 				$arg = sanitize_key( $arg );
-				if ( '' === $arg ) {
-					continue;
-				}
 			}
-			$engine_step = array( 'type' => $slug, $known => $arg );
+			// An ARGUMENT-LESS fanning step keeps its step and loses only its argument
+			// (#74). The engine's reader answers '' for a field-less `refs` and array()
+			// for a slug-less `terms`, so the chain short-circuits and the tag renders
+			// nothing — which is the point. DROPPING the step instead (what shipped
+			// through 1.16.x, matching the retired flat assemblers) leaves the chain with
+			// no steps at all, and a chain with no steps resolves the AMBIENT entity: a
+			// tag whose wire says "follow a relationship" would read the post you are
+			// standing on. That is a plausible value from the wrong entity, which is
+			// strictly worse than an empty one because nothing looks broken.
+			//
+			// A sanitized-to-nothing `terms` arg lands here too: an unusable argument and
+			// an absent one are the same state, and the flat spelling could not tell them
+			// apart either.
+			$engine_step = ( '' === $arg )
+				? array( 'type' => $slug )
+				: array( 'type' => $slug, $known => $arg );
 		}
 
 		// Only a REAL bound rides the step: 0/-1 are unlimited and the engine spells that

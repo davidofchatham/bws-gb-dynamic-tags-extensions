@@ -1364,8 +1364,11 @@ function bws_fold_empty_slot(): array {
  *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
  *                            combining slot has no read configured; 'chain' when the chain
- *                            has no flat spelling; 'step' when a step is incomplete (a
- *                            `terms` step with no taxonomy).
+ *                            has no flat spelling; 'step:<slug>' when that step is
+ *                            incomplete — 'step:terms' (no taxonomy) or 'step:refs' (no
+ *                            relationship field AND nothing carried to inherit one from).
+ *                            The slug rides the reason so the preview can name what is
+ *                            missing without re-deriving the skip rule.
  * @param int    $limit_default OUT, by reference. The limit this slot takes when its wire
  *                            states none: 0 (unlimited) for a chain-spelled slot, 1 for a
  *                            flat-spelled one. Written before any early return, same
@@ -1431,10 +1434,25 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 			if ( 'refs' === $slug ) {
 				// An ARGLESS step keeps the carried relationship field rather than
 				// blanking it: shipped `$last_ref` survives every src override, so
-				// `3-src:ref` with no `3-ref` steps through slot 1's field. With nothing
-				// carried it stays empty and the step is dead — as it is today.
+				// `3-src:ref` with no `3-ref` steps through slot 1's field. The step is
+				// COMPLETE that way — the carry supplied its argument.
+				//
+				// With nothing carried there is no argument from anywhere, and the step is
+				// unfinished. Skip it, exactly as an incomplete `terms` hop skips (#74).
+				// This comment used to claim the step was "dead" here; it was not. The flat
+				// triple `{src:'ref', ref:''}` compiles to a chain whose only step is
+				// argument-less, and through 1.16.x that step was DROPPED — leaving a
+				// rootless chain, which resolves the AMBIENT entity. So the slot read the
+				// post you were standing on and returned a plausible wrong value. In a
+				// selecting container that is worse still: an ambient read that SUCCEEDS
+				// stops the fallback chain, so later attempts never run.
+				$ref_arg = ( null !== $arg && '' !== $arg ) ? (string) $arg : $carry['ref'];
+				if ( '' === $ref_arg ) {
+					$skip_reason = 'step:refs';
+					return null;
+				}
 				$src = 'ref';
-				$ref = ( null !== $arg && '' !== $arg ) ? (string) $arg : $carry['ref'];
+				$ref = $ref_arg;
 				continue;
 			}
 			if ( 'terms' !== $slug ) {
@@ -1460,11 +1478,16 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 			// because an unconfigured read is a resting state). Its own reason, so the
 			// previews can name what is missing.
 			//
-			// Only `terms` gets this. An argless `refs` step is legitimate — it inherits
-			// the carried relationship field (see above) — and the fold is what made an
-			// incomplete step authorable at all: the flat wire had no way to state a step
-			// without stating its argument.
-			$skip_reason = 'step';
+			// `refs` gets the same treatment, but only when NOTHING is carried (see
+			// above): there an argless step inherits its argument and is complete, which
+			// is the one asymmetry between the two. The fold is what made an incomplete
+			// step authorable at all — the flat wire had no way to state a step without
+			// stating its argument.
+			//
+			// The reason NAMES the unfinished step, because the two need different
+			// author-facing nouns and deriving that in the preview would be a second copy
+			// of the skip rule.
+			$skip_reason = 'step:terms';
 			return null;
 		}
 		$tax = (string) $arg;

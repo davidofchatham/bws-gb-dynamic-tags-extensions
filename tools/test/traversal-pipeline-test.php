@@ -501,8 +501,11 @@ eq( 'assemble bare -> no steps', array(), bws_field_values_assemble_steps( array
 eq( 'assemble src:current -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'current' ) ) );
 eq( 'assemble src:site -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'site' ) ) );
 
-// src:ref WITHOUT a ref key → no step (nothing to hop; avoids empty-field ref).
-eq( 'assemble src:ref no key -> no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+// src:ref WITHOUT a ref key → an ARGUMENT-LESS step, never no step (#74). The engine
+// answers '' for a field-less refs read, so the chain short-circuits and the tag renders
+// nothing. Dropping the step left the chain with no steps at all, which resolves the
+// AMBIENT entity — the tag read the post you were standing on.
+eq( 'assemble src:ref no key -> argument-less step', array( array( 'type' => 'refs' ) ), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 
 // ── §V4 — wrapper collapse (bws_first_post_id_from_sources) ──────────────────
 //
@@ -554,7 +557,7 @@ eq( 'V13 wrapper ref beside srcTermIn -> ref step only', array( array( 'type' =>
 eq( 'V13 wrapper bare -> no step', array(), bws_wrapper_ref_steps( array() ) );
 eq( 'V13 wrapper src:current -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'current' ) ) );
 eq( 'V13 wrapper src:site -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'site' ) ) );
-eq( 'V13 wrapper src:ref no key -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
+eq( 'V13 wrapper src:ref no key -> argument-less step', array( array( 'type' => 'refs' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
 
 // ── §V7 — ambient-term analog gate (bws_base_ambient_term_id) ─────────────────
 //

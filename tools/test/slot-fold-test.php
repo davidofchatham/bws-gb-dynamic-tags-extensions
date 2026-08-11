@@ -908,13 +908,30 @@ foreach ( array(
 }
 $sr_carry = array();
 bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(terms);key(role)' ), $sr_carry, true, $sr );
-check( 'P13.5c an incomplete step reports reason `step`, not `chain`', 'step' === $sr, var_export( $sr, true ) );
+// The reason NAMES the unfinished step. Two steps can be incomplete and they need
+// different author-facing nouns, so the slug rides the reason rather than the preview
+// guessing — which is what "no taxonomy" on an argless `refs` hop looked like.
+check( 'P13.5c an incomplete step reports reason `step:terms`, not `chain`', 'step:terms' === $sr, var_export( $sr, true ) );
 $argless_ref = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(refs);key(b)' ), 'join' );
 check(
 	'P13.5c an argless `refs` hop still INHERITS rather than skipping',
 	array( 'src' => 'ref', 'ref' => 'office' ) === array_intersect_key( (array) ( $argless_ref[2] ?? array() ), array( 'src' => 1, 'ref' => 1 ) ),
 	json_encode( $argless_ref[2] ?? null )
 );
+// …but an argless `refs` with NOTHING CARRIED is incomplete, not inherited (#74). The
+// distinction is the whole of it: the step is complete when the carry supplies its field,
+// and only unfinished when nothing ever did. Skipping is what the seam docblock always
+// CLAIMED happened here ("the step is dead"); what actually happened is that the flat
+// triple `{src:'ref', ref:''}` compiled to a rootless chain and read the AMBIENT entity.
+$argless_orphan = t_seam_walk( array( 'A' => 'src(refs);key(a)' ), 'join' );
+check(
+	'P13.5c an argless `refs` with nothing carried SKIPS (never falls back to ambient)',
+	! isset( $argless_orphan[1] ),
+	json_encode( $argless_orphan[1] ?? null )
+);
+$orphan_carry = array();
+bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(refs);key(a)' ), $orphan_carry, true, $osr );
+check( 'P13.5c …and reports `step:refs`, so the preview names the RIGHT missing thing', 'step:refs' === $osr, var_export( $osr, true ) );
 
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
 $lead_terms = t_seam_walk( array( 'A' => 'src(terms,category);use(title)' ), 'join' );

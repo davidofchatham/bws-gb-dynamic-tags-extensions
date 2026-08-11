@@ -250,16 +250,31 @@ assert_same(
 	array( array( 'type' => 'terms', 'slug' => 'mytax' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,My Tax!' ) )
 );
-// Argless fanning step: NO step, so the tag reads the ambient entity — byte-identical
-// to legacy `src:ref` with no `ref` field. A field-less ref step would short-circuit
-// the fold to empty and change what a stored (garbage) wire renders.
-assert_same( 'argless refs → no step', array(), bws_fold_chain_to_steps( chain_of( 'refs' ) ) );
-assert_same( 'argless terms → no step', array(), bws_fold_chain_to_steps( chain_of( 'terms' ) ) );
-assert_same( 'argless entries → no step', array(), bws_fold_chain_to_steps( chain_of( 'entries' ) ) );
+// Argless fanning step: the step is KEPT, argument-less, so the engine answers empty and
+// the chain short-circuits. It must NOT be dropped (#74): dropping it leaves the chain
+// rootless, and a rootless chain resolves the AMBIENT entity — so a tag whose wire says
+// "follow a relationship" would read the post you are standing on, which is a plausible
+// value from the wrong entity rather than an obvious empty one.
+//
+// This INVERTS the pre-1.17.0 reading, which preserved the ambient read as byte-identical
+// to legacy `src:ref` with no `ref`. The population is measured-empty and 1.17.0's own slot
+// control already promises the opposite ("This attempt will be skipped unless a field is
+// set"), so the code now does what the UI says.
+assert_same( 'argless refs → argument-less step, never dropped', array( array( 'type' => 'refs' ) ), bws_fold_chain_to_steps( chain_of( 'refs' ) ) );
+assert_same( 'argless terms → argument-less step, never dropped', array( array( 'type' => 'terms' ) ), bws_fold_chain_to_steps( chain_of( 'terms' ) ) );
+assert_same( 'argless entries → argument-less step, never dropped', array( array( 'type' => 'entries' ) ), bws_fold_chain_to_steps( chain_of( 'entries' ) ) );
 assert_same(
-	'a slug that sanitizes to nothing → no step',
-	array(),
+	'a slug that sanitizes to nothing is argless too (unusable arg, same answer)',
+	array( array( 'type' => 'terms' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,!!!' ) )
+);
+// The property the retention exists FOR: empty, not ambient. Asserted through the engine
+// rather than inferred from the step shape, because "the reader returns '' for a field-less
+// refs step" is the load-bearing half and lives in another file.
+assert_same(
+	'the engine yields nothing for an argless refs step (so the chain empties)',
+	array(),
+	bws_run_traversal( array( array( 'kind' => 'post', 'id' => 1 ) ), bws_fold_chain_to_steps( chain_of( 'refs' ) ) )
 );
 // Unknown vocabulary at a HOP position compiles to an unknown engine type, which the
 // engine answers with an empty list — the chain short-circuits and the tag renders
@@ -394,7 +409,11 @@ echo "\n§C6 the two retired assemblers — EQUIVALENCE with their pre-1.17.0 ou
 assert_same( 'assemble bare → no steps', array(), bws_field_values_assemble_steps( array() ) );
 assert_same( 'assemble src:current → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'current' ) ) );
 assert_same( 'assemble src:site → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'site' ) ) );
-assert_same( 'assemble src:ref no field → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+// The ONE row where the compiler deliberately DIVERGES from the retired assembler (#74).
+// The assembler emitted no step, leaving the tag on the ambient entity; an orphan `src:ref`
+// now keeps its argument-less step and reads empty. Everything else in this section is
+// still byte-identical, which is what keeps the refactor invisible to real wire.
+assert_same( 'assemble src:ref no field → argument-less step (was: no steps)', array( array( 'type' => 'refs' ) ), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'assemble srcTermIn → [srcTermIn]',
 	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
@@ -429,7 +448,9 @@ echo "\n§C6b bws_wrapper_ref_steps — the LEADING RUN of ref steps (§V13, B2)
 assert_same( 'wrapper bare → no step', array(), bws_wrapper_ref_steps( array() ) );
 assert_same( 'wrapper src:current → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'current' ) ) );
 assert_same( 'wrapper src:site → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'site' ) ) );
-assert_same( 'wrapper src:ref no field → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
+// Same #74 inversion as §C6: an orphan `src:ref` keeps its argument-less step, so the
+// wrapper read empties instead of falling back to the ambient entity.
+assert_same( 'wrapper src:ref no field → argument-less step (was: no step)', array( array( 'type' => 'refs' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'wrapper src:ref → ref step',
 	array( array( 'type' => 'refs', 'field' => 'related' ) ),
@@ -629,15 +650,17 @@ assert_same(
 	$res( array( 'src' => 'site;entries,team' ) )
 );
 
-// An ARGLESS fanning step is dropped by the COMPILER but is still a step on the
-// WIRE. Dispatching off the compiled list would send `src:ref` with no `ref` down
-// the ambient arm, when the flat spelling has always sent it down the post arm.
+// An ARGLESS fanning step is a step on the WIRE, and since #74 it is a step in the
+// COMPILED list too — argument-less, so the engine empties the chain rather than leaving
+// it rootless on the ambient entity. Resolution still reads the PARSED chain, but no
+// longer because the two disagree here: it reads it because position 0 is a root the
+// compiler hands to the factory, so the compiled list cannot answer what the root is.
 assert_same(
-	'src:ref with NO ref field → still post kind (parsed, not compiled)',
+	'src:ref with NO ref field → still post kind',
 	'post/fans/',
 	$res( array( 'src' => 'ref' ) )
 );
-assert_same( 'and the compiler still drops the step', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+assert_same( 'and the compiler now KEEPS the step, argument-less', array( array( 'type' => 'refs' ) ), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 
 // Unknown vocabulary is honestly unknown, never guessed back to the root — the
 // engine answers empty for an unknown type, so the chain short-circuits.
