@@ -1381,14 +1381,17 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 }
 
 /**
- * Migration transform_callback: PER-SLOT `rel` → `ref` on a try_ tag, with the matching
- * slot `src:ref` (#56).
+ * Migration transform_callback: `rel` → `ref`, with the matching `src:ref` — per slot on a
+ * try_ tag, bare keys on a base or term_ tag (#56, extended to all three families by #57).
  *
  * The declarative pipeline cannot express this, and the reason is worth stating because
  * the obvious spelling looks correct and destroys data:
  *
- *   1. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
- *   2. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
+ *   1. `option_renames` assigns UNCONDITIONALLY, so on a tag carrying both spellings the
+ *      inert `rel` overwrites a LIVE `ref` (#57 — the base/term_ families shipped exactly
+ *      that from 1.6.0).
+ *   2. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
+ *   3. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
  *      `3-rel` must set `3-src`, not `src`.
  *
  * The first draft therefore renamed the keys and injected NOTHING, on the reasoning that
@@ -1405,23 +1408,30 @@ function bws_migrate_related_post_src( string $tag_string ): string {
  * stated from the other side):
  *
  *   `N-src:ref`           the compiler reads `ref`; `rel` is inert  → `ref` WINS
- *   `N-src:related_post`  the retired class read `rel`; `ref` inert → `rel` WINS
+ *   `N-src:related_post`  the retired class read `rel`; `ref` inert → DEFERRED, see below
  *   `N-src` absent        NEITHER was read — the slot hopped nowhere. No faithful answer
  *                         exists, so this is a repair: `ref` if set, else `rel`, and
  *                         `src:ref` is injected on the premise a slot naming a
- *                         relationship descends from a relationship hop ($rel_fix's).
+ *                         relationship descends from a relationship hop.
  *
- * The `related_post` case must be settled HERE even though a later entry owns that token,
- * because this transform runs first in the cascade and deleting `rel` would destroy the
- * evidence bws_migrate_related_post_src() needs to apply the same rule.
+ * A `related_post` slot is DEFERRED WHOLE — skipped byte-identical, `rel` left in place —
+ * because bws_migrate_related_post_src(), the sole owner of that token, ranks `rel` above
+ * `key` and needs both intact to do it. Settling the slot here (write `ref = rel`, delete
+ * `rel`) destroyed exactly that evidence: the later entry, finding no `rel`, fell to its
+ * key-COPY branch and overwrote the settled `ref` with the field key (#73). The cascade
+ * makes the hand-off safe: this transform no-ops on the slot, the later entry still runs.
+ * Same shape as the mount path's decline (BWS_FOLD_RETIRED_SRC_TOKENS skips such slots
+ * whole), and the deferred slot always has a downstream owner because the related_post
+ * entry registers for every family this one does.
  *
  * An explicit `src` is never overwritten — only an absent one is filled.
  *
- * @since 1.17.0
+ * @since 1.17.0 (as bws_migrate_slot_rel_to_ref; renamed when the base/term_ families
+ *               moved onto it, replacing their declarative `$rel_fix` pair)
  * @param string $tag_string Raw tag string.
  * @return string Rewritten tag string (unchanged when no slot carries a `rel`).
  */
-function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
+function bws_migrate_rel_to_ref( string $tag_string ): string {
 	$reg = 'BWS\DynamicTags\MigrationRegistry';
 	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
 
@@ -1430,23 +1440,39 @@ function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
 	// Slot 1 is bare; 2..5 mirror what generate_base_try_tags() registers.
 	foreach ( array( '', '2-', '3-', '4-', '5-' ) as $prefix ) {
 		$rel_key = $prefix . 'rel';
-		$rel     = isset( $options[ $rel_key ] ) ? trim( (string) $options[ $rel_key ] ) : '';
-		if ( '' === $rel ) {
+		if ( ! isset( $options[ $rel_key ] ) ) {
 			continue;
 		}
 
-		$touched = true;
-		unset( $options[ $rel_key ] );
+		// A present-but-EMPTY `rel:` names nothing to move, but the dead key is still
+		// consumed — leaving it would have the converter report this migration forever
+		// while changing nothing (the report/run agreement §R3 pins).
+		$rel = trim( (string) $options[ $rel_key ] );
+		if ( '' === $rel ) {
+			$touched = true;
+			unset( $options[ $rel_key ] );
+			continue;
+		}
 
 		$ref_key = $prefix . 'ref';
 		$src_key = $prefix . 'src';
 		$src     = trim( (string) ( $options[ $src_key ] ?? '' ) );
 		$has_ref = '' !== trim( (string) ( $options[ $ref_key ] ?? '' ) );
 
-		// The slot's own src decides which spelling was ever read — see docblock. Only
-		// `related_post` makes `rel` the live one, and there it must overwrite the inert
-		// `ref` rather than lose to it.
-		if ( ! $has_ref || 'related_post' === $src ) {
+		// DEFER-WHOLE (#73): under `related_post` the `rel` is the live spelling, but
+		// settling it here destroys the rel-vs-key evidence the token's owner needs —
+		// see docblock. Skip the slot byte-identical; bws_migrate_related_post_src()
+		// consumes it later in the same cascade.
+		if ( 'related_post' === $src ) {
+			continue;
+		}
+
+		$touched = true;
+		unset( $options[ $rel_key ] );
+
+		// Under every remaining token the `rel` was never read, so an existing `ref`
+		// wins and the `rel` is dropped; only an absent `ref` takes it (repair).
+		if ( ! $has_ref ) {
 			$options[ $ref_key ] = $rel;
 		}
 
@@ -1483,10 +1509,14 @@ function bws_register_option_migrations(): void {
 
 	// Base tags that carry a 'ref' relationship option when source:ref — if 'rel' is present
 	// instead, the tag was converted by the buggy pre-fix converter. Rename rel→ref and ensure
-	// source:ref is injected first.
+	// source:ref is injected.
+	//
+	// A transform_callback, not the declarative option_renames + source_inject pair it was
+	// from 1.6.0 to 1.17.0: option_renames assigns unconditionally, so on a tag carrying
+	// BOTH spellings the inert `rel` overwrote a live `ref` (#57). The callback applies the
+	// src-decides rule and defers `src:related_post` whole — see bws_migrate_rel_to_ref().
 	$rel_fix = array(
-		'option_renames' => array( 'rel' => 'ref' ),
-		'source_inject'  => 'ref',
+		'transform_callback' => 'bws_migrate_rel_to_ref',
 	);
 
 	foreach ( array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range' ) as $base_tag ) {
@@ -1798,8 +1828,8 @@ function bws_register_option_migrations(): void {
 		}
 	}
 
-	// try_ tags. A transform_callback rather than option_renames + source_inject, for two
-	// reasons that only show up together — see bws_migrate_slot_rel_to_ref().
+	// try_ tags. Same callback; the per-slot keys are why it loops prefixes — see
+	// bws_migrate_rel_to_ref().
 	$try_rel_keys = array( 'rel' );
 	for ( $slot = 2; $slot <= 5; $slot++ ) {
 		$try_rel_keys[] = $slot . '-rel';
@@ -1815,7 +1845,7 @@ function bws_register_option_migrations(): void {
 				'match_tag'          => $tag,
 				'match_any_options'  => $try_rel_keys,
 				'new_tag'            => $tag,
-				'transform_callback' => 'bws_migrate_slot_rel_to_ref',
+				'transform_callback' => 'bws_migrate_rel_to_ref',
 				'label'              => sprintf(
 					/* translators: %s: tag name */
 					__( '{{%s}}: slot rel → ref (broken converter output)', 'generateblocks' ),
@@ -1859,6 +1889,18 @@ function bws_register_option_migrations(): void {
 		foreach ( bws_fold_migration_multislot_tags() as $multislot_tag ) {
 			if ( 0 === strpos( $multislot_tag, 'try_' ) ) {
 				$related_post_src_tags[] = $multislot_tag;
+			}
+		}
+	}
+
+	// term_ too (#73): the `rel` repair above DEFERS a `src:related_post` slot whole, so
+	// every family it registers for needs this entry downstream — without one the deferred
+	// `rel` is orphaned forever and the converter reports a migration that changes nothing.
+	// Derived from the templates, same as the `rel` repair; same hardcoded-`term` limit.
+	if ( class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+		foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+			if ( ! empty( $tpl['key'] ) ) {
+				$related_post_src_tags[] = 'term_' . $tpl['key'];
 			}
 		}
 	}
