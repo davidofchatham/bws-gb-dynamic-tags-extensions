@@ -766,7 +766,15 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7b.2 already-folded slot beside the retiring key - pre-#61 storage (-> two terms)', '{{try_text A:src(terms,department);use(title)|limit:2}}' ),
 		bws_fixture_gb_row( 'F7b.2b MIGRATED twin - the number moved onto the slot own last fanning step (-> same as F7b.2)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7b.5 join CONTRAST - a bare limit is slot 1 own axis, never pushed into a folded slot, and join has no tag-level fallback to read it with (-> every term)', '{{join A:src(terms,department);use(title)|limit:3}}' ),
-		bws_fixture_gb_row( 'F7b.7 join inheriting slot - the combining slot does NOT inherit the bound (-> two terms)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
+		bws_fixture_gb_row( 'F7b.7 join inheriting slot - inherits the HOP but not the BOUND, so ONE blurb after the two titles', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
+		// F7d (#74) - `src(same)` inherits the term hop. Before the fix slot B inherited
+		// an empty source (a leading `terms` step leaves `src` unset) and read the PAGE,
+		// which is why .2 rendered the page title and looked like a working tag.
+		bws_fixture_gb_row( 'F7d.1 join inheriting slot reads the TERM phone, not the page (-> two titles then (987) 333-4444)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(phone)}}' ),
+		bws_fixture_gb_row( 'F7d.2 same-read inheriting slot reads the TERM title, not the page title (-> Sales, Support, Sales)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F7d.2b LEGACY twin of F7d.2 - the fix is uniform across eras (-> same as F7d.2)', '{{join srcTermIn:department|use:title|limit:2|2-src:same|2-use:same}}' ),
+		bws_fixture_gb_row( 'F7d.3 a slot stating its OWN root does not acquire the carried hop (-> two titles only, page has no phone)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(current);key(phone)}}' ),
+		bws_fixture_gb_row( 'F7d.4 an inherited hop is a DEFAULT - the slot own terms step REPLACES it (-> office terms, not a skipped slot)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),

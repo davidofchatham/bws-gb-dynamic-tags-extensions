@@ -718,10 +718,19 @@ function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = t
 	return $out;
 }
 
-/** The flat option set shipped {{join}} built for one slot, transcribed from base-tags.php. */
+/**
+ * The flat option set shipped {{join}} built for one slot, transcribed from base-tags.php.
+ *
+ * One DELIBERATE departure from what shipped through 1.16.x: `srcTermIn` carries to a slot
+ * that inherits its source (#74). The shipped loop read it fresh per slot, so an inheriting
+ * slot behind a term hop resolved against the ambient entity — the defect this model would
+ * otherwise pin in place. Everything else is the shipped walk verbatim, so the equivalence
+ * checks below still compare two independent implementations rather than one with itself.
+ */
 function t_shipped_join_walk( $options, $max = 5 ) {
 	$last_src = '';
 	$last_ref = '';
+	$last_stm = '';
 	$out      = array();
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$p   = ( 1 === $n ) ? '' : "{$n}-";
@@ -734,12 +743,19 @@ function t_shipped_join_walk( $options, $max = 5 ) {
 		if ( '' === $key && '' === $use ) {
 			continue;
 		}
+		// The hop travels WITH the source (#74): a slot inherits it only when it inherits
+		// the source, and a slot stating its own hop replaces the carried one.
+		$inherits_src = ( '' === $src || 'same' === $src );
 		if ( '' !== $src && 'same' !== $src ) {
 			$last_src = $src;
 		}
 		if ( '' !== $ref ) {
 			$last_ref = $ref;
 		}
+		if ( '' === $stm && $inherits_src ) {
+			$stm = $last_stm;
+		}
+		$last_stm = $stm;
 		$flat = array(
 			'src'       => $last_src,
 			'ref'       => $last_ref,
@@ -775,6 +791,11 @@ function t_migrate_join( $options, $max = 5 ) {
 // P13.1 — MIGRATION EQUIVALENCE: legacy wire and its migrated folded twin must
 // produce identical flat option sets, slot for slot. `src` normalizes ('' and
 // `current` are the same source), so compare after collapsing that one spelling.
+//
+// ONE SHAPE IS EXEMPT, deliberately: a stale hidden `N-ref` under `src(same)` (§P17). The
+// flat walk read it and the fold drops it, because a value whose control is off screen is
+// residue rather than configuration. Do not "restore" equivalence there without reading
+// §P17 first — the fold's reading is the correct one.
 function t_norm_walk( $walk ) {
 	foreach ( $walk as $n => $flat ) {
 		if ( 'current' === $flat['src'] ) {
@@ -1035,6 +1056,7 @@ function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use 
 	$last_ref = '';
 	$last_key = '';
 	$last_use = '';
+	$last_stm = '';
 	$out      = array();
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$p   = ( 1 === $n ) ? '' : "{$n}-";
@@ -1075,6 +1097,12 @@ function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use 
 				continue;
 			}
 		}
+		// The hop travels WITH the source (#74), and only a RESOLVED slot feeds the carry —
+		// the `continue`s above model the shipped skips, which must not.
+		if ( '' === $stm && '' === $src ) {
+			$stm = $last_stm;
+		}
+		$last_stm  = $stm;
 		$out[ $n ] = array(
 			'src'       => $last_src,
 			'ref'       => $last_ref,
@@ -1234,12 +1262,22 @@ foreach ( $none_cases as $name => $legacy ) {
 $none_wire = bws_fold_emit_slot( bws_fold_from_flat( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
 check( 'P14.4 read-less container emits a bare chain (carrying the flat era default)', 'src(refs,office,limit[1])' === $none_wire, var_export( $none_wire, true ) );
 
-// P14.5 — `srcTermIn` does NOT carry forward in a selecting container (it names this
-// slot's entity hop). The flat resolver's own variable never carried it; what leaked
-// was the bare key riding along in $eval_opts, which the flipped loop now overwrites
-// with '' on every slot.
+// P14.5 — `srcTermIn` DOES carry forward to a slot that inherits its source (#74).
+//
+// INVERTED from what shipped through 1.16.x, where a term hop stayed on its own slot and
+// an inheriting slot silently read the AMBIENT entity: a leading `terms` step leaves `src`
+// unset by design, so the inheriting slot inherited an empty source plus no taxonomy and
+// landed on the page.
+//
+// The old rule was a UI ARTIFACT, which is the part worth recording. `srcTermIn` was a
+// SEPARATE control beside the source, and inheriting a standalone control's state across
+// slots in the editor caused problems of its own. With `terms` as a step INSIDE the source
+// chain, that constraint is gone: `src(same)` names the same source, and a taxonomy step is
+// not a parameter of the source but part of what the source IS. The previous comment here
+// recorded the mechanism ("the flat resolver's own variable never carried it") rather than
+// the cause, which is why the decision read as unmotivated on re-reading.
 $stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), 'key' );
-check( 'P14.5 term hop stays on its own slot', 'category' === ( $stm_walk[1]['srcTermIn'] ?? null ) && '' === ( $stm_walk[2]['srcTermIn'] ?? null ), json_encode( $stm_walk ) );
+check( 'P14.5 a term hop carries to a slot that inherits its source', 'category' === ( $stm_walk[1]['srcTermIn'] ?? null ) && 'category' === ( $stm_walk[2]['srcTermIn'] ?? null ), json_encode( $stm_walk ) );
 
 // P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
 // needs no such exception (its unconfigured read skips the slot one step later).
@@ -1333,6 +1371,138 @@ check(
 	'P15.6 retiring the tag-level limit does not move what any attempt resolves',
 	t_limit_walk( $legacy_tag_level ) === t_limit_walk( t_migrate_try( $legacy_tag_level, true, true ) ),
 	'legacy: ' . json_encode( t_limit_walk( $legacy_tag_level ) ) . "\n      migrated: " . json_encode( t_limit_walk( t_migrate_try( $legacy_tag_level, true, true ) ) )
+);
+
+// ── P16 THE INHERITED TAXONOMY (#74) ────────────────────────────────────────
+//
+// `src(same)` names the same SOURCE, and a taxonomy step is part of what the source IS
+// (unlike `limit`, which is a parameter OF a source — hence §P15's container split).
+// A slot that inherits its source therefore inherits the hop.
+//
+// NOT CONTAINER-SENSITIVE, and §P15 is the test that tells them apart: the `limit` and
+// read-axis splits are both about what ABSENCE means, and exist only because the two
+// families registered those keys differently. `srcTermIn` is registered per slot in BOTH,
+// so absence means the same thing in each — and absence is not what changes here. What
+// changes is the meaning of `src(same)`, an explicit value, spelled and resolved
+// identically in both containers.
+
+/** Walk a container's slots through the seam, returning [ n => resolved srcTermIn ]. */
+function t_tax_walk( $options, $container = 'join', $per_slot_use = true, $max = 5 ) {
+	$carry = array();
+	$out   = array();
+	for ( $n = 1; $n <= $max; $n++ ) {
+		$slot = bws_fold_slot_struct( $n, $options, $container, $per_slot_use );
+		if ( null === $slot ) {
+			continue;
+		}
+		$flat = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $sk );
+		if ( null === $flat ) {
+			continue;
+		}
+		$out[ $n ] = $flat['srcTermIn'];
+	}
+	return $out;
+}
+
+// P16.1 — the reported repro. Every department term carries a `phone`, so slot B was not
+// reading an empty field: it was reading a different entity (the page).
+$tax_join = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same);key(phone)' ) );
+check( 'P16.1 a COMBINING slot inherits the term hop', array( 1 => 'department', 2 => 'department' ) === $tax_join, json_encode( $tax_join ) );
+
+$tax_try = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same);use(key);key(phone)' ), 'try' );
+check( 'P16.1 …and so does a SELECTING attempt (uniform, not container-sensitive)', array( 1 => 'department', 2 => 'department' ) === $tax_try, json_encode( $tax_try ) );
+
+// P16.2 — CARRY DISCIPLINE: the taxonomy follows `src`, not `ref`.
+//
+// `ref` is init-carried on EVERY slot and survives a non-ref source, which is deliberate:
+// a second construct reads it (an argless `refs` step inherits the carried field). Nothing
+// but `same` can consume a carried taxonomy — an argless `terms` step is refused outright —
+// so init-carrying it would only ever hand an intervening slot a hop it never asked for.
+$tax_cleared = t_tax_walk( array(
+	'A' => 'src(terms,department);use(title)',
+	'B' => 'src(current);key(phone)',
+	'C' => 'src(same);key(x)',
+) );
+check( 'P16.2 a slot stating its OWN root does not acquire the carried hop', '' === ( $tax_cleared[2] ?? 'X' ), json_encode( $tax_cleared ) );
+check( 'P16.2 …and a later inherit takes THAT slot\'s source, hop and all', '' === ( $tax_cleared[3] ?? 'X' ), json_encode( $tax_cleared ) );
+
+// P16.3 — the hop travels WITH the source, so a slot inheriting a ref-rooted source
+// inherits no taxonomy from further back.
+$tax_ref = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(refs,office);key(a)', 'C' => 'src(same);key(b)' ) );
+check( 'P16.3 an inherited relationship source carries no stale taxonomy', array( 1 => 'department', 2 => '', 3 => '' ) === $tax_ref, json_encode( $tax_ref ) );
+
+// P16.4 — a slot that states its own hop keeps it; inheriting one that already hopped and
+// hopping again is a SECOND term step, which the flat triple cannot express.
+$tax_own = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(terms,office);key(a)' ) );
+check( 'P16.4 a slot states its own hop over any carried one', array( 1 => 'department', 2 => 'office' ) === $tax_own, json_encode( $tax_own ) );
+// An inherited hop is a DEFAULT, not a step this chain took, so a slot that inherits and
+// then states its own `terms` REPLACES it rather than colliding with it. This shape is
+// reachable flat wire — `2-src:same|2-srcTermIn:office`, since srcTermIn shows under every
+// non-site source — and migrates to exactly this chain, so reading it as a second term step
+// would skip a slot that renders today.
+$tax_double = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ) );
+check( 'P16.4 an inherited hop is REPLACED by the slot\'s own, not collided with', array( 1 => 'department', 2 => 'office' ) === $tax_double, json_encode( $tax_double ) );
+// A real second term step still cannot be expressed in the flat triple.
+$tax_two_steps = t_tax_walk( array( 'A' => 'src(terms,department;terms,office);key(a)' ) );
+check( 'P16.4 …but two REAL term steps in one chain are still inexpressible', ! isset( $tax_two_steps[1] ), json_encode( $tax_two_steps ) );
+
+// ── P16.5 AMBIENT MUST BE SPELLED (#74) ─────────────────────────────────────
+//
+// At slot 1 an ABSENT source legitimately means the ambient entity. At slot ≥2 absence
+// means INHERIT, so ambient is not a default a slot can fall back to — it has to be
+// spelled, or inherited from something that spelled it.
+//
+// The accumulator initialises to `{src:''}`, which reads as "ambient", and a SKIPPED slot
+// never feeds it. So when every preceding slot skipped, `src(same)` inherited the
+// INITIALISER and resolved against the ambient entity while the only source on screen said
+// something else.
+$never_carried = t_tax_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ) );
+check( 'P16.5 `same` skips when NOTHING was ever carried', ! isset( $never_carried[2] ), json_encode( $never_carried ) );
+$never_carried_flat = t_seam_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ), 'join' );
+check( 'P16.5 …and does not silently read the ambient entity instead', ! isset( $never_carried_flat[2] ), json_encode( $never_carried_flat[2] ?? null ) );
+
+// Inheriting an AMBIENT slot 1 is legitimate — slot 1 spelled it, by being slot 1.
+$ambient_inherit = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(same);key(b)' ), 'join' );
+check(
+	'P16.5 inheriting an ambient slot 1 still resolves (absence there IS the spelling)',
+	isset( $ambient_inherit[2] ) && '' === $ambient_inherit[2]['src'],
+	json_encode( $ambient_inherit[2] ?? null )
+);
+
+// ── P17 A DELIBERATE DIVERGENCE: the stale hidden `ref` (#74) ───────────────
+//
+// Everywhere else in §P13/§P14 the legacy wire and its folded twin resolve identically.
+// This is the one shape where they do NOT, and it is a decision rather than a gap — so it
+// is pinned here, or the next reader sees an equivalence break and "fixes" it.
+//
+// `2-src:same|2-ref:manager` is reachable through ordinary UI use: set slot 2's source to
+// Related Post, fill the relationship key, then switch slot 2's source to Same as Previous.
+// `show_if` is display-only (editor-conditional-options.js returns null and never calls
+// setState), `src`/`ref` are not a composite control so neither owns the other's key, and no
+// reconcile-on-src-change exists. The `2-ref` stays, with its control off screen.
+//
+// The shipped flat walk honoured it — sticky `$last_ref` never asked whether the key was
+// reachable — so an invisible value silently steered which entity slot 2 read. That is the
+// same defect this issue exists to remove, so the FOLD's reading is the correct one and the
+// flat behaviour was the latent bug.
+//
+// The rejected alternative is worth recording: making bws_fold_from_flat() honour the stale
+// key would preserve equivalence strictly, but migration would MATERIALIZE the residue into
+// a visible `src(refs,manager)` step — so a tag the author believed said "same as previous"
+// would open showing a relationship hop they never configured. That launders invisible state
+// into apparent intent, which is worse than dropping it.
+$stale = array( 'key' => 'a', 'src' => 'ref', 'ref' => 'office', '2-src' => 'same', '2-key' => 'b', '2-ref' => 'manager' );
+$stale_shipped = t_shipped_join_walk( $stale );
+$stale_folded  = t_seam_walk( t_migrate_join( $stale ), 'join' );
+check(
+	'P17 the shipped flat walk read slot 2 through the HIDDEN `2-ref`',
+	'manager' === ( $stale_shipped[2]['ref'] ?? null ),
+	json_encode( $stale_shipped[2] ?? null )
+);
+check(
+	'P17 …and the fold deliberately drops it, reading the source slot 2 actually shows',
+	'office' === ( $stale_folded[2]['ref'] ?? null ),
+	json_encode( $stale_folded[2] ?? null )
 );
 
 echo "\n$pass passed, $fail failed\n";

@@ -266,7 +266,7 @@ quantity slot by slot, plus the pairs above. Both spellings measured identical e
 | # | Legacy | Migrated | Measured |
 |---|---|---|---|
 | F7b.6 | `{{try_text src:ref\|ref:related_staff\|use:key\|key:no_such\|2-src:same\|2-use:title\|limit:2}}` | `{{try_text A:src(refs,related_staff,limit[2]);key(no_such)\|B:src(same);use(title)}}` | `Jane Partner` both, on `/matrix-post-meta/` — first-only arm, so the carried bound is invisible until FW-63 |
-| F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support` both — the combining slot does NOT inherit the bound, and does not need to |
+| F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support, Sales handles quotes, renewals and the annual customer roadshow.` both — slot B inherits the HOP (#74) but not the BOUND, so it reads one term's blurb rather than two. Before #74 it read the page and contributed nothing, so this row did not exercise the property its label claimed |
 
 ## §F7c — the tag-level Result Limit CONTROL is gone; the VALUE is not (#62)
 
@@ -297,6 +297,31 @@ Context `/matrix-post-meta/`. All RUN, and the visible blocks EYEBALLED on the f
 registration side — that no panel offers the control, and that `sep` stayed — is a pure assertion,
 `php tools/test/control-order-test.php` §5, because the ABSENCE of a control is not visible in
 rendered output.
+
+## §F7d — `src(same)` inherits the TERM HOP (#74)
+
+`src(same)` names the same SOURCE, and a taxonomy step is part of what the source IS — unlike
+`limit`, which is a parameter *of* a source and stays container-sensitive (§F7b/§F7c). Before #74 a
+leading `terms` step left `src` unset, so an inheriting slot inherited an empty source and read the
+AMBIENT entity: a plausible value from the wrong place, which is why nothing looked broken.
+
+Run on `/matrix-terms-mixed/`. The `Before` column is what shipped through 1.16.x, kept because the
+whole point is that it rendered something rather than nothing.
+
+| # | Tag | Before (1.16.x) | Now |
+|---|---|---|---|
+| F7d.1 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(phone)}}` | `Sales, Support` — slot B silently contributed nothing | `Sales, Support, (987) 333-4444` |
+| F7d.2 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);use(same)}}` | `Sales, Support, Matrix: Terms (mixed junk)` — the PAGE title, which is what named the bug | `Sales, Support, Sales` |
+| F7d.3 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(current);key(phone)}}` | — | `Sales, Support` — a slot stating its OWN root does not acquire the carried hop, and the page has no `phone` |
+| F7d.4 | `{{join A:src(terms,department);use(title)\|B:src(same;terms,office);key(a)}}` | — | an inherited hop is a DEFAULT: slot B's own `terms` REPLACES it rather than colliding, so this is a term read of `office`, not a skipped slot |
+
+The legacy twin of F7d.1/.2 is `{{join srcTermIn:department|use:title|limit:2|2-src:same|2-key:phone}}`
+and renders identically — the fix is uniform across both eras, so there is no era gate and the
+legacy↔folded equivalence property holds unchanged (`slot-fold-test.php` §P13.1/§P14).
+
+Not container-sensitive: the selecting twin behaves the same, and §P15 is the test that tells this
+apart from the two axes that ARE split (`limit` and the read axis are both about what ABSENCE means,
+and differ only because the families registered those keys differently).
 
 ## §F8 — depth-0 src chain on base tags (5h)
 

@@ -1381,7 +1381,11 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	$limit_default = ( 'chain' === ( $slot['era'] ?? 'flat' ) && bws_fold_chain_fanning_steps( $slot['chain'] ?? array() ) )
 		? 0
 		: 1;
-	$carry += array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '', 'limit' => null );
+	// `_resolved` is not a wire axis — it records whether ANY slot has fed the accumulator
+	// yet, which the `same` root needs and no other key can answer: `src` initialises to
+	// '', and '' is also how the ambient entity is spelled, so an inherit off a fresh
+	// accumulator is indistinguishable from an inherit off an ambient slot 1 (#74).
+	$carry += array( 'src' => '', 'ref' => '', 'tax' => '', 'use' => '', 'key' => '', 'limit' => null, '_resolved' => false );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
@@ -1413,7 +1417,10 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	$src   = '';
 	$ref   = $carry['ref'];
 	$tax   = '';
-	$first = true;
+	// An INHERITED hop, kept apart from `$tax` so it cannot read as a term step this chain
+	// took. Folded in below, only where the chain states none of its own (#74).
+	$tax_inherit = '';
+	$first       = true;
 
 	foreach ( $steps as $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
@@ -1427,8 +1434,40 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		if ( $first ) {
 			$first = false;
 			if ( 'same' === $slug ) {
+				// Nothing has resolved yet, so there is no source to be the same AS.
+				// Falling through would inherit the accumulator's initialiser, which
+				// spells the ambient entity — and at slot ≥2 ambient is not a default to
+				// fall back to, it is something the wire has to SAY (#74). Reachable in a
+				// combining container, where an unconfigured read skips slot A without
+				// feeding the carry, so `{{join A:src(site)|B:src(same);key(x)}}` read the
+				// page while the only source on screen said the site.
+				if ( empty( $carry['_resolved'] ) ) {
+					$skip_reason = 'chain';
+					return null;
+				}
 				$src = $carry['src'];
 				$ref = $carry['ref'];
+				// The TAXONOMY travels with the source (#74). `src(same)` names the same
+				// SOURCE, and a term step is not a parameter of a source the way `limit`
+				// is (§P15's container split) — it is part of what the source IS. So an
+				// inheriting slot inherits the hop, or it silently resolves against the
+				// ambient entity: a leading `terms` step leaves `src` unset by design, so
+				// without this the slot inherits an empty source and lands on the page.
+				//
+				// Restored HERE and nowhere else, which is `src`'s discipline rather than
+				// `ref`'s. `ref` is init-carried on every slot because a second construct
+				// reads it (an argless `refs` step inherits the carried field); nothing but
+				// this branch can consume a carried taxonomy, since an argless `terms` step
+				// is refused outright. Init-carrying it would only ever give an intervening
+				// slot a hop it never asked for.
+				//
+				// Held apart from `$tax` because an inherited hop is a DEFAULT, not a step
+				// this chain took: a slot that goes on to state its own `terms` step
+				// replaces it rather than colliding with it. `2-src:same|2-srcTermIn:office`
+				// is authorable flat wire (srcTermIn shows under every non-site source) and
+				// migrates to `src(same;terms,office)`, so reading that as a second term
+				// step would skip a slot that renders today.
+				$tax_inherit = $carry['tax'];
 				continue;
 			}
 			if ( 'refs' === $slug ) {
@@ -1493,6 +1532,11 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		$tax = (string) $arg;
 	}
 
+	// A hop inherited through `same` applies only where this chain stated none of its own.
+	if ( '' === $tax ) {
+		$tax = $tax_inherit;
+	}
+
 	// ── limit: the LAST step that pins one, else the slot-level token ───────
 	$limit = null;
 	foreach ( $steps as $step ) {
@@ -1518,10 +1562,12 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	}
 
 	// The slot resolved: feed the accumulator (never before this point).
-	$carry['src'] = $src;
-	$carry['ref'] = $ref;
-	$carry['use'] = $use;
-	$carry['key'] = $key;
+	$carry['_resolved'] = true;
+	$carry['src']       = $src;
+	$carry['ref']       = $ref;
+	$carry['tax']       = $tax;
+	$carry['use']       = $use;
+	$carry['key']       = $key;
 	// What is carried is the QUANTITY this slot resolved, which is its own default where
 	// it states nothing — an attempt inheriting `src(refs,office)` should read every
 	// office, as that slot does, not fall back to a default chosen for wire it does not

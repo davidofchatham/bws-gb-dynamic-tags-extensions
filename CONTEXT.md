@@ -196,13 +196,31 @@ A folded slot's source is an ordered CHAIN: a **root** plus N **steps**. Its fir
 
 **Rule:** compile a chain by consuming the root into the source factory and the remaining steps into the engine. Do not model the root as a step-zero, and do not let a step stand in for it. Three consequences worth stating because each has a wrong-looking-right alternative:
 
-- **An argless fanning step is DROPPED, not compiled field-less.** A field-less step short-circuits to empty, which changes what stored wire renders; the flat shape it comes from read the ambient entity.
+- **An argless fanning step KEEPS its step and loses only its argument.** A field-less step short-circuits to empty, which is the wire's own meaning. Dropping it leaves the chain with no steps, and a chain with no steps resolves the AMBIENT entity — so a tag saying "follow a relationship" read the entry it sat on. Through 1.16.x it was dropped, matching the flat shape it comes from; [I15] is why that inverted.
 - **An unknown step slug compiles to an unknown engine TYPE, never to nothing.** The engine answers empty and the chain short-circuits, which is the wire's own meaning. Dropping the step would read a *different* source than the wire states.
 - **A step `limit` and the tag-level `limit` are different quantities.** The first bounds one fanning step's spread, **per input source**; the second bounds the resolved-source list once, before the read. Neither bounds values — the read is 1:1. A step carries a limit only when it actually bounds the step, since absent is how the engine spells no limit. Only the first is stated by an author: no tag has registered a tag-level `limit` since v1.17.0, and the key survives as a read for stored wire. Schema + the full value table: [`tag-reference.md` §List mode](docs/tag-reference.md#list-mode-limit--sep); the decision: [ADR 0005](docs/adr/0005-limits-are-stated-where-the-source-is-stated.md).
 
 **Currently contradicted, and tracked as a refactor rather than an exception** (per the reading posture above): container ARMS still dispatch on the flat `src`/`srcTermIn` tokens, so a slot whose chain has no flat spelling is skipped rather than run, and chain wire on a base tag can read a different entity than the same wire in a slot. The fix is dispatch by the chain's **resolved-source KIND** (the verb-agnostic resolver refactor, FW-63), not a guard at each arm. Note that kind is a property of the CHAIN, not of its last step: a root-only chain (`src:site`) has one and has no steps at all. Depth-0 chains resolve today.
 
 Enforced at: `bws_fold_chain_root()` / `bws_fold_chain_to_steps()` PHPDoc (slot-fold-compile.php). Vocabulary: [`deprecated-tags-options.md` §Folded slot wire](docs/deprecated-tags-options.md). Measured divergences: `tools/test/fold-test-matrix.md` §F9. Related: [I9] (the factory picks the base source by context), FW-32.
+
+---
+
+## I15 — An ambient read must be SPELLED, never reached by fallback
+
+The ambient entity is what a bare tag resolves, so "ambient" is a legitimate answer — but only where the wire *says* so. At slot 1 and on a base tag an **absent** source spells it: absence there has no competing meaning, and `defaultRoot`/`stripDefaultRoot` make it the displayed default. At **slot ≥2** absence means **inherit**, so ambient is not a default the slot can fall back to. It has to be stated (`src:current`) or inherited from something that stated it.
+
+**Rule:** a slot that cannot resolve the source its wire names says NOTHING. It never degrades to the ambient entity. The failure mode this forbids is specific and worth naming: an ambient fallback returns a *plausible value from the wrong entity*, which is strictly worse than empty because nothing looks broken — and in a selecting container an ambient read that succeeds *stops the fallback chain*, so later attempts never run.
+
+Three shapes it decides, each of which used to fall back:
+
+- **A step with no argument** (`src:ref` with no `ref`, a `terms` step with no taxonomy) is unfinished, not "no step". On a slot it skips, naming which step is unfinished so the preview can say what is missing; on a base tag the argument-less step reaches the engine and empties the chain. The one asymmetry: an argless `refs` on a slot is COMPLETE when the carry supplies its field ([I13]'s carry), and skips only when nothing ever did.
+- **`src(same)` with nothing ever carried** — every preceding slot skipped, so the accumulator still holds its initialiser, which spells ambient. Reachable in a combining container, where an unconfigured read skips a slot without feeding the carry.
+- **A `src` token the factory cannot identify** — unregistered, or a registered source whose `resolve_id()` is inert. Still contradicted: `bws_resolve_base_source()` treats both nulls as "no source stated" and continues into the ambient branches. Tracked as [#75](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/75); a source that resolves *correctly and finds nothing* is a separate question ([#76](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/76)) and is NOT settled by this invariant.
+
+**Corollary — an inherited source carries what it IS, not merely its root.** `src(same)` names the same *source*, so a taxonomy step travels with it: a leading `terms` step leaves `src` unset by design, and an inheriting slot that took only the root landed on the ambient entity. Contrast `limit`, which is a *parameter of* a source and is container-sensitive for that reason. An inherited hop is a DEFAULT — a slot stating its own `terms` step replaces it rather than colliding with it.
+
+Enforced at: `bws_fold_slot_flat_options()` PHPDoc (slot-fold.php), `bws_fold_chain_to_steps()` (slot-fold-compile.php). Tests: `tools/test/slot-fold-test.php` §P16, `tools/test/fold-chain-compile-test.php` §C3/§C6. Rationale: [#74](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/74). Related: [I13] (wire era is per slot), [I14] (root is not a step).
 
 ---
 
