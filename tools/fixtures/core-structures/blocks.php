@@ -587,7 +587,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F8.7 TWO relationship steps - the spec headline case, data two relationships away (-> Jane Partner, who is the only reports_to target; Jane herself has none, so that branch drops)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
 		bws_fixture_gb_empty_row( 'F8.8 F8.7 with step 1 bounded to Jane, who reports to nobody (-> EMPTY: the step limit bounds step 1 and the chain short-circuits)', '{{text src:refs,related_staff,limit(1);refs,reports_to|use:title}}' ),
 		bws_fixture_gb_row( 'F8.9 F8.7 reading a FIELD off the second-degree post, not its title (-> (555) 200-3000, Jane\'s line)', '{{text src:refs,related_staff;refs,reports_to|use:key|key:main_line}}' ),
-		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref-d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,portal_visibility,limit(1)|use:title}}' ),
+		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref\'d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,portal_visibility,limit(1)|use:title}}' ),
 		bws_fixture_gb_empty_row( 'F11.1 unknown hop slug SHORT-CIRCUITS (-> empty, and that is correct)', '{{phone src:refs,related_staff;bogus,x|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
 	) );

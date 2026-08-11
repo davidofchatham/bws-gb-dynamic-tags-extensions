@@ -98,9 +98,7 @@ function bws_run_traversal( array $sources, array $steps, $reader = null ) {
 			if ( $step_limit > 0 ) {
 				$produced = array_slice( $produced, 0, $step_limit );
 			}
-			foreach ( $produced as $p ) {
-				$next[] = $p;
-			}
+			array_push( $next, ...$produced );
 		}
 		if ( empty( $next ) ) {
 			return array(); // Short-circuit: an emptied step ends the chain.
