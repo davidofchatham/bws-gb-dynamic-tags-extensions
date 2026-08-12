@@ -418,12 +418,20 @@ class TagConverter {
 	/**
 	 * Resolve the full deprecated chain for a single tag match (max 10 hops).
 	 *
+	 * PUBLIC since 1.17.0 (#84) so a harness can drive the SHIPPED chaining rather than a
+	 * copy of it. Transitive renames are asserted rather than built — an older prefix
+	 * whose entry targets a still-registered modifier reaches the base tag in one run
+	 * because this re-reads the tag name after each rewrite — and a test-local
+	 * reimplementation of the loop would assert nothing about the converter. Pure string
+	 * in, string out; no WP surface is touched.
+	 *
 	 * @since 1.6.0
+	 * @since 1.17.0 Public (#84).
 	 * @param string $old_tag_name Starting deprecated tag name.
 	 * @param string $tag_string   Full raw tag string.
 	 * @return string Final migrated tag string.
 	 */
-	private static function resolve_full_chain( string $old_tag_name, string $tag_string ): string {
+	public static function resolve_full_chain( string $old_tag_name, string $tag_string ): string {
 		$seen    = array();
 		$current = $old_tag_name;
 		$string  = $tag_string;

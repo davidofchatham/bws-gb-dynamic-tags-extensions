@@ -1381,6 +1381,230 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 }
 
 /**
+ * The BASE tag a modifier tag migrates to — its template key, validated (#84).
+ *
+ * A modifier tag is `<prefix>_<template key>` by construction (register_modifier), and
+ * every template key IS a base tag name, so the target is the suffix. It is still looked
+ * UP rather than merely stripped: the registered template list is the only thing that
+ * says a given suffix names a tag this plugin renders, and a prefix match on an unrelated
+ * tag (`view_something_else` from another plugin) would otherwise be renamed to a tag
+ * that does not exist. Derived, never listed — a hand-kept list of nine names is the
+ * drift the modifier constructor already removed once.
+ *
+ * @since 1.17.0
+ * @param string $tag_name Stored tag name.
+ * @param string $prefix   Modifier prefix, with or without its trailing underscore.
+ * @return string Base tag name, or '' when this tag is not that prefix's modifier.
+ */
+function bws_modifier_base_target( string $tag_name, string $prefix ): string {
+	$prefix = rtrim( trim( $prefix ), '_' );
+	if ( '' === $prefix || 0 !== strpos( $tag_name, $prefix . '_' ) ) {
+		return '';
+	}
+
+	$suffix = substr( $tag_name, strlen( $prefix ) + 1 );
+	if ( '' === $suffix || ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+		return '';
+	}
+
+	foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+		if ( ( $tpl['key'] ?? '' ) === $suffix ) {
+			return $suffix;
+		}
+	}
+
+	return '';
+}
+
+/**
+ * A modifier tag's options → a BASE tag's options, sourced by an equivalent chain (#84).
+ *
+ * PURE — options in, options out; null when no chain can be stated. The rewrite is a
+ * WHOLE-STRING transform rather than a declarative rename plus an injected `src`, and
+ * that is a correctness requirement, not a style choice: on a modifier tag the ROOT came
+ * from the TAG, so the flat source token meant "relative to that root". The base-tag
+ * reading is different — the chain builder reads `ref` only when the source token IS the
+ * relationship token — so renaming the tag and injecting `src:<root>` would leave `ref`
+ * unread and SILENTLY ERASE THE HOP. That is the same failure the `rel` → `ref` repairs
+ * exist to prevent, arriving through the fix rather than through the bug.
+ *
+ * Mapping, one row per stored shape:
+ *
+ *   no `src`            → root alone (`{{view_text key:x}}` → `{{text src:view|key:x}}`)
+ *   `src:current`       → root alone. On a MODIFIER tag "current" named ITS entity, not
+ *                         the ambient one, so the root is the faithful reading and
+ *                         carrying the token through would re-point the tag at the post.
+ *   `src:ref` + `ref:f` → root, then a fanning `refs,f` step
+ *   `srcTermIn:t`       → root, then a `terms,t` step
+ *   both                → root, `refs`, `terms` — wire order is the #44 order (a term
+ *                         step needs a post input), which the modifier callback also had.
+ *   `src:site`          → the SITE root, with `ref` and `srcTermIn` DROPPED DELIBERATELY.
+ *
+ * The site row is not tidying. The modifier callback returns on `site` BEFORE reading
+ * either sidecar, so neither has ever run; a `refs` step now accepts site input, so a
+ * surviving key would compound into a hop that has never once executed.
+ *
+ * An ORPHAN `src:ref` (no relationship field) keeps its step, spelled bare — the same
+ * shape and the same spelling bws_fold_chain_from_options() writes for flat base wire.
+ * It compiles away to the root, where the modifier callback resolved entity id 0, so the
+ * two do differ on a shape neither editor ever produced; the alternative is inventing a
+ * step, and the flat-wire spelling is the one every other reader already agrees on.
+ *
+ * **THE RELATIONSHIP KEY IS READ IN BOTH SPELLINGS, AND THAT IS NOT OPTIONAL HERE.** The
+ * buggy pre-1.6.0 converter wrote `rel` where the live key is `ref`, and the sibling
+ * repair (bws_migrate_rel_to_ref) cannot reach a tag this transform renames: the
+ * converter runs every TAG rename (step 3) before any OPTION entry (step 4), so by the
+ * time a `rel` repair for this family could fire, the tag is already a base tag. Left
+ * unread, the key would come out of the cascade as a FLAT `ref` sitting beside chain
+ * wire — which no reader consults, since a chain states its own steps. That is the
+ * silent-erasure this transform exists to prevent, one spelling over. The rule is the
+ * sibling's, unchanged, because two answers to "which spelling won" is how one tag comes
+ * to be stored two ways: an existing `ref` WINS (`rel` was never read under any token
+ * this transform sees), an absent one TAKES the `rel` as a repair, and a repaired key
+ * with no source stated brings `src:ref` with it — a relationship key on a tag that
+ * states no source is evidence of a hop whose token the same bug dropped.
+ *
+ * Under every NON-fanning token both spellings are inert and are consumed with the
+ * source axis: `src:current` named the root, so a key beside it never hopped, and
+ * carrying one into a step would invent a read rather than preserve one.
+ *
+ * THE TAG-LEVEL `limit` IS LEFT ALONE. Modifier tags register one, and the base-tag chain
+ * entry (bws_migrate_base_src_chain) absorbs it onto the last fanning step in the
+ * converter's later pass over the renamed tag. One implementation of that rule, not two.
+ *
+ * @since 1.17.0
+ * @param array  $options Modifier tag options (GB-parsed).
+ * @param string $root    Registered source key the modifier rooted at (e.g. 'view').
+ * @return array|null Rewritten options, or null when no root was given.
+ */
+function bws_modifier_base_options( array $options, string $root ) {
+	$root = trim( $root );
+	if ( '' === $root || ! function_exists( 'bws_fold_emit_chain' ) ) {
+		return null;
+	}
+
+	$src = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
+	$ref = trim( (string) ( $options['ref'] ?? '' ) );
+	$rel = trim( (string) ( $options['rel'] ?? '' ) );
+	$tax = trim( (string) ( $options['srcTermIn'] ?? '' ) );
+
+	// The dead `rel` spelling, settled by the sibling repair's rule — see docblock. Both
+	// keys are consumed below with the rest of the source axis whatever happens here, so
+	// neither can survive as a flat key beside chain wire.
+	if ( '' !== $rel && 'site' !== $src ) {
+		if ( '' === $ref ) {
+			$ref = $rel;
+			if ( '' === $src ) {
+				$src = 'ref';
+			}
+		}
+	}
+
+	// NOT bws_nxm_chain_steps(): that builder returns an EMPTY chain the moment a step
+	// lacks its argument, because an N×M family with a missing relationship key has a
+	// hole in the middle of its chain. Here an argless step is a legal shape rather than
+	// a hole — the root carries no argument at all, and an orphan `refs` is the flat
+	// spelling this era already writes — so the two cannot share one builder.
+	$step = static function ( string $slug, ?string $arg = null ): array {
+		return array( 'slug' => $slug, 'arg' => $arg, 'limit' => null, 'extra' => array() );
+	};
+
+	if ( 'site' === $src ) {
+		// Both sidecars are inert under this token and are dropped with it — see docblock.
+		$chain = array( $step( 'site' ) );
+	} else {
+		$chain = array( $step( $root ) );
+		if ( 'ref' === $src ) {
+			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
+		}
+		if ( '' !== $tax ) {
+			$chain[] = $step( 'terms', $tax );
+		}
+	}
+
+	$wire = bws_fold_emit_chain( $chain, 0 );
+	if ( '' === $wire ) {
+		return null;
+	}
+
+	$out = $options;
+	unset( $out['source'], $out['ref'], $out['rel'], $out['srcTermIn'] );
+	$out['src'] = $wire;
+
+	return function_exists( 'bws_serialization_order_sort_map' )
+		? bws_serialization_order_sort_map( $out )
+		: $out;
+}
+
+/**
+ * Migration transform_callback body: rewrite one modifier tag into its base tag (#84).
+ *
+ * Shared by every prefix — the owning plugin binds its own prefix and root through
+ * bws_modifier_root_transform(), so one transform serves all of them and a new prefix
+ * costs no new rule.
+ *
+ * IT RENAMES THE TAG ITSELF, and must: MigrationRegistry::transform_tag() returns a
+ * `transform_callback`'s result verbatim, so an entry that has one never reaches the
+ * declarative `new_tag` rename.
+ *
+ * CONVERTER-ONLY, AND THAT IS SAFE HERE — do not "fix" the missing mount path. A tag
+ * RENAME cannot happen on the editor mount path at all: that path rewrites a tag's
+ * OPTIONS, while the tag NAME belongs to the block's parsed tag and is chosen by the
+ * picker. The two-path model exists because two writers can store one tag two ways
+ * depending on which reached it first (assets/js/slot-fold-migrate.js); with one writer
+ * there is no divergence to prevent.
+ *
+ * Rename chaining is the converter's, not this transform's: TagConverter::resolve_full_chain()
+ * re-reads the tag name after each rewrite and follows it under a cycle guard, so an older
+ * prefix whose entry targets this one reaches the base tag in a single run.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @param string $prefix     Modifier prefix (e.g. 'view').
+ * @param string $root       Registered source key the modifier rooted at (e.g. 'view').
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_migrate_modifier_root_chain( string $tag_string, string $prefix, string $root ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	if ( ! class_exists( $reg ) ) {
+		return $tag_string;
+	}
+
+	list( $tag_name, $options ) = $reg::parse_tag_string( $tag_string );
+
+	$new_tag = bws_modifier_base_target( $tag_name, $prefix );
+	if ( '' === $new_tag ) {
+		return $tag_string;
+	}
+
+	$migrated = bws_modifier_base_options( $options, $root );
+	if ( null === $migrated ) {
+		return $tag_string;
+	}
+
+	return $reg::format_tag_string( $new_tag, $migrated );
+}
+
+/**
+ * Bind a prefix + root to the shared modifier → base transform (#84).
+ *
+ * A MigrationRegistry entry's `transform_callback` receives only the tag string, so the
+ * two facts that vary per family — which prefix, which root — are bound here. Returned as
+ * a closure rather than registered per prefix as a named function, so an external plugin
+ * owning a retired prefix registers its own entries without this repo naming its family.
+ *
+ * @since 1.17.0
+ * @param string $prefix Modifier prefix (e.g. 'view').
+ * @param string $root   Registered source key to root the migrated tag at.
+ * @return callable fn( string $tag_string ): string
+ */
+function bws_modifier_root_transform( string $prefix, string $root ): callable {
+	return static function ( string $tag_string ) use ( $prefix, $root ): string {
+		return bws_migrate_modifier_root_chain( $tag_string, $prefix, $root );
+	};
+}
+
+/**
  * Migration transform_callback: `rel` → `ref`, with the matching `src:ref` — per slot on a
  * try_ tag, bare keys on a base or term_ tag (#56, extended to all three families by #57).
  *
