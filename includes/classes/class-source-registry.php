@@ -105,6 +105,33 @@ class SourceRegistry {
 	}
 
 	/**
+	 * Whether a source key can be written as a chain ROOT token.
+	 *
+	 * Two ways a key fails. It can COLLIDE with the chain grammar's own step vocabulary —
+	 * `refs`/`terms`/`entries` parse as fanning steps wherever they appear, and `same` is
+	 * the slot inherit sentinel — in which case selecting the row authors wire that reads
+	 * back as a step, resolves the ambient entity, and never runs the source. Or it can
+	 * carry a grammar CHARACTER (`;` `,` `(` `)` `[` `]` `:` `|`), which either splits the
+	 * value or ends the option.
+	 *
+	 * The step list is read from the compiler's own map rather than re-typed, so a new
+	 * step slug is reserved here the day it ships.
+	 *
+	 * @since 1.17.0
+	 * @param string $key Proposed source key.
+	 * @return bool
+	 */
+	private static function is_expressible_root_key( string $key ): bool {
+		if ( preg_match( '/[;,()\[\]:|\s]/', $key ) ) {
+			return false;
+		}
+		if ( 'same' === $key ) {
+			return false;
+		}
+		return ! ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $key ] ) );
+	}
+
+	/**
 	 * Adapt the declarative root specs from `bws_dynamic_tags_chain_roots` into sources.
 	 *
 	 * Fires at REGISTRATION, never at enum-build time. A row added when the enum is built
@@ -163,6 +190,17 @@ class SourceRegistry {
 			// would offer a root that answers nothing. Both are skipped rather than
 			// registered half-formed.
 			if ( '' === $label || ! is_callable( $resolve ) ) {
+				continue;
+			}
+			// The key becomes a `src` TOKEN, so it has to be expressible as one. A key
+			// that is a chain-grammar slug or carries a grammar character mints a
+			// dropdown row whose selection authors wire that reads back as something
+			// else: `refs` parses as a fanning STEP rather than a root, so the chain
+			// would resolve the ambient entity and the offered root would never run. That
+			// breaks the one guarantee this route exists to keep — an offered root is
+			// always resolvable. Route A cannot hit this (its keys are class-authored);
+			// the filter route is the one that invites arbitrary strings.
+			if ( ! self::is_expressible_root_key( $key ) ) {
 				continue;
 			}
 			self::register_source( new Sources\CallbackRoot(

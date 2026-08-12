@@ -84,6 +84,11 @@ deliberately not the same rule.
 - **Registered roots declare no static kind.** `BWS_FOLD_STATIC_ROOT_KINDS` stays as it is (only
   `site` is static); a chain rooted at a registered source resolves to the kind the factory
   determines at render, and the editor's step-offer filter stays permissive there.
+- **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
+  step slug (`refs`/`terms`/`entries`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
+  slot inherit sentinel `same`, or one carrying a grammar character — each would parse back as
+  something other than a root, offering a row that cannot resolve. Route A cannot hit this; its
+  keys are class-authored.
 
 Two registration routes, one registry — a source class overriding the flag, or a declarative spec
 through the `bws_dynamic_tags_chain_roots` filter (adapted into a `Sources\CallbackRoot` and

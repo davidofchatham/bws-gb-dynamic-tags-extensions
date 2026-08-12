@@ -964,6 +964,45 @@ eq(
 	bws_resolve_base_source( array( 'src' => 'testtermroot' ), null, sig() )
 );
 
+// A FILTER-DECLARED root resolves through the same delegation as a class-route one —
+// which is the whole reason the filter registers a source rather than adding an enum row:
+// a row added at enum-build time would exist for the editor and not for the renderer, and
+// the token would fall through to the ambient entity. Registered here directly (the
+// adaptation itself is covered in slot-options-build-test.php, where the filter fires);
+// what this asserts is that the ADAPTER resolves, including its term-context arm.
+\BWS\DynamicTags\SourceRegistry::register_source( new \BWS\DynamicTags\Sources\CallbackRoot(
+	'filterroot',
+	'Filter Root',
+	'post',
+	static function ( $options, $instance ) { return 5150; }
+) );
+\BWS\DynamicTags\SourceRegistry::register_source( new \BWS\DynamicTags\Sources\CallbackRoot(
+	'filtertermroot',
+	'Filter Term Root',
+	'term',
+	static function ( $options, $instance ) { return 31; }
+) );
+eq(
+	'registry: a FILTER-declared root resolves through the same factory delegation',
+	array( 'kind' => 'post', 'id' => 5150 ),
+	bws_resolve_base_source( array( 'src' => 'filterroot' ), null, sig() )
+);
+eq(
+	'…and its term-context arm yields a term',
+	array( 'kind' => 'term', 'id' => 31 ),
+	bws_resolve_base_source( array( 'src' => 'filtertermroot' ), null, sig() )
+);
+// A term entity is addressed as `term_<id>` in a field read, so the adapter carries the
+// same ACF prefix rule TaxonomyTerm states for itself. A post-context root passes through.
+eq(
+	'…and formats a term id for ACF the way a term source does',
+	array( 'term_31', 5150 ),
+	array(
+		\BWS\DynamicTags\SourceRegistry::get_source( 'filtertermroot' )->format_id_for_acf( 31 ),
+		\BWS\DynamicTags\SourceRegistry::get_source( 'filterroot' )->format_id_for_acf( 5150 ),
+	)
+);
+
 // The settings gate is an OFFERING gate too — it hides a term-context root from the
 // dropdown, and a tag already naming one keeps rendering.
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;

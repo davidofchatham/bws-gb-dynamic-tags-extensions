@@ -746,6 +746,14 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	// would answer nothing. Registering either would put a dead row in the dropdown.
 	$roots['nolabel']   = array( 'resolve' => static function () { return 1; } );
 	$roots['noresolve'] = array( 'label' => 'No Resolver' );
+	// Keys that cannot BE a root token. `refs` is a chain STEP slug, so selecting such a
+	// row would author wire that parses as a step off the ambient entity and never runs
+	// the source; `same` is the slot inherit sentinel; the third carries grammar
+	// characters that split the value. Each would be an offered root that cannot resolve
+	// — the one guarantee this route exists to keep.
+	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
+	$roots['same']      = array( 'label' => 'Inherit Sentinel', 'resolve' => static function () { return 1; } );
+	$roots['a;b,c']     = array( 'label' => 'Grammar Chars', 'resolve' => static function () { return 1; } );
 	return $roots;
 } );
 
@@ -776,6 +784,16 @@ assert_same(
 );
 assert_same( 'a spec with no label registers nothing', null, \BWS\DynamicTags\SourceRegistry::get_source( 'nolabel' ) );
 assert_same( 'a spec with no resolver registers nothing', null, \BWS\DynamicTags\SourceRegistry::get_source( 'noresolve' ) );
+// An INEXPRESSIBLE key is refused at registration, not filtered out of the enum later: a
+// registered-but-unofferable source would still be a source, and the point is that it can
+// never be one. Asserted through the registry for that reason.
+foreach ( array( 'refs', 'same', 'a;b,c' ) as $unwritable ) {
+	assert_same(
+		"a key that cannot BE a root token registers nothing: `{$unwritable}`",
+		null,
+		\BWS\DynamicTags\SourceRegistry::get_source( $unwritable )
+	);
+}
 
 // A registered source that never opted in. It IS in the registry (the harness resolves it
 // in traversal-pipeline-test.php) and is nowhere in an authoring surface.

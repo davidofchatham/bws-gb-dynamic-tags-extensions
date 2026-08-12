@@ -100,6 +100,8 @@ Two routes, one registry.
 
 Override one method. The dropdown label is `get_source_label()`, the accessor you already implement — there is no second label method.
 
+> **Upgrade note (v1.17.0).** `is_selectable_root()` is declared on `SourceInterface`, so a class implementing the interface **directly** must add it. Extending `AbstractSource` — the documented recommendation — inherits the `false` default and needs no change.
+
 ```php
 class ExternalSource extends AbstractSource {
 
@@ -130,12 +132,15 @@ add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
 } );
 ```
 
+**Add the `add_filter()` call at plugin file-load time, not inside a hook callback** — the same deadline §1 states for the registration action, and for the same reason. `SourceRegistry::init()` runs at `plugins_loaded` priority 20, so a listener added on `init` is too late: nothing errors, your root simply never appears.
+
 Each spec is adapted into a registered source and registered normally, so it lands in the same registry the renderer consults. Notes:
 
 - **Everything declared here is a root.** The filter is named for roots, so declaring through it *is* the opt-in — there is no flag to set. A source that should *not* be offerable uses the `bws_dynamic_tags_register_sources` action instead.
 - **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
 - **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
 - **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
+- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `entries`), the slot inherit sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
 - **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
 
 ### What the opt-in does and does not govern

@@ -315,6 +315,23 @@ check(
 	bws_build_preview_label( [ 'src' => 'nosuchsource', 'use' => 'key', 'key' => 'sku' ], 'text' ),
 	"['sku']"
 );
+// The keys the ROOT ENUM refuses are refused here too. These ARE registered sources, so a
+// bare registry lookup names every one of them — `src:post` would read "from Post", which
+// is what a bare tag already is, and `src:related_post` would dress up the very token the
+// migration exists to remove. Registered below so the assertion cannot pass vacuously.
+\BWS\DynamicTags\SourceRegistry::init();
+foreach ( [ 'post', 'term', 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post' ] as $internal_key ) {
+	check(
+		"an INTERNAL/retired registry key adds no segment: `{$internal_key}`",
+		bws_build_preview_label( [ 'src' => $internal_key, 'use' => 'key', 'key' => 'sku' ], 'text' ),
+		"['sku']"
+	);
+	check(
+		"…and it IS registered, so the row above is not vacuous: `{$internal_key}`",
+		null !== \BWS\DynamicTags\SourceRegistry::get_source( $internal_key ),
+		true
+	);
+}
 // {{call}} INERT config-describing preview (VC-inert) — never executes the fn.
 check(
 	'call no fn → warn',
