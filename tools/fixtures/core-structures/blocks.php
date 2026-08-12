@@ -277,7 +277,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	$sections[] = bws_fixture_gb_section( 'FW-52 O4 - image as+size fold (open in editor)', array(
 		// O4.1 media block: {{image as:url,medium}} → real <img src>. Authored
 		// scrambled (key/use before as); on open the folded `as:url,medium` token
-		// should lead (format group). In the modal, flip Return type URL->alt->URL:
+		// should lead (format group). In the modal, flip Return As URL->alt->URL:
 		// the size dropdown hides on nullary and RESTORES `medium` back on URL.
 		bws_fixture_gb_media_block( '{{image use:key|key:feature_image|as:url,medium}}', 'fw52-o4-1' ),
 		// O4.2 size arg absent: composite writes the default (`full`) on open, so
@@ -329,6 +329,34 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L3.4 (expect both dept names - try_ dispatch does not break early at 0)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
 		bws_fixture_gb_row( 'L3.5 (expect both dept event dates)', '{{datetime_single srcTermIn:department|key:event_date|limit:0}}' ),
 		bws_fixture_gb_row( 'L3.6 (expect both names, NO link - unlimited feeds the same count gate)', '{{text srcTermIn:department|use:title|limit:0|linkTo:permalink}}' ),
+	) );
+
+	// L4 — the unset default is no longer ONE number. Flat wire bounds at 1, chain
+	// wire does not (bws_limit_default), which is the whole compatibility
+	// mechanism for base-tag source chains: it works on wire no migration can
+	// reach. Rows are PAIRS OF SPELLINGS for the same source, and each asserts the
+	// link too, because the gate is count-based — chain wire defaulting to many
+	// changes link-wrapping as well as output.
+	$sections[] = bws_fixture_gb_section( 'Limit L4 - the SPELLING selects the unset default (1.17.0)', array(
+		bws_fixture_gb_row( 'L4.1 FLAT unset (expect Jane Partner only, linked - the floor)', '{{text src:ref|ref:related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.2 CHAIN unset (expect BOTH names, NO link - unlimited, and the anchor is legitimately gone)', '{{text src:refs,related_staff|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.3 CHAIN + explicit 1 (expect Jane Partner only, linked - HAND-WRITTEN wire; a converted tag is L4.10, and OPENING this row absorbs the 1 onto the step)', '{{text src:refs,related_staff|use:title|limit:1|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.4 FLAT term hop unset (expect ONE dept name)', '{{text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'L4.5 CHAIN term hop unset (expect Sales, Support)', '{{text src:terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'L4.6 CHAIN + garbage limit (expect BOTH names - the is_numeric guard falls to the CHAIN default, not to 1)', '{{text src:refs,related_staff|use:title|limit:abc}}' ),
+		bws_fixture_gb_row( 'L4.7 root-only chain does not fan (expect Captain, linked)', '{{text src:current|key:role|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.8 PER-STEP limit is a different quantity (expect Jane Partner only, linked)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.9 L4.8-s partner - without it a per-step limit that did nothing would still pass (expect BOTH names)', '{{text src:refs,related_staff,limit(2)|use:title}}' ),
+		// L4.10/L4.11 — what MIGRATION writes, as opposed to what a hand-authored
+		// limit does. Each is paired with its flat original, and L4.11 additionally
+		// with an unlimited partner, so a mapping that did nothing cannot pass.
+		bws_fixture_gb_row( 'L4.10 what MIGRATION writes for L4.1 (expect Jane Partner only, linked - identical to the flat row it replaces)', '{{text src:refs,related_staff,limit(1)|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4.11a TWO fanning steps, FLAT original (expect All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11b the same source MIGRATED - both steps limited (expect All Users, same as L4.11a)', '{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)|use:title}}' ),
+		bws_fixture_gb_row( 'L4.11c L4.11b-s partner, no step limits (expect All Users, All Users - this is what makes the pair non-vacuous)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
+		// L5.8's SUBJECT: a flat tag carrying an author-stated limit, there to be
+		// converted in the editor. Front-end expectation is the pre-conversion one.
+		bws_fixture_gb_row( 'L5.8 subject - FLAT with an author-stated limit:3 (expect BOTH names; convert it in the editor and the 3 moves onto the last step)', '{{text src:ref|ref:related_staff|use:title|limit:3}}' ),
 	) );
 
 	// join matrix (join-test-matrix.md) — the POST-ARM rows (height / role /
@@ -473,9 +501,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F1.3 legacy (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
 		bws_fixture_gb_row( 'F1.3 folded (-> same)', '{{join A:key(main_line)|B:src(same);key(booking_line)}}' ),
 		bws_fixture_gb_row( 'F1.4 legacy (-> (555) 200-3000, jane@example.test; slot 2 INHERITS the ref hop)', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
-		bws_fixture_gb_row( 'F1.4 folded (-> same)', '{{join A:src(refs,related_staff);use(key);key(main_line)|B:src(same);key(contact_email)}}' ),
+		bws_fixture_gb_row( 'F1.4 folded, as MIGRATION writes it - limit[1] states what the flat spelling implied (-> same)', '{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)|B:src(same);key(contact_email)}}' ),
 		bws_fixture_gb_row( 'F1.5 legacy (-> Jane, Jane Partner)', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
-		bws_fixture_gb_row( 'F1.5 folded (-> same)', '{{join A:key(name_first)|B:src(refs,related_staff);use(title)}}' ),
+		bws_fixture_gb_row( 'F1.5 folded, as MIGRATION writes it (-> same; drop the limit[1] and it reads Jane, Jane Partner, Tom Associate)', '{{join A:key(name_first)|B:src(refs,related_staff,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F1.6 legacy (-> Jane, info@example.test)', '{{join key:name_first|2-src:site|2-key:organization_email}}' ),
 		bws_fixture_gb_row( 'F1.6 folded (-> same)', '{{join A:key(name_first)|B:src(site);key(organization_email)}}' ),
 		bws_fixture_gb_row( 'F1.7 legacy (-> Sales, Support)', '{{join srcTermIn:department|use:title|limit:2}}' ),
@@ -506,7 +534,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - inherit vs RESET, and slot-level limit', array(
 		bws_fixture_gb_row( 'F6.1 absent chain at slot 2 = RESET to the page, NOT an inherit (-> (987) 654-3210)', '{{try_text A:src(refs,related_staff);key(missing)|B:key(main_line)}}' ),
 		bws_fixture_gb_row( 'F6.2 explicit src(same) inherits jane (-> (555) 200-3000)', '{{try_text A:src(refs,related_staff);key(missing)|B:src(same);key(main_line)}}' ),
-		bws_fixture_gb_row( 'F6.4 both axes inherited = the same datum twice; inferIntent DESCRIBES, never blocks (-> Jane Partner, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F6.3 slot 2 RESETS to the page, which has no contact_email, so it drops (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)|B:key(contact_email)}}' ),
+		bws_fixture_gb_row( 'F6.4 slot 1 chain-spelled = UNBOUNDED, slot 2 inherits both axes and keeps the flat 1 (-> Jane Partner, Tom Associate, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
+		// F7a - a slot's own spelling decides its own limit (#60). The refs half; the
+		// terms half lives on the term-hop pages, where the fixture has real terms.
+		bws_fixture_gb_row( 'F7a.4 a refs-spelled slot returns EVERY target - no limit anywhere (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)}}' ),
+		bws_fixture_gb_row( 'F7a.4b the legacy spelling still bounds at 1 - the row that makes F7a.4 non-vacuous (-> (555) 200-3000)', '{{join src:ref|ref:related_staff|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'F7a.12 legacy: no fanning step, so limit:4 bounds nothing (-> Captain)', '{{try_text key:role|limit:4}}' ),
+		bws_fixture_gb_row( 'F7b.3 MIGRATED twin - nothing to bound, so nothing is pushed and the tag-level key still goes (-> same)', '{{try_text A:key(role)}}' ),
+		bws_fixture_gb_row( 'F7a.13 join legacy: join owns limit PER SLOT, so slot 1 bare key IS its own (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|limit:4|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'F7a.13b MIGRATED twin - it stays a slot-level token (-> same)', '{{join A:limit(4);key(main_line)|B:src(same);key(booking_line)}}' ),
+		// F7b (#61) - the refs half of the inheriting-slot pair. Both sides render
+		// `Jane Partner` because the try_ refs arm is first-only, so the carried bound
+		// is invisible here until FW-63; the row exists to show the pair does not MOVE.
+		bws_fixture_gb_row( 'F7b.6 legacy: slot 1 fans on refs and misses, slot 2 inherits the source (-> Jane Partner)', '{{try_text src:ref|ref:related_staff|use:key|key:no_such|2-src:same|2-use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.6b MIGRATED twin - the tag-level key is gone and slot 2 inherits the bound with the source (-> same)', '{{try_text A:src(refs,related_staff,limit[2]);key(no_such)|B:src(same);use(title)}}' ),
 		// The PAIRS CROSS here, and these four rows are the cheapest way to see it:
 		// legacy absence means INHERIT (it materializes to src(same) through the
 		// mapper), folded absence means RESET. So folded `2:key(x)` twins legacy
@@ -519,14 +561,41 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F7.2 folded twin - src(same) is how the fold spells that inherit (-> same)', '{{join A:src(refs,related_staff);use(title);limit(2)|B:src(same);key(role)}}' ),
 	) );
 
+	// F7c (#62) - the tag-level Result Limit CONTROL is unregistered on every
+	// chain-authoring base tag, and the VALUE is still read. Removing an option never
+	// removes its value: GB seeds state from the parsed tag string, not the registry.
+	// F7c.2 is the non-vacuous partner - unset still bounds at 1 on flat wire, so a row
+	// printing two terms is the stored limit being honored rather than a default fan-out.
+	$sections[] = bws_fixture_gb_section( 'Fold F7c - stored limit renders with NO control (#62)', array(
+		bws_fixture_gb_row( 'F7c.1 text, stored limit:2 (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7c.2 text, limit UNSET - still 1 on flat wire, which makes F7c.1 mean something (-> Sales)', '{{text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7c.3 text, stored limit:0 is still UNLIMITED (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F7c.4 title, stored limit:2 (-> Sales, Support)', '{{title srcTermIn:department|limit:2}}' ),
+		bws_fixture_gb_row( 'F7c.5 email, stored limit:2 (-> jane@example.test, tom@example.test)', '{{email src:ref|ref:related_staff|key:contact_email|limit:2|noLink}}' ),
+		bws_fixture_gb_row( 'F7c.6 phone, stored limit:2 (-> (555) 200-3000, (555) 200-4000)', '{{phone src:ref|ref:related_staff|key:main_line|limit:2|noLink}}' ),
+		bws_fixture_gb_row( 'F7c.7 datetime_single, stored limit:2 (-> May 1, 2030, June 1, 2030)', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:2|as:date}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Fold F8 - src CHAIN on base tags (5h compiler)', array(
 		bws_fixture_gb_row( 'F8.2 legacy (-> (555) 200-3000)', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
 		bws_fixture_gb_row( 'F8.2 chain (-> same)', '{{phone src:refs,related_staff|key:main_line}}' ),
 		bws_fixture_gb_row( 'F8.3 legacy (-> Jane Partner)', '{{text src:ref|ref:related_staff|use:title}}' ),
 		bws_fixture_gb_row( 'F8.3 chain (-> same)', '{{text src:refs,related_staff|use:title}}' ),
-		bws_fixture_gb_row( 'F8.4 chain, no hop cap (-> BOTH numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
-		bws_fixture_gb_row( 'F8.5 PER-HOP cap limit(1) bounds the fan-out (-> ONE number, despite limit:0)', '{{phone src:refs,related_staff,limit(1)|key:main_line|limit:0}}' ),
-		bws_fixture_gb_row( 'F8.6 per-hop cap limit(2) (-> both numbers again)', '{{phone src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.4 chain, no hop limit (-> BOTH numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.5 PER-HOP limit(1) bounds the fan-out (-> ONE number, despite limit:0)', '{{phone src:refs,related_staff,limit(1)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.6 per-hop limit(2) (-> both numbers again)', '{{phone src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F8.7 TWO relationship steps - the spec headline case, data two relationships away (-> Jane Partner, who is the only reports_to target; Jane herself has none, so that branch drops)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F8.8 F8.7 with step 1 bounded to Jane, who reports to nobody (-> EMPTY: the step limit bounds step 1 and the chain short-circuits)', '{{text src:refs,related_staff,limit(1);refs,reports_to|use:title}}' ),
+		bws_fixture_gb_row( 'F8.9 F8.7 reading a FIELD off the second-degree post, not its title (-> (555) 200-3000, Jane\'s line)', '{{text src:refs,related_staff;refs,reports_to|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'F8.10 a LATER step\'s limit is PER-INPUT (#72): one term from EACH ref\'d staff (-> All Users, All Users; whole-output rendered one)', '{{text src:refs,related_staff;terms,portal_visibility,limit(1)|use:title}}' ),
+		// F8b (#74) - an ARGLESS step on a base tag reads EMPTY, not the ambient entity.
+		// Through 1.16.x the compiler DROPPED it, leaving a chain with no steps, and a
+		// chain with no steps resolves the ambient entity - so these returned THIS page's
+		// own main_line from a tag naming a relationship. Empty rows: GB hides a block
+		// whose tag renders nothing, taking a single-block row's label with it.
+		bws_fixture_gb_empty_row( 'F8b.1 argless src:ref reads EMPTY, not this page\'s own main_line', '{{text src:ref|use:key|key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F8b.2 same in chain spelling - argless refs step, EMPTY', '{{text src:refs|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'F8b.3 NEGATIVE CONTROL - a step WITH its argument is untouched (-> (555) 200-3000)', '{{text src:ref|ref:related_staff|use:key|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.1 unknown hop slug SHORT-CIRCUITS (-> empty, and that is correct)', '{{phone src:refs,related_staff;bogus,x|key:main_line}}' ),
 		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
 	) );
@@ -536,16 +605,42 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// supported authoring surface, and see it beside F1.7, which is the same term
 	// hop working in a slot. Do not "fix" these with a guard — the fix is the
 	// verb-agnostic resolver refactor (arms dispatching by terminal step KIND).
-	$sections[] = bws_fixture_gb_section( 'Fold F9 - KNOWN DIVERGENCES (arm-gated; NOT bugs to patch)', array(
+	// Was the DIVERGENCE section; the arm refactor (FW-63) turned it into
+	// acceptance criteria. Every arm now asks bws_fold_src_resolution() — what the
+	// chain RESOLVES TO plus whether it fans — instead of comparing src to
+	// 'ref'/'site' or reading flat srcTermIn, so the two spellings take the same
+	// arm. Read the PAIRS: a wrong arm renders a PLAUSIBLE value, not an empty
+	// one, so a row that "looks fine" on its own is not evidence.
+	// NB the chain rows carry NO limit — flat wire bounds at 1, chain wire does not
+	// (bws_limit_default), which is the whole compatibility mechanism.
+	$sections[] = bws_fixture_gb_section( 'Fold F9 - arm dispatch: chain wire on a BASE tag (pairs must match)', array(
 		bws_fixture_gb_row( 'F9.1 legacy term hop (-> Sales, Support)', '{{text srcTermIn:department|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.1 chain term hop RENDERS THE PAGE TITLE instead - a DIFFERENT value, not empty (arm reads flat srcTermIn)', '{{text src:terms,department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.1 chain term hop, no limit needed (-> Sales, Support; rendered the PAGE TITLE before FW-63)', '{{text src:terms,department|use:title}}' ),
 		bws_fixture_gb_row( 'F9.2 legacy list mode (-> Jane Partner, Tom Associate)', '{{text src:ref|ref:related_staff|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.2 chain gives ONE result - the plural path is gated on src being literally ref', '{{text src:refs,related_staff|use:title|limit:0}}' ),
-		bws_fixture_gb_row( 'F9.3 a NON-LEADING hop is dropped on a post-semantic read (-> Jane Partner; should be empty, jane has no terms)', '{{text src:refs,related_staff;terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F9.2 chain list mode, no limit needed (-> Jane Partner, Tom Associate; gave ONE before FW-63)', '{{text src:refs,related_staff|use:title}}' ),
+		// F9.3's expectation is EMPTY, so it needs the split label form AND a
+		// non-vacuity twin: an empty read and a dropped hop both print nothing, and
+		// before FW-63 this rendered "Jane Partner" (the wrapper took the leading run
+		// of ref steps and stopped, so the term hop vanished).
+		bws_fixture_gb_empty_row( 'F9.3 a NON-LEADING hop now runs (-> empty; jane and tom carry no department terms). Rendered Jane Partner before FW-63', '{{text src:refs,related_staff;terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F9.3b non-vacuity control for F9.3 (-> NOHOP; proves the chain resolved and found nothing)', '{{text src:refs,related_staff;terms,department|use:title|fallback:NOHOP}}' ),
+		bws_fixture_gb_row( 'F9.4 site read (-> the org name)', '{{text src:site|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F9.4 site read still WINS over a hand-edited term hop - the pair is hand-edit only, and every arm has always let site win (-> same value)', '{{text src:site|srcTermIn:department|key:organization_email}}' ),
 		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
 		// a label is live wire, and GB renders it. Spelled out here, the empty
 		// {{table}} it produced hid this row's whole label block.
-		bws_fixture_gb_empty_row( 'F9.4 no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+		// The one flat-wire behaviour change, shown rather than hidden. It uses
+		// portal_visibility, NOT department: jane and tom carry no department terms,
+		// so that taxonomy makes the row empty either way and it asserts nothing.
+		// Drop the limit:0 and this reads All Users on both eras - the floor holding.
+		bws_fixture_gb_row( 'F9.6 flat ref+term with an EXPLICIT limit now fans across every ref-d post (-> All Users, All Users; was All Users)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9.6b the compatibility FLOOR: same tag, limit unset (-> All Users, unchanged from before)', '{{text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title}}' ),
+		// Matches on the AMBIENT page's content, not jane's: {{content}} ignores the
+		// relationship step entirely (issue #58, measured identically on main). The
+		// PAIR agreeing is the arm-dispatch property; it is not proof the hop works.
+		bws_fixture_gb_row( "F9a.3 legacy content ref (-> jane's excerpt, HER values: Jane, Johnson - the pair must MATCH; entity correctness is CT1-CT3 on /matrix-content/)", '{{content src:ref|ref:related_staff|use:excerpt}}' ),
+		bws_fixture_gb_row( 'F9a.3 chain content ref (-> same as the legacy row above)', '{{content src:refs,related_staff|use:excerpt}}' ),
 	) );
 
 	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
@@ -568,7 +663,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 
 	$sections[] = bws_fixture_gb_section( 'Fold F13 - TAG-level axes must survive the fold', array(
 		bws_fixture_gb_row( 'F13.1 tag-level key on try_datetime_* is NOT slot 1\'s read (-> May 1, 2030 10:00 AM)', '{{try_datetime_single A:src(refs,related_staff)|B:src(current)|key:event_datetime}}' ),
-		bws_fixture_gb_row( 'F13.2 tag-level limit on a try_ list template is the TAG cap (-> (555) 200-3000)', '{{try_phone A:src(refs,related_staff);key(main_line)|B:src(current);key(main_line)|limit:2}}' ),
+		bws_fixture_gb_row( 'F13.2 tag-level limit on a try_ list template is the TAG limit (-> (555) 200-3000)', '{{try_phone A:src(refs,related_staff);key(main_line)|B:src(current);key(main_line)|limit:2}}' ),
 		bws_fixture_gb_row( 'F13.3 legacy twin of F13.2 (-> same output; that agreement IS the property)', '{{try_phone src:ref|ref:related_staff|key:main_line|2-key:main_line|limit:2}}' ),
 	) );
 
@@ -659,6 +754,48 @@ function bws_fixture_page_content_matrix_term_hop() {
 	. "\n\n" . bws_fixture_gb_section( 'Text - term field via srcTermIn hop', array(
 		bws_fixture_gb_row( 'text-term-hop', '{{text srcTermIn:department|key:email|limit:2}}' ),
 	) )
+	// F7a (#60) — a slot's own source spelling decides its own limit, exactly as a
+	// base tag's does. The base tag is the reference; the two containers must match
+	// it; the flat row is what stops the set being vacuous. Only meaningful where the
+	// page actually carries department terms, which is why it lives here.
+	. "
+
+" . bws_fixture_gb_section( 'Fold F7a - a slot spelling decides its own limit (#60)', array(
+		bws_fixture_gb_row( 'F7a.1 BASE tag, chain-spelled - the reference (-> every department term)', '{{text src:terms,department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.2 try_ slot, same spelling - must MATCH F7a.1 (was one term)', '{{try_text A:src(terms,department);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.3 join slot, same spelling - must MATCH F7a.1', '{{join A:src(terms,department);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.5 the FLAT spelling still bounds at 1 - makes the three above non-vacuous (-> ONE term)', '{{try_text srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.7 MIGRATED twin of F7a.5 - limit[1] states what the flat spelling implied (-> same as F7a.5)', '{{try_text A:src(terms,department,limit[1]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.8 legacy tag-level limit:2 (-> two terms)', '{{try_text srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.1 MIGRATED twin - the number lands on the slot own fanning step and the tag-level key is RETIRED (-> same as F7a.8)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
+		// F7b (#61) - the shape the ticket names: slots ALREADY folded, only the
+		// retiring key left. It carries no legacy slot key, so it reaches the entry
+		// only because `limit` is on the MATCH surface.
+		bws_fixture_gb_row( 'F7b.2 already-folded slot beside the retiring key - pre-#61 storage (-> two terms)', '{{try_text A:src(terms,department);use(title)|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.2b MIGRATED twin - the number moved onto the slot own last fanning step (-> same as F7b.2)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7b.5 join CONTRAST - a bare limit is slot 1 own axis, never pushed into a folded slot, and join has no tag-level fallback to read it with (-> every term)', '{{join A:src(terms,department);use(title)|limit:3}}' ),
+		bws_fixture_gb_row( 'F7b.7 join inheriting slot - inherits the HOP but not the BOUND, so ONE blurb after the two titles', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
+		// F7d (#74) - `src(same)` inherits the term hop. Before the fix slot B inherited
+		// an empty source (a leading `terms` step leaves `src` unset) and read the PAGE,
+		// which is why .2 rendered the page title and looked like a working tag.
+		bws_fixture_gb_row( 'F7d.1 join inheriting slot reads the TERM phone, not the page (-> two titles then (987) 333-4444)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(phone)}}' ),
+		bws_fixture_gb_row( 'F7d.2 same-read inheriting slot reads the TERM title, not the page title (-> Sales, Support, Sales)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F7d.2b LEGACY twin of F7d.2 - the fix is uniform across eras (-> same as F7d.2)', '{{join srcTermIn:department|use:title|limit:2|2-src:same|2-use:same}}' ),
+		bws_fixture_gb_row( 'F7d.3 a slot stating its OWN root does not acquire the carried hop (-> two titles only, page has no phone)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(current);key(phone)}}' ),
+		bws_fixture_gb_row( 'F7d.4 an inherited hop is a DEFAULT - the slot own terms step REPLACES it (-> Sales, Support, Warehouse)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
+		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7a.10b join MIGRATED twin - the 2 lands on the slot own fanning step (-> same as F7a.10)', '{{join A:src(terms,department,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F7a.11 an explicit legacy limit:0 KEEPS its carrier - unmigrated wire takes the flat default (-> every term)', '{{try_text srcTermIn:department|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F7b.4 MIGRATED twin - an explicit unlimited moves onto the step like any other number (-> same as F7a.11)', '{{try_text A:src(terms,department,limit[0]);use(title)}}' ),
+		// The LINK GATE half (limit-default-test-matrix.md L4a). It is count-based, so a
+		// slot that starts returning several values stops being wrappable - eyeball the
+		// anchors, not just the text.
+		bws_fixture_gb_row( 'L4a.1 flat slot, unset - ONE term, and it IS a link', '{{try_text srcTermIn:department|use:title|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.2 chain slot, unset - every term, and NO link (multi-value is not wrappable)', '{{try_text A:src(terms,department);use(title)|linkTo:permalink}}' ),
+		bws_fixture_gb_row( 'L4a.3 MIGRATED twin of L4a.1 - ONE term, link back (-> same as L4a.1)', '{{try_text A:src(terms,department,limit[1]);use(title)|linkTo:permalink}}' ),
+	) )
 	// datetime matrix D4 (#30) — srcTermIn list rows. The page's assigned terms
 	// make the case (valid / mixed-junk / all-junk), same as the phone rows.
 	. "\n\n" . bws_fixture_gb_section( 'Datetime D4 - srcTermIn list (#30)', array(
@@ -670,11 +807,54 @@ function bws_fixture_page_content_matrix_term_hop() {
 	) );
 }
 
+/**
+ * Page content: matrix-content (page-matrix-content) — content-test-matrix.md.
+ *
+ * Its own page because the property under test is WHICH ENTITY the read lands
+ * on, and a hopped {{content}} renders a whole other page's blocks inline. The
+ * matrix pages carry values that would then appear twice from two entities on
+ * one screen; here the page's own field values are deliberately distinct from
+ * the staff singles' so ambient-vs-hopped is legible at a glance (#58).
+ *
+ * A BARE {{content}} row is absent by design: it would recurse into the page
+ * being rendered, which the ContentProcessor stack guard answers with '' — the
+ * recursion guard's own coverage, not this page's.
+ */
+function bws_fixture_page_content_matrix_content() {
+	$sections = array();
+
+	// CT1-CT3 — the hop reads the TARGET post, inner tags included (#58). Jane's
+	// content is the join NAME rows off her own name_* fields, so her rows read
+	// `Jane, Johnson` here; before the context swap they read this page's values.
+	$sections[] = bws_fixture_gb_section( 'Content CT1-CT3 - a hopped read lands on the TARGET entity (#58)', array(
+		bws_fixture_gb_row( "CT1 plain hop (-> jane's blocks, and her J1 row reads Jane, Johnson - NOT this page's values)", '{{content src:ref|ref:related_staff}}' ),
+		bws_fixture_gb_row( "CT2 chain-spelled twin (-> same as CT1)", '{{content src:refs,related_staff}}' ),
+		bws_fixture_gb_row( "CT3 excerpt hop (-> jane's content trimmed, her values, and the read-more link points at /staff/jane-partner/)", '{{content src:ref|ref:related_staff|use:excerpt}}' ),
+	) );
+
+	// CT4-CT5 — the other two arms of the same callback. Neither renders blocks,
+	// so neither can drift on entity the way CT1-CT3 did; they are here so the
+	// content family's arms are covered in one place.
+	$sections[] = bws_fixture_gb_section( 'Content CT4-CT5 - the field-read arms', array(
+		bws_fixture_gb_row( "CT4 post arm, use:key (-> jane's main line, (555) 200-3000)", '{{content src:ref|ref:related_staff|use:key|key:main_line}}' ),
+		bws_fixture_gb_row( 'CT5 term arm, use:key - support carries no blurb, so the walk skips to sales (-> the Sales blurb)', '{{content srcTermIn:department|use:key|key:blurb}}' ),
+	) );
+
+	// CT6 — the ambient read is the contrast that makes CT1 non-vacuous: same tag,
+	// no hop, so it must show THIS page's own values.
+	$sections[] = bws_fixture_gb_section( 'Content CT6 - the ambient contrast', array(
+		bws_fixture_gb_row( "CT6 no hop, this page's own field (-> (321) 555-0100, this page's line, NOT jane's)", '{{text key:main_line}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
 		'matrix_post_meta' => 'bws_fixture_page_content_matrix_post_meta',
 		'matrix_term_hop'  => 'bws_fixture_page_content_matrix_term_hop',
+		'matrix_content'   => 'bws_fixture_page_content_matrix_content',
 		'staff_join'       => 'bws_fixture_page_content_staff_join',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {

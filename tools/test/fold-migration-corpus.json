@@ -6,7 +6,7 @@
 		"instead of writing two different wires for one tag.",
 		"",
 		"`conf` speaks the EDITOR's vocabulary — it is the `fold` config PHP registration",
-		"ships to the control, `legacyAxes` included. The PHP driver converts back to the",
+		"ships to the control, `flatAxes` included. The PHP driver converts back to the",
 		"migrator's `tag_level` (the complement), which is the direction the shipped code",
 		"already goes.",
 		"",
@@ -16,88 +16,780 @@
 	"cases": [
 		{
 			"label": "selecting text: both slots fold, tag-level keys survive",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "src": "ref", "ref": "office", "key": "name", "2-use": "key", "2-key": "role", "limit": "3", "sep": ", " }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"2-use": "key",
+				"2-key": "role",
+				"limit": "3",
+				"sep": ", "
+			}
 		},
 		{
 			"label": "combining join: per-slot limit onto the fanning step, slot 10 reachable",
-			"conf": { "combining": true, "perSlotUse": true, "max": 10, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
-			"options": { "srcTermIn": "category", "use": "title", "limit": "3", "10-key": "last", "mode": "template" }
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"srcTermIn": "category",
+				"use": "title",
+				"limit": "3",
+				"10-key": "last",
+				"mode": "template"
+			}
 		},
 		{
 			"label": "an already-folded slot wins and its legacy siblings are dropped",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "1": "key(new)", "src": "ref", "ref": "office", "key": "old" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"1": "key(new)",
+				"src": "ref",
+				"ref": "office",
+				"key": "old"
+			}
 		},
 		{
 			"label": "FW-51: a selecting slot ≥2 with only a key maps to nothing, keys still stripped",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "key": "a", "2-key": "b" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"key": "a",
+				"2-key": "b"
+			}
 		},
 		{
 			"label": "nothing to migrate → no-op",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "1": "key(name)", "2": "src(same);use(title)", "limit": "2" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"1": "key(name)",
+				"2": "src(same);use(title)",
+				"limit": "2"
+			}
 		},
 		{
 			"label": "read-less try_: a TAG-level key stays tag-level and is not slot 1's read",
-			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn" ] },
-			"options": { "src": "site", "key": "event_date", "2-src": "ref", "2-ref": "office" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": false,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn"
+				]
+			},
+			"options": {
+				"src": "site",
+				"key": "event_date",
+				"2-src": "ref",
+				"2-ref": "office"
+			}
 		},
 		{
 			"label": "key-only try_: no `use` axis exists, so a stale tag-level one is untouched",
-			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "key" ] },
-			"options": { "key": "work_email", "2-key": "personal_email", "use": "key" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": false,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"key"
+				]
+			},
+			"options": {
+				"key": "work_email",
+				"2-key": "personal_email",
+				"use": "key"
+			}
 		},
 		{
 			"label": "limit 0 = unlimited must SURVIVE the fold (PHP '0' is falsy, JS '0' is not)",
-			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
-			"options": { "src": "ref", "ref": "offices", "key": "name", "limit": "0" }
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "offices",
+				"key": "name",
+				"limit": "0"
+			}
 		},
 		{
 			"label": "combining slot ≥2 with a source and no read stays UNCONFIGURED (skip preserved)",
-			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
-			"options": { "key": "name", "2-src": "ref", "2-ref": "office" }
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"key": "name",
+				"2-src": "ref",
+				"2-ref": "office"
+			}
 		},
 		{
 			"label": "selecting slot 2 with only a source materializes the read inherit",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "key": "name", "2-src": "ref", "2-ref": "office" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"key": "name",
+				"2-src": "ref",
+				"2-ref": "office"
+			}
 		},
 		{
-			"label": "a garbage limit is not numeric, so it neither caps nor survives",
-			"conf": { "combining": true, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ] },
-			"options": { "src": "current", "srcTermIn": "category", "use": "title", "limit": "lots" }
+			"label": "a garbage limit is not numeric, so it neither bounds nor survives",
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"src": "current",
+				"srcTermIn": "category",
+				"use": "title",
+				"limit": "lots"
+			}
 		},
 		{
 			"label": "surviving tag-level keys are RE-ORDERED, not left in stored order (as → fallback)",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "fallback": "n/a", "src": "ref", "ref": "office", "key": "logo", "as": "url,large" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"fallback": "n/a",
+				"src": "ref",
+				"ref": "office",
+				"key": "logo",
+				"as": "url,large"
+			}
 		},
 		{
 			"label": "chain-only container: a slot whose ONLY content is src:current must survive",
-			"conf": { "combining": false, "perSlotUse": false, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn" ] },
-			"options": { "src": "ref", "ref": "bws_missing_ref", "2-src": "current" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": false,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "bws_missing_ref",
+				"2-src": "current"
+			}
 		},
 		{
 			"label": "mid-chain gap: slot 3 legacy, slot 2 absent (hand-edited wire)",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ] },
-			"options": { "key": "name", "3-src": "site", "3-use": "key", "3-key": "org_name" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"key": "name",
+				"3-src": "site",
+				"3-use": "key",
+				"3-key": "org_name"
+			}
 		},
 		{
 			"label": "retired src token: slot 2 is DECLINED whole — not folded, keys NOT stripped",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
-			"options": { "key": "name", "2-src": "related_post", "2-use": "key", "2-key": "role" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"key": "name",
+				"2-src": "related_post",
+				"2-use": "key",
+				"2-key": "role"
+			}
 		},
 		{
 			"label": "retired src token on the ONLY slot: nothing to migrate at all (null, not an empty rewrite)",
-			"conf": { "combining": false, "perSlotUse": true, "max": 5, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
-			"options": { "src": "related_post", "key": "name" }
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "related_post",
+				"key": "name"
+			}
 		},
 		{
 			"label": "combining join: a retired token declines its slot while the others still fold",
-			"conf": { "combining": true, "perSlotUse": true, "max": 10, "legacyAxes": [ "src", "ref", "srcTermIn", "use", "key", "limit" ], "retiredSrc": [ "related_post", "second_related_post", "post_term_related_post", "term_related_post" ] },
-			"options": { "use": "title", "2-src": "term_related_post", "2-key": "role", "3-src": "site", "3-use": "key", "3-key": "org_name" }
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"use": "title",
+				"2-src": "term_related_post",
+				"2-key": "role",
+				"3-src": "site",
+				"3-use": "key",
+				"3-key": "org_name"
+			}
+		},
+		{
+			"label": "selecting text: NO tag-level limit — the flat era's implied 1 lands on the fanning step",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name",
+				"2-use": "key",
+				"2-key": "role"
+			}
+		},
+		{
+			"label": "selecting text: an explicit unlimited keeps its carrier (dual-read takes the flat default)",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"srcTermIn": "department",
+				"use": "title",
+				"limit": "0"
+			}
+		},
+		{
+			"label": "#61 selecting text: slots ALREADY FOLDED, the tag-level limit still to retire",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"A": "src(refs,office);use(title)",
+				"B": "src(terms,department);key(name)",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a folded slot that PINS its own limit, beside one that inherits",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"A": "src(refs,office,limit[2]);use(title)",
+				"B": "src(same);key(name)",
+				"C": "key(role)",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a slotless tag has nowhere to push the number, so it is a no-op",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				]
+			},
+			"options": {
+				"limit": "3",
+				"sep": ", "
+			}
+		},
+		{
+			"label": "#61 selecting text: the ONLY slot names a RETIRED token, so it is declined and the key stays",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "second_related_post",
+				"key": "name",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 selecting text: a DECLINED slot beside a real one — the number still lands, the key still goes",
+			"conf": {
+				"combining": false,
+				"perSlotUse": true,
+				"max": 5,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key"
+				],
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "second_related_post",
+				"key": "name",
+				"2-src": "ref",
+				"2-ref": "office",
+				"2-use": "title",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "#61 combining join: an already-folded slot beside a bare limit — slot 1's own axis, never pushed",
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"A": "src(terms,category);use(title)",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "combining join: slot 2 fans only by INHERITANCE, so it states no bound of its own",
+			"conf": {
+				"combining": true,
+				"perSlotUse": true,
+				"max": 10,
+				"flatAxes": [
+					"src",
+					"ref",
+					"srcTermIn",
+					"use",
+					"key",
+					"limit"
+				]
+			},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "a",
+				"limit": "4",
+				"2-key": "b"
+			}
+		}
+	],
+	"_baseSrcReadme": "DEPTH-0 base-tag source migration (bws_fold_migrate_base_src / baseSrcState). Its own section, not a borrowed slot case: the slot cases exercise a container's per-slot keys, and nothing about them reaches the tag's own source triple. Results are compared as ORDERED KEY PAIRS because key order is half the property -- the two paths must write one tag ONE way.",
+	"baseSrc": [
+		{
+			"label": "flat src:ref + ref -> chain, implied limit lands on the step",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"key": "name"
+			}
+		},
+		{
+			"label": "srcTermIn alone -> terms chain",
+			"conf": {},
+			"options": {
+				"srcTermIn": "department",
+				"use": "title"
+			}
+		},
+		{
+			"label": "ref + srcTermIn compound, in that order",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "department",
+				"use": "title"
+			}
+		},
+		{
+			"label": "an author-stated limit MOVES onto the fanning step",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "an author-stated limit over TWO fanning steps holds the earlier one at 1",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"srcTermIn": "department",
+				"limit": "3"
+			}
+		},
+		{
+			"label": "an explicit limit:0 writes no step limit and takes the key with it (depth 0)",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "0"
+			}
+		},
+		{
+			"label": "an explicit limit:-1 is the older spelling of the same, and goes the same way",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "-1"
+			}
+		},
+		{
+			"label": "an EMPTY limit: is absent, and is not deleted either",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": ""
+			}
+		},
+		{
+			"label": "a magnitude the two languages cannot hold identically writes no step limit",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "99999999999999999999"
+			}
+		},
+		{
+			"label": "a NON-NUMERIC limit is left where it is (it already means the default)",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"ref": "office",
+				"limit": "lots"
+			}
+		},
+		{
+			"label": "orphan src:ref with no field still respells",
+			"conf": {},
+			"options": {
+				"src": "ref",
+				"key": "name"
+			}
+		},
+		{
+			"label": "CHAIN wire + a numeric tag-level limit: absorbed onto the step, key gone",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "1"
+			}
+		},
+		{
+			"label": "CHAIN wire + limit:0 -- no step limit, and the key still goes",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "0"
+			}
+		},
+		{
+			"label": "CHAIN wire + a NON-numeric limit is declined whole (no era change, no default to carry)",
+			"conf": {},
+			"options": {
+				"src": "terms,department",
+				"use": "title",
+				"limit": "lots"
+			}
+		},
+		{
+			"label": "CHAIN wire whose steps state their own limit keeps both, and is declined",
+			"conf": {},
+			"options": {
+				"src": "terms,department,limit(2)",
+				"use": "title",
+				"limit": "1"
+			}
+		},
+		{
+			"label": "legacy `source` key is read and dropped",
+			"conf": {},
+			"options": {
+				"source": "ref",
+				"ref": "office"
+			}
+		},
+		{
+			"label": "DECLINED: nothing fans (bare tag)",
+			"conf": {},
+			"options": {
+				"key": "name"
+			}
+		},
+		{
+			"label": "DECLINED: nothing fans (src:current)",
+			"conf": {},
+			"options": {
+				"src": "current",
+				"key": "name"
+			}
+		},
+		{
+			"label": "DECLINED: site root, even beside a hand-edited srcTermIn",
+			"conf": {},
+			"options": {
+				"src": "site",
+				"srcTermIn": "department",
+				"key": "org_name"
+			}
+		},
+		{
+			"label": "DECLINED: already chain wire",
+			"conf": {},
+			"options": {
+				"src": "refs,office",
+				"limit": "1"
+			}
+		},
+		{
+			"label": "DECLINED: a RETIRED source token is left whole for its own entry (#56)",
+			"conf": {
+				"retiredSrc": [
+					"related_post",
+					"second_related_post",
+					"post_term_related_post",
+					"term_related_post"
+				]
+			},
+			"options": {
+				"src": "related_post",
+				"rel": "office",
+				"key": "name"
+			}
+		},
+		{
+			"label": "key ORDER: the chain leads the source group, limit follows it",
+			"conf": {},
+			"options": {
+				"fallback": "none",
+				"key": "name",
+				"srcTermIn": "department",
+				"linkTo": "permalink"
+			}
 		}
 	]
 }

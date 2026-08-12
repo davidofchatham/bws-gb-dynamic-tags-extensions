@@ -34,7 +34,10 @@ class TagTemplateRegistry {
 	 *                    over bws_site_resolve_value('<tag>',…). Absent → $cf(0,…) fallback keeps
 	 *                    seam-routed templates (email/phone) byte-identical.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
-	 *   leading_options       array    Group 1 options (global formatting: as, size, format, etc.) prepended before slots in try_ tags.
+	 *   leading_options       array    Global formatting options (as, size, the datetime format
+	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
+	 *                    constructor registers them in canonical control order, i.e. after the
+	 *                    attempts and their field reads. Both read the same key.
 	 *   try_per_slot_key      bool     Each try_ slot reads its own field key.
 	 *   try_per_slot_use      bool     Each try_ slot gets its own read (`use`) selector.
 	 *                    The PAIR names the slot's READ SHAPE, which is what the folded
@@ -83,7 +86,7 @@ class TagTemplateRegistry {
 	 *
 	 * Link wrap: templates with supports_link_wrap=true get linkTo/linkKey/newTab appended
 	 * after trailing field/fallback options. Entity type for URL resolution is determined by
-	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn hop.
+	 * dispatch path: term for base-source, post for src:ref traversal, term for srcTermIn step.
 	 * Templates without supports_link_wrap (content, permalink, image) never receive link options.
 	 *
 	 * @since 1.6.0
@@ -137,7 +140,7 @@ class TagTemplateRegistry {
 		$link_options = function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array();
 
 		// Detect term-context base source. Term entities are themselves terms — `srcTermIn`
-		// (term-hop on the resolved post) only makes sense after a post traversal (src=ref),
+		// (term-step on the resolved post) only makes sense after a post traversal (src=ref),
 		// not when the entity already IS the term (src=current).
 		$base_src_obj         = $base_src_key ? SourceRegistry::get_source( $base_src_key ) : null;
 		$base_is_term_context = $base_src_obj && 'term' === $base_src_obj->get_context_type();
@@ -162,10 +165,17 @@ class TagTemplateRegistry {
 			$is_image         = ! empty( $tpl['is_image'] );
 			$supports_link    = ! $is_image && ! empty( $tpl['supports_link_wrap'] ) && ! empty( $link_options );
 
-			// Inject source + traversal after leading format controls. Link options go after
-			// all field/fallback options (trailing part), so they appear at the bottom.
+			// Inject source + traversal after leading format controls. `fallback` is lifted
+			// out of the template's options and re-appended LAST — it is global and closes
+			// every panel (canonical control order, and what base tags register). It rode the
+			// trailing part until 1.17.0, which put it ahead of the link cluster on exactly
+			// the templates that have both (term_text, term_datetime_*); the try_ constructor
+			// had the same bug from the same cause.
 			$tpl_options  = $tpl['options'] ?? [];
 			$leading_keys = array_keys( $tpl['leading_options'] ?? [] );
+
+			$fallback_part = array_intersect_key( $tpl_options, [ 'fallback' => null, 'fallback_text' => null ] );
+			$tpl_options   = array_diff_key( $tpl_options, $fallback_part );
 
 			if ( $is_image && isset( $tpl_options['as'] ) ) {
 				$as_opt = [ 'as' => $tpl_options['as'] ];
@@ -182,6 +192,8 @@ class TagTemplateRegistry {
 			} else {
 				$options = array_merge( $source_opt, $tag_traversal_opts, $tpl_options );
 			}
+
+			$options = array_merge( $options, $fallback_part );
 
 			// Per-tag supports (do not mutate the shared $base_supports across templates).
 			// Image tags no longer declare native 'image-size' (as+size fold, FW-52):
@@ -211,7 +223,7 @@ class TagTemplateRegistry {
 	 *
 	 * Under the traversal pipeline (SPEC §T7/§V5) the modifier resolves its BASE
 	 * source via base_source_key (term_ → TaxonomyTerm term-kind, view_ →
-	 * PortalSource post-kind), then hops `src:ref` through the generic `ref` step —
+	 * PortalSource post-kind), then steps `src:ref` through the generic `ref` step —
 	 * the per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
 	 * is no longer invoked. `$traversal_src_key` is ACCEPTED-BUT-IGNORED: kept in the
 	 * signature so register_modifier() (and external callers like bws-portal-system)
@@ -267,7 +279,7 @@ class TagTemplateRegistry {
 
 			// srcTermIn dispatch: resolve target post (current or via ref), then call term_fn
 			// against each taxonomy term on that post; first non-empty wins. Mirrors
-			// bws_base_image_callback's term-hop loop. For term-context base sources, the
+			// bws_base_image_callback's term-step loop. For term-context base sources, the
 			// option is hidden when src=current (UI gating), so this only runs when src=ref.
 			// Returns [ 'value' => string, 'term_id' => int ] so caller can apply link wrap.
 			$srcterm_dispatch = static function ( $post_id, $opts, $inst, $tax ) use ( $term_fn ) {
@@ -292,7 +304,7 @@ class TagTemplateRegistry {
 
 			// L1 — resolve the modifier's BASE resolved source via base_src_key (SPEC
 			// §V5): term_ → TaxonomyTerm (term kind), view_ → PortalSource (post kind).
-			// The pipeline engine then hops it; traversal_src_key is accepted-but-
+			// The pipeline engine then steps it; traversal_src_key is accepted-but-
 			// IGNORED (SPEC §V5 — portal still passes it, we never read it). The old
 			// per-combination traversal source class (TermRelatedPost / PortalRelatedPost)
 			// is replaced by the generic `ref` step off this base source.
@@ -302,18 +314,18 @@ class TagTemplateRegistry {
 			$base_source = $base_id ? array( 'kind' => $base_kind, 'id' => $base_id ) : array();
 
 			if ( 'ref' === $source ) {
-				// Traversal: hop the base source's relationship field → post[] via the
+				// Traversal: step the base source's relationship field → post[] via the
 				// generic ref step (SPEC §V5/§V6). Modifier link semantics are single-
-				// valued, so collapse to the first post id after the hop.
+				// valued, so collapse to the first post id after the step.
 				$ref_field = $opts['ref'] ?? '';
 				$entity_id = 0;
 				if ( $base_source && '' !== $ref_field && function_exists( 'bws_run_traversal' ) ) {
-					$hopped    = bws_run_traversal(
+					$stepped   = bws_run_traversal(
 						array( $base_source ),
-						array( array( 'type' => 'ref', 'field' => $ref_field ) )
+						array( array( 'type' => 'refs', 'field' => $ref_field ) )
 					);
 					$entity_id = function_exists( 'bws_first_post_id_from_sources' )
-						? (int) bws_first_post_id_from_sources( $hopped )
+						? (int) bws_first_post_id_from_sources( $stepped )
 						: 0;
 				}
 
@@ -389,8 +401,11 @@ class TagTemplateRegistry {
 	 *
 	 * `src`/`ref`/`srcTermIn` are always slot-level. `limit` NEVER is: try_ has never
 	 * registered `N-limit`, and the resolver reads a bare `limit` as every slot's default
-	 * cap (`$slot_max`), list template or not — so folding it into slot 1 would take the cap
-	 * away from slots 2+. It stays tag-level on every template.
+	 * limit (`$slot_max`), list template or not — so folding it into slot 1 would take that
+	 * bound away from slots 2+. It is TAG-level on every template for as long as it exists
+	 * in wire, which is what this list states. The CONTROL is gone (#62, 1.17.0) and the key
+	 * is retired by migration (#61) — neither changes the axis split: an unmigrated or
+	 * hand-written `limit` still arrives here and must still be kept out of a slot value.
 	 *
 	 * @since 1.17.0
 	 * @param array $tpl Modifier template descriptor.
@@ -431,11 +446,26 @@ class TagTemplateRegistry {
 	 * / `use(same)`) plus per-slot options. Grammar and vocabulary:
 	 * includes/helpers/slot-fold.php (the PHP owner) and bws_build_fold_slot_options().
 	 *
-	 * Option order follows the three-group structure from tag-reference.md:
-	 *   Group 1 — leading_options (global formatting: as, size, format, etc.) before slots.
-	 *   Group 2 — the folded slot keys `A`..`E`.
-	 *   Group 3 — trailing options from tpl['options'] minus leading and per-slot keys
-	 *             (field keys, fallback, link options), then chain-level limit/sep.
+	 * CONTROL order is REGISTRATION order (GB renders `options` as declared, and nothing
+	 * reorders it — the FW-52 normalizer moves the SERIALIZED key order only). So this
+	 * assembly is the panel, and since 1.17.0 it follows the same canonical control order
+	 * every base tag registers in — `source → format → link → fallback`:
+	 *   1. the folded slot keys `A`..`E`   — the attempt chain, i.e. this tag's source
+	 *   2. chain-level `sep`               — list length is a source property (FW-52).
+	 *                                        `limit` stood beside it until #62 retired the
+	 *                                        tag-level control from every chain-authoring tag
+	 *   3. tag-level field reads           — tpl['options'] minus format, per-slot and fallback
+	 *   4. format options                  — as/size, the datetime format cluster
+	 *   5. link options                    — linkTo/linkKey/newTab
+	 *   6. fallback                        — last, as on every base tag
+	 *
+	 * It did NOT until then: format led (the SERIALIZATION order, on the one tag family
+	 * that renders its format cluster), fallback preceded link, and `limit`/`sep` were
+	 * appended dead last. Harmless while every control was a bare sibling; visible the
+	 * moment 1.17.0 started boxing options by group, because a group draws as one box only
+	 * where its members register CONTIGUOUSLY (assets/js/option-group.js). Registering out
+	 * of canonical order does not just look wrong — it splits a group into two boxes, or
+	 * strands one member in a box of its own with nothing to name it.
 	 *
 	 * RESOLUTION runs through the shared render seam, so the inherit rules live in one
 	 * place for every container (bws_fold_slot_flat_options):
@@ -443,7 +473,7 @@ class TagTemplateRegistry {
 	 *     accumulator: ambient source, and the template's stripped first `use` value.
 	 *   - A slot that does NOT resolve never feeds the accumulator, so a half-configured
 	 *     slot cannot re-point a later slot's inherit.
-	 *   - The term hop is the exception: it names THIS slot's entity and never carries.
+	 *   - The term step is the exception: it names THIS slot's entity and never carries.
 	 *   - Wire era is decided PER SLOT — a folded value parses, an absent one is
 	 *     recovered from that slot's legacy keys — so a half-migrated tag resolves.
 	 *
@@ -490,21 +520,22 @@ class TagTemplateRegistry {
 			$list_options    = ! empty( $tpl['try_list_options'] );
 			$allow_site_slot = ! empty( $tpl['try_allow_site_slot'] );
 			$tpl_options     = $tpl['options'] ?? [];
-			$leading_options = $tpl['leading_options'] ?? [];
+			// The descriptor key still reads `leading_options` — it is the term_ constructor's
+			// too, where these DO lead. On try_ they no longer do (canonical control order,
+			// 1.17.0), so the local name states what they are rather than where they sit.
+			$format_options  = $tpl['leading_options'] ?? [];
 			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
 
 			if ( ! $try_core_fn ) {
 				continue;
 			}
 
-			// Group 1 — global formatting (as, size, format, etc.). Link options appended after
-			// trailing field/fallback options below (after slot loop + trailing merge).
 			$link_opts_try = ( $supports_link && function_exists( 'bws_get_link_options' ) )
 				? bws_get_link_options()
 				: [];
-			$options = $leading_options;
+			$options = [];
 
-			// Group 2 — FOLDED slot keys `A`..`E` (FW-56/57). One `bws-slot-fold` option
+			// 1 — FOLDED slot keys `A`..`E` (FW-56/57). One `bws-slot-fold` option
 			// per slot, whose VALUE carries that slot's whole configuration. Replaces the
 			// six flat keys per slot (src/ref/srcTermIn/use/key ×5 plus their show_if_any
 			// reveal cascade) this loop used to register. Every enum, label and noun the
@@ -521,8 +552,8 @@ class TagTemplateRegistry {
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
 			// axis, and the control renders whichever shape the derived config describes.
 			//
-			// `hops` is a CAPABILITY list: a slot FLATTENS to one ref hop plus one term
-			// hop, and `ref` is already a SOURCE row, so the term hop is the only step
+			// `steps` is a CAPABILITY list: a slot FLATTENS to one ref step plus one term
+			// step, and `ref` is already a SOURCE row, so the term step is the only step
 			// try_ can continue a chain with. Offering more would author wire the slot path
 			// cannot dispatch (bws_fold_slot_flat_options skips such a slot; its docblock
 			// carries why the 1.17.0 chain compiler does not lift that — the ARMS gate on
@@ -545,7 +576,7 @@ class TagTemplateRegistry {
 						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
-						'hops'            => [ 'srcTermIn' ],
+						'steps'            => [ 'terms' ],
 						// The axes that are TAG-level on this template, so the editor's
 						// mount migrator and the control leave them alone at every slot
 						// position — same split, same owner, as the trailing-option strip
@@ -565,11 +596,50 @@ class TagTemplateRegistry {
 				$options[ $slot_key ] = $slot_def;
 			}
 
-			// Append template-level trailing options (fallback, etc.).
-			// Strip options already emitted as leading (Group 1) or replaced by per-slot equivalents.
+			// 2 — List-mode chain option (try_list_options templates: text, title, email,
+			// phone). A winning slot in list mode (any slot with a srcTermIn term-step, or
+			// src:ref once the Phase-5 plural resolver lands) joins its finished items via
+			// the seam (bws_try_join_items). `sep` is CHAIN-level (one for the whole try_,
+			// not per-slot) — the seam reads it off $opts. [SPEC §32 V4,V5 / I6 parity]
+			//
+			// NO TAG-LEVEL `limit` since 1.17.0 (#62). A LIMIT IS STATED WHERE THE SOURCE
+			// IS STATED, and a try_ attempt authors its source as a CHAIN, so the limit
+			// belongs to the fanning STEP inside the slot value. The tag-level key was also
+			// the one limit an author could set for FIVE different sources at once, which
+			// #61 retired into the slots that consumed it — the value is still read here
+			// ($slot_max, below) so unmigrated and hand-edited wire keeps rendering.
+			//
+			// `sep` is registered HERE, right behind the attempts, because it is a
+			// SOURCE-group option (list length is a property of the source, FW-52) and a
+			// group boxes only where its members are contiguous. Appended last — which is
+			// where the pair sat until 1.17.0 — it drew its own captionless box at the foot
+			// of the panel, below link and fallback, describing a source nowhere near it.
+			// Alone in the group now, it renders BARE (option-group.js's lone-non-lead
+			// opt-out), which is right: a try_ tag's source is its attempts, and those draw
+			// their own boxes inside each slot value.
+			//
+			// UNCONDITIONAL under the fold. Its reveal predicate used to be a show_if_any
+			// over every slot's `N-srcTermIn`/`N-src` — keys the fold removed. A list axis
+			// now lives INSIDE a slot value (`src(terms[category])`), and show_if compares
+			// whole option values, so no honest predicate exists: a `not_empty` on slot `A`
+			// fires for every configured slot, list axis or not. A control always visible
+			// beats a condition that lies about when it matters — same call as join's
+			// reveal rows (5d).
+			if ( $list_options ) {
+				$options['sep'] = [
+					'type'        => 'text',
+					'label'       => __( 'Result Separator', 'generateblocks' ),
+					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
+					'placeholder' => ', ',
+				];
+			}
+
+			// 3 — Template-level options that are neither format nor per-slot: the TAG-level
+			// field reads (`use`/`key` on templates with no per-slot axis, the datetime key
+			// family) plus `fallback`, which is split back out and re-appended LAST below.
 			$trailing_opts = $tpl_options;
-			foreach ( array_keys( $leading_options ) as $leading_key ) {
-				unset( $trailing_opts[ $leading_key ] );
+			foreach ( array_keys( $format_options ) as $format_key ) {
+				unset( $trailing_opts[ $format_key ] );
 			}
 			// Whichever read axes this template owns PER SLOT are not tag-level options.
 			// self::try_slot_axes() is the single owner of that split; the fold migrator
@@ -577,38 +647,15 @@ class TagTemplateRegistry {
 			foreach ( self::try_slot_axes( $tpl )['slot_read'] as $slot_axis ) {
 				unset( $trailing_opts[ $slot_axis ] );
 			}
-			foreach ( [ $trailing_opts, $link_opts_try ] as $group ) {
+			$fallback_opts = array_intersect_key( $trailing_opts, [ 'fallback' => null, 'fallback_text' => null ] );
+			$trailing_opts = array_diff_key( $trailing_opts, $fallback_opts );
+
+			// 4 → 6 — format, then link, then fallback. Each group contiguous, and the
+			// sequence is the canonical control order (see the docblock).
+			foreach ( [ $trailing_opts, $format_options, $link_opts_try, $fallback_opts ] as $group ) {
 				foreach ( $group as $opt_key => $opt_def ) {
 					$options[ $opt_key ] = $opt_def;   // see the array_merge warning above.
 				}
-			}
-
-			// List-mode chain options (try_list_options templates: text, title). A winning
-			// slot in list mode (any slot with a srcTermIn term-hop, or src:ref once the
-			// Phase-5 plural resolver lands) joins its finished items via the seam
-			// (bws_try_join_items). limit/sep are CHAIN-level (one pair for the whole try_,
-			// not per-slot) — the seam reads them off $opts. Mirrors the base text tag's
-			// limit/sep (base-tags.php:93). [SPEC §32 V4,V5 / I6 parity]
-			//
-			// The pair is UNCONDITIONAL under the fold. Its reveal predicate used to be a
-			// show_if_any over every slot's `N-srcTermIn`/`N-src` — keys the fold removed.
-			// A list axis now lives INSIDE a slot value (`src(terms[category])`), and
-			// show_if compares whole option values, so no honest predicate exists: a
-			// `not_empty` on slot `A` fires for every configured slot, list axis or not.
-			// Two controls always visible beats a condition that lies about when the pair
-			// matters — and the same call was made for join's reveal rows (5d).
-			if ( $list_options ) {
-				$options['limit'] = [
-					'type'  => 'number',
-					'label' => __( 'Result Limit', 'generateblocks' ),
-					'help'  => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-				];
-				$options['sep'] = [
-					'type'        => 'text',
-					'label'       => __( 'Result Separator', 'generateblocks' ),
-					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
-					'placeholder' => ', ',
-				];
 			}
 
 			// --- Build callback ---
@@ -668,9 +715,11 @@ class TagTemplateRegistry {
 					if ( null === $slot ) {
 						continue;   // nothing in either era, or the shipped resolver's own skip.
 					}
-					$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+					$skip_reason   = '';
+					$limit_default = 1;
+					$flat          = bws_fold_slot_flat_options( $slot, $carry, false, $skip_reason, $limit_default );
 					if ( null === $flat ) {
-						continue;   // chain the flat seam cannot express (second hop, repeater rows).
+						continue;   // chain the flat seam cannot express (second step, repeater rows).
 					}
 
 					// The seam speaks the wire's vocabulary — an unset source. The arms
@@ -684,7 +733,7 @@ class TagTemplateRegistry {
 					// Build slot-specific options (merged into core fn call).
 					// src/ref/srcTermIn are ALWAYS written, `srcTermIn` even when empty:
 					// $eval_opts still carries any bare legacy `srcTermIn` off a
-					// half-migrated tag, and bws_resolve_field_values appends a term hop
+					// half-migrated tag, and bws_resolve_field_values appends a term step
 					// for whatever it finds there — which is how slot 1's taxonomy used to
 					// leak into every later slot's read, contradicting "srcTermIn does not
 					// carry forward". Writing '' closes that.
@@ -723,16 +772,26 @@ class TagTemplateRegistry {
 					// A folded slot may PIN its own limit (`src(terms[category] limit[3])`
 					// or a slot-level `limit(3)`), which then governs this slot only and is
 					// threaded into the core call too, so the seam's slice and the core's
-					// own read agree. Chain-level `limit` remains the default for every
-					// slot that pins nothing — and is what the legacy wire's bare `limit`
-					// recovers as at slot 1, identically.
+					// own read agree.
+					//
+					// THE TAG-LEVEL `limit` IS RETIRED (#61) AND STILL READ. Migration
+					// pushes an author's number into the slots that consumed it and deletes
+					// the key, so on migrated wire this fallback resolves to nothing. It
+					// stays because the value outlives the key: neither migration path
+					// reaches a tag stored in ACF meta, and ADR 0004 makes hand-edited wire
+					// mean what it says. #62 retires the CONTROL, never this read.
 					$sep = $opts['sep'] ?? null;
-					if ( isset( $flat['limit'] ) ) {
-						$slot_opts['limit'] = $flat['limit'];
-						$slot_max           = bws_clamp_limit( $flat['limit'] );
-					} else {
-						$slot_max = bws_clamp_limit( $opts['limit'] ?? null );
-					}
+					// THE DEFAULT IS THE SLOT'S OWN, and only the seam can say what it is:
+					// $slot_opts holds the FLATTENED triple, whose `src` is a legacy token on
+					// every slot, so bws_limit_default() read off it answered 1 whatever the
+					// slot was spelled as (#60). The seam reports the era it just erased.
+					//
+					// The resolved value is written BACK into $slot_opts, not left implicit:
+					// the core call below resolves its own limit through the same flat-blind
+					// bws_limit_default(), so an absent key there would re-introduce the 1 this
+					// line just decided against. An explicit number is spelling-independent.
+					$slot_max           = bws_clamp_limit( $flat['limit'] ?? $opts['limit'] ?? null, $limit_default );
+					$slot_opts['limit'] = (string) $slot_max;
 
 					// srcTermIn dispatch: resolve post → get terms → call try_term_fn.
 					// srcTermIn is read from this slot only (no carry-forward).
@@ -756,7 +815,7 @@ class TagTemplateRegistry {
 								}
 								if ( $slot_max && count( $items ) >= $slot_max ) {
 									break; // Enough to satisfy limit — stop hopping terms.
-									// $slot_max 0 = UNLIMITED: never break early, hop every term.
+									// $slot_max 0 = UNLIMITED: never break early, step every term.
 								}
 							}
 							if ( $items ) {
@@ -810,7 +869,7 @@ class TagTemplateRegistry {
 					// a term archive resolves to the ambient TERM — the slot must read the
 					// term analog exactly as the standalone base tag does (T6), else try_
 					// is not transparent to the slot's own resolution (I6/C9). Fires ONLY
-					// for src:current (ref hops term→post via the post arm, V11; site handled
+					// for src:current (ref steps term→post via the post arm, V11; site handled
 					// above; srcTermIn handled above). Uses the template's existing try_term_fn
 					// ($tcf) — same term core the srcTermIn arm calls, no fork change (V8).
 					if ( 'current' === $last_src && $tcf && function_exists( 'bws_resolve_base_source' ) && function_exists( 'bws_base_ambient_term_id' ) ) {
@@ -920,8 +979,8 @@ class TagTemplateRegistry {
 		callable $callback,
 		array $visibility = []
 	): void {
-		if ( function_exists( 'bws_strip_default_select_values' ) ) {
-			$options = bws_strip_default_select_values( $options );
+		if ( function_exists( 'bws_prepare_registration_options' ) ) {
+			$options = bws_prepare_registration_options( $options );
 		}
 		$args = [
 			'title'    => $title,

@@ -56,7 +56,7 @@ function bws_get_datetime_single_leading_options(): array {
 	return array(
 		'as'                => array(
 			'type'    => 'select',
-			'label'   => __( 'Show:', 'generateblocks' ),
+			'label'   => __( 'Return As', 'generateblocks' ),
 			'options' => array(
 				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
 				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
@@ -108,11 +108,12 @@ function bws_get_datetime_single_field_key_options(): array {
 
 function bws_get_base_datetime_single_options(): array {
 	// Canonical CONTROL order (FW-52): source → format → link → fallback.
-	// Source group = src → ref/srcTermIn → limit/sep → field keys (key/timeKey).
+	// Source group = src → ref/srcTermIn → sep → field keys (key/timeKey); no tag-level
+	// `limit` control since 1.17.0 (#62 — a chain states its limits on its steps).
 	// The format block (as/format/timeSep/…) is control-LATE, serialize-EARLY (the
 	// normalizer lifts it to the front of the string). link then fallback last.
 	return array_merge(
-		bws_base_source_option(),
+		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( false ),
 		bws_get_datetime_single_field_key_options(),
@@ -130,13 +131,19 @@ function bws_get_base_datetime_single_options(): array {
 }
 
 /**
- * List-mode options (`limit` / `sep`) shared by both datetime base tags (#30).
+ * List-mode options shared by both datetime base tags (#30).
+ *
+ * `sep` only, since 1.17.0: the tag-level `limit` retired from every base tag whose
+ * source is a chain (#62), because a limit is stated where the source is stated and a
+ * chain states its source as steps. The VALUE is still read on stored wire — see
+ * includes/tags/base-tags.php for the whole reasoning.
  *
  * Mirrors base text/title: list mode only applies to the final traversal step —
  * terms (srcTermIn set) or related posts (src:ref). Scalar sources return one
- * value, so both controls stay hidden otherwise.
+ * value, so the control stays hidden otherwise.
  *
  * @since 1.15.0
+ * @since 1.17.0 `limit` removed; `sep` is the whole set.
  * @param bool $range Range tag: `sep` help gains the sep-vs-rangeSep distinction.
  * @return array
  */
@@ -145,18 +152,12 @@ function bws_get_datetime_list_options( bool $range = false ): array {
 		? __( 'Text to place between results. Default: ", ". This joins whole ranges; the Range Separator stays between each start and end.', 'generateblocks' )
 		: __( 'Text to place between results. Default: ", ".', 'generateblocks' );
 	return array(
-		'limit' => array(
-			'type'        => 'number',
-			'label'       => __( 'Result Limit', 'generateblocks' ),
-			'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-		),
-		'sep'   => array(
+		'sep' => array(
 			'type'        => 'text',
 			'label'       => __( 'Result Separator', 'generateblocks' ),
 			'help'        => $sep_help,
 			'placeholder' => ', ',
-			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+			'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 		),
 	);
 }
@@ -198,7 +199,7 @@ function bws_get_datetime_range_leading_options(): array {
 	return array(
 		'as'                => array(
 			'type'    => 'select',
-			'label'   => __( 'Show:', 'generateblocks' ),
+			'label'   => __( 'Return As', 'generateblocks' ),
 			'options' => array(
 				array( 'value' => '',     'label' => __( 'Date and Time', 'generateblocks' ) ),
 				array( 'value' => 'date', 'label' => __( 'Date only', 'generateblocks' ) ),
@@ -272,7 +273,7 @@ function bws_get_base_datetime_range_options(): array {
 	// format block (as/rangeSep/format/…) is control-LATE, serialize-EARLY (normalizer
 	// lifts it front). link then fallback last.
 	return array_merge(
-		bws_base_source_option(),
+		bws_build_src_chain_option(),
 		bws_base_traversal_options(),
 		bws_get_datetime_list_options( true ),
 		bws_get_datetime_range_field_key_options(),
@@ -806,7 +807,7 @@ function bws_base_map_datetime_range_options( array $options ): array {
 function bws_base_datetime_single_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res      = bws_base_src_resolution( $options );
 	$mapped   = bws_normalize_datetime_options( $options );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
@@ -819,7 +820,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	// DT-1 bws_read_field branch (allowlist-gated get_field($key,'option')) performs
 	// the value read, and the format chain (bws_build_single_format) recovers the
 	// field's return format. Link-wrap with sentinel id 1, entity_type 'site'.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_datetime_single_core( 'option', $mapped, $instance );
 		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
 			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
@@ -829,8 +830,6 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
 	}
-
-	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
 	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
@@ -845,21 +844,17 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );
 		$link_id   = $ambient_term_id;
 		$link_type = 'term';
-	} elseif ( '' !== $tax ) {
-		$post_id = function_exists( 'bws_base_post_id_from_source' )
-			? bws_base_post_id_from_source( $base, $options )
-			: get_the_ID();
-		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
-			? bws_get_srcterm_terms( (int) $post_id, $tax )
-			: [];
+	} elseif ( 'term' === $res['kind'] ) {
 		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
 		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $instance ) {
+			function_exists( 'bws_base_term_ids_from_source' )
+				? bws_base_term_ids_from_source( $base, $options )
+				: array(),
+			static function ( $tid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => bws_term_datetime_single_core( $term->term_id, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'value' => bws_term_datetime_single_core( (int) $tid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$mapped
@@ -869,9 +864,9 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref list mode: read EVERY fanned-out ref target via the shared
-		// traversal engine (plural resolver, not the collapse-to-first wrapper).
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post list mode: read EVERY fanned-out target via the shared traversal
+		// engine (plural resolver, not the collapse-to-first wrapper).
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
@@ -899,8 +894,10 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		$link_type = 'post';
 	}
 
-	// List-mode all-empty → the fallback fires once, unwrapped.
-	if ( '' === $value && ( '' !== $tax || $is_ref ) ) {
+	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
+	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
+	// of on two tokens (FW-63).
+	if ( '' === $value && $res['fans'] ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'single' );
 		$link_id = 0;
 	}
@@ -937,7 +934,7 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 function bws_base_datetime_range_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res      = bws_base_src_resolution( $options );
 	$mapped   = bws_normalize_datetime_options( $options, true );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
@@ -948,7 +945,7 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	// src:site — ACF options-page date range. 'option' object-id → DT-1 value read +
 	// format chain (bws_build_range_format). Link-wrap sentinel id 1, type 'site'.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_datetime_range_core( 'option', $mapped, $instance );
 		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
 			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
@@ -958,8 +955,6 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
 	}
-
-	$is_ref = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
 	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
@@ -974,21 +969,17 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		$value     = bws_term_datetime_range_core( $ambient_term_id, $mapped, $instance );
 		$link_id   = $ambient_term_id;
 		$link_type = 'term';
-	} elseif ( '' !== $tax ) {
-		$post_id = function_exists( 'bws_base_post_id_from_source' )
-			? bws_base_post_id_from_source( $base, $options )
-			: get_the_ID();
-		$terms = ( $post_id && function_exists( 'bws_get_srcterm_terms' ) )
-			? bws_get_srcterm_terms( (int) $post_id, $tax )
-			: [];
+	} elseif ( 'term' === $res['kind'] ) {
 		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
 		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $instance ) {
+			function_exists( 'bws_base_term_ids_from_source' )
+				? bws_base_term_ids_from_source( $base, $options )
+				: array(),
+			static function ( $tid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => bws_term_datetime_range_core( $term->term_id, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'value' => bws_term_datetime_range_core( (int) $tid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$mapped
@@ -998,9 +989,9 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref list mode: read EVERY fanned-out ref target via the shared
-		// traversal engine (plural resolver, not the collapse-to-first wrapper).
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post list mode: read EVERY fanned-out target via the shared traversal
+		// engine (plural resolver, not the collapse-to-first wrapper).
 		$post_ids = function_exists( 'bws_base_post_ids_from_source' )
 			? bws_base_post_ids_from_source( $base, $options )
 			: array();
@@ -1028,8 +1019,10 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		$link_type = 'post';
 	}
 
-	// List-mode all-empty → the fallback fires once, unwrapped.
-	if ( '' === $value && ( '' !== $tax || $is_ref ) ) {
+	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
+	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
+	// of on two tokens (FW-63).
+	if ( '' === $value && $res['fans'] ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'range' );
 		$link_id = 0;
 	}

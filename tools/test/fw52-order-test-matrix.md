@@ -36,7 +36,7 @@ then hard-refresh the editor (not the cached front end).
 | O1.3 | `{{image key:feature_image\|use:key\|as:id}}` | `{{image as:id\|use:key\|key:feature_image}}` | same |
 | O1.4 | `{{image key:feature_image\|use:key\|as:caption}}` | `{{image as:caption\|use:key\|key:feature_image}}` | same |
 
-**Decisive as-reset case (do this by hand in O1.1):** in the modal, change Return type to
+**Decisive as-reset case (do this by hand in O1.1):** in the modal, change Return As to
 another mode and back to URL (or clear it and reset). GB re-appends `as` LAST in the
 object; on the next render the normalizer must pull it back to lead. Confirm the string
 still shows `as:` first.
@@ -103,13 +103,13 @@ ranks format,1 so it leads) — it does not fold. Tracked as
 | O4.6 | on-open of a legacy split: open `{{image size:medium\|as:url\|...}}` in the editor, do NOT run the converter | `size:medium` SURVIVES (reordered to lead), composite shows size `full` | editor open (negative) | pins the GB-private-`imageSize` limitation: open-fold is impossible; converter required |
 
 **Size-visible-only-on-`url` gate (editor-only, no string — do by hand in O4.1):** in the
-modal, the size dropdown shows while Return type is URL. Change Return type to `alt` (or any
+modal, the size dropdown shows while Return As is URL. Change Return As to `alt` (or any
 nullary) — the size dropdown must DISAPPEAR (hand-coded `show_if` inside the composite, not
 declarative). Change back to URL — it reappears. Confirm `as:alt` in the string carries no
 size, and the string never shows an interior `,,`.
 
 **Size stash across mode-flip (editor-only, no serialized change — do by hand in O4.1):**
-set size to `medium` on URL. Flip Return type URL→alt→URL. The size dropdown must RESTORE
+set size to `medium` on URL. Flip Return As URL→alt→URL. The size dropdown must RESTORE
 `medium` (React-state stash, plan decision B), NOT reset to `full`. This is an editor
 papercut guard only — the wire stays model-pure (`as:alt` serialized nullary during the
 flip; nothing size-related persists while off `url`). A saved `{{image as:alt}}` reopened
@@ -126,7 +126,7 @@ converting to reproduce O4.6.
 ## Notes
 
 - The exact `src` token may be absent when the default `current` source is stripped at
-  registration (`bws_strip_default_select_values`) — the expected strings above show
+  registration (`bws_prepare_registration_options`) — the expected strings above show
   `src:...` where a non-default source would sit; a bare `{{image}}` with default source
   simply omits it, and the surrounding order still holds.
 - These rows do not need term/ref state, so they live on `matrix-post-meta` (the current

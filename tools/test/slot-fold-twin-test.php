@@ -122,9 +122,34 @@ foreach ( $corpus['legacy'] as $i => $case ) {
 	twin_same( "$label — emit", $php_doc['legacy'][ $i ]['emit'] ?? 'MISSING', $js_doc['legacy'][ $i ]['emit'] ?? 'MISSING' );
 }
 
+// ── Depth-0 OPTION SETS (the base tag's source) ─────────────────────────────
+//
+// The chain COMPILER has no JS twin by construction — the editor never RUNS a
+// chain. But the base-tag chain control does have to READ one, and it writes the
+// wire the renderer reads back, so this half of the compiler IS twinned:
+// bws_fold_chain_from_options / _resolution / _is_wire against chainFromOptions
+// plus the grammar's chainIsWire / chainRoot / chainFans.
+//
+// The input is an OPTION MAP rather than a chain string, which is the point: the
+// legacy flat triple is half the rule, and the site-root guard on `srcTermIn` is
+// invisible from a chain string alone.
+foreach ( $corpus['srcOptions'] as $i => $case ) {
+	$label = "srcOptions[$i]: " . json_encode( $case['options'], JSON_UNESCAPED_SLASHES );
+	foreach ( array( 'isWire', 'chain', 'root', 'fans' ) as $axis ) {
+		twin_same(
+			"$label — $axis",
+			$php_doc['srcOptions'][ $i ][ $axis ] ?? 'MISSING',
+			$js_doc['srcOptions'][ $i ][ $axis ] ?? 'MISSING'
+		);
+	}
+}
+
 // ── Coverage floor ─────────────────────────────────────────────────────────
 // A corpus that quietly shrinks would pass with fewer comparisons and read as
 // green. Pin the shape of what MUST be covered, not just the count.
+check( 'srcOptions corpus covers both spellings and the site guard',
+	count( $corpus['srcOptions'] ) >= 15,
+	count( $corpus['srcOptions'] ) . ' option sets' );
 check( 'corpus covers ≥ 40 slot cases', count( $corpus['slots'] ) >= 40, count( $corpus['slots'] ) . ' cases' );
 check( 'corpus covers both wrapper depths', 2 === count( array_unique( array_column( $corpus['chains'], 'enclosingLevel' ) ) ) || count( array_unique( array_column( $corpus['chains'], 'enclosingLevel' ) ) ) > 2, '' );
 $malformed = array_filter( $php_doc['slots'], static function ( $r ) {

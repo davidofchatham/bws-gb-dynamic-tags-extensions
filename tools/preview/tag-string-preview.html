@@ -1742,7 +1742,7 @@ function unbalancedBrackets(v, open, close) {
 //                delimiter. Lighter (no '=', single bracket per token). The BRACKET marks the
 //                level, so hop and opt can share ';' without ambiguity: a reader sees `src(`
 //                and knows everything to the matching `)` is chain-internal.
-// APPROVED 2026-07-31: opt ';' · hop ';' · step ',' · L1 '()' · L2 '[]'. `hopSep` is
+// APPROVED 2026-07-31: opt ';' · hop ';' · step ',' · L1 '()' · L2 '[]'. `stepSep` is
 // schema-driven. NB '+' was the frontrunner hop and is now REJECTED (infix pairing — binds to
 // the tokens either side instead of reading as a boundary); '+' and '/' are both held RESERVED,
 // carrying no separator meaning, so neither may be re-admitted as a hop without changing what
@@ -1750,7 +1750,7 @@ function unbalancedBrackets(v, open, close) {
 // and a rejected-but-safe candidate must stay comparable (FW-59 and any future grammar change
 // need to re-examine why a char lost). The quote-freeform emit branch is retained but unreferenced.
 const SLOT_SCHEMAS = {
-  'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, hopSep: ';' },
+  'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
 function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fallback) {
   const entries = respellEntries(chain, read, link, dtKeys, typeTag, fallback);
@@ -2193,7 +2193,7 @@ function resolveSlot(slot) {
   return {...slot, chain, read, link};
 }
 // TAG-LEVEL parts vs the ones that FOLD. Only the six legacy per-slot axes fold into a slot
-// value (BWS_FOLD_LEGACY_AXES: src, ref, srcTermIn, use, key, limit); everything else stays a
+// value (BWS_FOLD_FLAT_AXES: src, ref, srcTermIn, use, key, limit); everything else stays a
 // FLAT option on the tag, sitting beside the folded keys. Verified against the SHIPPED
 // registration (testbed dump 2026-08-04, not inferred):
 //   try_image           → as, 1..5, fallback
@@ -2401,7 +2401,7 @@ function applySlotSchemaDefaults() {
   const sch = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
   S.slotOptSep = sch.optSep;
   S.slotKvChar = sch.kvChar;
-  S.chainSep.hop = sch.hopSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
+  S.chainSep.hop = sch.stepSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
 }
 
 function onSepChanged() { renderCfgPreview(); renderPerms(); }

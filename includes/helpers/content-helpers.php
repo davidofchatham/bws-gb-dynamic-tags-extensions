@@ -347,6 +347,78 @@ function bws_process_post_content_fallback( $post_id, $args = array() ) {
 }
 
 /**
+ * Run a callable with the global post context switched to $post_id.
+ *
+ * Inner dynamic tags rendered by do_blocks() (and excerpt filters such as
+ * excerpt_more) carry no block context and fall back to the global $post /
+ * get_the_ID() — the AMBIENT entity, not the post being rendered. When a
+ * {{content}} read hops (src:ref), that ambient fallback makes the hopped
+ * post's inner tags resolve against the viewing page (#58). This is the
+ * front-end analog of the editor-only id threading in CONTEXT.md I11.
+ *
+ * Swap-and-restore, the same mechanism a query loop applies per row. The swap
+ * is skipped when $post_id already IS the ambient post: the callable would see
+ * the identical context either way, so the work and the global writes are pure
+ * cost.
+ *
+ * RESTORE IS BY VALUE, NEVER wp_reset_postdata(). That function does not mean
+ * "put back what was there" — it assigns $post from $wp_query->post and sets
+ * that up, so calling it where there was NO ambient post (a REST render, an
+ * admin context) leaves the main query's post current instead of leaving the
+ * globals empty. It would swap one leak for a quieter one. setup_postdata()
+ * writes $pages/$page/$numpages/$multipage/$more as well as $post, so all of
+ * them are captured and restored together; restoring $post alone would leave
+ * the target's pagination state behind on a multi-page ambient post.
+ *
+ * @since 1.17.0
+ * @param int      $post_id Post the callable should see as current.
+ * @param callable $fn      Callable run inside the swapped context.
+ * @return mixed The callable's return value.
+ */
+if ( ! function_exists( 'bws_with_post_context' ) ) {
+function bws_with_post_context( $post_id, callable $fn ) {
+	$post_id = (int) $post_id;
+
+	if ( ! $post_id || $post_id === (int) get_the_ID() ) {
+		return $fn();
+	}
+
+	$target = get_post( $post_id );
+	if ( ! $target ) {
+		return $fn();
+	}
+
+	global $post, $pages, $page, $numpages, $multipage, $more;
+
+	$prev = array(
+		'post'      => $post,
+		'pages'     => $pages,
+		'page'      => $page,
+		'numpages'  => $numpages,
+		'multipage' => $multipage,
+		'more'      => $more,
+	);
+
+	// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- restored in the finally below.
+	$post = $target;
+	setup_postdata( $post );
+
+	try {
+		return $fn();
+	} finally {
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- restoring the captured values.
+		$post      = $prev['post'];
+		$pages     = $prev['pages'];
+		$page      = $prev['page'];
+		$numpages  = $prev['numpages'];
+		$multipage = $prev['multipage'];
+		$more      = $prev['more'];
+		// phpcs:enable WordPress.WP.GlobalVariablesOverride.Prohibited
+	}
+}
+}
+
+/**
  * Process post content through the primary rendering pipeline.
  *
  * Equivalent to:
@@ -355,6 +427,8 @@ function bws_process_post_content_fallback( $post_id, $args = array() ) {
  *       'post:' . $post_id,
  *       $args
  *   )
+ * run inside bws_with_post_context(), so the post's own inner tags resolve
+ * against IT rather than the ambient entity when the read hopped here (#58).
  *
  * @since 1.1.0
  * @param int   $post_id Post ID.
@@ -369,9 +443,20 @@ function bws_process_post_content( $post_id, $args = array() ) {
 		return '';
 	}
 
+	// Ask the guard BEFORE swapping: a blocked render returns '' without running
+	// do_blocks(), so there is nothing to give a context to and the swap would be
+	// global writes for a call that produces nothing. render() re-checks — this
+	// only decides whether to pay for the context.
+	if ( ! \BWS\DynamicTags\Content\ContentProcessor::can_process( 'post:' . $post_id ) ) {
+		return '';
+	}
+
 	$raw = get_post_field( 'post_content', $post_id );
 
-	return \BWS\DynamicTags\Content\ContentProcessor::render( (string) $raw, 'post:' . $post_id, $args );
+	return bws_with_post_context(
+		$post_id,
+		static fn() => \BWS\DynamicTags\Content\ContentProcessor::render( (string) $raw, 'post:' . $post_id, $args )
+	);
 }
 }
 

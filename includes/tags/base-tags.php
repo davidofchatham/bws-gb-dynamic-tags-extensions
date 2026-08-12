@@ -13,8 +13,8 @@
  *     resolves the ambient/explicit base resolved source: loop row → ambient term
  *     (term archive) → current post, or an explicit `src:site` / registry source.
  *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
- *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship hop,
- *     plural), `srcTermIn` a term-hop step; run through `bws_run_traversal()`.
+ *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship step,
+ *     plural), `srcTermIn` a term-step step; run through `bws_run_traversal()`.
  *   L2 read — dispatched by resolved-source KIND (post → post cores /
  *     bws_read_field, term → term cores / bws_read_term_field, site → option read).
  *
@@ -55,7 +55,9 @@ function bws_register_base_tags(): void {
 	}
 	$registered = true;
 
-	$source_opt     = bws_base_source_option();
+	// Base tags author their source as a CHAIN (FW-56): a root plus ordered fanning
+	// steps. The derived families keep the plain select — see bws_build_src_chain_option().
+	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
 	$text_field     = bws_get_text_field_options();
 
@@ -69,27 +71,42 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		// Canonical CONTROL order (FW-52): source → format → link → fallback.
-		// text has no format group. Within source: src → ref → srcTermIn → limit → sep
-		// → use → key (limit/sep before field keys — list length is a source property).
-		'options'  => bws_strip_default_select_values( array_merge(
+		// text has no format group. Within source: src → ref → srcTermIn → sep → use
+		// → key (sep before the field keys — list length is a source property). The
+		// tag-level `limit` CONTROL retired in 1.17.0 (#62); the KEY still ranks between
+		// srcTermIn and sep when stored wire carries one (serialization-order.php).
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode only applies to the final traversal step: terms (srcTermIn set)
-				// or related posts (src:ref). Scalar sources return one value — hide both.
-				// Ordered before the field keys (list length is a source property, FW-52).
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
+				// NO TAG-LEVEL `limit` (#62). A LIMIT IS STATED WHERE THE SOURCE IS STATED:
+				// this tag authors its source as a CHAIN, so each fanning step carries its
+				// own limit and a tag-level one is never useful — with one fanning step it
+				// is the same knob as that step's, and with two it slices the flattened
+				// walk at a position set by fan-out widths the author cannot see,
+				// parent-major only because bws_run_traversal happens to iterate that way.
+				// The flat-select families state one step, so `term_*` keeps the key (#63).
+				//
+				// UNREGISTERED, not gated on flat wire: the mount migrator rewrites a flat
+				// tag to a chain before the panel paints, so a flat-only predicate would be
+				// effectively unreachable.
+				//
+				// The VALUE is still read (`bws_clamp_limit`): unmigrated flat wire has no
+				// other bound, and hand-edited chain wire carrying one still renders it —
+				// removing a control never removes an option (ADR 0004; GB seeds state
+				// from the tag string, not the registry). Migration carries an author's
+				// number onto the STEPS, so nothing arrives here needing to be cleared.
+				//
+				// `sep` STAYS, and keeps `chain_fans`: it joins printed output, which a
+				// chain does as much as a flat source, so it has no "which step" question
+				// to answer. Ordered before the field keys (list length is a source
+				// property, FW-52).
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 				// use/key from the text FIELD LEAF (single source; the template, join
 				// and the folded control consume the same builder). show_if is the
@@ -127,7 +144,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'content',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -173,24 +190,20 @@ function bws_register_base_tags(): void {
 		'tag'      => 'title',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
-				// List mode only applies to the final traversal step: terms (srcTermIn set)
-				// or related posts (src:ref). Scalar sources return one value — hide both.
-				'limit' => array(
-					'type'        => 'number',
-					'label'       => __( 'Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
-				'sep'   => array(
+				// NO TAG-LEVEL `limit` (#62) — same call as {{text}} above, and the full
+				// reasoning is there: a chain states its limits on its STEPS, the value is
+				// still read wherever it is written, and `sep` stays because it joins
+				// printed output whatever the source spelling.
+				'sep' => array(
 					'type'        => 'text',
 					'label'       => __( 'Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 			),
 			function_exists( 'bws_get_link_options' ) ? bws_get_link_options() : array()
@@ -210,7 +223,7 @@ function bws_register_base_tags(): void {
 		// No `key` control under src:site — permalink is the source entity's own URL,
 		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
 		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts
 		) ),
@@ -238,7 +251,7 @@ function bws_register_base_tags(): void {
 		// (the normalizer lifts it to the front of the string for copy-visibility — the
 		// `as` serialization opt-out means it is always present). Its `size` argument
 		// rides inside the `as` value (as+size fold) — no separate size option.
-		'options'  => bws_strip_default_select_values( array_merge(
+		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
@@ -263,11 +276,23 @@ function bws_register_base_tags(): void {
 					'show_if'      => array( 'use' => 'not:featured' ),
 				),
 				// Folded return-mode + size. The bws-as-size composite renders the mode
-				// dropdown + a size dropdown (url only) and owns the whole token. No
-				// `default` (always-serialized; the composite writes url,full on open).
+				// dropdown + a size dropdown (url only) and owns the whole token.
+				//
+				// `default` IS the always-serialize mechanism, and it is not decorative:
+				// GB seeds extraTagParams from every non-empty `default` at tag-SELECT
+				// time (DynamicTagSelect.jsx `updateDynamicTag`), which is the only thing
+				// that puts an untouched `as` on the wire. The fold dropped it in 1.16.0
+				// on the theory that the composite would write on mount; it writes on
+				// CHANGE only, so `{{image}}` serialized no `as` at all. Mount-writing
+				// instead would mean opening a tag edits it — see the fold control's
+				// stripDefaultRoot for why that is the wrong trade.
+				//
+				// GB does not validate a default against the option rows, so the folded
+				// `url,full` seeds fine even though it is not one of them.
 				'as'       => array(
 					'type'    => 'bws-as-size',
-					'label'   => __( 'Return type:', 'generateblocks' ),
+					'label'   => __( 'Return As', 'generateblocks' ),
+					'default' => 'url,full',
 					'options' => array(
 						array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 						array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -294,7 +319,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_base_datetime_single_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_base_datetime_single_options() ),
 		'return'   => 'bws_base_datetime_single_callback',
 	) );
 
@@ -307,7 +332,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_base_datetime_range_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_base_datetime_range_options() ),
 		'return'   => 'bws_base_datetime_range_callback',
 	) );
 
@@ -324,7 +349,7 @@ function bws_register_base_tags(): void {
 		'tag'      => 'join',
 		'type'     => 'cross-source',
 		'supports' => array(),
-		'options'  => bws_strip_default_select_values( bws_get_join_options() ),
+		'options'  => bws_prepare_registration_options( bws_get_join_options() ),
 		'return'   => 'bws_join_callback',
 	) );
 
@@ -457,11 +482,13 @@ function bws_register_base_tags(): void {
 		'key'                   => 'image',
 		'title'                 => __( 'Image', 'generateblocks' ),
 		'leading_options'       => array(
-			// Folded return-mode + size (bws-as-size, FW-52). No `default` — always
-			// serialized; the composite writes url,full on open.
+			// Folded return-mode + size (bws-as-size, FW-52). `default` carries the
+			// always-serialize rule — see the base {{image}} registration above for why
+			// it is load-bearing rather than decorative.
 			'as' => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'label'   => __( 'Return As', 'generateblocks' ),
+				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -474,7 +501,8 @@ function bws_register_base_tags(): void {
 		'options'               => array(
 			'as'       => array(
 				'type'    => 'bws-as-size',
-				'label'   => __( 'Return image as:', 'generateblocks' ),
+				'label'   => __( 'Return As', 'generateblocks' ),
+				'default' => 'url,full',
 				'options' => array(
 					array( 'value' => 'url',     'label' => __( 'URL', 'generateblocks' ) ),
 					array( 'value' => 'id',      'label' => __( 'ID', 'generateblocks' ) ),
@@ -627,7 +655,7 @@ function bws_register_base_tags(): void {
  * Resolve the `text` base tag's VALUE — the full read path minus link-wrap
  * and preview fallback.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches to the appropriate core function based on `use`:
  *
  * srcTerm + use unset   → bws_term_custom_text_core() (per-term; limit/sep applied)
@@ -652,10 +680,10 @@ function bws_register_base_tags(): void {
  */
 function bws_base_text_resolve_value( array $options, $instance ): array {
 	$use = $options['use'] ?? 'key';
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — no entity; site value with sentinel link identity (id 1, 'site' type).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — no entity; site value with sentinel link identity (id 1, 'site' type).
+	if ( 'site' === $res['kind'] ) {
 		return array(
 			'value'     => bws_site_resolve_value( 'text', $options, $instance ),
 			'link_id'   => 1,
@@ -685,14 +713,9 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			'link_type' => 'user',
 		);
 	}
-	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	// Skip the single-collapse resolve for the pure src:ref list branch — it runs
-	// its own plural traversal (bws_base_post_ids_from_source) below, so computing
-	// $post_id here would run the ref hop twice (review #3). The srcTermIn branch
-	// still needs $post_id (the ref-hopped post it reads terms from), so only skip
-	// when there is no tax hop.
-	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
-
+	// Both list branches run their own plural traversal below, so the collapsing
+	// resolve is deferred into the singular arms — computing it here would run the
+	// chain twice (review #3).
 	$link_id   = 0;
 	$link_type = 'post';
 
@@ -705,17 +728,16 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// datetime's contract and try_'s (TagTemplateRegistry). The singular arms
 	// below keep the full $options: no list to pollute, and the cores' own
 	// fallback emit is the shipped behavior there.
-	if ( '' !== $tax ) {
-		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $use, $instance ) {
+			bws_base_term_ids_from_source( $base, $options ),
+			static function ( $tid, array $item_opts ) use ( $use, $instance ) {
 				$result = 'title' === $use
-					? bws_term_title_core( $term->term_id, $item_opts, $instance )
-					: bws_term_custom_text_core( $term->term_id, $item_opts, $instance );
+					? bws_term_title_core( (int) $tid, $item_opts, $instance )
+					: bws_term_custom_text_core( (int) $tid, $item_opts, $instance );
 				return array(
 					'value' => $result,
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$options
@@ -725,10 +747,11 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, not just
-		// the first. limit/sep are offered for src:ref, so honor them — mirrors the
-		// srcTermIn branch.
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, not just the
+		// first. `sep` is offered whenever the chain fans and a stored `limit` still
+		// bounds the list whether or not a control ever wrote it (#62), so honor both —
+		// mirrors the term branch.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -749,10 +772,12 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 			$link_type = $collected['link']['kind'];
 		}
 	} elseif ( 'title' === $use ) {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
 	} else {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_custom_text_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
@@ -825,7 +850,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * The slot definitions come from bws_build_fold_slot_options(), which derives every
  * enum and label from the shipped builders and hands them to the `bws-slot-fold`
  * repeater control. Join supplies the container facts: combining, site arm allowed,
- * one term hop, no read-inherit row, and the slot noun.
+ * one term step, no read-inherit row, and the slot noun.
  *
  * WHAT THE FOLD REPLACED, and why the reveal machinery went with it: through 1.16.x
  * this registered SIX flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/
@@ -836,8 +861,8 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * callback dual-reads it — and the editor rewrites a slot to folded form on first
  * touch.
  *
- * Per-slot `limit` moved INTO the slot value, attached to the step it caps (a chain
- * can fan more than once, so a slot-level cap has no single meaning). It has no
+ * Per-slot `limit` moved INTO the slot value, attached to the step it bounds (a chain
+ * can fan more than once, so a slot-level limit has no single meaning). It has no
  * control surface yet; a migrated or hand-written one round-trips untouched.
  *
  * No per-slot inner `sep` (ADR 0003): a list-mode slot joins its own items with
@@ -877,9 +902,9 @@ function bws_get_join_options(): array {
 				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
 				// honors a hand-written one, it just has no UI row until handlers ship).
 				'allow_same_read' => false,
-				// The flat render seam expresses one term hop; a second relationship hop
+				// The flat render seam expresses one term step; a second relationship step
 				// is FW-32 work, so it is not offered.
-				'hops'            => array( 'srcTermIn' ),
+				'steps'            => array( 'terms' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
@@ -949,7 +974,7 @@ function bws_get_join_options(): array {
  * ('' / `same` src = prior resolved source), the read never inherits unless the wire
  * says `use(same)`, a read-less slot is unconfigured and is skipped BEFORE it can feed
  * the accumulator, and a carried `ref` survives a non-ref source override (inert
- * there, but a later slot hopping back to the same relationship needs it).
+ * there, but a later slot stepping back to the same relationship needs it).
  *
  * Join never re-decides value emptiness: "empty" is exactly '' everywhere,
  * and a stored '0' renders (base text's shipped falsy-guard, absorbed).
@@ -990,13 +1015,22 @@ function bws_join_callback( $options, $block, $instance ): string {
 		// chain compiler does not change that; see bws_fold_slot_flat_options().)
 		// Join's tag-level `valueSep` (assembly) is NEVER passed through: a list-mode
 		// slot joins its own items with text's default ', ' (ADR 0003).
-		$slot_opts = bws_fold_slot_flat_options( $slot, $carry, true );
+		$skip_reason   = '';
+		$limit_default = 1;
+		$slot_opts     = bws_fold_slot_flat_options( $slot, $carry, true, $skip_reason, $limit_default );
 		if ( null === $slot_opts ) {
 			continue;
 		}
 
+		// A SLOT'S OWN SOURCE SPELLING DECIDES ITS OWN LIMIT DEFAULT (#60) — chain wire
+		// returns everything, flat wire bounds at 1. The seam reports the era because the
+		// triple above no longer carries it, and the resolved number is written back
+		// explicitly: bws_base_text_resolve_value() re-resolves the default from this same
+		// flattened `src`, which is blind to how the slot was spelled.
+		$slot_opts['limit'] = (string) bws_clamp_limit( $slot_opts['limit'] ?? null, $limit_default );
+
 		// Thread the editor's injected post id into every post-based slot (see
-		// $explicit_id note). src:ref bases its hop on this id too (the current
+		// $explicit_id note). src:ref bases its step on this id too (the current
 		// post is the ref origin), so it must carry. Only src:site is entity-blind
 		// — it reads an option, never a post — so the id is left off there.
 		if ( '' !== $explicit_id && 'site' !== ( $slot_opts['src'] ?? '' ) ) {
@@ -1029,7 +1063,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `content` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
  * srcTerm + use unset   → bws_term_description_core() (first non-empty term)
@@ -1044,12 +1078,12 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use  = $options['use'] ?? 'content';
-	$tax  = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res  = bws_base_src_resolution( $options );
 	// Local copy — the use:key arm sets $opts['type'] below.
 	$opts = $options;
 
-	// src:site — content option markup via shared pipeline (handled in resolver). No link wrap.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — content option markup via shared pipeline (handled in resolver). No link wrap.
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'content', $options, $instance );
 		if ( '' !== $value ) {
 			return $value;
@@ -1076,26 +1110,27 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
-
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
+	if ( 'term' === $res['kind'] ) {
+		// content has no list mode — first non-empty term wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
 			$result = 'key' === $use
-				? bws_term_custom_text_core( $term->term_id, $opts, $instance )
-				: bws_term_description_core( $term->term_id, $opts, $instance );
+				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
+				: bws_term_description_core( (int) $tid, $opts, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
 		}
 		$value = '';
-	} elseif ( 'excerpt' === $use ) {
-		$value = bws_post_excerpt_core( $post_id, $opts, $instance );
-	} elseif ( 'key' === $use ) {
-		$opts['type'] = 'custom_field';
-		$value = bws_post_content_core( $post_id, $opts, $instance );
 	} else {
-		$value = bws_post_content_core( $post_id, $opts, $instance );
+		$post_id = bws_base_post_id_from_source( $base, $options );
+		if ( 'excerpt' === $use ) {
+			$value = bws_post_excerpt_core( $post_id, $opts, $instance );
+		} elseif ( 'key' === $use ) {
+			$opts['type'] = 'custom_field';
+			$value = bws_post_content_core( $post_id, $opts, $instance );
+		} else {
+			$value = bws_post_content_core( $post_id, $opts, $instance );
+		}
 	}
 
 	if ( '' !== $value ) {
@@ -1108,7 +1143,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `title` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set.
+ * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm iterates terms with limit/sep applied.
  *
  * @since 1.6.0
@@ -1117,13 +1152,13 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 function bws_base_title_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
-	$tax      = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res      = bws_base_src_resolution( $options );
 	$link_to  = $options['linkTo'] ?? 'none';
 	$link_key = $options['linkKey'] ?? '';
 	$new_tab  = ! empty( $options['newTab'] );
 
-	// src:site — title base tag has no `use`; resolver returns site name. Link-wrap.
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — title base tag has no `use`; resolver returns site name. Link-wrap.
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'title', $options, $instance );
 		if ( '' !== $value && function_exists( 'bws_wrap_with_link' ) ) {
 			$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, 1, 'site' );
@@ -1161,24 +1196,20 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
-	$is_ref  = 'ref' === ( $options['src'] ?? $options['source'] ?? '' );
-	// Skip the single-collapse resolve for the pure src:ref list branch (review #3):
-	// it runs its own plural traversal below. srcTermIn still needs $post_id.
-	$post_id = ( $is_ref && '' === $tax ) ? 0 : bws_base_post_id_from_source( $base, $options );
-
+	// Both list branches run their own plural traversal, so the collapsing resolve
+	// is deferred into the singular arm (review #3).
 	$link_id   = 0;
 	$link_type = 'post';
 
 	// List branches ride the shared fold (FW-49). Fallback suppression is inert
 	// here — the title cores never read 'fallback' (unlike the text cores).
-	if ( '' !== $tax ) {
-		$terms     = bws_get_srcterm_terms( (int) $post_id, $tax );
+	if ( 'term' === $res['kind'] ) {
 		$collected = bws_collect_value_list(
-			$terms,
-			static function ( $term, array $item_opts ) use ( $instance ) {
+			bws_base_term_ids_from_source( $base, $options ),
+			static function ( $tid, array $item_opts ) use ( $instance ) {
 				return array(
-					'value' => bws_term_title_core( $term->term_id, $item_opts, $instance ),
-					'link'  => array( 'kind' => 'term', 'id' => (int) $term->term_id ),
+					'value' => bws_term_title_core( (int) $tid, $item_opts, $instance ),
+					'link'  => array( 'kind' => 'term', 'id' => (int) $tid ),
 				);
 			},
 			$options
@@ -1188,9 +1219,9 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$link_id   = (int) $collected['link']['id'];
 			$link_type = $collected['link']['kind'];
 		}
-	} elseif ( $is_ref ) {
-		// src:ref LIST mode (SPEC §V14): read EVERY fanned-out ref target, honoring
-		// limit/sep (offered for src:ref) — mirrors the srcTermIn branch above.
+	} elseif ( 'post' === $res['kind'] ) {
+		// Post LIST mode (SPEC §V14): read EVERY fanned-out target, honoring
+		// limit/sep — mirrors the term branch above.
 		$post_ids  = bws_base_post_ids_from_source( $base, $options );
 		$collected = bws_collect_value_list(
 			$post_ids,
@@ -1208,6 +1239,7 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 			$link_type = $collected['link']['kind'];
 		}
 	} else {
+		$post_id   = bws_base_post_id_from_source( $base, $options );
 		$value     = bws_post_title_core( $post_id, $options, $instance );
 		$link_id   = (int) $post_id;
 		$link_type = 'post';
@@ -1226,16 +1258,16 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 /**
  * Callback for the `permalink` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set.
+ * Resolves entity via `source`, applies srcTerm step when set.
  * srcTerm returns first non-empty term URL.
  *
  * @since 1.6.0
  */
 function bws_base_permalink_callback( $options, $block, $instance ): string {
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — site_url/home_url/option via resolver. No link wrap (permalink not link-eligible).
+	if ( 'site' === $res['kind'] ) {
 		return bws_site_resolve_value( 'permalink', $options, $instance );
 	}
 
@@ -1245,12 +1277,11 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	if ( $term_id ) {
 		return bws_base_term_analog_read( 'permalink', $term_id, $options, $instance );
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
 
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
-			$result = bws_term_permalink_core( $term->term_id, $options, $instance );
+	if ( 'term' === $res['kind'] ) {
+		// permalink has no list mode — first non-empty term URL wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+			$result = bws_term_permalink_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
@@ -1258,13 +1289,13 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	return bws_post_permalink_core( $post_id, $options, $instance );
+	return bws_post_permalink_core( bws_base_post_id_from_source( $base, $options ), $options, $instance );
 }
 
 /**
  * Callback for the `image` base tag.
  *
- * Resolves entity via `source`, applies srcTerm hop when set, then
+ * Resolves entity via `source`, applies srcTerm step when set, then
  * dispatches based on `use`:
  *
  * srcTerm              → bws_term_custom_image_core() (first non-empty term)
@@ -1280,10 +1311,10 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	$is_preview = ! empty( $instance->context['bwsEditorPreview'] );
 
 	$use = $options['use'] ?? 'key';
-	$tax = sanitize_key( $options['srcTermIn'] ?? '' );
+	$res = bws_base_src_resolution( $options );
 
-	// src:site — logo/option via resolver (logo already routed through GB ::output()).
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// Site read — logo/option via resolver (logo already routed through GB ::output()).
+	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'image', $options, $instance );
 		if ( '' !== $value ) {
 			return $value;
@@ -1303,21 +1334,20 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
-	$post_id = bws_base_post_id_from_source( $base, $options );
-
-	if ( '' !== $tax ) {
-		$terms = bws_get_srcterm_terms( (int) $post_id, $tax );
-		foreach ( $terms as $term ) {
-			$result = bws_term_custom_image_core( $term->term_id, $options, $instance );
+	if ( 'term' === $res['kind'] ) {
+		// image has no list mode — first non-empty term image wins (unchanged).
+		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+			$result = bws_term_custom_image_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;
 			}
 		}
 		$value = '';
-	} elseif ( 'featured' === $use ) {
-		$value = bws_featured_image_core( $post_id, $options, $instance );
 	} else {
-		$value = bws_custom_image_core( $post_id, $options, $instance );
+		$post_id = bws_base_post_id_from_source( $base, $options );
+		$value   = 'featured' === $use
+			? bws_featured_image_core( $post_id, $options, $instance )
+			: bws_custom_image_core( $post_id, $options, $instance );
 	}
 
 	if ( '' !== $value ) {

@@ -18,7 +18,7 @@
  *   `$wpdb DISTINCT meta_key` scan is label-less/type-less key-soup and is
  *   rejected on quality. Unregistered-key gap is covered by the control's
  *   free-text entry (+ future Pie-Calendar injection).
- * - V6: offered ⟺ resolvable. `edit_posts` cap gates the route; output is
+ * - V6: offered ⟺ resolvable. The `edit_posts` capability gates the route; output is
  *   filtered through the SAME DISALLOWED_KEYS gate `bws_read_field` enforces
  *   (field-helpers.php:235), so the endpoint never offers a key the resolver
  *   would refuse. It does NOT hide general `_`-protected meta (the resolver
@@ -66,7 +66,7 @@ function bws_register_field_discovery_route() {
 }
 
 /**
- * Permission callback — `edit_posts` cap (V6).
+ * Permission callback — the `edit_posts` capability (V6).
  *
  * Field discovery exposes only field DEFINITIONS (never values), but the list of
  * registered fields is still author-only editor tooling, so it is gated to users

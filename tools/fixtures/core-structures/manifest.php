@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 6, // 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 7, // 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -93,10 +93,14 @@ return array(
 			'phone'      => '(987) 111-2222',   // R3.2 valid
 			'email'      => 'support@example.test',
 			'event_date' => '20301005',         // datetime D4 valid
+			// blurb deliberately ABSENT — support is the FIRST department term on
+			// the matrix pages, so its absence is what makes the {{content use:key}}
+			// term walk visibly skip to the next term (CT4, fold F9a.4).
 		),
 		'department-sales'     => array(
 			'phone'      => '(987) 333-4444',   // R3.2 valid
 			'email'      => 'sales@example.test',
+			'blurb'      => 'Sales handles quotes, renewals and the annual customer roadshow.',
 			'event_date' => '20301112',         // datetime D4 valid
 		),
 		'department-warehouse' => array(
@@ -140,6 +144,16 @@ return array(
 			'content_builder' => 'matrix_post_meta',
 		),
 
+		// Content-family page (content-test-matrix.md). Split off because a hopped
+		// {{content}} renders another entity's whole block set inline: on a shared
+		// page two entities' values land on one screen and neither is legible.
+		'page-matrix-content' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-content',
+			'post_title'      => 'Matrix: Content',
+			'content_builder' => 'matrix_content',
+		),
+
 		// Term-hop, all assigned terms valid.
 		'page-matrix-terms-valid' => array(
 			'post_type'       => 'page',
@@ -181,6 +195,7 @@ return array(
 	// Post → department term assignment (fixture slugs).
 	'post_terms' => array(
 		'page-matrix-post-meta'   => array( 'department-support', 'department-sales' ),
+		'page-matrix-content'     => array( 'department-support', 'department-sales' ),
 		'page-matrix-terms-valid' => array( 'department-support', 'department-sales' ),
 		'page-matrix-terms-mixed' => array( 'department-support', 'department-sales', 'department-warehouse' ),
 		'page-matrix-terms-junk'  => array( 'department-warehouse' ),
@@ -208,6 +223,14 @@ return array(
 		'staff-tom-associate' => array(
 			'main_line'     => '(555) 200-4000',
 			'contact_email' => 'tom@example.test',
+			// SECOND-DEGREE relationship (#55): the only staff→staff link in the
+			// blueprint, and the whole point of it is that `src:refs,related_staff;
+			// refs,reports_to` from matrix-post-meta has somewhere to land. An
+			// associate reporting to a partner is the plausible direction; Jane is
+			// deliberately left with NO `reports_to`, so the second step is sparse
+			// and the chain also pins that an empty second degree DROPS rather than
+			// erroring (fold matrix F8.7).
+			'reports_to'    => array( 'staff-jane-partner' ),
 			// join matrix — DENSE full personal name (J21 stress fixture). Male
 			// name carries a plausible generation suffix.
 			'name_honorific'      => 'Dr.',
@@ -287,6 +310,18 @@ return array(
 				array( 'name' => 'Alice Adams', 'description' => 'Founding partner', 'role' => 'Engineering', 'lead_ref' => 'staff-jane-partner' ),
 				array( 'name' => 'Bob Brown',   'description' => 'Support lead',     'role' => 'Operations',  'lead_ref' => '' ),
 			),
+		),
+
+		// content matrix (CT rows). Deliberately DISTINCT values from the staff
+		// singles': the property under test is which entity a hopped {{content}}
+		// lands on, and identical values on both sides would make a wrong entity
+		// unreadable. name_first/name_last feed jane's join rows when they render
+		// from HER content — if those rows show these values the hop leaked (#58).
+		'page-matrix-content' => array(
+			'main_line'      => '(321) 555-0100',   // CT6 ambient contrast
+			'related_staff'  => array( 'staff-jane-partner', 'staff-tom-associate' ), // CT1-CT4 hop target (jane FIRST)
+			'name_first'     => 'Pagefirst',
+			'name_last'      => 'Pagelast',
 		),
 
 		'post-sample-event' => array(

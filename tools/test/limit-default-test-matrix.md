@@ -9,7 +9,7 @@ and four code paths, and the regression this matrix guards is cross-cutting.
 
 | Input | Before 1.17.0 | 1.17.0 |
 |---|---|---|
-| unset / `''` | 1 | **1 (unchanged — this is what the L1 rows pin)** |
+| unset / `''` | 1 | **1 on FLAT wire (unchanged — what the L1 rows pin); 0 on CHAIN wire (§L4)** |
 | non-numeric (`abc`) | 1 | 1 (explicit `is_numeric()` gate) |
 | `0` | 1 (silently clamped) | **UNLIMITED** |
 | `-1`, `-3` | 1 (silently clamped) | **UNLIMITED** (parse tolerant, emit `0`) |
@@ -29,7 +29,12 @@ merely lengthen output — **it drops the anchor while the text still reads plau
 | the seam — `bws_resolve_field_values()` | `field-helpers.php` | text, title, email, phone |
 | the shared list fold — `bws_collect_value_list()` | `field-helpers.php` | datetime_single / _range |
 | try_ slot dispatch (own implementation) | `class-tag-template-registry.php` | L1.7, L3.4 |
-| `bws_try_join_items()` (defensive re-clamp) | `base-shared.php` | covered via the try_ rows |
+| `bws_try_join_items()` | `base-shared.php` | covered via the try_ rows. **No longer a clamp site** (1.17.0): it holds no options, so it structurally cannot know which spelling the tag uses, and it now takes an already-resolved int |
+
+Since 1.17.0 the DEFAULT each of those sites passes comes from one more function,
+[`bws_limit_default()`](../../includes/helpers/field-helpers.php) — see §L4. No call site is
+new-or-old; all of them serve both eras, so the era is read off the tag's wire rather than
+chosen per site.
 
 `{{content}}` is **NOT list-capable** (registers no `limit`) — out of scope BY DESIGN. Do not
 add rows for it.
@@ -90,14 +95,106 @@ rows — one anchor, not two.
 | L3.5 | `{{datetime_single srcTermIn:department\|key:event_date\|limit:0}}` | both dept event dates | the list fold slices with `?: null` |
 | L3.6 | `{{text srcTermIn:department\|use:title\|limit:0\|linkTo:permalink}}` | both names, **NO** `<a>` | unlimited feeds the same count gate — it drops the anchor legitimately, because the output really is multi-value |
 
+## L4 — the SPELLING selects the default (1.17.0, base-tag source chains)
+
+**The unset default is no longer one number.** Flat wire bounds its resolved-source list at 1;
+chain wire does not. That single rule is the whole compatibility mechanism for base-tag source
+chains, and it is chosen because it works on wire NO MIGRATION CAN REACH — a draft nobody opens,
+a block widget the content scanner never sees, a tag stored inside an ACF field.
+
+So the L1 rows above are only half the floor: they pin that FLAT wire still bounds at one. These
+rows pin the other half, and every one is a **pair of spellings for the same source**.
+
+⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
+defaulting to many means link-wrapping differs by spelling, on new wire.
+
+> **MEASURED 2026-08-05** against the branch on `/matrix-post-meta/`; every row below is an
+> observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
+> renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately
+> gone because the output really is multi-value.
+>
+> **L4.10 / L4.11 measured 2026-08-07 on the testbed**, when the limit moved from the tag onto the
+> steps. They are the rows that pin what migration WRITES, as opposed to what a hand-authored limit
+> does — L4.3 used to serve both and now serves only the second. Each migrated row is paired with the
+> flat original it replaces AND with an unlimited partner, so neither pair can pass vacuously.
+
+> **OPENING one of these rows in the editor MIGRATES it** (#62, 2026-08-07): a tag-level `limit` is
+> legacy by POSITION, not by spelling, so a numeric one on chain wire is absorbed onto the step it
+> bounds and the key is deleted. Affects L4.3 here, and F8.4 / F12.1-F12.3 in the fold matrix.
+> Output is unchanged in every case, and a reseed restores the authored wire. Rows that STAND DOWN
+> are untouched: L4.6 (non-numeric — there is no era default to carry on chain wire) and L4.8/L4.9
+> (the chain already states its own step limit). So eyeball these on the FRONT END, or reseed after
+> opening one; the editor-side behaviour is `fold-test-matrix.md` §F14.14b, whose subject is L4.3.
+
+| Row | Tag | Expected | What it proves |
+|---|---|---|---|
+| L4.1 | `{{text src:ref\|ref:related_staff\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | FLAT, unset — unchanged from L1.2. The floor |
+| L4.2 | `{{text src:refs,related_staff\|use:title\|linkTo:permalink}}` | BOTH names, **NO** `<a>` | CHAIN, unset — unlimited. The anchor is legitimately gone: the output really is multi-value |
+| L4.3 | `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | an EXPLICIT tag-level value beats the spelling-selected default — ordinary option precedence. NOT what a migrated tag looks like: since the limit moved onto the steps, a migrated tag is L4.10. This row is hand-authored wire, and it still has to work — until it is OPENED, which absorbs the `1` onto the step and makes it L4.10 (see the note above; reseed to get it back) |
+| L4.4 | `{{text srcTermIn:department\|use:title}}` | ONE dept name | FLAT term hop, unset — still 1 |
+| L4.5 | `{{text src:terms,department\|use:title}}` | `Sales, Support` | CHAIN term hop, unset — unlimited |
+| L4.6 | `{{text src:refs,related_staff\|use:title\|limit:abc}}` | BOTH names | the `is_numeric()` guard falls to the CHAIN default, not to 1. A garbage value must not resurrect the legacy limit on chain wire |
+| L4.7 | `{{text src:current\|key:role\|linkTo:permalink}}` | `Captain`, in `<a>` | a root-only chain does not fan, so nothing changes. `src:current` is chain-shaped in the control but a plain token on the wire |
+| L4.8 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | the PER-STEP limit and the tag-level one are different quantities. This bounds the step at one source per input; the tag-level default stays unlimited and has nothing left to cut |
+| L4.9 | `{{text src:refs,related_staff,limit(2)\|use:title}}` | BOTH names | L4.8's partner — without the pair, a per-step limit that did nothing at all would still pass L4.8 |
+| L4.10 | `{{text src:refs,related_staff,limit(1)\|use:title\|linkTo:permalink}}` | `Jane Partner` only, in `<a>` | **what MIGRATION now writes.** Identical output to the flat L4.1 it replaces, which is the equivalence the rewrite claims. Same wire as L4.8 — the row is duplicated on purpose, because L4.8 asks whether a per-step limit works and this one asks whether migration produces it |
+| L4.11a | `{{text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title}}` | `All Users` | **TWO fanning steps, the shape the limit mapping exists for** — the FLAT original. Uses `portal_visibility` deliberately: `department` is a taxonomy the fixture's staff do not carry, so that spelling renders empty in BOTH eras and asserts nothing (the §F9.6 lesson) |
+| L4.11b | `{{text src:refs,related_staff,limit(1);terms,portal_visibility,limit(1)\|use:title}}` | `All Users` — identical to L4.11a | what MIGRATION writes for L4.11a. BOTH steps are limited, because per-step limits are per-input and multiply |
+| L4.11c | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` | L4.11b's partner — the same chain with no step limits. Without it, a mapping that wrote nothing at all would still pass the pair |
+
+## L4a — the SPELLING selects a SLOT's default too (#60)
+
+`bws_clamp_limit`'s two container call sites changed with #60: a slot's own source spelling now
+selects its default, exactly as a base tag's does. Before, the dispatch read the default off the
+FLATTENED triple, whose `src` is a legacy token on every slot, so every slot answered 1 whatever
+it was spelled as.
+
+**Behaviour rows live in [`fold-test-matrix.md`](fold-test-matrix.md) §F7a** — that file owns the
+fold, and duplicating them here is the copy this matrix has no reason to keep. What belongs HERE is
+the link gate, for the same count-based reason L1 and L4 carry it: a slot that starts returning
+several values stops being wrappable.
+
+> **MEASURED 2026-08-07** on the testbed, `/matrix-terms-valid/`.
+
+| Row | Tag | Expected | What it proves |
+|---|---|---|---|
+| L4a.1 | `{{try_text srcTermIn:department\|use:title\|linkTo:permalink}}` | ONE dept name, in `<a>` | FLAT slot, unset — the floor, unchanged |
+| L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **NO** `<a>` | CHAIN slot, unset — unlimited, and the anchor legitimately gone. The slot twin of L4.2 |
+| L4a.3 | `{{try_text A:src(terms,department,limit[1]);use(title)\|linkTo:permalink}}` | ONE dept name, in `<a>` | what MIGRATION writes for L4a.1 — identical output, anchor included |
+| L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by INHERITING keeps the flat default: the slot it inherits from stated its own bound, and a limit does not carry forward |
+
+## L5 — the author conversion (editor only)
+
+Not reachable by `render-tag`. Open `/matrix-post-meta/` in the block editor.
+
+| Row | What to do | Expected |
+|---|---|---|
+| L5.1 | Open a tag whose source is FLAT `src:ref\|ref:related_staff`; the Source control shows one step | the chain is READ from the flat keys — display only. Cancel the modal and the stored string is untouched |
+| L5.2 | Commit any change to that source | the saved tag is `src:refs,related_staff,limit(1)`, the `ref` key is GONE, and **the step's own Limit field shows `1`** — the limit lands in the step row the author is looking at, and NO tag-level `limit` is written. Without it the tag would silently start rendering both names and drop its anchor |
+| L5.3 | Clear the `1` from the step's Limit field | both names render, and the wire is back to `src:refs,related_staff`. The point of showing the number is that it is clearable |
+| L5.4 | Re-commit the source on an ALREADY-chain tag whose step limit you cleared | the `1` does NOT come back. Only the conversion writes it |
+| L5.5 | Set the source to `Current` (root only) and commit | no `limit` is written — a source with no step has nothing to bound, and a number there is noise a reader has to decide is meaningless |
+| L5.6 | Add a step, leave its field empty | the step warns *"This tag will be skipped unless a field is set"*, and **Add hop is unavailable** until the step is complete |
+| L5.7 | On a fanning step, check the limit input | placeholder reads `0 (all)`. Type `0`, commit, reopen — the field shows `0 (all)` again and the wire carries no limit. Same glyphs, same meaning, nothing silently lost |
+| L5.8 | Convert the `L5.8 subject` row — a flat tag already carrying a tag-level `limit:3` | the `3` MOVES onto the step: the wire is `src:refs,related_staff,limit(3)` and the tag-level key is gone. One limit, one place — leaving it in both would state one bound in two spellings that mean different quantities |
+
 ## Editor check (no front-end surface)
 
-Open any `limit`-bearing block on `/matrix-post-meta/` in the GB editor:
+**There is no tag-level Result Limit control any more** on the tags that build a source path
+(v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)) — a
+limit is stated where the source is stated, so the input to check is the STEP's own Limit field.
+Its absence is asserted by `php tools/test/control-order-test.php` §5, since a missing control
+leaves no trace in rendered output. A stored tag-level `limit` is still READ, which is what every
+L1/L3 row above exercises.
 
-- the **Result Limit** help text reads *"Maximum number of results to return. Default: 1. Enter 0
-  for no limit."*;
-- the number input accepts `0` and `-1` — **there is deliberately no `min`** (a control that
+Open a `limit`-bearing block on `/matrix-post-meta/` in the GB editor and check the step's Limit
+input:
+
+- the placeholder reads `0 (all)` and the step's own help names the per-input meaning (at most N
+  from EACH incoming result);
+- the input accepts `0` and `-1` — **there is deliberately no `min`** (a control that
   fights a hand-typed value works against
   [ADR 0004](../../docs/adr/0004-serialized-tag-string-human-readable.md), and the parse is already
   tolerant);
-- `0` survives a save/reopen round trip (GB serializes every value except strict `false`).
+- `0` survives a save/reopen round trip (it normalizes back to absence, and absence and `0` read
+  the same — L5.7).

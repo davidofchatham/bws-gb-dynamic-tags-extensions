@@ -161,13 +161,15 @@ function bws_build_deprecation_preview_label( string $old_tag, array $old_option
  *            description/supports/gb_type (those were GB-registration fields,
  *            removed 1.14.0). transform_callback is a migration-pipeline hook
  *            (MigrationRegistry::run_transform()), not a GB renderer — keep it.
- * @invariant second_related_post_* (15) and post_term_related_post_* (10) — no
- *            current tag reaches a second-hop relationship or a term-then-
- *            relationship chain, so these carry old_tag+since only, no new_tag.
- *            Do not delete these foreach blocks wholesale when touching this
- *            function; they were mistakenly dropped once already (SPEC B1) and
- *            their loss silently emptied the settings page's "no migration path"
- *            list and starved Tag Converter of ~25 entries.
+ * @invariant second_related_post_* (15) and post_term_related_post_* (10) carried
+ *            old_tag+since ONLY until 1.17.0, because no current tag reached a
+ *            second-hop relationship or a term-then-relationship chain. Source
+ *            CHAINS state both shapes, so they now carry a new_tag and a
+ *            transform. Do not delete these foreach blocks wholesale when
+ *            touching this function; they were mistakenly dropped once already
+ *            (SPEC B1) and their loss silently emptied the settings page's "no
+ *            migration path" list and starved Tag Converter of ~25 entries —
+ *            which is precisely why they were still here to receive targets.
  * @invariant $rel_renames (and every var merged from it) maps BOTH 'key' and
  *            'rel' → 'ref'. 'key' is the legacy pre-'rel' spelling for the same
  *            relationship field; RelatedPost::resolve_id() still fallback-accepts
@@ -826,11 +828,29 @@ function bws_register_v1_deprecated_tag_wrappers() {
 	) );
 
 	// ==========================================
-	// SECOND RELATED POST / POST→TERM→RELATED POST — no migration path.
-	// No current tag reaches a *second-hop* relationship or a term-then-relationship
-	// chain, so these have no new_tag. Kept so MigrationRegistry/Tag Converter/Settings
-	// page can still find and report them; entry shape omits GB registration fields
-	// (title/options/callback) since nothing registers these with GB anymore.
+	// SECOND RELATED POST / POST→TERM→RELATED POST — TARGETS AT LAST (1.17.0).
+	//
+	// These 25 entries carried `old_tag` + `since` and nothing else for four releases,
+	// because no current tag could reach a second-hop relationship or a
+	// term-then-relationship chain. Source CHAINS state exactly those two shapes:
+	//
+	//   second_related_post_*     (15)  →  src:refs,<rel>;refs,<rel_2>
+	//   post_term_related_post_*  (10)  →  src:terms,<tax>;refs,<rel>
+	//
+	// `term_related_post_*` is unaffected — those always carried a `new_tag`.
+	//
+	// THIS IS THE ENDURING RULE PAYING OFF: never delete a register() call just for
+	// lacking migration data. The rows were kept in 1.14.0 precisely so a later release
+	// could give them targets — after being dropped once by mistake (SPEC B1), which
+	// silently emptied the settings page's "no migration path" list and starved the Tag
+	// Converter of these ~25 entries.
+	//
+	// Risk is ONE-DIRECTIONAL. The renderers were stripped in 1.14.0, so these tags
+	// produce nothing today: migration moves them from broken to correct, and there is
+	// no working output to break. It is also the one VISIBLE change in this release —
+	// everything else here is the same output under a different spelling, while this
+	// makes a blank spot start printing content. Announce it as a capability restored,
+	// not as a fix for a known population: live instances are deliberately unsurveyed.
 	// ==========================================
 
 	foreach ( array(
@@ -851,8 +871,11 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'second_related_post_term_custom_image',
 	) as $old_tag ) {
 		$reg::register( array(
-			'old_tag' => $old_tag,
-			'since'   => $since,
+			'old_tag'            => $old_tag,
+			'new_tag'            => bws_nxm_chain_target( $old_tag, 'second_related_post_' ),
+			'since'              => $since,
+			'transform_callback' => 'bws_migrate_second_related_post_chain',
+			'gb_link_remap'      => true,
 		) );
 	}
 
@@ -869,8 +892,11 @@ function bws_register_v1_deprecated_tag_wrappers() {
 		'post_term_related_post_custom_datetime_range',
 	) as $old_tag ) {
 		$reg::register( array(
-			'old_tag' => $old_tag,
-			'since'   => $since,
+			'old_tag'            => $old_tag,
+			'new_tag'            => bws_nxm_chain_target( $old_tag, 'post_term_related_post_' ),
+			'since'              => $since,
+			'transform_callback' => 'bws_migrate_post_term_related_post_chain',
+			'gb_link_remap'      => true,
 		) );
 	}
 }
@@ -1108,6 +1134,191 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * @param string $tag_string Raw tag string.
  * @return string Rewritten tag string (unchanged when no slot names the legacy source).
  */
+/**
+ * The N×M suffix → current base/modifier tag map, and the target for one old tag.
+ *
+ * The 25 target-less entries are `<family>_<suffix>` where the suffix names the same
+ * shapes every other deprecated family already maps. Derived from the suffix rather
+ * than listed per tag: 25 hand-written `new_tag` values is 25 chances to write
+ * `custom_image` → `text`, and the families differ ONLY in the chain their transform
+ * builds, never in which tag renders it.
+ *
+ * The `*_term_*` suffixes on `second_related_post_*` land on `term_` modifier tags:
+ * their last hop was post→term, which the modifier prefix is exactly for. The plain
+ * suffixes land on base tags, whose source is now the chain.
+ *
+ * @since 1.17.0
+ * @param string $old_tag Full deprecated tag name.
+ * @param string $prefix  The family prefix to strip.
+ * @return string Current tag name ('' when the suffix is unknown — the caller then
+ *                registers an entry with no target, which is the pre-1.17.0 state
+ *                rather than a wrong rewrite).
+ */
+function bws_nxm_chain_target( string $old_tag, string $prefix ): string {
+	$map = array(
+		'title'                    => 'title',
+		'content'                  => 'content',
+		'permalink'                => 'permalink',
+		'custom_text'              => 'text',
+		'featured_image'           => 'image',
+		'custom_image'             => 'image',
+		'custom_date_single'       => 'datetime_single',
+		'custom_date_range'        => 'datetime_range',
+		'custom_datetime_single'   => 'datetime_single',
+		'custom_datetime_range'    => 'datetime_range',
+		// The last hop is post→term, which is what the modifier prefix names.
+		'term_title'               => 'term_title',
+		'term_permalink'           => 'term_permalink',
+		'term_description'         => 'term_content',
+		'term_custom_text'         => 'term_text',
+		'term_custom_image'        => 'term_image',
+	);
+	$suffix = ( 0 === strpos( $old_tag, $prefix ) ) ? substr( $old_tag, strlen( $prefix ) ) : '';
+	return $map[ $suffix ] ?? '';
+}
+
+/**
+ * Build a depth-0 chain from an ordered list of [slug, arg] steps.
+ *
+ * Returns an empty array when any step lacks its argument — a chain with a hole
+ * resolves to nothing, so writing one would convert a broken tag into a permanently
+ * broken one. The caller emits through the grammar rather than concatenating: the
+ * separators, the escaping and the bracket depth are the wire's rules, and a second
+ * hand-rolled emitter here is how a migrated tag comes to be spelled differently from
+ * an authored one.
+ *
+ * @since 1.17.0
+ * @param array $steps List of array( slug, arg ).
+ * @return array Chain in the grammar's shape, or empty when incomplete.
+ */
+function bws_nxm_chain_steps( array $steps ): array {
+	$chain = array();
+	foreach ( $steps as $step ) {
+		$arg = trim( (string) ( $step[1] ?? '' ) );
+		if ( '' === $arg ) {
+			return array();
+		}
+		$chain[] = array( 'slug' => (string) $step[0], 'arg' => $arg, 'limit' => null, 'extra' => array() );
+	}
+	return $chain;
+}
+
+/**
+ * `second_related_post_*` → a chain of TWO relationship steps.
+ *
+ * The old tag hopped `rel` then `rel_2`, collapsing to the first post at each hop.
+ * The chain preserves fan-out, so the migrated tag limits BOTH steps to 1 to keep the
+ * single-value output the old tag had — the same rule the base source migration
+ * follows, for the same reason, and the reason a limit is written at all rather than
+ * left to the spelling: chain wire defaults to unlimited. Bounding only the last step
+ * would read one post per referenced post, which is not what either spelling meant.
+ *
+ * Both relationship keys must be present. Without `rel_2` there is no second hop to
+ * state, and inventing a one-hop chain would silently make the tag read the FIRST
+ * relationship's target as though that were the author's intent.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_migrate_second_related_post_chain( string $tag_string ): string {
+	return bws_nxm_migrate_chain( $tag_string, 'second_related_post_', static function ( array $options ): array {
+		return array(
+			array( 'refs', $options['rel'] ?? '' ),
+			array( 'refs', $options['rel_2'] ?? $options['rel2'] ?? '' ),
+		);
+	}, array( 'rel', 'rel_2', 'rel2' ) );
+}
+
+/**
+ * `post_term_related_post_*` → a `terms` step followed by a `refs` step.
+ *
+ * The old tag took the FIRST term in `tax` and read a relationship field on it. The
+ * chain does not collapse the term hop, so a limit on each step preserves the
+ * single-value output for the same reason as the sibling above. `taxonomy` is read as
+ * well as `tax`: the option was renamed in 1.4.x and the retired class still accepted
+ * both, so stored wire can hold either.
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_migrate_post_term_related_post_chain( string $tag_string ): string {
+	return bws_nxm_migrate_chain( $tag_string, 'post_term_related_post_', static function ( array $options ): array {
+		return array(
+			array( 'terms', $options['tax'] ?? $options['taxonomy'] ?? '' ),
+			array( 'refs', $options['rel'] ?? '' ),
+		);
+	}, array( 'tax', 'taxonomy', 'rel' ) );
+}
+
+/**
+ * Shared body for the two N×M chain transforms: rename the tag, build the chain, carry
+ * the old limit onto its steps, strip the option keys it consumed.
+ *
+ * IT RENAMES THE TAG ITSELF, and must: MigrationRegistry::transform_tag() returns a
+ * `transform_callback`'s result verbatim, so the declarative `new_tag` rename never
+ * runs for an entry that has one. The target comes from bws_nxm_chain_target(), the
+ * same function the registration uses — one owner, so the entry the converter REPORTS
+ * and the tag it WRITES cannot name two different things.
+ *
+ * The GB link options are remapped here for the same reason (`gb_link_remap` is a
+ * declarative key `run_transform()` applies, and it is likewise skipped).
+ *
+ * @since 1.17.0
+ * @param string   $tag_string Raw tag string.
+ * @param string   $prefix     The family prefix, for the target lookup.
+ * @param callable $steps_fn   fn( array $options ): array — ordered [slug, arg] pairs.
+ * @param string[] $consumed   Option keys the chain absorbs.
+ * @return string Rewritten tag string, or the original.
+ */
+function bws_nxm_migrate_chain( string $tag_string, string $prefix, callable $steps_fn, array $consumed ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	if ( ! class_exists( $reg ) ) {
+		return $tag_string;
+	}
+	list( $tag_name, $options ) = $reg::parse_tag_string( $tag_string );
+
+	$new_tag = bws_nxm_chain_target( $tag_name, $prefix );
+	if ( '' === $new_tag ) {
+		return $tag_string;
+	}
+
+	$chain = bws_nxm_chain_steps( (array) call_user_func( $steps_fn, $options ) );
+	if ( ! $chain || ! function_exists( 'bws_fold_emit_chain' ) ) {
+		return $tag_string;
+	}
+
+	// Both families are TWO fanning steps, so the limit has to reach both of them: per-step
+	// limits are per-input and multiply, and `1` on the last alone would give one target per
+	// parent rather than the one value the old tag rendered. The mapping is shared with the
+	// base source migration rather than restated (bws_fold_chain_apply_legacy_limit).
+	$bound = bws_fold_chain_apply_legacy_limit( $chain, $options['limit'] ?? null, true );
+
+	// Enclosing level 0 — a base tag's `src:` IS the wrapper.
+	$wire = bws_fold_emit_chain( $bound['chain'], 0 );
+	if ( '' === $wire ) {
+		return $tag_string;
+	}
+
+	if ( function_exists( 'bws_map_gb_link_option' ) ) {
+		$options = bws_map_gb_link_option( $options );
+	}
+	$options['src'] = $wire;
+	foreach ( $consumed as $key ) {
+		unset( $options[ $key ] );
+	}
+	if ( $bound['consumed'] ) {
+		unset( $options['limit'] );
+	}
+
+	if ( function_exists( 'bws_serialization_order_sort_map' ) ) {
+		$options = bws_serialization_order_sort_map( $options );
+	}
+
+	return $reg::format_tag_string( $new_tag, $options );
+}
+
 function bws_migrate_related_post_src( string $tag_string ): string {
 	$reg = 'BWS\DynamicTags\MigrationRegistry';
 	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
@@ -1170,14 +1381,17 @@ function bws_migrate_related_post_src( string $tag_string ): string {
 }
 
 /**
- * Migration transform_callback: PER-SLOT `rel` → `ref` on a try_ tag, with the matching
- * slot `src:ref` (#56).
+ * Migration transform_callback: `rel` → `ref`, with the matching `src:ref` — per slot on a
+ * try_ tag, bare keys on a base or term_ tag (#56, extended to all three families by #57).
  *
  * The declarative pipeline cannot express this, and the reason is worth stating because
  * the obvious spelling looks correct and destroys data:
  *
- *   1. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
- *   2. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
+ *   1. `option_renames` assigns UNCONDITIONALLY, so on a tag carrying both spellings the
+ *      inert `rel` overwrites a LIVE `ref` (#57 — the base/term_ families shipped exactly
+ *      that from 1.6.0).
+ *   2. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
+ *   3. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
  *      `3-rel` must set `3-src`, not `src`.
  *
  * The first draft therefore renamed the keys and injected NOTHING, on the reasoning that
@@ -1194,23 +1408,30 @@ function bws_migrate_related_post_src( string $tag_string ): string {
  * stated from the other side):
  *
  *   `N-src:ref`           the compiler reads `ref`; `rel` is inert  → `ref` WINS
- *   `N-src:related_post`  the retired class read `rel`; `ref` inert → `rel` WINS
+ *   `N-src:related_post`  the retired class read `rel`; `ref` inert → DEFERRED, see below
  *   `N-src` absent        NEITHER was read — the slot hopped nowhere. No faithful answer
  *                         exists, so this is a repair: `ref` if set, else `rel`, and
  *                         `src:ref` is injected on the premise a slot naming a
- *                         relationship descends from a relationship hop ($rel_fix's).
+ *                         relationship descends from a relationship hop.
  *
- * The `related_post` case must be settled HERE even though a later entry owns that token,
- * because this transform runs first in the cascade and deleting `rel` would destroy the
- * evidence bws_migrate_related_post_src() needs to apply the same rule.
+ * A `related_post` slot is DEFERRED WHOLE — skipped byte-identical, `rel` left in place —
+ * because bws_migrate_related_post_src(), the sole owner of that token, ranks `rel` above
+ * `key` and needs both intact to do it. Settling the slot here (write `ref = rel`, delete
+ * `rel`) destroyed exactly that evidence: the later entry, finding no `rel`, fell to its
+ * key-COPY branch and overwrote the settled `ref` with the field key (#73). The cascade
+ * makes the hand-off safe: this transform no-ops on the slot, the later entry still runs.
+ * Same shape as the mount path's decline (BWS_FOLD_RETIRED_SRC_TOKENS skips such slots
+ * whole), and the deferred slot always has a downstream owner because the related_post
+ * entry registers for every family this one does.
  *
  * An explicit `src` is never overwritten — only an absent one is filled.
  *
- * @since 1.17.0
+ * @since 1.17.0 (as bws_migrate_slot_rel_to_ref; renamed when the base/term_ families
+ *               moved onto it, replacing their declarative `$rel_fix` pair)
  * @param string $tag_string Raw tag string.
  * @return string Rewritten tag string (unchanged when no slot carries a `rel`).
  */
-function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
+function bws_migrate_rel_to_ref( string $tag_string ): string {
 	$reg = 'BWS\DynamicTags\MigrationRegistry';
 	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
 
@@ -1219,23 +1440,39 @@ function bws_migrate_slot_rel_to_ref( string $tag_string ): string {
 	// Slot 1 is bare; 2..5 mirror what generate_base_try_tags() registers.
 	foreach ( array( '', '2-', '3-', '4-', '5-' ) as $prefix ) {
 		$rel_key = $prefix . 'rel';
-		$rel     = isset( $options[ $rel_key ] ) ? trim( (string) $options[ $rel_key ] ) : '';
-		if ( '' === $rel ) {
+		if ( ! isset( $options[ $rel_key ] ) ) {
 			continue;
 		}
 
-		$touched = true;
-		unset( $options[ $rel_key ] );
+		// A present-but-EMPTY `rel:` names nothing to move, but the dead key is still
+		// consumed — leaving it would have the converter report this migration forever
+		// while changing nothing (the report/run agreement §R3 pins).
+		$rel = trim( (string) $options[ $rel_key ] );
+		if ( '' === $rel ) {
+			$touched = true;
+			unset( $options[ $rel_key ] );
+			continue;
+		}
 
 		$ref_key = $prefix . 'ref';
 		$src_key = $prefix . 'src';
 		$src     = trim( (string) ( $options[ $src_key ] ?? '' ) );
 		$has_ref = '' !== trim( (string) ( $options[ $ref_key ] ?? '' ) );
 
-		// The slot's own src decides which spelling was ever read — see docblock. Only
-		// `related_post` makes `rel` the live one, and there it must overwrite the inert
-		// `ref` rather than lose to it.
-		if ( ! $has_ref || 'related_post' === $src ) {
+		// DEFER-WHOLE (#73): under `related_post` the `rel` is the live spelling, but
+		// settling it here destroys the rel-vs-key evidence the token's owner needs —
+		// see docblock. Skip the slot byte-identical; bws_migrate_related_post_src()
+		// consumes it later in the same cascade.
+		if ( 'related_post' === $src ) {
+			continue;
+		}
+
+		$touched = true;
+		unset( $options[ $rel_key ] );
+
+		// Under every remaining token the `rel` was never read, so an existing `ref`
+		// wins and the `rel` is dropped; only an absent `ref` takes it (repair).
+		if ( ! $has_ref ) {
 			$options[ $ref_key ] = $rel;
 		}
 
@@ -1272,10 +1509,14 @@ function bws_register_option_migrations(): void {
 
 	// Base tags that carry a 'ref' relationship option when source:ref — if 'rel' is present
 	// instead, the tag was converted by the buggy pre-fix converter. Rename rel→ref and ensure
-	// source:ref is injected first.
+	// source:ref is injected.
+	//
+	// A transform_callback, not the declarative option_renames + source_inject pair it was
+	// from 1.6.0 to 1.17.0: option_renames assigns unconditionally, so on a tag carrying
+	// BOTH spellings the inert `rel` overwrote a live `ref` (#57). The callback applies the
+	// src-decides rule and defers `src:related_post` whole — see bws_migrate_rel_to_ref().
 	$rel_fix = array(
-		'option_renames' => array( 'rel' => 'ref' ),
-		'source_inject'  => 'ref',
+		'transform_callback' => 'bws_migrate_rel_to_ref',
 	);
 
 	foreach ( array( 'text', 'content', 'title', 'permalink', 'image', 'datetime_single', 'datetime_range' ) as $base_tag ) {
@@ -1555,7 +1796,7 @@ function bws_register_option_migrations(): void {
 	// not read its existence as evidence such wire was found.
 	//
 	// BEFORE the fold entry, and here the ordering is not merely conventional: `rel` is
-	// NOT in BWS_FOLD_LEGACY_AXES, so the fold neither folds nor strips it. A `2-rel` that
+	// NOT in BWS_FOLD_FLAT_AXES, so the fold neither folds nor strips it. A `2-rel` that
 	// survives into a folded tag is orphaned permanently — no later pass can see it.
 
 	// Modifier (term_) tags. Derived from the registered templates so a template added
@@ -1587,8 +1828,8 @@ function bws_register_option_migrations(): void {
 		}
 	}
 
-	// try_ tags. A transform_callback rather than option_renames + source_inject, for two
-	// reasons that only show up together — see bws_migrate_slot_rel_to_ref().
+	// try_ tags. Same callback; the per-slot keys are why it loops prefixes — see
+	// bws_migrate_rel_to_ref().
 	$try_rel_keys = array( 'rel' );
 	for ( $slot = 2; $slot <= 5; $slot++ ) {
 		$try_rel_keys[] = $slot . '-rel';
@@ -1604,7 +1845,7 @@ function bws_register_option_migrations(): void {
 				'match_tag'          => $tag,
 				'match_any_options'  => $try_rel_keys,
 				'new_tag'            => $tag,
-				'transform_callback' => 'bws_migrate_slot_rel_to_ref',
+				'transform_callback' => 'bws_migrate_rel_to_ref',
 				'label'              => sprintf(
 					/* translators: %s: tag name */
 					__( '{{%s}}: slot rel → ref (broken converter output)', 'generateblocks' ),
@@ -1652,6 +1893,18 @@ function bws_register_option_migrations(): void {
 		}
 	}
 
+	// term_ too (#73): the `rel` repair above DEFERS a `src:related_post` slot whole, so
+	// every family it registers for needs this entry downstream — without one the deferred
+	// `rel` is orphaned forever and the converter reports a migration that changes nothing.
+	// Derived from the templates, same as the `rel` repair; same hardcoded-`term` limit.
+	if ( class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+		foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+			if ( ! empty( $tpl['key'] ) ) {
+				$related_post_src_tags[] = 'term_' . $tpl['key'];
+			}
+		}
+	}
+
 	foreach ( array_unique( $related_post_src_tags ) as $tag ) {
 		$reg::register( array(
 			'type'                => 'option',
@@ -1665,6 +1918,58 @@ function bws_register_option_migrations(): void {
 				$tag
 			),
 		) );
+	}
+
+	// ── FW-56: a BASE tag's flat source triple → depth-0 CHAIN wire (1.17.0) ──
+	//
+	// AFTER every entry that PRODUCES a flat `src:ref` — the `rel` → `ref` repairs and
+	// the `related_post` token rewrite — because this consumes one. Registering it
+	// earlier would leave those entries to re-introduce a flat key beside the chain
+	// value, which is the same ordering constraint the slot fold has for the same
+	// reason.
+	//
+	// GATED, and the gate was met before this registered: migrating flat→chain puts
+	// EVERY stored base tag through the chain arms at once, on pages nobody opened, so
+	// a broken arm goes from affecting hand-converted tags to affecting the whole
+	// corpus on upgrade. FW-63's arm dispatch and its matrix coverage had to be
+	// complete first (fold-test-matrix.md §F9/§F9a, measured 2026-08-05).
+	//
+	// Matches on the KEYS rather than on values: `src:ref` and `srcTermIn` are the two
+	// spellings that fan, plus `limit` for the absorb branch below.
+	//
+	// `limit` IS ON THIS LIST AND MUST STAY (#66). A tag-level limit is legacy by POSITION,
+	// not by spelling, so the transform also absorbs one sitting on wire that is ALREADY a
+	// chain — and that shape carries neither `ref` nor `srcTermIn`, so without `limit` here
+	// it never reaches the transform at all. That shipped: #62 added the branch and left the
+	// match list alone, which made the branch dead code on the CONVERTER path while the mount
+	// path (which has no entry chain) ran it — one tag stored two ways depending on which
+	// path found it first, the divergence both halves exist to prevent. The slot half already
+	// carries the same rule for the same reason (bws_fold_migration_match_keys() adds `limit`
+	// on a non-combining container).
+	//
+	// COST, accepted: the entry is no longer reported on EXACTLY the tags it rewrites. A
+	// non-numeric `limit`, or a chain that already states its own step limits, matches here
+	// and is then declined by the transform. Harmless to the RUN since 1.17.0 — a no-op entry
+	// no longer halts the cascade — so the cost is confined to what the converter ADVERTISES,
+	// over a set that only shrinks. The alternative was a value-gated match (the `related_post`
+	// entry's posture), but `match_option_values` matches literal values and cannot express
+	// "numeric, on a chain that fans without stated limits"; that needs a new match_callback
+	// capability on the registry, for one entry.
+	if ( function_exists( 'bws_fold_migration_base_tags' ) ) {
+		foreach ( bws_fold_migration_base_tags() as $base_tag ) {
+			$reg::register( array(
+				'type'               => 'option',
+				'match_tag'          => $base_tag,
+				'match_any_options'  => array( 'ref', 'srcTermIn', 'limit' ),
+				'new_tag'            => $base_tag,
+				'transform_callback' => 'bws_migrate_base_src_chain',
+				'label'              => sprintf(
+					/* translators: %s: tag name */
+					__( '{{%s}}: flat source (src/ref/srcTermIn) → source chain', 'generateblocks' ),
+					$base_tag
+				),
+			) );
+		}
 	}
 
 	// ── {{join}} format tokens: escape a `%` the slot LETTERS made significant ──
@@ -1700,8 +2005,11 @@ function bws_register_option_migrations(): void {
 	//
 	// One registration per multislot tag, both list and container parameters DERIVED
 	// (bws_fold_migration_container) — the split is by DEPTH, and the base-tag depth-0
-	// half is not registered because no base tag reads a chain off the wire yet. Slot
-	// grammar + rules: includes/helpers/slot-fold-migrate.php.
+	// half registers above, on its own list. Slot grammar + rules:
+	// includes/helpers/slot-fold-migrate.php. The match surface is NOT the mapper's
+	// surface (bws_fold_migration_match_keys says why): a selecting container's
+	// tag-level `limit` is something this entry retires, so its presence means work,
+	// but handing it to the mapper would fold it into slot 1.
 	if ( function_exists( 'bws_fold_migration_multislot_tags' ) ) {
 		foreach ( bws_fold_migration_multislot_tags() as $tag ) {
 			$cfg = bws_fold_migration_container( $tag );
@@ -1711,7 +2019,7 @@ function bws_register_option_migrations(): void {
 			$reg::register( array(
 				'type'               => 'option',
 				'match_tag'          => $tag,
-				'match_any_options'  => bws_fold_migration_slot_keys( $cfg ),
+				'match_any_options'  => bws_fold_migration_match_keys( $cfg ),
 				'new_tag'            => $tag,
 				'transform_callback' => 'bws_migrate_src_chain_slots',
 				'label'              => sprintf(

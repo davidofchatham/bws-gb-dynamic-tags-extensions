@@ -40,7 +40,21 @@ const root = path.resolve( __dirname, '../..' );
 global.window = {};
 global.wp = {
 	hooks: { addFilter: function () {} },
-	element: { createElement: function () {}, Fragment: 'F', useEffect: function () {} },
+	// Recording createElement — chainSteps is the one export whose subject is the
+	// RENDERED tree (which picker exists, what it is showing, whether Add step is
+	// reachable), so the stub has to keep what it was handed. Everything else in this
+	// harness is pure and never calls it.
+	element: {
+		createElement: function ( type, props ) {
+			return {
+				type: type,
+				props: props || {},
+				children: Array.prototype.slice.call( arguments, 2 )
+			};
+		},
+		Fragment: 'F',
+		useEffect: function () {}
+	},
 	components: { SelectControl: {}, TextControl: {}, Button: {}, ComboboxControl: {}, Flex: {}, FlexItem: {} },
 	i18n: { __: function ( s ) { return s; }, sprintf: function ( f, v ) { return f.replace( '%s', v ); } }
 };
@@ -51,6 +65,12 @@ function load( relative ) {
 	vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
 }
 
+// ENQUEUE ORDER, matching the plugin's own registration — the control declares all three
+// of these as script dependencies and will not mount without them, so loading them here
+// is modelling the real load rather than propping the harness up. The wrapper is what
+// owns the box class names; a fallback copy of them in the control is what this ordering
+// replaced, and a harness that skipped the file would have kept that copy alive.
+load( 'assets/js/option-group.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
 // The migrate twin owns which legacy sibling keys a container has; the control is a hard
@@ -279,8 +299,8 @@ INTENT.forEach( function ( c ) {
 // behind produces a MIXED wire — the shape a half-applied migration makes, which
 // the renderer must flag rather than merge.
 //
-// The surface is CONTAINER-DERIVED (`legacyAxes`, from PHP), and the reason is a bug
-// this harness now pins: on a try_ template a bare `limit` is the TAG-level cap for
+// The surface is CONTAINER-DERIVED (`flatAxes`, from PHP), and the reason is a bug
+// this harness now pins: on a try_ template a bare `limit` is the TAG-level limit for
 // every slot, and on the read-less shapes a bare `use`/`key` is a TAG-level option
 // too. A control that listed the six axes itself deleted them on first touch, and
 // the mapper folded them into slot 1 as that slot's own read.
@@ -292,7 +312,7 @@ check( 'slot 1 legacy keys are UNPREFIXED', slot1Cleared, 'key,limit,ref,src,src
 const TRY_TEXT = rep.foldConfig( {
 	fold: {
 		container: 'try', combining: false, perSlotUse: true, min: 2, max: 5,
-		legacyAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ]
+		flatAxes: [ 'src', 'ref', 'srcTermIn', 'use', 'key' ]
 	}
 } );
 check(
@@ -304,7 +324,7 @@ check(
 const TRY_DATETIME = rep.foldConfig( {
 	fold: {
 		container: 'try', combining: false, perSlotUse: false, min: 2, max: 5,
-		legacyAxes: [ 'src', 'ref', 'srcTermIn' ]
+		flatAxes: [ 'src', 'ref', 'srcTermIn' ]
 	}
 } );
 check(
@@ -326,40 +346,271 @@ check(
 	'src(site);key(event_date)'
 );
 
-// ── argKind — which ARG a hop slug takes, in the config's own vocabulary ─────
+// ── stepArg — which ARG a step slug consumes, off the vocabulary record ──────
 //
-// Covered because it was NOT: `argKind` returned a hand-typed `'taxonomy'` (a third
-// spelling of a slug the config already names twice) until 1.17.0, and stubbing it to
-// return '' left the whole suite green — the rendered step controls it drives are React
-// code no harness reaches. These cases are the mutation guard: every answer must come
-// back through `slugMap`, so a hop added on the PHP side needs no edit here, and a
+// Covered because its predecessor was NOT: `argKind` returned a hand-typed
+// `'taxonomy'` (a third spelling of a slug the config already names twice) until
+// 1.17.0, and stubbing it to return '' left the whole suite green — the rendered step
+// controls it drives are React code no harness reaches. These cases are the mutation
+// guard: every answer must come off `steps[slug].arg` (the compiler seam's own value,
+// shipped on the record), so a step added on the PHP side needs no edit here, and a
 // re-typed local string fails.
-// `slugMap` mirrors the one bws_build_fold_slot_options() emits — engine option value →
-// wire step slug (DECISION 3). It is INPUT here, not an expectation: the cases assert that
-// every answer is derived from whatever map arrives, never that the map holds these pairs.
+// The `steps` record here mirrors what bws_fold_wire_vocabulary() ships. It is INPUT,
+// not an expectation: the cases assert that every answer is derived from whatever
+// record arrives, never that the record holds these pairs.
 const HOPS = rep.foldConfig( {
 	fold: {
 		container: 'join', combining: true, min: 2, max: 10,
-		slugMap: { ref: 'refs', srcTermIn: 'terms', rows: 'entries' }
+		steps: {
+			refs: { label: 'In Reference/Relational Field', arg: 'field' },
+			terms: { label: 'In Taxonomy Term', arg: 'slug' },
+			entries: { label: 'In Repeater Rows', arg: 'field' }
+		}
 	}
 } );
-check( 'argKind: refs takes the ref field arg', rep.argKind( HOPS, 'refs' ), 'ref' );
-check( 'argKind: terms takes the taxonomy arg, named as the engine names it', rep.argKind( HOPS, 'terms' ), 'srcTermIn' );
-check( 'argKind: entries takes the repeater field arg', rep.argKind( HOPS, 'entries' ), 'rows' );
-// A ROOT slug and an unknown one both take no arg, and the '' is load-bearing twice: it
-// gates the Add-hop row, and it is what stops toEngine()'s pass-through from reporting a
-// non-hop as its own kind.
-check( 'argKind: an entity root takes no arg', rep.argKind( HOPS, 'current' ), '' );
-check( 'argKind: an unknown slug takes no arg', rep.argKind( HOPS, 'sideways' ), '' );
-// The engine spellings themselves are NOT wire slugs — passing one in means a caller
-// mixed the vocabularies, and it must not round-trip into a kind.
-check( 'argKind: an engine option value is not a wire slug', rep.argKind( HOPS, 'srcTermIn' ), '' );
-// Derived means DEPENDENT: with no map on the option definition, no hop takes an arg and
-// every step renders bare. Same posture as `legacyAxes` in the migrate twin — an absent
-// list is a REGISTRATION bug, not a shape to tolerate — and asserted so the dependency is
-// visible rather than discovered in the editor.
+check( 'stepArg: refs consumes a field', rep.stepArg( HOPS, 'refs' ), 'field' );
+check( 'stepArg: terms consumes a taxonomy slug', rep.stepArg( HOPS, 'terms' ), 'slug' );
+// refs and entries CONSUME THE SAME ARG — that equality is what lets a slug switch
+// between them keep the field (asserted on the rendered picker below).
+check( 'stepArg: entries consumes a field too', rep.stepArg( HOPS, 'entries' ), 'field' );
+// A ROOT slug and an unknown one both take no arg, and the '' is load-bearing: it
+// gates the Add-step row.
+check( 'stepArg: an entity root takes no arg', rep.stepArg( HOPS, 'current' ), '' );
+check( 'stepArg: an unknown slug takes no arg', rep.stepArg( HOPS, 'sideways' ), '' );
+// The retired engine spellings are NOT wire slugs and have no record — a caller
+// passing one mixed the vocabularies, and it must not answer a kind.
+check( 'stepArg: a retired engine spelling is not a wire slug', rep.stepArg( HOPS, 'srcTermIn' ), '' );
+// Derived means DEPENDENT: with no vocabulary on the option definition, no step takes
+// an arg and every step renders bare. Same posture as `flatAxes` in the migrate twin —
+// an absent record is a REGISTRATION bug, not a shape to tolerate — and asserted so
+// the dependency is visible rather than discovered in the editor.
 const NO_MAP = rep.foldConfig( { fold: { container: 'join', combining: true, min: 2, max: 10 } } );
-check( 'argKind: an absent slugMap yields no arg at all (registration bug)', rep.argKind( NO_MAP, 'refs' ), '' );
+check( 'stepArg: an absent vocabulary yields no arg at all (registration bug)', rep.stepArg( NO_MAP, 'refs' ), '' );
+
+// ── An absent chain DISPLAYS the root it spells ─────────────────────────────
+// A SelectControl whose value matches no row paints its FIRST row while believing
+// nothing is selected, so the row on screen cannot be picked (selecting the displayed
+// value fires no change) and, with no step in hand, `+ Add step` never appears. That
+// shipped twice — once on the base-tag control, once here — which is why the display
+// rule now lives in chainSteps, where both callers reach it.
+//
+// The assertions are on the RENDERED tree because that is where the bug was: the value
+// and the enum were each individually correct.
+
+const CHAIN_CONF = rep.foldConfig( { fold: {
+	container: 'try',
+	combining: false,
+	perSlotUse: true,
+	min: 2,
+	max: 5,
+	// The slot twin's `ref` row respelled to the wire slug, exactly as
+	// bws_build_fold_slot_options() ships it since #70 — the picker's value IS the
+	// stored step's slug, so no translation stands between the row and the wire.
+	srcRows: [
+		{ value: 'current', label: 'Current' },
+		{ value: 'refs', label: 'In Reference/Relational Field' }
+	],
+	srcRowsInherit: [
+		{ value: 'same', label: 'Same as Previous Source' },
+		{ value: 'current', label: 'Current' }
+	],
+	// Shaped exactly as bws_fold_wire_vocabulary() ships it: one record per WIRE
+	// slug — label declared once, `arg` from the compiler seam, `accepts` from the
+	// engine's own refusal list, `produces` the step's output kind — plus the per-
+	// container ordered OFFER and the static root kinds (only `site` is static).
+	steps: {
+		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
+		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
+		entries: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
+	},
+	offer: [ 'terms', 'refs' ],
+	roots: { site: 'site' },
+	defaultRoot: 'current'
+} } );
+
+/**
+ * The STEP pickers in a rendered tree, in order.
+ *
+ * Keyed `src`, which is what distinguishes them from a step's ARG picker — a `terms`
+ * step renders a taxonomy SelectControl right beside its own, so a type-only walk
+ * returns the arg picker as the last select and quietly answers questions about the
+ * wrong control.
+ */
+function selectsIn( nodes ) {
+	const out = [];
+	( function walk( n ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === global.wp.components.SelectControl && n.props && 'src' === n.props.key ) {
+			out.push( n.props );
+		}
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return out;
+}
+
+/** Whether the tree holds the append-a-step button. */
+function hasAddStep( nodes ) {
+	let found = false;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.props && 'addstep' === n.props.key ) { found = true; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+function renderChain( chain, inheritOnEmpty ) {
+	return rep.chainSteps( {
+		conf: CHAIN_CONF,
+		chain: chain,
+		onChange: function () {},
+		inheritOnEmpty: !! inheritOnEmpty,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} );
+}
+
+const empty1 = renderChain( [], false );
+const sel1   = selectsIn( empty1 );
+check( 'slot 1, no chain: exactly one source picker', sel1.length, 1 );
+check( 'slot 1, no chain: it SHOWS the root absence spells', sel1[ 0 ] && sel1[ 0 ].value, 'current' );
+// The doubled caption the user reported: the box is already captioned "Source", so the
+// lone picker inside it must not print the word again. Only the step picker suppresses
+// it; the seed picker this replaced did not, which is why the pair appeared together.
+check( 'slot 1, no chain: the visible label is suppressed', sel1[ 0 ] && sel1[ 0 ].hideLabelFromVision, true );
+check( 'slot 1, no chain: the label still EXISTS for screen readers', sel1[ 0 ] && sel1[ 0 ].label, 'Source' );
+check( 'slot 1, no chain: Add step is reachable', hasAddStep( empty1 ), true );
+
+const empty2 = renderChain( [], true );
+const sel2   = selectsIn( empty2 );
+check( 'slot ≥2, no chain: shows the INHERIT row, not `current`', sel2[ 0 ] && sel2[ 0 ].value, 'same' );
+// An inherit is not a chain to continue — appending to it would state a step off a
+// source this slot has not chosen.
+check( 'slot ≥2, no chain: Add step is NOT offered off an inherit', hasAddStep( empty2 ), false );
+
+// A real chain is untouched by the display rule. The picker's value is the stored
+// step's OWN slug — nothing translates between the wire and the row any more.
+const real = renderChain( [ { slug: 'refs', arg: 'office', limit: null } ], false );
+check( 'a configured chain still shows its own root', selectsIn( real )[ 0 ].value, 'refs' );
+
+// ── Slug switch: the ARG follows the vocabulary's `arg`, not the slug ────────
+// Switching between two steps that CONSUME THE SAME ARG keeps the field (refs and
+// entries both consume a field); a different arg kind drops it. The retired compare
+// used engine spellings, under which refs ↔ entries compared unequal and silently
+// dropped the field — unreachable then only because no container offered both.
+// `limit` rides along either way: it bounds the step, not the arg.
+let committed = null;
+const switchable = rep.chainSteps( {
+	conf: CHAIN_CONF,
+	chain: [ { slug: 'refs', arg: 'office', limit: 3, extra: [] } ],
+	onChange: function ( next ) { committed = next; },
+	inheritOnEmpty: false,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} );
+const switchPicker = selectsIn( switchable )[ 0 ];
+switchPicker.onChange( 'entries' );
+check( 'same arg kind: the field survives the slug switch', committed[ 0 ].arg, 'office' );
+check( '...on the new slug', committed[ 0 ].slug, 'entries' );
+check( '...with the limit riding along', committed[ 0 ].limit, 3 );
+switchPicker.onChange( 'terms' );
+check( 'different arg kind: the field is dropped', committed[ 0 ].arg, null );
+check( '...and the limit still rides', committed[ 0 ].limit, 3 );
+
+// ── A STORED slug absent from the vocabulary keeps its own row ───────────────
+// Absence from `steps` means "offer it", never "refuse it": a SelectControl whose
+// value is missing from its own options paints a different row while believing
+// nothing is selected — the unselectable-row defect, arrived at from a hand-edited
+// slug this time. The row is appended; the offer is NOT narrowed.
+const unknownStored = renderChain( [ { slug: 'sideways', arg: null, limit: null } ], false );
+const unknownPicker = selectsIn( unknownStored )[ 0 ];
+check( 'a stored unknown slug paints its own value', unknownPicker.value, 'sideways' );
+check(
+	'...its own row is in its own list',
+	( unknownPicker.options || [] ).some( function ( r ) { return 'sideways' === r.value; } ),
+	true
+);
+check(
+	'...and every offered step is still offered',
+	( unknownPicker.options || [] ).some( function ( r ) { return 'terms' === r.value; } ),
+	true
+);
+
+// ── A step is offered only where the ENGINE would accept it ─────────────────
+// Offering a step off a source it refuses authors wire that renders nothing and says
+// so nowhere. The allowlist is the engine's own, reaching the control through the
+// option definition — never a second list here.
+
+/** Option values of the LAST picker in a rendered chain (the one a step would follow). */
+function lastPickerValues( nodes ) {
+	const sels = selectsIn( nodes );
+	return ( sels[ sels.length - 1 ].options || [] ).map( function ( r ) { return r.value; } );
+}
+
+const afterSite = renderChain( [ { slug: 'site', arg: null, limit: null }, { slug: 'refs', arg: 'partner', limit: null } ], false );
+check(
+	'a `terms` step after a SITE root is not offered (the engine accepts a post input only)',
+	lastPickerValues( afterSite ).indexOf( 'terms' ),
+	-1
+);
+check(
+	'a `refs` step after a SITE root IS offered (an options page holds relationship fields)',
+	lastPickerValues( afterSite ).indexOf( 'refs' ) !== -1,
+	true
+);
+
+// A step already STORED at a refused position stays in its OWN list, filter or not: a
+// value missing from its own options paints a different row while believing nothing is
+// selected — the seed-picker defect, arrived at from the other direction. Only what the
+// author may ADD is filtered.
+const storedDead = renderChain( [ { slug: 'site', arg: null, limit: null }, { slug: 'terms', arg: 'department', limit: null } ], false );
+check( 'a stored-but-refused step still shows its own value', selectsIn( storedDead )[ 1 ].value, 'terms' );
+check(
+	'...and its own row is in its own list',
+	lastPickerValues( storedDead ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// Add step is gated on the OFFER, not on the registered list: with every registered
+// step refused, an Add could only produce a dead step.
+const siteOnly = renderChain( [ { slug: 'site', arg: null, limit: null } ], false );
+check( 'Add step is still offered off site (refs applies)', hasAddStep( siteOnly ), true );
+
+const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
+	container: 'try',
+	combining: false,
+	perSlotUse: true,
+	srcRows: [ { value: 'current', label: 'Current' }, { value: 'site', label: 'Site' } ],
+	srcRowsInherit: [],
+	steps: {
+		refs: { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
+		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
+		entries: { label: 'In Repeater Rows', arg: 'field', produces: 'meta_row' }
+	},
+	offer: [ 'terms' ],
+	roots: { site: 'site' },
+	defaultRoot: 'current'
+} ) } );
+const siteTermsOnly = rep.chainSteps( {
+	conf: TERMS_ONLY,
+	chain: [ { slug: 'site', arg: null, limit: null } ],
+	onChange: function () {},
+	inheritOnEmpty: false,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} );
+check( 'Add step is withheld when every registered step is refused', hasAddStep( siteTermsOnly ), false );
+
+// An ambient root has no static kind, so nothing is filtered — the editor must not
+// guess whether `current` is a post or a term.
+const fromCurrent = renderChain( [ { slug: 'current', arg: null, limit: null } ], false );
+check( 'an ambient root filters nothing', lastPickerValues( fromCurrent ).indexOf( 'terms' ) !== -1, true );
+
+// A term cannot step to terms again; it can step to a relationship.
+const afterTerms = renderChain( [ { slug: 'terms', arg: 'department', limit: null }, { slug: 'refs', arg: 'lead', limit: null } ], false );
+check( 'a second `terms` step off a term is not offered', lastPickerValues( afterTerms ).indexOf( 'terms' ), -1 );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

@@ -4,7 +4,7 @@
  *
  * A composing tag over the traversal fold (traversal-pipeline.php). The tag-level
  * source + traversal resolve a base entity; the `key` option names the repeater
- * field, and a `rows` fold step hops that entity's repeater to a meta_row[] (one
+ * field, and a `rows` fold step steps that entity's repeater to a meta_row[] (one
  * row per repeater entry); each configured column reads a sub-field off every row.
  *
  * `key` NAMES THE FIELD (house nomenclature — the primary field target, parallel to
@@ -27,7 +27,7 @@
  *     is quarantined — a bare label string is the whole header story for v1).
  *
  * DEFERRED (do NOT infer from this file): header label-mode config, final option
- * names, slot-cap const naming, composite controls, {{list}}. See handoff §11.
+ * names, slot-maximum const naming, composite controls, {{list}}. See handoff §11.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0
@@ -184,8 +184,8 @@ function bws_get_table_options(): array {
 		);
 	}
 
-	return function_exists( 'bws_strip_default_select_values' )
-		? bws_strip_default_select_values( array_merge( $tag_level, $columns ) )
+	return function_exists( 'bws_prepare_registration_options' )
+		? bws_prepare_registration_options( array_merge( $tag_level, $columns ) )
 		: array_merge( $tag_level, $columns );
 }
 
@@ -222,7 +222,7 @@ function bws_table_collect_columns( array $options, int $max ): array {
  * Read one column's cell value off a single meta_row resolved source.
  *
  * use:key  → scalar sub-field read (bws_pipeline_default_reader meta_row arm).
- * use:title → the sub-field holds a relationship id; hop it ref→post (limit-1)
+ * use:title → the sub-field holds a relationship id; step it ref→post (limit-1)
  *             and read the post title. Missing sub-field / no target → ''.
  *
  * @since 1.17.0
@@ -239,7 +239,7 @@ function bws_table_read_cell( array $row_source, array $col, $instance ): string
 	$key = $col['key'] ?? '';
 
 	if ( 'title' === $use ) {
-		// Column-as-mini-traversal: ref-hop the sub-field off the row → post[], take
+		// Column-as-mini-traversal: ref-step the sub-field off the row → post[], take
 		// the first, read its title (limit-1, no override — v1 precedent). Runs the
 		// REAL fold so the meta_row ref reader arm + coercer do the work.
 		if ( ! function_exists( 'bws_run_traversal' ) ) {
@@ -247,7 +247,7 @@ function bws_table_read_cell( array $row_source, array $col, $instance ): string
 		}
 		$posts = bws_run_traversal(
 			array( $row_source ),
-			array( array( 'type' => 'ref', 'field' => $key ) )
+			array( array( 'type' => 'refs', 'field' => $key ) )
 		);
 		$first = reset( $posts );
 		if ( ! is_array( $first ) || 'post' !== ( $first['kind'] ?? '' ) ) {
@@ -259,7 +259,7 @@ function bws_table_read_cell( array $row_source, array $col, $instance ): string
 
 	// use:key — scalar sub-field read off the row.
 	$raw = function_exists( 'bws_pipeline_default_reader' )
-		? bws_pipeline_default_reader( array( 'type' => 'ref', 'field' => $key ), $row_source )
+		? bws_pipeline_default_reader( array( 'type' => 'refs', 'field' => $key ), $row_source )
 		: ( $row_source['row'][ $key ] ?? '' );
 	return ( is_scalar( $raw ) && '' !== $raw ) ? (string) $raw : '';
 }
@@ -414,14 +414,14 @@ function bws_table_callback( $options, $block, $instance ): string {
 	}
 
 	// L1 — resolve the base entity that owns the repeater. Apply the tag-level ref
-	// steps (src:ref) FIRST so the repeater is read off the ref target, then hop the
+	// steps (src:ref) FIRST so the repeater is read off the ref target, then step the
 	// `rows` step. srcTermIn is intentionally NOT applied here in v1 (a repeater on a
-	// term is read directly from the term base; the post→term hop belongs to a later
+	// term is read directly from the term base; the post→term step belongs to a later
 	// pass with the term-source column story).
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
 	$ref_steps = function_exists( 'bws_wrapper_ref_steps' ) ? bws_wrapper_ref_steps( $options ) : array();
-	$steps     = array_merge( $ref_steps, array( array( 'type' => 'rows', 'field' => $rows_field ) ) );
+	$steps     = array_merge( $ref_steps, array( array( 'type' => 'entries', 'field' => $rows_field ) ) );
 
 	$row_sources = bws_run_traversal( array( $base ), $steps );
 	if ( empty( $row_sources ) ) {

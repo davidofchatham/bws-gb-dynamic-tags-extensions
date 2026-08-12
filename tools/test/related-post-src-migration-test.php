@@ -23,6 +23,10 @@
  *   R3 AGREEMENT — what the converter REPORTS (entry_matches) and what it RUNS
  *                  (apply_option_migration) are the same predicate. They were two
  *                  hand-kept copies of the rule before 1.17.0.
+ *   R7 EVIDENCE  — the key-clobber (#73): the rel → ref repair DEFERS a related_post
+ *                  slot whole rather than settle-then-delete, so the value-gated entry
+ *                  sees `rel` intact and ranks it above `key`. Cascade-level rows,
+ *                  because the defect only exists between two entries.
  *
  * NOT covered here, deliberately: whether migrated wire RESOLVES like the legacy wire it
  * replaced. That needs the source factory and a real field read — testbed territory
@@ -56,6 +60,7 @@ require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
+require __DIR__ . '/../../includes/classes/class-deprecated-tag-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 
@@ -218,32 +223,41 @@ TagTemplateRegistry::register_modifier_template( array(
 TagTemplateRegistry::register_modifier_template( array( 'key' => 'permalink', 'supports_try' => true ) );
 
 bws_register_option_migrations();
+// The 25 N×M families are TAG-type entries, registered by the v1 wrapper pass. The
+// harness ran only the option pass until 1.17.0, because those entries had no target
+// and therefore nothing to assert.
+bws_register_v1_deprecated_tag_wrappers();
 
 $migrate = static function ( string $tag_string ): string {
 	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );
 	return MigrationRegistry::apply_option_migration( $tag_name, $tag_string );
 };
 
-// The base-tag half has shipped since 1.6.0 — pinned here as the reference behaviour the
-// two new families are brought into line with, not as new coverage. Note the emitted key
-// order is NOT canonical: the declarative pipeline appends a renamed key rather than
-// re-sorting. Pre-existing, unchanged here, and pinned so a future canonicalization is a
-// deliberate edit rather than a surprise.
+// The 25 N×M families are TAG-type entries, not option-type, so they run through the
+// other half of the registry. Same converter, different door: a deprecated TAG NAME is
+// rewritten whole, where an option entry rewrites keys in place.
+$migrate_tag = static function ( string $tag_string ): string {
+	[ $tag_name ] = MigrationRegistry::parse_tag_string( $tag_string );
+	return MigrationRegistry::transform_tag( $tag_name, $tag_string );
+};
+
+// The base-tag half has shipped since 1.6.0. Emitted key order became CANONICAL when the
+// declarative $rel_fix pair was replaced by the shared transform_callback (#57) — the
+// deliberate canonicalization the previous pin here existed to force a decision on.
 assert_eq( 'R4.1 base tag (pre-existing): rel → ref, src:ref injected',
-	'{{text src:ref|key:title|ref:vendor}}',
+	'{{text src:ref|ref:vendor|key:title}}',
 	$migrate( '{{text rel:vendor|key:title}}' ) );
 
 assert_eq( 'R4.2 term_ modifier: same repair, derived from the template list',
-	'{{term_text src:ref|key:title|ref:vendor}}',
+	'{{term_text src:ref|ref:vendor|key:title}}',
 	$migrate( '{{term_text rel:vendor|key:title}}' ) );
 
 assert_eq( 'R4.3 term_ modifier with no per-slot read still repairs',
 	'{{term_permalink src:ref|ref:vendor}}',
 	$migrate( '{{term_permalink rel:vendor}}' ) );
 
-// An existing src WINS over source_inject (array_merge order), so a tag that already
-// states its source keeps it and only gains the renamed key. Faithful: `rel` was never
-// read under src:current either.
+// An explicit src is never overwritten, so a tag that already states its source keeps it
+// and only gains the renamed key. Faithful: `rel` was never read under src:current either.
 assert_eq( 'R4.4 an explicit src is not overwritten by the inject',
 	'{{term_text src:current|ref:vendor}}',
 	$migrate( '{{term_text src:current|rel:vendor}}' ) );
@@ -255,15 +269,15 @@ assert_eq( 'R4.4 an explicit src is not overwritten by the inject',
 // it and strips the legacy keys — erasing the relationship in the pass meant to rescue
 // it. Every case below must show the field surviving into `src(refs,<field>)`.
 assert_eq( 'R4.5 try_ slot 1: bare rel survives the fold as a refs step',
-	'{{try_text A:src(refs,vendor);key(title)}}',
+	'{{try_text A:src(refs,vendor,limit[1]);key(title)}}',
 	$migrate( '{{try_text rel:vendor|key:title}}' ) );
 
 assert_eq( 'R4.6 try_ slot 3: 3-rel lands on slot C, not on slot 1',
-	'{{try_text A:key(a)|C:src(refs,vendor);use(same)}}',
+	'{{try_text A:key(a)|C:src(refs,vendor,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:a|3-src:ref|3-rel:vendor}}' ) );
 
 assert_eq( 'R4.7 several slots migrate in one pass, each keeping its OWN field',
-	'{{try_text A:src(refs,a)|B:src(refs,b);use(same)|E:src(refs,c);use(same)}}',
+	'{{try_text A:src(refs,a,limit[1])|B:src(refs,b,limit[1]);use(same)|E:src(refs,c,limit[1]);use(same)}}',
 	$migrate( '{{try_text rel:a|2-rel:b|5-rel:c}}' ) );
 
 // `rel` is a registered option on NO current tag, so there is nothing live to collide
@@ -272,15 +286,15 @@ assert_eq( 'R4.7 several slots migrate in one pass, each keeping its OWN field',
 // since end-to-end the fold entry legitimately rewrites the tag.
 assert_eq( 'R4.8 no rel present → the transform returns the input verbatim',
 	'{{try_text src:ref|ref:vendor|key:title}}',
-	bws_migrate_slot_rel_to_ref( '{{try_text src:ref|ref:vendor|key:title}}' ) );
+	bws_migrate_rel_to_ref( '{{try_text src:ref|ref:vendor|key:title}}' ) );
 
 assert_eq( 'R4.9 an explicit slot src is not overwritten',
 	'{{try_text 2-src:current|2-ref:vendor}}',
-	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:current|2-rel:vendor}}' ) );
+	bws_migrate_rel_to_ref( '{{try_text 2-src:current|2-rel:vendor}}' ) );
 
 assert_eq( 'R4.10 under 2-src:ref the ref is the live one and wins',
 	'{{try_text 2-src:ref|2-ref:live}}',
-	bws_migrate_slot_rel_to_ref( '{{try_text 2-src:ref|2-ref:live|2-rel:inert}}' ) );
+	bws_migrate_rel_to_ref( '{{try_text 2-src:ref|2-ref:live|2-rel:inert}}' ) );
 
 // ===========================================================================
 echo "\nR5 — WHICH SPELLING WINS IS DECIDED BY src, NOT BY A RANKING\n";
@@ -302,25 +316,35 @@ $pair = static function ( string $src ) {
 
 assert_eq( 'R5.1 src:ref → the ref is live, it wins',
 	'{{try_text src:ref|ref:from-ref}}',
-	bws_migrate_slot_rel_to_ref( $pair( 'ref' ) ) );
+	bws_migrate_rel_to_ref( $pair( 'ref' ) ) );
 
-assert_eq( 'R5.2 src:related_post → the rel is live, it OVERWRITES the ref',
-	'{{try_text src:related_post|ref:from-rel}}',
-	bws_migrate_slot_rel_to_ref( $pair( 'related_post' ) ) );
+// DEFER-WHOLE (#73): the rel → ref transform does not settle this token itself — settling
+// meant writing `ref = rel` and deleting `rel`, which destroyed the evidence the later
+// value-gated entry needs to rank `rel` above `key`. So the slot is SKIPPED, byte-identical,
+// and the related_post entry (sole owner of the token) applies the whole rule. Mirrors the
+// mount path's decline (BWS_FOLD_RETIRED_SRC_TOKENS).
+assert_eq( 'R5.2 src:related_post → deferred whole: the transform leaves the slot verbatim',
+	$pair( 'related_post' ),
+	bws_migrate_rel_to_ref( $pair( 'related_post' ) ) );
+
+// …and the cascade still lands the rel-derived value, end to end through the fold.
+assert_eq( 'R5.2b src:related_post → cascade: rel wins via the related_post entry',
+	'{{try_text A:src(refs,from-rel,limit[1])}}',
+	$migrate( $pair( 'related_post' ) ) );
 
 assert_eq( 'R5.3 src absent → neither was read; repair keeps ref and injects src:ref',
 	'{{try_text src:ref|ref:from-ref}}',
-	bws_migrate_slot_rel_to_ref( $pair( '' ) ) );
+	bws_migrate_rel_to_ref( $pair( '' ) ) );
 
-// The two transforms must agree, because they run in one cascade over one tag: the slot
-// transform fires first and would otherwise delete the `rel` the second one needs. Slot 2
-// carries the same pair end to end, through the fold.
+// The two transforms must agree, because they run in one cascade over one tag: the rel →
+// ref transform fires first and DEFERS the related_post slot whole, leaving the `rel` the
+// second one needs. Slot 2 carries the same pair end to end, through the fold.
 assert_eq( 'R5.4 cascade: a related_post slot keeps the rel-named field through the fold',
-	'{{try_text A:key(x)|B:src(refs,from-rel);use(same)}}',
+	'{{try_text A:key(x)|B:src(refs,from-rel,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:x|2-src:related_post|2-ref:inert|2-rel:from-rel}}' ) );
 
 assert_eq( 'R5.5 cascade: a src:ref slot keeps the ref-named field through the fold',
-	'{{try_text A:key(x)|B:src(refs,from-ref);use(same)}}',
+	'{{try_text A:key(x)|B:src(refs,from-ref,limit[1]);use(same)}}',
 	$migrate( '{{try_text key:x|2-src:ref|2-ref:from-ref|2-rel:inert}}' ) );
 
 // {{join}} postdates the rel → ref rename by nine releases; no entry is registered for
@@ -336,6 +360,119 @@ assert_eq( 'R4.12 {{join}} has no related_post entry either, and the fold declin
 	$migrate( '{{join src:related_post|key:x}}' ) );
 
 echo "\n";
+// ── R6 — the 25 N×M entries that finally have targets (1.17.0) ─────────────
+//
+// They carried `old_tag` + `since` and nothing else for four releases: no current tag
+// reached a second-hop relationship or a term-then-relationship chain. Source CHAINS
+// state both shapes. RISK IS ONE-DIRECTIONAL — the renderers were stripped in 1.14.0,
+// so these tags produce nothing today and migration moves them from broken to correct.
+echo "
+R6 — second_related_post_* / post_term_related_post_* get chain targets
+";
+
+// THE LIMIT IS PER STEP, AND BOTH STEPS CARRY ONE. These families are two fanning steps
+// by construction, and per-step limits are per-input and MULTIPLY — bounding only the last
+// would read one target per referenced post, where the old tag collapsed to one at every
+// hop. The mapping is bws_fold_chain_apply_legacy_limit(), shared with the base source
+// migration so a converted tag and a scanned one cannot disagree.
+assert_eq( 'R6.1 second_related_post: two refs steps, BOTH limited to preserve the old single value',
+	'{{text src:refs,office,limit(1);refs,manager,limit(1)|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name}}' ) );
+
+assert_eq( 'R6.2 post_term_related_post: a terms step, then a refs step',
+	'{{title src:terms,department,limit(1);refs,lead,limit(1)}}',
+	$migrate_tag( '{{post_term_related_post_title tax:department|rel:lead}}' ) );
+
+// The option was renamed in 1.4.x and the retired class accepted both spellings, so
+// stored wire can hold either.
+assert_eq( 'R6.3 the pre-rename `taxonomy` spelling is read too',
+	'{{title src:terms,department,limit(1);refs,lead,limit(1)}}',
+	$migrate_tag( '{{post_term_related_post_title taxonomy:department|rel:lead}}' ) );
+
+// The suffix decides the TAG; the family decides the CHAIN. A `*_term_*` suffix lands
+// on the term_ modifier, because its last hop was post->term.
+assert_eq( 'R6.4 a *_term_* suffix targets the term_ modifier',
+	'{{term_text src:refs,office,limit(1);refs,manager,limit(1)}}',
+	$migrate_tag( '{{second_related_post_term_custom_text rel:office|rel_2:manager}}' ) );
+
+// A CHAIN WITH A HOLE IS NEVER WRITTEN, and the tag is not renamed either — it comes
+// through byte-identical, still deprecated, still rendering nothing. Inventing a
+// one-hop chain from a missing second key would silently make the tag read the FIRST
+// relationship's target as though that were the author's intent, converting a broken
+// tag into a permanently WRONG one; renaming it without the chain would strand it as a
+// live tag with no source. Both are worse than leaving it for a human.
+assert_eq( 'R6.5 a missing second relationship key leaves the tag ENTIRELY alone',
+	'{{second_related_post_custom_text rel:office|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|key:name}}' ) );
+
+// An author-stated limit is not overwritten — it MOVES onto the last fanning step, and
+// the earlier one still holds at 1 so the ceiling stays the N the flat spelling meant
+// rather than N per parent. Nothing is left at tag level: one limit, one place.
+assert_eq( 'R6.7 an explicit limit moves onto the last step, the earlier one holding at 1',
+	'{{text src:refs,office,limit(1);refs,manager,limit(3)|key:name}}',
+	$migrate_tag( '{{second_related_post_custom_text rel:office|rel_2:manager|key:name|limit:3}}' ) );
+
+// ===========================================================================
+echo "\nR7 — the key-clobber (#73): settled evidence survives the whole cascade\n";
+
+// The defect: settle-then-delete. The rel → ref repair wrote `ref = rel`, deleted `rel`,
+// and the later related_post entry — finding no `rel` — fell to its key-COPY branch and
+// overwrote the settled value with the field key. `rel` outranks `key` under this token
+// (the retired class read `rel` first), so every case below must land the REL-named field
+// in the hop, with `key` surviving as the field read it also was.
+
+// The #57 headline shape first: under src:ref the `ref` is the LIVE key and the `rel`
+// beside it inert — the declarative $rel_fix let the inert one overwrite it, silently
+// re-pointing a WORKING tag at a different post.
+assert_eq( 'R7.0 base src:ref: the live ref survives, the inert rel is dropped (#57)',
+	'{{text src:ref|ref:A}}',
+	$migrate( '{{text src:ref|ref:A|rel:B}}' ) );
+
+assert_eq( 'R7.1 base: rel beats key through the full cascade',
+	'{{text src:ref|ref:B|key:fld}}',
+	$migrate( '{{text src:related_post|rel:B|key:fld}}' ) );
+
+assert_eq( 'R7.2 base: an inert ref beside them changes nothing',
+	'{{text src:ref|ref:B|key:fld}}',
+	$migrate( '{{text src:related_post|ref:inert|rel:B|key:fld}}' ) );
+
+assert_eq( 'R7.3 try_ slot 1: rel beats key, key folds as the field read',
+	'{{try_text A:src(refs,B,limit[1]);key(fld)}}',
+	$migrate( '{{try_text src:related_post|rel:B|key:fld}}' ) );
+
+// Slot 2's bare key (no use) is not a configured read on a per-slot-use container, so it
+// folds away — the assertion is about the HOP carrying B, not fld.
+assert_eq( 'R7.4 try_ slot 2: rel beats key in the hop',
+	'{{try_text A:key(x)|B:src(refs,B,limit[1]);use(same)}}',
+	$migrate( '{{try_text key:x|2-src:related_post|2-rel:B|2-key:fld}}' ) );
+
+// term_ gets its own related_post entry (derived from the template list, same as the rel
+// repair) so a deferred slot always has a downstream owner — without it the skip would
+// orphan the `rel` AND leave the converter reporting a migration that changes nothing.
+assert_eq( 'R7.5 term_: the deferred slot is consumed by its own related_post entry',
+	'{{term_text src:ref|ref:B|key:fld}}',
+	$migrate( '{{term_text src:related_post|rel:B|key:fld}}' ) );
+
+assert_eq( 'R7.6 term_: key-copy still fires when rel was never there',
+	'{{term_text src:ref|ref:fld|key:fld}}',
+	$migrate( '{{term_text src:related_post|key:fld}}' ) );
+
+// Report/run agreement extends to the deferred shape: something is reported AND the
+// cascade changes the string (via the related_post entry, not the deferring one).
+assert_eq( 'R7.7 deferred shape: reported and changed agree',
+	array( true, true ),
+	$agrees( '{{text src:related_post|rel:B|key:fld}}' ) );
+
+assert_eq( 'R7.7b …and on term_, where the downstream owner is the new entry',
+	array( true, true ),
+	$agrees( '{{term_text src:related_post|rel:B|key:fld}}' ) );
+
+// A present-but-EMPTY rel names nothing to move, but the dead key is still consumed —
+// leaving it would have the converter report this entry forever while changing nothing.
+assert_eq( 'R7.8 an empty rel is dropped, not left to re-report',
+	'{{text src:current|key:fld}}',
+	$migrate( '{{text src:current|rel:|key:fld}}' ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED — {$failures} of {$count} checks failed\n";
 	exit( 1 );

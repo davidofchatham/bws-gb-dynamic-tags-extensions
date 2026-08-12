@@ -373,8 +373,8 @@ class MigrationRegistry {
 	 * matches from the new string (a transform can change which entries match) and go
 	 * again. Terminates when no matching entry changes anything.
 	 *
-	 * Bounded by a hard iteration cap as a safety against pathological registrations. Each
-	 * iteration applies at most one change, so the cap must exceed the longest legitimate
+	 * Bounded by a hard iteration ceiling as a safety against pathological registrations. Each
+	 * iteration applies at most one change, so the ceiling must exceed the longest legitimate
 	 * chain (entries-per-tag, ~7 today) rather than merely the number of distinct entries
 	 * that fire.
 	 *
@@ -663,6 +663,17 @@ class MigrationRegistry {
 					if ( '' !== $key ) {
 						$options[ $key ] = substr( $pair, $colon + 1 );
 					}
+				} elseif ( '' !== $pair ) {
+					// A VALUELESS option is GB's bare-key boolean, and it must survive the
+					// round trip. serialize_tag_string() has always emitted `true` as a bare
+					// key — its docblock names `showMidnight` as the example — but this half
+					// never produced one, so the branch was unreachable and every migration
+					// DELETED the flag it parsed: `noLink`, `newTab`, `showCurrentYear`,
+					// `showMidnight`. For `noLink` that turned the mailto wrap back on and
+					// removed the setting that said otherwise, i.e. a migration changing
+					// rendered output, which is the one thing migration promises not to do.
+					// Shipped from 1.6.x until 1.17.0 (#67).
+					$options[ $pair ] = true;
 				}
 			}
 		}

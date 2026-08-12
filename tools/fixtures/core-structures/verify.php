@@ -34,6 +34,21 @@ $check( 'term meta phone', $term && get_term_meta( $term->term_id, 'phone', true
 
 $check( 'option org_phone', get_option( 'options_org_phone' ) === '(987) 555-0000', var_export( get_option( 'options_org_phone' ), true ) );
 
+// AMBIENT-CONTEXT GATE. Everything below this line reads the current post, so
+// without --url the main query resolves nothing, $post is null, and every
+// context-rooted row fails with an empty render — five FAILs that look like a
+// code regression and are not. Bail with the invocation instead.
+if ( ! $page instanceof WP_Post || get_queried_object_id() !== $page->ID ) {
+	printf(
+		"\nABORT — no ambient context (queried object: %s, expected matrix-post-meta: %s).\n"
+		. "Re-run with the page URL, or every context-rooted check below fails empty:\n"
+		. "  wp eval-file <repo>/tools/fixtures/core-structures/verify.php --url=https://<site-domain>/matrix-post-meta/\n",
+		var_export( get_queried_object_id(), true ),
+		$page instanceof WP_Post ? $page->ID : 'MISSING'
+	);
+	exit( 2 );
+}
+
 // Render seam end-to-end: phone tag off the matrix-post-meta page context.
 $out = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone key:main_line}}', [], $instance );
 $check( 'render {{phone key:main_line}} on /matrix-post-meta/ (CC 1 baseline)', strpos( (string) $out, 'tel:+1-987-654-3210' ) !== false, 'out=' . var_export( $out, true ) );
@@ -60,8 +75,26 @@ $check( 'RF2 post_object return_format:object == id format', (string) $out4c ===
 
 // Same two fields through the CHAIN spelling (5h): `refs,<field>` compiles to
 // the same ref step, so all four spellings above must agree.
-$out4d = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line}}', [], $instance );
-$check( 'RF1 chain spelling == flat spelling', (string) $out4d === (string) $out4, 'chain=' . var_export( $out4d, true ) . ' flat=' . var_export( $out4, true ) );
+//
+// BOTH SIDES STATE THE LIMIT EXPLICITLY, and that is not tidiness. Since 1.17.0 the
+// UNSET tag-level default is selected by the source SPELLING — flat wire bounds at 1,
+// chain wire does not (bws_limit_default) — so comparing a bare chain against a bare
+// flat tag compares two different quantities and fails by design. Pinning `limit:1`
+// on both asks the question this check exists to ask: do the two spellings reach the
+// same SOURCE. The differing default is pinned separately, in
+// tools/test/limit-default-test-matrix.md §L4.
+$out4e = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:ref|ref:related_staff_obj|key:main_line|limit:1}}', [], $instance );
+$out4d = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line|limit:1}}', [], $instance );
+$check( 'RF1 chain spelling == flat spelling (limit stated on both)', (string) $out4d === (string) $out4e, 'chain=' . var_export( $out4d, true ) . ' flat=' . var_export( $out4e, true ) );
+
+// And the DIFFERING default is itself asserted, so a future change that quietly
+// re-unified the two spellings shows up here rather than only in the matrix.
+$out4f = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{phone src:refs,related_staff_obj|key:main_line}}', [], $instance );
+$check(
+	'unset limit: chain wire fans where flat wire bounds at 1',
+	(string) $out4f !== (string) $out4 && '' !== (string) $out4f,
+	'chain=' . var_export( $out4f, true ) . ' flat=' . var_export( $out4, true )
+);
 
 // datetime surface (manifest v3): ACF datetime pair + term date + site datetime.
 $check( 'page field event_datetime seeded', get_post_meta( $page->ID, 'event_datetime', true ) === '2030-08-12 09:00:00', var_export( get_post_meta( $page->ID, 'event_datetime', true ), true ) );
@@ -73,6 +106,34 @@ $check( 'render {{datetime_single key:event_datetime}} on /matrix-post-meta/', s
 
 $out6 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{datetime_single src:site|key:org_party_datetime}}', [], $instance );
 $check( 'src:site datetime option renders', strpos( (string) $out6, '2030' ) !== false, 'out=' . var_export( $out6, true ) );
+
+// content surface (#58): the fixture state the CT rows need. The hop's own
+// correctness is the matrix's job — this asserts only that the state exists,
+// i.e. that a CT row failing means the CODE moved and not the seed.
+$content_page = get_page_by_path( 'matrix-content' );
+$check( 'page matrix-content exists', $content_page instanceof WP_Post );
+$check(
+	'matrix-content field values differ from jane\'s (CT rows need the contrast)',
+	$content_page && '(321) 555-0100' === get_post_meta( $content_page->ID, 'main_line', true ),
+	$content_page ? var_export( get_post_meta( $content_page->ID, 'main_line', true ), true ) : ''
+);
+// CT3 asserts the excerpt's read-more link points at the EXCERPTED post, which
+// is only readable if the two permalinks differ — cheap to assert, and a seed
+// change that collapsed them would make the row silently vacuous.
+$jane = get_page_by_path( 'jane-partner', OBJECT, 'staff' );
+$check(
+	'jane\'s permalink differs from matrix-content\'s (CT3 read-more target)',
+	$jane && $content_page && get_permalink( $jane->ID ) !== get_permalink( $content_page->ID ),
+	$jane && $content_page ? get_permalink( $jane->ID ) . ' vs ' . get_permalink( $content_page->ID ) : 'missing fixture'
+);
+$sales = get_term_by( 'slug', 'sales', 'department' );
+$check(
+	'term blurb seeded on sales, absent on support (CT5 walk)',
+	$sales && '' !== (string) get_term_meta( $sales->term_id, 'blurb', true )
+		&& $term && '' === (string) get_term_meta( $term->term_id, 'blurb', true ),
+	'sales=' . ( $sales ? var_export( get_term_meta( $sales->term_id, 'blurb', true ), true ) : 'no term' )
+		. ' support=' . ( $term ? var_export( get_term_meta( $term->term_id, 'blurb', true ), true ) : 'no term' )
+);
 
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );

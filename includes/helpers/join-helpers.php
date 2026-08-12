@@ -60,7 +60,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 if ( ! defined( 'BWS_JOIN_MAX_SLOTS' ) ) {
 	/**
-	 * Fixed v1 slot cap. Threaded through the resolve loop, the {N}-token scan,
+	 * Fixed v1 slot maximum. Threaded through the resolve loop, the {N}-token scan,
 	 * the option-emit loop, and the editor reveal chain — raising it is one
 	 * change. Driver: a full personal name needs 7 parts + headroom to spare.
 	 * Dynamic/unbounded slots are tracked future work (docs/future-work.md).

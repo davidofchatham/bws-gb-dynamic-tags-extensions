@@ -19,15 +19,16 @@ Rendering a post's content from inside a dynamic tag is harder than it looks: ne
 
 1. [Pipeline overview](#pipeline-overview)
 2. [Primary pipeline](#primary-pipeline)
-3. [Fallback pipeline](#fallback-pipeline)
-4. [Recursion protection](#recursion-protection)
-5. [Memory check](#memory-check)
-6. [Query loop setup phase detection](#query-loop-setup-phase-detection)
-7. [Cross-post inline CSS handling](#cross-post-inline-css-handling)
-8. [Safe output (post-pipeline)](#safe-output-post-pipeline)
-9. [Debug logging](#debug-logging)
-10. [Public API summary](#public-api-summary)
-11. [Pre-plugin-integration history](#pre-plugin-integration-history)
+3. [Post-context swap (1.17.0)](#post-context-swap-1170)
+4. [Fallback pipeline](#fallback-pipeline)
+5. [Recursion protection](#recursion-protection)
+6. [Memory check](#memory-check)
+7. [Query loop setup phase detection](#query-loop-setup-phase-detection)
+8. [Cross-post inline CSS handling](#cross-post-inline-css-handling)
+9. [Safe output (post-pipeline)](#safe-output-post-pipeline)
+10. [Debug logging](#debug-logging)
+11. [Public API summary](#public-api-summary)
+12. [Pre-plugin-integration history](#pre-plugin-integration-history)
 
 ---
 
@@ -99,7 +100,31 @@ Located in `includes/classes/content/class-content-processor.php`. Steps in orde
 
 Returns the rendered HTML, or `''` on early exit.
 
-`bws_process_post_content( $post_id )` is a thin wrapper: fetches `post_content` and calls `render()` with `'post:' . $post_id` as the cache key. The procedural API in `content-helpers.php` is preserved for back-compat.
+`bws_process_post_content( $post_id )` is a thin wrapper: fetches `post_content` and calls `render()` with `'post:' . $post_id` as the cache key, inside the post-context swap below. The procedural API in `content-helpers.php` is preserved for back-compat.
+
+---
+
+## Post-context swap (1.17.0)
+
+`bws_with_post_context( int $post_id, callable $fn )` — `includes/helpers/content-helpers.php`.
+
+Step 5 above (`do_blocks()`) renders the post's own blocks, and the dynamic tags inside them carry no block context. They fall back to the global `$post` / `get_the_ID()` — the **ambient** entity, whichever page the outer tag is rendering on. When the outer read HOPPED (`{{content src:ref|ref:related_staff}}`), that fallback made the target post's inner tags resolve against the viewing page: the hopped post's block STRUCTURE filled with the ambient page's VALUES ([#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58)).
+
+The wrapper swaps the global `$post` to the post being rendered, calls `setup_postdata()`, runs the callable, and restores in a `finally` — the same mechanism a query loop applies per row. Two call sites:
+
+- `bws_process_post_content()` — around `ContentProcessor::render()`, so inner tags resolve against the rendered post.
+- `bws_post_excerpt_core()` — around `get_the_excerpt()`, because excerpt generation and its filters read the global post too. The visible symptom there was a read-more link pointing at the ambient page rather than the excerpted post.
+
+Properties worth keeping in mind when touching it:
+
+- **The swap is skipped when the target IS the ambient post.** The callable would see the identical context either way, so the work and the global writes are pure cost. A bare `{{content}}` takes exactly the path it always did.
+- **Restore is unconditional** (`finally`) and **by value** — never `wp_reset_postdata()`. That function does not mean "put back what was there": it assigns `$post` from `$wp_query->post` and sets that up, so calling it where there was no ambient post (a REST render, an admin context) leaves the main query's post current instead of leaving the globals empty. `setup_postdata()` writes `$pages`, `$page`, `$numpages`, `$multipage` and `$more` as well as `$post`, so all six are captured and restored together; restoring `$post` alone leaves the target's pagination state behind on a multi-page ambient post.
+- **A swap that leaked outward** would make ordinary ambient reads return the hopped post's values, which is what `content-test-matrix.md` §CT6 exists to catch.
+- **The guard is asked before the swap.** `bws_process_post_content()` calls `ContentProcessor::can_process()` (a pure check — it does not push) and returns `''` early, so a blocked render never pays for a context it will not use. `render()` re-checks; the early call only decides whether to swap.
+
+The recursion guard is otherwise unaffected: it keys on `'post:' . $id`, and the swap changes which post is current, not which key is pushed.
+
+**`bws_render_block_content()` is deliberately NOT wrapped.** It takes raw markup and a `cache_key`, not a post id — its whole point is rendering markup that is not a post's `post_content` (options-stored block markup under `src:site`, for instance), and there is no entity for a context swap to name. A caller that does have a post id and wants the post's own context should call `bws_process_post_content()`, or wrap its own call in `bws_with_post_context()`.
 
 ---
 
@@ -134,7 +159,7 @@ public static function can_process( string $cache_key ): bool {
 
 Rules:
 - **Block** when the key is already on the stack (circular reference: A → B → A).
-- **Block** when the stack is already at the depth cap (`bws_content_max_recursion_depth`, default 3).
+- **Block** when the stack is already at the depth limit (`bws_content_max_recursion_depth`, default 3).
 - **Allow** in all other cases — including a query loop where each iteration displays its own content (each iteration pushes and pops cleanly).
 
 **Cache key contract.** Callers MUST pick stable, unique keys per logical entity. Collisions defeat the guard. Convention:
@@ -259,7 +284,8 @@ Procedural API in `includes/helpers/content-helpers.php` (guarded with `function
 | Function | Returns | Purpose |
 |---|---|---|
 | `bws_render_block_content( $raw, $cache_key, $args = [] )` | `string` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options under future `src:site`). Stack keys on `$cache_key`. |
-| `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry for post-content. Fetches raw and calls `ContentProcessor::render( $raw, 'post:'.$post_id, $args )`. Auto-fallback on low memory. |
+| `bws_process_post_content( $post_id, $args = [] )` | `string` | Primary entry for post-content. Fetches raw and calls `ContentProcessor::render( $raw, 'post:'.$post_id, $args )` inside `bws_with_post_context()`. Auto-fallback on low memory. |
+| `bws_with_post_context( $post_id, $fn )` | `mixed` | **(new, v1.17.0)** Runs `$fn` with the global `$post` swapped to `$post_id`, restored in a `finally`. Skipped when the target is already ambient. See [§Post-context swap](#post-context-swap-1170). |
 | `bws_process_post_content_fallback( $post_id, $args = [] )` | `string` | Low-memory path. CSS-extraction-from-JSON + dynamic-tag stripping. Called by `bws_process_post_content`; rarely called directly. |
 | `bws_can_process_post_content( $post_id )` | `bool` | Recursion + depth check on `'post:'.$post_id`. |
 | `bws_start_processing_post( $post_id )` | `void` | Push `'post:'.$post_id` onto recursion stack. |

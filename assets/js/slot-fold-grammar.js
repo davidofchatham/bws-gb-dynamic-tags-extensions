@@ -33,23 +33,23 @@
 
 	var OPT_SEP = ';';
 	var OPT_CLASS = [ ';', ',' ];
-	var HOP_SEP = ';';
+	var STEP_SEP = ';';
 	// STRICT: `;` only. `+` and `/` are RESERVED — a lenient class SPENDS the char,
 	// so accepting one binds it to hop meaning now and would silently change what
 	// already-saved wires mean if it is ever given a job.
-	var HOP_CLASS = [ ';' ];
-	var STEP_SEP = ',';
+	var STEP_CLASS = [ ';' ];
+	var PART_SEP = ',';
 	// STRICT `,`: hop and step share a position (both inside the chain), so `;`
 	// cannot also be forgiven here.
-	var STEP_CLASS = [ ',' ];
+	var PART_CLASS = [ ',' ];
 	var BR_PAIRS = { '(': ')', '[': ']' };
 	var RESERVED = [ '+', '/' ];
 
 	// FOLDED slot key spelling — twin of bws_slot_ordinal() / BWS_FOLD_SLOT_KEY_RE
 	// (includes/helpers/slot-fold.php), where the reasoning lives. Deliberately the general
 	// `^[A-Z]+$`: slotKey() encodes spreadsheet-style (27 → AA), so a single-letter pattern
-	// could reject wire its own encoder produced. No cap in the grammar — the cap is a
-	// CONTAINER property. Nothing may rely on ASCII order of these keys; both order parsers
+	// could reject wire its own encoder produced. No maximum in the grammar — the slot
+	// count is a CONTAINER property. Nothing may rely on ASCII order of these keys; both order parsers
 	// DECODE to an int, because 'AA' sorts after 'Z' numerically but before it as a string.
 	var SLOT_KEY_RE = /^[A-Z]+$/;
 
@@ -228,17 +228,17 @@
 	 * relationship out of a typo.
 	 */
 	function parseChain( chainStr ) {
-		var hops = splitDepth( String( chainStr ), HOP_CLASS );
-		if ( hops.error ) {
-			return hops;
+		var rawSteps = splitDepth( String( chainStr ), STEP_CLASS );
+		if ( rawSteps.error ) {
+			return rawSteps;
 		}
 		var steps = [];
-		for ( var h = 0; h < hops.length; h++ ) {
-			var hop = hops[ h ].trim();
-			if ( '' === hop ) {
+		for ( var h = 0; h < rawSteps.length; h++ ) {
+			var rawStep = rawSteps[ h ].trim();
+			if ( '' === rawStep ) {
 				continue;
 			}
-			var parts = splitDepth( hop, STEP_CLASS );
+			var parts = splitDepth( rawStep, PART_CLASS );
 			if ( parts.error ) {
 				return parts;
 			}
@@ -259,14 +259,14 @@
 				if ( null === tok.val ) {
 					positional++;
 					if ( positional > 1 ) {
-						return { error: "chain step '" + hop + "': unexpected extra positional token '" + part + "'" };
+						return { error: "chain step '" + rawStep + "': unexpected extra positional token '" + part + "'" };
 					}
 					step.arg = part;
 					continue;
 				}
 				if ( 'limit' === tok.name ) {
 					if ( '' === tok.val.trim() || isNaN( Number( tok.val ) ) ) {
-						return { error: "chain step '" + hop + "': limit '" + tok.val + "' is not numeric" };
+						return { error: "chain step '" + rawStep + "': limit '" + tok.val + "' is not numeric" };
 					}
 					step.limit = String( Math.max( 0, parseInt( tok.val, 10 ) ) );
 					continue;
@@ -274,7 +274,7 @@
 				step.extra.push( part );
 			}
 			if ( '' === step.slug ) {
-				return { error: "chain step '" + hop + "': missing slug" };
+				return { error: "chain step '" + rawStep + "': missing slug" };
 			}
 			steps.push( step );
 		}
@@ -298,20 +298,20 @@
 		return ( steps || [] ).map( function ( step ) {
 			var segment = step.slug;
 			if ( null !== step.arg && void 0 !== step.arg && '' !== step.arg ) {
-				segment += STEP_SEP + step.arg;
+				segment += PART_SEP + step.arg;
 			}
 			// Guard on null/undefined, NEVER truthiness: `0` means unlimited and must
 			// survive as a literal, or an author who pinned "all" silently reverts the
 			// next time the contextual default changes.
 			if ( null !== step.limit && void 0 !== step.limit && '' !== step.limit ) {
 				var n = parseInt( step.limit, 10 );
-				segment += STEP_SEP + 'limit' + pair[ 0 ] + ( n < 0 ? 0 : n ) + pair[ 1 ];
+				segment += PART_SEP + 'limit' + pair[ 0 ] + ( n < 0 ? 0 : n ) + pair[ 1 ];
 			}
 			( step.extra || [] ).forEach( function ( extra ) {
-				segment += STEP_SEP + extra;
+				segment += PART_SEP + extra;
 			} );
 			return segment;
-		} ).join( HOP_SEP );
+		} ).join( STEP_SEP );
 	}
 
 	/**
@@ -505,7 +505,7 @@
 	 * @return {Object|null} { slot, legacy: true }, or null when there are no legacy
 	 *                       keys or the shipped resolver skips the slot entirely.
 	 */
-	function foldFromLegacy( n, options, combining, perSlotUse ) {
+	function foldFromFlat( n, options, combining, perSlotUse ) {
 		var prefix = ( 1 === n ) ? '' : String( n ) + '-';
 		function read( name ) {
 			var v = options[ prefix + name ];
@@ -516,7 +516,9 @@
 		var tax = read( 'srcTermIn' );
 		var use = read( 'use' );
 		var key = read( 'key' );
-		var limit = read( 'limit' );
+		// Slot 1's prefix is '', so on a SELECTING container the bare `limit` here is the
+		// TAG-level key rather than this slot's own — see the PHP owner's comment.
+		var limit = ( combining || n >= 2 ) ? read( 'limit' ) : '';
 
 		if ( '' === src && '' === ref && '' === tax && '' === use && '' === key && '' === limit ) {
 			return null;
@@ -588,23 +590,42 @@
 			slotRead = ( n >= 2 && perSlotUse ) ? { kind: 'same' } : null;
 		}
 
+		// A SELECTING container states `limit` ONCE, at TAG level, and it is every attempt's
+		// own default — slots ≥2 must read the same key or the materialized default below
+		// shadows the author's number. Combining containers own `limit` per slot, so an
+		// absent one there means the slot states none. Read AFTER the emptiness test, never
+		// before: a tag-level limit is not content — and only where THIS slot's chain fans,
+		// so a slot with nothing to bound gets no limit. A slot that fans by INHERITING is
+		// handed the bound with the source it inherits, on the render seam PHP owns alone
+		// (bws_fold_slot_flat_options), which is what let the key be retired (#61). See the
+		// PHP owner's comment.
+		if ( '' === limit && ! combining && chainFanningSteps( chain ).length ) {
+			var tagLimit = options.limit;
+			limit = ( void 0 === tagLimit || null === tagLimit || true === tagLimit ) ? '' : String( tagLimit ).trim();
+		}
+
+		// The limit goes onto the chain's FANNING STEPS, through the same owner a base
+		// tag's migration uses. A folded slot defaults to UNLIMITED like any other chain
+		// wire, so the flat era's implied 1 has to be materialized here too — see the PHP
+		// owner's docblock for why that stopped arriving for free (#60).
 		var opts = {};
-		if ( '' !== limit && ! isNaN( Number( limit ) ) ) {
-			// 0 / -1 were CLAMPED to 1 by the old rule, never designed to mean 1: an
-			// author wanting one result types 1 or leaves it unset. Honor the written
-			// value under the new semantics rather than freezing a clamp.
-			var normalized = Math.max( 0, parseInt( limit, 10 ) );
-			var lastFan = -1;
-			chain.forEach( function ( chainStep, i ) {
-				if ( -1 !== FANNING_SLUGS.indexOf( chainStep.slug ) ) {
-					lastFan = i;
-				}
-			} );
-			if ( -1 !== lastFan ) {
-				chain[ lastFan ].limit = String( normalized );
+		var applied = applyLegacyLimit( chain, '' !== limit ? limit : null );
+		chain = applied.chain;
+		if ( ! applied.consumed
+			&& '' !== limit
+			&& isNumericLike( limit )
+			&& Math.abs( Number( limit ) ) <= Number.MAX_SAFE_INTEGER ) {
+			// An explicit limit that owner declined to relocate — 0/-1 (unlimited), or a
+			// positive one with no fanning step to carry it. It still needs a carrier: the
+			// same mapping serves the render dual-read of UNMIGRATED flat wire, which takes
+			// the flat era's default of 1. See the PHP owner's comment.
+			var normalized = Math.max( 0, Math.trunc( Number( limit ) ) );
+			var fanning = chainFanningSteps( chain );
+			if ( fanning.length ) {
+				chain[ fanning[ fanning.length - 1 ] ].limit = String( normalized );
 			} else {
-				// Nothing fans, so there is no step to cap: the token keeps its
-				// slot-level meaning (cap a multi-value READ).
+				// Nothing fans, so there is no step to bound: the token keeps its
+				// slot-level meaning (bound a multi-value READ).
 				opts.limit = String( normalized );
 			}
 		}
@@ -615,6 +636,180 @@
 		};
 	}
 
+	/**
+	 * Whether a `src` VALUE is chain wire rather than a plain legacy token.
+	 *
+	 * Twin of bws_fold_chain_is_wire(). Conservative by design: every shipped `src`
+	 * value is a single bare token (`current`, `site`, `ref`, a registry source
+	 * name) and cannot hold a chain separator or bracket — those chars are grammar.
+	 * So a value carrying one IS a chain, and a value that IS a fanning slug is a
+	 * one-hop chain (`src:refs`). Everything else stays a token.
+	 *
+	 * Lives HERE, with the grammar it reads, because three editor surfaces need it —
+	 * the list-mode reveal predicate, the base-tag chain control, and anything that
+	 * follows. Three copies of a wire rule is how the two languages come to disagree
+	 * about what a stored value means.
+	 *
+	 * @param {string} value Raw `src` value.
+	 * @return {boolean}
+	 */
+	function chainIsWire( value ) {
+		var v = String( ( value === null || value === undefined ) ? '' : value ).trim();
+		if ( '' === v ) {
+			return false;
+		}
+		if ( -1 !== FANNING_SLUGS.indexOf( v ) ) {
+			return true;
+		}
+		return /[;,[\]()]/.test( v );
+	}
+
+	/**
+	 * The chain's ROOT token — twin of bws_fold_chain_root().
+	 *
+	 * '' when the chain is empty or LEADS with a hop (the hop applies to the ambient
+	 * entity, which is what a bare tag resolves).
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {string}
+	 */
+	function chainRoot( chain ) {
+		if ( ! chain || ! chain.length ) {
+			return '';
+		}
+		var slug = chain[ 0 ].slug || '';
+		return ( -1 !== FANNING_SLUGS.indexOf( slug ) ) ? '' : slug;
+	}
+
+	/**
+	 * Whether a chain HOPS — the `fans` half of bws_fold_chain_resolution().
+	 *
+	 * CAPACITY read from the wire ("this chain may resolve more than one source"),
+	 * never a claim about a given render. A step at position 0 counts only when its
+	 * slug fans, because otherwise it is the chain's ROOT rather than a hop.
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {boolean}
+	 */
+	function chainFans( chain ) {
+		return ( chain || [] ).some( function ( link, i ) {
+			return i > 0 || -1 !== FANNING_SLUGS.indexOf( link.slug );
+		} );
+	}
+
+	/**
+	 * PHP's is_numeric(), spelled out rather than approximated with Number().
+	 *
+	 * Number() accepts hex (`0x10` → 16) where PHP refuses it, and parseInt() reads an
+	 * exponent as its mantissa. So the two languages would disagree about a value neither
+	 * author would ever type — exactly the divergence a twin exists to make impossible.
+	 * ONE predicate, because every place that decides whether a `limit` is stated at all
+	 * must decide it the same way. (Math.trunc, at the call sites, mirrors PHP's `(int)`
+	 * cast, toward zero.)
+	 *
+	 * @param {*} value Raw value.
+	 * @return {boolean}
+	 */
+	function isNumericLike( value ) {
+		var raw = String( ( value === null || value === undefined ) ? '' : value ).trim();
+		return /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test( raw );
+	}
+
+	/**
+	 * Which steps of a chain FAN — twin of bws_fold_chain_fanning_steps(), which owns the
+	 * reasoning. An argless fanning step does not count: the compiler drops it, so it fans
+	 * only by inheriting an earlier slot's source, and that slot stated its own bound.
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {number[]} Indexes of the fanning steps, in chain order.
+	 */
+	function chainFanningSteps( chain ) {
+		var out = [];
+		( chain || [] ).forEach( function ( chainStep, i ) {
+			if ( -1 === FANNING_SLUGS.indexOf( chainStep.slug ) ) {
+				return;
+			}
+			if ( '' === String( chainStep.arg === null || chainStep.arg === undefined ? '' : chainStep.arg ).trim() ) {
+				return;
+			}
+			out.push( i );
+		} );
+		return out;
+	}
+
+	/**
+	 * Materialize the limit a LEGACY flat source implied, as per-step limits on the
+	 * chain that respells it.
+	 *
+	 * TWIN of bws_fold_chain_apply_legacy_limit() (includes/helpers/slot-fold.php),
+	 * which is where every rule below is decided and explained. Three surfaces call it —
+	 * the converter, the mount migrator and the author-conversion commit — and they must
+	 * write one tag ONE way, so none of them owns a copy of the rule.
+	 *
+	 * @param {Array}   chain            Parsed chain, freshly built from legacy keys.
+	 * @param {*}       limit            The legacy tag-level `limit` value, or null/undefined.
+	 * @param {boolean} [consumeUnlimited] Depth-0 callers pass true: an explicit `0`/`-1`
+	 *                                   is reported consumed so the caller deletes the key.
+	 *                                   A SLOT caller must not — its mapper also renders
+	 *                                   unmigrated flat wire, where the carrier is what
+	 *                                   keeps absence from meaning the flat era's 1.
+	 * @return {{chain: Array, consumed: boolean}} `consumed` = the caller must now
+	 *                                             delete the tag-level key.
+	 */
+	function applyLegacyLimit( chain, limit, consumeUnlimited ) {
+		var steps   = chain || [];
+		var stated  = false;
+
+		steps.forEach( function ( chainStep ) {
+			if ( -1 === FANNING_SLUGS.indexOf( chainStep.slug ) ) {
+				return;
+			}
+			var stepLimit = ( chainStep.limit === null || chainStep.limit === undefined ) ? '' : String( chainStep.limit );
+			if ( '' !== stepLimit ) {
+				stated = true;   // the author's own limits win
+			}
+		} );
+		var fanning = chainFanningSteps( steps );
+
+		if ( stated || ! fanning.length ) {
+			return { chain: steps, consumed: false };
+		}
+
+		var raw      = String( ( limit === null || limit === undefined ) ? '' : limit ).trim();
+		var explicit = isNumericLike( raw );
+
+
+		// Twin of the PHP guard: a magnitude the two languages cannot hold identically is
+		// the unlimited case, never a materialized step limit. See slot-fold.php.
+		if ( explicit && Math.abs( Number( raw ) ) > Number.MAX_SAFE_INTEGER ) {
+			return { chain: steps, consumed: false };
+		}
+
+		var value = explicit ? Math.trunc( Number( raw ) ) : 1;
+
+		if ( ! ( value > 0 ) ) {
+			// Unlimited either way, so no step limit is written. The KEY goes only at
+			// depth 0, and only when it was EXPLICIT (see the PHP owner).
+			return { chain: steps, consumed: !! ( consumeUnlimited && explicit ) };
+		}
+
+		// The stated number rides the LAST fanning step, 1 every earlier one: per-step
+		// limits are per-input and multiply, so the last step alone would give N per
+		// parent rather than the N total the flat spelling meant.
+		var last = fanning.pop();
+		var out  = steps.map( function ( chainStep, i ) {
+			if ( i === last ) {
+				return Object.assign( {}, chainStep, { limit: String( value ) } );
+			}
+			if ( -1 !== fanning.indexOf( i ) ) {
+				return Object.assign( {}, chainStep, { limit: '1' } );
+			}
+			return chainStep;
+		} );
+
+		return { chain: out, consumed: explicit };
+	}
+
 	window.bwsSlotFold = {
 		// Grammar surface — exported so the twin harness can assert agreement with
 		// the PHP constants rather than trusting that both were edited together.
@@ -622,10 +817,10 @@
 			slotKeyRe: SLOT_KEY_RE.source,
 			optSep: OPT_SEP,
 			optClass: OPT_CLASS,
-			hopSep: HOP_SEP,
-			hopClass: HOP_CLASS,
 			stepSep: STEP_SEP,
 			stepClass: STEP_CLASS,
+			partSep: PART_SEP,
+			partClass: PART_CLASS,
 			brPairs: BR_PAIRS,
 			reserved: RESERVED,
 			types: TYPES,
@@ -643,8 +838,18 @@
 		emitChain: emitChain,
 		parseSlot: parseSlot,
 		emitSlot: emitSlot,
-		foldFromLegacy: foldFromLegacy,
+		foldFromFlat: foldFromFlat,
 		slotKey: slotKey,
-		slotOrdinal: slotOrdinal
+		slotOrdinal: slotOrdinal,
+		// Depth-0 chain questions, twinned with slot-fold-compile.php. Exported so the
+		// editor surfaces that need them share ONE copy of each rule.
+		chainIsWire: chainIsWire,
+		chainRoot: chainRoot,
+		chainFans: chainFans,
+		// Exported for the mount migrator, which decides whether a tag-level `limit` is a
+		// number to push down at all. Its own docblock is why: ONE predicate, or the two
+		// languages disagree about hex and exponents where PHP's is_numeric() does not.
+		isNumericLike: isNumericLike,
+		applyLegacyLimit: applyLegacyLimit
 	};
 }() );

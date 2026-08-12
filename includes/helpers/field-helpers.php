@@ -262,7 +262,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	}
 
 	// Mode 2 subtype detection.
-	// Explicit $post_id (e.g. resolved via src:ref hop) always wins — caller has already
+	// Explicit $post_id (e.g. resolved via src:relationship step) always wins — caller has already
 	// done entity resolution and the row entity is irrelevant to that target.
 	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
 		|| ( is_numeric( $post_id ) && (int) $post_id > 0 );
@@ -336,8 +336,8 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
 // bws_field_values_assemble_steps() — the step-assembly half of this seam — MOVED to
 // includes/helpers/slot-fold-compile.php in 1.17.0 (5h). It is now a thin adapter over
 // the chain COMPILE, so the flat `src`/`ref`/`srcTermIn` reading and the folded wire's
-// chain produce steps through one code path (and a multi-hop chain resolves instead of
-// capping at one ref hop plus one term hop). #44's compound order lives there too.
+// chain produce steps through one code path (and a multi-step chain resolves instead of
+// stopping at one relationship step plus one term step). #44's compound order lives there too.
 
 /**
  * Read one resolved source's field value at L2, dispatched by KIND (SPEC §V12).
@@ -350,7 +350,7 @@ function bws_read_term_field( string $key, int $term_id, bool $single_only = tru
  * Returns '' on miss (caller drops empties).
  *
  * @since 1.14.0
- * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author hop).
+ * @since 1.16.0 user kind (FW-48 seam half; unreachable until the post→author step).
  * @param array  $source   One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
  * @param string $key      Field key.
  * @param object $instance GB instance (bws_read_field context cache).
@@ -379,7 +379,7 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
 			// (bws_base_user_analog_read lives in base-shared, loaded AFTER this
 			// file — and it reads analogs, not meta; different concern). Currently
 			// unreachable at runtime — no traversal step or factory path yields a
-			// user-kind source into the seam until the post→author hop (FW-48
+			// user-kind source into the seam until the post→author step (FW-48
 			// proper) lands — but a user-less kind switch would ship a hole the
 			// ABSORB seam converged onto and force re-opening this function.
 			$user_id = (int) ( $source['id'] ?? 0 );
@@ -483,16 +483,61 @@ function bws_source_link_identity( array $source ): ?array {
  * options, and the raw-value signature serves both without a key convention.
  *
  * @since 1.17.0
- * @param mixed $raw Raw `limit` option value (unset/null, string or int).
+ * @param mixed $raw     Raw `limit` option value (unset/null, string or int).
+ * @param int   $default Effective limit when $raw states nothing. REQUIRED — see
+ *                       bws_limit_default(); omitting it is an ArgumentCountError
+ *                       by design, not a fall back to the legacy 1.
  * @return int Effective limit: >= 1, or 0 for UNLIMITED.
  */
 if ( ! function_exists( 'bws_clamp_limit' ) ) {
-function bws_clamp_limit( $raw ): int {
+function bws_clamp_limit( $raw, int $default ): int {
 	if ( ! is_numeric( $raw ) ) {
-		return 1;
+		return $default;
 	}
 	$n = (int) $raw;
 	return $n > 0 ? $n : 0;
+}
+}
+
+/**
+ * The tag-level `limit` a tag gets when its wire states none — decided by SPELLING.
+ *
+ * @invariant THE FLAT SOURCE SPELLING SELECTS THE OLD DEFAULT. Flat wire
+ * (`src:ref|ref:x`, `srcTermIn:x`, a bare tag) bounds its resolved-source list at
+ * ONE, as it always has. Chain wire (`src:refs,x`) is unlimited. This one rule is
+ * the entire compatibility mechanism for base-tag source chains, and it is chosen
+ * precisely because it works on wire NO MIGRATION CAN REACH — a draft nobody opens,
+ * a block widget the content scanner never sees, a tag stored inside an ACF field.
+ * An unmigrated tag gets its default from its own spelling, wherever it lives.
+ *
+ * Why the default had to become spelling-dependent rather than simply flipping:
+ * `bws_clamp_limit`'s default-1 is the single-read defect the plural source model
+ * already names (CONTEXT.md §Language: `ref` and `srcTermIn` are PLURAL), sitting
+ * at the tag-level position instead of the per-step one. It only ever bites on a
+ * plural source — on a singular one the slice is a no-op. But ~110 authored
+ * instances across the surveyed databases depend on it, with no author present, so
+ * it cannot just be flipped. Naming the spelling that is entitled to it keeps every
+ * stored tag rendering exactly as before while new wire gets the honest default.
+ *
+ * Two costs, both accepted: the same conceptual source is bounded differently by spelling
+ * (an ADR-0004 readability cost, paid to avoid touching a stored row), and the
+ * link gate is COUNT-BASED, so link-wrapping differs by spelling too — on new wire
+ * only, which is why the limit-default matrix needs rows per SPELLING and not just
+ * per `limit` value.
+ *
+ * Resolved ONCE, from the options. No call site is new-or-old — all of them serve
+ * both eras — so "new sites pass 0, old sites pass 1" has no referent. A call site
+ * growing its own spelling test would re-inline half the rule bws_clamp_limit was
+ * extracted to own.
+ *
+ * @since 1.17.0
+ * @param array $options Tag options (reads `src`/`source` only).
+ * @return int 0 (unlimited) for chain wire, 1 for flat wire.
+ */
+if ( ! function_exists( 'bws_limit_default' ) ) {
+function bws_limit_default( array $options ): int {
+	$src = trim( (string) ( $options['src'] ?? $options['source'] ?? '' ) );
+	return ( function_exists( 'bws_fold_chain_is_wire' ) && bws_fold_chain_is_wire( $src ) ) ? 0 : 1;
 }
 }
 
@@ -506,7 +551,7 @@ function bws_clamp_limit( $raw ): int {
  *   - L1 resolve source: bws_resolve_base_source (ambient/explicit/loop/site,
  *     SPEC §V1) → base resolved source.
  *   - L1 traversal: bws_field_values_assemble_steps (src:ref → ref step,
- *     srcTermIn → term-hop step; both compound as [ref, srcTermIn] when set, #44)
+ *     srcTermIn → term-step step; both compound as [ref, srcTermIn] when set, #44)
  *     run through bws_run_traversal — ref now FANS OUT to all targets (SPEC §V6
  *     plural; no first-only collapse), and a term archive bases ref on the
  *     ambient term (SPEC §V11).
@@ -563,8 +608,9 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 		? bws_run_traversal( array( $base ), $steps )
 		: array( $base );
 
-	// list mode — slice plural source list to limit (default 1; 0 = unlimited).
-	$limit   = bws_clamp_limit( $options['limit'] ?? null );
+	// list mode — slice plural source list to limit. The DEFAULT is selected by the
+	// source SPELLING (bws_limit_default): flat wire bounds at 1, chain wire does not.
+	$limit   = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
 	$sources = array_slice( $sources, 0, $limit ?: null );
 
 	// L2 — read each resolved source by kind; drop empties. Link identity is
@@ -638,7 +684,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  */
 if ( ! function_exists( 'bws_collect_value_list' ) ) {
 function bws_collect_value_list( array $items, callable $render, array $options ): array {
-	$limit = bws_clamp_limit( $options['limit'] ?? null );
+	$limit = bws_clamp_limit( $options['limit'] ?? null, bws_limit_default( $options ) );
 	$sep   = $options['sep'] ?? ', ';
 
 	$item_opts = $options;

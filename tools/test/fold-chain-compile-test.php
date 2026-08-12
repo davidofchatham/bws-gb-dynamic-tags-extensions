@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone unit harness for the FW-56 chain COMPILER
- * (includes/helpers/slot-fold-compile.php) and the engine's per-step cap.
+ * (includes/helpers/slot-fold-compile.php) and the engine's per-step limit.
  *
  * The real files are loaded, never copied — the compile is pure but for one
  * sanitize_key (shimmed below), and a test-local copy of a mapping rule is the drift
@@ -13,10 +13,10 @@
  *   §C1  bws_fold_chain_is_wire()        chain-vs-token detection (conservative)
  *   §C2  bws_fold_chain_root()           the factory token; ROOT is not a step
  *   §C3  bws_fold_chain_to_steps()       slug→type map, argless drop, unknown slug
- *   §C4  per-step `limit`                emitted only when it CAPS (0/-1 = unlimited)
+ *   §C4  per-step `limit`                emitted only when it BOUNDS (0/-1 = unlimited)
  *   §C5  bws_fold_chain_from_options()   depth-0 chain: chain wire OR legacy triple
  *   §C6  bws_field_values_assemble_steps / bws_wrapper_ref_steps
- *   §C7  bws_run_traversal()             per-hop cap, incl. an INTERMEDIATE step
+ *   §C7  bws_run_traversal()             per-hop limit, incl. an INTERMEDIATE step
  *
  * THE LOAD-BEARING PROPERTY IS EQUIVALENCE, not the new capability. §C5/§C6 pin the
  * pre-1.17.0 assembler outputs byte-for-byte for every legacy option shape, and §C2
@@ -216,50 +216,65 @@ echo "\n§C3 bws_fold_chain_to_steps — slug→type, argless drop, unknown slug
 assert_same( 'empty chain → no steps', array(), bws_fold_chain_to_steps( array() ) );
 assert_same(
 	'refs → ref/field',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office' ) )
 );
 assert_same(
 	'terms → srcTermIn/slug',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,category' ) )
 );
 assert_same(
 	'entries → rows/field (the repeater step, author-facing since 1.17.0)',
-	array( array( 'type' => 'rows', 'field' => 'staff_rows' ) ),
+	array( array( 'type' => 'entries', 'field' => 'staff_rows' ) ),
 	bws_fold_chain_to_steps( chain_of( 'entries,staff_rows' ) )
 );
 assert_same(
 	'root is dropped, hops are kept in WIRE order',
 	array(
-		array( 'type' => 'ref', 'field' => 'office' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
+		array( 'type' => 'terms', 'slug' => 'category' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'current;refs,office;terms,category' ) )
 );
 assert_same(
 	'TWO ref hops — the chain the flat assemblers could not express',
 	array(
-		array( 'type' => 'ref', 'field' => 'related_staff' ),
-		array( 'type' => 'ref', 'field' => 'office' ),
+		array( 'type' => 'refs', 'field' => 'related_staff' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'refs,related_staff;refs,office' ) )
 );
 assert_same(
 	'terms slug is sanitized (as the retired assembler did)',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'mytax' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'mytax' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,My Tax!' ) )
 );
-// Argless fanning step: NO step, so the tag reads the ambient entity — byte-identical
-// to legacy `src:ref` with no `ref` field. A field-less ref step would short-circuit
-// the fold to empty and change what a stored (garbage) wire renders.
-assert_same( 'argless refs → no step', array(), bws_fold_chain_to_steps( chain_of( 'refs' ) ) );
-assert_same( 'argless terms → no step', array(), bws_fold_chain_to_steps( chain_of( 'terms' ) ) );
-assert_same( 'argless entries → no step', array(), bws_fold_chain_to_steps( chain_of( 'entries' ) ) );
+// Argless fanning step: the step is KEPT, argument-less, so the engine answers empty and
+// the chain short-circuits. It must NOT be dropped (#74): dropping it leaves the chain
+// rootless, and a rootless chain resolves the AMBIENT entity — so a tag whose wire says
+// "follow a relationship" would read the post you are standing on, which is a plausible
+// value from the wrong entity rather than an obvious empty one.
+//
+// This INVERTS the pre-1.17.0 reading, which preserved the ambient read as byte-identical
+// to legacy `src:ref` with no `ref`. The population is measured-empty and 1.17.0's own slot
+// control already promises the opposite ("This attempt will be skipped unless a field is
+// set"), so the code now does what the UI says.
+assert_same( 'argless refs → argument-less step, never dropped', array( array( 'type' => 'refs' ) ), bws_fold_chain_to_steps( chain_of( 'refs' ) ) );
+assert_same( 'argless terms → argument-less step, never dropped', array( array( 'type' => 'terms' ) ), bws_fold_chain_to_steps( chain_of( 'terms' ) ) );
+assert_same( 'argless entries → argument-less step, never dropped', array( array( 'type' => 'entries' ) ), bws_fold_chain_to_steps( chain_of( 'entries' ) ) );
 assert_same(
-	'a slug that sanitizes to nothing → no step',
-	array(),
+	'a slug that sanitizes to nothing is argless too (unusable arg, same answer)',
+	array( array( 'type' => 'terms' ) ),
 	bws_fold_chain_to_steps( chain_of( 'terms,!!!' ) )
+);
+// The property the retention exists FOR: empty, not ambient. Asserted through the engine
+// rather than inferred from the step shape, because "the reader returns '' for a field-less
+// refs step" is the load-bearing half and lives in another file.
+assert_same(
+	'the engine yields nothing for an argless refs step (so the chain empties)',
+	array(),
+	bws_run_traversal( array( array( 'kind' => 'post', 'id' => 1 ) ), bws_fold_chain_to_steps( chain_of( 'refs' ) ) )
 );
 // Unknown vocabulary at a HOP position compiles to an unknown engine type, which the
 // engine answers with an empty list — the chain short-circuits and the tag renders
@@ -272,7 +287,7 @@ assert_same(
 assert_same(
 	'a ROOT slug in a HOP position is unknown vocabulary there',
 	array(
-		array( 'type' => 'ref', 'field' => 'office' ),
+		array( 'type' => 'refs', 'field' => 'office' ),
 		array( 'type' => 'site' ),
 	),
 	bws_fold_chain_to_steps( chain_of( 'refs,office;site' ) )
@@ -283,16 +298,16 @@ assert_same(
 	bws_run_traversal( array( array( 'kind' => 'post', 'id' => 1 ) ), array( array( 'type' => 'authors' ) ) )
 );
 
-echo "\n§C4 per-step limit — emitted ONLY when it caps\n";
+echo "\n§C4 per-step limit — emitted ONLY when it bounds the step\n";
 
 assert_same(
 	'limit(2) rides the step',
-	array( array( 'type' => 'ref', 'field' => 'office', 'limit' => 2 ) ),
+	array( array( 'type' => 'refs', 'field' => 'office', 'limit' => 2 ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(2)' ) )
 );
 assert_same(
 	'limit[2] — the same construct one level in (slot depth)',
-	array( array( 'type' => 'ref', 'field' => 'office', 'limit' => 2 ) ),
+	array( array( 'type' => 'refs', 'field' => 'office', 'limit' => 2 ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit[2]' ) )
 );
 // 0 = unlimited and the engine spells that as an ABSENT key. Emitting `limit => 0`
@@ -300,12 +315,12 @@ assert_same(
 // the byte-equality with the flat assemblers' output that §C5/§C6 rest on.
 assert_same(
 	'limit(0) = unlimited → no limit key at all',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(0)' ) )
 );
 assert_same(
 	'limit(-1) parses to 0 → no limit key',
-	array( array( 'type' => 'ref', 'field' => 'office' ) ),
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_fold_chain_to_steps( chain_of( 'refs,office,limit(-1)' ) )
 );
 assert_same(
@@ -316,13 +331,13 @@ assert_same(
 // Struct-level guard: a hand-built chain (the migrator's, the control's) may carry a
 // limit the grammar never validated.
 assert_same(
-	"struct limit '3' caps as an int",
-	array( array( 'type' => 'ref', 'field' => 'o', 'limit' => 3 ) ),
+	"struct limit '3' bounds as an int",
+	array( array( 'type' => 'refs', 'field' => 'o', 'limit' => 3 ) ),
 	bws_fold_chain_to_steps( array( link_step( 'refs', 'o', '3' ) ) )
 );
 assert_same(
 	'struct limit garbage is ignored, not read as 0',
-	array( array( 'type' => 'ref', 'field' => 'o' ) ),
+	array( array( 'type' => 'refs', 'field' => 'o' ) ),
 	bws_fold_chain_to_steps( array( link_step( 'refs', 'o', 'abc' ) ) )
 );
 assert_same(
@@ -394,22 +409,26 @@ echo "\n§C6 the two retired assemblers — EQUIVALENCE with their pre-1.17.0 ou
 assert_same( 'assemble bare → no steps', array(), bws_field_values_assemble_steps( array() ) );
 assert_same( 'assemble src:current → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'current' ) ) );
 assert_same( 'assemble src:site → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'site' ) ) );
-assert_same( 'assemble src:ref no field → no steps', array(), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+// The ONE row where the compiler deliberately DIVERGES from the retired assembler (#74).
+// The assembler emitted no step, leaving the tag on the ambient entity; an orphan `src:ref`
+// now keeps its argument-less step and reads empty. Everything else in this section is
+// still byte-identical, which is what keeps the refactor invisible to real wire.
+assert_same( 'assemble src:ref no field → argument-less step (was: no steps)', array( array( 'type' => 'refs' ) ), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'assemble srcTermIn → [srcTermIn]',
-	array( array( 'type' => 'srcTermIn', 'slug' => 'category' ) ),
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'category' ) )
 );
 assert_same(
 	'assemble src:ref → [ref]',
-	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
 	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 assert_same(
 	'assemble #44 compound → [ref, srcTermIn] in that order',
 	array(
-		array( 'type' => 'ref', 'field' => 'x' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'post_tag' ),
+		array( 'type' => 'refs', 'field' => 'x' ),
+		array( 'type' => 'terms', 'slug' => 'post_tag' ),
 	),
 	bws_field_values_assemble_steps( array( 'srcTermIn' => 'post_tag', 'src' => 'ref', 'ref' => 'x' ) )
 );
@@ -417,9 +436,9 @@ assert_same(
 assert_same(
 	'assemble a depth-0 CHAIN → every hop',
 	array(
-		array( 'type' => 'ref', 'field' => 'a' ),
-		array( 'type' => 'ref', 'field' => 'b' ),
-		array( 'type' => 'srcTermIn', 'slug' => 'category' ),
+		array( 'type' => 'refs', 'field' => 'a' ),
+		array( 'type' => 'refs', 'field' => 'b' ),
+		array( 'type' => 'terms', 'slug' => 'category' ),
 	),
 	bws_field_values_assemble_steps( array( 'src' => 'refs,a;refs,b;terms,category' ) )
 );
@@ -429,10 +448,12 @@ echo "\n§C6b bws_wrapper_ref_steps — the LEADING RUN of ref steps (§V13, B2)
 assert_same( 'wrapper bare → no step', array(), bws_wrapper_ref_steps( array() ) );
 assert_same( 'wrapper src:current → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'current' ) ) );
 assert_same( 'wrapper src:site → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'site' ) ) );
-assert_same( 'wrapper src:ref no field → no step', array(), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
+// Same #74 inversion as §C6: an orphan `src:ref` keeps its argument-less step, so the
+// wrapper read empties instead of falling back to the ambient entity.
+assert_same( 'wrapper src:ref no field → argument-less step (was: no step)', array( array( 'type' => 'refs' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
 assert_same(
 	'wrapper src:ref → ref step',
-	array( array( 'type' => 'ref', 'field' => 'related' ) ),
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'related' ) )
 );
 // §V13/B2: the term hop is the CALLERS' job on the returned post id. Routing it
@@ -440,14 +461,14 @@ assert_same(
 assert_same( 'wrapper srcTermIn → NO step', array(), bws_wrapper_ref_steps( array( 'srcTermIn' => 'category' ) ) );
 assert_same(
 	'wrapper ref beside srcTermIn → ref step only',
-	array( array( 'type' => 'ref', 'field' => 'x' ) ),
+	array( array( 'type' => 'refs', 'field' => 'x' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'ref', 'ref' => 'x', 'srcTermIn' => 'category' ) )
 );
 assert_same(
 	'wrapper hops a MULTI-ref chain (new in 1.17.0)',
 	array(
-		array( 'type' => 'ref', 'field' => 'a' ),
-		array( 'type' => 'ref', 'field' => 'b' ),
+		array( 'type' => 'refs', 'field' => 'a' ),
+		array( 'type' => 'refs', 'field' => 'b' ),
 	),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a;refs,b' ) )
 );
@@ -455,7 +476,7 @@ assert_same(
 // term hop would run against the wrong entity, which is the truncated-prefix hazard.
 assert_same(
 	'wrapper STOPS at a term hop, it does not filter past it',
-	array( array( 'type' => 'ref', 'field' => 'a' ) ),
+	array( array( 'type' => 'refs', 'field' => 'a' ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a;terms,category;refs,b' ) )
 );
 assert_same(
@@ -464,12 +485,12 @@ assert_same(
 	bws_wrapper_ref_steps( array( 'src' => 'entries,rows;refs,a' ) )
 );
 assert_same(
-	'wrapper carries a per-hop cap',
-	array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ),
+	'wrapper carries a per-hop limit',
+	array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ),
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a,limit(2)' ) )
 );
 
-echo "\n§C7 bws_run_traversal — the per-hop cap\n";
+echo "\n§C7 bws_run_traversal — the per-hop limit\n";
 
 $post = static function ( int $id ): array {
 	return array( 'kind' => 'post', 'id' => $id );
@@ -488,67 +509,175 @@ $reader = static function ( array $step, array $source ) {
 };
 
 assert_same(
-	'no cap → full fan-out',
+	'no limit → full fan-out',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a' ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a' ) ), $reader )
 );
 assert_same(
-	'cap 2 slices the step OUTPUT',
+	'limit 2 slices the step OUTPUT',
 	array( $post( 11 ), $post( 12 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ) ), $reader )
 );
 assert_same(
-	'cap larger than the fan-out is inert',
+	'a limit larger than the fan-out is inert',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 9 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 9 ) ), $reader )
 );
 // The falsy-zero class, on the engine side this time.
 assert_same(
-	'cap 0 = UNLIMITED, never "cap at zero"',
+	'limit 0 = UNLIMITED, never "bound at zero"',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 0 ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 0 ) ), $reader )
 );
 assert_same(
-	'a non-numeric cap is ignored (not read as 0)',
+	'a non-numeric limit is ignored (not read as 0)',
 	array( $post( 11 ), $post( 12 ), $post( 13 ) ),
-	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 'lots' ) ), $reader )
+	bws_run_traversal( array( $post( 1 ) ), array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 'lots' ) ), $reader )
 );
-// An INTERMEDIATE cap is the reason the quantity exists: it bounds how much work the
+// An INTERMEDIATE limit is the reason the quantity exists: it bounds how much work the
 // rest of the chain multiplies, not just the visible row count.
 assert_same(
-	'INTERMEDIATE cap bounds downstream fan-out',
+	'an INTERMEDIATE limit bounds downstream fan-out',
 	array( $post( 1100 ) ),
 	bws_run_traversal(
 		array( $post( 1 ) ),
 		array(
-			array( 'type' => 'ref', 'field' => 'a', 'limit' => 1 ),
-			array( 'type' => 'ref', 'field' => 'b' ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+			array( 'type' => 'refs', 'field' => 'b' ),
 		),
 		$reader
 	)
 );
 assert_same(
-	'without the intermediate cap the same chain yields three',
+	'without the intermediate limit the same chain yields three',
 	array( $post( 1100 ), $post( 1200 ), $post( 1300 ) ),
 	bws_run_traversal(
 		array( $post( 1 ) ),
 		array(
-			array( 'type' => 'ref', 'field' => 'a' ),
-			array( 'type' => 'ref', 'field' => 'b' ),
+			array( 'type' => 'refs', 'field' => 'a' ),
+			array( 'type' => 'refs', 'field' => 'b' ),
 		),
 		$reader
 	)
 );
-// The cap applies to the step's WHOLE output, not per input source — that is the
-// quantity the wire names ("at most N of these").
+// The limit is PER-INPUT, not whole-output (#72; per-step-limit.md §Per-input, not
+// whole-output): at most N produced sources from EACH incoming source. This case
+// distinguishes the two semantics — whole-output would return [11] and discard
+// post 2's read entirely.
 assert_same(
-	'the cap is on the step, not per input source',
-	array( $post( 11 ), $post( 12 ) ),
+	'the limit is per input source, not on the step\'s whole output',
+	array( $post( 11 ), $post( 21 ) ),
 	bws_run_traversal(
 		array( $post( 1 ), $post( 2 ) ),
-		array( array( 'type' => 'ref', 'field' => 'a', 'limit' => 2 ) ),
+		array( array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ) ),
 		$reader
 	)
+);
+// Order asymmetry: an earlier limit bounds what later steps can SEE; a later one
+// only bounds what survives. Same limit multiset {2,1}, same product ceiling (2),
+// DIFFERENT surviving sets — which is what makes limit placement authorial.
+assert_same(
+	'limit(2) then limit(1): one grandchild from each of two children',
+	array( $post( 111 ), $post( 121 ) ),
+	bws_run_traversal(
+		array( $post( 1 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+		),
+		$reader
+	)
+);
+assert_same(
+	'limit(1) then limit(2): two grandchildren from one child',
+	array( $post( 111 ), $post( 112 ) ),
+	bws_run_traversal(
+		array( $post( 1 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 1 ),
+			array( 'type' => 'refs', 'field' => 'a', 'limit' => 2 ),
+		),
+		$reader
+	)
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// §C8 — bws_fold_src_resolution(): the arm-dispatch axis (FW-63)
+//
+// THE HIGHEST SEAM AVAILABLE. Arm dispatch reduces to this one question, so the
+// ~19 render-path call sites need no individual tests — they need this to be right
+// and the fold integration matrix to confirm the wiring. Every case below states
+// the FLAT spelling and the CHAIN spelling of the same source and asserts they
+// answer identically; that identity is the whole deliverable.
+// ─────────────────────────────────────────────────────────────────────────────
+echo "\n§C8 — resolved-source kind + fan, from the wire alone\n";
+
+$res = static function ( array $options ): string {
+	$r = bws_fold_src_resolution( $options );
+	return $r['kind'] . '/' . ( $r['fans'] ? 'fans' : 'one' ) . '/' . $r['root'];
+};
+
+// Root-only chains. The case the previous framing could not express: a chain with
+// NO steps still has a kind.
+assert_same( 'bare tag → base kind, no fan', 'base/one/', $res( array() ) );
+assert_same( 'src:current → base kind (root token kept)', 'base/one/current', $res( array( 'src' => 'current' ) ) );
+assert_same( 'src:site → site kind, no fan', 'site/one/site', $res( array( 'src' => 'site' ) ) );
+assert_same(
+	'a registry source root reads as base — the factory decides its kind',
+	'base/one/related_post',
+	$res( array( 'src' => 'related_post' ) )
+);
+
+// Flat vs chain, per arm.
+assert_same( 'FLAT  src:ref + ref → post, fans', 'post/fans/', $res( array( 'src' => 'ref', 'ref' => 'office' ) ) );
+assert_same( 'CHAIN src:refs,office → post, fans', 'post/fans/', $res( array( 'src' => 'refs,office' ) ) );
+assert_same( 'FLAT  srcTermIn → term, fans', 'term/fans/', $res( array( 'srcTermIn' => 'department' ) ) );
+assert_same( 'CHAIN src:terms,department → term, fans', 'term/fans/', $res( array( 'src' => 'terms,department' ) ) );
+assert_same(
+	'FLAT  src:ref + ref + srcTermIn → term (the LAST step decides)',
+	'term/fans/',
+	$res( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department' ) )
+);
+assert_same(
+	'CHAIN refs;terms → term, same answer',
+	'term/fans/',
+	$res( array( 'src' => 'refs,office;terms,department' ) )
+);
+assert_same( 'CHAIN src:entries,rows → meta_row', 'meta_row/fans/', $res( array( 'src' => 'entries,team' ) ) );
+assert_same(
+	'CHAIN site;entries,rows → meta_row, ROOTED at site',
+	'meta_row/fans/site',
+	$res( array( 'src' => 'site;entries,team' ) )
+);
+
+// An ARGLESS fanning step is a step on the WIRE, and since #74 it is a step in the
+// COMPILED list too — argument-less, so the engine empties the chain rather than leaving
+// it rootless on the ambient entity. Resolution still reads the PARSED chain, but no
+// longer because the two disagree here: it reads it because position 0 is a root the
+// compiler hands to the factory, so the compiled list cannot answer what the root is.
+assert_same(
+	'src:ref with NO ref field → still post kind',
+	'post/fans/',
+	$res( array( 'src' => 'ref' ) )
+);
+assert_same( 'and the compiler now KEEPS the step, argument-less', array( array( 'type' => 'refs' ) ), bws_field_values_assemble_steps( array( 'src' => 'ref' ) ) );
+
+// Unknown vocabulary is honestly unknown, never guessed back to the root — the
+// engine answers empty for an unknown type, so the chain short-circuits.
+assert_same( 'unknown last slug → kind unknown, still fans', '/fans/', $res( array( 'src' => 'refs,a;bogus,b' ) ) );
+
+// A SITE root never takes the legacy term hop: `srcTermIn` is registered
+// `show_if src: not:site`, so the pair is hand-edit-only, and every arm has always
+// let the site read win. Folding it in would flip a stored tag to empty.
+assert_same(
+	'src:site + srcTermIn → still the SITE read, hop not folded in',
+	'site/one/site',
+	$res( array( 'src' => 'site', 'srcTermIn' => 'department' ) )
+);
+assert_same(
+	'and no term step is compiled for it either',
+	array(),
+	bws_field_values_assemble_steps( array( 'src' => 'site', 'srcTermIn' => 'department' ) )
 );
 
 echo "\n";

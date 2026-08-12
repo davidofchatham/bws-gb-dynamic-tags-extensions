@@ -394,7 +394,7 @@ Procedural API. Most are thin wrappers over `\BWS\DynamicTags\Content\ContentPro
 | `bws_render_block_content( $raw, $cache_key, $args )` | **(new, v1.8.0)** Generic render entry. Use when content isn't a `post_content` fetch (e.g. wp_options-stored markup). Stack keys on `$cache_key` (convention: `'post:'.$id` or `'option:'.$key`). |
 | `bws_process_post_content( $post_id, $args )` | Post-content render. Fetches raw and delegates to `bws_render_block_content( $raw, 'post:'.$post_id, $args )`. Returns empty string on failure. |
 | `bws_safe_content_output( $content, $options, $instance )` | Strips destructive GB options (`trunc`, `case`, `link`, `wpautop`) before calling `output()`. Always use this for rendered HTML. |
-| `bws_can_process_post_content( $post_id )` | Returns `true` if post can be processed (not in stack, depth below cap). |
+| `bws_can_process_post_content( $post_id )` | Returns `true` if post can be processed (not in stack, depth below the limit). |
 | `bws_is_query_loop_setup_phase( $instance )` | Returns `true` when GB is setting up a query loop and `postId` is not yet in context. Skip content rendering in this case. |
 | `bws_has_sufficient_memory()` | Returns `true` when memory usage is below `bws_content_memory_threshold` (default 0.80) of the PHP limit. |
 | `bws_sanitize_rich_content( $content )` | Safe HTML sanitization for displayed content. |
@@ -431,7 +431,7 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 
 | Function | Purpose |
 |----------|---------|
-| `bws_strip_default_select_values( $options )` | Wire-format helper: flip first option value of `_strip_default`-flagged select options to `''` before GB registration. Called by tag-template registry and base-tag registration. |
+| `bws_prepare_registration_options( $options )` | The registration pass every BWS options array goes through before GB sees it. Three rules: flip the first option value of `_strip_default`-flagged selects to `''` (wire format); stamp `_group`/`_group_lead` for [visual grouping](tag-reference.md#option-grouping-visual); drop the flat source options a chain control absorbed. Called by tag-template registry and base-tag registration. **Renamed in v1.17.0 from `bws_strip_default_select_values()`, no alias** — the old name described the first rule only. |
 
 ### Date helpers (`includes/helpers/datetime-helpers.php`)
 

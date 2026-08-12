@@ -51,6 +51,41 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 
 See [§Source group](#source-group) for label/UI details and the per-slot serialization mechanics.
 
+#### Source CHAINS (1.17.0)
+
+A source is a **chain**: a ROOT plus zero or more ordered **fanning** steps. The table above is the
+root vocabulary; a step continues from wherever the previous one landed.
+
+| Step slug | Follows | Resolves to |
+|---|---|---|
+| `refs,<field>` | a relationship / post-object field | `post` |
+| `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` |
+| `entries,<field>` | a repeater field's rows | `meta_row` |
+
+Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
+`src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
+FOREVER and maps to the same chain, so nothing stored has to change; a tag is chain-spelled only
+once an author converts it or the Tag Converter rewrites it.
+
+- **The root is not a step.** A chain's first segment is either an entity root the source FACTORY
+  consumes (`site`, `current`, a registry source) or already a step off the ambient entity.
+- **A step `limit` is PER-INPUT** — at most N results from EACH incoming result, so limiting a
+  `terms` step to one yields one term per referenced post rather than one term overall. Product
+  semantics across a chain. Unlimited by default, for every step type. Distinct from the tag-level
+  `limit`, which bounds the resolved-source list ONCE, before the read — see
+  [§List mode](#list-mode-limit--sep).
+- **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`:
+  kind ∈ `post|term|meta_row|site|base`, plus whether it fans). Pure and static, from the wire
+  alone — the editor's pickers and the list-mode reveal both scope themselves before anything
+  resolves. Every base arm asks that one question instead of comparing `src` to `'ref'`/`'site'` or
+  reading `srcTermIn`, which is what makes the two spellings take the same arm.
+- **`entries` is not offered on a base tag.** The step type exists and runs, but no base arm
+  consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
+  needs a hand edit, and it renders nothing.
+- **The derived families keep the flat select.** `term_*`, `try_*` and `{{table}}` build their own
+  surfaces from the root enum's rows; a slot authors its chain inside its folded value instead
+  (see [§Folded slot wire](#folded-slot-wire-multislot-containers)).
+
 ### Source-analog resolution
 
 **Design principle.** Each base tag at its **implicit mode** (no explicit `use`/`key` — the stripped per-template default, recovered via `?? '<canonical>'` on read) resolves to the **best intrinsic analog datum for the active source — where one exists**. A tag should "just work" per context; named `use:`/`key` are **explicit-mode** overrides and escape hatches, not the primary path.
@@ -117,7 +152,7 @@ The one place tagline *might* earn its keep is as **feedstock for a multi-slot t
 
 **`key` control** (wp_options / ACF-options key; dot-path supported for wp_options arrays via `Meta_Handler::get_option` — e.g. `key:my_settings.colors.primary`): shown when the tag is in key-mode (`use:key` on text/image/content); on datetime it is the always-visible direct field key (meta or option). **`permalink` is the exception — it has no `use` enum and no `key` control under `src:site`** (it names the site's own URL, not a field): implicit mode = `home_url()`, no option read.
 
-**Suppressed for site:** `srcTermIn` (no entity to step to terms from); `ref` (no site→ref wiring in Stage A — tracked as a future enhancement, not a permanent exclusion).
+**Suppressed for site:** `srcTermIn` (no entity to step to terms from); `ref` — but only in the FLAT spelling, where a tag holds one `src` and `site` and `ref` are alternative values of it. A site-rooted relationship is a CHAIN (`src:site;refs,x`), which the engine has read since 1.17.0 and the source-chain control authors: an options page holds relationship fields like any other field store.
 
 **Link wrapping** (text/title/datetime_* only): `linkTo:permalink` → `home_url()` under `src:site` (the site permalink-analog — no separate `linkTo:site`); `linkTo:key` → option-stored URL (allowlist-gated).
 
@@ -163,21 +198,56 @@ rewritten to `src:ref` + `ref` — see the value row in
 
 ## List mode (`limit` + `sep`)
 
-Selected templates support outputting multiple results as a delimited list. `limit` defaults to 1 (single result). When `limit > 1`, results are joined with `sep` (default: `, `).
+Selected templates support outputting multiple results as a delimited list. When more than one result renders, they are joined with `sep` (default: `, `).
 
-`limit` applies to the **final traversal step**: terms when `srcTermIn:<tax>` is set; related posts at `src:ref`.
+`limit` bounds the **resolved-source list**, once, before the read — the last step's output. It never bounds values: the read is one value per resolved source with empties dropped afterwards, so `limit:3` can print two.
 
-**`limit` is interpreted in ONE place — `bws_clamp_limit()` (field-helpers.php).** Four call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), try_ slot dispatch (`class-tag-template-registry.php`), and `bws_try_join_items` (defensive re-clamp). The rule, as of 1.17.0:
+**`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Three call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), and try_ slot dispatch (`class-tag-template-registry.php`). `bws_try_join_items` takes an already-resolved int — it holds no options, so it structurally cannot know which default applies. The rule, as of 1.17.0:
 
 | Value | Effective limit |
 |---|---|
-| unset / `''` | **1** (the default; not serialized when unset) |
-| non-numeric (`abc`) | 1 — the `is_numeric()` gate. `(int)'abc'` is `0`, so without it a typo would read as *unlimited* |
+| unset / `''` | **the default for the tag's source SPELLING** — see below (not serialized when unset) |
+| non-numeric (`abc`) | **the spelling's default**, exactly as unset — the `is_numeric()` gate. `(int)'abc'` is `0`, so without it a typo would read as *unlimited* on flat wire, where the default is 1 |
 | `0` | **UNLIMITED** — no slice |
 | `-1`, any negative | UNLIMITED. Parsed tolerantly (GB's *Posts Per Page* uses `-1`); `0` is what the plugin emits, matching WP's own Query Loop, which blocks `-1` and documents `0` |
 | `1`, `5`, `999` | that value; there is no ceiling |
 
 The number controls carry **no `min`** deliberately: a control that fights a hand-typed `-1` works against [ADR 0004](adr/0004-serialized-tag-string-human-readable.md), and the parse already tolerates it.
+
+**The unset default is selected by the source SPELLING** (`bws_limit_default()`, 1.17.0). Flat wire — `src:ref`, `srcTermIn`, a bare tag — bounds its list at **1**, as it always has. Chain wire (`src:refs,x`) is **unlimited (`0`)**.
+
+That one rule is the whole compatibility mechanism for [source chains](#source-chains-1170), and it is chosen because it works on wire **no migration can reach**: a draft nobody opens, a block widget the content scanner never sees, a tag stored inside an ACF field. An unmigrated tag gets its default from its own spelling, wherever it lives.
+
+Two costs, both deliberate. The same conceptual source is bounded differently by spelling — an [ADR 0004](adr/0004-serialized-tag-string-human-readable.md) readability cost, paid to avoid touching a stored row, and confined to a spelling no panel can author any more. And the top-level link gate is COUNT-BASED, so link-wrapping differs by spelling too; that is why the regression matrix carries rows per SPELLING, not only per `limit` value.
+
+**The flat SPELLING is closed; the flat READ is not deprecated.** Two statements that sit next to each other and say different things. An author can no longer write flat `src:ref` / `srcTermIn` from any panel — the chain control absorbed those siblings — but every stored instance is read forever, and so is an explicit tag-level `limit:N`. Neither has a deprecation path in 1.x: the population is unenumerable (a draft nobody opens, a block widget the scanner never sees, a tag inside an ACF field), so removing either read would be a permanent silent output change on tags nobody can find. Revisiting that is a major-version decision. See [ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md).
+
+The `default` parameter is **required**. A site that omitted it would silently render legacy behaviour on chain wire — wrong output that looks normal in review — so omission is an `ArgumentCountError`, the same posture the cross-language twin harnesses take on a missing `node`.
+
+**A SLOT'S OWN SPELLING DECIDES ITS OWN DEFAULT** (1.17.0, #60), on `{{join}}` and every `try_` template, exactly as a base tag's does. `{{try_text A:src(terms,department);use(title)}}` returns every term, matching `{{text src:terms,department|use:title}}`; the flat `{{try_text srcTermIn:department|use:title}}` still returns one.
+
+Getting there needed a seam change, because the question is not answerable where it used to be asked. A container's slot loop resolves against the FLAT triple `bws_fold_slot_flat_options()` returns, and flattening is what ERASES the spelling — `bws_limit_default()` read off that triple sees a legacy token on every slot and answers 1 whatever the slot was spelled as. So the seam **reports the era it just erased**, through a `$limit_default` out-param beside its existing `$skip_reason` one, and the loop uses that rather than inferring.
+
+Two qualifications, each of which is a real case rather than a hedge:
+
+- **Only where the slot's OWN chain fans.** A slot spelling `src(same)`, or an argless `src(refs)`, fans solely by INHERITING an earlier slot's source. Giving it the chain default would make a migrated `{{join A:src(refs,office,limit[1])…|B:src(same)…}}` return every related post at B where the flat wire it replaced returned one. The predicate (`bws_fold_chain_fanning_steps()`) is shared with the migrator's stamp, so a slot can never take a default the migration declined to state.
+- **A SELECTING container's inheriting slot inherits the BOUND with the source** (1.17.0, #61). `src(same)` names the same source and a limit is one of a source's parameters, so `bws_fold_slot_flat_options()` carries the quantity the earlier slot resolved. That is what let `try_`'s tag-level `limit` be retired without moving output. `{{join}}`/`{{table}}` are the deliberate contrast: they own `limit` PER SLOT (`{N}-limit`), so an absent one there is a slot saying "I state none" and must take the default — carrying it would move shipped `{{join}}` output.
+
+Migration states what the old spelling implied, so no stored tag changes output — the slot half writes through the same `bws_fold_chain_apply_legacy_limit()` the base half does (`{{join srcTermIn:department|use:title}}` → `{{join A:src(terms,department,limit[1]);use(title)}}`). One case is NOT redundant with the chain default and must keep its carrier: an explicit `limit:0`. The same mapper renders UNMIGRATED flat wire, which takes the flat era's 1, so dropping the token would re-bound a tag its author deliberately unbounded. Rows: [`tools/test/fold-test-matrix.md`](../tools/test/fold-test-matrix.md) §F7a and §F7b.
+
+An EXPLICIT value beats the spelling-selected default in both directions. That is ordinary option precedence and needs no extra rule.
+
+**A tag-level `limit` is legacy by POSITION, not by spelling** (v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)). Wire that is ALREADY a chain used to be skipped whole — there is no spelling to respell — which left the one shape where a bound is invisible: `{{text src:terms,department|use:title|limit:1}}` renders one term while the step's own Limit field reads unlimited and no control can reach the key. Both migration paths now absorb such a number onto the step it bounds and delete the key. **NUMERIC ONLY on that branch**, which is the whole difference from the flat one: the flat branch materializes the flat era's default of 1 when the key is absent or unreadable, because the spelling it leaves behind meant 1, where chain wire is not changing era and has no default to carry — materializing one would bound a tag that renders unlimited today. A stand-down (non-numeric, a chain that states its own step limits, a chain that does not fan) is a NO-OP rather than an identical rewrite, so a tag nobody can improve is not re-serialized every time it is opened.
+
+**Migration does not write one, though** — A LIMIT IS STATED WHERE THE SOURCE IS STATED ([ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md)), so a rewritten tag carries its limit on the STEPS (`src:refs,x,limit(1)`) and no tag-level `limit` at all. One table, both depths — a base tag's `src` and a folded slot's chain go through the same owner:
+
+| legacy `limit` | what migration writes |
+|---|---|
+| absent, or non-numeric | `limit(1)` on EVERY fanning step; the tag-level key is untouched (a non-numeric value is left as the author typed it) |
+| explicit `N > 0` | `N` on the LAST fanning step, `1` on every earlier one; the tag-level key is DELETED. In a SELECTING container `limit` is TAG-level (`try_slot_axes`) and is each attempt's own default rather than a bound across attempts, so the number is COPIED onto EACH fanning slot's own last step — a slot already folded included — and the key is retired with the rest (#61) |
+| explicit `0` / `-1` | no STEP limit — unlimited is what chain wire already means — and **at depth 0 the KEY is deleted too** ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)). It survived until the tag-level control retired, when it stopped being a value an author could see and clear and became a token on chain wire nothing in the editor can reach; deleting it is faithful because the chain spelling already selects unlimited. Only the EXPLICIT value goes — an absent or non-numeric one is not the author's token to delete — and only where the chain fans, since a stated per-step limit stands the whole mapping down. In a SELECTING container the key is retired anyway (#61): a slot recovered from LEGACY keys keeps an explicit `limit[0]` carrier, because that same mapper renders unmigrated flat wire; an already-folded slot needs none, since its chain already defaults to unlimited |
+
+Positional, not `terms`-specific: `refs` takes the `N` when `refs` is the last fanning step. The earlier steps are not decoration — per-step limits are per-input and MULTIPLY, so `N` on the last step alone would yield `N` per parent rather than the `N` total the flat spelling meant. An argless fanning step gets nothing — it resolves to nothing at all, so there is no spread to bound — and a chain that already carries a step limit is left entirely alone. See [`bws_fold_chain_apply_legacy_limit()`](../includes/helpers/slot-fold.php) — one mapping, shared by the converter, the editor mount migrator and the author-conversion commit.
 
 **Behavior change in 1.17.0.** Before, `0` and negatives were silently clamped to 1 by a `max( 1, … )` at each call site. A saved `limit:0` therefore rendered one result; from 1.17.0 it fans out. That was a clamp discarding a written value, not a designed semantic — an author wanting one result leaves `limit` unset or types `1` — so the change honors the wire rather than freezing the clamp. Regression rows: [`tools/test/limit-default-test-matrix.md`](../tools/test/limit-default-test-matrix.md).
 
@@ -219,7 +289,7 @@ Context: GB serializes named option defaults verbatim into the saved tag string 
 
 **Mechanism — canonical tokens + registration-boundary strip:**
 
-Option definitions declare semantic tokens (`current`, `key`, `content`, etc.) as their first value so the source files read naturally. `bws_strip_default_select_values()` (in `content-helpers.php`) runs at registration time and flips the first option's `value` to `''` for any option we want stripped from the saved tag string. GB drops `''` values from serialization; callbacks then apply `?? '<canonical>'` defaults on read to recover the semantic token.
+Option definitions declare semantic tokens (`current`, `key`, `content`, etc.) as their first value so the source files read naturally. `bws_prepare_registration_options()` (in [`registration-helpers.php`](../includes/helpers/registration-helpers.php); named `bws_strip_default_select_values()` before v1.17.0) runs at registration time and flips the first option's `value` to `''` for any option we want stripped from the saved tag string. GB drops `''` values from serialization; callbacks then apply `?? '<canonical>'` defaults on read to recover the semantic token.
 
 Result:
 - Source code reads `'value' => 'current'` (intent is obvious).
@@ -241,6 +311,8 @@ Canonical defaults applied on read:
 ### `as` serialization opt-out + `as`+`size` fold (`image`, `term_image`, `try_image`)
 
 For image tags, the `as` option is **always serialized** — `{{image as:url,full|...}}` even when unmodified. Not stripped at registration. Justification: `as` controls the output mode (image src vs. alt text vs. caption vs. ID). Surfacing it in the saved tag makes the return mode immediately visible when copying a tag instance between fields, so a user can change `as:url` → `as:alt` in one edit instead of inspecting the option panel.
+
+**The mechanism is `'default' => 'url,full'`, and it is the whole mechanism.** Not stripping is necessary but not sufficient: GB writes an untouched option to the wire only if it was seeded, and it seeds from non-empty `default`s at tag-**select** time ([`gb-constraints.md` §Option Serialization Order](gb-constraints.md#option-serialization-order) — `updateDynamicTag`). v1.16.0's fold dropped the `default` on the theory that the composite would write `url,full` on mount; it writes on change only, so `{{image}}` carried no `as` at all until v1.17.0 restored it. Mount-writing would have been the wrong repair — opening a tag's panel would edit the tag (the rule the folded-slot control's `stripDefaultRoot` exists to hold). GB does not validate a `default` against the option rows, so the folded `url,full` seeds even though it is not one of them. Pre-existing tags keep their absent `as` and render identically via the read seam below.
 
 **`as` is a parameterized return-type selector; size folds into its value (as+size fold, v1.16.0).** Most return modes are nullary (`id`/`alt`/`title`/`caption` — no argument); `url` is unary — it takes a **size** argument (size changes *which* url). So size rides inside the `as` value as a comma second slot rather than a separate `size:` option:
 
@@ -269,6 +341,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-term-hop` | CheckboxControl + ComboboxControl over public taxonomies (via `wp.data` `core`). Reads `pickLabel` / `pickHelp` from PHP option config in addition to `label` / `help` | `assets/js/term-hop-control.js` | `srcTermIn` option on base + modifier tags + per-slot in try_ tags |
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 | `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
+| `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `term_*`/`try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)
@@ -280,7 +353,7 @@ Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB
 The cross-tag model for **how options are ordered in the editor panel** and **how show/hide conditions are expressed**. Each per-tag section in Part II gives its own ordered list; this section is the shared schema those lists follow.
 
 **Four groups (descriptive names; the legacy `Group 1/2/3` placeholders are retired):**
-- **`source` — per-slot**: source selector → source secondary options (`ref`, `srcTermIn`, `limit`, `sep`) → field options (`use`, `key`). Within-source order is `src → ref → srcTermIn → limit → sep → use → key` — `limit`/`sep` precede the field options because list length is a property of whether the **source** can return multiple results, not of the field read. Repeated for each try_ slot.
+- **`source` — per-slot**: source selector → source secondary options (`ref`, `srcTermIn`, `sep`) → field options (`use`, `key`). Within-source order is `src → ref → srcTermIn → limit → sep → use → key` — `sep` precedes the field options because list length is a property of whether the **source** can return multiple results, not of the field read. Repeated for each try_ slot. **`limit` appears in the SERIALIZATION order only, and holds no control on either axis** — since v1.17.0 no tag registers one ([ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md): a limit is stated on the step it bounds), but stored wire still carries the key and the normalizer still has to rank it, so it keeps rank 3 in `serialization-order.php` and no row in the visual-group map.
 - **`format` — global formatting**: `as`, format options, separators. Not per-slot; applies to the assembled result.
 - **`link` — link-wrap**: `linkTo` + dependent `linkKey` + `newTab` (or, on email/phone, the own-anchor `subject → noLink` set). A contiguous, role-defined cluster; treated as its own group so ordering can move it as a block.
 - **`fallback` — global fallback**: `fallback`. Once, after all slots.
@@ -313,6 +386,19 @@ Verified 2026-07-22 (`base-tags.php` supports arrays + `DynamicTagSelect.jsx:269
 **One transient source exception — `term_*` tags.** The `term_*` modifier tags register with GB **type `'term'`**, which triggers GB's native term source + taxonomy machinery (`'term' === dynamicTagType` paths serialize `id:`/`tax:` and render the native term/taxonomy pickers without a `supports` entry). So on `term_*` specifically, source IS partly GB-native. This is the lone remaining GB-native usage, and it is **temporary — `term_*` is on the deprecation glide-path** (base tags + context modifiers subsume it; see [`docs/future-work.md`](future-work.md) term_ deprecation). Dropping `term_*` removes the native term source, after which the plugin uses NO GB-native controls at all.
 
 **Control order — author custom controls at GB's single injection point.** Since the plugin registers almost no GB-native supports (table above), all the plugin's own controls inject together at GB's single `tagSpecificControls` slot (`DynamicTagSelect.jsx:819`). So the control order is essentially the plugin's to define wholesale — GB contributes only the tag selector (top) and the Required checkbox + Insert button (bottom). **Canonical control order: `source → format → link → fallback`** — the author picks *what to read* (source/field) before *how to display it* (format), then link, then fallback. Format renders early in the panel, matching GB's own `post_date` (Date Format renders ABOVE Link To). Note this is the INVERSE of the serialization order below, where format leads and link precedes it.
+
+**Control order IS registration order, and since v1.17.0 it is a correctness property.** GB renders `options` as declared; nothing reorders them (the FW-52 normalizer moves the *serialized* key order only, inside `setState`). So the registration arrays in [`base-tags.php`](../includes/tags/base-tags.php) and the two constructors in [`class-tag-template-registry.php`](../includes/classes/class-tag-template-registry.php) *are* the panel. [Option grouping](#option-grouping-visual) draws a box around the controls that describe one decision, and a group boxes as ONE box only where its members register **contiguously** — the CSS joins adjacent siblings and can see nothing else. A group registered in two pieces draws two boxes for one decision; a member stranded away from its group draws a box of its own with nothing to name it. Both are pinned by [`tools/test/control-order-test.php`](../tools/test/control-order-test.php), which asserts contiguity across every registered tag.
+
+The three constructors may legitimately place a group differently — `term_*` leads with its format cluster, base and `try_*` do not — but none may split one. Until v1.17.0 the `try_` constructor did: it registered format FIRST (i.e. in *serialization* order, on the one family that renders a format cluster), put `fallback` ahead of `link`, and appended the chain-level `limit`/`sep` last of all, where — being source-group options — they drew a captionless box at the foot of the panel. `term_*` carried the `fallback`-before-`link` half of the same bug. Both fixed in v1.17.0; the harness is what keeps them fixed.
+
+<a id="option-grouping-visual"></a>
+**Option grouping (visual) — v1.17.0.** GB renders every option as a flat sibling in a 15px-gap flex column (see [`gb-constraints.md` §Option controls are flat siblings](gb-constraints.md#option-controls-are-flat-siblings-in-a-15px-gap-flex-column)), so a panel reads as an undifferentiated stack. The plugin boxes the controls that describe one decision into four visual groups — **`source`** (`src`, `ref`, `srcTermIn`, `sep`), **`field`** (`use`, `key`, and the datetime key family), **`format`** (`as`, `rangeSep`, `format`, `timeSep`, the two checkboxes, and `{{join}}`'s `mode`/`valueSep`), and **`link`** (`linkTo`, `linkKey`, `newTab`). `limit` is deliberately absent: no tag registers one, and the entry kept through v1.17.0 against a family that was expected to gain it was removed when that expectation was withdrawn ([ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md)).
+
+The `field` split is the one place this departs from the serialization model, which serializes the field read *inside* the source group: "where do I read from" and "what do I read" are the two questions an author actually asks, and the folded-slot control has boxed them separately since v1.17.0 — so a base tag's panel and a `{{join}}` slot's panel read alike.
+
+Owners: [`bws_option_visual_groups()`](../includes/helpers/registration-helpers.php) states the map (option name → group + lead flag) and rides the registration pass every BWS registration already goes through, so GB core tags' identically-named options are never touched; [`assets/js/option-group.js`](../assets/js/option-group.js) is the sole owner of the presentation, wrapping each grouped control at filter priority 30. A group's **lead** stays boxed when it is the group's only visible member; every other lone member renders bare. `link` deliberately has no lead — the box appears only once a link is configured.
+
+**Captions belong to controls, not to groups.** The wrapper renders no caption; a control that draws its own inside the wrapper's box is what puts one there. So the source group reads `SOURCE` / `SOURCE PATH` on the tags whose source is the chain control, and the same box sits bare on `term_*`, `try_*`, `{{table}}` and `{{call}}`, whose source is a plain select. Accepted for v1.17.0 and tracked on [FW-64](future-work.md): rendering the caption in the wrapper means reading the lead control's state, because the chain caption changes with chain length. (Mechanism detail here is provisional — `docs/editor-controls.md` is the reserved owner, per CLAUDE.md §Documentation ownership.)
 
 **Serialization order — `format` group leads, among custom options only.** The canonical serialized order for the custom options is (corrected 2026-07-23 — link moved after source, see below):
 
@@ -350,7 +436,7 @@ Multiple conditions in one `show_if` map are AND'd. Array-of-conditions per key 
 
 **The key IS the slot ordinal, spelled `A`…`Z`** (`AA` at 27, spreadsheet-style). One owner, `bws_slot_ordinal()` / `bws_slot_ordinal_num()` in the grammar file, because the same answer is needed by two registrations, both migration paths, the editor control, both order parsers, the panel labels and `{{join}}`'s format tokens. Three consequences:
 
-- **No cap in the grammar.** The pattern is `^[A-Z]+$`, not `^[A-Z]$` — the cap is a CONTAINER property (`{{join}}` 10, `try_*` 5), and a single-letter pattern could reject wire its own encoder produced.
+- **No maximum in the grammar.** The pattern is `^[A-Z]+$`, not `^[A-Z]$` — the slot count is a CONTAINER property (`{{join}}` 10, `try_*` 5), and a single-letter pattern could reject wire its own encoder produced.
 - **Nothing may compare these keys as strings.** `AA` sorts after `Z` numerically and before it lexically; both order parsers DECODE to an int.
 - **Collision-free by construction.** Every option key in the plugin and every GB reserved key is lowercase or lowercase-initial camelCase, so an all-caps key can only be a slot.
 
@@ -370,15 +456,19 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
 
-**A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field capped at 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
+**A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
 **Read axis is resolved by NAME, never by token order:** `use` wins unless it is `key`; otherwise `key(…)` supplies the read. This mirrors the shipped `$use = $options['use'] ?? 'key'` dispatch, so no tag changes meaning under the fold. With a field chosen the canonical spelling of a keyed read is the bare `key(x)` — `use(key)` is emitted only for the **field-pending** state (keyed read, no field yet), which the editor needs a wire spelling for because the control re-parses the value it just wrote to drive the read select.
 
 **Container sensitivity is on the READ axis, and only on what ABSENCE means.** An explicit `use(same)` inherits everywhere. An absent read is **unconfigured** in a combining container (`{{join}}`, `{{table}}` — the slot is skipped, and skipped *before* it can feed the carry-forward) and **inherit** in a selecting one (`try_*`). Source absence is not container-sensitive: `src(same)` inherits, an empty chain resolves against the ambient entity.
 
-**An INCOMPLETE step skips the slot.** A `terms` step with no taxonomy is authorable only under the fold (flat wire could not state a step without its argument), and flattening it would be silently wrong: an empty `srcTermIn` is how *no term step* is spelled, so the slot would read the un-stepped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason, so the editor preview can name what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). An argless `refs` step is NOT incomplete — it inherits the carried relationship field.
+**`src(same)` inherits the whole SOURCE, taxonomy step included** ([#74](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/74)). A term step is part of what a source IS, unlike `limit`, which is a *parameter of* a source and stays container-sensitive (above). Uniform across both containers and both wire eras — there is no era gate, so a legacy tag and its folded twin inherit identically. Two qualifications: an inherited hop is a DEFAULT, so a slot that states its own `terms` step REPLACES it rather than colliding with it; and the hop travels with the source, so a slot stating its own root does not acquire it. Invariant: [`CONTEXT.md` I15](../CONTEXT.md).
 
-**`limit` folds onto the step it caps** (a chain can fan more than once, so a slot-level cap has no single meaning); a flat limit with no fanning step stays a slot-level token. A **step `limit` is PER-INPUT** — at most N resolved sources per input source — which is a different quantity from the **tag-level `limit`**, capping the resolved-source list once before the read. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
+**An INCOMPLETE step skips the slot.** A step with no argument is authorable only under the fold (flat wire could not state a step without its argument), and flattening it would be silently wrong: an empty argument is how *no step* is spelled, so the slot would read the un-stepped entity and return a plausible wrong value. The slot is skipped instead, with its own skip reason naming which step is unfinished, so the editor preview can say what is missing ([`editor-tag-previews.md`](editor-tag-previews.md)). One asymmetry: an argless `refs` step is COMPLETE when the carry supplies its field, and incomplete only when nothing was ever carried; an argless `terms` step has no such inheritance.
+
+**A `same` root with nothing to be the same AS skips too.** At slot 1 an absent source means the ambient entity; at slot ≥2 absence means inherit, so ambient is not a default a slot can fall back to. Where every earlier slot skipped, the carry holds nothing and the slot says nothing rather than resolving against the ambient entity ([`CONTEXT.md` I15](../CONTEXT.md)).
+
+**`limit` folds onto the step it bounds** (a chain can fan more than once, so a slot-level limit has no single meaning); a flat limit with no fanning step stays a slot-level token. A **step `limit` is PER-INPUT** — at most N resolved sources per input source — which is a different quantity from the **tag-level `limit`**, bounding the resolved-source list once before the read. `0` = unlimited, as everywhere else ([§List mode](#list-mode-limit--sep)).
 
 **Both FORMS render.** Slot configuration is read per slot: folded value present ⇒ parsed; absent ⇒ recovered from the flat keys through the same mapping the migrator and the editor use. So a half-migrated tag (folded slot 2 between flat slots 1 and 3) resolves as its author last saw it, threading **one** carry-forward accumulator. The editor rewrites a slot to folded form the first time it is touched.
 
@@ -459,7 +549,7 @@ Each slot holds a **source chain** and — depending on the template — a **fie
 
 A slot still needs a key to produce output where its read mode requires one; a keyless slot in a key-needing mode is skipped, not an error.
 
-**The slot count is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `limit`/`sep` on list-mode templates are likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists.
+**The slot count is explicit** (add/remove in the repeater), replacing the progressive-disclosure cascade that revealed slot N+1 once slot N was configured. `sep` on list-mode templates is likewise unconditional now: a list axis lives inside a slot value, and `show_if` compares whole option values, so no honest reveal predicate exists. (It used to be the `limit`/`sep` pair; the tag-level `limit` control retired in v1.17.0 — [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62).)
 
 ### Available try_ tags
 
@@ -511,8 +601,8 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 |---|---|---|---|---|
 | `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
 | `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term step on" and the taxonomy — **required** when the step is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | Result Limit | Maximum number of results to return. Default: 1. Enter 0 for no limit. | `src` = `ref` or `child` *(future)*, or `srcTermIn` set. **Unconditional on a multislot container** — the list axis is inside a slot value, which `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` (list-mode tags). Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric falls back to 1 — see [§List mode](#list-mode-limit--sep). |
-| `sep` | Result Separator | Separator between results (defaults to “, “). | `limit > 1`; unconditional on a multislot container | List-mode separator, same tag set as `limit`. |
+| `limit` | Result Limit | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | **No control on any chain-authoring tag** (v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): a limit is stated where the source is stated, and a chain states its source as steps, so the limit rides the fanning step. Unregistered rather than gated on flat wire — the mount migrator rewrites a flat tag to a chain before the panel paints, so a flat-only predicate would be unreachable. **No tag registers it** as of #62. A flat-select family, whose source is a single step, is where the key belongs; nothing offers it today | The VALUE is still read wherever it is written — removing a control never removes an option ([ADR 0004](adr/0004-serialized-tag-string-human-readable.md); GB seeds state from the tag string, not the registry), so unmigrated flat wire and hand-edited wire keep rendering. Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value. |
+| `sep` | Result Separator | Separator between results (defaults to “, “). | `srcTermIn` set, or `src` = `ref` or a fanning chain (`chain_fans`) — unlike `limit` it DOES ask `chain_fans`, because it joins printed output whatever the source spelling; unconditional on a multislot container, where the list axis sits inside a slot value that `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` and the `try_` list templates (`try_text`, `try_title`, `try_email`, `try_phone`). Alone in the source group on a `try_` tag, so it renders unboxed there — the attempts are that tag's source and draw their own boxes. |
 
 ### Field group
 
@@ -635,11 +725,11 @@ Control order `source → format → fallback` (no `link` group on `image`; `for
 
 | # | Group | Option label | Option name | Notes |
 |---|---|---|---|---|
-| 1 | source | | `[source options]` | [Source group](#source-group); no `limit`/`sep` for image |
+| 1 | source | | `[source options]` | [Source group](#source-group); no `sep` for image (and no tag-level `limit` control on any of them since v1.17.0) |
 | 2 | source | | `use` | `key` (unset default in single-slot tags); `featured` — `featured` disabled for term-context entities unless `src` = `ref`; under `src:site` `use:featured` = logo |
 | 3 | source | | `key` | shown when `use` unset [in single-slot tags] or `use:key` — **`key` required** in key-mode |
-| 4 | format | Return type | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
-| — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return type when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
+| 4 | format | Return As | `as` | folded return-mode + size (`bws-as-size` composite): `url,<size>` / `id` / `alt` / `title` / `caption`. Size sub-slot shown/serialized only under `url`. **Always serialized** (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)) |
+| — | format | Image Size | *(sub-slot of `as`)* | Rendered by the same composite under Return As when it is `url`; folds into the `as` value (`as:url,medium`). Not a separate option key as of v1.16.0. |
 | 6 | fallback | | `[fallback option]` | media picker → image ID; see [Fallback group](#fallback-group) + `custom-image-controls.md` |
 
 ---
@@ -655,26 +745,25 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 | Group | Option label | Option name | `datetime_single` | `datetime_range` | Values/Notes |
 |---|---|---|---|---|---|
 | source | | `[source options]` | 1 | 1 | `src` / `srcTermIn` / `ref` |
-| source | Result Limit | `limit` | 2 | 2 | list mode ([#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30)): shown when `srcTermIn` set or `src:ref`; default 1 |
-| source | Result Separator | `sep` | 3 | 3 | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
-| source | Date/Time Field Key | `key` | 4 | — | primary date/time field key |
-| source | Time Field Key (optional) | `timeKey` | 5 | — | separate time field |
-| source | Start Date/Time Field Key | `startKey` | — | 4 | |
-| source | Start Time Field Key (optional) | `startTimeKey` | — | 5 | |
-| source | End Date/Time Field Key | `endKey` | — | 6 | |
-| source | End Time Field Key (optional) | `endTimeKey` | — | 7 | |
-| format | Return As | `as` | 6 | 8 | `datetime`; `date`; `time` |
-| format | Start & End Separator | `rangeSep` | — | 9 | separator between start and end values within one result |
-| format | Custom Format | `format` | 7 | 10 | PHP format string; empty = auto |
-| format | Date & Time Separator | `timeSep` | 8 | 11 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| source | Result Separator | `sep` | 2 | 2 | between results, default `, `; on the range tag joins **whole ranges** (`rangeSep` stays intra-range) |
+| source | Date/Time Field Key | `key` | 3 | — | primary date/time field key |
+| source | Time Field Key (optional) | `timeKey` | 4 | — | separate time field |
+| source | Start Date/Time Field Key | `startKey` | — | 3 | |
+| source | Start Time Field Key (optional) | `startTimeKey` | — | 4 | |
+| source | End Date/Time Field Key | `endKey` | — | 5 | |
+| source | End Time Field Key (optional) | `endTimeKey` | — | 6 | |
+| format | Return As | `as` | 5 | 7 | `datetime`; `date`; `time` |
+| format | Start & End Separator | `rangeSep` | — | 8 | separator between start and end values within one result |
+| format | Custom Format | `format` | 6 | 9 | PHP format string; empty = auto |
+| format | Date & Time Separator | `timeSep` | 7 | 10 | shown when `as` ≠ `date` AND `as` ≠ `time` AND `format` empty |
+| format | Show current year in date? | `showCurrentYear` | 8 | 11 | checkbox, false by default; shown when `as` ≠ `time` |
 | format | Show time when stored as midnight? | `showMidnight` | 9 | 12 | checkbox, false by default; shown when `as` ≠ `date` |
-| format | Show current year in date? | `showCurrentYear` | 10 | 13 | checkbox, false by default; shown when `as` ≠ `time` |
-| link | Link To | `linkTo` | 11 | 14 | `permalink`; `key`; unset = no link |
-| link | Link URL Field Key | `linkKey` | 12 | 15 | shown when `linkTo:key` |
-| link | Open in new tab | `newTab` | 13 | 16 | checkbox; shown when `linkTo` not empty |
-| fallback | | `[fallback option]` | 14 | 17 | |
+| link | Link To | `linkTo` | 10 | 13 | `permalink`; `key`; unset = no link |
+| link | Link URL Field Key | `linkKey` | 11 | 14 | shown when `linkTo:key` |
+| link | Open in new tab | `newTab` | 12 | 15 | checkbox; shown when `linkTo` not empty |
+| fallback | | `[fallback option]` | 13 | 16 | |
 
-**Design rationale:** Canonical control order `source → format → link → fallback`. Source selector + list-mode `limit`/`sep` + per-slot field keys (`src`/`srcTermIn`/`ref` → `limit`/`sep` → `key`/`startKey`/…) lead — the author picks *what to read* first. `limit`/`sep` precede the field keys (list length is a source property, not a field one). Global formatting (`as`, `rangeSep`, `format`, `timeSep`, `showMidnight`, `showCurrentYear`) follows. Link cluster, then `fallback`, close. **NB the serialization order differs** (`format → source → link → fallback` — format lifts to front for copy-visibility); the reorder normalizer reconciles the two (built v1.16.0, FW-52).
+**Design rationale:** Canonical control order `source → format → link → fallback`. Source selector + list-mode `sep` + per-slot field keys (`src`/`srcTermIn`/`ref` → `sep` → `key`/`startKey`/…) lead — the author picks *what to read* first. `sep` precedes the field keys (list length is a source property, not a field one). **No tag-level `limit` control** since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)) — these tags author their source as a chain, so a limit rides the fanning step; a stored `limit` is still read (see [§List mode](#list-mode-limit--sep)). Global formatting (`as`, `rangeSep`, `format`, `timeSep`, `showCurrentYear`, `showMidnight`) follows. Link cluster, then `fallback`, close. **NB the serialization order differs** (`format → source → link → fallback` — format lifts to front for copy-visibility); the reorder normalizer reconciles the two (built v1.16.0, FW-52).
 
 > **⚠ CODE PENDING (FW-52 build).** The time-field keys (`timeKey`/`startTimeKey`/`endTimeKey`) shed their `as ≠ date` `show_if` reveal — they now render unconditionally with the source group (a field key is *what to read*, independent of *how to format*). The option definitions in [`base-tags.php`](../includes/tags/base-tags.php) still carry the old `show_if`; this doc reflects the FW-52 target. Reconcile on build.
 
@@ -700,15 +789,14 @@ Format a date/datetime/time field (`datetime_single`) or a start–end **composi
 
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
-| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
-| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
+| `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — email field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `subject` | `bws-format-input` | Subject | `noLink` empty | Optional `mailto:?subject=`; escaped editor-side, `rawurlencode`d at render (see two-layer encoding above). |
 | `noLink` | checkbox (bare key) | Disable email link (plain text) | always | Inverted presence flag: absent = mailto wrap (default), present = plain text. |
 | `fallback` | text | Fallback Email | always | A fallback **email address** (validated, wrapped). Fires only when no valid address resolves. |
+
+No tag-level `limit` control since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): the source is a chain, so a limit rides the fanning step that it bounds. A stored `limit` still bounds the list — see [§List mode](#list-mode-limit--sep).
 
 Plus the global **Settings → Tag Extensions → Email → "Obfuscate email addresses"** toggle (default ON) — not a per-tag option; gates `antispambot()` for all `{{email}}` output.
 
@@ -747,14 +835,13 @@ Plus the global **Settings → Tag Extensions → Email → "Obfuscate email add
 
 | Option | Type / control | Label | Shown when | Notes |
 |---|---|---|---|---|
-| `src` | select | Source | always | `current` / `ref` / `site`; default `current` (stripped). Shares `bws_base_source_option`. |
-| `ref` | `bws-field-combo` | Relationship Field Key | `src:ref` | Traversal step key. |
-| `srcTermIn` | `bws-term-hop` | Get from taxonomy term? | not `src:site` | Post→term step (fanning). |
-| `limit` | number | Result Limit | `srcTermIn` set or `src:ref` | List mode; default 1, `0` = unlimited. |
-| `sep` | text | Result Separator | `srcTermIn` set or `src:ref` | List-mode join; default `, `. |
+| `src` | `bws-src-chain` | Source | always | The source CHAIN: a root (`current` / `site` / a registry source) plus ordered fanning steps, each with its own optional limit. Absorbs the flat `ref` / `srcTermIn` controls, which are no longer registered (v1.17.0) though a stored value still reads and shows as a step. |
+| `sep` | text | Result Separator | `srcTermIn` set, `src:ref`, or a fanning chain | List-mode join; default `, `. |
 | `key` | `bws-field-combo` | Meta/Option Field | always | **Required** — phone field key. wp_options / ACF-options (dot-path) under `src:site`; post/term meta otherwise. |
 | `noLink` | checkbox (bare key) | Disable phone link (plain text) | always | Inverted presence flag: absent = tel wrap (default), present = plain text. |
 | `fallback` | text | Fallback Phone Number | always | A fallback **phone number** (normalized, wrapped). Fires only when no valid number resolves. |
+
+No tag-level `limit` control since v1.17.0 ([#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): the source is a chain, so a limit rides the fanning step that it bounds. A stored `limit` still bounds the list — see [§List mode](#list-mode-limit--sep).
 
 Plus two global **Settings → Tag Extensions → Phone** options (not per-tag): **Default country code** (digits, empty default) and **Strip a leading country code matching the default** (default OFF).
 
@@ -844,7 +931,7 @@ key per slot, [§Folded slot wire](#folded-slot-wire-multislot-containers)). Per
 chain (base `src` values with **site allowed** — the `try_text` site-slot gap is not repeated —
 plus a `terms` taxonomy step), the field read (text's key/title enum, **no "Same as Previous Field"
 row** because per-slot handlers are not built yet — a hand-written `use(same)` still resolves), and
-a per-step `limit` (list-mode cap so a term/ref slot reads >1 target; no control surface yet, but
+a per-step `limit` (list-mode bound so a term/ref slot reads >1 target; no control surface yet, but
 migrated and hand-written values round-trip). Slot ≥2 offers `src(same)` — weave several fields off
 one entity (see J16b in the matrix for real ref carry-forward). A list-mode slot joins its own
 items with text's default inner `', '` — no per-slot inner separator in v1

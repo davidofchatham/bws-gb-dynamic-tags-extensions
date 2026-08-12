@@ -41,8 +41,24 @@ error_reporting( E_ALL & ~E_DEPRECATED );
 
 define( 'ABSPATH', __DIR__ );
 
+// The WP surface the loaded files touch when CALLED (nothing runs at load time).
+if ( ! function_exists( '__' ) ) {
+	function __( $s, $d = null ) { return $s; }
+}
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) { return is_string( $s ) ? trim( $s ) : $s; }
+}
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $s ) { return strtolower( preg_replace( '/[^a-zA-Z0-9_\-]/', '', (string) $s ) ); }
+}
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value ) { return $value; }
+}
+
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+// The depth-0 base migrator reads the chain through the COMPILER, so it comes along.
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
 require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
@@ -208,7 +224,14 @@ check(
 );
 check( 'M4.2 …while the source axes stay, bare and prefixed', in_array( 'src', $dts_keys, true ) && in_array( '5-srcTermIn', $dts_keys, true ), json_encode( $dts_keys ) );
 check( 'M4.3 join keeps limit as a slot key at every position', in_array( 'limit', bws_fold_migration_slot_keys( $join_cfg ), true ) && in_array( '10-limit', bws_fold_migration_slot_keys( $join_cfg ), true ), json_encode( bws_fold_migration_slot_keys( $join_cfg ) ) );
-check( 'M4.4 the key set is exactly axes × slots for the axes owned', count( bws_fold_migration_slot_keys( $text_cfg ) ) === 5 * ( count( BWS_FOLD_LEGACY_AXES ) - 1 ), count( bws_fold_migration_slot_keys( $text_cfg ) ) );
+check( 'M4.4 the key set is exactly axes × slots for the axes owned', count( bws_fold_migration_slot_keys( $text_cfg ) ) === 5 * ( count( BWS_FOLD_FLAT_AXES ) - 1 ), count( bws_fold_migration_slot_keys( $text_cfg ) ) );
+
+// The MATCH surface is a different question from the MAPPER surface, and the one key
+// where they diverge is the one this entry now retires. A tag whose slots are already
+// folded has no legacy slot key left, so without this the shape #61 names never matches.
+check( 'M4.5 a selecting container MATCHES on the tag-level limit it retires', in_array( 'limit', bws_fold_migration_match_keys( $text_cfg ), true ), json_encode( bws_fold_migration_match_keys( $text_cfg ) ) );
+check( 'M4.5 …while the MAPPER surface still excludes it (folding it deletes slot 1\'s read)', ! in_array( 'limit', bws_fold_migration_slot_keys( $text_cfg ), true ), json_encode( bws_fold_migration_slot_keys( $text_cfg ) ) );
+check( 'M4.6 combining adds nothing — `limit` is already a slot key there', bws_fold_migration_slot_keys( $join_cfg ) === bws_fold_migration_match_keys( $join_cfg ), '' );
 
 // ── M5 — the rewrite ───────────────────────────────────────────────────────
 
@@ -226,8 +249,44 @@ $t5 = bws_fold_migrate_slots(
 	$text_cfg
 );
 check( 'M5.1 legacy slot keys are gone', array() === array_intersect( array_keys( $t5 ), array( 'src', 'ref', 'key', '2-use', '2-key' ) ), json_encode( $t5 ) );
-check( 'M5.2 folded values arrive', 'src(refs,office);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
-check( 'M5.3 the tag-level limit survives, unfolded', '3' === ( $t5['limit'] ?? null ), json_encode( $t5 ) );
+// The TAG-LEVEL `limit` reaches a FANNING slot (#60). It is not a bound across attempts —
+// it was each attempt's own default — so it has to land where that attempt states its
+// source, or the flat era's materialized 1 overwrites the author's number. Slot B gets
+// nothing: it fans only by inheriting A's source, so it has no list of its own to bound —
+// the seam carries A's bound to it along with A's source (slot-fold-test.php §P15), which
+// is what lets the tag-level key itself be retired here (#61, §M10).
+check( 'M5.2 folded values arrive, carrying the tag-level limit into the FANNING attempt', 'src(refs,office,limit[3]);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
+// …and with NO tag-level limit it is the flat era's implied 1 that lands, on the fanning
+// step only — a slot that fans by inheritance states no bound of its own.
+$t5b = bws_fold_migrate_slots(
+	array(
+		'src'   => 'ref',
+		'ref'   => 'office',
+		'key'   => 'name',
+		'2-use' => 'key',
+		'2-key' => 'role',
+	),
+	$text_cfg
+);
+// Slot 1 reads the tag-level key DIRECTLY (its prefix is ''), so the selecting-container
+// fallback is reachable only from a fanning slot ≥2 — which is where dropping it goes
+// unnoticed. Without the fallback slot C takes the materialized 1 and the author's 4 is
+// silently overwritten, on the one shape that can show it.
+$t5c = bws_fold_migrate_slots(
+	array(
+		'key'     => 'a',
+		'limit'   => '4',
+		'3-src'   => 'ref',
+		'3-ref'   => 'office',
+		'3-use'   => 'title',
+	),
+	$text_cfg
+);
+check( 'M5.2c a FANNING slot ≥2 takes the tag-level limit, not the materialized 1', 'src(refs,office,limit[4]);use(title)' === ( $t5c['C'] ?? null ), json_encode( $t5c ) );
+check( 'M5.2c …and a NON-fanning slot beside it still takes nothing', 'key(a)' === ( $t5c['A'] ?? null ), json_encode( $t5c ) );
+
+check( 'M5.2b no tag-level limit → the flat era default lands on the fanning step alone', 'src(refs,office,limit[1]);key(name)' === ( $t5b['A'] ?? null ) && 'src(same);key(role)' === ( $t5b['B'] ?? null ), json_encode( $t5b ) );
+check( 'M5.3 the tag-level limit does NOT survive — it was pushed down (#61, §M10)', ! array_key_exists( 'limit', $t5 ), json_encode( $t5 ) );
 check( 'M5.4 unrelated tag-level options survive', ', ' === ( $t5['sep'] ?? null ), json_encode( $t5 ) );
 // Canonical order: a FOLDED slot ranks as its slot's source, so tag-level (slot 0) keys
 // lead and the slots follow in ordinal order. Matching what the editor's normalizer writes
@@ -236,10 +295,10 @@ check( 'M5.4 unrelated tag-level options survive', ', ' === ( $t5['sep'] ?? null
 // (Until 2026-08-04 the slots LED, because all-digit keys are JS array-index properties
 // that GB's `Object.entries(extraTagParams)` emits first whatever the normalizer builds.
 // Capitals gave the ordering back to the sort; see includes/helpers/slot-fold.php.)
-check( 'M5.5 emitted keys are canonically ordered (tag-level source, then folded slots)', array( 'limit', 'sep', 'A', 'B' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
+check( 'M5.5 emitted keys are canonically ordered (tag-level source, then folded slots)', array( 'sep', 'A', 'B' ) === array_map( 'strval', array_keys( $t5 ) ), json_encode( array_keys( $t5 ) ) );
 
 // Nothing to migrate → null, which is the callback's no-op contract.
-check( 'M5.6 an already-folded tag migrates to nothing', null === bws_fold_migrate_slots( array( 'A' => 'key(a)', 'B' => 'key(b)', 'limit' => '2' ), $text_cfg ), 'not null' );
+check( 'M5.6 an already-folded tag migrates to nothing', null === bws_fold_migrate_slots( array( 'A' => 'key(a)', 'B' => 'key(b)' ), $text_cfg ), 'not null' );
 check( 'M5.7 a tag whose only source-group key is TAG-level migrates to nothing', null === bws_fold_migrate_slots( array( 'key' => 'event_date', 'use' => 'key' ), $dts_cfg ), json_encode( bws_fold_migrate_slots( array( 'key' => 'event_date', 'use' => 'key' ), $dts_cfg ) ) );
 
 // Half-applied migration / hand-edit: a folded value beside legacy siblings. The folded
@@ -287,7 +346,7 @@ MigrationRegistry::register(
 	array(
 		'type'               => 'option',
 		'match_tag'          => 'try_text',
-		'match_any_options'  => bws_fold_migration_slot_keys( $text_cfg ),
+		'match_any_options'  => bws_fold_migration_match_keys( $text_cfg ),
 		'new_tag'            => 'try_text',
 		'transform_callback' => 'bws_migrate_src_chain_slots',
 		'label'              => 'fold',
@@ -296,13 +355,13 @@ MigrationRegistry::register(
 
 check(
 	'M6.1 the registered entry folds a stored tag string',
-	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
+	'{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text src:ref|ref:office|key:name|2-use:key|2-key:role}}' )
 );
 check(
 	'M6.2 running it twice is a fixpoint (the no-op contract)',
-	'{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' ),
-	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);key(name)|B:src(same);key(role)}}' )
+	'{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' ),
+	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[1]);key(name)|B:src(same);key(role)}}' )
 );
 check(
 	'M6.3 a tag the entry does not match is untouched',
@@ -326,6 +385,20 @@ check(
 	'{{try_text A:key(name)|fallback:Name: TBA}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' ),
 	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text key:name|fallback:Name: TBA}}' )
 );
+// #61's own shape, end to end: slots already folded, only the retiring key left. It has
+// no legacy slot key at all, so it reaches the transform only because the MATCH surface
+// names `limit` (§M4.5) — and the acceptance criterion is written against exactly this
+// tag string.
+check(
+	'M6.6 an already-folded tag with a tag-level limit still reaches the entry',
+	'{{try_text A:src(refs,office,limit[3]);use(title)|B:key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);use(title)|B:key(role)|limit:3}}' ),
+	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office);use(title)|B:key(role)|limit:3}}' )
+);
+check(
+	'M6.7 …and it is a fixpoint too',
+	'{{try_text A:src(refs,office,limit[3]);use(title)|B:key(role)}}' === MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[3]);use(title)|B:key(role)}}' ),
+	MigrationRegistry::apply_option_migration( 'try_text', '{{try_text A:src(refs,office,limit[3]);use(title)|B:key(role)}}' )
+);
 
 // ── M7 — the JS TWIN: the editor's mount migrator must rewrite identically ──
 //
@@ -348,10 +421,31 @@ check(
 $corpus_file = __DIR__ . '/fold-migration-corpus.json';
 $corpus      = json_decode( (string) file_get_contents( $corpus_file ), true );
 check( 'M7.0 the shared corpus parses', is_array( $corpus ) && ! empty( $corpus['cases'] ), $corpus_file );
+check( 'M7.0b the corpus covers DEPTH-0 base source too', ! empty( $corpus['baseSrc'] ), count( (array) ( $corpus['baseSrc'] ?? array() ) ) . ' base cases' );
+
+/** Ordered key/value pairs, or null — key ORDER is half the property. */
+$pairs_of = static function ( $out ) {
+	if ( null === $out ) {
+		return null;
+	}
+	$pairs = array();
+	foreach ( $out as $key => $value ) {
+		$pairs[] = array( (string) $key, (string) $value );
+	}
+	return $pairs;
+};
+
+// DEPTH-0 — the base tag's own source triple. Built here rather than folded into the
+// slot loop because the two migrators take different inputs: a container config versus
+// none at all.
+$php_base = array();
+foreach ( (array) ( $corpus['baseSrc'] ?? array() ) as $case ) {
+	$php_base[] = $pairs_of( bws_fold_migrate_base_src( (array) $case['options'] ) );
+}
 
 $php_doc = array();
 foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
-	// The corpus speaks the EDITOR's vocabulary (`legacyAxes` — what registration ships
+	// The corpus speaks the EDITOR's vocabulary (`flatAxes` — what registration ships
 	// to the control). The migrator wants the complement, which is the direction the
 	// shipped registration already goes.
 	$cfg = array(
@@ -359,7 +453,7 @@ foreach ( (array) ( $corpus['cases'] ?? array() ) as $case ) {
 		'combining'    => ! empty( $case['conf']['combining'] ),
 		'per_slot_use' => ! empty( $case['conf']['perSlotUse'] ),
 		'max'          => (int) $case['conf']['max'],
-		'tag_level'    => array_values( array_diff( BWS_FOLD_LEGACY_AXES, (array) $case['conf']['legacyAxes'] ) ),
+		'tag_level'    => array_values( array_diff( BWS_FOLD_FLAT_AXES, (array) $case['conf']['flatAxes'] ) ),
 	);
 	$out = bws_fold_migrate_slots( (array) $case['options'], $cfg );
 	if ( null === $out ) {
@@ -379,7 +473,23 @@ if ( ! is_array( $js_doc ) ) {
 	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', false, substr( trim( $raw ), 0, 400 ) );
 } else {
 	check( 'M7.1 the JS driver ran (node on PATH, migrate layer exported)', true );
-	check( 'M7.2 both sides answered every corpus case', count( $php_doc ) === count( $js_doc ), count( $php_doc ) . ' php vs ' . count( $js_doc ) . ' js' );
+	$js_slots = (array) ( $js_doc['cases'] ?? array() );
+	$js_base  = (array) ( $js_doc['baseSrc'] ?? array() );
+	check( 'M7.2 both sides answered every corpus case', count( $php_doc ) === count( $js_slots ), count( $php_doc ) . ' php vs ' . count( $js_slots ) . ' js' );
+	check( 'M7.2b both sides answered every BASE case', count( $php_base ) === count( $js_base ), count( $php_base ) . ' php vs ' . count( $js_base ) . ' js' );
+
+	foreach ( $php_base as $i => $php_case ) {
+		$label   = $corpus['baseSrc'][ $i ]['label'] ?? "base case {$i}";
+		$js_case = array_key_exists( $i, $js_base ) ? $js_base[ $i ] : '(missing)';
+		check(
+			'M7.4 base twin agrees — ' . $label,
+			$php_case === $js_case,
+			'php: ' . json_encode( $php_case ) . "
+      js:  " . json_encode( $js_case )
+		);
+	}
+
+	$js_doc = $js_slots;
 	foreach ( $php_doc as $i => $php_case ) {
 		$label = $corpus['cases'][ $i ]['label'] ?? "case {$i}";
 		// array_key_exists, not `??`: a no-op case is legitimately NULL on both sides, and
@@ -446,7 +556,7 @@ check(
 // The token set is bounded by the CONTAINER, not by A–Z: `%K` is literal in a 10-slot
 // join in BOTH eras, so escaping it would rewrite text the renderer never looks at.
 check(
-	'M8.4 a letter past the container cap is left alone',
+	'M8.4 a letter past the container maximum is left alone',
 	'{{join mode:template|format:%K of %%A|key:rate}}' === $m8( '{{join mode:template|format:%K of %A|key:rate}}' ),
 	$m8( '{{join mode:template|format:%K of %A|key:rate}}' )
 );
@@ -465,6 +575,444 @@ check(
 	'M8.7 separator-mode join is untouched',
 	'{{join A:key(a)|valueSep: / }}' === $m8( '{{join A:key(a)|valueSep: / }}' ),
 	$m8( '{{join A:key(a)|valueSep: / }}' )
+);
+
+// ── M9 — the legacy limit lands on the STEPS, at depth 0 ─────────────────────
+//
+// The M7 twin proves the two languages AGREE; it cannot prove either is right, and it
+// carries no expected values by design. These are the expectations.
+//
+// The rule under test (bws_fold_chain_apply_legacy_limit): a base tag's flat source
+// implied a limit of 1, chain wire defaults to unlimited, so the respelling must carry
+// the old default across — onto the steps, never as a tag-level `limit`. THE EARLIER
+// FANNING STEPS MATTER: per-step limits are per-input and multiply, so `N` on the last
+// one alone yields N per parent rather than the N total the flat spelling meant.
+
+$base = static function ( array $options ) {
+	$out = bws_fold_migrate_base_src( $options );
+	return ( null === $out ) ? null : $out;
+};
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name' ) );
+check(
+	'M9.1 an implied limit lands on the one fanning step, not on the tag',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'srcTermIn' => 'department', 'use' => 'title' ) );
+check(
+	'M9.2 a terms-only source is limited the same way',
+	'terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department' ) );
+check(
+	'M9.3 TWO fanning steps are BOTH limited (the product is the ceiling)',
+	'refs,office,limit(1);terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '3' ) );
+check(
+	'M9.4 an author-stated limit MOVES onto the step and leaves no tag-level key',
+	'refs,office,limit(3)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// The shape with no faithful per-input mapping, pinned to the CHOSEN one: 1 on the
+// earlier step bounds the total at N, where leaving it unlimited would give N per parent.
+// It picks the same element as the flat walk unless parent 1 has fewer than N children —
+// the documented residual hole, zero instances in either surveyed database.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'department', 'limit' => '3' ) );
+check(
+	'M9.5 an author-stated limit over two fanning steps holds the EARLIER one at 1',
+	'refs,office,limit(1);terms,department,limit(3)' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// 0 and -1 both already mean unlimited, which is what chain wire defaults to — so there
+// is no step limit to write, and AT DEPTH 0 the key itself goes. It stayed until #62 for
+// a reason that expired with it: the author could see the `0` in the Result Limit field
+// and clear it. With no such control, keeping it leaves a token nothing in the editor can
+// reach, on chain wire, which is the one shape migration promises never to write. Deleting
+// is faithful because the chain spelling already selects unlimited (bws_limit_default) —
+// measured identical on the testbed, §F7c.3.
+//
+// The SLOT half does NOT do this and must not: bws_fold_from_flat's output also renders
+// UNMIGRATED flat wire, where absence takes the flat era's 1, so the carrier is load-
+// bearing there. §P12.18/19 in slot-fold-test.php are that pin.
+foreach ( array( '0', '-1' ) as $unlimited ) {
+	$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => $unlimited ) );
+	check(
+		"M9.6 an explicit limit:{$unlimited} writes no step limit and takes the key with it",
+		'refs,office' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', $m9 ),
+		json_encode( $m9 )
+	);
+}
+
+// The consume is scoped to the explicit non-positive value, not to "anything that means
+// unlimited": a chain that already states its own per-step limits stands down whole
+// (M9.9), and a tag-level `0` beside them is left rather than reached for on the way past.
+$pre_stated = array(
+	array( 'slug' => 'refs', 'arg' => 'office', 'limit' => '2', 'extra' => array() ),
+);
+$m9 = bws_fold_chain_apply_legacy_limit( $pre_stated, '0', true );
+check(
+	'M9.6b a stated step limit still wins outright, and the tag-level 0 is not consumed',
+	$pre_stated === $m9['chain'] && false === $m9['consumed'],
+	json_encode( $m9 )
+);
+
+// Same call WITHOUT the depth-0 flag is the slot behaviour, unchanged.
+$m9 = bws_fold_chain_apply_legacy_limit(
+	array( array( 'slug' => 'refs', 'arg' => 'office', 'limit' => null, 'extra' => array() ) ),
+	'0'
+);
+check(
+	'M9.6c the slot half leaves an explicit 0 for its caller to carry',
+	false === $m9['consumed'] && null === $m9['chain'][0]['limit'],
+	json_encode( $m9 )
+);
+
+// bws_clamp_limit's is_numeric guard already gives a non-numeric value the default, so
+// it MEANS absent — but deleting an author's text on that basis is a bigger move than
+// this rewrite is entitled to, and leaving it renders identically.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => 'lots' ) );
+check(
+	'M9.7 a non-numeric limit is treated as absent but is NOT consumed',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && 'lots' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// An EMPTY value is absent by the same reading, and is not deleted for the same reason:
+// the rewrite consumes a key only when it has moved the author's number onto a step.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '' ) );
+check(
+	'M9.7b an empty limit: is treated as absent and is NOT consumed',
+	'refs,office,limit(1)' === ( $m9['src'] ?? null ) && '' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// A magnitude the two languages cannot hold identically is the unlimited case, never a
+// materialized step limit: PHP's (int) saturates at PHP_INT_MAX where JS reaches
+// Infinity, so materializing it would write a different number in each language. The
+// twin corpus carries the same case, which is what proves they agree rather than that
+// PHP alone is right.
+$m9 = $base( array( 'src' => 'ref', 'ref' => 'office', 'limit' => '99999999999999999999' ) );
+check(
+	'M9.7c an unrepresentable magnitude writes no step limit and stays where it is',
+	'refs,office' === ( $m9['src'] ?? null ) && '99999999999999999999' === ( $m9['limit'] ?? null ),
+	json_encode( $m9 )
+);
+
+// An argless fanning step is DROPPED by the compiler, so the chain does not fan and a
+// limit on it would be inert noise. The old tag rendered one value because its source
+// resolved one entity, not because anything bounded it.
+$m9 = $base( array( 'src' => 'ref', 'key' => 'name' ) );
+check(
+	'M9.8 an orphan src:ref respells with no limit at all',
+	'refs' === ( $m9['src'] ?? null ) && ! isset( $m9['limit'] ),
+	json_encode( $m9 )
+);
+
+// The author-conversion path can limit a step in the same commit that converts. That is a
+// stated per-step intent, and materializing a default on top of it would overwrite a
+// decision with a guess — so the whole mapping stands down.
+$pre = array(
+	array( 'slug' => 'refs', 'arg' => 'office', 'limit' => '2', 'extra' => array() ),
+	array( 'slug' => 'terms', 'arg' => 'department', 'limit' => null, 'extra' => array() ),
+);
+$m9 = bws_fold_chain_apply_legacy_limit( $pre, null );
+check(
+	'M9.9 a chain that already carries a step limit is left entirely alone',
+	$pre === $m9['chain'] && false === $m9['consumed'],
+	json_encode( $m9 )
+);
+
+// A TAG-LEVEL LIMIT IS LEGACY BY POSITION, NOT BY SPELLING (#62, user 2026-08-07). Wire
+// that is already a chain was skipped whole until now — nothing to respell — which left
+// the one shape where a bound is INVISIBLE: `{{text src:terms,department|use:title|
+// limit:1}}` renders one term while the step's own Limit field reads `0 (all)` and no
+// control can reach the number. So a numeric tag-level `limit` is absorbed onto the step
+// it bounds whatever the source spelling, and the key goes with it.
+//
+// NUMERIC ONLY on this branch, and that is the whole difference from the flat one. The
+// flat branch materializes the ERA's default (1) when the key is absent or unreadable,
+// because the spelling it is leaving behind meant 1. Chain wire is not changing era, so
+// there is no default to carry: materializing 1 from an absent or non-numeric key would
+// bound a tag that renders unlimited today.
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => '1' ) );
+check(
+	'M9.10 a numeric limit on CHAIN wire moves onto the step and the key goes',
+	'terms,department,limit(1)' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'refs,office;terms,department', 'limit' => '3' ) );
+check(
+	'M9.10b two fanning steps take the same mapping as the flat branch',
+	'refs,office,limit(1);terms,department,limit(3)' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => '0' ) );
+check(
+	'M9.10c an explicit 0 on chain wire writes no step limit and still loses the key',
+	'terms,department' === ( $m9['src'] ?? null ) && ! array_key_exists( 'limit', (array) $m9 ),
+	json_encode( $m9 )
+);
+
+// The three stand-downs. Each returns NULL — no rewrite at all — rather than an
+// identical map, so a tag nobody can improve is not re-serialized on every open.
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title', 'limit' => 'lots' ) );
+check(
+	'M9.10d a NON-numeric limit on chain wire is left entirely alone',
+	null === $m9,
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department,limit(2)', 'use' => 'title', 'limit' => '1' ) );
+check(
+	'M9.10e a chain that states its own step limit keeps it, and keeps the tag-level key',
+	null === $m9,
+	json_encode( $m9 )
+);
+
+$m9 = $base( array( 'src' => 'terms,department', 'use' => 'title' ) );
+check(
+	'M9.10f chain wire with NO tag-level limit is untouched (nothing to absorb)',
+	null === $m9,
+	json_encode( $m9 )
+);
+
+// The N×M families ride this same mapping rather than a second copy of it. Their wire
+// expectations live with the entries themselves, in
+// tools/test/related-post-src-migration-test.php §R6 — one owner per assertion.
+
+// ── M10 — a SELECTING container's TAG-LEVEL limit is retired (#61) ───────────
+//
+// `try_`'s tag-level `limit` was never a bound ACROSS attempts — it was each attempt's
+// own default. Once a slot's source is a chain, nothing says which step such a number
+// aims at and there is no per-step lever to aim it with, so it stops existing: the
+// value is pushed into the slots that consumed it and the key is deleted.
+//
+// #60 already pushed the value into LEGACY slots (the mapper's view). What is new here
+// is the other two halves — a slot that is ALREADY FOLDED takes it too, and the key
+// goes. {{join}} is untouched throughout: its `limit` has always been a SLOT axis.
+
+check(
+	'M10.1 the tag-level key is GONE once its number has been pushed down',
+	! array_key_exists( 'limit', (array) bws_fold_migrate_slots( array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '3' ), $text_cfg ) ),
+	json_encode( bws_fold_migrate_slots( array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', 'limit' => '3' ), $text_cfg ) )
+);
+
+// The shape the acceptance criterion names: slots ALREADY folded, the key still there.
+// Reachable by hand-edit (ADR 0004) and from any tag the pre-#61 rule already migrated.
+$m10 = bws_fold_migrate_slots(
+	array(
+		'A'     => 'src(refs,office);use(title)',
+		'B'     => 'src(terms,department);key(name)',
+		'limit' => '3',
+	),
+	$text_cfg
+);
+check(
+	'M10.2 an already-folded FANNING slot takes the number onto its own last fanning step',
+	'src(refs,office,limit[3]);use(title)' === ( $m10['A'] ?? null ) && 'src(terms,department,limit[3]);key(name)' === ( $m10['B'] ?? null ),
+	json_encode( $m10 )
+);
+check( 'M10.2 …and the tag-level key goes with it', ! array_key_exists( 'limit', (array) $m10 ), json_encode( $m10 ) );
+
+// A slot with NO fanning step had nothing to bound, so it takes nothing — and a slot
+// that fans only by INHERITING gets the bound through the seam's carry instead
+// (slot-fold-test.php §P15), which is what keeps this rewrite output-neutral.
+$m10 = bws_fold_migrate_slots( array( 'A' => 'key(a)', 'B' => 'src(same);key(b)', 'limit' => '3' ), $text_cfg );
+check(
+	'M10.3 a non-fanning and an INHERITING slot are both left as written',
+	'key(a)' === ( $m10['A'] ?? null ) && 'src(same);key(b)' === ( $m10['B'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ),
+	json_encode( $m10 )
+);
+
+// The author's own step limit wins, exactly as it does at depth 0 (M9.9): the tag-level
+// number is a DEFAULT, and a default never overwrites a stated value.
+$m10 = bws_fold_migrate_slots( array( 'A' => 'src(refs,office,limit[2]);use(title)', 'limit' => '3' ), $text_cfg );
+check(
+	'M10.4 a slot that already pins its own limit is untouched (the key still goes)',
+	'src(refs,office,limit[2]);use(title)' === ( $m10['A'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ),
+	json_encode( $m10 )
+);
+
+// `0`/`-1` are unlimited, which is what chain wire already defaults to — nothing to push
+// down. The key is still retired: leaving it would leave the container arm falling back
+// to a key this release says does not exist.
+$m10 = bws_fold_migrate_slots( array( 'A' => 'src(refs,office);use(title)', 'limit' => '0' ), $text_cfg );
+check(
+	'M10.5 an explicit unlimited pushes nothing down and is still retired',
+	'src(refs,office);use(title)' === ( $m10['A'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ),
+	json_encode( $m10 )
+);
+
+// A non-numeric value is not a number to push anywhere. Deleting the author's text on
+// that basis is a bigger move than this rewrite is entitled to (M9.7's reasoning), and
+// bws_clamp_limit's is_numeric guard already renders it as the default either way.
+$m10 = bws_fold_migrate_slots( array( 'A' => 'src(refs,office);use(title)', 'limit' => 'lots' ), $text_cfg );
+check( 'M10.6 a non-numeric tag-level limit is NOT consumed', null === $m10, json_encode( $m10 ) );
+
+// Nothing to migrate is still nothing: a tag with no slot at all has nowhere to push a
+// number to, so the rewrite declines rather than emitting an empty diff.
+check( 'M10.7 a slotless tag is a no-op', null === bws_fold_migrate_slots( array( 'limit' => '3' ), $text_cfg ), 'not null' );
+
+// A slot naming a RETIRED source token is declined WHOLE, so it is not a slot to push
+// into either. Consuming the key on its account would leave the tag half-treated — its
+// legacy keys still there for the converter to fix later, but the bound they need
+// already deleted — and the fix would then land a `limit[1]` where the author wrote 3.
+// That is the one way this rewrite can move output on a tag it deliberately did not
+// touch, and both twins share the ordering, so §M7 structurally cannot catch it.
+check(
+	'M10.9 a tag whose ONLY slot is DECLINED keeps its tag-level limit',
+	null === bws_fold_migrate_slots( array( 'src' => 'second_related_post', 'key' => 'name', 'limit' => '3' ), $text_cfg ),
+	json_encode( bws_fold_migrate_slots( array( 'src' => 'second_related_post', 'key' => 'name', 'limit' => '3' ), $text_cfg ) )
+);
+// …but a declined slot does not block a real one: the number still reaches the slot that
+// can hold it, and the key goes because it was delivered.
+$m10 = bws_fold_migrate_slots( array( 'src' => 'second_related_post', 'key' => 'name', '2-src' => 'ref', '2-ref' => 'office', '2-use' => 'title', 'limit' => '3' ), $text_cfg );
+check(
+	'M10.9b …while a declined slot beside a real one still lets the number land',
+	'src(refs,office,limit[3]);use(title)' === ( $m10['B'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ) && isset( $m10['src'], $m10['key'] ),
+	json_encode( $m10 )
+);
+
+// {{join}} owns `limit` PER SLOT, so its bare `limit` IS slot 1's own legacy axis. It is
+// therefore never pushed anywhere: beside an already-folded slot 1 it is a legacy sibling
+// the folded value outranks (M5.8's rule), and slot 1's chain keeps whatever it states.
+$m10 = bws_fold_migrate_slots( array( 'A' => 'src(terms,category);use(title)', 'limit' => '3' ), $join_cfg );
+check(
+	'M10.8 a COMBINING container pushes nothing down — its bare limit is slot 1\'s own axis',
+	array( 'A' => 'src(terms,category);use(title)' ) === array_map( 'strval', (array) $m10 ),
+	json_encode( $m10 )
+);
+// …and where slot 1 is legacy it folds as that slot's own limit, unchanged by #61.
+check(
+	'M10.8b …and a legacy combining slot still folds its own limit onto its own step',
+	'src(terms,category,limit[3]);use(title)' === ( bws_fold_migrate_slots( array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '2-key' => 'b' ), $join_cfg )['A'] ?? null ),
+	json_encode( bws_fold_migrate_slots( array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '2-key' => 'b' ), $join_cfg ) )
+);
+
+// ===========================================================================
+echo "\n§M11 A VALUELESS option survives the migration round trip (#67)\n";
+// ===========================================================================
+// GB's bare-key boolean. serialize_tag_string() has always emitted `true` as a bare key
+// — its docblock names `showMidnight` as the example — but parse_tag_string() never
+// produced one, so the branch was unreachable and every migration DELETED the flag it
+// parsed. For `noLink` that turned the mailto wrap back ON and removed the setting that
+// said otherwise: a migration changing rendered output, which is the one thing migration
+// promises not to do. Shipped 1.6.x → 1.17.0.
+//
+// Asserted at the apply_option_migration() level as well as the parser, because the loss
+// happened in the ROUND TRIP: a parser-only test passes on a serializer that drops it and
+// vice versa.
+
+foreach ( array( 'noLink', 'newTab', 'showCurrentYear', 'showMidnight' ) as $flag ) {
+	list( , $parsed ) = MigrationRegistry::parse_tag_string( '{{text key:x|' . $flag . '}}' );
+	check(
+		"M11.1 `$flag` parses as a bare-key boolean",
+		array_key_exists( $flag, $parsed ) && true === $parsed[ $flag ],
+		json_encode( $parsed )
+	);
+}
+
+$round = MigrationRegistry::format_tag_string(
+	'text',
+	MigrationRegistry::parse_tag_string( '{{text src:ref|ref:related_staff|key:x|noLink}}' )[1]
+);
+check(
+	'M11.2 …and round-trips back to a BARE key, not `noLink:1` and not dropped',
+	'{{text src:ref|ref:related_staff|key:x|noLink}}' === $round,
+	$round
+);
+
+// Through a real transform, which is where it was actually being lost. The base src-chain
+// migrator rewrites the source; the flag is none of its business and must come out untouched.
+$flagged = bws_migrate_base_src_chain( '{{text src:ref|ref:related_staff|use:title|limit:2|noLink}}' );
+check(
+	'M11.3 a transform that rewrites the SOURCE leaves an unrelated bare flag alone',
+	false !== strpos( $flagged, '|noLink' ) && false === strpos( $flagged, 'noLink:' ),
+	$flagged
+);
+
+// The empty-string case is NOT the same thing and must keep its GB meaning (omitted).
+check(
+	'M11.4 an EMPTY-string value is still omitted — that is GB convention, not the bug',
+	'{{text key:x}}' === MigrationRegistry::format_tag_string( 'text', array( 'key' => 'x', 'sep' => '' ) ),
+	MigrationRegistry::format_tag_string( 'text', array( 'key' => 'x', 'sep' => '' ) )
+);
+
+// ===========================================================================
+echo "\n§M12 The base entry's MATCH surface reaches already-chain wire (#66)\n";
+// ===========================================================================
+// A tag-level limit is legacy by POSITION, not by spelling, so the transform absorbs one
+// sitting on wire that is ALREADY a chain. That shape carries neither `ref` nor
+// `srcTermIn` — so with a match list of just those two it never reaches the transform,
+// and #62's branch was dead code on the CONVERTER path while the mount path (no entry
+// chain) ran it. One tag stored two ways depending on which path found it first.
+//
+// Driven through apply_option_migration(), NOT the transform: the gate is the whole bug,
+// and §M9's transform-level cases all passed while it was broken.
+
+MigrationRegistry::register( array(
+	'type'               => 'option',
+	'match_tag'          => 'base_gate_tag',
+	'match_any_options'  => array( 'ref', 'srcTermIn', 'limit' ),
+	'new_tag'            => 'base_gate_tag',
+	'transform_callback' => 'bws_migrate_base_src_chain',
+	'label'              => 'base gate probe',
+) );
+
+check(
+	'M12.1 already-chain wire + a numeric tag-level limit is REACHED and absorbed',
+	'{{base_gate_tag src:refs,related_staff,limit(1)|use:title}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:1}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:1}}' )
+);
+check(
+	'M12.2 an explicit limit:0 on chain wire is CONSUMED at depth 0, not stranded',
+	'{{base_gate_tag src:refs,related_staff|key:main_line}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|key:main_line|limit:0}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|key:main_line|limit:0}}' )
+);
+// The accepted COST of a key gate: matched, then declined. Must be a clean no-op — a
+// re-serialized identical tag is what the mount path's loop guard exists to avoid.
+check(
+	'M12.3 a non-numeric limit MATCHES and is then declined, unchanged',
+	'{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff|use:title|limit:abc}}' )
+);
+check(
+	'M12.4 a chain that already states its own step limit is declined, unchanged',
+	'{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}'
+		=== MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}' ),
+	MigrationRegistry::apply_option_migration( 'base_gate_tag', '{{base_gate_tag src:refs,related_staff,limit(2)|key:main_line|limit:0}}' )
+);
+
+// The probe above proves the gate+transform COMPOSE. It cannot prove the SHIPPED entry
+// carries the key, because deprecated-tags.php's registration needs a WP surface this
+// harness does not stub. Asserted against the source instead — narrow and precise, so it
+// fails on the one edit that matters rather than on any reformatting nearby.
+$src_file = file_get_contents( __DIR__ . '/../../includes/tags/deprecated-tags.php' );
+check(
+	'M12.5 the SHIPPED base src-chain entry lists `limit` in match_any_options',
+	1 === preg_match(
+		'/transform_callback\'\s*=>\s*\'bws_migrate_base_src_chain\'/',
+		$src_file
+	)
+	&& 1 === preg_match(
+		'/match_any_options\'\s*=>\s*array\(\s*\'ref\',\s*\'srcTermIn\',\s*\'limit\'\s*\)/',
+		$src_file
+	),
+	'match_any_options for bws_migrate_base_src_chain must be ref + srcTermIn + limit'
 );
 
 echo "\n$pass passed, $fail failed\n";

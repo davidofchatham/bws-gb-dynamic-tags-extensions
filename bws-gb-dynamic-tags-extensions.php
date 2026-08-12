@@ -274,10 +274,27 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 		return;
 	}
+	// Depends on the fold GRAMMAR for one condition: `chain_fans` asks whether a
+	// `src` value states a chain that hops, which needs the chain parser. The
+	// predicate reads window.bwsSlotFold at call time (the filter runs long after
+	// every script has loaded), so the dependency is stated for the reader's sake
+	// rather than to fix an order — but an undeclared dependency is how the next
+	// person removes the wrong enqueue.
 	wp_enqueue_script(
 		'bws-dynamic-tags-conditional-options',
 		BWS_DYNAMIC_TAGS_URL . 'assets/js/editor-conditional-options.js',
-		array( 'wp-hooks' ),
+		array( 'wp-hooks', 'bws-dynamic-tags-slot-fold-grammar' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// VISUAL GROUPING for the separately-rendered option controls (source / field /
+	// link). Loads before every control that draws a box, because they take the class
+	// names off it — one declaration of what a group box looks like, whether it is drawn
+	// around a folded slot's axes or around a base tag's own controls.
+	wp_enqueue_script(
+		'bws-dynamic-tags-option-group',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/option-group.js',
+		array( 'wp-hooks', 'wp-element' ),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true
 	);
@@ -403,6 +420,26 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
+			'bws-dynamic-tags-option-group',
+		),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
+	// The BASE tag's source chain (FW-56). Loads after the slot-fold CONTROL because
+	// it renders that control's extracted step editor (window.bwsSlotFoldRepeater) —
+	// one component for both surfaces, so the base tag and a {{join}} slot cannot
+	// come to offer two vocabularies for one chain.
+	wp_enqueue_script(
+		'bws-dynamic-tags-src-chain-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/src-chain-control.js',
+		array(
+			'wp-hooks',
+			'wp-element',
+			'wp-components',
+			'wp-i18n',
+			'bws-dynamic-tags-slot-fold-grammar',
+			'bws-dynamic-tags-slot-fold-control',
+			'bws-dynamic-tags-option-group',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,
 		true

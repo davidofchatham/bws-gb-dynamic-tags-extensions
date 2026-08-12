@@ -46,8 +46,22 @@ function load( relative ) {
 	vm.runInThisContext( fs.readFileSync( file, 'utf8' ), { filename: file } );
 }
 
+// ENQUEUE ORDER. The wrapper owns the box class names both chain controls paint with and
+// is a declared script dependency of each, so they decline to mount without it — loading
+// it here models the real load rather than propping the driver up.
+load( 'assets/js/option-group.js' );
 load( 'assets/js/serialization-order-normalizer.js' );
 load( 'assets/js/slot-fold-grammar.js' );
+// The base-tag chain control, for its depth-0 option reading. It renders the fold
+// control's step editor, so both come along; nothing here is CALLED beyond the pure
+// chainFromOptions, and each file bails harmlessly if a wp surface is missing.
+global.wp.components = { SelectControl: {}, TextControl: {}, Button: {}, ComboboxControl: {} };
+global.wp.element.useState = function ( i ) { return [ i, function () {} ]; };
+global.wp.i18n = { __: function ( s ) { return s; }, sprintf: function ( s, a ) { return String( s ).replace( '%s', a ); } };
+load( 'assets/js/slot-fold-migrate.js' );
+load( 'assets/js/slot-fold-control.js' );
+load( 'assets/js/src-chain-control.js' );
+const srcChain = global.window.bwsSrcChain;
 
 const fold = global.window.bwsSlotFold;
 if ( ! fold ) {
@@ -107,10 +121,10 @@ const doc = {
 	grammar: {
 		optSep: g.optSep,
 		optClass: g.optClass,
-		hopSep: g.hopSep,
-		hopClass: g.hopClass,
 		stepSep: g.stepSep,
 		stepClass: g.stepClass,
+		partSep: g.partSep,
+		partClass: g.partClass,
 		brPairs: Object.keys( g.brPairs ).map( function ( open ) {
 			return [ open, g.brPairs[ open ] ];
 		} ),
@@ -143,10 +157,23 @@ const doc = {
 		return { emit: wire, reparse: canonSlot( fold.parseSlot( wire, 'table' ) ) };
 	} ),
 	legacy: corpus.legacy.map( function ( c ) {
-		const rec = fold.foldFromLegacy( c.n, c.options, c.combining, c.perSlotUse );
+		const rec = fold.foldFromFlat( c.n, c.options, c.combining, c.perSlotUse );
 		return {
 			slot: null === rec ? null : canonSlot( rec.slot ),
 			emit: null === rec ? null : fold.emitSlot( rec.slot )
+		};
+	} ),
+	// Depth-0 OPTION SETS -- the base-tag chain control's reading of a tag's source.
+	// srcChain.chainFromOptions is the JS half of bws_fold_chain_from_options; the
+	// three wire questions live in the grammar so both surfaces share one copy.
+	srcOptions: corpus.srcOptions.map( function ( c ) {
+		const raw = String( ( c.options.src || c.options.source ) || '' ).trim();
+		const chain = srcChain.chainFromOptions( c.options );
+		return {
+			isWire: fold.chainIsWire( raw ),
+			chain: canonChain( chain ),
+			root: fold.chainRoot( chain ),
+			fans: fold.chainFans( chain )
 		};
 	} )
 };

@@ -37,10 +37,17 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 }
 
 require __DIR__ . '/../../includes/tags/base-shared.php';
-// The fold config's `legacyAxes` derives through slot-fold.php's single owner of the
+// The fold config's `flatAxes` derives through slot-fold.php's single owner of the
 // tag-level subtraction; without it the builder's function_exists guard silently ships an
 // empty list, which is exactly the drift the field exists to prevent.
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+// The step vocabulary's `arg`/`accepts`/`produces` facts are DERIVED at registration
+// from the compiler seam and the engine's input-kind allowlist (traversal-pipeline.php)
+// — the whole point being that the editor cannot hold a second copy. Without both, the
+// builder's defined() guards ship label-only records and every step is offered
+// everywhere, silently.
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 
 $failures = 0;
 $count    = 0;
@@ -307,7 +314,7 @@ $joins = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => true,
 		'allow_same_read' => false,
-		'hops'            => array( 'srcTermIn' ),
+		'steps'            => array( 'terms' ),
 		'noun'            => 'field',
 	)
 );
@@ -341,17 +348,29 @@ assert_same( 'per-slot label carries the ordinal spelling, not the number', 'Fie
 $fold = $joins['A']['fold'];
 
 // Source enum: DERIVED through the slot twin, so the `site` arm and the inherit row
-// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does.
+// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does. The twin's `ref` row
+// is respelled to the wire slug `refs` (#70): that row is the relationship STEP's UI,
+// and with the slugMap retired the picker's value must BE the stored step's slug.
+$respell_ref = static function ( array $rows ): array {
+	foreach ( $rows as &$row ) {
+		if ( 'ref' === ( $row['value'] ?? '' ) ) {
+			$row['value'] = 'refs';
+		}
+	}
+	return $rows;
+};
 assert_same(
-	'srcRows derive from the slot twin at slot 1',
-	bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'],
+	'srcRows derive from the slot twin at slot 1, `ref` respelled to the wire slug',
+	$respell_ref( bws_build_slot_traversal_options( 1, $base_src, $base_trav, true )['src']['options'] ),
 	$fold['srcRows']
 );
 assert_same(
 	'srcRowsInherit derive from the slot twin at slot 2 (same-row included)',
-	bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'],
+	$respell_ref( bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'] ),
 	$fold['srcRowsInherit']
 );
+assert_same( 'the respelled row keeps its label (only the value moves)', true, in_array( 'refs', array_column( $fold['srcRows'], 'value' ), true ) );
+assert_same( '...and no legacy `ref` value survives in the enum', false, in_array( 'ref', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( 'site arm present when allowed', true, in_array( 'site', array_column( $fold['srcRows'], 'value' ), true ) );
 
 // Read enum: the twin's rows, with a COMBINING container's explicit unset row in front
@@ -368,16 +387,11 @@ assert_same(
 assert_same( 'no read inherit row while allow_same_read is false', false, in_array( 'same', array_column( $fold['readRowsInherit'], 'value' ), true ) );
 assert_same( 'readLabel is the base read noun, not a container copy', 'Text Field', $fold['readLabel'] );
 
-// Hops are a CAPABILITY list: only what the container's resolver can express.
-assert_same( 'hopRows carry only the requested hops', array( 'srcTermIn' ), array_column( $fold['hopRows'], 'value' ) );
-assert_same( 'hop row label is step-shaped, not the checkbox question', 'In Taxonomy Term', $fold['hopRows'][0]['label'] );
-
-// DECISION 3: the wire names steps, the engine names options; one map, one place.
-assert_same(
-	'slugMap is the engine→wire step vocabulary',
-	array( 'ref' => 'refs', 'srcTermIn' => 'terms', 'rows' => 'entries' ),
-	$fold['slugMap']
-);
+// The OFFER is a CAPABILITY list: only what the container's resolver can express,
+// shipped as an ordered slug array — the builders' `steps` parameter as-is, not rows.
+// Labels live on the shared vocabulary record, declared once (#70).
+assert_same( 'offer carries only the requested steps, as wire slugs', array( 'terms' ), $fold['offer'] );
+assert_same( 'step label declared once on the vocabulary, step-shaped', 'In Taxonomy Term', $fold['steps']['terms']['label'] );
 
 // Picker configs come off the base definitions (label/help/placeholder), so the
 // repeater's field pickers read exactly like the flat ones did.
@@ -387,12 +401,12 @@ assert_same( 'keyOption keeps the dynamic-label flag', true, $fold['keyOption'][
 
 // LEGACY AXES — the per-slot keys the editor may fold and delete. Join excludes nothing:
 // its `limit` was a SLOT axis (one per slot, threaded into that slot's resolve), the
-// opposite of try_'s tag-level cap. Shipping the list is what stops the control keeping
+// opposite of try_'s tag-level limit. Shipping the list is what stops the control keeping
 // its own.
 assert_same(
-	'legacyAxes = every axis when the container excludes none',
+	'flatAxes = every axis when the container excludes none',
 	array( 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ),
-	$fold['legacyAxes']
+	$fold['flatAxes']
 );
 
 // RETIRED SRC TOKENS — the slots the mount migrator must DECLINE rather than fold (#56).
@@ -407,6 +421,72 @@ assert_same(
 	'retiredSrc ships to the editor, and IS the constant (not a copy of it)',
 	BWS_FOLD_RETIRED_SRC_TOKENS,
 	$fold['retiredSrc']
+);
+
+// The root an absent chain SPELLS — the control displays it rather than rendering a
+// picker whose value matches no row, which paints the first row while believing nothing
+// is selected (so the row on screen cannot be picked, and Add step never appears). Two
+// properties, and the second is the one worth asserting: it must BE the enum's own first
+// row, not a literal beside it. A hand-typed 'current' here would keep working right up
+// until the source list's lead row changed, and then display a selection the author
+// cannot reproduce from the list.
+assert_same(
+	'defaultRoot ships, and IS the source enum\'s first row',
+	$fold['srcRows'][0]['value'],
+	$fold['defaultRoot']
+);
+
+// THE CONSOLIDATED STEP RECORD (#70) — one `steps[slug]` per WIRE slug, every fact
+// derived, none re-typed. A copy would not error; it would drift, and the symptom is
+// an author writing a chain that renders nothing with no control saying why.
+assert_same(
+	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
+	array( 'refs', 'terms', 'entries' ),
+	array_keys( $fold['steps'] )
+);
+// `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the
+// wire slug, so this reads as a tautology — it is not: it pins that the SHIPPED config
+// is the engine constant and not a re-typed copy that agrees today. `terms` is the
+// sharp case: post only.
+assert_same(
+	'steps[*].accepts derives from the engine\'s own refusal list',
+	BWS_TRAVERSAL_STEP_INPUT_KINDS['terms'],
+	$fold['steps']['terms']['accepts']
+);
+// `arg` is the compiler seam's value, shipped for the first time — comparing two
+// slugs' `arg` is what decides whether a slug switch keeps the field.
+assert_same(
+	'steps[*].arg IS the compiler seam\'s map',
+	BWS_FOLD_STEP_TYPES,
+	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'arg' ) )
+);
+assert_same(
+	'steps[*].produces IS the produced-kind map',
+	BWS_FOLD_STEP_KINDS,
+	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'produces' ) )
+);
+// Only `site` has a statically-known root kind. Every other root resolves at render, so
+// the editor must offer everything there rather than guess whether `current` is a post
+// or a term — a guess would hide the taxonomy step on every ordinary tag. `roots` is
+// its own top-level key: a fact about roots, not about steps.
+assert_same(
+	'roots is its own key and only `site` is static',
+	BWS_FOLD_STATIC_ROOT_KINDS,
+	$fold['roots']
+);
+// ...and the map the EDITOR filters by is the same one the RENDER path dispatches on.
+// The two read it in opposite directions (render answers "what did this resolve to",
+// the editor asks "what may follow this"), so a divergence would not error anywhere —
+// the editor would simply offer, or withhold, a step against a kind the renderer does
+// not agree the root has. Driven through the shipped resolution rather than compared to
+// the constant twice, so the assertion covers the `?? 'base'` fallback too.
+assert_same(
+	'the static root map agrees with what a root-only chain RESOLVES to',
+	array( 'site', 'base' ),
+	array(
+		bws_fold_chain_resolution( array( array( 'slug' => 'site' ) ) )['kind'],
+		bws_fold_chain_resolution( array( array( 'slug' => 'current' ) ) )['kind'],
+	)
 );
 
 // Container facts the control and the renderer BOTH read.
@@ -425,7 +505,7 @@ $sel = bws_build_fold_slot_options(
 		'base_key'        => $text['key'],
 		'allow_site'      => false,
 		'allow_same_read' => true,
-		// try_'s bare `limit` is the TAG-level cap for every slot, so it is not a slot axis.
+		// try_'s bare `limit` is the TAG-level limit for every slot, so it is not a slot axis.
 		'tag_level'       => array( 'limit' ),
 		'noun'            => 'attempt',
 	)
@@ -441,9 +521,9 @@ assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 
 assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
 assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
 assert_same(
-	'selecting legacyAxes drop the tag-level limit',
+	'selecting flatAxes drop the tag-level limit',
 	array( 'src', 'ref', 'srcTermIn', 'use', 'key' ),
-	$sel_fold['legacyAxes']
+	$sel_fold['flatAxes']
 );
 
 // The other two READ SHAPES a selecting container comes in. Both are described by the
@@ -472,9 +552,9 @@ assert_same( 'key-only: the key picker is still configured', $text['key']['label
 assert_same( 'key-only: perSlotUse false reaches the control', false, $key_fold['perSlotUse'] );
 assert_same( 'key-only: readLabel is empty, so the control falls back to the key noun', '', $key_fold['readLabel'] );
 assert_same(
-	'key-only: legacyAxes keep `key` and drop the tag-level `use`',
+	'key-only: flatAxes keep `key` and drop the tag-level `use`',
 	array( 'src', 'ref', 'srcTermIn', 'key' ),
-	$key_fold['legacyAxes']
+	$key_fold['flatAxes']
 );
 
 // NO READ AXIS AT ALL (try_title / try_permalink / try_datetime_*): the read is a
@@ -499,9 +579,130 @@ assert_same( 'chain-only: the source enum is still whole', true, count( $chain_f
 // option. Folding it into slot 1 would duplicate it inside the slot value and delete the
 // tag-level key the resolver actually reads.
 assert_same(
-	'chain-only: legacyAxes are the chain axes alone',
+	'chain-only: flatAxes are the chain axes alone',
 	array( 'src', 'ref', 'srcTermIn' ),
-	$chain_fold['legacyAxes']
+	$chain_fold['flatAxes']
+);
+
+// ── The REGISTRATION pass ────────────────────────────────────────────────────
+//
+// bws_prepare_registration_options() is the single pass every BWS registration goes
+// through, so two things ride it: the visual group stamp, and dropping the flat source
+// options a chain control has taken over. Both are gated — the stamp on our registrations
+// (a name-keyed map applied in JS would also wrap GB core tags' `key`/`source`), the drop
+// on the control TYPE (a `term_`/`table`/`call` source is a plain select and still
+// authors the flat pair).
+//
+// The drop is asserted DERIVED, not by name: it reads the chain option's own `flatAxes`,
+// the same list the control deletes by, so a change to what the chain absorbs cannot
+// leave a stray control behind it.
+
+require_once __DIR__ . '/../../includes/helpers/registration-helpers.php';
+// The link group is asserted against its SHIPPED definitions, not a local literal — the
+// three keys and their reveal conditions are what decide when the box appears.
+require_once __DIR__ . '/../../includes/helpers/link-helpers.php';
+
+$chain_tag = bws_prepare_registration_options(
+	array_merge( bws_build_src_chain_option(), bws_base_traversal_options(), bws_get_text_field_options() )
+);
+assert_same( 'chain tag: the absorbed `ref` control is gone', false, isset( $chain_tag['ref'] ) );
+assert_same( 'chain tag: the absorbed `srcTermIn` control is gone', false, isset( $chain_tag['srcTermIn'] ) );
+assert_same( 'chain tag: the source itself survives', 'bws-src-chain', $chain_tag['src']['type'] );
+assert_same( 'chain tag: unabsorbed options survive', true, isset( $chain_tag['use'], $chain_tag['key'] ) );
+
+// ── The BASE control's defaultRoot answers TWO questions that must not diverge ───────
+//
+// It is a DISPLAY value, so it has to be a row the picker paints: a SelectControl whose
+// value matches no option paints its FIRST row while believing nothing is selected, so
+// the row on screen cannot be picked (selecting it fires no change event) and `+ Add
+// step`, needing a step to append to, never appears. That is why it derives from the ROOT
+// rows and not from the enum they are filtered out of — `ref` is a step, not a root, so
+// the two lists differ by a row.
+//
+// It also STANDS FOR what an absent `src` means, and that is decided by `_strip_default`,
+// which blanks the UNFILTERED enum's first row. So the two derives must agree, and they
+// agree today only because `current` leads both. Asserted rather than assumed: if `ref`
+// ever led the enum, the editor would display `current` as the root while the wire's
+// absence meant `ref` — a silent lie about a stored tag, and a bug in the enum's ordering
+// rather than something the fold config should absorb.
+$base_chain = bws_build_src_chain_option();
+$base_fold  = $base_chain['src']['fold'];
+assert_same(
+	'base chain: defaultRoot IS a row the picker paints',
+	$base_fold['srcRows'][0]['value'],
+	$base_fold['defaultRoot']
+);
+assert_same(
+	'base chain: ...and IS the row `_strip_default` blanks',
+	$base_chain['src']['options'][0]['value'],
+	$base_fold['defaultRoot']
+);
+// The base tag OFFERS both steps (`entries` deliberately absent — no base-tag arm
+// consumes a meta_row), and the vocabulary record it ships is BYTE-IDENTICAL to the
+// slot builder's: container-invariant by construction, both consuming one helper (#70).
+assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
+assert_same( 'the step vocabulary is container-invariant (base ≡ slot record)', $fold['steps'], $base_fold['steps'] );
+assert_same( '...and so is roots', $fold['roots'], $base_fold['roots'] );
+
+$flat_tag = bws_prepare_registration_options(
+	array_merge( bws_base_source_option(), bws_base_traversal_options() )
+);
+assert_same( 'plain-select tag: `ref` KEPT', true, isset( $flat_tag['ref'] ) );
+assert_same( 'plain-select tag: `srcTermIn` KEPT', true, isset( $flat_tag['srcTermIn'] ) );
+
+// The stamp. `key` leads its group as well as `use`, because on {{email}}/{{phone}}/
+// {{table}} the field key IS the whole read and a lone-member opt-out would leave the
+// simplest reads as the only ones with no field group.
+assert_same( 'stamp: src leads the source group', 'source', $chain_tag['src']['_group'] );
+assert_same( 'stamp: src is a lead', true, ! empty( $chain_tag['src']['_group_lead'] ) );
+assert_same( 'stamp: use is a field lead', true, ! empty( $chain_tag['use']['_group_lead'] ) );
+assert_same( 'stamp: key is a field lead too', true, ! empty( $chain_tag['key']['_group_lead'] ) );
+$ungrouped = bws_prepare_registration_options( array( 'fallback' => array( 'type' => 'text' ) ) );
+assert_same( 'stamp: an unmapped option gets no group', false, isset( $ungrouped['fallback']['_group'] ) );
+
+// The FORMAT group holds one lead and one deliberate non-lead, and the pair is the whole
+// mechanism: `as` is a COMPOSITE (return type + image size from one key), so on {{image}}
+// it is already a group of two and must keep its box when the size control hides — the
+// wrapper cannot see inside a composite. `format` alone is {{join}}'s assembly template,
+// one control, where a border is noise; on datetime it sits in a run with `as` and boxes
+// anyway. One name-keyed map, no per-tag knowledge.
+$fmt = bws_prepare_registration_options( array(
+	'as'              => array( 'type' => 'bws-as-size' ),
+	'format'          => array( 'type' => 'bws-format-input' ),
+	'showCurrentYear' => array( 'type' => 'checkbox' ),
+) );
+assert_same( 'stamp: the datetime format cluster shares one group', 'format', $fmt['as']['_group'] );
+assert_same( 'stamp: ...and its siblings agree', array( 'format', 'format' ), array( $fmt['format']['_group'], $fmt['showCurrentYear']['_group'] ) );
+assert_same( 'stamp: `as` LEADS (a composite keeps its box when a sub-control hides)', true, ! empty( $fmt['as']['_group_lead'] ) );
+assert_same(
+	'stamp: `format` does NOT lead (it never stands alone once `mode` joins it)',
+	array( false, false ),
+	array( ! empty( $fmt['format']['_group_lead'] ), ! empty( $fmt['showCurrentYear']['_group_lead'] ) )
+);
+
+// {{join}}'s assembly pair lands in the SAME group as datetime's formatting — both answer
+// "how is the value rendered". `mode` reveals exactly one of `valueSep`/`format`, so two
+// members are always visible and the group boxes without a lead.
+$join_fmt = bws_prepare_registration_options( array(
+	'mode'     => array( 'type' => 'select' ),
+	'valueSep' => array( 'type' => 'text' ),
+	'format'   => array( 'type' => 'bws-format-input' ),
+) );
+assert_same(
+	'stamp: join mode + valueSep + format share the format group',
+	array( 'format', 'format', 'format' ),
+	array( $join_fmt['mode']['_group'], $join_fmt['valueSep']['_group'], $join_fmt['format']['_group'] )
+);
+
+// The link group has no lead, so a tag left on "No Link" shows a bare select and the box
+// appears when a link is configured. Decided by trying both (user, 2026-08-05): the link
+// is the one OPTIONAL group here — a source and a field read are what every tag does, so
+// those boxes stand whether or not they are configured.
+$link = bws_prepare_registration_options( bws_get_link_options() );
+assert_same(
+	'stamp: no lead in the link group — box only once a link is configured',
+	array( false, false, false ),
+	array( ! empty( $link['linkTo']['_group_lead'] ), ! empty( $link['linkKey']['_group_lead'] ), ! empty( $link['newTab']['_group_lead'] ) )
 );
 
 echo "\n";

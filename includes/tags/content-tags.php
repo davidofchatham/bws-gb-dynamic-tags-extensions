@@ -131,7 +131,12 @@ function bws_post_excerpt_core( $post_id, $options, $instance ) {
 	if ( ! $post_id ) {
 		return '';
 	}
-	$excerpt = get_the_excerpt( $post_id );
+	// Context swap: excerpt generation and its filters (excerpt_more's read-more
+	// link) otherwise read the AMBIENT global post when this read hopped (#58).
+	// Called unguarded on purpose — content-helpers.php loads from the same
+	// bootstrap, and a function_exists fallback here would silently restore the
+	// bug rather than fail.
+	$excerpt = bws_with_post_context( $post_id, static fn() => get_the_excerpt( $post_id ) );
 	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
 		$excerpt,
 		array_merge( $options, array( 'id' => $post_id ) ),

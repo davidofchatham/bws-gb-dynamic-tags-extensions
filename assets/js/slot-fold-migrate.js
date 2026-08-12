@@ -7,14 +7,14 @@
  * are reachable ONLY here — an author who opens a widget's tag modal is the only event
  * that can migrate it. Conversely the scanner reaches drafts and templates nobody
  * opens. Both paths run the SAME rules, which is why this file is a twin rather than a
- * second implementation: `bwsSlotFold.foldFromLegacy` (the grammar owner's twin) makes
+ * second implementation: `bwsSlotFold.foldFromFlat` (the grammar owner's twin) makes
  * every legacy→folded decision, and what remains here is the wire-level adapter —
  * strip, emit, canonicalize — mirroring bws_fold_migrate_slots().
  *
  * NO TAG-NAME TABLE HERE. The PHP migrator matches by tag name because
  * MigrationRegistry does; the editor instead reads the `fold` config off the option
  * definition GB hands to the filter, so a container's parameters — including which
- * legacy axes are per-slot at all (`legacyAxes`) — arrive DERIVED from registration.
+ * legacy axes are per-slot at all (`flatAxes`) — arrive DERIVED from registration.
  * Nothing in this file knows that `try_text` exists.
  *
  * MODAL-CONFIRM BOUNDARY. `setState` writes the modal's draft state, so a mount
@@ -43,7 +43,7 @@
 	/**
 	 * The legacy per-slot axes this container owns.
 	 *
-	 * PHP-DERIVED (`legacyAxes`, from bws_fold_slot_legacy_axes). The fallback is the
+	 * PHP-DERIVED (`flatAxes`, from bws_fold_slot_flat_axes). The fallback is the
 	 * full set, matching an unfiltered container: an absent list is a REGISTRATION bug,
 	 * and folding too much is visible immediately, whereas folding nothing looks like
 	 * "no legacy wire here" and silently strands it.
@@ -52,7 +52,7 @@
 	 * @return {Array} Axis names.
 	 */
 	function slotAxes( conf ) {
-		var axes = conf && conf.legacyAxes;
+		var axes = conf && conf.flatAxes;
 		return ( axes && axes.length ) ? axes : [ 'src', 'ref', 'srcTermIn', 'use', 'key', 'limit' ];
 	}
 
@@ -60,9 +60,9 @@
 	 * Legacy `src` VALUES this container must refuse to fold.
 	 *
 	 * PHP-DERIVED (`retiredSrc`, from BWS_FOLD_RETIRED_SRC_TOKENS) for the same reason
-	 * `legacyAxes` is: a hand-kept copy of a rule the renderer owns is how the two paths
+	 * `flatAxes` is: a hand-kept copy of a rule the renderer owns is how the two paths
 	 * drift. The fallback is EMPTY, not the full list, and that direction is deliberate —
-	 * unlike `legacyAxes`, declining too much would silently stop migrating every slot,
+	 * unlike `flatAxes`, declining too much would silently stop migrating every slot,
 	 * which reads as "no legacy wire here". An absent list is a registration bug, and the
 	 * worst it costs is the pre-#56 behaviour on a token that barely exists.
 	 *
@@ -114,6 +114,39 @@
 	}
 
 	/**
+	 * The view the legacy MAPPER reads — slotState(), plus the one key it must see that is
+	 * not a per-slot axis.
+	 *
+	 * A SELECTING container states `limit` ONCE, at tag level, and it is every attempt's
+	 * own default rather than a bound across attempts. The mapper has to see it, or the
+	 * flat era's materialized default writes a `1` that SHADOWS the author's number — a
+	 * slot's own limit wins over the tag-level one in every container arm. It is a READ
+	 * and never a fold: the key is not on the per-slot delete list, so the slot loop neither
+	 * strips it nor counts it as something to migrate. migrateSlots() retires it once, as a
+	 * tag-level decision (#61).
+	 *
+	 * The gate is exactly foldFromFlat()'s own — SELECTING container, and never where the
+	 * slot already owns the key — so the two cannot disagree about which map is being read.
+	 *
+	 * ONE function because two readers need one answer: migrateSlots() writes the wire and
+	 * the fold CONTROL reads a legacy slot to display it. A control showing `1` where the
+	 * mount migration is about to commit `3` is the drift this seam exists to prevent.
+	 *
+	 * @param {Object} state Whole option map.
+	 * @param {Object} conf  Fold config.
+	 * @return {Object} Filtered map, plus a tag-level `limit` where the container has one.
+	 */
+	function mapperState( state, conf ) {
+		var src = slotState( state, conf );
+		if ( ! conf.combining
+			&& ! Object.prototype.hasOwnProperty.call( src, 'limit' )
+			&& '' !== String( ( state.limit === null || state.limit === undefined ) ? '' : state.limit ).trim() ) {
+			return Object.assign( {}, src, { limit: state.limit } );
+		}
+		return src;
+	}
+
+	/**
 	 * Fold a tag's legacy flat slot keys into folded `{N}` values.
 	 *
 	 * PURE — state in, state out (or null when there is nothing to migrate), so the twin
@@ -141,24 +174,69 @@
 	 */
 	function migrateSlots( state, conf ) {
 		var src = slotState( state, conf );
+		var view = mapperState( state, conf );
 		var next = {};
 		var touched = false;
+		var hasSlot = false;
 		var n;
 
 		Object.keys( state ).forEach( function ( key ) {
 			next[ key ] = state[ key ];
 		} );
 
+		// #61 — the SELECTING container's tag-level `limit` stops existing. Mirrors
+		// bws_fold_migrate_slots(): a LEGACY slot takes the number through the mapper view
+		// above, an ALREADY-FOLDED one takes it onto its own chain here, and a slot that
+		// fans only by INHERITING takes nothing (the render seam carries the bound with the
+		// source it inherits). NUMERIC only — an uninterpretable value is not a number to
+		// push anywhere, and deleting an author's text on that basis is a bigger move than
+		// this rewrite is entitled to.
+		var tagLimit = null;
+		if ( ! conf.combining ) {
+			var rawLimit = String( ( state.limit === null || state.limit === undefined ) ? '' : state.limit ).trim();
+			if ( '' !== rawLimit && fold.isNumericLike( rawLimit ) ) {
+				tagLimit = rawLimit;
+			}
+		}
+
 		for ( n = 1; n <= ( conf.max || 5 ); n++ ) {
+			var foldedKey = fold.slotKey( n );
+			var foldedVal = String( state[ foldedKey ] || '' ).trim();
 			var present = legacyKeys( conf, n ).filter( function ( key ) {
 				return Object.prototype.hasOwnProperty.call( src, key );
 			} );
+			// A slot naming a RETIRED source token does NOT count — it is declined whole
+			// below, so the number has nowhere to land in it, and consuming the tag-level
+			// key on its account would leave the tag half-treated: legacy keys still there
+			// for the converter to fix later, but the bound they need already deleted.
+			var declined = '' === foldedVal
+				&& present.length
+				&& retiredSrc( conf ).indexOf( String( src[ ( 1 === n ? '' : String( n ) + '-' ) + 'src' ] || '' ).trim() ) > -1;
+			if ( ! declined && ( '' !== foldedVal || present.length ) ) {
+				hasSlot = true;
+			}
+
+			// The retiring number lands on an already-folded slot's own last fanning step,
+			// through the same three owners the rest of the fold uses. A slot that pins its
+			// own limit is left alone: the tag-level number was a DEFAULT, and a default
+			// never overwrites a stated value (applyLegacyLimit decides both).
+			if ( '' !== foldedVal && null !== tagLimit ) {
+				var parsed = fold.parseSlot( foldedVal, conf.container || 'try' );
+				if ( parsed ) {
+					var applied = fold.applyLegacyLimit( parsed.chain || [], tagLimit );
+					if ( applied.consumed ) {
+						parsed.chain = applied.chain;
+						next[ foldedKey ] = fold.emitSlot( parsed );
+					}
+				}
+			}
+
 			if ( ! present.length ) {
 				continue;
 			}
 
 			// Declined whole: no fold, no strip. See the docblock.
-			if ( retiredSrc( conf ).indexOf( String( src[ ( 1 === n ? '' : String( n ) + '-' ) + 'src' ] || '' ).trim() ) > -1 ) {
+			if ( declined ) {
 				continue;
 			}
 
@@ -168,18 +246,25 @@
 			} );
 
 			// An already-folded value for this slot wins outright.
-			if ( '' !== String( state[ fold.slotKey( n ) ] || '' ).trim() ) {
+			if ( '' !== foldedVal ) {
 				continue;
 			}
 
-			var rec = fold.foldFromLegacy( n, src, !! conf.combining, false !== conf.perSlotUse );
+			var rec = fold.foldFromFlat( n, view, !! conf.combining, false !== conf.perSlotUse );
 			if ( ! rec || ! rec.slot ) {
 				continue;
 			}
 			var wire = fold.emitSlot( rec.slot );
 			if ( '' !== wire ) {
-				next[ fold.slotKey( n ) ] = wire;
+				next[ foldedKey ] = wire;
 			}
+		}
+
+		// The key goes only where there was a slot to push it into — a tag with no slot at
+		// all has nowhere for the number to land.
+		if ( null !== tagLimit && hasSlot ) {
+			delete next.limit;
+			touched = true;
 		}
 
 		if ( ! touched ) {
@@ -201,13 +286,121 @@
 		return ordered;
 	}
 
+	/**
+	 * Rewrite a BASE tag's flat source triple into depth-0 CHAIN wire.
+	 *
+	 * TWIN of bws_fold_migrate_base_src() (includes/helpers/slot-fold-migrate.php),
+	 * which is where every rule below is decided and explained. The two paths must
+	 * write BYTE-IDENTICAL output, key order included: a divergence does not surface
+	 * as one path being wrong, it surfaces as one tag stored two ways depending on
+	 * which found it first. The shared corpus proves it.
+	 *
+	 * Returns null when there is nothing to migrate -- which is also the mount
+	 * migrator's loop guard, since returning the previous reference makes React bail.
+	 *
+	 * @param {Object} state The tag's extraTagParams.
+	 * @param {Object} conf  The chain config (for the PHP-derived retired-token list).
+	 * @return {Object|null} Rewritten options, or null.
+	 */
+	function baseSrcState( state, conf ) {
+		var s = state || {};
+		var src = String( ( s.src || s.source ) || '' ).trim();
+		var tax = String( s.srcTermIn || '' ).trim();
+
+		var chain = [];
+
+		if ( fold.chainIsWire( src ) ) {
+			// Already respelled -- but a TAG-LEVEL LIMIT is legacy by POSITION rather
+			// than by spelling, and it is the one shape where a bound is INVISIBLE (the
+			// step's own Limit field reads unlimited, and #62 left no control that can
+			// reach the key). So it is absorbed onto the step it bounds here too.
+			//
+			// NUMERIC ONLY, unlike the flat branch below: that one materializes the flat
+			// ERA's default when the key is absent or unreadable, because the spelling it
+			// leaves behind meant 1. Chain wire is not changing era, so there is no
+			// default to carry. See the PHP owner (bws_fold_migrate_base_src).
+			var rawLimit = String( ( s.limit === null || s.limit === undefined ) ? '' : s.limit ).trim();
+			if ( '' === rawLimit || ! fold.isNumericLike( rawLimit ) ) {
+				return null;
+			}
+			var parsed = fold.parseChain( src );
+			if ( ! parsed || parsed.error || ! parsed.length ) {
+				return null;
+			}
+			chain = parsed;
+		} else {
+			if ( -1 !== retiredSrc( conf || {} ).indexOf( src ) ) {
+				return null;   // declined whole, exactly as a slot is (#56)
+			}
+			if ( 'site' === src ) {
+				return null;   // the site read wins; the honest rewrite would DROP a key
+			}
+			if ( 'ref' !== src && '' === tax ) {
+				return null;   // nothing fans, so there is no chain to state
+			}
+
+			if ( 'ref' === src ) {
+				var ref = String( s.ref || '' ).trim();
+				chain.push( { slug: 'refs', arg: '' !== ref ? ref : null, limit: null, extra: [] } );
+			}
+			if ( '' !== tax ) {
+				chain.push( { slug: 'terms', arg: tax, limit: null, extra: [] } );
+			}
+		}
+
+		// Migration changes the SPELLING, and the spelling selects the tag-level
+		// default -- so it must carry the default it is leaving behind, onto the STEPS.
+		// The mapping is the grammar's (bws_fold_chain_apply_legacy_limit), shared with the
+		// converter half and the author-conversion commit so three surfaces cannot store
+		// one tag three ways.
+		// Depth 0, so an explicit `limit:0`/`-1` is CONSUMED rather than left behind:
+		// chain wire already means unlimited, and since #62 no control can reach the key.
+		var bound = fold.applyLegacyLimit( chain, s.limit, true );
+
+		// Enclosing level 0 -- a base tag's `src:` IS the wrapper.
+		var wire = fold.emitChain( bound.chain, 0 );
+		if ( '' === wire || ! fold.chainIsWire( wire ) ) {
+			return null;
+		}
+
+		// On the absorb branch the KEY is the point, so a mapping that stood down -- the
+		// chain states its own step limits, or it does not fan -- is no rewrite at all.
+		// Returning an unchanged map would re-serialize on every open, which is what the
+		// mount path's loop guard exists to avoid.
+		if ( ! bound.consumed && src === wire ) {
+			return null;
+		}
+
+		var out = Object.assign( {}, s );
+		delete out.source;
+		out.src = wire;
+		delete out.ref;
+		delete out.srcTermIn;
+		if ( bound.consumed ) {
+			delete out.limit;
+		}
+		// Canonical key order, through the SAME normalizer the slot half uses -- the two
+		// paths must not write one tag two ways, and key order is half the property.
+		var keys = Object.keys( out );
+		if ( 'function' === typeof window.bwsReorderKeys ) {
+			keys = window.bwsReorderKeys( keys );
+		}
+		var ordered = {};
+		keys.forEach( function ( key ) {
+			ordered[ key ] = out[ key ];
+		} );
+		return ordered;
+	}
+
 	window.bwsSlotFoldMigrate = {
 		slotAxes: slotAxes,
 		retiredSrc: retiredSrc,
 		legacyKeys: legacyKeys,
 		slotKeys: slotKeys,
 		slotState: slotState,
-		migrateSlots: migrateSlots
+		mapperState: mapperState,
+		migrateSlots: migrateSlots,
+		baseSrcState: baseSrcState
 	};
 
 	// ── The mount control ───────────────────────────────────────────────────
@@ -275,6 +468,73 @@
 			element
 		);
 	}
+
+	/** Renders nothing; rewrites this BASE tag's flat source on mount. */
+	function BaseSrcMountMigrator( props ) {
+		var setState = props.setState;
+		var conf = props.conf;
+
+		useEffect( function () {
+			setState( function ( prev ) {
+				var migrated = baseSrcState( prev || {}, conf );
+				// Same reference = same loop guard as the slot half.
+				return migrated || prev;
+			} );
+		} );
+
+		return null;
+	}
+
+	/**
+	 * Fire once per BASE tag, on its `bws-src-chain` source option.
+	 *
+	 * The depth-0 counterpart of mountFilter(). It anchors on the CHAIN CONTROL rather
+	 * than on the tag's first option for the same two reasons the slot half anchors on
+	 * a folded key: the control's presence IS the "does this tag author chains" gate,
+	 * and the source option always renders, whereas a leading option can be hidden by a
+	 * conditional filter.
+	 *
+	 * Reaches what the content scanner cannot -- a block widget's tag lives in the
+	 * `widget_block` option, not in post content -- and misses what only the scanner
+	 * reaches, a draft nobody opens. Complementary, which is why both exist.
+	 */
+	function baseMountFilter( element, allOptions, context ) {
+		if ( ! element || ! allOptions || ! context || 'function' !== typeof context.setState ) {
+			return element;
+		}
+		var first = null;
+		Object.keys( allOptions ).forEach( function ( name ) {
+			var cfg = allOptions[ name ];
+			if ( null === first && cfg && 'bws-src-chain' === cfg.type ) {
+				first = name;
+			}
+		} );
+		if ( null === first || element.key !== first ) {
+			return element;
+		}
+
+		// The wrapper CARRIES THE OPTION KEY -- a later filter anchoring on
+		// `element.key` must still find it. Two keyless wraps at one priority is how the
+		// first one silently switched the second one off, and this control's own filter
+		// anchors on exactly this key.
+		return wp.element.createElement(
+			wp.element.Fragment,
+			{ key: element.key },
+			wp.element.createElement( BaseSrcMountMigrator, {
+				key: 'bws-base-src-mount-migrator',
+				setState: context.setState,
+				conf: ( allOptions[ first ] && allOptions[ first ].fold ) || {}
+			} ),
+			element
+		);
+	}
+
+	wp.hooks.addFilter(
+		'generateblocks.editor.tagSpecificControls',
+		'bws/base-src-mount-migrate',
+		baseMountFilter,
+		20
+	);
 
 	wp.hooks.addFilter(
 		'generateblocks.editor.tagSpecificControls',

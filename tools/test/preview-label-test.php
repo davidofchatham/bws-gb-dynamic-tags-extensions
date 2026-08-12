@@ -376,14 +376,17 @@ check(
 	),
 	"[Try 'sku' from Current, 'alt' from Ref 'rel']"
 );
-// Slot ref with no ref key → warning.
+// Slot ref with no ref key → warning. Since #74 the slot is SKIPPED rather than resolved
+// with an empty ref, so the skip warning is the whole message: the per-slot "no key" check
+// never runs, and complaining about the key of a slot that will not read anything would
+// send the author after the wrong thing.
 check(
 	'slot ref no ref → warn',
 	bws_build_try_preview_label(
 		[ 'src' => 'ref' ],
 		'text'
 	),
-	'[⚠ Try: slot 1 no ref, slot 1 no key]'
+	'[⚠ Try: slot 1 no ref]'
 );
 // Fallback annotation on try.
 check(
@@ -537,7 +540,7 @@ check(
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%1 (%2)', 'A' => 'key(name_first)', 'B' => 'src(same);key(name_last)' ] ),
 	"[Join “'name_first' ('name_last')”]"
 );
-// `%%` shows as typed, and a `%` before a letter past the container cap is not a token.
+// `%%` shows as typed, and a `%` before a letter past the container maximum is not a token.
 check(
 	'folded: an escaped % and an out-of-range letter both stay literal',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'format' => '%A %%B %K', 'A' => 'key(name_first)' ] ),
@@ -651,6 +654,20 @@ check(
 	'try_: the ONLY slot inexpressible reports the reason, NOT "no slots configured"',
 	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
 	'[⚠ Try: slot 1 source not supported]'
+);
+// A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
+// "source not supported" would send the author after the wrong thing: the chain IS
+// expressible, and what is missing is an earlier slot that resolves. Reachable in a
+// COMBINING container, where an unconfigured read skips slot A without feeding the carry.
+check(
+	'join: `same` with nothing carried says what to fix, not "unsupported"',
+	bws_build_join_preview_label( [ 'A' => 'src(site)', 'B' => 'src(same);key(x)' ] ),
+	'[⚠ Join: slot 2 no previous source]'
+);
+check(
+	'…and an argless `refs` names the RIGHT missing thing, not the term hop\'s noun',
+	bws_build_join_preview_label( [ 'A' => 'src(refs);key(x)' ] ),
+	'[⚠ Join: slot 1 no ref]'
 );
 // An INCOMPLETE step is flagged too, but NAMED for what is missing rather than as an
 // unsupported source: the seam can express a term hop, this one just has no taxonomy

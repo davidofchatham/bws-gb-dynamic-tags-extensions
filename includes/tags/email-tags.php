@@ -49,7 +49,7 @@ function bws_register_email_tag(): void {
 	}
 	$registered = true;
 
-	$source_opt     = bws_base_source_option();
+	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
 
 	new GenerateBlocks_Register_Dynamic_Tag( array(
@@ -68,28 +68,24 @@ function bws_register_email_tag(): void {
 			),
 		),
 		// Canonical CONTROL order (FW-52): source → format(none) → link → fallback.
-		// Source group = src → ref/srcTermIn → limit/sep → key. The email own-anchor
+		// Source group = src → ref/srcTermIn → sep → key. The email own-anchor
 		// set (subject → noLink) is the tag's `link` group → after source, before
 		// fallback (serialization normalizer keeps it that way in the string too).
-		'options'    => bws_strip_default_select_values( array_merge(
+		'options'    => bws_prepare_registration_options( array_merge(
 			$source_opt,
 			$traversal_opts,
 			array(
 				// List mode only applies to the final traversal step (terms / related
-				// posts). Scalar sources return one address — hide both. Before the
+				// posts). Scalar sources return one address — hide it. Before the
 				// field key (list length is a source property, FW-52).
-				'limit'    => array(
-					'type'        => 'number',
-					'label'       => __( 'Result Limit', 'generateblocks' ),
-					'help'        => __( 'Maximum number of results to return. Default: 1. Enter 0 for no limit.', 'generateblocks' ),
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
-				),
+				// NO TAG-LEVEL `limit` (#62), and `sep` stays. Reasoning in base-tags.php,
+				// on the same pair — not restated here, since a copy is what drifts.
 				'sep'      => array(
 					'type'        => 'text',
 					'label'       => __( 'Result Separator', 'generateblocks' ),
 					'help'        => __( 'Text to place between results. Default: ", ".', 'generateblocks' ),
 					'placeholder' => ', ',
-					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => 'ref' ),
+					'show_if_any' => array( 'srcTermIn' => 'not_empty', 'src' => array( 'ref', 'chain_fans' ) ),
 				),
 				'key'      => array(
 					'type'         => 'bws-field-combo',

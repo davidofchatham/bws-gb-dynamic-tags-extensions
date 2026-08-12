@@ -81,6 +81,8 @@ $field_keys = array(
 		// (matrix RF1/RF2). lead_staff_obj is post_object, hence singular.
 		'related_staff_obj' => 'field_bwsfx_related_staff_obj',
 		'lead_staff_obj'    => 'field_bwsfx_lead_staff_obj',
+		// The SECOND-DEGREE link (#55) — staff→staff, so a chain can hop twice.
+		'reports_to'        => 'field_bwsfx_reports_to',
 		// join matrix (manifest v2) — person-name / role / height fields.
 		'name_honorific'      => 'field_bwsfx_name_honorific',
 		'name_first'          => 'field_bwsfx_name_first',
@@ -371,7 +373,7 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		// stores the id whatever the field's return_format is, so every such field
 		// resolves identically here and the format only shows up on the READ.
 		// A single-slug value (post_object) resolves to a scalar id, not a list.
-		if ( in_array( $name, array( 'related_staff', 'related_staff_obj', 'lead_staff_obj' ), true ) ) {
+		if ( in_array( $name, array( 'related_staff', 'related_staff_obj', 'lead_staff_obj', 'reports_to' ), true ) ) {
 			$slug_to_id = function ( $ref ) use ( $post_ids ) {
 				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
 			};
