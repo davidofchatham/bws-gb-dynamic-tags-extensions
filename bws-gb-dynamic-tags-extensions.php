@@ -239,8 +239,21 @@ function bws_dynamic_tags_register_all() {
 	// Register the phone base tag (unconditional; first-class base tag).
 	bws_register_phone_tag();
 
-	// Register the {{table}} structured-output tag (unconditional; first-class base tag).
-	bws_register_table_tag();
+	// Register the {{table}} structured-output tag — GATED OFF by default (1.17.0).
+	//
+	// The tag is a working PROTOTYPE, not v1: its row-set comes from a src chain, so its
+	// authoring surface waits on the table container taking a chain source (FW-53), and
+	// until then it registers the FLAT traversal options every other family has retired.
+	// Registering it unconditionally would ship a half-built tag to every install by
+	// default, which is the one thing FW-53's row said not to let happen.
+	//
+	// A FILTER rather than deleting the call: the fixture testbed turns it on from its
+	// mu-plugin, so the table matrix rows and fixture blocks keep running while v1 is
+	// built. Deleting the call would leave that work with no coverage until it returned.
+	// Flips to unconditional (or default-true) when v1 ships.
+	if ( apply_filters( 'bws_dynamic_tags_register_table_tag', false ) ) {
+		bws_register_table_tag();
+	}
 
 	// Register the {{call}} function-passthrough tag (unconditional; ships with
 	// an EMPTY allowlist — produces nothing until the site allowlists a function).
