@@ -215,6 +215,15 @@ Modifiers wrap base tag templates with a context-shifting prefix. Registered via
 | `try_` | `'first-available'` | — | Per-slot — see [§Try_ tags](#try_-tags) | Built-in |
 | *(external prefix)* | *(plugin-defined)* | *(plugin-defined)* | External entity | External plugin via `register_modifier()` |
 
+**A modifier family is the pre-chain way of spelling one option value (1.17.0).** Once its source is
+offered as a [chain root](#root-enum-membership-1170-83), `{{view_text key:x}}` and
+`{{text src:view|key:x}}` are the same read, and the second gets every capability added to base tags.
+The Tag Converter rewrites the first into the second where the owning plugin registers entries for
+its prefix. The mapping table and its rules live in
+[`deprecated-tags-options.md` §Modifier prefix → base tag](deprecated-tags-options.md#modifier-prefix--base-tag-with-a-registered-root-1170);
+the registration call is [`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag).
+No in-repo family is migrated — `term_` is deferred.
+
 ### Source classes
 
 PHP entity resolvers used by base tag callbacks and modifier dispatch. Not surfaced directly in tag names.

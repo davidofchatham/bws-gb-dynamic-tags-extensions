@@ -9,6 +9,7 @@ manual matrices assume:
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
 - [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless portal-visible `sample-event`, `department-sales` description for C17; manifest v4)
 - [`tools/test/fw52-order-test-matrix.md`](../../test/fw52-order-test-matrix.md) (added for FW-52 — EDITOR-EYEBALL serialization-order rows on `matrix-post-meta`; a seeded `fixture-photo` attachment + `feature_image` image field back the `{{image}}` reads; manifest v5, additive)
+- [`tools/test/registered-roots-test-matrix.md`](../../test/registered-roots-test-matrix.md) (added 1.17.0, #87 — the FR rows below as a runnable matrix: §FR1/§FR2 render-tag, §FR5 editor-eyeball for the enum, §FR6 the converter run)
 - the external-source contract rows on `matrix-fixture-roots` (added 1.17.0, #85 — two
   registered chain roots plus the `fixture_*` modifier corpus the migration rehearses
   against; see §External-source contract below; manifest v8)
