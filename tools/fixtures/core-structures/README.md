@@ -9,6 +9,10 @@ manual matrices assume:
 - [`tools/test/join-test-matrix.md`](../../test/join-test-matrix.md) (added 1.15.0 — {{join}} assembly rows; `name_*` person parts dense on `tom-associate` / sparse on `jane-partner`, `role` + `height_*` on `matrix-post-meta`; manifest v2)
 - [`tools/test/context-test-matrix.md`](../../test/context-test-matrix.md) (added 1.15.0 — context-aware base tags #19; author-archive C3/C13 via `fixture-author` user, date-archive rows via categoryless portal-visible `sample-event`, `department-sales` description for C17; manifest v4)
 - [`tools/test/fw52-order-test-matrix.md`](../../test/fw52-order-test-matrix.md) (added for FW-52 — EDITOR-EYEBALL serialization-order rows on `matrix-post-meta`; a seeded `fixture-photo` attachment + `feature_image` image field back the `{{image}}` reads; manifest v5, additive)
+- [`tools/test/registered-roots-test-matrix.md`](../../test/registered-roots-test-matrix.md) (added 1.17.0, #87 — the FR rows below as a runnable matrix: §FR1/§FR2 render-tag, §FR5 editor-eyeball for the enum, §FR6 the converter run)
+- the external-source contract rows on `matrix-fixture-roots` (added 1.17.0, #85 — two
+  registered chain roots plus the `fixture_*` modifier corpus the migration rehearses
+  against; see §External-source contract below; manifest v8)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -42,7 +46,9 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `schema.php` | Code — CPT/taxonomy registration, ACF groups, options page, registered meta. Loaded at runtime by the mu-plugin stub `seed.php` installs. |
 | `seed.php` | Idempotent applier — reads the manifest, upserts by fixture slug. `wp eval-file`-able. |
 | `blocks.php` | GB block markup generator (4 shapes) — builds the matrix pages' content from tag strings. |
+| `fixture-source.php` | The class-route chain-root source (#85). Required lazily from `schema.php`'s registration callback — it extends a plugin class, so a top-level declaration would fatal a site with the plugin off. |
 | `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
+| `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
 
 ## Seeding
 
@@ -59,6 +65,22 @@ Then smoke-test:
 bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify.php \
   --url=https://<site-domain>/matrix-post-meta/
 ```
+
+The migration end-to-end run is separate because it MUTATES the corpus — it converts
+`/matrix-fixture-roots/` exactly as the admin Migrate button does, then a reseed puts the
+pre-conversion `fixture_*` wire back, which is what makes it repeatable rather than
+one-shot:
+
+```bash
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify-migration.php \
+  --url=https://<site-domain>/matrix-fixture-roots/
+bin/seed.sh <site> core-structures        # restore the corpus
+```
+
+> **Cache-busting from `docker exec sh -c` needs a LITERAL token.** The env's usual
+> `?nocache=$RANDOM` expands in bash; the container's `sh` leaves it EMPTY, so the URL is
+> constant and LiteSpeed serves the pre-conversion page. That reads as "the migration
+> changed nothing" when it changed everything. Use `?nocache=<something-unique>`.
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
 Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
@@ -82,6 +104,9 @@ so the schema survives snapshot restores.
   `matrix-terms-valid`, `matrix-terms-mixed` (one junk term), `matrix-terms-junk`
   (all junk → fallback); post `sample-event` (discovery edge cases); staff
   `jane-partner` (src:ref target).
+- External-source corpus (#85): staff `fixture-root` (the `fixture` root's target) +
+  staff `fixture-ref` (its relationship target, the only staff single with a department
+  term) + page `matrix-fixture-roots` (the FR rows). See §External-source contract.
 - Options page **Site Settings** with `organization_*` fields.
 - Fixture user `fixture-author` (display name + bio) authoring `sample-event`
   → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
@@ -107,6 +132,47 @@ so the schema survives snapshot restores.
   `WP_Post`, the only shape that reaches the reader's non-array wrap). All carry
   the SAME targets, so the hop's output is an equivalence assertion with no new
   expected values (fold matrix RF1/RF2).
+
+## External-source contract (#85, manifest v8)
+
+The in-repo corpus for the registered-chain-root seam (spec
+[#80](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/80)), so the
+contract is exercised with **no second plugin installed** and the modifier migration has
+something reseedable to run against more than once.
+
+| Piece | Where | What it is |
+|---|---|---|
+| `fixture` root | `fixture-source.php` + `schema.php` | The **class route**: a source registered on `bws_dynamic_tags_register_sources`, opted in with `is_selectable_root()`. Resolves the seeded `staff/fixture-root` post **by slug**. |
+| `fixture_alt` root | `schema.php` | The **filter route**: a spec on `bws_dynamic_tags_chain_roots`, no source class. Resolves the seeded `sample-event` post by slug. |
+| `fixture_*` tags | `schema.php` (init:21) | A **modifier family** rooted at `fixture`, registered exactly as the external one is — prefix and root key are the same string, which is what makes the seeded tags a faithful rehearsal of the rewrite. |
+| Corpus rows | `blocks.php` → `/matrix-fixture-roots/` | FR1/FR2 the roots on a base tag and in a folded slot, FR3 the six migration shapes as `fixture_*` tags, FR4 each shape beside the base wire it must become. |
+
+**Both roots resolve from seeded content, never from request state.** That is the whole
+reason they exist rather than the real external source being used here: that one reads
+request context, so a row through it cannot state its own expected value. These answer the
+same entity on every request, so every row has one.
+
+**Three entities, three distinct values, on purpose.** The corpus page carries its own
+`role`/`main_line` and the **Support** term; the root target `fixture-root` carries
+different ones and **Sales** alone; its relationship target `fixture-ref` carries a third
+set and **Warehouse**. A rooted row that quietly fell through to the ambient entity
+therefore prints the wrong words rather than the right ones. (`fixture-ref` exists because
+the "relationship **and** taxonomy" shape needs a hop target that carries a term, and
+giving one to an existing staff single would have moved state other matrices read.)
+
+Two rows behave in ways that look like faults and are not:
+
+- **FR3.6 renders empty.** The modifier callback returns on `src:site` *before* reading
+  either sidecar, so the shape has never rendered; its migrated form (FR4.6, sidecars
+  dropped) does. This is the one mapping row that changes rendered output, and `verify.php`
+  asserts the divergence so it cannot later be read as a regression.
+- **No row reads `use:title`.** A modifier template's text core reads `key` and ignores
+  `use` entirely, so `use:title` renders empty on `fixture_`, `term_` and `view_` alike.
+  Pre-existing (issue #88); the rows read field keys so an equivalence pair
+  cannot pass by comparing two empties.
+
+Running the Tag Converter over the site rewrites the FR3 rows into base tags — that is
+what they are for. A reseed puts them back.
 
 ## Known gaps
 

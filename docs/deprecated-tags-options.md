@@ -81,6 +81,52 @@ The ☐ cells reflect the former per-source opt-in defaults, preserved here as d
 
 ---
 
+## Modifier prefix → base tag with a registered root (1.17.0)
+
+A **modifier family** (`TagTemplateRegistry::register_modifier()`) is the pre-chain way of spelling
+one option value: `{{view_text key:x}}` says with a tag name what `{{text src:view|key:x}}` says with
+a source. Now that a registered source can be [offered as a chain
+root](tag-reference.md#root-enum-membership-1170-83), the two spellings are the same read, and the
+converter rewrites the first into the second
+([#84](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/84),
+[#86](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/86)).
+
+**The owning plugin registers its own entries** (`bws_register_modifier_root_migrations()`), and
+registration never retires ahead of migration. The API, the registration timing, the converter's
+reach and what a run does not do are owned by
+[`plugin-integration.md` §9](plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) and
+are not repeated here. No in-repo family is migrated: `term_*` is deferred (FW-33), and `fixture_*`
+exists only in the test blueprint.
+
+### What a stored tag becomes
+
+Rows below use prefix `view` and root key `view`; every prefix maps identically. The rewrite is a
+whole-string transform rather than a rename plus an injected `src`, because on a modifier tag the
+root came from the TAG: renaming and injecting would leave `ref` unread and **silently erase the
+hop** (rationale on `bws_modifier_base_options()`'s docblock).
+
+| Stored | Becomes | Notes |
+|---|---|---|
+| `{{view_text key:x}}` | `{{text src:view\|key:x}}` | No source stated — the family's own entity |
+| `{{view_text src:current\|key:x}}` | `{{text src:view\|key:x}}` | On a modifier, `current` named ITS entity, not the ambient one, so it maps to the ROOT rather than to `current` |
+| `{{view_text src:ref\|ref:f\|key:x}}` | `{{text src:view;refs,f\|key:x}}` | Root, then a fanning relationship step carrying the field key |
+| `{{view_text srcTermIn:tax\|key:x}}` | `{{text src:view;terms,tax\|key:x}}` | Root, then a taxonomy step |
+| `{{view_text src:ref\|ref:f\|srcTermIn:tax\|key:x}}` | `{{text src:view;refs,f;terms,tax\|key:x}}` | Both, in that order |
+| `{{view_text src:site\|ref:f\|srcTermIn:tax\|key:x}}` | `{{text src:site\|key:x}}` | **Both sidecars dropped deliberately.** The modifier callback returns on `site` before reading either, so neither has ever run; a `refs` step now accepts site input, so a survivor would compound into a hop that has never once executed. The one row that changes rendered output |
+| `{{view_text src:ref\|rel:f\|key:x}}` | `{{text src:view;refs,f\|key:x}}` | The dead `rel` spelling is settled here by the sibling repair's own rule (`ref` wins; an absent one takes `rel`, which brings `src:ref` with it). `bws_migrate_rel_to_ref()` structurally cannot reach a tag this renames — the converter runs every TAG rename before any OPTION entry — so an unread `rel` would come out as a flat key beside chain wire that nothing consults |
+
+`src`, `source`, `ref`, `rel` and `srcTermIn` are all consumed; every other option (field key,
+fallback, link, format, `as`) is carried through untouched and the result is re-ordered through
+`bws_serialization_order_sort_map()`. A tag-level `limit` is deliberately NOT consumed here — the
+base-tag chain entry absorbs it onto the fanning step in the converter's later pass, so the two
+routes land on identical wire.
+
+A row above states one entry's rewrite. An older prefix pointing at a newer one (`portal_` → `view_`)
+also reaches the base tag in a single run, since the converter re-reads the tag name after each
+rewrite; see §8 and §9 in [`plugin-integration.md`](plugin-integration.md#8-renaming-a-modifier-prefix).
+
+---
+
 ## Template key renaming tracker
 
 Records planned template key renames and consolidations. When a template key changes, the generated

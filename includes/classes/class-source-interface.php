@@ -9,6 +9,7 @@
  * @since 1.4.1 Added tag_default_enabled().
  * @since 1.5.0 Removed related-variant methods; added needs_relationship_field(), get_ui_group().
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
+ * @since 1.17.0 Added is_selectable_root() (#83).
  */
 
 namespace BWS\DynamicTags;
@@ -140,4 +141,31 @@ interface SourceInterface {
 	 * @return string
 	 */
 	public function get_ui_group(): string;
+
+	/**
+	 * Whether an author may CHOOSE this source as a chain root (#83).
+	 *
+	 * Governs the DROPDOWN ONLY. Returning false does not stop wire naming this source
+	 * from resolving — the factory's registry delegation is untouched, deliberately: wire
+	 * is hand-editable by decision (ADR 0004), tags naming a root exist the moment a
+	 * migration runs, and an integrator flipping this off must not blank stored content.
+	 * A reader meeting a boolean called "selectable root" will be tempted to gate
+	 * resolution on it; tools/test/traversal-pipeline-test.php pins that it is not.
+	 *
+	 * STATED, never inferred, because the registry accumulates non-offerable entries by
+	 * policy and never sheds them: a register_source() call is never deleted for lacking
+	 * resolve logic, so five inert entries exist already and each future retirement adds
+	 * another. A registry that keeps its dead is the wrong shape to derive an authoring
+	 * enum from — permanently, not just today.
+	 *
+	 * PRECONDITION for returning true: the source RESOLVES ITS OWN ID FROM AMBIENT
+	 * CONTEXT. Deliberately not phrased in terms of needs_relationship_field(), which is a
+	 * property of a retiring concept and would wrongly pass a wrapper-only registration.
+	 *
+	 * The dropdown label is get_source_label() — there is no second label method.
+	 *
+	 * @since 1.17.0
+	 * @return bool
+	 */
+	public function is_selectable_root(): bool;
 }

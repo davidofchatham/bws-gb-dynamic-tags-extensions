@@ -849,13 +849,100 @@ function bws_fixture_page_content_matrix_content() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-fixture-roots — the external-source contract's corpus page (#85).
+ *
+ * Three things live here, and they read against each other on purpose:
+ *
+ *  FR1/FR2  the two REGISTERED ROOTS (class route `fixture`, filter route `fixture_alt`)
+ *           on a base tag and inside a folded slot. Open any of these in the editor to
+ *           see both rows in the Source control — the enum is the other half of the
+ *           assertion, and only the editor shows it.
+ *  FR3      the fixture MODIFIER family in the six shapes #84's transform maps. This is
+ *           the reseedable corpus the converter runs against (#86); after a run the rows
+ *           are base tags, and a reseed puts them back.
+ *  FR4      each modifier shape beside the base-tag wire it must become, so the property
+ *           the migration promises — same bytes out — is eyeballable BEFORE any converter
+ *           exists to be trusted.
+ *
+ * The page carries its own ambient values (role, main_line, Support term) that are unlike
+ * the root's (Sales) and unlike the hop target's (Warehouse). A rooted row landing on the
+ * wrong entity therefore prints the wrong words rather than the right ones.
+ *
+ * Limits are stated EXPLICITLY on both sides of every FR4 pair. Since 1.17.0 an unset
+ * limit is resolved by the source SPELLING — flat wire bounds at 1, chain wire does not —
+ * so a bare-versus-bare comparison compares two different quantities and diverges by
+ * design (the same reason verify.php pins limit:1 on its chain-vs-flat check).
+ */
+function bws_fixture_page_content_matrix_fixture_roots() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'FR1 - registered roots on a base tag', array(
+		bws_fixture_gb_row( 'FR1.1 class-route root, bare read (-> Fixture Root Role)', '{{text src:fixture|key:role}}' ),
+		bws_fixture_gb_row( 'FR1.2 the ambient contrast, same key, no root (-> Ambient Page Role)', '{{text key:role}}' ),
+		bws_fixture_gb_row( 'FR1.3 filter-route root, bare read (-> Chatham, sample-event\'s venue_city)', '{{text src:fixture_alt|key:venue_city}}' ),
+		bws_fixture_gb_row( 'FR1.4 root then a relationship step (-> Fixture Ref Target)', '{{text src:fixture;refs,related_staff|use:title|limit:1}}' ),
+		bws_fixture_gb_row( 'FR1.5 root then a taxonomy step (-> Sales, the ROOT\'s term, NOT this page\'s Support)', '{{text src:fixture;terms,department|use:title|limit:1}}' ),
+		bws_fixture_gb_row( 'FR1.6 root, relationship, taxonomy (-> Warehouse, the hop TARGET\'s term)', '{{text src:fixture;refs,related_staff;terms,department|use:title|limit:1}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'FR2 - registered roots inside a folded slot', array(
+		bws_fixture_gb_row( 'FR2.1 try_ attempt rooted at the class route (-> Fixture Root Role)', '{{try_text A:src(fixture);use(key);key(role)}}' ),
+		bws_fixture_gb_row( 'FR2.2 try_ attempt rooted at the filter route (-> Chatham)', '{{try_text A:src(fixture_alt);use(key);key(venue_city)}}' ),
+		bws_fixture_gb_row( 'FR2.3 try_ falls PAST an empty rooted attempt to the ambient one (-> Ambient Page Role)', '{{try_text A:src(fixture);use(key);key(no_such_field)|B:use(key);key(role)}}' ),
+		bws_fixture_gb_row( 'FR2.4 join mixes both roots in one string (-> Fixture Root Role of Chatham)', '{{join mode:template|A:src(fixture);use(key);key(role)|B:src(fixture_alt);use(key);key(venue_city)|format:%A of %B}}' ),
+	) );
+
+	// EVERY ROW READS A FIELD KEY, and none of them reads `use:title`. That is not a
+	// stylistic choice: a modifier template's text core reads `key` and ignores `use`
+	// entirely (bws_post_custom_text_core), so `use:title` renders empty on `fixture_`,
+	// `term_` and `view_` alike — a control that is offered and does nothing (issue #88;
+	// PRE-EXISTING, not this fixture's). Rows here must read something the
+	// modifier family actually renders, or an equivalence pair would compare '' to ''
+	// and pass whatever the migration did.
+	$sections[] = bws_fixture_gb_section( 'FR3 - fixture_ MODIFIER corpus (the migration\'s six shapes, pre-conversion)', array(
+		bws_fixture_gb_row( 'FR3.1 bare, no source stated (-> Fixture Root Role)', '{{fixture_text key:role}}' ),
+		bws_fixture_gb_row( 'FR3.2 src:current — on a modifier that named ITS entity, so same as FR3.1 (-> Fixture Root Role)', '{{fixture_text src:current|key:role}}' ),
+		bws_fixture_gb_row( 'FR3.3 relationship hop (-> Fixture Ref Role, the hop target\'s own field)', '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}' ),
+		bws_fixture_gb_row( 'FR3.4 taxonomy sidecar (-> sales@example.test, the ROOT\'s term)', '{{fixture_text srcTermIn:department|key:email}}' ),
+		bws_fixture_gb_row( 'FR3.5 both sidecars: hop then drop into terms (-> warehouse@example.test, the hop TARGET\'s term)', '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}' ),
+		// HAND-WIRE ONLY, and that is not an oversight: `site` is filtered out of every
+		// rooting-modifier Source dropdown (#37), so this shape cannot be re-authored
+		// through the control the rest of the page exercises. It is stored wire a site
+		// can hold, which is exactly the population a migration has to answer for.
+		//
+		// The ONE shape whose rendered output the migration CHANGES, and the row exists
+		// to make that visible rather than to assert a value. The modifier callback
+		// returns on `site` BEFORE reading either sidecar (the #37 guard), so this
+		// renders EMPTY today; its migrated form ({{text src:site|use:key|
+		// key:organization_email}}, sidecars dropped) renders the org email. Empty is the
+		// expectation here, so it uses the split-label row — a single block would take
+		// its own label down with it and read as missing fixture.
+		bws_fixture_gb_empty_row( 'FR3.6 src:site with inert sidecars — EMPTY today (the modifier returns before reading them); migrates to a site read that renders', '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'FR4 - each shape beside the base-tag wire it must become', array(
+		// Numbered to MATCH its FR3 partner, so a divergent pair is read off one digit.
+		// There is deliberately no FR4.2: src:current and a stated-nothing source map to
+		// the same wire, which is FR4.1.
+		bws_fixture_gb_row( 'FR4.1 == FR3.1 and FR3.2 (-> Fixture Root Role)', '{{text src:fixture|key:role}}' ),
+		bws_fixture_gb_row( 'FR4.3 == FR3.3 (-> Fixture Ref Role)', '{{text src:fixture;refs,related_staff|key:role|limit:1}}' ),
+		bws_fixture_gb_row( 'FR4.4 == FR3.4 (-> sales@example.test)', '{{text src:fixture;terms,department|key:email|limit:1}}' ),
+		bws_fixture_gb_row( 'FR4.5 == FR3.5 (-> warehouse@example.test)', '{{text src:fixture;refs,related_staff;terms,department|key:email|limit:1}}' ),
+		bws_fixture_gb_row( 'FR4.6 what FR3.6 becomes — sidecars DROPPED (-> info@example.test)', '{{text src:site|use:key|key:organization_email}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
-		'matrix_post_meta' => 'bws_fixture_page_content_matrix_post_meta',
-		'matrix_term_hop'  => 'bws_fixture_page_content_matrix_term_hop',
-		'matrix_content'   => 'bws_fixture_page_content_matrix_content',
-		'staff_join'       => 'bws_fixture_page_content_staff_join',
+		'matrix_post_meta'     => 'bws_fixture_page_content_matrix_post_meta',
+		'matrix_term_hop'      => 'bws_fixture_page_content_matrix_term_hop',
+		'matrix_content'       => 'bws_fixture_page_content_matrix_content',
+		'staff_join'           => 'bws_fixture_page_content_staff_join',
+		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';

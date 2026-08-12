@@ -79,13 +79,84 @@ The `$registry` argument passed to the action is available but not needed — `r
 
 Once registered via `SourceRegistry::register_source()`, the source is available for resolution in tag callbacks and deprecated wrapper registrations.
 
-Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are source-agnostic. Users select the source at the tag level using the **Source** dropdown in the GB editor. However, the built-in source dropdown only exposes sources wired into `bws_base_source_option()` — external sources registered via the hook do **not** automatically appear there.
+Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are source-agnostic, and a tag whose source names your key **already resolves through it** — `{{text src:external|key:x}}` renders whether or not anything offers that source in the editor. What registration alone does not do is put a row in the **Source** control, so an author has no way to choose it.
 
-To expose your source to GB editor users, use one of:
+To let authors choose it, opt in as a chain root (below). The older routes remain:
 
-1. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
-2. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
-3. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
+1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
+2. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Mints a parallel tag family that duplicates the base tags; prefer a chain root unless you need per-tag options of your own. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
+4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
+
+---
+
+## 1a. Offering your source as a chain root
+
+A **chain root** is where a tag's source path starts — `Current`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
+
+Two routes, one registry.
+
+### Route A — a source class opts in
+
+Override one method. The dropdown label is `get_source_label()`, the accessor you already implement — there is no second label method.
+
+> **Upgrade note (v1.17.0).** `is_selectable_root()` is declared on `SourceInterface`, so a class implementing the interface **directly** must add it. Extending `AbstractSource` — the documented recommendation — inherits the `false` default and needs no change.
+
+```php
+class ExternalSource extends AbstractSource {
+
+    // …get_source_key(), get_source_label(), resolve_id() as above…
+
+    public function is_selectable_root(): bool {
+        return true;
+    }
+}
+```
+
+**The precondition for returning `true` is that your source resolves its own id from ambient context** — the request, the queried object, your own state — with no tag option telling it where to look. A source that exists only to back deprecated wrappers, or that needs an option filled in before it can answer, should leave the default `false`.
+
+Offerability is stated rather than derived because the registry keeps entries that can no longer resolve: a `register_source()` call is never deleted just because its resolve logic was retired (see [§7](#7-registering-deprecated-tag-wrappers)). Deriving an authoring list from a registry that keeps its dead would surface them.
+
+### Route B — declare a root from a filter, with no class
+
+For the cheap case — you have an entity and a function that finds it — skip the class entirely:
+
+```php
+add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
+    $roots['external'] = array(
+        'label'   => __( 'External Post', 'my-plugin' ),   // required; what authors see
+        'context' => 'post',                               // 'post' or 'term'; default 'post'
+        'resolve' => 'my_plugin_current_external_id',      // callable( array $options, $instance ): int|false
+    );
+    return $roots;
+} );
+```
+
+**Add the `add_filter()` call at plugin file-load time, not inside a hook callback** — the same deadline §1 states for the registration action, and for the same reason. `SourceRegistry::init()` runs at `plugins_loaded` priority 20, so a listener added on `init` is too late: nothing errors, your root simply never appears.
+
+Each spec is adapted into a registered source and registered normally, so it lands in the same registry the renderer consults. Notes:
+
+- **Everything declared here is a root.** The filter is named for roots, so declaring through it *is* the opt-in — there is no flag to set. A source that should *not* be offerable uses the `bws_dynamic_tags_register_sources` action instead.
+- **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
+- **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
+- **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
+- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `entries`), the slot inherit sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
+- **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
+
+### What the opt-in does and does not govern
+
+**It governs the dropdown only.** Wire naming your source resolves whether or not it is currently offered — the factory's registry delegation is untouched. That is deliberate: tag strings are hand-editable by design, and flipping the flag off must never blank stored content. It also means removing the opt-in is safe at any time; existing tags go on rendering.
+
+Two further consequences worth knowing:
+
+- **Your rows reach base tags and slots, and nothing else.** They are appended at the chain-root layer, so `term_*`, `try_*`'s own source lists, `{{table}}` and `{{call}}` are unaffected.
+- **A term-context root follows the `term_` modifier toggle** in the plugin settings — switching that off hides it from the dropdown, exactly as it hides every other term surface. Resolution is unaffected.
+
+Where a rooted tag cannot resolve in the editor (common when your source reads request state), the preview names it by your registered label:
+
+```
+['contact_phone' from External Post]
+```
 
 ---
 
@@ -201,6 +272,12 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 |--------|--------|---------|-------|
 | `needs_relationship_field(): bool` | Whether this source requires a `ref` option to resolve | `false` | **Inert since v1.17.0 — nothing reads it.** Relationship traversal is a generic `ref` step off whatever source the factory resolved, not a property of the source (see below). Kept on the interface so existing implementations keep loading. |
 | `get_ui_group(): string` | Admin matrix group for this source | `get_context_type()` | Override when the source should appear in a different group than its context type. `TermRelatedPost` returns `'term'` even though its `context_type` is `'post'`. |
+
+### Authoring surface
+
+| Method | Return | Default | Notes |
+|--------|--------|---------|-------|
+| `is_selectable_root(): bool` | Whether authors may choose this source as a chain root | `false` | Added v1.17.0. Governs the **dropdown only** — wire naming your source resolves either way. Precondition: the source resolves its own id from ambient context. **Do not** phrase the decision in terms of `needs_relationship_field()`, which is inert and would wrongly pass a wrapper-only registration. See [§1a](#1a-offering-your-source-as-a-chain-root). |
 
 ### Options
 
@@ -600,3 +677,64 @@ The settings page sorts deprecated tags into two boxes:
 Set `prefix_removed` when you consider an old prefix generation fully retired (for example, two prefix renames later). Existing content still using that name is not broken by the flag — the Migration Tool still finds and rewrites it — the flag only changes which box the entry is filed under and signals "this generation is history, not a currently-recommended deprecation."
 
 Migration available only for deprecated entries that declare `new_tag` plus at least one of `source_inject`, `option_renames`, or `fixed_options`. `DeprecatedTagRegistry::has_migration_path( $old_tag )` returns whether a path exists.
+
+---
+
+## 9. Migrating a Modifier Family to a Base Tag
+
+Once your source is offered as a [chain root](#1a-offering-your-source-as-a-chain-root), your prefixed tag family and the base tags say the same thing two ways. `{{example_text key:bio}}` and `{{text src:example|key:bio}}` read the same field from the same entity — but only the base tag gets source paths, per-step limits and every capability added since.
+
+One call rewrites your stored tags into base tags rooted at your source:
+
+```php
+add_action( 'init', function () {
+    bws_register_modifier_root_migrations(
+        'example',                            // your retired modifier prefix
+        'example',                            // the registered source key to root at
+        array( 'since' => '3.4.0' )
+    );
+}, 21 );
+```
+
+That registers one migration entry per **registered modifier template** — the same list `register_modifier()` iterates to mint your tags — so there is no list of tag names to maintain. Call it after templates are registered: the plugin registers them on `init` priority 20, so priority 21 is the natural home, beside your `register_modifier()` call. (Called too early, the template list is empty and `_doing_it_wrong()` says so.)
+
+**Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
+
+### What a converted tag looks like
+
+The rewrite is a whole-string transform, one row per stored shape:
+
+| Your stored tag | Becomes |
+|---|---|
+| `{{example_text key:bio}}` | `{{text src:example\|key:bio}}` |
+| `{{example_text src:current\|key:bio}}` | `{{text src:example\|key:bio}}` — on a modifier tag "current" meant *your* entity |
+| `{{example_text src:ref\|ref:office\|key:bio}}` | `{{text src:example;refs,office\|key:bio}}` — the hop becomes a real step |
+| `{{example_text srcTermIn:genre\|key:bio}}` | `{{text src:example;terms,genre\|key:bio}}` |
+| both sidecars | `{{text src:example;refs,office;terms,genre\|key:bio}}` |
+| `{{example_text src:site\|…}}` | `{{text src:site\|…}}`, with `ref` / `srcTermIn` **dropped** |
+
+The last row is the one that can change rendered output, and it is deliberate: under `src:site` the modifier callback returned *before* reading either sidecar, so neither has ever run — while a relationship step now accepts site input, so carrying one through would start executing a hop that never once executed.
+
+A tag-level `limit` is left alone here and absorbed onto the fanning step by the base-tag chain migration in the converter's later pass, so both routes land on identical wire.
+
+After conversion, the retired flat controls (`ref`, `srcTermIn`, the legacy `source` spelling) are gone: the source is stated in exactly one place.
+
+### What it does not do, and what stays true
+
+- **Your tags stay registered.** Migrating is not retiring. Keep `register_modifier()` exactly as it is; retire on your own schedule, and pass `prefix_removed => true` then (see [§8](#alias-status-and-retiring-a-prefix)).
+- **Nothing is a deadline.** Tags that are never converted go on rendering indefinitely.
+- **The converter's reach is the posts table** — every non-revision, non-trashed post, which does include reusable blocks, template parts and theme-element post types. Tags stored in the **options table** (block widgets) are out of its reach and are simply not rewritten.
+- **It never overwrites an entry you registered yourself.** A tag name that already has *any* entry is skipped whole, so a hand-written entry for one template keeps its own rules and the generator covers the rest.
+- **Older prefixes chain automatically.** If `oldname_text → example_text` is registered as a plain rename ([§8](#8-renaming-a-modifier-prefix)), the converter re-reads the tag name after each rewrite, so `{{oldname_text}}` reaches the base tag in one run. No extra entry.
+- **Editor mounts do not migrate.** Option migrations also run when a tag modal opens; a *rename* cannot, because the tag name belongs to the block's parsed tag and is chosen by the picker. This migration is converter-only by construction, not by omission.
+
+### Parameter reference
+
+| Arg | Type | Default | Meaning |
+|---|---|---|---|
+| `$prefix` | string | — | Your modifier prefix, with or without the trailing underscore. |
+| `$root` | string | — | Registered source key migrated tags are rooted at. |
+| `since` | string | `''` | Version you deprecated the prefix in. Shown in the settings list. |
+| `prefix_removed` | bool | `false` | `true` once you stop registering the family — files the entries under **Removed Tags** instead of **Deprecated Tags**. |
+
+Returns the modifier tag names entries were generated for, in template order.

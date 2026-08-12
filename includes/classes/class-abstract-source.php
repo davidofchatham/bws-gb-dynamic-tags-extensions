@@ -12,6 +12,7 @@
  * @since 1.4.1 Added tag_default_enabled().
  * @since 1.5.0 Removed related-variant method defaults; added needs_relationship_field(), get_ui_group().
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
+ * @since 1.17.0 Added is_selectable_root() default (false) (#83).
  */
 
 namespace BWS\DynamicTags;
@@ -96,6 +97,22 @@ abstract class AbstractSource implements SourceInterface {
 	 */
 	public function get_ui_group(): string {
 		return $this->get_context_type();
+	}
+
+	/**
+	 * Not offerable as a chain root unless a source says otherwise (#83).
+	 *
+	 * FALSE is the default because the registry keeps its dead: the four in-repo
+	 * traversal-substitute sources are inert by decision, and `post`/`term` would promote
+	 * to roots that duplicate Current and collide with the planned pinned-entity spelling.
+	 * Opting in is a claim that this source resolves its own id from ambient context —
+	 * see SourceInterface::is_selectable_root() for the full precondition.
+	 *
+	 * @since 1.17.0
+	 * @return bool
+	 */
+	public function is_selectable_root(): bool {
+		return false;
 	}
 
 }

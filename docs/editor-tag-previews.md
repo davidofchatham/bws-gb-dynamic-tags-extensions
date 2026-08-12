@@ -46,7 +46,24 @@ Space-joined segments. The `→` separator precedes the term-step segment only.
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
 | `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
+| `src` names a REGISTERED SOURCE as the chain's root (1.17.0, [#83]) | That source's `get_source_label()` — e.g. `External Post`, yielding `… from External Post`. **Author terms, never the token.** Independent of whether the source is currently OFFERED in the dropdown: the tag is stored, so the preview describes what it says. An UNREGISTERED token adds no segment (it resolves to the ambient entity, so naming it would describe a source that does not exist). **The keys the ROOT ENUM refuses are refused here too**, though they ARE registered sources and a bare lookup would name every one: `post`/`term` are internal spellings of the ambient entity (`src:post` would read `from Post`, which is what a bare tag already is), and the four retired traversal-substitute tokens are what the `related_post` migration exists to remove from wire. This is the whole editor experience for such a tag — a source resolving from request state cannot resolve in the editor, and the prefix-keyed modifier map is keyed on TAG NAME so it can never fire for a base tag |
 | No modifier, `src` unset, no `terms` step | *(omit — no `from` clause)* |
+
+**The source is read as a CHAIN, not as a token** (1.17.0, [#83]). `src` may hold a bare legacy
+token or chain wire (`view;refs,office`), and a chain's root sits *inside* the value, so a raw
+token compare structurally could not find it. `bws_build_preview_label()` reads through
+`bws_fold_chain_from_options()` — the single reading the factory, the render arms and the
+list-mode reveal all take — so the preview cannot come to disagree with what renders. Three
+consequences:
+
+- A legacy flat option set and its chain-wire twin preview **identically**
+  (`src:ref|ref:rel|srcTermIn:cat` ≡ `src:refs,rel;terms,cat`).
+- A chain that hops more than once emits **one segment per step**, in wire order:
+  `['phone' from Ref 'staff' Ref 'office']`. The flat spelling could hold only one of each, so
+  there is no legacy twin for this shape.
+- An **argless** step warns rather than being described. `src:terms` with no taxonomy renders
+  nothing (the engine short-circuits), so it reports `⚠ No taxonomy set` — the same answer its
+  flat sibling gives.
 
 ## Field part
 
@@ -125,7 +142,12 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `{{text src:ref\|ref:rel_post\|use:title}}` | `[Title from Ref 'rel_post']` |
 | `{{text srcTermIn:category\|key:body_text}}` | `['body_text' from Category Term]` |
 | `{{text src:ref\|ref:rel_post\|srcTermIn:category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` |
+| `{{text src:refs,rel_post;terms,category\|key:body_text}}` | `['body_text' from Ref 'rel_post' → Category Term]` *(the chain-wire twin of the row above — identical by construction)* |
+| `{{text src:refs,staff;refs,office\|key:phone}}` | `['phone' from Ref 'staff' Ref 'office']` *(one segment per step; inexpressible in the flat spelling)* |
+| `{{text src:external\|key:sku}}` | `['sku' from External Post]` *(a registered source as the root, named by its own label)* |
+| `{{text src:external;refs,office\|key:phone}}` | `['phone' from External Post Ref 'office']` |
 | `{{text}}` | `[⚠ No meta key set]` |
+| `{{text src:terms\|key:sku}}` | `[⚠ No taxonomy set]` |
 | `{{text srcTermIn\|key:body_text}}` | `[⚠ No taxonomy set]` |
 | `{{text src:ref\|srcTermIn\|key:body_text}}` | `[⚠ No ref key or taxonomy set]` |
 | `{{term_text key:bio}}` | `['bio' from Term]` |

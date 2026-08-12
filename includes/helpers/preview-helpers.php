@@ -605,6 +605,25 @@ function bws_try_preview_field_part( string $base_template, string $use, string 
 }
 
 /**
+ * A taxonomy's singular label for preview text, falling back to its raw slug.
+ *
+ * ONE owner for a lookup that had grown three copies — the try_ slot's source part, the
+ * base tag's term-modifier segment, and (since the chain read) one segment per `terms`
+ * step. All three want the same answer, and the fallback is the load-bearing half: an
+ * unregistered taxonomy must still name itself rather than printing an empty segment.
+ *
+ * @since 1.17.0
+ * @param string $tax Taxonomy slug.
+ * @return string Singular label, or the slug when the taxonomy is not registered.
+ */
+if ( ! function_exists( 'bws_preview_tax_label' ) ) {
+function bws_preview_tax_label( string $tax ): string {
+	$tax_obj = get_taxonomy( $tax );
+	return $tax_obj ? $tax_obj->labels->singular_name : $tax;
+}
+}
+
+/**
  * Build a try_ preview slot's source-part.
  *
  * @since 1.6.0
@@ -625,9 +644,7 @@ function bws_try_preview_source_part( string $src, string $ref, string $tax, boo
 		$segments[] = 'Current';
 	}
 	if ( '' !== $tax ) {
-		$tax_obj    = get_taxonomy( $tax );
-		$tax_name   = $tax_obj ? $tax_obj->labels->singular_name : $tax;
-		$segments[] = '→ ' . $tax_name . ' Term';
+		$segments[] = '→ ' . bws_preview_tax_label( $tax ) . ' Term';
 	}
 	return implode( ' ', $segments );
 }
@@ -718,17 +735,69 @@ function bws_build_preview_label( array $options, string $template ): string {
 		}
 	}
 
-	$source_val = $options['src'] ?? $options['source'] ?? 'current';
-	if ( '' === $source_val ) {
-		$source_val = 'current';
+	// ── The tag's SOURCE, read as a CHAIN ───────────────────────────────────────────
+	//
+	// ONE read for both wire eras (#83). `src` may hold a bare legacy token (`ref`,
+	// `site`, a registry source name) or chain wire (`view;refs,office`), and the preview
+	// has to name the same source either way — which a raw token compare structurally
+	// cannot do, because a chain's ROOT sits inside the value rather than being the whole
+	// of it. bws_fold_chain_from_options() is the single reading every other consumer
+	// takes (the factory, the arms, the list-mode reveal), so the preview cannot come to
+	// disagree with what actually renders. For every legacy flat option set it yields the
+	// same root and the same steps the old token compare found, which is why no shipped
+	// preview text moves — pinned in tools/test/preview-label-test.php.
+	//
+	// A term MODIFIER is deliberately left off the chain's term step: `term_*` reads GB's
+	// native `tax` (the term's OWN taxonomy — descriptive, not a hop) where a base tag
+	// reads `srcTermIn` (a post→term HOP). Two different facts that happen to render as a
+	// similar segment.
+	$chain = function_exists( 'bws_fold_chain_from_options' )
+		? bws_fold_chain_from_options( $options )
+		: array();
+	$root  = function_exists( 'bws_fold_chain_root' ) ? bws_fold_chain_root( $chain ) : '';
+	$steps = array_values( $chain );
+	if ( '' !== $root && ! empty( $steps ) ) {
+		// Position 0 is the ROOT, which the factory consumes — never a step.
+		array_shift( $steps );
 	}
-	$ref = $options['ref'] ?? '';
-	// Term-modifier (`term_*`): read GB's native `tax` (term's own taxonomy, descriptive).
-	// Cross-source base tag: read `srcTermIn` (post→term hop).
+
+	// Each fanning step's argument, and whether any of them is MISSING one. An argless
+	// step is not decoration: the engine answers empty for it, so the chain short-circuits
+	// and the tag renders nothing — exactly the state the warning label exists to report.
+	$ref_args     = array();
+	$term_args    = array();
+	$ref_missing  = false;
+	$term_missing = false;
+	foreach ( $steps as $step ) {
+		$slug = (string) ( $step['slug'] ?? '' );
+		$arg  = trim( (string) ( $step['arg'] ?? '' ) );
+		if ( 'refs' === $slug ) {
+			if ( '' === $arg ) {
+				$ref_missing = true;
+			} else {
+				$ref_args[] = $arg;
+			}
+		} elseif ( 'terms' === $slug ) {
+			if ( '' === $arg ) {
+				$term_missing = true;
+			} else {
+				$term_args[] = $arg;
+			}
+		}
+	}
+
+	// Term-modifier (`term_*`): read GB's native `tax` (the term's OWN taxonomy —
+	// descriptive, not a hop), and take its term steps OFF the chain, since a modifier's
+	// segment is built from `tax` alone. A base tag has no `tax` at all: its term segments
+	// come from the chain's `terms` steps, which the legacy `srcTermIn` folds into (see
+	// bws_fold_chain_from_options).
 	$is_term_modifier = ( 'Term' === $modifier_label );
-	$tax              = $is_term_modifier
-		? ( $options['tax'] ?? '' )
-		: ( $options['srcTermIn'] ?? '' );
+	$tax              = '';
+	if ( $is_term_modifier ) {
+		$tax          = $options['tax'] ?? '';
+		$term_args    = array();
+		$term_missing = false;
+	}
 	$src_term = '' !== $tax;
 	$key      = $options['key'] ?? '';
 	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
@@ -754,7 +823,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// `src:site` slips the UI — the runtime guard then resolves EMPTY (a site read
 	// is entity-blind, so it would only duplicate the unrooted base tag). Warn in
 	// preview so the editor reflects the empty frontend, not a normal label. [#37]
-	if ( '' !== $modifier_label && 'site' === $source_val ) {
+	if ( '' !== $modifier_label && 'site' === $root ) {
 		$inner = '⚠ Site source not valid on ' . $modifier_label . ' tag — use the base tag';
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
@@ -764,10 +833,10 @@ function bws_build_preview_label( array $options, string $template ): string {
 
 	// Collect missing required items for warning label.
 	$missing = [];
-	if ( 'ref' === $source_val && '' === $ref ) {
+	if ( $ref_missing ) {
 		$missing[] = 'ref key';
 	}
-	if ( $src_term && '' === $tax ) {
+	if ( $term_missing ) {
 		$missing[] = 'taxonomy';
 	}
 	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
@@ -812,33 +881,66 @@ function bws_build_preview_label( array $options, string $template ): string {
 	// Cross-source base with srcTermIn: append '→ <Tax> Term' as hop segment after
 	//   any modifier/source segments.
 	$ctx_segments = [];
-	$tax_obj      = $src_term ? get_taxonomy( $tax ) : null;
-	$tax_name     = $tax_obj ? $tax_obj->labels->singular_name : $tax;
 
 	if ( $is_term_modifier ) {
 		if ( $src_term ) {
-			$ctx_segments[] = $tax_name . ' Term';
+			$ctx_segments[] = bws_preview_tax_label( $tax ) . ' Term';
 		} else {
 			$ctx_segments[] = 'Term';
 		}
 	} elseif ( $modifier_label ) {
 		$ctx_segments[] = $modifier_label;
 	}
-	if ( 'ref' === $source_val && $ref ) {
-		$ctx_segments[] = "Ref '" . $ref . "'";
+	// A REGISTERED SOURCE as the chain's root names itself in AUTHOR TERMS (#83) — the
+	// label the source registered, never the serialization token, which is the standing
+	// rule for user-facing text. This is the whole editor experience for a tag rooted at a
+	// source that needs request context: it cannot resolve in the editor, so it previews
+	// rather than renders, and the prefix-keyed modifier map above is keyed on TAG NAME
+	// and so can never fire for a base tag.
+	//
+	// OFFERED or not is irrelevant: the tag is stored, so the preview describes what it
+	// says, and a source an integrator stopped offering still renders. Reading the label
+	// off the registry (rather than a copy) is what keeps the preview naming a source the
+	// same way the dropdown that authored it did.
+	//
+	// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons, or
+	// the preview would name in author terms exactly what the authoring surface is written
+	// to keep out of an author's vocabulary: `post`/`term` are INTERNAL spellings of the
+	// ambient entity (`{{text src:post}}` would read "from Post", which is what a bare tag
+	// already is), and the four retired traversal-substitute tokens are what the
+	// `related_post` migration exists to REMOVE from wire — naming one dresses a token on
+	// its way out as a configured source.
+	if ( '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		$internal = array_merge(
+			array( 'current', 'site', 'ref', 'post', 'term' ),
+			defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array()
+		);
+		if ( ! in_array( $root, $internal, true ) ) {
+			$root_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
+			if ( $root_source ) {
+				$ctx_segments[] = $root_source->get_source_label();
+			}
+		}
+	}
+	// One segment per relationship step, in wire order — a chain may hop more than once.
+	foreach ( $ref_args as $ref_arg ) {
+		$ctx_segments[] = "Ref '" . $ref_arg . "'";
 	}
 	// Base-tag `src:site` → 'Site' context segment (yields "… from Site"). Site has
 	// no entity to hop from, so it never combines with ref/srcTermIn here; on a
 	// rooting modifier it is already short-circuited to the invalid-combo warning
 	// above, so this only fires for base tags. [#37 preview parity]
-	if ( 'site' === $source_val && ! $modifier_label ) {
+	if ( 'site' === $root && ! $modifier_label ) {
 		$ctx_segments[] = 'Site';
 	}
-	if ( $src_term && ! $is_term_modifier ) {
+	// One segment per term step, same as the relationship steps above — the chain may drop
+	// into a taxonomy more than once, and rendering only the first would describe a
+	// different source than the wire states.
+	foreach ( $term_args as $term_arg ) {
 		// '→' arrow only when this hop segment follows another segment (modifier label
 		// or ref). When standalone (current post → term, no other context), drop arrow.
-		$prefix = empty( $ctx_segments ) ? '' : '→ ';
-		$ctx_segments[] = $prefix . $tax_name . ' Term';
+		$prefix         = empty( $ctx_segments ) ? '' : '→ ';
+		$ctx_segments[] = $prefix . bws_preview_tax_label( $term_arg ) . ' Term';
 	}
 	$context_part = implode( ' ', $ctx_segments );
 

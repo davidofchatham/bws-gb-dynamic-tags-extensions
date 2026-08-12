@@ -18,6 +18,8 @@ Each step that can return several results carries its own optional limit, meanin
 
 Existing tags keep working exactly as they are, with nothing to run and nothing to review. One thing to know if you convert an old tag by hand: a source written the old way returns one result unless you say otherwise, while a path returns all of them, so the editor writes that old limit of 1 onto the step it applies to and leaves it there for you to see and clear. That is also why the tags that build a path no longer carry a tag-wide Result Limit: the limit is stated on the step, where you can see what it bounds.
 
+Another plugin can add its own starting point to that list. A plugin that works out its own entry from the page being viewed offers it alongside Current and Site, on every base tag and in every slot of `{{join}}` and the first-available tags, and a path starts there like any other. Nothing appears until a plugin you have installed opts in. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
+
 ### Unlocked field selector
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, starting in v1.13, every meta/option field key input allows you to search by label/name, as well as filter by context, field group, and field type, among all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields).

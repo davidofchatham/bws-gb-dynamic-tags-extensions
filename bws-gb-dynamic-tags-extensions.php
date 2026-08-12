@@ -135,6 +135,15 @@ function bws_dynamic_tags_init() {
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-migrate.php';
 
+	// Migration data + the public migration-registration API. Loaded HERE, at
+	// plugins_loaded, rather than only in the init:20 pass that calls its registrars:
+	// bws_register_modifier_root_migrations() is integration surface an owning plugin
+	// calls from its own init hook, and a public bws_register_* function defined inside a
+	// deferred init pass fatals every caller that runs before it (SPEC §V VC-load). The
+	// file declares functions only — no load-time side effects — so loading it early costs
+	// nothing and the init pass's require_once is a no-op.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/deprecated-tags.php';
+
 	// Field-discovery REST service (backs the bws-field-combo editor control).
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );

@@ -17,6 +17,14 @@
  * legacy axes are per-slot at all (`flatAxes`) — arrive DERIVED from registration.
  * Nothing in this file knows that `try_text` exists.
  *
+ * NO TAG RENAME HAPPENS HERE, AND NONE CAN — do not add one (#84). The modifier → base
+ * migration (`{{view_text key:x}}` → `{{text src:view|key:x}}`) is CONVERTER-ONLY, and
+ * that is not an omission to be corrected: this path rewrites a tag's OPTIONS through
+ * `setState`, while the tag NAME belongs to the block's parsed tag and is chosen by the
+ * picker. The usual hazard of a single path — two writers storing one tag two ways
+ * depending on which reached it first — needs two writers to exist, and here there is
+ * one. The rule itself lives in bws_migrate_modifier_root_chain().
+ *
  * MODAL-CONFIRM BOUNDARY. `setState` writes the modal's draft state, so a mount
  * migration only reaches stored content when the author confirms the tag. Cancelling
  * leaves the old wire untouched, and the render dual-read keeps resolving it.

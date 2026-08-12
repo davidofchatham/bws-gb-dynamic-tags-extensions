@@ -925,6 +925,115 @@ eq(
 	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $empty_rows )
 );
 
+// ── Registry delegation — OFFERING IS NOT RESOLVING (#83) ────────────────────
+//
+// The factory delegates any src token that is not the ambient/relationship/site spelling
+// to the registry and resolves through the source's own id. #83 added an opt-in that
+// governs the DROPDOWN; these rows pin that it governs nothing else.
+//
+// The load-bearing case is the SECOND one. A reader meeting a boolean called "selectable
+// root" is invited to gate resolution on it, and doing so would blank every stored tag
+// naming a source an integrator later stopped offering — on wire that is hand-editable by
+// decision (ADR 0004) and that a migration writes the moment it runs. Verified by
+// MUTATION: gate bws_factory_registry_source() on is_selectable_root() and this section
+// fails.
+require_once __DIR__ . '/lib-source-registry.php';
+// The factory reads its token through the chain compiler, so a rooted CHAIN reaches the
+// same delegation a bare token does. Without these the guard degrades to the raw option
+// read and the chain rows would silently assert the legacy path.
+require_once __DIR__ . '/../../includes/helpers/slot-fold.php';
+require_once __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Offered_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Unoffered_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Term_Root_Source() );
+
+eq(
+	'registry: an OFFERED root resolves through the factory delegation',
+	array( 'kind' => 'post', 'id' => 4242 ),
+	bws_resolve_base_source( array( 'src' => 'testroot' ), null, sig() )
+);
+eq(
+	'registry: a source that never opted in resolves IDENTICALLY (offering ≠ resolving)',
+	array( 'kind' => 'post', 'id' => 777 ),
+	bws_resolve_base_source( array( 'src' => 'quietsource' ), null, sig() )
+);
+eq(
+	'registry: a term-context root yields a TERM resolved source',
+	array( 'kind' => 'term', 'id' => 99 ),
+	bws_resolve_base_source( array( 'src' => 'testtermroot' ), null, sig() )
+);
+
+// A FILTER-DECLARED root resolves through the same delegation as a class-route one —
+// which is the whole reason the filter registers a source rather than adding an enum row:
+// a row added at enum-build time would exist for the editor and not for the renderer, and
+// the token would fall through to the ambient entity. Registered here directly (the
+// adaptation itself is covered in slot-options-build-test.php, where the filter fires);
+// what this asserts is that the ADAPTER resolves, including its term-context arm.
+\BWS\DynamicTags\SourceRegistry::register_source( new \BWS\DynamicTags\Sources\CallbackRoot(
+	'filterroot',
+	'Filter Root',
+	'post',
+	static function ( $options, $instance ) { return 5150; }
+) );
+\BWS\DynamicTags\SourceRegistry::register_source( new \BWS\DynamicTags\Sources\CallbackRoot(
+	'filtertermroot',
+	'Filter Term Root',
+	'term',
+	static function ( $options, $instance ) { return 31; }
+) );
+eq(
+	'registry: a FILTER-declared root resolves through the same factory delegation',
+	array( 'kind' => 'post', 'id' => 5150 ),
+	bws_resolve_base_source( array( 'src' => 'filterroot' ), null, sig() )
+);
+eq(
+	'…and its term-context arm yields a term',
+	array( 'kind' => 'term', 'id' => 31 ),
+	bws_resolve_base_source( array( 'src' => 'filtertermroot' ), null, sig() )
+);
+// A term entity is addressed as `term_<id>` in a field read, so the adapter carries the
+// same ACF prefix rule TaxonomyTerm states for itself. A post-context root passes through.
+eq(
+	'…and formats a term id for ACF the way a term source does',
+	array( 'term_31', 5150 ),
+	array(
+		\BWS\DynamicTags\SourceRegistry::get_source( 'filtertermroot' )->format_id_for_acf( 31 ),
+		\BWS\DynamicTags\SourceRegistry::get_source( 'filterroot' )->format_id_for_acf( 5150 ),
+	)
+);
+
+// The settings gate is an OFFERING gate too — it hides a term-context root from the
+// dropdown, and a tag already naming one keeps rendering.
+\BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
+eq(
+	'registry: a DISABLED term root still resolves for a tag that already names it',
+	array( 'kind' => 'term', 'id' => 99 ),
+	bws_resolve_base_source( array( 'src' => 'testtermroot' ), null, sig() )
+);
+\BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
+
+// A root is the chain's FIRST segment, so a rooted chain reaches the same delegation and
+// its steps stay the engine's. This is what "registered roots declare no static kind"
+// buys: the factory answers at render, and the compiler's static map is untouched.
+eq(
+	'registry: a rooted CHAIN delegates on its root token',
+	array( 'kind' => 'post', 'id' => 4242 ),
+	bws_resolve_base_source( array( 'src' => 'testroot;refs,office' ), null, sig() )
+);
+eq(
+	'...and the rest of that chain compiles to steps, not to source tokens',
+	array( array( 'type' => 'refs', 'field' => 'office' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'testroot;refs,office' ) )
+);
+// An UNREGISTERED token is not a root at all: the delegation returns null and the tag
+// falls through to the ambient entity, exactly as before #83.
+eq(
+	'registry: an unknown token falls through to ambient, unchanged',
+	array( 'kind' => 'post', 'id' => 0 ),
+	bws_resolve_base_source( array( 'src' => 'nosuchsource' ), null, sig() )
+);
+
 // ── report ───────────────────────────────────────────────────────────────────
 echo "\n";
 echo 'traversal-pipeline: ' . $GLOBALS['pass'] . ' passed, ' . $GLOBALS['fail'] . " failed\n";

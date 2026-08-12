@@ -135,5 +135,96 @@ $check(
 		. ' support=' . ( $term ? var_export( get_term_meta( $term->term_id, 'blurb', true ), true ) : 'no term' )
 );
 
+// -----------------------------------------------------------------------------
+// External-source contract (#85): the two registered roots, the fixture source's
+// deterministic resolution, and the modifier family.
+//
+// These read through the ROOT, not through the ambient page, so they are valid
+// under this file's --url even though that url is matrix-post-meta: a registered
+// root resolves its own entity. That independence is the property.
+// -----------------------------------------------------------------------------
+$root_target = get_page_by_path( 'fixture-root', OBJECT, 'staff' );
+$check( 'fixture root target staff/fixture-root exists', $root_target instanceof WP_Post );
+$check(
+	'fixture root target carries its own role (the ambient contrast)',
+	$root_target && 'Fixture Root Role' === get_post_meta( $root_target->ID, 'role', true ),
+	$root_target ? var_export( get_post_meta( $root_target->ID, 'role', true ), true ) : ''
+);
+
+$root_rows = function_exists( 'bws_registered_root_rows' ) ? bws_registered_root_rows() : array();
+$root_keys = wp_list_pluck( $root_rows, 'value' );
+$check( 'class-route root offered in the chain-root rows', in_array( 'fixture', $root_keys, true ), 'rows=' . implode( ',', $root_keys ) );
+$check( 'filter-route root offered in the chain-root rows', in_array( 'fixture_alt', $root_keys, true ), 'rows=' . implode( ',', $root_keys ) );
+
+$fx1 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture|key:role}}', [], $instance );
+$check( 'class-route root resolves from seeded content', 'Fixture Root Role' === trim( (string) $fx1 ), 'out=' . var_export( $fx1, true ) );
+
+$fx2 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture_alt|key:venue_city}}', [], $instance );
+$check( 'filter-route root resolves from seeded content', 'Chatham' === trim( (string) $fx2 ), 'out=' . var_export( $fx2, true ) );
+
+// NOT REQUEST STATE: the same tag renders the same value with a DIFFERENT ambient
+// post queried. A root that quietly fell through to the ambient entity would
+// answer this page's 'Ambient Page Role' on one of the two.
+$corpus_page = get_page_by_path( 'matrix-fixture-roots' );
+$check( 'page matrix-fixture-roots exists', $corpus_page instanceof WP_Post );
+$check(
+	'corpus page carries the ambient contrast value',
+	$corpus_page && 'Ambient Page Role' === get_post_meta( $corpus_page->ID, 'role', true ),
+	$corpus_page ? var_export( get_post_meta( $corpus_page->ID, 'role', true ), true ) : ''
+);
+if ( $corpus_page instanceof WP_Post ) {
+	$prev_post = $GLOBALS['post'] ?? null;
+	$GLOBALS['post'] = $corpus_page;
+	setup_postdata( $corpus_page );
+	$fx3 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture|key:role}}', [], $instance );
+	$fx4 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text key:role}}', [], $instance );
+	$GLOBALS['post'] = $prev_post;
+	if ( $prev_post ) {
+		setup_postdata( $prev_post );
+	}
+	$check( 'rooted read is INVARIANT under a different ambient post', trim( (string) $fx3 ) === trim( (string) $fx1 ), 'here=' . var_export( $fx3, true ) . ' there=' . var_export( $fx1, true ) );
+	$check( 'the unrooted read on that same post is DIFFERENT (so the row is not vacuous)', 'Ambient Page Role' === trim( (string) $fx4 ), 'out=' . var_export( $fx4, true ) );
+}
+
+$tags = class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ? array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] ) : array();
+$check( 'fixture modifier family registered (fixture_text)', in_array( 'fixture_text', $tags, true ) );
+// The WHOLE family, counted against the TEMPLATE LIST it is generated from rather than
+// against a literal nine — a template added later must mint a fixture tag too, and a
+// hardcoded count would go stale silently. Not counted against the `term_` family, which
+// carries two pre-template legacy tags (`term_list`, `term_meta`) that no template makes.
+$fx_count  = count( preg_grep( '/^fixture_/', $tags ) );
+$tpl_count = class_exists( 'BWS\DynamicTags\TagTemplateRegistry' )
+	? count( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() )
+	: 0;
+$check( 'fixture family has one tag per modifier template', $tpl_count > 0 && $fx_count === $tpl_count, "fixture_={$fx_count} templates={$tpl_count}" );
+
+// The migration's promise, assertable before any converter runs: the modifier tag
+// and the base tag it must become render the same bytes.
+$mod  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text key:role}}', [], $instance );
+$check( 'fixture_text renders == its migrated base-tag wire', trim( (string) $mod ) === trim( (string) $fx1 ), 'modifier=' . var_export( $mod, true ) . ' base=' . var_export( $fx1, true ) );
+
+// The pairs read a FIELD KEY rather than `use:title`, because a modifier template's
+// text core ignores `use` entirely — `use:title` renders empty on every modifier
+// family (pre-existing, issue #88), and a pair of empties would agree
+// whatever the migration did.
+$mod2  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:ref|ref:related_staff|key:role|limit:1}}', [], $instance );
+$base2 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;refs,related_staff|key:role|limit:1}}', [], $instance );
+$check( 'relationship-hop shape: modifier == chain wire', trim( (string) $mod2 ) === trim( (string) $base2 ) && 'Fixture Ref Role' === trim( (string) $mod2 ), 'modifier=' . var_export( $mod2, true ) . ' chain=' . var_export( $base2, true ) );
+
+$mod3  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text srcTermIn:department|key:email}}', [], $instance );
+$base3 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;terms,department|key:email|limit:1}}', [], $instance );
+$check( 'taxonomy-sidecar shape: modifier == chain wire (-> the ROOT\'s term)', trim( (string) $mod3 ) === trim( (string) $base3 ) && 'sales@example.test' === trim( (string) $mod3 ), 'modifier=' . var_export( $mod3, true ) . ' chain=' . var_export( $base3, true ) );
+
+$mod4  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:ref|ref:related_staff|srcTermIn:department|key:email}}', [], $instance );
+$base4 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:fixture;refs,related_staff;terms,department|key:email|limit:1}}', [], $instance );
+$check( 'both-sidecars shape: modifier == chain wire (-> the hop TARGET\'s term)', trim( (string) $mod4 ) === trim( (string) $base4 ) && 'warehouse@example.test' === trim( (string) $mod4 ), 'modifier=' . var_export( $mod4, true ) . ' chain=' . var_export( $base4, true ) );
+
+// The one shape whose OUTPUT the migration changes, asserted as a DIVERGENCE so it
+// cannot be mistaken for a regression later: the modifier returns on `site` before
+// reading either sidecar, while the wire it migrates to renders the site read.
+$mod5  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:site|ref:related_staff|srcTermIn:department|use:key|key:organization_email}}', [], $instance );
+$base5 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:site|use:key|key:organization_email}}', [], $instance );
+$check( 'site shape renders EMPTY today and its migrated wire renders (a KNOWN divergence)', '' === trim( (string) $mod5 ) && 'info@example.test' === trim( (string) $base5 ), 'modifier=' . var_export( $mod5, true ) . ' migrated=' . var_export( $base5, true ) );
+
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );
