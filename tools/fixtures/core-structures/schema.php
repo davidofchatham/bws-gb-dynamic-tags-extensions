@@ -620,4 +620,12 @@ if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
 	add_action( 'init', 'bws_fixture_core_structures_register_meta', 5 );
 	add_action( 'acf/init', 'bws_fixture_core_structures_register_acf', 5 );
+
+	// {{table}} is a PROTOTYPE and registers off by default from 1.17.0, so the plugin
+	// does not ship a half-built tag. The testbed is where it is built and where its
+	// matrix rows and fixture blocks live, so the fixture turns it back on. This is a
+	// filter rather than a constant because it must be set before the plugin registers
+	// at init:20, and an mu-plugin loads well ahead of that. Delete this when the tag
+	// ships v1 and registers unconditionally again (FW-53).
+	add_filter( 'bws_dynamic_tags_register_table_tag', '__return_true' );
 }
