@@ -375,6 +375,124 @@ assert_eq( 'V4.8 a declined tag comes back byte-identical',
 	TagConverter::resolve_full_chain( 'view_something_else', '{{view_something_else key:x}}' ) );
 
 // ===========================================================================
+echo "\nV5 — the ENTRY GENERATOR (#86): one entry per registered template\n";
+
+// V4 above spells its family's entries out by hand, which is what #84 shipped. #86 is the
+// integration seam that generates them: a plugin owning a retired prefix calls ONE helper
+// and gets one entry per registered modifier TEMPLATE, so nobody hand-maintains a list of
+// tag names. That list has already drifted in the wild — the external plugin's alias table
+// covers seven of nine templates because two register from elsewhere — which is why the
+// generator reads the registry rather than accepting a list.
+$made = bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
+
+$expected_names = array_map(
+	static fn( $tpl ) => 'fixture_' . $tpl['key'],
+	TagTemplateRegistry::get_modifier_templates()
+);
+
+assert_eq( 'V5.1 one entry per REGISTERED TEMPLATE, in template order',
+	$expected_names, $made );
+
+assert_eq( 'V5.2 every generated name has a migration PATH',
+	true, MigrationRegistry::has_migration_path( 'fixture_text' ) && MigrationRegistry::has_migration_path( 'fixture_datetime_single' ) );
+
+// A suffix no template registers is not this family's tag and gets no entry — the same
+// rule the transform applies (§V2.2), now visible at registration time.
+assert_eq( 'V5.3 an unregistered suffix gets no entry',
+	false, MigrationRegistry::has_migration_path( 'fixture_table' ) );
+
+// THE BINDING. The entry carries the SHARED transform bound to this family's prefix and
+// root, so the whole #84 mapping applies with no per-family rule — asserted through the
+// registry's own door rather than by calling the transform directly.
+assert_eq( 'V5.4 the generated entry rewrites through the shared transform, rooted at THIS family',
+	'{{text src:fixture;refs,office|key:bio}}',
+	MigrationRegistry::transform_tag( 'fixture_text', '{{fixture_text src:ref|ref:office|key:bio}}' ) );
+
+// REPORT/RUN AGREEMENT for the generated half: the scanner searches for exactly the names
+// the registry will rewrite. A generator that registered an entry the scanner never looks
+// for would be invisible until someone read the code.
+$names = MigrationRegistry::get_deprecated_tag_names();
+assert_eq( 'V5.5 the scanner searches for every generated name',
+	array(), array_values( array_diff( $expected_names, $names ) ) );
+
+// NO CLOBBER. `view`'s entries were registered by hand above; a second pass must leave
+// them alone rather than stacking a duplicate whose root could differ. An owner that
+// hand-wrote one template's entry keeps it and gets the generator for the rest.
+$again = bws_register_modifier_root_migrations( 'view', 'somewhere_else' );
+assert_eq( 'V5.6 a name that already has a path is skipped whole',
+	array(), $again );
+
+assert_eq( 'V5.7 …and the hand-registered entry still governs it',
+	'{{text src:view|key:bio}}',
+	MigrationRegistry::transform_tag( 'view_text', '{{view_text key:bio}}' ) );
+
+// THE SKIP TESTS ENTRY PRESENCE, NOT has_migration_path(), and the difference is a live
+// shape rather than a hypothetical: this repo keeps REGISTRY-ONLY entries by standing
+// policy (a `register()` call is never deleted for lacking migration data), and such an
+// entry carries no `new_tag`. has_migration_path() answers FALSE for it, so a guard written
+// that way would register a SECOND entry behind one that is already spoken for — and since
+// every finder stops at the FIRST match, the generated one would be silently dead: the tag
+// reports no path and never migrates, with nothing erroring.
+MigrationRegistry::register( array(
+	'type'      => 'tag',
+	'match_tag' => 'legacy_text',
+	'since'     => '1.0.0',
+) );
+
+assert_eq( 'V5.6b a registry-only entry (no new_tag) still claims its name',
+	false, in_array( 'legacy_text', bws_register_modifier_root_migrations( 'legacy', 'fixture' ), true ) );
+
+assert_eq( 'V5.6c …and no second entry was stacked behind it',
+	1, count( array_filter( MigrationRegistry::get_by_type( 'tag' ), static fn( $e ) => 'legacy_text' === ( $e['match_tag'] ?? '' ) ) ) );
+
+// The trailing-underscore spelling is the one an owner is likely to have in a constant.
+$made_underscore = bws_register_modifier_root_migrations( 'older_', 'fixture', array( 'since' => '1.0.0' ) );
+assert_eq( 'V5.8 the trailing-underscore prefix spelling is accepted',
+	'older_text', $made_underscore[0] ?? '' );
+
+// Neither fact can be invented, so an incomplete call registers NOTHING rather than
+// something wrong — a rootless entry would re-point every tag at the ambient post.
+assert_eq( 'V5.9 an empty prefix or root generates nothing',
+	array( array(), array() ),
+	array( bws_register_modifier_root_migrations( '', 'fixture' ), bws_register_modifier_root_migrations( 'nowhere', '' ) ) );
+
+$entry_for = static function ( string $tag ): array {
+	foreach ( MigrationRegistry::get_by_type( 'tag' ) as $e ) {
+		if ( ( $e['match_tag'] ?? '' ) === $tag ) {
+			return $e;
+		}
+	}
+	return array();
+};
+
+$fixture_entry = $entry_for( 'fixture_text' );
+assert_eq( 'V5.10 the entry names the BASE tag as its target',
+	'text', $fixture_entry['new_tag'] ?? '' );
+
+assert_eq( 'V5.11 the owner\'s `since` reaches the entry (the admin list shows it)',
+	'1.17.0', $fixture_entry['since'] ?? '' );
+
+// LIVENESS. Migrating does not retire the family — `register_modifier()` goes on minting
+// its GB tags — so the entries belong in the settings page's Deprecated box. is_entry_live()
+// still reads callback-presence as its interim proxy (FW-38 replaces it), so a generated
+// entry carries the marker; filing a live family under "no longer registers with
+// GenerateBlocks" would be false while it renders.
+assert_eq( 'V5.12 a migrated-but-not-retired family is DEPRECATED, not removed',
+	true, MigrationRegistry::is_entry_live( $fixture_entry ) );
+
+// Retirement is the owner's decision on the owner's schedule, and the flag is what says so.
+bws_register_modifier_root_migrations( 'retired', 'fixture', array( 'prefix_removed' => true ) );
+assert_eq( 'V5.13 prefix_removed files the family under Removed instead',
+	false, MigrationRegistry::is_entry_live( $entry_for( 'retired_text' ) ) );
+
+// END TO END for a generated family, through BOTH converter steps — the same pin §V4.9
+// makes for the hand-registered one. The `rel` shape strands only BETWEEN the two steps,
+// so a generator that produced a subtly different entry shows up here.
+assert_eq( 'V5.14 a generated entry survives both converter steps, limit absorbed',
+	'{{text src:fixture;refs,office,limit(3)|key:bio}}',
+	$both_steps( 'fixture_text', '{{fixture_text src:ref|rel:office|limit:3|key:bio}}' ) );
+
+// ===========================================================================
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures} of {$count} assertions\n";

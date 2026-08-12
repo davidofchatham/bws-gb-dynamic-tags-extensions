@@ -1605,6 +1605,152 @@ function bws_modifier_root_transform( string $prefix, string $root ): callable {
 }
 
 /**
+ * Liveness marker for a generated modifier→base entry (#86).
+ *
+ * NEVER DISPATCHED, and it is not dead code. MigrationRegistry::is_entry_live() reads
+ * callback-presence as the interim proxy for "the owning plugin still registers these tag
+ * names" (that docblock says so, and names FW-38's explicit `lifecycle` field as the
+ * replacement) — which is exactly the state a migrated-but-not-retired modifier family is
+ * in: `register_modifier()` goes on minting its nine GB tags, so the entries belong in the
+ * settings page's **Deprecated** box, not in **Removed**. An entry generated without one
+ * would file a live family under "these tag names no longer register with GenerateBlocks",
+ * which is false while the family renders.
+ *
+ * Retiring the family is the owner's decision on the owner's schedule: pass
+ * `prefix_removed => true` then, and is_entry_live() returns false whatever this is.
+ *
+ * @since 1.17.0
+ * @return string Always ''.
+ */
+function bws_modifier_migration_live_marker(): string {
+	return '';
+}
+
+/**
+ * Generate one migration entry per REGISTERED MODIFIER TEMPLATE, for a retired prefix (#86).
+ *
+ * The integration seam for a plugin that owns a modifier family and wants its stored tags
+ * rewritten into base tags rooted at its registered source. One call, no list of tag names:
+ *
+ *     add_action( 'init', function () {
+ *         bws_register_modifier_root_migrations( 'view', 'view', array( 'since' => '3.4.0' ) );
+ *     }, 21 );
+ *
+ * **ENUMERATING TEMPLATES IS THE POINT.** A hand-kept list of tag names has already drifted
+ * once in the wild: the alias table in the external plugin covers seven of the nine
+ * templates, because two of them register from elsewhere. The registry is the only thing
+ * that knows what a family's tags ARE — it is what `register_modifier()` itself iterates to
+ * mint them — so generating from it makes the two lists the same list by construction.
+ *
+ * **THE PREFIX IS SUPPLIED, NEVER DERIVED.** This matches the standing posture for
+ * prefix-owning migrations (bws_migrate_rel_to_ref's `term` hardcode says the same thing):
+ * a derived prefix list can only ever name the in-repo family, while implying it covered
+ * externals. The owner names its own prefix, so an external family is a first-class caller
+ * rather than something this repo has to know about.
+ *
+ * **CALL IT AFTER TEMPLATES ARE REGISTERED**, i.e. later than the plugin's own init:20
+ * pass — init:21 is the natural home, beside the `register_modifier()` call whose tags
+ * these entries answer for. That is comfortably before the converter can run (an admin
+ * request). Called too early the template list is empty and there is nothing to generate,
+ * so this says so out loud rather than registering nothing quietly.
+ *
+ * **IT NEVER OVERWRITES AN ENTRY YOU ALREADY REGISTERED.** A tag name that already HAS an
+ * entry is skipped whole: an owner that hand-wrote one template's entry (a shape with its
+ * own quirk) keeps it, and gets the generator for the other eight. The test is entry
+ * PRESENCE and not has_migration_path() — see the guard.
+ *
+ * The entries are `type:'tag'` with the SHARED transform bound to this prefix + root
+ * (bws_modifier_root_transform), so every family maps by one rule and a new prefix costs no
+ * new rule. `new_tag` is the base tag the transform renames to; a transform_callback's
+ * result is returned verbatim by MigrationRegistry::transform_tag(), so the declarative
+ * rename never runs and the two cannot name different tags — the harness pins that as
+ * report/run agreement.
+ *
+ * NOT set: `source_inject`. It would sharpen the settings page's target display from
+ * `{{text}}` to `{{text src:view}}` and it is display-only here (the transform_callback
+ * overrides the declarative pipeline) — but a rename plus an injected root token is exactly
+ * the shape #84 exists to refuse, and leaving it on the entry as decoration invites the next
+ * reader to drop the callback and "simplify" back into silent hop erasure.
+ *
+ * REACH: the converter scans the POSTS table only (non-revision, non-trash), which does
+ * include reusable blocks, template parts and theme-element post types. Tags stored in the
+ * OPTIONS table — block widgets — are out of its reach and keep rendering; the old tags stay
+ * registered, so "run the converter" is never a deadline.
+ *
+ * @since 1.17.0
+ * @param string $prefix Modifier prefix, with or without its trailing underscore (e.g. 'view').
+ * @param string $root   Registered source key to root migrated tags at (e.g. 'view').
+ * @param array  $args {
+ *     Optional. Per-family entry fields.
+ *
+ *     @type string   $since          Version the prefix was deprecated in. Shown in admin.
+ *     @type bool     $prefix_removed True once YOU stop registering the family's tags —
+ *                                    moves the entries to the Removed box. Default false.
+ * }
+ * @return string[] The modifier tag names entries were generated for, in template order.
+ */
+function bws_register_modifier_root_migrations( string $prefix, string $root, array $args = array() ): array {
+	$prefix = rtrim( trim( $prefix ), '_' );
+	$root   = trim( $root );
+	$reg    = 'BWS\DynamicTags\MigrationRegistry';
+
+	if ( '' === $prefix || '' === $root || ! class_exists( $reg ) || ! class_exists( 'BWS\DynamicTags\TagTemplateRegistry' ) ) {
+		return array();
+	}
+
+	$templates = \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates();
+	if ( empty( $templates ) && function_exists( '_doing_it_wrong' ) ) {
+		_doing_it_wrong(
+			__FUNCTION__,
+			esc_html__( 'No modifier templates are registered yet. Call this after tag registration (init priority later than 20).', 'generateblocks' ),
+			'1.17.0'
+		);
+	}
+
+	// PRESENCE, not has_migration_path(). Both finders in the registry stop at the FIRST
+	// entry matching a tag name, and this repo keeps registry-only entries by standing
+	// policy — a `register()` call is never deleted for lacking migration data. Such an
+	// entry carries no `new_tag`, so has_migration_path() answers FALSE for a name that is
+	// already spoken for; generating a second entry behind it would be silently DEAD wire,
+	// with the tag reporting no path and never migrating and nothing erroring.
+	$taken = array();
+	foreach ( $reg::get_by_type( 'tag' ) as $entry ) {
+		$name = (string) ( $entry['match_tag'] ?? '' );
+		if ( '' !== $name ) {
+			$taken[ $name ] = true;
+		}
+	}
+
+	$generated = array();
+
+	foreach ( $templates as $tpl ) {
+		$key = (string) ( $tpl['key'] ?? '' );
+		if ( '' === $key ) {
+			continue;
+		}
+
+		$old_tag = $prefix . '_' . $key;
+		if ( isset( $taken[ $old_tag ] ) ) {
+			continue;
+		}
+
+		$reg::register( array(
+			'type'               => 'tag',
+			'match_tag'          => $old_tag,
+			'new_tag'            => $key,
+			'transform_callback' => bws_modifier_root_transform( $prefix, $root ),
+			'since'              => (string) ( $args['since'] ?? '' ),
+			'callback'           => 'bws_modifier_migration_live_marker',
+			'prefix_removed'     => ! empty( $args['prefix_removed'] ),
+		) );
+
+		$generated[] = $old_tag;
+	}
+
+	return $generated;
+}
+
+/**
  * Migration transform_callback: `rel` → `ref`, with the matching `src:ref` — per slot on a
  * try_ tag, bare keys on a base or term_ tag (#56, extended to all three families by #57).
  *

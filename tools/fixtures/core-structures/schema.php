@@ -705,6 +705,19 @@ function bws_fixture_core_structures_register_modifier() {
 		// a generic `ref` step off base_source_key.
 		'excluded_supports' => array( 'source' ),
 	) );
+
+	// The family's MIGRATION entries (#86), generated from the same template list the
+	// registration above iterates — one call, no list of tag names. This is the seam an
+	// external plugin owning a retired prefix uses verbatim, which is the whole reason the
+	// fixture family exists: the path runs end to end in-repo, against seeded wire, with no
+	// second plugin installed.
+	//
+	// The family stays REGISTERED after migrating. Retiring it is the owner's decision on
+	// the owner's schedule (`prefix_removed`), and the FR3 corpus needs the tags rendering
+	// to be a migration corpus at all — a reseed puts the pre-conversion wire back.
+	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
+		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
+	}
 }
 
 /**

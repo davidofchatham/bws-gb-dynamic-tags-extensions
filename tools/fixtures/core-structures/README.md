@@ -47,6 +47,7 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `blocks.php` | GB block markup generator (4 shapes) — builds the matrix pages' content from tag strings. |
 | `fixture-source.php` | The class-route chain-root source (#85). Required lazily from `schema.php`'s registration callback — it extends a plugin class, so a top-level declaration would fatal a site with the plugin off. |
 | `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
+| `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
 
 ## Seeding
 
@@ -63,6 +64,22 @@ Then smoke-test:
 bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify.php \
   --url=https://<site-domain>/matrix-post-meta/
 ```
+
+The migration end-to-end run is separate because it MUTATES the corpus — it converts
+`/matrix-fixture-roots/` exactly as the admin Migrate button does, then a reseed puts the
+pre-conversion `fixture_*` wire back, which is what makes it repeatable rather than
+one-shot:
+
+```bash
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify-migration.php \
+  --url=https://<site-domain>/matrix-fixture-roots/
+bin/seed.sh <site> core-structures        # restore the corpus
+```
+
+> **Cache-busting from `docker exec sh -c` needs a LITERAL token.** The env's usual
+> `?nocache=$RANDOM` expands in bash; the container's `sh` leaves it EMPTY, so the URL is
+> constant and LiteSpeed serves the pre-conversion page. That reads as "the migration
+> changed nothing" when it changed everything. Use `?nocache=<something-unique>`.
 
 Safe to re-run — upserts by slug; page content is regenerated every run.
 Seeding also merges a plugin-settings baseline (phone: global CC `1`, strip OFF —
