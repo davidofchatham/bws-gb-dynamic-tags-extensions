@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 7, // 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 8, // 8: EXTERNAL-SOURCE contract corpus (1.17.0, #85) — the `fixture-root` staff post (the class-route root's target: its own main_line/role, `related_staff` leading with TOM where matrix-post-meta's leads with Jane, and the SALES department term alone where the matrix pages carry Support first) plus the `matrix-fixture-roots` page carrying the base-root rows, the folded-slot rows and the `fixture_*` MODIFIER corpus in the six shapes #84's transform maps. Every value on the target is deliberately distinct from the ambient page's: a root whose reads matched the current post would pass whether it resolved or not. The SOURCE and the modifier family are registered in schema.php; the filter-route root (`fixture_alt`) resolves the existing `sample-event` post and needs no new state. 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -178,6 +178,39 @@ return array(
 			'content_builder' => 'matrix_term_hop',
 		),
 
+		// The CLASS-ROUTE root's target (#85). `BWS_Fixture_Root_Source::resolve_id()`
+		// looks this up by slug, so the root answers the same entity on every request —
+		// which is what makes a fixture row assertable where the real external source
+		// (request-state dependent) cannot be.
+		'staff-fixture-root' => array(
+			'post_type'  => 'staff',
+			'post_name'  => 'fixture-root',
+			'post_title' => 'Fixture Root Entity',
+		),
+
+		// The root's RELATIONSHIP target (#85). It exists because the "both sidecars"
+		// migration shape needs a hop target that CARRIES A TERM, and neither existing
+		// staff single does — giving one a department would have changed fixture state
+		// every other matrix reads. Its term (Warehouse) is the third distinct value in
+		// the page → root → hop-target chain, so a taxonomy step landing on the wrong
+		// entity names the wrong department instead of the right one.
+		'staff-fixture-ref' => array(
+			'post_type'  => 'staff',
+			'post_name'  => 'fixture-ref',
+			'post_title' => 'Fixture Ref Target',
+		),
+
+		// The external-source corpus page (#85): base-tag root rows, folded-slot rows,
+		// and the fixture_* modifier tags in the six shapes the migration maps. Its own
+		// ambient values are matrix-post-meta's, so every row here contrasts a rooted
+		// read against the unrooted one beside it.
+		'page-matrix-fixture-roots' => array(
+			'post_type'       => 'page',
+			'post_name'       => 'matrix-fixture-roots',
+			'post_title'      => 'Matrix: Fixture Roots',
+			'content_builder' => 'matrix_fixture_roots',
+		),
+
 		// Editor-side discovery post: Event Details + repeater values live here.
 		// ALSO the date-archive context fixture (context-test-matrix C-rows):
 		// seed keeps it categoryless + portal-visible so /2026/07/ has results
@@ -199,6 +232,13 @@ return array(
 		'page-matrix-terms-valid' => array( 'department-support', 'department-sales' ),
 		'page-matrix-terms-mixed' => array( 'department-support', 'department-sales', 'department-warehouse' ),
 		'page-matrix-terms-junk'  => array( 'department-warehouse' ),
+		// #85 contrast pair: the corpus page carries SUPPORT, the root target carries
+		// SALES alone. A taxonomy-step row through the root must therefore name Sales,
+		// and the ambient row beside it Support — identical term sets would make both
+		// rows pass with the step resolving the wrong entity.
+		'page-matrix-fixture-roots' => array( 'department-support' ),
+		'staff-fixture-root'        => array( 'department-sales' ),
+		'staff-fixture-ref'         => array( 'department-warehouse' ),
 	),
 
 	// ACF field values per post fixture slug (applied via update_field).
@@ -322,6 +362,32 @@ return array(
 			'related_staff'  => array( 'staff-jane-partner', 'staff-tom-associate' ), // CT1-CT4 hop target (jane FIRST)
 			'name_first'     => 'Pagefirst',
 			'name_last'      => 'Pagelast',
+		),
+
+		// #85 — the class-route root's target. Every value here is deliberately UNLIKE
+		// the corpus page's below, and `related_staff` leads with TOM where every other
+		// fixture's leads with Jane: a limit:1 hop through this root that came back
+		// "Jane Partner" resolved the ambient post, not the root.
+		'staff-fixture-root' => array(
+			'main_line'     => '(555) 700-1000',
+			'role'          => 'Fixture Root Role',
+			'contact_email' => 'root@example.test',
+			// Leads with the fixture ref target — the only hop target carrying a term,
+			// so the "relationship then taxonomy" shape resolves without a limit.
+			'related_staff' => array( 'staff-fixture-ref', 'staff-tom-associate' ),
+		),
+
+		'staff-fixture-ref' => array(
+			'main_line' => '(555) 700-2000',
+			'role'      => 'Fixture Ref Role',
+		),
+
+		// #85 — the corpus page's OWN values: the ambient contrast every rooted row on
+		// the page is read against.
+		'page-matrix-fixture-roots' => array(
+			'main_line'     => '(444) 000-1111',
+			'role'          => 'Ambient Page Role',
+			'related_staff' => array( 'staff-jane-partner' ),
 		),
 
 		'post-sample-event' => array(
