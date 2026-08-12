@@ -44,12 +44,51 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
+| *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
 | `child` | WP child posts/terms (list output) | To be considered |
 | `sibling` | WP same-parent posts/terms (list output) | To be considered |
 
 See [§Source group](#source-group) for label/UI details and the per-slot serialization mechanics.
+
+#### Root enum membership (1.17.0, [#83](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/83))
+
+What an author can CHOOSE as a root is a shorter list than what RESOLVES as one, and the two are
+deliberately not the same rule.
+
+- **Offering is stated, never inferred.** A registered source appears in the root enum iff
+  `is_selectable_root()` returns true (default false) *and* `is_source_enabled()` passes — the
+  latter is the settings gate, so a term-context root follows the `term_` modifier toggle. The
+  precondition for opting in is that the source **resolves its own id from ambient context**.
+- **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by
+  policy and never sheds them (a `register_source()` call is never deleted for lacking resolve
+  logic), so the four retired traversal-substitute sources and the internal `post`/`term` keys are
+  registered right now and must stay out. A registry that keeps its dead is the wrong shape to
+  derive an authoring enum from.
+- **Offering is not resolving.** The flag governs the dropdown alone; the factory's registry
+  delegation is untouched, so wire naming any registered source resolves either way. Load-bearing
+  rather than incidental: wire is hand-editable by decision (ADR 0004), and an integrator flipping
+  the flag off must not blank stored content. Pinned by mutation in
+  `tools/test/traversal-pipeline-test.php`.
+- **One appender, two surfaces.** `bws_registered_root_rows()` feeds both the base tag's root enum
+  and the folded slot's source enum, so a root cannot be offered on `{{text}}` and be silently
+  absent from a `{{join}}` field or a `try_` attempt. Rows APPEND after the built-ins, keeping
+  `current` as the row an absent `src` stands for. Slots are ungated: the filter that keeps `site`
+  off a rooting modifier is a judgement about an ENTITY-BLIND source, which a registered entity
+  root is not.
+- **Never on the shared base builder.** `bws_base_source_option()` does not grow these rows — the
+  derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
+  rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
+  widen `{{call}}`'s deliberate allowlist.
+- **Registered roots declare no static kind.** `BWS_FOLD_STATIC_ROOT_KINDS` stays as it is (only
+  `site` is static); a chain rooted at a registered source resolves to the kind the factory
+  determines at render, and the editor's step-offer filter stays permissive there.
+
+Two registration routes, one registry — a source class overriding the flag, or a declarative spec
+through the `bws_dynamic_tags_chain_roots` filter (adapted into a `Sources\CallbackRoot` and
+registered normally, at registry init rather than at enum-build time). See
+[`docs/plugin-integration.md` §1a](plugin-integration.md#1a-offering-your-source-as-a-chain-root).
 
 #### Source CHAINS (1.17.0)
 

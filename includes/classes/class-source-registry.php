@@ -4,6 +4,8 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.0.0
+ * @since 1.17.0 Chain roots: get_selectable_roots() + the `bws_dynamic_tags_chain_roots`
+ *               filter route (#83).
  */
 
 namespace BWS\DynamicTags;
@@ -76,6 +78,103 @@ class SourceRegistry {
 	}
 
 	/**
+	 * The registered sources an author may CHOOSE as a chain root (#83).
+	 *
+	 * The ONE answer both authoring surfaces take their rows from — the base tag's root
+	 * enum and the folded slot's source enum, via bws_registered_root_rows(). One accessor
+	 * so a root cannot be offered in one surface and absent from the other.
+	 *
+	 * TWO gates, and they are different questions. `is_selectable_root()` is the source's
+	 * own claim that it may be chosen; `is_source_enabled()` is this site's settings
+	 * saying whether that whole context is switched on — a term-context root disappears
+	 * with the term_ modifier toggle exactly as every other term surface does. Neither
+	 * gate reaches RESOLUTION: wire naming any registered source resolves through
+	 * bws_factory_registry_source() whichever way both answer.
+	 *
+	 * @since 1.17.0
+	 * @return SourceInterface[] Keyed by source key, in registration order.
+	 */
+	public static function get_selectable_roots(): array {
+		$roots = array();
+		foreach ( self::$sources as $key => $source ) {
+			if ( $source->is_selectable_root() && self::is_source_enabled( $key ) ) {
+				$roots[ $key ] = $source;
+			}
+		}
+		return $roots;
+	}
+
+	/**
+	 * Adapt the declarative root specs from `bws_dynamic_tags_chain_roots` into sources.
+	 *
+	 * Fires at REGISTRATION, never at enum-build time. A row added when the enum is built
+	 * would exist for the editor and not for the renderer, and the token would then fall
+	 * through to the ambient entity — an offered source silently reading something else.
+	 * Registering keeps both consumers correct by construction.
+	 *
+	 * Called AFTER the register_sources action, so every class-route source already
+	 * exists and a colliding key is IGNORED rather than overwritten: a plugin that ships
+	 * a real source class must not have it shadowed by a spec someone else declared.
+	 *
+	 * NO $context ARGUMENT, deliberately. There is no tag, block or container in
+	 * existence when this fires, so the parameter would ship empty; WordPress passes
+	 * arguments positionally by registered arity, so adding one later stays backward
+	 * compatible.
+	 *
+	 * @since 1.17.0
+	 */
+	private static function register_filtered_roots(): void {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return;
+		}
+
+		/**
+		 * Declare chain roots without writing a source class.
+		 *
+		 *     add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
+		 *         $roots['view'] = array(
+		 *             'label'   => __( 'View', 'my-plugin' ),      // required, author-facing
+		 *             'context' => 'post',                         // 'post'|'term', default 'post'
+		 *             'resolve' => 'my_plugin_current_view_id',    // callable( $options, $instance )
+		 *         );
+		 *         return $roots;
+		 *     } );
+		 *
+		 * Everything declared here IS a root — that is what the filter is named for, so
+		 * there is no offerability flag to set. A source that should NOT be offerable
+		 * uses the `bws_dynamic_tags_register_sources` action instead.
+		 *
+		 * @since 1.17.0
+		 * @param array $roots Source key => { label, context, resolve } spec.
+		 */
+		$specs = apply_filters( 'bws_dynamic_tags_chain_roots', array() );
+		if ( ! is_array( $specs ) ) {
+			return;
+		}
+
+		foreach ( $specs as $key => $spec ) {
+			$key = is_string( $key ) ? trim( $key ) : '';
+			if ( '' === $key || isset( self::$sources[ $key ] ) || ! is_array( $spec ) ) {
+				continue;
+			}
+			$label   = isset( $spec['label'] ) ? (string) $spec['label'] : '';
+			$resolve = $spec['resolve'] ?? null;
+			// A spec with no label has no dropdown row to be, and one with no resolver
+			// would offer a root that answers nothing. Both are skipped rather than
+			// registered half-formed.
+			if ( '' === $label || ! is_callable( $resolve ) ) {
+				continue;
+			}
+			self::register_source( new Sources\CallbackRoot(
+				$key,
+				$label,
+				(string) ( $spec['context'] ?? 'post' ),
+				$resolve
+			) );
+		}
+	}
+
+	/**
 	 * Initialize built-in sources and fire registration hook.
 	 */
 	public static function init(): void {
@@ -135,6 +234,9 @@ class SourceRegistry {
 		 * @param SourceRegistry $registry The registry instance (for static method access).
 		 */
 		do_action( 'bws_dynamic_tags_register_sources', new self() );
+
+		// The FILTER route, last: class-route registrations win a key collision (#83).
+		self::register_filtered_roots();
 
 		if ( Admin\SettingsPage::is_registration_logging_enabled() ) {
 			$action_added = count( self::$sources ) - $count_before;

@@ -30,6 +30,10 @@ define( 'ABSPATH', __DIR__ );
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $d = null ) { return $s; }
 }
+// The registry bootstrap FIRST: the chain-root section drives the shipped registry, and
+// its filter route needs hooks that actually dispatch. The no-op shims below then skip
+// what it has already defined.
+require_once __DIR__ . '/lib-source-registry.php';
 foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $fn ) {
 	if ( ! function_exists( $fn ) ) {
 		eval( "function {$fn}() { return func_num_args() > 1 ? func_get_arg(1) : null; }" );
@@ -704,6 +708,168 @@ assert_same(
 	array( false, false, false ),
 	array( ! empty( $link['linkTo']['_group_lead'] ), ! empty( $link['linkKey']['_group_lead'] ), ! empty( $link['newTab']['_group_lead'] ) )
 );
+
+// ── Registered chain ROOTS (#83) ─────────────────────────────────────────────────────
+//
+// Everything above ran with an EMPTY registry, which is what a base tag's enum looks like
+// on a site with no integrator. From here the registry is live, so every enum is rebuilt
+// rather than re-read: a stale row array would assert the state this section exists to
+// change.
+//
+// The subject is REGISTRATION OUTPUT — what the enums contain — not which function
+// produced it. That is why both surfaces are asserted against the SAME appender result
+// instead of against transcribed rows: "offered here and absent there" is the failure
+// this is written to catch, and two literals could agree with each other while disagreeing
+// with the source of truth.
+
+echo "\nRegistered chain roots (#83)\n";
+
+// Pre-init registration — the documented Pattern B route (plugins_loaded < 20), and the
+// one the registry logs as a "pre-init external".
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Offered_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Unoffered_Source() );
+
+add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
+	$roots['filterroot'] = array(
+		'label'   => 'Filter Root',
+		'context' => 'post',
+		'resolve' => static function ( $options, $instance ) { return 5150; },
+	);
+	// COLLIDES with the class-route source registered above. Must be ignored, not
+	// overwrite it: a plugin shipping a real source class must not have it shadowed by a
+	// spec someone else declared.
+	$roots['testroot'] = array(
+		'label'   => 'HIJACKED',
+		'resolve' => static function ( $options, $instance ) { return 1; },
+	);
+	// Half-formed specs. A root with no label has no row to be; one with no resolver
+	// would answer nothing. Registering either would put a dead row in the dropdown.
+	$roots['nolabel']   = array( 'resolve' => static function () { return 1; } );
+	$roots['noresolve'] = array( 'label' => 'No Resolver' );
+	return $roots;
+} );
+
+\BWS\DynamicTags\SourceRegistry::init();
+
+$root_values = static function ( array $rows ): array {
+	return array_map( static function ( $row ) { return $row['value']; }, $rows );
+};
+
+// The appender is the single answer both surfaces take their rows from.
+$appended = bws_registered_root_rows();
+assert_same(
+	'the appender offers the opted-in source and the filter-declared root, in registration order',
+	array( 'testroot', 'filterroot' ),
+	$root_values( $appended )
+);
+assert_same(
+	'...labelled by the source\'s OWN accessor, so an integrator names their concept',
+	array( 'Test Root', 'Filter Root' ),
+	array_map( static function ( $row ) { return $row['label']; }, $appended )
+);
+// The collision rule, stated as an outcome rather than as an absence: the key resolves to
+// the CLASS-route source, whose label is intact.
+assert_same(
+	'a colliding filter spec is IGNORED, not merged over the class route',
+	'Test Root',
+	\BWS\DynamicTags\SourceRegistry::get_source( 'testroot' )->get_source_label()
+);
+assert_same( 'a spec with no label registers nothing', null, \BWS\DynamicTags\SourceRegistry::get_source( 'nolabel' ) );
+assert_same( 'a spec with no resolver registers nothing', null, \BWS\DynamicTags\SourceRegistry::get_source( 'noresolve' ) );
+
+// A registered source that never opted in. It IS in the registry (the harness resolves it
+// in traversal-pipeline-test.php) and is nowhere in an authoring surface.
+assert_same(
+	'a registered source that has NOT opted in is absent',
+	false,
+	in_array( 'quietsource', $root_values( $appended ), true )
+);
+// The registry keeps its dead by policy — four traversal-substitute classes retired when
+// the generic relationship step subsumed them, plus the two INTERNAL keys, which would
+// otherwise promote to roots that duplicate Current and collide with the planned
+// pinned-entity spelling. Every one of them is a registered source right now.
+foreach ( array( 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post', 'post', 'term' ) as $never ) {
+	assert_same(
+		"the registry's own `{$never}` stays out of the root enum",
+		array( true, false ),
+		array( null !== \BWS\DynamicTags\SourceRegistry::get_source( $never ), in_array( $never, $root_values( $appended ), true ) )
+	);
+}
+
+// ── Both surfaces, one appender ──────────────────────────────────────────────────────
+$rooted_base = bws_build_src_chain_option();
+$rooted_fold = bws_build_fold_slot_options(
+	array(
+		'container'  => 'join',
+		'max'        => 2,
+		'base_read'  => $text['use'],
+		'base_key'   => $text['key'],
+		'allow_site' => true,
+		'noun'       => 'field',
+	)
+)['A']['fold'];
+
+assert_same(
+	'BASE root enum = built-ins then the appended roots',
+	array( 'current', 'site', 'testroot', 'filterroot' ),
+	$root_values( $rooted_base['src']['fold']['srcRows'] )
+);
+assert_same(
+	'SLOT source enum carries the same roots (a root offered on a tag is offered in a field)',
+	array( 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	$root_values( $rooted_fold['srcRows'] )
+);
+assert_same(
+	'...and so does a slot ≥2, behind its inherit row',
+	array( 'same', 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	$root_values( $rooted_fold['srcRowsInherit'] )
+);
+// APPENDED, never prepended: `defaultRoot` is derived from the first row and stands for
+// what an absent `src` means, which is `current` on every tag whatever is registered.
+assert_same( 'base defaultRoot is untouched by the appended roots', 'current', $rooted_base['src']['fold']['defaultRoot'] );
+assert_same( 'slot defaultRoot likewise', 'current', $rooted_fold['defaultRoot'] );
+
+// ── The SHARED base builder is untouched ─────────────────────────────────────────────
+//
+// Rows attach at the CHAIN-ROOT layer only. `term_*`, `try_*`, `{{table}}` and `{{call}}`
+// build their own surfaces from this enum's rows, so a root leaking in here would offer a
+// root inside its own modifier family's Source dropdown and widen {{call}}'s deliberate
+// allowlist.
+assert_same(
+	'bws_base_source_option() does NOT grow registered roots',
+	array( 'current', 'ref', 'site' ),
+	$root_values( bws_base_source_option()['src']['options'] )
+);
+assert_same(
+	'...so the derived slot twin does not either',
+	array( 'current', 'ref' ),
+	$root_values( bws_build_slot_traversal_options( 1, bws_base_source_option(), $base_trav, false )['src']['options'] )
+);
+
+// ── The settings gate ────────────────────────────────────────────────────────────────
+//
+// Two different questions: `is_selectable_root()` is the source's claim that it MAY be
+// chosen, `is_source_enabled()` is this site saying whether that context is switched on
+// at all. A term-context root follows the term_ modifier toggle exactly as every other
+// term surface does. Neither gate reaches resolution.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Term_Root_Source() );
+assert_same(
+	'a term-context root is offered while the term_ modifier toggle is ON',
+	true,
+	in_array( 'testtermroot', $root_values( bws_registered_root_rows() ), true )
+);
+\BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
+assert_same(
+	'...and disappears with the toggle, like every other term surface',
+	false,
+	in_array( 'testtermroot', $root_values( bws_registered_root_rows() ), true )
+);
+assert_same(
+	'...while a post-context root is unaffected by it',
+	true,
+	in_array( 'testroot', $root_values( bws_registered_root_rows() ), true )
+);
+\BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
 
 echo "\n";
 if ( $failures > 0 ) {

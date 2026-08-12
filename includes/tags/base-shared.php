@@ -57,6 +57,46 @@ function bws_base_source_option(): array {
 }
 
 /**
+ * The enum rows for every registered source offered as a chain ROOT (#83).
+ *
+ * THE ONE APPENDER. Both authoring surfaces call it — the base tag's root enum
+ * (bws_build_src_chain_option) and the folded slot's source enum
+ * (bws_build_fold_slot_options) — so a root cannot be offered on a base tag and be
+ * silently absent from an attempt or a `{{join}}` field, which is the shape users report
+ * as a bug. Slots are included and UNGATED: the gate that keeps `site` out of a rooting
+ * modifier's list is a qualifying-test judgement about an ENTITY-BLIND source, and a
+ * registered entity root passes that test.
+ *
+ * NEVER attached to bws_base_source_option(). The derived families read that builder's
+ * rows to construct their own surfaces, so leaking roots into it would offer a root
+ * inside its own modifier family's Source dropdown (a second root on a tag that already
+ * has one), widen `{{call}}`'s deliberate allowlist, and reach `{{table}}`'s flat options.
+ *
+ * APPENDED, never prepended: `defaultRoot` on both surfaces derives from the first row,
+ * and what an absent `src` means is `current` on every tag.
+ *
+ * The label is the source's OWN — get_source_label(), the accessor that already exists —
+ * so an integrator names their own concept and there is no second label method to drift.
+ *
+ * @since 1.17.0
+ * @return array[] `{ value, label }` rows, in registration order. Empty when the registry
+ *                 is absent (a harness loading this file alone) or nothing has opted in.
+ */
+function bws_registered_root_rows(): array {
+	if ( ! class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
+		return array();
+	}
+	$rows = array();
+	foreach ( \BWS\DynamicTags\SourceRegistry::get_selectable_roots() as $key => $source ) {
+		$rows[] = array(
+			'value' => (string) $key,
+			'label' => $source->get_source_label(),
+		);
+	}
+	return $rows;
+}
+
+/**
  * A field picker's editor-facing config, trimmed to what it actually declares.
  *
  * Both chain-config builders ship pickers (`refOption`, `keyOption`, `entriesOption`)
@@ -238,6 +278,11 @@ function bws_build_src_chain_option( array $args = array() ): array {
 			$root_rows[] = $row;
 		}
 	}
+	// Registered roots (#83) append AFTER the built-ins, through the one appender the slot
+	// surface also reads. This is the CHAIN-ROOT layer — the rows never reach
+	// bws_base_source_option(), whose enum the derived families build their own surfaces
+	// from.
+	$root_rows = array_merge( $root_rows, bws_registered_root_rows() );
 
 	$source_opt['src']['type'] = 'bws-src-chain';
 	$source_opt['src']['fold'] = array(
@@ -606,6 +651,13 @@ function bws_build_fold_slot_options( array $args ): array {
 	};
 	$src_rows         = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
 	$src_rows_inherit = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
+	// Registered roots (#83), through the SAME appender the base tag's root enum reads —
+	// so a root offered on `{{text}}` is offered in a `{{join}}` field and a `try_` attempt
+	// too. Ungated: `$allow_site` filters an ENTITY-BLIND source, which a registered entity
+	// root is not. Appended, so `defaultRoot` still derives from `current`.
+	$registered_roots = bws_registered_root_rows();
+	$src_rows         = array_merge( $src_rows, $registered_roots );
+	$src_rows_inherit = array_merge( $src_rows_inherit, $registered_roots );
 
 	// Read enum — through the read twin (its `['options']` rows only; the fold supplies
 	// its own slot heading). A COMBINING container needs an explicit unset row: there,

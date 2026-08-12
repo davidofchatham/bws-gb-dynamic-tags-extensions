@@ -79,13 +79,79 @@ The `$registry` argument passed to the action is available but not needed — `r
 
 Once registered via `SourceRegistry::register_source()`, the source is available for resolution in tag callbacks and deprecated wrapper registrations.
 
-Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are source-agnostic. Users select the source at the tag level using the **Source** dropdown in the GB editor. However, the built-in source dropdown only exposes sources wired into `bws_base_source_option()` — external sources registered via the hook do **not** automatically appear there.
+Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, `datetime_range`) are source-agnostic, and a tag whose source names your key **already resolves through it** — `{{text src:external|key:x}}` renders whether or not anything offers that source in the editor. What registration alone does not do is put a row in the **Source** control, so an author has no way to choose it.
 
-To expose your source to GB editor users, use one of:
+To let authors choose it, opt in as a chain root (below). The older routes remain:
 
-1. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
-2. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
-3. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
+1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
+2. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Mints a parallel tag family that duplicates the base tags; prefer a chain root unless you need per-tag options of your own. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
+4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
+
+---
+
+## 1a. Offering your source as a chain root
+
+A **chain root** is where a tag's source path starts — `Current`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
+
+Two routes, one registry.
+
+### Route A — a source class opts in
+
+Override one method. The dropdown label is `get_source_label()`, the accessor you already implement — there is no second label method.
+
+```php
+class ExternalSource extends AbstractSource {
+
+    // …get_source_key(), get_source_label(), resolve_id() as above…
+
+    public function is_selectable_root(): bool {
+        return true;
+    }
+}
+```
+
+**The precondition for returning `true` is that your source resolves its own id from ambient context** — the request, the queried object, your own state — with no tag option telling it where to look. A source that exists only to back deprecated wrappers, or that needs an option filled in before it can answer, should leave the default `false`.
+
+Offerability is stated rather than derived because the registry keeps entries that can no longer resolve: a `register_source()` call is never deleted just because its resolve logic was retired (see [§7](#7-registering-deprecated-tag-wrappers)). Deriving an authoring list from a registry that keeps its dead would surface them.
+
+### Route B — declare a root from a filter, with no class
+
+For the cheap case — you have an entity and a function that finds it — skip the class entirely:
+
+```php
+add_filter( 'bws_dynamic_tags_chain_roots', function( $roots ) {
+    $roots['external'] = array(
+        'label'   => __( 'External Post', 'my-plugin' ),   // required; what authors see
+        'context' => 'post',                               // 'post' or 'term'; default 'post'
+        'resolve' => 'my_plugin_current_external_id',      // callable( array $options, $instance ): int|false
+    );
+    return $roots;
+} );
+```
+
+Each spec is adapted into a registered source and registered normally, so it lands in the same registry the renderer consults. Notes:
+
+- **Everything declared here is a root.** The filter is named for roots, so declaring through it *is* the opt-in — there is no flag to set. A source that should *not* be offerable uses the `bws_dynamic_tags_register_sources` action instead.
+- **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
+- **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
+- **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
+- **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
+
+### What the opt-in does and does not govern
+
+**It governs the dropdown only.** Wire naming your source resolves whether or not it is currently offered — the factory's registry delegation is untouched. That is deliberate: tag strings are hand-editable by design, and flipping the flag off must never blank stored content. It also means removing the opt-in is safe at any time; existing tags go on rendering.
+
+Two further consequences worth knowing:
+
+- **Your rows reach base tags and slots, and nothing else.** They are appended at the chain-root layer, so `term_*`, `try_*`'s own source lists, `{{table}}` and `{{call}}` are unaffected.
+- **A term-context root follows the `term_` modifier toggle** in the plugin settings — switching that off hides it from the dropdown, exactly as it hides every other term surface. Resolution is unaffected.
+
+Where a rooted tag cannot resolve in the editor (common when your source reads request state), the preview names it by your registered label:
+
+```
+['contact_phone' from External Post]
+```
 
 ---
 
@@ -201,6 +267,12 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 |--------|--------|---------|-------|
 | `needs_relationship_field(): bool` | Whether this source requires a `ref` option to resolve | `false` | **Inert since v1.17.0 — nothing reads it.** Relationship traversal is a generic `ref` step off whatever source the factory resolved, not a property of the source (see below). Kept on the interface so existing implementations keep loading. |
 | `get_ui_group(): string` | Admin matrix group for this source | `get_context_type()` | Override when the source should appear in a different group than its context type. `TermRelatedPost` returns `'term'` even though its `context_type` is `'post'`. |
+
+### Authoring surface
+
+| Method | Return | Default | Notes |
+|--------|--------|---------|-------|
+| `is_selectable_root(): bool` | Whether authors may choose this source as a chain root | `false` | Added v1.17.0. Governs the **dropdown only** — wire naming your source resolves either way. Precondition: the source resolves its own id from ambient context. **Do not** phrase the decision in terms of `needs_relationship_field()`, which is inert and would wrongly pass a wrapper-only registration. See [§1a](#1a-offering-your-source-as-a-chain-root). |
 
 ### Options
 

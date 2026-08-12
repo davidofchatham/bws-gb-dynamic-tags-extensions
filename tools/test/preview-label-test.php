@@ -60,11 +60,23 @@ if ( ! function_exists( 'get_taxonomy' ) ) {
 	}
 }
 
+// sanitize_key: the chain read normalises a `terms` step's slug exactly as the retired
+// flat assembler did. Lower-cased alphanumerics/underscore/dash, matching WP.
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ); }
+}
+
 // The join preview walks slots through the FOLDED-SLOT seam (FW-56/57) rather than its
 // own copy of join's slot walk, so the grammar owner and the canonical order it emits
 // through are real dependencies here. Both are pure.
+//
+// The BASE preview reads its source as a CHAIN (#83) through the same compile seam every
+// other consumer takes, so slot-fold-compile.php is a real dependency too: without it the
+// builder's function_exists guard degrades to "no source segments at all", which would
+// pass a preview with every `from …` clause silently missing.
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
+require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/preview-helpers.php';
 
 $failures = 0;
@@ -222,6 +234,29 @@ check(
 	bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'key' => 'sku', 'srcTermIn' => 'event_category' ], 'text' ),
 	"['sku' from Ref 'rel' → Event Category Term]"
 );
+// The same tag written as CHAIN WIRE previews identically — the whole reason the preview
+// reads its source through the compile seam rather than comparing the raw token (#83).
+// A chain's root sits INSIDE the value, so a token compare could not have found it.
+check(
+	'…and its chain-wire twin previews identically',
+	bws_build_preview_label( [ 'src' => 'refs,rel;terms,event_category', 'key' => 'sku' ], 'text' ),
+	"['sku' from Ref 'rel' → Event Category Term]"
+);
+// A chain hopping TWICE names both hops. The flat spelling could not express this, so
+// there is no legacy twin to compare against — the point is that the preview describes
+// the wire rather than the one step the old shape could hold.
+check(
+	'text: a two-hop chain names both hops',
+	bws_build_preview_label( [ 'src' => 'refs,staff;refs,office', 'key' => 'phone' ], 'text' ),
+	"['phone' from Ref 'staff' Ref 'office']"
+);
+// An ARGLESS step renders nothing at all (the engine short-circuits), so the preview
+// reports the missing thing rather than describing a source that cannot resolve.
+check(
+	'text: an argless chain term step warns, like its flat sibling',
+	bws_build_preview_label( [ 'src' => 'terms', 'key' => 'sku' ], 'text' ),
+	'[⚠ No taxonomy set]'
+);
 // Email/phone key-required warning.
 check(
 	'email no key → warn',
@@ -243,6 +278,42 @@ check(
 	'email src:site (base) → from Site',
 	bws_build_preview_label( [ 'src' => 'site', 'key' => 'org_email' ], 'email' ),
 	"[Email: 'org_email' from Site]"
+);
+
+// ── A tag rooted at a REGISTERED SOURCE (#83) ────────────────────────────────────────
+//
+// This is the WHOLE editor experience for such a tag, not a nicety: a source that resolves
+// from request context cannot resolve in the editor, so the tag previews rather than
+// renders every time. The existing prefix-keyed modifier map is keyed on TAG NAME and can
+// never fire for a base tag, which is why the label comes off the registry instead.
+require_once __DIR__ . '/lib-source-registry.php';
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Offered_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Unoffered_Source() );
+
+check(
+	'text rooted at a registered source → named by its REGISTERED LABEL, not its token',
+	bws_build_preview_label( [ 'src' => 'testroot', 'use' => 'key', 'key' => 'sku' ], 'text' ),
+	"['sku' from Test Root]"
+);
+// A rooted CHAIN names the root and then its steps, in wire order.
+check(
+	'…and a rooted chain names the root, then each step',
+	bws_build_preview_label( [ 'src' => 'testroot;refs,office', 'use' => 'key', 'key' => 'phone' ], 'text' ),
+	"['phone' from Test Root Ref 'office']"
+);
+// OFFERED is irrelevant to the preview: the tag is STORED, so the preview describes what
+// it says. A source an integrator stopped offering still renders, so it must still read.
+check(
+	'a source that never opted in still previews by label (offering ≠ describing)',
+	bws_build_preview_label( [ 'src' => 'quietsource', 'key' => 'org_email' ], 'email' ),
+	"[Email: 'org_email' from Quiet Source]"
+);
+// An UNREGISTERED token names nothing. It resolves to the ambient entity, and inventing a
+// label for it would describe a source that does not exist.
+check(
+	'an unregistered token adds no segment (it reads the ambient entity)',
+	bws_build_preview_label( [ 'src' => 'nosuchsource', 'use' => 'key', 'key' => 'sku' ], 'text' ),
+	"['sku']"
 );
 // {{call}} INERT config-describing preview (VC-inert) — never executes the fn.
 check(
