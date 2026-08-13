@@ -12,7 +12,7 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 == Upgrade Notice ==
 
 = 1.17.0 =
-⚠ Two checks if you ran the Tag Converter before. 1) A retired tag name may have lost its "open in a new tab" setting. 2) A pre-1.6 date tag may show a wrong year or lose midnight times. Also new: Result Limit 0 or -1 now means no limit, not one result; set 1 to keep the old output.
+⚠ Two checks if you ran the Tag Converter before. 1) A retired tag name may have lost its "open in a new tab" setting. 2) A pre-1.6 date tag may show a wrong year or lose midnight times. Also new: An explicit Result Limit of 0 or -1 now means no limit, not one result; set 1 to keep the old output.
 
 = 1.16.0 =
 Heads up: {{join}} options Fallback Text and Separator have been revised from 1.15.0 and require manual reconfiguration in the editor if already used. Image tags now fold size into the Return option string; rendering is unchanged, but run the Tag Converter to avoid mixed options after future edits.
