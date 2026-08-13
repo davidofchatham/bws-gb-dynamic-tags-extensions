@@ -12,11 +12,9 @@ Not only can you start from post, loop, and term contexts without changing tags,
 
 ### Sources that follow more than one step
 
-Starting in v1.17, a tag's Source is a path you build a step at a time: begin at the current entry, the site, or a relationship, then follow a relationship field or drop into a taxonomy term, then do it again. Before this you could follow one relationship and one taxonomy and no further, so something two relationships away (the office of the staff member an event references) could not be asked for at all.
+Starting in v1.17, a tag's Source is a path you build a step at a time: begin at the current entry, the site, or a relationship, then follow a relationship field or drop into a taxonomy term, then do it again. Nothing caps the depth, so something two relationships away (the office of the staff member an event references) is a two-step path.
 
-Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So limiting a taxonomy step to one gives you one term from each referenced post, not one term overall. Leave it blank for all.
-
-Existing tags keep working exactly as they are, with nothing to run and nothing to review. One thing to know if you convert an old tag by hand: a source written the old way returns one result unless you say otherwise, while a path returns all of them, so the editor writes that old limit of 1 onto the step it applies to and leaves it there for you to see and clear. That is also why the tags that build a path no longer carry a tag-wide Result Limit: the limit is stated on the step, where you can see what it bounds.
+Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So limiting a taxonomy step to one gives you one term from each referenced post, not one term overall. Leave it blank for all. A limit is stated where the source is stated, on the step, so you can see what it bounds; there is no tag-wide result limit.
 
 Another plugin can add its own starting point to that list. A plugin that works out its own entry from the page being viewed offers it alongside Current and Site, on every base tag and in every slot of `{{join}}` and the first-available tags, and a path starts there like any other. Nothing appears until a plugin you have installed opts in. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
 
@@ -67,13 +65,7 @@ All `try_` tags accept a site source per slot, so a chain can end in a site-wide
 
 ## Multi-slot editing
 
-`join` and the `try_` tags configure one slot at a time: add a slot, set its source and field, remove
-it when it is no longer wanted. Removing a middle slot closes the gap, and a later slot that inherits
-from the removed one keeps the value it was reading rather than re-pointing at something else. Each
-slot saves under a single option key, so its source and field stay together in the tag string. The key
-is a letter (`A`, `B`, `C`, and so on) matching the slot's panel label, and in `join` template mode the
-same letter is the slot's format token. Tags saved before this release are converted when you open
-them, and the Tag Converter handles saved content you have not opened.
+Starting in v1.17, `join` and the `try_` tags configure one slot at a time: add a slot, set its source and field, remove it when it is no longer wanted. Removing a middle slot closes the gap, and a later slot that inherits from the removed one keeps the value it was reading rather than re-pointing at something else. Each slot saves under a single option key, so its source and field stay together in the tag string. The key is a letter (`A`, `B`, `C`, and so on) matching the slot's panel label, and in `join` template mode the same letter is the slot's format token.
 
 ## Return custom function output with `call` tag
 
