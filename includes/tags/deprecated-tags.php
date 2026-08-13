@@ -2002,24 +2002,46 @@ function bws_register_option_migrations(): void {
 		'smart_time', 'omit_current_year',
 	);
 
+	// ERA evidence — a NARROWER list than the trigger above, and the two must stay
+	// separate. The datetime transforms inject `showMidnight`/`showCurrentYear` on the
+	// ABSENCE of the old inverted booleans (see MigrationRegistry::apply_datetime_transforms),
+	// so they need to know the tag is genuinely pre-1.6 wire rather than a modern tag that
+	// never had those keys. Every key here is spelled only by pre-1.6 datetime wire —
+	// `separator` included, since the modern spelling is `rangeSep`.
+	//
+	// `fallback_text` is the one trigger key that is NOT era evidence: it is renamed on
+	// every base tag, so `{{datetime_single key:x|fallback_text:—}}` is a modern tag
+	// carrying one stale universal key. It still triggers the entry (the rename must run)
+	// but must not license the injection, which would flip that tag's year and midnight
+	// rendering. See #90.
+	$datetime_era_keys = array(
+		'date_time_field', 'time_field',
+		'start_field', 'start_time_field', 'end_field', 'end_time_field',
+		'separator', 'date_time_separator',
+		'format_type', 'custom_format', 'date_only', 'time_only',
+		'smart_time', 'omit_current_year',
+	);
+
 	$reg::register( array(
-		'type'                => 'option',
-		'match_tag'           => 'datetime_single',
-		'match_any_options'   => $datetime_single_old_keys,
-		'new_tag'             => 'datetime_single',
-		'option_renames'      => $cdts_renames,
-		'datetime_transforms' => true,
-		'label'               => __( '{{datetime_single}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
+		'type'                 => 'option',
+		'match_tag'            => 'datetime_single',
+		'match_any_options'    => $datetime_single_old_keys,
+		'datetime_era_options' => $datetime_era_keys,
+		'new_tag'              => 'datetime_single',
+		'option_renames'       => $cdts_renames,
+		'datetime_transforms'  => true,
+		'label'                => __( '{{datetime_single}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
 	) );
 
 	$reg::register( array(
-		'type'                => 'option',
-		'match_tag'           => 'datetime_range',
-		'match_any_options'   => $datetime_range_old_keys,
-		'new_tag'             => 'datetime_range',
-		'option_renames'      => $cdtr_renames,
-		'datetime_transforms' => true,
-		'label'               => __( '{{datetime_range}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
+		'type'                 => 'option',
+		'match_tag'            => 'datetime_range',
+		'match_any_options'    => $datetime_range_old_keys,
+		'datetime_era_options' => $datetime_era_keys,
+		'new_tag'              => 'datetime_range',
+		'option_renames'       => $cdtr_renames,
+		'datetime_transforms'  => true,
+		'label'                => __( '{{datetime_range}}: legacy field/format keys → v1.6 names', 'generateblocks' ),
 	) );
 
 	// fallback_text → fallback on every base tag (universal rename). Single-key gate;
