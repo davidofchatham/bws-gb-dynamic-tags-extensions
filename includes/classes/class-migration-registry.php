@@ -55,6 +55,16 @@ class MigrationRegistry {
 	 *                                   Display-only metadata for admin migration preview;
 	 *                                   does not affect transform pipeline.
 	 *   @type bool    $datetime_transforms When true, apply datetime special-case transforms.
+	 *   @type array   $datetime_era_options Option keys whose presence PROVES the tag was authored
+	 *                                   before the 1.6 datetime rename. Read only by the datetime
+	 *                                   transforms, and only on 'option' entries — a 'tag' entry
+	 *                                   matches a pre-1.6 tag NAME, which proves era by itself.
+	 *                                   Needed because the two inverted booleans are injected on
+	 *                                   ABSENCE, so the transform must be able to tell legacy wire
+	 *                                   with the key unchecked from modern wire that never had it.
+	 *                                   NOT the same list as `match_any_options`: a key that also
+	 *                                   appears on modern wire (`fallback_text`, renamed on every
+	 *                                   base tag) triggers the entry but proves nothing about era.
 	 *
 	 *   'tag' type only:
 	 *   @type string  $old_tag         Alias for match_tag (DeprecatedTagRegistry backward compat).
@@ -496,8 +506,10 @@ class MigrationRegistry {
 			return ( $entry['transform_callback'] )( $tag_string );
 		}
 
-		// Step 1: Parse.
-		[ , $options ] = self::parse_tag_string( $tag_string );
+		// Step 1: Parse. The pre-rename snapshot is kept because the datetime era test (step 5)
+		// reads legacy FIELD keys, and step 3 renames those away before step 5 runs.
+		[ , $options ]    = self::parse_tag_string( $tag_string );
+		$original_options = $options;
 
 		// Step 2: Apply combine_options. Combines a presence-flag key + a value key into one new key.
 		// If both old keys present and value_from has a non-empty string, emit new_key = that value.
@@ -540,7 +552,11 @@ class MigrationRegistry {
 
 		// Step 5: Datetime special-case transforms (opt-in per entry).
 		if ( ! empty( $entry['datetime_transforms'] ) ) {
-			$options = self::apply_datetime_transforms( $options );
+			$options = self::apply_datetime_transforms(
+				$options,
+				self::datetime_legacy_era( $entry, $original_options ),
+				(string) ( $entry['fixed_options']['as'] ?? '' )
+			);
 		}
 
 		// Step 6: Inject source_inject — prepended so it serializes first.
@@ -554,9 +570,22 @@ class MigrationRegistry {
 			$options[ $key ] = $value;
 		}
 
-		// Step 8: Serialize. For 'option' type, new_tag equals match_tag.
+		// Step 8: Serialize in CANONICAL key order.
+		//
+		// Sorted through serialization-order.php, which is the single owner of the ranking —
+		// the same one the editor's FW-52 normalizer applies on every setState. Migrated wire
+		// that is not already canonical produces a spurious whole-tag diff the first time an
+		// author opens it, which reads as "the migration changed something else too".
+		//
+		// This SUPERSEDES step 6's prepend: `src` is placed first there so it leads the array,
+		// but the canonical ranking puts the format group ahead of the source group, so a
+		// format-group key will out-sort it. The prepend still decides src's position relative
+		// to its own group, and array order remains what steps 2-7 reason about.
+		//
+		// A `transform_callback` entry never reaches here — it overrides the whole pipeline and
+		// owns its own output order (as+size, related_post, modifier→base).
 		$new_tag = $entry['new_tag'] ?? ( $entry['match_tag'] ?? '' );
-		return self::serialize_tag_string( $new_tag, $options );
+		return self::serialize_tag_string( $new_tag, bws_serialization_order_sort_map( $options ) );
 	}
 
 	// ===============================================
@@ -564,15 +593,65 @@ class MigrationRegistry {
 	// ===============================================
 
 	/**
+	 * Decide whether a tag being transformed is pre-1.6 datetime wire.
+	 *
+	 * A 'tag' entry matched a pre-1.6 tag NAME, so era is certain. An 'option' entry
+	 * matched a live name (`datetime_single` / `datetime_range`) on the strength of a
+	 * legacy option key, and the trigger list is deliberately wider than the era list:
+	 * `fallback_text` is renamed on EVERY base tag, so it can sit on an otherwise-modern
+	 * datetime tag. Injecting the inverted booleans on the strength of that one key would
+	 * change the rendered output of a tag that was already modern.
+	 *
+	 * @param array $entry            Migration registry entry.
+	 * @param array $original_options Options as parsed, BEFORE renames.
+	 * @return bool True when the wire predates the 1.6 datetime rename.
+	 */
+	private static function datetime_legacy_era( array $entry, array $original_options ): bool {
+		if ( 'option' !== ( $entry['type'] ?? 'tag' ) ) {
+			return true;
+		}
+		$era_keys = $entry['datetime_era_options'] ?? array();
+		if ( empty( $era_keys ) ) {
+			return false;
+		}
+		return (bool) array_intersect_key( $original_options, array_flip( $era_keys ) );
+	}
+
+	/**
 	 * Apply the five datetime option special-case transforms.
 	 *
 	 * Applied only when the registry entry sets `datetime_transforms: true`.
 	 * See DeprecatedTagRegistry docblock for full transform description.
 	 *
-	 * @param array $options Options array after renames have been applied.
+	 * INVERTED BOOLEANS ARE INJECTED ON ABSENCE, NOT ON `:false`. The pre-1.6 renderer read
+	 * `! empty( $options['smart_time'] )` with no default merge — GB's parse_options() only
+	 * reports keys literally present (docs/gb-constraints.md §Option Default Serialization),
+	 * so the option definition's `'default' => true` never reached the callback. Absent, `''`
+	 * and `'0'` therefore ALL rendered smart-time OFF (midnight shown), while the modern
+	 * default is the opposite: absent `showMidnight` maps to `smart_time = true`, which HIDES
+	 * midnight (bws_normalize_datetime_options). Holding output steady means injecting the
+	 * modern flag exactly where the old read was falsy. Same rule, same reason, for
+	 * `omit_current_year` → `showCurrentYear`.
+	 *
+	 * The `'false' === …` test this replaced was reachable only from hand-edited wire (GB
+	 * never serializes a false boolean) and was INVERTED even there: `'false'` is a non-empty
+	 * string, so `! empty( 'false' )` is true and the old renderer treated it as ON. See #90.
+	 *
+	 * @param array  $options     Options array after renames have been applied.
+	 * @param bool   $legacy_era  True when the wire predates the 1.6 rename. False suppresses
+	 *                            injection entirely: without era evidence an absent boolean is
+	 *                            a modern default, not an old author's unchecked box.
+	 * @param string $fixed_as    The entry's fixed_options `as` value, if any. Read because
+	 *                            fixed_options are injected at step 7 — AFTER this runs — so a
+	 *                            date-only entry's `as` is not yet in $options. It OUTRANKS a
+	 *                            wire-derived `as`, because step 7 assigns unconditionally.
+	 *
+	 *                            Neither parameter has a default. The safe value of $legacy_era
+	 *                            is false (suppress), and a default of true would hand a future
+	 *                            caller the injecting branch for free — the shape #90 fixed.
 	 * @return array Transformed options array.
 	 */
-	private static function apply_datetime_transforms( array $options ): array {
+	private static function apply_datetime_transforms( array $options, bool $legacy_era, string $fixed_as ): array {
 		// 1. Collapse format_type + custom_format → format.
 		if ( array_key_exists( 'format_type', $options ) ) {
 			if ( 'custom' === $options['format_type'] && array_key_exists( 'custom_format', $options ) ) {
@@ -593,22 +672,36 @@ class MigrationRegistry {
 			unset( $options['time_only'] );
 		}
 
-		// 4. smart_time → showMidnight (inverted). Definite match only:
-		//    explicit `smart_time:false` (override of old default-true) → new `showMidnight` bare.
-		//    Bare/true and absent are ambiguous (default-serialization era) — drop without injecting.
-		if ( array_key_exists( 'smart_time', $options ) ) {
-			if ( 'false' === $options['smart_time'] ) {
-				$options['showMidnight'] = true;
-			}
-			unset( $options['smart_time'] );
-		}
+		// The output shape the migrated tag will HAVE — which is not always the one the wire
+		// states. Steps 2 and 3 above already turned date_only/time_only into `as`, but the
+		// entry's fixed_options `as` is assigned unconditionally at step 7 and therefore WINS
+		// at serialization. So it must win here too: reading $options first would gate on a
+		// shape the migrated tag does not end up with, and emit the inert flag this gate
+		// exists to suppress. The disagreeing shape is a date entry ($date_fixed) whose wire
+		// carries `time_only` — hand-edited, since the old date tags had no time-only box.
+		$as = '' !== $fixed_as ? $fixed_as : (string) ( $options['as'] ?? '' );
 
-		// 5. omit_current_year → showCurrentYear (inverted). Same definite-match rule as smart_time.
-		if ( array_key_exists( 'omit_current_year', $options ) ) {
-			if ( 'false' === $options['omit_current_year'] ) {
-				$options['showCurrentYear'] = true;
-			}
-			unset( $options['omit_current_year'] );
+		// 4. smart_time → showMidnight (inverted). Inject where the OLD read was falsy —
+		//    absent, '' or '0' all rendered midnight SHOWN, which is not the modern default.
+		//    A bare key parses as PHP true and is simply dropped: hidden then, hidden now.
+		//    Skipped on a date-only tag, where the flag would render nothing (both date cores
+		//    force smart_time => false) but would read as a live setting in hand-edited wire.
+		$show_midnight = $legacy_era && empty( $options['smart_time'] ) && 'date' !== $as;
+		unset( $options['smart_time'] );
+
+		// 5. omit_current_year → showCurrentYear (inverted). Same rule, mirrored gate: a
+		//    time-only tag renders no year, so the flag is noise there.
+		$show_current_year = $legacy_era && empty( $options['omit_current_year'] ) && 'time' !== $as;
+		unset( $options['omit_current_year'] );
+
+		// Emission order is not decided here: step 8 sorts the whole map through
+		// serialization-order.php, the single owner of the ranking. Restating the ranks in
+		// this function would be a second copy that a KEY_MAP change silently breaks.
+		if ( $show_current_year ) {
+			$options['showCurrentYear'] = true;
+		}
+		if ( $show_midnight ) {
+			$options['showMidnight'] = true;
 		}
 
 		return $options;
