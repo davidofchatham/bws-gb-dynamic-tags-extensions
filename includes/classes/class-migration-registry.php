@@ -570,9 +570,22 @@ class MigrationRegistry {
 			$options[ $key ] = $value;
 		}
 
-		// Step 8: Serialize. For 'option' type, new_tag equals match_tag.
+		// Step 8: Serialize in CANONICAL key order.
+		//
+		// Sorted through serialization-order.php, which is the single owner of the ranking —
+		// the same one the editor's FW-52 normalizer applies on every setState. Migrated wire
+		// that is not already canonical produces a spurious whole-tag diff the first time an
+		// author opens it, which reads as "the migration changed something else too".
+		//
+		// This SUPERSEDES step 6's prepend: `src` is placed first there so it leads the array,
+		// but the canonical ranking puts the format group ahead of the source group, so a
+		// format-group key will out-sort it. The prepend still decides src's position relative
+		// to its own group, and array order remains what steps 2-7 reason about.
+		//
+		// A `transform_callback` entry never reaches here — it overrides the whole pipeline and
+		// owns its own output order (as+size, related_post, modifier→base).
 		$new_tag = $entry['new_tag'] ?? ( $entry['match_tag'] ?? '' );
-		return self::serialize_tag_string( $new_tag, $options );
+		return self::serialize_tag_string( $new_tag, bws_serialization_order_sort_map( $options ) );
 	}
 
 	// ===============================================
@@ -630,10 +643,15 @@ class MigrationRegistry {
 	 *                            a modern default, not an old author's unchecked box.
 	 * @param string $fixed_as    The entry's fixed_options `as` value, if any. Read because
 	 *                            fixed_options are injected at step 7 — AFTER this runs — so a
-	 *                            date-only entry's `as` is not yet in $options.
+	 *                            date-only entry's `as` is not yet in $options. It OUTRANKS a
+	 *                            wire-derived `as`, because step 7 assigns unconditionally.
+	 *
+	 *                            Neither parameter has a default. The safe value of $legacy_era
+	 *                            is false (suppress), and a default of true would hand a future
+	 *                            caller the injecting branch for free — the shape #90 fixed.
 	 * @return array Transformed options array.
 	 */
-	private static function apply_datetime_transforms( array $options, bool $legacy_era = true, string $fixed_as = '' ): array {
+	private static function apply_datetime_transforms( array $options, bool $legacy_era, string $fixed_as ): array {
 		// 1. Collapse format_type + custom_format → format.
 		if ( array_key_exists( 'format_type', $options ) ) {
 			if ( 'custom' === $options['format_type'] && array_key_exists( 'custom_format', $options ) ) {
@@ -654,10 +672,14 @@ class MigrationRegistry {
 			unset( $options['time_only'] );
 		}
 
-		// The output shape the migrated tag will have. Steps 2 and 3 above already turned
-		// date_only/time_only into `as`; a tag that states neither takes the entry's
-		// fixed_options value, which has not been injected yet (step 7).
-		$as = (string) ( $options['as'] ?? $fixed_as );
+		// The output shape the migrated tag will HAVE — which is not always the one the wire
+		// states. Steps 2 and 3 above already turned date_only/time_only into `as`, but the
+		// entry's fixed_options `as` is assigned unconditionally at step 7 and therefore WINS
+		// at serialization. So it must win here too: reading $options first would gate on a
+		// shape the migrated tag does not end up with, and emit the inert flag this gate
+		// exists to suppress. The disagreeing shape is a date entry ($date_fixed) whose wire
+		// carries `time_only` — hand-edited, since the old date tags had no time-only box.
+		$as = '' !== $fixed_as ? $fixed_as : (string) ( $options['as'] ?? '' );
 
 		// 4. smart_time → showMidnight (inverted). Inject where the OLD read was falsy —
 		//    absent, '' or '0' all rendered midnight SHOWN, which is not the modern default.
@@ -672,11 +694,9 @@ class MigrationRegistry {
 		$show_current_year = $legacy_era && empty( $options['omit_current_year'] ) && 'time' !== $as;
 		unset( $options['omit_current_year'] );
 
-		// Emitted in CANONICAL order (serialization-order.php ranks showCurrentYear 7,
-		// showMidnight 8) rather than in the order the steps above decide them. Migrated wire
-		// is re-serialized from insertion order, and the editor's FW-52 normalizer sorts on
-		// setState — so emitting them the other way round costs a spurious diff the first
-		// time an author opens a migrated tag.
+		// Emission order is not decided here: step 8 sorts the whole map through
+		// serialization-order.php, the single owner of the ranking. Restating the ranks in
+		// this function would be a second copy that a KEY_MAP change silently breaks.
 		if ( $show_current_year ) {
 			$options['showCurrentYear'] = true;
 		}

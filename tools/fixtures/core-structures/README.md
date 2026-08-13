@@ -49,6 +49,7 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `fixture-source.php` | The class-route chain-root source (#85). Required lazily from `schema.php`'s registration callback — it extends a plugin class, so a top-level declaration would fatal a site with the plugin off. |
 | `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
 | `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
+| `verify-datetime-migration.php` | The pre-1.6 datetime migration end to end (#90) — report, run, and whether the injected flags move the RENDERED axes. Self-cleaning: it converts its own throwaway draft, so no reseed. |
 
 ## Seeding
 
@@ -76,6 +77,20 @@ bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/ve
   --url=https://<site-domain>/matrix-fixture-roots/
 bin/seed.sh <site> core-structures        # restore the corpus
 ```
+
+The datetime end-to-end run needs no reseed — it builds and deletes its own draft rather
+than converting corpus wire, because the property it asserts is about the CONVERTER and the
+renderer, not about the corpus:
+
+```bash
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify-datetime-migration.php \
+  --url=https://<site-domain>/matrix-post-meta/
+```
+
+It cannot assert byte-identical before/after the way `verify-migration.php` does: the
+pre-1.6 datetime renderers were deleted in the 1.6 consolidation, so the legacy tag has
+nothing left to render with. That half of the property lives in
+`tools/test/datetime-migration-test.php`, which mirrors the deleted read.
 
 > **Cache-busting from `docker exec sh -c` needs a LITERAL token.** The env's usual
 > `?nocache=$RANDOM` expands in bash; the container's `sh` leaves it EMPTY, so the URL is

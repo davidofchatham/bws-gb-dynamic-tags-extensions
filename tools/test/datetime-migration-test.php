@@ -176,7 +176,7 @@ foreach ( array(
 
 // The wire itself, once, so a reader can see what the equivalence is made of.
 assert_eq( 'D1.10 absent → both modern flags injected',
-	'{{datetime_single key:d|showCurrentYear|showMidnight}}',
+	'{{datetime_single showCurrentYear|showMidnight|key:d}}',
 	$migrate_opt( '{{datetime_single date_time_field:d}}' ) );
 
 assert_eq( 'D1.11 bare → both dropped, neither injected',
@@ -195,11 +195,11 @@ assert_eq( 'D2.1 fallback_text alone: renamed, NO flags injected',
 	$migrate_opt( '{{datetime_single key:x|fallback_text:—}}' ) );
 
 assert_eq( 'D2.2 a legacy FIELD key is era evidence',
-	'{{datetime_single key:x|fallback:—|showCurrentYear|showMidnight}}',
+	'{{datetime_single showCurrentYear|showMidnight|key:x|fallback:—}}',
 	$migrate_opt( '{{datetime_single date_time_field:x|fallback_text:—}}' ) );
 
 assert_eq( 'D2.3 format_type is era evidence (no field key needed)',
-	'{{datetime_single key:x|format:Y-m-d|showCurrentYear|showMidnight}}',
+	'{{datetime_single format:Y-m-d|showCurrentYear|showMidnight|key:x}}',
 	$migrate_opt( '{{datetime_single key:x|format_type:custom|custom_format:Y-m-d}}' ) );
 
 // A pre-1.6 tag NAME settles era by itself — a 'tag' entry needs no key evidence, which
@@ -222,15 +222,31 @@ echo "\nD3 — output gate: no flag for a part the tag does not render\n";
 // this passes only if the transform reads the entry, not just $options.
 // `as:date` trails the flags because fixed_options are injected at step 7, after them.
 assert_eq( 'D3.1 date-only tag: year flag only, no showMidnight',
-	'{{datetime_single key:d|showCurrentYear|as:date}}',
+	'{{datetime_single as:date|showCurrentYear|key:d}}',
 	$migrate_tag( '{{post_custom_date_single date_time_field:d}}' ) );
 
 // time_only becomes as:time inside the transform (step 3), so this half is readable from
 // $options — asserted anyway, because the two gates are one decision and a change to
 // either should show up here.
 assert_eq( 'D3.2 time-only tag: midnight flag only, no showCurrentYear',
-	'{{datetime_single key:d|as:time|showMidnight}}',
+	'{{datetime_single as:time|showMidnight|key:d}}',
 	$migrate_tag( '{{post_custom_datetime_single date_time_field:d|time_only}}' ) );
+
+// THE TWO SOURCES OF `as` DISAGREE HERE, and the entry's must win. `time_only` turns
+// $options['as'] into 'time' at step 3, but the entry's fixed_options `as:date` is assigned
+// unconditionally at step 7, so the tag SERIALIZES as date-only whatever the wire said.
+// Gating on $options would therefore emit showMidnight onto an as:date tag — inert, but
+// reading as a live setting in hand-editable wire (ADR 0004), which is exactly what D3
+// exists to prevent. The shape is hand-edited (the old date tags had no time-only box);
+// it is pinned because the precedence is invisible from inside the transform.
+//
+// `as` LEADS the flags here where D3.1 trails them, and the difference is positional, not
+// semantic: step 3 inserts `as` into $options before the flags are decided, and step 7
+// OVERWRITES that key in place rather than appending, so it keeps the early slot. D3.1's
+// wire states no shape, so step 7 appends. Neither is canonical order (see #93).
+assert_eq( 'D3.5 date entry + time_only wire: the ENTRY decides the gate',
+	'{{datetime_single as:date|showCurrentYear|key:d}}',
+	$migrate_tag( '{{post_custom_date_single date_time_field:d|time_only}}' ) );
 
 // The skipped axis is inert, which is the whole reason skipping it is safe: assert that
 // the axis the tag DOES render still matches the legacy read.
@@ -275,6 +291,40 @@ assert_eq( 'D5.1 :false does NOT inject showMidnight',
 assert_eq( 'D5.2 :false is dropped, not carried through',
 	true,
 	false === strpos( $migrate_opt( '{{datetime_single date_time_field:d|smart_time:false}}' ), 'smart_time' ) );
+
+// ===========================================================================
+echo "\nD6 — key order is the OWNER's, not this file's\n";
+
+// Every expectation above states a literal key order, which is a second copy of the ranking
+// unless something ties it back. These assert the tie: the migrated wire is exactly what
+// serialization-order.php produces from the same option set. A KEY_MAP change then fails
+// HERE, naming the ranking, instead of surfacing as six unexplained string diffs.
+$canonical = static function ( string $tag_string ): string {
+	[ $name, $opts ] = MigrationRegistry::parse_tag_string( $tag_string );
+	$sorted          = bws_serialization_order_sort_map( $opts );
+	return $name . ' ' . implode( '|', array_keys( $sorted ) );
+};
+$emitted = static function ( string $tag_string ): string {
+	[ $name, $opts ] = MigrationRegistry::parse_tag_string( $tag_string );
+	return $name . ' ' . implode( '|', array_keys( $opts ) );
+};
+
+foreach ( array(
+	'D6.1 tag door, both flags'  => '{{post_custom_datetime_single date_time_field:d}}',
+	'D6.2 date entry, as:date'   => '{{post_custom_date_single date_time_field:d}}',
+	'D6.3 option door, fallback' => '{{datetime_single date_time_field:x|fallback_text:—}}',
+	'D6.4 range, many keys'      => '{{post_custom_datetime_range start_field:s|end_field:e|separator: to }}',
+) as $label => $wire ) {
+	$out = false !== strpos( $label, 'option door' ) ? $migrate_opt( $wire ) : $migrate_tag( $wire );
+	assert_eq( $label, $canonical( $out ), $emitted( $out ) );
+}
+
+// A key the ranking does not know must still survive the sort — an unknown key silently
+// dropped at step 8 would be permanent data loss on a tag the entry never meant to touch.
+$unknown = $migrate_opt( '{{datetime_single date_time_field:d|zzCustomKey:keep-me}}' );
+assert_eq( 'D6.5 an UNKNOWN key survives the canonical sort',
+	true,
+	false !== strpos( $unknown, 'zzCustomKey:keep-me' ) );
 
 // ===========================================================================
 echo "\n" . ( $failures ? "FAILED — {$failures} of {$count}\n" : "PASSED — {$count} assertions\n" );

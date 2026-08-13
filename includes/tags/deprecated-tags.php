@@ -2014,12 +2014,15 @@ function bws_register_option_migrations(): void {
 	// carrying one stale universal key. It still triggers the entry (the rename must run)
 	// but must not license the injection, which would flip that tag's year and midnight
 	// rendering. See #90.
-	$datetime_era_keys = array(
-		'date_time_field', 'time_field',
-		'start_field', 'start_time_field', 'end_field', 'end_time_field',
-		'separator', 'date_time_separator',
-		'format_type', 'custom_format', 'date_only', 'time_only',
-		'smart_time', 'omit_current_year',
+	//
+	// DERIVED from the two trigger lists, never retyped: the exclusion is the whole
+	// decision here, and a third literal would let a new trigger key silently miss era
+	// evidence. Anything added to a trigger list is era evidence unless named below.
+	$datetime_era_keys = array_values(
+		array_diff(
+			array_unique( array_merge( $datetime_single_old_keys, $datetime_range_old_keys ) ),
+			array( 'fallback_text' )
+		)
 	);
 
 	$reg::register( array(

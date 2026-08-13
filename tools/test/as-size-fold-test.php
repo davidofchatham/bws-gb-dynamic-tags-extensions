@@ -50,6 +50,10 @@ if ( ! function_exists( 'get_intermediate_image_sizes' ) ) {
 }
 
 require __DIR__ . '/../../includes/helpers/image-helpers.php';
+// Loaded because run_transform()'s final step canonicalizes key order through it — a
+// harness without it would exercise a serialization order the plugin never emits.
+require __DIR__ . '/../../includes/helpers/slot-fold.php';
+require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/classes/class-migration-registry.php';
 require __DIR__ . '/../../includes/tags/deprecated-tags.php';
 
