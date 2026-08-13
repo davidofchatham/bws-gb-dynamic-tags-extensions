@@ -240,10 +240,11 @@ assert_eq( 'D3.2 time-only tag: midnight flag only, no showCurrentYear',
 // exists to prevent. The shape is hand-edited (the old date tags had no time-only box);
 // it is pinned because the precedence is invisible from inside the transform.
 //
-// `as` LEADS the flags here where D3.1 trails them, and the difference is positional, not
-// semantic: step 3 inserts `as` into $options before the flags are decided, and step 7
-// OVERWRITES that key in place rather than appending, so it keeps the early slot. D3.1's
-// wire states no shape, so step 7 appends. Neither is canonical order (see #93).
+// `as` leads here exactly as it does in D3.1, because step 8 sorts the whole map into
+// canonical order. Before that sort the two disagreed for a reason that had nothing to do
+// with either gate — step 3 inserts `as` before the flags are decided and step 7 overwrites
+// that key in place rather than appending, so a tag whose wire stated a shape kept the
+// early slot and one that stated none did not. See §D6.
 assert_eq( 'D3.5 date entry + time_only wire: the ENTRY decides the gate',
 	'{{datetime_single as:date|showCurrentYear|key:d}}',
 	$migrate_tag( '{{post_custom_date_single date_time_field:d|time_only}}' ) );
