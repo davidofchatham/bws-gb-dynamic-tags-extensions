@@ -123,6 +123,27 @@ if ( '' !== $url ) {
 		$_REQUEST = array_merge( $_REQUEST, $parsed );
 	}
 
+	// AN UNSTABLE SORT IS NOT A RENDER DIFFERENCE, and it is invisible to the volatility check:
+	// that renders twice inside ONE process, where the query result is already fixed. Across two
+	// processes it is not. Real case on hargrave — eight event posts sharing one identical
+	// post_date, so `ORDER BY post_date DESC` is a total tie and MySQL may return any of them
+	// first. The archive's first row changed between the A run and the C run, and five GB CORE
+	// tags (post_title, post_permalink, post_excerpt) faithfully reported a different post.
+	// Nothing about the plugin or the migration was involved.
+	//
+	// A stable tiebreak is applied to EVERY query, identically on both sides of a diff. It makes
+	// the instrument deterministic; it does not claim the site is — a front end with tied sort
+	// keys genuinely varies, and that is the site's data to fix, not this tool's to hide.
+	add_filter(
+		'posts_orderby',
+		static function ( $orderby ) {
+			global $wpdb;
+			$tiebreak = "{$wpdb->posts}.ID ASC";
+			return ( is_string( $orderby ) && '' !== trim( $orderby ) ) ? $orderby . ', ' . $tiebreak : $tiebreak;
+		},
+		PHP_INT_MAX
+	);
+
 	wp();
 }
 
