@@ -739,5 +739,195 @@ check( 'no limitOption: the field still renders (registration bug, not a crash)'
 check( '...with no invented label', NO_LIMIT_CFG[ 0 ] && NO_LIMIT_CFG[ 0 ].label, undefined );
 check( '...and no invented help', NO_LIMIT_CFG[ 0 ] && NO_LIMIT_CFG[ 0 ].help, undefined );
 
+// ── The FIELD CONFIGURATION NOTE (#96) ──────────────────────────────────────
+//
+// A statement about the field the author just picked, rendered between the field key
+// control and Limit results. Every string in it is authored in PHP and arrives on the
+// field-discovery envelope, so these rows supply SENTINEL segments: rows asserting the
+// six real sentences would pass just as well against a control that hard-coded them,
+// and the derivation harness (`field-discovery-test.php`) is what owns the wording.
+//
+// The subject is the RENDERED TREE, for the same reason the limit rows above are: the
+// note has no other observer, and its whole contract is what an author sees.
+
+/** The note panel node in a rendered tree, or null. */
+function noteIn( nodes ) {
+	let found = null;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.props && 'fieldnote' === n.props.key ) { found = n; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+/** The note as `text` / `*text` (starred = emphasised), joined — readable failures. */
+function noteText( nodes ) {
+	const node = noteIn( nodes );
+	if ( ! node ) { return '(no note)'; }
+	const out = [];
+	( function walk( n ) {
+		if ( ! n || 'string' === typeof n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( 'span' === n.type ) {
+			out.push( ( n.props.style && n.props.style.fontWeight ? '*' : '' ) + n.children[ 0 ] );
+			return;
+		}
+		( n.children || [] ).forEach( walk );
+	}( node ) );
+	return out.join( ' | ' );
+}
+
+/** Ordered child keys of the first rendered step — where the note SITS. */
+function stepKidKeys( nodes ) {
+	const kids = ( ( nodes[ 0 ] || {} ).children || [] )[ 0 ] || [];
+	return kids.map( function ( k ) { return ( k && k.props ) ? k.props.key : null; } ).join( ',' );
+}
+
+/** One post-kind envelope group holding the given field entries. */
+function envWith( fields ) {
+	return { post: [ { group_title: 'G', kind: 'post', scope: [], source: 'acf', fields: fields } ] };
+}
+
+/** Render with an envelope in scope, then take it back out. */
+function withEnvelope( env, fn ) {
+	global.window.bwsFieldEnvelope = env;
+	try {
+		return fn();
+	} finally {
+		delete global.window.bwsFieldEnvelope;
+	}
+}
+
+const TWO_SEGMENTS = [
+	{ text: 'N-LEAD', emph: false },
+	{ text: 'N-EMPH', emph: true }
+];
+const refsStep = [ { slug: 'refs', arg: 'partners', limit: null } ];
+
+check(
+	'the note renders the segments it is GIVEN, in order',
+	withEnvelope( envWith( [ { name: 'partners', label: 'Partners', type: 'relationship', note: TWO_SEGMENTS } ] ),
+		function () { return noteText( renderChain( refsStep, false ) ); } ),
+	'N-LEAD | *N-EMPH'
+);
+// Emphasis is a property of the SEGMENT, not of its position: the marked one is
+// weighted and the other is not, which is the reason the shape is a list rather than a
+// string plus a trailing emphasis field.
+check(
+	'a single unemphasised segment renders unweighted',
+	withEnvelope( envWith( [ { name: 'partners', type: 'relationship', note: [ { text: 'N-ONLY', emph: false } ] } ] ),
+		function () { return noteText( renderChain( refsStep, false ) ); } ),
+	'N-ONLY'
+);
+check(
+	'a field with nothing to say renders NO note',
+	withEnvelope( envWith( [ { name: 'partners', type: 'relationship', note: null } ] ),
+		function () { return noteText( renderChain( refsStep, false ) ); } ),
+	'(no note)'
+);
+check(
+	'a field key matching nothing discovered renders no note',
+	withEnvelope( envWith( [ { name: 'other_field', type: 'relationship', note: TWO_SEGMENTS } ] ),
+		function () { return noteText( renderChain( refsStep, false ) ); } ),
+	'(no note)'
+);
+// No discovery on the page at all is silence, not a fallback: with no definitions in
+// hand there is nothing to say.
+check( 'no envelope at all renders no note', noteText( renderChain( refsStep, false ) ), '(no note)' );
+// Clearing the field takes the note with it — the note describes what is SELECTED, and
+// an argless step shows the "will be skipped" warning instead.
+check(
+	'clearing the field removes the note',
+	withEnvelope( envWith( [ { name: 'partners', type: 'relationship', note: TWO_SEGMENTS } ] ),
+		function () { return noteText( renderChain( [ { slug: 'refs', arg: null, limit: null } ], false ) ); } ),
+	'(no note)'
+);
+// A `terms` step's arg is a TAXONOMY slug, not a field key. Looking a note up for it
+// would describe a field the step never reads.
+check(
+	'a taxonomy step never carries a field note',
+	withEnvelope( envWith( [ { name: 'department', type: 'relationship', note: TWO_SEGMENTS } ] ),
+		function () { return noteText( renderChain( [ { slug: 'terms', arg: 'department', limit: null } ], false ) ); } ),
+	'(no note)'
+);
+
+// AMBIGUITY IS SILENCE. The wire stores a BARE key, which entries of different kinds
+// can share, and a note is a claim about ONE field's configuration — so a note shows
+// only where every entry holding that key agrees. This mirrors the field picker's own
+// rule for an ambiguous key ("show the bare key, assert nothing").
+check(
+	'two entries with DIFFERENT notes fall silent',
+	withEnvelope(
+		{
+			post: [ { fields: [ { name: 'partners', note: TWO_SEGMENTS } ] } ],
+			term: [ { fields: [ { name: 'partners', note: [ { text: 'N-OTHER', emph: false } ] } ] } ]
+		},
+		function () { return noteText( renderChain( refsStep, false ) ); }
+	),
+	'(no note)'
+);
+// One entry WITH a note and one without is a disagreement too — skipping the note-less
+// entry would assert the noteworthy field's configuration for both.
+check(
+	'a noted entry and an unnoted one fall silent',
+	withEnvelope(
+		{
+			post: [ { fields: [ { name: 'partners', note: TWO_SEGMENTS } ] } ],
+			term: [ { fields: [ { name: 'partners', note: null } ] } ]
+		},
+		function () { return noteText( renderChain( refsStep, false ) ); }
+	),
+	'(no note)'
+);
+check(
+	'two entries that AGREE still show it (the same field in two homes)',
+	withEnvelope(
+		{
+			post: [
+				{ fields: [ { name: 'partners', note: TWO_SEGMENTS } ] },
+				{ fields: [ { name: 'partners', note: [ { text: 'N-LEAD', emph: false }, { text: 'N-EMPH', emph: true } ] } ] }
+			]
+		},
+		function () { return noteText( renderChain( refsStep, false ) ); }
+	),
+	'N-LEAD | *N-EMPH'
+);
+
+// PLACEMENT: beneath the field key control, above Limit results — so it reads as the
+// setup for the number the author is about to choose. The adjacency is the note's whole
+// value, and it is a property of ORDER, which no text assertion can see.
+check(
+	'the note sits between the field control and the limit control',
+	withEnvelope( envWith( [ { name: 'partners', type: 'relationship', note: TWO_SEGMENTS } ] ),
+		function () { return stepKidKeys( renderChain( refsStep, false ) ); } ),
+	'src,arg,fieldnote,limit'
+);
+
+// IT GATES NOTHING. Everything else about the step renders and behaves identically with
+// a note present — the limit control, its help, the append affordance, and what a slug
+// switch commits.
+const noted = withEnvelope( envWith( [ { name: 'partners', type: 'relationship', note: TWO_SEGMENTS } ] ), function () {
+	let out = null;
+	const nodes = rep.chainSteps( {
+		conf: CHAIN_CONF,
+		chain: [ { slug: 'refs', arg: 'partners', limit: 3, extra: [] } ],
+		onChange: function ( next ) { out = next; },
+		inheritOnEmpty: false,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} );
+	selectsIn( nodes )[ 0 ].onChange( 'entries' );
+	return { nodes: nodes, committed: out };
+} );
+check( 'with a note present, the limit control still renders', limitsIn( noted.nodes ).length, 1 );
+check( '...with its own value untouched', limitsIn( noted.nodes )[ 0 ].value, '3' );
+check( '...and its own help', limitsIn( noted.nodes )[ 0 ].help, 'Maximum number of results. Leave blank for all.' );
+check( '...Add step is still reachable', hasAddStep( noted.nodes ), true );
+check( '...and a slug switch commits exactly what it would without one', noted.committed[ 0 ].slug, 'entries' );
+check( '...carrying the same field', noted.committed[ 0 ].arg, 'partners' );
+check( '...and the same limit', noted.committed[ 0 ].limit, 3 );
+
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

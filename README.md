@@ -22,6 +22,8 @@ Another plugin can add its own starting point to that list. A plugin that works 
 
 GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, starting in v1.13, every meta/option field key input allows you to search by label/name, as well as filter by context, field group, and field type, among all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields).
 
+Pick a relationship or post object field for a source step and you also get a short note on what ACF does and does not enforce about it: whether it has a configured limit, whether edits made elsewhere can add to it, and whether it holds a single entry. That's read from the field's settings, not from stored values, so it says the same thing wherever you're working. It never blocks a save or changes what a tag renders.
+
 ### Special handling
 
 #### Zero values

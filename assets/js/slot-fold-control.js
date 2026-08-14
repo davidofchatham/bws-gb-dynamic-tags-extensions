@@ -20,6 +20,11 @@
  *   traversal options). Hand-porting those strings is how four copies of the read
  *   enum arose and how image's `Return type:` / `Return image as:` drifted; a
  *   control that re-types them re-creates the drift it was built to remove.
+ * - The FIELD CONFIGURATION NOTE (#96) arrives the same way, on a second PHP channel:
+ *   the field-discovery envelope, whose entries carry their own note SEGMENTS. This
+ *   control looks a note up by field key and renders the segments it is handed; it
+ *   never inspects `max`, `multiple` or a bidirectional setting, so the six cases and
+ *   their derivation live in one pure PHP function rather than half here.
  *
  * `inferIntent()` is ADVISORY TEXT and never a gate. It is the residue of a cut 2×2
  * intent radio that also drove axis VISIBILITY, which tangled reveal state with slot
@@ -207,6 +212,115 @@
 			key: keyName,
 			style: { fontSize: '11px', color: '#a00', margin: '4px 0 0' }
 		}, text );
+	}
+
+	// ── Field configuration note (#96) ──────────────────────────────────────
+	//
+	// A statement about the FIELD the author just picked, not about the control: what
+	// ACF does and does not enforce about how many entries that field can hold. It sits
+	// between the field key control and Limit results, so it reads as the setup for the
+	// number about to be chosen — an adjacency left implicit, since the note carries no
+	// call to action.
+	//
+	// DESCRIBES, NEVER GATES. No wire moves, no save is blocked, no rendered output
+	// changes; a note is added to the tree and nothing else is conditioned on it.
+	//
+	// Neutral grey panel with a left rule, unlabelled and with no icon: distinct from
+	// the muted help text above it and from the red validation message below, and
+	// carrying no second hue, because it is neither advice nor an error. No icon
+	// because every note opens by naming its own kind, so one would repeat the first
+	// two words. The note and the red message cannot appear together anyway — the note
+	// requires a selected field, the message fires only when none is set.
+	var NOTE_PANEL = {
+		fontSize: '11px',
+		lineHeight: 1.5,
+		margin: '6px 0 0',
+		padding: '8px 10px',
+		background: '#f0f0f0',
+		borderLeft: '3px solid #c3c4c7',
+		color: '#1e1e1e'
+	};
+	var NOTE_EMPH = { fontWeight: 600 };
+
+	/**
+	 * The note SEGMENTS for a field key, or null.
+	 *
+	 * Read off the field-discovery envelope the server inlines for the editor
+	 * (`window.bwsFieldEnvelope`, includes/rest/field-discovery.php) — the same PHP
+	 * channel the picker's own rows come from, so the note and the row an author picked
+	 * it from can never describe different fields.
+	 *
+	 * AMBIGUITY IS SILENCE, matching how the field picker already treats a key that
+	 * maps to more than one discovered field ("show the bare key, assert nothing").
+	 * The wire stores a BARE key, which two entries of different kinds can share — a
+	 * post `partners` and a term `partners` — and a note is a claim about one specific
+	 * field's configuration. So a note shows only where every entry holding that key
+	 * agrees; disagreement, including one entry with a note and one without, yields
+	 * nothing rather than a plausible claim about the wrong field.
+	 *
+	 * An absent envelope (no discovery on this page) is likewise silence, not a
+	 * fallback: with no definitions in hand there is nothing to say.
+	 *
+	 * A SECOND WALK OVER THE ENVELOPE, deliberately not shared with
+	 * field-combo-control.js's `envelopeToRecords()`. That file mounts only once its own
+	 * component list is present (`ComboboxControl`/`Flex`/`FlexItem`/`apiFetch`) and
+	 * BAILS on an older stack, where this control still renders against a plain text
+	 * input — so a shared reader there would take the note down with it. The two also
+	 * ask different questions: the picker MERGES same-key entries into one offerable
+	 * row, while a note must notice that two of them DISAGREE.
+	 */
+	function fieldNote( fieldKey ) {
+		var env = window.bwsFieldEnvelope;
+		if ( ! fieldKey || ! env || 'object' !== typeof env ) {
+			return null;
+		}
+		var seen = [];
+		var found = null;
+		Object.keys( env ).forEach( function ( kind ) {
+			( env[ kind ] || [] ).forEach( function ( group ) {
+				( ( group && group.fields ) || [] ).forEach( function ( f ) {
+					if ( ! f || f.name !== fieldKey ) {
+						return;
+					}
+					var note = ( f.note && f.note.length ) ? f.note : null;
+					// '-' is the signature of "this entry has no note", which must
+					// DISAGREE with a note rather than being skipped over.
+					var sig = note ? JSON.stringify( note ) : '-';
+					if ( seen.indexOf( sig ) === -1 ) {
+						seen.push( sig );
+						if ( note && ! found ) {
+							found = note;
+						}
+					}
+				} );
+			} );
+		} );
+		return ( 1 === seen.length && found ) ? found : null;
+	}
+
+	/**
+	 * Render note segments in order, weighting the ones marked `emph`.
+	 *
+	 * A LIST of segments rather than a string plus a trailing emphasis field: a trailing
+	 * field would bake in "emphasis always falls last", which is true only of the cases
+	 * that have any today. Position is carried by the structure, so a second emphasised
+	 * fragment, or one mid-note, needs no shape change here or in PHP.
+	 */
+	function noteNode( segments ) {
+		var kids = [];
+		( segments || [] ).forEach( function ( seg, i ) {
+			if ( ! seg || ! seg.text ) {
+				return;
+			}
+			if ( kids.length ) {
+				kids.push( ' ' );
+			}
+			kids.push( el( 'span', {
+				key: 'seg' + i,
+				style: seg.emph ? NOTE_EMPH : null
+			}, seg.text ) );
+		} );
+		return kids.length ? el( 'div', { key: 'fieldnote', style: NOTE_PANEL }, kids ) : null;
 	}
 
 	// ── Slot structs ────────────────────────────────────────────────────────
@@ -675,6 +789,17 @@
 						__( 'This %s will be skipped unless a field is set.', 'generateblocks' ),
 						slotNoun
 					) ) );
+				} else {
+					// The field configuration note (#96) — beneath the field key control,
+					// above Limit results. Mutually exclusive with the warning above by
+					// construction: the note needs a selected field, the warning fires
+					// only when there is none. A field with nothing noteworthy (and an
+					// `entries` step's repeater field, which has no such settings at all)
+					// yields null, so the presence of a note carries information.
+					var note = noteNode( fieldNote( stepObj.arg ) );
+					if ( note ) {
+						stepKids.push( note );
+					}
 				}
 			} else if ( known && 'terms' === stepObj.slug ) {
 				stepKids.push( el( 'div', { key: 'arg', style: STACKED },

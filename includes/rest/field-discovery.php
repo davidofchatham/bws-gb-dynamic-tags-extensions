@@ -203,6 +203,184 @@ function bws_field_discovery_derive_kind_scope( $location ) {
 }
 
 /**
+ * Which bidirectional IMPLEMENTATION is enabled on a field: `native`, `acfe` or ''.
+ *
+ * A BOOLEAN CANNOT SELECT THE RIGHT SENTENCE. On a single-entry post object the two
+ * implementations describe OPPOSITE behaviours — ACF native appends on the reciprocal
+ * write and collapses to the first entry only at format time (accumulate-and-hide),
+ * ACF Extended collapses before writing (replace-and-discard) — so the flavour is
+ * carried rather than flattened. Where BOTH are enabled the native description applies,
+ * because silent retention is the harder condition to diagnose.
+ *
+ * Each flavour is read from ITS OWN settings, and both require the target list as well
+ * as the toggle, exactly as each plugin's own writer gates itself
+ * (`acf_update_bidirectional_values()`; `acfe_bidirectional::is_enabled()`).
+ *
+ * OPTIONS-PAGE FIELDS ARE NEVER BIDIRECTIONAL. ACF resolves valid bidirectional targets
+ * BY OBJECT TYPE and has no case for options, so such a field never receives a reciprocal
+ * write even with the setting ticked. The envelope is already keyed by resolved-source
+ * kind, so the discriminator costs nothing — and suppression here (rather than a seventh
+ * note case) is what makes an options-page field take the corresponding NON-bidirectional
+ * wording.
+ *
+ * Pure — definitions only, no value read (V5).
+ *
+ * @since 1.17.0
+ * @param array  $field ACF field definition array.
+ * @param string $kind  Resolved-source kind the field sits under (`post`/`term`/`site`).
+ * @return string 'native' | 'acfe' | '' (not bidirectional, or suppressed).
+ */
+function bws_field_discovery_bidi_flavour( array $field, string $kind ): string {
+	if ( 'site' === $kind ) {
+		return '';
+	}
+	if ( ! empty( $field['bidirectional'] ) && ! empty( $field['bidirectional_target'] ) ) {
+		return 'native';
+	}
+	$acfe = ( isset( $field['acfe_bidirectional'] ) && is_array( $field['acfe_bidirectional'] ) )
+		? $field['acfe_bidirectional']
+		: array();
+	if ( ! empty( $acfe['acfe_bidirectional_enabled'] ) && ! empty( $acfe['acfe_bidirectional_related'] ) ) {
+		return 'acfe';
+	}
+	return '';
+}
+
+/**
+ * The FIELD CONFIGURATION NOTE for one field definition, or null (#96).
+ *
+ * What an author cannot see from the tag modal: ACF's configured entry limit is not
+ * enforced on ANY write path (`validate_value()` on the relationship field has a `min`
+ * branch and no `max` branch; `max` appears only as a browser data attribute, two
+ * settings lines and a REST schema entry), and a single-entry post object can silently
+ * hold several entries. Field group settings live in the ACF admin, which is unreachable
+ * from the contexts field discovery exists to serve — Patterns, Elements, templates,
+ * where there is often no bound post at all.
+ *
+ * DESCRIBES, NEVER GATES: nothing here changes wire, blocks a save, or moves rendered
+ * output. The note is emitted HERE rather than raw settings so every user-facing string
+ * stays in PHP and the editor control continues to hand-author no vocabulary.
+ *
+ * Pure — definitions only, no value read (V5), which is what makes it work identically
+ * in a Pattern with no post in scope.
+ *
+ * THE SIX CASES AND THEIR DERIVATION RULES ARE OWNED BY
+ * `docs/tag-reference.md` §Field configuration note — the wording is settled and lives
+ * there once, so a seventh case is added by rule rather than by taste. What is recorded
+ * here is only what a reader of THIS function would otherwise re-derive from the
+ * branches: the two rules the cascade's shape depends on, and the fall-through.
+ *
+ * THE CONSEQUENCE CLAUSE RIDES SINGLE-ENTRY, NOT BIDIRECTIONALITY, which is why it is
+ * attached to the post-object arm rather than to the bidirectional ones: the
+ * hiding-then-resurrecting it describes follows from the format-time collapse, and bidi
+ * is only the likeliest writer.
+ *
+ * THE FALL-THROUGH IS THE TAXONOMY/USER RULE, and it is deliberately not a case of its
+ * own: every remaining valid bidirectional TARGET has no limit setting to report, so a
+ * taxonomy field, a user field and a MULTIPLE-entry post object all land on the same
+ * sentence by the same rule.
+ *
+ * SEGMENTS, NOT A STRING PLUS A TRAILING EMPHASIS FIELD. A trailing field would encode
+ * "emphasis always falls last", which is true only of the cases that have any today.
+ * Position lives in the structure, so a second emphasised fragment or one mid-note needs
+ * no shape change. A case with no emphasis emits ONE segment, never an empty second one.
+ *
+ * @since 1.17.0
+ * @param array  $field ACF field definition array.
+ * @param string $kind  Resolved-source kind the field sits under (`post`/`term`/`site`).
+ * @return array<int,array{text:string,emph:bool}>|null Ordered segments, or null.
+ */
+function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
+	$type    = isset( $field['type'] ) ? (string) $field['type'] : '';
+	$flavour = bws_field_discovery_bidi_flavour( $field, $kind );
+
+	// Each case is ONE whole translatable sentence-pair rather than clauses concatenated
+	// at runtime. The wording was arrived at by iteration and is settled; assembling it
+	// from fragments would save a few repeated words and cost the translator the sentence.
+	//
+	// The unenforcement clause is stated POSITIVELY — naming direct ACF editing as the
+	// only enforcement point correctly implies that imports, WP-CLI and every other
+	// programmatic write bypass it too, rather than pinning the bypass on
+	// bidirectionality alone.
+	$consequence = array(
+		'text' => __( 'The first stored entry will be the only result while this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.', 'generateblocks' ),
+		'emph' => true,
+	);
+
+	// Case 2 — a bidirectional field with no limit SETTING to report. Reached by a
+	// relationship with `max` unset, by a taxonomy or user field (neither has the
+	// setting), and by a MULTIPLE-entry post object, all by the same rule.
+	$no_limit = array(
+		array(
+			'text' => __( 'Bidirectional field with no configured limit. Edits to its bidirectional target field(s) on other posts, terms, or users can add entries.', 'generateblocks' ),
+			'emph' => false,
+		),
+	);
+
+	if ( 'relationship' === $type ) {
+		$max = isset( $field['max'] ) ? (int) $field['max'] : 0;
+
+		if ( $max > 0 ) {
+			$text = ( '' !== $flavour )
+				? sprintf(
+					/* translators: %d: the field's configured maximum number of entries. */
+					__( 'Bidirectional field with a configured limit of %d. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.', 'generateblocks' ),
+					$max
+				)
+				: sprintf(
+					/* translators: %d: the field's configured maximum number of entries. */
+					__( 'Field with a configured limit of %d. The limit is enforced only when this field is edited directly, using ACF.', 'generateblocks' ),
+					$max
+				);
+
+			return array( array( 'text' => $text, 'emph' => false ) );
+		}
+
+		// No limit to state, and no format-time collapse — so a non-bidirectional
+		// relationship field has nothing noteworthy at all.
+		return ( '' === $flavour ) ? null : $no_limit;
+	}
+
+	if ( 'post_object' === $type && empty( $field['multiple'] ) ) {
+		if ( 'native' === $flavour ) {
+			return array(
+				array(
+					'text' => __( 'Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.', 'generateblocks' ),
+					'emph' => false,
+				),
+				$consequence,
+			);
+		}
+		if ( 'acfe' === $flavour ) {
+			// NO unenforcement clause, deliberately: ACF Extended honours the
+			// single-value setting at write, so nothing accumulates and nothing hides.
+			return array(
+				array(
+					'text' => __( 'Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users replace an existing entry.', 'generateblocks' ),
+					'emph' => false,
+				),
+			);
+		}
+		return array(
+			array(
+				'text' => __( 'Field configured as single-entry. The limit is enforced only when this field is edited directly, using ACF.', 'generateblocks' ),
+				'emph' => false,
+			),
+			$consequence,
+		);
+	}
+
+	// Every other valid bidirectional TARGET type: a taxonomy or user field, or a
+	// multiple-entry post object. Nothing else can receive a reciprocal write, so
+	// nothing else has anything to say.
+	if ( '' !== $flavour && in_array( $type, array( 'post_object', 'taxonomy', 'user' ), true ) ) {
+		return $no_limit;
+	}
+
+	return null;
+}
+
+/**
  * Flatten ACF fields (recursing sub-fields) into resolvable entries (V8).
  *
  * Surfaces sub-fields with the CORRECT resolution key:
@@ -224,9 +402,14 @@ function bws_field_discovery_derive_kind_scope( $location ) {
  * @param string $parent_path Breadcrumb prefix (UI only), '' at top level.
  * @param string $group_key   ACF group name of the enclosing GROUP field, or '' if
  *                            the parent is not a group (top level, repeater, flex).
- * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string,repeater_key:string}>
+ * @param string $kind        Resolved-source kind the enclosing GROUP sits under
+ *                            (`post`/`term`/`site`). Only the field-configuration NOTE
+ *                            reads it — an options-page field is never bidirectional
+ *                            (#96) — so `post` is a safe default for a caller that has
+ *                            no group in hand.
+ * @return array<int,array{name:string,label:string,type:string,return_format:?string,context_hint:string,parent_path:string,repeater_key:string,note:?array}>
  */
-function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_key = '' ) {
+function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_key = '', $kind = 'post' ) {
 	$out = array();
 	if ( ! is_array( $fields ) ) {
 		return $out;
@@ -267,13 +450,18 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 			// Additive / structured — the shape FU-1 should absorb (see
 			// .claude/plans/field-selector.md, table-tag #12).
 			'repeater_key'  => '',
+			// The FIELD CONFIGURATION NOTE (#96) — ordered segments, or null when the
+			// field has nothing noteworthy. Emitted as TEXT rather than as raw `max` /
+			// `multiple` / bidirectional settings so every user-facing string stays in
+			// PHP and the chain-step control continues to hand-author no vocabulary.
+			'note'          => bws_field_discovery_field_note( $field, (string) $kind ),
 		);
 
 		$child_path = ( '' === $parent_path ) ? $label : $parent_path . ' › ' . $label;
 
 		// GROUP → children resolve as composite keys, stable everywhere.
 		if ( 'group' === $type && ! empty( $field['sub_fields'] ) ) {
-			foreach ( bws_field_discovery_flatten_fields( $field['sub_fields'], $child_path, $resolution_key ) as $child ) {
+			foreach ( bws_field_discovery_flatten_fields( $field['sub_fields'], $child_path, $resolution_key, $kind ) as $child ) {
 				$out[] = $child;
 			}
 		}
@@ -284,7 +472,7 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 		// DIRECT children (a nested repeater's own children keep their own key from
 		// the recursion) — an already-set repeater_key is not overwritten.
 		if ( 'repeater' === $type && ! empty( $field['sub_fields'] ) ) {
-			foreach ( bws_field_discovery_flatten_fields( $field['sub_fields'], $child_path, '' ) as $child ) {
+			foreach ( bws_field_discovery_flatten_fields( $field['sub_fields'], $child_path, '', $kind ) as $child ) {
 				$child['context_hint'] = 'row';
 				if ( '' === ( $child['repeater_key'] ?? '' ) ) {
 					$child['repeater_key'] = $resolution_key;
@@ -305,7 +493,7 @@ function bws_field_discovery_flatten_fields( $fields, $parent_path = '', $group_
 				}
 				$layout_label = isset( $layout['label'] ) && '' !== $layout['label'] ? (string) $layout['label'] : '';
 				$layout_path  = ( '' === $layout_label ) ? $child_path : $child_path . ' › ' . $layout_label;
-				foreach ( bws_field_discovery_flatten_fields( $layout['sub_fields'], $layout_path, '' ) as $child ) {
+				foreach ( bws_field_discovery_flatten_fields( $layout['sub_fields'], $layout_path, '', $kind ) as $child ) {
 					$child['context_hint'] = 'row';
 					// Flex children scope to the FLEX field's key (its rows are the flex
 					// layouts). Same additive stamp as the repeater branch (#12).
@@ -384,6 +572,10 @@ function bws_field_discovery_registered_meta_group( $meta_map, $kind, $scope, $g
 			'return_format' => null,
 			'context_hint'  => 'field',
 			'parent_path'   => '',
+			// A `register_meta` key carries no ACF field definition, so there is nothing
+			// to derive a note from. Stated rather than omitted so every entry in the
+			// envelope has the same shape.
+			'note'          => null,
 		);
 	}
 
@@ -469,8 +661,19 @@ function bws_field_discovery_collect() {
 				if ( ! is_array( $group ) || empty( $group['key'] ) ) {
 					continue;
 				}
+				// The kind is derived BEFORE the flatten, because the field-configuration
+				// note reads it (an options-page field is never bidirectional, #96).
+				// group_entry() derives it again from the same location array — one
+				// cheap array walk, against threading a second parameter through a
+				// function whose whole job is to answer that question.
 				$acf_fields = acf_get_fields( $group['key'] );
-				$flattened  = bws_field_discovery_flatten_fields( is_array( $acf_fields ) ? $acf_fields : array() );
+				$kind_scope = bws_field_discovery_derive_kind_scope( $group['location'] ?? array() );
+				$flattened  = bws_field_discovery_flatten_fields(
+					is_array( $acf_fields ) ? $acf_fields : array(),
+					'',
+					'',
+					$kind_scope['kind']
+				);
 				$entry      = bws_field_discovery_group_entry( $group, $flattened );
 				if ( empty( $entry['fields'] ) ) {
 					continue;

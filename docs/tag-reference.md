@@ -677,6 +677,51 @@ Rendered by one component in both places a chain is authored — the base tag's 
 
 The control carried a draft label of **Limit per source** for most of 1.17.0's development and was corrected before release ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)) — it sat three rows below a control labelled *Source* meaning something else, named sources while bounding results, and stated the per-input rule everywhere except the label. **No author ever saw it, so it is not a rename**: nothing shipped under it, no CHANGELOG entry describes it, and it has no row in [`deprecated-tags-options.md`](deprecated-tags-options.md). Recorded here only because what let it stand that long was the absence of this table. The option key did not move and no stored wire was rewritten.
 
+##### Field configuration note
+
+Between the Relationship Field Key control and Limit results, a selected field can carry a **field configuration note**: a statement of what ACF does and does not enforce about how many entries that field can hold ([#96](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/96)). It exists because three facts that change what a `refs` step returns are invisible from the tag modal — ACF's Max Posts is not enforced on any write path (`validate_value()` has a `min` branch and no `max` branch), bidirectional writes bypass it in both plugins, and a single-value post object can silently hold several entries — and the ACF admin is unreachable from the contexts field discovery exists to serve.
+
+**It describes and never gates.** No wire changes, no save is blocked, no rendered output moves. Its value is that the *enforced* bound is the Limit results control sitting directly beneath it, so the note reads as the setup for the number about to be chosen. That adjacency is left implicit; the note carries no call to action.
+
+**Definitions only, never a value read** — so it works identically in Patterns, Elements and ordinary post edit screens, which is the point. Derived by `bws_field_discovery_field_note()` in [`includes/rest/field-discovery.php`](../includes/rest/field-discovery.php) and shipped as ordered **segments** on the field-discovery envelope, so every user-facing string stays in PHP and the control renders what it is given.
+
+| # | Field configuration | Note |
+|---|---|---|
+| 1 | Relationship, configured limit, bidirectional | *Bidirectional field with a configured limit of N. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.* |
+| 2 | Relationship, no configured limit, bidirectional | *Bidirectional field with no configured limit. Edits to its bidirectional target field(s) on other posts, terms, or users can add entries.* |
+| 3 | Relationship, configured limit, not bidirectional | *Field with a configured limit of N. The limit is enforced only when this field is edited directly, using ACF.* |
+| 4 | Post object, single-entry, ACF **native** bidirectional | *Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.* **+ the consequence clause** |
+| 5 | Post object, single-entry, **ACF Extended** bidirectional | *Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users replace an existing entry.* |
+| 6 | Post object, single-entry, not bidirectional | *Field configured as single-entry. The limit is enforced only when this field is edited directly, using ACF.* **+ the consequence clause** |
+
+The **consequence clause**, emphasised, is: *The first stored entry will be the only result while this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.*
+
+Everything else is silent, and **silence is information**: the presence of a note means there is something to know.
+
+**Derivation rules**, so a seventh case is added by rule rather than by taste:
+
+- **Enforcement is stated positively.** "Enforced only when this field is edited directly, using ACF" correctly implies that imports, WP-CLI and every other programmatic write bypass it too, rather than pinning the bypass on bidirectionality.
+- **Case 5 carries no enforcement clause on purpose.** ACF Extended honours the single-value setting at write; ACF native does not. That asymmetry is the finding, not an omission — and it is why the bidirectional flavour is carried rather than flattened to a boolean, since the two describe opposite behaviours on the same field. Each flavour is read from its own settings — native from `bidirectional` + `bidirectional_target`, ACF Extended from `acfe_bidirectional[acfe_bidirectional_enabled]` + `[acfe_bidirectional_related]` — matching the gate each plugin's own reciprocal writer applies. Where **both** are enabled the native description applies: silent retention is the harder condition to diagnose.
+- **The consequence clause rides single-entry, not bidirectionality.** Hiding-then-resurrecting follows from the format-time collapse; bidi is only the likeliest writer. Having granted that something can store extras, stopping before saying what those extras do would leave the author with the risk and not its shape. Relationship cases get no analogue: no collapse there, so overflow simply renders.
+- **Options-page fields suppress the bidirectional clause.** ACF resolves valid bidirectional targets by object type and has no case for options, so such a field never receives a reciprocal write even with the setting ticked. It takes the corresponding non-bidirectional case instead: case 1 becomes case 3, case 4 becomes case 6, and **case 2 becomes silence**, there being no non-bidirectional case for a relationship field with nothing else to report. The envelope is already keyed by resolved-source kind, so the discriminator costs nothing. Suppression is `site`-only — a term field is a valid bidirectional target and keeps the clause.
+- **Taxonomy and user fields** are valid bidirectional targets with no limit setting, so they take case 2 unchanged — as does a **multiple-entry post object**, by the same rule rather than by a case of its own.
+- **A half-configured bidirectional setting is not bidirectional.** Both plugins gate their own reciprocal writer on the toggle *and* the target list, so a toggle with no target never writes back.
+
+**Shape: a list of segments, not a string plus a trailing emphasis field.** A trailing field would bake in "emphasis always falls last", which is true only of the cases that have any today. `null` where there is nothing to say; a case with no emphasis emits one segment, never an empty second one.
+
+```
+note: [
+  { text: "Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) …", emph: false },
+  { text: "The first stored entry will be the only result while this field is single-entry; …",           emph: true  }
+]
+```
+
+**Ambiguity is silence.** The wire stores a bare field key, which entries of different resolved-source kinds can share, and a note is a claim about one specific field's configuration — so the control shows a note only where every discovered entry holding that key agrees. This mirrors the field picker's own rule for an ambiguous key (show the bare key, assert nothing). Agreement is on the note VALUE, so one field surfaced in several homes still shows it; only genuinely different definitions sharing a key fall silent, and an entry *without* a note disagrees with one that has it.
+
+**Presentation.** Unlabelled, in a neutral grey panel with a left rule: distinct from the muted help text above it and from the red validation message, and carrying no second hue. No icons — every note opens by naming its own kind, so an icon would repeat the first two words. The note and the red validation message cannot appear together, since the note requires a selected field and the message fires only when none is set.
+
+**Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time, does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps. A plain `key` read of a relationship field on another surface gets nothing; a limit-free framing for those surfaces is possible later.
+
 ### Field group
 
 The field-type selector (`use`) + field key (`key`). Present on `text`, `image`, `content`. `title`/`permalink` have no field options (their datum is the analog); `email`/`phone` have no `use` enum (key-required, no analog); `datetime_*` use direct field keys (see their section). In a **multislot** container the read axis lives inside the folded slot value (`use(title)` / `key(sku)` / `use(same)`), so the `N-`prefixed keys below are **legacy wire**.

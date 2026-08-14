@@ -211,6 +211,33 @@ function bws_fixture_core_structures_register_acf() {
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'id',
 				),
+				// --- FIELD CONFIGURATION NOTE corpus (1.17.0, #96) ---------------
+				// The one shape the blueprint could not otherwise show: a
+				// BIDIRECTIONAL relationship field with a CONFIGURED LIMIT, which is
+				// note case 1 — the only case naming both a limit and a reciprocal
+				// writer. The note is derived from DEFINITIONS ONLY, so this field
+				// needs no seeded value; it exists to be picked in a `refs` step's
+				// field picker and read (fold matrix F14.16).
+				//
+				// SELF-TARGETING is a legitimate ACF configuration (a symmetric
+				// relationship) and is what keeps this to one field instead of a pair
+				// whose only purpose is to be pointed at.
+				//
+				// The other cases already have fixtures: `lead_staff_obj` above is a
+				// single-entry post object with no bidirectional setting (case 6, the
+				// emphasised one), and `related_staff` is a plain relationship with
+				// neither setting, which must stay SILENT.
+				array(
+					'key'                  => 'field_bwsfx_partner_staff',
+					'name'                 => 'partner_staff',
+					'label'                => 'Partner Staff (bidirectional, limit 3)',
+					'type'                 => 'relationship',
+					'post_type'            => array( 'staff' ),
+					'return_format'        => 'id',
+					'max'                  => 3,
+					'bidirectional'        => 1,
+					'bidirectional_target' => array( 'field_bwsfx_partner_staff' ),
+				),
 				// FW-52 image editor rows — an ACF image field returning the
 				// attachment ID, so {{image use:key|key:feature_image}} resolves a
 				// real attachment for the as:url/alt/id/caption editor eyeball.

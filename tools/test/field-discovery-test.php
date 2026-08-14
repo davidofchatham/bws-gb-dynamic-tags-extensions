@@ -252,6 +252,239 @@ assert_eq( 'inner repeater scopes to outer', 'outer', $by_name['inner']['repeate
 assert_eq( 'grandchild cell scopes to INNER (not overwritten by outer)', 'inner', $by_name['cell']['repeater_key'] );
 
 // -----------------------------------------------------------------------------
+echo "\n== field configuration note (#96) ==\n";
+
+// The note is a pure function of the field DEFINITION plus the resolved-source kind —
+// no value read, which is the whole reason it works in a Pattern with no post in scope
+// (V5). These rows drive it with synthetic ACF field arrays, exactly as the flatten
+// rows above do.
+//
+// EVERY EXPECTATION IS THE LITERAL SENTENCE an author reads. Asserting a case NAME
+// (or a settings tuple) would pass against any wording, and the wording IS the
+// deliverable here: it was arrived at by iteration and is recorded in
+// docs/tag-reference.md §Field configuration note.
+
+$note_native = function ( array $extra ) {
+	// ACF native bidirectional needs BOTH the toggle and a target list — the same gate
+	// acf_update_bidirectional_values() applies before writing anything back.
+	return array_merge(
+		array( 'bidirectional' => 1, 'bidirectional_target' => array( 'field_partner' ) ),
+		$extra
+	);
+};
+$note_acfe = function ( array $extra ) {
+	// ACF Extended keeps its own pair under its own key, and gates on both halves too
+	// (acfe_bidirectional::is_enabled() / get_related()).
+	return array_merge(
+		array( 'acfe_bidirectional' => array(
+			'acfe_bidirectional_enabled' => true,
+			'acfe_bidirectional_related' => array( 'field_partner' ),
+		) ),
+		$extra
+	);
+};
+
+$CASE1 = 'Bidirectional field with a configured limit of 3. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.';
+$CASE2 = 'Bidirectional field with no configured limit. Edits to its bidirectional target field(s) on other posts, terms, or users can add entries.';
+$CASE3 = 'Field with a configured limit of 3. The limit is enforced only when this field is edited directly, using ACF.';
+$CASE4 = 'Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF.';
+$CASE5 = 'Bidirectional field configured as single-entry. Edits to its bidirectional target field(s) on other posts, terms, or users replace an existing entry.';
+$CASE6 = 'Field configured as single-entry. The limit is enforced only when this field is edited directly, using ACF.';
+$CONSEQ = 'The first stored entry will be the only result while this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.';
+
+// Case 1 — relationship, configured limit, bidirectional.
+assert_eq(
+	'case 1: relationship + limit + bidirectional',
+	array( array( 'text' => $CASE1, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship', 'max' => 3 ) ) )
+);
+
+// Case 2 — relationship, bidirectional, no configured limit. `max` 0 is ACF's own
+// default for the field, so an unset limit and an explicit 0 are one state.
+assert_eq(
+	'case 2: relationship + bidirectional, max unset',
+	array( array( 'text' => $CASE2, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship' ) ) )
+);
+assert_eq(
+	'case 2: an explicit max of 0 is the same as unset',
+	array( array( 'text' => $CASE2, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship', 'max' => 0 ) ) )
+);
+
+// Case 3 — relationship, configured limit, NOT bidirectional. No reciprocal-write
+// sentence, because nothing writes back; the unenforcement statement stands alone.
+assert_eq(
+	'case 3: relationship + limit, not bidirectional',
+	array( array( 'text' => $CASE3, 'emph' => false ) ),
+	bws_field_discovery_field_note( array( 'type' => 'relationship', 'max' => 3 ) )
+);
+
+// Case 4 — single-entry post object, ACF NATIVE bidirectional: accumulate-and-hide.
+assert_eq(
+	'case 4: single-entry post object + native bidirectional',
+	array(
+		array( 'text' => $CASE4, 'emph' => false ),
+		array( 'text' => $CONSEQ, 'emph' => true ),
+	),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'post_object' ) ) )
+);
+
+// Case 5 — single-entry post object, ACF EXTENDED bidirectional: replace-and-discard.
+// NO unenforcement clause and NO consequence clause: that implementation honours the
+// single-value setting at write, so nothing accumulates and nothing hides. The
+// asymmetry with case 4 is the finding, not an omission.
+assert_eq(
+	'case 5: single-entry post object + ACF Extended bidirectional',
+	array( array( 'text' => $CASE5, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_acfe( array( 'type' => 'post_object' ) ) )
+);
+
+// Case 6 — single-entry post object, not bidirectional. Carries the SAME closing clause
+// as case 4: hiding-then-resurrecting follows from the format-time collapse, not from
+// bidirectionality, so the two cases differ only by the sentence naming the writer.
+assert_eq(
+	'case 6: single-entry post object, not bidirectional',
+	array(
+		array( 'text' => $CASE6, 'emph' => false ),
+		array( 'text' => $CONSEQ, 'emph' => true ),
+	),
+	bws_field_discovery_field_note( array( 'type' => 'post_object' ) )
+);
+
+// BOTH implementations enabled -> the NATIVE description, because silent retention is
+// the harder condition to diagnose.
+assert_eq(
+	'both bidirectional flavours enabled -> native wording',
+	array(
+		array( 'text' => $CASE4, 'emph' => false ),
+		array( 'text' => $CONSEQ, 'emph' => true ),
+	),
+	bws_field_discovery_field_note( $note_acfe( $note_native( array( 'type' => 'post_object' ) ) ) )
+);
+
+// SEGMENT SPLIT. A case with no emphasis emits ONE segment, never an empty second one —
+// the shape reason the note is a list rather than a string plus a trailing field.
+assert_eq( 'no-emphasis case emits a single segment', 1, count( bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship', 'max' => 3 ) ) ) ) );
+assert_eq( 'emphasis case emits two', 2, count( bws_field_discovery_field_note( array( 'type' => 'post_object' ) ) ) );
+$emph_case = bws_field_discovery_field_note( array( 'type' => 'post_object' ) );
+assert_eq( 'emphasis falls on the CLOSING segment only', array( false, true ), array_column( $emph_case, 'emph' ) );
+
+// OPTIONS-PAGE SUPPRESSION. ACF resolves valid bidirectional targets by object type and
+// has no case for options, so such a field never receives a reciprocal write even with
+// the setting ticked — it takes the corresponding NON-bidirectional case instead.
+assert_eq(
+	'options-page relationship takes case 3, not case 1',
+	array( array( 'text' => $CASE3, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship', 'max' => 3 ) ), 'site' )
+);
+assert_eq(
+	'options-page single-entry post object takes case 6, not case 4',
+	array(
+		array( 'text' => $CASE6, 'emph' => false ),
+		array( 'text' => $CONSEQ, 'emph' => true ),
+	),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'post_object' ) ), 'site' )
+);
+assert_eq(
+	'options-page bidirectional relationship with no limit falls SILENT',
+	null,
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship' ) ), 'site' )
+);
+// A TERM field is a valid bidirectional target, so suppression must be `site`-only.
+assert_eq(
+	'term-kind relationship keeps the bidirectional wording',
+	array( array( 'text' => $CASE1, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'relationship', 'max' => 3 ) ), 'term' )
+);
+
+// TAXONOMY and USER fields are valid bidirectional targets with no limit setting of
+// their own, so they take case 2 unchanged — by rule, not by a case each.
+assert_eq(
+	'taxonomy field + bidirectional -> case 2',
+	array( array( 'text' => $CASE2, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'taxonomy' ) ) )
+);
+assert_eq(
+	'user field + bidirectional -> case 2',
+	array( array( 'text' => $CASE2, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_acfe( array( 'type' => 'user' ) ) )
+);
+// A MULTIPLE-entry post object reaches case 2 by the same rule: it is a bidirectional
+// target with no limit setting, and there is no format-time collapse to warn about.
+assert_eq(
+	'multiple-entry post object + bidirectional -> case 2',
+	array( array( 'text' => $CASE2, 'emph' => false ) ),
+	bws_field_discovery_field_note( $note_native( array( 'type' => 'post_object', 'multiple' => 1 ) ) )
+);
+
+// SILENCE, and silence is information: the presence of a note means there is something
+// to know, so every shape with nothing to say must emit nothing at all.
+assert_eq( 'plain text field -> no note', null, bws_field_discovery_field_note( array( 'type' => 'text', 'max' => 3 ) ) );
+assert_eq( 'image field -> no note', null, bws_field_discovery_field_note( $note_native( array( 'type' => 'image' ) ) ) );
+assert_eq( 'typeless entry (registered meta) -> no note', null, bws_field_discovery_field_note( array( 'name' => 'plain_key' ) ) );
+assert_eq( 'relationship, no limit, not bidirectional -> no note', null, bws_field_discovery_field_note( array( 'type' => 'relationship' ) ) );
+assert_eq( 'multiple-entry post object, not bidirectional -> no note', null, bws_field_discovery_field_note( array( 'type' => 'post_object', 'multiple' => 1 ) ) );
+assert_eq( 'taxonomy field, not bidirectional -> no note', null, bws_field_discovery_field_note( array( 'type' => 'taxonomy' ) ) );
+
+// A HALF-CONFIGURED bidirectional setting is not bidirectional. Both plugins gate their
+// own writer on the toggle AND the target list, so a toggle with no target never writes
+// back — reading only the toggle would warn about a reciprocal write that cannot occur.
+assert_eq(
+	'native toggle with no target is not bidirectional',
+	array( array( 'text' => $CASE3, 'emph' => false ) ),
+	bws_field_discovery_field_note( array( 'type' => 'relationship', 'max' => 3, 'bidirectional' => 1, 'bidirectional_target' => array() ) )
+);
+assert_eq(
+	'ACF Extended toggle with no related field is not bidirectional',
+	null,
+	bws_field_discovery_field_note( array(
+		'type'               => 'relationship',
+		'acfe_bidirectional' => array( 'acfe_bidirectional_enabled' => true, 'acfe_bidirectional_related' => array() ),
+	) )
+);
+
+// The note reaches the ENVELOPE through the flatten, stamped per entry and threaded
+// with the group's kind — the entry shape the editor control reads.
+$flat_note = bws_field_discovery_flatten_fields(
+	array(
+		$note_native( array( 'name' => 'partners', 'label' => 'Partners', 'type' => 'relationship', 'max' => 3 ) ),
+		array( 'name' => 'subtitle', 'label' => 'Subtitle', 'type' => 'text' ),
+	)
+);
+assert_eq( 'flatten stamps the note on the entry', array( array( 'text' => $CASE1, 'emph' => false ) ), $flat_note[0]['note'] );
+assert_eq( 'flatten stamps null where there is nothing to say', null, $flat_note[1]['note'] );
+// Kind threads through to the note, which is how an options-page group's fields are
+// suppressed at the one place the kind is known.
+$flat_site = bws_field_discovery_flatten_fields(
+	array( $note_native( array( 'name' => 'partners', 'label' => 'Partners', 'type' => 'relationship', 'max' => 3 ) ) ),
+	'',
+	'',
+	'site'
+);
+assert_eq( 'flatten threads the kind into the note', array( array( 'text' => $CASE3, 'emph' => false ) ), $flat_site[0]['note'] );
+// SUB-FIELDS take the enclosing group's kind too — the recursion must carry it, or a
+// relationship inside a group on an options page would warn about a write that cannot
+// happen.
+$flat_sub = bws_field_discovery_flatten_fields(
+	array(
+		array(
+			'name' => 'links', 'label' => 'Links', 'type' => 'group',
+			'sub_fields' => array( $note_native( array( 'name' => 'partners', 'label' => 'Partners', 'type' => 'relationship', 'max' => 3 ) ) ),
+		),
+	),
+	'',
+	'',
+	'site'
+);
+assert_eq( 'group sub-field inherits the kind for its note', array( array( 'text' => $CASE3, 'emph' => false ) ), $flat_sub[1]['note'] );
+// Registered meta carries no ACF definition, so its entries state a null note rather
+// than omitting the key — one entry shape across the whole envelope.
+$rmg_note = bws_field_discovery_registered_meta_group( array( 'featured' => array() ), 'post', '', 'Registered post meta' );
+assert_true( 'registered-meta entries carry the note key', array_key_exists( 'note', $rmg_note['fields'][0] ) );
+assert_eq( 'registered-meta note is null', null, $rmg_note['fields'][0]['note'] );
+
+// -----------------------------------------------------------------------------
 echo "\n== group_entry ==\n";
 
 $entry = bws_field_discovery_group_entry(
