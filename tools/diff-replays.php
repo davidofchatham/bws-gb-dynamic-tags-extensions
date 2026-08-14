@@ -206,6 +206,7 @@ $buckets = array(
 );
 $missing  = array();
 $volatile = 0;
+$rescued  = 0;
 $same     = 0;
 
 foreach ( $keys as $key ) {
@@ -229,6 +230,27 @@ foreach ( $keys as $key ) {
 
 	if ( $oa === $ob ) {
 		$same++;
+		continue;
+	}
+
+	// THE antispambot RESCUE. WordPress obfuscates an email address by choosing per CHARACTER,
+	// at random, whether to emit it raw, as a decimal entity or as a hex one — so {{email}} is
+	// byte-different on every single render and can never be compared raw. It also travels:
+	// a page whose content embeds an email tag makes {{content}} intermittently different too,
+	// and intermittent is the dangerous kind, because a pair that happens to be stable within
+	// both runs would otherwise be reported as a genuine change.
+	//
+	// Decoding entities collapses exactly that randomness and nothing else: two genuinely
+	// different outputs stay different, since decode only equates a character with its own
+	// entity spelling. Rescued pairs are reported rather than folded into `identical`, because
+	// "equal only after normalisation" is a weaker statement than byte identity and the
+	// reviewer is entitled to see which pairs rest on it.
+	$decode = static function ( $v ) {
+		return is_string( $v ) ? html_entity_decode( $v, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) : $v;
+	};
+
+	if ( array_map( $decode, $oa ) === array_map( $decode, $ob ) ) {
+		$rescued++;
 		continue;
 	}
 
@@ -259,6 +281,7 @@ if ( $missing ) {
 $changed = count( $buckets['attested'] ) + count( $buckets['synthetic'] ) + count( $buckets['unclassified'] );
 
 $line( sprintf( 'identical : %d', $same ) );
+$line( sprintf( 'rescued   : %d  (equal only after entity decode — antispambot randomises {{email}} per render)', $rescued ) );
 $line( sprintf( 'volatile  : %d  (excluded — did not render the same twice in one process)', $volatile ) );
 $line( sprintf( 'CHANGED   : %d', $changed ) );
 $line();
@@ -291,7 +314,7 @@ foreach ( $a['renders'] as $r ) {
 		$non_empty++;
 	}
 }
-if ( $same + $changed === 0 ) {
+if ( $same + $changed + $rescued === 0 ) {
 	$line( '[X] nothing was compared — the artifacts hold no overlapping renders.' );
 	$fail++;
 } elseif ( 0 === $non_empty ) {
