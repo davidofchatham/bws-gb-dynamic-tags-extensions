@@ -13,9 +13,14 @@
  *   resolution key (merged — same key across ACF groups collapses; bare value is
  *   unique so it round-trips cleanly on reopen). A parent group/repeater FIELD
  *   owns its children (children sort directly under their parent, not scattered).
- * - Label: `Venue › City ('venue_city')` — breadcrumb (parent group/repeater,
- *   display-only) + field label + resolution key in single quotes. `loop-only`
- *   suffix when the key resolves ONLY in a repeater/flex row context.
+ * - Label: `(Text) City ('venue_city')` — the field TYPE, then the field label, then
+ *   the resolution key in single quotes. The type is derived from the field
+ *   definition for every row alike, never hand-written into a label. It leads so a
+ *   column of types can be scanned, and it joins the combobox's search text, so
+ *   typing "post object" narrows the list. It does NOT move the sort, which stays
+ *   alphabetical by field label. The breadcrumb and the `loop-only` suffix this line
+ *   used to describe were dropped when the two filters took over location and
+ *   loop-ness.
  * - TWO filter selectors ABOVE the field combobox, AND-composed:
  *     Filter 1 Location — searchable combobox, flat path-strings
  *       (All detected fields / Post fields / Post fields › Group A / …),
@@ -214,6 +219,13 @@
 
 	/**
 	 * Friendly label for an ACF field type string.
+	 *
+	 * The map names the types whose slug reads badly; everything else TITLE-CASES the
+	 * slug rather than printing it raw (`page_link` → "Page Link"). That fallback is
+	 * what makes the map OPTIONAL: a type this plugin has never heard of — a
+	 * third-party one, or a new ACF release's — reads as a name in the type filter and
+	 * in every field row without an edit here. A map entry is then a wording
+	 * improvement, never a prerequisite for a type to be presentable.
 	 */
 	function typeLabel( type ) {
 		var map = {
@@ -235,7 +247,12 @@
 			repeater: __( 'Repeater', 'generateblocks' ),
 			flexible_content: __( 'Flexible Content', 'generateblocks' ),
 		};
-		return map[ type ] || type;
+		if ( map[ type ] ) {
+			return map[ type ];
+		}
+		return String( type || '' ).split( '_' ).map( function ( word ) {
+			return word ? word.charAt( 0 ).toUpperCase() + word.slice( 1 ) : word;
+		} ).join( ' ' );
 	}
 
 	/**
@@ -353,9 +370,35 @@
 	/**
 	 * Compose a record's ComboboxControl option { value, label }.
 	 *
-	 * Flat label: "<label> ('<key>')". No breadcrumb, no loop-only marker — the two
-	 * filters disambiguate location/type. `value` is the unique merge key (React
-	 * list identity); the serialized value is the bare `key`, resolved in onChange.
+	 * Flat label: "(<Type>) <label> ('<key>')". No breadcrumb, no loop-only marker —
+	 * the Location filter disambiguates location. `value` is the unique merge key
+	 * (React list identity); the serialized value is the bare `key`, resolved in
+	 * onChange.
+	 *
+	 * THE TYPE IS UNIVERSAL AND DERIVED, which is the point of it being here at all.
+	 * A field's type governs what a tag can do with it — a `refs` step wants a
+	 * relationship or post object, a datetime tag wants a date field — and it was
+	 * previously reachable only through the type FILTER, i.e. by narrowing the list
+	 * rather than by reading a row. Fixture and real-site authors had taken to writing
+	 * it into the field LABEL ("Lead Staff (post object, object format)"), which
+	 * produced a hand-cased annotation on some fields and none on others, and doubled
+	 * brackets against the quoted key. Deriving it from `rec.types` gives every row the
+	 * same annotation, spelt one way, with nothing to keep in step.
+	 *
+	 * IT LEADS rather than trails because a trailing group would sit behind the quoted
+	 * key, three bracket groups deep, and because scanning a column of types is what
+	 * makes the annotation worth showing.
+	 *
+	 * IT DOES NOT MOVE THE SORT. `sortKey` is built from the label and key, never from
+	 * this text, so the list stays alphabetical by field name rather than clustering by
+	 * type — that is what the type filter is for, and the flat-alphabetical list is the
+	 * locked design. It DOES join the combobox's own search text, so typing "post
+	 * object" narrows to post object fields, which is a free affordance rather than a
+	 * second filter.
+	 *
+	 * A merged record can carry several types (the same key + label reached through two
+	 * homes), so they are joined rather than one being picked; a record with no type at
+	 * all (registered meta) gets no annotation rather than an empty pair of brackets.
 	 */
 	function recordToOption( rec ) {
 		// When there is no distinct field label (envelopeToRecords fell back to the
@@ -363,6 +406,10 @@
 		// Otherwise show `Label ('key')`. Combobox filters on this label; the key is
 		// present either way so typing it still matches.
 		var text = ( rec.label === rec.key ) ? rec.key : rec.label + " ('" + rec.key + "')";
+		var types = ( rec.types || [] ).filter( Boolean ).map( typeLabel );
+		if ( types.length ) {
+			text = '(' + types.join( ' / ' ) + ') ' + text;
+		}
 		return { value: rec.value, label: text };
 	}
 

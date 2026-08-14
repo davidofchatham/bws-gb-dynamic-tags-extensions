@@ -172,7 +172,12 @@ function bws_fixture_core_structures_register_acf() {
 				array(
 					'key'           => 'field_bwsfx_related_staff_obj',
 					'name'          => 'related_staff_obj',
-					'label'         => 'Related Staff (object format)',
+					// The `_obj` twins are distinguished by their KEYS, which every picker
+					// row already prints — not by a hand-written parenthetical. Spelling
+					// a field's configuration into its label is what the derived type
+					// annotation replaced, and a fixture is the last place that should
+					// model a habit the picker just stopped needing.
+					'label'         => 'Related Staff',
 					'type'          => 'relationship',
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'object',
@@ -185,7 +190,7 @@ function bws_fixture_core_structures_register_acf() {
 				array(
 					'key'           => 'field_bwsfx_lead_staff_obj',
 					'name'          => 'lead_staff_obj',
-					'label'         => 'Lead Staff (post object, object format)',
+					'label'         => 'Lead Staff',
 					'type'          => 'post_object',
 					'post_type'     => array( 'staff' ),
 					'return_format' => 'object',
