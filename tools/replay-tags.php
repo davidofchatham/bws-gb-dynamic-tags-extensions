@@ -110,6 +110,19 @@ if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 // ---------------------------------------------------------------------------
 $url = (string) ( WP_CLI::get_runner()->config['url'] ?? '' );
 if ( '' !== $url ) {
+	// WP-CLI's --url sets HTTP_HOST / REQUEST_URI / QUERY_STRING but does NOT populate $_GET,
+	// and WP::parse_request() reads public query vars from $_GET. Without this, EVERY
+	// query-string URL silently collapses to the front page: a post type registered with
+	// rewrite=false is reachable only as ?<type>=<slug>, and so is the search stratum (?s=).
+	// Nothing errors and every tag renders, so the stratum looks covered on both sides of a
+	// diff while testing the home page twice.
+	$query = (string) parse_url( $url, PHP_URL_QUERY );
+	if ( '' !== $query ) {
+		parse_str( $query, $parsed );
+		$_GET     = $parsed;
+		$_REQUEST = array_merge( $_REQUEST, $parsed );
+	}
+
 	wp();
 }
 
@@ -128,10 +141,34 @@ if ( $qo instanceof WP_Term ) {
 	$observed = 'other:' . get_class( $qo );
 }
 
-// A URL that 404s when the inventory said otherwise is a finding about the inventory, not a
-// render result — recorded on the run header so a whole stratum going missing is visible
-// rather than showing up as N empty renders.
-$mismatch = ( 'none:404' === $observed && 0 !== strpos( $context_kind, '404' ) );
+// A URL that does not resolve to the KIND the inventory promised is a finding about the
+// inventory, not a render result. Recorded on the run header so a whole stratum going missing
+// is visible rather than showing up as N renders of the wrong context.
+//
+// 404 is not the only way this happens, and assuming it was is a mistake this made once: a
+// taxonomy registered `public` but not publicly queryable has no archive, so WP serves the
+// FRONT PAGE at that URL. Nothing errors, every tag renders, and the whole tax: stratum is
+// quietly testing `home` on both sides of the diff — agreement that means nothing. So the
+// check compares the observed kind against the promised one rather than testing for 404.
+$expected_kind = static function ( string $kind, string $seen ): bool {
+	if ( 0 === strpos( $kind, 'singular:' ) ) {
+		return 0 === strpos( $seen, 'post:' . substr( $kind, 9 ) . ':' );
+	}
+	if ( 0 === strpos( $kind, 'tax:' ) ) {
+		return 0 === strpos( $seen, 'term:' . substr( $kind, 4 ) . ':' );
+	}
+	if ( 'author' === $kind ) {
+		return 0 === strpos( $seen, 'author:' );
+	}
+	if ( '404' === $kind ) {
+		return 'none:404' === $seen;
+	}
+	// home / search / date have no queried object of their own (a static front page does, and
+	// either answer is correct there) — they are only wrong when they 404.
+	return 'none:404' !== $seen;
+};
+
+$mismatch = ! $expected_kind( $context_kind, $observed );
 
 // ---------------------------------------------------------------------------
 // 2. The corpus. Distinct tag strings, deterministically ordered.
@@ -233,5 +270,5 @@ WP_CLI::log( sprintf(
 	count( $tags ),
 	$volatile,
 	$errors,
-	$mismatch ? '  ** CONTEXT MISMATCH (404) **' : ''
+	$mismatch ? "  ** CONTEXT MISMATCH — promised {$context_kind}, got {$observed} **" : ''
 ) );

@@ -186,9 +186,9 @@ if ( $only_a || $only_b ) {
 foreach ( array( 'A' => $a, 'B' => $b ) as $label => $side ) {
 	$mismatched = array_filter( $side['runs'], static fn( $r ) => ! empty( $r['context_mismatch'] ) );
 	if ( $mismatched ) {
-		$line( sprintf( '[!] %s: %d URL(s) 404d against a non-404 context kind — those renders are empty for the wrong reason:', $label, count( $mismatched ) ) );
+		$line( sprintf( '[!] %s: %d URL(s) did not resolve to the context kind the inventory promised — that stratum is testing something else on BOTH sides, so its agreement means nothing:', $label, count( $mismatched ) ) );
 		foreach ( array_slice( $mismatched, 0, $max ) as $r ) {
-			$line( "      {$r['context_kind']}  {$r['url']}" );
+			$line( "      {$r['context_kind']}  →  {$r['observed']}   {$r['url']}" );
 		}
 	}
 }
