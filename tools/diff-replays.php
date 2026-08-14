@@ -48,15 +48,18 @@
 $argv_in = $argv;
 array_shift( $argv_in );
 
-$paths = array();
-$full  = false;
-$max   = 20;
+$paths    = array();
+$full     = false;
+$max      = 20;
+$map_path = null;
 
 foreach ( $argv_in as $arg ) {
 	if ( '--full' === $arg ) {
 		$full = true;
 	} elseif ( 0 === strpos( $arg, '--max=' ) ) {
 		$max = max( 1, (int) substr( $arg, 6 ) );
+	} elseif ( 0 === strpos( $arg, '--map=' ) ) {
+		$map_path = substr( $arg, 6 );
 	} else {
 		$paths[] = $arg;
 	}
@@ -196,8 +199,56 @@ foreach ( array( 'A' => $a, 'B' => $b ) as $label => $side ) {
 // ---------------------------------------------------------------------------
 // 3. Pair-by-pair comparison.
 // ---------------------------------------------------------------------------
-$keys = array_unique( array_merge( array_keys( $a['renders'] ), array_keys( $b['renders'] ) ) );
+// ACROSS A MIGRATION BOUNDARY THE TAG STRINGS THEMSELVES CHANGE, so the two sides cannot be
+// keyed against each other directly — the pairing has to come from the converter, which emits
+// it as mapping.jsonl. Without --map the comparison is same-wire-both-sides (Experiment R).
+//
+// The translation is BEST-EFFORT ON PURPOSE. A tag string can live both in a post (migrated)
+// and in an option or postmeta (unreachable by the converter, so still in its old form), and
+// the same string can therefore appear on the B side twice over. Falling back to the untouched
+// key when the mapped one is absent is what keeps that case from reading as a vanished tag.
+$map = array();
+if ( null !== $map_path ) {
+	if ( ! is_readable( $map_path ) ) {
+		fwrite( STDERR, "Mapping not readable: {$map_path}\n" );
+		exit( 2 );
+	}
+	$fh = fopen( $map_path, 'r' );
+	// NB: not $line — that name holds the output closure by this point in the file.
+	while ( false !== ( $map_line = fgets( $fh ) ) ) {
+		$row = json_decode( trim( $map_line ), true );
+		if ( is_array( $row ) && isset( $row['old'], $row['new'] ) ) {
+			$map[ $row['old'] ] = $row['new'];
+		}
+	}
+	fclose( $fh );
+	$line( sprintf( 'mapping: %s (%d tag strings rewritten by the converter)', $map_path, count( $map ) ) );
+	$line();
+}
+
+$translate = static function ( string $key ) use ( $map, $b ): string {
+	if ( ! $map ) {
+		return $key;
+	}
+	list( $url, $tag ) = explode( "\x00", $key, 2 );
+	if ( isset( $map[ $tag ] ) ) {
+		$candidate = $url . "\x00" . $map[ $tag ];
+		if ( isset( $b['renders'][ $candidate ] ) ) {
+			return $candidate;
+		}
+	}
+	return $key;
+};
+
+// With a mapping, the A side is the subject: every tag that existed before must have a
+// counterpart after. Wire that exists only on the B side is new, and is reported as a count
+// rather than as a failure — a migrated page can legitimately hold both forms.
+$keys = $map
+	? array_keys( $a['renders'] )
+	: array_unique( array_merge( array_keys( $a['renders'] ), array_keys( $b['renders'] ) ) );
 sort( $keys, SORT_STRING );
+
+$consumed = array();
 
 $buckets = array(
 	'attested'     => array(),
@@ -210,8 +261,13 @@ $rescued  = 0;
 $same     = 0;
 
 foreach ( $keys as $key ) {
-	$ra = $a['renders'][ $key ] ?? null;
-	$rb = $b['renders'][ $key ] ?? null;
+	$b_key = $translate( $key );
+	$ra    = $a['renders'][ $key ] ?? null;
+	$rb    = $b['renders'][ $b_key ] ?? null;
+
+	if ( null !== $rb ) {
+		$consumed[ $b_key ] = true;
+	}
 
 	if ( null === $ra || null === $rb ) {
 		$missing[] = array( 'key' => $key, 'side' => null === $ra ? 'B only' : 'A only' );
@@ -276,6 +332,14 @@ if ( $missing ) {
 	}
 	$fail++;
 	$line();
+}
+
+if ( $map ) {
+	$leftover = count( $b['renders'] ) - count( $consumed );
+	if ( $leftover > 0 ) {
+		$line( sprintf( '[i] %d B-side render(s) had no A-side counterpart — wire the migration introduced, or an old form left behind where the converter could not reach it.', $leftover ) );
+		$line();
+	}
 }
 
 $changed = count( $buckets['attested'] ) + count( $buckets['synthetic'] ) + count( $buckets['unclassified'] );
