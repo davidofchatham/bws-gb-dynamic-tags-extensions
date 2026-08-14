@@ -227,10 +227,15 @@ function bws_fixture_core_structures_register_acf() {
 				// single-entry post object with no bidirectional setting (case 6, the
 				// emphasised one), and `related_staff` is a plain relationship with
 				// neither setting, which must stay SILENT.
+				//
+				// LABELLED AS A REAL FIELD WOULD BE, not for what it configures. The
+				// picker row is the wrong place to state a configuration: the note IS
+				// that statement, and a label spelling it out both pre-empts the thing
+				// under test and reads like nothing an author's own site would contain.
 				array(
 					'key'                  => 'field_bwsfx_partner_staff',
 					'name'                 => 'partner_staff',
-					'label'                => 'Partner Staff (bidirectional, limit 3)',
+					'label'                => 'Partner Staff',
 					'type'                 => 'relationship',
 					'post_type'            => array( 'staff' ),
 					'return_format'        => 'id',
