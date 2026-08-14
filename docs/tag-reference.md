@@ -720,7 +720,9 @@ note: [
 
 **Presentation.** Unlabelled, in a neutral grey panel with a left rule: distinct from the muted help text above it and from the red validation message, and carrying no second hue. No icons — every note opens by naming its own kind, so an icon would repeat the first two words. The note and the red validation message cannot appear together, since the note requires a selected field and the message fires only when none is set.
 
-**Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time, does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps. A plain `key` read of a relationship field on another surface gets nothing; a limit-free framing for those surfaces is possible later.
+**Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time, does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps.
+
+The surface that invites the question is the [Field group](#field-group)'s own `key`, where the same picker offers the same relationship fields — and the note is right to stay away, because **relating is a source step, not a target field**. A relationship value is a list of post ids rather than a datum, so `{{text use:key|key:related_staff}}` renders EMPTY where `{{title src:refs,related_staff}}` renders the related posts (verified on the testbed, `related_staff` holding two ids). Relocating this note there would explain a limit on a read that produces nothing; what that surface would want, if anything, is an advisory pointing at the source step.
 
 ### Field group
 

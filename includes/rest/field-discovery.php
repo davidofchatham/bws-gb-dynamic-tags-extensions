@@ -635,6 +635,15 @@ function bws_field_discovery_get_registered_meta( $object_type, $subtype ) {
  * Envelope shape (V7): `array( 'post' => [], 'term' => [], 'site' => [] )` where
  * each kind holds group entries `{ group_title, kind, scope, fields:[...] }`.
  *
+ * THIS FUNCTION IS THE SHAPE'S ONLY WRITER, AND TWO JS READERS WALK IT
+ * INDEPENDENTLY — `envelopeToRecords()` in `assets/js/field-combo-control.js`
+ * (which MERGES entries sharing a key) and `fieldNote()` in
+ * `assets/js/slot-fold-control.js` (which exists to notice that such entries
+ * DISAGREE). They are deliberately not one walk: a merged view is the wrong
+ * input for the second question, and the picker bails early on older component
+ * stacks in a way the note has no reason to inherit. So a change to the four
+ * levels above starts here and lands in both.
+ *
  * Orchestration only — the pure per-group transforms (kind/scope derivation,
  * sub-field flatten, group-entry assembly) live in the helpers above so the T11
  * harness can drive them without ACF/WP. This function reads the live ACF +
