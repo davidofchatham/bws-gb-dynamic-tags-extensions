@@ -13,14 +13,14 @@
  *   resolution key (merged — same key across ACF groups collapses; bare value is
  *   unique so it round-trips cleanly on reopen). A parent group/repeater FIELD
  *   owns its children (children sort directly under their parent, not scattered).
- * - Label: `(Text) City ('venue_city')` — the field TYPE, then the field label, then
- *   the resolution key in single quotes. The type is derived from the field
- *   definition for every row alike, never hand-written into a label. It leads so a
- *   column of types can be scanned, and it joins the combobox's search text, so
- *   typing "post object" narrows the list. It does NOT move the sort, which stays
- *   alphabetical by field label. The breadcrumb and the `loop-only` suffix this line
- *   used to describe were dropped when the two filters took over location and
- *   loop-ness.
+ * - Label: `City (Text, 'venue_city')` — the field label, then one bracket group
+ *   holding the field TYPE and the resolution key. The type is derived from the field
+ *   definition for every row alike, never hand-written into a label; it shares the
+ *   key's brackets because both are facts ABOUT the field the label names. It joins
+ *   the combobox's search text, so typing "post object" narrows the list, but it does
+ *   NOT move the sort, which stays alphabetical by field label. The breadcrumb and
+ *   the `loop-only` suffix this line used to describe were dropped when the two
+ *   filters took over location and loop-ness.
  * - TWO filter selectors ABOVE the field combobox, AND-composed:
  *     Filter 1 Location — searchable combobox, flat path-strings
  *       (All detected fields / Post fields / Post fields › Group A / …),
@@ -370,7 +370,7 @@
 	/**
 	 * Compose a record's ComboboxControl option { value, label }.
 	 *
-	 * Flat label: "(<Type>) <label> ('<key>')". No breadcrumb, no loop-only marker —
+	 * Flat label: "<label> (<Type>, '<key>')". No breadcrumb, no loop-only marker —
 	 * the Location filter disambiguates location. `value` is the unique merge key
 	 * (React list identity); the serialized value is the bare `key`, resolved in
 	 * onChange.
@@ -385,9 +385,11 @@
 	 * brackets against the quoted key. Deriving it from `rec.types` gives every row the
 	 * same annotation, spelt one way, with nothing to keep in step.
 	 *
-	 * IT LEADS rather than trails because a trailing group would sit behind the quoted
-	 * key, three bracket groups deep, and because scanning a column of types is what
-	 * makes the annotation worth showing.
+	 * IT JOINS THE EXISTING BRACKET GROUP rather than opening a second one. The LABEL
+	 * is what an author scans for, so it keeps the front of the row; type and key are
+	 * both machine facts ABOUT that field, so they belong together behind it. A leading
+	 * or trailing group of its own would put three bracket groups on one row, which is
+	 * the doubling this replaced.
 	 *
 	 * IT DOES NOT MOVE THE SORT. `sortKey` is built from the label and key, never from
 	 * this text, so the list stays alphabetical by field name rather than clustering by
@@ -398,19 +400,23 @@
 	 *
 	 * A merged record can carry several types (the same key + label reached through two
 	 * homes), so they are joined rather than one being picked; a record with no type at
-	 * all (registered meta) gets no annotation rather than an empty pair of brackets.
+	 * all (registered meta) gets no annotation rather than an empty slot.
 	 */
 	function recordToOption( rec ) {
+		var types = ( rec.types || [] ).filter( Boolean ).map( typeLabel ).join( ' / ' );
+
 		// When there is no distinct field label (envelopeToRecords fell back to the
-		// key), show the key ONCE — `event_date`, not `event_date ('event_date')`.
-		// Otherwise show `Label ('key')`. Combobox filters on this label; the key is
-		// present either way so typing it still matches.
-		var text = ( rec.label === rec.key ) ? rec.key : rec.label + " ('" + rec.key + "')";
-		var types = ( rec.types || [] ).filter( Boolean ).map( typeLabel );
-		if ( types.length ) {
-			text = '(' + types.join( ' / ' ) + ') ' + text;
+		// key), show the key ONCE — `event_date (Text)`, not
+		// `event_date (Text, 'event_date')`. The bracket group still carries whatever
+		// the row has not already said.
+		if ( rec.label === rec.key ) {
+			return { value: rec.value, label: types ? rec.key + ' (' + types + ')' : rec.key };
 		}
-		return { value: rec.value, label: text };
+
+		// Combobox filters on this label; the key is present either way so typing it
+		// still matches.
+		var inner = types ? types + ", '" + rec.key + "'" : "'" + rec.key + "'";
+		return { value: rec.value, label: rec.label + ' (' + inner + ')' };
 	}
 
 	/**
