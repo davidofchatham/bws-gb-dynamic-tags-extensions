@@ -43,3 +43,9 @@ a standing constraint, not as a price paid for readability.
   constraint that holds independent of this ADR. What THIS decision ADDS on top: within that safe set,
   the grammar must also stay legible to a hand-editor and must not require a mechanism
   (nesting-balance, escaping) an ordinary hand-editor is likely to break silently.
+- **Corollary (2026-08-13) — internal hand-offs use the wire too, not a parsed structure.** Because
+  the wire is the canonical language rather than a serialization of some truer internal form, a
+  component that resolves a source and hands it to another passes CHAIN WIRE, not a parsed chain in a
+  side key. A side key is a second way to state a source, invisible to every reader that consults
+  `src` for another purpose. Considered as its own ADR and rejected as a corollary of this one — it
+  is not an independent trade-off. See `CONTEXT.md` I16.
