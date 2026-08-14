@@ -425,7 +425,16 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 	},
 	offer: [ 'terms', 'refs' ],
 	roots: { site: 'site' },
-	defaultRoot: 'current'
+	defaultRoot: 'current',
+	// Shaped exactly as bws_fold_wire_vocabulary() ships it (#95). Supplied as DATA
+	// because that is the property: the control authors none of these strings, and the
+	// only thing it decides is WHICH help a given step gets.
+	limitOption: {
+		label: 'Limit results',
+		placeholder: '0 (all)',
+		help: 'Maximum number of results. Leave blank for all.',
+		helpFanning: 'Maximum number of results for each previous-step result. Leave blank for all.'
+	}
 } } );
 
 /**
@@ -611,6 +620,124 @@ check( 'an ambient root filters nothing', lastPickerValues( fromCurrent ).indexO
 // A term cannot step to terms again; it can step to a relationship.
 const afterTerms = renderChain( [ { slug: 'terms', arg: 'department', limit: null }, { slug: 'refs', arg: 'lead', limit: null } ], false );
 check( 'a second `terms` step off a term is not offered', lastPickerValues( afterTerms ).indexOf( 'terms' ), -1 );
+
+// ── The per-step LIMIT control: label, and which help it gets (#95) ─────────
+// Asserted on the RENDERED tree, and on the TEXT rather than on a predicate. The rule
+// that decides the help already exists once, as the PHP fanning predicate and its
+// grammar twin; a test that reached for a boolean would license a second copy here,
+// which is precisely what the strings-on-the-definition rule exists to prevent.
+
+/** The per-step limit controls in a rendered tree, in step order. */
+function limitsIn( nodes ) {
+	const out = [];
+	( function walk( n, inLimit ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( function ( c ) { walk( c, inLimit ); } ); return; }
+		const here = inLimit || ( n.props && 'limit' === n.props.key );
+		if ( here && n.type === global.wp.components.TextControl ) {
+			out.push( n.props );
+			return;
+		}
+		( n.children || [] ).forEach( function ( c ) { walk( c, here ); } );
+	}( nodes, false ) );
+	return out;
+}
+
+const oneStep = limitsIn( renderChain( [ { slug: 'refs', arg: 'office', limit: null } ], false ) );
+check( 'the step limit control is labelled for what it BOUNDS', oneStep[ 0 ] && oneStep[ 0 ].label, 'Limit results' );
+check( 'the placeholder names the value that means unlimited', oneStep[ 0 ] && oneStep[ 0 ].placeholder, '0 (all)' );
+// Nothing upstream fans — the step IS the first thing that fans, so per-input and total
+// coincide and the clause would describe a distinction that cannot arise.
+check(
+	'nothing fanning upstream: the plain help',
+	oneStep[ 0 ] && oneStep[ 0 ].help,
+	'Maximum number of results. Leave blank for all.'
+);
+
+// A step BELOW a fanning one: the total is a product, not a ceiling, and the help says so.
+const belowFanning = limitsIn( renderChain( [
+	{ slug: 'refs', arg: 'office', limit: null },
+	{ slug: 'terms', arg: 'department', limit: null }
+], false ) );
+check(
+	'a fanning step above: the per-input help',
+	belowFanning[ 1 ] && belowFanning[ 1 ].help,
+	'Maximum number of results for each previous-step result. Leave blank for all.'
+);
+check(
+	'...and the fanning step itself still takes the plain form',
+	belowFanning[ 0 ] && belowFanning[ 0 ].help,
+	'Maximum number of results. Leave blank for all.'
+);
+
+// POSITION IS NOT THE CONDITION. A step at chain position 3 whose predecessors resolve
+// one entity each still has one input, so it takes the plain form — an index-based rule
+// would have it stating a per-input product that cannot happen. (A ROOT renders no limit
+// control at all, so the `site` step contributes nothing to this list; the `terms` step
+// is chain position 3 and list index 1.)
+const deepSingle = limitsIn( renderChain( [
+	{ slug: 'site', arg: null, limit: null },
+	{ slug: 'refs', arg: null, limit: null },
+	{ slug: 'terms', arg: 'department', limit: null }
+], false ) );
+check( 'a ROOT renders no limit control, so only the two steps do', deepSingle.length, 2 );
+check(
+	'chain position 3 with single-valued predecessors: still the plain help',
+	deepSingle[ 1 ] && deepSingle[ 1 ].help,
+	'Maximum number of results. Leave blank for all.'
+);
+// The argless `refs` above it is why: the compiler DROPS it (a field-less step would
+// short-circuit to empty), so the chain does not fan on its own account. The same
+// predicate the migrator stamps by, reached through its grammar twin — not re-derived.
+check(
+	'...because an ARGLESS fanning step upstream does not count',
+	deepSingle[ 0 ] && deepSingle[ 0 ].help,
+	'Maximum number of results. Leave blank for all.'
+);
+
+// The rows above assert the SHIPPED text, which is what an author reads — but they would
+// pass just as well against a control that hard-coded it. So one config of sentinels,
+// which only a control that renders what it is GIVEN can satisfy. This is the half of
+// the property the shipped strings cannot state, and it is the half that rots: the
+// registration harness owns whether the definition ships the right words.
+const SENTINEL = rep.foldConfig( { fold: Object.assign( {}, CHAIN_CONF, {
+	limitOption: { label: 'L-SENT', placeholder: 'P-SENT', help: 'H-PLAIN', helpFanning: 'H-FAN' }
+} ) } );
+function sentinelLimits( chain ) {
+	return limitsIn( rep.chainSteps( {
+		conf: SENTINEL,
+		chain: chain,
+		onChange: function () {},
+		inheritOnEmpty: false,
+		slotNoun: 'attempt',
+		stepContext: function () { return { state: {}, setState: function () {} }; }
+	} ) );
+}
+const sent = sentinelLimits( [
+	{ slug: 'refs', arg: 'office', limit: null },
+	{ slug: 'terms', arg: 'department', limit: null }
+] );
+check( 'the label is the definition\'s, not the control\'s', sent[ 0 ] && sent[ 0 ].label, 'L-SENT' );
+check( 'the placeholder is the definition\'s', sent[ 0 ] && sent[ 0 ].placeholder, 'P-SENT' );
+check( 'the plain help is the definition\'s', sent[ 0 ] && sent[ 0 ].help, 'H-PLAIN' );
+check( 'the fanning help is the definition\'s', sent[ 1 ] && sent[ 1 ].help, 'H-FAN' );
+
+// Derived means DEPENDENT — same posture as `stepArg` above and as `flatAxes` in the
+// migrate twin: with no `limitOption` on the definition the control renders an unlabelled,
+// help-less field rather than inventing words. Asserted so the dependency is VISIBLE here
+// instead of discovered in the editor; `slot-options-build-test.php` is what pins that
+// registration actually ships it.
+const NO_LIMIT_CFG = limitsIn( rep.chainSteps( {
+	conf: rep.foldConfig( { fold: Object.assign( {}, CHAIN_CONF, { limitOption: null } ) } ),
+	chain: [ { slug: 'refs', arg: 'office', limit: null } ],
+	onChange: function () {},
+	inheritOnEmpty: false,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} ) );
+check( 'no limitOption: the field still renders (registration bug, not a crash)', NO_LIMIT_CFG.length, 1 );
+check( '...with no invented label', NO_LIMIT_CFG[ 0 ] && NO_LIMIT_CFG[ 0 ].label, undefined );
+check( '...and no invented help', NO_LIMIT_CFG[ 0 ] && NO_LIMIT_CFG[ 0 ].help, undefined );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

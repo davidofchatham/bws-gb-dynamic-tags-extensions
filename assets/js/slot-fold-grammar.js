@@ -846,6 +846,12 @@
 		chainIsWire: chainIsWire,
 		chainRoot: chainRoot,
 		chainFans: chainFans,
+		// Which steps FAN. Exported for the chain editor, whose per-step limit help says
+		// something different once an EARLIER step fans (#95). Not `chainFans`, which is
+		// a whole-chain CAPACITY read and counts an argless step; this is the twin of the
+		// shared PHP predicate, and the editor must answer the question the renderer
+		// answers rather than a second one that agrees most of the time.
+		chainFanningSteps: chainFanningSteps,
 		// Exported for the mount migrator, which decides whether a tag-level `limit` is a
 		// number to push down at all. Its own docblock is why: ONE predicate, or the two
 		// languages disagree about hex and exponents where PHP's is_numeric() does not.

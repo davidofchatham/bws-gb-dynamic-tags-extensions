@@ -647,6 +647,38 @@ assert_same(
 assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
 assert_same( 'the step vocabulary is container-invariant (base ≡ slot record)', $fold['steps'], $base_fold['steps'] );
 assert_same( '...and so is roots', $fold['roots'], $base_fold['roots'] );
+assert_same( '...and so is the per-step limit control (#95)', $fold['limitOption'], $base_fold['limitOption'] );
+
+// THE PER-STEP LIMIT CONTROL'S VOCABULARY (#95). Registration is the only observer of
+// these strings: the rendering harness asserts the control renders WHAT IT IS GIVEN
+// (sentinels), which is the half that rots — a value the control needs but registration
+// omits fails silently there, exactly as a missing `flatAxes` or `retiredSrc` would.
+//
+// BOTH helps, and the pair is the point. One string would force the control to compose
+// the per-input clause, which is a rule; the rule already exists once, as
+// bws_fold_chain_fanning_steps() and its grammar twin.
+assert_same( 'limitOption: labelled for what it BOUNDS, not per source', 'Limit results', $fold['limitOption']['label'] );
+assert_same( 'limitOption: the placeholder names the unlimited VALUE', '0 (all)', $fold['limitOption']['placeholder'] );
+assert_same(
+	'limitOption: the plain help, for a step with nothing fanning above it',
+	'Maximum number of results. Leave blank for all.',
+	$fold['limitOption']['help']
+);
+assert_same(
+	'limitOption: the per-input help, for a step below a fanning one',
+	'Maximum number of results for each previous-step result. Leave blank for all.',
+	$fold['limitOption']['helpFanning']
+);
+// THE COLLISION, asserted absent. The draft label "Limit per source" named a source three
+// rows under a `Source` control meaning something else; it never shipped (#95), so this
+// pins a hazard rather than guarding a migration. Every string is swept, not just the
+// label: putting "per source" back into the HELP would re-state the same confusion where
+// no doc row would catch it either.
+assert_same(
+	'limitOption: no string names a SOURCE — the control bounds results',
+	true,
+	false === strpos( implode( ' ', $fold['limitOption'] ), 'per source' )
+);
 
 $flat_tag = bws_prepare_registration_options(
 	array_merge( bws_base_source_option(), bws_base_traversal_options() )

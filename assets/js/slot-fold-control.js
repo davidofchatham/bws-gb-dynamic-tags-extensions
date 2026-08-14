@@ -120,6 +120,12 @@
 			offer: c.offer || [],
 			// Root token → static resolved kind (only `site` is static).
 			roots: c.roots || {},
+			// The per-step limit control's whole vocabulary — label, placeholder and
+			// BOTH help forms (#95). Container-invariant, because a step's `limit[N]`
+			// belongs to the wire's step grammar, and shipped for the same reason every
+			// other string here is: a control that re-types one re-creates the drift the
+			// derived config exists to remove. See bws_fold_wire_vocabulary().
+			limitOption: c.limitOption || {},
 			readRows: c.readRows || [],
 			readRowsInherit: c.readRowsInherit || [],
 			readLabel: c.readLabel || '',
@@ -693,9 +699,10 @@
 
 			// ── Per-step limit ──────────────────────────────────────────────
 			// On every FANNING step, and only those: a step that resolves one source
-			// has nothing to bound. Scoped to the STEP — the tag-level `limit` keeps its
-			// own control, because the two are different quantities (per-input versus
-			// whole-list) and one field would misstate both.
+			// has nothing to bound. Scoped to the STEP — the tag-level `limit` is a
+			// different quantity (per-input versus whole-list) and one field would
+			// misstate both. Its control retired with the flat spelling it belongs to
+			// (#62); the value is still read wherever it is written.
 			//
 			// Empty means unlimited, and `0` is never serialized. The engine already
 			// agrees by construction: it treats `>0` as a bound and anything else as
@@ -704,19 +711,27 @@
 			// `-1` is the older spelling of unlimited and normalizes away identically;
 			// it stays parseable for hand-edited wire.
 			//
-			// The placeholder names the VALUE that produces the behaviour rather than
-			// saying "all", so this field and the tag-level `limit` help teach one
-			// rule. It also dissolves the hazard that argued against normalizing: the
-			// box reads `0 (all)` before the author types and `0 (all)` again after
-			// the `0` is dropped. Same glyphs, same meaning, nothing silently lost.
+			// EVERY STRING HERE ARRIVES ON THE OPTION DEFINITION (#95), including the
+			// choice between the two help forms — the control picks, it never composes.
+			// The per-input clause appears only once an EARLIER step actually fans:
+			// with one input, per-input and total coincide, so the clause would ask the
+			// author to reason about a distinction that cannot arise there. The
+			// predicate is the grammar twin's, which is the renderer's own
+			// (bws_fold_chain_fanning_steps) — deriving it from the step INDEX here
+			// would be a second rule, and it would be wrong on a chain whose earlier
+			// steps are single-valued.
 			if ( known ) {
+				var limitCfg = conf.limitOption || {};
+				var upstreamFans = fold.chainFanningSteps( chain ).some( function ( j ) {
+					return j < i;
+				} );
 				stepKids.push( el( 'div', { key: 'limit', style: STACKED },
 					el( TextControl, {
 						type: 'number',
-						label: __( 'Limit per source', 'generateblocks' ),
+						label: limitCfg.label,
 						value: ( stepObj.limit === null || stepObj.limit === undefined ) ? '' : String( stepObj.limit ),
-						placeholder: __( '0 (all)', 'generateblocks' ),
-						help: __( 'At most this many results from EACH incoming source. Leave blank for all.', 'generateblocks' ),
+						placeholder: limitCfg.placeholder,
+						help: upstreamFans ? limitCfg.helpFanning : limitCfg.help,
 						onChange: function ( v ) {
 							var n = parseInt( v, 10 );
 							writeChainAt( i, step( stepObj.slug, stepObj.arg, ( isNaN( n ) || n <= 0 ) ? null : n ) );

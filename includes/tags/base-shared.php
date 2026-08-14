@@ -148,6 +148,12 @@ function bws_fold_picker_config( array $def ): array {
  *              factory's to resolve at render, so the editor filters nothing off it.
  *   retiredSrc the retired source tokens the mount migrator must DECLINE rather than
  *              fold (#56), read from the same constant the converter's guard reads.
+ *   limitOption the per-step LIMIT control's whole vocabulary — label, placeholder and
+ *              BOTH help forms. A step's `limit[N]` is part of the wire's step grammar,
+ *              so the control that edits it is container-invariant exactly as `steps`
+ *              is. Two helps rather than one because the number means a different
+ *              quantity depending on what reaches the step (see below); the control
+ *              picks between them, it never composes them.
  *
  * This record replaced a hand-typed `slugMap` (the exact inverse of the compiler's
  * seam, declared twice — an invisible identity once the V9 alignment made the engine
@@ -157,6 +163,7 @@ function bws_fold_picker_config( array $def ): array {
  *
  * @since 1.17.0
  * @since 1.17.0 #70: one `steps` record per slug; slugMap/stepApplies retired.
+ * @since 1.17.0 #95: `limitOption` — the per-step limit control's vocabulary.
  * @return array Chain-config fragment to merge into a container's `fold` array.
  */
 function bws_fold_wire_vocabulary(): array {
@@ -186,9 +193,34 @@ function bws_fold_wire_vocabulary(): array {
 	}
 
 	return array(
-		'steps'      => $steps,
-		'roots'      => defined( 'BWS_FOLD_STATIC_ROOT_KINDS' ) ? BWS_FOLD_STATIC_ROOT_KINDS : array(),
-		'retiredSrc' => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+		'steps'       => $steps,
+		'roots'       => defined( 'BWS_FOLD_STATIC_ROOT_KINDS' ) ? BWS_FOLD_STATIC_ROOT_KINDS : array(),
+		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
+		// LABELLED FOR WHAT IT BOUNDS, not for what it divides by (#95). The draft label
+		// "Limit per source" sat three rows under a control labelled `Source` meaning
+		// something else, named sources while bounding results, and stated the per-input
+		// rule everywhere except the label. `result` is what a step produces; a limit
+		// bounds results and can never promise output, since the read drops empties
+		// afterwards.
+		//
+		// TWO HELPS, chosen by whether an EARLIER step actually FANS — not by position.
+		// Per-step limits are per-input and MULTIPLY (`∏ limitₙ`), but where nothing
+		// upstream fans there is exactly one input, so per-input and total coincide and
+		// the clause would ask the author to reason about a distinction that cannot
+		// arise. A step at position 3 whose predecessors are all single-valued takes the
+		// plain form. The condition is bws_fold_chain_fanning_steps() — the same
+		// predicate the migrator stamps by and the render seam defaults by — reached in
+		// the editor through its shipped twin, never re-derived from the step index.
+		'limitOption' => array(
+			'label'       => __( 'Limit results', 'generateblocks' ),
+			// Names the VALUE that produces the behaviour rather than saying "all", so
+			// this field and the tag-level `limit` help teach one rule — and the box
+			// reads `0 (all)` before the author types and `0 (all)` again after the `0`
+			// is normalized away.
+			'placeholder' => __( '0 (all)', 'generateblocks' ),
+			'help'        => __( 'Maximum number of results. Leave blank for all.', 'generateblocks' ),
+			'helpFanning' => __( 'Maximum number of results for each previous-step result. Leave blank for all.', 'generateblocks' ),
+		),
 	);
 }
 
