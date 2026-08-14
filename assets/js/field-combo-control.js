@@ -403,20 +403,22 @@
 	 * all (registered meta) gets no annotation rather than an empty slot.
 	 */
 	function recordToOption( rec ) {
-		var types = ( rec.types || [] ).filter( Boolean ).map( typeLabel ).join( ' / ' );
+		// The bracket group carries whatever the row has not ALREADY said, in the
+		// fixed order type-then-key. So a record with no distinct field label
+		// (envelopeToRecords fell back to the key) shows the key once as the head and
+		// never repeats it inside — `event_date (Date)`, not
+		// `event_date (Date, 'event_date')` — and a record with neither type nor a
+		// second fact to state gets no brackets at all rather than an empty pair.
+		// Combobox filters on this whole label, so both facts stay typeable.
+		var parts = [ ( rec.types || [] ).filter( Boolean ).map( typeLabel ).join( ' / ' ) ];
 
-		// When there is no distinct field label (envelopeToRecords fell back to the
-		// key), show the key ONCE — `event_date (Text)`, not
-		// `event_date (Text, 'event_date')`. The bracket group still carries whatever
-		// the row has not already said.
-		if ( rec.label === rec.key ) {
-			return { value: rec.value, label: types ? rec.key + ' (' + types + ')' : rec.key };
+		if ( rec.label !== rec.key ) {
+			parts.push( "'" + rec.key + "'" );
 		}
 
-		// Combobox filters on this label; the key is present either way so typing it
-		// still matches.
-		var inner = types ? types + ", '" + rec.key + "'" : "'" + rec.key + "'";
-		return { value: rec.value, label: rec.label + ' (' + inner + ')' };
+		var inner = parts.filter( Boolean ).join( ', ' );
+
+		return { value: rec.value, label: inner ? rec.label + ' (' + inner + ')' : rec.label };
 	}
 
 	/**
