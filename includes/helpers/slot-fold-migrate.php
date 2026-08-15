@@ -225,7 +225,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 	// deleting an author's text on the strength of bws_clamp_limit's is_numeric guard is a
 	// bigger move than this rewrite is entitled to (the depth-0 half declines it for the
 	// same reason). A slot that fans only by INHERITING takes nothing here and needs
-	// nothing: bws_fold_slot_flat_options() carries the bound with the source it inherits.
+	// nothing: bws_fold_slot_chain_options() carries the bound with the source it inherits.
 	$tag_limit = null;
 	if ( empty( $cfg['combining'] ) ) {
 		$raw = trim( (string) ( $options['limit'] ?? '' ) );
@@ -352,7 +352,7 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
  *   entry able to fix it afterwards (#56).
  * - **THE LIMIT IS CARRIED ONTO THE STEPS**, never written as a tag-level `limit`, and
  *   AT BOTH DEPTHS. The slot half was once exempt, on the reasoning that
- *   `bws_fold_slot_flat_options()` collapses a slot's chain back to a flat triple before
+ *   the retired `bws_fold_slot_flat_options()` collapsed a slot's chain back to a flat triple before
  *   any container arm resolves a limit, so `bws_limit_default()` saw flat wire on a
  *   folded slot exactly as on a legacy one and answered 1 either way. That is no longer
  *   true: the seam hands its ERA back and a slot's own spelling decides its own default

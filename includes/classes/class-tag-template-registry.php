@@ -468,12 +468,13 @@ class TagTemplateRegistry {
 	 * strands one member in a box of its own with nothing to name it.
 	 *
 	 * RESOLUTION runs through the shared render seam, so the inherit rules live in one
-	 * place for every container (bws_fold_slot_flat_options):
+	 * place for every container (bws_fold_slot_chain_options):
 	 *   - An axis left unset INHERITS from the previous resolving slot. Slot 1 seeds the
 	 *     accumulator: ambient source, and the template's stripped first `use` value.
 	 *   - A slot that does NOT resolve never feeds the accumulator, so a half-configured
 	 *     slot cannot re-point a later slot's inherit.
-	 *   - The term step is the exception: it names THIS slot's entity and never carries.
+	 *   - A `same` source inherits the prior attempt's WHOLE CHAIN, hops and all: the
+	 *     source IS a chain, so what it is travels with it (#104).
 	 *   - Wire era is decided PER SLOT — a folded value parses, an absent one is
 	 *     recovered from that slot's legacy keys — so a half-migrated tag resolves.
 	 *
@@ -552,17 +553,16 @@ class TagTemplateRegistry {
 			// `base_read`/`base_key` are handed over empty for the shapes that lack the
 			// axis, and the control renders whichever shape the derived config describes.
 			//
-			// `steps` is a CAPABILITY list: a slot FLATTENS to one ref step plus one term
-			// step, and `ref` is already a SOURCE row, so the term step is the only step
-			// try_ can continue a chain with. Offering more would author wire the slot path
-			// cannot dispatch — bws_fold_slot_flat_options() skips such a slot.
+			// `steps` is a CAPABILITY list, and since #104 it is the BASE TAG'S. An
+			// attempt's source is a base tag's source ([I16]): the seam hands the whole
+			// chain on as depth-0 chain wire and the arms dispatch on what it resolves to
+			// (#103), so neither half truncates it any more. It was `['terms']` while the
+			// flatten stood — the triple had no spelling for a second relationship step,
+			// so a wider offer would have authored wire that skipped.
 			//
-			// THE ARMS STOPPED BEING THE LIMITER (#103). They dispatch on the resolved
-			// source KIND now, so a multi-step chain would already take the right arm.
-			// What is still in the way is the FLATTEN itself: the triple has no spelling
-			// for a second relationship step. The offer widens when the seam hands a
-			// slot's source on as chain wire (#104) and not before — widening it first
-			// would author wire that skips.
+			// `entries` is still absent, for the same reason it is absent from the base
+			// offer: no `try_` arm assembles a repeater row (try-slot-arms.php refuses the
+			// `meta_row` kind), so offering it would author a chain that renders nothing.
 			//
 			// The append-by-key below is a habit worth keeping, but no longer a trap:
 			// while slot keys were all-digit, PHP stored them as INTEGERS and
@@ -581,7 +581,7 @@ class TagTemplateRegistry {
 						'base_key'        => ( $per_slot_use || $per_slot_key ) ? ( $tpl_options['key'] ?? [] ) : [],
 						'allow_site'      => $allow_site_slot,
 						'allow_same_read' => true,
-						'steps'            => [ 'terms' ],
+						'steps'            => [ 'refs', 'terms' ],
 						// The axes that are TAG-level on this template, so the editor's
 						// mount migrator and the control leave them alone at every slot
 						// position — same split, same owner, as the trailing-option strip
@@ -697,17 +697,21 @@ class TagTemplateRegistry {
 				$new_tab  = $slnk && ! empty( $opts['newTab'] );
 
 				// ONE carry-forward accumulator for the whole chain, threaded through the
-				// fold seam (bws_fold_slot_flat_options), which owns the inherit rules for
-				// every container. Seeded with what slot 1's ABSENT axes mean here: `src`
-				// empty reads as 'current' below, and the read seeds the template's
-				// stripped first `use` value, so an unset slot-1 read inherits the same
-				// token the flat resolver derived at slot 1 — and so does a later
-				// `use(same)` that reaches back past a slot which never set one.
+				// fold seam (bws_fold_slot_chain_options), which owns the inherit rules for
+				// every container. Seeded with what slot 1's ABSENT axes mean here: an EMPTY
+				// CHAIN is the ambient entity, and the read seeds the template's stripped
+				// first `use` value, so an unset slot-1 read inherits the same token the flat
+				// resolver derived at slot 1 — and so does a later `use(same)` that reaches
+				// back past a slot which never set one.
+				//
+				// The source axis is a CHAIN and not a token (#104): `src(same)` inherits the
+				// prior attempt's whole chain, hops included, which is what deleted the
+				// inherited-taxonomy special case the flat triple needed.
 				$carry = [
-					'src' => '',
-					'ref' => '',
-					'use' => $psu ? $default_use : '',
-					'key' => '',
+					'chain' => [],
+					'ref'   => '',
+					'use'   => $psu ? $default_use : '',
+					'key'   => '',
 				];
 
 				foreach ( range( 1, 5 ) as $n ) {
@@ -722,30 +726,26 @@ class TagTemplateRegistry {
 					}
 					$skip_reason   = '';
 					$limit_default = 1;
-					$flat          = bws_fold_slot_flat_options( $slot, $carry, false, $skip_reason, $limit_default );
-					if ( null === $flat ) {
-						continue;   // chain the flat seam cannot express (second step, repeater rows).
+					$slot_read     = bws_fold_slot_chain_options( $slot, $carry, false, $skip_reason, $limit_default );
+					if ( null === $slot_read ) {
+						continue;   // unconfigured, nothing to inherit, or an unfinished step.
 					}
 
-					// The seam speaks the wire's vocabulary — an unset source. The arms
-					// below dispatch on the canonical token, so normalize once, here.
-					$last_src = '' === $flat['src'] ? 'current' : $flat['src'];
-					$last_ref = $flat['ref'];
-					$stm_raw  = sanitize_key( $flat['srcTermIn'] );
-					$last_key = $flat['key'];
-					$last_use = $flat['use'];
+					$last_key = $slot_read['key'];
+					$last_use = $slot_read['use'];
 
-					// Build slot-specific options (merged into core fn call).
-					// src/ref/srcTermIn are ALWAYS written, `srcTermIn` even when empty:
-					// $eval_opts still carries any bare legacy `srcTermIn` off a
-					// half-migrated tag, and bws_resolve_field_values appends a term step
-					// for whatever it finds there — which is how slot 1's taxonomy used to
-					// leak into every later slot's read, contradicting "srcTermIn does not
-					// carry forward". Writing '' closes that.
+					// Build slot-specific options (merged into core fn call). The SOURCE arrives
+					// as depth-0 CHAIN WIRE in `src` — the key and the language a base tag states
+					// its source in (CONTEXT.md I16) — and the seam supersedes the legacy axes by
+					// returning explicit empties for them. Merging that over $eval_opts is what
+					// closes the tag-level leak: $eval_opts still carries any bare legacy
+					// `srcTermIn` off a half-migrated tag, and bws_fold_chain_from_options()
+					// APPENDS a term step for whatever it finds there — which would now grow a
+					// step on every slot's own chain rather than merely leaking one taxonomy.
 					$slot_opts              = $eval_opts;
-					$slot_opts['src']       = $last_src;
-					$slot_opts['ref']       = $last_ref;
-					$slot_opts['srcTermIn'] = $stm_raw;
+					$slot_opts['src']       = $slot_read['src'];
+					$slot_opts['ref']       = $slot_read['ref'];
+					$slot_opts['srcTermIn'] = $slot_read['srcTermIn'];
 
 					if ( $psk || $psu ) {
 						$in_no_key_mode = $psu && in_array( $last_use, $nku, true );
@@ -787,15 +787,16 @@ class TagTemplateRegistry {
 					// mean what it says. #62 retires the CONTROL, never this read.
 					$sep = $opts['sep'] ?? null;
 					// THE DEFAULT IS THE SLOT'S OWN, and only the seam can say what it is:
-					// $slot_opts holds the FLATTENED triple, whose `src` is a legacy token on
-					// every slot, so bws_limit_default() read off it answered 1 whatever the
-					// slot was spelled as (#60). The seam reports the era it just erased.
+					// $slot_opts['src'] is CHAIN WIRE on every slot now, including one recovered
+					// from legacy flat keys, so bws_limit_default() read off it answers UNLIMITED
+					// whatever the slot was spelled as — the #60 defect with its sign flipped.
+					// The seam reports the era, because only the seam still sees it.
 					//
 					// The resolved value is written BACK into $slot_opts, not left implicit:
 					// the core call below resolves its own limit through the same flat-blind
 					// bws_limit_default(), so an absent key there would re-introduce the 1 this
 					// line just decided against. An explicit number is spelling-independent.
-					$slot_max           = bws_clamp_limit( $flat['limit'] ?? $opts['limit'] ?? null, $limit_default );
+					$slot_max           = bws_clamp_limit( $slot_read['limit'] ?? $opts['limit'] ?? null, $limit_default );
 					$slot_opts['limit'] = (string) $slot_max;
 
 					// ── ARM DISPATCH (FW-71, retires the FW-5 fork) ────────────────
@@ -892,7 +893,15 @@ class TagTemplateRegistry {
 					if ( ! $ids && 'post' === $arm['ids'] ) {
 						$in_loop_row = function_exists( 'bws_get_loop_row_context' )
 							&& bws_get_loop_row_context( $inst )['in_loop'];
-						if ( $in_loop_row && 'current' === $last_src && '' !== $last_key ) {
+						// THE GATE IS "THIS SLOT STATES NO SOURCE OF ITS OWN", and it used to be
+						// spelled `'current' === $last_src` off the flat triple. That token is gone
+						// (#104), and re-deriving it from the chain's root would be WRONG rather
+						// than merely different: a chain leading with a step has no root token
+						// either, so a `refs` slot that resolved nothing would take the loop row —
+						// a plausible value from the wrong entity. Ask the resolution instead.
+						$src_res    = bws_base_src_resolution( $slot_opts );
+						$is_ambient = ! $src_res['fans'] && in_array( $src_res['root'], [ '', 'current' ], true );
+						if ( $in_loop_row && $is_ambient && '' !== $last_key ) {
 							$ids = [ false ];
 						}
 					}

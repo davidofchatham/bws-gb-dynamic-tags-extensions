@@ -597,7 +597,7 @@
 		// before: a tag-level limit is not content — and only where THIS slot's chain fans,
 		// so a slot with nothing to bound gets no limit. A slot that fans by INHERITING is
 		// handed the bound with the source it inherits, on the render seam PHP owns alone
-		// (bws_fold_slot_flat_options), which is what let the key be retired (#61). See the
+		// (bws_fold_slot_chain_options), which is what let the key be retired (#61). See the
 		// PHP owner's comment.
 		if ( '' === limit && ! combining && chainFanningSteps( chain ).length ) {
 			var tagLimit = options.limit;

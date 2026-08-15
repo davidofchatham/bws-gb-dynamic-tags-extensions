@@ -751,15 +751,38 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.5 a sub-field that is a relationship still hops out of the row (-> Jane Partner / empty; row 2 leaves lead_ref blank): {{try_text A:src(refs,lead_ref);use(title)}}', 'f9c5-hop' ),
 	) );
 
-	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
-	// expressible — F10.3 is the negative control that says so, and all three rows
-	// print the same thing. A skip is indistinguishable from an empty read on the
-	// front end; the EDITOR PREVIEW is the author-facing signal (⚠ slot N source
-	// not supported), and the pure harness pins the mechanism.
-	$sections[] = bws_fixture_gb_section( 'Fold F10 - a slot the flat seam cannot express SKIPS', array(
-		bws_fixture_gb_row( 'F10.1 SECOND ref hop -> slot 1 skipped, slot 2 renders (-> Captain)', '{{join A:src(refs,related_staff;refs,related_staff);use(title)|B:key(role)}}' ),
-		bws_fixture_gb_row( 'F10.2 entries is not flattenable -> slot 1 skipped (-> Captain)', '{{join A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
-		bws_fixture_gb_row( 'F10.3 NEGATIVE CONTROL: ref+term IS expressible, resolves, finds nothing (jane has no terms) (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
+	// F10 INVERTED at #104: the seam stopped re-spelling a slot's chain as a flat
+	// triple, so a multi-step slot source RESOLVES. Read the rows in PAIRS - the
+	// BASE twin is the property, not decoration: identical wire in a slot and on a
+	// base tag must render identically ([I16]), and a slot row on its own cannot
+	// tell "resolved correctly" from "resolved plausibly".
+	//
+	// F10.1/2 need portal_visibility and NOT department: jane and tom carry no
+	// department terms, so that taxonomy makes the row empty either way and asserts
+	// nothing. That exact vacuity is what the old F10.3 negative control was for.
+	//
+	// F10.3/4 still print what they printed as SKIPS, and that is expected: a skip
+	// and an empty read are indistinguishable on the front end. slot-fold-test.php
+	// §P13.5 is what says the chain is now run rather than refused.
+	$sections[] = bws_fixture_gb_section( 'Fold F10 - a MULTI-STEP slot source resolves (#104; pairs must match)', array(
+		bws_fixture_gb_row( 'F10.1 join slot, two hops (-> All Users, All Users; printed NOTHING before #104)', '{{join A:src(refs,related_staff;terms,portal_visibility);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.1 BASE twin - the identity under test (-> same)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
+		bws_fixture_gb_row( 'F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users)', '{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED)', '{{join A:src(refs,related_staff;refs,related_staff);use(title)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.4 entries resolves and renders nothing - no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain)', '{{join A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.5 ref+term on department - expressible before #104 too, empty then and now (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
+	) );
+
+	// F9d - the one STATED behaviour change #104 makes to wire that already
+	// existed. A slot's per-step limits used to collapse into the ONE number the
+	// flat triple could hold (every hop unbounded, items sliced at the end); they
+	// ride the wire now and bound each hop, as they do on the base tag. Reachable
+	// ONLY where a slot fans TWICE, which is refs+terms - the one two-fanning-step
+	// shape the flat triple could express.
+	$sections[] = bws_fixture_gb_section( 'Fold F9d - per-step bounds now reach the ENGINE (stated change, #104)', array(
+		bws_fixture_gb_row( 'F9d.1 flat ref+term with an explicit limit: terms of the FIRST ref-d post, first 2 (-> All Users; was terms of ALL ref-d posts, first 2 = All Users, All Users)', '{{join src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F9d.2 the MIGRATED twin of F9d.1 - the wire that says what now happens (-> identical to F9d.1; that agreement is the property)', '{{join A:src(refs,related_staff,limit[1];terms,portal_visibility,limit[2]);use(title)}}' ),
+		bws_fixture_gb_row( 'F9d.3 the compatibility FLOOR: ONE fanning step, so per-hop and total coincide (-> Jane Partner, Tom Associate; unchanged)', '{{join src:ref|ref:related_staff|use:title|limit:0}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F12 - ref-hop RETURN FORMATS (blueprint v6; all three must agree)', array(
