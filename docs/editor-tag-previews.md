@@ -184,6 +184,12 @@ is what the list is built to. Three things therefore **never** flag:
 
 The internal tokens `current`, `site`, `ref`, `post` and `term` never flag either — they resolve.
 
+**A fourth silence, which is a PRECEDENCE not a rule about sources:** on a COMBINING container a
+slot that states a source and no read is UNCONFIGURED, and the seam skips it before anything looks
+at its chain — so `{{join A:src(bogus,x)}}` says nothing at all. That is the in-progress silence
+holding, and the same slot warns the moment a read is stated. A SELECTING container has no such
+state (an absent read inherits), so `try_text` flags it immediately.
+
 **Detection sits OUTSIDE every display switch**, including `roots`. That switch means "do not
 *name* a registered root", not "do not *check* one", and the slot door turns it off — a check
 placed under it would silently stop flagging on every slot.
