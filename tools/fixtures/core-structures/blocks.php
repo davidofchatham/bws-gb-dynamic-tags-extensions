@@ -643,6 +643,36 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9a.3 chain content ref (-> same as the legacy row above)', '{{content src:refs,related_staff|use:excerpt}}' ),
 	) );
 
+	// F9b — the same arm-dispatch question, one release later, on the try_ SLOT
+	// arms (#103). FW-63 converted the BASE arms and left try_'s four testing the
+	// flat tokens, which is why the F7a note predicting they would clear with FW-63
+	// was wrong. Read the rows in PAIRS again: the two behaviour changes are both
+	// reachable only from wire that states an explicit unlimited or spells its
+	// source as a chain, and the FLOOR rows beside them are what show that ordinary
+	// saved wire did not move. F9b.5 is the odd one out and worth understanding:
+	// nothing fans there, the PRECEDENCE between two arms changed.
+	$sections[] = bws_fixture_gb_section( 'Fold F9b - arm dispatch: the try_ SLOT arms (#103)', array(
+		bws_fixture_gb_row( 'F9b.1 chain-spelled ref attempt now fans (-> Jane Partner, Tom Associate; gave Jane Partner alone before #103)', '{{try_text A:src(refs,related_staff);use(title)}}' ),
+		bws_fixture_gb_row( 'F9b.2 flat ref attempt with an EXPLICIT unlimited (-> Jane Partner, Tom Associate; was Jane Partner)', '{{try_text src:ref|ref:related_staff|use:title|limit:0}}' ),
+		bws_fixture_gb_row( 'F9b.6 the compatibility FLOOR for both rows above: same tag, limit unset (-> Jane Partner, unchanged)', '{{try_text src:ref|ref:related_staff|use:title}}' ),
+		bws_fixture_gb_row( 'F9b.3 the same change in another family, where each value self-wraps (-> both numbers; was one)', '{{try_phone src:ref|ref:related_staff|key:main_line|limit:0}}' ),
+		bws_fixture_gb_row( 'F9b.4 the try_ twin of F9.6: ref+term with an explicit unlimited (-> All Users, All Users; was All Users)', '{{try_text src:ref|ref:related_staff|srcTermIn:portal_visibility|use:title|limit:0}}' ),
+		// A PRECEDENCE change, not a fanning one. The old arms tested srcTermIn
+		// FIRST, so this attempt took the term arm, resolved no post from a site
+		// source, and skipped whole. Kind dispatch answers `site`, which is what the
+		// base tag has always done — F9.4 above is the unchanged control for it.
+		bws_fixture_gb_row( 'F9b.5 site read now WINS over a hand-edited term hop, as it always has on the base tag (-> the org phone; rendered NOTHING before #103)', '{{try_phone src:site|srcTermIn:department|key:org_phone}}' ),
+		bws_fixture_gb_row( 'F9b.7 control for F9b.5: the plain site attempt, which never broke (-> the same number)', '{{try_phone src:site|key:org_phone}}' ),
+		bws_fixture_gb_row( 'F9b.8 the ambient-TERM attempt is a branch off the root-only kind now, not a src:current test (-> the ambient page title here; Sales on /department/sales/)', '{{try_title}}' ),
+		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:term}}' ),
+		bws_fixture_gb_row( 'F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain)', '{{try_text A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain)', '{{try_text A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
+		// F9b.13 IS NOT HERE, and the omission is the stated exception: the I6 parity
+		// defect needs an AUTHOR ARCHIVE as ambient context, which has no page
+		// content to hang a fixture row on — the same exception text T4 takes for a
+		// term archive. It is render-tag-only, and the matrix says so.
+	) );
+
 	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
 	// expressible — F10.3 is the negative control that says so, and all three rows
 	// print the same thing. A skip is indistinguishable from an empty read on the

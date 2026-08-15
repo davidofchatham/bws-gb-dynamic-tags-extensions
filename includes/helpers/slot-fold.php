@@ -1301,14 +1301,19 @@ function bws_fold_empty_slot(): array {
  * PREFIX would silently read a different source than the wire states, so the slot
  * renders nothing instead.
  *
- * The 1.17.0 chain COMPILER (5h, slot-fold-compile.php) does NOT lift this: it gave the
- * ENGINE arbitrary steps, but a slot's output is produced by its container's ARMS — the
- * term-step arm, the site arm, the list-mode gate, the ref plural path — and each of them
- * dispatches on the flat `src`/`srcTermIn` TOKENS this function returns. A chain with no
- * flat spelling has no token to dispatch on, and inventing the nearest one is the
- * truncated-prefix hazard by another route. Slots gain multi-step chains when those arms
- * dispatch on the chain's TERMINAL STEP KIND instead (the verb-agnostic resolver
- * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
+ * The 1.17.0 chain COMPILER (5h, slot-fold-compile.php) did NOT lift this: it gave the
+ * ENGINE arbitrary steps, but a slot's output is produced by its container's ARMS, and
+ * each of them dispatched on the flat `src`/`srcTermIn` TOKENS this function returns.
+ *
+ * THE ARMS ARE NO LONGER THE LIMITER (#103, FW-71). Both containers now dispatch on the
+ * resolved source KIND — `{{join}}` inherited it from the text absorb seam at FW-63, and
+ * the four hand-written `try_` arms collapsed onto one kind-keyed table
+ * (includes/helpers/try-slot-arms.php). What still cannot be expressed is THIS FUNCTION'S
+ * RETURN: a flat triple holds one relationship step and one term step, whatever the arms
+ * can consume. So the refusal stays exactly here until the seam hands a slot's source on
+ * as chain wire (#104), at which point the branch has nothing left to test and dissolves.
+ * Inventing the nearest flat spelling in the meantime is the truncated-prefix hazard by
+ * another route. Depth-0 chains DO resolve today, through
  * bws_field_values_assemble_steps().
  *
  * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart —
