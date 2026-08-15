@@ -154,7 +154,7 @@ function bws_build_join_preview_label( array $options ): string {
 	$field_parts  = array();
 	$source_parts = array();
 	$warnings     = array();
-	$carry        = array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '' );
+	$carry        = bws_fold_empty_carry();
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' ) ? bws_fold_slot_struct( $n, $options, 'join' ) : null;
 		if ( null === $slot ) {
@@ -323,12 +323,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	// Slots the seam cannot express. Kept separate from $slots so a tag whose ONLY
 	// slot is inexpressible reports the real reason instead of "no slots configured".
 	$skips = [];
-	$carry = array(
-		'chain' => array(),
-		'ref'   => '',
-		'use'   => $use_default,
-		'key'   => '',
-	);
+	$carry = bws_fold_empty_carry( $use_default );
 	for ( $n = 1; $n <= 5; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' )
 			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use )
@@ -808,9 +803,16 @@ function bws_try_preview_source_part( string $src_wire, bool $named_current = fa
 		? bws_fold_chain_from_options( array( 'src' => $src_wire ) )
 		: array();
 
-	$first = (string) ( ( is_array( reset( $chain ) ) ? reset( $chain ) : array() )['slug'] ?? '' );
+	$head  = reset( $chain );
+	$first = is_array( $head ) ? (string) ( $head['slug'] ?? '' ) : '';
 	if ( '' === bws_fold_chain_root( $chain ) && 'refs' !== $first ) {
-		array_unshift( $chain, array( 'slug' => 'current', 'arg' => null, 'limit' => null, 'extra' => array() ) );
+		// Built through the same reading everything else uses rather than hand-assembled
+		// here: the step struct's shape belongs to slot-fold.php, the PHP owner of the wire,
+		// and one more inline copy of it is how a grammar change comes to miss a site.
+		$chain = array_merge(
+			function_exists( 'bws_fold_chain_from_options' ) ? bws_fold_chain_from_options( array( 'src' => 'current' ) ) : array(),
+			$chain
+		);
 	}
 
 	return implode(

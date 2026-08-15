@@ -68,7 +68,7 @@ consequences:
 **One namer builds these segments for all three previews** (1.17.0, [#102]).
 `bws_preview_source_segments()` takes the chain and returns the ordered segments; the base
 builder, the join slot walk and the try_ slot walk all read it (the slot walks through
-`bws_try_preview_source_part()`, the flat-triple door onto it, which goes when the slot seam
+`bws_try_preview_source_part()`, the SLOT door onto it, which took a flat triple until the slot seam
 hands over chain wire — FW-71). A source is one concept, so a vocabulary change lands in one
 place rather than reaching the three previews at three different times.
 

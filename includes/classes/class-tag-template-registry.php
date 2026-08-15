@@ -707,12 +707,7 @@ class TagTemplateRegistry {
 				// The source axis is a CHAIN and not a token (#104): `src(same)` inherits the
 				// prior attempt's whole chain, hops included, which is what deleted the
 				// inherited-taxonomy special case the flat triple needed.
-				$carry = [
-					'chain' => [],
-					'ref'   => '',
-					'use'   => $psu ? $default_use : '',
-					'key'   => '',
-				];
+				$carry = bws_fold_empty_carry( $psu ? $default_use : '' );
 
 				foreach ( range( 1, 5 ) as $n ) {
 					// Era per SLOT, not per tag: a folded value parses, an absent one is

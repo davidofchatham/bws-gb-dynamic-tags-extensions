@@ -1742,6 +1742,14 @@ check(
 	array( array( 'type' => 'refs', 'field' => 'office' ) ) === $steps_of( 'src(refs,office,limit[0]);key(a)' ),
 	json_encode( $steps_of( 'src(refs,office,limit[0]);key(a)' ) )
 );
+// P18.5 — THE SEAM PASSES A STEP THROUGH VERBATIM, and the emitted chain is canonical
+// anyway, because both producers of a slot struct already trim. Pinned so the seam is not
+// "hardened" with a third copy of that rule: a normalization here would pass this row
+// whether or not the parser still trimmed, i.e. it would hide the producer regressing.
+$trim_carry = array();
+$trim       = bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(refs, office ; terms, category );key(a)' ), $trim_carry, true );
+check( 'P18.5 the emitted chain is canonical — the PARSER owns the trim', 'refs,office;terms,category' === ( $trim['src'] ?? null ), var_export( $trim['src'] ?? null, true ) );
+
 check(
 	'P18.4 both hops of a two-step chain are bounded, in wire order',
 	array(
