@@ -920,7 +920,23 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 		// the step is the output-preserving mapping and the omission was a bug.
 		$chain[] = $step( $src );
 	}
-	if ( '' !== $tax ) {
+	// A SITE ROOT NEVER TAKES THE LEGACY TERM STEP, which is the same refusal
+	// bws_fold_chain_from_options() already makes for a base tag's flat keys and
+	// bws_fold_migrate_base_src() states as a rule ("A SITE ROOT IS LEFT ALONE, even beside
+	// a hand-edited `srcTermIn`"). `srcTermIn` registers `show_if src: not:site`, so the
+	// pair is hand-edit-only, and every arm has always let the site read win.
+	//
+	// It became LOAD-BEARING at #104 and was harmless before it: the retired flatten
+	// collapsed this chain back to a triple, and the chain reader dropped the step off the
+	// triple, so appending it here changed nothing. Now the chain IS the hand-off, so
+	// appending it makes the slot resolve a term step off a site source — no post input,
+	// hence empty — where the identically-keyed base tag still reads the site. That is the
+	// [I6]/[I16] parity §F9b.5 closed one release earlier, re-opened from the other side.
+	//
+	// ONE FIX, THREE PATHS: the render dual-read, the converter's slot mapper and the
+	// editor's mount migrator all build a slot's chain here (bws_fold_migrate_slots() calls
+	// this), so a stored tag, a converted one and an editor-touched one cannot disagree.
+	if ( '' !== $tax && 'site' !== $src ) {
 		// srcTermIn always FOLLOWS ref: the term step needs a post input, which the
 		// ref step produces (issue #44's order, one global rule in one builder).
 		$chain[] = $step( 'terms', $tax );

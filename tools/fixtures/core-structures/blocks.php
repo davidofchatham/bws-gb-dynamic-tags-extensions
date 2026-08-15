@@ -772,6 +772,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F10.4 entries resolves and renders nothing - no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain)', '{{join A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_empty_row( 'F10.4 BASE twin - the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag)', '{{text src:entries,team_members|use:key|key:name}}' ),
 		bws_fixture_gb_row( 'F10.5 ref+term on department - expressible before #104 too, empty then and now (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F10.6 a SITE root never takes the legacy term step, on the slot as on the base tag (-> the org number)', '{{join src:site|srcTermIn:department|key:org_phone}}' ),
+		bws_fixture_gb_row( 'F10.6 BASE twin (-> the same number)', '{{phone src:site|srcTermIn:department|key:org_phone}}' ),
+		bws_fixture_gb_empty_row( 'F10.7 hand-written chain wire SAYS the term step, so it keeps it and resolves nothing (-> EMPTY; the deliberate contrast to F10.6)', '{{join A:src(site;terms,department);key(org_phone)}}' ),
+		bws_fixture_gb_empty_row( 'F10.7 BASE twin (-> EMPTY too; a term step needs a post input)', '{{phone src:site;terms,department|key:org_phone}}' ),
 	) );
 
 	// F9d - the one STATED behaviour change #104 makes to wire that already

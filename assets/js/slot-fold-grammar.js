@@ -563,7 +563,11 @@
 			// key is never written.
 			chain.push( step( src ) );
 		}
-		if ( '' !== tax ) {
+		// A SITE ROOT NEVER TAKES THE LEGACY TERM STEP — the twin of the PHP owner's rule,
+		// which carries the reasoning. Load-bearing since #104: appending it makes the slot
+		// resolve a term step off a site source (no post input, hence empty) where the
+		// identically-keyed base tag still reads the site.
+		if ( '' !== tax && 'site' !== src ) {
 			// srcTermIn always FOLLOWS ref: the term hop needs a post input, which the
 			// ref step produces (issue #44's order, one global rule in one builder).
 			chain.push( step( 'terms', tax ) );

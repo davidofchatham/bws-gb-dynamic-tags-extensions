@@ -1742,6 +1742,33 @@ check(
 	array( array( 'type' => 'refs', 'field' => 'office' ) ) === $steps_of( 'src(refs,office,limit[0]);key(a)' ),
 	json_encode( $steps_of( 'src(refs,office,limit[0]);key(a)' ) )
 );
+// P18.6 — A SITE ROOT NEVER TAKES THE LEGACY TERM STEP, and the twin of this rule is what
+// keeps a slot at parity with the identically-keyed base tag ([I6]/[I16]). `srcTermIn`
+// registers `show_if src: not:site`, so the pair is hand-edit-only, and every arm has always
+// let the site read win — which is why bws_fold_chain_from_options() refuses to append it
+// for a BASE tag's flat keys and bws_fold_migrate_base_src() leaves a site root alone.
+//
+// HARMLESS BEFORE #104 AND LOAD-BEARING AFTER IT: the retired flatten collapsed the mapped
+// chain back to a triple and the reader dropped the step off the triple, so appending it
+// changed nothing. Now the chain IS the hand-off, so appending it resolves a term step off a
+// site source — no post input, hence empty — which silently re-opened the parity §F9b.5
+// closed one release earlier. MEASURED on the testbed both ways.
+$site_tax_flat = t_seam_walk( array( 'A' => '', 'src' => 'site', 'srcTermIn' => 'department', 'key' => 'org_phone' ), 'join' );
+check( 'P18.6 flat site + srcTermIn maps to a site-ONLY chain', 'site' === ( $site_tax_flat[1]['src'] ?? null ), json_encode( $site_tax_flat[1] ?? null ) );
+// The same fact one layer down, on the mapper the converter and the editor's mount migrator
+// both share with the render dual-read — one fix, three paths, so a stored tag, a converted
+// one and an editor-touched one cannot disagree.
+check(
+	'P18.6 …so the SLOT migrator writes no term step either',
+	'src(site);key(org_phone)' === bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site', '2-srcTermIn' => 'department', '2-key' => 'org_phone' ), true )['slot'] ),
+	bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site', '2-srcTermIn' => 'department', '2-key' => 'org_phone' ), true )['slot'] )
+);
+// HAND-WRITTEN chain wire is the deliberate contrast: it SAYS the step, so it keeps it and
+// resolves empty — exactly as the identically-spelled base tag `{{phone src:site;terms,x}}`
+// does. Wire means what it says (ADR 0004); what the rule protects is the flat KEYS.
+$site_tax_wire = t_seam_walk( array( 'A' => 'src(site;terms,department);key(org_phone)' ), 'join' );
+check( 'P18.6 hand-written chain wire KEEPS its term step', 'site;terms,department' === ( $site_tax_wire[1]['src'] ?? null ), json_encode( $site_tax_wire[1] ?? null ) );
+
 // P18.5 — THE SEAM PASSES A STEP THROUGH VERBATIM, and the emitted chain is canonical
 // anyway, because both producers of a slot struct already trim. Pinned so the seam is not
 // "hardened" with a third copy of that rule: a normalization here would pass this row
