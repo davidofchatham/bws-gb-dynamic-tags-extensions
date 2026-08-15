@@ -135,6 +135,11 @@ function bws_fold_skip_warning( string $reason = '' ): string {
  * one-press fix should not cost the author the other diagnosis.
  *
  * @since 1.17.0
+ * A slot raising TWO warnings is listed ONCE — the letters are keyed by slot ordinal, so the
+ * list names slots and the distinct-detail test decides whether a detail survives. Both
+ * details still count as distinct, which is the right answer: one slot with two problems is
+ * not a bracket that can name either of them usefully.
+ *
  * @param array $slot_warnings Per-slot pairs `array( 'n' => int, 'detail' => string )`,
  *                             in any order (sorted by slot here).
  * @param array $tag_warnings  Tag-level warning strings, in the order they were raised.
