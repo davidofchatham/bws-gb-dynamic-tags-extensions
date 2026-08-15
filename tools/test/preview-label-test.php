@@ -423,21 +423,21 @@ check(
 	bws_build_preview_label( [ 'src' => 'quietsource', 'key' => 'org_email' ], 'email' ),
 	"[Email: 'org_email' from Quiet Source]"
 );
-// An UNREGISTERED token names nothing. It resolves to the ambient entity, and inventing a
-// label for it would describe a source that does not exist.
+// An UNREGISTERED token is FLAGGED (#105). It used to add no segment and nothing else, so
+// `{{text src:nosuchsource|key:sku}}` previewed exactly like a bare `{{text key:sku}}` and
+// rendered empty — the likeliest hand-authored fault, and wholly invisible.
 check(
-	'an unregistered token adds no segment (it reads the ambient entity)',
+	'an unregistered token is flagged, not silently unnamed',
 	bws_build_preview_label( [ 'src' => 'nosuchsource', 'use' => 'key', 'key' => 'sku' ], 'text' ),
-	"['sku']"
+	"[⚠ Unknown source 'nosuchsource']"
 );
-// The keys the ROOT ENUM refuses are refused here too. These ARE registered sources, so a
-// bare registry lookup names every one of them — `src:post` would read "from Post", which
-// is what a bare tag already is, and `src:related_post` would dress up the very token the
-// migration exists to remove. Registered below so the assertion cannot pass vacuously.
+// The INTERNAL spellings of the ambient entity name nothing AND never flag: they resolve,
+// and `src:post` would read "from Post", which is what a bare tag already is. Registered
+// below so the assertion cannot pass vacuously.
 \BWS\DynamicTags\SourceRegistry::init();
-foreach ( [ 'post', 'term', 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post' ] as $internal_key ) {
+foreach ( [ 'post', 'term' ] as $internal_key ) {
 	check(
-		"an INTERNAL/retired registry key adds no segment: `{$internal_key}`",
+		"an INTERNAL registry key adds no segment and no warning: `{$internal_key}`",
 		bws_build_preview_label( [ 'src' => $internal_key, 'use' => 'key', 'key' => 'sku' ], 'text' ),
 		"['sku']"
 	);
@@ -447,6 +447,30 @@ foreach ( [ 'post', 'term', 'related_post', 'second_related_post', 'post_term_re
 		true
 	);
 }
+// The four RETIRED traversal-substitute tokens get their OWN sentence, not "unknown": they
+// ARE registered (the registry keeps its dead by policy), so "unknown" would be false — and
+// this is the one warning here with a NAMED REPAIR, since the converter rewrites the token.
+foreach ( [ 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post' ] as $retired_key ) {
+	check(
+		"a RETIRED registry key names its repair: `{$retired_key}`",
+		bws_build_preview_label( [ 'src' => $retired_key, 'use' => 'key', 'key' => 'sku' ], 'text' ),
+		"[⚠ Source '{$retired_key}' is no longer supported — run the Tag Converter]"
+	);
+	check(
+		"…and it IS registered, so 'unknown' would have been a false statement: `{$retired_key}`",
+		null !== \BWS\DynamicTags\SourceRegistry::get_source( $retired_key ),
+		true
+	);
+}
+// A registered but UNOFFERED root still renders, so it must not flag — offering is not
+// resolving, and gating this on is_selectable_root() is the named trap. (`quietsource`
+// above is that source; this pins the NEGATIVE explicitly, since a passing happy-path row
+// would read the same either way.)
+check(
+	'a registered-but-unoffered root does NOT flag',
+	bws_build_preview_label( [ 'src' => 'quietsource', 'use' => 'key', 'key' => 'sku' ], 'text' ),
+	"['sku' from Quiet Source]"
+);
 // {{call}} INERT config-describing preview (VC-inert) — never executes the fn.
 check(
 	'call no fn → warn',
@@ -944,6 +968,111 @@ check(
 	'join: a tag-level warning alone keeps its own words',
 	bws_build_join_preview_label( [ 'mode' => 'template', 'A' => 'key(a)' ] ),
 	'[⚠ Join: no format set]'
+);
+
+
+// ── INERT CHAINS are flagged, on base tags as well as slots (#105) ───────────────────
+//
+// Deleting the flatten deleted the only author-facing signal that a chain resolves to
+// nothing, and base tags never had one at all. Four conditions, all decidable from the
+// WIRE with no per-template knowledge — an unknown step slug, an unregistered root, a
+// retired token, and an argless `entries` step. What is NOT here is as load-bearing: an
+// ambient root (statically unknowable), an unoffered root (offering ≠ resolving), and a
+// well-formed source no arm consumes YET (unimplemented ≠ inert — that is FW-74).
+//
+// MUTATIONS pinned here, each confirmed failing when this landed:
+//   - blind the step walk, i.e. flag on bws_fold_chain_resolution()'s `kind` alone → 3 fail;
+//     `kind` reports the chain's TAIL, so a short-circuit upstream still reads 'post'
+//   - move the root check inside the `roots` display switch → 4 fail (every SLOT row)
+//   - gate the root check on is_selectable_root()          → 2 fail (the unoffered root)
+echo "\ninert chains — base and slot (#105)\n";
+
+// UNKNOWN STEP. The chain short-circuits at the engine ([I14]).
+check(
+	'base: an unknown step slug is flagged',
+	bws_build_preview_label( [ 'src' => 'refs,rel;bogus,x', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"[⚠ Unknown source step 'bogus']"
+);
+// The MIDDLE-step row is the one the `kind` query cannot answer: the chain's TAIL is a
+// `refs` step, so bws_fold_chain_resolution() reports kind `post` while nothing resolves.
+check(
+	'base: an unknown step MID-chain is flagged (the tail still reports a kind)',
+	bws_build_preview_label( [ 'src' => 'testroot;bogus,x;refs,y', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"[⚠ Unknown source step 'bogus']"
+);
+check(
+	'…and the tail DOES still report a kind, so the row above is not vacuous',
+	bws_fold_chain_resolution( bws_fold_parse_chain( 'testroot;bogus,x;refs,y' ) )['kind'],
+	'post'
+);
+// ROOT before STEP when a chain has both: the factory consumes the root first, so naming
+// the step would send the author past the fault.
+check(
+	'base: an unknown ROOT outranks an unknown step behind it',
+	bws_build_preview_label( [ 'src' => 'currnet;bogus,x', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"[⚠ Unknown source 'currnet']"
+);
+// ARGLESS `entries` joins the MISSING list rather than the inert one — an unfinished step
+// is unfinished under any future arm, so it speaks now even though the arm is FW-74.
+check(
+	'base: an argless `entries` step reports a missing repeater field',
+	bws_build_preview_label( [ 'src' => 'entries', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	'[⚠ No repeater field set]'
+);
+check(
+	'…and it joins the other missing items in one sentence',
+	bws_build_preview_label( [ 'src' => 'entries', 'use' => 'key' ], 'text' ),
+	'[⚠ No repeater field or meta key set]'
+);
+// A COMPLETE `entries` step is NOT flagged. It is well-formed wire the base arms do not
+// consume yet (FW-74) — flagging it would encode a per-template fact with a shelf life.
+check(
+	'base: a COMPLETE `entries` step is silent (unimplemented ≠ inert)',
+	bws_build_preview_label( [ 'src' => 'entries,team_members', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	"['name']"
+);
+// NEGATIVES — the internal spellings of the ambient entity and of a relationship hop all
+// resolve, so none of them flags.
+check( 'negative: bare tag',   bws_build_preview_label( [ 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku']" );
+check( 'negative: src:current', bws_build_preview_label( [ 'src' => 'current', 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku']" );
+check( 'negative: src:site',    bws_build_preview_label( [ 'src' => 'site', 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku' from Site]" );
+check( 'negative: src:ref',     bws_build_preview_label( [ 'src' => 'ref', 'ref' => 'rel', 'use' => 'key', 'key' => 'sku' ], 'text' ), "['sku' from Ref 'rel']" );
+
+// SLOTS take the same four conditions, in the slot phrasing — the letter and the bracket
+// prefix already supply the capital and the noun.
+check(
+	'join: an unknown root on a slot',
+	bws_build_join_preview_label( [ 'A' => 'src(bogus,x);key(name)', 'B' => 'key(role)' ] ),
+	"[⚠ Join: A unknown source 'bogus']"
+);
+check(
+	'join: an unknown step on a slot',
+	bws_build_join_preview_label( [ 'A' => 'src(refs,rel;bogus,x);key(name)' ] ),
+	"[⚠ Join: A unknown source step 'bogus']"
+);
+check(
+	'try_: a retired token on a slot names its repair',
+	bws_build_try_preview_label( [ 'A' => 'src(related_post);use(key);key(name)' ], 'text' ),
+	'[⚠ Try: A source no longer supported — run the Tag Converter]'
+);
+// An inert source reports ALONE — the slot reads nothing whatever its key says, so `no
+// key` beside it would send the author to the wrong field. (Without this the two details
+// would disagree and the whole thing would collapse to `A misconfigured`.)
+// (Shown on a SELECTING container: a combining slot with a source and no read is
+// UNCONFIGURED and stays silent by decision, so join cannot reach the shape at all.)
+check(
+	'try_: an inert slot reports its source, not its missing key',
+	bws_build_try_preview_label( [ 'A' => 'src(bogus,x);use(key)' ], 'text' ),
+	"[⚠ Try: A unknown source 'bogus']"
+);
+// Two slots, two DIFFERENT unknown tokens → distinct details → the collapse rule fires.
+check(
+	'try_: two inert slots with different tokens collapse',
+	bws_build_try_preview_label(
+		[ 'A' => 'src(bogus,x);use(key);key(name)', 'B' => 'src(currnet);use(key);key(role)' ],
+		'text'
+	),
+	'[⚠ Try: A, B misconfigured]'
 );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );

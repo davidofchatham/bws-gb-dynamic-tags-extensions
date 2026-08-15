@@ -801,6 +801,26 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9d.3 the compatibility FLOOR: ONE fanning step, so per-hop and total coincide (-> Jane Partner, Tom Associate; unchanged)', '{{join src:ref|ref:related_staff|use:title|limit:0}}' ),
 	) );
 
+	// F14b - the INERT-CHAIN warnings (#105). EDITOR-ONLY evidence, and doubly so:
+	// an inert chain is indistinguishable from an ordinary empty read in output,
+	// AND the preview only exists where the tag resolves EMPTY.
+	//
+	// THE FIELD KEY IS `bio`, WHICH NOTHING ON THIS PAGE CARRIES, AND THAT IS
+	// FORCED. A base tag with an unresolvable source does NOT render nothing - it
+	// falls through to the ambient entity and reads it (measured 2026-08-15:
+	// `{{text src:currnet|use:key|key:name_first}}` renders `Jane`), which is an
+	// [I15] leak filed as #109. A row keyed on a field the page HAS would
+	// therefore render a plausible wrong value and show no preview at all, which
+	// is the opposite of what these rows are for. Once the leak is fixed the key
+	// can go back to a real one and these rows keep working.
+	$sections[] = bws_fixture_gb_section( 'Fold F14b - INERT chain warnings (EDITOR evidence; all resolve empty)', array(
+		bws_fixture_gb_empty_row( 'F14.18 unregistered ROOT: was invisible before #105 - previewed exactly like a bare tag (-> EMPTY; preview must read [warn Unknown source "currnet"])', '{{text src:currnet|use:key|key:bio}}' ),
+		bws_fixture_gb_empty_row( 'F14.19 unknown STEP mid-chain: the kind query answers post off the TAIL, so only a walk sees it (-> EMPTY; preview [warn Unknown source step "bogus"])', '{{text src:refs,related_staff;bogus,x|use:key|key:bio}}' ),
+		bws_fixture_gb_empty_row( 'F14.20 RETIRED token: registered, so not unknown - its own sentence, and the only warning with a named repair (-> EMPTY; preview [warn Source "related_post" is no longer supported - run the Tag Converter])', '{{text src:related_post|use:key|key:bio}}' ),
+		bws_fixture_gb_empty_row( 'F14.21 slot form: the LETTER names the slot and the detail is KEPT while only one slot has a problem (-> EMPTY; preview [warn Join: A unknown source "bogus"] - slot B is fine and says nothing)', '{{join A:src(bogus,x);key(bio)|B:key(bio)}}' ),
+		bws_fixture_gb_empty_row( 'F14.22 two slots, DIFFERENT problems: the collapse rule drops the detail (-> EMPTY; preview [warn Try: A, B misconfigured])', '{{try_text A:src(bogus,x);use(key);key(bio)|B:src(currnet);use(key);key(bio)}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Fold F12 - ref-hop RETURN FORMATS (blueprint v6; all three must agree)', array(
 		bws_fixture_gb_row( 'F12.1 relationship + return_format id (-> both numbers)', '{{phone src:refs,related_staff|key:main_line|limit:0}}' ),
 		bws_fixture_gb_row( 'F12.2 relationship + object = WP_Post[] (-> IDENTICAL to F12.1)', '{{phone src:refs,related_staff_obj|key:main_line|limit:0}}' ),

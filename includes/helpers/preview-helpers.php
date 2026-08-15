@@ -239,15 +239,25 @@ function bws_build_join_preview_label( array $options ): string {
 		$eff_use = $flat['use'];   // Already defaulted to `key` by the seam (I3).
 		$key     = $flat['key'];
 
+		$inert              = array();
+		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
+		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true, $inert );
+
+		// An INERT source reports ALONE, exactly as a skipped slot's reason does: the slot
+		// will not read anything whatever its key says, so its field is not what the author
+		// should go and fix.
+		$inert_warning = bws_preview_inert_warning( $inert, true );
+		if ( '' !== $inert_warning ) {
+			$slot_warnings[] = array( 'n' => $n, 'detail' => $inert_warning );
+			continue;
+		}
+
 		// Per-slot warning: key-mode with no key. The `src:ref` with no ref key warning
 		// that stood beside it belongs to the seam now (`step:refs`), and always did in
 		// substance: an unfinished relationship step never reaches this point.
 		if ( 'title' !== $eff_use && '' === $key ) {
 			$slot_warnings[] = array( 'n' => $n, 'detail' => 'no key' );
 		}
-
-		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
-		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true );
 	}
 
 	// Template mode with no format is unresolvable — warn (matches the callback
@@ -408,12 +418,18 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			continue;
 		}
 
+		// The source part is built HERE rather than in the display pass below, because its
+		// inert report has to reach the warnings — and asking for it twice would parse the
+		// slot's chain twice (see the door's out-param).
+		$inert = array();
 		$slots[] = [
-			'n'   => $n,
+			'n'     => $n,
 			// The slot's WHOLE source, as the depth-0 chain wire the seam emits (#104).
-			'src' => $flat['src'],
-			'key' => $flat['key'],
-			'use' => $flat['use'],
+			'src'   => $flat['src'],
+			'key'   => $flat['key'],
+			'use'   => $flat['use'],
+			'part'  => bws_try_preview_source_part( $flat['src'], true, $inert ),
+			'inert' => bws_preview_inert_warning( $inert, true ),
 		];
 	}
 
@@ -432,6 +448,13 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	// (`step:refs`, already raised as a skip), and always did in substance: an unfinished
 	// relationship step never reaches this point.
 	foreach ( $slots as $slot ) {
+		// An INERT source reports ALONE (see the combining walk) — the slot reads nothing
+		// whatever its key says.
+		if ( '' !== $slot['inert'] ) {
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => $slot['inert'] );
+			continue;
+		}
+
 		// Per-template missing-key checks.
 		$needs_key = false;
 		if ( 'text' === $base_template ) {
@@ -464,7 +487,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$source_parts = [];
 	foreach ( $slots as $slot ) {
 		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as );
-		$source_parts[] = bws_try_preview_source_part( $slot['src'], true );
+		$source_parts[] = $slot['part'];
 	}
 	$uniform_field  = 1 === count( array_unique( $field_parts ) );
 	$uniform_source = 1 === count( array_unique( $source_parts ) );
@@ -705,13 +728,32 @@ function bws_preview_tax_label( string $tax ): string {
  *                       `lead` (a caller segment already precedes these), `roots` (name a
  *                       registered root in author terms), `site` ('Site' for a site root),
  *                       `terms` (term steps name themselves).
+ * AN INERT CHAIN IS REPORTED TOO, and the bound on WHICH inertness is the whole design.
+ * Only what is decidable from the wire alone, with NO per-template knowledge:
+ *   - an unknown STEP slug, at any position (BWS_FOLD_STEP_TYPES owns that definition)
+ *   - an unregistered ROOT token
+ *   - a RETIRED source token (BWS_FOLD_RETIRED_SRC_TOKENS), which has a NAMED REPAIR
+ * An AMBIENT root never flags: what the ambient entity is on a given request is statically
+ * unknowable ([I9]), so guessing would cry wolf on every ordinary tag. A registered but
+ * UNOFFERED root never flags either — offering is not resolving, and a source an integrator
+ * stopped offering still renders (gating this on `is_selectable_root()` is the named trap).
+ * A well-formed source no arm consumes YET is not inert and is not flagged: that is an
+ * unimplemented arm, a per-template fact with a shelf life (FW-74).
+ *
+ * DETECTION SITS OUTSIDE EVERY DISPLAY SWITCH, deliberately. `roots => false` means "do not
+ * NAME a registered root", not "do not CHECK one" — the slot door sets it, so a check under
+ * that switch would silently stop flagging on every slot.
+ *
  * @param array $missing Out-param: slugs of fanning steps with no argument, as
- *                       `array( 'refs' => true, 'terms' => true )`.
+ *                       `array( 'refs' => true, 'terms' => true, 'entries' => true )`.
+ * @param array $inert   Out-param: what makes this chain resolve to nothing, as at most one
+ *                       of `retired`/`root`/`step` keyed to the offending token. Worded by
+ *                       bws_preview_inert_warning(), never here.
  * @return string[] Ordered segments (root name, one per relationship step, site, one per
  *                  term step). Space-join them for a source part.
  */
 if ( ! function_exists( 'bws_preview_source_segments' ) ) {
-function bws_preview_source_segments( array $chain, array $params = array(), array &$missing = array() ): array {
+function bws_preview_source_segments( array $chain, array $params = array(), array &$missing = array(), array &$inert = array() ): array {
 	// Merged rather than read switch-by-switch, so every read is one idiom: a default-TRUE
 	// switch read as `! isset( … ) || …` beside a default-FALSE one read as `! empty( … )`
 	// is two rules a reader has to keep apart, and picking the wrong one silently inverts a
@@ -733,6 +775,7 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	$name_terms    = ! empty( $params['terms'] );
 
 	$missing  = array();
+	$inert    = array();
 	$segments = array();
 
 	$root  = function_exists( 'bws_fold_chain_root' ) ? bws_fold_chain_root( $chain ) : '';
@@ -742,12 +785,47 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		array_shift( $steps );
 	}
 
+	// ── INERT? ──────────────────────────────────────────────────────────────────────
+	//
+	// Above every display switch, and before the segments, because a chain that resolves
+	// to nothing is one answer whatever the caller was going to say about it.
+	$internal_roots = array( 'current', 'site', 'ref', 'post', 'term' );
+	$retired_roots  = defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array();
+	if ( '' !== $root && ! in_array( $root, $internal_roots, true ) ) {
+		if ( in_array( $root, $retired_roots, true ) ) {
+			// REGISTERED (the registry keeps its dead by policy) but inert by decision
+			// (#56), so "unknown" would be a false statement — and unlike every other
+			// warning here this one has a NAMED REPAIR the author can go and run.
+			$inert['retired'] = $root;
+		} elseif ( class_exists( '\BWS\DynamicTags\SourceRegistry' ) && ! \BWS\DynamicTags\SourceRegistry::get_source( $root ) ) {
+			// UNREGISTERED. The likeliest hand-authored fault (ADR 0004 makes the wire
+			// reachable) and the one that was wholly invisible: an unnamed root emits no
+			// segment, so a typo'd source previewed exactly like a bare tag.
+			//
+			// OFFERED is not asked and must not be: a source an integrator stopped
+			// offering still resolves, so gating on is_selectable_root() would flag a tag
+			// that renders perfectly well.
+			$inert['root'] = $root;
+		}
+	}
+
 	// Each fanning step's argument, and whether any of them is MISSING one.
 	$ref_args  = array();
 	$term_args = array();
 	foreach ( $steps as $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
 		$arg  = trim( (string) ( $step['arg'] ?? '' ) );
+
+		// An UNKNOWN step slug short-circuits the chain at the engine ([I14]), and the
+		// resolution query cannot see it: `kind` reports the chain's TAIL, so
+		// `src(bogus,x;refs,y)` answers `post` while nothing resolves. Only the walk sees
+		// it, and BWS_FOLD_STEP_TYPES owns what counts as known ("a slug absent from this
+		// map at a step position is unknown vocabulary, not a root"). FIRST one named —
+		// the chain stops there, so the rest is not yet the author's problem.
+		if ( defined( 'BWS_FOLD_STEP_TYPES' ) && ! array_key_exists( $slug, BWS_FOLD_STEP_TYPES ) && ! isset( $inert['step'] ) ) {
+			$inert['step'] = $slug;
+		}
+
 		if ( 'refs' === $slug ) {
 			if ( '' === $arg ) {
 				$missing['refs'] = true;
@@ -760,6 +838,11 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			} else {
 				$term_args[] = $arg;
 			}
+		} elseif ( 'entries' === $slug && '' === $arg ) {
+			// Reported but never NAMED: a repeater step has no author-facing segment yet
+			// (the arm that consumes one is FW-74). Unfinished is unfinished under any
+			// future arm, so the missing argument speaks now.
+			$missing['entries'] = true;
 		}
 	}
 
@@ -791,10 +874,7 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// `related_post` migration exists to REMOVE from wire — naming one dresses a token on
 	// its way out as a configured source.
 	if ( $name_roots && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
-		$internal = array_merge(
-			array( 'current', 'site', 'ref', 'post', 'term' ),
-			defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array()
-		);
+		$internal = array_merge( $internal_roots, $retired_roots );
 		if ( ! in_array( $root, $internal, true ) ) {
 			$root_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
 			if ( $root_source ) {
@@ -824,6 +904,44 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	}
 
 	return $segments;
+}
+}
+
+/**
+ * The author-facing words for an INERT chain, from the namer's report.
+ *
+ * ONE wording owner for every surface, base and slot alike — the report is a fact about the
+ * wire and the sentence is preview vocabulary (docs/editor-tag-previews.md).
+ *
+ * A RETIRED token gets its own sentence rather than "unknown", and the difference is not
+ * pedantry: it is registered, so "unknown" is false, and it is the one condition here with a
+ * NAMED REPAIR — the Tag Converter rewrites it. Every other warning can only say what is
+ * wrong.
+ *
+ * The slot form drops the leading capital and the possessive noun, because the letter and the
+ * bracket prefix already supply both (`⚠ Join: B unknown source 'currnet'`).
+ *
+ * @since 1.17.0
+ * @param array $inert Report from bws_preview_source_segments()'s out-param.
+ * @param bool  $slot  True for the multislot phrasing (detail alone, no leading capital).
+ * @return string Warning text, or '' when the chain is not inert.
+ */
+if ( ! function_exists( 'bws_preview_inert_warning' ) ) {
+function bws_preview_inert_warning( array $inert, bool $slot = false ): string {
+	if ( isset( $inert['retired'] ) ) {
+		return $slot
+			? 'source no longer supported — run the Tag Converter'
+			: 'Source \'' . $inert['retired'] . '\' is no longer supported — run the Tag Converter';
+	}
+	// ROOT before STEP: the factory consumes the root first, so a chain with both fails
+	// there, and sending the author to the step would be sending them past the fault.
+	if ( isset( $inert['root'] ) ) {
+		return ( $slot ? 'unknown source \'' : 'Unknown source \'' ) . $inert['root'] . '\'';
+	}
+	if ( isset( $inert['step'] ) ) {
+		return ( $slot ? 'unknown source step \'' : 'Unknown source step \'' ) . $inert['step'] . '\'';
+	}
+	return '';
 }
 }
 
@@ -860,10 +978,16 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
  * @param bool   $named_current When true, returns 'Current' for an ambient source
  *                          (used when source-part appears in a list and needs
  *                          a visible anchor). Default false (returns '').
+ * @param array  $inert    Out-param: the namer's inert-chain report for THIS slot, passed
+ *                         through rather than asked for separately. A second parse would
+ *                         read a DIFFERENT chain than the one being named — this door
+ *                         splices a synthetic `current` root for a rootless non-`refs`
+ *                         chain, so a leading unknown slug is a root in one reading and a
+ *                         step in the other. One parse, one answer.
  * @return string Source segment (e.g. "Current", "Ref 'rel_post'", "Ref 'rel_post' → Category Term").
  */
 if ( ! function_exists( 'bws_try_preview_source_part' ) ) {
-function bws_try_preview_source_part( string $src_wire, bool $named_current = false ): string {
+function bws_try_preview_source_part( string $src_wire, bool $named_current = false, array &$inert = array() ): string {
 	$chain = function_exists( 'bws_fold_chain_from_options' )
 		? bws_fold_chain_from_options( array( 'src' => $src_wire ) )
 		: array();
@@ -880,6 +1004,8 @@ function bws_try_preview_source_part( string $src_wire, bool $named_current = fa
 		);
 	}
 
+	$missing = array();
+	$inert   = array();
 	return implode(
 		' ',
 		bws_preview_source_segments(
@@ -888,7 +1014,9 @@ function bws_try_preview_source_part( string $src_wire, bool $named_current = fa
 				'named_current' => $named_current,
 				'roots'         => false,
 				'site'          => false,
-			)
+			),
+			$missing,
+			$inert
 		)
 	);
 }
@@ -1029,6 +1157,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 		$ctx_segments[] = $modifier_label;
 	}
 	$src_missing  = array();
+	$src_inert    = array();
 	$ctx_segments = array_merge(
 		$ctx_segments,
 		bws_preview_source_segments(
@@ -1042,7 +1171,8 @@ function bws_build_preview_label( array $options, string $template ): string {
 				// A term modifier builds its taxonomy segment from `tax`, above.
 				'terms' => ! $is_term_modifier,
 			),
-			$src_missing
+			$src_missing,
+			$src_inert
 		)
 	);
 	$context_part = implode( ' ', $ctx_segments );
@@ -1079,6 +1209,24 @@ function bws_build_preview_label( array $options, string $template ): string {
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
+	// An INERT chain SHORT-CIRCUITS the label (#105). It renders empty whatever else is
+	// set, so listing the other gaps beside it would send the author to the wrong repair
+	// first — and a base tag had NO signal for this at all before now: an unnamed root
+	// emits no segment, so `{{text src:currnet|key:x}}` previewed exactly like a bare
+	// `{{text key:x}}` and rendered nothing. ADR 0004 makes that wire reachable by hand,
+	// which is precisely how an author produces it.
+	//
+	// Placed AFTER the site-on-modifier check (that one is more specific and names a
+	// remedy) and BEFORE the missing-list, which it replaces.
+	$inert_warning = bws_preview_inert_warning( $src_inert );
+	if ( '' !== $inert_warning ) {
+		$inner = '⚠ ' . $inert_warning;
+		if ( $fallback ) {
+			$inner .= ' (fallback: “' . $fallback . '”)';
+		}
+		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
+	}
+
 	// Collect missing required items for warning label.
 	$missing = [];
 	if ( ! empty( $src_missing['refs'] ) ) {
@@ -1086,6 +1234,9 @@ function bws_build_preview_label( array $options, string $template ): string {
 	}
 	if ( ! empty( $src_missing['terms'] ) ) {
 		$missing[] = 'taxonomy';
+	}
+	if ( ! empty( $src_missing['entries'] ) ) {
+		$missing[] = 'repeater field';
 	}
 	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {
 		$missing[] = 'meta key';

@@ -46,7 +46,7 @@ Space-joined segments. The `→` separator precedes the term-step segment only.
 | `src:ref` + `ref` unset | *(triggers warning — see below)* |
 | `srcTermIn:X` set | `→ {taxonomy singular label} Term` (live `get_taxonomy()->labels->singular_name`; fallback: `{tax} Term`) |
 | `srcTermIn` set with empty value (legacy `srcTerm` without `tax`) | *(triggers warning — see below)* |
-| `src` names a REGISTERED SOURCE as the chain's root (1.17.0, [#83]) | That source's `get_source_label()` — e.g. `External Post`, yielding `… from External Post`. **Author terms, never the token.** Independent of whether the source is currently OFFERED in the dropdown: the tag is stored, so the preview describes what it says. An UNREGISTERED token adds no segment (it resolves to the ambient entity, so naming it would describe a source that does not exist). **The keys the ROOT ENUM refuses are refused here too**, though they ARE registered sources and a bare lookup would name every one: `post`/`term` are internal spellings of the ambient entity (`src:post` would read `from Post`, which is what a bare tag already is), and the four retired traversal-substitute tokens are what the `related_post` migration exists to remove from wire. This is the whole editor experience for such a tag — a source resolving from request state cannot resolve in the editor, and the prefix-keyed modifier map is keyed on TAG NAME so it can never fire for a base tag |
+| `src` names a REGISTERED SOURCE as the chain's root (1.17.0, [#83]) | That source's `get_source_label()` — e.g. `External Post`, yielding `… from External Post`. **Author terms, never the token.** Independent of whether the source is currently OFFERED in the dropdown: the tag is stored, so the preview describes what it says. An UNREGISTERED token adds no segment and, since 1.17.0 ([#105]), raises the inert-chain warning instead — it resolves to nothing, and previewing it as a bare tag hid the likeliest hand-authored fault there is. **The keys the ROOT ENUM refuses are refused here too**, though they ARE registered sources and a bare lookup would name every one: `post`/`term` are internal spellings of the ambient entity (`src:post` would read `from Post`, which is what a bare tag already is), and the four retired traversal-substitute tokens are what the `related_post` migration exists to remove from wire. This is the whole editor experience for such a tag — a source resolving from request state cannot resolve in the editor, and the prefix-keyed modifier map is keyed on TAG NAME so it can never fire for a base tag |
 | No modifier, `src` unset, no `terms` step | *(omit — no `from` clause)* |
 
 **The source is read as a CHAIN, not as a token** (1.17.0, [#83]). `src` may hold a bare legacy
@@ -83,6 +83,10 @@ rather than a preference:
 | `roots` | slots | A slot's source cannot BE a registered root yet (FW-71), so naming one would print a segment for wire no slot can hold |
 | `site` | rooting modifiers, slots | On a modifier a site root is already the invalid-combo warning; on a `try_email` site slot the site read IS the whole slot, so the segment is noise |
 | `terms` | `term_*` modifiers | A modifier reads GB's native `tax` (the term's OWN taxonomy — descriptive, not a hop) and builds that segment itself |
+
+**The switches gate NAMING, never CHECKING.** The inert-chain detection below runs above all five,
+`roots` included — the slot door turns that one off, so a check placed under it would silently stop
+flagging on every slot.
 
 A **missing** step argument is REPORTED, not rendered: the namer hands back the step's slug and
 each caller words it (`⚠ No ref key set` on a base tag, `B no ref` in a slot).
@@ -137,6 +141,67 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `ref` + `tax` | `⚠ No ref key or taxonomy set` |
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
 | `ref` + `tax` + `key` | `⚠ No ref key, taxonomy, or meta key set` |
+| `entries` step with no repeater field | `⚠ No repeater field set` (1.17.0) |
+
+### Inert-chain warning (a source that cannot resolve)
+
+Distinct again from the two above: the source is neither missing an input nor invalid *for this
+tag* — it names vocabulary that resolves to **nothing anywhere**, so the tag renders empty
+whatever else is set. Added in 1.17.0
+([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)); base tags
+had no signal for this at all before, because an unnamed root emits no segment and
+`{{text src:currnet|key:x}}` previewed exactly like a bare `{{text key:x}}`. [ADR 0004](adr/0004-wire-human-readable.md)
+makes that wire hand-authorable, which is exactly how an author produces it.
+
+Checked **after** the invalid-combo warning (which is more specific and names its remedy) and
+**before** the missing-input pass, which it replaces: listing the other gaps beside an inert
+source sends the author to the wrong repair first. Fallback still appends. Wording owner:
+`bws_preview_inert_warning()`; detection: `bws_preview_source_segments()`'s `$inert` out-param.
+
+| Condition | Base warning | Slot fragment |
+|---|---|---|
+| Unknown step slug, any position (first one named) | `⚠ Unknown source step 'bogus'` | `B unknown source step 'bogus'` |
+| Unregistered root token | `⚠ Unknown source 'currnet'` | `B unknown source 'currnet'` |
+| Retired source token (`BWS_FOLD_RETIRED_SRC_TOKENS`) | `⚠ Source 'related_post' is no longer supported — run the Tag Converter` | `B source no longer supported — run the Tag Converter` |
+
+A root outranks a step behind it: the factory consumes the root first, so a chain with both
+fails there, and naming the step would send the author past the fault. On a slot the inert
+warning reports **alone**, as a skipped slot's reason does — the slot reads nothing whatever its
+key says.
+
+**All three are decidable from the WIRE alone, with no per-template knowledge**, and that bound
+is what the list is built to. Three things therefore **never** flag:
+
+- **An ambient root.** What the ambient entity is on a given request is statically unknowable, so
+  guessing would cry wolf on every ordinary tag.
+- **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
+  offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by
+  mutation in the harness.)
+- **A well-formed source no arm consumes YET** — an `entries` step with its repeater field set,
+  today. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on
+  a fanning tag it would concatenate like any other step. Flagging it would encode a per-template
+  fact with a shelf life. The arm is FW-74.
+
+The internal tokens `current`, `site`, `ref`, `post` and `term` never flag either — they resolve.
+
+**Detection sits OUTSIDE every display switch**, including `roots`. That switch means "do not
+*name* a registered root", not "do not *check* one", and the slot door turns it off — a check
+placed under it would silently stop flagging on every slot.
+
+**A second, larger hole is not this warning's to fix.** The preview is built ONLY where resolution
+came back empty, and an unresolvable source on a base `{{text}}` does **not** resolve empty today —
+it falls through to the ambient entity and reads it (measured 2026-08-15: `{{text src:currnet|use:key|key:name_first}}`
+renders the current post's `name_first`, and so do the retired-token and unknown-step spellings;
+`{{phone}}` on the same chain correctly renders nothing). So on those tags the author sees a
+plausible wrong value and no warning at all. That is an [I15] leak on the render path, filed as
+[#109](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/109); this warning is correct about the wire and appears wherever the tag previews at all,
+which is every tag whose read is genuinely empty. `fold-test-matrix.md` §F14.18–22 keys its rows on
+a field nothing carries for exactly this reason.
+
+**Accepted hole:** `{{image}}` in an output-attribute mode (`as:url` / `as:id`) carries no
+warning, because the preview text *is* the attribute value and a bracket string breaks the
+element. Pre-existing and unchanged — image already misses `No meta key set` the same way. Only
+an editor-side control notice could reach it, which is a different mechanism.
 
 ### Invalid-combo warning (`src:site` on a modifier tag)
 
