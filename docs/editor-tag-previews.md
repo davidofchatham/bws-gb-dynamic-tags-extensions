@@ -85,7 +85,7 @@ rather than a preference:
 | `terms` | `term_*` modifiers | A modifier reads GB's native `tax` (the term's OWN taxonomy — descriptive, not a hop) and builds that segment itself |
 
 A **missing** step argument is REPORTED, not rendered: the namer hands back the step's slug and
-each caller words it (`⚠ No ref key set` on a base tag, `slot 2 no ref` in a slot).
+each caller words it (`⚠ No ref key set` on a base tag, `B no ref` in a slot).
 
 **One slot shape reads differently for the convergence**, deliberately: a slot with `src:site`
 AND a `srcTermIn` previewed `→ <Tax> Term` before 1.17.0 and previews no source segment now.
@@ -221,17 +221,17 @@ Datetime tags compute a live preview from the current time rather than a static 
 | Datetime varying sources | n/a | `[Try Date like "April 24, 2026" from Current, Ref 'event_date']` |
 | `try_title` (always) | n/a | `[Try Title]` (with optional ` from <source list>`) |
 | `try_email` / `try_phone` configured | n/a | `[Try Email: 'contact_email']` / `[Try Phone: 'tel']` (key-required, no `use` enum) |
-| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: slot 1 no key]` (always needs a key — no no-key values) |
+| `try_email` / `try_phone` empty key | n/a | `[⚠ Try: A no key]` (always needs a key — no no-key values) |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
-| Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
-| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` / `[⚠ Try: slot 2 no ref]` / `[⚠ Try: slot 2 no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |
-| Slot inheriting with nothing to inherit | `[⚠ Try: slot 2 no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
+| Per-slot warnings | `[⚠ Try: A, C misconfigured]` | same |
+| Slot with an incomplete step | `[⚠ Try: B no taxonomy]` / `[⚠ Try: B no ref]` / `[⚠ Try: B no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |
+| Slot inheriting with nothing to inherit | `[⚠ Try: B no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
 Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching base preview behavior.
 
-`try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ slot N no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
+`try_email` / `try_phone` ([#32](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/32), 1.11.0) are text-like with `$needs_key = true` and no no-key values (single key-mode, no `use` enum) — so an empty-key slot always warns `⚠ <L> no key`, and a configured slot renders `Email: 'key'` / `Phone: 'key'`. This is the [#24](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/24)-correct shape (warn on a genuinely unconfigured slot, unlike `content` whose default `use` needs no key).
 
 ## join preview
 
@@ -251,13 +251,45 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 | Condition | Warning fragment |
 |---|---|
-| `src:ref` slot, no `ref` | `slot N no ref` |
-| key-mode slot, no `key` | `slot N no key` |
+| `src:ref` slot, no `ref` | `<L> no ref` |
+| key-mode slot, no `key` | `<L> no key` |
 | Template mode, no `format` | `no format set` |
-| Slot with an INCOMPLETE `terms` step (no taxonomy) | `slot N no taxonomy` (1.17.0) |
-| Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `slot N no ref` (1.17.0) |
-| Slot with an INCOMPLETE `entries` step (no repeater field) | `slot N no repeater field` (1.17.0) |
-| Slot whose source is `same` with no earlier slot resolved | `slot N no previous source` (1.17.0) |
+| Slot with an INCOMPLETE `terms` step (no taxonomy) | `<L> no taxonomy` (1.17.0) |
+| Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `<L> no ref` (1.17.0) |
+| Slot with an INCOMPLETE `entries` step (no repeater field) | `<L> no repeater field` (1.17.0) |
+| Slot whose source is `same` with no earlier slot resolved | `<L> no previous source` (1.17.0) |
+
+### Slots are named by LETTER, and details collapse when slots disagree
+
+`<L>` above is the slot's **letter** — `A`, `B`, `C`, … — on BOTH multislot brackets. **`slot N`
+retired in 1.17.0** ([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)):
+the letter is the wire key the author reads in `A:src(…)` and the header the control configured the
+slot under, so a number was a third spelling of one thing. No container NOUN either (`Field A` /
+`Attempt B` as the control headers say) — the bracket prefix already says `⚠ Join:` / `⚠ Try:`, and a
+noun would be the second time one label names the container. `{{table}}` takes the same letters-only
+form and gets another pass when its columns convert to folded slots.
+
+The **collapse rule** — list every slot with a problem, keep the detail only while there is ONE
+problem to describe. Owner: `bws_slot_warnings_text()`.
+
+| Shape | Preview |
+|---|---|
+| One slot | `[⚠ Try: B no taxonomy]` |
+| Several slots, one distinct issue | `[⚠ Join: A, C no key]` |
+| Several slots, two or more distinct issues | `[⚠ Try: A, B, C misconfigured]` |
+| Tag-level warning beside slot warnings | `[⚠ Join: A, C no key, no format set]` |
+
+Detail survives only while there is one act to name; spelling out disagreeing details reads as a
+wall on a five-slot tag, and the author opens the slots either way. Letters are listed in WIRE
+order, not the order the walk raised them (skips come from the walk pass, per-slot gaps from a
+second pass over the resolved slots).
+
+**Tag-level warnings** (join's `no format set`) append unchanged and never count toward the
+distinct-detail test. The rule is about slots disagreeing with each other, and a one-press fix
+should not cost the author the other diagnosis.
+
+The rule applies to EVERY slot warning, old and new. Splitting it would give one bracket two
+grammars.
 
 **`slot N source not supported` was RETIRED in 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)),
 and it is worth knowing why rather than merely that. It flagged a slot whose source chain had no
@@ -275,7 +307,7 @@ which is why the four reasons below still speak. Each comes from
 in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
 normal in-progress state, and flagging it would fire on every half-built join.
 
-**`slot N no taxonomy`**, **`slot N no ref`** and **`slot N no repeater field`** name an INCOMPLETE step, and are separate from
+**`<L> no taxonomy`**, **`<L> no ref`** and **`<L> no repeater field`** name an INCOMPLETE step, and are separate from
 "unsupported" because they name what is MISSING rather than what cannot be expressed. Such a step is
 expressible — it just is not finished — and the seam skips it deliberately: an empty argument is how
 "no step" is spelled, so flattening it would make the slot read the UN-STEPPED entity and return a
@@ -290,7 +322,7 @@ carried. An argless `terms` step has no such inheritance and is always unfinishe
 noun to print from the slot's chain would be a second copy of the skip rule, which is what routing
 both previews through the seam exists to prevent.
 
-**`slot N no previous source`** covers a `same` root with nothing to be the same AS — every earlier
+**`<L> no previous source`** covers a `same` root with nothing to be the same AS — every earlier
 slot skipped, so there is no carried source. Kept apart from the incomplete-step reasons because
 what is missing is not in THIS slot: the author-facing answer is finish an earlier slot, not finish
 this one. Reachable in a COMBINING container, where an unconfigured read skips a slot
@@ -311,7 +343,7 @@ Nothing configured at all → **no preview** (empty string; GB shows its own pla
 | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:student\|key:full_name\|2-src:current\|2-key:role}}` | `[Join “'full_name' from Ref 'student' / 'role'”]` |
 | `{{join key:name_first\|2-src:ref\|2-ref:rel_post\|2-key:role}}` | `[Join 'name_first', 'role' from Ref 'rel_post']` |
 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
-| `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
+| `{{join src:ref\|key:name_first}}` | `[⚠ Join: A no ref]` |
 | `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` |
 
 The rows above are **legacy flat wire** (`2-key`), which is why their format tokens are `%1`. The same tags in FOLDED form preview identically — both preview builders walk the same seam the renderer does, and the seam dual-reads eras:
