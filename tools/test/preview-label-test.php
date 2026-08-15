@@ -179,7 +179,7 @@ check( 'terms off → no segment', implode( ' ', bws_preview_source_segments( $c
 // (`roots` is exercised against the real registry in the #83 section below, where one is
 // bootstrapped.)
 // An argless fanning step is REPORTED, never rendered: the engine answers empty for it, so
-// the chain short-circuits. The words are the caller's ('No ref key set' / 'slot 2 no ref'),
+// the chain short-circuits. The words are the caller's ('No ref key set' / 'B no ref'),
 // so the namer reports the SLUG.
 $missing = [];
 check(
@@ -507,13 +507,13 @@ check(
 
 // ---------------------------------------------------------------------------
 echo "\nbuild_try_preview_label — slot chains (non-datetime)\n";
-// Empty options on text: slot 1 is always processed (default-filled), so for text
+// Empty options on text: A is always processed (default-filled), so for text
 // the "no slots configured" branch is unreachable — slot 1 with no key (and use!=title)
 // trips the missing-key warning first. This asserts that actual fired warning.
 check(
-	'text empty → slot 1 no key warn',
+	'text empty → A no key warn',
 	bws_build_try_preview_label( [], 'text' ),
-	'[⚠ Try: slot 1 no key]'
+	'[⚠ Try: A no key]'
 );
 // Single text slot, key set → bare field part (text has no template label).
 check(
@@ -541,7 +541,7 @@ check(
 	),
 	"[Try 'sku', 'alt_sku']"
 );
-// Carry-forward: slot 2 omits key (use=same hides key), inherits slot 1.
+// Carry-forward: B omits key (use=same hides key), inherits slot 1.
 // Only a source override on slot 2 → uniform field, varying source.
 check(
 	'carry-forward field',
@@ -589,7 +589,7 @@ check(
 		[ 'src' => 'ref' ],
 		'text'
 	),
-	'[⚠ Try: slot 1 no ref]'
+	'[⚠ Try: A no ref]'
 );
 // Fallback annotation on try.
 check(
@@ -603,12 +603,12 @@ check(
 check(
 	'try email empty key → warn',
 	bws_build_try_preview_label( [], 'email' ),
-	'[⚠ Try: slot 1 no key]'
+	'[⚠ Try: A no key]'
 );
 check(
 	'try phone empty key → warn',
 	bws_build_try_preview_label( [], 'phone' ),
-	'[⚠ Try: slot 1 no key]'
+	'[⚠ Try: A no key]'
 );
 // Configured single slot → Try Email/Phone: 'key'.
 check(
@@ -683,13 +683,13 @@ check(
 check(
 	'slot no key warns',
 	bws_build_join_preview_label( [ 'key' => 'name_first', '2-use' => 'key' ] ),
-	'[⚠ Join: slot 2 no key]'
+	'[⚠ Join: B no key]'
 );
 // src:ref slot with no ref → warning.
 check(
 	'slot no ref warns',
 	bws_build_join_preview_label( [ 'src' => 'ref', 'key' => 'name_first' ] ),
-	'[⚠ Join: slot 1 no ref]'
+	'[⚠ Join: A no ref]'
 );
 // Non-current source appended per-slot.
 check(
@@ -752,7 +752,7 @@ check(
 check(
 	'folded: an argless ref hop still warns',
 	bws_build_join_preview_label( [ 'A' => 'src(refs);key(name_first)' ] ),
-	'[⚠ Join: slot 1 no ref]'
+	'[⚠ Join: A no ref]'
 );
 // A read-less combining slot is UNCONFIGURED, so it is skipped rather than warned
 // about — the repeater shows it with an empty field select, which says more than a
@@ -795,7 +795,7 @@ check(
 check(
 	'folded: bare tag still warns on the missing slot-1 key',
 	bws_build_try_preview_label( [], 'text' ),
-	'[⚠ Try: slot 1 no key]'
+	'[⚠ Try: A no key]'
 );
 // A read-less slot INHERITS in a selecting container (the mirror of join's skip), so
 // slot 2 previews with slot 1's field rather than vanishing — here with its own term
@@ -866,12 +866,12 @@ check(
 check(
 	'join: `same` with nothing carried says what to fix, not "unsupported"',
 	bws_build_join_preview_label( [ 'A' => 'src(site)', 'B' => 'src(same);key(x)' ] ),
-	'[⚠ Join: slot 2 no previous source]'
+	'[⚠ Join: B no previous source]'
 );
 check(
 	'…and an argless `refs` names the RIGHT missing thing, not the term hop\'s noun',
 	bws_build_join_preview_label( [ 'A' => 'src(refs);key(x)' ] ),
-	'[⚠ Join: slot 1 no ref]'
+	'[⚠ Join: A no ref]'
 );
 // An INCOMPLETE step is flagged too, but NAMED for what is missing rather than as an
 // unsupported source: the seam can express a term hop, this one just has no taxonomy
@@ -880,12 +880,12 @@ check(
 check(
 	'join: a `terms` hop with no taxonomy is flagged as MISSING, not unsupported',
 	bws_build_join_preview_label( [ 'A' => 'src(terms);key(role)', 'B' => 'key(name)' ] ),
-	"[⚠ Join: slot 1 no taxonomy]"
+	"[⚠ Join: A no taxonomy]"
 );
 check(
 	'try_: same, on a selecting container',
 	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms);key(x)' ], 'text' ),
-	'[⚠ Try: slot 2 no taxonomy]'
+	'[⚠ Try: B no taxonomy]'
 );
 // An UNCONFIGURED combining slot stays SILENT — it is a normal in-progress state,
 // and flagging it would fire on every half-built join.
@@ -893,6 +893,57 @@ check(
 	'join: an unconfigured slot is silent (no read = in progress, not broken)',
 	bws_build_join_preview_label( [ 'A' => 'key(a)', 'B' => 'src(site)' ] ),
 	"[Join 'a']"
+);
+
+// ── Slot warning GRAMMAR: letters, and the collapse rule (#105) ──────────────────────
+//
+// Slots are named by LETTER on both containers — the wire key the author reads in
+// `A:src(…)` and the header the control configured it under. `slot N` was a third
+// spelling of one thing and retires here; every warning expectation above is its pin.
+//
+// The COLLAPSE rule: list every slot with a problem, keep the detail only while there is
+// ONE problem to describe. A bracket that spelled out disagreeing details reads as a wall
+// on a five-slot tag, and the author opens the slots either way.
+// MUTATIONS pinned here, each confirmed failing when this landed — a green count over
+// a grammar this small proves very little on its own:
+//   - print `$n` instead of bws_slot_ordinal( $n )     → 16 fail (numbers return)
+//   - drop the distinct-detail branch (always print it) → 2 fail (detail on disagreeing slots)
+echo "\nslot warning grammar — letters + collapse (#105)\n";
+
+check(
+	'join: two slots, one distinct issue → letters listed, detail kept',
+	bws_build_join_preview_label( [ 'A' => 'use(key)', 'B' => 'key(ok)', 'C' => 'use(key)' ] ),
+	'[⚠ Join: A, C no key]'
+);
+// TWO distinct issues collapse to the letters alone. Details survive only while there is
+// one act to name; dropping this branch is a pinned mutation.
+check(
+	'try_: two slots, distinct issues → letters and no detail',
+	bws_build_try_preview_label( [ 'A' => 'use(key)', 'B' => 'src(terms);key(x)' ], 'text' ),
+	'[⚠ Try: A, B misconfigured]'
+);
+// …and that same case pins the SORT. The two walks raise skips (walk pass) and per-slot
+// gaps (second pass) into one list, so B's warning is raised BEFORE A's — a letter list in
+// raise order would read as a different tag.
+check(
+	'join: skips and per-slot gaps sort into wire order, not raise order',
+	bws_build_join_preview_label( [ 'A' => 'use(key)', 'B' => 'src(terms);key(x)' ] ),
+	'[⚠ Join: A, B misconfigured]'
+);
+// TAG-LEVEL warnings append unchanged and never count toward the distinct test: the rule
+// is about slots disagreeing with each other, and a one-press fix should not cost the
+// author the other diagnosis.
+check(
+	'join: a tag-level warning appends and does not trigger the collapse',
+	bws_build_join_preview_label(
+		[ 'mode' => 'template', 'A' => 'use(key)', 'B' => 'key(ok)', 'C' => 'use(key)' ]
+	),
+	'[⚠ Join: A, C no key, no format set]'
+);
+check(
+	'join: a tag-level warning alone keeps its own words',
+	bws_build_join_preview_label( [ 'mode' => 'template', 'A' => 'key(a)' ] ),
+	'[⚠ Join: no format set]'
 );
 
 echo "\n" . ( $failures ? "FAILED {$failures}/{$count}\n" : "PASSED {$count}/{$count}\n" );

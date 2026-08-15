@@ -591,8 +591,9 @@ class TagTemplateRegistry {
 						// try_ slot is (src-chain-encoding.md §5.1a, user 2026-08-01).
 						// One noun, both surfaces: "+ Add attempt" and the header
 						// "Attempt A" — the header is derived, never registered beside it.
-						// The editor tag configuration PREVIEW still says "slot 2 no key";
-						// that string is `editor-tag-previews.md`'s to change.
+						// The editor tag configuration PREVIEW names a slot by LETTER alone
+						// (#105) — the bracket prefix `⚠ Try:` already names the container,
+						// so this noun would be its second mention there.
 						'noun'            => __( 'attempt', 'generateblocks' ),
 					]
 				)

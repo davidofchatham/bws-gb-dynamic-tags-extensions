@@ -205,7 +205,7 @@ bin/wp.sh testbed bws render-tag '{{TAG}}' --preview --porcelain
 | JP3 | `{{join mode:template\|format:%1 (%2)\|key:name_first\|2-key:name_last}}` | `[Join “'name_first' ('name_last')”]` — `%N` substituted by slot field parts (1.15.0) |
 | JP3b | `{{join mode:template\|format:%1 / %2\|src:ref\|ref:related_staff\|key:name_first\|2-src:current\|2-key:role}}` | `[Join “'name_first' from Ref 'related_staff' / 'role'”]` — non-current source inline on its slot |
 | JP4 | `{{join mode:template\|key:name_first}}` | `[⚠ Join: no format set]` |
-| JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: slot 1 no ref]` |
+| JP5 | `{{join src:ref\|key:name_first}}` | `[⚠ Join: A no ref]` |
 | JP6 | `{{join key:name_first\|2-key:name_last\|fallback:—}}` | `[Join 'name_first', 'name_last' (fallback: “—”)]` — preview shows the config + annotated fallback; the front end returns the literal `—` |
 
 ## Fail triage

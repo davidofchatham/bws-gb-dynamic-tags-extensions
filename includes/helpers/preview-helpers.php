@@ -84,16 +84,21 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *     expressible, so "source not supported" would send them after the wrong thing.
  *   - `'read'`  → an unconfigured slot: a normal in-progress state. SILENT.
  *
+ * It returns the DETAIL alone and never names the slot: which slots carry a detail, and
+ * whether the detail survives at all, is the collapse rule's call
+ * (bws_slot_warnings_text) — two slots with different problems print no detail. A phrase
+ * that arrived pre-labelled would have to be taken apart again to group it.
+ *
  * @since 1.17.0
  * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'inherit'` added with the
  *               ambient-fallback skips (#74).
  * @since 1.17.0 #104: `'chain'` retired with the flatten; `'step:entries'` named.
- * @param int    $n      Slot ordinal (1-based).
+ * @since 1.17.0 #105: returns the bare detail; the slot letter belongs to the composer.
  * @param string $reason Skip reason from the seam. Default ''.
- * @return string Warning text, or '' when the reason is a silent one.
+ * @return string Detail phrase, or '' when the reason is a silent one.
  */
 if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
-function bws_fold_skip_warning( int $n, string $reason = '' ): string {
+function bws_fold_skip_warning( string $reason = '' ): string {
 	// Keyed by the seam's reason so a new step slug adds a ROW rather than an if-arm, and
 	// so the nouns sit together with the per-slot warnings below that they must agree with
 	// ("no ref" / "no taxonomy" are the same words a RESOLVED slot uses for the same gap).
@@ -103,7 +108,64 @@ function bws_fold_skip_warning( int $n, string $reason = '' ): string {
 		'step:entries' => 'no repeater field',
 		'inherit'      => 'no previous source',
 	);
-	return isset( $phrases[ $reason ] ) ? 'slot ' . $n . ' ' . $phrases[ $reason ] : '';
+	return $phrases[ $reason ] ?? '';
+}
+}
+
+/**
+ * The warning body for a multislot preview: which slots have a problem, and — when they
+ * agree about it — what the problem is.
+ *
+ * ONE grammar for both multislot brackets (join and try_). Slots are named by LETTER,
+ * which is the wire key the author reads in `A:src(…)` and the control header they
+ * configured it in; `slot N` was a third spelling of the same thing and retires here.
+ * No container NOUN: the bracket prefix already says `⚠ Join:` / `⚠ Try:`, so a noun
+ * would be the second time one label names the container.
+ *
+ * THE COLLAPSE RULE — list every slot with a problem, keep the detail only while there is
+ * one problem to describe:
+ *   - one distinct detail  → `A, C no key`      (the fix is one act, so name it)
+ *   - two or more          → `A, B, C misconfigured`
+ * A bracket that spelled out disagreeing details reads as a wall on a five-slot tag, and
+ * the author has to open the slots either way. It applies to EVERY slot warning, new and
+ * old: splitting the rule would give one bracket two grammars.
+ *
+ * TAG-LEVEL warnings (join's `no format set`) append unchanged and never count toward the
+ * distinct-detail test. They are not about slots disagreeing with each other, and a
+ * one-press fix should not cost the author the other diagnosis.
+ *
+ * @since 1.17.0
+ * @param array $slot_warnings Per-slot pairs `array( 'n' => int, 'detail' => string )`,
+ *                             in any order (sorted by slot here).
+ * @param array $tag_warnings  Tag-level warning strings, in the order they were raised.
+ * @return string Warning body for the bracket, or '' when there is nothing to warn about.
+ */
+if ( ! function_exists( 'bws_slot_warnings_text' ) ) {
+function bws_slot_warnings_text( array $slot_warnings, array $tag_warnings = array() ): string {
+	$parts = array();
+
+	if ( ! empty( $slot_warnings ) ) {
+		// Sorted, because the two walks raise skips and per-slot gaps in separate passes —
+		// a letter list out of wire order reads as a different tag.
+		usort(
+			$slot_warnings,
+			static function ( $a, $b ) {
+				return ( (int) $a['n'] ) <=> ( (int) $b['n'] );
+			}
+		);
+
+		$letters = array();
+		foreach ( $slot_warnings as $warning ) {
+			$letters[ (int) $warning['n'] ] = bws_slot_ordinal( (int) $warning['n'] );
+		}
+		$details = array_unique( array_column( $slot_warnings, 'detail' ) );
+
+		$parts[] = implode( ', ', $letters )
+			. ' '
+			. ( 1 === count( $details ) ? reset( $details ) : 'misconfigured' );
+	}
+
+	return implode( ', ', array_merge( $parts, $tag_warnings ) );
 }
 }
 
@@ -151,10 +213,11 @@ function bws_build_join_preview_label( array $options ): string {
 
 	// Walk slots 1..max through the render seam. A slot the seam skips (unconfigured,
 	// or a chain the flat read cannot express) contributes nothing here either.
-	$field_parts  = array();
-	$source_parts = array();
-	$warnings     = array();
-	$carry        = bws_fold_empty_carry();
+	$field_parts   = array();
+	$source_parts  = array();
+	$slot_warnings = array();
+	$tag_warnings  = array();
+	$carry         = bws_fold_empty_carry();
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' ) ? bws_fold_slot_struct( $n, $options, 'join' ) : null;
 		if ( null === $slot ) {
@@ -166,9 +229,9 @@ function bws_build_join_preview_label( array $options ): string {
 			// Which reasons speak is the WARNING owner's call, not this walk's — an
 			// unconfigured slot is silent, an inexpressible chain and an unfinished
 			// step are not. Testing the reason here would be that rule's second copy.
-			$warning = bws_fold_skip_warning( $n, $skip );
-			if ( '' !== $warning ) {
-				$warnings[] = $warning;
+			$detail = bws_fold_skip_warning( $skip );
+			if ( '' !== $detail ) {
+				$slot_warnings[] = array( 'n' => $n, 'detail' => $detail );
 			}
 			continue;
 		}
@@ -180,7 +243,7 @@ function bws_build_join_preview_label( array $options ): string {
 		// that stood beside it belongs to the seam now (`step:refs`), and always did in
 		// substance: an unfinished relationship step never reaches this point.
 		if ( 'title' !== $eff_use && '' === $key ) {
-			$warnings[] = 'slot ' . $n . ' no key';
+			$slot_warnings[] = array( 'n' => $n, 'detail' => 'no key' );
 		}
 
 		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
@@ -190,16 +253,17 @@ function bws_build_join_preview_label( array $options ): string {
 	// Template mode with no format is unresolvable — warn (matches the callback
 	// returning '' for template+empty-format).
 	if ( 'template' === $mode && '' === $format ) {
-		$warnings[] = 'no format set';
+		$tag_warnings[] = 'no format set';
 	}
 
 	// Nothing configured at all → no preview (GB shows its own placeholder).
-	if ( empty( $field_parts ) && empty( $warnings ) ) {
+	if ( empty( $field_parts ) && empty( $slot_warnings ) && empty( $tag_warnings ) ) {
 		return '';
 	}
 
-	if ( ! empty( $warnings ) ) {
-		$inner = '⚠ Join: ' . implode( ', ', $warnings );
+	$warning_text = bws_slot_warnings_text( $slot_warnings, $tag_warnings );
+	if ( '' !== $warning_text ) {
+		$inner = '⚠ Join: ' . $warning_text;
 		if ( '' !== $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
@@ -322,8 +386,8 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$slots = [];
 	// Slots the seam cannot express. Kept separate from $slots so a tag whose ONLY
 	// slot is inexpressible reports the real reason instead of "no slots configured".
-	$skips = [];
-	$carry = bws_fold_empty_carry( $use_default );
+	$slot_warnings = [];
+	$carry         = bws_fold_empty_carry( $use_default );
 	for ( $n = 1; $n <= 5; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' )
 			? bws_fold_slot_struct( $n, $options, 'try', $per_slot_use )
@@ -337,9 +401,9 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			// 'read' cannot happen here (an absent read INHERITS in a selecting
 			// container); every other reason speaks — bws_fold_skip_warning() owns which
 			// and in what words, so a new reason is added there and not tested here.
-			$warning = bws_fold_skip_warning( $n, $skip );
-			if ( '' !== $warning ) {
-				$skips[] = $warning;
+			$detail = bws_fold_skip_warning( $skip );
+			if ( '' !== $detail ) {
+				$slot_warnings[] = array( 'n' => $n, 'detail' => $detail );
 			}
 			continue;
 		}
@@ -354,19 +418,19 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	}
 
 	if ( empty( $slots ) ) {
-		$inner = '⚠ Try: ' . ( empty( $skips ) ? 'no slots configured' : implode( ', ', $skips ) );
+		$warning_text = bws_slot_warnings_text( $slot_warnings );
+		$inner        = '⚠ Try: ' . ( '' === $warning_text ? 'no slots configured' : $warning_text );
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
 		return bws_wrap_preview_label_with_link( '[' . $inner . ']', $options );
 	}
 
-	// Collect per-slot warnings. Seeded with the inexpressible-chain flags, which are
-	// per-slot warnings from the same walk.
+	// Collect per-slot warnings, onto the skip flags the walk above already raised — same
+	// list, since both are one slot's problem and the collapse rule groups across them.
 	// The `src:ref` with no ref key warning that stood here belongs to the seam now
-	// (`step:refs`, already in $skips), and always did in substance: an unfinished
+	// (`step:refs`, already raised as a skip), and always did in substance: an unfinished
 	// relationship step never reaches this point.
-	$warnings = $skips;
 	foreach ( $slots as $slot ) {
 		// Per-template missing-key checks.
 		$needs_key = false;
@@ -382,12 +446,13 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			$needs_key = true;
 		}
 		if ( $needs_key && '' === $slot['key'] ) {
-			$warnings[] = 'slot ' . $slot['n'] . ' no key';
+			$slot_warnings[] = array( 'n' => $slot['n'], 'detail' => 'no key' );
 		}
 	}
 
-	if ( ! empty( $warnings ) ) {
-		$inner = '⚠ Try: ' . implode( ', ', $warnings );
+	$warning_text = bws_slot_warnings_text( $slot_warnings );
+	if ( '' !== $warning_text ) {
+		$inner = '⚠ Try: ' . $warning_text;
 		if ( $fallback ) {
 			$inner .= ' (fallback: “' . $fallback . '”)';
 		}
@@ -631,7 +696,7 @@ function bws_preview_tax_label( string $tax ): string {
  * MISSING ARGUMENTS are REPORTED, not rendered. An argless fanning step is not decoration:
  * the engine answers empty for it, so the chain short-circuits and the tag renders nothing.
  * Which words that gets is the caller's (a base tag says "No ref key set", a slot says
- * "slot 2 no ref"), so this reports the SLUG and never the sentence.
+ * "B no ref"), so this reports the SLUG and never the sentence.
  *
  * @since 1.17.0
  * @param array $chain   Parsed chain (bws_fold_parse_chain shape).
