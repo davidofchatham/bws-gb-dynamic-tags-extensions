@@ -1273,6 +1273,30 @@ function bws_fold_empty_slot(): array {
 }
 
 /**
+ * A fresh carry-forward accumulator for a container's slot walk.
+ *
+ * ONE OWNER for the seed, beside the seam that reads it. Every axis but the READ starts
+ * empty and the seam fills the rest in through its own `+=` defaults, so the only thing a
+ * caller has to state is what an ABSENT slot-1 read means on its template — which is the
+ * one axis the seam cannot know. Four call sites held the literal before #104 (both
+ * container loops, both preview walks) and the fold's own rename had to edit all four in
+ * lockstep, which is the tell.
+ *
+ * @since 1.17.0
+ * @param string $default_read The template's stripped first `use` value, on a SELECTING
+ *                             container that has a per-slot read axis. '' everywhere else.
+ * @return array Carry accumulator.
+ */
+function bws_fold_empty_carry( string $default_read = '' ): array {
+	return array(
+		'chain' => array(),
+		'ref'   => '',
+		'use'   => $default_read,
+		'key'   => '',
+	);
+}
+
+/**
  * Resolve one folded slot into the option set a container's slot loop renders through,
  * threading the caller's carry-forward accumulator.
  *
@@ -1336,14 +1360,18 @@ function bws_fold_empty_slot(): array {
  * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
  * container (skip the slot) and INHERIT in a selecting one.
  *
- * FOUR SKIPS, NOT FIVE. The `'chain'` refusal — a chain with no flat spelling — DISSOLVED
- * with the flatten: there is no flat spelling left to fail at, so the branch has nothing to
- * test. The other four are correct at any emit shape and STAY, each with its own
- * author-facing answer:
- *   - `'read'`       an unconfigured combining slot. Silent (a resting state).
- *   - `'inherit'`    a `same` root with nothing to be the same AS.
- *   - `'step:refs'`  a relationship step with no field AND nothing carried to inherit one.
- *   - `'step:terms'` a term step with no taxonomy.
+ * THE `'chain'` REFUSAL DISSOLVED — a chain with no flat spelling — because there is no flat
+ * spelling left to fail at, so the branch has nothing to test. Every other reason is correct
+ * at any emit shape and STAYS, each with its own author-facing answer:
+ *   - `'read'`         an unconfigured combining slot. Silent (a resting state).
+ *   - `'inherit'`      a `same` root with nothing to be the same AS.
+ *   - `'step:refs'`    a relationship step with no field AND nothing carried to inherit one.
+ *   - `'step:terms'`   a term step with no taxonomy.
+ *   - `'step:entries'` a repeater step with no field. It is listed apart from the other two
+ *                      because it is the one the FLATTEN never reached: `entries` was refused
+ *                      outright as inexpressible, argument or not, so an unfinished one had
+ *                      nowhere to be reported from. The rule is the fanning family's, not a
+ *                      per-slug decision — an argless fanning step of any slug is unfinished.
  * The repeater-row refusal MOVED rather than dissolving: it belongs to the container that
  * consumes a `meta_row`, so `try_`'s arm table skips that kind (includes/helpers/
  * try-slot-arms.php) and `{{table}}` waits on its own arm — not on this seam.
@@ -1503,9 +1531,14 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 			$skip_reason = 'step:' . $slug;
 			return null;
 		}
-		if ( 'refs' === $slug && '' !== $arg ) {
+		if ( 'refs' === $slug ) {
 			$ref = $arg;
 		}
+		// PASSED THROUGH VERBATIM, and `$arg` above is only the reading the tests need: both
+		// producers of a slot struct already trim (bws_fold_parse_chain array_maps trim over
+		// the parts; bws_fold_from_flat trims each option value), so re-normalizing here
+		// would be a third owner for a rule two callers already keep — and one that would
+		// quietly become the only one if either stopped.
 		$resolved[] = $step;
 	}
 

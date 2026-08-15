@@ -545,6 +545,16 @@ chain on as depth-0 chain wire now, so a slot's source is a base tag's source
 slot and on a base tag must render identically, and a row that only asserts the slot side cannot
 tell "resolved correctly" from "resolved plausibly".
 
+> **MEASURED 2026-08-15** on `testbed`, every row as stated, front end and `render-tag` alike.
+> §F9b and §F9c were re-swept unchanged in the same pass (F9c needed the container restarted — see
+> the opcache note there), and a 35-case `render-tag` before/after diff across `/matrix-post-meta/`,
+> `/department/sales/`, `/staff/jane-partner/` and `/matrix-terms-valid/` came back 34 byte-identical,
+> the one difference being `{{try_email}}`'s per-render `antispambot` encoding.
+>
+> **§F9's own two divergences did NOT flip and were never meant to** — F9.5 and F9.6 are BASE-tag
+> facts, unrelated to the slot seam. The four that flipped are this section's, and their harness
+> twins are `slot-fold-test.php` §P13.5.
+
 | # | Slot tag | Base twin | Expected |
 |---|---|---|---|
 | F10.1 | `{{join A:src(refs,related_staff;terms,portal_visibility);use(title)}}` | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` — two hops, both taken. Pre-1.17.0 the slot printed nothing (skipped); `department` will NOT do here, since jane and tom carry none and the row would be empty either way |

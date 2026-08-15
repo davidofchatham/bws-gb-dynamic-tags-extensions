@@ -988,8 +988,9 @@ function bws_get_join_options(): array {
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
 	// The accumulator's source axis is a CHAIN, not a token — `src(same)` inherits the
-	// prior slot's whole chain, hops and all (#104).
-	$carry  = array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '' );
+	// prior slot's whole chain, hops and all (#104). Seeded by its owner, never a literal
+	// here: {{join}} has no tag-level read default, so it states none.
+	$carry  = bws_fold_empty_carry();
 
 	// Tag-level explicit post id — GB's editor preview REST route injects
 	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
