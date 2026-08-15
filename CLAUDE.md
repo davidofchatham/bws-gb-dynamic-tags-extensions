@@ -97,7 +97,17 @@ Two entrypoints:
      See `tools/fixtures/core-structures/README.md`. Full design: `.claude/plans/fixture-testbed.md`.
 
 **Front-end pages are LiteSpeed-cached — always cache-bust when eyeballing after a reseed:**
-`curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"`. A plain curl can return the
+`curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"`. **`$RANDOM` IS A BASH-ISM AND
+THE CONTAINER'S SHELL IS `dash`** — inside `docker exec … sh -c '…'` it expands to EMPTY, so every
+"bust" hits one URL and you read the same cached page all session (cost real time 2026-08-15).
+Generate the value in the OUTER shell (`N=$(date +%s%N)`) and interpolate it in.
+**A SECOND, QUIETER STALENESS SITS BEHIND THE CACHE:** the container runs
+`opcache.revalidate_freq = 120`, so a front-end request within two minutes of a source edit runs
+STALE BYTECODE while the disk bytes are already correct — no cache-bust and no file check can see
+it. That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture
+section both read as "no change". Restart the container between arms
+(`docker restart wp-litespeed-litespeed-1`, ~6s to serve again) or wait the window out. WP-CLI is
+exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this. A plain curl can return the
 pre-reseed page, so new fixture rows read as MISSING when they seeded fine. `bin/wp.sh testbed
 litespeed-purge all` does NOT work from the wpcli container (observed; mechanism not recorded — the
 note this used to point at, `docs/agents/env-notes.md`, exists in neither repo) — use

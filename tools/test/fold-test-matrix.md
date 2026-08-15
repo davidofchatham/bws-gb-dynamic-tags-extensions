@@ -487,6 +487,51 @@ rather than an empty one, so a single green row proves very little.
 | F9b.12 | `{{try_text A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | `Captain` — an inexpressible chain still skips at the SEAM, which #103 did not touch (#104 dissolves it) |
 | F9b.13 | `{{try_text use:title}}` / `{{try_title}}` / `{{try_content}}` on `/author/fixture-author/` | **RENDER-TAG ONLY, stated exception** (an author ARCHIVE is the ambient context and has no page content to hang a fixture row on — the same exception text T4 takes for a term archive). EMPTY, all three — the [I6] parity defect is deliberately still open here. The `user` row exists in the arm table and is `branchable`; no template carries a user function yet, so the dispatcher's fn-absent fallthrough sends it to the post arm exactly as the token arms did. **#108 is what flips these three**, with its own replay run whose expected diff is exactly these rows |
 
+## §F9c — MODE 2b: the flat ACF repeater row (the loop fallthrough)
+
+**`meta_row` names ONE resolved-source kind, and a slot can arrive at it two ways.** The two need
+opposite answers, which is the whole content of this section:
+
+- **Off the WIRE** — `src(entries,…)`, so `bws_fold_chain_resolution()` answers `meta_row`
+  statically, before anything renders. The author asked for repeater rows, and no `try_` arm
+  assembles those. **Refuse**; `{{table}}` owns that.
+- **Off the AMBIENT CONTEXT** — the wire is silent (`src:current`), the chain kind is `base`, and
+  the factory comes back with a `meta_row` because the tag is standing inside a GB Pro repeater
+  loop. The author asked for *here*. **Continue to the post arm**, which resolves no id, at which
+  point the loop fallthrough hands the row to the core fn, which reads `$loop_item[$key]`.
+
+Measured inside the loop: `in_loop=true`, `row_post_id=false`, base kind `meta_row`,
+`bws_base_post_ids_from_source()` `[]`, `bws_resolve_post_by_source()` `false`. So the fallthrough
+is not a defensive branch — it is the only thing that renders these rows at all.
+
+**NOTHING ELSE REACHES THIS.** A `WP_Query` loop's rows are `WP_Post` objects, so a post id always
+resolves and the branch never runs; `wp bws render-tag --loop-item=<id>` takes a post id by
+construction. Until #103 the branch had **no rendered coverage on any tag family** — `{{call}}`'s
+[R1.4](call-test-matrix.md) names the case but records it as a known limit rather than exercising
+it. The rows below are on `/matrix-post-meta/`, inside a GB Pro `post_meta` query loop over the
+seeded `team_members` repeater.
+
+| # | Tag | Expected |
+|---|---|---|
+| F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per loop row — the BASE tag's own path, which is a control rather than the subject |
+| F9c.2 | `{{try_text A:key(name)}}` | the SAME two names. This is the `try_` fallthrough |
+| F9c.3 | `{{try_text A:key(nope)\|B:key(role)}}` | `Engineering` / `Operations` — the attempt chain still advances inside a row: slot 1 takes the fallthrough and finds nothing, slot 2 takes it and hits |
+| F9c.4 | `{{try_text A:src(entries,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: refused as a chain kind. Slot 2's silent wire takes the fallthrough and resolves |
+| F9c.5 | `{{try_text A:src(refs,lead_ref);use(title)}}` | `Jane Partner`, then EMPTY — a relationship sub-field still hops out of the row. Row 2 leaves `lead_ref` blank, and GB hides the empty block, so only one row shows |
+
+> **VERIFIED BY MUTATION, and the first attempt was an ARTIFACT.** Two were run and both blank the
+> section: deleting the fallthrough gate (F9c.2/3/4 render nothing; F9c.1 survives, which is what
+> shows the base tag has its own path), and refusing a `meta_row` BASE in
+> `bws_try_slot_base_branch_kind()` instead of branching it to the post arm (every row goes, and
+> `try-slot-arms-test.php` §A4.4 fails beside it).
+>
+> **Both mutations first appeared to change NOTHING, and the reason is worth carrying:** the
+> container runs `opcache.revalidate_freq = 120`, so a front-end request inside two minutes of an
+> edit executes STALE BYTECODE while the disk bytes are already correct. Restart the container
+> between mutation arms (`docker restart wp-litespeed-litespeed-1`), or wait out the window. WP-CLI
+> is unaffected (`opcache.enable_cli = Off`), which is why the `render-tag` sweeps in §F9b needed no
+> such handling.
+
 ## §F10 — a slot the flat seam cannot express SKIPS
 
 The flat triple holds ONE ref hop and ONE term hop, so `refs,x;terms,y` **is** expressible.
