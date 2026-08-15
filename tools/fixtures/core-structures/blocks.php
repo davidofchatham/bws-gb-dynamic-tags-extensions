@@ -110,6 +110,53 @@ function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
 		. "<!-- /wp:generateblocks/query -->";
 }
 
+/**
+ * A GB Pro POST_META query loop — one loop row per ACF repeater row (Mode 2b).
+ *
+ * The ONLY fixture shape that reaches Mode 2b, and it cannot be substituted. A loop row
+ * here is a bare ACF sub-field ARRAY with no `ID` key, so `bws_get_loop_row_context()`
+ * reports `in_loop` with `row_post_id` FALSE — no post entity to bind. That is what makes
+ * the loop-fallthrough branch fire: the source factory resolves a `meta_row`, no post id
+ * comes out of it, and the core fn reads the value off `$loop_item[$key]` instead.
+ *
+ * A `WP_Query` loop (bws_fixture_gb_query_loop) CANNOT stand in for this: its rows are
+ * WP_Post objects, so a post id always resolves and the branch never runs. Neither can
+ * `wp bws render-tag --loop-item=<id>`, which takes a post id by construction. So this is
+ * the one place the branch is observable at all, on any tag family.
+ *
+ * `meta_key_id` empty = read the repeater off the CURRENT post, which is the page these
+ * rows are seeded onto. `posts_per_page` is the string '-1' because GB Pro compares it
+ * with `===` against a string before treating it as "all rows".
+ *
+ * @since 1.17.0
+ */
+function bws_fixture_gb_post_meta_loop( $meta_key, $inner_tag, $seed ) {
+	$q_uid  = bws_fixture_gb_uid( 'metaquery:' . $seed );
+	$l_uid  = bws_fixture_gb_uid( 'metalooper:' . $seed );
+	$i_uid  = bws_fixture_gb_uid( 'metaitem:' . $seed );
+	$q_json = json_encode(
+		array(
+			'uniqueId'  => $q_uid,
+			'tagName'   => 'div',
+			'queryType' => 'post_meta',
+			'query'     => array(
+				'meta_key'       => $meta_key,
+				'meta_key_id'    => '',
+				'posts_per_page' => '-1',
+			),
+			'className' => '',
+		)
+	);
+	$inner = bws_fixture_gb_text_block( $inner_tag, 'metaloop-inner:' . $seed );
+	return "<!-- wp:generateblocks/query {$q_json} -->\n<div>"
+		. "<!-- wp:generateblocks/looper {\"uniqueId\":\"{$l_uid}\",\"tagName\":\"ol\",\"className\":\"\"} -->\n<ol>"
+		. "<!-- wp:generateblocks/loop-item {\"uniqueId\":\"{$i_uid}\",\"tagName\":\"li\",\"className\":\"\"} -->\n"
+		. "<li class=\"gb-loop-item\">{$inner}</li>\n"
+		. "<!-- /wp:generateblocks/loop-item --></ol>\n"
+		. "<!-- /wp:generateblocks/looper --></div>\n"
+		. "<!-- /wp:generateblocks/query -->";
+}
+
 /** Shape 1 — section wrapper. $rows = array of already-built block strings. */
 function bws_fixture_gb_section( $title, array $rows ) {
 	$uid     = bws_fixture_gb_uid( 'section:' . $title );
@@ -671,6 +718,37 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// defect needs an AUTHOR ARCHIVE as ambient context, which has no page
 		// content to hang a fixture row on — the same exception text T4 takes for a
 		// term archive. It is render-tag-only, and the matrix says so.
+	) );
+
+	// F9c — MODE 2b, the flat ACF repeater row, which had NO rendered coverage on any
+	// tag family until #103. It matters here for two reasons and the second is the
+	// bigger one.
+	//
+	// (1) `meta_row` names ONE resolved-source kind and a slot can arrive at it two
+	// ways. Off the WIRE (`src(entries,…)`) the author asked for repeater rows, and
+	// no try_ arm assembles those — refuse, {{table}} owns it. Off the AMBIENT
+	// CONTEXT (silent wire, standing inside a repeater row) the author asked for
+	// "here", and refusing would blank an ordinary tag — so it continues to the post
+	// arm, resolves no id, and the core fn reads $loop_item[$key] instead. F9c.4 is
+	// the row where both meet on one page and stay apart.
+	//
+	// (2) The gate that keeps (1) working is `'current' === $last_src` — a literal
+	// FLAT-TOKEN test, of exactly the kind #104 replaces when the seam starts handing
+	// a slot's source on as chain wire. These rows exist so that change has something
+	// to break. Written after it, they would be worth much less.
+	//
+	// NOTHING ELSE REACHES THIS. A WP_Query loop's rows are WP_Post objects, so a post
+	// id always resolves and the branch never runs; `render-tag --loop-item` takes a
+	// post id by construction. The fixture builder's docblock carries the detail.
+	$sections[] = bws_fixture_gb_section( 'Fold F9c - MODE 2b: the flat ACF repeater row (loop fallthrough)', array(
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.1 base tag in a repeater row (-> Alice Adams / Bob Brown, one per row): {{text key:name}}', 'f9c1-base' ),
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.2 the try_ twin, which is the loop fallthrough (-> the SAME two names): {{try_text A:key(name)}}', 'f9c2-try' ),
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.3 the attempt chain still advances inside a row: slot 1 misses, slot 2 hits (-> Engineering / Operations): {{try_text A:key(nope)|B:key(role)}}', 'f9c3-advance' ),
+		// The row that proves the two arrival routes do not collide. Slot 1 names a
+		// repeater source ON THE WIRE while STANDING IN a repeater row: it is refused
+		// as a chain kind, and slot 2's ambient read still takes the fallthrough.
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): {{try_text A:src(entries,team_members);use(key);key(name)|B:key(role)}}', 'f9c4-axes' ),
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.5 a sub-field that is a relationship still hops out of the row (-> Jane Partner / empty; row 2 leaves lead_ref blank): {{try_text A:src(refs,lead_ref);use(title)}}', 'f9c5-hop' ),
 	) );
 
 	// The flat triple holds ONE ref hop AND ONE term hop, so `refs,x;terms,y` IS
