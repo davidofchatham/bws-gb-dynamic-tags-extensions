@@ -48,6 +48,13 @@ $check = function ( $label, $ok, $detail = '' ) use ( &$fail ) {
 	if ( ! $ok ) { $fail++; }
 };
 
+// The shipped converter always runs as an authenticated administrator, and WP-CLI runs as
+// nobody, so this drives migrate_post() in a different capability context unless told
+// otherwise (#99). See lib-admin-context.php for the measurement, and for why
+// replay-tags.php is deliberately excluded from the same treatment.
+require_once __DIR__ . '/lib-admin-context.php';
+bws_fixture_assume_administrator( static function ( $m ) { printf( "[INFO] %s\n", $m ); } );
+
 wp(); // real main query from --url
 
 $instance          = new stdClass();

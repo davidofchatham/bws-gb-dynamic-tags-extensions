@@ -52,6 +52,14 @@ $check = static function ( string $label, $expected, $actual ) use ( &$pass, &$f
 	WP_CLI::log( '       actual:   ' . var_export( $actual, true ) );
 };
 
+// The shipped converter always runs as an authenticated administrator, and WP-CLI runs as
+// nobody, so this drives migrate_post() in a different capability context unless told
+// otherwise (#99). It matters here for the same reason it matters everywhere else: a hook
+// gated on a capability behaves differently, and the difference is silent. See
+// lib-admin-context.php for the measurement and for why replay-tags.php is excluded.
+require_once __DIR__ . '/lib-admin-context.php';
+bws_fixture_assume_administrator( static function ( $m ) { WP_CLI::log( '  ' . $m ); } );
+
 // --url only sets $_SERVER; the main query has to be run for ambient context to be real,
 // exactly as the render-tag command does it. Without this every read returns EMPTY, which
 // is indistinguishable from a broken flag in the assertions below.

@@ -1219,6 +1219,62 @@ The editor-time preview text shown in place of an unresolved tag while configuri
 
 ---
 
+## Pattern cache reconcile
+
+Our response to the GB Pro pattern-library facts in
+[`gb-constraints.md` §GB Pro pattern library](gb-constraints.md#gb-pro-pattern-library-the-cached-copy-of-every-patterns-content).
+Owner: `\BWS\DynamicTags\Admin\PatternCache` (`includes/classes/admin/class-pattern-cache.php`),
+whose PHPDoc carries the invariants. Shipped 1.17.0 (#99).
+
+**The problem.** `TagConverter::migrate_post()` writes migrated content straight to the posts
+table, which fires no hooks, so GB Pro's cached copy of a pattern's content is never told and the
+inserter goes on serving pre-migration wire. Measured on two production clones: a full converter
+run left 30 of 31 rewritten tag strings alive in that cache. Nothing renders wrong, and the second
+scan reports nothing left to do because it reads post content only.
+
+**The response.** Rewrite **only** the cached content field, leaving preview, scripts, styles,
+categories, global style selectors and form references exactly as found. Rebuilding the entry was
+rejected on measurement (see the GB constraint table). The content field is the one whose correct
+value is known exactly and independently — it *is* the post's content — so the rewrite is
+deterministic and idempotent, which a rebuild is not.
+
+| Rule | Detail |
+|---|---|
+| **Agreement is a raw byte compare** | `$entry['pattern'] === $post->post_content`, no slash normalisation. GB Pro's stored value is byte-identical to `post_content` (see the constraint table), so `===` is exact. An escaping-only difference is a **divergence that repairs once and agrees thereafter** — normalising would declare a genuinely over-slashed entry "agreeing" and leave it permanently unrepairable while the reconcile reports zero. |
+| **Content-agnostic, not migration-triggered** | It does not gate on "a migration fired for this post in this run". That is what makes it repair as well as prevention: a post migrated by an earlier run has correct content, a stale cache, and nothing left to trigger on. |
+| **Matched by identifier, never by position** | The live shape is a one-entry list, so a positional implementation passes every ordinary case and corrupts the unexpected one. |
+| **An unrecognised shape is left alone** | Every shape the matcher does not recognise resolves to "no write". The reconcile can never make a bad cache worse. |
+| **The escaping defence is `wp_slash()` on write** | `update_post_meta()` unslashes recursively through arrays, so a read-modify-write would strip one level from every string in the entry on every pass. |
+| **Duplicate meta rows converge** | `update_post_meta()` has no previous-value constraint, so it writes every row holding the key. An accepted side effect, not a goal; de-duplication is out of scope. |
+| **No capability check inside the class** | Gated at the callers, as `TagConverter::rebuild_allowlist()` is. A self-gate fails silently under `wp_doing_cron()`, disabling the one trigger that repairs already-converted sites. |
+| **Multisite** | Current site only, inheriting the plugin's posture (no `is_multisite`/`switch_to_blog` anywhere). |
+| **Trashed and auto-draft patterns are skipped** | So "every pattern" means every one actually in the library. A trashed pattern is not offered by the inserter and cannot seed stale wire; it self-heals on the next run after restore, because the reconcile is content-agnostic. The scanner excludes the same two statuses, so the two operate on one population. |
+| **The first meta row decides** | `get_post_meta( …, true )` returns the first row, so that is what every reader of this cache gets, GB Pro's REST layer included. Where row 0 is an unrecognised shape and a later row holds a well-formed entry, the pattern is skipped whole rather than repairing a copy nobody reads. |
+
+**Triggers.** Three, all running the same reconcile: the final step of a migrate run (beside the
+existing allowlist rebuild), the on-upgrade pass in
+`bws_dynamic_tags_rebuild_allowlist_on_upgrade()`, and "Scan All Content".
+
+**Reporting.** A persisted summary in option `bws_dynamic_tags_pattern_cache_status`, shape
+`{ checked, reconciled, time, trigger, version }`, written on **every** run including zero-count
+ones — writing only on non-zero would make absence ambiguous again, which is this defect in
+miniature. Two numbers rather than one because a bare reconciled-count cannot distinguish "nothing
+needed fixing" from "nothing was checked". `trigger` and `version` are untranslated slugs, stored
+but never rendered: the upgrade trigger fires once per version change and cannot be replayed, so
+they are the only retroactive evidence that it ran. Rendered by `PatternCache::format_status()` as
+a persistent line in the Migration Tool box, and refreshed from both AJAX handlers so an
+un-reloaded page shows the run that just ran.
+
+**Scope, stated to the user.** The Migration Tool section names its boundary (post content and the
+block pattern cache; not custom field values or other plugins' caches). Enumerating those is
+deferred — [#100](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/100),
+tracker row FW-73.
+
+**Integration surface.** `bws_dynamic_tags_content_written` — see
+[`plugin-integration.md` §10](plugin-integration.md#10-reacting-to-a-direct-content-write).
+
+---
+
 ## Potential future templates
 
 These template types require their own option sets and formatting logic that `combine_text` cannot

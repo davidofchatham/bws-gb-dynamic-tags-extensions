@@ -18,6 +18,7 @@
 
 namespace BWS\DynamicTags\Admin;
 
+// PatternCache needs no import — same namespace (BWS\DynamicTags\Admin).
 use BWS\DynamicTags\MigrationRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -247,6 +248,8 @@ class TagConverter {
 	 * 4. Applies all option migrations.
 	 * 5. Writes directly to wp_posts if content changed (avoids hook side-effects and
 	 *    duplicate revision from wp_update_post).
+	 * 6. Fires bws_dynamic_tags_content_written so downstream caches over post content can
+	 *    refresh — step 5 fires no save hooks, so nothing else is told (#99).
 	 *
 	 * @since 1.6.0
 	 * @param int $post_id Post ID to migrate.
@@ -316,6 +319,36 @@ class TagConverter {
 				array( '%d' )
 			);
 			clean_post_cache( $post_id );
+
+			/**
+			 * Fires after post content is written WITHOUT firing WordPress's save hooks.
+			 *
+			 * The write above goes straight to the posts table on purpose — it avoids a
+			 * duplicate revision, a bumped modified date, and every third-party save
+			 * listener reacting to a maintenance task as though a human edited content.
+			 * The cost is that nothing downstream is told, which is how GenerateBlocks
+			 * Pro's pattern cache went stale (#99). This action publishes the FACT so a
+			 * third-party cache over post content can refresh itself.
+			 *
+			 * It names the fact, not the cause, so a future direct write elsewhere in the
+			 * plugin fires it truthfully.
+			 *
+			 * NO WP_Post IS PASSED, DELIBERATELY. The object in scope here holds
+			 * PRE-migration content — it was fetched at the top of this method, before the
+			 * rewrite — and clean_post_cache() has already run. A listener reaching for the
+			 * obvious $post->post_content would receive exactly the stale wire this action
+			 * exists to warn about. The ID plus the new string makes the fresh value the
+			 * only value available.
+			 *
+			 * This plugin's own pattern-cache repair does NOT depend on this action: the
+			 * reconcile is content-agnostic and site-wide (see PatternCache). This is
+			 * integration surface, not the mechanism.
+			 *
+			 * @since 1.17.0
+			 * @param int    $post_id Post whose content was rewritten.
+			 * @param string $content The new post content, as written.
+			 */
+			do_action( 'bws_dynamic_tags_content_written', (int) $post_id, (string) $content );
 		}
 
 		return array(
@@ -346,7 +379,21 @@ class TagConverter {
 
 		$posts = self::scan();
 		self::rebuild_allowlist_from_scan( $posts );
-		wp_send_json_success( array( 'posts' => $posts, 'total' => count( $posts ) ) );
+
+		// The manual forcing route for the pattern-cache reconcile (#99). Content-agnostic,
+		// so it repairs whether or not the scan found anything — which is the case that
+		// matters, since a site converted by an earlier run has clean content and a stale
+		// cache and is therefore invisible to scan().
+		$pattern_cache = PatternCache::reconcile_site( 'scan' );
+
+		wp_send_json_success(
+			array(
+				'posts'             => $posts,
+				'total'             => count( $posts ),
+				'patternCache'      => $pattern_cache,
+				'patternCacheLine'  => PatternCache::format_status( PatternCache::get_status() ),
+			)
+		);
 	}
 
 	/**
@@ -400,14 +447,23 @@ class TagConverter {
 		// per batch — the rebuild scans all content and would otherwise repeat per
 		// batch. Absent is_final (older cached JS), fall back to rebuilding so the
 		// allowlist never goes stale.
-		$is_final = ! isset( $_POST['is_final'] ) || '1' === $_POST['is_final'];
+		$is_final      = ! isset( $_POST['is_final'] ) || '1' === $_POST['is_final'];
+		$pattern_cache = null;
 		if ( $is_final ) {
 			self::rebuild_allowlist();
+
+			// Same "once at the end of a run" rhythm as the allowlist rebuild. It is
+			// site-wide rather than limited to the posts in this batch, deliberately: the
+			// reconcile is content-agnostic, so a pattern nobody migrated today still gets
+			// repaired (#99).
+			$pattern_cache = PatternCache::reconcile_site( 'migrate' );
 		}
 
 		wp_send_json_success( array(
-			'results'   => $results,
-			'processed' => count( $results ),
+			'results'          => $results,
+			'processed'        => count( $results ),
+			'patternCache'     => $pattern_cache,
+			'patternCacheLine' => $is_final ? PatternCache::format_status( PatternCache::get_status() ) : '',
 		) );
 	}
 

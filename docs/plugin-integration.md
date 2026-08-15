@@ -738,3 +738,40 @@ After conversion, the retired flat controls (`ref`, `srcTermIn`, the legacy `sou
 | `prefix_removed` | bool | `false` | `true` once you stop registering the family — files the entries under **Removed Tags** instead of **Deprecated Tags**. |
 
 Returns the modifier tag names entries were generated for, in template order.
+
+---
+
+## 10. Reacting to a direct content write
+
+The Tag Converter writes migrated content **straight to the posts table**, deliberately: that
+avoids a duplicate revision, a bumped modified date, and every third-party save listener reacting
+to a maintenance task as though a human edited content. The cost is that nothing downstream is
+told. If you keep a cache derived from `post_content`, this action is how you hear about it.
+
+```php
+add_action( 'bws_dynamic_tags_content_written', function ( $post_id, $content ) {
+	my_plugin_refresh_cache_for( $post_id, $content );
+}, 10, 2 );
+```
+
+| Arg | Type | Meaning |
+|---|---|---|
+| `$post_id` | `int` | Post whose content was rewritten. |
+| `$content` | `string` | The new content, exactly as written. |
+
+**Use the `$content` you are handed — do not re-read the post and do not expect a `WP_Post`.** No
+post object is passed on purpose. At the point this fires, the object the converter holds carries
+*pre-migration* content (it was read before the rewrite), and `clean_post_cache()` has already run.
+A listener reaching for the obvious `$post->post_content` would get exactly the stale wire the
+action exists to warn about. The ID plus the new string makes the fresh value the only value
+available.
+
+**It names the fact, not the cause.** Any future direct write elsewhere in the plugin fires it
+truthfully; it is not "the converter migrated something".
+
+**No save hooks fired.** That is the whole reason for the announcement. Do not assume
+`save_post`, `wp_after_insert_post` or anything else ran for this write.
+
+**It is an announcement, not a facility.** The plugin does not enumerate or drive anyone's cache,
+and its own pattern-cache repair does not depend on this action firing — that reconcile is
+content-agnostic and site-wide (see [`tag-reference.md` §Pattern cache reconcile](tag-reference.md#pattern-cache-reconcile)).

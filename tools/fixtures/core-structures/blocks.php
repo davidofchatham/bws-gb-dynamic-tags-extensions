@@ -943,9 +943,50 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_content'       => 'bws_fixture_page_content_matrix_content',
 		'staff_join'           => 'bws_fixture_page_content_staff_join',
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
+		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';
 	}
 	return call_user_func( $map[ $builder ] );
+}
+
+/**
+ * Block pattern content for the GB Pro pattern-cache fixture (#99).
+ *
+ * Carries a MIGRATABLE tag (`post_custom_datetime_single` is a pre-1.6 tag name, so its era
+ * is established by construction and the converter always rewrites it) — without one, the
+ * fixture cannot be made to diverge and the reconcile has nothing to repair.
+ *
+ * IT ALSO CARRIES LITERAL BACKSLASHES, in two places, and that is the point of the shape
+ * rather than decoration. The escaping hazard this fixture exists to pin lives in the meta
+ * layer: update_post_meta() calls wp_unslash(), which strips slashes RECURSIVELY through
+ * arrays, so a read-modify-write that does not slash the whole structure back strips one
+ * level from every string in the entry on every pass. A corpus with no backslash in it
+ * survives that bug intact and the assertion passes while testing nothing.
+ *
+ *   - the block-comment JSON (`metadata.name` holds an escaped quote) — damages the
+ *     `pattern` field, which is what the reconcile writes;
+ *   - the rendered code block (a regex, i.e. the ordinary reason real pattern content holds
+ *     backslashes) — damages `preview`, which the reconcile must leave alone.
+ *
+ * verify-pattern-cache.php asserts the backslashes are actually present before relying on
+ * them, so a later edit that flattens this string fails loudly instead of going quiet.
+ *
+ * NOWDOC, not heredoc: every backslash here is literal wire, and PHP interpolation would
+ * silently consume some of them.
+ *
+ * @since 1.17.0
+ * @return string
+ */
+function bws_fixture_pattern_content_legacy_wire() {
+	return <<<'HTML'
+<!-- wp:paragraph {"metadata":{"name":"He said \"hello\""}} -->
+<p>Pattern-cache fixture (#99). Pre-migration wire: {{post_custom_datetime_single date_time_field:event_midnight}}</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>preg_match( '/^\d+\s\w+/', $subject )</code></pre>
+<!-- /wp:code -->
+HTML;
 }

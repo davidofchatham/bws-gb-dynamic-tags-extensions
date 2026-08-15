@@ -931,7 +931,13 @@ function my_result( $post_id, $arg = '' ) {
 				<div class="bws-tag-group bws-migration-tool" id="bws-migration-tool">
 					<h2 class="bws-section-header"><?php esc_html_e( 'Migration Tool', 'generateblocks' ); ?></h2>
 					<p class="description bws-section-desc">
-						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it.', 'generateblocks' ); ?>
+						<?php esc_html_e( 'Scan all post content for deprecated tags and option issues, then migrate per post or in bulk. A revision is created before each migration when the post type supports it. Block pattern caches are reconciled on every scan and migration, so the pattern library stops handing out pre-migration tags.', 'generateblocks' ); ?>
+					</p>
+					<?php /* US 26 — DISCLOSURE, not enumeration. A reported count with no stated
+					        boundary reads as a completeness claim it cannot back; an inventory
+					        answers a different question ("so I can go fix them"), deferred to #100. */ ?>
+					<p class="description bws-section-desc">
+						<?php esc_html_e( 'Covers post content and the block pattern cache. Tag strings stored elsewhere, such as in custom field values or another plugin\'s cache, are not reached by this tool.', 'generateblocks' ); ?>
 					</p>
 
 					<div class="bws-scan-controls">
@@ -940,6 +946,14 @@ function my_result( $post_id, $arg = '' ) {
 						</button>
 						<span id="bws-scan-status" class="bws-scan-status" aria-live="polite"></span>
 					</div>
+
+					<?php /* The pattern-cache result, PERSISTED rather than a transient status
+					        line: the on-upgrade trigger has no interface at all and is the one
+					        actually repairing already-converted sites. The element is rendered
+					        even when empty so the AJAX handlers can fill it without a reload. */ ?>
+					<p class="description bws-pattern-cache-status" id="bws-pattern-cache-status" aria-live="polite">
+						<?php echo esc_html( PatternCache::format_status( PatternCache::get_status() ) ); ?>
+					</p>
 
 					<div id="bws-scan-results" style="display:none;">
 						<div class="bws-results-toolbar">

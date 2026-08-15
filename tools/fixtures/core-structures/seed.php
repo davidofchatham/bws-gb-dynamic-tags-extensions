@@ -32,6 +32,16 @@ $log      = function ( $msg ) {
 };
 
 // ---------------------------------------------------------------------------
+// 0. Administrator context (#99).
+// ---------------------------------------------------------------------------
+// Capability-gated listeners (GB Pro's pattern cache among them) do not fire without one,
+// so a capability-less seed produces fixture state that silently differs from the shipped
+// path. Rationale, measurements and the deliberate exclusion of replay-tags.php all live in
+// the helper, beside the rule, rather than in three copies here.
+require_once __DIR__ . '/lib-admin-context.php';
+bws_fixture_assume_administrator( $log );
+
+// ---------------------------------------------------------------------------
 // 1. Mu-plugin loader stub (path computed at seed time, not committed).
 // ---------------------------------------------------------------------------
 $mu_dir = defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
@@ -355,6 +365,67 @@ if ( isset( $post_ids['post-sample-event'] ) ) {
 		wp_set_object_terms( $post_ids['post-sample-event'], array( 'all-users' ), 'portal_visibility' );
 	}
 	$log( 'sample-event date-archive visibility ensured (no category, all-users)' );
+}
+
+// ---------------------------------------------------------------------------
+// 4b. Block patterns (wp_block) — the GB Pro pattern-cache fixture (#99).
+// ---------------------------------------------------------------------------
+// Seeded through wp_insert_post/wp_update_post ON PURPOSE, so GenerateBlocks Pro's
+// after_save listener fires and builds a REAL cache entry. A hand-written entry was
+// considered and rejected: it would encode our belief about GB Pro's array shape (add a
+// field on their side and the fixture never carries it, the read-modify-write mangles or
+// drops it, and nothing notices), and it would make the integration seam's headline
+// assertion near-vacuous — "every non-content field byte-identical" only bites when those
+// fields hold real bytes. A stub preview survives a slash-stripping bug that a real
+// multi-kilobyte escaped preview exposes instantly.
+//
+// CONTENT MUST BE SLASHED GOING IN. wp_insert_post() expects slashed data and unslashes it
+// internally, so the literal backslashes this fixture carries deliberately (see
+// bws_fixture_pattern_content_legacy_wire()) would be eaten on the way to the database.
+// The assertion below catches that directly rather than trusting the convention.
+//
+// Skips cleanly when the pattern post type is unavailable.
+$pattern_ids = array();
+if ( ! empty( $manifest['patterns'] ) && post_type_exists( 'wp_block' ) ) {
+	foreach ( $manifest['patterns'] as $slug => $def ) {
+		$content  = bws_fixture_build_page_content( $def['content_builder'] );
+		$existing = get_posts(
+			array(
+				'name'        => $def['post_name'],
+				'post_type'   => 'wp_block',
+				'post_status' => 'any',
+				'numberposts' => 1,
+			)
+		);
+		$args = array(
+			'post_type'    => 'wp_block',
+			'post_name'    => $def['post_name'],
+			'post_title'   => $def['post_title'],
+			'post_status'  => 'publish',
+			'post_content' => wp_slash( $content ),
+		);
+		if ( $existing ) {
+			$args['ID']            = $existing[0]->ID;
+			$pattern_ids[ $slug ]  = (int) wp_update_post( $args );
+		} else {
+			$pattern_ids[ $slug ] = (int) wp_insert_post( $args );
+		}
+
+		$stored = get_post( $pattern_ids[ $slug ] );
+		if ( ! $stored || $stored->post_content !== $content ) {
+			$log( 'WARNING: pattern ' . $slug . ' did not round-trip byte-identically (slashing?)' );
+		}
+
+		$tree = get_post_meta( $pattern_ids[ $slug ], 'generateblocks_patterns_tree', true );
+		if ( empty( $tree ) ) {
+			// Either GB Pro is inactive (fine — the fixture is inert) or the administrator
+			// context above did not land (not fine, and silent otherwise).
+			$log( 'note: pattern ' . $slug . ' has no GB Pro cache entry (GB Pro inactive, or no edit_post capability)' );
+		}
+	}
+	$log( 'patterns: ' . count( $pattern_ids ) . ' upserted' );
+} elseif ( ! empty( $manifest['patterns'] ) ) {
+	$log( 'patterns: SKIPPED — wp_block post type not registered' );
 }
 
 // ---------------------------------------------------------------------------

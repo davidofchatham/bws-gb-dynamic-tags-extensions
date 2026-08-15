@@ -204,7 +204,15 @@ function bws_dynamic_tags_register_cli() {
  * mid-rebuild retries next time instead of silently skipping the allowlist for the
  * rest of that version's life.
  *
+ * ALSO RECONCILES THE GENERATEBLOCKS PRO PATTERN CACHE (#99), and this is the trigger that
+ * matters most: a site converted by an EARLIER run has correct post content and a stale
+ * cache, so there is no migration left for it to trigger on and scan() — which reads post
+ * content only — cannot see it. This pass reaches it without anyone visiting a settings
+ * screen. The admin/cron/CLI gate above is also what stands in for a capability check;
+ * PatternCache deliberately carries none of its own (see its class docblock).
+ *
  * @since 1.14.0
+ * @since 1.17.0 Pattern-cache reconcile (#99).
  */
 function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
 	$is_cli = defined( 'WP_CLI' ) && WP_CLI;
@@ -212,6 +220,7 @@ function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
 		return;
 	}
 	\BWS\DynamicTags\Admin\TagConverter::rebuild_allowlist();
+	\BWS\DynamicTags\Admin\PatternCache::reconcile_site( 'upgrade' );
 	update_option( 'bws_dynamic_tags_installed_version', BWS_DYNAMIC_TAGS_VERSION );
 }
 

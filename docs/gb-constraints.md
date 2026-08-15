@@ -492,3 +492,21 @@ syntax can never ride the wire (`{{join 1:{{text …}}}}` is unparseable by cons
 ### Type values
 
 Upstream lists `'post'`, `'author'`, `'user'`, `'term'`, `'media'`. We additionally use the **custom values** `'cross-source'` and `'first-available'` (not in upstream docs) — see [§Custom Tag Types](#custom-tag-types) and [`tag-reference.md`](tag-reference.md#modifier-prefixes).
+
+## GB Pro pattern library: the cached copy of every pattern's content
+
+Pure GB Pro facts. This plugin's response to them lives in
+[`tag-reference.md` §Pattern cache reconcile](tag-reference.md#pattern-cache-reconcile).
+
+Source: `generateblocks-pro/includes/pattern-library/class-pattern-library.php`, verified
+against 2.7.0-beta.1 and measured on two production clones plus the testbed (2026-08-14).
+
+| Fact | Detail |
+|---|---|
+| **Where it lives** | Post meta `generateblocks_patterns_tree` on each `wp_block` post. A list of entries; each entry is `id` (`pattern-<post_id>`), `label`, `pattern` (the content), `preview`, `scripts`, `styles`, `categories`, `globalStyleSelectors`, `formRefs`. |
+| **When it is written** | `after_save()` on `wp_after_insert_post` priority 30, via `build_tree()`. Save time ONLY. |
+| **It is NEVER rebuilt on read** | The pattern library's REST layer reads the meta and **drops** patterns that have no entry rather than regenerating one. A pattern with no entry disappears from the inserter. |
+| **The listener is capability-gated** | `after_save()` bails on `! current_user_can( 'edit_post', $post_id )`. Measured: creating a `wp_block` with no current user (plain WP-CLI) produces **no meta row at all**; the same insert under `--user=1` produces a full entry. Any instrument or fixture that seeds patterns must therefore set an administrator, or it seeds nothing. |
+| **Only the content field is slashed on write** | `build_tree()` stores `'pattern' => wp_slash( $post_content )` and every other field raw, then `update_post_meta()` unslashes the whole structure recursively. Two consequences: the **stored** `pattern` is byte-identical to `post_content` (so a raw `===` is the exact comparison, not an approximation), and every **other** field is stored already-unslashed and can never carry a backslash. A fixture rendering `/^\d+\s\w+/` has `/^d+sw+/` in its stored preview. |
+| **A rebuild is not neutral** | `preview` is rendered at build time and depends on request context. Comparing a freshly built entry against the stored one across every pattern: 9 of 37 differed on one clone, 11 of 16 on the other; one query-loop pattern's preview fell from 8266 to 1232 bytes. `scripts`/`styles` are derived by string-matching that preview, so a degraded preview silently empties them (three patterns on one clone lost their one script and one style). Stored entries come from real editor saves, so they are the good ones. |
+| **The content field is load-bearing beyond insertion** | The REST layer re-parses `pattern` to recover `formRefs` on entries written before that field existed, which is most of them on both clones. |

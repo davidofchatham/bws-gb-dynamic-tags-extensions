@@ -35,6 +35,27 @@
 			.replace( /"/g, '&quot;' );
 	}
 
+	/**
+	 * Refresh the persisted pattern-cache line from an AJAX response (#99).
+	 *
+	 * The line is PHP-rendered at page load and goes stale the moment a scan or a migrate
+	 * reconciles, because neither reloads the page. Both handlers return the freshly
+	 * formatted line so the number on screen is the number from the run that just ran.
+	 *
+	 * PHP owns the wording; this only places it. Formatting it here would put a second copy
+	 * of the three-branch rule in a second language, which is the drift the shared formatter
+	 * exists to prevent.
+	 */
+	function setPatternCacheLine( data ) {
+		if ( ! patternCacheEl || ! data || typeof data.patternCacheLine !== 'string' ) {
+			return;
+		}
+		if ( data.patternCacheLine === '' ) {
+			return;
+		}
+		patternCacheEl.textContent = data.patternCacheLine;
+	}
+
 	function post( action, data, onSuccess, onError ) {
 		var body = new FormData();
 		body.append( 'action', action );
@@ -61,6 +82,7 @@
 
 	var scanBtn    = document.getElementById( 'bws-scan-btn' );
 	var scanStatus = document.getElementById( 'bws-scan-status' );
+	var patternCacheEl = document.getElementById( 'bws-pattern-cache-status' );
 	var resultsWrap = document.getElementById( 'bws-scan-results' );
 	var tbody       = document.getElementById( 'bws-results-tbody' );
 	var selectAllCb = document.getElementById( 'bws-select-all' );
@@ -81,6 +103,14 @@
 				function ( data ) {
 					scanBtn.disabled = false;
 					scanResults = data.posts || [];
+
+					// BEFORE the zero-result return, not after it (#99). A scan also
+					// reconciles the pattern cache, and that reconcile is content-agnostic:
+					// a run can repair five patterns while finding zero posts, which is
+					// precisely the already-converted site this repair exists for. Leaving
+					// this below the return printed "No deprecated tags found." and stopped,
+					// so the one run that did real work reported none of it.
+					setPatternCacheLine( data );
 
 					if ( scanResults.length === 0 ) {
 						scanStatus.textContent = i18n.noIssues || 'No issues found.';
@@ -268,6 +298,8 @@
 						scanStatus.textContent = i18n.bulkDone
 							? i18n.bulkDone.replace( '%d', processed )
 							: processed + ' posts processed.';
+						// Only the final batch reconciles, so only it carries a line.
+						setPatternCacheLine( data );
 					}
 				},
 				function ( err ) {

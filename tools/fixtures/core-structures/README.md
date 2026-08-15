@@ -50,11 +50,22 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
 | `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
 | `verify-datetime-migration.php` | The pre-1.6 datetime migration end to end (#90) — report, run, and whether the injected flags move the RENDERED axes. Self-cleaning: it converts its own throwaway draft, so no reseed. |
+| `verify-pattern-cache.php` | The GB Pro pattern-cache reconcile end to end (#99) — the defect reproduced, the repair, idempotence, duplicate-row convergence, and the escaping round trip through real meta storage. Self-cleaning: its destructive work happens on throwaway `wp_block` posts, so no reseed. |
+| `lib-admin-context.php` | `bws_fixture_assume_administrator()` — sets an administrator when the CLI has no current user. Required by `seed.php` and the three verify scripts that drive converter code. Carries the measurement and the rationale, including why `tools/replay-tags.php` is deliberately excluded. |
 
 ## Seeding
 
 Prereqs: a dedicated test site with GenerateBlocks (Pro) + ACF Pro active
 (licensed baseline saved via the env's snapshot tool). From the wp-litespeed env:
+
+> **Seeding runs as an ADMINISTRATOR, and that is load-bearing (#99).** `seed.php` calls
+> `bws_fixture_assume_administrator()` before anything else, because WP-CLI runs with no
+> current user and capability-gated listeners then do not fire. Concretely: GB Pro's pattern
+> cache bails on `! current_user_can( 'edit_post' )`, so a capability-less seed creates the
+> `wp_block` fixture with **no cache entry at all** and `verify-pattern-cache.php` fails in a
+> way that reads like a code regression. Perturbation was measured before adopting this —
+> identical row counts, byte-identical `wp_postmeta` MD5, `verify.php` clean. You do not need
+> to pass `--user`; the helper finds one. Passing one explicitly is respected.
 
 ```bash
 bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/seed.php
@@ -92,6 +103,23 @@ pre-1.6 datetime renderers were deleted in the 1.6 consolidation, so the legacy 
 nothing left to render with. That half of the property lives in
 `tools/test/datetime-migration-test.php`, which mirrors the deleted read.
 
+### Pattern cache (#99)
+
+```bash
+bin/wp.sh <site> eval-file <mounted-repo-path>/tools/fixtures/core-structures/verify-pattern-cache.php
+```
+
+No `--url` is needed: nothing here renders a tag, so there is no ambient context to be wrong
+about. The reconcile is deliberately context-free, which is the property that made it
+preferable to rebuilding the cache entry.
+
+It needs GenerateBlocks **Pro** active and refuses to run without it, rather than reporting
+vacuous passes. Its destructive work happens on throwaway `wp_block` posts it creates and
+deletes, so the seeded `bws-fixture-legacy-wire` pattern keeps its pre-migration wire and no
+reseed is needed. That seeded pattern is browsable in the block editor's pattern inserter and
+editable at **Appearance → Patterns**: inserting it before a reconcile is the defect demo,
+since it seeds pre-migration wire into fresh content.
+
 > **Cache-busting from `docker exec sh -c` needs a LITERAL token.** The env's usual
 > `?nocache=$RANDOM` expands in bash; the container's `sh` leaves it EMPTY, so the URL is
 > constant and LiteSpeed serves the pre-conversion page. That reads as "the migration
@@ -122,6 +150,10 @@ so the schema survives snapshot restores.
 - External-source corpus (#85): staff `fixture-root` (the `fixture` root's target) +
   staff `fixture-ref` (its relationship target, the only staff single with a department
   term) + page `matrix-fixture-roots` (the FR rows). See §External-source contract.
+- Block pattern (`wp_block`) `bws-fixture-legacy-wire` (#99) — carries a pre-1.6 tag name so
+  the converter always rewrites it, plus literal backslashes in both the block-comment JSON
+  and a rendered code block so the meta layer's recursive unslash has something to damage.
+  Browsable with no `blocks.php` row by construction.
 - Options page **Site Settings** with `organization_*` fields.
 - Fixture user `fixture-author` (display name + bio) authoring `sample-event`
   → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
