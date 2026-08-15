@@ -132,6 +132,77 @@ check( 'tax hop, current named',   bws_try_preview_source_part( 'current', '', '
 check( 'unknown tax → raw slug',   bws_try_preview_source_part( 'ref', 'r', '__unknown__', false ),           "Ref 'r' → __unknown__ Term" );
 
 // ---------------------------------------------------------------------------
+// The SHARED namer all three previews read (#102). The cases above run through it by the
+// flat-triple door; these state the PARAMETERS directly, because that is where a container
+// that wants different text has to express the difference. A call site that grew its own
+// literal instead is exactly what this section is here to make fail.
+echo "\nsource_segments — the one namer: per-container switches + missing report\n";
+$chain_ref  = bws_fold_chain_from_options( [ 'src' => 'ref', 'ref' => 'rel' ] );
+$chain_term = bws_fold_chain_from_options( [ 'srcTermIn' => 'event_category' ] );
+$chain_site = bws_fold_chain_from_options( [ 'src' => 'site' ] );
+
+check(
+	'segments are ordered, not joined',
+	implode( '|', bws_preview_source_segments( $chain_ref ) ),
+	"Ref 'rel'"
+);
+// The arrow means "hopped FROM"; a term step that opens the whole label has nothing to
+// point back at, and a caller whose own segment precedes says so with `lead`.
+check(
+	'term step alone → no arrow',
+	implode( ' ', bws_preview_source_segments( $chain_term ) ),
+	'Event Category Term'
+);
+check(
+	'term step behind a caller segment → arrow',
+	implode( ' ', bws_preview_source_segments( $chain_term, [ 'lead' => true ] ) ),
+	'→ Event Category Term'
+);
+// `site`/`terms` off: a rooting modifier short-circuits a site root to its own warning, and
+// a term_* tag builds its taxonomy segment from GB's native `tax` instead.
+check( 'site root named',        implode( ' ', bws_preview_source_segments( $chain_site ) ),                    'Site' );
+check( 'site off → no segment',  implode( ' ', bws_preview_source_segments( $chain_site, [ 'site' => false ] ) ), '' );
+check( 'terms off → no segment', implode( ' ', bws_preview_source_segments( $chain_term, [ 'terms' => false ] ) ), '' );
+// (`roots` is exercised against the real registry in the #83 section below, where one is
+// bootstrapped.)
+// An argless fanning step is REPORTED, never rendered: the engine answers empty for it, so
+// the chain short-circuits. The words are the caller's ('No ref key set' / 'slot 2 no ref'),
+// so the namer reports the SLUG.
+$missing = [];
+check(
+	'argless refs → reported, not rendered',
+	implode( ' ', bws_preview_source_segments( bws_fold_chain_from_options( [ 'src' => 'ref' ] ), [], $missing ) ),
+	''
+);
+check( '…and the slug is the report', implode( ',', array_keys( $missing ) ), 'refs' );
+$missing = [];
+bws_preview_source_segments( bws_fold_parse_chain( 'refs;terms' ), [], $missing );
+check( 'both fanning steps report', implode( ',', array_keys( $missing ) ), 'refs,terms' );
+// A step the caller silenced reports nothing either — a term_* tag must not warn about a
+// taxonomy it was never going to name.
+$missing = [];
+bws_preview_source_segments( bws_fold_parse_chain( 'refs;terms' ), [ 'terms' => false ], $missing );
+check( 'silenced step does not report', implode( ',', array_keys( $missing ) ), 'refs' );
+// The ambient entity is named from the TOKEN that spells it, never from a merely absent
+// root: a chain LEADING with a step has no root token either, and naming that would anchor
+// the hop it makes. This is the one shape the flat door could not produce and chain wire can.
+check(
+	'a chain leading with a step is not anchored to Current',
+	implode( ' ', bws_preview_source_segments( bws_fold_parse_chain( 'refs,rel' ), [ 'named_current' => true ] ) ),
+	"Ref 'rel'"
+);
+// The ONE slot shape that reads differently for the convergence, pinned so it is a recorded
+// decision rather than a silent drift: `src:site` WITH a `srcTermIn` used to preview a term
+// hop and now previews no source at all. The site read wins in the arms and the term step is
+// dropped, so the old text described a hop that has never happened. Hand-edit-only wire
+// (`srcTermIn` registers `show_if src: not:site`).
+check(
+	'slot src:site + srcTermIn → no source segment (matches what renders)',
+	bws_try_preview_source_part( 'site', '', 'event_category', true ),
+	''
+);
+
+// ---------------------------------------------------------------------------
 echo "\nwrap_link — annotation injection + <a> wrap, gated on linkTo\n";
 check( 'empty in → empty out',  bws_wrap_preview_label_with_link( '', [ 'linkTo' => 'permalink' ] ), '' );
 check( 'linkTo none → no wrap', bws_wrap_preview_label_with_link( '[Title]', [ 'linkTo' => 'none' ] ), '[Title]' );
@@ -294,6 +365,28 @@ check(
 	'text rooted at a registered source → named by its REGISTERED LABEL, not its token',
 	bws_build_preview_label( [ 'src' => 'testroot', 'use' => 'key', 'key' => 'sku' ], 'text' ),
 	"['sku' from Test Root]"
+);
+// The `roots` switch on the shared namer (#102): a SLOT turns it off, because a slot's
+// source cannot be a registered root yet (FW-71) and naming one would print a segment for
+// wire no slot can hold. Asserted here rather than beside the other switches because it is
+// the only one that needs a registry.
+check(
+	'roots on → the registered label is a segment',
+	implode( ' ', bws_preview_source_segments( bws_fold_chain_from_options( [ 'src' => 'testroot' ] ) ) ),
+	'Test Root'
+);
+check(
+	'roots off → no segment (the slot walks\' setting)',
+	implode( ' ', bws_preview_source_segments( bws_fold_chain_from_options( [ 'src' => 'testroot' ] ), [ 'roots' => false ] ) ),
+	''
+);
+// …and the flat-triple door the slot walks actually call is what sets it, so a slot rooted
+// at a registered source stays silent rather than growing a segment its container cannot
+// resolve.
+check(
+	'…and the slot door sets it that way',
+	bws_try_preview_source_part( 'testroot', '', '', true ),
+	''
 );
 // A rooted CHAIN names the root and then its steps, in wire order.
 check(

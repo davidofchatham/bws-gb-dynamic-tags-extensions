@@ -65,6 +65,35 @@ consequences:
   nothing (the engine short-circuits), so it reports `⚠ No taxonomy set` — the same answer its
   flat sibling gives.
 
+**One namer builds these segments for all three previews** (1.17.0, [#102]).
+`bws_preview_source_segments()` takes the chain and returns the ordered segments; the base
+builder, the join slot walk and the try_ slot walk all read it (the slot walks through
+`bws_try_preview_source_part()`, the flat-triple door onto it, which goes when the slot seam
+hands over chain wire — FW-71). A source is one concept, so a vocabulary change lands in one
+place rather than reaching the three previews at three different times.
+
+**A container wanting different text takes a PARAMETER, never its own literal** — the
+`$allow_same` precedent on the slot read builder. Five switches, each a real difference above
+rather than a preference:
+
+| Switch | Off for | Why |
+|---|---|---|
+| `named_current` | base tags (on for slots) | A slot's source appears in a LIST and needs a visible anchor (`Current, Ref 'rel'`); a base tag's bare source is exactly what "no `from` clause" means |
+| `lead` | a source with nothing before it | The `→` means *hopped from*, so a term step that opens the whole label has nothing to point back at and drops the arrow. A modifier segment preceding it turns it on |
+| `roots` | slots | A slot's source cannot BE a registered root yet (FW-71), so naming one would print a segment for wire no slot can hold |
+| `site` | rooting modifiers, slots | On a modifier a site root is already the invalid-combo warning; on a `try_email` site slot the site read IS the whole slot, so the segment is noise |
+| `terms` | `term_*` modifiers | A modifier reads GB's native `tax` (the term's OWN taxonomy — descriptive, not a hop) and builds that segment itself |
+
+A **missing** step argument is REPORTED, not rendered: the namer hands back the step's slug and
+each caller words it (`⚠ No ref key set` on a base tag, `slot 2 no ref` in a slot).
+
+**One slot shape reads differently for the convergence**, deliberately: a slot with `src:site`
+AND a `srcTermIn` previewed `→ <Tax> Term` before 1.17.0 and previews no source segment now.
+Reading through the shared chain means the preview inherits what the render arms do with that
+pair — the site read wins and the term step is dropped — so the old text described a hop that
+has never happened. The pair is hand-edit-only (`srcTermIn` registers `show_if src: not:site`),
+and a preview that disagrees with what renders is worth less than no segment at all.
+
 ## Field part
 
 Template-specific. Missing required input triggers a warning instead of the field part.
