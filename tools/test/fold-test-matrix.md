@@ -532,30 +532,52 @@ seeded `team_members` repeater.
 > is unaffected (`opcache.enable_cli = Off`), which is why the `render-tag` sweeps in §F9b needed no
 > such handling.
 
-## §F10 — a slot the flat seam cannot express SKIPS
+## §F10 — a multi-step slot source RESOLVES (#104, FW-71)
 
-The flat triple holds ONE ref hop and ONE term hop, so `refs,x;terms,y` **is** expressible.
-Inexpressible means a SECOND hop on the same axis, or an `entries` step. Join's `hops` capability
-list offers the term hop only, so all of these are hand-edit-only shapes. The honest answer to a
-hand-edit the seam cannot flatten is to render nothing rather than resolve the expressible PREFIX,
-which would read a different source than the wire states.
+**INVERTED at 1.17.0, and this section is the acceptance signal.** It used to read "a slot the flat
+seam cannot express SKIPS": a slot's chain was re-spelled as a flat `src`/`ref`/`srcTermIn` triple
+before any container arm saw it, the triple held ONE relationship step and ONE term step, and
+anything else rendered nothing rather than resolve a truncated prefix. The seam hands the whole
+chain on as depth-0 chain wire now, so a slot's source is a base tag's source
+([`CONTEXT.md` I16](../../CONTEXT.md)) and there is nothing left to refuse.
 
-| # | Tag | Expected |
-|---|---|---|
-| F10.1 | `{{join A:src(refs,related_staff;refs,related_staff);use(title)\|B:key(role)}}` | `Captain` — slot 1 skipped (second ref hop), slot 2 renders |
-| F10.2 | `{{join A:src(entries,team_members);use(key);key(name)\|B:key(role)}}` | `Captain` — slot 1 skipped (`entries` is not flattenable) |
-| F10.3 | `{{join A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | `Captain` — the NEGATIVE CONTROL. This chain is expressible, resolves, and finds nothing (jane carries no department terms). Identical output, different mechanism |
+**Run each pair.** The base-tag column is not decoration — it IS the property: identical wire in a
+slot and on a base tag must render identically, and a row that only asserts the slot side cannot
+tell "resolved correctly" from "resolved plausibly".
 
-> **A skip is INDISTINGUISHABLE from an empty read on the front end**, which F10.3 makes concrete:
-> all three rows print `Captain`. Render output therefore cannot be the evidence for a skip — the
-> pure harness (`slot-fold-test.php` §P13.5) pins the mechanism, and the EDITOR PREVIEW is the
-> author-facing signal: an inexpressible chain shows `[⚠ Join: slot N source not supported]`
-> (§F14.9), while an expressible chain that happens to resolve empty previews normally. That
-> asymmetry is why the flag exists; before 1.17.0 the preview silently omitted the slot and read as
-> if the tag had one slot fewer than the author configured.
+| # | Slot tag | Base twin | Expected |
+|---|---|---|---|
+| F10.1 | `{{join A:src(refs,related_staff;terms,portal_visibility);use(title)}}` | `{{text src:refs,related_staff;terms,portal_visibility\|use:title}}` | `All Users, All Users` — two hops, both taken. Pre-1.17.0 the slot printed nothing (skipped); `department` will NOT do here, since jane and tom carry none and the row would be empty either way |
+| F10.2 | `{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)\|B:key(role)}}` | as F10.1 | `All Users, All Users` — the selecting container, same chain. Slot 2 must NOT run: slot 1 resolved |
+| F10.3 | `{{join A:src(refs,related_staff;refs,related_staff);use(title)\|B:key(role)}}` | — | slot 1 resolves and finds nothing (staff carry no `related_staff` of their own), so `Captain`. The MECHANISM changed and the output did not: `slot-fold-test.php` §P13.5 is what says the chain was run rather than refused |
+| F10.4 | `{{join A:src(entries,team_members);use(key);key(name)\|B:key(role)}}` | `{{text src:entries,team_members\|use:key\|key:name}}` | `Captain` / empty. `entries` still returns nothing on both, and deliberately: no base-tag or `try_`/join arm assembles a repeater row (§F9.5). The refusal MOVED out of the flattening and into the container that consumes the kind (`try-slot-arms.php`), which is why it survived the inversion |
+| F10.5 | `{{join A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | — | `Captain` — the row that was the negative control and is now just a row. Expressible before, resolved before, empty because jane and tom carry no department terms |
+
+> **A SKIP IS STILL INDISTINGUISHABLE FROM AN EMPTY READ on the front end**, which is why F10.3/F10.4
+> print the same thing they printed when they were skips. Rendered output was never the evidence for
+> the inversion — `slot-fold-test.php` §P13.5 (mechanism) and the editor preview (author-facing) are.
+> The four `[⚠ Join: slot N source not supported]` flags §F14.9 asserted are GONE with the refusal
+> that produced them; the other four skip reasons still speak, each in its own words.
 >
-> A first draft of this matrix claimed F10.3 as the skip case. It was a vacuous row — empty for the
-> other reason — and the preview harness is what caught it.
+> A first draft of the old section claimed F10.5 as the skip case. It was vacuous — empty for the
+> other reason — and the preview harness is what caught it. The same trap is live here: F10.1 needs
+> `portal_visibility` and not `department`.
+
+### §F9d — per-step bounds now reach the ENGINE (a stated behaviour change)
+
+A slot's per-step `limit` used to be collapsed into the ONE number the flat triple could hold: every
+hop ran unbounded and the finished items were sliced at the end. The bound rides the wire now, so the
+engine bounds each hop, exactly as it does for the identically-spelled base tag.
+
+Reachable ONLY where a slot fans TWICE — `refs` + `terms`, the one two-fanning-step shape the flat
+triple could express — and `bws_fold_from_flat()` materializes `1` on every earlier fanning step, so
+a legacy `limit:N` beside a compound source is the shape that moves.
+
+| # | Tag | Was → is |
+|---|---|---|
+| F9d.1 | `{{join src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title\|limit:2}}` | terms of ALL related staff, first 2 → terms of the FIRST related staff member, first 2. Identical wherever the first target supplies enough; the two differ only when it does not |
+| F9d.2 | `{{join A:src(refs,related_staff,limit[1];terms,portal_visibility,limit[2]);use(title)}}` | the migrated twin of F9d.1, and the wire that says what now happens. It read the same as F9d.1 before, because the flatten kept only the LAST step's number |
+| F9d.3 | `{{join src:ref\|ref:related_staff\|use:title\|limit:0}}` | unchanged — ONE fanning step, so per-hop and total coincide. This is the compatibility floor and covers every shape in the surveyed corpus, which contains no explicit `limit` at all |
 
 ## §F11 — unknown vocabulary short-circuits, never falls through
 
@@ -613,7 +635,7 @@ rows are the fastest way in) and check each.
 | F14.7b | Save a `{{join}}` in template mode | the `format` string sits BEFORE the slots, and its tokens are `%A`…`%J`. A stored `%1` still resolves (both alphabets collapse to one internal token) but the control writes letters |
 | F14.7c | Open a pre-1.17.0 `{{join}}` whose format holds a literal `%` before A–J (e.g. `10%APR from %1`) | the converter escapes it to `%%APR`, so the text still renders as typed. The escape is gated on wire ERA (no folded key = pre-letters), because literal-or-token is undecidable from the format string — so re-saving an ALREADY-folded tag must NOT escape its `%A` tokens |
 | F14.8 | Check the field picker inside a slot | the picker is scoped by the `scopeKey` PROP, not by the outward `state.key`. An unmatched repeater key degrades to the full pool rather than stranding the author |
-| F14.9 | Read the editor tag configuration preview text on a folded tag | it matches what the tag renders, because both preview builders now walk the SAME seam. Shapes the renderer SKIPS (§F10) are flagged rather than shown as if they resolve — see `docs/editor-tag-previews.md` |
+| F14.9 | Read the editor tag configuration preview text on a folded tag | it matches what the tag renders, because both preview builders walk the SAME seam. A slot the renderer SKIPS is flagged rather than shown as if it resolves — four reasons speak since #104 (`no ref`, `no taxonomy`, `no repeater field`, `no previous source`) and the fifth, `source not supported`, retired with the flatten that produced it (§F10). See `docs/editor-tag-previews.md` |
 | F14.10 | Hand-edit a slot value to a shape with a per-step `limit` | it round-trips, and the step's own Limit field shows it. Placeholder `0 (all)`; typing `0` or `-1` normalizes back to absence, so the field reads `0 (all)` before and after and nothing is silently lost |
 | F14.11 | In any slot, pick the read kind "Meta/Option Field" and pick nothing else | the select STAYS on it and the field picker appears. The control re-parses the value it just wrote to drive that select, so the pending state needs a wire spelling: `use(key)` with no `key(…)`. It is written only while the field is empty — once a field is picked the canonical bare `key(x)` is what saves. Picking an analog row (Title/Name) was never affected, which is what the bug looked like from outside. The empty picker also warns, in the hop warning's words: "This *&lt;noun&gt;* will be skipped unless a field is set". NOT shown on a picker-alone (`keyOnly`) container — there an empty field IS the inherit |
 | F14.12 | Add a `terms` hop to a slot and leave the Taxonomy on "Select…" | it warns in the same words as the field warnings — "This *&lt;noun&gt;* will be skipped unless a taxonomy is set" — and the seam keeps that promise: `{{join A:src(terms);key(role)|B:key(name_first)}}` on `/matrix-post-meta/` renders `Jane`, NOT `Captain, Jane`. **`Captain` is the pre-fix answer** (the post's own `role`, read through a hop that silently vanished), so a row that renders it means the incomplete-step skip regressed. The preview says `[⚠ Join: slot 1 no taxonomy]` — flagged, unlike an unconfigured read, because the author configured a source and would otherwise hunt for the missing slot |

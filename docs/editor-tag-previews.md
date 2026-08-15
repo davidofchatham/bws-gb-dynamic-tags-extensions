@@ -224,8 +224,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | `try_email` / `try_phone` empty key | n/a | `[⚠ Try: slot 1 no key]` (always needs a key — no no-key values) |
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: slot 1 no key, slot 3 no ref]` | same |
-| Slot chain with no flat spelling | `[⚠ Try: slot 2 source not supported]` (1.17.0 — see the join warnings table for the rule; when it is the ONLY slot this reason replaces `no slots configured`, which would otherwise be actively misleading) | same |
-| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` / `[⚠ Try: slot 2 no ref]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished) | same |
+| Slot with an incomplete step | `[⚠ Try: slot 2 no taxonomy]` / `[⚠ Try: slot 2 no ref]` / `[⚠ Try: slot 2 no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |
 | Slot inheriting with nothing to inherit | `[⚠ Try: slot 2 no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
@@ -255,22 +254,28 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | `src:ref` slot, no `ref` | `slot N no ref` |
 | key-mode slot, no `key` | `slot N no key` |
 | Template mode, no `format` | `no format set` |
-| Folded slot whose source chain has no flat spelling | `slot N source not supported` (1.17.0) |
 | Slot with an INCOMPLETE `terms` step (no taxonomy) | `slot N no taxonomy` (1.17.0) |
 | Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `slot N no ref` (1.17.0) |
+| Slot with an INCOMPLETE `entries` step (no repeater field) | `slot N no repeater field` (1.17.0) |
 | Slot whose source is `same` with no earlier slot resolved | `slot N no previous source` (1.17.0) |
 
-**`slot N source not supported`** is the author-facing signal for a slot the render seam SKIPS: a
-chain with a SECOND step on one axis (`src(refs,a;refs,b)`) or a repeater `entries` step. One `refs`
-step plus one `terms` step IS expressible and previews normally. The distinction matters because the two are
-indistinguishable in RENDERED output — a skipped slot and a slot that resolves to nothing both print
-nothing — so the preview is the only place an author can see which happened. The reason comes from
-`bws_fold_slot_flat_options()`'s `$skip_reason` out-param, not from a second copy of the skip rule
-in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
-normal in-progress state, and flagging it would fire on every half-built join. Same fragment, same
-mechanism, on `try_` tags: `[⚠ Try: slot N source not supported]`.
+**`slot N source not supported` was RETIRED in 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)),
+and it is worth knowing why rather than merely that. It flagged a slot whose source chain had no
+flat spelling — a SECOND step on one axis (`src(refs,a;refs,b)`), or a repeater `entries` step —
+because the render seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple and refused
+what it could not hold. The seam hands the whole chain on now, so such a slot RESOLVES and its
+source is named the way any other slot's is, one segment per step. The wording is gone from the
+plugin: an author who saw it before 1.17.0 and comes back to the same tag now sees the source
+described instead.
 
-**`slot N no taxonomy`** and **`slot N no ref`** name an INCOMPLETE step, and are separate from
+What that did NOT retire is the general shape of the signal. A skipped slot and a slot that resolves
+to nothing both print nothing, so the preview stays the only place an author can see which happened —
+which is why the four reasons below still speak. Each comes from
+`bws_fold_slot_chain_options()`'s `$skip_reason` out-param, never from a second copy of the skip rule
+in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
+normal in-progress state, and flagging it would fire on every half-built join.
+
+**`slot N no taxonomy`**, **`slot N no ref`** and **`slot N no repeater field`** name an INCOMPLETE step, and are separate from
 "unsupported" because they name what is MISSING rather than what cannot be expressed. Such a step is
 expressible — it just is not finished — and the seam skips it deliberately: an empty argument is how
 "no step" is spelled, so flattening it would make the slot read the UN-STEPPED entity and return a
@@ -286,9 +291,9 @@ noun to print from the slot's chain would be a second copy of the skip rule, whi
 both previews through the seam exists to prevent.
 
 **`slot N no previous source`** covers a `same` root with nothing to be the same AS — every earlier
-slot skipped, so there is no carried source. Kept apart from `source not supported` because the chain
-here IS expressible and the author-facing answer is different: finish an earlier slot, rather than
-this source is unusable. Reachable in a COMBINING container, where an unconfigured read skips a slot
+slot skipped, so there is no carried source. Kept apart from the incomplete-step reasons because
+what is missing is not in THIS slot: the author-facing answer is finish an earlier slot, not finish
+this one. Reachable in a COMBINING container, where an unconfigured read skips a slot
 without feeding the carry.
 
 A SKIPPED slot reports its skip reason ALONE — the per-slot warnings above (`no key`, `no ref` for a

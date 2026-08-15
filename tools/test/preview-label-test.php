@@ -10,7 +10,7 @@
  * SCOPE — deterministic label assembly only:
  *   bws_try_preview_template_label()      (template-name labels)
  *   bws_try_preview_field_part()          (mode-value / quoted-key field parts)
- *   bws_try_preview_source_part()         (source segments + tax hop)
+ *   bws_try_preview_source_part()         (source segments off a slot's chain wire)
  *   bws_wrap_preview_label_with_link()    (link annotation + <a> wrap)
  *   bws_build_preview_label()             (base/modifier tags, NON-datetime)
  *   bws_build_try_preview_label()         (try_ slot chains, NON-datetime)
@@ -124,12 +124,25 @@ check( 'permalink',           bws_try_preview_field_part( 'permalink', '', '', '
 
 // ---------------------------------------------------------------------------
 echo "\nsource_part — ref quoting, named-current gate, tax hop arrow\n";
-check( 'current unnamed → empty',  bws_try_preview_source_part( 'current', '', '', false ), '' );
-check( 'current named',            bws_try_preview_source_part( 'current', '', '', true ),  'Current' );
-check( 'ref quoted',               bws_try_preview_source_part( 'ref', 'rel_post', '', false ), "Ref 'rel_post'" );
-check( 'ref + tax hop',            bws_try_preview_source_part( 'ref', 'rel_post', 'event_category', false ), "Ref 'rel_post' → Event Category Term" );
-check( 'tax hop, current named',   bws_try_preview_source_part( 'current', '', 'event_category', true ),      'Current → Event Category Term' );
-check( 'unknown tax → raw slug',   bws_try_preview_source_part( 'ref', 'r', '__unknown__', false ),           "Ref 'r' → __unknown__ Term" );
+// The door takes DEPTH-0 CHAIN WIRE since #104 — what bws_fold_slot_chain_options() emits.
+// Every row below states the wire the seam produces for the flat triple it replaced, and
+// the expected TEXT is unchanged, which is the property: the hand-off changed shape and the
+// author-facing naming did not.
+check( 'ambient unnamed → empty',  bws_try_preview_source_part( '', false ), '' );
+check( 'ambient named',            bws_try_preview_source_part( '', true ),  'Current' );
+check( 'explicit current named',   bws_try_preview_source_part( 'current', true ),  'Current' );
+check( 'ref quoted',               bws_try_preview_source_part( 'refs,rel_post', false ), "Ref 'rel_post'" );
+check( 'ref + tax hop',            bws_try_preview_source_part( 'refs,rel_post;terms,event_category', false ), "Ref 'rel_post' → Event Category Term" );
+check( 'tax hop, current named',   bws_try_preview_source_part( 'terms,event_category', true ),      'Current → Event Category Term' );
+check( 'unknown tax → raw slug',   bws_try_preview_source_part( 'refs,r;terms,__unknown__', false ),           "Ref 'r' → __unknown__ Term" );
+// The AMBIENT ROOT is restored only where the flat door named it: NEVER in front of a
+// leading relationship step, because the entity a `refs` hop starts from is not the source
+// the segment describes. `src:ref` was never `current` in the retired triple either.
+check( 'a leading ref hop is NOT anchored to Current', bws_try_preview_source_part( 'refs,rel_post', true ), "Ref 'rel_post'" );
+// MULTI-STEP, the capability this door exists to describe: one segment per hop, in wire
+// order. Inexpressible in the retired triple, so no row could state it.
+check( 'two ref hops name both, in order', bws_try_preview_source_part( 'refs,a;refs,b', false ), "Ref 'a' Ref 'b'" );
+check( 'a bound rides the wire and is not named', bws_try_preview_source_part( 'refs,a,limit(2);terms,event_category', false ), "Ref 'a' → Event Category Term" );
 
 // ---------------------------------------------------------------------------
 // The SHARED namer all three previews read (#102). The cases above run through it by the
@@ -191,15 +204,24 @@ check(
 	implode( ' ', bws_preview_source_segments( bws_fold_parse_chain( 'refs,rel' ), [ 'named_current' => true ] ) ),
 	"Ref 'rel'"
 );
-// The ONE slot shape that reads differently for the convergence, pinned so it is a recorded
-// decision rather than a silent drift: `src:site` WITH a `srcTermIn` used to preview a term
-// hop and now previews no source at all. The site read wins in the arms and the term step is
-// dropped, so the old text described a hop that has never happened. Hand-edit-only wire
-// (`srcTermIn` registers `show_if src: not:site`).
+// TWO slot shapes read differently for the convergence, in OPPOSITE directions, and both
+// are the preview following what renders rather than describing it independently:
+//
+//   - a FLAT `src:site` + `srcTermIn` previews no source (#102).
+//     bws_fold_chain_from_options() refuses to append the legacy term step to a site root,
+//     every arm has always let the site read win, and §F9b.5 closed the last container
+//     where it did not.
+//   - the same pair spelled as CHAIN WIRE (`site;terms,x` — what bws_fold_from_flat() maps
+//     that legacy pair to, so it is also what a migrated slot holds) previews the term step
+//     (#104), because the chain SAYS the term step and the identically-spelled base tag
+//     resolves it too (to empty: a term step needs a post input). Wire means what it says
+//     (ADR 0004), and a slot's source is a base tag's source ([I16]).
+//
+// Hand-edit-only wire either way (`srcTermIn` registers `show_if src: not:site`).
 check(
-	'slot src:site + srcTermIn → no source segment (matches what renders)',
-	bws_try_preview_source_part( 'site', '', 'event_category', true ),
-	''
+	'slot chain site;terms names the term step, as it is resolved',
+	bws_try_preview_source_part( 'site;terms,event_category', true ),
+	'Event Category Term'
 );
 
 // ---------------------------------------------------------------------------
@@ -380,12 +402,12 @@ check(
 	implode( ' ', bws_preview_source_segments( bws_fold_chain_from_options( [ 'src' => 'testroot' ] ), [ 'roots' => false ] ) ),
 	''
 );
-// …and the flat-triple door the slot walks actually call is what sets it, so a slot rooted
+// …and the SLOT door the two multislot walks actually call is what sets it, so a slot rooted
 // at a registered source stays silent rather than growing a segment its container cannot
 // resolve.
 check(
 	'…and the slot door sets it that way',
-	bws_try_preview_source_part( 'testroot', '', '', true ),
+	bws_try_preview_source_part( 'testroot', true ),
 	''
 );
 // A rooted CHAIN names the root and then its steps, in wire order.
@@ -803,38 +825,39 @@ check(
 	"[Try 'a' from Current, 'b' from Ref 'rel', 'c' from Ref 'rel']"
 );
 
-// ── Inexpressible-chain FLAG (1.17.0, 5g) ────────────────────────────────────
-// A slot the render seam SKIPS because its chain has no flat spelling renders
-// nothing, so the preview must SAY so. Silence was the pre-5g behaviour and it
-// read as "this tag has one slot fewer than the author configured". The reason
-// comes from the seam's out-param, never re-derived here — the whole point of
-// routing both previews through the seam was to stop copying its rules.
-// NB `refs,x;terms,y` IS expressible — the flat triple holds one ref hop AND one
-// term hop. Inexpressible means a SECOND hop on the same axis, or `entries`.
+// ── The inexpressible-chain flag, INVERTED (#104) ────────────────────────────
+// These four rows asserted a WARNING through 1.16.x: a slot whose chain had no flat
+// spelling was skipped by the seam, and the preview had to say so or it read as "this tag
+// has one slot fewer than the author configured". The flatten is gone, so there is no flat
+// spelling left to fail at and the refusal dissolved with it — these are now the acceptance
+// signal for FW-71, and they assert the slots RESOLVE and are NAMED.
+//
+// The other four skip reasons still fire, each with its own wording, immediately below:
+// deleting the refusal wholesale would have removed three correct refusals.
 check(
-	'join: expressible ref+term chain previews normally (the negative control)',
+	'join: ref+term chain previews normally (the row that always resolved)',
 	bws_build_join_preview_label( [ 'A' => 'src(refs,rel;terms,dept);use(title)', 'B' => 'key(role)' ] ),
 	"[Join Title from Ref 'rel' → Dept Term, 'role']"
 );
 check(
-	'join: a SECOND ref hop is FLAGGED, not silently dropped',
+	'join: a SECOND ref hop RESOLVES and names both steps',
 	bws_build_join_preview_label( [ 'A' => 'src(refs,a;refs,b);use(title)', 'B' => 'key(role)' ] ),
-	'[⚠ Join: slot 1 source not supported]'
+	"[Join Title from Ref 'a' Ref 'b', 'role']"
 );
 check(
-	'join: an `entries` step is flagged the same way',
+	'join: an `entries` step resolves at the seam (the container refuses the kind, not the wire)',
 	bws_build_join_preview_label( [ 'A' => 'src(entries,rows);key(name)' ] ),
-	'[⚠ Join: slot 1 source not supported]'
+	"[Join 'name']"
 );
 check(
-	'try_: same flag, on a selecting container',
+	'try_: a second ref hop resolves on a selecting container too',
 	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(refs,a;refs,b);key(x)' ], 'text' ),
-	'[⚠ Try: slot 2 source not supported]'
+	"[Try 'sku' from Current, 'x' from Ref 'a' Ref 'b']"
 );
 check(
-	'try_: the ONLY slot inexpressible reports the reason, NOT "no slots configured"',
+	'try_: a lone `entries` slot is a slot, not "no slots configured"',
 	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
-	'[⚠ Try: slot 1 source not supported]'
+	"[Try 'name']"
 );
 // A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
 // "source not supported" would send the author after the wrong thing: the chain IS

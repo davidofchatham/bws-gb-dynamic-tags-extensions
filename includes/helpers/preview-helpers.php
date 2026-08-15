@@ -68,14 +68,12 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * The preview warning for a SKIPPED slot, by the seam's reason.
  *
  * Both multislot previews (join and try_) report this, so the wording lives once. The
- * seam owns the REASON — bws_fold_slot_flat_options() reports it through its out-param and
+ * seam owns the REASON — bws_fold_slot_chain_options() reports it through its out-param and
  * the preview never re-derives the rule — but the author-facing phrasing is preview
  * vocabulary (docs/editor-tag-previews.md), and two copies of the string is the same drift
  * one layer up: the previews already diverged once on the walk itself.
  *
  * WHICH REASONS SPEAK, and why it is not "all of them":
- *   - `'chain'` → wire that will never render. Flagged, or the preview silently omits a
- *     slot the author configured and reads as if the tag were one slot smaller.
  *   - `'step:<slug>'` → an incomplete step. Flagged, and NAMED for what is missing: the
  *     slot is skipped only because the seam refuses to flatten an unfinished hop into the
  *     un-hopped read, so silence would leave the author hunting for why a fully-sourced
@@ -89,20 +87,21 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * @since 1.17.0
  * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'inherit'` added with the
  *               ambient-fallback skips (#74).
+ * @since 1.17.0 #104: `'chain'` retired with the flatten; `'step:entries'` named.
  * @param int    $n      Slot ordinal (1-based).
- * @param string $reason Skip reason from the seam. Default 'chain'.
+ * @param string $reason Skip reason from the seam. Default ''.
  * @return string Warning text, or '' when the reason is a silent one.
  */
 if ( ! function_exists( 'bws_fold_skip_warning' ) ) {
-function bws_fold_skip_warning( int $n, string $reason = 'chain' ): string {
+function bws_fold_skip_warning( int $n, string $reason = '' ): string {
 	// Keyed by the seam's reason so a new step slug adds a ROW rather than an if-arm, and
 	// so the nouns sit together with the per-slot warnings below that they must agree with
 	// ("no ref" / "no taxonomy" are the same words a RESOLVED slot uses for the same gap).
 	$phrases = array(
-		'step:refs'  => 'no ref',
-		'step:terms' => 'no taxonomy',
-		'inherit'    => 'no previous source',
-		'chain'      => 'source not supported',
+		'step:refs'    => 'no ref',
+		'step:terms'   => 'no taxonomy',
+		'step:entries' => 'no repeater field',
+		'inherit'      => 'no previous source',
 	);
 	return isset( $phrases[ $reason ] ) ? 'slot ' . $n . ' ' . $phrases[ $reason ] : '';
 }
@@ -129,7 +128,7 @@ function bws_fold_skip_warning( int $n, string $reason = 'chain' ): string {
  * Trailing ` (fallback: “X”)` appended when `fallback` is set.
  *
  * Slot walk goes through the SAME seam bws_join_callback() renders through
- * (bws_fold_slot_struct + bws_fold_slot_flat_options), so it reads folded and legacy
+ * (bws_fold_slot_struct + bws_fold_slot_chain_options), so it reads folded and legacy
  * wire alike and cannot drift from the renderer. It used to hold its own transcription
  * of the skip rule and the carry-forward, which is exactly the copy that made "the
  * preview matches the callback" a claim rather than a property. No link-wrap (join
@@ -155,14 +154,14 @@ function bws_build_join_preview_label( array $options ): string {
 	$field_parts  = array();
 	$source_parts = array();
 	$warnings     = array();
-	$carry        = array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
+	$carry        = array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '' );
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' ) ? bws_fold_slot_struct( $n, $options, 'join' ) : null;
 		if ( null === $slot ) {
 			continue;
 		}
 		$skip = '';
-		$flat = bws_fold_slot_flat_options( $slot, $carry, true, $skip );
+		$flat = bws_fold_slot_chain_options( $slot, $carry, true, $skip );
 		if ( null === $flat ) {
 			// Which reasons speak is the WARNING owner's call, not this walk's — an
 			// unconfigured slot is silent, an inexpressible chain and an unfinished
@@ -174,20 +173,18 @@ function bws_build_join_preview_label( array $options ): string {
 			continue;
 		}
 
-		$eff_src = '' === $flat['src'] ? 'current' : $flat['src'];
 		$eff_use = $flat['use'];   // Already defaulted to `key` by the seam (I3).
 		$key     = $flat['key'];
 
-		// Per-slot warnings: src:ref with no ref key; key-mode with no key.
-		if ( 'ref' === $eff_src && '' === $flat['ref'] ) {
-			$warnings[] = 'slot ' . $n . ' no ref';
-		}
+		// Per-slot warning: key-mode with no key. The `src:ref` with no ref key warning
+		// that stood beside it belongs to the seam now (`step:refs`), and always did in
+		// substance: an unfinished relationship step never reaches this point.
 		if ( 'title' !== $eff_use && '' === $key ) {
 			$warnings[] = 'slot ' . $n . ' no key';
 		}
 
 		$field_parts[ $n ]  = bws_try_preview_field_part( 'text', $eff_use, $key, '' );
-		$source_parts[ $n ] = bws_try_preview_source_part( $eff_src, $flat['ref'], $flat['srcTermIn'], true );
+		$source_parts[ $n ] = bws_try_preview_source_part( $flat['src'], true );
 	}
 
 	// Template mode with no format is unresolvable — warn (matches the callback
@@ -317,7 +314,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$per_slot_use = '' !== $use_default;
 
 	// Walk slots 1-5 through the SAME render seam the callback resolves with
-	// (bws_fold_slot_struct + bws_fold_slot_flat_options), so this preview reads folded
+	// (bws_fold_slot_struct + bws_fold_slot_chain_options), so this preview reads folded
 	// and legacy wire alike and cannot drift from what will actually render. The walk
 	// this replaced was a private copy of the era rules, the skip rule and the
 	// carry-forward — the third such copy, and the one most likely to go stale, since
@@ -327,10 +324,10 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	// slot is inexpressible reports the real reason instead of "no slots configured".
 	$skips = [];
 	$carry = array(
-		'src' => '',
-		'ref' => '',
-		'use' => $use_default,
-		'key' => '',
+		'chain' => array(),
+		'ref'   => '',
+		'use'   => $use_default,
+		'key'   => '',
 	);
 	for ( $n = 1; $n <= 5; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' )
@@ -340,7 +337,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 			continue;
 		}
 		$skip = '';
-		$flat = bws_fold_slot_flat_options( $slot, $carry, false, $skip );
+		$flat = bws_fold_slot_chain_options( $slot, $carry, false, $skip );
 		if ( null === $flat ) {
 			// 'read' cannot happen here (an absent read INHERITS in a selecting
 			// container); every other reason speaks — bws_fold_skip_warning() owns which
@@ -354,10 +351,8 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 
 		$slots[] = [
 			'n'   => $n,
-			// The seam reports an unset source; the preview vocabulary names it.
-			'src' => '' === $flat['src'] ? 'current' : $flat['src'],
-			'ref' => $flat['ref'],
-			'tax' => $flat['srcTermIn'],
+			// The slot's WHOLE source, as the depth-0 chain wire the seam emits (#104).
+			'src' => $flat['src'],
 			'key' => $flat['key'],
 			'use' => $flat['use'],
 		];
@@ -373,11 +368,11 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 
 	// Collect per-slot warnings. Seeded with the inexpressible-chain flags, which are
 	// per-slot warnings from the same walk.
+	// The `src:ref` with no ref key warning that stood here belongs to the seam now
+	// (`step:refs`, already in $skips), and always did in substance: an unfinished
+	// relationship step never reaches this point.
 	$warnings = $skips;
 	foreach ( $slots as $slot ) {
-		if ( 'ref' === $slot['src'] && '' === $slot['ref'] ) {
-			$warnings[] = 'slot ' . $slot['n'] . ' no ref';
-		}
 		// Per-template missing-key checks.
 		$needs_key = false;
 		if ( 'text' === $base_template ) {
@@ -409,7 +404,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	$source_parts = [];
 	foreach ( $slots as $slot ) {
 		$field_parts[]  = bws_try_preview_field_part( $base_template, $slot['use'], $slot['key'], $as );
-		$source_parts[] = bws_try_preview_source_part( $slot['src'], $slot['ref'], $slot['tax'], true );
+		$source_parts[] = bws_try_preview_source_part( $slot['src'], true );
 	}
 	$uniform_field  = 1 === count( array_unique( $field_parts ) );
 	$uniform_source = 1 === count( array_unique( $source_parts ) );
@@ -773,16 +768,26 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 }
 
 /**
- * Build a try_ preview slot's source-part.
+ * Build a multislot preview slot's source-part, from the slot's own CHAIN WIRE.
  *
- * The FLAT-TRIPLE door onto bws_preview_source_segments() — a slot's source still reaches
- * the previews as `src`/`ref`/`srcTermIn`, so it is read into a chain the one way every
- * consumer reads one (bws_fold_chain_from_options) and named by the shared namer. The two
- * switches it sets are the per-container differences named on that function; when the slot
- * seam hands over chain wire (FW-71) both walks call the namer directly and this door goes.
+ * The SLOT door onto bws_preview_source_segments(). Both multislot walks reach the shared
+ * namer through it, so the two per-container switches it sets are stated once; the segments
+ * themselves, and every noun in them, belong to the namer (#102).
  *
- * ONE shape reads differently for it, deliberately: `src:site` WITH a `srcTermIn` used to
- * preview `→ <Tax> Term` and now previews nothing. Reading through the shared chain means
+ * It takes DEPTH-0 CHAIN WIRE since #104 — exactly what bws_fold_slot_chain_options() emits
+ * into `src` — and reads it the one way every other consumer reads a source
+ * (bws_fold_chain_from_options), so a slot with two hops previews two segments where the
+ * retired flat triple could only ever describe one.
+ *
+ * THE AMBIENT ROOT IS RESTORED HERE, and the narrowness is the point. A slot whose source
+ * is the ambient entity emits the EMPTY chain, where the flat door was handed the token
+ * `current` and named it. Restoring it keeps that text — but never in front of a leading
+ * RELATIONSHIP step, because the entity a `refs` hop starts from is not the source the
+ * segment describes (the namer says so in its own comment, and the flat door never named it
+ * either: `src` was `ref` there, not `current`).
+ *
+ * ONE shape reads differently since #102, deliberately: `src:site` WITH a `srcTermIn` used
+ * to preview `→ <Tax> Term` and now previews nothing. Reading through the shared chain means
  * the preview inherits what the ARMS do with that pair — the site read wins and the term
  * step is dropped — so the old text described a hop that has never happened. The pair is
  * hand-edit-only (`srcTermIn` registers `show_if src: not:site`), and a preview that
@@ -790,19 +795,23 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
  *
  * @since 1.6.0
  * @since 1.17.0 Names through bws_preview_source_segments() instead of its own copy.
- * @param string $src       Canonical source token ('current', 'ref').
- * @param string $ref       Relationship field key (when src='ref').
- * @param string $tax       Taxonomy slug (when srcTermIn set).
- * @param bool   $named_current When true, returns 'Current' for src=current
+ * @since 1.17.0 #104: takes the slot's depth-0 chain wire; the flat triple is gone.
+ * @param string $src_wire  The slot's resolved source as depth-0 chain wire ('' = ambient).
+ * @param bool   $named_current When true, returns 'Current' for an ambient source
  *                          (used when source-part appears in a list and needs
  *                          a visible anchor). Default false (returns '').
  * @return string Source segment (e.g. "Current", "Ref 'rel_post'", "Ref 'rel_post' → Category Term").
  */
 if ( ! function_exists( 'bws_try_preview_source_part' ) ) {
-function bws_try_preview_source_part( string $src, string $ref, string $tax, bool $named_current = false ): string {
+function bws_try_preview_source_part( string $src_wire, bool $named_current = false ): string {
 	$chain = function_exists( 'bws_fold_chain_from_options' )
-		? bws_fold_chain_from_options( array( 'src' => $src, 'ref' => $ref, 'srcTermIn' => $tax ) )
+		? bws_fold_chain_from_options( array( 'src' => $src_wire ) )
 		: array();
+
+	$first = (string) ( ( is_array( reset( $chain ) ) ? reset( $chain ) : array() )['slug'] ?? '' );
+	if ( '' === bws_fold_chain_root( $chain ) && 'refs' !== $first ) {
+		array_unshift( $chain, array( 'slug' => 'current', 'arg' => null, 'limit' => null, 'extra' => array() ) );
+	}
 
 	return implode(
 		' ',

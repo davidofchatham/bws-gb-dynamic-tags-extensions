@@ -598,13 +598,15 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *   - `combining` ({{join}}, {{table}}) seeds a slot with its READ UNSET, because
  *     choosing a field IS the configuration act there; SELECTING (`try_*`) seeds
  *     `use(same)`. The control reads this flag; the renderer reads it again for what
- *     an absent read MEANS (bws_fold_slot_flat_options).
+ *     an absent read MEANS (bws_fold_slot_chain_options).
  *   - `allow_same_read` follows the read twin's flag, so the inherit row appears in
  *     exactly the containers whose resolver honors it.
- *   - `steps` names which traversal steps this container can express. It is a
- *     CAPABILITY list, not decoration: the flat render seam holds one relationship step and one
- *     term step, so offering a step the seam cannot flatten would author unrenderable
- *     wire.
+ *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
+ *     list, not decoration: a step no arm consumes authors a chain that renders nothing
+ *     (which is why `entries` is on no offer). It was also once the CONTAINER's ceiling —
+ *     the retired flatten re-spelled a slot as one relationship step plus one term step —
+ *     and since #104 the seam hands the whole chain on, so a slot offers what a base tag
+ *     offers ([I16]).
  *
  * @since 1.17.0
  * @param array $args {
