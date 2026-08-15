@@ -228,11 +228,13 @@ output, taken from `MigrationRegistry::apply_option_migration()` rather than han
 | F7a.12 | `{{try_text key:role\|limit:4}}` | `{{try_text A:key(role)}}` | `Captain` on `/matrix-post-meta/`. **A slot with no fanning step gets no limit, and the key goes anyway** — it bounded nothing, so nothing is lost. Slot 1's prefix is `''`, so without the tag-level exclusion it would swallow the key as a slot-level token bounding nothing |
 | F7a.13 | `{{join key:main_line\|limit:4\|2-key:booking_line}}` | `{{join A:limit(4);key(main_line)\|B:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210`. The COMBINING contrast: `{{join}}` owns `limit` per slot, so slot 1's bare key IS its own and stays a slot-level token |
 
-> **The `try_` `refs` arm is still first-only, and #60 did not change that.** `{{try_text
-> A:src(refs,related_staff);use(title)}}` renders `Jane Partner`, and so does the flat spelling with
-> an EXPLICIT `limit:0` — which is what proves it is the ARM rather than the default. Same family as
-> the §F9 divergences; it clears with FW-63. The `terms` arm (F7a.2) already fans, which is why the
-> ticket's own measurement used it.
+> **The `try_` `refs` arm WAS first-only, and #103 is what cleared it.** Through 1.17.0-dev
+> `{{try_text A:src(refs,related_staff);use(title)}}` rendered `Jane Partner`, and so did the flat
+> spelling with an EXPLICIT `limit:0` — which is what proved it was the ARM rather than the default.
+> Same family as the §F9 divergences, and it did NOT clear with FW-63 as this note used to predict:
+> FW-63 converted the BASE arms, and `try_`'s four were still testing flat tokens. The arm collapse
+> (§F9b) is what closed it. The `terms` arm (F7a.2) already fanned, which is why #60's measurement
+> used it.
 
 ## §F7b — the `try_` tag-level `limit` is retired (#61)
 
@@ -447,6 +449,43 @@ family with no list mode takes a different branch from one that has. One `refs` 
 
 **The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
 by whether an arm was involved — is what closed. They are now the same hop with the same answer.
+
+## §F9b — ARM DISPATCH: the `try_` slot arms (#103, FW-71)
+
+FW-63 converted the BASE arms; `try_`'s four were still testing the flat tokens
+(`'' !== $stm_raw`, `'site' === $last_src`, `'current' === $last_src`, else post). #103 collapsed
+them onto one dispatch keyed by resolved source kind, through the pure table in
+`includes/helpers/try-slot-arms.php`.
+
+**The property is EQUIVALENCE, and it was measured as a before/after diff** — 34 (tag × URL) pairs
+across `/matrix-post-meta/`, `/department/sales/`, `/author/fixture-author/`,
+`/staff/jane-partner/` and `/matrix-terms-valid/`, rendered through `wp bws render-tag` on the
+same testbed with only the plugin source swapped. Every pair was byte-identical except the ones
+below. Re-run the sweep, not one row, after any arm change: a wrong arm renders a plausible value
+rather than an empty one, so a single green row proves very little.
+
+**Stated behaviour changes, both measured on both sides:**
+
+| # | Tag | Was → is | Cause |
+|---|---|---|---|
+| F9b.1 | `{{try_text A:src(refs,related_staff);use(title)}}` | `Jane Partner` → `Jane Partner, Tom Associate` | the `refs` arm was FIRST-ONLY: it collapsed the relationship to one post id (`bws_resolve_post_by_source`) and called the core once. It reads every fanned target now (`bws_base_post_ids_from_source`, §V6), which is what the base tag has done since FW-63 (§F9.2). **Reachable only where the slot is UNBOUNDED** — chain-spelled here (chain wire's default is unlimited), or flat with an explicit `limit:0`/`limit:2` |
+| F9b.2 | `{{try_text src:ref\|ref:related_staff\|use:title\|limit:0}}` | `Jane Partner` → `Jane Partner, Tom Associate` | same arm, flat spelling with an explicit unlimited. **The compatibility floor is the row beside it**: drop the `limit:0` and both sides render `Jane Partner`, because flat wire still bounds at 1 (`bws_limit_default`). The surveyed two-database corpus contains zero explicit `limit` values |
+| F9b.3 | `{{try_phone src:ref\|ref:related_staff\|key:main_line\|limit:0}}` | one number → both numbers | F9b.2 in another family; kept because the phone core self-wraps each value, so it is the row that shows the change is in the ID RESOLUTION and not in the join seam |
+| F9b.4 | `{{try_text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title\|limit:0}}` | `All Users` → `All Users, All Users` | the `try_` twin of §F9.6, arriving for the same reason and one release later. The term arm ran one post→terms hop off a collapsed post id; it runs the whole compiled chain now |
+| F9b.5 | `{{try_phone src:site\|srcTermIn:department\|key:org_phone}}` | empty → the site value | **A PRECEDENCE change, not a fanning one.** The old arms tested `srcTermIn` FIRST, so a site-rooted slot carrying a hand-edited `srcTermIn` took the term arm, resolved no post, and skipped the attempt whole. Kind dispatch answers `site` for that wire — because `bws_fold_chain_from_options()` refuses to append a term step to a site root — so the slot now reads the site, which is **exactly what the base tag has always done** (§F9.4: `{{phone src:site\|srcTermIn:department\|key:org_phone}}` renders the site value on both sides of this change). The pair is hand-edit-only (`srcTermIn` is registered `show_if src: not:site`), and closing it is [I6] slot transparency rather than a regression: `try_` was the one container where the site read did NOT win |
+
+**What did NOT move, and each is a row the collapse could plausibly have broken:**
+
+| # | Tag | Renders |
+|---|---|---|
+| F9b.6 | `{{try_text src:ref\|ref:related_staff\|use:title}}` | `Jane Partner` — the compatibility floor. Flat, unbounded wire still bounds at 1 |
+| F9b.7 | `{{try_phone src:site\|key:org_phone}}` | the site number, `tel:`-wrapped — the site arm's SECOND leg (no `try_site_fn` on phone; `try_core_fn( 0, … )` serves it and takes no link identity of its own) |
+| F9b.8 | `{{try_title}}` on `/department/sales/` | `Sales` — the ambient-term arm, which is now a BRANCH off the root-only `base` kind rather than a `'current' === $last_src` test |
+| F9b.9 | `{{try_title linkTo:post}}` on `/staff/jane-partner/` | the linked title — per-arm link-wrap entity survived the merge into one emit |
+| F9b.10 | `{{try_text srcTermIn:department\|use:title\|linkTo:term}}` | the linked term title — the same, on the arm with a different entity type |
+| F9b.11 | `{{try_text A:src(entries,team_members);use(key);key(name)\|B:key(role)}}` | `Captain` — a repeater-row source is still refused, and slot 2 still runs |
+| F9b.12 | `{{try_text A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | `Captain` — an inexpressible chain still skips at the SEAM, which #103 did not touch (#104 dissolves it) |
+| F9b.13 | `{{try_text use:title}}` / `{{try_title}}` / `{{try_content}}` on `/author/fixture-author/` | **RENDER-TAG ONLY, stated exception** (an author ARCHIVE is the ambient context and has no page content to hang a fixture row on — the same exception text T4 takes for a term archive). EMPTY, all three — the [I6] parity defect is deliberately still open here. The `user` row exists in the arm table and is `branchable`; no template carries a user function yet, so the dispatcher's fn-absent fallthrough sends it to the post arm exactly as the token arms did. **#108 is what flips these three**, with its own replay run whose expected diff is exactly these rows |
 
 ## §F10 — a slot the flat seam cannot express SKIPS
 

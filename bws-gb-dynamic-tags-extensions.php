@@ -130,6 +130,11 @@ function bws_dynamic_tags_init() {
 	// Grouped with the grammar it compiles rather than with the engine it feeds; every
 	// call is at render time, so its position relative to either is immaterial.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/slot-fold-compile.php';
+	// The `try_` slot ARM TABLE (FW-71, retires FW-5) — pure data keyed by the resolved
+	// source kind bws_fold_chain_resolution() answers, so it loads after the compiler that
+	// owns that vocabulary. Read at render only; position relative to the tag files is
+	// immaterial.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/try-slot-arms.php';
 	// Fold MIGRATOR (legacy flat slot keys → folded values). Consumed by the
 	// type:'option' migration entries in deprecated-tags.php; loads after the grammar
 	// it adapts and after serialization-order.php (it canonicalizes emitted key order).
