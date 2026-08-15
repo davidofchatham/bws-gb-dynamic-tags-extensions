@@ -1575,14 +1575,18 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// refining that source, not hopping again off the end of it. So an inherited step is
 	// dropped where this slot states one with the same slug.
 	//
-	// AND ONLY WHERE THAT SLUG CANNOT REPEAT (bws_fold_step_repeats, derived from the two
-	// shipped maps — a step repeats iff it accepts the kind it produces). The rule is safe
-	// on `terms` precisely because a term step off a term input is something the chain can
-	// state and the engine can never resolve, so dropping one can never destroy a working
-	// configuration. It is NOT safe on `refs`, which is post → post: `src(same;refs,manager)`
-	// behind `src(refs,office)` means office → manager, the two-relationships-away chain
-	// FW-56 exists for, and a blind drop reads `manager` off the ambient entity instead.
-	// A first cut of this rule dropped every matching slug and did exactly that.
+	// THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join, which carries the reasoning).
+	// The inherited tail gives way only where this slot's first step cannot run off it, and
+	// by as little as possible. Two cuts of this got it wrong in opposite directions and both
+	// are worth naming, because each looked right against every legacy shape:
+	//
+	//   - dropping nothing appended, so `2-src:same|2-srcTermIn:office` behind a term hop
+	//     became two term steps, hopped off a TERM input, resolved empty, and the slot
+	//     vanished from a {{join}} that rendered it;
+	//   - dropping every same-slug step killed `src(same;refs,manager)` behind
+	//     `src(refs,office)` — the two-relationships-away chain FW-56 exists for — and, less
+	//     obviously, killed an inherited `terms` step in front of an own `refs;terms` pair,
+	//     where `refs` ACCEPTS a term input and the chain would have run as written.
 	//
 	// THE FLAT WIRE IS WHAT DECIDES THIS, and it is editor-authorable: leave slot 2's source
 	// alone and pick a different taxonomy, and you get `2-src:same|2-srcTermIn:office`, which
@@ -1598,21 +1602,9 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// container's vocabulary rather than the chain grammar's. A base tag cannot write it, so
 	// nothing here says a base tag's `terms,a;terms,b` should collapse — it hops twice, as
 	// its wire says.
-	$own_slugs = array();
-	foreach ( $own as $own_step ) {
-		$own_slug = (string) ( $own_step['slug'] ?? '' );
-		if ( function_exists( 'bws_fold_step_repeats' ) && bws_fold_step_repeats( $own_slug ) ) {
-			continue;
-		}
-		$own_slugs[ $own_slug ] = true;
-	}
-	$resolved = array();
-	foreach ( $inherited as $inherited_step ) {
-		if ( isset( $own_slugs[ (string) ( $inherited_step['slug'] ?? '' ) ] ) ) {
-			continue;
-		}
-		$resolved[] = $inherited_step;
-	}
+	$resolved = function_exists( 'bws_fold_chain_join' )
+		? bws_fold_chain_join( $inherited, $own )
+		: $inherited;
 	foreach ( $own as $own_step ) {
 		$resolved[] = $own_step;
 	}
