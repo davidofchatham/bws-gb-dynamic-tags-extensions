@@ -106,6 +106,88 @@ if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 }
 
 // ---------------------------------------------------------------------------
+// 0b. BUILD IDENTITY — which COMMIT rendered, not just which version.
+//
+// The version check above answers "what is the site running", which is what Experiment M
+// needs, because there the A side runs the site's own released copy. Experiment R is the
+// opposite shape: two builds of the SAME declared version, so that check passes trivially on
+// both sides and nothing in the artifact says the swap happened. A branch not switched or a
+// worktree symlink not repointed then yields an EMPTY diff — which is R's PASS condition.
+//
+// Recorded from the DEV MOUNT, because in an R run the site renders through that symlink, so
+// the mount is what executed. Two independent facts, because they fail differently: the commit
+// misses uncommitted edits, and the digest misses nothing but cannot name what it saw.
+$source_identity = static function ( string $root ): array {
+	$commit = null;
+	$git    = $root . '/.git';
+
+	// A git WORKTREE has .git as a FILE pointing at its real gitdir. The plan's back-to-back
+	// build swap is two worktrees under the bind mount, so this is the expected case, not the
+	// exotic one.
+	if ( is_file( $git ) && preg_match( '/^gitdir:\s*(.+)$/m', (string) file_get_contents( $git ), $m ) ) {
+		$git = trim( $m[1] );
+	}
+
+	if ( is_dir( $git ) ) {
+		// refs/heads/* lives in the COMMON dir, which a worktree's gitdir points at.
+		$common = $git;
+		if ( is_readable( $git . '/commondir' ) ) {
+			$rel    = trim( (string) file_get_contents( $git . '/commondir' ) );
+			$common = ( '/' === substr( $rel, 0, 1 ) ) ? $rel : $git . '/' . $rel;
+		}
+
+		$head = is_readable( $git . '/HEAD' ) ? trim( (string) file_get_contents( $git . '/HEAD' ) ) : '';
+
+		if ( preg_match( '/^ref:\s*(\S+)/', $head, $m ) ) {
+			$ref = $m[1];
+			foreach ( array( $git . '/' . $ref, $common . '/' . $ref ) as $candidate ) {
+				if ( is_readable( $candidate ) ) {
+					$commit = trim( (string) file_get_contents( $candidate ) );
+					break;
+				}
+			}
+			if ( null === $commit && is_readable( $common . '/packed-refs' ) ) {
+				foreach ( explode( "\n", (string) file_get_contents( $common . '/packed-refs' ) ) as $packed ) {
+					if ( preg_match( '/^([0-9a-f]{40})\s+' . preg_quote( $ref, '/' ) . '$/', trim( $packed ), $m2 ) ) {
+						$commit = $m2[1];
+						break;
+					}
+				}
+			}
+		} elseif ( preg_match( '/^[0-9a-f]{40}$/', $head ) ) {
+			$commit = $head; // detached HEAD
+		}
+	}
+
+	// Stat-only digest: catches an UNCOMMITTED edit, which the commit cannot. Deliberately not
+	// a content hash — this runs once per URL, and size+mtime moves on any real change.
+	$parts = array();
+	$it    = new RecursiveIteratorIterator(
+		new RecursiveCallbackFilterIterator(
+			new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ),
+			static function ( $file ) {
+				$name = $file->getFilename();
+				return ! in_array( $name, array( '.git', 'libs', 'node_modules', 'vendor' ), true );
+			}
+		)
+	);
+	foreach ( $it as $file ) {
+		if ( $file->isFile() && 'php' === strtolower( $file->getExtension() ) ) {
+			$parts[] = $file->getPathname() . '|' . $file->getSize() . '|' . $file->getMTime();
+		}
+	}
+	sort( $parts, SORT_STRING );
+
+	return array(
+		'commit' => $commit,
+		'digest' => substr( md5( implode( "\n", $parts ) ), 0, 12 ),
+		'files'  => count( $parts ),
+	);
+};
+
+$source = $source_identity( dirname( __DIR__ ) );
+
+// ---------------------------------------------------------------------------
 // 1. Real ambient context. --url only set $_SERVER; wp() is what makes it genuine.
 // ---------------------------------------------------------------------------
 $url = (string) ( WP_CLI::get_runner()->config['url'] ?? '' );
@@ -245,6 +327,9 @@ $write( array(
 	'queried_id'      => $queried_id,
 	'context_mismatch' => $mismatch,
 	'plugin_version'  => $runtime_version,
+	'source_commit'   => $source['commit'],
+	'source_digest'   => $source['digest'],
+	'source_files'    => $source['files'],
 	'tags'            => count( $tags ),
 	'volatility_check' => $check_volatility,
 	// Wall clock, so a reviewer can see a day boundary between the two sides of a diff.

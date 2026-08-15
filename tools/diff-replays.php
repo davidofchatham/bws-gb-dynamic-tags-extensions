@@ -155,9 +155,39 @@ if ( false !== strpos( $a_version, ',' ) || false !== strpos( $b_version, ',' ) 
 	$line( '[X] A side rendered under MORE THAN ONE plugin version — the artifact spans a swap.' );
 	$fail++;
 }
+// BUILD IDENTITY. Two builds of one declared version is Experiment R's normal shape, so the
+// version alone cannot say whether the swap happened — and if it did not, the diff comes back
+// EMPTY, which is R's pass condition. Asserted only when the versions match, because that is
+// precisely R's signature: in a migration run the versions differ and the dev mount legitimately
+// sits at one commit for both sides.
+$field_of = static function ( array $side, string $field ): string {
+	$v = array();
+	foreach ( $side['runs'] as $run ) {
+		$v[ (string) ( $run[ $field ] ?? '?' ) ] = true;
+	}
+	return implode( ',', array_keys( $v ) );
+};
+
+$a_commit = $field_of( $a, 'source_commit' );
+$b_commit = $field_of( $b, 'source_commit' );
+$a_digest = $field_of( $a, 'source_digest' );
+$b_digest = $field_of( $b, 'source_digest' );
+
+$line( sprintf( 'A: source %s (%s)', substr( $a_commit, 0, 12 ) ?: '?', $a_digest ) );
+$line( sprintf( 'B: source %s (%s)', substr( $b_commit, 0, 12 ) ?: '?', $b_digest ) );
+
 if ( $a_version === $b_version ) {
-	// Not fatal: Experiment R compares two builds of the same declared version on purpose.
 	$line( "[!] both sides report plugin {$a_version} — expected for a same-version resolver run, wrong for a migration run." );
+
+	if ( '?' === $a_commit || '?' === $b_commit ) {
+		$line( '[X] SAME VERSION AND NO BUILD IDENTITY RECORDED. Nothing here can show the swap happened, and an unswapped run diffs EMPTY — which is this run\'s pass condition. Re-run with a replay that records source_commit.' );
+		$fail++;
+	} elseif ( $a_commit === $b_commit && $a_digest === $b_digest ) {
+		$line( sprintf( '[X] BOTH SIDES RENDERED THE SAME BUILD (%s / %s). The swap did not happen — branch not switched, or the worktree symlink not repointed. An empty diff here means nothing.', substr( $a_commit, 0, 12 ), $a_digest ) );
+		$fail++;
+	} elseif ( $a_commit === $b_commit ) {
+		$line( '[!] same commit, different working tree — one side carries uncommitted edits. Intended for a quick iteration, wrong for a recorded result.' );
+	}
 }
 $line();
 
