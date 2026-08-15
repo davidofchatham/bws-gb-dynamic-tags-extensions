@@ -780,6 +780,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// terms, hence the pair reads on /matrix-terms-valid/ - the rows below are the
 		// FOLDED twin, which is the one that renders here.
 		bws_fixture_gb_row( 'F10.6b an inherited hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users)', '{{join A:src(terms,department);use(title)|B:src(same;terms,portal_visibility);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 inheriting (-> All Users; slot 2 keeps the inherited base and replaces only the taxonomy, so the wire needs no duplicate of the base)', '{{join src:ref|ref:related_staff|srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
+		bws_fixture_gb_row( 'F10.6d the row that BOUNDS the rule: refs is post-to-post, so an inherited ref hop must NOT be dropped (-> Jane Partner, Tom Associate, Jane Partner; slot B equals the base twin below)', '{{join A:src(refs,related_staff);use(title)|B:src(same;refs,reports_to);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.6d BASE twin for slot B (-> Jane Partner)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
 		bws_fixture_gb_row( 'F10.6b LEGACY twin - the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not - the SLOT, not the count, is what must match)', '{{join srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
 		bws_fixture_gb_row( 'F10.6 BASE twin (-> the same number)', '{{phone src:site|srcTermIn:department|key:org_phone}}' ),
 		bws_fixture_gb_empty_row( 'F10.7 hand-written chain wire SAYS the term step, so it keeps it and resolves nothing (-> EMPTY; the deliberate contrast to F10.6)', '{{join A:src(site;terms,department);key(org_phone)}}' ),

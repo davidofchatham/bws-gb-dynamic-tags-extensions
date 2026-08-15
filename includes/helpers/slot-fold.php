@@ -1575,6 +1575,15 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// refining that source, not hopping again off the end of it. So an inherited step is
 	// dropped where this slot states one with the same slug.
 	//
+	// AND ONLY WHERE THAT SLUG CANNOT REPEAT (bws_fold_step_repeats, derived from the two
+	// shipped maps — a step repeats iff it accepts the kind it produces). The rule is safe
+	// on `terms` precisely because a term step off a term input is something the chain can
+	// state and the engine can never resolve, so dropping one can never destroy a working
+	// configuration. It is NOT safe on `refs`, which is post → post: `src(same;refs,manager)`
+	// behind `src(refs,office)` means office → manager, the two-relationships-away chain
+	// FW-56 exists for, and a blind drop reads `manager` off the ambient entity instead.
+	// A first cut of this rule dropped every matching slug and did exactly that.
+	//
 	// THE FLAT WIRE IS WHAT DECIDES THIS, and it is editor-authorable: leave slot 2's source
 	// alone and pick a different taxonomy, and you get `2-src:same|2-srcTermIn:office`, which
 	// the flat resolver read as "the inherited source, into office terms". Appending instead
@@ -1591,7 +1600,11 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// its wire says.
 	$own_slugs = array();
 	foreach ( $own as $own_step ) {
-		$own_slugs[ (string) ( $own_step['slug'] ?? '' ) ] = true;
+		$own_slug = (string) ( $own_step['slug'] ?? '' );
+		if ( function_exists( 'bws_fold_step_repeats' ) && bws_fold_step_repeats( $own_slug ) ) {
+			continue;
+		}
+		$own_slugs[ $own_slug ] = true;
 	}
 	$resolved = array();
 	foreach ( $inherited as $inherited_step ) {

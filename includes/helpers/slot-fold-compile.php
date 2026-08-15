@@ -119,6 +119,39 @@ const BWS_FOLD_STATIC_ROOT_KINDS = array(
 );
 
 /**
+ * Whether a step slug can meaningfully FOLLOW ITSELF in one chain.
+ *
+ * DERIVED, never listed: a step can repeat exactly when the kind it PRODUCES is a kind it
+ * ACCEPTS. `refs` is post → post, so `refs,a;refs,b` is the two-relationships-away chain
+ * FW-56 exists for. `terms` is post → term and accepts only `post`, so a second term step
+ * has a term input, which the engine refuses (V2 silent-empty) — the chain can state it and
+ * can never resolve it. `entries` is meta_row → meta_row and accepts its own output, so it
+ * repeats.
+ *
+ * ONE READER TODAY, and it is why this is a function rather than an inline test: the slot
+ * seam's `same` resolution drops an inherited step where the slot states one of the same
+ * slug (bws_fold_slot_chain_options). That rule is SAFE only on a slug that cannot repeat —
+ * dropping an inherited `refs` step would destroy the multi-hop chain the author wrote,
+ * which is exactly what a first cut of it did. Answering from the two shipped maps rather
+ * than from a `'terms'` literal is what keeps the rule following the engine: widen
+ * BWS_TRAVERSAL_STEP_INPUT_KINDS['terms'] to accept a term input and the replace stops,
+ * because the repeat has become expressible.
+ *
+ * @since 1.17.0
+ * @param string $slug Wire step slug.
+ * @return bool True when a chain may state the slug twice and mean something by it.
+ */
+function bws_fold_step_repeats( string $slug ): bool {
+	if ( ! defined( 'BWS_FOLD_STEP_KINDS' ) || ! defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) ) {
+		// Unknown rather than false: a missing map must not silently license the drop.
+		return true;
+	}
+	$produces = BWS_FOLD_STEP_KINDS[ $slug ] ?? '';
+	$accepts  = BWS_TRAVERSAL_STEP_INPUT_KINDS[ $slug ] ?? array();
+	return '' !== $produces && in_array( $produces, $accepts, true );
+}
+
+/**
  * What a chain RESOLVES TO — the render path's dispatch axis (FW-63).
  *
  * Roughly nineteen arms used to pick a resolution branch by comparing the flat

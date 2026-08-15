@@ -75,6 +75,27 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // container arms do; re-inlining the rule here is what the extraction removed.
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
+// THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
+// inherited step is dropped only where its slug CANNOT repeat, and "can it repeat" is
+// answered from BWS_TRAVERSAL_STEP_INPUT_KINDS + BWS_FOLD_STEP_KINDS rather than from a
+// literal. Without this require the predicate degrades to "everything repeats", which is
+// the SAFE direction (no drop) and would make §P16.4 fail rather than pass vacuously —
+// checked, and the non-vacuity assertion beside §P16.4 says so out loud.
+if ( ! class_exists( 'WP_Post' ) ) {
+	class WP_Post { public $ID; public function __construct( $id ) { $this->ID = $id; } }
+}
+if ( ! class_exists( 'WP_Term' ) ) {
+	class WP_Term { public $term_id; public function __construct( $id ) { $this->term_id = $id; } }
+}
+if ( ! function_exists( 'bws_extract_post_id' ) ) {
+	function bws_extract_post_id( $post_data ) {
+		if ( is_numeric( $post_data ) ) { return intval( $post_data ); }
+		if ( $post_data instanceof WP_Post ) { return $post_data->ID; }
+		if ( is_array( $post_data ) && isset( $post_data['ID'] ) ) { return $post_data['ID']; }
+		return false;
+	}
+}
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 // One WP call in the COMPILED path (§P18.4 asks what the engine is told): the taxonomy slug
 // of a `terms` hop. Same shim fold-chain-compile-test.php uses — LOWERCASE FIRST, then strip,
@@ -1538,6 +1559,23 @@ check( 'P16.4 …asserted on the CHAIN, which is the only place replace and appe
 // relationship source that this slot then drops into a taxonomy is two steps and means it.
 $tax_other_slug = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
 check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
+// …AND SO DOES A REPEAT OF A SLUG THAT CAN MEANINGFULLY REPEAT. The drop is scoped by
+// bws_fold_step_repeats() — derived from the two shipped maps, not from a `'terms'`
+// literal — because `refs` is post → post and `src(same;refs,manager)` behind
+// `src(refs,office)` is office → manager, the two-relationships-away chain FW-56 exists
+// for. A first cut of the merge dropped every matching slug and read `manager` off the
+// AMBIENT entity instead: a plausible value from the wrong entity ([I15]), and the very
+// capability #104 shipped, broken by its own fix.
+$ref_repeat = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;refs,manager);key(b)' ), 'join' );
+check( 'P16.4 …and a REPEATABLE slug is NOT dropped: an inherited ref hop keeps hopping', 'refs,office;refs,manager' === ( $ref_repeat[2]['src'] ?? null ), json_encode( $ref_repeat[2] ?? null ) );
+// NON-VACUITY for the derive itself. It reads BWS_FOLD_STEP_KINDS (produces) against
+// BWS_TRAVERSAL_STEP_INPUT_KINDS (accepts), and answers TRUE when either map is missing —
+// the safe direction, since an unknown answer must not license a drop. Asserted so a
+// harness that forgot to load the engine's list fails HERE, by name, rather than passing
+// the two rows above for the wrong reason.
+check( 'P16.4 the repeat derive is LIVE: terms cannot repeat (term output, post-only input)', false === bws_fold_step_repeats( 'terms' ), 'true' );
+check( 'P16.4 …and refs can (post output, post accepted)', true === bws_fold_step_repeats( 'refs' ), 'false' );
+check( 'P16.4 …and entries can (meta_row output, meta_row accepted)', true === bws_fold_step_repeats( 'entries' ), 'false' );
 // The legacy wire this rule exists for, driven through the seam end to end. Editor-authorable:
 // leave slot 2's source alone, pick a different taxonomy.
 $tax_legacy_pair = t_seam_walk( array( 'srcTermIn' => 'department', 'use' => 'title', '2-src' => 'same', '2-srcTermIn' => 'office', '2-key' => 'phone' ), 'join' );
