@@ -1559,23 +1559,40 @@ check( 'P16.4 …asserted on the CHAIN, which is the only place replace and appe
 // relationship source that this slot then drops into a taxonomy is two steps and means it.
 $tax_other_slug = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
 check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
-// …AND SO DOES A REPEAT OF A SLUG THAT CAN MEANINGFULLY REPEAT. The drop is scoped by
-// bws_fold_step_repeats() — derived from the two shipped maps, not from a `'terms'`
-// literal — because `refs` is post → post and `src(same;refs,manager)` behind
-// `src(refs,office)` is office → manager, the two-relationships-away chain FW-56 exists
-// for. A first cut of the merge dropped every matching slug and read `manager` off the
-// AMBIENT entity instead: a plausible value from the wrong entity ([I15]), and the very
-// capability #104 shipped, broken by its own fix.
+// …AND THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join). The inherited tail gives
+// way only where this slot's first step cannot RUN off it, and by as little as possible.
+// `refs` accepts a post input and produces one, so `src(same;refs,manager)` behind
+// `src(refs,office)` is office → manager — the two-relationships-away chain FW-56 exists
+// for. A cut of this scoped by SLUG instead dropped it and read `manager` off the AMBIENT
+// entity: a plausible value from the wrong entity ([I15]), and the very capability #104
+// shipped, broken by its own fix.
 $ref_repeat = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;refs,manager);key(b)' ), 'join' );
 check( 'P16.4 …and a REPEATABLE slug is NOT dropped: an inherited ref hop keeps hopping', 'refs,office;refs,manager' === ( $ref_repeat[2]['src'] ?? null ), json_encode( $ref_repeat[2] ?? null ) );
-// NON-VACUITY for the derive itself. It reads BWS_FOLD_STEP_KINDS (produces) against
-// BWS_TRAVERSAL_STEP_INPUT_KINDS (accepts), and answers TRUE when either map is missing —
-// the safe direction, since an unknown answer must not license a drop. Asserted so a
-// harness that forgot to load the engine's list fails HERE, by name, rather than passing
-// the two rows above for the wrong reason.
-check( 'P16.4 the repeat derive is LIVE: terms cannot repeat (term output, post-only input)', false === bws_fold_step_repeats( 'terms' ), 'true' );
-check( 'P16.4 …and refs can (post output, post accepted)', true === bws_fold_step_repeats( 'refs' ), 'false' );
-check( 'P16.4 …and entries can (meta_row output, meta_row accepted)', true === bws_fold_step_repeats( 'entries' ), 'false' );
+// THE CASE THAT SEPARATES "the JOIN cannot run" FROM "the SLUG cannot repeat", and the
+// reason the second reading had to go. An inherited `terms` step in front of an own
+// `refs;terms` pair conflicts on the SLUG — both chains state `terms` — but not on the
+// JOIN: `refs` ACCEPTS a term input, so the chain runs exactly as written and nothing
+// should give way. The slug reading deleted the inherited step and rooted the slot at the
+// ambient entity.
+$join_ok = t_seam_walk( array( 'A' => 'src(terms,department);key(a)', 'B' => 'src(same;refs,x;terms,y);key(b)' ), 'join' );
+check( 'P16.4 an inherited step that this slot CAN run off is kept, same slug or not', 'terms,department;refs,x;terms,y' === ( $join_ok[2]['src'] ?? null ), json_encode( $join_ok[2] ?? null ) );
+
+// NON-VACUITY for the derive itself. bws_fold_chain_join() reads BWS_FOLD_STEP_KINDS
+// (produces) against BWS_TRAVERSAL_STEP_INPUT_KINDS (accepts) and DECLINES TO TRIM when
+// either map is missing or either end is unknown vocabulary — the safe direction, since an
+// unknown answer must not rewrite a source. Asserted so a harness that forgot to load the
+// engine's list fails HERE, by name, rather than passing the rows above for the wrong reason.
+$j_terms = array( array( 'slug' => 'terms', 'arg' => 'a', 'limit' => null, 'extra' => array() ) );
+$j_refs  = array( array( 'slug' => 'refs', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
+$j_junk  = array( array( 'slug' => 'wibble', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
+check( 'P16.4 the join derive is LIVE: a terms tail cannot feed a terms step', array() === bws_fold_chain_join( $j_terms, $j_terms ), json_encode( bws_fold_chain_join( $j_terms, $j_terms ) ) );
+check( 'P16.4 …a terms tail CAN feed a refs step (nothing trimmed)', $j_terms === bws_fold_chain_join( $j_terms, $j_refs ), json_encode( bws_fold_chain_join( $j_terms, $j_refs ) ) );
+check( 'P16.4 …a refs tail can feed a terms step (nothing trimmed)', $j_refs === bws_fold_chain_join( $j_refs, $j_terms ), json_encode( bws_fold_chain_join( $j_refs, $j_terms ) ) );
+check( 'P16.4 …and UNKNOWN vocabulary trims nothing: the chain short-circuits, it does not rewrite', $j_terms === bws_fold_chain_join( $j_terms, $j_junk ), json_encode( bws_fold_chain_join( $j_terms, $j_junk ) ) );
+// The ROOT is not a step and is never trimmed — a slot inherits the SOURCE, whatever this
+// slot then fails to run off it.
+$j_rooted = array( array( 'slug' => 'site', 'arg' => null, 'limit' => null, 'extra' => array() ) );
+check( 'P16.4 …and the ROOT is never trimmed', $j_rooted === bws_fold_chain_join( $j_rooted, $j_terms ), json_encode( bws_fold_chain_join( $j_rooted, $j_terms ) ) );
 // The legacy wire this rule exists for, driven through the seam end to end. Editor-authorable:
 // leave slot 2's source alone, pick a different taxonomy.
 $tax_legacy_pair = t_seam_walk( array( 'srcTermIn' => 'department', 'use' => 'title', '2-src' => 'same', '2-srcTermIn' => 'office', '2-key' => 'phone' ), 'join' );
