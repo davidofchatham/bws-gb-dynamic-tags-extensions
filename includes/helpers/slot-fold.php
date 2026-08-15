@@ -1366,10 +1366,13 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * slot's HOPS for free. The `$tax_inherit` branch this used to need existed only because a
  * flat triple cannot carry a step, so an inheriting slot took the root alone and landed on
  * the ambient entity — [I15]'s corollary ("an inherited source carries what it IS, not
- * merely its root") stops being enforced by a branch. One consequence is stated rather than
- * hidden: a slot spelling `src(same;terms,office)` behind a slot that already hopped terms
- * now states TWO term steps and hops twice, exactly as the identically-spelled base tag
- * does, where the flat triple REPLACED the inherited hop because it had one slot for it.
+ * merely its root") stops being enforced by a branch.
+ *
+ * WHAT SURVIVES THE CARRY BECOMING A CHAIN is the corollary's second half: an inherited hop
+ * is a DEFAULT, not a step this chain took, so a slot's own step REPLACES an inherited one
+ * of the same slug. That is a rule about what `same` MEANS — a slot sentinel the container
+ * resolves before compiling — and not about the chain grammar, which is why a base tag's
+ * `terms,a;terms,b` still hops twice. See the merge at the end of the source axis.
  *
  * CONTAINER SENSITIVITY IS ON THE READ AXIS, AND ONLY THERE — specifically on what
  * ABSENCE means. An explicit `use(same)` inherits in BOTH containers (so the read is
@@ -1485,10 +1488,16 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// root, and an argless `refs` taking the carried relationship field. Every other step
 	// passes through verbatim, which is what makes a multi-step source resolve at all: the
 	// old flattener had to REJECT what it could not re-spell.
-	$steps    = array_values( $slot['chain'] ?? array() );
-	$resolved = array();
-	$ref      = $carry['ref'];
-	$first    = true;
+	$steps = array_values( $slot['chain'] ?? array() );
+	// The inherited chain is held APART from this slot's own steps until both are known,
+	// because a slot's own step REPLACES an inherited one of the same slug rather than
+	// following it (see the merge below). Appending blind is what the first draft of #104
+	// did, and it silently deleted a slot: legacy `2-src:same|2-srcTermIn:office` behind a
+	// slot that already hopped `department` came out as two term steps and hopped twice.
+	$inherited = array();
+	$own       = array();
+	$ref       = $carry['ref'];
+	$first     = true;
 
 	foreach ( $steps as $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
@@ -1511,11 +1520,12 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 					return null;
 				}
 				// THE WHOLE CHAIN, hops and all. A flat triple could only carry the root,
-				// which is why the taxonomy needed a special case; a chain carries what it
-				// IS. Any step this slot states of its own APPENDS to it, exactly as it
-				// would on a base tag whose source already hopped.
-				$resolved = array_values( $carry['chain'] );
-				$ref      = $carry['ref'];
+				// which is why the taxonomy needed a scalar of its own; a chain carries
+				// what it IS, so [I15]'s corollary stops needing that scalar. What it does
+				// NOT stop needing is the corollary's second half — an inherited hop is a
+				// DEFAULT, not a step this chain took — which is the merge below.
+				$inherited = array_values( $carry['chain'] );
+				$ref       = $carry['ref'];
 				continue;
 			}
 
@@ -1531,9 +1541,9 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 					$skip_reason = 'step:refs';
 					return null;
 				}
-				$ref           = $carry['ref'];
-				$step['arg']   = $ref;
-				$resolved[]    = $step;
+				$ref         = $carry['ref'];
+				$step['arg'] = $ref;
+				$own[]       = $step;
 				continue;
 			}
 		}
@@ -1555,7 +1565,43 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		// the parts; bws_fold_from_flat trims each option value), so re-normalizing here
 		// would be a third owner for a rule two callers already keep — and one that would
 		// quietly become the only one if either stopped.
-		$resolved[] = $step;
+		$own[] = $step;
+	}
+
+	// ── the merge: AN INHERITED HOP IS A DEFAULT, NOT A STEP THIS CHAIN TOOK ────
+	//
+	// [I15]'s corollary, second half. `src(same)` names the same SOURCE, so its steps travel
+	// with it — but a slot that goes on to state a step of its OWN on the same axis is
+	// refining that source, not hopping again off the end of it. So an inherited step is
+	// dropped where this slot states one with the same slug.
+	//
+	// THE FLAT WIRE IS WHAT DECIDES THIS, and it is editor-authorable: leave slot 2's source
+	// alone and pick a different taxonomy, and you get `2-src:same|2-srcTermIn:office`, which
+	// the flat resolver read as "the inherited source, into office terms". Appending instead
+	// yields `terms,department;terms,office` — a term step off a TERM input, which has no
+	// post to read and answers empty, so the slot silently disappears from a `{{join}}` that
+	// rendered it. MEASURED both ways on the testbed; §P16.4 has pinned the shape since #74.
+	//
+	// THIS IS NOT THE SPECIAL CASE #104 DELETED. That one was `$tax_inherit`, a SCALAR held
+	// beside the flat triple because a triple cannot carry a step; it is gone and stays gone.
+	// This is a rule about what `same` MEANS, and `same` is a slot sentinel the container
+	// resolves BEFORE compiling (bws_fold_chain_root never interprets one), so it is the
+	// container's vocabulary rather than the chain grammar's. A base tag cannot write it, so
+	// nothing here says a base tag's `terms,a;terms,b` should collapse — it hops twice, as
+	// its wire says.
+	$own_slugs = array();
+	foreach ( $own as $own_step ) {
+		$own_slugs[ (string) ( $own_step['slug'] ?? '' ) ] = true;
+	}
+	$resolved = array();
+	foreach ( $inherited as $inherited_step ) {
+		if ( isset( $own_slugs[ (string) ( $inherited_step['slug'] ?? '' ) ] ) ) {
+			continue;
+		}
+		$resolved[] = $inherited_step;
+	}
+	foreach ( $own as $own_step ) {
+		$resolved[] = $own_step;
 	}
 
 	// ── limit: the LAST step that pins one, else the slot-level token ───────
