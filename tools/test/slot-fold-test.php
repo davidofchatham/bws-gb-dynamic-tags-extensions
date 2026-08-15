@@ -1526,6 +1526,22 @@ check( 'P16.4 a slot states its own hop over any carried one', array( 1 => 'depa
 // would skip a slot that renders today.
 $tax_double = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ) );
 check( 'P16.4 an inherited hop is REPLACED by the slot\'s own, not collided with', array( 1 => 'department', 2 => 'office' ) === $tax_double, json_encode( $tax_double ) );
+// …AND THE ROW ABOVE CANNOT SEE THE DIFFERENCE ON ITS OWN. t_tax_walk reports the LAST term
+// step, so `terms,department;terms,office` answers `office` too — it sat green through the
+// first draft of #104, which appended. The CHAIN is what says which happened, and the
+// rendered difference is the whole reason it matters: a term step off a TERM input has no
+// post to read, so the appended form resolves EMPTY and the slot disappears from a
+// {{join}} that rendered it (measured on the testbed, both eras).
+$tax_double_wire = t_seam_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ), 'join' );
+check( 'P16.4 …asserted on the CHAIN, which is the only place replace and append differ', 'terms,office' === ( $tax_double_wire[2]['src'] ?? null ), json_encode( $tax_double_wire[2] ?? null ) );
+// A DIFFERENT slug appends, because it is not refining the same axis — an inherited
+// relationship source that this slot then drops into a taxonomy is two steps and means it.
+$tax_other_slug = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
+check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
+// The legacy wire this rule exists for, driven through the seam end to end. Editor-authorable:
+// leave slot 2's source alone, pick a different taxonomy.
+$tax_legacy_pair = t_seam_walk( array( 'srcTermIn' => 'department', 'use' => 'title', '2-src' => 'same', '2-srcTermIn' => 'office', '2-key' => 'phone' ), 'join' );
+check( 'P16.4 …and the LEGACY pair it exists for resolves to the slot\'s own hop alone', 'terms,office' === ( $tax_legacy_pair[2]['src'] ?? null ), json_encode( $tax_legacy_pair[2] ?? null ) );
 // A real second term step RESOLVES since #104 — the chain states two hops and hands both
 // on. What the slot ends up IN is the last one, which is what this walk reads.
 $tax_two_steps = t_tax_walk( array( 'A' => 'src(terms,department;terms,office);key(a)' ) );
