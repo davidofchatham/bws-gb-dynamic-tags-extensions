@@ -311,6 +311,16 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
 
+**Inert chain**:
+A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Statically decidable with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
+
+Three neighbours it is NOT, each of which renders empty too:
+- **Unfinished** — a fanning step with no argument (`src:terms` with no taxonomy). Expressible and half-written; the author's next act is to finish it, not to replace it.
+- **Unconfigured** — no read stated yet. A normal in-progress state.
+- **Unimplemented** — well-formed wire no arm consumes *yet* (an `entries` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
+
+_Avoid_: "unsupported source" (retired in 1.17.0 with the flatten — it named a limit of the *storage*, not of the source); "invalid" (reserved for the `src:site`-on-a-modifier combo, which is invalid *for that tag* and resolves fine on the base one).
+
 **Output destination** (list-mode divider — see I7):
 WHERE a tag's produced value lands, gating list-joinability. **Text-flow value** (text/email/phone/datetime) → joinable. **Attribute slot** (image URL → GB `<img src>`; tag returns string, GB injects) → singular. **Body/document** (content) → not `sep`-joinable. _Avoid_: "inline/block structure", "query-loop boundary", "entity-count" (wrong-axis — superseded). Image proves destination ≠ structure: a plain URL string excluded by its attribute destination, not by being "block".
 
