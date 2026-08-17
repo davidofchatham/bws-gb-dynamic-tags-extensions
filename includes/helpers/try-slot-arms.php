@@ -196,7 +196,9 @@ function bws_try_slot_arm( string $kind ): ?array {
  *                     refusal and the caller must skip the attempt.
  */
 function bws_try_slot_base_branch_kind( string $base_kind ): ?string {
-	if ( defined( 'BWS_SOURCE_KIND_UNRESOLVED' ) && BWS_SOURCE_KIND_UNRESOLVED === $base_kind ) {
+	// Unguarded on purpose — see bws_base_read_refused(). A defined() check here defends a
+	// state that cannot occur, and would switch the refusal off silently if it ever could.
+	if ( BWS_SOURCE_KIND_UNRESOLVED === $base_kind ) {
 		return null;
 	}
 	return ! empty( BWS_TRY_SLOT_ARMS[ $base_kind ]['branchable'] ) ? $base_kind : 'post';

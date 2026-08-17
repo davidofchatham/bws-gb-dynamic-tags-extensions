@@ -1113,10 +1113,10 @@ function bws_base_src_resolution( array $options ): array {
  * (bws_fold_chain_resolution() for the chain kind, BWS_SOURCE_KIND_UNRESOLVED for the
  * factory's).
  *
- * TWO REFUSALS, ONE TEST, and they are disjoint by POSITION rather than alternatives:
- * a chain is a ROOT plus STEPS, position 0 is a root by construction, so "the root
+ * TWO REFUSALS, ONE TEST, and they are disjoint rather than alternatives: "the root
  * named a source this render cannot use" and "a later step named vocabulary nothing
- * recognises" cannot be the same fault. Both mean the read does not happen.
+ * recognises" cannot be the same fault, because a root is not a step ([I14], which owns
+ * why). Both mean the read does not happen.
  *
  * The consequence each arm implements: the read does not happen, the arm's own empty
  * path runs, and a stated fallback fires. Refusing is NOT the same as reading and
@@ -1133,6 +1133,15 @@ function bws_base_src_resolution( array $options ): array {
  * legitimately means the row. Absence and refusal have to part company above the core,
  * because the core cannot tell them apart.
  *
+ * NO defined()/function_exists() GUARD, deliberately, here or at any call site.
+ * traversal-pipeline.php is required at plugin load, well before any tag registers, so a
+ * guard defends a state that cannot occur — and if it ever could, the guard would make
+ * the refusal DISAPPEAR silently and hand back the wrong entity's value again. That is
+ * the defect, not a degradation of it, and it is the "went quiet instead of failing"
+ * mode this area has already produced once. An undefined constant is a fatal, and a
+ * fatal is the honest answer. Same posture, and the same reasoning, as
+ * bws_post_excerpt_core()'s unguarded context swap.
+ *
  * @since 1.17.0
  * @param array $res  A bws_base_src_resolution() result (the CHAIN's answer).
  * @param array $base A bws_base_resolve_source_for_callback() result (the FACTORY's).
@@ -1142,8 +1151,7 @@ function bws_base_read_refused( array $res, array $base ): bool {
 	if ( '' === ( $res['kind'] ?? '' ) ) {
 		return true;
 	}
-	return defined( 'BWS_SOURCE_KIND_UNRESOLVED' )
-		&& BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' );
+	return BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' );
 }
 
 /**
