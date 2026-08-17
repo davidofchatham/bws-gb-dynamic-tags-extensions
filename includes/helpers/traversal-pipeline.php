@@ -46,13 +46,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * is NAMED rather than left as a null the caller might read as "nothing to see here":
  * the whole defect class is a refusal that was implied by omission.
  *
- * TERMINAL, and refused by every downstream consumer BY CONSTRUCTION — the engine's
- * input-kind gate, the first-post-id collapse, the singular cores' falsy-id guard and
- * both ambient-analog gates all key off a recognised kind and this is not one. That is
- * why the composite and email/phone read paths need no case for it. Construction
- * refusal is what rotted last time, though, so each of those consumers carries an
+ * TERMINAL, and refused by FOUR downstream consumers by construction — the engine's
+ * input-kind gate, the first-post-id collapse, the kind-filtered id reads and both
+ * ambient-analog gates all key off a recognised kind and this is not one. That is why
+ * the composite and email/phone read paths need no case for it. Construction refusal is
+ * what rotted to produce this defect class, though, so each of the four carries an
  * assertion that the refusal REACHES it (tools/test/traversal-pipeline-test.php); the
  * forthcoming context kinds will add cases to those same switches.
+ *
+ * A FIFTH LOOKS LIKE ONE AND IS NOT — the render cores' falsy-id guard. What that
+ * costs, and where the refusal is caught instead, is bws_base_read_refused()'s
+ * (base-shared.php): it is the arms' rule, not this constant's.
  *
  * @since 1.17.0
  */

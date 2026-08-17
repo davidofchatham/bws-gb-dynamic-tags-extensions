@@ -614,8 +614,12 @@ an empty one and a row keyed on a real field could not tell the two apart. The p
 stated per row: if one of those comes back, the refusal regressed, and a green "empty" on a key
 nothing carries would not have noticed.
 
-`{{email}}`/`{{phone}}` are absent here on purpose — they read through the engine seam (§F11.1/.2),
-which refused these shapes already, so they cannot show a regression in the arms.
+**THE TWO DOORS REACH `{{email}}`/`{{phone}}` DIFFERENTLY, and only one was already covered.** The
+unknown-STEP door was: they read through the engine seam, which short-circuits an unknown step type
+(§F11.1/.2). The unregistered-ROOT door was not — the token never reaches the engine, it is refused
+by the factory, and these two families take neither of the seven arms. So they get their own rows
+below rather than an argument for leaving them out, which is what the first draft of this section
+had.
 
 | # | Tag | Expected (pre-fix answer) |
 |---|---|---|
@@ -624,9 +628,35 @@ which refused these shapes already, so they cannot show a regression in the arms
 | F11a.3 | `{{text src:related_post\|use:key\|key:role}}` | EMPTY — a REGISTERED source whose resolve is inert (#56). The standing pre-migration state of every tag the `related_post` entry exists to repair (*was* `Captain`) |
 | F11a.4 | `{{text src:fixture_scoped\|use:key\|key:role}}` | EMPTY — a registered source, correctly written, resolving nothing on THIS page. The measured real-wire shape (blueprint v11) (*was* `Captain`) |
 | F11a.4b | `{{image src:currnet\|use:key\|key:feature_image}}` | EMPTY — the image arm, on its own seam (*was* the page's `feature_image`) |
-| F11a.5 | `{{text src:fixture_scoped\|use:key\|key:role}}` on `/matrix-fixture-roots/` | `Fixture Root` post's `role`. The NON-VACUITY row for F11a.4, which asserts nothing if the source can never resolve anywhere. Visible as §FR2b on that page |
+| F11a.5 | the same tag on `/matrix-fixture-roots/` | resolves. **The NON-VACUITY half of F11a.4**, which asserts nothing if the source can never resolve anywhere — owned by [`registered-roots-test-matrix.md`](registered-roots-test-matrix.md) §FR2b, where the fixture root's state table lives. Run both or neither |
 | F11a.6 | `{{title src:refs,related_staff;bogus,x}}` | EMPTY — the unknown-STEP door, disjoint from the rows above by POSITION (*was* `Jane Partner`, the chain's prefix collapsed to its first result; still one under `limit:0`) |
 | F11a.7 | `{{text use:key\|key:role}}` | `Captain` — the CONTROL row. An ABSENT source still means the ambient entity. If this goes empty the refusal over-reached and every bare tag on every site is blank |
+| F11a.8 | `{{phone src:currnet\|key:main_line}}` | EMPTY — the unregistered-ROOT door on the engine-seam families, which §F11.1/.2 do not reach (*was* this page's own `main_line`) |
+| F11a.9 | `{{email src:currnet\|key:contact_email}}` | EMPTY — as F11a.8. Its own row rather than a sibling of it, because the two families differ in how they wrap a value and a shared row would hide one |
+| F11a.10 | `{{phone key:main_line}}` | the page's own number, `tel:`-wrapped — the CONTROL for F11a.8/.9 on this seam |
+
+### §F11c — IN A QUERY LOOP, which is the only place the root-door guard is observable
+
+**§F11a CANNOT catch a regression in the unregistered-root guard, and finding that out cost a
+mutation.** Removing the text arm's guard entirely leaves every §F11a row green: off-loop, the
+singular cores return before reading anything (`! $post_id && ! $is_loop_row`), so the arm guard and
+the core's guard produce the same empty output. The guard earns its place only where the core would
+have gone on to read something — a query-loop ROW, or the queried TERM on an archive.
+
+That asymmetry is not a defect in §F11a; those rows pin the unknown-STEP door, which IS observable
+off-loop (removing the title arm's guard makes §F11a.6 render `Jane Partner`). It just means the two
+doors need different rows, and only one of them was written first.
+
+Loop is over the `staff` post type, so each row's ambient entity is a staff member with values of
+its own. Jane's `main_line` is `(555) 200-3000`. `render-tag` reaches these with
+`--loop-item=<staff id>`.
+
+| # | Tag (inside the loop) | Expected |
+|---|---|---|
+| F11c.1 | `{{text use:key\|key:main_line}}` | the ROW's number — the CONTROL. A bare tag in a loop reads the row, and must go on doing so |
+| F11c.2 | `{{text src:currnet\|use:key\|key:main_line}}` | EMPTY. **This is the row that fails if the arm guard goes** (*was*, and is again without it, the row's own number) |
+| F11c.3 | `{{text src:related_post\|use:key\|key:main_line}}` | EMPTY — the registered-but-inert token, same door, same exposure |
+| F11c.4 | `{{title src:currnet}}` | EMPTY. `{{title}}`'s core has a plain falsy-id guard and no loop read, so this row is green either way — kept as the stated NEGATIVE, so a reader does not mistake it for coverage |
 
 ### §F11b — the stated fallback fires, and the other two containers do not blank
 

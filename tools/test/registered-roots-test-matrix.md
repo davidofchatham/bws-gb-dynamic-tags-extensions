@@ -67,6 +67,7 @@ to the ambient entity prints the wrong words rather than the right ones.
 | staff `fixture-root` | `src:fixture` — the CLASS route, resolved by slug | `role` **Fixture Root Role**, `related_staff` → **`fixture-ref` then `tom-associate`** (two targets, `fixture-ref` first), term **Sales** alone |
 | staff `fixture-ref` | `src:fixture;refs,related_staff` | `role` **Fixture Ref Role**, title **Fixture Ref Target**, term **Warehouse** |
 | post `sample-event` | `src:fixture_alt` — the FILTER route, resolved by slug | `venue_city` **Chatham** |
+| staff `fixture-root`, again | `src:fixture_scoped` — the FILTER route, SCOPE-BOUND (blueprint v11) | the same values as the class route reaches, **and only on `/matrix-fixture-roots/`**. Off that page it resolves nothing, which is §FR2b's whole subject |
 
 Term-held `email` values: **sales@example.test** (Sales), **warehouse@example.test** (Warehouse).
 Site option `organization_email`: **info@example.test**.
@@ -109,6 +110,25 @@ is the failure users report as a bug.
 | FR2.2 | `{{try_text A:src(fixture_alt);use(key);key(venue_city)}}` | `Chatham` | …and at the filter route |
 | FR2.3 | `{{try_text A:src(fixture);use(key);key(no_such_field)\|B:use(key);key(role)}}` | `Ambient Page Role` | A rooted attempt that resolves EMPTY is fallen past, not fatal — the root does not capture the tag |
 | FR2.4 | `{{join mode:template\|A:src(fixture);use(key);key(role)\|B:src(fixture_alt);use(key);key(venue_city)\|format:%A of %B}}` | `Fixture Root Role of Chatham` | One assembled string mixes both roots, in different fields |
+
+## §FR2b — The SCOPE-BOUND root: offering is not resolving, and resolving is per-page
+
+`fixture_scoped` (blueprint v11) is the third fixture root and the only one that ever answers
+nothing. It resolves **on this page** and refuses everywhere else, which is the #76 category-2 shape:
+a registered source, correctly written, off its scope. The two other roots always resolve, so before
+v11 a rendered refusal could only be reached by an UNREGISTERED token, which is a different decline
+of the factory's and proves nothing about this one.
+
+**This section is the NON-VACUITY half of a pair.** Its negative lives in
+[`fold-test-matrix.md`](fold-test-matrix.md) §F11a.4, on `/matrix-post-meta/`, where the identical
+tag must render nothing. Run them together or neither means anything: a source that could never
+resolve anywhere would satisfy the negative while asserting nothing at all.
+
+| Row | Tag | Expected | Property |
+|---|---|---|---|
+| FR2b.1 | `{{text src:fixture_scoped\|use:key\|key:role}}` | `Fixture Root Role` | The scoped root resolves on the page it is scoped to |
+| FR2b.2 | `{{text key:role}}` | `Ambient Page Role` | The ambient contrast, same key — a root that fell through would print this |
+| FR2b.3 | FR2b.1's tag, on `/matrix-post-meta/` | EMPTY | Stated here as the pointer; the row itself is fold §F11a.4, beside its own ambient contrast |
 
 ## §FR3 — The `fixture_` modifier corpus (pre-conversion)
 

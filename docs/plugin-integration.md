@@ -274,7 +274,8 @@ What an author sees depends on the tag:
 |---|---|
 | A base tag | Renders empty, or its stated fallback |
 | A first-available tag (`try_*`) | Skips that attempt and runs the next one |
-| A combining tag (`{{join}}`, `{{table}}`) | Drops that field from the composite |
+| `{{join}}` | Drops that field from the composite, and assembles the rest |
+| `{{table}}` | Renders no table at all. Its rows come from the source, so refusing the source leaves nothing to put in one |
 
 Two things follow that are easy to get backwards:
 
