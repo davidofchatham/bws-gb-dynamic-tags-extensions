@@ -161,7 +161,7 @@ of it.
 | Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
-| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, **the option-group WRAPPER** = `_group`/`_group_lead` + `option-group.js`'s CSS-joined run, lead-boxes-alone, captions-belong-to-controls — currently written up in `tag-reference.md` §Option grouping (visual), which migrates here) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via SPEC.md → PHPDoc on ship.** |
+| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, **the option-group WRAPPER** = `_group`/`_group_lead` + `option-group.js`'s CSS-joined run, lead-boxes-alone, captions-belong-to-controls — currently written up in `tag-reference.md` §Option grouping (visual), which migrates here) | `docs/editor-controls.md` | **Reserved owner — doc not yet created.** Content migrates here when the `use`+`key` combine (Phase 2) ships and `.claude/plans/combined-option-controls.md` archives. Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via the spec issue → PHPDoc on ship.** |
 | Historical N×M tag names + **completed** rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info. In-progress / under-consideration renames stay in `tag-reference.md` until completed, then move here. |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
@@ -218,7 +218,7 @@ of it.
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references |
 | `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance) | run `tools/test/limit-default-test-matrix.md` against the testbed (§Development). **Unset `limit` MUST stay 1 on every pre-existing tag** (L1 rows), and each L1 row asserts single-value AND link-present — the link gate is count-based, so a silent 1→many flip drops anchors while the text still reads fine. L3 rows pin `0`/`-1` = unlimited and the `is_numeric()` guard that keeps a typo off that path |
 | Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files below |
-| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | TWO plans carry a live §SETTLED index: that one (FW-56/57 + `{{table}}`) and its sub-plan `.claude/plans/per-step-limit.md` (per-step `limit` semantics + FW-63 arm dispatch), which **WINS on every `limit` question**. It records four corrections to rows the master had marked settled, and — since the 2026-08-05 build — a second table of corrections the BUILD makes to the sub-plan itself, each found by running something rather than by re-reading. Check the sub-plan FIRST on anything limit-shaped, and its §BUILT banner before assuming any of it is still pending. The general row above is what survives |
+| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | FOUR plans carry a live §SETTLED index — `.claude/plans/src-chain-encoding.md` (FW-56/57 + `{{table}}`), its sub-plan `.claude/plans/per-step-limit.md` (per-step `limit` semantics + FW-63 arm dispatch), `.claude/plans/multi-step-slot-sources.md` (FW-71, BUILT) and `.claude/plans/external-source-roots.md` (FW-69/70). **State the number or state none** — this row read "TWO" from 2026-08-05 to 2026-08-17 while four existed, and a reader who trusts a count stops looking once they have found that many. The sub-plan **WINS on every `limit` question**. It records four corrections to rows the master had marked settled, and — since the 2026-08-05 build — a second table of corrections the BUILD makes to the sub-plan itself, each found by running something rather than by re-reading. Check the sub-plan FIRST on anything limit-shaped, and its §BUILT banner before assuming any of it is still pending. The general row above is what survives |
 
 ### Long-lived plan files — the §SETTLED index
 
@@ -244,24 +244,36 @@ practice is reusable and the next long-lived plan will need it.
 - MEMORY.md entries pointing at `docs/` are one-liners only.
 - When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
 
-## SPEC.md lifecycle
+## Spec lifecycle
 
-`SPEC.md` is the **active spec** for the current in-flight release — §G goals, §C constraints, §I interfaces, §V invariants, §T tasks, §B bugs. One active SPEC at a time. Created only when a release introduces spec-level change.
+**A SPEC IS A GITHUB ISSUE, labelled `ready-for-agent`.** It owns the problem statement, the
+interfaces, the invariants, the tasks and the scope for one in-flight piece of work — recent ones
+are #55 (base-tag chains), #80 (external source roots), #101 (FW-71 multi-step slot sources), #106
+(this pass). One in flight per piece of work, not per release: several can be open, each closing on
+its own.
 
-**Post-ship cleanup is mandatory:**
+**The root `SPEC.md` artifact is RETIRED** (deleted 2026-08-17, last used for FW-36 in 1.14.0). Do
+not create one. Its truncated stub read "No active spec", which is why it survived three releases of
+disuse: a stub that says "none right now" is indistinguishable from a mechanism that has ended. In-code
+citations of the form `SPEC §V<n>` predate the change and dangle — repoint them to a real home when
+you touch one; none is load-bearing.
 
-- **Load-bearing §V invariants** migrate to:
+**Post-ship migration is mandatory and is UNCHANGED by that** — it never depended on the artifact:
+
+- **Load-bearing invariants** migrate to:
   - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
   - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
-  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/archive/<feature>.md`.
-- §T rows: delete all closed/deferred rows.
-- §B bugs: file as GitHub Issues; cross-reference the §V they produced if one was added.
-- Truncate `SPEC.md` to: `# SPEC — No active spec. See CHANGELOG, docs/tag-reference.md, Issues.`
+  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
+- Closed/deferred task rows: delete them from the issue's checklist, or close the issue.
+- Bugs found on the way: file as their own GitHub Issues, cross-referencing the invariant they produced if one was added.
 
-**SPEC.md is source of truth only while the release is in flight.** Once shipped: `CONTEXT.md` (cross-cutting invariants) + `docs/tag-reference.md` (schemas) + PHPDoc (single-class invariants) + CHANGELOG + Issues take over.
+**An issue is source of truth only while the work is in flight.** Once shipped: `CONTEXT.md`
+(cross-cutting invariants) + `docs/tag-reference.md` (schemas) + PHPDoc (single-class invariants) +
+CHANGELOG + Issues take over. A closed spec issue is a record of how something came to be, not a
+statement of how it currently works — the same reading posture `CONTEXT.md` opens with.
 
-**Bugs:** new bugs → GitHub Issues by default. SPEC §B reserved for bugs that drove a spec change (new invariant). §B cross-references the §V it produced. Not a general bug tracker.
+**Bugs:** new bugs → GitHub Issues, always. There is no in-repo bug file.
 
 ## Agent skills
 
