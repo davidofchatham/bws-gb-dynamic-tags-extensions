@@ -50,6 +50,11 @@ require __DIR__ . '/../../includes/helpers/try-slot-arms.php';
 // those kinds here would be the second literal that lets the two drift apart in exactly
 // the direction nothing would notice — a new step kind with no arm renders empty.
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// And the engine, for BWS_SOURCE_KIND_UNRESOLVED — the one BASE kind the branch refuses.
+// Required rather than re-`define`d locally for the same reason as the constants above: a
+// harness that spells the sentinel itself would agree with itself while the branch guard,
+// which is `defined()`-guarded, quietly stopped firing in production.
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 $failures = 0;
 $count    = 0;
@@ -223,10 +228,39 @@ assert_same( 'A4.6 `base` never branches to itself', 'post', bws_try_slot_base_b
 assert_same( 'A4.7 an empty base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( '' ) );
 assert_same( 'A4.8 an unknown base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( 'wormhole' ) );
 
+// ── THE ONE KIND THE BRANCH REFUSES (#75 / #76) ────────────────────────────────
+//
+// The factory's refusal kind means it was handed a source it could not use. Defaulting
+// THAT to the post arm is the same ambient read one layer down — so the obvious sentinel
+// would have reproduced #109 in the act of fixing it, which is why this function became
+// nullable at all. Refusing wholesale was never available: A4.4's meta_row default is
+// load-bearing, so the refusal is for the sentinel ALONE.
+//
+// VERIFY BY MUTATION: drop the sentinel guard from bws_try_slot_base_branch_kind() and
+// A4.11 fails; widen it to refuse anything non-branchable and A4.4 fails.
+assert_same( 'A4.11 the factory\'s refusal kind is refused, not defaulted', null, bws_try_slot_base_branch_kind( BWS_SOURCE_KIND_UNRESOLVED ) );
+assert_same( 'A4.12 …and A4.4\'s documented default is untouched by it', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
+
+// The two adjacent lookups now give the SAME answer for a kind nothing consumes. They
+// gave opposite answers before — one documented "null is a refusal, not a default" while
+// its neighbour defaulted — and a reader had to work out which posture applied where.
+assert_same(
+	'A4.13 both lookups refuse a kind no arm consumes',
+	array( null, null ),
+	array( bws_try_slot_arm( BWS_SOURCE_KIND_UNRESOLVED ), bws_try_slot_base_branch_kind( BWS_SOURCE_KIND_UNRESOLVED ) )
+);
+
 // Totality, stated as a property rather than as the rows above: whatever goes in, what
-// comes out is a key that exists and is not itself a branch instruction.
-foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'base', '', 'wormhole' ) as $probe ) {
+// comes out is either a refusal or a key that exists and is not itself a branch
+// instruction. The refusal arm of this is not decoration — the caller dereferences the
+// re-looked-up arm, so a branch that refuses without the caller re-checking trades a
+// wrong value for a fatal.
+foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'base', '', 'wormhole', BWS_SOURCE_KIND_UNRESOLVED ) as $probe ) {
 	$landed = bws_try_slot_base_branch_kind( $probe );
+	if ( null === $landed ) {
+		assert_same( "A4.9 branch of '{$probe}' refuses", BWS_SOURCE_KIND_UNRESOLVED, $probe );
+		continue;
+	}
 	assert_true( "A4.9 branch of '{$probe}' lands on a real arm", null !== bws_try_slot_arm( $landed ) );
 	assert_true( "A4.10 branch of '{$probe}' does not re-branch", 'branch' !== bws_try_slot_arm( $landed )['fn'] );
 }

@@ -715,6 +715,32 @@ function bws_fixture_core_structures_chain_roots( $roots ) {
 			return bws_fixture_seeded_post_id( 'sample-event', 'post' );
 		},
 	);
+
+	// A SCOPE-BOUND root — the #76 category-2 fixture, and the only one of the three
+	// that ever answers nothing. It resolves on `/matrix-fixture-roots/` and refuses
+	// everywhere else, which is the measured real-wire shape: a View-scoped source on a
+	// page outside its View. The refusal is what the fold matrix §F11 rows read.
+	//
+	// SCOPED BY QUERIED OBJECT, not by request state, so a `render-tag --url=` sweep and
+	// a browsed page agree — the same rule its two siblings follow and for the same
+	// reason. It must resolve SOMEWHERE, or "refuses off its scope" is indistinguishable
+	// from "is broken", and the positive row is what tells them apart.
+	$roots['fixture_scoped'] = array(
+		'label'   => 'Fixture Root (scoped)',
+		'context' => 'post',
+		'resolve' => static function ( $options, $instance ) {
+			$queried = function_exists( 'get_queried_object' ) ? get_queried_object() : null;
+			if ( ! ( $queried instanceof WP_Post ) || 'matrix-fixture-roots' !== $queried->post_name ) {
+				return false;
+			}
+			// The target slug is the class route's, taken from it rather than retyped —
+			// two roots pointing at "the same" entity by two literals is how a fixture
+			// starts asserting an equivalence it no longer has. Required here because
+			// this filter can fire before the source-registration callback has.
+			require_once __DIR__ . '/fixture-source.php';
+			return bws_fixture_seeded_post_id( BWS_Fixture_Root_Source::TARGET_SLUG, 'staff' );
+		},
+	);
 	return $roots;
 }
 

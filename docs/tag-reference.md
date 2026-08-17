@@ -124,6 +124,13 @@ once an author converts it or the Tag Converter rewrites it.
   alone — the editor's pickers and the list-mode reveal both scope themselves before anything
   resolves. Every base arm asks that one question instead of comparing `src` to `'ref'`/`'site'` or
   reading `srcTermIn`, which is what makes the two spellings take the same arm.
+- **A source that is present but unusable makes the tag render NOTHING, and a stated fallback
+  fires.** An unregistered root token, a registered source that resolves nothing in this context,
+  and an unknown step slug all take this path; a base tag renders empty, a `try_` attempt is
+  skipped, a `{{join}}` field is dropped. An **absent** source is not this case and still means the
+  ambient entity. The rule and what decides it are [I15]'s (`CONTEXT.md`); the author-facing
+  consequence for an integrator is in
+  [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
 - **`entries` is not offered on a base tag.** The step type exists and runs, but no base arm
   consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
   needs a hand edit, and it renders nothing.

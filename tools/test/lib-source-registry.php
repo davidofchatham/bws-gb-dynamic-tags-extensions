@@ -129,6 +129,23 @@ class BWS_Test_Unoffered_Source extends \BWS\DynamicTags\AbstractSource {
 }
 
 /**
+ * A registered source that RESOLVES NOTHING HERE — the #76 category-2 fixture.
+ *
+ * Not a broken source and not an unregistered token: it is what a correctly-written
+ * scope-bound source does off its scope. The measured population is a View-scoped source
+ * on a page outside its View; the source runs, finds no entity, and has nothing to hand
+ * back. Standing in for it deterministically is the point — the real one answers from
+ * request state a pure harness has no way to set.
+ */
+class BWS_Test_Absent_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'absentroot'; }
+	public function get_source_label(): string { return 'Absent Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function resolve_id( array $options, $instance ) { return false; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
  * A TERM-context opted-in root, for the settings gate: it is offered while the term_
  * modifier toggle is on and disappears with it, exactly as every other term surface does.
  */
