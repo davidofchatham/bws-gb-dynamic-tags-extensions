@@ -150,7 +150,7 @@ tag* — it names vocabulary that resolves to **nothing anywhere**, so the tag r
 whatever else is set. Added in 1.17.0
 ([#105](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/105)); base tags
 had no signal for this at all before, because an unnamed root emits no segment and
-`{{text src:currnet|key:x}}` previewed exactly like a bare `{{text key:x}}`. [ADR 0004](adr/0004-wire-human-readable.md)
+`{{text src:currnet|key:x}}` previewed exactly like a bare `{{text key:x}}`. [ADR 0004](adr/0004-serialized-tag-string-human-readable.md)
 makes that wire hand-authorable, which is exactly how an author produces it.
 
 Checked **after** the invalid-combo warning (which is more specific and names its remedy) and
@@ -374,7 +374,8 @@ described instead.
 
 What that did NOT retire is the general shape of the signal. A skipped slot and a slot that resolves
 to nothing both print nothing, so the preview stays the only place an author can see which happened —
-which is why the four reasons below still speak. Each comes from
+which is why the five reasons below still speak — four survived the seam change and `no repeater
+field` arrived with it, which is why a "four" anywhere is a stale count. Each comes from
 `bws_fold_slot_chain_options()`'s `$skip_reason` out-param, never from a second copy of the skip rule
 in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
 normal in-progress state, and flagging it would fire on every half-built join.
