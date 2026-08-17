@@ -45,6 +45,11 @@
  *       <census.jsonl> <out.jsonl> <context_kind> [<volatility:0|1>] \
  *       --url=https://portals.test/some-post/
  *
+ * CORPUS IDENTITY. The run header also records a content digest of the census, because the
+ * census is overwritten in place by a re-harvest — in the same directory the artifacts sit
+ * in — so an artifact outlives the wire it was built from without anything saying so. The
+ * diff refuses a mismatched corpus the way it already refuses a build diffed against itself.
+ *
  * Output is JSONL, appended: one `run` header object per URL, then one `render` object per
  * tag. Append rather than overwrite so the driver's loop accumulates a single artifact.
  *
@@ -294,6 +299,22 @@ fclose( $fh );
 $tags = array_keys( $tags );
 sort( $tags, SORT_STRING );
 
+// CORPUS IDENTITY — WHICH census produced this artifact, not merely that one did.
+//
+// A labelled artifact and the census it was rendered from live in the SAME directory, and
+// `bin/harvest-tags.sh` overwrites that census in place. So a re-harvest silently orphans
+// every artifact already sitting beside it: the files still parse, still diff, and still
+// report a verdict, but against a corpus that no longer exists. Cost real evidence on
+// 2026-08-17 — Experiment R's portals pair was rendered against the 08-14 census, which
+// #112's census step then overwrote, leaving two artifacts that can never be re-diffed with
+// census classification again (`fixtures/harvest/portals-B/_superseded/`).
+//
+// A CONTENT hash, unlike the stat-only source digest above: the census is one small file
+// read once per invocation, and an overwrite that happens to preserve size and mtime is
+// exactly the case worth catching. Rows are recorded beside it because a digest cannot say
+// how a corpus differs, only that it does.
+$census_digest = substr( (string) md5_file( $census_path ), 0, 12 );
+
 // ---------------------------------------------------------------------------
 // 3. Render.
 // ---------------------------------------------------------------------------
@@ -330,6 +351,8 @@ $write( array(
 	'source_commit'   => $source['commit'],
 	'source_digest'   => $source['digest'],
 	'source_files'    => $source['files'],
+	'census_digest'   => $census_digest,
+	'census_rows'     => count( $tags ),
 	'tags'            => count( $tags ),
 	'volatility_check' => $check_volatility,
 	// Wall clock, so a reviewer can see a day boundary between the two sides of a diff.
