@@ -1208,6 +1208,24 @@ function bws_base_term_ids_from_source( array $base, array $options ): array {
 }
 
 /**
+ * The USER ids a base tag's chain resolves to — the user arm's read.
+ *
+ * Sibling of the term read, and reached the same way: only a ROOT-ONLY chain can
+ * resolve to a user today (the ambient author archive), so in practice this returns
+ * the one queried user. It runs the chain rather than reading $base['id'] directly
+ * so a future user-producing step needs no second read here, and so the arm's `ids`
+ * column means the same thing on every row.
+ *
+ * @since 1.17.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int[] User ids in document order (may be empty).
+ */
+function bws_base_user_ids_from_source( array $base, array $options ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'user' );
+}
+
+/**
  * Whether a base callback should read the AMBIENT TERM instead of a post.
  *
  * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own
