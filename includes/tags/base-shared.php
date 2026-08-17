@@ -1105,6 +1105,73 @@ function bws_base_src_resolution( array $options ): array {
 }
 
 /**
+ * Whether a base arm must REFUSE this tag rather than read anything (GH #75/#76/#109).
+ *
+ * THE ARMS' REFUSAL TEST — one call per arm, and the only place either refusal is
+ * compared in a base callback. Seven arms spelling the comparisons inline would be
+ * seven restatements of one mechanism; what each refusal MEANS stays owned elsewhere
+ * (bws_fold_chain_resolution() for the chain kind, BWS_SOURCE_KIND_UNRESOLVED for the
+ * factory's).
+ *
+ * TWO REFUSALS, ONE TEST, and they are disjoint by POSITION rather than alternatives:
+ * a chain is a ROOT plus STEPS, position 0 is a root by construction, so "the root
+ * named a source this render cannot use" and "a later step named vocabulary nothing
+ * recognises" cannot be the same fault. Both mean the read does not happen.
+ *
+ * The consequence each arm implements: the read does not happen, the arm's own empty
+ * path runs, and a stated fallback fires. Refusing is NOT the same as reading and
+ * finding nothing — it is [I15] ("an ambient read must be SPELLED, never reached by
+ * fallback"). The arms' catch-all performs the SINGULAR read, and a singular read with
+ * no id does not stop: bws_read_field() falls back to the query-loop ROW and then to
+ * the queried TERM. So a refused source used to render a real, plausible value from an
+ * entity the wire never named, which is strictly worse than an empty one — an empty
+ * one gets reported.
+ *
+ * THAT LAST FACT IS WHY THE TEST RUNS AFTER THE FACTORY, not before it. The cores'
+ * falsy-id guard looks like it already refuses and does not: the loop-row read beneath
+ * it is load-bearing for the flat-repeater path (mode 2b), where an ABSENT source
+ * legitimately means the row. Absence and refusal have to part company above the core,
+ * because the core cannot tell them apart.
+ *
+ * @since 1.17.0
+ * @param array $res  A bws_base_src_resolution() result (the CHAIN's answer).
+ * @param array $base A bws_base_resolve_source_for_callback() result (the FACTORY's).
+ * @return bool True when no arm may read this tag.
+ */
+function bws_base_read_refused( array $res, array $base ): bool {
+	if ( '' === ( $res['kind'] ?? '' ) ) {
+		return true;
+	}
+	return defined( 'BWS_SOURCE_KIND_UNRESOLVED' )
+		&& BWS_SOURCE_KIND_UNRESOLVED === ( $base['kind'] ?? '' );
+}
+
+/**
+ * The tag's STATED fallback, rendered — or '' when the author stated none.
+ *
+ * One owner for the text-shaped fallback emit. {{text}} and {{join}} carried
+ * byte-identical copies of it and the refusal guards would have made four; the
+ * copies are what this removes, per the standing rule against re-inlining a rule at
+ * a call site.
+ *
+ * NOT the fallback the cores emit on their own empty reads — those merge the resolved
+ * id into the options first, which a refused source does not have. {{image}}'s
+ * fallback is a media id rather than text and has its own owner
+ * (bws_image_stated_fallback); {{datetime_*}} has bws_handle_date_time_fallback().
+ *
+ * @since 1.17.0
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string The rendered fallback, or ''.
+ */
+function bws_base_stated_fallback( array $options, $instance ): string {
+	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
+	return '' !== $fallback
+		? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+		: '';
+}
+
+/**
  * Collapse a base source to the callback's POST id via ref-only steps (SPEC §V13).
  *
  * The post-path counterpart of the ambient-term branch: runs the wrapper's

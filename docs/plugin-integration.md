@@ -254,10 +254,32 @@ All methods below are available on `AbstractSource` with the listed defaults. Ov
 
 | Method | Return | Notes |
 |--------|--------|-------|
-| `resolve_id( array $options, $instance ): int\|false` | Entity ID | Override this (or legacy `resolve_post_id()`). **Resolve a STARTING entity, never a traversal.** See the note below. |
+| `resolve_id( array $options, $instance ): int\|false` | Entity ID | Override this (or legacy `resolve_post_id()`). **Resolve a STARTING entity, never a traversal.** See the note below. Returning `false` makes the tag render nothing — see [What a non-resolving source renders](#what-a-non-resolving-source-renders). |
 | `format_id_for_acf( $id ): int\|string` | ACF object ID | Override when source resolves to a non-post entity. Post sources: pass-through. Term sources: return `"term_{$id}"`. User sources: return `"user_{$id}"`. |
 
 > **A source resolves a starting point; the pipeline does the hops.** Since v1.14.0 a relationship hop is a generic `ref` step the traversal engine runs off whatever entity the source factory resolved, and `register_modifier()`'s `traversal_source_key` has been accepted-but-ignored. A source whose `resolve_id()` reads its own relationship field is therefore doing work the engine already does, from an option key nothing else in the plugin honours — the compiler builds its `refs` step from `ref` alone. In v1.17.0 the four built-in related-post sources (`related_post`, `second_related_post`, `post_term_related_post`, `term_related_post`) were made inert for exactly this reason ([#56](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/56)); their registrations remain, their `get_source_options()` are now empty, and the `rel`/`rel_2` option builders they used are removed. If your plugin ships a source of this shape, it is safe to make it inert too — nothing in this plugin dispatches to it.
+
+### What a non-resolving source renders
+
+Since v1.17.0, a tag naming a source that cannot resolve **renders nothing**, and any fallback the author stated fires. Before that it fell through to the ambient entity, so the tag showed a real value read from whatever the visitor was already looking at.
+
+This is the default and needs no declaration on your part. Two cases reach it:
+
+- `resolve_id()` returns `false` — your source ran and found no entity in this context. A source scoped to some part of the site behaves this way everywhere else, which is correct: it never appears to work by reading someone else's entry.
+- The stored tag names a source key that is not registered — your plugin is deactivated, or the key was renamed.
+
+What an author sees depends on the tag:
+
+| Tag family | Result |
+|---|---|
+| A base tag | Renders empty, or its stated fallback |
+| A first-available tag (`try_*`) | Skips that attempt and runs the next one |
+| A combining tag (`{{join}}`, `{{table}}`) | Drops that field from the composite |
+
+Two things follow that are easy to get backwards:
+
+- **Withdrawing your source's offer does not change what stored tags render.** `is_selectable_root()` governs the dropdown only. A tag already naming your source keeps resolving through it.
+- **The plugin's own registry failing to load is a different question and still falls through.** That is a fact about this plugin rather than about the author's tag, and refusing on it would blank every tag on the site.
 
 ### Default-enabled control
 

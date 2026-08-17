@@ -696,7 +696,18 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 
 	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
 	// analog (SPEC §V7). Explicit src/loop/id already won inside the factory.
-	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$base = bws_base_resolve_source_for_callback( $options, $instance );
+
+	// REFUSED (GH #75/#76/#109) — read nothing. The empty triple IS this arm's own empty
+	// path: bws_base_text_callback() then runs the preview label or the stated fallback
+	// exactly as it does for a read that found nothing. Covers {{join}}'s slots too,
+	// which absorb their read through this seam rather than through an arm of their own —
+	// a combining tag drops that field from the composite rather than substituting the
+	// current entry's value.
+	if ( bws_base_read_refused( $res, $base ) ) {
+		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
+	}
+
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
 		return array(
@@ -841,10 +852,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
 
 	// All slots empty — apply the fallback. Never link-wrapped: it is not a
 	// resolved entity's value, so there is no entity to link to.
-	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
-	return '' !== $fallback
-		? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
-		: '';
+	return bws_base_stated_fallback( $options, $instance );
 }
 
 /**
@@ -1069,10 +1077,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		if ( $is_preview && function_exists( 'bws_build_join_preview_label' ) ) {
 			return bws_build_join_preview_label( (array) $options );
 		}
-		$fallback = sanitize_text_field( $options['fallback'] ?? '' );
-		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
-			: '';
+		return bws_base_stated_fallback( (array) $options, $instance );
 	}
 	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $assembled, $options, $instance );
 }
@@ -1109,7 +1114,18 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → description/key analog (§V7).
-	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$base = bws_base_resolve_source_for_callback( $options, $instance );
+
+	// REFUSED (GH #75/#76/#109) — read nothing. This arm's empty path is SPLIT: the
+	// preview half is the tail below, but the fallback half lives inside
+	// bws_post_content_core(), which the refusal must not call. Both halves are
+	// therefore stated here, in the tail's own preview-outranks-fallback order.
+	if ( bws_base_read_refused( $res, $base ) ) {
+		return $is_preview && function_exists( 'bws_build_preview_label' )
+			? bws_build_preview_label( $options, 'content' )
+			: bws_base_stated_fallback( $options, $instance );
+	}
+
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
 		$value = bws_base_term_analog_read( 'content', $term_id, $options, $instance );
@@ -1187,7 +1203,15 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → term name analog (§V7).
-	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$base = bws_base_resolve_source_for_callback( $options, $instance );
+
+	// REFUSED (GH #75/#76/#109) — read nothing. {{title}} registers no `fallback` option,
+	// so this arm's whole empty path is the preview label; the expression is the tail's,
+	// unchanged.
+	if ( bws_base_read_refused( $res, $base ) ) {
+		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
+	}
+
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
 		$value = bws_base_term_analog_read( 'title', $term_id, $options, $instance );
@@ -1289,7 +1313,16 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	}
 
 	// L1 base source (SPEC §V1); ambient term archive → term URL analog (§V7).
-	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$base = bws_base_resolve_source_for_callback( $options, $instance );
+
+	// REFUSED (GH #75/#76/#109) — read nothing. {{permalink}} is the one arm with NO empty
+	// path to route into: it registers neither a `fallback` option nor a preview label
+	// (a bracketed placeholder would break the href it usually feeds), so '' is the whole
+	// of it, and it is what the term branch below already returns on an empty read.
+	if ( bws_base_read_refused( $res, $base ) ) {
+		return '';
+	}
+
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
 		return bws_base_term_analog_read( 'permalink', $term_id, $options, $instance );
@@ -1342,7 +1375,18 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	// L1 base source (SPEC §V1); ambient term archive → term image field (by key),
 	// or the configured Media Library fallback when no key (I1 gap #29: no intrinsic
 	// term image analog, but the fallback still applies). §V7.
-	$base    = bws_base_resolve_source_for_callback( $options, $instance );
+	$base = bws_base_resolve_source_for_callback( $options, $instance );
+
+	// REFUSED (GH #75/#76/#109) — read nothing. Same split as {{content}}: the preview
+	// half is the tail, the fallback half lives inside the image cores
+	// (bws_image_stated_fallback, their shared owner), which the refusal must not reach
+	// through a core. Preview outranks the fallback image, matching the tail.
+	if ( bws_base_read_refused( $res, $base ) ) {
+		return $is_preview && function_exists( 'bws_build_preview_label' )
+			? bws_build_preview_label( $options, 'image' )
+			: bws_image_stated_fallback( $options, $instance );
+	}
+
 	$term_id = bws_base_ambient_term_id( $base, $options );
 	if ( $term_id ) {
 		$value = bws_base_term_analog_read( 'image', $term_id, $options, $instance );

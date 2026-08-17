@@ -840,7 +840,14 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		? bws_base_ambient_term_id( $base, $options )
 		: 0;
 
-	if ( $ambient_term_id ) {
+	$refused = function_exists( 'bws_base_read_refused' ) && bws_base_read_refused( $res, $base );
+
+	if ( $refused ) {
+		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
+		// handed a falsy id does not stop, it reads the query-loop row and then the
+		// queried term. This arm's own empty path is the all-empty fallback below.
+		$value = '';
+	} elseif ( $ambient_term_id ) {
 		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );
 		$link_id   = $ambient_term_id;
 		$link_type = 'term';
@@ -896,8 +903,10 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 
 	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
 	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63).
-	if ( '' === $value && $res['fans'] ) {
+	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans: the
+	// fallback it would otherwise have got is the one the core emits, and the core is
+	// exactly what a refusal must not run.
+	if ( '' === $value && ( $res['fans'] || $refused ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'single' );
 		$link_id = 0;
 	}
@@ -965,7 +974,13 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		? bws_base_ambient_term_id( $base, $options )
 		: 0;
 
-	if ( $ambient_term_id ) {
+	$refused = function_exists( 'bws_base_read_refused' ) && bws_base_read_refused( $res, $base );
+
+	if ( $refused ) {
+		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
+		// See bws_base_datetime_single_callback() for why the core is skipped.
+		$value = '';
+	} elseif ( $ambient_term_id ) {
 		$value     = bws_term_datetime_range_core( $ambient_term_id, $mapped, $instance );
 		$link_id   = $ambient_term_id;
 		$link_type = 'term';
@@ -1021,8 +1036,9 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
 	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63).
-	if ( '' === $value && $res['fans'] ) {
+	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans — see
+	// bws_base_datetime_single_callback().
+	if ( '' === $value && ( $res['fans'] || $refused ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'range' );
 		$link_id = 0;
 	}

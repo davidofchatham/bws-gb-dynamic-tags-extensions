@@ -603,6 +603,45 @@ a legacy `limit:N` beside a compound source is the shape that moves.
 | F11.1 | `{{phone src:refs,related_staff;bogus,x\|key:main_line}}` | EMPTY — an unknown hop slug compiles to an unknown engine TYPE, the engine answers empty, the chain short-circuits. Dropping the step would read a different source than the wire states |
 | F11.2 | `{{phone src:refs,related_staff;site\|key:main_line}}` | EMPTY — a ROOT slug at a HOP position takes the same path |
 
+### §F11a — a source that is PRESENT BUT UNUSABLE renders nothing (#75/#76/#109)
+
+All on `/matrix-post-meta/`, whose own title is `Matrix: Post Meta`, whose `role` is `Captain`,
+whose `name_first` is `Jane` and whose `related_staff` leads with Jane Partner.
+
+**EVERY ROW NAMES A KEY THE PAGE ACTUALLY CARRIES, AND THAT IS THE WHOLE POINT.** Until 1.17.0 these
+rows had to name a key nothing carried, because a leaking tag rendered a plausible value rather than
+an empty one and a row keyed on a real field could not tell the two apart. The pre-fix answer is
+stated per row: if one of those comes back, the refusal regressed, and a green "empty" on a key
+nothing carries would not have noticed.
+
+`{{email}}`/`{{phone}}` are absent here on purpose — they read through the engine seam (§F11.1/.2),
+which refused these shapes already, so they cannot show a regression in the arms.
+
+| # | Tag | Expected (pre-fix answer) |
+|---|---|---|
+| F11a.1 | `{{title src:currnet}}` | EMPTY — an unregistered token is a source the wire NAMES, not an absent one (*was* `Matrix: Post Meta`) |
+| F11a.2 | `{{text src:currnet\|use:key\|key:role}}` | EMPTY (*was* `Captain`) |
+| F11a.3 | `{{text src:related_post\|use:key\|key:role}}` | EMPTY — a REGISTERED source whose resolve is inert (#56). The standing pre-migration state of every tag the `related_post` entry exists to repair (*was* `Captain`) |
+| F11a.4 | `{{text src:fixture_scoped\|use:key\|key:role}}` | EMPTY — a registered source, correctly written, resolving nothing on THIS page. The measured real-wire shape (blueprint v11) (*was* `Captain`) |
+| F11a.4b | `{{image src:currnet\|use:key\|key:feature_image}}` | EMPTY — the image arm, on its own seam (*was* the page's `feature_image`) |
+| F11a.5 | `{{text src:fixture_scoped\|use:key\|key:role}}` on `/matrix-fixture-roots/` | `Fixture Root` post's `role`. The NON-VACUITY row for F11a.4, which asserts nothing if the source can never resolve anywhere. Visible as §FR2b on that page |
+| F11a.6 | `{{title src:refs,related_staff;bogus,x}}` | EMPTY — the unknown-STEP door, disjoint from the rows above by POSITION (*was* `Jane Partner`, the chain's prefix collapsed to its first result; still one under `limit:0`) |
+| F11a.7 | `{{text use:key\|key:role}}` | `Captain` — the CONTROL row. An ABSENT source still means the ambient entity. If this goes empty the refusal over-reached and every bare tag on every site is blank |
+
+### §F11b — the stated fallback fires, and the other two containers do not blank
+
+A refusal produces nothing, and "produced nothing" is what a fallback is FOR. Asserted separately
+from §F11a because "renders empty" passes whether or not the fallback fired.
+
+| # | Tag | Expected |
+|---|---|---|
+| F11b.1 | `{{text src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — not empty. Front end only; the editor shows the configuration preview instead (F14.18) |
+| F11b.2 | `{{content src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — content's fallback lives inside its core, which a refusal must not run, so this row is the one that catches a refusal that returned early |
+| F11b.3 | `{{image src:currnet\|use:key\|key:feature_image\|fallback:<id>}}` | the fallback IMAGE renders. Same split as F11b.2 one seam over. **`render-tag` only, and the exception is stated here per the visible-rows rule**: the fallback is a Media Library ID assigned at seed time, so no static string in `blocks.php` can name it. Pass the seeded attachment's id (`wp post list --post_type=attachment`). Its refusal half IS visible, as F11a.4b |
+| F11b.4 | `{{datetime_single src:currnet\|key:event_datetime\|fallback:No date}}` | `No date`. Its arm's fallback is gated on the chain FANNING, which a root-refused tag does not do — so a refusal joins that gate explicitly |
+| F11b.5 | `{{join A:src(bogus,x);key(role)\|B:key(name_first)}}` | `Jane` — the combining container DROPS the field. Not `Captain, Jane`, which is the pre-fix answer and the misattribution the whole fix is about |
+| F11b.6 | `{{try_text A:src(currnet);use(key);key(role)\|B:use(key);key(name_first)}}` | `Jane` — the selecting container ADVANCES to attempt B. *Was* `Captain`: attempt A read the ambient entity, SUCCEEDED, and stopped the chain, so B never ran. This is the row where the fix changes output to a different real value rather than to nothing |
+
 ## §F12 — ref-hop return formats (blueprint v6)
 
 `bws_get_related_posts_data` type-guards `relationship|post_object` and the coercer handles `WP_Post`
@@ -667,7 +706,7 @@ rows are the fastest way in) and check each.
 | F14.20 | Open a tag naming a RETIRED source token — `{{text src:related_post\|use:key\|key:bio}}` | `[⚠ Source 'related_post' is no longer supported — run the Tag Converter]`, NOT "unknown". The token IS registered (the registry keeps its dead by policy) and inert by decision (#56), so "unknown" would be a false statement — and this is the one warning here with a repair the author can go and run. Then RUN the converter and reopen: the tag is rewritten to `src:ref` wire and the warning is gone, which is the row's second half |
 | F14.21 | Open `{{join A:src(bogus,x);key(bio)\|B:key(bio)}}` | `[⚠ Join: A unknown source 'bogus']` — the slot phrasing, named by LETTER. The inert warning reports **alone**: slot A's key is set here, but even unset it would not add `A no key`, because the slot reads nothing whatever its key says. Detection sits ABOVE the `roots` display switch, which the slot door turns off — a check under it stops flagging on every slot and on nothing else |
 | F14.22 | Open `{{try_text A:src(bogus,x);use(key);key(bio)\|B:src(currnet);use(key);key(bio)}}` | `[⚠ Try: A, B misconfigured]` — two slots, two different unknown tokens, so the detail drops and the letters remain. Change B's source to `bogus` as well and the bracket becomes `[⚠ Try: A, B unknown source 'bogus']`: one distinct issue, so the detail comes back. That pair is the collapse rule in one interaction |
-|  |  | **`bio` IS ON NO FIXTURE, AND THAT IS FORCED — read this before "improving" the keys.** A base tag with an unresolvable source does NOT render nothing, and the two ways it fails are DIFFERENT reads — measured 2026-08-17 on `/matrix-post-meta/`, whose own title is `Matrix: Post Meta` and whose `related_staff` holds Jane Partner and Tom Associate. An unidentifiable SOURCE token reads the AMBIENT entity (`{{title src:currnet}}` → `Matrix: Post Meta`): [#75](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/75), filed before this work, measurements on it. An unknown STEP slug is silently DROPPED and the chain's PREFIX is read, collapsed to its first result (`{{title src:refs,related_staff;bogus,x}}` → `Jane Partner`, and still one under `limit:0`): [#109](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/109) — the arm has no case for the `''` kind, so it takes the same catch-all branch as a chain with no steps. `{{email}}`/`{{phone}}` are correct on both, being on the other seam (§F11.1). Known steps that resolve nothing are all correct — `refs,no_such_field` and `terms,no_such_tax` both answer empty. Two consequences here: the preview is built ONLY where resolution came back empty, so a row keyed on a field the page HAS would render a plausible wrong value and show no preview at all; and every row above therefore names a field nothing carries. When the leak is fixed the keys can go back and the rows keep working. **VERIFIED, user 2026-08-17** — all five bracket strings read in the editor exactly as stated above, which is the only evidence these rows have. (Also swept with `render-tag`, all five resolving empty, and curled back on `/matrix-post-meta/` after a reseed — but neither of those can see a preview.) |
+|  |  | **`bio` IS ON NO FIXTURE, and it no longer has to be — but do not "improve" these keys without reading why they are here.** These five rows were written while a base tag with an unresolvable source did NOT render nothing, and the preview is built ONLY where resolution came back empty — so a row keyed on a field the page HAS would have rendered a plausible wrong value and shown no preview at all. Every row therefore names a field nothing carries. Since [#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112) closed both leaks the constraint is gone and a real key would work, but the keys are LEFT AS THEY ARE: a `bio`-keyed row is empty for two independent reasons now, so it stays green under a regression in either, and the rows that would catch one are §F11a's, keyed on fields the page carries and stating each pre-fix answer. Rendered output cannot distinguish a skip from an empty read; these rows' evidence is the bracket string, and only the editor shows it. **VERIFIED, user 2026-08-17** — all five bracket strings read in the editor exactly as stated above. (Also swept with `render-tag`, all five resolving empty, and curled back on `/matrix-post-meta/` after a reseed — but neither of those can see a preview.) |
 ---
 
 ## Fail triage
