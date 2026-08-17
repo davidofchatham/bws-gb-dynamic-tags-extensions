@@ -48,13 +48,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   `ids`        Which entity ids the arm reads off the slot's source.
  *                'term' → bws_base_term_ids_from_source()
  *                'post' → bws_base_post_ids_from_source()
+ *                'user' → bws_base_user_ids_from_source()
  *                'none' → no entity at all (the site store carries a namespace, not an
  *                         id — ADR 0002)
  *                ''     → nothing to read; the slot is skipped
  *   `fn`         Which of the template's three functions renders one entity.
  *                'term' → try_term_fn, 'core' → try_core_fn, 'site' → try_site_fn (with
- *                try_core_fn( 0, … ) as the documented fallback leg, FW-4), 'user' → the
- *                base user analog. '' → no consumer.
+ *                try_core_fn( 0, … ) as the documented fallback leg, FW-4), 'user' →
+ *                try_user_fn, a thin closure over the base user analog. '' → no consumer.
  *   `link`       The entity type bws_wrap_with_link() is handed for a SINGLE-result
  *                output. '' → this arm never link-wraps.
  *   `list`       Whether the slot's limit slice + `sep` join seam applies.
@@ -67,8 +68,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * try_site_fn leg). Byte-identity is the property under test, so the table states what the
  * code does. The sketch also gives the `user` row a `post` link entity; the base absorb
  * seam wraps a user read as `user`, and that seam is the owner of the user analog this row
- * will consume, so the row follows it. Nothing reaches the row until FW-71's last ticket
- * (#108) wires the user leg, and #108 owns settling it if the two ever disagree.
+ * consumes, so the row follows it. #108 settled that disagreement in the row's favour and
+ * wired the leg WITHOUT touching this table.
  *
  * @since 1.17.0
  */
@@ -106,11 +107,11 @@ const BWS_TRY_SLOT_ARMS = array(
 		'list'       => true,
 		'branchable' => false,
 	),
-	// Ambient author archive. UNREACHABLE UNTIL #108 — no template carries a user fn, so
-	// the dispatcher's fn-absent fallthrough sends it to the post arm, which is exactly
-	// what ships today (the I6 parity defect: `{{try_text use:title}}` renders empty on an
-	// author archive while `{{text use:title}}` resolves). The row is asserted now so #108
-	// is a wiring change rather than a table change.
+	// Ambient author archive. LIVE since #108 on the three templates the user analog covers
+	// (text/title/content, via try_user_fn); the other six render empty there, as their base
+	// tags do. Asserting the row before anything could reach it is what made #108 a wiring
+	// change rather than a table one. What a template with no user fn does instead is the
+	// dispatcher's rule, stated where it is enforced (generate_base_try_tags()).
 	'user'     => array(
 		'ids'        => 'user',
 		'fn'         => 'user',

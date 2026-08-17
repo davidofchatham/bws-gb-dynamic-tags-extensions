@@ -90,11 +90,19 @@ bws_base_text_callback( array( 'key' => 'nonexistent_key_xyz' ), array( 'blockNa
 
 ---
 
-## T8 — user-analog arm (bare tag on an author archive, 1.16.0 FW-48 seam half)
+## T8 — user-analog arm (bare tag on an author archive, 1.16.0 FW-48 seam half + 1.17.0 `try_` leg)
 
 **render-tag-only exception** (same as T4's archive-context rule): these rows need an AUTHOR
 archive as ambient context, which no fixture page's GB blocks can supply — state per CLAUDE.md
 §Development. Context: `/author/fixture-author/`.
+
+The exception was **re-examined and KEPT** when the `try_` rows landed (#108). A browsable Block
+Element would need a new post type plus display-rule meta the seeder does not handle, and would
+put this fix's only evidence on the surface subject to LiteSpeed caching and
+`opcache.revalidate_freq` — both of which `render-tag` is exempt from. Worse, an Element rendered
+INSIDE the archive loop resolves the loop POST, so its rows would take the post arm and read
+correctly while testing a different arm than the one under test. Any future browsable surface has
+to sit outside the loop, and the blueprint has to say so.
 
 | # | Tag (on `/author/fixture-author/`) | Expected |
 |---|---|---|
@@ -103,9 +111,24 @@ archive as ambient context, which no fixture page's GB blocks can supply — sta
 | T8.3 | `{{text key:unseeded_key\|fallback:NOPE}}` | `NOPE` — key miss emits the fallback (term-core-shaped) |
 | T8.4 | `{{text use:title\|linkTo:permalink}}` | `Fixture Author` wrapped in the author-archive URL (user entity type) |
 | T8.5 | `{{join use:title}}` | `Fixture Author` — join slot absorbs the user arm through the seam |
-| T8.6 | `{{try_text use:title}}` | **empty — expected**: try_ slots read the descriptor table, not this seam; user leg lands with FW-43's fork collapse |
+| T8.6 | `{{try_text use:title}}` | `Fixture Author` — the [I6] parity row. A `try_` slot takes its OWN dispatcher's user arm (`try_user_fn`), never the absorb seam T8.5 rides; empty here through 1.16.0 |
+| T8.7 | `{{try_text key:description}}` | the fixture bio — key-mode parity, T8.2's twin. Not optional scope: the leg's renderer performs the `get_user_meta()` read, and suppressing it would take code base `{{text}}` does not have |
+| T8.8 | `{{try_text A:key(unseeded_key)\|B:use(title)}}` | `Fixture Author` — **attempt fallthrough**: a user key MISS must skip to the next attempt, not consume the tag. Safe because `$eval_opts` strips `fallback`/`fallback_text` before slot options are built; nothing else pins this |
+| T8.9 | `{{try_title}}` | `Fixture Author` — second template |
+| T8.10 | `{{try_content}}` | the fixture bio — third template |
+| T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — the arm table's `link:'user'` column's only evidence anywhere |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the mode-2b flat-repeater-row gate. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
-Verified 2026-07-21 (build f6f8d1e) via `render-tag`.
+T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
+2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at
+`main@e1bff07`.
+
+**Coverage note.** T8.6–T8.12 are the ONLY pins on the `try_` user leg. The wiring — which
+template carries which `try_*_fn`, and the fn-absent fallthrough — lives inside
+`generate_base_try_tags()`'s callback closure, which no pure harness reaches: the arm-table
+harness sees data, `control-order-test.php` sees registration. Adding a `try_user_fn` to a
+seventh template or reordering that fallthrough fails nothing. Accepted for 1.17.0; the
+extraction is noted on FW-43's row.
 
 ## Fail triage
 

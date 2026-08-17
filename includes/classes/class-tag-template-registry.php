@@ -33,6 +33,12 @@ class TagTemplateRegistry {
 	 *                    templates whose try_core_fn is site-blind (post cores) set a thin closure
 	 *                    over bws_site_resolve_value('<tag>',…). Absent → $cf(0,…) fallback keeps
 	 *                    seam-routed templates (email/phone) byte-identical.
+	 *   try_user_fn      callable|null  fn($user_id, $opts, $inst): string — try_ ambient
+	 *                    author-archive slot handler (#108). Present on the three templates
+	 *                    the user analog covers (text/title/content), a thin closure over
+	 *                    bws_base_user_analog_read('<tag>',…). ABSENT IS LOAD-BEARING on the
+	 *                    other six: they take the fn-absent fallthrough to the post arm, which
+	 *                    is the only path to the mode-2b flat-repeater-row gate.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -515,6 +521,7 @@ class TagTemplateRegistry {
 			$try_core_fn     = $tpl['try_core_fn'] ?? null;
 			$try_term_fn     = $tpl['try_term_fn'] ?? null;
 			$try_site_fn     = $tpl['try_site_fn'] ?? null;
+			$try_user_fn     = $tpl['try_user_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
@@ -668,6 +675,7 @@ class TagTemplateRegistry {
 			$cf   = $try_core_fn;
 			$tcf  = $try_term_fn;
 			$sf   = $try_site_fn;
+			$uf   = $try_user_fn;
 			$psk  = $per_slot_key;
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
@@ -683,7 +691,7 @@ class TagTemplateRegistry {
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -849,11 +857,19 @@ class TagTemplateRegistry {
 						case 'core':
 							$render_fn = $cf;
 							break;
+						case 'user':
+							// The ambient author archive ([I6] parity, #108). Only the three
+							// templates the user analog covers carry a try_user_fn; the other
+							// six leave it null ON PURPOSE and fall through below.
+							$render_fn = $uf;
+							break;
 					}
 					if ( null === $render_fn ) {
 						// This TEMPLATE has no function for the arm — a family with no
-						// try_term_fn, and the `user` leg on every family until #108 wires
-						// it. Falling through to the post arm is not a fallback invented
+						// try_term_fn, and the six families with no try_user_fn (#108 wired
+						// text/title/content and left the rest here deliberately: this
+						// fallthrough is their only route to the mode-2b gate below).
+						// Falling through to the post arm is not a fallback invented
 						// here: it is exactly what the token arms did, since both the
 						// term-ambient arm and the srcTermIn arm were gated on `$tcf`.
 						// Absence of a CONSUMER is the table's answer above (skip); absence
@@ -874,6 +890,11 @@ class TagTemplateRegistry {
 					switch ( $arm['ids'] ) {
 						case 'term':
 							$ids = bws_base_term_ids_from_source( $base, $slot_opts );
+							break;
+						case 'user':
+							// WITHOUT this case `user` took `default:` — post ids — and read
+							// the wrong entity as soon as the fn arm above started resolving.
+							$ids = bws_base_user_ids_from_source( $base, $slot_opts );
 							break;
 						case 'none':
 							$ids = [ 0 ];   // the site store carries a namespace, not an id (ADR 0002).

@@ -18,15 +18,18 @@
  *   1. every kind the CHAIN COMPILER can answer is either consumed or deliberately
  *      refused — asserted against the compiler's own vocabulary, never a second literal;
  *   2. an unconsumable kind is SKIPPED rather than guessed (null, not a post-arm default);
- *   3. the `user` and `meta_row` rows exist and say what they say, even though no wire
- *      reaches either yet (#103 acceptance);
+ *   3. the `user` and `meta_row` rows exist and say what they say — asserted at #103 before
+ *      either was reachable, which is what let #108 wire the user leg without touching the
+ *      table. `meta_row` is still reached by no wire on the chain axis, by decision;
  *   4. the base branch is total — every base kind lands somewhere, and only the
  *      branchable ones land off the post arm.
  *
  * VERIFIED BY MUTATION, not by a green count — three were run and each failed the suite:
  *   1. `bws_try_slot_arm()` defaults an unknown kind to the post arm instead of null
  *      (§A3.1/§A3.2 — the [I15] guess-the-nearest-arm defect);
- *   2. the `user` row loses `branchable` (§A4.2/§A5.1 — #108 becomes a table change);
+ *   2. the `user` row loses `branchable` (§A4.2/§A5.1 — a root-only chain on an author
+ *      archive stops reaching the user arm and silently reads the post arm again, i.e. the
+ *      I6 defect #108 fixed, restored);
  *   3. `meta_row` is given the post arm's `ids`/`fn` (§A3.3/§A3.5 — a repeater row
  *      silently rendered as the ambient post).
  *
@@ -101,7 +104,7 @@ foreach ( $compiler_kinds as $kind ) {
 
 // The table carries ONE key the compiler never answers: `user`. That is deliberate — it
 // is a BRANCH target, reachable only once the factory has resolved a `base` root, and it
-// ships wired in #108. Any OTHER extra key would be a row nothing can reach.
+// ships wired (#108). Any OTHER extra key would be a row nothing can reach.
 assert_same(
 	'A1.3 the only non-compiler key is the base-branch target `user`',
 	array( 'user' ),
@@ -232,15 +235,17 @@ foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'base', '', 'wormho
 }
 
 // ===========================================================================
-// §A5 — the rows no wire reaches yet (#103 acceptance)
+// §A5 — the two rows asserted ahead of their wire (#103 acceptance)
 // ===========================================================================
-echo "\n§A5 — user and meta_row, asserted ahead of their wire\n";
+echo "\n§A5 — user and meta_row\n";
 
-// The user row is BRANCHABLE and names a renderer, which is what makes #108 a wiring
-// change rather than a table change. It is unreachable today only because no template
-// carries a user function, so the dispatcher's fn-absent fallthrough sends it to the post
-// arm — which is precisely the shipped I6 parity defect (`{{try_text use:title}}` renders
-// empty on an author archive while `{{text use:title}}` resolves).
+// The user row is BRANCHABLE and names a renderer — both asserted below, and asserting them
+// before anything could reach them is what made #108 a wiring change rather than a table
+// change: text, title and content carry a try_user_fn and take this arm on an author
+// archive. Which templates carry one, and what a template without one does instead, is the
+// dispatcher's rule and is NOT pinned here or anywhere else pure — see
+// generate_base_try_tags() for it and tools/test/text-test-matrix.md §T8 for its only
+// evidence (accepted coverage gap, noted on FW-43's row).
 assert_true( 'A5.1 the user row is branchable', bws_try_slot_arm( 'user' )['branchable'] );
 assert_same( 'A5.2 the user row names its own renderer', 'user', bws_try_slot_arm( 'user' )['fn'] );
 

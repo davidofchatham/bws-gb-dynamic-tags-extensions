@@ -1208,6 +1208,24 @@ function bws_base_term_ids_from_source( array $base, array $options ): array {
 }
 
 /**
+ * The USER ids a base tag's chain resolves to — the user arm's read.
+ *
+ * Sibling of the term read, and reached the same way: only a ROOT-ONLY chain can
+ * resolve to a user today (the ambient author archive), so in practice this returns
+ * the one queried user. It runs the chain rather than reading $base['id'] directly
+ * so a future user-producing step needs no second read here, and so the arm's `ids`
+ * column means the same thing on every row.
+ *
+ * @since 1.17.0
+ * @param array $base    Base resolved source.
+ * @param array $options Tag options.
+ * @return int[] User ids in document order (may be empty).
+ */
+function bws_base_user_ids_from_source( array $base, array $options ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'user' );
+}
+
+/**
  * Whether a base callback should read the AMBIENT TERM instead of a post.
  *
  * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own
@@ -1342,8 +1360,11 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *   title   → display name          (get_the_author_meta('display_name'))
  *   content → biographical info      (get_the_author_meta('description'))
  *   text    → use:title = display name; key-mode = user meta field (1.16.0,
- *             FW-48 seam half — closes the ABSORB-seam hole so {{text}},
- *             {{join}} slots and try_text resolve on an author archive)
+ *             FW-48 seam half — closes the ABSORB-seam hole so {{text}} and
+ *             {{join}} slots resolve on an author archive. NOT try_text: a
+ *             try_ slot runs its own dispatcher and was wired separately in
+ *             1.17.0, #108. This clause claimed it for three releases while
+ *             the matrix row for it was failing.)
  *
  * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
  * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the

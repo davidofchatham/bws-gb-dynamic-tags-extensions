@@ -396,6 +396,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'           => 'bws_try_text_post_dispatch',
 		'try_term_fn'           => 'bws_try_text_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
+		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -437,6 +438,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'           => 'bws_try_content_post_dispatch',
 		'try_term_fn'           => 'bws_try_content_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
+		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -455,6 +457,7 @@ function bws_register_base_tags(): void {
 		'try_core_fn'  => 'bws_post_title_core',
 		'try_term_fn'  => 'bws_term_title_core',
 		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'title', (array) $opts, $inst ),
+		'try_user_fn'  => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'title', (int) $user_id, (array) $opts, $inst ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'try_list_options' => true,
@@ -704,7 +707,8 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	}
 	// Ambient author archive → user analog/meta read (FW-48 seam half, 1.16.0).
 	// Mirrors title/content's user arms; closing it HERE closes it for every
-	// ABSORB-seam reader ({{join}} slots, try_text) at once.
+	// ABSORB-seam reader — which is {{join}}'s slots, and NOT try_text: a try_ slot
+	// runs its own dispatcher, whose user arm is wired separately (try_user_fn, #108).
 	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
 	if ( $user_id ) {
 		return array(
