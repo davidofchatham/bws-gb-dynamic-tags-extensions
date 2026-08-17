@@ -573,8 +573,8 @@ tell "resolved correctly" from "resolved plausibly".
 > the inversion — `slot-fold-test.php` §P13.5 (mechanism) and the editor preview (author-facing) are.
 > The four `[⚠ Join: slot N source not supported]` flags §F14.9 asserted are GONE with the refusal
 > that produced them. FIVE reasons remain — four survived and `no repeater field` arrived with the emit
-change — and FOUR of the five SPEAK, each in its own words; `read` (an unconfigured combining slot) is
-silent by design, because it is a resting state.
+> change — and FOUR of the five SPEAK, each in its own words; `read` (an unconfigured combining slot) is
+> silent by design, because it is a resting state.
 >
 > A first draft of the old section claimed F10.5 as the skip case. It was vacuous — empty for the
 > other reason — and the preview harness is what caught it. The same trap is live here: F10.1 needs
