@@ -140,6 +140,17 @@ saying out loud, and gets a note at the site of the change explaining why it was
 there (see `tools/test/control-order-test.php`'s `showCurrentYear` comment, the one
 standing instance). An exception is not precedent: the next drift moves the code.
 
+**A RULE'S AXIS IS OWNED ONCE; ITS CONSEQUENCE MAY BE RESTATED ANYWHERE.** The axis is *what
+decides* — the predicate, the comparison, the derivation. The consequence is what an author or a
+reader observes. Any doc, PHPDoc or comment may state the consequence; only the enforcing site may
+name the axis, and a non-owner that names one is the defect, whether or not it currently agrees.
+That is grep-detectable, which is the point. Deriving it cost three days: the `same` merge's rule
+changed axis three times (append → same-slug → the JOIN), and every site that had named an axis
+went stale while every site that had named only the consequence stayed true — including two
+comments inside the file being edited. Same class as the four re-inlined `use`+`key` enums and the
+three labels on one image control: a restatement that names a mechanism is a second implementation
+of it.
+
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |

@@ -1369,10 +1369,13 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * merely its root") stops being enforced by a branch.
  *
  * WHAT SURVIVES THE CARRY BECOMING A CHAIN is the corollary's second half: an inherited hop
- * is a DEFAULT, not a step this chain took, so a slot's own step REPLACES an inherited one
- * of the same slug. That is a rule about what `same` MEANS — a slot sentinel the container
- * resolves before compiling — and not about the chain grammar, which is why a base tag's
- * `terms,a;terms,b` still hops twice. See the merge at the end of the source axis.
+ * is a DEFAULT, not a step this chain took, so part of the inherited chain can GIVE WAY to a
+ * step this slot states of its own. That is a rule about what `same` MEANS — a slot sentinel
+ * the container resolves before compiling — and not about the chain grammar, which is why a
+ * base tag's `terms,a;terms,b` still hops twice. WHAT DECIDES HOW MUCH GIVES WAY IS OWNED BY
+ * bws_fold_chain_join() (slot-fold-compile.php) AND IS NOT RESTATED HERE — it changed axis
+ * three times during #104, and every site that had named an axis went stale, including two in
+ * this file. See the merge at the end of the source axis.
  *
  * CONTAINER SENSITIVITY IS ON THE READ AXIS, AND ONLY THERE — specifically on what
  * ABSENCE means. An explicit `use(same)` inherits in BOTH containers (so the read is
@@ -1380,8 +1383,9 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * container (skip the slot) and INHERIT in a selecting one.
  *
  * THE `'chain'` REFUSAL DISSOLVED — a chain with no flat spelling — because there is no flat
- * spelling left to fail at, so the branch has nothing to test. Every other reason is correct
- * at any emit shape and STAYS, each with its own author-facing answer:
+ * spelling left to fail at, so the branch has nothing to test. The other four are correct at
+ * any emit shape and STAY; a FIFTH arrived with the emit change, so the count is five and not
+ * four wherever it is restated. Each has its own author-facing answer:
  *   - `'read'`         an unconfigured combining slot. Silent (a resting state).
  *   - `'inherit'`      a `same` root with nothing to be the same AS.
  *   - `'step:refs'`    a relationship step with no field AND nothing carried to inherit one.
@@ -1436,7 +1440,7 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`. Derive it
  *                            with bws_fold_is_combining() rather than at the call site.
  * @param string $skip_reason OUT, by reference. '' when the slot resolves; otherwise one of
- *                            the four reasons above. Written before any early return, so a
+ *                            the five reasons above. Written before any early return, so a
  *                            caller may reuse one variable across a whole slot walk.
  * @param int    $limit_default OUT, by reference. The limit this slot takes when its wire
  *                            states none: 0 (unlimited) for a chain-spelled slot whose own
@@ -1490,10 +1494,12 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// old flattener had to REJECT what it could not re-spell.
 	$steps = array_values( $slot['chain'] ?? array() );
 	// The inherited chain is held APART from this slot's own steps until both are known,
-	// because a slot's own step REPLACES an inherited one of the same slug rather than
-	// following it (see the merge below). Appending blind is what the first draft of #104
-	// did, and it silently deleted a slot: legacy `2-src:same|2-srcTermIn:office` behind a
-	// slot that already hopped `department` came out as two term steps and hopped twice.
+	// because part of the inherited chain can GIVE WAY to a step this slot states of its own
+	// rather than being followed by it — bws_fold_chain_join() owns what decides how much, and
+	// this comment deliberately does not restate it (see the merge below). Appending blind is
+	// what the first draft of #104 did, and it silently deleted a slot: legacy
+	// `2-src:same|2-srcTermIn:office` behind a slot that already hopped `department` came out
+	// as two term steps and hopped twice.
 	$inherited = array();
 	$own       = array();
 	$ref       = $carry['ref'];
@@ -1571,29 +1577,22 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 	// ── the merge: AN INHERITED HOP IS A DEFAULT, NOT A STEP THIS CHAIN TOOK ────
 	//
 	// [I15]'s corollary, second half. `src(same)` names the same SOURCE, so its steps travel
-	// with it — but a slot that goes on to state a step of its OWN on the same axis is
-	// refining that source, not hopping again off the end of it. So an inherited step is
-	// dropped where this slot states one with the same slug.
+	// with it — but a slot that goes on to state a step of its OWN may be refining that source
+	// rather than hopping again off the end of it, so part of the inherited chain can GIVE WAY.
 	//
-	// THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join, which carries the reasoning).
-	// The inherited tail gives way only where this slot's first step cannot run off it, and
-	// by as little as possible. Two cuts of this got it wrong in opposite directions and both
-	// are worth naming, because each looked right against every legacy shape:
+	// WHAT DECIDES HOW MUCH IS OWNED BY bws_fold_chain_join() AND IS NOT RESTATED HERE. It
+	// changed axis three times during #104 — append, then same-slug, then the join — each
+	// reading correct on every legacy shape and wrong on a different hand-written one, and the
+	// sites that had restated an axis all went stale while the sites naming only the consequence
+	// stayed true. Two of the stale ones were in this file (#106). The derivation, both wrong
+	// cuts and what each cost live in that function's docblock; CLAUDE.md §Documentation
+	// ownership is the general rule this is an instance of.
 	//
-	//   - dropping nothing appended, so `2-src:same|2-srcTermIn:office` behind a term hop
-	//     became two term steps, hopped off a TERM input, resolved empty, and the slot
-	//     vanished from a {{join}} that rendered it;
-	//   - dropping every same-slug step killed `src(same;refs,manager)` behind
-	//     `src(refs,office)` — the two-relationships-away chain FW-56 exists for — and, less
-	//     obviously, killed an inherited `terms` step in front of an own `refs;terms` pair,
-	//     where `refs` ACCEPTS a term input and the chain would have run as written.
-	//
-	// THE FLAT WIRE IS WHAT DECIDES THIS, and it is editor-authorable: leave slot 2's source
-	// alone and pick a different taxonomy, and you get `2-src:same|2-srcTermIn:office`, which
-	// the flat resolver read as "the inherited source, into office terms". Appending instead
-	// yields `terms,department;terms,office` — a term step off a TERM input, which has no
-	// post to read and answers empty, so the slot silently disappears from a `{{join}}` that
-	// rendered it. MEASURED both ways on the testbed; §P16.4 has pinned the shape since #74.
+	// WHAT IS LOCAL HERE is that the shape is EDITOR-AUTHORABLE at all, which a pure chain
+	// function cannot know: leave slot 2's source alone and pick a different taxonomy, and the
+	// old panel wrote `2-src:same|2-srcTermIn:office`, which the flat resolver read as "the
+	// inherited source, into office terms". So this is shipped wire, not a hand-edit hazard.
+	// MEASURED both ways on the testbed; §P16.4 has pinned the shape since #74.
 	//
 	// THIS IS NOT THE SPECIAL CASE #104 DELETED. That one was `$tax_inherit`, a SCALAR held
 	// beside the flat triple because a triple cannot carry a step; it is gone and stays gone.
