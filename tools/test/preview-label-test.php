@@ -856,8 +856,10 @@ check(
 // spelling left to fail at and the refusal dissolved with it — these are now the acceptance
 // signal for FW-71, and they assert the slots RESOLVE and are NAMED.
 //
-// The other four skip reasons still fire, each with its own wording, immediately below:
-// deleting the refusal wholesale would have removed three correct refusals.
+// FIVE reasons remain (the four that survived, plus `step:entries` which arrived with the emit
+// change), and FOUR of them fire with their own wording immediately below — `read`, an
+// unconfigured combining slot, is silent by design because it is a resting state. Deleting the
+// refusal wholesale would have removed correct refusals along with the dissolved one.
 check(
 	'join: ref+term chain previews normally (the row that always resolved)',
 	bws_build_join_preview_label( [ 'A' => 'src(refs,rel;terms,dept);use(title)', 'B' => 'key(role)' ] ),
