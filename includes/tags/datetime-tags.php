@@ -840,7 +840,9 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		? bws_base_ambient_term_id( $base, $options )
 		: 0;
 
-	$refused = function_exists( 'bws_base_read_refused' ) && bws_base_read_refused( $res, $base );
+	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
+	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
+	$refused = bws_base_read_refused( $res, $base );
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
@@ -974,7 +976,9 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		? bws_base_ambient_term_id( $base, $options )
 		: 0;
 
-	$refused = function_exists( 'bws_base_read_refused' ) && bws_base_read_refused( $res, $base );
+	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
+	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
+	$refused = bws_base_read_refused( $res, $base );
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
