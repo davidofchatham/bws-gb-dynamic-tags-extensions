@@ -920,7 +920,23 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 		// the step is the output-preserving mapping and the omission was a bug.
 		$chain[] = $step( $src );
 	}
-	if ( '' !== $tax ) {
+	// A SITE ROOT NEVER TAKES THE LEGACY TERM STEP, which is the same refusal
+	// bws_fold_chain_from_options() already makes for a base tag's flat keys and
+	// bws_fold_migrate_base_src() states as a rule ("A SITE ROOT IS LEFT ALONE, even beside
+	// a hand-edited `srcTermIn`"). `srcTermIn` registers `show_if src: not:site`, so the
+	// pair is hand-edit-only, and every arm has always let the site read win.
+	//
+	// It became LOAD-BEARING at #104 and was harmless before it: the retired flatten
+	// collapsed this chain back to a triple, and the chain reader dropped the step off the
+	// triple, so appending it here changed nothing. Now the chain IS the hand-off, so
+	// appending it makes the slot resolve a term step off a site source — no post input,
+	// hence empty — where the identically-keyed base tag still reads the site. That is the
+	// [I6]/[I16] parity §F9b.5 closed one release earlier, re-opened from the other side.
+	//
+	// ONE FIX, THREE PATHS: the render dual-read, the converter's slot mapper and the
+	// editor's mount migrator all build a slot's chain here (bws_fold_migrate_slots() calls
+	// this), so a stored tag, a converted one and an editor-touched one cannot disagree.
+	if ( '' !== $tax && 'site' !== $src ) {
 		// srcTermIn always FOLLOWS ref: the term step needs a post input, which the
 		// ref step produces (issue #44's order, one global rule in one builder).
 		$chain[] = $step( 'terms', $tax );
@@ -963,7 +979,7 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	// only where THIS slot's chain fans — the same predicate everything else here shares —
 	// so a slot with nothing to bound gets no limit, per #60. It loses nothing: a slot that
 	// fans by INHERITING is handed the bound with the source it inherits
-	// (bws_fold_slot_flat_options), which is what let the key itself be retired (#61).
+	// (bws_fold_slot_chain_options), which is what let the key itself be retired (#61).
 	if ( '' === $limit && ! $combining && bws_fold_chain_fanning_steps( $chain ) ) {
 		$limit = trim( (string) ( $options['limit'] ?? '' ) );
 	}
@@ -972,7 +988,7 @@ function bws_fold_from_flat( int $n, array $options, bool $combining = false, bo
 	//
 	// A FOLDED SLOT DEFAULTS TO UNLIMITED, exactly as a base tag spelled the same way
 	// does (bws_limit_default). So the flat era's implied `1` has to be MATERIALIZED
-	// here. It used to arrive for free — bws_fold_slot_flat_options() re-spelled every
+	// here. It used to arrive for free — the retired bws_fold_slot_flat_options() re-spelled every
 	// slot as a flat triple before any container arm resolved a limit, so the default
 	// was chosen from wire the slot no longer had, and every slot answered 1 whatever
 	// it was spelled as. Once the seam hands its ERA back (#60), that prop is gone and
@@ -1188,7 +1204,7 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
 	return array( 'chain' => $chain, 'consumed' => $explicit );
 }
 
-// ── Render seam (folded struct → the shipped flat read) ────────────────────
+// ── Render seam (folded struct → the options a container renders through) ──
 
 /**
  * Read slot $n as a struct, whichever wire ERA it is stored in (the render/preview
@@ -1211,7 +1227,7 @@ function bws_fold_chain_apply_legacy_limit( array $chain, $limit, bool $consume_
  * what a bare `{{try_title}}` renders. Returning null would make the first attempt
  * of an unconfigured try_ tag vanish. A COMBINING container needs no exception: an
  * empty struct has no read, and an absent read means unconfigured there, so
- * bws_fold_slot_flat_options() skips it one step later anyway.
+ * bws_fold_slot_chain_options() skips it one step later anyway.
  *
  * THE ERA RIDES ON THE STRUCT, under a non-grammar `era` key, because this is the only
  * function that can see it: one step later the chain has been collapsed to a flat
@@ -1273,80 +1289,141 @@ function bws_fold_empty_slot(): array {
 }
 
 /**
- * Flatten one folded slot into the FLAT option set the shipped read seam consumes,
+ * A fresh carry-forward accumulator for a container's slot walk.
+ *
+ * ONE OWNER for the seed, beside the seam that reads it. Every axis but the READ starts
+ * empty and the seam fills the rest in through its own `+=` defaults, so the only thing a
+ * caller has to state is what an ABSENT slot-1 read means on its template — which is the
+ * one axis the seam cannot know. Four call sites held the literal before #104 (both
+ * container loops, both preview walks) and the fold's own rename had to edit all four in
+ * lockstep, which is the tell.
+ *
+ * @since 1.17.0
+ * @param string $default_read The template's stripped first `use` value, on a SELECTING
+ *                             container that has a per-slot read axis. '' everywhere else.
+ * @return array Carry accumulator.
+ */
+function bws_fold_empty_carry( string $default_read = '' ): array {
+	return array(
+		'chain' => array(),
+		'ref'   => '',
+		'use'   => $default_read,
+		'key'   => '',
+	);
+}
+
+/**
+ * Resolve one folded slot into the option set a container's slot loop renders through,
  * threading the caller's carry-forward accumulator.
  *
- * This is the whole adapter between the folded wire and the engine as it ships: a
- * chain of steps becomes `src`/`ref`/`srcTermIn` (+ `limit`), and the read axis
- * becomes `use`/`key`. Every container's slot loop goes through here, so the
- * carry-forward rules exist exactly once — three copies of "'' src inherits" is what
- * the pre-fold code had (join's loop, try_'s loop, the join PREVIEW walk), and the
- * preview copy had already drifted from the renderer it claimed to match.
+ * A SLOT'S SOURCE *IS* A BASE TAG'S SOURCE (CONTEXT.md I16). Same wire language, same
+ * parser, same resolution path; only STORAGE differs, and that is [I13]'s axis. So this
+ * seam EMITS the slot's resolved chain as depth-0 CHAIN WIRE in `$opts['src']` — the
+ * option key a base tag states its source in — and never as a `src`/`ref`/`srcTermIn`
+ * triple. It replaced bws_fold_slot_flat_options(), which re-spelled every slot as that
+ * triple: one relationship step plus one term step, whatever the wire said. That respelling
+ * is what made a multi-step slot inexpressible, and it was DELETED rather than adapted —
+ * a seam serving both shapes is the shape that guarantees a half-shipped divergence.
  *
- * ACCUMULATOR. `$carry` is `{src, ref, use, key}` and is updated ONLY by a slot that
- * actually resolves. A skipped slot must not feed it: shipped join `continue`s before
- * its carry-forward, so a half-configured slot 2 leaves slot 3 inheriting slot 1 —
- * feeding the accumulator first would re-point slot 3 at a source the author never
- * chose. `ref` is passed through even under a non-`ref` source (inert there, but a
- * later slot carrying back to the same relationship needs it — shipped behaviour).
+ * Carry-forward, `same` resolution, the read axis, the skip-reason out-param and the #60
+ * limit-era out-param all stayed exactly where they were. ONLY THE SOURCE AXIS CHANGED
+ * SHAPE.
+ *
+ * WIRE, NOT A PARSED STRUCTURE, and that is a corollary of ADR 0004 rather than a fresh
+ * choice. `$opts['src']` is already read by several things that are not the chain parser —
+ * bws_fold_src_root_token() (the factory's root read), bws_limit_default()'s era selection,
+ * the preview source namer — so a parsed chain in a side key would have to be taught to
+ * each of them, arriving as a SECOND way to state a source.
+ *
+ * THE EMITTED STRING DIFFERS FROM THE STORED SLOT VALUE BY DESIGN. Bracket alternation is
+ * by depth with two pairs (BWS_FOLD_BR_PAIRS: `()` at level 1, `[]` at level 2), and a
+ * slot's chain sits at enclosing level 1 while this emits at level 0 — so `limit[3]`
+ * re-levels to `limit(3)`. Re-leveling only ever goes SHALLOWER, which is why it is safe:
+ * it cannot run out of pairs. Any idempotence assertion is therefore a FIXED POINT on the
+ * re-leveled form (`emit₀(parse(emit₀(chain))) === emit₀(chain)`) and NEVER a comparison
+ * against the stored slot wire — written the naive way it fails on every chain carrying a
+ * bound, and the reflex fix is to loosen it.
+ *
+ * IT SUPERSEDES THE LEGACY SOURCE AXES BY CONTRACT. The returned array always carries
+ * explicit empties for `ref` and `srcTermIn`, so merging it over anything is sufficient.
+ * That belongs HERE and not in each container: bws_fold_chain_from_options() APPENDS a
+ * `terms` step for any surviving `srcTermIn`, so a tag-level leftover would grow a step on
+ * EVERY slot's chain — and `{{join}}` builds its slot options from this array alone while
+ * `try_` merges them over the tag's, so a container-side rule would be one caller carrying
+ * it for the other's sake. This is an [I15]-class failure: a leaked step returns a
+ * PLAUSIBLE VALUE FROM THE WRONG ENTITY, not an empty one.
+ *
+ * ACCUMULATOR. `$carry` is `{chain, ref, use, key, limit}` and is updated ONLY by a slot
+ * that actually resolves. A skipped slot must not feed it: shipped join `continue`s before
+ * its carry-forward, so a half-configured slot 2 leaves slot 3 inheriting slot 1 — feeding
+ * the accumulator first would re-point slot 3 at a source the author never chose. `ref` is
+ * passed through even under a non-`ref` source (inert there, but a later slot carrying back
+ * to the same relationship needs it — shipped behaviour, and the one thing an ARGLESS
+ * `refs` step consumes).
+ *
+ * THE CARRY IS CHAIN-SHAPED, WHICH DELETED A SPECIAL CASE. `src(same)` copies the prior
+ * slot's RESOLVED CHAIN rather than four scalars, so an inheriting slot carries the prior
+ * slot's HOPS for free. The `$tax_inherit` branch this used to need existed only because a
+ * flat triple cannot carry a step, so an inheriting slot took the root alone and landed on
+ * the ambient entity — [I15]'s corollary ("an inherited source carries what it IS, not
+ * merely its root") stops being enforced by a branch.
+ *
+ * WHAT SURVIVES THE CARRY BECOMING A CHAIN is the corollary's second half: an inherited hop
+ * is a DEFAULT, not a step this chain took, so part of the inherited chain can GIVE WAY to a
+ * step this slot states of its own. That is a rule about what `same` MEANS — a slot sentinel
+ * the container resolves before compiling — and not about the chain grammar, which is why a
+ * base tag's `terms,a;terms,b` still hops twice. WHAT DECIDES HOW MUCH GIVES WAY IS OWNED BY
+ * bws_fold_chain_join() (slot-fold-compile.php) AND IS NOT RESTATED HERE — it changed axis
+ * three times during #104, and every site that had named an axis went stale, including two in
+ * this file. See the merge at the end of the source axis.
  *
  * CONTAINER SENSITIVITY IS ON THE READ AXIS, AND ONLY THERE — specifically on what
  * ABSENCE means. An explicit `use(same)` inherits in BOTH containers (so the read is
  * always tracked in the accumulator); an ABSENT read is UNCONFIGURED in a combining
  * container (skip the slot) and INHERIT in a selecting one.
  *
- * INEXPRESSIBLE CHAINS SKIP THE SLOT. The flat triple holds ONE ref step and ONE term
- * step; a second relationship step or a repeater `entries` step (both legal wire, both
- * reachable only by hand-editing) cannot be represented. Rendering the expressible
- * PREFIX would silently read a different source than the wire states, so the slot
- * renders nothing instead.
+ * THE `'chain'` REFUSAL DISSOLVED — a chain with no flat spelling — because there is no flat
+ * spelling left to fail at, so the branch has nothing to test. The other four are correct at
+ * any emit shape and STAY; a FIFTH arrived with the emit change, so the count is five and not
+ * four wherever it is restated. Each has its own author-facing answer:
+ *   - `'read'`         an unconfigured combining slot. Silent (a resting state).
+ *   - `'inherit'`      a `same` root with nothing to be the same AS.
+ *   - `'step:refs'`    a relationship step with no field AND nothing carried to inherit one.
+ *   - `'step:terms'`   a term step with no taxonomy.
+ *   - `'step:entries'` a repeater step with no field. It is listed apart from the other two
+ *                      because it is the one the FLATTEN never reached: `entries` was refused
+ *                      outright as inexpressible, argument or not, so an unfinished one had
+ *                      nowhere to be reported from. The rule is the fanning family's, not a
+ *                      per-slug decision — an argless fanning step of any slug is unfinished.
+ * The repeater-row refusal MOVED rather than dissolving: it belongs to the container that
+ * consumes a `meta_row`, so `try_`'s arm table skips that kind (includes/helpers/
+ * try-slot-arms.php) and `{{table}}` waits on its own arm — not on this seam.
  *
- * The 1.17.0 chain COMPILER (5h, slot-fold-compile.php) does NOT lift this: it gave the
- * ENGINE arbitrary steps, but a slot's output is produced by its container's ARMS — the
- * term-step arm, the site arm, the list-mode gate, the ref plural path — and each of them
- * dispatches on the flat `src`/`srcTermIn` TOKENS this function returns. A chain with no
- * flat spelling has no token to dispatch on, and inventing the nearest one is the
- * truncated-prefix hazard by another route. Slots gain multi-step chains when those arms
- * dispatch on the chain's TERMINAL STEP KIND instead (the verb-agnostic resolver
- * refactor), not when the compiler lands. Depth-0 chains DO resolve today, through
- * bws_field_values_assemble_steps().
+ * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart — an
+ * unconfigured slot is a normal in-progress state and says nothing, while an unfinished step
+ * is wire that will never render and has to be FLAGGED, or the author reads a preview that
+ * silently omits a slot they configured. Deriving the reason in the preview would be a
+ * second copy of the skip rule, i.e. the exact drift this seam removed, so the reason is
+ * reported BY THE OWNER. Optional and by reference: the render callers pass nothing.
  *
- * WHY THE SKIP REASON IS AN OUT-PARAM. The editor PREVIEW has to tell the skips apart —
- * an unconfigured slot is a normal in-progress state and says nothing, while an
- * inexpressible chain is wire that will never render and has to be FLAGGED, or the author
- * reads a preview that silently omits a slot they configured. Deriving the reason in the
- * preview would be a second copy of the skip rule, i.e. the exact drift this seam removed,
- * so the reason is reported BY THE OWNER. Optional and by reference: the render callers
- * pass nothing and are unaffected.
- *
- * THREE reasons, and the third is the one the fold created: `'step'` is an INCOMPLETE
- * step (a `terms` step with no taxonomy). Unlike `'chain'` the flat read can express it —
- * it just is not finished — and unlike `'read'` it must not be silent, because the
- * alternative to skipping is a plausible WRONG value rather than an empty one.
- *
- * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO. A SLOT'S OWN SOURCE SPELLING DECIDES ITS
- * OWN DEFAULT, exactly as a base tag's does — chain wire returns everything, flat wire
- * bounds at 1 (bws_limit_default). The triple this function returns cannot answer that
- * question: flattening is what ERASES the spelling, so a container reading
- * bws_limit_default() off `$flat['src']` sees a legacy token on every slot and answers 1
- * whatever the slot was spelled as (#60 — measured: `{{text src:terms,department|use:title}}`
- * returned two terms where the identically-spelled `try_text` slot returned one). The seam
- * knows the era, so the seam reports it, rather than each container inferring it from wire
- * this function just rewrote.
+ * WHY THE LIMIT DEFAULT IS AN OUT-PARAM TOO, AND WHY IT IS NOW LOAD-BEARING. A SLOT'S OWN
+ * SOURCE SPELLING DECIDES ITS OWN DEFAULT, exactly as a base tag's does — chain wire returns
+ * everything, flat wire bounds at 1 (bws_limit_default). The emitted `src` is CHAIN WIRE ON
+ * EVERY SLOT now, so bws_limit_default() read off it answers *unlimited* even for a slot
+ * recovered from legacy flat keys. Both containers write the resolved number back into
+ * `$slot_opts['limit']` explicitly; that line stopped being a nicety the moment this seam
+ * landed and must not be removed or "simplified".
  *
  * A CHAIN-SPELLED SLOT ONLY TAKES THE UNLIMITED DEFAULT WHERE ITS OWN CHAIN FANS
  * (bws_fold_chain_fanning_steps — the same predicate the migrator stamps by, which is the
  * whole point of sharing it). A slot spelling `src(same)`, or an argless `src(refs)`,
  * states no list of its own: it fans only by INHERITING an earlier slot's source, and that
- * slot already stated its own bound. Giving it the chain default instead would make a
- * migrated `{{join A:src(refs,office,limit[1])…|B:src(same)…}}` return every related post
- * at B where the flat wire it replaced returned one.
+ * slot already stated its own bound.
  *
  * WHICH IS WHY, ON A SELECTING CONTAINER, THAT BOUND IS CARRIED (#61). `src(same)` names
  * the same SOURCE and a limit is one of a source's parameters, so an attempt that inherits
  * the source inherits what bounds it. That is what let `try_`'s TAG-LEVEL `limit` be
- * retired without moving output: the number it used to hand every attempt now reaches an
- * inheriting attempt the same way its `src` and `ref` already did.
+ * retired without moving output.
  *
  * CONTAINER-SENSITIVE, and it is the contrast this file already draws twice
  * (bws_fold_from_flat's tag-level read is the other). A COMBINING container registered
@@ -1355,40 +1432,34 @@ function bws_fold_empty_slot(): array {
  * slot-fold-test.php §P13.1 `term hop with limit` is the case that says so. A SELECTING
  * container never had a per-slot limit at all, so absence there can only mean inherit.
  *
- * @since 1.17.0
+ * @since 1.17.0 Replaces bws_fold_slot_flat_options() (#104, FW-71).
  * @param array  $slot        Slot struct (bws_fold_parse_slot / bws_fold_from_flat shape).
- * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {src,ref,use,key,limit}.
+ * @param array  $carry       Carry-forward accumulator, BY REFERENCE: {chain,ref,use,key,limit}.
  *                            `limit` is WRITTEN on every container so the accumulator
  *                            means one thing, and READ only on a selecting one.
  * @param bool   $combining   True for {{join}}/{{table}}; false for `try_*`. Derive it
  *                            with bws_fold_is_combining() rather than at the call site.
- * @param string $skip_reason OUT, by reference. '' when the slot resolves; 'read' when a
- *                            combining slot has no read configured; 'chain' when the chain
- *                            has no flat spelling; 'step:<slug>' when that step is
- *                            incomplete — 'step:terms' (no taxonomy) or 'step:refs' (no
- *                            relationship field AND nothing carried to inherit one from);
- *                            'inherit' when a `same` root has nothing to be the same AS
- *                            (no earlier slot resolved). The slug rides the reason so the
- *                            preview can name what is missing without re-deriving the skip
- *                            rule, and `inherit` is kept apart from `chain` because that
- *                            one means INEXPRESSIBLE wire, which this is not.
+ * @param string $skip_reason OUT, by reference. '' when the slot resolves; otherwise one of
+ *                            the five reasons above. Written before any early return, so a
+ *                            caller may reuse one variable across a whole slot walk.
  * @param int    $limit_default OUT, by reference. The limit this slot takes when its wire
- *                            states none: 0 (unlimited) for a chain-spelled slot, 1 for a
- *                            flat-spelled one. Written before any early return, same
- *                            reset contract as $skip_reason.
- * @return array|null Flat options ({src,ref,srcTermIn,use,key} + optional limit), or
- *                    null when the slot is skipped (unconfigured / inexpressible).
+ *                            states none: 0 (unlimited) for a chain-spelled slot whose own
+ *                            chain fans, 1 otherwise. Same reset contract as $skip_reason.
+ * @return array|null Slot options ({src,ref,srcTermIn,use,key} + optional limit), where
+ *                    `src` is DEPTH-0 CHAIN WIRE and `ref`/`srcTermIn` are explicit
+ *                    empties; or null when the slot is skipped.
  */
-function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining, &$skip_reason = null, &$limit_default = null ) {
+function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combining, &$skip_reason = null, &$limit_default = null ) {
 	$skip_reason   = '';
 	$limit_default = ( 'chain' === ( $slot['era'] ?? 'flat' ) && bws_fold_chain_fanning_steps( $slot['chain'] ?? array() ) )
 		? 0
 		: 1;
 	// `_fed` is not a wire axis — it records whether ANY slot has fed the accumulator
-	// yet, which the `same` root needs and no other key can answer: `src` initialises to
-	// '', and '' is also how the ambient entity is spelled, so an inherit off a fresh
-	// accumulator is indistinguishable from an inherit off an ambient slot 1 (#74).
-	$carry += array( 'src' => '', 'ref' => '', 'tax' => '', 'use' => '', 'key' => '', 'limit' => null, '_fed' => false );
+	// yet, which the `same` root needs and no other key can answer: `chain` initialises to
+	// the empty chain, and the empty chain is also how the ambient entity is spelled, so an
+	// inherit off a fresh accumulator is indistinguishable from an inherit off an ambient
+	// slot 1 (#74).
+	$carry += array( 'chain' => array(), 'ref' => '', 'use' => '', 'key' => '', 'limit' => null, '_fed' => false );
 
 	// ── read axis ──────────────────────────────────────────────────────────
 	$read = $slot['read'] ?? null;
@@ -1415,136 +1486,134 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		}
 	}
 
-	// ── source axis: chain → src / ref / srcTermIn ─────────────────────────
+	// ── source axis: the slot's chain → the chain this slot RESOLVES to ────
+	//
+	// Everything here is a chain-to-chain rewrite of exactly two sentinels — `same` at the
+	// root, and an argless `refs` taking the carried relationship field. Every other step
+	// passes through verbatim, which is what makes a multi-step source resolve at all: the
+	// old flattener had to REJECT what it could not re-spell.
 	$steps = array_values( $slot['chain'] ?? array() );
-	$src   = '';
-	$ref   = $carry['ref'];
-	$tax   = '';
-	// An INHERITED hop, kept apart from `$tax` so it cannot read as a term step this chain
-	// took. Folded in below, only where the chain states none of its own (#74).
-	$tax_inherit = '';
-	$first       = true;
+	// The inherited chain is held APART from this slot's own steps until both are known,
+	// because part of the inherited chain can GIVE WAY to a step this slot states of its own
+	// rather than being followed by it — bws_fold_chain_join() owns what decides how much, and
+	// this comment deliberately does not restate it (see the merge below). Appending blind is
+	// what the first draft of #104 did, and it silently deleted a slot: legacy
+	// `2-src:same|2-srcTermIn:office` behind a slot that already hopped `department` came out
+	// as two term steps and hopped twice.
+	$inherited = array();
+	$own       = array();
+	$ref       = $carry['ref'];
+	$first     = true;
 
 	foreach ( $steps as $step ) {
 		$slug = (string) ( $step['slug'] ?? '' );
-		$arg  = $step['arg'] ?? null;
-
-		if ( 'entries' === $slug ) {
-			$skip_reason = 'chain';
-			return null;   // repeater rows: no flat spelling (the {{table}} resolver owns them).
-		}
+		$arg  = trim( (string) ( $step['arg'] ?? '' ) );
 
 		if ( $first ) {
 			$first = false;
+
 			if ( 'same' === $slug ) {
 				// Nothing has resolved yet, so there is no source to be the same AS.
 				// Falling through would inherit the accumulator's initialiser, which
 				// spells the ambient entity — and at slot ≥2 ambient is not a default to
-				// fall back to, it is something the wire has to SAY (#74). Reachable in a
-				// combining container, where an unconfigured read skips slot A without
-				// feeding the carry, so `{{join A:src(site)|B:src(same);key(x)}}` read the
-				// page while the only source on screen said the site.
-				// Its OWN reason, not `chain`: that one means wire the flat read cannot
-				// EXPRESS, and this chain is perfectly expressible — there is simply
-				// nothing yet to be the same as. The author-facing answer differs too
-				// ("finish an earlier slot", not "this source is unsupported").
+				// fall back to, it is something the wire has to SAY (#74).
+				//
+				// Its OWN reason: `inherit` names a perfectly expressible chain with
+				// nothing yet to be the same as, and the author-facing answer is "finish
+				// an earlier slot".
 				if ( empty( $carry['_fed'] ) ) {
 					$skip_reason = 'inherit';
 					return null;
 				}
-				$src = $carry['src'];
-				$ref = $carry['ref'];
-				// The TAXONOMY travels with the source (#74). `src(same)` names the same
-				// SOURCE, and a term step is not a parameter of a source the way `limit`
-				// is (§P15's container split) — it is part of what the source IS. So an
-				// inheriting slot inherits the hop, or it silently resolves against the
-				// ambient entity: a leading `terms` step leaves `src` unset by design, so
-				// without this the slot inherits an empty source and lands on the page.
-				//
-				// Restored HERE and nowhere else, which is `src`'s discipline rather than
-				// `ref`'s. `ref` is init-carried on every slot because a second construct
-				// reads it (an argless `refs` step inherits the carried field); nothing but
-				// this branch can consume a carried taxonomy, since an argless `terms` step
-				// is refused outright. Init-carrying it would only ever give an intervening
-				// slot a hop it never asked for.
-				//
-				// Held apart from `$tax` because an inherited hop is a DEFAULT, not a step
-				// this chain took: a slot that goes on to state its own `terms` step
-				// replaces it rather than colliding with it. `2-src:same|2-srcTermIn:office`
-				// is authorable flat wire (srcTermIn shows under every non-site source) and
-				// migrates to `src(same;terms,office)`, so reading that as a second term
-				// step would skip a slot that renders today.
-				$tax_inherit = $carry['tax'];
+				// THE WHOLE CHAIN, hops and all. A flat triple could only carry the root,
+				// which is why the taxonomy needed a scalar of its own; a chain carries
+				// what it IS, so [I15]'s corollary stops needing that scalar. What it does
+				// NOT stop needing is the corollary's second half — an inherited hop is a
+				// DEFAULT, not a step this chain took — which is the merge below.
+				$inherited = array_values( $carry['chain'] );
+				$ref       = $carry['ref'];
 				continue;
 			}
-			if ( 'refs' === $slug ) {
-				// An ARGLESS step keeps the carried relationship field rather than
-				// blanking it: shipped `$last_ref` survives every src override, so
+
+			if ( 'refs' === $slug && '' === $arg ) {
+				// An ARGLESS step at the ROOT keeps the carried relationship field rather
+				// than blanking it: shipped `$last_ref` survives every src override, so
 				// `3-src:ref` with no `3-ref` steps through slot 1's field. The step is
-				// COMPLETE that way — the carry supplied its argument.
-				//
-				// With nothing carried there is no argument from anywhere, and the step is
-				// unfinished. Skip it, exactly as an incomplete `terms` hop skips (#74).
-				// This comment used to claim the step was "dead" here; it was not. The flat
-				// triple `{src:'ref', ref:''}` compiles to a chain whose only step is
-				// argument-less, and through 1.16.x that step was DROPPED — leaving a
-				// rootless chain, which resolves the AMBIENT entity. So the slot read the
-				// post you were standing on and returned a plausible wrong value. In a
-				// selecting container that is worse still: an ambient read that SUCCEEDS
-				// stops the fallback chain, so later attempts never run.
-				$ref_arg = ( null !== $arg && '' !== $arg ) ? (string) $arg : $carry['ref'];
-				if ( '' === $ref_arg ) {
+				// COMPLETE that way — the carry supplied its argument. With nothing carried
+				// there is no argument from anywhere and the step is unfinished; skipping is
+				// what stops it compiling to a rootless chain, which resolves the AMBIENT
+				// entity and hands back a plausible wrong value (#74).
+				if ( '' === $carry['ref'] ) {
 					$skip_reason = 'step:refs';
 					return null;
 				}
-				$src = 'ref';
-				$ref = $ref_arg;
+				$ref         = $carry['ref'];
+				$step['arg'] = $ref;
+				$own[]       = $step;
 				continue;
 			}
-			if ( 'terms' !== $slug ) {
-				$src = $slug;
-				continue;
-			}
-			// A leading `terms` step reads the AMBIENT entity's terms — src stays unset.
 		}
 
-		if ( 'terms' !== $slug || '' !== $tax ) {
-			$skip_reason = 'chain';
-			return null;   // second term step, second ref step, or `entries`: not expressible.
-		}
-		if ( '' === (string) ( $arg ?? '' ) ) {
-			// A term step with no TAXONOMY is INCOMPLETE, and flattening it would be
-			// silently wrong: an empty `srcTermIn` is precisely how "no term step" is
-			// spelled, so the slot would read the UN-HOPPED entity and hand the author a
-			// plausible wrong value instead of an obvious empty one. Skip, so the slot
-			// says nothing until the step is finished.
-			//
-			// Not a `chain` skip (that names wire the flat read cannot EXPRESS — this
-			// shape it can, it just is not finished yet), and not `read` (which is silent
-			// because an unconfigured read is a resting state). Its own reason, so the
-			// previews can name what is missing.
-			//
-			// `refs` gets the same treatment, but only when NOTHING is carried (see
-			// above): there an argless step inherits its argument and is complete, which
-			// is the one asymmetry between the two. The fold is what made an incomplete
-			// step authorable at all — the flat wire had no way to state a step without
-			// stating its argument.
-			//
-			// The reason NAMES the unfinished step, because the two need different
-			// author-facing nouns and deriving that in the preview would be a second copy
-			// of the skip rule.
-			$skip_reason = 'step:terms';
+		// An INCOMPLETE step is refused wherever it sits, and the reason NAMES it: the two
+		// need different author-facing nouns, and deriving that in the preview would be a
+		// second copy of the skip rule. Only the ROOT position can complete an argless
+		// `refs` from the carry (above) — a later one has no carried argument to take, since
+		// what the accumulator holds is the SOURCE's relationship field and not this step's.
+		if ( '' === $arg && in_array( $slug, BWS_FOLD_FANNING_SLUGS, true ) ) {
+			$skip_reason = 'step:' . $slug;
 			return null;
 		}
-		$tax = (string) $arg;
+		if ( 'refs' === $slug ) {
+			$ref = $arg;
+		}
+		// PASSED THROUGH VERBATIM, and `$arg` above is only the reading the tests need: both
+		// producers of a slot struct already trim (bws_fold_parse_chain array_maps trim over
+		// the parts; bws_fold_from_flat trims each option value), so re-normalizing here
+		// would be a third owner for a rule two callers already keep — and one that would
+		// quietly become the only one if either stopped.
+		$own[] = $step;
 	}
 
-	// A hop inherited through `same` applies only where this chain stated none of its own.
-	if ( '' === $tax ) {
-		$tax = $tax_inherit;
+	// ── the merge: AN INHERITED HOP IS A DEFAULT, NOT A STEP THIS CHAIN TOOK ────
+	//
+	// [I15]'s corollary, second half. `src(same)` names the same SOURCE, so its steps travel
+	// with it — but a slot that goes on to state a step of its OWN may be refining that source
+	// rather than hopping again off the end of it, so part of the inherited chain can GIVE WAY.
+	//
+	// WHAT DECIDES HOW MUCH IS OWNED BY bws_fold_chain_join() AND IS NOT RESTATED HERE. It
+	// changed axis three times during #104 — append, then same-slug, then the join — each
+	// reading correct on every legacy shape and wrong on a different hand-written one, and the
+	// sites that had restated an axis all went stale while the sites naming only the consequence
+	// stayed true. Two of the stale ones were in this file (#106). The derivation, both wrong
+	// cuts and what each cost live in that function's docblock; CLAUDE.md §Documentation
+	// ownership is the general rule this is an instance of.
+	//
+	// WHAT IS LOCAL HERE is that the shape is EDITOR-AUTHORABLE at all, which a pure chain
+	// function cannot know: leave slot 2's source alone and pick a different taxonomy, and the
+	// old panel wrote `2-src:same|2-srcTermIn:office`, which the flat resolver read as "the
+	// inherited source, into office terms". So this is shipped wire, not a hand-edit hazard.
+	// MEASURED both ways on the testbed; §P16.4 has pinned the shape since #74.
+	//
+	// THIS IS NOT THE SPECIAL CASE #104 DELETED. That one was `$tax_inherit`, a SCALAR held
+	// beside the flat triple because a triple cannot carry a step; it is gone and stays gone.
+	// This is a rule about what `same` MEANS, and `same` is a slot sentinel the container
+	// resolves BEFORE compiling (bws_fold_chain_root never interprets one), so it is the
+	// container's vocabulary rather than the chain grammar's. A base tag cannot write it, so
+	// nothing here says a base tag's `terms,a;terms,b` should collapse — it hops twice, as
+	// its wire says.
+	$resolved = function_exists( 'bws_fold_chain_join' )
+		? bws_fold_chain_join( $inherited, $own )
+		: $inherited;
+	foreach ( $own as $own_step ) {
+		$resolved[] = $own_step;
 	}
 
 	// ── limit: the LAST step that pins one, else the slot-level token ───────
+	//
+	// This is the slot's ITEM bound, which the container slices by; the per-step limits
+	// ride the emitted wire and bound the ENGINE's hops. Read off the slot's OWN steps,
+	// never the resolved chain: an inherited step's bound belongs to the slot that stated
+	// it, and re-reading it here would restate an earlier slot's number as this one's.
 	$limit = null;
 	foreach ( $steps as $step ) {
 		if ( null !== ( $step['limit'] ?? null ) && '' !== $step['limit'] ) {
@@ -1562,19 +1631,18 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 	// takes the carried number too. That is deliberate rather than tolerated: a
 	// non-fanning source resolves exactly one entity, so any limit over it is inert
 	// (CONTEXT.md §Language — the read is 1:1), and narrowing the test would mean a
-	// SECOND spelling of "does this flat triple fan" beside the one the migrator already
-	// owns. §P15.7 pins the wider case so the reasoning is tested, not asserted.
+	// SECOND spelling of "does this chain fan" beside the one the migrator already owns.
+	// §P15.7 pins the wider case so the reasoning is tested, not asserted.
 	if ( null === $limit && ! $combining && ! bws_fold_chain_fanning_steps( $steps ) ) {
 		$limit = $carry['limit'];
 	}
 
 	// The slot resolved: feed the accumulator (never before this point).
-	$carry['_fed'] = true;
-	$carry['src']       = $src;
-	$carry['ref']       = $ref;
-	$carry['tax']       = $tax;
-	$carry['use']       = $use;
-	$carry['key']       = $key;
+	$carry['_fed']  = true;
+	$carry['chain'] = $resolved;
+	$carry['ref']   = $ref;
+	$carry['use']   = $use;
+	$carry['key']   = $key;
 	// What is carried is the QUANTITY this slot resolved, which is its own default where
 	// it states nothing — an attempt inheriting `src(refs,office)` should read every
 	// office, as that slot does, not fall back to a default chosen for wire it does not
@@ -1584,15 +1652,21 @@ function bws_fold_slot_flat_options( array $slot, array &$carry, bool $combining
 		? (string) $limit
 		: (string) $limit_default;
 
-	$flat = array(
-		'src'       => $src,
-		'ref'       => $ref,
-		'srcTermIn' => $tax,
+	$opts = array(
+		// DEPTH 0, because this string lands in the same option key a base tag states its
+		// source in and is re-read by the same bws_fold_chain_from_options(). An empty
+		// chain emits '', which is exactly how a base tag spells the ambient entity.
+		'src'       => bws_fold_emit_chain( $resolved, 0 ),
+		// SUPERSEDED, explicitly. See the docblock: an inherited tag-level `srcTermIn`
+		// would grow a term step on every slot's chain, and a leaked step is a plausible
+		// value from the wrong entity rather than an empty one ([I15]).
+		'ref'       => '',
+		'srcTermIn' => '',
 		'use'       => '' === $use ? 'key' : $use,   // '' = the stripped `key` default (I3).
 		'key'       => $key,
 	);
 	if ( null !== $limit ) {
-		$flat['limit'] = $limit;
+		$opts['limit'] = $limit;
 	}
-	return $flat;
+	return $opts;
 }

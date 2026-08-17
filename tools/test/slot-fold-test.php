@@ -75,6 +75,34 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // container arms do; re-inlining the rule here is what the extraction removed.
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
+// THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
+// inherited step is dropped only where its slug CANNOT repeat, and "can it repeat" is
+// answered from BWS_TRAVERSAL_STEP_INPUT_KINDS + BWS_FOLD_STEP_KINDS rather than from a
+// literal. Without this require the predicate degrades to "everything repeats", which is
+// the SAFE direction (no drop) and would make §P16.4 fail rather than pass vacuously —
+// checked, and the non-vacuity assertion beside §P16.4 says so out loud.
+if ( ! class_exists( 'WP_Post' ) ) {
+	class WP_Post { public $ID; public function __construct( $id ) { $this->ID = $id; } }
+}
+if ( ! class_exists( 'WP_Term' ) ) {
+	class WP_Term { public $term_id; public function __construct( $id ) { $this->term_id = $id; } }
+}
+if ( ! function_exists( 'bws_extract_post_id' ) ) {
+	function bws_extract_post_id( $post_data ) {
+		if ( is_numeric( $post_data ) ) { return intval( $post_data ); }
+		if ( $post_data instanceof WP_Post ) { return $post_data->ID; }
+		if ( is_array( $post_data ) && isset( $post_data['ID'] ) ) { return $post_data['ID']; }
+		return false;
+	}
+}
+require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
+
+// One WP call in the COMPILED path (§P18.4 asks what the engine is told): the taxonomy slug
+// of a `terms` hop. Same shim fold-chain-compile-test.php uses — LOWERCASE FIRST, then strip,
+// which is WP's order; stripping first deletes every capital.
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+}
 
 $pass = 0;
 $fail = 0;
@@ -691,12 +719,47 @@ foreach ( $legacy_sets as $i => $case ) {
 // accumulator, which no spike fixture ever exercised.
 
 /**
- * Walk slots 1..$max through the seam, returning [ n => flat options ] for the resolved ones.
+ * The SOURCE an option set describes, as canonical depth-0 chain wire.
+ *
+ * The comparison surface for §P13/§P14 since #104: the seam emits chain wire and the
+ * reference walks below build the flat triple the shipped resolvers built, so both sides
+ * are read through the ONE reading every consumer takes
+ * (bws_fold_chain_from_options → bws_fold_emit_chain at depth 0). Comparing a wire string
+ * against a triple would compare two spellings; comparing two wire strings compares the
+ * source each era resolves.
+ *
+ * Step LIMITS are stripped before the compare, and deliberately: the flat era stated ONE
+ * bound for a whole slot while a chain states one per step (bws_fold_from_flat materializes
+ * `1` on every earlier fanning step so a migrated slot keeps the flat product). §P15 owns
+ * the resolved quantity and §P18 owns what rides the wire, so folding both questions into
+ * this one would make an equivalence break unreadable.
+ */
+function t_src_wire( array $options ): string {
+	$chain = bws_fold_chain_from_options( $options );
+	// An explicit `current` ROOT and an absent one are the SAME source — the factory reads
+	// both as the ambient entity. The fold materializes the token (on a read-less container
+	// `{N}-src:current` can be a slot's entire content, and mapping it to nothing deleted
+	// the slot), while the shipped walks left it unset, so normalize the spelling away
+	// before comparing what each era resolves.
+	if ( 'current' === bws_fold_chain_root( $chain ) ) {
+		array_shift( $chain );
+	}
+	foreach ( $chain as $i => $step ) {
+		$chain[ $i ]['limit'] = null;
+	}
+	return bws_fold_emit_chain( array_values( $chain ), 0 );
+}
+
+/**
+ * Walk slots 1..$max through the seam, returning [ n => resolved options ] for the
+ * resolved ones, with the source projected onto canonical chain wire.
  *
  * The `limit` is MATERIALIZED from the seam's era out-param, exactly as the shipped
- * container arms do it. That is the whole point of the out-param: the triple's `src` is a
- * legacy token on every slot, so a comparison that left `limit` absent would be comparing
- * two option sets that resolve DIFFERENT quantities and calling them equal (#60).
+ * container arms do it. That is the whole point of the out-param: `src` is CHAIN WIRE on
+ * every slot now, so a container re-deriving the default from it would answer *unlimited*
+ * for a slot recovered from legacy flat keys, and a comparison that left `limit` absent
+ * would be comparing two option sets that resolve DIFFERENT quantities and calling them
+ * equal (#60, sign-flipped by #104).
  */
 function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = true ) {
 	$carry = array();
@@ -708,12 +771,21 @@ function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = t
 		}
 		$skip          = '';
 		$limit_default = 1;
-		$flat          = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
+		$flat          = bws_fold_slot_chain_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
 		if ( null === $flat ) {
 			continue;
 		}
-		$flat['limit'] = (string) bws_clamp_limit( $flat['limit'] ?? null, $limit_default );
-		$out[ $n ]     = $flat;
+		// THE LEAK ASSERTION'S SUBJECT, kept in the walk's own output rather than tested
+		// once: the seam supersedes the legacy source axes by CONTRACT, so every resolved
+		// slot must carry explicit empties for them. §P18.3 names the leak.
+		$out[ $n ] = array(
+			'src'       => t_src_wire( array( 'src' => $flat['src'] ) ),
+			'ref'       => $flat['ref'],
+			'srcTermIn' => $flat['srcTermIn'],
+			'use'       => $flat['use'],
+			'key'       => $flat['key'],
+			'limit'     => (string) bws_clamp_limit( $flat['limit'] ?? null, $limit_default ),
+		);
 	}
 	return $out;
 }
@@ -757,9 +829,11 @@ function t_shipped_join_walk( $options, $max = 5 ) {
 		}
 		$last_stm = $stm;
 		$flat = array(
-			'src'       => $last_src,
-			'ref'       => $last_ref,
-			'srcTermIn' => $stm,
+			// Projected onto the SAME reading the seam's output is projected through, so
+			// the two sides are one comparison rather than two spellings (#104).
+			'src'       => t_src_wire( array( 'src' => $last_src, 'ref' => $last_ref, 'srcTermIn' => $stm ) ),
+			'ref'       => '',
+			'srcTermIn' => '',
 			'use'       => '' === $use ? 'key' : $use,
 			'key'       => $key,
 			// The shipped loop resolved every slot against FLAT wire, so its default is
@@ -798,6 +872,9 @@ function t_migrate_join( $options, $max = 5 ) {
 // §P17 first — the fold's reading is the correct one.
 function t_norm_walk( $walk ) {
 	foreach ( $walk as $n => $flat ) {
+		// An explicit `current` ROOT and an empty chain are the same source; the fold
+		// materializes the token (it is a slot's entire content on a read-less container)
+		// where the shipped walk left it unset.
 		if ( 'current' === $flat['src'] ) {
 			$walk[ $n ]['src'] = '';
 		}
@@ -845,8 +922,8 @@ $mixed = array(
 	'3-key' => 'c',
 );
 $walk = t_seam_walk( $mixed, 'join' );
-check( 'P13.2 mixed era: legacy slot 1 resolves', array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'a', 'limit' => '1' ) === ( $walk[1] ?? null ), json_encode( $walk[1] ?? null ) );
-check( 'P13.2 mixed era: folded slot 2 resolves', array( 'src' => 'site', 'ref' => 'office', 'srcTermIn' => '', 'use' => 'key', 'key' => 'org_phone', 'limit' => '1' ) === ( $walk[2] ?? null ), json_encode( $walk[2] ?? null ) );
+check( 'P13.2 mixed era: legacy slot 1 resolves', array( 'src' => 'refs,office', 'ref' => '', 'srcTermIn' => '', 'use' => 'key', 'key' => 'a', 'limit' => '1' ) === ( $walk[1] ?? null ), json_encode( $walk[1] ?? null ) );
+check( 'P13.2 mixed era: folded slot 2 resolves', array( 'src' => 'site', 'ref' => '', 'srcTermIn' => '', 'use' => 'key', 'key' => 'org_phone', 'limit' => '1' ) === ( $walk[2] ?? null ), json_encode( $walk[2] ?? null ) );
 check( 'P13.2 mixed era: legacy slot 3 inherits the FOLDED slot 2 source', 'site' === ( $walk[3]['src'] ?? '' ), json_encode( $walk[3] ?? null ) );
 // The reverse threading: a FOLDED slot inheriting from a LEGACY predecessor.
 $mixed_rev = array(
@@ -874,23 +951,29 @@ check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) &&
 $same_analog = t_seam_walk( array( 'A' => 'use(title)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
-// P13.5 — chain shapes the flat TRIPLE cannot express SKIP the slot rather than
-// resolving a truncated prefix (which would silently read a different source).
+// P13.5 — THE FOUR INEXPRESSIBLE-CHAIN SKIPS, INVERTED (#104).
 //
-// The 1.17.0 chain compiler (slot-fold-compile.php, 5h) does NOT flip these: it gave
-// the ENGINE arbitrary hops, and depth-0 chains resolve through it, but a SLOT's output
-// is produced by container arms that dispatch on the flat `src`/`srcTermIn` tokens this
-// flattener returns. Handing them the nearest token is the truncated prefix again. They
-// flip when those arms dispatch on the chain's terminal step KIND (the verb-agnostic
-// resolver refactor) — see bws_fold_slot_flat_options()'s docblock.
+// These four asserted a SKIP through 1.16.x: the flat triple held one relationship step
+// and one term step, so anything else had no flat spelling and rendering the expressible
+// PREFIX would silently read a different source. The flatten is gone, so there is nothing
+// left to fail at and the refusal dissolved with it. This inversion is the harness-side
+// acceptance signal for FW-71 — each slot now resolves, and its `src` is the chain the
+// author wrote, re-leveled to depth 0.
+//
+// A CHAIN THAT RESOLVES IS NOT A CHAIN THAT RENDERS, and the difference is deliberate:
+// `entries` still returns nothing, because no `try_`/join arm assembles a repeater row.
+// That refusal MOVED to the container that consumes the kind (try-slot-arms.php) rather
+// than living in a re-spelling that could not describe the wire.
 foreach ( array(
-	'two ref hops'   => 'src(refs,a;refs,b);key(x)',
-	'two term hops'  => 'src(terms,category;terms,post_tag);key(x)',
-	'repeater entry' => 'src(entries,rows);key(x)',
-	'ref after term' => 'src(terms,category;refs,a);key(x)',
-) as $why => $wire ) {
+	'two ref hops'   => array( 'src(refs,a;refs,b);key(x)', 'refs,a;refs,b' ),
+	'two term hops'  => array( 'src(terms,category;terms,post_tag);key(x)', 'terms,category;terms,post_tag' ),
+	'repeater entry' => array( 'src(entries,rows);key(x)', 'entries,rows' ),
+	'ref after term' => array( 'src(terms,category;refs,a);key(x)', 'terms,category;refs,a' ),
+) as $why => $case ) {
+	list( $wire, $want ) = $case;
 	$w = t_seam_walk( array( 'A' => $wire ), 'join' );
-	check( "P13.5 inexpressible chain skips the slot ($why)", ! isset( $w[1] ), json_encode( $w[1] ?? null ) );
+	check( "P13.5 a multi-step chain RESOLVES ($why)", isset( $w[1] ), json_encode( $w[1] ?? null ) );
+	check( "P13.5 …and hands on the whole chain, not a prefix ($why)", $want === ( $w[1]['src'] ?? null ), json_encode( $w[1] ?? null ) );
 }
 // P13.5b — the seam REPORTS WHY it skipped, and the two reasons are not
 // interchangeable: the editor preview flags an inexpressible chain and stays silent
@@ -905,13 +988,13 @@ foreach ( array(
 // moment one does not.
 $sr_carry = array();
 $sr       = 'STALE';
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(entries,rows);key(x)' ), $sr_carry, true, $sr );
-check( 'P13.5b an inexpressible chain reports reason `chain`', 'chain' === $sr, var_export( $sr, true ) );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(entries,rows);key(x)' ), $sr_carry, true, $sr );
+check( 'P13.5b the `chain` reason is RETIRED — a multi-step chain reports no skip', '' === $sr, var_export( $sr, true ) );
 $sr_carry = array();
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site)' ), $sr_carry, true, $sr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(site)' ), $sr_carry, true, $sr );
 check( 'P13.5b an unconfigured combining slot reports reason `read`', 'read' === $sr, var_export( $sr, true ) );
 $sr_carry = array();
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(site);key(a)' ), $sr_carry, true, $sr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(site);key(a)' ), $sr_carry, true, $sr );
 check( 'P13.5b a RESOLVING slot clears the reason (reused variable, no leak)', '' === $sr, var_export( $sr, true ) );
 
 // P13.5c — an INCOMPLETE step (a `terms` hop with no taxonomy) skips, with its own
@@ -928,7 +1011,7 @@ foreach ( array(
 	check( "P13.5c incomplete term hop skips the slot ($why)", ! isset( $w[1] ), json_encode( $w[1] ?? null ) );
 }
 $sr_carry = array();
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(terms);key(role)' ), $sr_carry, true, $sr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(terms);key(role)' ), $sr_carry, true, $sr );
 // The reason NAMES the unfinished step. Two steps can be incomplete and they need
 // different author-facing nouns, so the slug rides the reason rather than the preview
 // guessing — which is what "no taxonomy" on an argless `refs` hop looked like.
@@ -936,7 +1019,7 @@ check( 'P13.5c an incomplete step reports reason `step:terms`, not `chain`', 'st
 $argless_ref = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(refs);key(b)' ), 'join' );
 check(
 	'P13.5c an argless `refs` hop still INHERITS rather than skipping',
-	array( 'src' => 'ref', 'ref' => 'office' ) === array_intersect_key( (array) ( $argless_ref[2] ?? array() ), array( 'src' => 1, 'ref' => 1 ) ),
+	'refs,office' === ( $argless_ref[2]['src'] ?? null ),
 	json_encode( $argless_ref[2] ?? null )
 );
 // …but an argless `refs` with NOTHING CARRIED is incomplete, not inherited (#74). The
@@ -951,7 +1034,7 @@ check(
 	json_encode( $argless_orphan[1] ?? null )
 );
 $orphan_carry = array();
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(refs);key(a)' ), $orphan_carry, true, $osr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(refs);key(a)' ), $orphan_carry, true, $osr );
 check( 'P13.5c …and reports `step:refs`, so the preview names the RIGHT missing thing', 'step:refs' === $osr, var_export( $osr, true ) );
 
 // A LEADING term hop is expressible (the ambient entity's terms) and must resolve.
@@ -959,7 +1042,7 @@ $lead_terms = t_seam_walk( array( 'A' => 'src(terms,category);use(title)' ), 'jo
 // The limit is the walk's materialized EFFECTIVE value (see t_seam_walk): a chain-spelled
 // slot whose own chain FANS takes the unlimited default, which is the whole of #60 — the
 // identically-spelled base tag `{{text src:terms,category|use:title}}` returns every term.
-check( 'P13.5 leading term hop resolves with src unset, and unbounded', array( 'src' => '', 'ref' => '', 'srcTermIn' => 'category', 'use' => 'title', 'key' => '', 'limit' => '0' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );
+check( 'P13.5 leading term hop resolves as a rootless chain, and unbounded', array( 'src' => 'terms,category', 'ref' => '', 'srcTermIn' => '', 'use' => 'title', 'key' => '', 'limit' => '0' ) === ( $lead_terms[1] ?? null ), json_encode( $lead_terms[1] ?? null ) );
 
 // P13.6 — limit threading. A per-step limit reaches the flat `limit`; a pinned 0
 // (unlimited) must survive, which a truthiness guard would drop.
@@ -978,7 +1061,7 @@ check( 'P13.6 a slot-level limit 0 (unlimited) survives the seam', '0' === ( $li
 // materializes the effective value the way a container arm does, so this one asks the
 // seam directly rather than through the walk.
 $lim_none_carry = array();
-$lim_none_raw   = bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => 'key(a)' ), 'join' ), $lim_none_carry, true );
+$lim_none_raw   = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => 'key(a)' ), 'join' ), $lim_none_carry, true );
 check( 'P13.6 no limit token → no limit key (the caller default stands)', ! isset( $lim_none_raw['limit'] ), json_encode( $lim_none_raw ) );
 
 // P13.6b — THE ERA THE FLATTEN ERASES, handed back (#60). A slot's own source spelling
@@ -997,7 +1080,7 @@ $era_cases = array(
 	// folded wire, container, expected default, why
 	array( 'src(terms,department);use(title)', 'try', 0, 'chain-spelled and fans → unlimited' ),
 	array( 'src(refs,related_staff);key(name)', 'join', 0, 'a refs-spelled slot fans too' ),
-	array( 'src(entries,rows);key(a)', 'table', 0, 'a repeater step fans (skipped later, era still reported)' ),
+	array( 'src(entries,rows);key(a)', 'table', 0, 'a repeater step fans (its container refuses the kind, era still reported)' ),
 	array( 'src(site);key(org_phone)', 'join', 1, 'a singular chain states no list to bound' ),
 	array( 'key(a)', 'join', 1, 'no chain at all' ),
 	array( 'src(same);key(b)', 'join', 1, 'inherits a source, so states no bound of its own' ),
@@ -1008,7 +1091,7 @@ foreach ( $era_cases as $i => $case ) {
 	$era_carry   = array();
 	$era_skip    = '';
 	$era_default = 99;
-	bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => $wire ), $container ), $era_carry, bws_fold_is_combining( $container ), $era_skip, $era_default );
+	bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => $wire ), $container ), $era_carry, bws_fold_is_combining( $container ), $era_skip, $era_default );
 	check( "P13.6b [$wire] limit default $want — $why", $want === $era_default, "got: " . var_export( $era_default, true ) );
 }
 // The LEGACY era, read through the same seam: recovered flat wire keeps the 1 it always
@@ -1016,13 +1099,13 @@ foreach ( $era_cases as $i => $case ) {
 $era_carry   = array();
 $era_skip    = '';
 $era_default = 99;
-bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'srcTermIn' => 'department', 'use' => 'title' ), 'try' ), $era_carry, false, $era_skip, $era_default );
+bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'srcTermIn' => 'department', 'use' => 'title' ), 'try' ), $era_carry, false, $era_skip, $era_default );
 check( 'P13.6b legacy flat wire still bounds at 1 through the same seam', 1 === $era_default, var_export( $era_default, true ) );
 // The out-param is written BEFORE any early return, same reset contract as $skip_reason:
 // a caller reusing one variable across a walk must not read the previous slot's answer.
 $era_carry   = array();
 $era_default = 0;
-bws_fold_slot_flat_options( bws_fold_slot_struct( 1, array( 'A' => 'src(site)' ), 'join' ), $era_carry, true, $era_skip, $era_default );
+bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => 'src(site)' ), 'join' ), $era_carry, true, $era_skip, $era_default );
 check( 'P13.6b a SKIPPED slot still reports its default (no leak into the next slot)', 1 === $era_default, var_export( $era_default, true ) );
 
 // P13.7 — malformed folded wire contributes nothing and NEVER falls back to a stale
@@ -1104,11 +1187,12 @@ function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use 
 		}
 		$last_stm  = $stm;
 		$out[ $n ] = array(
-			'src'       => $last_src,
-			'ref'       => $last_ref,
-			'srcTermIn' => $stm,
-			'use'       => $psu ? $last_use : null,
-			'key'       => '' !== $last_key ? $last_key : null,
+			// Same projection as the seam side (see t_src_wire): one comparison, not two
+			// spellings. `current` is the shipped walk's own normalization of an unset
+			// source, and the chain reading maps it back to a root token either way.
+			'src' => t_src_wire( array( 'src' => $last_src, 'ref' => $last_ref, 'srcTermIn' => $stm ) ),
+			'use' => $psu ? $last_use : null,
+			'key' => '' !== $last_key ? $last_key : null,
 		);
 	}
 	return $out;
@@ -1116,14 +1200,14 @@ function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use 
 
 /** The same walk through the seam, projected onto the shipped shape. */
 function t_seam_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '', $max = 5 ) {
-	$carry = array( 'src' => '', 'ref' => '', 'use' => $psu ? $default_use : '', 'key' => '' );
+	$carry = array( 'chain' => array(), 'ref' => '', 'use' => $psu ? $default_use : '', 'key' => '' );
 	$out   = array();
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$slot = bws_fold_slot_struct( $n, $options, 'try', $psu );
 		if ( null === $slot ) {
 			continue;
 		}
-		$flat = bws_fold_slot_flat_options( $slot, $carry, false );
+		$flat = bws_fold_slot_chain_options( $slot, $carry, false );
 		if ( null === $flat ) {
 			continue;
 		}
@@ -1134,11 +1218,9 @@ function t_seam_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '
 			}
 		}
 		$out[ $n ] = array(
-			'src'       => '' === $flat['src'] ? 'current' : $flat['src'],
-			'ref'       => $flat['ref'],
-			'srcTermIn' => $flat['srcTermIn'],
-			'use'       => $psu ? $flat['use'] : null,
-			'key'       => '' !== $flat['key'] ? $flat['key'] : null,
+			'src' => t_src_wire( array( 'src' => $flat['src'] ) ),
+			'use' => $psu ? $flat['use'] : null,
+			'key' => '' !== $flat['key'] ? $flat['key'] : null,
 		);
 	}
 	return $out;
@@ -1222,7 +1304,7 @@ foreach ( $content_cases as $name => $legacy ) {
 	check( "P14.2 [content: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
 $bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), 'content' );
-check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && 'current' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
+check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && '' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
 
 // P14.3 — psk shape (email/phone: per-slot key, NO `use` enum). An empty key at slot
 // ≥2 inherits, and no `use(same)` is written for an axis the tag does not have.
@@ -1277,7 +1359,7 @@ check( 'P14.4 read-less container emits a bare chain (carrying the flat era defa
 // recorded the mechanism ("the flat resolver's own variable never carried it") rather than
 // the cause, which is why the decision read as unmotivated on re-reading.
 $stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), 'key' );
-check( 'P14.5 a term hop carries to a slot that inherits its source', 'category' === ( $stm_walk[1]['srcTermIn'] ?? null ) && 'category' === ( $stm_walk[2]['srcTermIn'] ?? null ), json_encode( $stm_walk ) );
+check( 'P14.5 a term hop carries to a slot that inherits its source', 'terms,category' === ( $stm_walk[1]['src'] ?? null ) && 'terms,category' === ( $stm_walk[2]['src'] ?? null ), json_encode( $stm_walk ) );
 
 // P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
 // needs no such exception (its unconfigured read skips the slot one step later).
@@ -1290,7 +1372,7 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 // with no source of its own. Legacy `2-key` alone was DROPPED (FW-51) because a bare
 // key could not say whether it meant "override" or "left blank"; `2:key(b)` says it.
 $explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), 'key' );
-check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && 'current' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
+check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && '' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
 // ── P15 THE INHERITED LIMIT (#61) ───────────────────────────────────────────
 //
@@ -1317,7 +1399,7 @@ function t_limit_walk( $options, $container = 'try', $per_slot_use = true, $max 
 		}
 		$skip          = '';
 		$limit_default = 1;
-		$flat          = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
+		$flat          = bws_fold_slot_chain_options( $slot, $carry, 'try' !== $container, $skip, $limit_default );
 		if ( null === $flat ) {
 			continue;
 		}
@@ -1386,7 +1468,14 @@ check(
 // changes is the meaning of `src(same)`, an explicit value, spelled and resolved
 // identically in both containers.
 
-/** Walk a container's slots through the seam, returning [ n => resolved srcTermIn ]. */
+/**
+ * Walk a container's slots through the seam, returning [ n => the taxonomy each slot's
+ * resolved chain hops into ], '' where it takes none.
+ *
+ * Read off the CHAIN since #104 — the flat `srcTermIn` the seam used to return is gone,
+ * and reading the LAST term step is what "which taxonomy does this slot end up in" means
+ * on a chain that may hold more than one.
+ */
 function t_tax_walk( $options, $container = 'join', $per_slot_use = true, $max = 5 ) {
 	$carry = array();
 	$out   = array();
@@ -1395,11 +1484,17 @@ function t_tax_walk( $options, $container = 'join', $per_slot_use = true, $max =
 		if ( null === $slot ) {
 			continue;
 		}
-		$flat = bws_fold_slot_flat_options( $slot, $carry, 'try' !== $container, $sk );
+		$flat = bws_fold_slot_chain_options( $slot, $carry, 'try' !== $container, $sk );
 		if ( null === $flat ) {
 			continue;
 		}
-		$out[ $n ] = $flat['srcTermIn'];
+		$tax = '';
+		foreach ( bws_fold_chain_from_options( array( 'src' => $flat['src'] ) ) as $step ) {
+			if ( 'terms' === ( $step['slug'] ?? '' ) ) {
+				$tax = (string) ( $step['arg'] ?? '' );
+			}
+		}
+		$out[ $n ] = $tax;
 	}
 	return $out;
 }
@@ -1452,9 +1547,63 @@ check( 'P16.4 a slot states its own hop over any carried one', array( 1 => 'depa
 // would skip a slot that renders today.
 $tax_double = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ) );
 check( 'P16.4 an inherited hop is REPLACED by the slot\'s own, not collided with', array( 1 => 'department', 2 => 'office' ) === $tax_double, json_encode( $tax_double ) );
-// A real second term step still cannot be expressed in the flat triple.
+// …AND THE ROW ABOVE CANNOT SEE THE DIFFERENCE ON ITS OWN. t_tax_walk reports the LAST term
+// step, so `terms,department;terms,office` answers `office` too — it sat green through the
+// first draft of #104, which appended. The CHAIN is what says which happened, and the
+// rendered difference is the whole reason it matters: a term step off a TERM input has no
+// post to read, so the appended form resolves EMPTY and the slot disappears from a
+// {{join}} that rendered it (measured on the testbed, both eras).
+$tax_double_wire = t_seam_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ), 'join' );
+check( 'P16.4 …asserted on the CHAIN, which is the only place replace and append differ', 'terms,office' === ( $tax_double_wire[2]['src'] ?? null ), json_encode( $tax_double_wire[2] ?? null ) );
+// A DIFFERENT slug appends, because it is not refining the same axis — an inherited
+// relationship source that this slot then drops into a taxonomy is two steps and means it.
+$tax_other_slug = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
+check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
+// …AND THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join). The inherited tail gives
+// way only where this slot's first step cannot RUN off it, and by as little as possible.
+// `refs` accepts a post input and produces one, so `src(same;refs,manager)` behind
+// `src(refs,office)` is office → manager — the two-relationships-away chain FW-56 exists
+// for. A cut of this scoped by SLUG instead dropped it and read `manager` off the AMBIENT
+// entity: a plausible value from the wrong entity ([I15]), and the very capability #104
+// shipped, broken by its own fix.
+$ref_repeat = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;refs,manager);key(b)' ), 'join' );
+check( 'P16.4 …and a REPEATABLE slug is NOT dropped: an inherited ref hop keeps hopping', 'refs,office;refs,manager' === ( $ref_repeat[2]['src'] ?? null ), json_encode( $ref_repeat[2] ?? null ) );
+// THE CASE THAT SEPARATES "the JOIN cannot run" FROM "the SLUG cannot repeat", and the
+// reason the second reading had to go. An inherited `terms` step in front of an own
+// `refs;terms` pair conflicts on the SLUG — both chains state `terms` — but not on the
+// JOIN: `refs` ACCEPTS a term input, so the chain runs exactly as written and nothing
+// should give way. The slug reading deleted the inherited step and rooted the slot at the
+// ambient entity.
+$join_ok = t_seam_walk( array( 'A' => 'src(terms,department);key(a)', 'B' => 'src(same;refs,x;terms,y);key(b)' ), 'join' );
+check( 'P16.4 an inherited step that this slot CAN run off is kept, same slug or not', 'terms,department;refs,x;terms,y' === ( $join_ok[2]['src'] ?? null ), json_encode( $join_ok[2] ?? null ) );
+
+// NON-VACUITY for the derive itself. WHAT bws_fold_chain_join() DERIVES FROM is stated at the
+// owner and not here: the four rows above pin its ANSWERS case by case, but nothing below pins
+// which maps it reads, so a third map could be added and every assertion would still pass —
+// an unpinned clause takes a pointer (CLAUDE.md §Documentation ownership, the harness
+// exemption). What IS pinned: it DECLINES TO TRIM when either end is unknown vocabulary, the
+// safe direction, since an unknown answer must not rewrite a source. Asserted so a harness
+// that forgot to load the engine's list fails HERE, by name, rather than passing the rows
+// above for the wrong reason.
+$j_terms = array( array( 'slug' => 'terms', 'arg' => 'a', 'limit' => null, 'extra' => array() ) );
+$j_refs  = array( array( 'slug' => 'refs', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
+$j_junk  = array( array( 'slug' => 'wibble', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
+check( 'P16.4 the join derive is LIVE: a terms tail cannot feed a terms step', array() === bws_fold_chain_join( $j_terms, $j_terms ), json_encode( bws_fold_chain_join( $j_terms, $j_terms ) ) );
+check( 'P16.4 …a terms tail CAN feed a refs step (nothing trimmed)', $j_terms === bws_fold_chain_join( $j_terms, $j_refs ), json_encode( bws_fold_chain_join( $j_terms, $j_refs ) ) );
+check( 'P16.4 …a refs tail can feed a terms step (nothing trimmed)', $j_refs === bws_fold_chain_join( $j_refs, $j_terms ), json_encode( bws_fold_chain_join( $j_refs, $j_terms ) ) );
+check( 'P16.4 …and UNKNOWN vocabulary trims nothing: the chain short-circuits, it does not rewrite', $j_terms === bws_fold_chain_join( $j_terms, $j_junk ), json_encode( bws_fold_chain_join( $j_terms, $j_junk ) ) );
+// The ROOT is not a step and is never trimmed — a slot inherits the SOURCE, whatever this
+// slot then fails to run off it.
+$j_rooted = array( array( 'slug' => 'site', 'arg' => null, 'limit' => null, 'extra' => array() ) );
+check( 'P16.4 …and the ROOT is never trimmed', $j_rooted === bws_fold_chain_join( $j_rooted, $j_terms ), json_encode( bws_fold_chain_join( $j_rooted, $j_terms ) ) );
+// The legacy wire this rule exists for, driven through the seam end to end. Editor-authorable:
+// leave slot 2's source alone, pick a different taxonomy.
+$tax_legacy_pair = t_seam_walk( array( 'srcTermIn' => 'department', 'use' => 'title', '2-src' => 'same', '2-srcTermIn' => 'office', '2-key' => 'phone' ), 'join' );
+check( 'P16.4 …and the LEGACY pair it exists for resolves to the slot\'s own hop alone', 'terms,office' === ( $tax_legacy_pair[2]['src'] ?? null ), json_encode( $tax_legacy_pair[2] ?? null ) );
+// A real second term step RESOLVES since #104 — the chain states two hops and hands both
+// on. What the slot ends up IN is the last one, which is what this walk reads.
 $tax_two_steps = t_tax_walk( array( 'A' => 'src(terms,department;terms,office);key(a)' ) );
-check( 'P16.4 …but two REAL term steps in one chain are still inexpressible', ! isset( $tax_two_steps[1] ), json_encode( $tax_two_steps ) );
+check( 'P16.4 …and two REAL term steps now resolve, ending in the LAST one', array( 1 => 'office' ) === $tax_two_steps, json_encode( $tax_two_steps ) );
 
 // ── P16.5 AMBIENT MUST BE SPELLED (#74) ─────────────────────────────────────
 //
@@ -1472,7 +1621,7 @@ check( 'P16.5 `same` skips when NOTHING was ever carried', ! isset( $never_carri
 // chain is expressible and simply has nothing yet to be the same as, so telling the author
 // "source not supported" would send them after the wrong thing.
 $inh_carry = array( '_fed' => false );
-bws_fold_slot_flat_options( bws_fold_parse_slot( 'src(same);key(x)' ), $inh_carry, true, $isr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(same);key(x)' ), $inh_carry, true, $isr );
 // The WORDING for it is the preview's to own (preview-label-test.php §skip warnings).
 check( 'P16.5 …reporting `inherit`, which is not the inexpressible-wire reason', 'inherit' === $isr, var_export( $isr, true ) );
 $never_carried_flat = t_seam_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ), 'join' );
@@ -1513,13 +1662,202 @@ $stale_shipped = t_shipped_join_walk( $stale );
 $stale_folded  = t_seam_walk( t_migrate_join( $stale ), 'join' );
 check(
 	'P17 the shipped flat walk read slot 2 through the HIDDEN `2-ref`',
-	'manager' === ( $stale_shipped[2]['ref'] ?? null ),
+	'refs,manager' === ( $stale_shipped[2]['src'] ?? null ),
 	json_encode( $stale_shipped[2] ?? null )
 );
 check(
 	'P17 …and the fold deliberately drops it, reading the source slot 2 actually shows',
-	'office' === ( $stale_folded[2]['ref'] ?? null ),
+	'refs,office' === ( $stale_folded[2]['src'] ?? null ),
 	json_encode( $stale_folded[2] ?? null )
+);
+
+
+// ── P18 THE CHAIN HAND-OFF (#104, FW-71) ────────────────────────────────────
+//
+// The seam emits the slot's resolved chain as DEPTH-0 CHAIN WIRE in `src` — the same
+// option key, and the same language, a base tag states its source in ([I16]). Everything
+// above asserts what each era RESOLVES; this section asserts the hand-off itself.
+
+// P18.1 — IDEMPOTENCE, as a FIXED POINT ON THE RE-LEVELED FORM.
+//
+// The emitted string DIFFERS from the stored slot value by design: bracket alternation is
+// by depth (BWS_FOLD_BR_PAIRS), a slot's chain sits at enclosing level 1, and this emits at
+// level 0 — so `limit[3]` re-levels to `limit(3)`. Written the naive way (emit === the
+// stored `src(…)` inner text) this fails on EVERY chain carrying a bound, and the fix
+// someone reaches for is to loosen the assertion. So the property is
+// `emit₀(parse(emit₀(chain))) === emit₀(chain)`: what the seam hands on must survive the
+// reading every consumer gives it (bws_fold_chain_from_options), unchanged.
+//
+// Re-leveling only ever goes SHALLOWER, which is why it is safe: it cannot run out of
+// bracket pairs. Had the direction been the other way, a deep chain would have had nowhere
+// to go.
+$fixed_point = array(
+	'root only'              => 'src(site);key(a)',
+	'explicit current'       => 'src(current);key(a)',
+	'one ref hop'            => 'src(refs,office);key(a)',
+	'ref hop with a bound'   => 'src(refs,office,limit[3]);key(a)',
+	'two ref hops'           => 'src(refs,a;refs,b);key(x)',
+	'ref then terms'         => 'src(refs,office;terms,category);use(title)',
+	'rooted, bound, hopped'  => 'src(site;refs,partner,limit[2];terms,category,limit[0]);key(a)',
+	'repeater rows'          => 'src(entries,rows);key(a)',
+	'unknown step slug'      => 'src(refs,a;wibble,b);key(x)',
+);
+foreach ( $fixed_point as $why => $wire ) {
+	$fp_carry = array();
+	$fp       = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => $wire ), 'join' ), $fp_carry, true );
+	$emitted  = (string) ( $fp['src'] ?? "\0" );
+	$again    = bws_fold_emit_chain( bws_fold_chain_from_options( array( 'src' => $emitted ) ), 0 );
+	check( "P18.1 [$why] the emitted chain is a fixed point of the reading every consumer gives it", $emitted === $again, "emitted: $emitted\n      re-read: $again" );
+}
+
+// P18.1b — …SEEDED WITH `same`-RESOLVED SYNTHETIC CHAINS, which is the part the corpus
+// above cannot supply. The chain a `same` slot hands on is one NO AUTHOR EVER WROTE: it is
+// slot 1's chain spliced under slot 2's own steps, so the shapes most at risk of an emit
+// bug (a bound inherited from another slot, a hop appended behind an inherited hop) exist
+// only here.
+$synth = array(
+	'inherits a bounded ref hop'   => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same);key(b)' ),
+	'inherits, then hops again'    => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same;refs,manager);key(b)' ),
+	'inherits, then drops to terms' => array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category,limit[2]);key(b)' ),
+	'inherits an inherit'          => array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)', 'C' => 'src(same);key(c)' ),
+	'argless refs takes the field' => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(refs);key(b)' ),
+);
+foreach ( $synth as $why => $options ) {
+	$sy_carry = array();
+	foreach ( array( 1, 2, 3 ) as $sy_n ) {
+		$sy_slot = bws_fold_slot_struct( $sy_n, $options, 'join' );
+		if ( null === $sy_slot ) {
+			continue;
+		}
+		$sy = bws_fold_slot_chain_options( $sy_slot, $sy_carry, true );
+		if ( null === $sy ) {
+			continue;
+		}
+		$sy_emitted = (string) $sy['src'];
+		$sy_again   = bws_fold_emit_chain( bws_fold_chain_from_options( array( 'src' => $sy_emitted ) ), 0 );
+		check( "P18.1b [$why] slot $sy_n's synthetic chain is a fixed point", $sy_emitted === $sy_again, "emitted: $sy_emitted\n      re-read: $sy_again" );
+	}
+}
+
+// P18.2 — the CARRY is chain-shaped, so an inheriting slot takes the prior slot's HOPS and
+// not merely its root. That deletes the `$tax_inherit` special case the flat triple needed:
+// a triple could carry one taxonomy and no relationship step at all, so a slot inheriting a
+// two-step source landed somewhere the wire never said.
+$inh_chain = t_seam_walk( array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)' ), 'join' );
+check( 'P18.2 `same` inherits the WHOLE chain, root and hops', 'site;refs,partner' === ( $inh_chain[2]['src'] ?? null ), json_encode( $inh_chain[2] ?? null ) );
+$inh_then = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
+check( 'P18.2 …and a slot\'s own step APPENDS to what it inherited', 'refs,office;terms,category' === ( $inh_then[2]['src'] ?? null ), json_encode( $inh_then[2] ?? null ) );
+
+// P18.3 — THE LEAK, NAMED. bws_fold_chain_from_options() APPENDS a `terms` step for any
+// surviving `srcTermIn`, so a tag-level one left in the options a container merges the
+// seam's output over would grow a step on EVERY slot's chain — and now compose with
+// whatever the slot itself said. The seam SUPERSEDES the legacy source axes by contract
+// (explicit empties), which is why this belongs to the seam and not to each caller:
+// {{join}} builds its slot options from the seam alone while try_ merges them over the
+// tag's, so a container-side rule would be one caller carrying it for the other's sake.
+//
+// [I15]-CLASS: a leaked step returns a PLAUSIBLE VALUE FROM THE WRONG ENTITY, not an
+// empty one, so the assertion names the leak rather than merely rendering green.
+$leak_tag_level = array(
+	'srcTermIn' => 'department',   // tag-level residue off a half-migrated tag
+	'ref'       => 'stale_rel',
+	'A'         => 'src(site);key(a)',
+	'B'         => 'src(refs,office);key(b)',
+);
+// Taken from the RAW seam return, never through t_seam_walk: the walk NAMES the two axes
+// when it builds its row, which would supply the empties the seam is supposed to and make
+// this pass on a seam that omitted them.
+$leak_carry = array();
+$leak_raw   = array();
+foreach ( array( 1, 2 ) as $leak_n ) {
+	$leak_raw[ $leak_n ] = bws_fold_slot_chain_options( bws_fold_slot_struct( $leak_n, $leak_tag_level, 'join' ), $leak_carry, true );
+}
+check(
+	'P18.3 the seam returns EXPLICIT empties for both axes it supersedes',
+	array_key_exists( 'ref', (array) $leak_raw[1] ) && '' === $leak_raw[1]['ref']
+		&& array_key_exists( 'srcTermIn', (array) $leak_raw[1] ) && '' === $leak_raw[1]['srcTermIn'],
+	json_encode( $leak_raw[1] )
+);
+// THE MERGE is where the leak would actually land, so assert the merge and not only the
+// seam: a container merging the seam's output over the tag's options must end up with a
+// chain the tag-level key cannot reach into. A missing empty shows up HERE as a GROWN
+// STEP — the [I15] failure, named.
+foreach ( array( 1 => 'site', 2 => 'refs,office' ) as $leak_n => $want ) {
+	$leak_merged = array_merge( $leak_tag_level, (array) $leak_raw[ $leak_n ] );
+	$leak_got    = bws_fold_emit_chain( bws_fold_chain_from_options( $leak_merged ), 0 );
+	check(
+		"P18.3 slot $leak_n's chain is its own — no tag-level `srcTermIn` step grown onto it",
+		$want === $leak_got,
+		"want: $want  got: $leak_got"
+	);
+}
+
+// P18.4 — PER-STEP BOUNDS RIDE THE WIRE. §P15 owns the slot's ITEM bound (what the
+// container slices by); this owns what the ENGINE is told, which is a different quantity
+// and only visible now that the source is handed on whole.
+//
+// A STATED CHANGE, not a silent one: a slot with TWO fanning steps and a bound used to
+// flatten to one triple plus one number — every hop unbounded, the finished items sliced at
+// the end — and now bounds each hop as the identically-spelled base tag does. Reachable
+// only where a slot fans twice, which is `refs` + `terms`; the flat triple could express
+// nothing else. Recorded in fold-test-matrix.md §F9d.
+$steps_of = static function ( $wire ) {
+	$sw_carry = array();
+	$sw       = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => $wire ), 'join' ), $sw_carry, true );
+	return bws_fold_chain_to_steps( bws_fold_chain_from_options( array( 'src' => (string) ( $sw['src'] ?? '' ) ) ) );
+};
+check(
+	'P18.4 a per-step bound reaches the engine as a step limit',
+	array( array( 'type' => 'refs', 'field' => 'office', 'limit' => 3 ) ) === $steps_of( 'src(refs,office,limit[3]);key(a)' ),
+	json_encode( $steps_of( 'src(refs,office,limit[3]);key(a)' ) )
+);
+check(
+	'P18.4 an UNLIMITED step stays byte-identical to what the flat assembler produced',
+	array( array( 'type' => 'refs', 'field' => 'office' ) ) === $steps_of( 'src(refs,office,limit[0]);key(a)' ),
+	json_encode( $steps_of( 'src(refs,office,limit[0]);key(a)' ) )
+);
+// P18.6 — A SITE ROOT NEVER TAKES THE LEGACY TERM STEP, and the twin of this rule is what
+// keeps a slot at parity with the identically-keyed base tag ([I6]/[I16]). `srcTermIn`
+// registers `show_if src: not:site`, so the pair is hand-edit-only, and every arm has always
+// let the site read win — which is why bws_fold_chain_from_options() refuses to append it
+// for a BASE tag's flat keys and bws_fold_migrate_base_src() leaves a site root alone.
+//
+// HARMLESS BEFORE #104 AND LOAD-BEARING AFTER IT: the retired flatten collapsed the mapped
+// chain back to a triple and the reader dropped the step off the triple, so appending it
+// changed nothing. Now the chain IS the hand-off, so appending it resolves a term step off a
+// site source — no post input, hence empty — which silently re-opened the parity §F9b.5
+// closed one release earlier. MEASURED on the testbed both ways.
+$site_tax_flat = t_seam_walk( array( 'A' => '', 'src' => 'site', 'srcTermIn' => 'department', 'key' => 'org_phone' ), 'join' );
+check( 'P18.6 flat site + srcTermIn maps to a site-ONLY chain', 'site' === ( $site_tax_flat[1]['src'] ?? null ), json_encode( $site_tax_flat[1] ?? null ) );
+// The same fact one layer down, on the mapper the converter and the editor's mount migrator
+// both share with the render dual-read — one fix, three paths, so a stored tag, a converted
+// one and an editor-touched one cannot disagree.
+check(
+	'P18.6 …so the SLOT migrator writes no term step either',
+	'src(site);key(org_phone)' === bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site', '2-srcTermIn' => 'department', '2-key' => 'org_phone' ), true )['slot'] ),
+	bws_fold_emit_slot( bws_fold_from_flat( 2, array( '2-src' => 'site', '2-srcTermIn' => 'department', '2-key' => 'org_phone' ), true )['slot'] )
+);
+// HAND-WRITTEN chain wire is the deliberate contrast: it SAYS the step, so it keeps it and
+// resolves empty — exactly as the identically-spelled base tag `{{phone src:site;terms,x}}`
+// does. Wire means what it says (ADR 0004); what the rule protects is the flat KEYS.
+$site_tax_wire = t_seam_walk( array( 'A' => 'src(site;terms,department);key(org_phone)' ), 'join' );
+check( 'P18.6 hand-written chain wire KEEPS its term step', 'site;terms,department' === ( $site_tax_wire[1]['src'] ?? null ), json_encode( $site_tax_wire[1] ?? null ) );
+
+// P18.5 — THE SEAM PASSES A STEP THROUGH VERBATIM, and the emitted chain is canonical
+// anyway, because both producers of a slot struct already trim. Pinned so the seam is not
+// "hardened" with a third copy of that rule: a normalization here would pass this row
+// whether or not the parser still trimmed, i.e. it would hide the producer regressing.
+$trim_carry = array();
+$trim       = bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(refs, office ; terms, category );key(a)' ), $trim_carry, true );
+check( 'P18.5 the emitted chain is canonical — the PARSER owns the trim', 'refs,office;terms,category' === ( $trim['src'] ?? null ), var_export( $trim['src'] ?? null, true ) );
+
+check(
+	'P18.4 both hops of a two-step chain are bounded, in wire order',
+	array(
+		array( 'type' => 'refs', 'field' => 'office', 'limit' => 1 ),
+		array( 'type' => 'terms', 'slug' => 'category', 'limit' => 2 ),
+	) === $steps_of( 'src(refs,office,limit[1];terms,category,limit[2]);key(a)' ),
+	json_encode( $steps_of( 'src(refs,office,limit[1];terms,category,limit[2]);key(a)' ) )
 );
 
 echo "\n$pass passed, $fail failed\n";

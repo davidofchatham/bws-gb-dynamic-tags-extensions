@@ -48,4 +48,4 @@ a standing constraint, not as a price paid for readability.
   component that resolves a source and hands it to another passes CHAIN WIRE, not a parsed chain in a
   side key. A side key is a second way to state a source, invisible to every reader that consults
   `src` for another purpose. Considered as its own ADR and rejected as a corollary of this one — it
-  is not an independent trade-off. See `CONTEXT.md` I16.
+  is not an independent trade-off. **Shipped 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)): `bws_fold_slot_chain_options()` hands a slot's source to its container as depth-0 chain wire. See `CONTEXT.md` I16.

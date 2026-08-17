@@ -902,9 +902,12 @@ function bws_get_join_options(): array {
 				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
 				// honors a hand-written one, it just has no UI row until handlers ship).
 				'allow_same_read' => false,
-				// The flat render seam expresses one term step; a second relationship step
-				// is FW-32 work, so it is not offered.
-				'steps'            => array( 'terms' ),
+				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
+				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
+				// the arms dispatch on what it resolves to, so nothing here truncates it.
+				// `entries` stays out for the reason it stays out of the base offer — no
+				// join arm assembles a repeater row; that is `{{table}}`'s.
+				'steps'            => array( 'refs', 'terms' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"
 				// (bws_build_fold_slot_options derives the header — no label parameter).
 				'noun'            => __( 'field', 'generateblocks' ),
@@ -964,7 +967,7 @@ function bws_get_join_options(): array {
  * empty-render handling hides the block).
  *
  * WIRE ERAS. Slot configuration reads through the FOLD seam
- * (bws_fold_slot_struct + bws_fold_slot_flat_options), which resolves each slot from
+ * (bws_fold_slot_struct + bws_fold_slot_chain_options), which resolves each slot from
  * its folded value when it has one and recovers it from the legacy flat keys when it
  * does not. Era is decided per SLOT, not per tag: a half-applied migration or a
  * hand-edit can leave slot 2 folded between legacy slots 1 and 3, and both feed the
@@ -984,7 +987,10 @@ function bws_get_join_options(): array {
  */
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
-	$carry  = array( 'src' => '', 'ref' => '', 'use' => '', 'key' => '' );
+	// The accumulator's source axis is a CHAIN, not a token — `src(same)` inherits the
+	// prior slot's whole chain, hops and all (#104). Seeded by its owner, never a literal
+	// here: {{join}} has no tag-level read default, so it states none.
+	$carry  = bws_fold_empty_carry();
 
 	// Tag-level explicit post id — GB's editor preview REST route injects
 	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
@@ -1008,32 +1014,39 @@ function bws_join_callback( $options, $block, $instance ): string {
 			continue;
 		}
 
-		// Flatten to the option set the absorb seam consumes, threading the ONE
-		// carry-forward accumulator. Null = the slot is unconfigured (combining reads
-		// an absent field as "not set yet") or states a chain with no flat spelling —
-		// either way it renders nothing AND does not feed the accumulator. (The 1.17.0
-		// chain compiler does not change that; see bws_fold_slot_flat_options().)
-		// Join's tag-level `valueSep` (assembly) is NEVER passed through: a list-mode
-		// slot joins its own items with text's default ', ' (ADR 0003).
+		// Resolve to the option set the absorb seam consumes, threading the ONE
+		// carry-forward accumulator. The slot's source arrives as DEPTH-0 CHAIN WIRE in
+		// `src` — the same key and the same language a base tag states its source in
+		// (CONTEXT.md I16) — with `ref`/`srcTermIn` explicitly emptied by the seam's
+		// contract, so nothing tag-level can leak a step into a slot's chain. Null = the
+		// slot is unconfigured (combining reads an absent field as "not set yet") or holds
+		// an unfinished step; either way it renders nothing AND does not feed the
+		// accumulator. Join's tag-level `valueSep` (assembly) is NEVER passed through: a
+		// list-mode slot joins its own items with text's default ', ' (ADR 0003).
 		$skip_reason   = '';
 		$limit_default = 1;
-		$slot_opts     = bws_fold_slot_flat_options( $slot, $carry, true, $skip_reason, $limit_default );
+		$slot_opts     = bws_fold_slot_chain_options( $slot, $carry, true, $skip_reason, $limit_default );
 		if ( null === $slot_opts ) {
 			continue;
 		}
 
 		// A SLOT'S OWN SOURCE SPELLING DECIDES ITS OWN LIMIT DEFAULT (#60) — chain wire
 		// returns everything, flat wire bounds at 1. The seam reports the era because the
-		// triple above no longer carries it, and the resolved number is written back
-		// explicitly: bws_base_text_resolve_value() re-resolves the default from this same
-		// flattened `src`, which is blind to how the slot was spelled.
+		// `src` above cannot: it is CHAIN WIRE on every slot now, including one recovered
+		// from legacy flat keys, so bws_base_text_resolve_value() re-resolving the default
+		// from it would answer *unlimited* for a slot that has always bounded at 1. Writing
+		// the resolved number back is what stops that, and is load-bearing rather than
+		// tidy — do not "simplify" it away (#104).
 		$slot_opts['limit'] = (string) bws_clamp_limit( $slot_opts['limit'] ?? null, $limit_default );
 
 		// Thread the editor's injected post id into every post-based slot (see
 		// $explicit_id note). src:ref bases its step on this id too (the current
 		// post is the ref origin), so it must carry. Only src:site is entity-blind
 		// — it reads an option, never a post — so the id is left off there.
-		if ( '' !== $explicit_id && 'site' !== ( $slot_opts['src'] ?? '' ) ) {
+		// The test is on the RESOLVED KIND, not on the token: `src` is chain wire now, so
+		// `'site' === $slot_opts['src']` only happened to work for a root-only chain and
+		// would have gone quietly wrong the moment a slot hopped off the site store ([I11]).
+		if ( '' !== $explicit_id && 'site' !== bws_base_src_resolution( $slot_opts )['kind'] ) {
 			$slot_opts['id'] = $explicit_id;
 		}
 

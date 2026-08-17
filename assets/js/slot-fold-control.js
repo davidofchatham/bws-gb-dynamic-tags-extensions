@@ -193,7 +193,7 @@
 	// third word for the same thing.
 	//
 	// THE PROMISE IS THE SEAM'S, NOT THIS CONTROL'S. "Will be skipped" is true because
-	// bws_fold_slot_flat_options() skips an incomplete slot — including, since the
+	// bws_fold_slot_chain_options() skips an incomplete slot — including, since the
 	// `'step'` reason landed, a `terms` step with no taxonomy. Before that it flattened
 	// such a step to an empty `srcTermIn`, which is how "no term step" is spelled, so the
 	// slot silently read the UN-HOPPED entity and handed the author a plausible wrong

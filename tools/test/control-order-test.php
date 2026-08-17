@@ -526,6 +526,48 @@ foreach ( $registered as $tag => $args ) {
 }
 assert_same( 'every image family member registered an as+size control', true, $seen_as_size >= 3 );
 
+echo "\n§7 A slot's STEP OFFER is the base tag's (#104)\n";
+
+// A slot's SOURCE *is* a base tag's source (CONTEXT.md I16), so what a slot may STEP with
+// is what a base tag may step with. This is a REGISTRATION fact and no other harness sees
+// it: bws_build_fold_slot_options() is asserted directly elsewhere against whatever
+// `steps` it is handed, so a container that kept the narrow list would pass there while
+// shipping an editor that cannot author a chain the renderer now resolves.
+//
+// It read `['terms']` on both containers while the flatten stood — a slot re-spelled as a
+// flat triple held ONE relationship step, which was already a SOURCE row, so a second one
+// had no spelling and offering it would have authored wire that skipped. The seam hands
+// the whole chain on now (#104) and the arms dispatch on what it resolves to (#103).
+//
+// `entries` stays OFF every offer, base and slot alike, and that is not an oversight: no
+// arm assembles a repeater row, so offering it would author a chain that renders nothing.
+// {{table}} is where that gap closes, with its own arm.
+$base_offer = null;
+foreach ( $registered as $tag => $args ) {
+	foreach ( $args['options'] ?? array() as $name => $opt ) {
+		if ( 'src' === $name && isset( $opt['fold']['offer'] ) ) {
+			$base_offer = $opt['fold']['offer'];
+			break 2;
+		}
+	}
+}
+assert_same( 'a base tag offers refs then terms', array( 'refs', 'terms' ), $base_offer );
+
+$slot_offers = array();
+foreach ( $registered as $tag => $args ) {
+	foreach ( $args['options'] ?? array() as $name => $opt ) {
+		if ( 'bws-slot-fold' !== ( $opt['type'] ?? '' ) ) {
+			continue;
+		}
+		$slot_offers[ $tag ] = $opt['fold']['offer'] ?? null;
+		break;
+	}
+}
+assert_same( 'every multislot container registers a slot offer', true, count( $slot_offers ) >= 10 );
+foreach ( $slot_offers as $tag => $offer ) {
+	assert_same( "{{{$tag}}} — slot offer equals the base tag's", $base_offer, $offer );
+}
+
 // ---------------------------------------------------------------------------
 
 echo "\n";

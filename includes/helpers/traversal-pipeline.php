@@ -71,7 +71,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     legacy-limit migration stamps `1` on every earlier fanning step.
  *
  * `limit` is absent unless it bounds something: `0`/`-1` mean unlimited
- * (bws_fold_slot_flat_options and the chain compiler both normalize them away), so a
+ * (the chain compiler and the fold's own emit both normalize them away), so a
  * falsy value here is never read as "limit of zero" — a guard the numeric-0 bug class
  * makes worth stating.
  *
