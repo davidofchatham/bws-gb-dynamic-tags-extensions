@@ -1360,8 +1360,11 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *   title   → display name          (get_the_author_meta('display_name'))
  *   content → biographical info      (get_the_author_meta('description'))
  *   text    → use:title = display name; key-mode = user meta field (1.16.0,
- *             FW-48 seam half — closes the ABSORB-seam hole so {{text}},
- *             {{join}} slots and try_text resolve on an author archive)
+ *             FW-48 seam half — closes the ABSORB-seam hole so {{text}} and
+ *             {{join}} slots resolve on an author archive. NOT try_text: a
+ *             try_ slot runs its own dispatcher and was wired separately in
+ *             1.17.0, #108. This clause claimed it for three releases while
+ *             the matrix row for it was failing.)
  *
  * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
  * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the

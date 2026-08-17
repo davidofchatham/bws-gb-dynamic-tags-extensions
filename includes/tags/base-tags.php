@@ -708,8 +708,7 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 	// Ambient author archive → user analog/meta read (FW-48 seam half, 1.16.0).
 	// Mirrors title/content's user arms; closing it HERE closes it for every
 	// ABSORB-seam reader — which is {{join}}'s slots, and NOT try_text: a try_ slot
-	// runs its own dispatcher, whose user arm is wired separately (try_user_fn,
-	// #108). This comment claimed try_text for three releases while T8.6 failed.
+	// runs its own dispatcher, whose user arm is wired separately (try_user_fn, #108).
 	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
 	if ( $user_id ) {
 		return array(

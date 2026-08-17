@@ -108,10 +108,10 @@ const BWS_TRY_SLOT_ARMS = array(
 		'branchable' => false,
 	),
 	// Ambient author archive. LIVE since #108 on the three templates the user analog covers
-	// (text/title/content, via try_user_fn). The other six carry no user fn and still take
-	// the dispatcher's fn-absent fallthrough to the post arm — which is not a leftover: that
-	// fallthrough is their only route to the mode-2b flat-repeater-row gate. Asserting the
-	// row before it was reachable is what made #108 a wiring change rather than a table one.
+	// (text/title/content, via try_user_fn); the other six render empty there, as their base
+	// tags do. Asserting the row before anything could reach it is what made #108 a wiring
+	// change rather than a table one. What a template with no user fn does instead is the
+	// dispatcher's rule, stated where it is enforced (generate_base_try_tags()).
 	'user'     => array(
 		'ids'        => 'user',
 		'fn'         => 'user',

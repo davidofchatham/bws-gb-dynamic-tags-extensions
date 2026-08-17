@@ -239,13 +239,13 @@ foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'base', '', 'wormho
 // ===========================================================================
 echo "\n§A5 — user and meta_row\n";
 
-// The user row is BRANCHABLE and names a renderer. Asserting both before anything could
-// reach them is what made #108 a wiring change rather than a table change: text, title and
-// content now carry a try_user_fn and take this arm on an author archive. The six families
-// with no user analog still fall through to the post arm, which is where they must go —
-// that fallthrough is their only route to the mode-2b flat-repeater-row gate. NOTHING HERE
-// SEES THAT: the wiring lives in the dispatcher closure, and its only pins are the T8
-// render-tag rows in tools/test/text-test-matrix.md (coverage gap noted on FW-43).
+// The user row is BRANCHABLE and names a renderer — both asserted below, and asserting them
+// before anything could reach them is what made #108 a wiring change rather than a table
+// change: text, title and content carry a try_user_fn and take this arm on an author
+// archive. Which templates carry one, and what a template without one does instead, is the
+// dispatcher's rule and is NOT pinned here or anywhere else pure — see
+// generate_base_try_tags() for it and tools/test/text-test-matrix.md §T8 for its only
+// evidence (accepted coverage gap, noted on FW-43's row).
 assert_true( 'A5.1 the user row is branchable', bws_try_slot_arm( 'user' )['branchable'] );
 assert_same( 'A5.2 the user row names its own renderer', 'user', bws_try_slot_arm( 'user' )['fn'] );
 
