@@ -46,7 +46,7 @@ require_once BWS_DYNAMIC_TAGS_PATH . 'includes/tags/fn-tags.php';
  *
  * Vendored library (Plugin Update Checker 5.7); tracks tagged GitHub releases.
  * `enableReleaseAssets()` makes PUC download the .zip attached to each release
- * rather than the source zipball, so dev files (SPEC.md, tools/, etc.) stay out
+ * rather than the source zipball, so dev files (docs/, tools/, etc.) stay out
  * of installed copies. Runs unconditionally — independent of GB dependency check.
  */
 function bws_dynamic_tags_init_update_checker() {
