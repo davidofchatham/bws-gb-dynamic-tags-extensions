@@ -809,7 +809,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// FORCED. A base tag with an unresolvable source does NOT render nothing - it
 	// falls through to the ambient entity and reads it (measured 2026-08-15:
 	// `{{text src:currnet|use:key|key:name_first}}` renders `Jane`), which is an
-	// [I15] leak filed as #109. A row keyed on a field the page HAS would
+	// [I15] leak: #75 (source token) and #109 (unknown step slug). A row keyed on a field the page HAS would
 	// therefore render a plausible wrong value and show no preview at all, which
 	// is the opposite of what these rows are for. Once the leak is fixed the key
 	// can go back to a real one and these rows keep working.

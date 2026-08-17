@@ -199,8 +199,8 @@ came back empty, and an unresolvable source on a base `{{text}}` does **not** re
 it falls through to the ambient entity and reads it (measured 2026-08-15: `{{text src:currnet|use:key|key:name_first}}`
 renders the current post's `name_first`, and so do the retired-token and unknown-step spellings;
 `{{phone}}` on the same chain correctly renders nothing). So on those tags the author sees a
-plausible wrong value and no warning at all. That is an [I15] leak on the render path, filed as
-[#109](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/109); this warning is correct about the wire and appears wherever the tag previews at all,
+plausible wrong value and no warning at all. Those are two [I15] leaks at two layers — an unidentifiable source token
+([#75](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/75)) and an unknown step slug blanking the chain's kind ([#109](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/109)); this warning is correct about the wire and appears wherever the tag previews at all,
 which is every tag whose read is genuinely empty. `fold-test-matrix.md` §F14.18–22 keys its rows on
 a field nothing carries for exactly this reason.
 
