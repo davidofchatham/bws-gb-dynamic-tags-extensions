@@ -149,6 +149,13 @@ const BWS_FOLD_STATIC_ROOT_KINDS = array(
  * short-circuits the chain to empty by design ([I14]), and rewriting a source on the
  * strength of a slug nothing recognises would answer a question the wire did not ask.
  *
+ * THAT POSTURE IS NOT YET UNIVERSAL, and the gap is worth knowing about from here: the base
+ * render ARMS have no case for the `''` kind this same fact produces, so they fall to their
+ * catch-all singular read and silently DROP the unknown step, rendering the chain's prefix
+ * (GH #109). This function, the compiler's unknown-TYPE rule and #105's preview all agree
+ * that unknown vocabulary is a distinct answer; the arm is the one place it collapses into
+ * "no chain". A fix there should read exactly like the guard below.
+ *
  * @since 1.17.0
  * @param array $inherited Parsed chain copied from the carry (may include a leading ROOT).
  * @param array $own       Parsed steps this slot states of its own (never a root).
@@ -208,7 +215,10 @@ function bws_fold_chain_join( array $inherited, array $own ): array {
  *              that needs to know branches on `$base['kind']` as it always has.
  *   ''         the last step is unknown vocabulary. The engine answers empty for an
  *              unknown type, so the chain short-circuits; the kind is honestly
- *              unknown rather than guessed back to the root.
+ *              unknown rather than guessed back to the root. DISTINCT FROM `base`,
+ *              which is the honest answer for a chain with no steps at all — an arm
+ *              that treats the two alike reads the chain's prefix instead of nothing
+ *              (GH #109; bws_fold_chain_join() below is the posture to copy).
  *
  * `fans` is CAPACITY read from the wire — "this chain may resolve more than one
  * source" — never a claim about a given render. Every step slug fans, so it is true

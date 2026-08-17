@@ -807,9 +807,9 @@ function bws_fixture_page_content_matrix_post_meta() {
 	//
 	// THE FIELD KEY IS `bio`, WHICH NOTHING ON THIS PAGE CARRIES, AND THAT IS
 	// FORCED. A base tag with an unresolvable source does NOT render nothing - it
-	// falls through to the ambient entity and reads it (measured 2026-08-15:
-	// `{{text src:currnet|use:key|key:name_first}}` renders `Jane`), which is an
-	// [I15] leak: #75 (source token) and #109 (unknown step slug). A row keyed on a field the page HAS would
+	// renders a plausible WRONG value (measured 2026-08-17: an unidentifiable
+	// source token reads the AMBIENT entity, #75; an unknown STEP slug is dropped
+	// and the chain's PREFIX is read, #109). Both are [I15] leaks. A row keyed on a field the page HAS would
 	// therefore render a plausible wrong value and show no preview at all, which
 	// is the opposite of what these rows are for. Once the leak is fixed the key
 	// can go back to a real one and these rows keep working.
