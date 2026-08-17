@@ -15,11 +15,12 @@
  * A resolved source is a FLAT associative array: a `kind` plus kind-specific
  * keys. NO class, NO nested payload envelope. Payload varies by kind:
  *
- *   array( 'kind' => 'post',     'id'  => 123 )        // entity kind — traversable
- *   array( 'kind' => 'term',     'id'  => 34 )         // entity kind — traversable
- *   array( 'kind' => 'user',     'id'  => 7 )          // entity kind — traversable
- *   array( 'kind' => 'meta_row', 'row' => array(...) ) // entity kind — traversable
+ *   array( 'kind' => 'post',       'id'  => 123 )      // entity kind — traversable
+ *   array( 'kind' => 'term',       'id'  => 34 )       // entity kind — traversable
+ *   array( 'kind' => 'user',       'id'  => 7 )        // entity kind — traversable
+ *   array( 'kind' => 'meta_row',   'row' => array() )  // entity kind — traversable
  *   array( 'kind' => 'site' )                          // terminal — namespace implicit
+ *   array( 'kind' => 'unresolved' )                    // terminal — refusal, see below
  *
  * Entity kinds (post/term/user/meta_row) carry an id/row and are traversable.
  * site + future query-context kinds are terminal (steps produce nothing from
@@ -28,11 +29,34 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.14.0
+ * @since 1.17.0 The `unresolved` refusal kind (GH #75 / #76).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/**
+ * The resolved-source kind meaning THE WIRE NAMED A SOURCE THIS RENDER CANNOT USE.
+ *
+ * A source that is ABSENT legitimately means the ambient entity — that is what a bare
+ * tag resolves and what an author spells by leaving the source unset. A source that is
+ * PRESENT BUT UNUSABLE is not absence, and answering it with the ambient entity invents
+ * a read the wire never asked for ([I15]). This kind is how the factory says so, and it
+ * is NAMED rather than left as a null the caller might read as "nothing to see here":
+ * the whole defect class is a refusal that was implied by omission.
+ *
+ * TERMINAL, and refused by every downstream consumer BY CONSTRUCTION — the engine's
+ * input-kind gate, the first-post-id collapse, the singular cores' falsy-id guard and
+ * both ambient-analog gates all key off a recognised kind and this is not one. That is
+ * why the composite and email/phone read paths need no case for it. Construction
+ * refusal is what rotted last time, though, so each of those consumers carries an
+ * assertion that the refusal REACHES it (tools/test/traversal-pipeline-test.php); the
+ * forthcoming context kinds will add cases to those same switches.
+ *
+ * @since 1.17.0
+ */
+const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
 
 /**
  * Run a resolved-source list through an ordered list of traversal steps.
@@ -525,16 +549,46 @@ function bws_capture_ambient_signals( $instance ) {
 }
 
 /**
- * Resolve an explicit registry source (src token) to a resolved source, or null
- * if the token is not a self-resolving registry source. Post-yielding sources
- * return { kind:'post', id }; a registry source is honored only when it resolves
- * its own id (SPEC §V5 — external sources like PortalSource route through here).
+ * Resolve an explicit registry source (src token) to a resolved source.
+ *
+ * Post-yielding sources return { kind:'post', id }; a registry source is honored only
+ * when it resolves its own id (SPEC §V5 — external sources like PortalSource route
+ * through here).
+ *
+ * ── THREE DECLINES, TWO OF THEM TERMINAL (GH #75 / #76) ─────────────────────────────
+ *
+ * This function declines in three distinct situations, and they are three different
+ * QUESTIONS rather than three shapes of one:
+ *
+ *   1. OUR REGISTRY DID NOT LOAD.  Stays a NULL — the caller falls through to ambient.
+ *      The principle, and it is the whole reason this one is different: *our registry
+ *      did not load is a fact about the PLUGIN, not a fact about the wire.* Refusing
+ *      here would answer a question about the author's tag with a fact about our load
+ *      state, and the blast radius is unbounded — every tag carrying any source token
+ *      on the entire site. (Unreachable at render in practice: the registry
+ *      initialises during bootstrap and tag registration happens later, so a failure
+ *      here means no tag registered at all. Kept degrading rather than blanking.)
+ *   2. THE WIRE NAMED AN UNREGISTERED SOURCE.  REFUSES.
+ *   3. THE SOURCE RAN AND FOUND NOTHING.       REFUSES.
+ *
+ * The last two return BWS_SOURCE_KIND_UNRESOLVED, UNCONDITIONALLY — there is no
+ * per-source opt-out, and no source-contract predicate. One was built and dismantled:
+ * it was motivated by a belief that `current` resolves through this factory and would
+ * blank on term and author archives, which is false — `current` is normalised to
+ * absence before the factory is consulted and never arrives. Every source that
+ * actually reaches here names a specific entity kind, so the predicate had ZERO
+ * holders. Recorded because re-deriving it costs the same afternoon twice.
+ *
+ * The refusal needs no change at the delegation site: a non-null return is already
+ * terminal there, so the sentinel stops the fallthrough by arriving.
  *
  * @since 1.14.0
+ * @since 1.17.0 Declines 2 and 3 refuse instead of falling through to ambient.
  * @param string $src      The src token.
  * @param array  $options  Tag options.
  * @param object $instance GB instance.
- * @return array|null Resolved source, or null to fall through to ambient/current.
+ * @return array|null Resolved source (possibly the refusal kind), or null ONLY when
+ *                    the registry itself is unavailable.
  */
 if ( ! function_exists( 'bws_factory_registry_source' ) ) {
 function bws_factory_registry_source( $src, array $options, $instance ) {
@@ -543,11 +597,11 @@ function bws_factory_registry_source( $src, array $options, $instance ) {
 	}
 	$source = \BWS\DynamicTags\SourceRegistry::get_source( $src );
 	if ( ! $source ) {
-		return null;
+		return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
 	}
 	$id = $source->resolve_id( $options, $instance );
 	if ( ! $id ) {
-		return null;
+		return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
 	}
 	// Term-context sources yield a term; everything else yields a post.
 	$kind = ( 'term' === $source->get_context_type() ) ? 'term' : 'post';
