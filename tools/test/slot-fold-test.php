@@ -1577,11 +1577,14 @@ check( 'P16.4 …and a REPEATABLE slug is NOT dropped: an inherited ref hop keep
 $join_ok = t_seam_walk( array( 'A' => 'src(terms,department);key(a)', 'B' => 'src(same;refs,x;terms,y);key(b)' ), 'join' );
 check( 'P16.4 an inherited step that this slot CAN run off is kept, same slug or not', 'terms,department;refs,x;terms,y' === ( $join_ok[2]['src'] ?? null ), json_encode( $join_ok[2] ?? null ) );
 
-// NON-VACUITY for the derive itself. bws_fold_chain_join() reads BWS_FOLD_STEP_KINDS
-// (produces) against BWS_TRAVERSAL_STEP_INPUT_KINDS (accepts) and DECLINES TO TRIM when
-// either map is missing or either end is unknown vocabulary — the safe direction, since an
-// unknown answer must not rewrite a source. Asserted so a harness that forgot to load the
-// engine's list fails HERE, by name, rather than passing the rows above for the wrong reason.
+// NON-VACUITY for the derive itself. WHAT bws_fold_chain_join() DERIVES FROM is stated at the
+// owner and not here: the four rows above pin its ANSWERS case by case, but nothing below pins
+// which maps it reads, so a third map could be added and every assertion would still pass —
+// an unpinned clause takes a pointer (CLAUDE.md §Documentation ownership, the harness
+// exemption). What IS pinned: it DECLINES TO TRIM when either end is unknown vocabulary, the
+// safe direction, since an unknown answer must not rewrite a source. Asserted so a harness
+// that forgot to load the engine's list fails HERE, by name, rather than passing the rows
+// above for the wrong reason.
 $j_terms = array( array( 'slug' => 'terms', 'arg' => 'a', 'limit' => null, 'extra' => array() ) );
 $j_refs  = array( array( 'slug' => 'refs', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
 $j_junk  = array( array( 'slug' => 'wibble', 'arg' => 'x', 'limit' => null, 'extra' => array() ) );
