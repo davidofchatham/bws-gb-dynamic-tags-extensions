@@ -14,7 +14,13 @@
  *  1. Both sides rendered the SAME URL set. Two runs that sampled independently are not
  *     comparable, and a partial artifact is the easy way to a clean diff — so an asymmetric
  *     URL set is a hard failure, never a filtered-down comparison.
- *  2. Every (url, tag_string) pair renders byte-identically.
+ *  2. Both sides rendered the SAME CENSUS, and it is the census supplied here. The corpus
+ *     is overwritten in place by a re-harvest, in the directory the artifacts live in, so an
+ *     artifact silently outlives the wire it was built from. Two sides on two corpora are
+ *     not comparable; a supplied census that is not the rendered one buckets every pair off
+ *     the wrong corpus. Differing sides are legal ONLY with --map, which is the migration
+ *     run saying the divergence is intended.
+ *  3. Every (url, tag_string) pair renders byte-identically.
  *
  * The exception list is CLOSED (§Verification: "a list assembled after seeing a diff is a
  * rationalisation, not a gate"). So ANY difference fails. Buckets exist to make triage
@@ -187,6 +193,50 @@ if ( $a_version === $b_version ) {
 		$fail++;
 	} elseif ( $a_commit === $b_commit ) {
 		$line( '[!] same commit, different working tree — one side carries uncommitted edits. Intended for a quick iteration, wrong for a recorded result.' );
+	}
+}
+
+// CORPUS IDENTITY. Same argument as build identity, one axis over: an artifact says nothing
+// unless you know WHICH census it rendered. `bin/harvest-tags.sh` overwrites the census in
+// place, in the directory the artifacts already sit in, so a re-harvest orphans every earlier
+// artifact beside it — silently, because the files still parse and still diff.
+//
+// Two DIFFERENT failures, and conflating them hides the second:
+//   1. The two sides rendered different corpora. They are not comparable at all.
+//   2. The sides agree with each other but not with the census passed here, so every
+//      attested/synthetic classification below is being read off the wrong corpus.
+// Live case for (2) on 2026-08-17: Experiment R's portals pair outlived its census by four
+// hours and would still have produced a confident, wrongly-bucketed verdict.
+$a_census = $field_of( $a, 'census_digest' );
+$b_census = $field_of( $b, 'census_digest' );
+
+if ( '?' === $a_census || '?' === $b_census ) {
+	// A WARNING, NOT A FAILURE, and deliberately weaker than the build-identity rule above.
+	// An unrecorded corpus is merely unverifiable; an unrecorded BUILD makes an R run
+	// worthless, because the empty diff it produces is the pass condition. Artifacts
+	// predating this field are otherwise perfectly good and must stay diffable.
+	$line( '[!] census digest not recorded on one or both sides (pre-2026-08-17 replay) — corpus identity cannot be verified.' );
+} else {
+	$line( sprintf( 'A: census %s | B: census %s', $a_census, $b_census ) );
+
+	if ( $a_census !== $b_census ) {
+		if ( null === $map_path ) {
+			$line( '[X] THE TWO SIDES RENDERED DIFFERENT CENSUSES. Same-version runs share one corpus by construction; two corpora are not comparable, and the pairs that exist on only one side silently vanish from the verdict. Re-run both sides against one census.' );
+			$fail++;
+		} else {
+			// Experiment M's normal shape: migration rewrites the wire, so B is harvested
+			// afterwards and the two corpora differ BY DESIGN. That is what --map exists to
+			// bridge, so its presence is the statement that a divergence is intended.
+			$line( '[!] censuses differ, and --map was supplied — expected for a migration run, wrong for a same-version resolver run.' );
+		}
+	}
+
+	if ( null !== $census_path ) {
+		$supplied = substr( (string) md5_file( $census_path ), 0, 12 );
+		if ( $supplied !== $a_census ) {
+			$line( sprintf( '[X] THE CENSUS SUPPLIED HERE (%s) IS NOT THE ONE THAT WAS RENDERED (%s). It has been overwritten since — a re-harvest writes in place. Every attested/synthetic bucket below would be read off the wrong corpus. These artifacts cannot be re-diffed with classification; re-run rather than re-diff.', $supplied, $a_census ) );
+			$fail++;
+		}
 	}
 }
 $line();
