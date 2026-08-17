@@ -151,6 +151,17 @@ comments inside the file being edited. Same class as the four re-inlined `use`+`
 three labels on one image control: a restatement that names a mechanism is a second implementation
 of it.
 
+**ONE NARROW EXEMPTION — A HARNESS MAY NAME AN AXIS IT MECHANICALLY PINS.** Where an assertion
+beside the comment checks the statement, drift fails the suite by name and the prose cannot rot
+unobserved; a test that cannot say what it tests is worse than one that repeats the owner. The
+exemption is per-CLAUSE, not per-file, and the test is "does something below this sentence break if
+it goes wrong" — so an UNPINNED clause in an otherwise-pinned block still takes a pointer. Live
+instance: `slot-fold-test.php` §P16.4 states the `same`-merge axis and calls
+`bws_fold_chain_join()` case by case underneath it, but its DERIVATION SOURCE (which maps the owner
+reads) is pinned by nothing — add a third map and every assertion still passes — so that clause
+points at the owner instead. A stale comment never fails a suite; that is the whole reason the
+exemption is this narrow, and why it is not a general licence for test files.
+
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
@@ -256,7 +267,16 @@ its own.
 not create one. Its truncated stub read "No active spec", which is why it survived three releases of
 disuse: a stub that says "none right now" is indistinguishable from a mechanism that has ended. In-code
 citations of the form `SPEC §V<n>` predate the change and dangle — repoint them to a real home when
-you touch one; none is load-bearing.
+you touch one; none is load-bearing. Two spell it `SPEC.md §V<n>`, so grep BOTH forms: the count in
+FW-76 covers 79 of the first and 2 of the second, and a sweep for one spelling is how that row's
+first draft came out an order of magnitude low.
+
+**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.claude/plans/archive/` records what was
+true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
+spec" and that is EVIDENCE of how the repo used to work, not a stale pointer to fix. Editing it
+deletes the record. Same posture this section already takes on a closed spec issue: a record of how
+something came to be, not a statement of how it currently works. A LIVE plan is the opposite case and
+gets corrected, present tense being a claim about now.
 
 **Post-ship migration is mandatory and is UNCHANGED by that** — it never depended on the artifact:
 
