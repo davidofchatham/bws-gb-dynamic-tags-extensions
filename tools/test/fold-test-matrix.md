@@ -258,7 +258,7 @@ migrator's actual output. Context `/matrix-terms-valid/` unless noted.
 **What the front end cannot show, and why that is not a gap.** The one shape where output could have
 moved is a slot that fans only by INHERITING (`src(same)`, or an argless `refs`): it has no fanning
 step of its own to take the number. It does not move, because `src(same)` means the same SOURCE and a
-limit is one of a source's parameters — `bws_fold_slot_flat_options()` carries the bound along with
+limit is one of a source's parameters — `bws_fold_slot_chain_options()` carries the bound along with
 the source, on a selecting container only. That is unobservable here for a structural reason worth
 recording: `srcTermIn` does not carry forward in a selecting container (§P14.5), so an inheriting
 slot after a `terms` slot reads the ambient entity rather than the terms; and the `refs` arm is
