@@ -671,8 +671,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// of ref steps and stopped, so the term hop vanished).
 		bws_fixture_gb_empty_row( 'F9.3 a NON-LEADING hop now runs (-> empty; jane and tom carry no department terms). Rendered Jane Partner before FW-63', '{{text src:refs,related_staff;terms,department|use:title}}' ),
 		bws_fixture_gb_row( 'F9.3b non-vacuity control for F9.3 (-> NOHOP; proves the chain resolved and found nothing)', '{{text src:refs,related_staff;terms,department|use:title|fallback:NOHOP}}' ),
-		bws_fixture_gb_row( 'F9.4 site read (-> the org name)', '{{text src:site|key:organization_email}}' ),
-		bws_fixture_gb_row( 'F9.4 site read still WINS over a hand-edited term hop - the pair is hand-edit only, and every arm has always let site win (-> same value)', '{{text src:site|srcTermIn:department|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F9.4 site read (-> info@example.test)', '{{text src:site|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F9.4 site read still WINS over a hand-edited term hop - the pair is hand-edit only, and every arm has always let site win (-> info@example.test, the same value)', '{{text src:site|srcTermIn:department|key:organization_email}}' ),
 		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
 		// a label is live wire, and GB renders it. Spelled out here, the empty
 		// {{table}} it produced hid this row's whole label block.
