@@ -374,11 +374,13 @@ described instead.
 
 What that did NOT retire is the general shape of the signal. A skipped slot and a slot that resolves
 to nothing both print nothing, so the preview stays the only place an author can see which happened —
-which is why the five reasons below still speak — four survived the seam change and `no repeater
-field` arrived with it, which is why a "four" anywhere is a stale count. Each comes from
-`bws_fold_slot_chain_options()`'s `$skip_reason` out-param, never from a second copy of the skip rule
-in the preview. An UNCONFIGURED slot (no read yet, combining container) stays SILENT: that is a
-normal in-progress state, and flagging it would fire on every half-built join.
+which is why the four reasons below still speak. FIVE skip reasons remain — four survived the seam
+change and `no repeater field` arrived with it — but only FOUR of the five SPEAK, so a count has to
+say WHICH: a "four" is stale where it counts REASONS and right where it counts what the preview
+PRINTS. Each comes from `bws_fold_slot_chain_options()`'s `$skip_reason` out-param, never from a
+second copy of the skip rule in the preview. An UNCONFIGURED slot (no read yet, combining container)
+is the silent fifth: that is a normal in-progress state, and flagging it would fire on every
+half-built join.
 
 **`<L> no taxonomy`**, **`<L> no ref`** and **`<L> no repeater field`** name an INCOMPLETE step, and are separate from
 "unsupported" because they name what is MISSING rather than what cannot be expressed. Such a step is
