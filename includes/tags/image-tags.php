@@ -24,6 +24,35 @@ use BWS\DynamicTags\Admin\SettingsPage;
 // ===============================================
 
 /**
+ * The tag's STATED fallback image, rendered — {{image}}'s half of the fallback emit.
+ *
+ * One owner for what both cores already did at three sites: derive the media id and
+ * the `as`+size pair off the options, then hand them to bws_handle_media_fallback().
+ * The base arm's refusal guard (GH #109) needs the same emit without a core to reach
+ * it through, and a fourth copy of the three-line derivation is how `as`/`size` drift
+ * starts — see the as+size fold's own history.
+ *
+ * The derivation is deliberately identical for both cores: the fallback image is a
+ * property of the TAG, not of which read missed, so `use:featured` and a field key
+ * land on the same picture.
+ *
+ * @since 1.17.0
+ * @param array  $options  Tag options (fallback / id, as, size).
+ * @param object $instance Block instance.
+ * @return string Rendered fallback image, or '' when none is stated.
+ */
+function bws_image_stated_fallback( array $options, $instance ): string {
+	$as = bws_parse_as_option( $options );
+	return (string) bws_handle_media_fallback(
+		$options['fallback'] ?? $options['id'] ?? '',
+		$as['mode'],
+		$as['size'],
+		$options,
+		$instance
+	);
+}
+
+/**
  * Featured image core — shared by template-generated and legacy callbacks.
  *
  * @since 1.2.0
@@ -34,10 +63,9 @@ use BWS\DynamicTags\Admin\SettingsPage;
  */
 function bws_featured_image_core( $post_id, $options, $instance ) {
 	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
-	$as                = bws_parse_as_option( $options );
-	$return_type       = $as['mode'];
-	$image_size        = $as['size'];
-	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
+	$as          = bws_parse_as_option( $options );
+	$return_type = $as['mode'];
+	$image_size  = $as['size'];
 
 	if ( $post_id ) {
 		$featured_attachment_id = get_post_thumbnail_id( $post_id );
@@ -51,7 +79,7 @@ function bws_featured_image_core( $post_id, $options, $instance ) {
 		}
 	}
 
-	return bws_handle_media_fallback( $fallback_media_id, $return_type, $image_size, $options, $instance );
+	return bws_image_stated_fallback( $options, $instance );
 }
 
 /**
@@ -66,15 +94,14 @@ function bws_featured_image_core( $post_id, $options, $instance ) {
  * @return string
  */
 function bws_custom_image_core( $post_id, $options, $instance ) {
-	$field_key         = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
+	$field_key   = sanitize_text_field( $options['key'] ?? $options['field_key'] ?? $options['meta_key'] ?? '' );
 	// as+size fold (FW-52): `as` may carry a `,<size>` arg; legacy `size:` falls back.
-	$as                = bws_parse_as_option( $options );
-	$return_type       = $as['mode'];
-	$image_size        = $as['size'];
-	$fallback_media_id = $options['fallback'] ?? $options['id'] ?? '';
+	$as          = bws_parse_as_option( $options );
+	$return_type = $as['mode'];
+	$image_size  = $as['size'];
 
 	if ( empty( $field_key ) ) {
-		return bws_handle_media_fallback( $fallback_media_id, $return_type, $image_size, $options, $instance );
+		return bws_image_stated_fallback( $options, $instance );
 	}
 
 	if ( ! bws_is_valid_meta_key( $field_key ) ) {
@@ -91,6 +118,6 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 		}
 	}
 
-	return bws_handle_media_fallback( $fallback_media_id, $return_type, $image_size, $options, $instance );
+	return bws_image_stated_fallback( $options, $instance );
 }
 

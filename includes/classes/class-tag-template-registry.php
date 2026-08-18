@@ -832,7 +832,21 @@ class TagTemplateRegistry {
 					if ( 'branch' === $arm['fn'] ) {
 						$base = bws_base_resolve_source_for_callback( $slot_opts, $inst );
 						$kind = bws_try_slot_base_branch_kind( (string) ( $base['kind'] ?? '' ) );
-						$arm  = bws_try_slot_arm( $kind );
+						$arm  = null === $kind ? null : bws_try_slot_arm( $kind );
+
+						// RE-CHECK, and the check above does not cover it: the first one ran
+						// against the CHAIN's kind, this one against what the factory actually
+						// resolved, which is a second question with a second refusal (a source
+						// the wire names but this render cannot use — GH #75 / #76). Skipping
+						// here is what makes the attempt chain move on to the next attempt
+						// instead of reading the ambient entity, which is the point rather
+						// than a side effect: an ambient read that SUCCEEDS stops the chain,
+						// so the later attempts never ran. Without it the branch also
+						// dereferences a null arm two lines down — today unreachable only
+						// because the branch never refused.
+						if ( null === $arm || '' === $arm['fn'] ) {
+							continue;
+						}
 					}
 
 					// The template's renderer for this arm, normalized to fn($id,$opts,$inst).

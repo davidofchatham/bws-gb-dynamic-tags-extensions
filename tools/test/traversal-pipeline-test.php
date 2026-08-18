@@ -398,6 +398,29 @@ eq(
 	bws_resolve_base_source( array(), null, sig() )
 );
 
+// DECISION 1 — OUR REGISTRY NOT LOADING IS A FACT ABOUT THE PLUGIN, NOT A FACT ABOUT
+// THE WIRE. bws_factory_registry_source() declines three ways and only two of them
+// refuse (#75/#76); this is the third, and it must keep falling through to ambient.
+// Refusing here would answer a question about the author's tag with a fact about our
+// load state, and its blast radius is unbounded — every tag carrying any source token
+// on the entire site.
+//
+// ASSERTED HERE ON PURPOSE: this is the only point in the run where the registry
+// genuinely is absent, since the registry section at the foot of the file requires it
+// in. The row below pins that precondition, because without it this assertion would go
+// quietly vacuous the day someone hoists the require — and a vacuous pass on THIS row
+// reads as "the load-fallthrough is safe" while proving nothing.
+eq(
+	'V1 registry unavailable -> falls through to ambient, never a refusal',
+	array( 'kind' => 'post', 'id' => 0 ),
+	bws_resolve_base_source( array( 'src' => 'nosuchsource' ), null, sig() )
+);
+eq(
+	'…and the registry really is absent at this point (else the row above is vacuous)',
+	false,
+	class_exists( '\BWS\DynamicTags\SourceRegistry' )
+);
+
 // V1 leak-guard (search/404 shape): queried_kind null + no loop. The probe
 // showed $post leaks the main query's first row on search/404 — the factory
 // must NOT consult it. Injected signals carry NO queried entity and NO loop,
@@ -1026,12 +1049,130 @@ eq(
 	array( array( 'type' => 'refs', 'field' => 'office' ) ),
 	bws_field_values_assemble_steps( array( 'src' => 'testroot;refs,office' ) )
 );
-// An UNREGISTERED token is not a root at all: the delegation returns null and the tag
-// falls through to the ambient entity, exactly as before #83.
+// ── A PRESENT-BUT-UNUSABLE SOURCE REFUSES (#75 / #76) ────────────────────────
+//
+// An ABSENT source legitimately means the ambient entity — that is what a bare tag
+// resolves and what an author spells by leaving the source unset. A source that is
+// PRESENT BUT UNUSABLE is not absence, and answering it with the ambient entity invents
+// a read the wire never asked for ([I15]): the tag renders a real, plausible value taken
+// from the entry the visitor is already looking at, which is strictly worse than an empty
+// one because an empty one gets reported.
+//
+// Both shapes refuse UNCONDITIONALLY. There is no per-source opt-out and no
+// source-contract predicate — one was designed and dismantled, because `current` is
+// normalised to absence before the factory is consulted and so the predicate had zero
+// holders. See bws_factory_registry_source()'s own docblock.
+//
+// VERIFY BY MUTATION: restore either `return null` and this section fails. The rows are
+// split by shape rather than merged, so the mutation names which refusal broke.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Absent_Source() );
+
+$refusal = array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
+
 eq(
-	'registry: an unknown token falls through to ambient, unchanged',
-	array( 'kind' => 'post', 'id' => 0 ),
+	'registry: an UNREGISTERED token refuses — it does not become the ambient entity',
+	$refusal,
 	bws_resolve_base_source( array( 'src' => 'nosuchsource' ), null, sig() )
+);
+eq(
+	'registry: a registered source that RESOLVES NOTHING here refuses too',
+	$refusal,
+	bws_resolve_base_source( array( 'src' => 'absentroot' ), null, sig() )
+);
+// The measured population: this shape on a page that HAS an ambient entity to leak. The
+// two rows above run on the empty ambient signal, where a fallthrough and a refusal look
+// alike in the id but not in the kind; this one is where the old behaviour handed back a
+// real entity, so it is the row that would have shown the defect to a reader.
+eq(
+	'…and refuses on a term archive rather than reading the term the visitor is on',
+	$refusal,
+	bws_resolve_base_source(
+		array( 'src' => 'absentroot' ),
+		null,
+		sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) )
+	)
+);
+// A refusal must not be reachable by ABSENCE, or the fix would blank every bare tag.
+eq(
+	'…while an ABSENT source still means the ambient entity, untouched',
+	array( 'kind' => 'term', 'id' => 34 ),
+	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
+);
+
+// ── The refusal REACHES its consumers (construction refusal, asserted) ───────
+//
+// Five consumers already refuse an unrecognised kind by construction, which is why the
+// composite and email/phone read paths need no case for it. Construction refusal is
+// exactly what rotted to produce this whole defect class, though — every leak fixed here
+// was one that stopped holding when something downstream grew a catch-all — and the
+// forthcoming context kinds will add cases to these same switches. So each row states a
+// behaviour of the CONSUMER, not the absence of a switch case.
+eq(
+	'consumer 1/5: the engine\'s input-kind gate produces nothing from a refusal',
+	array(),
+	bws_run_traversal( array( $refusal ), array( array( 'type' => 'refs', 'field' => 'x' ) ), $reader )
+);
+eq(
+	'consumer 2/5: the first-post-id collapse yields false, not an id',
+	false,
+	bws_first_post_id_from_sources( array( $refusal ) )
+);
+eq(
+	'consumer 3/5: the wrapper collapse hands the singular arms no id at all',
+	false,
+	bws_base_post_id_from_source( $refusal, array() )
+);
+eq(
+	'consumer 4/5: the kind-filtered id reads return nothing, both kinds',
+	array( array(), array() ),
+	array(
+		bws_base_source_ids_of_kind( $refusal, array(), 'post' ),
+		bws_base_source_ids_of_kind( $refusal, array(), 'term' ),
+	)
+);
+eq(
+	'consumer 5/5: both ambient analogs decline a refusal',
+	array( 0, 0 ),
+	array(
+		bws_base_ambient_term_id( $refusal, array() ),
+		bws_base_ambient_user_id( $refusal, array() ),
+	)
+);
+
+// ── THE SIXTH CONSUMER IS NOT A CONSTRUCTION REFUSAL, AND ASSUMING IT WAS IS THE
+//    MISTAKE THIS ROW EXISTS TO STOP ───────────────────────────────────────────
+//
+// "The singular cores' falsy-id guard refuses by construction" reads true and is not:
+// bws_read_field() does not stop at a falsy id, it falls back to the query-loop ROW and
+// then to the queried TERM. So consumer 3 handing the arm `false` is only half the
+// story — a core called with it still reads an ambient entity, which is the very defect,
+// arriving one layer lower.
+//
+// That is why the refusal is caught ABOVE the core, by bws_base_read_refused(), and why
+// absence and refusal have to part company there: the loop-row read beneath that guard is
+// load-bearing for the flat-repeater path (mode 2b), where an absent source legitimately
+// DOES mean the row. The core cannot tell the two apart, so it must not be asked to.
+eq(
+	'the arms refuse a factory refusal BEFORE any core sees it',
+	true,
+	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), $refusal )
+);
+eq(
+	'…and refuse an unknown chain step the same way, for the same reason',
+	true,
+	bws_base_read_refused( array( 'kind' => '', 'fans' => true ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+eq(
+	'…while a resolvable source on a resolvable chain is NOT refused',
+	false,
+	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'post', 'id' => 7 ) )
+);
+// Mode 2b, the path the guard must not delete: an absent source in a flat repeater row
+// resolves a meta_row, and that is a legitimate read rather than a refusal.
+eq(
+	'…and a flat repeater row is a READ, not a refusal',
+	false,
+	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
 // ── report ───────────────────────────────────────────────────────────────────

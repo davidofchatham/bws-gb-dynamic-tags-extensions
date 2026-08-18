@@ -88,6 +88,29 @@ function bws_fixture_gb_media_block( $tag, $seed = '' ) {
 
 /** Shape 4 — query/looper nest around one inner tag string. */
 function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
+	return bws_fixture_gb_query_loop_blocks(
+		$query,
+		bws_fixture_gb_text_block( $inner_tag, 'loop-inner:' . $seed ),
+		$seed
+	);
+}
+
+/**
+ * Shape 4b — the same nest around ALREADY-BUILT inner blocks.
+ *
+ * Exists for the one case Shape 4 cannot express: a loop row whose tag is EXPECTED to
+ * render empty. GB hides a text block whose tag resolves to nothing and hides the WHOLE
+ * block, so a single-block row inside a loop takes its own static label with it and the
+ * case reads as missing fixture — exactly what bws_fixture_gb_empty_row() solves outside
+ * a loop, and it needs two blocks to do it.
+ *
+ * Shape 4 delegates here rather than the two carrying a copy of the nest each: the query
+ * / looper / loop-item wrapper is one structure and GB's block grammar is where it is
+ * defined, not here.
+ *
+ * @since 1.17.0
+ */
+function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed ) {
 	$q_uid  = bws_fixture_gb_uid( 'query:' . $seed );
 	$l_uid  = bws_fixture_gb_uid( 'looper:' . $seed );
 	$i_uid  = bws_fixture_gb_uid( 'item:' . $seed );
@@ -100,7 +123,7 @@ function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
 			'className' => '',
 		)
 	);
-	$inner = bws_fixture_gb_text_block( $inner_tag, 'loop-inner:' . $seed );
+	$inner = $inner_blocks;
 	return "<!-- wp:generateblocks/query {$q_json} -->\n<div>"
 		. "<!-- wp:generateblocks/looper {\"uniqueId\":\"{$l_uid}\",\"tagName\":\"ol\",\"className\":\"\"} -->\n<ol>"
 		. "<!-- wp:generateblocks/loop-item {\"uniqueId\":\"{$i_uid}\",\"tagName\":\"li\",\"className\":\"\"} -->\n"
@@ -647,6 +670,85 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_empty_row( 'F11.2 a ROOT slug at a HOP position (-> empty)', '{{phone src:refs,related_staff;site|key:main_line}}' ),
 	) );
 
+	// F11a/F11b (#112) - a source that is PRESENT BUT UNUSABLE renders nothing.
+	//
+	// EVERY ROW HERE NAMES A KEY THIS PAGE ACTUALLY CARRIES, and that is the point.
+	// Until 1.17.0 these shapes rendered a real value read off the ambient entity, so a
+	// row keyed on a real field could not tell a refusal from a leak; the rows that
+	// predate the fix (F14.18-22) all name `bio`, which is on no fixture. The pre-fix
+	// answer is in each label - if one comes back, the refusal regressed.
+	//
+	// {{email}}/{{phone}} are deliberately absent: they read through the engine seam
+	// (F11.1/.2 above), which refused these already, so they cannot show a regression.
+	$sections[] = bws_fixture_gb_section( 'Fold F11a - a present-but-unusable source renders nothing (#75/#76/#109)', array(
+		bws_fixture_gb_empty_row( 'F11a.1 unregistered token - a source the wire NAMES, not an absent one (-> EMPTY; was the page title, Matrix: Post Meta)', '{{title src:currnet}}' ),
+		bws_fixture_gb_empty_row( 'F11a.2 same token, a field read (-> EMPTY; was Captain, this page\'s own role)', '{{text src:currnet|use:key|key:role}}' ),
+		bws_fixture_gb_empty_row( 'F11a.3 a REGISTERED source whose resolve is inert - the standing pre-migration state of every tag the related_post entry repairs (-> EMPTY; was Captain)', '{{text src:related_post|use:key|key:role}}' ),
+		bws_fixture_gb_empty_row( 'F11a.4 a registered source, correctly written, resolving nothing on THIS page - the measured real-wire shape (-> EMPTY; was Captain)', '{{text src:fixture_scoped|use:key|key:role}}' ),
+		bws_fixture_gb_empty_row( 'F11a.4b the image arm, which is one of the seven and reads on its own seam (-> EMPTY; was this page\'s feature_image)', '{{image src:currnet|use:key|key:feature_image}}' ),
+		bws_fixture_gb_empty_row( 'F11a.6 the unknown-STEP door, disjoint from the rows above by POSITION (-> EMPTY; was Jane Partner, the chain prefix collapsed to its first result)', '{{title src:refs,related_staff;bogus,x}}' ),
+		// THE CONTROL. Absence is not refusal: a bare tag still reads the ambient entity,
+		// which is what a source being unset SPELLS. If this row goes empty the refusal
+		// over-reached and every bare tag on every site is blank.
+		bws_fixture_gb_row( 'F11a.7 CONTROL - an ABSENT source still means the ambient entity (-> Captain)', '{{text use:key|key:role}}' ),
+		// The unregistered-ROOT door on the engine-seam families. The unknown-STEP door
+		// already reached them (F11.1/.2 above), but this one does not: the token never
+		// gets as far as the engine, and these two take none of the seven arms.
+		bws_fixture_gb_empty_row( 'F11a.8 phone, unregistered root - the door F11.1/.2 do not reach (-> EMPTY; was this page\'s own main_line)', '{{phone src:currnet|key:main_line}}' ),
+		bws_fixture_gb_empty_row( 'F11a.9 email, same door - its own row because the two families wrap a value differently (-> EMPTY)', '{{email src:currnet|key:contact_email}}' ),
+		bws_fixture_gb_row( 'F11a.10 CONTROL for F11a.8/.9 on this seam (-> the page number, tel:-wrapped)', '{{phone key:main_line}}' ),
+	) );
+
+	// F11c - IN A QUERY LOOP, and it is the ONLY place the root-door guard is observable.
+	//
+	// Found by mutation: removing the text arm's guard leaves every F11a row green. Off
+	// loop the singular cores return before reading anything (! $post_id && ! $is_loop_row),
+	// so the arm guard and the core's guard produce the same empty output. The guard earns
+	// its place only where the core would have gone on to read something - a loop ROW, or
+	// the queried TERM on an archive. F11a still pins the unknown-STEP door, which IS
+	// observable off loop; the two doors simply need different rows.
+	//
+	// Loop over `staff`, so each row's ambient entity carries values of its own.
+	$sections[] = bws_fixture_gb_section( 'Fold F11c - the root door in a QUERY LOOP (where the arm guard is observable at all)', array(
+		bws_fixture_gb_query_loop(
+			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
+			'F11c.1 CONTROL - a bare tag in a loop reads the ROW, and must go on doing so (-> each row\'s own number): {{text use:key|key:main_line}}',
+			'f11c1-loop-control'
+		),
+		// Split-label form, inside the loop: an empty tag takes its whole block down, so
+		// a one-block loop row would read as missing fixture rather than as the asserted
+		// empty. Two rows print, each a label with nothing after it.
+		bws_fixture_gb_query_loop_blocks(
+			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
+			bws_fixture_gb_empty_row(
+				'F11c.2 THE ROW THAT FAILS IF THE ARM GUARD GOES - unregistered token in a loop row (-> EMPTY; was this row\'s own number)',
+				'{{text src:currnet|use:key|key:main_line}}'
+			),
+			'f11c2-loop-unregistered'
+		),
+		bws_fixture_gb_query_loop_blocks(
+			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
+			bws_fixture_gb_empty_row(
+				'F11c.3 registered-but-inert token, same door, same exposure (-> EMPTY)',
+				'{{text src:related_post|use:key|key:main_line}}'
+			),
+			'f11c3-loop-inert'
+		),
+	) );
+
+	// Asserted separately from F11a because "renders empty" passes whether or not the
+	// fallback fired - and a refusal that suppressed the fallback would be one
+	// pre-emption traded for another, which is not a fix. Three of these route past a
+	// core that OWNS the family's fallback emit, so they are the rows that catch a guard
+	// which returned early instead of landing on the arm's own empty path.
+	$sections[] = bws_fixture_gb_section( 'Fold F11b - the stated fallback fires; the other two containers do not blank', array(
+		bws_fixture_gb_row( 'F11b.1 text: the fallback fires, not empty (-> No source)', '{{text src:currnet|use:key|key:role|fallback:No source}}' ),
+		bws_fixture_gb_row( 'F11b.2 content: its fallback lives INSIDE the core a refusal must not run (-> No source)', '{{content src:currnet|use:key|key:role|fallback:No source}}' ),
+		bws_fixture_gb_row( 'F11b.4 datetime: its all-empty fallback is gated on the chain FANNING, which a root-refused tag does not (-> No date)', '{{datetime_single src:currnet|key:event_datetime|fallback:No date}}' ),
+		bws_fixture_gb_row( 'F11b.5 join DROPS the field from the composite (-> Jane; was Captain, Jane - the misattribution the whole fix is about)', '{{join A:src(bogus,x);key(role)|B:key(name_first)}}' ),
+		bws_fixture_gb_row( 'F11b.6 try_ ADVANCES to attempt B (-> Jane; was Captain - attempt A read the ambient entity, SUCCEEDED, and stopped the chain so B never ran)', '{{try_text A:src(currnet);use(key);key(role)|B:use(key);key(name_first)}}' ),
+	) );
+
 	// F9 — the recorded DIVERGENCES. On the page deliberately: a reader who
 	// eyeballs the fold rows must see that chain wire on a BASE tag is not yet a
 	// supported authoring surface, and see it beside F1.7, which is the same term
@@ -1067,6 +1169,18 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 	// PRE-EXISTING, not this fixture's). Rows here must read something the
 	// modifier family actually renders, or an equivalence pair would compare '' to ''
 	// and pass whatever the migration did.
+	// FR2b (#112) - THE NON-VACUITY HALF of the fold matrix's F11a.4.
+	//
+	// `fixture_scoped` refuses on /matrix-post-meta/, where F11a.4 reads it and expects
+	// nothing. A source that could never resolve anywhere would satisfy that row while
+	// asserting nothing at all, so the row that makes it mean something is HERE, on the
+	// one page the root is scoped to. Read the two together: same tag, two pages, and the
+	// difference is the whole behaviour under test.
+	$sections[] = bws_fixture_gb_section( 'FR2b - the SCOPE-BOUND root, on its own page (non-vacuity for fold F11a.4)', array(
+		bws_fixture_gb_row( 'FR2b.1 scoped root resolves HERE (-> Fixture Root Role). The same tag on /matrix-post-meta/ is fold F11a.4 and renders NOTHING', '{{text src:fixture_scoped|use:key|key:role}}' ),
+		bws_fixture_gb_row( 'FR2b.2 the ambient contrast, same key, no root (-> Ambient Page Role)', '{{text key:role}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'FR3 - fixture_ MODIFIER corpus (the migration\'s six shapes, pre-conversion)', array(
 		bws_fixture_gb_row( 'FR3.1 bare, no source stated (-> Fixture Root Role)', '{{fixture_text key:role}}' ),
 		bws_fixture_gb_row( 'FR3.2 src:current — on a modifier that named ITS entity, so same as FR3.1 (-> Fixture Root Role)', '{{fixture_text src:current|key:role}}' ),

@@ -172,15 +172,34 @@ function bws_try_slot_arm( string $kind ): ?array {
  * the loop fallthrough (mode 2b) hands the row to the core function directly. Refusing it
  * here would delete that path.
  *
+ * THE ONE EXCEPTION IS THE REFUSAL KIND (BWS_SOURCE_KIND_UNRESOLVED, GH #75 / #76), and
+ * it is why this returns null at all. That kind means the factory was handed a source it
+ * could not use, so defaulting it to the post arm is the SAME ambient read one layer
+ * down — the obvious sentinel would otherwise have reproduced GH #109 in the act of
+ * fixing it. Refusing WHOLESALE was not available: the documented `meta_row` default
+ * above is load-bearing, so the refusal is for the sentinel alone and every other kind
+ * keeps the default it has always had.
+ *
+ * NULL IS A REFUSAL, NOT A DEFAULT — the posture its neighbour bws_try_slot_arm()
+ * already documents. The two adjacent lookups now give the same answer for a kind no arm
+ * consumes, which they did not before.
+ *
  * This reproduces bws_base_ambient_term_id() / bws_base_ambient_user_id() rather than
  * competing with them: both gate on the chain resolving to `base` (established before this
  * is called) and then on the base source's own kind, which is what this tests. Kept pure
  * and separate so the branch is assertable without a WordPress query.
  *
  * @since 1.17.0
+ * @since 1.17.0 Nullable — refuses BWS_SOURCE_KIND_UNRESOLVED.
  * @param string $base_kind The resolved base source's `kind`.
- * @return string A branchable arm key, or 'post'.
+ * @return string|null A branchable arm key, 'post', or null when the base source is a
+ *                     refusal and the caller must skip the attempt.
  */
-function bws_try_slot_base_branch_kind( string $base_kind ): string {
+function bws_try_slot_base_branch_kind( string $base_kind ): ?string {
+	// Unguarded on purpose — see bws_base_read_refused(). A defined() check here defends a
+	// state that cannot occur, and would switch the refusal off silently if it ever could.
+	if ( BWS_SOURCE_KIND_UNRESOLVED === $base_kind ) {
+		return null;
+	}
 	return ! empty( BWS_TRY_SLOT_ARMS[ $base_kind ]['branchable'] ) ? $base_kind : 'post';
 }
