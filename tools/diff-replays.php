@@ -161,6 +161,36 @@ if ( false !== strpos( $a_version, ',' ) || false !== strpos( $b_version, ',' ) 
 	$line( '[X] A side rendered under MORE THAN ONE plugin version — the artifact spans a swap.' );
 	$fail++;
 }
+// ACROSS A MIGRATION BOUNDARY THE TAG STRINGS THEMSELVES CHANGE, so the two sides cannot be
+// keyed against each other directly — the pairing has to come from the converter, which emits
+// it as mapping.jsonl. Without --map the comparison is same-wire-both-sides (Experiment R).
+//
+// It is READ HERE, ahead of the build-identity guard below, because that guard consults it:
+// a non-empty mapping is evidence that a migration happened, whoever shipped it.
+//
+// The translation is BEST-EFFORT ON PURPOSE. A tag string can live both in a post (migrated)
+// and in an option or postmeta (unreachable by the converter, so still in its old form), and
+// the same string can therefore appear on the B side twice over. Falling back to the untouched
+// key when the mapped one is absent is what keeps that case from reading as a vanished tag.
+$map = array();
+if ( null !== $map_path ) {
+	if ( ! is_readable( $map_path ) ) {
+		fwrite( STDERR, "Mapping not readable: {$map_path}\n" );
+		exit( 2 );
+	}
+	$fh = fopen( $map_path, 'r' );
+	// NB: not $line — that name holds the output closure by this point in the file.
+	while ( false !== ( $map_line = fgets( $fh ) ) ) {
+		$row = json_decode( trim( $map_line ), true );
+		if ( is_array( $row ) && isset( $row['old'], $row['new'] ) ) {
+			$map[ $row['old'] ] = $row['new'];
+		}
+	}
+	fclose( $fh );
+	$line( sprintf( 'mapping: %s (%d tag strings rewritten by the converter)', $map_path, count( $map ) ) );
+	$line();
+}
+
 // BUILD IDENTITY. Two builds of one declared version is Experiment R's normal shape, so the
 // version alone cannot say whether the swap happened — and if it did not, the diff comes back
 // EMPTY, which is R's pass condition. Asserted only when the versions match, because that is
@@ -188,6 +218,14 @@ if ( $a_version === $b_version ) {
 	if ( '?' === $a_commit || '?' === $b_commit ) {
 		$line( '[X] SAME VERSION AND NO BUILD IDENTITY RECORDED. Nothing here can show the swap happened, and an unswapped run diffs EMPTY — which is this run\'s pass condition. Re-run with a replay that records source_commit.' );
 		$fail++;
+	} elseif ( $a_commit === $b_commit && $a_digest === $b_digest && $map ) {
+		// A MIGRATION BOUNDARY NEED NOT BE THIS PLUGIN'S. The guard below assumes the wire moved
+		// because THIS build moved, which is true of Experiment M and false the moment a second
+		// plugin migrates tags through this converter — bws-portal-system 5.7.0 rewrites its own
+		// view_* tags onto base tags, so a staged run holds this build fixed on both sides while
+		// the wire changes underneath it. A non-empty mapping is the evidence that distinguishes
+		// the two: an unswapped run has no rewrites to show, because nothing converted anything.
+		$line( sprintf( '[!] both sides rendered build %s, but the mapping records %d rewrite(s) — a migration by something other than this plugin\'s version bump. Not vacuous; the swap that matters happened elsewhere.', substr( $a_commit, 0, 12 ), count( $map ) ) );
 	} elseif ( $a_commit === $b_commit && $a_digest === $b_digest ) {
 		$line( sprintf( '[X] BOTH SIDES RENDERED THE SAME BUILD (%s / %s). The swap did not happen — branch not switched, or the worktree symlink not repointed. An empty diff here means nothing.', substr( $a_commit, 0, 12 ), $a_digest ) );
 		$fail++;
@@ -279,32 +317,8 @@ foreach ( array( 'A' => $a, 'B' => $b ) as $label => $side ) {
 // ---------------------------------------------------------------------------
 // 3. Pair-by-pair comparison.
 // ---------------------------------------------------------------------------
-// ACROSS A MIGRATION BOUNDARY THE TAG STRINGS THEMSELVES CHANGE, so the two sides cannot be
-// keyed against each other directly — the pairing has to come from the converter, which emits
-// it as mapping.jsonl. Without --map the comparison is same-wire-both-sides (Experiment R).
-//
-// The translation is BEST-EFFORT ON PURPOSE. A tag string can live both in a post (migrated)
-// and in an option or postmeta (unreachable by the converter, so still in its old form), and
-// the same string can therefore appear on the B side twice over. Falling back to the untouched
-// key when the mapped one is absent is what keeps that case from reading as a vanished tag.
-$map = array();
-if ( null !== $map_path ) {
-	if ( ! is_readable( $map_path ) ) {
-		fwrite( STDERR, "Mapping not readable: {$map_path}\n" );
-		exit( 2 );
-	}
-	$fh = fopen( $map_path, 'r' );
-	// NB: not $line — that name holds the output closure by this point in the file.
-	while ( false !== ( $map_line = fgets( $fh ) ) ) {
-		$row = json_decode( trim( $map_line ), true );
-		if ( is_array( $row ) && isset( $row['old'], $row['new'] ) ) {
-			$map[ $row['old'] ] = $row['new'];
-		}
-	}
-	fclose( $fh );
-	$line( sprintf( 'mapping: %s (%d tag strings rewritten by the converter)', $map_path, count( $map ) ) );
-	$line();
-}
+// The mapping that pairs the two sides is loaded further up, beside the build-identity guard
+// that reads it.
 
 $translate = static function ( string $key ) use ( $map, $b ): string {
 	if ( ! $map ) {

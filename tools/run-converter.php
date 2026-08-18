@@ -10,8 +10,8 @@
  * version-gated upgrade routine and nothing fires on a page load. Swapping in a newer build
  * and loading a page migrates NOTHING here, which is the opposite of `bws-portal-system`'s
  * behaviour that `dev-plugin.sh`'s header describes. So the migration step is an explicit
- * invocation, and this is it: `scan()` then `migrate_post()` over everything reported, exactly
- * what the admin button does.
+ * invocation, and this is it: `scan()` then `migrate_post()` over everything reported, then the
+ * pattern-cache reconcile the batch ends with — exactly what the admin button does.
  *
  * IT ALSO EMITS THE OLD → NEW MAPPING, WHICH IS WHAT MAKES A DIFF POSSIBLE AT ALL.
  * Migration rewrites the wire, so `A-render` and `C-render` hold DIFFERENT tag strings and
@@ -134,6 +134,32 @@ foreach ( $scan as $row ) {
 
 WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_count ) );
 
+// THE ADMIN BUTTON RECONCILES THE GB PRO PATTERN CACHE; SO MUST THIS.
+// migrate_post() writes with $wpdb->update(), so GB Pro rebuilds nothing and a cached copy of the
+// pre-migration content survives in generateblocks_patterns_tree postmeta (#98). ajax_migrate
+// repairs that after the batch. Without the same call here, the B-side census reports shadow wire
+// the real migration route would have removed — which reads exactly like the bug the repair fixed,
+// and did on portals on 2026-08-18, four days after that repair shipped.
+//
+// THE REPAIR IS NOT SEPARABLE FROM THE UPGRADE, AND AN M RUN MUST EXPECT ITS EFFECT. It also runs
+// from `bws_dynamic_tags_rebuild_allowlist_on_upgrade`, which fires on the first request after the
+// version moves — BEFORE this script gets to say anything. The repair REMOVES stale shadow wire, so
+// the B-side census loses rows the A side rendered, and each one lands in the diff as a pair
+// present on only one side. Measured on hargrave 2026-08-18: one wp_block whose post_content
+// already held modern datetime_range wire kept two PRE-1.6 strings in its cached tree, from a
+// migration predating the clone; `bws_dynamic_tags_pattern_cache_status` named the upgrade trigger
+// and one reconciled entry. A skip flag was built for this and DELETED — it isolated nothing,
+// because by the time this file runs the upgrade path has already repaired the tree.
+$pattern_cache = array();
+if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
+	$pattern_cache = \BWS\DynamicTags\Admin\PatternCache::reconcile_site( 'migrate' );
+	WP_CLI::log( sprintf(
+		'pattern cache: %d entries checked, %d reconciled',
+		(int) ( $pattern_cache['checked'] ?? 0 ),
+		(int) ( $pattern_cache['reconciled'] ?? 0 )
+	) );
+}
+
 // REPORT/RUN AGREEMENT — a report that outlives its run means the two halves disagree about
 // what a migration is.
 $rescan    = \BWS\DynamicTags\Admin\TagConverter::scan();
@@ -208,6 +234,7 @@ $report = array(
 	'migrate_failures'  => $failed,
 	'unreached_by_converter' => $unreached,
 	'derivation_unverified'  => $unverified,
+	'pattern_cache'     => $pattern_cache,
 );
 
 file_put_contents(
