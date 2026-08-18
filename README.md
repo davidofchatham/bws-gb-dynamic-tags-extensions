@@ -6,23 +6,19 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 
 ### Fewer tags, more sources
 
-Our tags currently work across post, loop item, and taxonomy term archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case! Blog, search, date, author, and post-type archives are not yet supported (they still return from the first post in the query), but we're aiming for full source agnosticism in the future.
+Our tags currently work across post, loop item, and taxonomy term archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case!
 
-Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name). You can also use a taxonomy term applied to the current or referenced post as the field source, instead of picking a term manually.
+> Blog, search, date, and post-type archives are not yet supported (they still return from the first post in the query); author archives are supported for the `text`, `title`, `content`, and their `try_` variants, plus `join` tags.
 
-### Sources that follow more than one step
+Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than step, so it's possible to output data via a path of two or more relationships.
 
-Starting in v1.17, a tag's Source is a path you build a step at a time: begin at the current entry, the site, or a relationship, then follow a relationship field or drop into a taxonomy term, then do it again. Nothing caps the depth, so something two relationships away (the office of the staff member an event references) is a two-step path.
+Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
-Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. So limiting a taxonomy step to one gives you one term from each referenced post, not one term overall. Leave it blank for all. A limit is stated where the source is stated, on the step, so you can see what it bounds; there is no tag-wide result limit.
-
-Another plugin can add its own starting point to that list. A plugin that works out its own entry from the page being viewed offers it alongside Current and Site, on every base tag and in every slot of `{{join}}` and the first-available tags, and a path starts there like any other. Nothing appears until a plugin you have installed opts in. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
+Another plugin can add its own starting point to the source options. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
 
 ### Unlocked field selector
 
-GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, starting in v1.13, every meta/option field key input allows you to search by label/name, as well as filter by context, field group, and field type, among all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields).
-
-Pick a relationship or post object field for a source step and you also get a short note on what ACF does and does not enforce about it: whether it has a configured limit, whether edits made elsewhere can add to it, and whether it holds a single entry. That's read from the field's settings, not from stored values, so it says the same thing wherever you're working. It never blocks a save or changes what a tag renders.
+GB's field selector is post-type-based, so when you're building GP Elements or WP Patterns, you usually can't see the fields that are actually available for what you're working on. Using our tags, every meta/option field key input shows all registered fields (including ACF fields and sub-fields, options-page fields, term fields, and post meta fields), and can be filtered by context, field group, and field type, or searched by label, name, and type.
 
 ### Special handling
 
@@ -65,10 +61,6 @@ Output is plain text; no link options are currently available.
 
 All `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
-## Multi-slot editing
-
-Starting in v1.17, `join` and the `try_` tags configure one slot at a time: add a slot, set its source and field, remove it when it is no longer wanted. Removing a middle slot closes the gap, and a later slot that inherits from the removed one keeps the value it was reading rather than re-pointing at something else. Each slot saves under a single option key, so its source and field stay together in the tag string. The key is a letter (`A`, `B`, `C`, and so on) matching the slot's panel label, and in `join` template mode the same letter is the slot's format token.
-
 ## Return custom function output with `call` tag
 
 The `call` tag hands off a post ID to a PHP function and returns its output. I've grouped it with GB's Post tags since it's strictly post-based, unlike the other tags. However, it still allows using a post related to the current context via a reference/relational field, and it can also pass correct post IDs when used within a Post Meta Query Loop on a reference/relational field.
@@ -89,9 +81,9 @@ Properly registered functions will appear in the tag's **Function** dropdown for
 
 A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
-## Context modifiers
+## `term_` tags
 
-The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector. External plugins can register additional modifier prefixes via `TagTemplateRegistry::register_modifier()`.
+The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector.
 
 ## Requirements
 
