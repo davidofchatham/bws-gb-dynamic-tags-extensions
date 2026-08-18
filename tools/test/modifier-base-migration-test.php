@@ -33,6 +33,9 @@
  *                    chain resolves in ONE converter run. The chaining is the shipped
  *                    TagConverter::resolve_full_chain(); this harness asserts it rather
  *                    than reimplementing the loop, which would assert nothing.
+ *                    Both the option-CARRYING and the option-LESS shape, because the
+ *                    name re-read after each rewrite used to stop at whitespace and a
+ *                    bare tag has none (#111) — and bare is ordinary wire, not a corner.
  *
  * NOT covered here, deliberately: whether the migrated wire RESOLVES like the modifier
  * tag it replaced. That needs the source factory, a registered root and a real field
@@ -354,6 +357,31 @@ assert_eq( 'V4.6 an older prefix reaches the base tag in ONE run',
 assert_eq( 'V4.7 the chain terminates at the base tag (no further rewrite)',
 	'{{text src:view|key:bio}}',
 	TagConverter::resolve_full_chain( 'view_text', '{{view_text key:bio}}' ) );
+
+// THE SAME TRANSITIVE PROPERTY ON A TAG THAT STATES NO OPTIONS (#111). Every case above
+// carries at least one, and the chain loop's tag-name re-read used to stop at whitespace
+// — which a bare tag has none of, so it swallowed the closing braces, matched no entry
+// and stalled the chain one hop in. Bare is the ORDINARY shape, not a corner: `{{title}}`,
+// `{{content}}` and `{{permalink}}` render with no options at all, and an option left at
+// its default is never written into the tag (gb-constraints.md §Option Default
+// Serialization). What is uncommon is the other half — one deprecated name renaming to
+// another — which is why this survived. Not a breakage while it lasted: the tag landed on
+// a still-registered name that still rendered, and a SECOND converter run finished it,
+// which is exactly what makes plugin-integration.md §9's "in one run" the property to pin.
+MigrationRegistry::register( array(
+	'type'      => 'tag',
+	'match_tag' => 'portal_permalink',
+	'new_tag'   => 'view_permalink',
+	'since'     => '1.6.0',
+) );
+
+assert_eq( 'V4.6b an older prefix on an OPTION-LESS tag reaches the base tag in ONE run',
+	'{{permalink src:view}}',
+	TagConverter::resolve_full_chain( 'portal_permalink', '{{portal_permalink}}' ) );
+
+assert_eq( 'V4.7b …and its single-generation sibling still terminates',
+	'{{permalink src:view}}',
+	TagConverter::resolve_full_chain( 'view_permalink', '{{view_permalink}}' ) );
 
 // END TO END, through BOTH converter steps: the rename (step 3) and then every option
 // entry (step 4). The `rel` shape only strands BETWEEN the two — a flat `ref` beside

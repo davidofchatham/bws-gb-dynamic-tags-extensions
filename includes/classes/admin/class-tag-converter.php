@@ -483,6 +483,8 @@ class TagConverter {
 	 *
 	 * @since 1.6.0
 	 * @since 1.17.0 Public (#84).
+	 * @since 1.17.0 The name re-read goes through MigrationRegistry::parse_tag_string()
+	 *               rather than a local pattern, so an option-less tag chains (#111).
 	 * @param string $old_tag_name Starting deprecated tag name.
 	 * @param string $tag_string   Full raw tag string.
 	 * @return string Final migrated tag string.
@@ -507,10 +509,28 @@ class TagConverter {
 
 			$string = $transformed;
 
-			if ( ! preg_match( '/^\{\{(\S+)/', $string, $m ) ) {
+			// Re-READ the name from the rewritten string rather than trusting the entry's
+			// declared `new_tag`: a transform_callback's result is returned verbatim
+			// (MigrationRegistry::transform_tag), so what the content now says is the only
+			// authoritative answer to what the next hop must match on.
+			//
+			// Through parse_tag_string(), which owns where a tag name ends. A local pattern
+			// here stopped at whitespace, and a tag stating no options has none — so it ate
+			// the closing braces, matched no entry, and stalled every option-less chain one
+			// hop in (#111). Bare is the ordinary shape, so the stall was not exotic; what
+			// made it rare, and what let it survive, is that it also needs one deprecated
+			// name renaming to another. plugin-integration.md §9 promises that reaches the
+			// base tag in one run, and spells its own example bare.
+			// The pattern this replaced gave TWO guards free, and both are kept: a
+			// non-empty name, and the `{{` anchor. parse_tag_string() strips braces only
+			// if they are there, and transform_tag() matches on the NAME alone — so a
+			// callback returning something that is no longer a tag string would otherwise
+			// keep chaining, where the pattern stopped.
+			[ $new_tag ] = MigrationRegistry::parse_tag_string( $string );
+
+			if ( '' === $new_tag || ! str_starts_with( $string, '{{' ) ) {
 				break;
 			}
-			$new_tag = $m[1];
 
 			if ( $new_tag === $current ) {
 				break;

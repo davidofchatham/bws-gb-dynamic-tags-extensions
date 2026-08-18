@@ -717,6 +717,16 @@ class MigrationRegistry {
 	 * Format: `{{tag_name key1:val1|key2:val2}}`. Each pair splits on the first colon
 	 * so values may contain colons (e.g. `format:Y-m-d H:i`).
 	 *
+	 * THE OWNER OF WHERE A TAG NAME ENDS. Everything holding a tag as a string comes here
+	 * for its name, the converter's chain loop included. A second, local answer to that
+	 * question is what #111 was; do not re-derive the boundary at a call site.
+	 *
+	 * KNOWN LIMIT, tracked as #116: the split is on a literal space, where every pattern
+	 * around it — GB's own and the converter's — uses `\s`. A tab- or newline-separated
+	 * tag is therefore legal wire that this returns unparsed, reported by the scan and
+	 * silently declined by the run. Widening it moves what every migration entry matches,
+	 * so it is deliberately not a drive-by fix.
+	 *
 	 * TRAILING WHITESPACE INSIDE THE BRACES IS PART OF THE LAST VALUE, and is preserved
 	 * (fixed 1.17.0). GB's own parser does not trim option values — `parse_options()`
 	 * splits on `|` then `:` and stores the remainder verbatim — so `{{text sep:, }}`
