@@ -138,7 +138,25 @@ gets corrected, present tense being a claim about now.
 of how something came to be, not a statement of how it currently works — the same reading posture
 `CONTEXT.md` opens with.
 
-**Bugs:** new bugs → GitHub Issues, always. There is no in-repo bug file.
+**Bugs:** there is no in-repo bug file, and a bug never becomes a row in `docs/future-work.md`.
+A bug that needs TRACKING is a GitHub Issue (`bug` label). **A bug found and FIXED in the same
+change does NOT need one** — the CHANGELOG carries the user-visible delta, the commit body the
+cause, and the regression pin the rule; an issue opened and closed in one motion is a fourth copy
+of a record three places already hold, and the one least likely to stay accurate. File one when the
+record must OUTLIVE the change:
+
+- the fix is deferred or partial;
+- someone outside is waiting on status;
+- **nothing pins it** — if no test fails when it regresses, the issue is the only memory;
+- it is the **SECOND instance of a defect class**. The class is then what wants tracking, not the
+  instance: no comment at either enforcing site can see the other, and only a tracked row makes the
+  third instance recognisable as one. Live example: [#119](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/119),
+  opened over #111, #116 and the 1.17.1 as+size over-match — three doors into "the scan reports what
+  the run declines".
+
+The rule that was here through 1.17.0 said "always", and the cost of that spelling is why it
+changed: a rule broken routinely stops carrying signal, and a review that flags every same-session
+fix trains you to stop reading its flags.
 
 ### Long-lived plan files — the §SETTLED index
 
