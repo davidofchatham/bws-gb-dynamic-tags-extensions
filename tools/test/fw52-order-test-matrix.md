@@ -101,6 +101,7 @@ ranks format,1 so it leads) — it does not fold. Tracked as
 | O4.4 | migration: `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (legacy split) | `{{image as:url,medium\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open — see ⚠ above) | `transform_callback` folds legacy `size:` into `as`; orphan `size:` token gone |
 | O4.5 | migration: `{{image as:alt\|size:large\|key:feature_image\|use:key}}` (dead size on nullary) | `{{image as:alt\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open) | legacy `size:` on a nullary mode is DROPPED (was dead at render) |
 | O4.6 | on-open of a legacy split: open `{{image size:medium\|as:url\|...}}` in the editor, do NOT run the converter | `size:medium` SURVIVES (reordered to lead), composite shows size `full` | editor open (negative) | pins the GB-private-`imageSize` limitation: open-fold is impossible; converter required |
+| O4.7 | migration NEGATIVE: a page holding `{{image as:url\|src:refs,…\|use:featured}}`, `{{try_image as:url,full\|2-as:url}}`, `{{image as:alt}}` (all size-less) AND one legacy split — scan, migrate, RESCAN | listed ONCE (the split's label), migrate reports `option_count: 1`, rescan does NOT list the page at all | **Tag Converter** (scan → migrate → scan) | the converter lists only work it will do: a size-less `as` is not reported, so the list CLEARS. Pre-1.17.1 `as` was in the entry's match list and the page relisted forever |
 
 **Size-visible-only-on-`url` gate (editor-only, no string — do by hand in O4.1):** in the
 modal, the size dropdown shows while Return As is URL. Change Return As to `alt` (or any
@@ -122,6 +123,20 @@ reload, correct-by-construction.
 wire (`size:` separate) — they are the converter round-trip (and, for O4.6, the negative
 on-open control). Run the Tag Converter to exercise O4.4/O4.5; open the block WITHOUT
 converting to reproduce O4.6.
+
+**O4.7 is a stated exception to the visible-blocks mandate** (`docs/testbed.md` §MANDATORY —
+also make them VISIBLE): what it pins is the ABSENCE of a row on the admin screen, and it has to
+migrate its own content to get there. On the fixture page that would consume O4.4/O4.5/O4.6's
+legacy wire and leave them unrepeatable without a reseed. So it runs against a THROWAWAY DRAFT it
+creates and deletes — the same posture as `verify-datetime-migration.php` — via
+`TagConverter::scan()` / `migrate_post()` under `wp eval-file`, not by clicking the button.
+
+Run 2026-08-19 on `testbed` (plugin 1.17.1): listed once, `option_count: 1`, rescan clean.
+MUTATION-verified in the same session — putting `as` back in the entry's `match_any_options`
+relisted the page after migrating, with `{{try_image}}` joining it, which is the reported symptom
+exactly. The PHP twin of the same rule is `as-size-fold-test.php` §A3 (match ⇔ change, shape by
+shape); this row is the half no harness reaches, because only here does the SCAN read stored
+content and decide what to print.
 
 ## Notes
 

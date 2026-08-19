@@ -161,19 +161,14 @@ assert_eq( 'the fold is idempotent',
 // A3 — DETECTION: what the converter REPORTS vs what the fold DOES
 // ===============================================
 //
-// The Tag Converter lists an entry when MigrationRegistry::entry_matches() says so, then
-// rewrites with the callback. An entry that MATCHES but cannot CHANGE anything is a report
-// the migrator never satisfies: the author runs it, the next scan re-lists the same post,
-// and nothing they can do clears it (found on a live site after 1.17.0 shipped, on
-// `{{image as:url|src:refs,…|use:featured}}` — `as` was in the match list, no `size` was
-// present anywhere, so the callback skipped every slot). The two halves are therefore
-// asserted TOGETHER: for each shape, whether the entry MATCHES must equal whether the fold
-// MOVES the string.
+// THE ENTRY MUST MATCH A SHAPE IF AND ONLY IF THE CALLBACK MOVES IT. Both halves are
+// asserted per shape below, so this comment names an axis the block pins. A matched entry
+// the callback cannot change is a report the migrator never satisfies — the list re-lists
+// the same post on every scan and no author action clears it.
 //
-// This is the rule `MigrationRegistry::entry_matches()`'s docblock states for the VALUE
-// gate (`src` is not matched by key, or every sourced tag reports work that never runs); a
-// transform_callback entry cannot be gated declaratively, so its match list has to name
-// only keys the callback acts on — here `size` and its `N-size` slot twins, nothing else.
+// Why the match list is spelled the way it is: the registration in
+// `bws_register_option_migrations()`. The wider class this instance belongs to, and the
+// candidate structural fix: issue #119.
 echo "\nA3 — detection agrees with the rewrite\n";
 
 bws_register_option_migrations();
