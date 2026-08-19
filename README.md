@@ -10,7 +10,7 @@ Our tags currently work across post, loop item, and taxonomy term archive contex
 
 > Blog, search, date, and post-type archives are not yet supported (they still return from the first post in the query); author archives are supported for the `text`, `title`, `content`, and their `try_` variants, plus `join` tags.
 
-Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than step, so it's possible to output data via a path of two or more relationships.
+Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than one step, so it's possible to output data via a path of two or more relationships.
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
 
@@ -57,9 +57,9 @@ Output is plain text; no link options are currently available.
 
 ## Return first available field with `try_` tags
 
-`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` returns a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
+`try_*` tags (e.g. `try_text`, `try_image`, `try_content`, `try_datetime_single`, `try_email`, `try_phone`) allow using the first available (populated) field from an editor-selected list of up to five sources/fields. Each slot resolves exactly as the standalone tag would (`try_email` outputs a finished `mailto:` link per slot, `try_phone` a `tel:` link), so a contact chain like "personal email → team email → site-wide address" works without multiple blocks and complicated visibility conditions.
 
-All `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
+Other than `try_datetime_`, the `try_` tags accept a site source per slot, so a chain can end in a site-wide fallback value.
 
 ## Return custom function output with `call` tag
 
