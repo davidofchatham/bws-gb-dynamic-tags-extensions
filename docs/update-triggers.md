@@ -3,7 +3,9 @@
 One section per code change that obliges a documentation update, a test run, or both.
 **`CLAUDE.md` §Update triggers is the index** — it carries every trigger with the harnesses
 to run, and links here for the rules that make those harnesses meaningful. A trigger appears
-at full length in exactly one of the two places; this page is never a second index.
+at full length in exactly one of the two places; this page is never a second index. Where the
+index says *see detail* instead of naming a harness, there is no harness to name: the trigger's
+verification is a procedure, and this page has it.
 
 Nothing here is optional reading once its trigger fires. A harness name tells you what to
 execute; the section tells you what the run does and does not prove, which is usually where
@@ -18,7 +20,7 @@ and have no section here.
 
 **Fires on:** Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`)
 
-run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` rows against the testbed editor (see [testbed.md](testbed.md)). **The envelope is a SECOND vocabulary channel, not only a field list** (#96): `bws_field_discovery_field_note()` emits the field configuration note as ordered SEGMENTS on each entry, and the chain-step control renders what it is handed — so a note change also runs `node tools/test/slot-fold-repeater-test.js`, and the six cases live in `docs/tag-reference.md` §Field configuration note. **Definitions only, never a value read** (V5) is what makes it work in a Pattern with no post in scope; an options-page field takes the NON-bidirectional wording, because ACF resolves bidirectional targets by object type and has no case for options. **A boolean cannot select the sentence** — ACF native accumulates-and-hides on a single-entry post object where ACF Extended replaces-and-discards, so the flavour is carried, and both-enabled takes the native wording
+run `php tools/test/field-discovery-test.php` (pure discovery logic) + `tools/test/field-selector-test-matrix.md` rows against the testbed editor (see [testbed.md](testbed.md)). **The envelope is a SECOND vocabulary channel, not only a field list** (#96): `bws_field_discovery_field_note()` emits the field configuration note as ordered SEGMENTS on each entry, and the chain-step control renders what it is handed — so a note change also runs `node tools/test/slot-fold-repeater-test.js`, and the six cases live in [`docs/editor-controls.md` §Field configuration note](editor-controls.md#field-configuration-note). **Definitions only, never a value read** (V5) is what makes it work in a Pattern with no post in scope; an options-page field takes the NON-bidirectional wording, because ACF resolves bidirectional targets by object type and has no case for options. **A boolean cannot select the sentence** — ACF native accumulates-and-hides on a single-entry post object where ACF Extended replaces-and-discards, so the flavour is carried, and both-enabled takes the native wording
 
 ## Format-TOKEN change
 

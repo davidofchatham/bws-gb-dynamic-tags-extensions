@@ -85,7 +85,7 @@ To let authors choose it, opt in as a chain root (below). The older routes remai
 
 1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
 2. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Mints a parallel tag family that duplicates the base tags; prefer a chain root unless you need per-tag options of your own. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
-3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags).
+3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags-no-built-in-template).
 4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
 ---
@@ -531,7 +531,7 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 
 | Function | Purpose |
 |----------|---------|
-| `bws_prepare_registration_options( $options )` | The registration pass every BWS options array goes through before GB sees it. Three rules: flip the first option value of `_strip_default`-flagged selects to `''` (wire format); stamp `_group`/`_group_lead` for [visual grouping](tag-reference.md#option-grouping-visual); drop the flat source options a chain control absorbed. Called by tag-template registry and base-tag registration. **Renamed in v1.17.0 from `bws_strip_default_select_values()`, no alias** — the old name described the first rule only. |
+| `bws_prepare_registration_options( $options )` | The registration pass every BWS options array goes through before GB sees it. Three rules: flip the first option value of `_strip_default`-flagged selects to `''` (wire format); stamp `_group`/`_group_lead` for [visual grouping](editor-controls.md#option-grouping-visual); drop the flat source options a chain control absorbed. Called by tag-template registry and base-tag registration. **Renamed in v1.17.0 from `bws_strip_default_select_values()`, no alias** — the old name described the first rule only. |
 
 ### Date helpers (`includes/helpers/datetime-helpers.php`)
 

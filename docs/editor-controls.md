@@ -10,44 +10,42 @@ honour, and the folded-slot control's (`assets/js/slot-fold-control.js`) compact
 registration/resolution flow.
 
 Schemas (option names, labels, values, conditionals) stay in
-[`docs/tag-reference.md`](tag-reference.md) — this doc owns *mechanism*, not the option catalog.
+[`docs/tag-reference.md`](tag-reference.md) — this doc owns *mechanism*, not the option catalog. **The
+line is the OPTION KEY:** a row with a key is catalog and belongs there; a row describing a control,
+or a POSITION INSIDE A VALUE (a chain step's slug, its arg, its `limit(N)` token), is mechanism and
+belongs here. Stated because the first cut of this doc took the catalog with it and had to be
+handed back.
 GB-imposed facts stay in [`docs/gb-constraints.md`](gb-constraints.md). Load-bearing invariants
 scoped to one function/class live as PHPDoc on that function/class; this doc is for invariants that
-cross several files or several tag families. **Field discovery is NOT here** — it is decoupled to
+cross several files or several tag families. The field-discovery **mechanism** is NOT here — it is decoupled to
 `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their
-invariants via the spec issue → PHPDoc on ship.
+invariants via the spec issue → PHPDoc on ship. What that mechanism *emits* is a different thing:
+[§Field configuration note](#field-configuration-note) is here, beside the chain-step control that
+renders it.
 
 ---
 
-## Shared option groups
+## Source and field control mechanics
 
-Options common to most base tags, defined **once** here. Each per-tag section in
-[`tag-reference.md`](tag-reference.md) lists only its tag-specific options and links back to these
-groups. The control order these slot into is the
-[Option layout & visibility](tag-reference.md#option-layout--visibility) model in
-`tag-reference.md` Part I.
+What the editor RENDERS for the shared option groups: which component owns a group, how its controls
+behave per slot, and what a chain step's controls edit. The option **catalog** those controls
+serialize — names, labels, help text, values, conditionals — is [§Shared option
+groups](tag-reference.md#shared-option-groups) in `tag-reference.md`. The line between the two is the
+one [§Chain step controls](#chain-step-controls) already draws: a row with an option KEY is catalog,
+a row describing a control or a POSITION INSIDE A VALUE is mechanism.
 
-Option / required-option rules for deprecated N×M wrappers (e.g. `related_post_*`,
-`term_related_post_*`, `custom_text`, `custom_image`, `term_custom_*`) live in
-[`docs/deprecated-tags-options.md`](deprecated-tags-options.md), not here.
+### Source control — per-slot UI and serialization
 
-### Source group
-
-The source selector and its conditional sub-options. Present on every base tag. In a **multislot**
-container (`try_*`, `{{join}}`, `{{table}}`) the same source axis lives inside the folded slot
-value as a chain — `src(refs,office;terms,category)`, [§Folded slot
-wire](tag-reference.md#folded-slot-wire-multislot-containers) — so the `N-`prefixed keys below are
-**legacy wire** (registered through v1.16.x, still read by the renderer, never written).
-
-| Option name | Option label | Context | Notes |
-|---|---|---|---|
-| `src` | Source | Base / Slot 1 | `source` avoided — GB unconditionally strips it from extraTagParams before our controls can read it |
-| `N-src` | [N]: Source | Slot 2+ *(legacy wire)* | Pre-1.17.0 multislot spelling; the folded chain replaces it |
+In a **multislot** container (`try_*`, `{{join}}`, `{{table}}`) the same source axis lives inside the
+folded slot value as a chain — `src(refs,office;terms,category)`, [§Folded slot
+wire](tag-reference.md#folded-slot-wire-multislot-containers) — so the `N-`prefixed keys the catalog
+lists for slot 2+ are **legacy wire** (registered through v1.16.x, still read by the renderer, never
+written).
 
 **`src` option values — per-slot UI/serialization mechanics** (labels, the slot-2+ `same`/`current`
 distinction, the editor-preview context segment each value produces). For **what each value
 resolves to** (and implementation status), see [§`src` option
-values](tag-reference.md#src-option-values) in `tag-reference.md` Part I.
+values](tag-reference.md#src-option-values).
 
 | Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
 |---|---|---|---|---|---|
@@ -62,22 +60,37 @@ Note: For context-modifier tags, the modifier label is prepended as a context se
 `[Title from Term]` for `{{term_title}}`, `[Content from Term Ref 'rel_post']` for `{{term_content
 src:ref|ref:rel_post}}`. See [`editor-tag-previews.md`](editor-tag-previews.md) for assembly rules.
 
-**Source secondary, conditional options:**
+**Control composition.** `srcTermIn` renders as the combined `bws-term-hop` control (CheckboxControl
++ ComboboxControl) — one key, two widgets, the composite pattern this doc's preamble names. It
+replaced the prior `srcTerm` + `tax` pair in v1.6.0: the slug encodes both "term step on" and which
+taxonomy, so empty/unset is disabled and a slug is enabled-with-that-taxonomy. `sep` is alone in the
+source group on a `try_` tag, so it renders **unboxed** there: the attempts are that tag's source and
+draw their own boxes.
 
-| Option name | Option label | Help text | Shown when | Notes |
-|---|---|---|---|---|
-| `ref` | Relationship Field Key | ACF relationship or post object field key. | `src` = `ref` | ACF relationship/relational field key for the traversal step. **Required** when `src:ref` selected. |
-| `srcTermIn` | Get from taxonomy term? | Field is in a taxonomy term on this source. | Always; hidden for `term_` modifier tags (entity already a term) at `src:current`; shown at `src:ref` | Combined `bws-term-hop` control (CheckboxControl + ComboboxControl). Empty/unset = disabled; slug = enabled with that taxonomy (the slug encodes both "term step on" and the taxonomy — **required** when the step is on). Replaced prior `srcTerm` + `tax` pair (v1.6.0). |
-| `limit` | ~~Result Limit~~ *(HISTORICAL label — no control registers it)* | Maximum number of results to return. Default: 1 on flat wire, unlimited on a source chain. Enter 0 for no limit. | **LIVE READ, RETIRED CONTROL.** No control on any chain-authoring tag (v1.17.0, [#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): a limit is stated where the source is stated, and a chain states its source as steps, so the limit rides the fanning step. Unregistered rather than gated on flat wire — the mount migrator rewrites a flat tag to a chain before the panel paints, so a flat-only predicate would be unreachable. **No tag registers it** as of #62. A flat-select family, whose source is a single step, is where the key belongs; nothing offers it today | The VALUE is still read wherever it is written — removing a control never removes an option ([ADR 0004](adr/0004-serialized-tag-string-human-readable.md); GB seeds state from the tag string, not the registry), so unmigrated flat wire and hand-edited wire keep rendering. Placeholder `1`; not serialized when unset; **`0` (or a hand-typed `-1`) = UNLIMITED** since 1.17.0, non-numeric reads as unset — see [§List mode](tag-reference.md#list-mode-limit--sep). Bounds the WHOLE list; a chain's per-step limits are a different quantity (per-input) and live in the source value — their control is **Limit results**, [§Chain step controls](#chain-step-controls). **A label with no control answers to nothing** — this row was the only documented limit label while the per-step control had none, so a draft "Limit per source" sat against it for the whole of 1.17.0 development with nothing to disagree with it ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)). Hence the strikethrough rather than a quiet deletion, and hence the [§Chain step controls](#chain-step-controls) table. |
-| `sep` | Result Separator | Separator between results (defaults to “, “). | `srcTermIn` set, or `src` = `ref` or a fanning chain (`chain_fans`) — unlike `limit` it DOES ask `chain_fans`, because it joins printed output whatever the source spelling; unconditional on a multislot container, where the list axis sits inside a slot value that `show_if` cannot inspect | `text`, `title`, `email`, `phone`, `datetime_single`, `datetime_range` and the `try_` list templates (`try_text`, `try_title`, `try_email`, `try_phone`). Alone in the source group on a `try_` tag, so it renders unboxed there — the attempts are that tag's source and draw their own boxes. |
+**The tag-level `limit` is a LIVE READ with a RETIRED CONTROL.** No control on any chain-authoring
+tag registers it (v1.17.0,
+[#62](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/62)): a limit is stated
+where the source is stated, and a chain states its source as steps, so the limit rides the fanning
+step. It is **unregistered rather than gated on flat wire** — the mount migrator rewrites a flat tag
+to a chain before the panel paints, so a flat-only predicate would be unreachable. Removing a control
+never removes an option ([ADR 0004](adr/0004-serialized-tag-string-human-readable.md); GB seeds state
+from the tag string, not the registry), so unmigrated flat wire and hand-edited wire keep rendering —
+the key's schema is in the catalog for that reason. A flat-select family, whose source is a single
+step, is where the key belongs; nothing offers it today.
 
-#### Chain step controls
+**A label with no control answers to nothing.** The catalog's historical *Result Limit* was the only
+documented limit label while the per-step control had none, so a draft "Limit per source" sat against
+it for the whole of 1.17.0 development with nothing to disagree with it
+([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)). Hence the
+strikethrough in the catalog rather than a quiet deletion, and hence the table below.
+
+### Chain step controls
 
 **These rows are POSITIONS INSIDE THE CHAIN VALUE, not option keys.** Every one of them edits part
 of a single `src` (or folded slot) value — `src:refs,office,limit(1);terms,category` — so there is
-no `limit` option, no `taxonomy` option and no per-step `ref` option to look for in the tables
-above. The one `limit` OPTION KEY the plugin has is the tag-level row above it, which is a
-different quantity with a retired control.
+no `limit` option, no `taxonomy` option and no per-step `ref` option to look for in the catalog.
+The one `limit` OPTION KEY the plugin has is the tag-level one above, which is a different quantity
+with a retired control.
 
 Rendered by one component in both places a chain is authored — the base tag's `bws-src-chain`
 control and a multislot container's `bws-slot-fold` slot — so a step reads identically on
@@ -107,16 +120,17 @@ count, because the compiler drops it. The predicate is `bws_fold_chain_fanning_s
 one the migrator stamps by and the render seam defaults by — reached in the editor through its
 shipped JS twin, never re-derived from the index.
 
-The control carried a draft label of **Limit per source** for most of 1.17.0's development and was
-corrected before release ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95))
-— it sat three rows below a control labelled *Source* meaning something else, named sources while
-bounding results, and stated the per-input rule everywhere except the label. **No author ever saw
-it, so it is not a rename**: nothing shipped under it, no CHANGELOG entry describes it, and it has
-no row in [`deprecated-tags-options.md`](deprecated-tags-options.md). Recorded here only because
-what let it stand that long was the absence of this table. The option key did not move and no
-stored wire was rewritten.
+The Limit results control carried a draft label of **Limit per source** for most of 1.17.0's
+development and was corrected before release
+([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)) — it sat three
+rows below a control labelled *Source* meaning something else, named sources while bounding results,
+and stated the per-input rule everywhere except the label. **No author ever saw it, so it is not a
+rename**: nothing shipped under it, no CHANGELOG entry describes it, and it has no row in
+[`deprecated-tags-options.md`](deprecated-tags-options.md). Recorded here only because what let it
+stand that long was the absence of this table. The option key did not move and no stored wire was
+rewritten.
 
-##### Field configuration note
+#### Field configuration note
 
 Between the Relationship Field Key control and Limit results, a selected field can carry a **field
 configuration note**: a statement of what ACF does and does not enforce about how many entries that
@@ -212,95 +226,13 @@ fires only when none is set.
 **Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time,
 does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps.
 
-The surface that invites the question is the [Field group](#field-group)'s own `key`, where the
-same picker offers the same relationship fields — and the note is right to stay away, because
-**relating is a source step, not a target field**. A relationship value is a list of post ids rather
-than a datum, so `{{text use:key|key:related_staff}}` renders EMPTY where `{{title
+The surface that invites the question is the [Field group](tag-reference.md#field-group)'s own `key`,
+where the same picker offers the same relationship fields — and the note is right to stay away,
+because **relating is a source step, not a target field**. A relationship value is a list of post ids
+rather than a datum, so `{{text use:key|key:related_staff}}` renders EMPTY where `{{title
 src:refs,related_staff}}` renders the related posts (verified on the testbed, `related_staff`
 holding two ids). Relocating this note there would explain a limit on a read that produces nothing;
 what that surface would want, if anything, is an advisory pointing at the source step.
-
-### Field group
-
-The field-type selector (`use`) + field key (`key`). Present on `text`, `image`, `content`.
-`title`/`permalink` have no field options (their datum is the analog); `email`/`phone` have no
-`use` enum (key-required, no analog); `datetime_*` use direct field keys (see their section). In a
-**multislot** container the read axis lives inside the folded slot value (`use(title)` /
-`key(sku)` / `use(same)`), so the `N-`prefixed keys below are **legacy wire**.
-
-| Option name | Option label | Context | Notes |
-|---|---|---|---|
-| `use` | [Text/Image/Content] Field | Base / Slot 1 | |
-| `N-use` | [N]: [Text/Image/Content] Field | Slot 2+ *(legacy wire)* | Pre-1.17.0 multislot spelling |
-
-**`use` field-selector values (where applicable):**
-
-| Applicable tags | Option name | Option label | Conditionals | Notes |
-|---|---|---|---|---|
-| `text`, `image`, `content` | `same` *(prepended, slot 2+)* | Same as Previous Field | Hides additional fields | Slot 2+ only, not in template. Folded spelling `use(same)` — written explicitly there, where the flat wire left it absent |
-| `text`, `image`, `content` | `key` | Meta/Option Field | Shows/enables field key | — |
-| `text` | `title` | Title/Name | Disables field key | Term name if source is term; site name if `src:site` |
-| `content` | `content` | Post Content/Term Description | Disables field key | Term description if source is term; **empty if `src:site`** (no site content analog) |
-| `content` | `excerpt` | Post Excerpt | Disables field key | Empty under `src:site` (no site excerpt) |
-| `image` | `featured` | Featured Image/Site Logo | Disables field key | Site logo (`custom_logo` theme mod) if `src:site` |
-
-**`key` field key:**
-
-| Applicable tags | Option name | Option label | Context | Notes |
-|---|---|---|---|---|
-| `text`, `image`, `content` | `key` | Meta/Option Field Key | Base / Slot 1 | Aligns with and substitutes for GB native `key` option name generated by `supports => ['meta']`, to avoid issues with GB's filtering and set our own order. Reads post/term meta normally, or a wp_options / ACF-options value under `src:site` (the field-type prefix tracks source scope — V10). **Required** when `use:key` (or the stripped key-mode default for text/image). |
-| `text`, `image`, `content` | `N-key` | [N]: Meta/Option Field Key | Slot 2+ *(legacy wire)* | Pre-1.17.0 multislot spelling; a folded slot spells it `key(sku)` |
-
-See [`datetime_*` section](tag-reference.md#datetime_single-and-datetime_range) for the
-datetime-context label and keys.
-
-### Link wrap group
-
-Available on `text`, `title`, `datetime_single`, `datetime_range` (base, `term_` modifier, and
-`try_` variants). Excluded: `content`, `permalink`, `image`. (`email`/`phone` have their own
-`mailto:`/`tel:` link mechanism — `noLink` — NOT the `linkTo` family; see their sections.) The
-`link` group renders after `format` in control order, after `source` in serialization order.
-
-| Option name | Option label | Notes |
-|---|---|---|
-| `linkTo` | Link To | Link-destination selector. Values enumerated below. First value `none` is the canonical token, stripped at registration per default-strip strategy. |
-| `linkKey` | URL Meta/Option Field Key | Meta or option field key whose value is the URL (post/term meta, or a wp_options / ACF-options key under `src:site`). Shown when `linkTo:key`. If empty, link wrap skipped (never blocks tag output). For `try_` tags, this field is read from the entity that produced the winning slot's output — no per-slot `linkKey`. |
-| `newTab` | Open in new tab | Boolean presence-flag. Shown when `linkTo` not empty. Emits `target=”_blank” rel=”noopener noreferrer”` on the anchor. |
-
-**`linkTo` values:**
-
-| Value | Label | Resolves to |
-|---|---|---|
-| `none` *(unset)* | No Link | No wrap. Canonical default, stripped at registration. |
-| `permalink` | Permalink | Entity permalink (`get_permalink` / `get_term_link`); under `src:site` → `home_url()` (the site permalink-analog — there is no separate `linkTo:site`). |
-| `key` | URL Meta/Option Field | URL read from the meta/option field named in `linkKey` (allowlist-gated under `src:site`). |
-
-Link wrap is applied **after fallback resolves** — fallback text is also wrapped if a link resolves.
-On `try_` tags, the single `linkTo`/`linkKey`/`newTab` applies to the winning slot's entity (post or
-term). `term_` modifier tags resolve entity type from dispatch path (term entity for base-source
-dispatch; post entity for `src:ref` dispatch).
-
-**`email`/`phone` are the exception — their link is NOT a `linkTo` option.** They do not participate
-in the `linkTo`/`linkKey`/`newTab` family above (those wrap an *entity URL*). Their only link is the
-`mailto:`/`tel:` for the address/number itself, **default-ON** and toggled by the inverted `noLink`
-bare key (absent = wrap, present = plain text). Note the **opposite polarity**: `linkTo` defaults to
-*no* wrap, whereas `noLink` defaults to *wrapped* — because the email's/phone's own address is the
-only sensible link. The anchor is built directly (no class/target), not via `bws_wrap_with_link`.
-`newTab` does not apply to `mailto:` (opening a mail client does not navigate). See [§Email
-tag](tag-reference.md#email-tag) / [§Phone tag](tag-reference.md#phone-tag).
-
-### Fallback group
-
-The `fallback` option (the `fallback` group — global, last in both control and serialization
-order).
-
-| Applicable tags | Option type | Notes |
-|---|---|---|
-| `text`, `content`, `title`, `datetime_single`, `datetime_range` | Text field | |
-| `image` | Media library selector → image ID (see `custom-image-controls.md`) | |
-| `email` | Text field → a fallback **email address** | Validated with `is_email()` + wrapped like a real address (not arbitrary text). Fires only when no valid address resolves. |
-| `phone` | Text field → a fallback **phone number** | Normalized + wrapped like a real number (length-gated, not arbitrary text). Fires only when no valid number resolves. |
-| `permalink` | TBD — can be text field initially | Add page/post selector? |
 
 ---
 
@@ -445,6 +377,8 @@ The FW-56/57 fold migration has two independent triggers reading the SAME rules
 
 A divergence between the two does not surface as one path being flagged wrong — it surfaces as one
 tag stored two different ways depending on which path found it first. That is why
-`slot-fold-twin-test.php`'s twin block exists (PHP↔JS agreement on one shared corpus), and why the
+`fold-migration-test.php` §M7 exists — the twin block that runs `fold-migration-driver.js` under
+`node` and holds both paths to one answer on the shared `fold-migration-corpus.json` (the *grammar*
+twin over `slot-fold-corpus.json` is a different harness, `slot-fold-twin-test.php`) — and why the
 mount side hand-lists NOTHING: container config, including `flatAxes`, arrives on the option
 definition rather than being duplicated in JS.

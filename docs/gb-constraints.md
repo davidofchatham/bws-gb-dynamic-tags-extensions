@@ -460,7 +460,7 @@ Everything a parser doesn't name is **inert to it**. Netting the four layers:
 
 `\|` and `:` are **escapable** (`\|`, `\:` — both parsers unescape). `{` `}` have **no escape** and
 are hard-unsafe — the reason `{{join}}` template mode ships `%1`…`%10` on the wire, not `{1}`…`{8}`
-(see [Closing brace](#) below).
+(see [Closing brace](#closing-brace) below).
 
 **Choosing a separator glue.** Among the safe set, prefer characters **rare inside the values they
 separate**: `,` and `;` almost never appear in field keys, so they split cleanly without escaping.
@@ -493,6 +493,8 @@ split's limit-2 discard (above) drops the tail on editor reopen. Affected:
 3. **Encode** (base64 / urlencode). Survives any chars but produces user-visible garbage in the tag string. Last resort.
 
 Avoid storing raw URLs or colon-bearing free-text in default-text controls.
+
+<a id="closing-brace"></a>
 
 **Closing brace `}` — kills the whole tag match (harder failure than `:`/`|`).** GB's render-side
 matcher (`class-register-dynamic-tag.php` `find_matches()`) captures a tag's options as `[^}]+`:
