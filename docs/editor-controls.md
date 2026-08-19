@@ -382,3 +382,29 @@ tag stored two different ways depending on which path found it first. That is wh
 twin over `slot-fold-corpus.json` is a different harness, `slot-fold-twin-test.php`) — and why the
 mount side hand-lists NOTHING: container config, including `flatAxes`, arrives on the option
 definition rather than being duplicated in JS.
+
+
+### Why the image composite does NOT migrate on mount (1.17.1)
+
+The `bws-as-size` composite owns the `as` token end to end, so completing a legacy bare `as:url` to
+`as:url,full` on mount looks like the same two-path shape as above, on a key the editor genuinely
+can write. It was built that way and backed out. The reason is the mechanism this section is for:
+
+**A control can only make decisions about what the filter hands it, and this one's correctness
+depends on a key GB keeps private.** `tagSpecificControls` receives `{ state: extraTagParams,
+setState }`; `size` is destructured into GB-private `imageSize` before `extraTagParams` exists
+([`gb-constraints.md` §Reserved keys](gb-constraints.md#reserved-keys-are-destructured-into-gb-private-state-and-re-serialized-even-when-unsupported)).
+So a legacy split tag (`as:url` plus a separate `size:medium`) and a plain size-less `as:url` are
+THE SAME OBJECT in the editor. Completing to `url,full` is right for one and silently pins the
+other's render to full. The converter distinguishes them by reading the raw tag string, and orders
+its two entries so the fold runs first; a mount effect has nothing to order against.
+
+The generalisation, which outlives this control: **an invisible or on-mount write is licensed by
+the value being legacy, and "legacy" has to be decidable from what the filter passes.** Where it is
+not, the write belongs on the converter, whatever the option's ownership. The fold control's
+`stripDefaultRoot` holds the neighbouring rule for the same reason — looking at a tag must not
+change it.
+
+Standing consequence, not introduced by this: the composite writes the whole token on any change,
+so touching a control on a legacy split tag has always dropped the authored size. Running the
+Migration Tool first is the fix, and `tag-reference.md` §`as` serialization opt-out says so.

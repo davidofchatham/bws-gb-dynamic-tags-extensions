@@ -15,15 +15,24 @@
  * THERE IS DELIBERATELY NO EDITOR-MOUNT TWIN BLOCK HERE, and the absence is a finding
  * rather than a gap. The FW-56/57 slot fold has one (fold-migration-test.php §M7) because
  * that migration runs on BOTH paths — the post_content converter and a tag-modal mount —
- * and a divergence would store one tag two ways. as+size can only ever run on the
- * converter: `size` is one of GB's reserved keys, destructured out of `parsedTag.params`
- * into GB's private `imageSize` state before `extraTagParams` is formed, and
- * `tagSpecificControls` receives only `extraTagParams`. A mount migrator could neither
- * read nor clear it, and GB re-serializes it from private state regardless. See
- * docs/gb-constraints.md §Reserved keys are destructured into GB-private state (verified
- * against GB's DynamicTagSelect.jsx) and the O4.6 negative row in fw52-order-test-matrix.md,
- * which pins that opening a legacy-split tag leaves its `size:` in place. `srcTerm`+`tax`
- * is the same constraint in its original guise.
+ * and a divergence would store one tag two ways. NEITHER image migration can: `size` is
+ * one of GB's reserved keys, destructured out of `parsedTag.params` into GB's private
+ * `imageSize` state before `extraTagParams` is formed, and `tagSpecificControls` receives
+ * only `{ state: extraTagParams, setState }`. See docs/gb-constraints.md §Reserved keys
+ * are destructured into GB-private state (verified against GB's DynamicTagSelect.jsx) and
+ * the O4.6 negative row in fw52-order-test-matrix.md, which pins that opening a
+ * legacy-split tag leaves its `size:` in place. `srcTerm`+`tax` is the same constraint in
+ * its original guise.
+ *
+ * THE TWO HALVES REACH THAT CONCLUSION BY DIFFERENT ROUTES, which is worth stating because
+ * the second one looks reachable and is not. The FOLD is unreachable because it must READ
+ * and CLEAR `size`. A4's bare-`as:url` completion touches only `as`, our own option — so
+ * the editor could write it, and must not: a legacy split tag is INDISTINGUISHABLE there
+ * from a size-less one, so completing `as:url` to `url,full` on mount would pin the render
+ * to full on a tag the read seam was resolving at `medium`. The converter has the ordering
+ * that avoids this (§A5 — the fold entry runs first and the authored size survives into
+ * `as`); the editor has nothing to order against, because the thing to order against is
+ * the key it cannot see.
  *
  * Run:  php tools/test/as-size-fold-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -203,6 +212,99 @@ foreach ( $detection_cases as $case ) {
 	assert_eq( "converter reports it:     {$tag_string}", $expected, $detects( $tag_string ) );
 }
 
+
+// ===============================================
+// A4 — BARE `as:url` NORMALIZE (1.17.1)
+// ===============================================
+//
+// SAME AXIS AS A3, applied to the second entry: it must match a shape IF AND ONLY IF its
+// callback moves that shape. Both halves are asserted per case below.
+//
+// The non-matching cases are the load-bearing half. `as:url,full` is already canonical,
+// `as:alt` is nullary (no arg slot exists to fill), and an ABSENT `as` is the SEED case
+// this migration deliberately declines: GB writes that one from `'default' => 'url,full'`
+// at tag-SELECT time, and rescuing it here would put the converter in the editor's job on
+// a tag whose wire was never legacy. Only a PRESENT-but-partial `as` is legacy wire.
+// Why the token is canonical with its default included at all:
+// docs/tag-reference.md §`as` serialization opt-out.
+echo "\nA4 — bare `as:url` normalizes to the canonical token\n";
+
+$bare = static function ( string $tag_string ): string {
+	return bws_migrate_image_as_bare_url( $tag_string );
+};
+
+/** Does the bare-url entry match this tag string? */
+$detects_bare = static function ( string $tag_string ) use ( $mig ): bool {
+	[ $tag_name, $options ] = $mig::parse_tag_string( $tag_string );
+	foreach ( $mig::find_option_migrations( $tag_name, array_keys( $options ), $options ) as $entry ) {
+		if ( 'bws_migrate_image_as_bare_url' === ( $entry['transform_callback'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
+};
+
+$bare_cases = array(
+	// tag string                                            expected rewrite (=== input when none)
+	array( '{{image as:url}}',                                '{{image as:url,full}}' ),
+	array( '{{image as:url,}}',                               '{{image as:url,full}}' ),
+	array( '{{image as:url|use:featured|key:logo}}',          '{{image as:url,full|use:featured|key:logo}}' ),
+	array( '{{term_image as:url}}',                           '{{term_image as:url,full}}' ),
+	array( '{{try_image as:url|A:use(featured)}}',            '{{try_image as:url,full|A:use(featured)}}' ),
+	// Already canonical / no arg slot / never on the wire — no match, no rewrite.
+	array( '{{image as:url,full}}',                           '{{image as:url,full}}' ),
+	array( '{{image as:url,medium}}',                         '{{image as:url,medium}}' ),
+	array( '{{image as:alt}}',                                '{{image as:alt}}' ),
+	array( '{{image use:featured}}',                          '{{image use:featured}}' ),
+);
+
+foreach ( $bare_cases as $case ) {
+	[ $tag_string, $expected ] = $case;
+	assert_eq( "normalize: {$tag_string}", $expected, $bare( $tag_string ) );
+	assert_eq( "converter reports it:     {$tag_string}", $expected !== $tag_string, $detects_bare( $tag_string ) );
+}
+
+// Idempotent for the same reason the fold is: the cascade may re-derive and re-run.
+assert_eq( 'the normalize is idempotent',
+	$bare( '{{image as:url}}' ), $bare( $bare( '{{image as:url}}' ) ) );
+
+// TAG-LEVEL `as` ONLY, and the omission is deliberate. Post-fold a try_ slot has no `as`
+// of its own — the tag-level token governs every attempt — so a legacy `N-as` is dead
+// wire at render. Canonicalizing it would carry it forward looking live; the fold entry
+// above still rewrites one when it is paired with an `N-size`, which is the only case
+// where it ever meant anything.
+assert_eq( 'a legacy per-slot `2-as` is left alone',
+	'{{try_image as:url,full|2-as:url}}', $bare( '{{try_image as:url,full|2-as:url}}' ) );
+
+// ===============================================
+// A5 — ENTRY ORDER: the fold runs BEFORE the normalize
+// ===============================================
+//
+// A tag carrying BOTH a legacy `size:` and a bare `as:url` matches both entries, and the
+// cascade takes the first that CHANGES — so registration order decides the outcome, not
+// just which entries exist. Fold first yields `url,<legacy size>`. Reversed, the
+// normalize would write `url,full`, and the fold would then read a tag whose `as` already
+// carries a size and drop the legacy `size:` as stale — silently downgrading the image.
+// The scan reports the same way for the same reason: its loop `break`s on the first match.
+echo "\nA5 — the fold entry precedes the normalize entry\n";
+
+/** transform_callback of the FIRST entry matching this tag string, registration order. */
+$first_entry = static function ( string $tag_string ) use ( $mig ): string {
+	[ $tag_name, $options ] = $mig::parse_tag_string( $tag_string );
+	foreach ( $mig::find_option_migrations( $tag_name, array_keys( $options ), $options ) as $entry ) {
+		return (string) ( $entry['transform_callback'] ?? '' );
+	}
+	return '';
+};
+
+assert_eq( 'both entries match a legacy split tag',
+	true, $detects( '{{image as:url|size:medium}}' ) && $detects_bare( '{{image as:url|size:medium}}' ) );
+assert_eq( 'the fold is the one reported and the one that runs first',
+	'bws_migrate_image_as_size_fold', $first_entry( '{{image as:url|size:medium}}' ) );
+assert_eq( 'so the cascade keeps the authored size',
+	'{{image as:url,medium}}', $mig::apply_option_migration( 'image', '{{image as:url|size:medium}}' ) );
+assert_eq( 'and a bare `as` with no size still reaches the normalize',
+	'{{image as:url,full}}', $mig::apply_option_migration( 'image', '{{image as:url}}' ) );
 echo "\n";
 if ( $failures ) {
 	echo "FAILED: {$failures}/{$count}\n";

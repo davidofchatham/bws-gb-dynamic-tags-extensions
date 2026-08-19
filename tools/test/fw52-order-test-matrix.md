@@ -67,7 +67,7 @@ stripped. The point of the row is the RELATIVE order, not the presence of `src`.
 The `as`+`size` composite (`bws-as-size`) shipped in 1.16.0 (plan §Image `as`+`size`
 unification): `size` left GB's native `image-size` support and folds into `as`'s value as a
 comma second slot (`as:<mode>[,<size>]`), always-serialized. Pure parse + fold pinned by
-`php tools/test/as-size-fold-test.php` (15 cases). The rows below are the LIVE editor
+`php tools/test/as-size-fold-test.php` (59 cases, incl. §A3-A5 on what the converter reports and in which order). The rows below are the LIVE editor
 round-trip that harness can't reach.
 
 **With the fold, O1.1's expected string is now `as:url,full`** (size arg always serialized) —
@@ -93,15 +93,27 @@ converter, NOT by opening the block. Editor-open only REORDERS (moves the tokens
 ranks format,1 so it leads) — it does not fold. Tracked as
 [issue #53](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/53).
 
+**⚠ AND THE SAME VERDICT FOR THE BARE-`as:url` COMPLETION, by a different route (1.17.1).**
+A tag saved before the fold spells the url return as a bare `as:url`; the canonical token carries
+its size, so `bws_migrate_image_as_bare_url()` completes it to `as:url,full` (O4.8). That one
+touches only `as`, our own option, so a mount effect in the composite IS reachable — it was built
+and backed out. In the editor a legacy split tag is INDISTINGUISHABLE from a size-less one (the
+filter receives only `{ state: extraTagParams, setState }`), so writing `url,full` on mount would
+pin such a tag's render to `full` while the read seam had been resolving it at `medium`. What makes
+the converter safe is ORDER — the fold entry is registered first, so a tag matching both never
+reaches the completion — and the editor has nothing to order against. See
+[`docs/editor-controls.md` §Why the image composite does NOT migrate on mount](../../docs/editor-controls.md).
+
 | Row | Authored / action | Result | Path | What it proves |
 |---|---|---|---|---|
 | O4.1 | `{{image as:url,medium\|use:key\|key:feature_image}}` | `{{image as:url,medium\|src:...\|use:key\|key:feature_image}}` on open | editor open | already-folded `as` value survives; whole token leads (format group) |
-| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | composite renders url + size `full`; string writes `as:url,full` **once the author touches a control** (mount does not write) | editor open | default size arg (`full`) is the composite's rendered value; serialized on next edit |
+| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | composite renders url + size `full`; string writes `as:url,full` **once the author touches a control** (mount does not write) | editor open | default size arg (`full`) is the composite's rendered value; serialized on next edit. Mount-writing is REFUSED, and 1.17.1 re-decided it deliberately: see the second ⚠ above. The converter completes this tag (O4.8) |
 | O4.3 | `{{image as:alt\|use:key\|key:feature_image}}` | `{{image as:alt\|use:key\|key:feature_image}}` | editor open | nullary return — NO size sub-slot (bare mode); size dropdown hidden in modal |
 | O4.4 | migration: `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (legacy split) | `{{image as:url,medium\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open — see ⚠ above) | `transform_callback` folds legacy `size:` into `as`; orphan `size:` token gone |
 | O4.5 | migration: `{{image as:alt\|size:large\|key:feature_image\|use:key}}` (dead size on nullary) | `{{image as:alt\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open) | legacy `size:` on a nullary mode is DROPPED (was dead at render) |
 | O4.6 | on-open of a legacy split: open `{{image size:medium\|as:url\|...}}` in the editor, do NOT run the converter | `size:medium` SURVIVES (reordered to lead), composite shows size `full` | editor open (negative) | pins the GB-private-`imageSize` limitation: open-fold is impossible; converter required |
-| O4.7 | migration NEGATIVE: a page holding `{{image as:url\|src:refs,…\|use:featured}}`, `{{try_image as:url,full\|2-as:url}}`, `{{image as:alt}}` (all size-less) AND one legacy split — scan, migrate, RESCAN | listed ONCE (the split's label), migrate reports `option_count: 1`, rescan does NOT list the page at all | **Tag Converter** (scan → migrate → scan) | the converter lists only work it will do: a size-less `as` is not reported, so the list CLEARS. Pre-1.17.1 `as` was in the entry's match list and the page relisted forever |
+| O4.7 | migration NEGATIVE: a page holding `{{image as:url,full\|src:refs,…\|use:featured}}`, `{{try_image as:url,full\|2-as:url}}`, `{{image as:alt}}`, `{{image as:url,medium\|…}}` — every shape already canonical — scan only | NOT listed at all | **Tag Converter** (scan) | the converter reports only work it will do. Pre-1.17.1 `as` was in the fold entry's `match_any_options`, so every image tag was listed for a fold the callback declines and the page relisted after every run |
+| O4.8 | migration: a page holding a bare `{{image as:url\|src:refs,…\|use:featured}}` AND a legacy split `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (plus the two unreportable shapes) — scan, migrate, RESCAN | listed with BOTH labels, migrate reports `option_count: 2`; the bare one becomes `as:url,full`, the split one becomes **`as:url,medium`**; rescan does NOT list the page | **Tag Converter** (scan → migrate → scan) | the completion entry writes the canonical token, AND entry ORDER holds: the fold is registered first, so a tag matching both keeps its authored size instead of being overwritten with `full` |
 
 **Size-visible-only-on-`url` gate (editor-only, no string — do by hand in O4.1):** in the
 modal, the size dropdown shows while Return As is URL. Change Return As to `alt` (or any
@@ -124,18 +136,28 @@ wire (`size:` separate) — they are the converter round-trip (and, for O4.6, th
 on-open control). Run the Tag Converter to exercise O4.4/O4.5; open the block WITHOUT
 converting to reproduce O4.6.
 
-**O4.7 is a stated exception to the visible-blocks mandate** (`docs/testbed.md` §MANDATORY —
-also make them VISIBLE): what it pins is the ABSENCE of a row on the admin screen, and it has to
+**O4.7 and O4.8 are a stated exception to the visible-blocks mandate** (`docs/testbed.md` §MANDATORY —
+also make them VISIBLE): what O4.7 pins is the ABSENCE of a row on the admin screen, and O4.8 has to
 migrate its own content to get there. On the fixture page that would consume O4.4/O4.5/O4.6's
-legacy wire and leave them unrepeatable without a reseed. So it runs against a THROWAWAY DRAFT it
-creates and deletes — the same posture as `verify-datetime-migration.php` — via
+legacy wire and leave them unrepeatable without a reseed. So both run against a THROWAWAY DRAFT they
+create and delete — the same posture as `verify-datetime-migration.php` — via
 `TagConverter::scan()` / `migrate_post()` under `wp eval-file`, not by clicking the button.
 
-Run 2026-08-19 on `testbed` (plugin 1.17.1): listed once, `option_count: 1`, rescan clean.
-MUTATION-verified in the same session — putting `as` back in the entry's `match_any_options`
-relisted the page after migrating, with `{{try_image}}` joining it, which is the reported symptom
-exactly. The PHP twin of the same rule is `as-size-fold-test.php` §A3 (match ⇔ change, shape by
-shape); this row is the half no harness reaches, because only here does the SCAN read stored
+Run 2026-08-19 on `testbed` (plugin 1.17.1). O4.7: not listed. O4.8: both labels, `option_count: 2`,
+`as:url,full` and `as:url,medium` written, rescan clean.
+
+MUTATION-verified in the same session, twice, because the two rows fail differently:
+
+- Putting `as` back in the FOLD entry's `match_any_options` relisted the page after migrating, with
+  `{{try_image}}` joining it — the reported 1.17.0 symptom exactly.
+- Registering the COMPLETION entry before the fold turned `{{image as:url\|size:medium\|…}}` into
+  `as:url,full`, silently losing the authored size, and dropped the fold's label from the scan. That
+  is the whole reason the order is stated rather than incidental, and `as-size-fold-test.php` §A5
+  fails on the same mutation (2 assertions) — so this row is the integration half of a pinned rule,
+  not its only guard.
+
+The PHP twin of the reporting rule is `as-size-fold-test.php` §A3/§A4 (match ⇔ change, shape by
+shape); these rows are the half no harness reaches, because only here does the SCAN read stored
 content and decide what to print.
 
 ## Notes

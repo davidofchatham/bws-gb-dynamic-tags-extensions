@@ -1054,10 +1054,10 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
 
 		// Skip slots with no size to fold — and this entry does not match on `as` at all,
 		// so a size-less tag never reaches here (1.17.1; the registration says why). A bare
-		// `as:url` is left as-is: the composite writes `url,full` when the author TOUCHES a
-		// control, not on open (docs/tag-reference.md §Image `as`; fw52-order-test-matrix.md
-		// O4.2), and the read seam renders the tag identically meanwhile. The migration only
-		// needs to rescue orphan `size:` tokens.
+		// `as:url` IS completed to `url,full`, but by the sibling entry
+		// (bws_migrate_image_as_bare_url), which gates on the `as` value. Splitting them is
+		// what keeps each entry matching only what it moves; one entry cannot express
+		// "a size key OR a bare `as`", since the registry's gates AND.
 		if ( ! array_key_exists( $size_key, $options ) ) {
 			continue;
 		}
@@ -1082,6 +1082,80 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
 			$options[ $as_key ] = 'url,' . ( '' !== $size ? $size : 'full' );
 		}
 	}
+
+	return $reg::format_tag_string( $tag_name, $options );
+}
+
+/**
+ * Migration transform_callback: complete a bare `as:url` into the canonical `as:url,full`.
+ *
+ * The `as` token is the plugin's one documented serialization opt-out: it is written in
+ * FULL, default size included, so the return mode is legible in a copied tag string
+ * (docs/tag-reference.md §`as` serialization opt-out). Wire authored before the v1.16.0
+ * fold spells the url return as a bare `as:url`, which renders identically — the read
+ * seam defaults an absent size to `full` — but is not the canonical token, and the
+ * composite control cannot complete it: a `SelectControl` fires no change when the author
+ * picks the size it is already showing, so the only way to write it from the editor is a
+ * round trip through another size and back.
+ *
+ * **RENDER EQUIVALENCE IS NOT THE TEST HERE, and reaching for it is the trap** — it is
+ * why this migration was declined in 1.17.1 and then written. The opt-out does not exist
+ * to change what a tag renders; it exists so the mode is visible in the string. A rewrite
+ * that changes no output is exactly what an always-serialize rule is for.
+ *
+ * CONVERTER-ONLY, AND NOT FOR THE REASON THE FOLD IS. The fold cannot run in the editor
+ * because it must read and clear `size`, a GB-private key. This one touches only `as`, so
+ * a mount effect in the composite is reachable — it was built and backed out. In the
+ * editor a legacy split tag (`as:url` plus a separate `size:medium`) is INDISTINGUISHABLE
+ * from a size-less one, because `tagSpecificControls` receives only
+ * `{ state: extraTagParams, setState }` and `size` never reaches it. Writing `url,full`
+ * there would pin such a tag's render to full while the read seam had been resolving it at
+ * `medium` — silent, and on OPEN rather than on edit. What makes it safe HERE is ORDER:
+ * the fold entry is registered first, so a tag carrying both is folded to `url,<authored
+ * size>` and never reaches this callback (tools/test/as-size-fold-test.php §A5). The
+ * editor has nothing to order against, the thing to order against being the key it cannot
+ * see. docs/editor-controls.md §Why the image composite does NOT migrate on mount.
+ *
+ * TAG-LEVEL `as` ONLY. A legacy per-slot `N-as` is dead wire post-fold (the tag-level
+ * token governs every attempt), so completing one would carry it forward looking live.
+ * `bws_migrate_image_as_size_fold()` still rewrites an `N-as` paired with an `N-size`,
+ * which is the only case where it ever meant anything.
+ *
+ * An ABSENT `as` is NOT touched, and that is the boundary against the editor: GB seeds it
+ * from `'default' => 'url,full'` at tag-SELECT time, so a tag with no `as` never had
+ * legacy wire to repair. Only a PRESENT-but-partial token is this callback's business.
+ *
+ * @since 1.17.1
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string (unchanged when the token is already canonical).
+ */
+function bws_migrate_image_as_bare_url( string $tag_string ): string {
+	$reg = 'BWS\DynamicTags\MigrationRegistry';
+	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
+
+	if ( ! array_key_exists( 'as', $options ) ) {
+		return $tag_string;
+	}
+
+	$raw = trim( (string) $options['as'] );
+
+	// An EMPTY `as` is hand-edited wire the entry's value gate does not match. Bailing
+	// keeps report and run the same predicate; rewriting it here would report=run false
+	// in the other direction (a run with no report), which is the same defect mirrored.
+	if ( '' === $raw ) {
+		return $tag_string;
+	}
+
+	$bits = explode( ',', $raw, 2 );
+	$mode = ( '' !== $bits[0] ) ? $bits[0] : 'url';
+	$size = isset( $bits[1] ) ? trim( $bits[1] ) : '';
+
+	// Nullary returns have no arg slot; a url that already carries a size is canonical.
+	if ( 'url' !== $mode || '' !== $size ) {
+		return $tag_string;
+	}
+
+	$options['as'] = 'url,full';
 
 	return $reg::format_tag_string( $tag_name, $options );
 }
@@ -2173,17 +2247,47 @@ function bws_register_option_migrations(): void {
 			// an `as` was reported as needing work the migrator would never do — reported
 			// again on the next scan, forever. That is the same failure the value gate
 			// exists to prevent (see `MigrationRegistry::entry_matches()` on why `src` is
-			// not matched by key). Seeding `as:url,full` on an untouched tag is the
-			// EDITOR's job and stays there — `'default' => 'url,full'` at registration,
-			// written when the author touches a control (docs/tag-reference.md §Image
-			// `as`; fw52-order-test-matrix.md O4.2). A size-less tag renders identically
-			// via the read seam, so there is nothing for the converter to rescue.
+			// not matched by key).
+			//
+			// Completing a bare `as:url` is real work, and it is the SIBLING entry below
+			// that does it — gated on the `as` VALUE, so it matches only the spellings
+			// its callback moves. What stays the EDITOR's job is the different case of an
+			// `as` that is ABSENT: GB seeds that from `'default' => 'url,full'` at
+			// tag-select (docs/tag-reference.md §`as` serialization opt-out).
 			'match_any_options'  => array( 'size', '2-size', '3-size', '4-size', '5-size' ),
 			'new_tag'            => $tag,
 			'transform_callback' => 'bws_migrate_image_as_size_fold',
 			'label'              => sprintf(
 				/* translators: %s: tag name */
 				__( '{{%s}}: fold size into as (as:url,size)', 'generateblocks' ),
+				$tag
+			),
+		) );
+	}
+
+	// image / term_image / try_image: complete a bare `as:url` (1.17.1).
+	// REGISTERED AFTER THE FOLD, and the order is load-bearing: a tag carrying both a
+	// legacy `size:` and a bare `as:url` matches both entries, and the cascade takes the
+	// first that CHANGES (the scan reports the first that MATCHES, same order). Fold
+	// first yields `as:url,<authored size>`. Reversed, this entry would write `url,full`
+	// and the fold would then read an `as` that already carries a size and drop the
+	// legacy `size:` as stale — silently downgrading the image. Pinned by
+	// tools/test/as-size-fold-test.php §A5.
+	//
+	// The gate is on the `as` VALUE, not on its key, and that is what makes this entry
+	// safe where the 1.17.0 key match was not: `as` is present on every image tag, but
+	// only the two spellings below are ones the callback moves. `url,` (empty arg) is a
+	// hand-edited spelling of the same partial token.
+	foreach ( array( 'image', 'term_image', 'try_image' ) as $tag ) {
+		$reg::register( array(
+			'type'                => 'option',
+			'match_tag'           => $tag,
+			'match_option_values' => array( 'as' => array( 'url', 'url,' ) ),
+			'new_tag'             => $tag,
+			'transform_callback'  => 'bws_migrate_image_as_bare_url',
+			'label'               => sprintf(
+				/* translators: %s: tag name */
+				__( '{{%s}}: add the default size to as (as:url,full)', 'generateblocks' ),
 				$tag
 			),
 		) );

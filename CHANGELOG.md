@@ -2,6 +2,10 @@
 
 ## [1.17.1] — unreleased
 
+### Changed
+
+- **Image tags saved before 1.16.0 now get their image size written into the Return As setting.** Such a tag says only `as:url`, while the editor has always shown Full Size for it, and picking Full Size again wrote nothing because it was already selected. The Migration Tool now completes it to `as:url,full`. Nothing renders differently: a tag with no size in it already rendered at full size. Expect these tags to be listed once by the Migration Tool after you update, then not again.
+
 ### Fixed
 
 - **The Migration Tool no longer lists image tags that have nothing to convert.** Every `{{image}}`, `{{term_image}}` and `{{try_image}}` tag was reported as needing the image size conversion, whether or not it still carried the old separate size setting that conversion exists to fold in. Running the tool left those tags untouched, so the next scan listed the same posts again and the list could never be cleared. Only a tag that still holds an old size setting is listed now. Present since 1.16.0.

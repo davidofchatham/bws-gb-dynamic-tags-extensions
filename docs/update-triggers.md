@@ -42,9 +42,16 @@ run `php tools/test/datetime-migration-test.php` (equivalence through the SHIPPE
 
 ## Image `as`/`size` change
 
-**Fires on:** Image `as`/`size` change (`bws_parse_as_option`, `bws_get_image_size_options`, the `bws-as-size` control JS, the `as`+`size` fold migration `bws_migrate_image_as_size_fold`, or the image cores' `as`/size read)
+**Fires on:** Image `as`/`size` change (`bws_parse_as_option`, `bws_get_image_size_options`, the `bws-as-size` control JS, either image migration — the `as`+`size` fold `bws_migrate_image_as_size_fold` or the bare-`as:url` completion `bws_migrate_image_as_bare_url` — or the image cores' `as`/size read)
 
-run `php tools/test/as-size-fold-test.php` (**loads the real `image-helpers.php` + `deprecated-tags.php` since 1.17.0** — the two inline copies it carried are gone) + `tools/test/fw52-order-test-matrix.md` O4 rows against the testbed editor (see [testbed.md](testbed.md)). **as+size is Tag-Converter-ONLY by CONSTRUCTION, and no amount of editor work changes that** — see `docs/gb-constraints.md` §Reserved keys are destructured…; the O4.6 row is the seeded negative. This is the same constraint that forced `tax` → `srcTermIn`, so **do not "add a mount path for as+size the way the fold has one"** — it was scoped and abandoned once (2026-08-04).
+run `php tools/test/as-size-fold-test.php` (**loads the real `image-helpers.php` + `deprecated-tags.php` since 1.17.0** — the two inline copies it carried are gone) + `tools/test/fw52-order-test-matrix.md` O4 rows against the testbed editor (see [testbed.md](testbed.md)).
+
+**BOTH image migrations are Tag-Converter-ONLY by CONSTRUCTION, and no amount of editor work changes that** — see `docs/gb-constraints.md` §Reserved keys are destructured…; the O4.6 row is the seeded negative. This is the same constraint that forced `tax` → `srcTermIn`, so **do not "add a mount path for as+size the way the slot fold has one"** — it was scoped and abandoned in 2026-08-04 for the `size` fold, and again on 2026-08-19 for the bare-`as:url` completion, which is the one that looks reachable:
+
+- The FOLD is unreachable because it must READ and CLEAR `size`, a GB-private key.
+- The COMPLETION touches only `as`, our own option, so the editor CAN write it and must not: `tagSpecificControls` gets `{ state: extraTagParams, setState }`, so a legacy split tag is indistinguishable there from a size-less one, and writing `url,full` on mount pins the render to full on a tag the read seam was resolving at `medium`. Silent, and on open rather than on edit.
+- **Entry ORDER is what makes the converter safe, and it is load-bearing.** A tag carrying both a legacy `size:` and a bare `as:url` matches both entries; the cascade takes the first that CHANGES, so the fold must stay registered FIRST. Reversed, the completion writes `url,full` and the fold then drops the authored size as stale. §A5 pins it. The editor has nothing to order against — the thing to order against is the key it cannot see.
+- **The completion is a MIGRATION, not a seed.** An ABSENT `as` is left absent: GB writes that one from `'default' => 'url,full'` at tag-select, and 1.16.0's attempt to write it on mount instead is what 1.17.0 replaced with the `default`. Only a present-but-partial token is legacy wire. See `docs/tag-reference.md` §`as` serialization opt-out.
 
 ## Invisible per-tag editor control, or its anchor wrapper
 
