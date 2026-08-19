@@ -376,9 +376,15 @@ class MigrationRegistry {
 	 * fired because every matched entry happened to change something: the loop asked for
 	 * the FIRST match and returned the moment that one produced no change, so a later
 	 * entry never ran and REGISTRATION ORDER silently decided whether that mattered. The
-	 * as+size fold is the live trigger: it matches on `as`, which survives its own
-	 * transform, so `{{try_image as:url,large|src:ref|…}}` no-ops there and everything
-	 * registered after it (including the FW-56/57 slot fold) was unreachable. So: walk
+	 * trigger that exposed it was the as+size fold, which through 1.17.0 matched on `as` —
+	 * a key surviving its own transform — so `{{try_image as:url,large|src:ref|…}}` no-opped
+	 * there and everything registered after it (including the FW-56/57 slot fold) was
+	 * unreachable. That entry can no longer be the blocker: 1.17.1 cut `as` from its match
+	 * list, so it matches only what it can change (see its registration in
+	 * `bws_register_option_migrations()` for why). THE RULE IS NOT SPECIFIC TO IT and
+	 * outlives it — it is pinned on synthetic entries in `tools/test/fold-migration-test.php`
+	 * §M1 rather than on any shipped pair, precisely so a registration change cannot retire
+	 * the coverage the way this one retired the example. So: walk
 	 * every matching entry, take the first that CHANGES the string, then re-derive the
 	 * matches from the new string (a transform can change which entries match) and go
 	 * again. Terminates when no matching entry changes anything.

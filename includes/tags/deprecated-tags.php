@@ -1052,9 +1052,12 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
 		$as_key   = $prefix . 'as';
 		$size_key = $prefix . 'size';
 
-		// Skip slots with no size to fold. (A bare `as:url` with no legacy size is
-		// left as-is here; the editor composite writes url,full on open — the migration
-		// only needs to rescue orphan `size:` tokens.)
+		// Skip slots with no size to fold — and this entry does not match on `as` at all,
+		// so a size-less tag never reaches here (1.17.1; the registration says why). A bare
+		// `as:url` is left as-is: the composite writes `url,full` when the author TOUCHES a
+		// control, not on open (docs/tag-reference.md §Image `as`; fw52-order-test-matrix.md
+		// O4.2), and the read seam renders the tag identically meanwhile. The migration only
+		// needs to rescue orphan `size:` tokens.
 		if ( ! array_key_exists( $size_key, $options ) ) {
 			continue;
 		}
