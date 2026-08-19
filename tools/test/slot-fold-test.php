@@ -1554,6 +1554,17 @@ check( 'P16.3 an inherited relationship source carries no stale taxonomy', array
 
 // P16.4 — a slot that states its own hop keeps it; inheriting one that already hopped and
 // hopping again is a SECOND term step, which the flat triple cannot express.
+//
+// KNOW THE LEGACY SHAPE SPACE BEFORE TREATING A GREEN LEGACY CORPUS AS A COVERED ONE — the
+// cases below are the whole of it, and enumerating them is what showed the first #104 draft
+// was wrong on half. Flat wire holds at most TWO steps and the second can only ever be
+// `terms`: post-1.6.0 `srcTermIn` was the only second-step option and it always FOLLOWS
+// `ref` (#44). So the ONE adjacency flat wire can spell is `refs → terms`, which is a join
+// that RUNS, and a slot's own step under `same` is only ever a `terms` (a `2-ref` there is
+// §P17 residue and is dropped). Four merge cases total —
+//   inherited ∈ { ∅, refs, terms, refs;terms }  ×  own = terms
+// — of which blind APPEND is wrong on two (the two whose tail is already `terms`). What
+// decides how much of the inherited chain gives way is bws_fold_chain_join()'s PHPDoc.
 $tax_own = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(terms,office);key(a)' ) );
 check( 'P16.4 a slot states its own hop over any carried one', array( 1 => 'department', 2 => 'office' ) === $tax_own, json_encode( $tax_own ) );
 // An inherited hop is a DEFAULT, not a step this chain took, so a slot that inherits and
