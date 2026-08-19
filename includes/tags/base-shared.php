@@ -1452,7 +1452,7 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *     already resolves it for link-wrap) but a bare {{permalink}} is circular
  *     on the author's own archive (= the page URL). Non-circular uses need a
  *     NON-ambient user source (src:ref->user or the ID source) that doesn't
- *     exist yet — soft-gated on FW-32/FW-39, not a standalone call.
+ *     exist yet — soft-gated on FW-39 (the ID source), not a standalone call.
  *   - image: no clean intrinsic analog (parity with the #29 term-image gap);
  *     the avatar is the candidate but adds a Gravatar HTTP + privacy surface.
  *     A use:key ACF user-image read works today (key-mode, not analog).

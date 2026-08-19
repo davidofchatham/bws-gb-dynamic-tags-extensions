@@ -2,7 +2,7 @@
 /**
  * diff-replays.php — compare two replay artifacts and decide whether the gate holds.
  *
- * Third piece of the harvest/replay instrument (`.claude/plans/multi-step-slot-sources.md`
+ * Third piece of the harvest/replay instrument (`.claude/plans/archive/multi-step-slot-sources.md`
  * §Verification). Harvest says what wire exists; replay says what it renders; this says
  * whether the two sides agree, and — where they do not — puts each disagreement in a bucket
  * a reviewer can act on.

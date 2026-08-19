@@ -2,7 +2,7 @@
 /**
  * replay-tags.php — render a harvested tag corpus against ONE real URL.
  *
- * The replay half of the harvest/replay instrument (`.claude/plans/multi-step-slot-sources.md`
+ * The replay half of the harvest/replay instrument (`.claude/plans/archive/multi-step-slot-sources.md`
  * §Verification). Harvest (env repo) answers "what wire exists and where can it be seen";
  * this answers "what does that wire render, with genuine ambient context".
  *

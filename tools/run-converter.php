@@ -2,7 +2,7 @@
 /**
  * run-converter.php — run the tag converter over a whole site, and record what it did.
  *
- * The middle step of Experiment M (`.claude/plans/multi-step-slot-sources.md` §Verification),
+ * The middle step of Experiment M (`.claude/plans/archive/multi-step-slot-sources.md` §Verification),
  * between `replay-A` and `replay-C`.
  *
  * THIS PLUGIN'S CONVERTER DOES NOT RUN BY ITSELF. It is admin-triggered
