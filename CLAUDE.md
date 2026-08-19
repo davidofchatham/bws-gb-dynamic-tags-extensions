@@ -29,46 +29,22 @@ fold engine), `phone-normalize-test.php`, `preview-label-test.php`, `field-disco
 `inline-css-pipeline-test.php`, `limit-clamp-test.php`, `fold-migration-test.php`,
 `related-post-src-migration-test.php`, `pattern-cache-test.php`. No CI runs these; run them locally before commit.
 
-   **One is not pure and cannot be** — `control-order-test.php` (1.17.0) asserts the order options
-   are REGISTERED in, which is the editor's control order, so its subject is the registration pass
-   itself. It stubs WP and GB's registrar (a capturing `GenerateBlocks_Register_Dynamic_Tag`), loads
-   the plugin's own files in the plugin's own order, runs `bws_register_base_tags()` +
-   `generate_base_try_tags()`, and reads the resulting arrays. That makes it the only harness that
-   sees all three constructors at once — which is the point: the two bugs it was written for were
-   each invisible from inside one constructor.
+   **One is not pure and cannot be** — `control-order-test.php`, the only harness that sees all
+   three registration constructors at once (its own header has the full rationale).
 
-   **Two are launched with `node`, not `php`** — `slot-fold-repeater-test.js` (the folded-slot
-   control) and `editor-filter-chain-test.js` (the invisible per-tag controls' filter chain). Both
-   load the SHIPPING editor JS against a stub `window`/`wp`, so they reach editor-only logic no PHP
-   harness can: compaction lives in the control and never reaches the renderer, and a filter's ANCHOR
-   is a property of the element chain rather than of any value.
-
-   **Not all PHP any more (1.17.0).** THREE harnesses shell out to **`node`** —
-   `slot-fold-twin-test.php`, `serialization-order-test.php` (its JS-port twin block) and
-   `fold-migration-test.php` (its §M7 twin block) — and in all three a missing `node` FAILS rather
-   than skips. The pattern below describes the first; the others are the same shape at smaller
-   scale (one driver, one shared corpus in, canonical results out —
-   `serialization-order-driver.js` takes key lists and returns reordered lists;
-   `fold-migration-driver.js` takes `fold-migration-corpus.json` and returns each case's rewritten
-   option map as ORDERED pairs, because key order is half the property).
-
-   `slot-fold-twin-test.php` is still launched with `php`, but it
-   shells out to **`node`** to run the JS side of a cross-language property — the folded slot wire is
-   parsed in PHP and both parsed AND emitted in JS, so a PHP-only harness structurally cannot see a
-   twin divergence. It compares one shared input corpus (`slot-fold-corpus.json`) through two thin
-   drivers (`slot-fold-twin-driver.php` / `.js`, which load the SHIPPING files rather than porting
-   them). **A missing `node` FAILS the harness rather than skipping** — a silent pass would hide
-   exactly the drift it exists to catch. New twin coverage costs one corpus line and no expected
-   value; behavioural expectations stay in `slot-fold-test.php`.
+   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`
+   (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to
+   `node` for a twin-language check (`slot-fold-twin-test.php`, `serialization-order-test.php`,
+   `fold-migration-test.php`) — a missing `node` FAILS these rather than skipping, since a silent
+   pass would hide exactly the drift each exists to catch. Each file's own header has its mechanism.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
 there is a seeded WP site on the local **wp-litespeed** OpenLiteSpeed/Docker env, site `testbed`.
 **Prefer routing integration smoke tests through it over hand-built pages or live-site probes.**
 
-**All `bin/*.sh` commands below live in the ENV repo, not this one.** The env moved to WSL2 ext4
-on 2026-07-30 (Windows bind mounts were a ~22x render penalty); run them from the **WSL Ubuntu
-shell** in `~/wp-litespeed` — Windows Git Bash can no longer reach it. Name the env, not its
+**All `bin/*.sh` commands below live in the ENV repo, not this one.** Run them from the **WSL
+Ubuntu shell** in `~/wp-litespeed` — Windows Git Bash cannot reach it. Name the env, not its
 location. There is no `bin/` in this plugin repo.
 
 **Location-independent alternative (prefer when scripting):** Docker Desktop shares one daemon
@@ -92,14 +68,15 @@ Two entrypoints:
      table→call), NOT arrival order — applies to `*-test-matrix.md` sections AND the visible
      `blocks.php` row groups (forward-going: new rows slot into Catalog position; existing files
      reorder opportunistically when touched). **A new tag's Catalog placement is a DECISION — ASK for
-     it if not already specified, never default to append-at-end** (e.g. `{{table}}` sits after
-     `{{join}}`, not after the `call` outlier).
+     it if not already specified, never default to append-at-end** (e.g. `{{table}}` — not yet
+     shipped, no row in §Base tag GB types today — is decided to sit after `{{join}}` when it
+     ships, not after the `call` outlier).
      See `tools/fixtures/core-structures/README.md`. Full design: `.claude/plans/fixture-testbed.md`.
 
 **Front-end pages are LiteSpeed-cached — always cache-bust when eyeballing after a reseed:**
 `curl -sk "https://testbed.test/matrix-post-meta/?nocache=$RANDOM"`. **`$RANDOM` IS A BASH-ISM AND
 THE CONTAINER'S SHELL IS `dash`** — inside `docker exec … sh -c '…'` it expands to EMPTY, so every
-"bust" hits one URL and you read the same cached page all session (cost real time 2026-08-15).
+"bust" hits one URL and you read the same cached page all session.
 Generate the value in the OUTER shell (`N=$(date +%s%N)`) and interpolate it in.
 **A SECOND, QUIETER STALENESS SITS BEHIND THE CACHE:** the container runs
 `opcache.revalidate_freq = 120`, so a front-end request within two minutes of a source edit runs
@@ -109,9 +86,7 @@ section both read as "no change". Restart the container between arms
 (`docker restart wp-litespeed-litespeed-1`, ~6s to serve again) or wait the window out. WP-CLI is
 exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this. A plain curl can return the
 pre-reseed page, so new fixture rows read as MISSING when they seeded fine. `bin/wp.sh testbed
-litespeed-purge all` does NOT work from the wpcli container (observed; mechanism not recorded — the
-note this used to point at, `docs/agents/env-notes.md`, exists in neither repo) — use
-the query string.
+litespeed-purge all` does NOT work from the wpcli container — use the query string instead.
 
 The manual `*-test-matrix.md` files (integration rows exercised by hand / via `render-tag`) are
 noted per trigger — run against the testbed, never the live/cached site.
@@ -122,7 +97,7 @@ blueprint's `blocks.php` (`bws_fixture_gb_section` + `_row` under the right `con
 a NEW builder + dispatcher entry + `content_builder` on the fixture when the rows resolve on a post
 type with no page content yet — e.g. join's `staff_join` on the staff singles). The user browses
 these on the actual site (front end to eyeball, editor to interact with controls / check reveal
-rows). Do NOT leave rows as `render-tag`-only — that has been MISSED TWICE. Reseed + curl the front
+rows). Do NOT leave rows as `render-tag`-only. Reseed + curl the front
 end (with the `?nocache=` bust above — a cached page hides brand-new rows) to confirm before commit. Exceptions (render-tag/harness-only): a bare tag needing a term
 ARCHIVE as ambient context (text T4), or synthetic per-field blanking with no fixture (join
 J23/J24) — state the exception in the matrix. NB the front-end page runs WP content filters
@@ -144,41 +119,37 @@ standing instance). An exception is not precedent: the next drift moves the code
 decides* — the predicate, the comparison, the derivation. The consequence is what an author or a
 reader observes. Any doc, PHPDoc or comment may state the consequence; only the enforcing site may
 name the axis, and a non-owner that names one is the defect, whether or not it currently agrees.
-That is grep-detectable, which is the point. Deriving it cost three days: the `same` merge's rule
-changed axis three times (append → same-slug → the JOIN), and every site that had named an axis
-went stale while every site that had named only the consequence stayed true — including two
-comments inside the file being edited. Same class as the four re-inlined `use`+`key` enums and the
-three labels on one image control: a restatement that names a mechanism is a second implementation
-of it.
+That is grep-detectable, which is the point. Live instance: the Update-triggers "SLOT SOURCE
+HAND-OFF change" row and `bws_fold_chain_join()`'s own PHPDoc — the axis lives at the PHPDoc only,
+derived after the `same` merge's rule changed axis three times and every site that had named one
+went stale while every site that had named only the consequence stayed true.
 
 **ONE NARROW EXEMPTION — A HARNESS MAY NAME AN AXIS IT MECHANICALLY PINS.** Where an assertion
 beside the comment checks the statement, drift fails the suite by name and the prose cannot rot
 unobserved; a test that cannot say what it tests is worse than one that repeats the owner. The
 exemption is per-CLAUSE, not per-file, and the test is "does something below this sentence break if
-it goes wrong" — so an UNPINNED clause in an otherwise-pinned block still takes a pointer. Live
-instance: `slot-fold-test.php` §P16.4 states the `same`-merge axis and calls
-`bws_fold_chain_join()` case by case underneath it, but its DERIVATION SOURCE (which maps the owner
-reads) is pinned by nothing — add a third map and every assertion still passes — so that clause
-points at the owner instead. A stale comment never fails a suite; that is the whole reason the
-exemption is this narrow, and why it is not a general licence for test files.
+it goes wrong" — so an UNPINNED clause in an otherwise-pinned block still takes a pointer (see
+`slot-fold-test.php` §P16.4, whose DERIVATION SOURCE clause is pinned by nothing and points at
+`bws_fold_chain_join()`'s PHPDoc instead). A stale comment never fails a suite; that is the whole
+reason the exemption is this narrow, and why it is not a general licence for test files.
 
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
 | Current architecture (templates, sources, options, GB types, render order) | `docs/tag-reference.md` | Authoritative |
 | Cross-cutting vocabulary (output-shape terms: single-result, composite string, list mode, query loop; etc.) | Owning schema doc (e.g. `docs/tag-reference.md` §Output shape) | Defined ONCE beside the schema it describes — NO standalone glossary (avoids schema/glossary drift). `CONTEXT.md` invariants *use* terms, never define them. |
-| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.claude/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship target for cross-cutting §V invariants. |
+| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.claude/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship migration target — see §Spec lifecycle. |
 | Editor-time tag configuration preview text (markers, assembly, warnings, per-template + try_ shapes, examples) | `docs/editor-tag-previews.md` | Authoritative; `tag-reference.md` keeps a one-line forward-ref. Built by `bws_build_preview_label()` in `preview-helpers.php`. |
-| Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* now owned by `docs/editor-controls.md` |
+| Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
 | External-plugin integration API | `docs/plugin-integration.md` | Code-level guide; link `tag-reference.md` for schemas |
-| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, **the option-group WRAPPER** = `_group`/`_group_lead` + `option-group.js`'s CSS-joined run, lead-boxes-alone, captions-belong-to-controls — written up in `tag-reference.md` §Shared option groups until it migrated here 2026-08-19) | `docs/editor-controls.md` | Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via the spec issue → PHPDoc on ship.** |
+| Custom editor-control architecture (`bws-*` control pattern, `tagSpecificControls` seam, `setState` param authority + `delete`-omit idiom, composite "two controls one key", dynamic labels / entry filter / reconcile-on-src-change, **the option-group WRAPPER** = `_group`/`_group_lead` + `option-group.js`'s CSS-joined run, lead-boxes-alone, captions-belong-to-controls) | `docs/editor-controls.md` | Schemas stay in `tag-reference.md`; GB facts in `gb-constraints.md`; load-bearing invariants → PHPDoc on the control classes. **Field discovery NOT here — decoupled to `field-selector.md` (own ship/lifecycle); its `bws-field-combo` control + REST endpoint own their invariants via the spec issue → PHPDoc on ship.** |
 | Historical N×M tag names + **completed** rename trackers | `docs/deprecated-tags-options.md` | Migration reference only — no current-state info. In-progress / under-consideration renames stay in `tag-reference.md` until completed, then move here. |
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
-| Claude session prefs / cross-session pointers | `memory/MEMORY.md` (gitignored) | Pointer index; don't duplicate doc content |
+| Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies + dev workflow; all schema deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
 
@@ -229,7 +200,7 @@ exemption is this narrow, and why it is not a general licence for test files.
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references |
 | `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance) | run `tools/test/limit-default-test-matrix.md` against the testbed (§Development). **Unset `limit` MUST stay 1 on every pre-existing tag** (ADR 0005; L1 rows), and each L1 row asserts single-value AND link-present — the link gate is count-based, so a silent 1→many flip drops anchors while the text still reads fine. L3 rows pin `0`/`-1` = unlimited (ADR 0005) and the `is_numeric()` guard that keeps a typo off that path |
 | Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files below |
-| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | **NO COUNT — grep `.claude/plans/*.md` for a `SETTLED` heading, and read every hit.** This row has now stated a wrong number three times: "TWO" from 2026-08-05 to 2026-08-17 while four existed, then "FOUR" until 2026-08-19 while FIVE did (`datetime-tag-collapse.md` and `tag-reference-navigability.md` were never named, and the count was counting an archived plan). A reader who trusts a count stops looking once they have found that many, which is exactly how the two unnamed ones stayed invisible — so the fix is to state none, per this row's own rule, rather than to correct the number a fourth time. What a count cannot replace is PRECEDENCE, which is the only reason this row exists: `.claude/plans/src-chain-encoding.md` (FW-56/57 + `{{table}}`) is the master and carries only wire FORM (bracket-kv, depth alternation, `0`=unlimited) — it is NOT archived and still needs this row. FW-71's index went to `.claude/plans/archive/multi-step-slot-sources.md` on the 1.17.0 ship (2026-08-19) — its §Verification still owns the harvest/replay instrument's design and is cited by path from `tools/`, so it is archived, not dead. Its sub-plan `per-step-limit.md` **archived the same day** (B6, 2026-08-19): `limit` SEMANTICS no longer live in a plan at all — they migrated to `docs/adr/0005-limits-are-stated-where-the-source-is-stated.md`, `docs/tag-reference.md` §List mode, and PHPDoc on `bws_run_traversal()`/`bws_limit_default()`/`bws_fold_chain_apply_legacy_limit()`. Check THOSE first on anything limit-shaped; `.claude/plans/archive/per-step-limit.md` is decision history only. The general row above is what survives |
+| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | **NO COUNT — grep `.claude/plans/*.md` for a `SETTLED` heading, and read every hit.** This row has now stated a wrong number three times: "TWO" from 2026-08-05 to 2026-08-17 while four existed, then "FOUR" until 2026-08-19 while FIVE did (`datetime-tag-collapse.md` and `tag-reference-navigability.md` were never named, and the count was counting an archived plan). A reader who trusts a count stops looking once they have found that many, which is exactly how the two unnamed ones stayed invisible — so the fix is to state none, per this row's own rule, rather than to correct the number a fourth time. What a count cannot replace is PRECEDENCE, which is the only reason this row exists: `.claude/plans/src-chain-encoding.md` (FW-56/57 + `{{table}}`) is the master and carries only wire FORM (bracket-kv, depth alternation, `0`=unlimited) — it is NOT archived and still needs this row. FW-71's index went to `.claude/plans/archive/multi-step-slot-sources.md` on the 1.17.0 ship (2026-08-19) — its §Verification no longer describes the design — that moved live to `tools/harvest-replay/README.md` on 2026-08-19 — so this archive entry is decision history only. Its sub-plan `per-step-limit.md` **archived the same day** (B6, 2026-08-19): `limit` SEMANTICS no longer live in a plan at all — they migrated to `docs/adr/0005-limits-are-stated-where-the-source-is-stated.md`, `docs/tag-reference.md` §List mode, and PHPDoc on `bws_run_traversal()`/`bws_limit_default()`/`bws_fold_chain_apply_legacy_limit()`. Check THOSE first on anything limit-shaped; `.claude/plans/archive/per-step-limit.md` is decision history only. The general row above is what survives |
 
 ### Long-lived plan files — the §SETTLED index
 
@@ -263,13 +234,10 @@ are #55 (base-tag chains), #80 (external source roots), #101 (FW-71 multi-step s
 (this pass). One in flight per piece of work, not per release: several can be open, each closing on
 its own.
 
-**The root `SPEC.md` artifact is RETIRED** (deleted 2026-08-17, last used for FW-36 in 1.14.0). Do
-not create one. Its truncated stub read "No active spec", which is why it survived three releases of
-disuse: a stub that says "none right now" is indistinguishable from a mechanism that has ended. In-code
-citations of the form `SPEC §V<n>` predate the change and dangle — repoint them to a real home when
-you touch one; none is load-bearing. Two spell it `SPEC.md §V<n>`, so grep BOTH forms: the count in
-FW-76 covers 79 of the first and 2 of the second, and a sweep for one spelling is how that row's
-first draft came out an order of magnitude low.
+**The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
+`SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
+none is load-bearing. Two spellings exist (`SPEC §V<n>` and `SPEC.md §V<n>`) — grep BOTH when
+sweeping.
 
 **AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.claude/plans/archive/` records what was
 true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
@@ -286,12 +254,11 @@ gets corrected, present tense being a claim about now.
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
   - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
 - Closed/deferred task rows: delete them from the issue's checklist, or close the issue.
-- Bugs found on the way: file as their own GitHub Issues, cross-referencing the invariant they produced if one was added.
+- Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
 
-**An issue is source of truth only while the work is in flight.** Once shipped: `CONTEXT.md`
-(cross-cutting invariants) + `docs/tag-reference.md` (schemas) + PHPDoc (single-class invariants) +
-CHANGELOG + Issues take over. A closed spec issue is a record of how something came to be, not a
-statement of how it currently works — the same reading posture `CONTEXT.md` opens with.
+**An issue is source of truth only while the work is in flight.** A closed spec issue is a record
+of how something came to be, not a statement of how it currently works — the same reading posture
+`CONTEXT.md` opens with.
 
 **Bugs:** new bugs → GitHub Issues, always. There is no in-repo bug file.
 
