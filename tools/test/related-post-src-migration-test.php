@@ -30,7 +30,7 @@
  *
  * NOT covered here, deliberately: whether migrated wire RESOLVES like the legacy wire it
  * replaced. That needs the source factory and a real field read — testbed territory
- * (§Development), and the four source classes are inert as of 1.17.0 so the legacy half
+ * (docs/testbed.md), and the four source classes are inert as of 1.17.0 so the legacy half
  * of such a comparison no longer exists to run.
  *
  * Run:  php tools/test/related-post-src-migration-test.php   (exit 0 = pass, 1 = fail)

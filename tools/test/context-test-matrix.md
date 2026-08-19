@@ -3,8 +3,7 @@
 Integration rows for **context-aware base-tag resolution** —
 `.claude/plans/context-aware-base-tags.md` (#19). Bare `{{title}}` /
 `{{content}}` per WP context, rendered through the testbed
-(`bin/wp.sh testbed bws render-tag '{{...}}' --url=...` — see CLAUDE.md
-§Development). Fixture state: `core-structures` blueprint; the date-archive
+(`bin/wp.sh testbed bws render-tag '{{...}}' --url=...` — see `docs/testbed.md`). Fixture state: `core-structures` blueprint; the date-archive
 rows additionally assume `sample-event` is categoryless + portal-visible
 (enforced by `seed.php` — the portal-system anonymous query filter otherwise
 empties the date archive to a 404).
@@ -14,7 +13,7 @@ empties the date archive to a 404).
 as the pinned baseline; when a context kind ships, flip its row's Expect to the
 plan's dispatch table value and re-run.
 
-**Visible-rows exception (CLAUDE.md §Development):** all C-rows need a
+**Visible-rows exception (`docs/testbed.md`):** all C-rows need a
 non-singular main query as ambient context (archive / search / 404 / home) —
 page content cannot exist there. Same exception class as text T4. render-tag
 only; no `blocks.php` builder. (A site-wide GP Element header on the testbed

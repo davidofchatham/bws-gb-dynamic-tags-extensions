@@ -39,7 +39,7 @@
  *
  * NOT covered here, deliberately: whether the migrated wire RESOLVES like the modifier
  * tag it replaced. That needs the source factory, a registered root and a real field
- * read — testbed territory (CLAUDE.md §Development), and the fixture modifier family
+ * read — testbed territory (docs/testbed.md), and the fixture modifier family
  * that makes it reseedable is #85.
  *
  * Run:  php tools/test/modifier-base-migration-test.php   (exit 0 = pass, 1 = fail)

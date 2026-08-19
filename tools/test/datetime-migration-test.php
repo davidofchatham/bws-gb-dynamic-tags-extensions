@@ -47,7 +47,7 @@
  *   6. restore the `'false' === …` rule                                    → D5.1 fails.
  *
  * NOT covered here: whether a migrated tag RENDERS the same date. That needs real field
- * reads — testbed territory (CLAUDE.md §Development), tools/test/datetime-test-matrix.md.
+ * reads — testbed territory (docs/testbed.md), tools/test/datetime-test-matrix.md.
  *
  * Run:  php tools/test/datetime-migration-test.php   (exit 0 = pass, 1 = fail)
  *

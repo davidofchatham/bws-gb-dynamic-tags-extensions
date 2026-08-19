@@ -129,7 +129,7 @@ byte-identical). Single-result site output on link-wrap templates wraps with the
 (`('site', 1)` → home URL) for I6/C9 slot-transparency parity with base `{{title src:site}}`.
 
 Visible rows: `matrix-post-meta` page, section "Site R7 - try_ site slots" (R7.1–R7.7, R7.10).
-Exceptions (stated per §Development): R7.8 needs a `[SUB]` WYSIWYG option, R7.9's positive case
+Exceptions (stated per `docs/testbed.md`): R7.8 needs a `[SUB]` WYSIWYG option, R7.9's positive case
 needs a site logo, R7.12 a `[SUB]` email option — none seeded by `core-structures`; R7.11 is
 editor-only (open any R7 block, check the slot src dropdowns).
 

@@ -93,8 +93,7 @@ bws_base_text_callback( array( 'key' => 'nonexistent_key_xyz' ), array( 'blockNa
 ## T8 — user-analog arm (bare tag on an author archive, 1.16.0 FW-48 seam half + 1.17.0 `try_` leg)
 
 **render-tag-only exception** (same as T4's archive-context rule): these rows need an AUTHOR
-archive as ambient context, which no fixture page's GB blocks can supply — state per CLAUDE.md
-§Development. Context: `/author/fixture-author/`.
+archive as ambient context, which no fixture page's GB blocks can supply — state per `docs/testbed.md`. Context: `/author/fixture-author/`.
 
 The exception was **re-examined and KEPT** when the `try_` rows landed (#108). A browsable Block
 Element would need a new post type plus display-rule meta the seeder does not handle, and would
