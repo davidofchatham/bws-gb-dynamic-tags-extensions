@@ -19,15 +19,9 @@ No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 exercise inline (house pattern); newer ones **require the real file** when it is pure, because a
 test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
 `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`,
-`related-post-src-migration-test.php`, `pattern-cache-test.php`). Run the one whose domain you touched (see
-§Update triggers for the key→harness map): e.g. `traversal-pipeline-test.php` (source factory +
-fold engine), `phone-normalize-test.php`, `preview-label-test.php`, `field-discovery-test.php`,
-`slot-options-build-test.php`, `try-join-seam-test.php`, `call-tag-test.php`,
-`slot-qualify-show-if-test.php`, `join-template-test.php`, `datetime-format-test.php`,
-`slot-fold-test.php`, `slot-fold-twin-test.php`,
-`serialization-order-test.php`, `as-size-fold-test.php`, `table-assemble-test.php`,
-`inline-css-pipeline-test.php`, `limit-clamp-test.php`, `fold-migration-test.php`,
-`related-post-src-migration-test.php`, `pattern-cache-test.php`. No CI runs these; run them locally before commit.
+`related-post-src-migration-test.php`, `pattern-cache-test.php`). Run the one whose domain you
+touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No
+CI runs these; run them locally before commit.
 
    **One is not pure and cannot be** — `control-order-test.php`, the only harness that sees all
    three registration constructors at once (its own header has the full rationale).
@@ -229,10 +223,9 @@ practice is reusable and the next long-lived plan will need it.
 ## Spec lifecycle
 
 **A SPEC IS A GITHUB ISSUE, labelled `ready-for-agent`.** It owns the problem statement, the
-interfaces, the invariants, the tasks and the scope for one in-flight piece of work — recent ones
-are #55 (base-tag chains), #80 (external source roots), #101 (FW-71 multi-step slot sources), #106
-(this pass). One in flight per piece of work, not per release: several can be open, each closing on
-its own.
+interfaces, the invariants, the tasks and the scope for one in-flight piece of work — see
+`gh issue list --label ready-for-agent` for what's currently open. One in flight per piece of
+work, not per release: several can be open, each closing on its own.
 
 **The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
 `SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
