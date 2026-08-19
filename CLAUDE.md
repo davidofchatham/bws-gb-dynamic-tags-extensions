@@ -94,10 +94,83 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
-| Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies + dev workflow; all schema deferred to `docs/` |
+| Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
 
-### Update triggers
+### Cross-link rules
+
+- Reference by **link + section anchor**, never copy.
+- README may paraphrase technical detail for end-user framing — must not contradict `tag-reference.md`.
+- MEMORY.md entries pointing at `docs/` are one-liners only.
+- When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
+
+## Spec lifecycle
+
+**A SPEC IS A GITHUB ISSUE, labelled `ready-for-agent`.** It owns the problem statement, the
+interfaces, the invariants, the tasks and the scope for one in-flight piece of work — see
+`gh issue list --label ready-for-agent` for what's currently open. One in flight per piece of
+work, not per release: several can be open, each closing on its own.
+
+**The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
+`SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
+none is load-bearing. Two spellings exist (`SPEC §V<n>` and `SPEC.md §V<n>`) — grep BOTH when
+sweeping.
+
+**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.claude/plans/archive/` records what was
+true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
+spec" and that is EVIDENCE of how the repo used to work, not a stale pointer to fix. Editing it
+deletes the record. Same posture this section already takes on a closed spec issue: a record of how
+something came to be, not a statement of how it currently works. A LIVE plan is the opposite case and
+gets corrected, present tense being a claim about now.
+
+**Post-ship migration is mandatory and is UNCHANGED by that** — it never depended on the artifact:
+
+- **Load-bearing invariants** migrate to:
+  - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
+  - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
+  - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
+  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
+- Closed/deferred task rows: delete them from the issue's checklist, or close the issue.
+- Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
+
+**An issue is source of truth only while the work is in flight.** A closed spec issue is a record
+of how something came to be, not a statement of how it currently works — the same reading posture
+`CONTEXT.md` opens with.
+
+**Bugs:** new bugs → GitHub Issues, always. There is no in-repo bug file.
+
+### Long-lived plan files — the §SETTLED index
+
+A plan that accrues decisions across many passes fails a specific way: **supersession in place.** Live
+decisions and withdrawn drafts sit interleaved, and both read as authoritative unless the reader
+catches the banner. Length is not the mechanism — discoverability is. Symptom to watch for: an agent
+re-deriving from code a question the plan already closed.
+
+When a plan reaches that state, give it a **§SETTLED index at the top**: one row per decision, with
+the section title as the anchor (line numbers drift on every edit — record them as a convenience
+only, never as the identifier), a container-sensitivity column where the domain has one, and a
+**separate OPEN table**, which matters as much as the settled one — treating undecided things as
+decided is the more common failure.
+
+The index is pointers, never content; the sections stay authoritative. On archive, the index goes
+with the plan and its trigger row in §Update triggers is deleted — this section stays, because the
+practice is reusable and the next long-lived plan will need it.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `davidofchatham/bws-gb-dynamic-tags-extensions` (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical default label strings; `wontfix` already exists in the repo, the other four are created on first use. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Update triggers
 
 Touched something in the Trigger column? Run what the Run column names, then read the linked
 **rules** section in [`docs/update-triggers.md`](docs/update-triggers.md) — that is where what the
@@ -148,78 +221,5 @@ has nothing to add beyond what it says here.
 | User-visible feature ships | `README.md` overview update + CHANGELOG | — |
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references | — |
 | `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance) | `limit-default-test-matrix.md` | [rules](docs/update-triggers.md#limit-default--list-slice-change) |
-| Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files below | — |
+| Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files under §Spec lifecycle | — |
 | ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | *see detail* | [rules](docs/update-triggers.md#temporary--plan-file-settled-precedence) |
-
-### Long-lived plan files — the §SETTLED index
-
-A plan that accrues decisions across many passes fails a specific way: **supersession in place.** Live
-decisions and withdrawn drafts sit interleaved, and both read as authoritative unless the reader
-catches the banner. Length is not the mechanism — discoverability is. Symptom to watch for: an agent
-re-deriving from code a question the plan already closed.
-
-When a plan reaches that state, give it a **§SETTLED index at the top**: one row per decision, with
-the section title as the anchor (line numbers drift on every edit — record them as a convenience
-only, never as the identifier), a container-sensitivity column where the domain has one, and a
-**separate OPEN table**, which matters as much as the settled one — treating undecided things as
-decided is the more common failure.
-
-The index is pointers, never content; the sections stay authoritative. On archive, the index goes
-with the plan and the specific trigger row above is deleted — this section stays, because the
-practice is reusable and the next long-lived plan will need it.
-
-### Cross-link rules
-
-- Reference by **link + section anchor**, never copy.
-- README may paraphrase technical detail for end-user framing — must not contradict `tag-reference.md`.
-- MEMORY.md entries pointing at `docs/` are one-liners only.
-- When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
-
-## Spec lifecycle
-
-**A SPEC IS A GITHUB ISSUE, labelled `ready-for-agent`.** It owns the problem statement, the
-interfaces, the invariants, the tasks and the scope for one in-flight piece of work — see
-`gh issue list --label ready-for-agent` for what's currently open. One in flight per piece of
-work, not per release: several can be open, each closing on its own.
-
-**The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
-`SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
-none is load-bearing. Two spellings exist (`SPEC §V<n>` and `SPEC.md §V<n>`) — grep BOTH when
-sweeping.
-
-**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.claude/plans/archive/` records what was
-true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
-spec" and that is EVIDENCE of how the repo used to work, not a stale pointer to fix. Editing it
-deletes the record. Same posture this section already takes on a closed spec issue: a record of how
-something came to be, not a statement of how it currently works. A LIVE plan is the opposite case and
-gets corrected, present tense being a claim about now.
-
-**Post-ship migration is mandatory and is UNCHANGED by that** — it never depended on the artifact:
-
-- **Load-bearing invariants** migrate to:
-  - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
-  - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
-  - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
-  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
-- Closed/deferred task rows: delete them from the issue's checklist, or close the issue.
-- Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
-
-**An issue is source of truth only while the work is in flight.** A closed spec issue is a record
-of how something came to be, not a statement of how it currently works — the same reading posture
-`CONTEXT.md` opens with.
-
-**Bugs:** new bugs → GitHub Issues, always. There is no in-repo bug file.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues for `davidofchatham/bws-gb-dynamic-tags-extensions` (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Canonical default label strings; `wontfix` already exists in the repo, the other four are created on first use. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
