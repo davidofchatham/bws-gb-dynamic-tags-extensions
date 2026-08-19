@@ -216,6 +216,36 @@ Image tags are **not** evidence of this affordance: they return URLs/IDs/alt str
 page live, with no GB-side change required. The corollary responsibility is ours — a tag that
 interpolates stored field values into markup must escape them itself.
 
+## An UNREGISTERED tag renders LITERALLY — braces and all
+
+If no callback is registered under a tag's name, GB does not strip it, blank it, or comment it out.
+The raw tag string reaches the page as text: a visitor sees `{{view_title src:current}}`.
+
+Two independent mechanisms produce this, and the first is the one that actually fires
+(`class-register-dynamic-tag.php`, GB 2.3.0):
+
+```php
+// find_matches() :91 — the pattern is BUILT FROM THE REGISTERED NAMES.
+$pattern = '/\{{(' . implode( '|', array_keys( $availableTags ) ) . ')(\s+[^}]+)?}}/';
+
+// replace_tags() :120 — and the loop re-checks, in case the caller passed a different list.
+if ( ! isset( self::$tags[ $tag_name ] ) ) {
+	continue;
+}
+```
+
+Because the name is baked into the regex, an unregistered tag never becomes a match, so there is
+nothing to replace and `str_replace` is never reached. The `isset` guard below it is belt-and-braces
+(`find_matches()` takes the tag list as a parameter, so the two can in principle disagree).
+
+**Consequence for us, and it is a retirement constraint rather than a curiosity:** deleting a tag
+registration is not a silent no-op on content that still names it — every unconverted occurrence
+turns into visible braced text on the front end. That is what makes the evidence asymmetry in a
+family sunset real: retaining deprecated wrappers needs no proof, while DELETING requires the
+unreachable surfaces to be empty first, because the failure mode is not a blank spot but literal
+wire in the page. Our response to this constraint is the standing migration policy — registration
+never retires ahead of migration (`tag-reference.md`).
+
 ## `tagName` enums: editor-restricted, render-permissive
 
 Each block declares a `tagName` enum in its `block.json`, and **that enum drives the editor dropdown
