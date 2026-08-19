@@ -1105,25 +1105,32 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  *
  * CONVERTER-ONLY, AND NOT FOR THE REASON THE FOLD IS. The fold cannot run in the editor
  * because it must read and clear `size`, a GB-private key. This one touches only `as`, so
- * a mount effect in the composite is reachable — it was built and backed out. In the
- * editor a legacy split tag (`as:url` plus a separate `size:medium`) is INDISTINGUISHABLE
- * from a size-less one, because `tagSpecificControls` receives only
- * `{ state: extraTagParams, setState }` and `size` never reaches it. Writing `url,full`
- * there would pin such a tag's render to full while the read seam had been resolving it at
- * `medium` — silent, and on OPEN rather than on edit. What makes it safe HERE is ORDER:
- * the fold entry is registered first, so a tag carrying both is folded to `url,<authored
- * size>` and never reaches this callback (tools/test/as-size-fold-test.php §A5). The
- * editor has nothing to order against, the thing to order against being the key it cannot
- * see. docs/editor-controls.md §Why the image composite does NOT migrate on mount.
+ * a mount effect in the composite is reachable — it was built and backed out, because the
+ * decision cannot be made correctly from what the editor is handed. That mechanism is
+ * owned by docs/editor-controls.md §Why the image composite does NOT migrate on mount;
+ * the consequence here is simply that this callback has one caller, the converter.
+ *
+ * ORDER AGAINST THE FOLD ENTRY is decided at the registration, which says what it decides.
+ * The part that belongs here is WHICH WIRE puts the two in contention: a TAG-LEVEL `size`
+ * does, and the fold wins it. A per-slot `N-size` does not — the fold rewrites `N-as` and
+ * never touches the tag-level `as`, so both entries land on the same string in one cascade
+ * and the result carries `as:url,full` beside `2-as:url,medium`
+ * (tools/test/as-size-fold-test.php §A5).
  *
  * TAG-LEVEL `as` ONLY. A legacy per-slot `N-as` is dead wire post-fold (the tag-level
  * token governs every attempt), so completing one would carry it forward looking live.
  * `bws_migrate_image_as_size_fold()` still rewrites an `N-as` paired with an `N-size`,
  * which is the only case where it ever meant anything.
  *
- * An ABSENT `as` is NOT touched, and that is the boundary against the editor: GB seeds it
- * from `'default' => 'url,full'` at tag-SELECT time, so a tag with no `as` never had
- * legacy wire to repair. Only a PRESENT-but-partial token is this callback's business.
+ * AN ABSENT `as` IS NOT TOUCHED, AND NOT BECAUSE IT WAS NEVER LEGACY. Tags authored under
+ * v1.16.0 carry no `as` at all — that release dropped the `default` which seeds one, and
+ * 1.17.0 restored it — so by the always-serialize rule they are exactly as non-canonical
+ * as a bare `as:url`. What keeps this entry off them is the GATE: `entry_matches()` has no
+ * absent-key predicate, and every key-presence gate available matches something every
+ * image tag carries, which is the over-match 1.17.1 removed. So the case is DECLINED, not
+ * argued away: new tags get the token from GB's tag-select seed, older ones keep an absent
+ * `as` and render identically meanwhile. Only a PRESENT-but-partial token is this
+ * callback's business.
  *
  * @since 1.17.1
  * @param string $tag_string Raw tag string.
@@ -1137,20 +1144,18 @@ function bws_migrate_image_as_bare_url( string $tag_string ): string {
 		return $tag_string;
 	}
 
-	$raw = trim( (string) $options['as'] );
-
-	// An EMPTY `as` is hand-edited wire the entry's value gate does not match. Bailing
-	// keeps report and run the same predicate; rewriting it here would report=run false
-	// in the other direction (a run with no report), which is the same defect mirrored.
-	if ( '' === $raw ) {
-		return $tag_string;
-	}
-
+	$raw  = trim( (string) $options['as'] );
 	$bits = explode( ',', $raw, 2 );
-	$mode = ( '' !== $bits[0] ) ? $bits[0] : 'url';
+	$mode = trim( $bits[0] );
 	$size = isset( $bits[1] ) ? trim( $bits[1] ) : '';
 
-	// Nullary returns have no arg slot; a url that already carries a size is canonical.
+	// THE PREDICATE BELOW IS THE ENTRY'S `match_option_values` LIST, SPELLED AS CODE, and
+	// it has to stay that: `url` and `url,` are exactly the two values the entry accepts.
+	// An empty or absent mode does NOT default to `url` here, though bws_parse_as_option()
+	// reads it that way at RENDER — defaulting would rewrite `as:,` and `as:` while the
+	// entry declines to report them, which is the report=run defect mirrored (a run with
+	// no report). The read seam can default because it decides what to output; a migration
+	// decides what to WRITE, and may only write what it announced.
 	if ( 'url' !== $mode || '' !== $size ) {
 		return $tag_string;
 	}
@@ -2266,13 +2271,13 @@ function bws_register_option_migrations(): void {
 	}
 
 	// image / term_image / try_image: complete a bare `as:url` (1.17.1).
-	// REGISTERED AFTER THE FOLD, and the order is load-bearing: a tag carrying both a
-	// legacy `size:` and a bare `as:url` matches both entries, and the cascade takes the
-	// first that CHANGES (the scan reports the first that MATCHES, same order). Fold
-	// first yields `as:url,<authored size>`. Reversed, this entry would write `url,full`
-	// and the fold would then read an `as` that already carries a size and drop the
-	// legacy `size:` as stale — silently downgrading the image. Pinned by
-	// tools/test/as-size-fold-test.php §A5.
+	// REGISTERED AFTER THE FOLD, and the order is load-bearing. A tag carrying both a
+	// legacy `size:` and a bare `as:url` matches BOTH entries; which one then acts is
+	// `MigrationRegistry::apply_option_migration()`'s rule, and `TagConverter::scan()`
+	// reports in the same order. Fold first yields `as:url,<authored size>`. Reversed,
+	// this entry writes `url,full` and the fold then reads an `as` that already carries a
+	// size and drops the legacy `size:` as stale — silently downgrading the image. Pinned
+	// by tools/test/as-size-fold-test.php §A5 and by the O4.8 matrix row.
 	//
 	// The gate is on the `as` VALUE, not on its key, and that is what makes this entry
 	// safe where the 1.17.0 key match was not: `as` is present on every image tag, but

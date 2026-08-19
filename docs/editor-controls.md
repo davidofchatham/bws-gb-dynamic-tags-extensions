@@ -406,5 +406,8 @@ not, the write belongs on the converter, whatever the option's ownership. The fo
 change it.
 
 Standing consequence, not introduced by this: the composite writes the whole token on any change,
-so touching a control on a legacy split tag has always dropped the authored size. Running the
-Migration Tool first is the fix, and `tag-reference.md` §`as` serialization opt-out says so.
+so touching a control on a legacy split tag writes `as:url,full` and the tag renders at full size
+from that moment (a size inside `as` wins over a separate `size:` in the read seam). The `size:`
+token itself survives in the string, GB re-emitting it from private state, until the converter
+folds it. Running the Migration Tool first is the fix, and `tag-reference.md` §`as` serialization
+opt-out says so.

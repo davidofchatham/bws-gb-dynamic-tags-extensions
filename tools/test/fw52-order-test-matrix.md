@@ -67,7 +67,7 @@ stripped. The point of the row is the RELATIVE order, not the presence of `src`.
 The `as`+`size` composite (`bws-as-size`) shipped in 1.16.0 (plan §Image `as`+`size`
 unification): `size` left GB's native `image-size` support and folds into `as`'s value as a
 comma second slot (`as:<mode>[,<size>]`), always-serialized. Pure parse + fold pinned by
-`php tools/test/as-size-fold-test.php` (59 cases, incl. §A3-A5 on what the converter reports and in which order). The rows below are the LIVE editor
+`php tools/test/as-size-fold-test.php` (incl. §A3-A5 on what the converter reports and in which order). The rows below are the LIVE editor
 round-trip that harness can't reach.
 
 **With the fold, O1.1's expected string is now `as:url,full`** (size arg always serialized) —
@@ -95,14 +95,12 @@ ranks format,1 so it leads) — it does not fold. Tracked as
 
 **⚠ AND THE SAME VERDICT FOR THE BARE-`as:url` COMPLETION, by a different route (1.17.1).**
 A tag saved before the fold spells the url return as a bare `as:url`; the canonical token carries
-its size, so `bws_migrate_image_as_bare_url()` completes it to `as:url,full` (O4.8). That one
-touches only `as`, our own option, so a mount effect in the composite IS reachable — it was built
-and backed out. In the editor a legacy split tag is INDISTINGUISHABLE from a size-less one (the
-filter receives only `{ state: extraTagParams, setState }`), so writing `url,full` on mount would
-pin such a tag's render to `full` while the read seam had been resolving it at `medium`. What makes
-the converter safe is ORDER — the fold entry is registered first, so a tag matching both never
-reaches the completion — and the editor has nothing to order against. See
-[`docs/editor-controls.md` §Why the image composite does NOT migrate on mount](../../docs/editor-controls.md).
+its size, so `bws_migrate_image_as_bare_url()` completes it to `as:url,full` (O4.8). A mount effect
+for that one WAS built and backed out — it touches only `as`, so unlike the fold it is reachable
+from the editor and still must not run there. The argument is owned by
+[`docs/editor-controls.md` §Why the image composite does NOT migrate on mount](../../docs/editor-controls.md);
+the consequence for these rows is that O4.8, like O4.4/O4.5, is exercised through the converter and
+never by opening the block.
 
 | Row | Authored / action | Result | Path | What it proves |
 |---|---|---|---|---|

@@ -373,10 +373,10 @@ class SettingsPage {
 	 * Group option-type registry entries that share the same transform.
 	 *
 	 * Entries differ only in match_tag are collapsed into a single row keyed by a
-	 * transform signature (option_renames + value_renames + combine_options +
-	 * source_inject + fixed_options + match_options). Old/new option-key lists are
-	 * derived from option_renames + combine_options; reason is the parenthetical
-	 * trailing the first entry's label.
+	 * transform signature -- every registry field except match_tag, new_tag and label,
+	 * so a gate added to the registry later cannot silently merge unrelated entries.
+	 * Old/new option-key lists are derived from option_renames + combine_options;
+	 * reason is the parenthetical trailing the first entry's label.
 	 *
 	 * @param array[] $option_entries Registry entries (type:'option').
 	 * @return array[] List of groups: [ 'tags' => string[], 'match_options' => string[],
@@ -390,15 +390,23 @@ class SettingsPage {
 			if ( '' === $tag ) {
 				continue;
 			}
-			$signature = md5( wp_json_encode( array(
-				'option_renames'    => $entry['option_renames']    ?? array(),
-				'value_renames'     => $entry['value_renames']     ?? array(),
-				'combine_options'   => $entry['combine_options']   ?? array(),
-				'source_inject'     => $entry['source_inject']     ?? '',
-				'fixed_options'     => $entry['fixed_options']     ?? array(),
-				'match_options'     => $entry['match_options']     ?? array(),
-				'match_any_options' => $entry['match_any_options'] ?? array(),
-			) ) );
+			// THE SIGNATURE IS DERIVED, NOT ENUMERATED, and that is the rule: two entries
+			// group together when everything except which TAG they match is identical.
+			// The list this replaced named seven fields, and a gate added after it was
+			// written (`match_option_values`, #56) was not among them — so every entry
+			// whose only gate is a value map, or whose whole behaviour is a
+			// `transform_callback`, hashed identical to every other one and the Settings
+			// page merged unrelated migrations into a single mislabelled row. An
+			// enumeration has to be revisited each time the registry grows a field, and
+			// nothing fails when it is not; deriving cannot go stale.
+			//
+			// The three exclusions are the ones that vary WITHIN a group by construction:
+			// `match_tag` is what the group collapses, `new_tag` mirrors it on every
+			// entry that is not a rename, and `label` embeds the tag name via sprintf.
+			$sig_fields = $entry;
+			unset( $sig_fields['match_tag'], $sig_fields['new_tag'], $sig_fields['label'] );
+			ksort( $sig_fields );
+			$signature = md5( (string) wp_json_encode( $sig_fields ) );
 			if ( ! isset( $groups[ $signature ] ) ) {
 				$label  = $entry['label'] ?? '';
 				$reason = '';

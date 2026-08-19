@@ -24,15 +24,12 @@
  * legacy-split tag leaves its `size:` in place. `srcTerm`+`tax` is the same constraint in
  * its original guise.
  *
- * THE TWO HALVES REACH THAT CONCLUSION BY DIFFERENT ROUTES, which is worth stating because
- * the second one looks reachable and is not. The FOLD is unreachable because it must READ
- * and CLEAR `size`. A4's bare-`as:url` completion touches only `as`, our own option — so
- * the editor could write it, and must not: a legacy split tag is INDISTINGUISHABLE there
- * from a size-less one, so completing `as:url` to `url,full` on mount would pin the render
- * to full on a tag the read seam was resolving at `medium`. The converter has the ordering
- * that avoids this (§A5 — the fold entry runs first and the authored size survives into
- * `as`); the editor has nothing to order against, because the thing to order against is
- * the key it cannot see.
+ * BOTH HALVES ARE CONVERTER-ONLY, by different routes, and the second route is the one
+ * that looks reachable: A4's completion touches only `as`, our own option, so the editor
+ * COULD write it. Why it must not is owned by docs/editor-controls.md §Why the image
+ * composite does NOT migrate on mount — nothing below asserts that argument, so it is a
+ * pointer here rather than a retelling. What IS asserted below is the converter-side
+ * consequence: §A5 pins the entry order that makes the rewrite safe on this path.
  *
  * Run:  php tools/test/as-size-fold-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -221,10 +218,9 @@ foreach ( $detection_cases as $case ) {
 // callback moves that shape. Both halves are asserted per case below.
 //
 // The non-matching cases are the load-bearing half. `as:url,full` is already canonical,
-// `as:alt` is nullary (no arg slot exists to fill), and an ABSENT `as` is the SEED case
-// this migration deliberately declines: GB writes that one from `'default' => 'url,full'`
-// at tag-SELECT time, and rescuing it here would put the converter in the editor's job on
-// a tag whose wire was never legacy. Only a PRESENT-but-partial `as` is legacy wire.
+// `as:alt` is nullary (no arg slot exists to fill), and an ABSENT `as` is DECLINED — which
+// is not the same as being canonical, and the callback's PHPDoc owns why the entry cannot
+// reach it. Pinned here as the behaviour, argued there.
 // Why the token is canonical with its default included at all:
 // docs/tag-reference.md §`as` serialization opt-out.
 echo "\nA4 — bare `as:url` normalizes to the canonical token\n";
@@ -256,6 +252,11 @@ $bare_cases = array(
 	array( '{{image as:url,medium}}',                         '{{image as:url,medium}}' ),
 	array( '{{image as:alt}}',                                '{{image as:alt}}' ),
 	array( '{{image use:featured}}',                          '{{image use:featured}}' ),
+	// Hand-edited degenerate spellings. `bws_parse_as_option()` reads an empty mode as `url`
+	// at RENDER; the migration must NOT, because the entry does not accept these values —
+	// rewriting them would be a run with no report, the report=run defect mirrored.
+	array( '{{image as:}}',                                   '{{image as:}}' ),
+	array( '{{image as:,}}',                                  '{{image as:,}}' ),
 );
 
 foreach ( $bare_cases as $case ) {
@@ -305,6 +306,14 @@ assert_eq( 'so the cascade keeps the authored size',
 	'{{image as:url,medium}}', $mig::apply_option_migration( 'image', '{{image as:url|size:medium}}' ) );
 assert_eq( 'and a bare `as` with no size still reaches the normalize',
 	'{{image as:url,full}}', $mig::apply_option_migration( 'image', '{{image as:url}}' ) );
+
+// PER-SLOT WIRE RUNS BOTH ENTRIES, and that is correct rather than a leak past the order
+// rule above. A legacy `2-size` folds into `2-as` while the TAG-LEVEL `as` is not a key the
+// fold touches, so the completion still has work to do on the same string. The two entries
+// act on different positions; only a tag-level `size` puts them in contention.
+assert_eq( 'a per-slot fold and a tag-level completion both land, in one cascade',
+	'{{try_image as:url,full|2-as:url,medium}}',
+	$mig::apply_option_migration( 'try_image', '{{try_image as:url|2-size:medium}}' ) );
 echo "\n";
 if ( $failures ) {
 	echo "FAILED: {$failures}/{$count}\n";
