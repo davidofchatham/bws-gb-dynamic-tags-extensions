@@ -210,6 +210,37 @@ if ( '' !== $url ) {
 		$_REQUEST = array_merge( $_REQUEST, $parsed );
 	}
 
+	// THIS ARRIVES TOO LATE FOR A PLUGIN THAT FREEZES SUPERGLOBALS AT plugins_loaded, which is
+	// a coverage limit of this instrument rather than a defect in it. eval-file runs after
+	// WordPress has fully loaded, so a plugin that captured $_GET / $_COOKIE during its own boot
+	// already read an empty set by the time the lines above run. WP::parse_request() — the
+	// consumer those lines exist for — reads them later and is served correctly.
+	//
+	// Measured against bws-portal-system 5.7.0, whose RequestSignals::capture() freezes request
+	// state at plugins_loaded (davidofchatham/bws-portal-system#71):
+	//
+	//   --url on a custom domain     RESOLVES. HTTP_HOST lives in $_SERVER, which WP-CLI sets
+	//                                before WordPress boots, so the freeze sees it.
+	//   --url with ?param= , cookie  DOES NOT resolve. $_GET is still [] at the freeze.
+	//
+	// So do NOT read a blank externally-rooted tag as "external sources do not resolve under
+	// replay". They do, when the URL carries the context in $_SERVER. Only the query-param and
+	// cookie paths fail, and only for a plugin that reads early — one resolving lazily at render
+	// time sees the assignment above like every other consumer.
+	//
+	// A row that genuinely needs the query-param or cookie path wants the assignment to happen
+	// BEFORE plugins_loaded, which this file cannot do from eval-file. The seam is a --require
+	// bootstrap on the wp invocation in bin/replay-tags.sh, told the URL through the environment
+	// because $_SERVER is not populated that early either (verified: at --require time
+	// QUERY_STRING, REQUEST_URI and HTTP_HOST are all unset and WordPress is not loaded). Not
+	// built, because the population is zero: the only registered external root today is
+	// bws-portal-system's `view`, every View carries a custom domain, and the in-repo fixture
+	// source resolves deterministically. Build it when a row needs it.
+	//
+	// Expect VACUITY rather than a wrong answer if that day comes and this is still missing:
+	// such a tag renders empty on BOTH sides of a diff, and empty == empty is a pass. The
+	// run-level non-vacuity count catches that in aggregate; nothing catches it per row.
+
 	// AN UNSTABLE SORT IS NOT A RENDER DIFFERENCE, and it is invisible to the volatility check:
 	// that renders twice inside ONE process, where the query result is already fixed. Across two
 	// processes it is not. Real case on hargrave — eight event posts sharing one identical
