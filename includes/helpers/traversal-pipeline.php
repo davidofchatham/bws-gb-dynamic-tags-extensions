@@ -84,11 +84,13 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  * the terminal `limit` option: the step limit bounds how far a fan-out spreads
  * (and how much downstream work it multiplies), while the terminal one bounds the
  * VALUE list the caller renders. So the caller still slices the final source list
- * (list mode originates at the plural resolved source, CONTEXT.md §Target
- * cardinality) — this engine remains composition-blind, and `sep` never reaches it.
+ * (list mode originates at the plural resolved source, CONTEXT.md §Language
+ * "Singular vs fanning sources") — this engine remains composition-blind, and
+ * `sep` never reaches it.
  *
- * PER-INPUT, not whole-output (per-step-limit.md §Per-input, not whole-output;
- * fixed here by #72 after the engine shipped the superseded semantic):
+ * PER-INPUT, not whole-output (`.claude/plans/archive/per-step-limit.md`
+ * §Per-input, not whole-output; fixed here by #72 after the engine shipped the
+ * superseded semantic):
  * `limit(1)` on a terms step after a fanning refs step means one term from EACH
  * ref'd post, not one term overall. Three mechanics follow:
  *   - The slice applies per input source, then concatenates — whole-output would

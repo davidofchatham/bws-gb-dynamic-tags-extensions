@@ -169,7 +169,7 @@ Kinds with no link identity are **normal, not exceptional**: `meta_row` (a repea
 
 **Corollary — the single-result link gate is a JOIN constraint, not a linking one.** A list whose values are `sep`-joined into one string cannot be wrapped in one link (the link would span unrelated entities, and a lone fallback string would satisfy a naive gate — GH #51). Hence "wrap iff exactly one value survived". This does NOT say list items are unlinkable individually: per-value link identities are retained precisely so a future per-item link mode is available without reshaping the payload.
 
-Enforced at: `bws_collect_value_list()` PHPDoc (field-helpers.php). Consumer contract: `bws_resolve_link_url` (link-helpers.php). Rationale + build record: `.claude/plans/traversal-pipeline.md` §Design (FW-49). Related: [ADR 0002](docs/adr/0002-resolved-source-variable-payload.md), [I7] (list mode), [I9] (ambient kinds).
+Enforced at: `bws_collect_value_list()` PHPDoc (field-helpers.php). Consumer contract: `bws_resolve_link_url` (link-helpers.php). Rationale + build record: `.claude/plans/archive/traversal-convergence-fw49.md` §Design (FW-49 is built there, not in `traversal-pipeline.md`, which is Phase 1's own archived design doc). Related: [ADR 0002](docs/adr/0002-resolved-source-variable-payload.md), [I7] (list mode), [I9] (ambient kinds).
 
 ---
 
