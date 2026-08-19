@@ -252,6 +252,24 @@ Enforced at: `bws_fold_slot_chain_options()` PHPDoc (slot-fold.php), which repla
 
 ---
 
+## I17 — A tag's serialized option order has THREE readers, and they must agree
+
+A tag's option keys are canonically ordered by one ranking (`format` → per-slot `source` → `link` → `fallback`), but three independent code paths each apply it: the **editor normalizer** (`serialization-order-normalizer.js`, sorts on every `setState`), the **fold grammar** (`slot-fold-grammar.js`, ranks folded-slot tokens at emit), and the **converter** (`MigrationRegistry::run_transform()` step 8, canonicalizes migrated wire). A `transform_callback` entry is exempt by construction — it overrides the pipeline and owns its own output order (as+size, related_post, modifier→base).
+
+**Rule:** the three must never diverge. If they did, a migrated tag's key order would disagree with what the editor writes on save, and opening a migrated tag would show a spurious whole-tag diff the first time an author touches it — reading as "the migration changed something else too" even though nothing about the tag's meaning moved.
+
+Enforced at: `bws_serialization_order_sort()` / `bws_serialization_order_sort_map()` PHPDoc (`includes/helpers/serialization-order.php` — the single PHP owner both the fold grammar and the converter's step 8 call through) + its JS port `assets/js/serialization-order-normalizer.js`. Tests: `tools/test/serialization-order-test.php` (pure sort + a JS-port twin block, `node`-required) + `tools/test/datetime-migration-test.php` §D6 (ties the migration harness's literal key-order expectations back to this ranking, so a `KEY_MAP` change fails there by name). Schema: [`tag-reference.md` §Option order](docs/tag-reference.md#option-order).
+
+## I18 — Offering a source is not resolving it
+
+A source's opt-in to the chain-**root** enum (`is_selectable_root()`, #83) governs ONLY the authoring-surface dropdown — which rows an editor control renders. It must never gate resolution. Stored wire naming a source is hand-editable by decision ([ADR 0004](docs/adr/0004-serialized-tag-string-human-readable.md)), and an integrator can stop offering a root after tags already name it (FW-70's migration writes such wire the moment it runs) — gating resolution on the flag would blank every one of those tags. `bws_factory_registry_source()` resolves ANY registered source unconditionally, whether or not it opted into the root enum; the flag is read nowhere in the resolution path.
+
+**Corollary — offering is STATED, never derived, and stays that way permanently.** The registry keeps its dead by policy: `register_source()` is never deleted for lacking resolve logic, so four retired traversal-substitute classes plus the internal `post`/`term` keys remain registered right now. None of them promote to the root enum, because `bws_registered_root_rows()` is the ONE appender both authoring surfaces — the base tag's root enum and the folded slot's source enum — take their rows from: "offered here, absent there" cannot happen, and a dead-by-policy registration cannot leak into either dropdown just by existing.
+
+Enforced at: `bws_registered_root_rows()` PHPDoc (`includes/tags/base-shared.php` — the one-appender rule) + `bws_factory_registry_source()` PHPDoc (`includes/helpers/traversal-pipeline.php` — the unconditional resolve). Pinned BY MUTATION: gating `bws_factory_registry_source()` on `is_selectable_root()` fails `tools/test/traversal-pipeline-test.php`'s registry-delegation section by name. Tests: `tools/test/slot-options-build-test.php` (registration output — which rows each enum contains), `tools/test/traversal-pipeline-test.php` (resolution, unaffected by offering), `tools/test/registered-roots-test-matrix.md` §FR1/§FR2/§FR5. Related: [I14] (a chain's root), [I15] (an unidentifiable `src` refuses, one of `bws_factory_registry_source()`'s three declines).
+
+---
+
 ## Tag structural vocabulary
 
 How a tag is *constructed*, independent of what it DOES with reads (rooting/selecting/combining behavior is a separate, not-yet-canonical axis — don't coin a genus until a second instance earns it).

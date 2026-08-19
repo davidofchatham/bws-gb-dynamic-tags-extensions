@@ -122,6 +122,12 @@ const BWS_TRY_SLOT_ARMS = array(
 	// A repeater `entries` step. NO `try_` arm consumes a meta_row and none should — that
 	// is `{{table}}`'s assembly, not a fallback attempt's. Skipped, with every column
 	// empty, so the skip is a property of the table rather than of a branch somewhere.
+	//
+	// `meta_row` NAMES TWO DIFFERENT THINGS and this table only ever means the first: as a
+	// CHAIN kind (a slot's own `entries` step, refused HERE) it is a repeater-row SOURCE;
+	// as a RESOLVED BASE kind (bws_try_slot_base_branch_kind()'s `$base_kind`, the flat
+	// repeater ROW a query-loop hands the callback) it is not a source at all and must
+	// reach the post arm below, or mode 2b's loop fallthrough disappears.
 	'meta_row' => array(
 		'ids'        => '',
 		'fn'         => '',

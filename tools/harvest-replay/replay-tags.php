@@ -2,9 +2,10 @@
 /**
  * replay-tags.php — render a harvested tag corpus against ONE real URL.
  *
- * The replay half of the harvest/replay instrument (`.claude/plans/archive/multi-step-slot-sources.md`
- * §Verification). Harvest (env repo) answers "what wire exists and where can it be seen";
- * this answers "what does that wire render, with genuine ambient context".
+ * The replay half of the harvest/replay instrument. See `tools/harvest-replay/README.md` for
+ * how this fits the harvest/replay/diff/convert whole and the two experiment baselines.
+ * Harvest (env repo) answers "what wire exists and where can it be seen"; this answers "what
+ * does that wire render, with genuine ambient context".
  *
  * MECHANISM — the same three lines `tools/cli/class-render-tag-command.php` proved, carried
  * here rather than called:
@@ -41,7 +42,7 @@
  * between runs — the run header records the timestamp so the reviewer can see one.
  *
  * Usage (paths are CONTAINER paths):
- *   wp eval-file /plugins/bws-gb-dynamic-tags-extensions/tools/replay-tags.php \
+ *   wp eval-file /plugins/bws-gb-dynamic-tags-extensions/tools/harvest-replay/replay-tags.php \
  *       <census.jsonl> <out.jsonl> <context_kind> [<volatility:0|1>] \
  *       --url=https://portals.test/some-post/
  *

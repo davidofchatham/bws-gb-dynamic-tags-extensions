@@ -836,6 +836,11 @@ function bws_fold_emit_slot( array $slot, int $level = 1 ): string {
  *     re-point a LATER slot's `src(same)` at this slot's source, changing output
  *     at slots the migration never touched.
  *
+ * AN EXPLICIT `src:current` MAPS TO A REAL `current` STEP, NEVER TO "NO STEP" — see
+ * the inline comment at the `elseif ( '' !== $src )` branch below for the concrete
+ * failure this guards (mapping it to nothing deleted a fallback attempt's entire
+ * content on containers with no per-slot read axis).
+ *
  * `limit` goes onto the chain's FANNING STEPS, through the same owner a base tag's
  * migration uses (bws_fold_chain_apply_legacy_limit): an explicit `N` on the last
  * one with `1` on every earlier one, and a bare `1` on each when the legacy wire

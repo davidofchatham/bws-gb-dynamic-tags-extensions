@@ -523,6 +523,15 @@ $slot_limit = bws_fold_parse_slot( 'limit(3);key(prices)', 'join' );
 check( 'P9.5 slot-level limit is an opt token', ! isset( $slot_limit['error'] ) && '3' === $slot_limit['opts']['limit'], var_export( $slot_limit, true ) );
 check( 'P9.5 slot-level limit re-emits before use/key', 'limit(3);key(prices)' === bws_fold_emit_slot( $slot_limit ), 'got: ' . bws_fold_emit_slot( $slot_limit ) );
 
+// TWO LIVE EXAMPLES OF COVERAGE THAT ONLY LOOKED PRESENT before these rows/cases were
+// added: (1) the bracket-aware step split below — nothing exercised a separator
+// INSIDE a step token's brackets until P9.6, so a naive (non-bracket-aware) splitter
+// could ship green; (2) a truthiness guard on `limit` — dropping a numeric `0`
+// (unlimited) is invisible to a parse-only corpus, since `0` and absent both parse.
+// The struct-emit path that catches it (numeric values a string-only parse corpus
+// cannot reach) lives in the twin's `emitStructs` corpus section, exercised by
+// slot-fold-twin-test.php.
+//
 // A step's own tokens may carry BRACKETED content containing a step separator.
 // `limit[5]` is safe under a naive split only by ACCIDENT (a bare integer cannot
 // contain a separator); the moment a step token holds free-form or nested content
@@ -614,6 +623,13 @@ function t_legacy_wire( $n, $options, $combining = false, $per_slot_use = true )
 	return bws_fold_emit_slot( $rec['slot'] );
 }
 
+// VERIFY BY MUTATION, NOT BY A GREEN COUNT: a corpus that never exercises a shape
+// can pass 100% while the mapping under it is wrong. P12.2/P12.2b exist because every
+// pre-existing equivalence case carried a SECOND axis beside `src:current`, so all of
+// them passed while `current` mapped to no step at all — break the property
+// deliberately (map `current` back to nothing) and confirm this section fails before
+// trusting a future change here.
+//
 // Slot 1 — bare keys. An ABSENT src is an empty chain (the stripped default); an
 // EXPLICIT `current` is a step, because a slot whose only content is that token has to
 // keep existing (see P12.2b).

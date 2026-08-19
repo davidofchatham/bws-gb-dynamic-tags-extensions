@@ -1319,6 +1319,32 @@ function bws_nxm_migrate_chain( string $tag_string, string $prefix, callable $st
 	return $reg::format_tag_string( $new_tag, $options );
 }
 
+/**
+ * Rewrites a `src:related_post` (tag-level or a legacy flat `N-src`) to `src:ref`,
+ * carrying the relationship field forward.
+ *
+ * ONLY `related_post` migrates here. Of the four retired related-post source classes
+ * (see RelatedPost::resolve_id() for why they are inert), it is the only one whose token
+ * ever reached wire as a `src` VALUE — the other three (`second_related_post`,
+ * `post_term_related_post`, `term_related_post`) were TAG NAMES, handled by the
+ * modifier→base migration instead. `related` is deliberately excluded: it never resolved,
+ * so rewriting it would invent a hop that never existed.
+ *
+ * `key` is COPIED to `ref`, never moved: the retired class read `key` as its fallback
+ * relationship field, and the field-read downstream consumes the SAME key off the same
+ * unmutated options array — moving it would resolve the hop and then read nothing.
+ *
+ * VALUE-gated, and must stay so: this matches a legacy VALUE in the live `src` key
+ * (MigrationRegistry::entry_matches() / match_option_values), never the key's mere
+ * presence — a key gate would report a migration on nearly every post and run none.
+ *
+ * Registration order matters: this entry runs AFTER the try_ slot-key renames (which
+ * produce `N-src`) and BEFORE the fold entry (which consumes the rewritten `src:ref`).
+ *
+ * @since 1.17.0
+ * @param string $tag_string Raw tag string.
+ * @return string Rewritten tag string, or the original when no `src:related_post` is found.
+ */
 function bws_migrate_related_post_src( string $tag_string ): string {
 	$reg = 'BWS\DynamicTags\MigrationRegistry';
 	[ $tag_name, $options ] = $reg::parse_tag_string( $tag_string );
@@ -1763,6 +1789,12 @@ function bws_register_modifier_root_migrations( string $prefix, string $root, ar
  *   2. `option_renames` matches an EXACT key, so `2-rel` needs its own pair — fine.
  *   3. `source_inject` writes the TAG-level `src`, which on a try_ tag is slot 1's. A
  *      `3-rel` must set `3-src`, not `src`.
+ *
+ * GETTING THE WINNER BACKWARDS DOES NOT ERROR — it silently migrates a tag to hop
+ * somewhere the pre-1.6 tag never hopped, permanently (the defect #56 exists to stop).
+ * That is exactly why this is a `transform_callback` and not a declarative pair: a
+ * declarative rename has no way to make the winner conditional on `src`, so reverting
+ * to one reintroduces the #57 clobber (see point 1 above) under a different name.
  *
  * The first draft therefore renamed the keys and injected NOTHING, on the reasoning that
  * a `3-ref` with no `3-src` is inert rather than wrong. **That is false, and the harness

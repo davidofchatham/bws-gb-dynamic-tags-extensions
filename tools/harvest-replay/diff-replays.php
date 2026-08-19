@@ -2,12 +2,12 @@
 /**
  * diff-replays.php — compare two replay artifacts and decide whether the gate holds.
  *
- * Third piece of the harvest/replay instrument (`.claude/plans/archive/multi-step-slot-sources.md`
- * §Verification). Harvest says what wire exists; replay says what it renders; this says
- * whether the two sides agree, and — where they do not — puts each disagreement in a bucket
- * a reviewer can act on.
+ * Third piece of the harvest/replay instrument. See `tools/harvest-replay/README.md` for how
+ * this fits the harvest/replay/diff/convert whole and the two experiment baselines. Harvest
+ * says what wire exists; replay says what it renders; this says whether the two sides agree,
+ * and — where they do not — puts each disagreement in a bucket a reviewer can act on.
  *
- * Plain PHP. No WordPress, no wp-cli: `php tools/diff-replays.php <a.jsonl> <b.jsonl>`.
+ * Plain PHP. No WordPress, no wp-cli: `php tools/harvest-replay/diff-replays.php <a.jsonl> <b.jsonl>`.
  *
  * WHAT IT ASSERTS
  * ---------------
@@ -19,12 +19,17 @@
  *     artifact silently outlives the wire it was built from. Two sides on two corpora are
  *     not comparable; a supplied census that is not the rendered one buckets every pair off
  *     the wrong corpus. Differing sides are legal ONLY with --map, which is the migration
- *     run saying the divergence is intended.
+ *     run saying the divergence is intended. Identity here is a CONTENT DIGEST, never a row
+ *     count: occurrences and distinct tag strings are different quantities, so a corpus can
+ *     change with its row count unmoved.
  *  3. Every (url, tag_string) pair renders byte-identically.
+ *  4. At least one A-side render produced non-empty output. Checks 1-3 pass VACUOUSLY on two
+ *     empty artifacts — the shape an unbootable clone or a botched swap produces — so an
+ *     all-empty A side is its own hard failure, not merely an unremarkable diff.
  *
- * The exception list is CLOSED (§Verification: "a list assembled after seeing a diff is a
- * rationalisation, not a gate"). So ANY difference fails. Buckets exist to make triage
- * possible, not to excuse anything:
+ * The exception list is CLOSED — a list assembled after seeing a diff is a rationalisation,
+ * not a gate. So ANY difference fails. Buckets exist to make triage possible, not to excuse
+ * anything:
  *
  *   attested  — the tag really is stored in content reachable at that URL, so the change has
  *               genuine user exposure.
@@ -46,7 +51,7 @@
  * changes that.
  *
  * Usage:
- *   php tools/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=20]
+ *   php tools/harvest-replay/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=20]
  *
  * Exit 0 iff the gate holds.
  */
@@ -72,7 +77,7 @@ foreach ( $argv_in as $arg ) {
 }
 
 if ( count( $paths ) < 2 ) {
-	fwrite( STDERR, "Usage: php tools/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=N]\n" );
+	fwrite( STDERR, "Usage: php tools/harvest-replay/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=N]\n" );
 	exit( 2 );
 }
 
@@ -418,6 +423,11 @@ foreach ( $keys as $key ) {
 	);
 }
 
+// A MIGRATION RUN CAN LOSE ROWS FOR A REASON THAT IS NOT A CONVERTER DEFECT: the GB Pro
+// pattern-cache reconcile fires from the upgrade trigger before this run happens, and removes
+// stale shadow wire from cached pattern trees, so a legitimately-repaired string surfaces here
+// as a pair present on only one side. Attribute a finding like that through the census's
+// container column plus `bws_dynamic_tags_pattern_cache_status`, never by widening this gate.
 if ( $missing ) {
 	$line( sprintf( '[X] %d (url, tag) pair(s) present on only one side.', count( $missing ) ) );
 	foreach ( array_slice( $missing, 0, $max ) as $m ) {

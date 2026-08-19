@@ -32,6 +32,20 @@
  *                    It was reachable only from hand-edited wire (GB never serializes a false
  *                    boolean) and INVERTED even there, since `! empty( 'false' )` is true.
  *
+ * VERIFY BY MUTATION — six shapes are pinned by name below, each confirmed failing when its
+ * fix landed:
+ *   1. disable the era gate (`datetime_legacy_era()` always true)  → D2.1 fails (fallback_text
+ *      alone would wrongly license injection).
+ *   2. drop the pre-rename snapshot (era test reads post-rename `$options`) → D2.5 fails (the
+ *      era key is already renamed away by the time the gate runs).
+ *   3. blind the `fixed_options` `as` read (gate `$options['as']` only)     → D3.1 fails (a
+ *      date-only tag's `as:date` arrives at step 7, after the gate).
+ *   4. reverse the `fixed_options`-vs-`$options` precedence                 → D3.5 fails (the
+ *      entry's `as:date` must win over wire-stated `time_only`).
+ *   5. drop the `fallback_text` exclusion from the derived era list         → D2.1 fails a
+ *      different way (a modern tag carrying only the universal rename key would inject).
+ *   6. restore the `'false' === …` rule                                    → D5.1 fails.
+ *
  * NOT covered here: whether a migrated tag RENDERS the same date. That needs real field
  * reads — testbed territory (CLAUDE.md §Development), tools/test/datetime-test-matrix.md.
  *

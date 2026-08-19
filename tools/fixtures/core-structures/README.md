@@ -51,7 +51,7 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
 | `verify-datetime-migration.php` | The pre-1.6 datetime migration end to end (#90) — report, run, and whether the injected flags move the RENDERED axes. Self-cleaning: it converts its own throwaway draft, so no reseed. |
 | `verify-pattern-cache.php` | The GB Pro pattern-cache reconcile end to end (#99) — the defect reproduced, the repair, idempotence, duplicate-row convergence, and the escaping round trip through real meta storage. Self-cleaning: its destructive work happens on throwaway `wp_block` posts, so no reseed. |
-| `lib-admin-context.php` | `bws_fixture_assume_administrator()` — sets an administrator when the CLI has no current user. Required by `seed.php` and the three verify scripts that drive converter code. Carries the measurement and the rationale, including why `tools/replay-tags.php` is deliberately excluded. |
+| `lib-admin-context.php` | `bws_fixture_assume_administrator()` — sets an administrator when the CLI has no current user. Required by `seed.php` and the three verify scripts that drive converter code. Carries the measurement and the rationale, including why `tools/harvest-replay/replay-tags.php` is deliberately excluded. |
 
 ## Seeding
 

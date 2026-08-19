@@ -28,6 +28,22 @@
  * Pure enough to harness: no WP or GB symbols (i18n lives with the registration, not
  * here). tools/test/fold-migration-test.php loads this file, not a copy of it.
  *
+ * A TAG-LEVEL axis is spelled EXACTLY like slot 1's. A bare `limit` on a try_ list
+ * template and a bare `key` on `try_datetime_*` are TAG-level options read as every
+ * slot's default (TagTemplateRegistry::try_slot_axes()'s `tag_level` list) — they must
+ * never be FOLDED or STRIPPED at any position, at any point in this cascade, or the
+ * fold swallows the option the resolver actually reads.
+ *
+ * TWO PATHS, ONE RULE SET. This converter path and the editor mount path
+ * (assets/js/slot-fold-migrate.js) are COMPLEMENTARY, not redundant: this scanner reads
+ * `post_content` only, so a block widget is reachable ONLY on tag-modal mount, while a
+ * draft nobody opens is reachable ONLY by the scanner. A divergence between the two does
+ * not surface as one path being wrong — it surfaces as one tag stored two ways depending
+ * on which path found it first, which is why the twin block (fold-migration-driver.js,
+ * fold-migration-test.php §M7) exists and why the mount side hand-lists NOTHING
+ * (container config, including `flatAxes`, arrives on the option definition). See also
+ * docs/editor-controls.md §Fold migration — two paths, one rule set.
+ *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0
  */

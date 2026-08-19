@@ -494,6 +494,12 @@ function bws_base_traversal_options(): array {
  * bws_get_datetime_single_template_options() have composed from shared leaves since
  * 1.6.0 — same leaves, different composition per context, zero duplication.
  *
+ * NEVER RE-INLINE THIS ENUM AT A CONSUMER — that recreates the four copies this leaf
+ * removed, which is how image's `Return type:`/`Return image as:` label drift
+ * happened. A container that wants a DIFFERENT read enum takes a PARAMETER on the
+ * twin (bws_build_slot_read_options()'s `$allow_same` is the precedent), never its
+ * own literal.
+ *
  * @since 1.17.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
  *               (base overlays `use:not:title`; the template encodes the same fact

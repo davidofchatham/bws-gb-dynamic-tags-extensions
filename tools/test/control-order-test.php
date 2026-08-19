@@ -6,7 +6,9 @@
  * CONTROL order IS REGISTRATION order. GB renders `options` as declared and nothing
  * reorders it; the FW-52 normalizer moves the SERIALIZED key order only, inside
  * `setState`. So the registration arrays in base-tags.php / TagTemplateRegistry ARE
- * the panel, and this harness is the only thing that reads them as one.
+ * the panel, and this harness is the only thing that reads them as one. The two axes
+ * stay independent (that is FW-52's whole point) — do not "fix" one by touching the
+ * other.
  *
  * WHY it exists (1.17.0): option grouping draws a box around the controls that describe
  * one decision (assets/js/option-group.js), and a group draws as ONE box only where its
@@ -430,6 +432,10 @@ assert_same( 'every bare-by-design exception is exercised', $bare_by_design, $ex
 // ===========================================================================
 echo "\n§5 The tag-level `limit` is UNREGISTERED wherever the source is a chain\n";
 // ===========================================================================
+// This section is also where the file owns which options a family registers AT ALL,
+// not just their order. That matters because an absent control is invisible in
+// rendered output — no matrix row can catch a regression here, only this harness can.
+//
 // A LIMIT IS STATED WHERE THE SOURCE IS STATED (#62). A chain-authoring tag states its
 // source as steps, so its limits live on the steps and the tag-level control retires —
 // with one fanning step it is the same knob as that step's own limit, and with two it

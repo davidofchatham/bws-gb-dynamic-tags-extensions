@@ -129,9 +129,17 @@ const BWS_FOLD_STATIC_ROOT_KINDS = array(
  * author meant the same source in a different taxonomy, which is what the flat wire they
  * came from said, so the inherited tail gives way.
  *
- * THE TEST IS THE JOIN, NOT THE SLUG, and the difference is not academic. A first cut
- * dropped an inherited step wherever this slot stated one with the same slug and the slug
- * could not repeat, which reads the same on every legacy shape and is wrong the moment a
+ * TWO CRUDER SHAPES WERE TRIED AND REJECTED BEFORE THIS ONE. Do not reintroduce either:
+ * - Append `$own` after the whole of `$inherited` with no trim at all. Behind a chain that
+ *   already ends where an own step would run again, that repeats a step the engine can't
+ *   take twice off the same input and resolves empty, silently dropping the slot.
+ * - Displace every inherited step that shares a slug with an own step, wherever it sits.
+ *   See below for why this reads right on every legacy shape and is wrong the moment a
+ *   slot states more than one step.
+ *
+ * THE TEST IS THE JOIN, NOT THE SLUG, and the difference is not academic. The rejected cut
+ * above dropped an inherited step wherever this slot stated one with the same slug and the
+ * slug could not repeat, which reads the same on every legacy shape and is wrong the moment a
  * slot states more than one step: inherited `terms,department` plus an own
  * `refs,x;terms,y` lost the inherited step, even though `refs` ACCEPTS a term input and the
  * chain would have run exactly as written. Asking whether the two ends MEET answers both

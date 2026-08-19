@@ -44,7 +44,10 @@
  *
  * Tests: tools/test/pattern-cache-test.php (pure decision logic) and
  * tools/fixtures/core-structures/verify-pattern-cache.php (the round trip through real
- * meta storage, where the escaping hazard lives). Neither substitutes for the other.
+ * meta storage, where the escaping hazard lives). Neither substitutes for the other,
+ * and the split is structural, not stylistic: the hazard lives inside WordPress's own
+ * meta write (update_post_meta() calls wp_unslash(), which recurses through arrays), so
+ * a pure harness cannot observe it at all — only a real meta round trip can.
  *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0

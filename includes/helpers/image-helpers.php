@@ -100,6 +100,15 @@ function bws_get_image_size_options() {
  * Legacy fallback: pre-fold tags stored size in a separate `size:` option (GB's
  * native image-size control). When `as` carries no comma slot, the size falls back
  * to $options['size'] then 'full', so old saved tags still render at their size.
+ * This fallback is the ONLY safety net for a tag the migration converter
+ * (bws_migrate_image_as_size_fold() in deprecated-tags.php) never reaches — as+size
+ * is Tag-Converter-ONLY by construction (see docs/gb-constraints.md §Reserved keys
+ * are destructured…) — so it is not a removable shim.
+ *
+ * Separately, that converter's own `$nullary` list (id/alt/title/caption) is an
+ * ALLOWLIST: an unrecognized `as` mode falls to the non-nullary branch and gets
+ * coerced to the literal `url` mode string when folding a legacy size in, which
+ * RESCUES the size (keeps it live) rather than silently dropping it.
  *
  * @since 1.16.0
  * @param array $options Tag options (reads `as` and legacy `size`).

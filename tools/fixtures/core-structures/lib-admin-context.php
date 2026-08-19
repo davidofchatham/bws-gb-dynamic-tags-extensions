@@ -24,7 +24,7 @@
  * files only ever run on the testbed, so that is conclusive for the question actually at
  * issue; the 33-42 non-core save listeners measured on the production clones are not in play.
  *
- * NOT FOR tools/replay-tags.php, deliberately. That instrument replays RENDERS as a
+ * NOT FOR tools/harvest-replay/replay-tags.php, deliberately. That instrument replays RENDERS as a
  * front-end visitor sees them, and a visitor is anonymous — setting an administrator there
  * would make it measure something nobody experiences. The rule is "match the shipped path",
  * not "always be an administrator", and the two instruments have different shipped paths.
