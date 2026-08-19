@@ -5,7 +5,8 @@ See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) 
 ## Dependencies
 
 - WordPress (core APIs)
-- GenerateBlocks plugin (`GenerateBlocks_Register_Dynamic_Tag`, `GenerateBlocks_Dynamic_Tags`, `GenerateBlocks_Dynamic_Tag_Callbacks`)
+- GenerateBlocks plugin, required (`GenerateBlocks_Register_Dynamic_Tag`, `GenerateBlocks_Dynamic_Tags`, `GenerateBlocks_Dynamic_Tag_Callbacks`)
+- GenerateBlocks Pro, optional (`GenerateBlocks_Pro_Dynamic_Tags_ACF`, `GenerateBlocks_Pro_Pattern_Library`) — plus two version-gated GB core classes present only on newer GB (`GenerateBlocks_Meta_Handler`, `GenerateBlocks_Dynamic_Tag_Security`); all four `class_exists()`-guarded, degrades gracefully when absent
 - Custom fields plugin (ACF or compatible — all calls guarded with `function_exists()`)
 
 ## Development
