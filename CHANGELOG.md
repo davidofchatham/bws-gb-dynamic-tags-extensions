@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.17.1] — unreleased
+
+### Fixed
+
+- **The Migration Tool no longer lists image tags that have nothing to convert.** Every `{{image}}`, `{{term_image}}` and `{{try_image}}` tag was reported as needing the image size conversion, whether or not it still carried the old separate size setting that conversion exists to fold in. Running the tool left those tags untouched, so the next scan listed the same posts again and the list could never be cleared. Only a tag that still holds an old size setting is listed now. Present since 1.16.0.
+
 ## [1.17.0] — 2026-08-19
 
 ### Highlights

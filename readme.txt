@@ -3,13 +3,16 @@ Contributors: david-mitchell
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.17.0
+Stable tag: 1.17.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 See README.md for overview, docs/tag-reference.md for architecture, and CHANGELOG.md for version history.
 
 == Upgrade Notice ==
+
+= 1.17.1 =
+✓ Fixes the Migration Tool listing every image tag as needing conversion when there was nothing to convert. If your list would not clear no matter how many times you ran it, update and rescan.
 
 = 1.17.0 =
 ⚠ Ran the Migration Tool before? Check for loss of new-tab settings on link-wrapped tags and show-year/show-midnight settings on pre-1.6 datetime tags. New: multi-step source paths; result limit of 0 or -1 means no limit; unusable sources output nothing, not from the current context; and more.

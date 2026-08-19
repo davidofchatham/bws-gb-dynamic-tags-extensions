@@ -2163,9 +2163,19 @@ function bws_register_option_migrations(): void {
 		$reg::register( array(
 			'type'               => 'option',
 			'match_tag'          => $tag,
-			// `size` triggers the fold; `as` alone also matches so a bare url without a
-			// size still normalizes to url,full on conversion (callback no-ops otherwise).
-			'match_any_options'  => array( 'size', 'as', '2-size', '3-size', '4-size', '5-size', '2-as', '3-as', '4-as', '5-as' ),
+			// A `size` KEY IS THE ONLY THING THIS ENTRY CAN ACT ON, so it is the only
+			// thing it matches on. `as` was in this list through 1.17.0 on the theory
+			// that a bare `as:url` would also normalize to `url,full` here; the callback
+			// skips any slot without a size and always did, so every image tag carrying
+			// an `as` was reported as needing work the migrator would never do — reported
+			// again on the next scan, forever. That is the same failure the value gate
+			// exists to prevent (see `MigrationRegistry::entry_matches()` on why `src` is
+			// not matched by key). Seeding `as:url,full` on an untouched tag is the
+			// EDITOR's job and stays there — `'default' => 'url,full'` at registration,
+			// written when the author touches a control (docs/tag-reference.md §Image
+			// `as`; fw52-order-test-matrix.md O4.2). A size-less tag renders identically
+			// via the read seam, so there is nothing for the converter to rescue.
+			'match_any_options'  => array( 'size', '2-size', '3-size', '4-size', '5-size' ),
 			'new_tag'            => $tag,
 			'transform_callback' => 'bws_migrate_image_as_size_fold',
 			'label'              => sprintf(

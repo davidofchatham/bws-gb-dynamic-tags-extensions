@@ -48,6 +48,20 @@ if ( ! function_exists( 'apply_filters' ) ) {
 if ( ! function_exists( 'get_intermediate_image_sizes' ) ) {
 	function get_intermediate_image_sizes() { return array( 'thumbnail', 'medium', 'large' ); }
 }
+// A3 calls the REGISTRATION pass (bws_register_option_migrations), which the fold blocks
+// above never touch — these are the WP surface that pass needs.
+if ( ! function_exists( '_x' ) ) {
+	function _x( $s, $c = '', $d = null ) { return $s; }
+}
+if ( ! function_exists( 'esc_html' ) ) {
+	function esc_html( $s ) { return $s; }
+}
+if ( ! function_exists( 'add_action' ) ) {
+	function add_action() {}
+}
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter() {}
+}
 
 require __DIR__ . '/../../includes/helpers/image-helpers.php';
 // Loaded because run_transform()'s final step canonicalizes key order through it — a
@@ -142,6 +156,57 @@ assert_eq( 'empty size value → falls back to full, not to an empty arg',
 // apply_option_migration cascade), so the fold has to be a fixed point after one pass.
 assert_eq( 'the fold is idempotent',
 	$fold( '{{image as:url|size:medium}}' ), $fold( $fold( '{{image as:url|size:medium}}' ) ) );
+
+// ===============================================
+// A3 — DETECTION: what the converter REPORTS vs what the fold DOES
+// ===============================================
+//
+// The Tag Converter lists an entry when MigrationRegistry::entry_matches() says so, then
+// rewrites with the callback. An entry that MATCHES but cannot CHANGE anything is a report
+// the migrator never satisfies: the author runs it, the next scan re-lists the same post,
+// and nothing they can do clears it (found on a live site after 1.17.0 shipped, on
+// `{{image as:url|src:refs,…|use:featured}}` — `as` was in the match list, no `size` was
+// present anywhere, so the callback skipped every slot). The two halves are therefore
+// asserted TOGETHER: for each shape, whether the entry MATCHES must equal whether the fold
+// MOVES the string.
+//
+// This is the rule `MigrationRegistry::entry_matches()`'s docblock states for the VALUE
+// gate (`src` is not matched by key, or every sourced tag reports work that never runs); a
+// transform_callback entry cannot be gated declaratively, so its match list has to name
+// only keys the callback acts on — here `size` and its `N-size` slot twins, nothing else.
+echo "\nA3 — detection agrees with the rewrite\n";
+
+bws_register_option_migrations();
+$mig = 'BWS\\DynamicTags\\MigrationRegistry';
+
+/** Does the as+size entry match this tag string? */
+$detects = static function ( string $tag_string ) use ( $mig ): bool {
+	[ $tag_name, $options ] = $mig::parse_tag_string( $tag_string );
+	foreach ( $mig::find_option_migrations( $tag_name, array_keys( $options ), $options ) as $entry ) {
+		if ( 'bws_migrate_image_as_size_fold' === ( $entry['transform_callback'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
+};
+
+$detection_cases = array(
+	// tag string                                                            report expected?
+	array( '{{image as:url|size:medium}}',                                    true ),
+	array( '{{image as:alt|size:large}}',                                     true ),
+	array( '{{try_image as:url,full|2-as:url|2-size:large}}',                 true ),
+	// The shape that regressed — an `as` with no size anywhere in the tag.
+	array( '{{image as:url|src:refs,benefit_vendor,limit(1)|use:featured}}',  false ),
+	array( '{{image as:url,full}}',                                           false ),
+	array( '{{image as:alt}}',                                                false ),
+	array( '{{try_image as:url,full|2-as:url}}',                              false ),
+);
+
+foreach ( $detection_cases as $case ) {
+	[ $tag_string, $expected ] = $case;
+	assert_eq( "rewrite moves the string: {$tag_string}", $expected, $fold( $tag_string ) !== $tag_string );
+	assert_eq( "converter reports it:     {$tag_string}", $expected, $detects( $tag_string ) );
+}
 
 echo "\n";
 if ( $failures ) {
