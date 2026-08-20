@@ -112,7 +112,7 @@ function bws_get_table_options(): array {
 				// SelectControls stay visible, so the author can widen to All or pick a
 				// plain-meta key (a non-ACF meta repeater has no discovered 'repeater'
 				// type, so the guard falls back to All). See field-combo-control.js
-				// (typeDefault) + .claude/plans/table-tag.md #12.
+				// (typeDefault) + FW-53.
 				'typeDefault'  => 'repeater',
 			),
 			// Accessible caption (W3C data-table pattern). Labels the table for

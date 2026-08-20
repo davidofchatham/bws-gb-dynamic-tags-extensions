@@ -580,7 +580,7 @@
 		// from the display breadcrumb. Empty / unknown repeater key → no scoping (the
 		// picker degrades to the full list; free-text of any key still works). This is a
 		// per-instance render conditional, deliberately NOT the FU-3 shared-state channel
-		// (see .claude/plans/field-selector.md FU-3): table ships without blocking on it.
+		// (FW-14's FU-3): table ships without blocking on it.
 		//
 		// THE SCOPE HANDLE IS A PROP FIRST, a state read only as fallback (FW-56/57).
 		// Reading `state.key` is this control DISCOVERING its own scope by reaching
@@ -633,7 +633,7 @@
 		// an empty list. The two filter SelectControls stay visible either way, so the
 		// author can widen to All or pick another type; this is a starting view, not a
 		// lock. Orthogonal to props.scope ('row'), which HIDES the filters and narrows to
-		// one repeater's sub-fields (#12). See .claude/plans/table-tag.md #12 (OTHER-axis).
+		// one repeater's sub-fields. FW-53 owns that OTHER axis.
 		var typeDefault  = props.typeDefault || '';
 		var typeExists   = typeDefault && typeOptions.some( function ( o ) { return o.value === typeDefault; } );
 		var typeVal      = typeOverride !== null ? typeOverride : ( typeExists ? typeDefault : ALL_TYPE );

@@ -132,6 +132,12 @@ a number:
   is prose. An ADR is why this is a rule rather than tidiness: its `Status:` line cites the plan the
   decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
   evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
+- **SHIPPED CODE CITES IDS, NOT PRIVATE PATHS.** A comment under `includes/` or `assets/` may name an
+  ADR, an `FW-N` row, a GitHub `#N`, another code site, or a `docs/` path — never a path under
+  `.claude/` or `.scratch/`, which no reader but the author can open. And **a bare `#N` in code means
+  the GitHub issue**: a plan's own internal item numbering is a third sequence, and must be resolved
+  to a committed handle before it is cited, or the reader resolves it against the wrong one and lands
+  somewhere real and unrelated.
 - **A COMMITTED FILE MAY ONLY CITE A COMMITTED PLAN.** Live plans and most archived ones are
   gitignored, so a pointer into `.claude/plans/` from anything tracked is unreadable to every reader
   but the author — and nothing fails when it breaks. The trigger runs one way: when a committed
