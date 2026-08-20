@@ -1,7 +1,7 @@
 # Context-detection test matrix (C-rows)
 
 Integration rows for **context-aware base-tag resolution** —
-`.claude/plans/context-aware-base-tags.md` (#19). Bare `{{title}}` /
+`.scratch/plans/context-aware-base-tags.md` (#19). Bare `{{title}}` /
 `{{content}}` per WP context, rendered through the testbed
 (`bin/wp.sh testbed bws render-tag '{{...}}' --url=...` — see `docs/testbed.md`). Fixture state: `core-structures` blueprint; the date-archive
 rows additionally assume `sample-event` is categoryless + portal-visible

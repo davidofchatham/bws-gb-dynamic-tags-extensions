@@ -305,7 +305,7 @@ wrapper tag. Returning `false` from the filter suppresses it entirely.
 Noted here as an available lever: the appender's wrapper is a `<div>` emitted by WP core as a direct
 child of the innerblocks container, which matters for any `element` `tagName` whose content model
 rejects a `<div>` child. That platform behavior is out of scope for this doc — see
-`.claude/plans/structured-output-tags-handoff.md` §4.
+`.scratch/plans/structured-output-tags-handoff.md` §4.
 
 ## Upstream-documented affordances
 

@@ -9,7 +9,10 @@ Two homes, split by ONE question: **must the record outlive the change?**
 | The build tickets it breaks into | `.scratch/<feature-slug>/issues/<NN>-<slug>.md` | Numbered per feature from `01`, so they never collide with `#N` |
 | PUBLICATION of in-flight work | the pull request body | One durable public record, at the moment it is reviewable |
 
-`.scratch/` is gitignored. Nothing under it is ever committed.
+`.scratch/` is gitignored. Nothing under it is ever committed. Two things live there and they are
+not the same shape: `.scratch/<feature-slug>/` is one piece of in-flight work and dies at merge,
+while `.scratch/plans/` holds long-lived design plans that can outlast many features (with
+`.scratch/plans/archive/` for finished ones). A plan is not a feature slug.
 
 ## Why this is not the retired `SPEC.md`
 

@@ -2,7 +2,7 @@
 
 Companion to `bws-ctx-probe.php`. Feeds the source factory design
 (`docs/design-history/traversal-pipeline.md` §Base Resolution) and the #19 context
-taxonomy (`.claude/plans/context-aware-base-tags.md` §Context Taxonomy).
+taxonomy (`.scratch/plans/context-aware-base-tags.md` §Context Taxonomy).
 
 **Ordering principle: highest architectural risk first.** Each row lists the
 FAIL condition — the observation that invalidates a design assumption. An early

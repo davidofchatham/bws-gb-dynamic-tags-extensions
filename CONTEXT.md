@@ -6,7 +6,7 @@
 - Not schemas or current-state tables → [`docs/tag-reference.md`](docs/tag-reference.md).
 - Not GB API facts → [`docs/gb-constraints.md`](docs/gb-constraints.md).
 - Not single-class invariants → `@invariant` PHPDoc on the enforcing method.
-- Not design *narrative / how-we-got-here* → the per-feature plan in `.claude/plans/archive/` (linked per principle below).
+- Not design *narrative / how-we-got-here* → the per-feature plan in `.scratch/plans/archive/` (linked per principle below).
 - Not shipped history → [`CHANGELOG.md`](CHANGELOG.md).
 
 **Rule:** a line that could live in `tag-reference.md` (a schema, a label, a current-state row) goes there and is *linked* from here — never duplicated. This doc holds only invariants and the model behind them.
@@ -31,7 +31,7 @@ Where a source has no intrinsic analog (term image, site content-body), the defa
 
 **Scope:** base-tag callbacks + try_ **slot 1** only (the strip-default-first-value position). Try_ slot ≥2 empty wire = "same as previous slot" (carry-forward), NOT analog re-derivation.
 
-Schema/per-tag detail: `tag-reference.md` §Source-analog resolution. Narrative: `.claude/plans/archive/...` (source-analog handoff) + `src-site-unified-source.md`.
+Schema/per-tag detail: `tag-reference.md` §Source-analog resolution. Narrative: `.scratch/plans/archive/...` (source-analog handoff) + `src-site-unified-source.md`.
 
 ## I2 — `use` dispatches analog-vs-option, UNIFORMLY across all sources (Model B)
 
@@ -99,7 +99,7 @@ Two corollaries bind:
 - **Offered ⟺ resolvable.** The endpoint offers only keys the runtime resolver would accept (one shared `bws_field_key_disallowed()` gate; `_`-protected allowed, `DISALLOWED_KEYS` refused) — a discovery/runtime contract, so an offered key never silent-empties.
 - **Bare key is the only serialized identity.** The control serializes the plain key exactly as the old text input did (pure render swap); a key can map to many fields (same key, different labels), so on reopen an ambiguous key shows RAW and asserts no specific field. Discovery labels are display-only, never part of the wire format.
 
-Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (kind projection, merge-by-`(kind,key,label)`, ambiguous-key display) + `field-discovery.php` (`scopes_equal` keep-both, per-subtype registered meta, the DISALLOWED gate). Schema: `tag-reference.md` §Custom control types. Rationale + follow-ups: `.claude/plans/field-selector.md`.
+Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (kind projection, merge-by-`(kind,key,label)`, ambiguous-key display) + `field-discovery.php` (`scopes_equal` keep-both, per-subtype registered meta, the DISALLOWED gate). Schema: `tag-reference.md` §Custom control types. Rationale + follow-ups: `.scratch/plans/field-selector.md`.
 
 ---
 
@@ -122,7 +122,7 @@ Two guards keep the leak dead at the edges:
 
 **User as a read source** (I1 applied by context; author kind, 1.15.0): on an author archive a bare base tag reads the user's analog — `title`→display name, `content`→biographical info (the `description` user meta), `text`→display name under `use:title`, else the author's user meta field (1.16.0). A `try_` slot resolves identically (I6), on the same three tags, since 1.17.0; `permalink`/`image`/datetime author analogs are deferred (they render empty, not wrong). The user kind is an ENTITY kind (carries an id; field reads via `'user_' . $id`) but reuses no post/term reader — its two analogs read `get_the_author_meta()` directly (`bws_base_user_analog_read`). Link-wrap resolves the author-archive URL (`get_author_posts_url`, the user permalink-analog in `bws_resolve_link_url`). Unlike the term kind there is NO degenerate guard — a zero-result author archive still resolves the `WP_User` and does not leak `$post`.
 
-**Query-context (entity-LESS) kinds are still Phase 2.** Search / date / post-type archive / 404 / latest-home carry query/date/search payload with no field to read (PTA's `queried_object` is a `WP_Post_Type` with `queried_id` 0 — captured 2026-07-18), and each needs an option surface (search format, 404 fallback, home title-source) before shipping. They fall through to current behavior (still `$post`) until then. Detail: `#19`, `.claude/plans/context-aware-base-tags.md`; baseline rows `tools/test/context-test-matrix.md`.
+**Query-context (entity-LESS) kinds are still Phase 2.** Search / date / post-type archive / 404 / latest-home carry query/date/search payload with no field to read (PTA's `queried_object` is a `WP_Post_Type` with `queried_id` 0 — captured 2026-07-18), and each needs an option surface (search format, 404 fallback, home title-source) before shipping. They fall through to current behavior (still `$post`) until then. Detail: `#19`, `.scratch/plans/context-aware-base-tags.md`; baseline rows `tools/test/context-test-matrix.md`.
 
 **Source reads are ACF-or-compatible, not ACF-mandatory.** A `src:ref` post step tries the ACF relationship reader (type-validated, returns an array) first, then falls back to a raw meta read, so non-ACF handlers (Pods/Carbon/core) storing a post id in plain meta still resolve — honoring the plugin's ACF-or-compatible contract.
 
@@ -358,5 +358,5 @@ A tag reads **K fields × T sources** and assembles: text=1×1 (or 1×N via a fa
 ## Pointers
 
 - **PHPDoc invariants in code** (single-class): `bws_site_allowlist_ok` (allowlist), `bws_site_read_option` (single-reader), `bws_resolve_link_url` (site link = permalink-analog), `bws_parse_combined_date_time` (datetime value-id sentinel), the email callback + settings accessor (VE1-VE4).
-- **Field discovery (1.13.0, I8):** `includes/rest/field-discovery.php` (offered⟺resolvable gate, `scopes_equal` keep-both dedupe, per-subtype registered meta, `<script>`-safe JSON encode) + `assets/js/field-combo-control.js` (editor-time kind projection, `(kind,key,label)` merge, flat filters, ambiguous-key raw display). Schema: `tag-reference.md` §Custom control types. Design/follow-ups: `.claude/plans/field-selector.md`.
+- **Field discovery (1.13.0, I8):** `includes/rest/field-discovery.php` (offered⟺resolvable gate, `scopes_equal` keep-both dedupe, per-subtype registered meta, `<script>`-safe JSON encode) + `assets/js/field-combo-control.js` (editor-time kind projection, `(kind,key,label)` merge, flat filters, ambiguous-key raw display). Schema: `tag-reference.md` §Custom control types. Design/follow-ups: `.scratch/plans/field-selector.md`.
 - **Architecture decision records:** [`docs/adr/`](docs/adr/).

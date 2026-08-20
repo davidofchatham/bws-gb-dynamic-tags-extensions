@@ -80,7 +80,7 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
 | Current architecture (templates, sources, options, GB types, render order) | `docs/tag-reference.md` | Authoritative |
 | Cross-cutting vocabulary (output-shape terms: single-result, composite string, list mode, query loop; etc.) | Owning schema doc (e.g. `docs/tag-reference.md` §Output shape) | Defined ONCE beside the schema it describes — NO standalone glossary (avoids schema/glossary drift). `CONTEXT.md` invariants *use* terms, never define them. |
-| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.claude/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship migration target — see §Spec lifecycle. |
+| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.scratch/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship migration target — see §Spec lifecycle. |
 | Editor-time tag configuration preview text (markers, assembly, warnings, per-template + try_ shapes, examples) | `docs/editor-tag-previews.md` | Authoritative; `tag-reference.md` keeps a one-line forward-ref. Built by `bws_build_preview_label()` in `preview-helpers.php`. |
 | Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
@@ -94,8 +94,8 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored, dies at merge; the PR body publishes it. Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |
-| Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
-| Rationale of record for a SHIPPED or RETIRED decision ("design history") | `docs/design-history/*.md` | Committed, historical, and **never corrected** — §Spec lifecycle owns that rule; the per-file banner restates it. An archived plan MOVES here the first time a committed file cites it (see §Cross-link rules); the rest stay private under `.claude/plans/archive/`. **Cite one with a provenance verb** — "hardened against", "build record", "the decision that produced" — never "see X for how this works". That phrasing is the whole line between a record and a false current-state source, and it is the only one of these guards a diff can catch. |
+| Pending-plan / enhancement DETAIL (homes the tracker points at) | `.scratch/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
+| Rationale of record for a SHIPPED or RETIRED decision ("design history") | `docs/design-history/*.md` | Committed, historical, and **never corrected** — §Spec lifecycle owns that rule; the per-file banner restates it. An archived plan MOVES here the first time a committed file cites it (see §Cross-link rules); the rest stay private under `.scratch/plans/archive/`. **Cite one with a provenance verb** — "hardened against", "build record", "the decision that produced" — never "see X for how this works". That phrasing is the whole line between a record and a false current-state source, and it is the only one of these guards a diff can catch. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
@@ -139,16 +139,17 @@ a number:
   to a committed handle before it is cited, or the reader resolves it against the wrong one and lands
   somewhere real and unrelated.
 - **A COMMITTED FILE MAY ONLY CITE A COMMITTED PLAN.** Live plans and most archived ones are
-  gitignored, so a pointer into `.claude/plans/` from anything tracked is unreadable to every reader
+  gitignored, so a pointer into `.scratch/plans/` from anything tracked is unreadable to every reader
   but the author — and nothing fails when it breaks. The trigger runs one way: when a committed
   file first needs to cite a private archived plan, the PLAN MOVES to `docs/design-history/`; the
-  citation is not softened and the plan is not copied. `git grep -o '\.claude/plans/[a-z0-9./-]*\.md'`
+  citation is not softened and the plan is not copied. `git grep -o '\.scratch/plans/[a-z0-9./-]*\.md'`
   lists the violations. Two exceptions, both real: a sibling repo's own plan path (`bws-portal-system/...`)
   is that repo's business, and a `docs/future-work.md` row may point at a private LIVE plan — the
   tracker exists to be the visible surface over hidden detail homes, which is the opposite case.
 - **`docs/design-history/` IS EXEMPT FROM THAT GREP, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
   files name the paths that were live when they were written; a record saying "was
-  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING. Publishing a record makes
+  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING (that spelling is the point —
+  the tree moved to `.scratch/plans/` on 2026-08-20 and the record still names where it was). Publishing a record makes
   its dead paths grep-visible all at once, and the tidying reflex reads history as staleness.
   Repointing them deletes what they exist to say. Leave them.
 
@@ -169,7 +170,7 @@ something came to be — migrating it would rewrite that record, not preserve it
 none is load-bearing. Two spellings exist (`SPEC §V<n>` and `SPEC.md §V<n>`) — grep BOTH when
 sweeping.
 
-**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.claude/plans/archive/` records what was
+**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.scratch/plans/archive/` records what was
 true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
 spec" and that is EVIDENCE of how the repo used to work, not a stale pointer to fix. Editing it
 deletes the record. Same posture this section already takes on a closed spec issue: a record of how
@@ -182,7 +183,7 @@ gets corrected, present tense being a claim about now.
   - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
   - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
-  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
+  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.scratch/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
 - Closed/deferred task rows: delete them from the spec's task list, or delete the spec directory (on GitHub, close the issue).
 - Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
 
