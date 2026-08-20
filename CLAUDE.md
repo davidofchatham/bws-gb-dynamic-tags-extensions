@@ -130,10 +130,16 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 
 ## Spec lifecycle
 
-**A SPEC IS A GITHUB ISSUE, labelled `ready-for-agent`.** It owns the problem statement, the
-interfaces, the invariants, the tasks and the scope for one in-flight piece of work — see
-`gh issue list --label ready-for-agent` for what's currently open. One in flight per piece of
-work, not per release: several can be open, each closing on its own.
+**A SPEC IS A LOCAL FILE — `.scratch/<feature-slug>/spec.md`.** It owns the problem statement, the
+interfaces, the invariants, the tasks and the scope for one in-flight piece of work. One per piece
+of work, not per release: several can be open, each dying when its own work merges. The PR body is
+where the decided spec becomes public — `.scratch/` is gitignored and nothing under it is committed.
+Bugs stay GitHub Issues; `docs/agents/issue-tracker.md` owns the split, the ticket conventions, and
+why a `.scratch/` directory is not the retired root `SPEC.md` returning.
+
+**Spec issues CLOSED before 2026-08-20 stay where they are** (#55, #80, #104 and their siblings).
+They are records of how something came to be, which is what the rest of this section says a closed
+spec is — migrating them would rewrite that record, not preserve it.
 
 **The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
 `SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
@@ -154,12 +160,14 @@ gets corrected, present tense being a claim about now.
   - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
   - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.claude/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
-- Closed/deferred task rows: delete them from the issue's checklist, or close the issue.
+- Closed/deferred task rows: delete them from the spec's task list, or delete the spec directory (on GitHub, close the issue).
 - Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
 
-**An issue is source of truth only while the work is in flight.** A closed spec issue is a record
-of how something came to be, not a statement of how it currently works — the same reading posture
-`CONTEXT.md` opens with.
+**A spec is source of truth only while the work is in flight.** Once merged it is a record of how
+something came to be, not a statement of how it currently works — the same reading posture
+`CONTEXT.md` opens with, and the same one `docs/design-history/` carries in its banner. This holds
+whichever carrier the spec had: a deleted `.scratch/` directory leaves the PR body as the record, a
+closed spec issue is that record already.
 
 **Bugs:** there is no in-repo bug file, and a bug never becomes a row in `docs/future-work.md`.
 A bug that needs TRACKING is a GitHub Issue (`bug` label). **A bug found and FIXED in the same
@@ -202,11 +210,11 @@ practice is reusable and the next long-lived plan will need it.
 
 ### Issue tracker
 
-Issues live in GitHub Issues for `davidofchatham/bws-gb-dynamic-tags-extensions` (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
+Hybrid: specs + build tickets are local markdown under `.scratch/<feature-slug>/` (gitignored, never committed — the PR body publishes); bugs and any record that must outlive the change are GitHub Issues for `davidofchatham/bws-gb-dynamic-tags-extensions` (`gh` CLI). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Canonical default label strings; `wontfix` already exists in the repo, the other four are created on first use. See `docs/agents/triage-labels.md`.
+Canonical default label strings, carried as GitHub labels on the GitHub half and as a `Status:` line on the local half. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
 
