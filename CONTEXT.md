@@ -75,7 +75,7 @@ A `try_` tag resolves its **attempts** in order and surfaces the first non-empty
 - **try_ machinery does exactly two things:** pick the first non-empty slot, and (when that slot is itself in list mode) `implode($sep)` its already-finished per-item strings. No per-item transform hook — slot items arrive fully composed (`try_item_fn` was considered and cut; composition-in-resolve is the rule).
 - **Scope boundary = the list-mode divider (I7), NOT value-count or entity-count.** try_ list-joins a slot's items iff each item is inline-level (I7). Block-level output (staff card, `<img>` figure, `{{content}}`) ∉ list mode → not joined. The old "repeated markup over N entities / query-loop" framing was wrong-axis: a staff card is excluded because it is **block**, not because it is N entities. I7 subsumes the query-loop case.
 
-Consequence: a `try_` tag that truncates a list its base tag would join is a **parity defect** (try_ must be transparent to the slot's own list mode). Enforced at: `generate_base_try_tags()` slot resolver PHPDoc. Schema (list mode / composite per tag): `tag-reference.md` §List mode, §datetime. Narrative: `.claude/plans/try-email-phone-and-slot-derivation.md`.
+Consequence: a `try_` tag that truncates a list its base tag would join is a **parity defect** (try_ must be transparent to the slot's own list mode). Enforced at: `generate_base_try_tags()` slot resolver PHPDoc. Schema (list mode / composite per tag): `tag-reference.md` §List mode, §datetime. Narrative: `.claude/plans/archive/try-email-phone-and-slot-derivation.md`.
 
 ## I7 — List mode gated by output DESTINATION (where the value lands), not output structure
 
@@ -87,7 +87,7 @@ Whether a tag's output participates in **list mode** (a fanning source, read onc
 
 **Key correction:** an earlier framing said "inline-level joinable / block-level not." Wrong — `{{image}}` is a plain URL string (not block markup), yet is excluded because its **destination is an attribute slot**. The gate is destination, not structure. (Superseded framings: entity-count "query-loop" boundary; inline/block structure.)
 
-Single divider for list-joinability everywhere (base list mode + try_ I6 + read-target model): **does the value land in text flow (joinable) or a single-value slot / document (not)?** Narrative: `.claude/plans/try-email-phone-and-slot-derivation.md`. Schema: `tag-reference.md` §List mode.
+Single divider for list-joinability everywhere (base list mode + try_ I6 + read-target model): **does the value land in text flow (joinable) or a single-value slot / document (not)?** Narrative: `.claude/plans/archive/try-email-phone-and-slot-derivation.md`. Schema: `tag-reference.md` §List mode.
 
 ---
 
@@ -298,7 +298,7 @@ Drove the `{{call}}` B1 fix (`fn-tags.php` top-level require, 1.12.0): `bws_regi
 
 ## Language
 
-Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). The L1/L2 seam is **built for email/phone** as the shared `bws_resolve_field_values` (field-helpers.php, 1.11.0 — retired the per-tag clones); other tags still inline their own L1/L2. Full unification is incremental (see `.claude/plans/try-email-phone-and-slot-derivation.md`): the datetime param-overload retire + `src:ref` fanning landed 1.15.0 (FW-3a — datetime cores take resolved-source payloads, kind-dispatched, though still off-seam pending its format-aware read arm); #19 context kinds remain.
+Terms for the **source-resolution model** (the L1/L2/L3 read pipeline shared by text/email/phone/datetime/join/try_). The L1/L2 seam is **built for email/phone** as the shared `bws_resolve_field_values` (field-helpers.php, 1.11.0 — retired the per-tag clones); other tags still inline their own L1/L2. Full unification is incremental (see `.claude/plans/archive/try-email-phone-and-slot-derivation.md`): the datetime param-overload retire + `src:ref` fanning landed 1.15.0 (FW-3a — datetime cores take resolved-source payloads, kind-dispatched, though still off-seam pending its format-aware read arm); #19 context kinds remain.
 
 **Read target** (casual shorthand: **target**):
 The **declared read intent** of a tag — its (source + key) specification. `{src:ref|key:email}` is one read target. Either part may be **explicit** (written token) or **implicit** (stripped default / recovered: source unset → current/context-default; both unset on `{{title}}` → analog). The resolved *intent*, NOT the literal token string. (Implicit/explicit/unset axis: handoff source-analog mode terminology. **#19 = read targets with an implicit source resolved by WP context.**) "target" alone always means read target — NOT resolved source. _Avoid_: "entity", `{kind,id}`.
