@@ -288,5 +288,65 @@ assert_same( 'A5.2 the user row names its own renderer', 'user', bws_try_slot_ar
 assert_same( 'A5.3 meta_row as a chain kind is refused', '', bws_try_slot_arm( 'meta_row' )['fn'] );
 assert_same( 'A5.4 meta_row as a base kind reaches the post arm', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
 
+// ===========================================================================
+// §A6 — the SITE branch is taken by resolved kind, never by token spelling
+// ===========================================================================
+// The regression this pins (slice A, ADR 0007 era): email/phone selected their site
+// branch by comparing the serialized token to the literal 'site'. Chain wire spells
+// the same source differently, so a DECORATED root-only site chain fell into the
+// post branch and read the AMBIENT entity — a plausible value from the wrong entity,
+// which a selecting try_ slot treats as a win, so the fallback chain never ran.
+// Pinned AT THE DISPATCH, not at the two tags: the point is that the class cannot
+// recur, and any consumer that asks the dispatch gets the right branch for every
+// spelling of the source.
+echo "\n§A6 — a decorated root-only site chain still resolves to the site arm\n";
+
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+}
+require_once __DIR__ . '/../../includes/helpers/serialization-order.php';
+require_once __DIR__ . '/../../includes/helpers/slot-fold.php';
+
+// (Flat `src:site` and a bare chain root are the SAME string — one row covers both.)
+foreach ( array(
+	'A6.1 bare token'                 => 'site',
+	'A6.3 decorated root (limit)'     => 'site,limit[2]',
+	'A6.4 decorated root (extra tok)' => 'site,x[y]',
+) as $label => $wire ) {
+	$kind = bws_fold_src_resolution( array( 'src' => $wire ) )['kind'];
+	assert_same( "{$label} → kind site", 'site', $kind );
+	assert_same( "{$label} → the site arm consumes it", 'site', bws_try_slot_arm( $kind )['fn'] );
+}
+// The contrast row: a site root with a real step behind it is NOT a site read any
+// more — the chain moved on — and must not take the site branch.
+assert_same(
+	'A6.5 site root + entries step is not the site arm\'s',
+	'meta_row',
+	bws_fold_src_resolution( array( 'src' => 'site;entries,rows' ) )['kind']
+);
+
+// §A7 — the CLASS pin: no shipped code compares a serialized `src` to a literal.
+// The two sweeps are S-33's, run mechanically so the third instance of "re-derive
+// from the wire what the dispatch already decided" fails here by name instead of
+// surviving review. bws_fold_src_root_token()/resolution comparisons are the SEAM
+// and do not match these shapes.
+echo "\n§A7 — no wire-string source compare survives in includes/\n";
+
+$includes = dirname( __DIR__, 2 ) . '/includes';
+$hits     = array();
+$iter     = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $includes ) );
+foreach ( $iter as $file ) {
+	if ( 'php' !== pathinfo( (string) $file, PATHINFO_EXTENSION ) ) {
+		continue;
+	}
+	foreach ( explode( "\n", (string) file_get_contents( (string) $file ) ) as $n => $line ) {
+		if ( preg_match( "/=== *\( *\\\$(options|opts|slot_opts)\['src'\]/", $line )
+			|| preg_match( "/\['src'\] *(===|==|!==) *'/", $line ) ) {
+			$hits[] = basename( (string) $file ) . ':' . ( $n + 1 );
+		}
+	}
+}
+assert_same( 'A7.1 both sweep patterns return nothing', array(), $hits );
+
 echo "\n{$count} assertions, {$failures} failure(s)\n";
 exit( $failures > 0 ? 1 : 0 );

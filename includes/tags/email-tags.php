@@ -278,7 +278,15 @@ function bws_email_finish_values( array $raw, array $options ): array {
  * @return string[] Finished per-item strings.
  */
 function bws_try_email_post_dispatch( $post_id, $options, $instance ) {
-	if ( 'site' === ( $options['src'] ?? '' ) ) {
+	// The SITE branch is taken by what the chain RESOLVES TO — the dispatch axis every
+	// base arm uses (bws_base_src_resolution, computable from the wire alone) — never
+	// by comparing the serialized token to a literal. The compare this replaced
+	// ('site' === $options['src']) missed every chain spelling of the same source
+	// (`site,limit[2]`, any decorated root), fell into the post branch, and read the
+	// AMBIENT entity: a plausible value from the wrong entity, which a selecting try_
+	// slot then treats as a WIN, so the author's fallback chain never ran ([I15], the
+	// FW-71 class). Pinned at the dispatch seam: try-slot-arms-test.php §A6/§A7.
+	if ( 'site' === bws_base_src_resolution( (array) $options )['kind'] ) {
 		return bws_email_finish_values( bws_resolve_field_values( (array) $options, $instance ), (array) $options );
 	}
 
