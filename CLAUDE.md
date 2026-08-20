@@ -93,11 +93,25 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | Operating the fixture testbed (entrypoints, the two staleness layers, seeding, visible-row mandate) | `docs/testbed.md` | `CLAUDE.md` §Development owns the two-LAYER rule and points here; this owns the operation. `bin/*.sh` live in the ENV repo. Blueprint specifics stay in `tools/fixtures/core-structures/README.md`. |
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
+| SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored, dies at merge; the PR body publishes it. Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
 | Rationale of record for a SHIPPED or RETIRED decision ("design history") | `docs/design-history/*.md` | Committed, historical, and **never corrected** — §Spec lifecycle owns that rule; the per-file banner restates it. An archived plan MOVES here the first time a committed file cites it (see §Cross-link rules); the rest stay private under `.claude/plans/archive/`. **Cite one with a provenance verb** — "hardened against", "build record", "the decision that produced" — never "see X for how this works". That phrasing is the whole line between a record and a false current-state source, and it is the only one of these guards a diff can catch. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
+
+### This file's own budget
+
+**CLAUDE.md carries RULES; the commit body carries the INSTANCE that produced them.** Test: would the
+sentence still be true if the instance never happened? If the sentence IS the instance, it belongs in
+the commit message — permanent, dated by construction, and found by `git log -S'<phrase>' -- CLAUDE.md`
+exactly when someone asks why a rule is here. This file has been exempting itself from a rule it
+states one level up (§Spec lifecycle: the CHANGELOG carries the delta, the commit body the cause).
+An instance that IS a rule's boundary is not an example, and stays.
+
+**Ceiling: 260 lines / 34 KB.** Over it, the next edit TRIMS BEFORE IT ADDS — regrowth is invisible
+without a number, and cheap to reverse only while it is small. Evidence too big for a commit body
+goes to `docs/design-history/`, which is exempt from tidying by construction.
 
 ### Cross-link rules
 
@@ -107,11 +121,9 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 - When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
 - **MOVING A PLAN REPOINTS WHAT CITES IT, IN THE SAME EDIT.** Archiving is the usual mover
   (a live plan moves to the archive, or out to `docs/design-history/`), renaming the other. Both leave every
-  existing citation pointing at nothing, and nothing fails when they do — the pointer is prose.
-  Five such breaks were repaired at once on 2026-08-20, all from one archive move each: three in
-  `CONTEXT.md`, one in each of ADR 0002 and 0003, one in a `docs/future-work.md` row. The ADR
-  cases are the reason this is a rule rather than tidiness: an ADR's `Status:` line cites the plan
-  the decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
+  leave every existing citation pointing at nothing, and nothing fails when they do — the pointer
+  is prose. An ADR is why this is a rule rather than tidiness: its `Status:` line cites the plan the
+  decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
   evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
 - **A COMMITTED FILE MAY ONLY CITE A COMMITTED PLAN.** Live plans and most archived ones are
   gitignored, so a pointer into `.claude/plans/` from anything tracked is unreadable to every reader
@@ -123,10 +135,9 @@ reason the exemption is this narrow, and why it is not a general licence for tes
   tracker exists to be the visible surface over hidden detail homes, which is the opposite case.
 - **`docs/design-history/` IS EXEMPT FROM THAT GREP, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
   files name the paths that were live when they were written; a record saying "was
-  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING. Four such paths went from
-  invisible to grep-visible the moment the first ten files were committed on 2026-08-20, which is
-  the predicted failure of publishing a record: the tidying reflex reads history as staleness.
-  Repointing them would delete what they exist to say. Leave them.
+  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING. Publishing a record makes
+  its dead paths grep-visible all at once, and the tidying reflex reads history as staleness.
+  Repointing them deletes what they exist to say. Leave them.
 
 ## Spec lifecycle
 
@@ -137,9 +148,8 @@ where the decided spec becomes public — `.scratch/` is gitignored and nothing 
 Bugs stay GitHub Issues; `docs/agents/issue-tracker.md` owns the split, the ticket conventions, and
 why a `.scratch/` directory is not the retired root `SPEC.md` returning.
 
-**Spec issues CLOSED before 2026-08-20 stay where they are** (#55, #80, #104 and their siblings).
-They are records of how something came to be, which is what the rest of this section says a closed
-spec is — migrating them would rewrite that record, not preserve it.
+**A spec issue closed before the tracker changed stays on GitHub.** It is already the record of how
+something came to be — migrating it would rewrite that record, not preserve it.
 
 **The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
 `SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
