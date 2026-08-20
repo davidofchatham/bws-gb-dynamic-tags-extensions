@@ -32,17 +32,15 @@ content, never grammar.
 
 ## Where this is enforced, and what the enforcement does not cover
 
-`bws_fold_grammar_validate()` in `includes/helpers/slot-fold.php` machine-checks the separator
-classes on every run of the grammar harness: classes disjoint within a position, no class containing
-a bracket char, no class accepting a member of the reserved set, each canonical separator present in
-its own accept class. `assets/js/slot-fold-grammar.js` is its twin, checked against it by
+`bws_fold_grammar_validate()` in `includes/helpers/slot-fold.php` machine-checks the separator classes
+on every run of the grammar harness; **its own PHPDoc states what it decides and how far it
+generalizes.** `assets/js/slot-fold-grammar.js` is its twin, checked against it by
 `slot-fold-twin-test.php` rather than assumed to agree.
 
-The check enforces this ADR only as far as the reserved LIST is maintained. It compares accept
-classes against `BWS_FOLD_RESERVED`; it cannot know that a char absent from both the reserved list and
-every allocated role has no business being accepted. **Adding a char to an accept class therefore
-means first deciding whether the grammar allocates it** — that judgement is this ADR's, and no test
-makes it for you.
+**What it cannot cover is THIS ADR's axis.** It compares accept classes against `BWS_FOLD_RESERVED`;
+it cannot know that a char absent from both the reserved list and every allocated role has no business
+being accepted. **Adding a char to an accept class therefore means first deciding whether the grammar
+allocates it** — that judgement is this ADR's, and no test makes it for you.
 
 ## Considered and rejected
 
