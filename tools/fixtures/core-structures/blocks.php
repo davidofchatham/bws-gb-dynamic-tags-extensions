@@ -308,6 +308,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'R7.10', '{{try_image as:url|src:site}}' ),
 	) );
 
+	// src:site matrix — R8 datetime try_ site slots (FW-84). The two datetime_
+	// templates were the last families without a site slot; FW-4 wired five and
+	// left these out. Their keys are TAG-LEVEL, not per-slot, so the fallthrough
+	// rows vary only the SOURCE and read one key from whichever store the winning
+	// slot names. The property under test is byte-parity with the base tag.
+	$sections[] = bws_fixture_gb_section( 'Site R8 - datetime try_ site slots', array(
+		bws_fixture_gb_row( 'R8.1 (expect September 20, 2030 6:00 PM)', '{{try_datetime_single src:site|key:org_party_datetime}}' ),
+		bws_fixture_gb_row( 'R8.2 (expect January 15, 2020 - custom format over the ACF return format)', '{{try_datetime_single src:site|key:organization_founded|format:F j, Y}}' ),
+		bws_fixture_gb_row( 'R8.3 (expect September 20 9:00 am-September 22, 2030 5:00 pm - site range pair, times included)', '{{try_datetime_range src:site|startKey:org_conference_start|endKey:org_conference_end}}' ),
+		bws_fixture_gb_row( 'R8.4 (expect the date LINKED to the home URL - site sentinel wrap)', '{{try_datetime_single src:site|key:org_party_datetime|linkTo:key|linkKey:home}}' ),
+		bws_fixture_gb_row( 'R8.5 (expect September 20, 2030 6:00 PM - slot A misses on this page, site slot wins)', '{{try_datetime_single key:org_party_datetime|2-src:site}}' ),
+		bws_fixture_gb_row( 'R8.6 (expect August 12, 2030 9:00 AM - slot A hits, site slot never reached)', '{{try_datetime_single key:event_datetime|2-src:site}}' ),
+		bws_fixture_gb_row( 'R8.7 (expect September 20 9:00 am-September 22, 2030 5:00 pm - range falls through to the site slot)', '{{try_datetime_range startKey:org_conference_start|endKey:org_conference_end|2-src:site}}' ),
+	) );
+
 	// FW-52 serialization-order editor rows (fw52-order-test-matrix.md). These are
 	// EDITOR-EYEBALL fixtures: the point is to OPEN each block in the GB editor and
 	// read the reordered tag string (as-front, source contiguous, N- slots grouped),

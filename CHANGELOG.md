@@ -10,6 +10,8 @@
 
 - **The Migration Tool no longer lists image tags that have nothing to convert.** Every `{{image}}`, `{{term_image}}` and `{{try_image}}` tag was reported as needing the image size conversion, whether or not it still carried the old separate size setting that conversion exists to fold in. Running the tool left those tags untouched, so the next scan listed the same posts again and the list could never be cleared. Only a tag that still holds an old size setting is listed now. Present since 1.16.0.
 
+- **Date and Date Range tags now accept a site source per slot, which 1.15.0 said every Try tag did.** `{{try_datetime_single}}` and `{{try_datetime_range}}` were left out when the other five Try tag families got their site slots, so Site never appeared in their slot source lists. A date can now read the current post first and an options page second. The field key is set once on the tag rather than per slot, so a site slot reads that same key from the site store.
+
 ## [1.17.0] — 2026-08-19
 
 ### Highlights

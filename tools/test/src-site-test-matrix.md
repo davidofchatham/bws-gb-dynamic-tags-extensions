@@ -148,6 +148,37 @@ editor-only (open any R7 block, check the slot src dropdowns).
 | R7.11 | Editor: `try_title`/`try_permalink`/`try_text`/`try_content`/`try_image` slot src dropdowns | "Site" offered in every slot (1 and 2+) |
 | R7.12 | `{{try_email src:site\|key:[SUB org_email]}}` re-run (R6.1 form via try_) | unchanged — mailto self-wrap, no site-sentinel wrap (fallback leg byte-identical) |
 
+## R8 — `src:site` slots on the two `datetime_` try_ tags (FW-84)
+
+`datetime_single` and `datetime_range` were the last families without a site slot: FW-4 wired five
+`try_site_fn` closures and left these two out with no reason recorded. They now carry their own
+closures, which pass the `'option'` object-id to `bws_datetime_single_core` / `bws_datetime_range_core`
+— the same DT-1 fork the BASE tag's site branch takes — rather than closing over
+`bws_site_resolve_value()`, which is tag-dispatched and has no datetime arm.
+
+**Datetime field keys are TAG-LEVEL, not per-slot** (the per-slot fold is deferred — FW-81). So a
+fallthrough row varies only the SOURCE, and the winning slot reads the one tag-level key from
+whichever store it names. `2-key:` does not exist here and rows that spell it render empty.
+
+**The property under test is byte-parity with the base tag**, single-result site output wrapping with
+the `('site', 1)` sentinel exactly as `{{datetime_single src:site}}` does.
+
+Visible rows: `matrix-post-meta` page, section "Site R8 - datetime try_ site slots" (R8.1–R8.7).
+`org_conference_start` / `org_conference_end` are seeded by `core-structures` for R8.3/R8.7 — the two
+pre-existing site date keys are a founding date and a party datetime, which pair into a nonsense
+ten-year span.
+
+| # | Tag | Expected |
+|---|---|---|
+| R8.1 | `{{try_datetime_single src:site\|key:org_party_datetime}}` | `September 20, 2030 6:00 PM` |
+| R8.2 | `{{try_datetime_single src:site\|key:organization_founded\|format:F j, Y}}` | `January 15, 2020` (custom format over the ACF return format) |
+| R8.3 | `{{try_datetime_range src:site\|startKey:org_conference_start\|endKey:org_conference_end}}` | `September 20 9:00 am–September 22, 2030 5:00 pm` (same-month collapse; the seeded pair carries times, so the range prints them) |
+| R8.4 | `{{try_datetime_single src:site\|key:org_party_datetime\|linkTo:key\|linkKey:home}}` | the date linked to the home URL (site sentinel wrap) |
+| R8.5 | `{{try_datetime_single key:org_party_datetime\|2-src:site}}` | `September 20, 2030 6:00 PM` — slot 1 misses on this page, the site slot wins on the SAME tag-level key |
+| R8.6 | `{{try_datetime_single key:event_datetime\|2-src:site}}` | `August 12, 2030 9:00 AM` — slot 1 hits, the site slot is never reached |
+| R8.7 | `{{try_datetime_range startKey:org_conference_start\|endKey:org_conference_end\|2-src:site}}` | `September 20 9:00 am–September 22, 2030 5:00 pm` — range falls through to the site slot |
+| R8.8 | Editor: `try_datetime_single` / `try_datetime_range` slot src dropdowns | "Site" offered in every slot (1 and 2+). **Editor-only** — open any R8 block |
+
 ## Fail triage
 
 - **Empty where a value is expected:** is the key in the GB-parity seed, or a registered ACF options-page field? (`tools/debug/bws-site-datetime-probe.php` logs allowlist parity for a given key.)

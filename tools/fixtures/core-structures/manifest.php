@@ -465,6 +465,8 @@ return array(
 		'organization_address'       => "123 Fixture Lane\nChatham, NC 27517",
 		'organization_founded'       => '20200115',
 		'org_party_datetime'         => '2030-09-20 18:00:00', // datetime D5 src:site
+		'org_conference_start'       => '2030-09-20 09:00:00', // R8 site datetime_range pair
+		'org_conference_end'         => '2030-09-22 17:00:00', // R8 site datetime_range pair
 
 		'organization_social'        => array( 'facebook' => 'https://facebook.example.test/org' ),
 	),

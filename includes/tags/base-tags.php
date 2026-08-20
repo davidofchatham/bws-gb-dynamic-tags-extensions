@@ -583,6 +583,20 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_term_datetime_single_core( $term_id, $mapped, $inst );
 		},
+		// src:site — the `'option'` object-id (DT-1), same fork the BASE tag's site
+		// branch takes: bws_read_field's allowlist-gated get_field($key,'option')
+		// does the value read and bws_build_single_format recovers the field's
+		// return format. NOT a closure over bws_site_resolve_value() — that helper
+		// is tag-dispatched and has no datetime arm, and giving it one would duplicate
+		// the format + ordered-key handling the core already owns. Returns RAW: the
+		// registry's site arm carries the `('site', 1)` sentinel link identity.
+		'try_site_fn'  => static function ( $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts )
+				: $opts;
+			return bws_datetime_single_core( 'option', $mapped, $inst );
+		},
+		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
 	) );
@@ -621,6 +635,15 @@ function bws_register_base_tags(): void {
 				: $opts;
 			return bws_term_datetime_range_core( $term_id, $mapped, $inst );
 		},
+		// src:site — see the datetime_single note above; the range pair rides the same
+		// `'option'` fork, with bws_build_range_format recovering the return formats.
+		'try_site_fn'  => static function ( $opts, $inst ) {
+			$mapped = function_exists( 'bws_normalize_datetime_options' )
+				? bws_normalize_datetime_options( $opts, true )
+				: $opts;
+			return bws_datetime_range_core( 'option', $mapped, $inst );
+		},
+		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
 	) );
