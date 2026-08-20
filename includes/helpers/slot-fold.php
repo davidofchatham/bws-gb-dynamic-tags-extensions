@@ -4,8 +4,8 @@
  *
  * One option key per slot (`{{join A:…|B:…}}`), whose VALUE carries the slot's
  * whole configuration: an ordered source CHAIN, the field READ, and any per-slot
- * options. Grammar (APPROVED 2026-07-31, `.claude/plans/src-chain-encoding.md`
- * §WIRE SPEC):
+ * options. Grammar APPROVED 2026-07-31; ADR 0006 owns which chars may enter an
+ * accept class at all:
  *
  *   slot value := token ( ';' token )*
  *   token      := name '(' value ')'  |  bare-name          (bracket-kv, no `=`)
@@ -32,7 +32,9 @@
  *   re-canonicalizes on the next control commit. `+` and `/` are RESERVED — NOT
  *   leniently accepted, because a lenient class SPENDS the char: binding it to
  *   `step` now would silently change what already-saved wires mean if it is ever
- *   given a job. They are ordinary CONTENT inside a value.
+ *   given a job. They are ordinary CONTENT inside a value. Before widening any
+ *   accept class, read ADR 0006 — the rule is that the char must already be
+ *   allocated, and `bws_fold_grammar_validate()` cannot check that for you.
  * - **Reserved/grammar chars are INERT inside values.** `+ / ; , ( )` in an
  *   author's `format`/`fallback`/`label` text are content, never grammar — shipped
  *   defaults already contain them (`Date/time TBA`, `F j, Y g:i A`).

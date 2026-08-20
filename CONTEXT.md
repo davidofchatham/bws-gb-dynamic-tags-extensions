@@ -186,7 +186,7 @@ A multislot tag's slots are stored either in the **folded** form (one option key
 
 The same rule is why the two migration paths are complementary rather than redundant: the converter reaches stored `post_content` a scanner can walk, and tag-modal mount reaches everything it cannot. Neither is a fallback for the other, and both must write the same tag the same way.
 
-Spans: the render seam, both previews, both migrators, the editor control, and their JS twins — four files in two languages, which is why it is here and not in one PHPDoc. Enforced at: `bws_fold_slot_struct()` PHPDoc (slot-fold.php). Schema: [`tag-reference.md` §Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers). Rationale + build record: `.claude/plans/src-chain-encoding.md`. Related: [I6] (a slot resolves as the same tag standalone), [I11].
+Spans: the render seam, both previews, both migrators, the editor control, and their JS twins — four files in two languages, which is why it is here and not in one PHPDoc. Enforced at: `bws_fold_slot_struct()` PHPDoc (slot-fold.php). Schema: [`tag-reference.md` §Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers). Rationale + build record: `docs/design-history/src-chain-encoding.md`. Related: [I6] (a slot resolves as the same tag standalone), [I11].
 
 ---
 

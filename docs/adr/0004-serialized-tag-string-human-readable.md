@@ -1,6 +1,6 @@
 # Serialized tag strings are human-readable and author-hand-editable
 
-**Status:** accepted (2026-07-28; surfaced during the FW-56 src-chain encoding grill, `.claude/plans/src-chain-encoding.md`).
+**Status:** accepted (2026-07-28; surfaced during the FW-56 src-chain encoding grill, `docs/design-history/src-chain-encoding.md`).
 
 The serialized tag string (`{{tag src:… | key:… | …}}`) is a **source of truth the author reads and
 may hand-edit directly**, not a control-private encoding. Every option-value grammar we design must

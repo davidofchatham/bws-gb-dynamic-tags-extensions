@@ -201,7 +201,7 @@ they belong here — but note the unusual status column: **the slot keys are mig
 (the `post_content` converter and the tag-modal mount), while the base-tag chain spelling resolves
 without being migrated at all**, because nothing authors it yet. See
 [`tag-reference.md` §Folded slot wire](tag-reference.md#folded-slot-wire-multislot-containers) for the
-grammar and `.claude/plans/src-chain-encoding.md` for the decisions.
+grammar and `docs/design-history/src-chain-encoding.md` for the decisions.
 
 | Current name | Proposed name | Scope | Status | Notes |
 |---|---|---|---|---|

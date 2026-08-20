@@ -295,4 +295,3 @@ has nothing to add beyond what it says here.
 | Tag / source / option / default renamed | All four: `tag-reference.md` (current state), `deprecated-tags-options.md` (rename row), CHANGELOG, any code references | — |
 | `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance) | `limit-default-test-matrix.md` | [rules](docs/update-triggers.md#limit-default--list-slice-change) |
 | Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files under §Spec lifecycle | — |
-| ⏳ **TEMPORARY — delete this row when `.claude/plans/src-chain-encoding.md` archives** | *see detail* | [rules](docs/update-triggers.md#temporary--plan-file-settled-precedence) |
