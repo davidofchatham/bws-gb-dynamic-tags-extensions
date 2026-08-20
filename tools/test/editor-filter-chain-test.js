@@ -647,6 +647,79 @@ check(
 		.map( f => f.ns + '@' + f.priority ).join( ', ' )
 );
 
+// ── takes_first_usable suppresses the Limit results control (ADR 0007) ──────
+//
+// ONE renderer serves both surfaces — the base tag's chain control and every folded
+// slot render steps through bwsSlotFoldRepeater.chainSteps — so the suppression is
+// asserted once, against the shared component, on both values of the capability.
+// The PHP half (which tags carry the flag on which surface) is control-order-test.php
+// §8; this half is that the flag, once on the config, actually removes the control.
+console.log( '\ntakes_first_usable — Limit results suppression (ADR 0007)\n' );
+
+const repeaterX = global.window.bwsSlotFoldRepeater;
+
+/** Depth-first: does the element tree contain a control labelled `label`? */
+function treeHasLabel( nodes, label ) {
+	return ( Array.isArray( nodes ) ? nodes : [ nodes ] ).some( function walk( n ) {
+		if ( ! n || 'object' !== typeof n ) {
+			return false;
+		}
+		if ( n.props && n.props.label === label ) {
+			return true;
+		}
+		const kids = ( n.children || [] ).concat( n.props && n.props.children ? [ n.props.children ] : [] );
+		return kids.some( function ( k ) {
+			return Array.isArray( k ) ? k.some( walk ) : walk( k );
+		} );
+	} );
+}
+
+const LIMIT_LABEL = 'Limit results';
+function stepsConf( extra ) {
+	return Object.assign( {
+		steps: {
+			refs:  { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
+			terms: { label: 'In Taxonomy Term', arg: 'slug', produces: 'term' }
+		},
+		roots: { site: 'site' },
+		retiredSrc: [],
+		offer: [ 'refs', 'terms' ],
+		taxonomies: [ { value: '', label: 'Select…' }, { value: 'category', label: 'Categories' } ],
+		refOption: { label: 'Field' },
+		defaultRoot: 'current',
+		srcRows: [ { value: 'current', label: 'Current' }, { value: 'refs', label: 'Ref' }, { value: 'terms', label: 'Terms' } ],
+		limitOption: { label: LIMIT_LABEL, placeholder: '0 (all)', help: 'Maximum number of results. Leave blank for all.', helpFanning: 'per input' }
+	}, extra || {} );
+}
+
+function renderSteps( conf ) {
+	return repeaterX.chainSteps( {
+		conf: conf,
+		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'terms', 'category', 2 ) ],
+		onChange: function () {},
+		inheritOnEmpty: false,
+		slotNoun: 'tag',
+		stepContext: function () {
+			return { state: {}, setState: function () {} };
+		}
+	} );
+}
+
+check(
+	'a non-collapsing config renders the Limit results control on a fanning step',
+	treeHasLabel( renderSteps( stepsConf() ), LIMIT_LABEL )
+);
+check(
+	'takesFirstUsable on the SAME config suppresses it — an explicit conditional, not a vocabulary omission',
+	! treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), LIMIT_LABEL )
+);
+// Everything else about the step survives suppression: the taxonomy picker is the
+// nearest sibling and must not go with it.
+check(
+	'the step\'s other controls survive the suppression',
+	treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), 'Taxonomy' )
+);
+
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );

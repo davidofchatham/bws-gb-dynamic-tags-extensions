@@ -58,6 +58,10 @@ function bws_register_base_tags(): void {
 	// Base tags author their source as a CHAIN (FW-56): a root plus ordered fanning
 	// steps. The derived families keep the plain select — see bws_build_src_chain_option().
 	$source_opt     = bws_build_src_chain_option();
+	// The SAME chain control with the collapsing capability set (ADR 0007) — one extra
+	// build call shared by content/permalink/image, so the editor suppresses the
+	// per-step Limit results control on exactly the tags whose render ignores it.
+	$source_opt_fu  = bws_build_src_chain_option( array( 'takes_first_usable' => true ) );
 	$traversal_opts = bws_base_traversal_options();
 	$text_field     = bws_get_text_field_options();
 
@@ -145,7 +149,7 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
+			$source_opt_fu,
 			$traversal_opts,
 			array(
 				'use'      => array(
@@ -224,7 +228,7 @@ function bws_register_base_tags(): void {
 		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
 		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
+			$source_opt_fu,
 			$traversal_opts
 		) ),
 		'return'   => 'bws_base_permalink_callback',
@@ -252,7 +256,7 @@ function bws_register_base_tags(): void {
 		// `as` serialization opt-out means it is always present). Its `size` argument
 		// rides inside the `as` value (as+size fold) — no separate size option.
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
+			$source_opt_fu,
 			$traversal_opts,
 			array(
 				'use'      => array(

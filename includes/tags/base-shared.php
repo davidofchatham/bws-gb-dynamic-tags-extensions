@@ -276,6 +276,9 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *                             arm consumes a meta_row, so offering it would author a
  *                             chain that renders nothing. It belongs with the table
  *                             authoring pass.
+ *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
+ *                             the step renderer suppresses the Limit results control
+ *                             where it is set. Default false.
  * }
  * @return array Single-entry array keyed 'src'.
  */
@@ -345,6 +348,10 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// pair is what the retired arms used to dispatch on.
 		'flatAxes'    => array( 'ref', 'srcTermIn' ),
 	);
+	// takes_first_usable (ADR 0007) — set only when true; see the slot builder's twin.
+	if ( ! empty( $args['takes_first_usable'] ) ) {
+		$source_opt['src']['fold']['takesFirstUsable'] = true;
+	}
 	// The wire's own vocabulary — steps / roots / retiredSrc, identical in every
 	// container because all three describe the wire rather than the container.
 	$source_opt['src']['fold'] = array_merge(
@@ -635,6 +642,11 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *                                   two registered strings for one unit drift apart.
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
+ *     @type bool   $takes_first_usable The base template's collapsing capability (ADR
+ *                                   0007), threaded per slot so the editor's one step
+ *                                   renderer suppresses the Limit results control and
+ *                                   the field note drops its several-results clause.
+ *                                   Default false.
  * }
  * @return array Option definitions keyed by SLOT ORDINAL — `A`..`bws_slot_ordinal($max)`.
  *               The key IS the wire spelling (`B:`), so nothing downstream translates.
@@ -776,6 +788,12 @@ function bws_build_fold_slot_options( array $args ): array {
 	}
 	if ( ! empty( $args['scope_state_key'] ) ) {
 		$fold['scopeStateKey'] = (string) $args['scope_state_key'];
+	}
+	// takes_first_usable (ADR 0007) — SET ONLY WHEN TRUE, so every non-collapsing
+	// container's fold config stays byte-identical to before the capability existed.
+	// One source: the template record; this is a wire to the editor, not a decision.
+	if ( ! empty( $args['takes_first_usable'] ) ) {
+		$fold['takesFirstUsable'] = true;
 	}
 
 	$options = array();

@@ -120,6 +120,19 @@ count, because the compiler drops it. The predicate is `bws_fold_chain_fanning_s
 one the migrator stamps by and the render seam defaults by — reached in the editor through its
 shipped JS twin, never re-derived from the index.
 
+**Limit results is SUPPRESSED on a collapsing tag** — `content` / `permalink` / `image` and their
+`try_` slots, the templates whose `takes_first_usable` capability makes the render ignore every
+step limit ([tag-reference.md §Collapsing tags](tag-reference.md#collapsing-tags-first-usable-result)).
+Suppressed, not reworded: rewording asks the author to read an explanation of why a visible control
+does nothing. The mechanism is an **explicit conditional in the shared step renderer** reading
+`takesFirstUsable` off the fold config (threaded from the template record through
+`bws_build_src_chain_option()` / `bws_build_fold_slot_options()`), never an omitted `limitOption`
+vocabulary — an absent config still renders an unlabelled text box, and an explicit conditional
+means a template gaining or losing the capability moves the control with no second list to
+remember. Stored wire is untouched: a saved `limit(N)` survives the round-trip and applies again if
+the tag type changes. Pinned by `control-order-test.php` §8 (which surfaces carry the flag) and
+`editor-filter-chain-test.js` (that the flag removes the control).
+
 The Limit results control carried a draft label of **Limit per source** for most of 1.17.0's
 development and was corrected before release
 ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)) — it sat three
@@ -163,6 +176,14 @@ control renders what it is given.
 
 The **consequence clause**, emphasised, is: *The first stored entry will be the only result while
 this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.*
+
+**On a collapsing tag the clause is dropped and the rest of the note stands.** Its prediction —
+all entries becoming results — is false on a tag that renders one result, while the multi-value
+fact above it stays true and useful. The envelope is tag-blind (no tag identity reaches the REST
+route), so PHP MARKS the segment (`consequence => true` beside `emph`) and the note renderer drops
+marked segments where the fold config carries `takesFirstUsable`. The note says nothing about
+collapsing itself — that is a fact about the CHAIN, carried by the group-end fanning advisory, not
+by a note attached to a field.
 
 Everything else is silent, and **silence is information**: the presence of a note means there is
 something to know.

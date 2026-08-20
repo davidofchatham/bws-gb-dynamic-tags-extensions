@@ -613,6 +613,11 @@ class TagTemplateRegistry {
 						// position — same split, same owner, as the trailing-option strip
 						// below and the converter migrator.
 						'tag_level'       => self::try_slot_axes( $tpl )['tag_level'],
+						// The base template's collapsing capability, threaded per slot
+						// (ADR 0007): the one step renderer then suppresses the Limit
+						// results control on try_content/try_permalink/try_image slots
+						// exactly as on their base tags.
+						'takes_first_usable' => ! empty( $tpl['takes_first_usable'] ),
 						// "attempt" nouns ONE RUNG of the fallback chain, which is what a
 						// try_ slot is (src-chain-encoding.md §5.1a, user 2026-08-01).
 						// One noun, both surfaces: "+ Add attempt" and the header

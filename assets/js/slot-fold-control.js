@@ -306,10 +306,18 @@
 	 * that have any today. Position is carried by the structure, so a second emphasised
 	 * fragment, or one mid-note, needs no shape change here or in PHP.
 	 */
-	function noteNode( segments ) {
+	function noteNode( segments, dropConsequence ) {
 		var kids = [];
 		( segments || [] ).forEach( function ( seg, i ) {
 			if ( ! seg || ! seg.text ) {
+				return;
+			}
+			// On a collapsing tag (takesFirstUsable) the note keeps its multi-value
+			// FACT and loses its CONSEQUENCE clause — the segment PHP marks
+			// `consequence` — because "all entries will be results" is false on a tag
+			// that renders one. The note says nothing about collapsing itself: that is
+			// the chain's axis, not a field's (the group-end advisory carries it).
+			if ( dropConsequence && seg.consequence ) {
 				return;
 			}
 			if ( kids.length ) {
@@ -796,7 +804,7 @@
 					// only when there is none. A field with nothing noteworthy (and an
 					// `entries` step's repeater field, which has no such settings at all)
 					// yields null, so the presence of a note carries information.
-					var note = noteNode( fieldNote( stepObj.arg ) );
+					var note = noteNode( fieldNote( stepObj.arg ), !! conf.takesFirstUsable );
 					if ( note ) {
 						stepKids.push( note );
 					}
@@ -845,7 +853,18 @@
 			// (bws_fold_chain_fanning_steps) — deriving it from the step INDEX here
 			// would be a second rule, and it would be wrong on a chain whose earlier
 			// steps are single-valued.
-			if ( known ) {
+			//
+			// SUPPRESSED, not reworded, on a collapsing tag (takesFirstUsable — the
+			// template capability on the fold config, ADR 0007): its render ignores
+			// every step limit, so there is nothing for the control to bound, and a
+			// visible control that does nothing asks the author to read an explanation
+			// instead. An EXPLICIT conditional rather than an omitted limitOption
+			// vocabulary: an absent config still RENDERS (an unlabelled text box), so
+			// omission is not a suppression mechanism — and a template gaining or
+			// losing the capability moves the control with no second list to remember.
+			// Stored wire is untouched either way; a saved limit(N) survives the
+			// round-trip (the grammar preserves tokens the panel does not show).
+			if ( known && ! conf.takesFirstUsable ) {
 				var limitCfg = conf.limitOption || {};
 				var upstreamFans = fold.chainFanningSteps( chain ).some( function ( j ) {
 					return j < i;
