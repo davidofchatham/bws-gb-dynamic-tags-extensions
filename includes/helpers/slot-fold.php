@@ -1615,17 +1615,27 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		$resolved[] = $own_step;
 	}
 
-	// ── limit: the LAST step that pins one, else the slot-level token ───────
+	// ── limit: the LAST STEP's own, else the slot-level token ───────────────
 	//
 	// This is the slot's ITEM bound, which the container slices by; the per-step limits
-	// ride the emitted wire and bound the ENGINE's hops. Read off the slot's OWN steps,
-	// never the resolved chain: an inherited step's bound belongs to the slot that stated
-	// it, and re-reading it here would restate an earlier slot's number as this one's.
-	$limit = null;
-	foreach ( $steps as $step ) {
-		if ( null !== ( $step['limit'] ?? null ) && '' !== $step['limit'] ) {
-			$limit = (string) $step['limit'];
-		}
+	// ride the emitted wire and bound the ENGINE's hops. A LIMIT APPLIES TO THE STEP IT
+	// IS STATED ON (ADR 0005's own sentence, one level down; ADR 0007) — so only the
+	// FINAL step's number can be the item bound, because the final step's outputs ARE
+	// the rendered items. The selection this replaced kept the last step that PINNED
+	// one, which let a number written on `terms` go on governing output after the
+	// author appended an unbounded `refs` — a number stated in one place silently
+	// acting on another. An earlier step's limit still bounds its own step, in the
+	// engine, exactly as its position says. (Consequence, correct and not a
+	// regression: a bound whose step is no longer last stops governing rendered items
+	// and goes back to bounding how far its own step spreads.)
+	//
+	// Read off the slot's OWN steps, never the resolved chain: an inherited step's
+	// bound belongs to the slot that stated it, and re-reading it here would restate
+	// an earlier slot's number as this one's.
+	$limit     = null;
+	$last_step = end( $steps );
+	if ( is_array( $last_step ) && null !== ( $last_step['limit'] ?? null ) && '' !== $last_step['limit'] ) {
+		$limit = (string) $last_step['limit'];
 	}
 	if ( null === $limit && isset( $slot['opts']['limit'] ) && '' !== $slot['opts']['limit'] ) {
 		$limit = (string) $slot['opts']['limit'];
