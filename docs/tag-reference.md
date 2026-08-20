@@ -263,6 +263,10 @@ Selected templates support outputting multiple results as a delimited list. When
 
 `limit` bounds the **resolved-source list**, once, before the read — the last step's output. It never bounds values: the read is one value per resolved source with empties dropped afterwards, so `limit:3` can print two.
 
+**`usable`** — what a limit is decided to COUNT ([ADR 0007](adr/0007-a-limit-counts-usable-results.md)): a candidate that survives to output. In this release that means **a non-empty read**; it tightens to **visible and non-empty** when the visibility gate ships ([`CONTEXT.md` §Language](../CONTEXT.md#language) owns `resolvable`/`visible`), so regression rows written against today's meaning are known to need revising. The paragraph above still describes what LIST-MODE tags ship today — the two statements disagree on purpose while the code migrates, and [`CONTEXT.md` I19](../CONTEXT.md#i19--a-limit-bounds-usable-results) is the invariant the code is moving toward. The collapsing tags are already there — see [§Collapsing tags](#collapsing-tags-first-usable-result).
+
+_Avoid_: `usable` in USER-FACING copy (help text, labels, notices, README). The author-facing word is **results**, which both limit controls already use — and the shipped 1.17.0 Upgrade Notice already uses "unusable" in a different, resolution-level sense ("unusable sources output nothing"). The two senses never meet on one surface only for as long as this one stays model vocabulary.
+
 **`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Three call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), and try_ slot dispatch (`class-tag-template-registry.php`). `bws_try_join_items` takes an already-resolved int — it holds no options, so it structurally cannot know which default applies. The rule, as of 1.17.0:
 
 | Value | Effective limit |

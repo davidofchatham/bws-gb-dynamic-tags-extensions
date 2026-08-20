@@ -268,6 +268,14 @@ A source's opt-in to the chain-**root** enum (`is_selectable_root()`, #83) gover
 
 Enforced at: `bws_registered_root_rows()` PHPDoc (`includes/tags/base-shared.php` — the one-appender rule) + `bws_factory_registry_source()` PHPDoc (`includes/helpers/traversal-pipeline.php` — the unconditional resolve). Pinned BY MUTATION: gating `bws_factory_registry_source()` on `is_selectable_root()` fails `tools/test/traversal-pipeline-test.php`'s registry-delegation section by name. Tests: `tools/test/slot-options-build-test.php` (registration output — which rows each enum contains), `tools/test/traversal-pipeline-test.php` (resolution, unaffected by offering), `tools/test/registered-roots-test-matrix.md` §FR1/§FR2/§FR5. Related: [I14] (a chain's root), [I15] (an unidentifiable `src` refuses, one of `bws_factory_registry_source()`'s three declines).
 
+## I19 — A limit bounds USABLE results
+
+A `limit` — a step's, or the tag-level key — bounds **usable** results: candidates that survive to output. It counts what will be output, never candidates examined, so a candidate filtered out on the way — not [visible](#language), or an empty read — never spent budget. `usable` and the limit schema it governs are owned at [`tag-reference.md` §List mode](docs/tag-reference.md#list-mode-limit--sep); [resolvable] and [visible] are §Language's.
+
+**This invariant DISAGREES with the shipped schema doc, on purpose, until the remaining slices land.** `tag-reference.md` §List mode still states the shipped order for list-mode tags ("`limit` bounds the resolved-source list, once, before the read … so `limit:3` can print two") because that is what those tags still DO. That is the "Reading posture" at the top of this file working, not drift: the code is the refactor candidate and this invariant points where the fix goes. The collapsing tags (`content` / `permalink` / `image`) are already there — they ignore every limit and output the first usable result ([tag-reference.md §Collapsing tags](docs/tag-reference.md#collapsing-tags-first-usable-result)); the list-mode fold, and the tightening of "usable" from *non-empty read* to *visible and non-empty*, are the outstanding halves.
+
+Decision record: [ADR 0007](docs/adr/0007-a-limit-counts-usable-results.md) — what a limit COUNTS, companion to [ADR 0005](docs/adr/0005-limits-are-stated-where-the-source-is-stated.md), which owns WHERE a limit is stated.
+
 ---
 
 ## Tag structural vocabulary
@@ -318,6 +326,12 @@ Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`t
 
 **Resolved source**:
 L1's output executing a target — the **bound *where*** a read happens, key not yet applied. post/term carry an id (meta-read needs one); **site** carries the `wp_options` namespace; future ones (#19 date/search, possible external Site-Views option-set source) carry their own payload. id is a post/term implementation detail, not universal. **Payload may legitimately vary by read mechanism within one kind:** site-datetime reads via ACF `get_field(key,'option')`, site-text via plain `get_option` — same `site` kind, different L2b read path. Frame-B variable payload (ADR 0002). **Distinguish legitimate payload-variance from a contradiction-to-refactor:** today datetime overloads the *post_id parameter slot* by passing the literal string `'option'` through it (datetime-tags.php:1005) — that param-overload is a contradiction of this model (a resolved-source payload smuggled through an id arg), REFACTORABLE, not canonical. Likewise `ref` collapsing to one target (`bws_extract_post_id`) contradicts the fanning-source model → fix the code, don't model around it.
+
+**Resolvable / visible** (properties of a resolved source — two of the three levels a candidate passes on its way to output; the third, *a non-empty read*, deliberately gets no noun because the phrase is already precise):
+- **resolvable** — L1 emitted a bound: the source layer produced a `ResolvedSource` for it. Says nothing about what the bound names — a relationship field holding the id of a deleted post is resolvable; the bound exists, it names nothing.
+- **visible** — the bound names a live entity **the current viewer may read**. VIEWER-RELATIVE, deliberately, not a fixed status allowlist: the same author previewing their own draft must resolve it, which only works if the test is relative to who is asking. Defined ahead of its enforcement — the gate ships in a later slice ([ADR 0007](docs/adr/0007-a-limit-counts-usable-results.md) names the plan); the term lands now so [I19] is readable.
+
+What a LIMIT counts against these levels is `usable`, which is a property of the limit schema, not of a source — defined once beside that schema ([tag-reference.md §List mode](docs/tag-reference.md#list-mode-limit--sep)), never here.
 
 **Resolved field**:
 L2a's output — **WHICH field to read**, determined by (resolved-source TYPE × implicit/explicit key options). Author-perspective: the field worked out before the fetch. Where the **analog** lives — `use:default` on a term resolves the field to "term name"; **I2 Model-B `use`-dispatch operates here** (use × source-type → field/analog). _Avoid_: confusing with field value (the datum).
