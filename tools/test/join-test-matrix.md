@@ -133,7 +133,7 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 >
 > **Coverage gap:** no fixture exercises the GP Element path (the one that actually skips
 > texturize) — a page fixture cannot reach it. That arm is verified by live observation on
-> `hargrave.test` (a schedule Element) plus the hook-registration check, not by a matrix row.
+> `<site>.test` (a schedule Element) plus the hook-registration check, not by a matrix row.
 > Closing it needs an Element fixture, which the blueprint does not currently seed.
 
 | # | Tag | Expected |

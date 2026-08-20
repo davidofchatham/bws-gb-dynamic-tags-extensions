@@ -44,7 +44,7 @@
  * Usage (paths are CONTAINER paths):
  *   wp eval-file /plugins/bws-gb-dynamic-tags-extensions/tools/harvest-replay/replay-tags.php \
  *       <census.jsonl> <out.jsonl> <context_kind> [<volatility:0|1>] \
- *       --url=https://portals.test/some-post/
+ *       --url=https://<site>.test/some-post/
  *
  * CORPUS IDENTITY. The run header also records a content digest of the census, because the
  * census is overwritten in place by a re-harvest — in the same directory the artifacts sit
@@ -244,7 +244,7 @@ if ( '' !== $url ) {
 
 	// AN UNSTABLE SORT IS NOT A RENDER DIFFERENCE, and it is invisible to the volatility check:
 	// that renders twice inside ONE process, where the query result is already fixed. Across two
-	// processes it is not. Real case on hargrave — eight event posts sharing one identical
+	// processes it is not. Real case on Site H — eight event posts sharing one identical
 	// post_date, so `ORDER BY post_date DESC` is a total tie and MySQL may return any of them
 	// first. The archive's first row changed between the A run and the C run, and five GB CORE
 	// tags (post_title, post_permalink, post_excerpt) faithfully reported a different post.
@@ -337,9 +337,9 @@ sort( $tags, SORT_STRING );
 // `bin/harvest-tags.sh` overwrites that census in place. So a re-harvest silently orphans
 // every artifact already sitting beside it: the files still parse, still diff, and still
 // report a verdict, but against a corpus that no longer exists. Cost real evidence on
-// 2026-08-17 — Experiment R's portals pair was rendered against the 08-14 census, which
+// 2026-08-17 — Experiment R's Site P pair was rendered against the 08-14 census, which
 // #112's census step then overwrote, leaving two artifacts that can never be re-diffed with
-// census classification again (`fixtures/harvest/portals-B/_superseded/`).
+// census classification again (`fixtures/harvest/<site>-B/_superseded/`).
 //
 // A CONTENT hash, unlike the stat-only source digest above: the census is one small file
 // read once per invocation, and an overwrite that happens to preserve size and mtime is

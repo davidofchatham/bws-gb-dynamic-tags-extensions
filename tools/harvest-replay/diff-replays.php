@@ -248,7 +248,7 @@ if ( $a_version === $b_version ) {
 //   1. The two sides rendered different corpora. They are not comparable at all.
 //   2. The sides agree with each other but not with the census passed here, so every
 //      attested/synthetic classification below is being read off the wrong corpus.
-// Live case for (2) on 2026-08-17: Experiment R's portals pair outlived its census by four
+// Live case for (2) on 2026-08-17: Experiment R's Site P pair outlived its census by four
 // hours and would still have produced a confident, wrongly-bucketed verdict.
 $a_census = $field_of( $a, 'census_digest' );
 $b_census = $field_of( $b, 'census_digest' );

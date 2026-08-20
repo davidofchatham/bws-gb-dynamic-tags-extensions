@@ -140,13 +140,13 @@ WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_coun
 // pre-migration content survives in generateblocks_patterns_tree postmeta (#98). ajax_migrate
 // repairs that after the batch. Without the same call here, the B-side census reports shadow wire
 // the real migration route would have removed — which reads exactly like the bug the repair fixed,
-// and did on portals on 2026-08-18, four days after that repair shipped.
+// and did on Site P on 2026-08-18, four days after that repair shipped.
 //
 // THE REPAIR IS NOT SEPARABLE FROM THE UPGRADE, AND AN M RUN MUST EXPECT ITS EFFECT. It also runs
 // from `bws_dynamic_tags_rebuild_allowlist_on_upgrade`, which fires on the first request after the
 // version moves — BEFORE this script gets to say anything. The repair REMOVES stale shadow wire, so
 // the B-side census loses rows the A side rendered, and each one lands in the diff as a pair
-// present on only one side. Measured on hargrave 2026-08-18: one wp_block whose post_content
+// present on only one side. Measured on Site H 2026-08-18: one wp_block whose post_content
 // already held modern datetime_range wire kept two PRE-1.6 strings in its cached tree, from a
 // migration predating the clone; `bws_dynamic_tags_pattern_cache_status` named the upgrade trigger
 // and one reconciled entry. A skip flag was built for this and DELETED — it isolated nothing,
