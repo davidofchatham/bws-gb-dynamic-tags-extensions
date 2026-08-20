@@ -104,6 +104,14 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 - README may paraphrase technical detail for end-user framing — must not contradict `tag-reference.md`.
 - MEMORY.md entries pointing at `docs/` are one-liners only.
 - When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
+- **MOVING A PLAN REPOINTS WHAT CITES IT, IN THE SAME EDIT.** Archiving is the usual mover
+  (`.claude/plans/x.md` → `.claude/plans/archive/x.md`), renaming the other. Both leave every
+  existing citation pointing at nothing, and nothing fails when they do — the pointer is prose.
+  Five such breaks were repaired at once on 2026-08-20, all from one archive move each: three in
+  `CONTEXT.md`, one in each of ADR 0002 and 0003, one in a `docs/future-work.md` row. The ADR
+  cases are the reason this is a rule rather than tidiness: an ADR's `Status:` line cites the plan
+  the decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
+  evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
 
 ## Spec lifecycle
 
