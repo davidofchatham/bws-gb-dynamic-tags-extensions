@@ -5,6 +5,9 @@
 > §Spec lifecycle owns that rule). Cite it for PROVENANCE — what a decision was hardened against,
 > what a build actually did — never as a statement of how the code works now. For current state:
 > `docs/tag-reference.md`, `CONTEXT.md`, or the PHPDoc at the enforcing site.
+>
+> **SITE-A / SITE-B are pseudonyms** for the two real client clones this record was measured
+> against, substituted before publication. The measurements are unchanged; only the names are.
 
 **Archived 2026-08-19 with the 1.17.0 release.** Shipped as [#101](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/101)
 and the issues under it: a slot's SOURCE *is* a base tag's source ([I16]), the seam emits chain
@@ -424,8 +427,8 @@ Per clone, and the order is load-bearing:
 ### Instruments
 
 `bin/pull.sh` / `bin/snapshot.sh` / `bin/dev-plugin.sh` in the env repo already do the clone
-lifecycle; `sites.conf` has both live sites (**SITE-B** / SITE-B, **SITE-A** /
-SITE-A, both `readonly`). `dev-plugin.sh`'s header already analyses M's exact hazard: a newer
+lifecycle; `sites.conf` has both live sites (**SITE-B** and **SITE-A**, both
+`readonly`). `dev-plugin.sh`'s header already analyses M's exact hazard: a newer
 build migrates the cloned DB on the next page load, not on activation, so the snapshot must precede
 the FILE SWAP.
 

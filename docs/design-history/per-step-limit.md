@@ -5,6 +5,9 @@
 > §Spec lifecycle owns that rule). Cite it for PROVENANCE — what a decision was hardened against,
 > what a build actually did — never as a statement of how the code works now. For current state:
 > `docs/tag-reference.md`, `CONTEXT.md`, or the PHPDoc at the enforcing site.
+>
+> **SITE-A / SITE-B are pseudonyms** for the two real client clones this record was measured
+> against, substituted before publication. The measurements are unchanged; only the names are.
 
 **Archived 2026-08-19** (CLAUDE.md §Spec lifecycle post-ship migration, `.claude/plans/release-1.17.0-queue.md`
 B6). Shipped as [#55](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/55) and its
