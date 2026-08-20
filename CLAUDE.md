@@ -109,9 +109,16 @@ exactly when someone asks why a rule is here. This file has been exempting itsel
 states one level up (§Spec lifecycle: the CHANGELOG carries the delta, the commit body the cause).
 An instance that IS a rule's boundary is not an example, and stays.
 
-**Ceiling: 260 lines / 34 KB.** Over it, the next edit TRIMS BEFORE IT ADDS — regrowth is invisible
-without a number, and cheap to reverse only while it is small. Evidence too big for a commit body
-goes to `docs/design-history/`, which is exempt from tidying by construction.
+**NO SIZE CEILING, DELIBERATELY.** Most of this file is INDEX — ownership rows and trigger rows — and
+an index grows with the repo by design: new owner doc, new row. A byte target points a trimmer at that
+majority, where deleting a row removes no obligation, only its discoverability. Two clauses instead of
+a number:
+
+- **Never delete an ownership row whose doc still owns something, or a trigger row whose trigger still
+  exists.** The safe operation is to move a row's DETAIL into the doc it links and leave the row short.
+- **Only the PROSE has a budget, because only the prose accretes.** Watch it with
+  `git log --stat -- CLAUDE.md`; nothing authorizes a cut on size alone. Evidence too big for a commit
+  body goes to `docs/design-history/`, exempt from tidying by construction.
 
 ### Cross-link rules
 
