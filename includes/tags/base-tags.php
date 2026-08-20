@@ -62,6 +62,18 @@ function bws_register_base_tags(): void {
 	// build call shared by content/permalink/image, so the editor suppresses the
 	// per-step Limit results control on exactly the tags whose render ignores it.
 	$source_opt_fu  = bws_build_src_chain_option( array( 'takes_first_usable' => true ) );
+	// Group-end FANNING ADVISORY for the collapsing tags (ADR 0007 pass two). One line
+	// at the end of the source group, shown only when the chain actually fans — the
+	// editor control (src-chain-control.js) owns the conditional; the COPY lives here.
+	// The field configuration note cannot carry this fact: it is attached to a FIELD,
+	// while fanning is the CHAIN's property (a terms step has no field key at all).
+	// `srcFanNote` holds no value and is never serialized; the control only displays.
+	$fan_advisory = array(
+		'srcFanNote' => array(
+			'type' => 'bws-fanning-advisory',
+			'help' => __( 'This source can match more than one item. This tag shows the first one that has a value.', 'generateblocks' ),
+		),
+	);
 	$traversal_opts = bws_base_traversal_options();
 	$text_field     = bws_get_text_field_options();
 
@@ -151,6 +163,7 @@ function bws_register_base_tags(): void {
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
+			$fan_advisory,
 			array(
 				'use'      => array(
 					'type'           => 'select',
@@ -229,7 +242,8 @@ function bws_register_base_tags(): void {
 		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
-			$traversal_opts
+			$traversal_opts,
+			$fan_advisory
 		) ),
 		'return'   => 'bws_base_permalink_callback',
 	) );
@@ -258,6 +272,7 @@ function bws_register_base_tags(): void {
 		'options'  => bws_prepare_registration_options( array_merge(
 			$source_opt_fu,
 			$traversal_opts,
+			$fan_advisory,
 			array(
 				'use'      => array(
 					'type'           => 'select',

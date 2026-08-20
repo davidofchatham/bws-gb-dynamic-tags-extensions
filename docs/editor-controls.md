@@ -143,6 +143,31 @@ rename**: nothing shipped under it, no CHANGELOG entry describes it, and it has 
 stand that long was the absence of this table. The option key did not move and no stored wire was
 rewritten.
 
+#### Group-end fanning advisory
+
+On the three collapsing tags (`content` / `permalink` / `image` — the `takes_first_usable`
+templates), one display-only line closes the source group whenever the tag's chain actually fans:
+
+> *This source can match more than one item. This tag shows the first one that has a value.*
+
+It exists because the field configuration note structurally cannot carry this fact: a note is
+attached to a FIELD, while fanning is a property of the CHAIN — a `terms` step has no field key for
+a note to attach to, and a chain can fan with no multi-value field involved. One advisory at the
+group's end covers both holes and the ordinary case alike, once per chain rather than once per
+step. The wording states what the author observes and deliberately does not name the rule that
+decides fanning — that axis is owned at the predicate (`bws_fold_chain_fanning_steps()`), reached
+here through its grammar twin, the same one the Limit results help forms and the migrator's stamp
+use.
+
+Mechanics: option `srcFanNote`, type `bws-fanning-advisory`, registered at the end of the source
+group with a row in `bws_option_visual_groups()` (an ungrouped control spliced between grouped ones
+splits the box). The copy arrives on the option definition (`help`) — the control hand-authors no
+vocabulary. The control writes nothing, the option is never serialized, and the filter returns
+`null` on a non-fanning chain (the conditional-options pattern) so the group wrapper — which boxes
+any non-null element — never draws an empty member. Pinned by `editor-filter-chain-test.js`
+(conditional both ways, once-per-chain, composition with the group wrapper) and
+`control-order-test.php` §1 (contiguity).
+
 #### Field configuration note
 
 Between the Relationship Field Key control and Limit results, a selected field can carry a **field

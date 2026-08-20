@@ -720,6 +720,62 @@ check(
 	treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), 'Taxonomy' )
 );
 
+// ── The group-end fanning advisory (bws-fanning-advisory, ADR 0007 pass two) ──
+//
+// The advisory COMPOSES with the other per-tag controls rather than assuming an
+// order: its filter replaces the option's element (key preserved) and nulls it on a
+// non-fanning chain, so the group wrapper behind it boxes a real advisory and skips
+// an absent one — an element that merely RENDERED null would still leave an empty
+// member extending the source box.
+console.log( '\ngroup-end fanning advisory (ADR 0007 pass two)\n' );
+
+const advisoryFilter = filters.filter( f => 'bws/fanning-advisory' === f.ns )[ 0 ];
+check( 'the advisory filter is registered', !! advisoryFilter );
+check(
+	'…ahead of the group wrapper, so its null is respected',
+	!! advisoryFilter && !! groupReg && advisoryFilter.priority < groupReg.priority,
+	advisoryFilter && advisoryFilter.priority
+);
+
+const ADV_OPTS = {
+	srcFanNote: { type: 'bws-fanning-advisory', help: 'more than one item', _group: 'source' }
+};
+function advise( state ) {
+	return applyFilters( { key: 'srcFanNote', type: 'control' }, ADV_OPTS, { state: state, setState: function () {} } );
+}
+
+check( 'a NON-fanning chain shows nothing — no element, no empty group member', null === advise( {} ) );
+check( 'a bare root shows nothing', null === advise( { src: 'current' } ) );
+// The condition is that the CHAIN fans — not that a field is multi-value, and with no
+// field key involved anywhere on the terms shape.
+const advFan = advise( { src: 'refs,office' } );
+check( 'a fanning chain shows the advisory, boxed into the source group', isMemberBox( advFan ), JSON.stringify( advFan && advFan.type ) );
+check( 'a taxonomy-step chain shows it too (no field key involved)', isMemberBox( advise( { src: 'terms,category' } ) ) );
+check( 'legacy flat wire counts as its chain (src:ref + ref)', isMemberBox( advise( { src: 'ref', ref: 'office' } ) ) );
+// An argless fanning step fans only by inheritance and resolves nothing here.
+check( 'an ARGLESS fanning step does not trigger it', null === advise( { src: 'refs' } ) );
+
+// The advisory renders ONCE per chain, however many steps fan.
+const advTree = advise( { src: 'refs,office;terms,region' } );
+function countAdvisories( n ) {
+	if ( ! n || 'object' !== typeof n ) {
+		return 0;
+	}
+	let c = /bws-fanning-advisory/.test( String( ( n.props && n.props.className ) || '' ) ) ? 1 : 0;
+	const kids = ( n.children || [] ).concat( ( n.props && n.props.children ) ? [ n.props.children ] : [] );
+	kids.forEach( function ( k ) {
+		( Array.isArray( k ) ? k : [ k ] ).forEach( function ( kk ) {
+			c += countAdvisories( kk );
+		} );
+	} );
+	// The advisory component itself defers rendering; resolve it for the walk.
+	if ( 'function' === typeof n.type ) {
+		c += countAdvisories( n.type( n.props ) );
+	}
+	return c;
+}
+check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdvisories( advTree ), String( countAdvisories( advTree ) ) );
+
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );
