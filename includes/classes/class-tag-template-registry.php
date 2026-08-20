@@ -705,12 +705,16 @@ class TagTemplateRegistry {
 			// Their default-on anchor would corrupt the <img src>. Mirrors the base
 			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
 			$media_guard = ! empty( $tpl['try_media_block_guard'] );
+			// takes_first_usable, inherited from the base template — no separate arm
+			// (ADR 0007). Captured into the closure the way is_image is; consumed at
+			// the slot bound and the id reads below.
+			$collapse    = ! empty( $tpl['takes_first_usable'] );
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -822,6 +826,14 @@ class TagTemplateRegistry {
 					$slot_max           = bws_clamp_limit( $slot_read['limit'] ?? $opts['limit'] ?? null, $limit_default );
 					$slot_opts['limit'] = (string) $slot_max;
 
+					// A collapsing template's attempt wants ONE result, whatever any
+					// limit says — pinned, tag-level or inherited alike (ADR 0007,
+					// same rule as its base tag). The stored wire keeps its number.
+					if ( $collapse ) {
+						$slot_max           = 1;
+						$slot_opts['limit'] = '1';
+					}
+
 					// ── ARM DISPATCH (FW-71, retires the FW-5 fork) ────────────────
 					// FOUR hand-written arms stood here, each testing the flat source
 					// token directly (`'' !== $stm_raw`, `'site' === $last_src`,
@@ -922,7 +934,8 @@ class TagTemplateRegistry {
 					}
 					switch ( $arm['ids'] ) {
 						case 'term':
-							$ids = bws_base_term_ids_from_source( $base, $slot_opts );
+							// $collapse = the whole fan, step limits stripped (ADR 0007).
+							$ids = bws_base_term_ids_from_source( $base, $slot_opts, $collapse );
 							break;
 						case 'user':
 							// WITHOUT this case `user` took `default:` — post ids — and read
@@ -933,7 +946,7 @@ class TagTemplateRegistry {
 							$ids = [ 0 ];   // the site store carries a namespace, not an id (ADR 0002).
 							break;
 						default:
-							$ids = bws_base_post_ids_from_source( $base, $slot_opts );
+							$ids = bws_base_post_ids_from_source( $base, $slot_opts, $collapse );
 					}
 
 					// Mode 2b — the flat repeater row. It has NO kind: the factory resolves
