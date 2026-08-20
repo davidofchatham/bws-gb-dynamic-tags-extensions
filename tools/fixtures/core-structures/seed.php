@@ -139,6 +139,7 @@ $field_keys = array(
 		'phone'      => 'field_bwsfx_phone',
 		'email'      => 'field_bwsfx_department_email',
 		'event_date' => 'field_bwsfx_dept_event_date',
+		'charter'    => 'field_bwsfx_charter',   // v12 first-usable corpus (§F15).
 	),
 );
 

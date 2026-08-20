@@ -951,6 +951,27 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F13.3 legacy twin of F13.2 (-> same output; that agreement IS the property)', '{{try_phone src:ref|ref:related_staff|key:main_line|2-key:main_line|limit:2}}' ),
 	) );
 
+	// F15/F16 — the first-usable slice (ADR 0007, slice A). Rows:
+	// tools/test/fold-test-matrix.md §F15/§F16. Post-route rows here; the term-route
+	// rows live in the term-hop builder (they need the department terms as fixture).
+	// Needs blueprint v12 (feature_image on Tom alone — Jane deliberately has none).
+	$sections[] = bws_fixture_gb_section( 'Fold F15 - collapsing tags take the first USABLE result (ADR 0007)', array(
+		bws_fixture_gb_row( 'F15.3 POST route first-usable: Jane has no honorific, Tom does (-> Dr.; was EMPTY - first source read once)', '{{content src:refs,related_staff|use:key|key:name_honorific}}' ),
+		bws_fixture_gb_row( 'F15.4 the headline case - the picture from whichever related post has one (-> fixture photo URL; was EMPTY)', '{{image src:refs,related_staff|use:key|key:feature_image|as:url,full}}' ),
+		bws_fixture_gb_row( 'F15.5 first target HAS a value - unchanged, the fix widens the search, never reorders it (-> Jane)', '{{content src:refs,related_staff|use:key|key:name_first}}' ),
+		bws_fixture_gb_row( 'F15.2 an INTERMEDIATE limit is ignored too: past Jane (no reports_to) to Tom, whose reports_to is Jane (-> Jane staff URL; was EMPTY)', '{{permalink src:refs,related_staff,limit(1);refs,reports_to}}' ),
+		bws_fixture_gb_row( 'F15.6 try_ inherits from the base template, no separate arm (-> Dr.)', '{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}' ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'Fold F16 - the site branch is taken by RESOLVED KIND (email/phone)', array(
+		bws_fixture_gb_row( 'F16.1 flat spelling - the previously-working one, must not move (-> site email, decoded info@example.test)', '{{email src:site|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F16.2 DECORATED root-only site chain - the compare-miss shape that read the AMBIENT entity before (-> same as F16.1 decoded)', '{{email src:site,limit(2)|key:organization_email}}' ),
+		bws_fixture_gb_row( 'F16.3 flat spelling (-> (987) 555-0000)', '{{phone src:site|key:org_phone}}' ),
+		bws_fixture_gb_row( 'F16.4 decorated twin (-> same as F16.3)', '{{phone src:site,limit(2)|key:org_phone}}' ),
+		bws_fixture_gb_row( 'F16.5 an attempt whose source cannot resolve is SKIPPED - B renders, and WHICH attempt won is the assertion (-> site email)', '{{try_email A:src(fixture_scoped);key(contact_email)|B:src(site);key(organization_email)}}' ),
+		bws_fixture_gb_row( 'F16.6 the decorated site SLOT takes the site arm read - the [I15] wrong-entity leak, closed (-> site phone)', '{{try_phone A:src(site,limit[2]);key(org_phone)}}' ),
+	) );
+
 	// {{table}} structured-output (1.17.0, feat/table-tag). team_members repeater
 	// on this page (name/description/role, 2 rows: Alice/Bob) → a <table>. Hosted
 	// in a DIV (block-host row), NOT a <p> — {{table}} emits whole-table HTML.
@@ -1088,6 +1109,19 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'D4.3', '{{datetime_single srcTermIn:department|key:event_date|limit:5|sep: / }}' ),
 		bws_fixture_gb_row( 'D4.4', '{{datetime_single srcTermIn:department|key:event_date|limit:5|fallback:Dates TBA}}' ),
 		bws_fixture_gb_row( 'D4.5', '{{datetime_range srcTermIn:department|startKey:event_date|limit:5|sep:; }}' ),
+	) )
+	// F15 TERM route — the first-usable slice (ADR 0007). Rows:
+	// tools/test/fold-test-matrix.md §F15. Expectations stated for
+	// /matrix-terms-mixed/ (Sales, Support, Warehouse alphabetically; only
+	// Warehouse carries `charter`, blueprint v12) — on the valid page the walk has
+	// no Warehouse term and the rows read EMPTY, which the split labels survive.
+	. "
+
+" . bws_fixture_gb_section( 'Fold F15 - collapsing TERM route: first USABLE result (ADR 0007; expectations on /matrix-terms-mixed/)', array(
+		bws_fixture_gb_empty_row( 'F15.1 the 1.17.0 stamped limit(1) is IGNORED - two empty terms searched past (-> mixed: Warehouse charter...; was EMPTY; valid page: EMPTY, no warehouse term)', '{{content src:terms,department,limit(1)|use:key|key:charter}}' ),
+		bws_fixture_gb_empty_row( 'F15.1b a limit the author TYPED is ignored on the same terms - one rule (-> same as F15.1)', '{{content src:terms,department,limit(2)|use:key|key:charter}}' ),
+		bws_fixture_gb_empty_row( 'F15.1c the unlimited twin - F15.1/.1b must equal THIS row, not merely be non-empty', '{{content src:terms,department|use:key|key:charter}}' ),
+		bws_fixture_gb_empty_row( 'F15.7 DISCLOSURE, not a defect: list-mode {{text}} still slices before it reads - NOT fixed this release (-> EMPTY everywhere)', '{{text src:terms,department,limit(1)|use:key|key:charter}}' ),
 	) );
 }
 

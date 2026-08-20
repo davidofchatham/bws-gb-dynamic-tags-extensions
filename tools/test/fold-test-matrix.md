@@ -739,6 +739,51 @@ rows are the fastest way in) and check each.
 |  |  | **`bio` IS ON NO FIXTURE, and it no longer has to be — but do not "improve" these keys without reading why they are here.** These five rows were written while a base tag with an unresolvable source did NOT render nothing, and the preview is built ONLY where resolution came back empty — so a row keyed on a field the page HAS would have rendered a plausible wrong value and shown no preview at all. Every row therefore names a field nothing carries. Since [#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112) closed both leaks the constraint is gone and a real key would work, but the keys are LEFT AS THEY ARE: a `bio`-keyed row is empty for two independent reasons now, so it stays green under a regression in either, and the rows that would catch one are §F11a's, keyed on fields the page carries and stating each pre-fix answer. Rendered output cannot distinguish a skip from an empty read; these rows' evidence is the bracket string, and only the editor shows it. **VERIFIED, user 2026-08-17** — all five bracket strings read in the editor exactly as stated above. (Also swept with `render-tag`, all five resolving empty, and curled back on `/matrix-post-meta/` after a reseed — but neither of those can see a preview.) |
 ---
 
+## §F15 — collapsing tags take the first USABLE result (ADR 0007, slice A)
+
+**Needs blueprint v12** (`charter` term field on Warehouse ALONE; `feature_image` on Tom alone —
+Jane, the first `related_staff` target, deliberately has none). "Usable" here means a non-empty
+read; it TIGHTENS to visible-and-non-empty when the visibility slice lands, so these rows are
+known to need revising then ([`tag-reference.md` §List mode](../../docs/tag-reference.md#list-mode-limit--sep)).
+
+Term-route rows run on **`/matrix-terms-mixed/`** (terms resolve alphabetically: Sales, Support,
+Warehouse — only Warehouse carries `charter`, so the walk meets TWO empty reads first). Post-route
+rows on `/matrix-post-meta/`. Every row measured 2026-08-20 against this build.
+
+| # | Context | Tag | Expect | Why |
+|---|---|---|---|---|
+| F15.1 | terms-mixed | `{{content src:terms,department,limit(1)\|use:key\|key:charter}}` | `Warehouse charter: same-day dispatch for stocked items.` | The 1.17.0 stamped `limit(1)` is IGNORED — the shape that renders NOTHING on the previous build |
+| F15.1b | terms-mixed | `{{content src:terms,department,limit(2)\|use:key\|key:charter}}` | same as F15.1 | A limit the author typed is ignored on the same terms — one rule, not "ignored unless you meant it" |
+| F15.1c | terms-mixed | `{{content src:terms,department\|use:key\|key:charter}}` | same as F15.1 | The unlimited twin — F15.1/.1b equal THIS row, not merely non-empty |
+| F15.2 | post-meta | `{{permalink src:refs,related_staff,limit(1);refs,reports_to}}` | `https://testbed.test/staff/jane-partner/` | An INTERMEDIATE limit is ignored too: Jane (first, no `reports_to`) searched past to Tom, whose `reports_to` is Jane — EMPTY on the previous build |
+| F15.3 | post-meta | `{{content src:refs,related_staff\|use:key\|key:name_honorific}}` | `Dr.` | POST route first-usable (ticket 04): Jane has no honorific, Tom does — EMPTY on the previous build, which read the first source once |
+| F15.4 | post-meta | `{{image src:refs,related_staff\|use:key\|key:feature_image\|as:url,full}}` | the fixture-photo URL | The headline case: the picture appears from whichever related post has one — EMPTY on the previous build |
+| F15.5 | post-meta | `{{content src:refs,related_staff\|use:key\|key:name_first}}` | `Jane` | First target HAS a value → unchanged; the fix widens the search, never reorders it |
+| F15.6 | post-meta | `{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}` | `Dr.` | `try_` inherits from the base template — no separate arm |
+| F15.7 | terms-mixed | `{{text src:terms,department,limit(1)\|use:key\|key:charter}}` | **EMPTY** | DISCLOSURE, not a defect: list-mode tags are NOT fixed by this release — `{{text}}` still slices before it reads (slice C) |
+
+Editor-eyeball (open a collapsing tag on any page): no **Limit results** field on any step of
+`{{content}}` / `{{permalink}}` / `{{image}}` or their `try_` slots; present unchanged on
+`{{text}}` etc.; the group-end advisory appears once when the chain fans and not otherwise; the
+field configuration note on a collapsing tag keeps its multi-value sentence and drops "all entries
+will be results…".
+
+## §F16 — the site branch is taken by RESOLVED KIND (email/phone)
+
+Both spellings of one source take the same branch (`try-slot-arms-test.php` §A6/§A7 is the pure
+pin; these are the render proof). `/matrix-post-meta/`; site options: `organization_email`
+`info@example.test`, `org_phone` `(987) 555-0000`. Measured 2026-08-20. Compare email rows DECODED
+(`antispambot` randomizes entity encoding per render).
+
+| # | Tag | Expect | Why |
+|---|---|---|---|
+| F16.1 | `{{email src:site\|key:organization_email}}` | mailto `info@example.test` | Flat spelling — the previously-working one, must not move |
+| F16.2 | `{{email src:site,limit(2)\|key:organization_email}}` | same as F16.1, decoded | DECORATED root-only site chain — the compare-miss shape that read the AMBIENT entity on the previous build |
+| F16.3 | `{{phone src:site\|key:org_phone}}` | tel `+1-987-555-0000` / `(987) 555-0000` | Flat spelling, unchanged |
+| F16.4 | `{{phone src:site,limit(2)\|key:org_phone}}` | same as F16.3 | Decorated twin |
+| F16.5 | `{{try_email A:src(fixture_scoped);key(contact_email)\|B:src(site);key(organization_email)}}` | B's site email | An attempt whose source cannot resolve (scope-bound root off its page) is SKIPPED — the NEXT attempt renders, and the assertion is WHICH attempt won, not that output is non-empty |
+| F16.6 | `{{try_phone A:src(site,limit[2]);key(org_phone)}}` | site phone, as F16.3 | The decorated site slot takes the site arm's read — the [I15] wrong-entity leak this section pins closed |
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

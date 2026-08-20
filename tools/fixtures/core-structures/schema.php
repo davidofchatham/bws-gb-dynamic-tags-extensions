@@ -634,6 +634,10 @@ function bws_fixture_core_structures_register_acf() {
 				// content matrix CT4 / fold F9a.4 — the term-hop {{content use:key}}
 				// read. Sparse on warehouse so the first-non-empty walk is visible.
 				$text( 'blurb', 'Department Blurb' ),
+				// First-usable matrix (§F15) — seeded ONLY on warehouse, the LAST
+				// department term alphabetically, so a three-term walk meets two
+				// empty reads before the value. The collapsing-tag headline shape.
+				$text( 'charter', 'Department Charter' ),
 				array(
 					// datetime matrix D4 — srcTermIn list rows (valid on support/sales,
 					// junk on warehouse per the manifest).
