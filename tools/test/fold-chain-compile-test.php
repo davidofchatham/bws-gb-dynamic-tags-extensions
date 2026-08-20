@@ -560,7 +560,7 @@ assert_same(
 		$reader
 	)
 );
-// The limit is PER-INPUT, not whole-output (#72; .claude/plans/archive/per-step-limit.md
+// The limit is PER-INPUT, not whole-output (#72; docs/design-history/per-step-limit.md
 // §Per-input, not whole-output): at most N produced sources from EACH incoming source. This case
 // distinguishes the two semantics — whole-output would return [11] and discard
 // post 2's read entirely.

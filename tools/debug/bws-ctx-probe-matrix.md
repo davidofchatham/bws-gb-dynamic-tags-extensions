@@ -1,7 +1,7 @@
 # Context probe — visit matrix (fail-fast order)
 
 Companion to `bws-ctx-probe.php`. Feeds the source factory design
-(`.claude/plans/archive/traversal-pipeline.md` §Base Resolution) and the #19 context
+(`docs/design-history/traversal-pipeline.md` §Base Resolution) and the #19 context
 taxonomy (`.claude/plans/context-aware-base-tags.md` §Context Taxonomy).
 
 **Ordering principle: highest architectural risk first.** Each row lists the

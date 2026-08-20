@@ -65,7 +65,7 @@ about a context-kind stratum the sample never drew.
 ## Design history
 
 The original design writeup — including the dated build/debug history and the specific incidents
-that shaped the tripwires above — lives in `.claude/plans/archive/multi-step-slot-sources.md`
+that shaped the tripwires above — lives in `docs/design-history/multi-step-slot-sources.md`
 §Verification. That plan is an archived, frozen record of how this instrument came to be, not a
 live doc; this README plus each file's own header are the current, authoritative description of
 how it works and how to use it.

@@ -88,7 +88,7 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  * "Singular vs fanning sources") — this engine remains composition-blind, and
  * `sep` never reaches it.
  *
- * PER-INPUT, not whole-output (`.claude/plans/archive/per-step-limit.md`
+ * PER-INPUT, not whole-output (`docs/design-history/per-step-limit.md`
  * §Per-input, not whole-output; fixed here by #72 after the engine shipped the
  * superseded semantic):
  * `limit(1)` on a terms step after a fanning refs step means one term from EACH

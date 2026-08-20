@@ -1,6 +1,6 @@
 # `{{join}}` threads `limit` per-slot but not the inner list `sep` (v1)
 
-**Status:** accepted (grill 2026-07-17; pre-build, hardening `.claude/plans/archive/combine-text.md`).
+**Status:** accepted (grill 2026-07-17; pre-build, hardening `docs/design-history/combine-text.md`).
 
 > **Update (1.16.0):** the tag-level assembly separator was renamed `sep` → `valueSep` under FW-52
 > (serialization-group correctness — a bare tag-level `sep` scattered into the source group and

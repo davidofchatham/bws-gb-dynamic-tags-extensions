@@ -94,6 +94,7 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.claude/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
+| Rationale of record for a SHIPPED or RETIRED decision ("design history") | `docs/design-history/*.md` | Committed, historical, and **never corrected** — §Spec lifecycle owns that rule; the per-file banner restates it. An archived plan MOVES here the first time a committed file cites it (see §Cross-link rules); the rest stay private under `.claude/plans/archive/`. **Cite one with a provenance verb** — "hardened against", "build record", "the decision that produced" — never "see X for how this works". That phrasing is the whole line between a record and a false current-state source, and it is the only one of these guards a diff can catch. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
@@ -105,13 +106,27 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 - MEMORY.md entries pointing at `docs/` are one-liners only.
 - When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
 - **MOVING A PLAN REPOINTS WHAT CITES IT, IN THE SAME EDIT.** Archiving is the usual mover
-  (`.claude/plans/x.md` → `.claude/plans/archive/x.md`), renaming the other. Both leave every
+  (a live plan moves to the archive, or out to `docs/design-history/`), renaming the other. Both leave every
   existing citation pointing at nothing, and nothing fails when they do — the pointer is prose.
   Five such breaks were repaired at once on 2026-08-20, all from one archive move each: three in
   `CONTEXT.md`, one in each of ADR 0002 and 0003, one in a `docs/future-work.md` row. The ADR
   cases are the reason this is a rule rather than tidiness: an ADR's `Status:` line cites the plan
   the decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
   evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
+- **A COMMITTED FILE MAY ONLY CITE A COMMITTED PLAN.** Live plans and most archived ones are
+  gitignored, so a pointer into `.claude/plans/` from anything tracked is unreadable to every reader
+  but the author — and nothing fails when it breaks. The trigger runs one way: when a committed
+  file first needs to cite a private archived plan, the PLAN MOVES to `docs/design-history/`; the
+  citation is not softened and the plan is not copied. `git grep -o '\.claude/plans/[a-z0-9./-]*\.md'`
+  lists the violations. Two exceptions, both real: a sibling repo's own plan path (`bws-portal-system/...`)
+  is that repo's business, and a `docs/future-work.md` row may point at a private LIVE plan — the
+  tracker exists to be the visible surface over hidden detail homes, which is the opposite case.
+- **`docs/design-history/` IS EXEMPT FROM THAT GREP, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
+  files name the paths that were live when they were written; a record saying "was
+  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING. Four such paths went from
+  invisible to grep-visible the moment the first ten files were committed on 2026-08-20, which is
+  the predicted failure of publishing a record: the tidying reflex reads history as staleness.
+  Repointing them would delete what they exist to say. Leave them.
 
 ## Spec lifecycle
 

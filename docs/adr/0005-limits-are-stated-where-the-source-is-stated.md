@@ -1,6 +1,6 @@
 # Limits are stated where the source is stated
 
-**Status:** accepted (2026-08-06 grill over the built UI, `.claude/plans/archive/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn).
+**Status:** accepted (2026-08-06 grill over the built UI, `docs/design-history/per-step-limit.md` §The grill; regrilled 2026-08-07 after #63's premise was withdrawn).
 
 A tag's source is stated as an ordered chain — a root plus fanning steps — so a bound on how far
 a source spreads is stated on the **step** it bounds. Each fanning step carries its own optional

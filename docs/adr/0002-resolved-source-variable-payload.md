@@ -1,6 +1,6 @@
 # L1 resolves to a variable-payload resolved source, not a typed `{kind, id}` entity
 
-**Status:** accepted (grill 2026-06-12; pre-build, hardening `.claude/plans/archive/try-email-phone-and-slot-derivation.md`).
+**Status:** accepted (grill 2026-06-12; pre-build, hardening `docs/design-history/try-email-phone-and-slot-derivation.md`).
 
 The shared source-resolution pipeline's L1 layer resolves a tag's source options to a **resolved source** — a bound *where* a read happens — whose payload **varies by kind** (and by read mechanism within a kind), rather than a uniform `{kind, id: int}` shape. post/term resolved sources carry an integer id; `site` carries the `wp_options` namespace (or the ACF `'option'` object-id for datetime option-fields); future kinds (#19 date-archive/search/404/home, a possible external Site-Views option-set source) carry their own payload. See CONTEXT.md §Language (resolved source) + §L1/L2/L3.
 
