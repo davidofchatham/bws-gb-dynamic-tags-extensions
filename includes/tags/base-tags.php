@@ -1191,23 +1191,22 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable read.
-		$found = bws_collect_usable(
-			bws_base_term_ids_from_source( $base, $options, true ),
+		$value = bws_base_term_first_usable(
+			$base,
+			$options,
 			static fn( $tid ) => 'key' === $use
 				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
-				: bws_term_description_core( (int) $tid, $opts, $instance ),
-			1
+				: bws_term_description_core( (int) $tid, $opts, $instance )
 		);
-		if ( $found ) {
-			return (string) $found[0];
+		if ( '' !== $value ) {
+			return $value;
 		}
-		$value = '';
 	} else {
 		// The POST route takes the first USABLE read too — same rule as the term
 		// route, same selector, whole compiled chain (not the wrapper's leading ref
 		// run). Its old shape — first resolved source, read once — was the surviving
 		// instance of the single-target collapse CONTEXT.md §Language names a defect.
-		$read_post = static function ( $post_id ) use ( $use, $opts, $instance ) {
+		$value = bws_base_post_first_usable( $base, $options, static function ( $post_id ) use ( $use, $opts, $instance ) {
 			if ( 'excerpt' === $use ) {
 				return bws_post_excerpt_core( $post_id, $opts, $instance );
 			}
@@ -1217,14 +1216,7 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 				return bws_post_content_core( $post_id, $key_opts, $instance );
 			}
 			return bws_post_content_core( $post_id, $opts, $instance );
-		};
-		$ids   = bws_base_post_ids_from_source( $base, $options, true );
-		$found = $ids
-			? bws_collect_usable( $ids, $read_post, 1 )
-			// No post-kind source in the fan: today's single read, falsy id and all —
-			// the cores' own loop-row semantics (mode 2b) must not move.
-			: bws_collect_usable( array( bws_base_post_id_from_source( $base, $options ) ), $read_post, 1 );
-		$value = $found ? (string) $found[0] : '';
+		} );
 	}
 
 	if ( '' !== $value ) {
@@ -1392,22 +1384,20 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
 		// stripped at compile — and output the first usable term URL.
-		$found = bws_collect_usable(
-			bws_base_term_ids_from_source( $base, $options, true ),
-			static fn( $tid ) => bws_term_permalink_core( (int) $tid, $options, $instance ),
-			1
+		return bws_base_term_first_usable(
+			$base,
+			$options,
+			static fn( $tid ) => bws_term_permalink_core( (int) $tid, $options, $instance )
 		);
-		return $found ? (string) $found[0] : '';
 	}
 
 	// POST route: first usable URL off the whole fan — same rule as the term route
-	// (ADR 0007). Empty fan keeps today's single falsy-id read.
-	$read_post = static fn( $post_id ) => bws_post_permalink_core( $post_id, $options, $instance );
-	$ids       = bws_base_post_ids_from_source( $base, $options, true );
-	$found     = $ids
-		? bws_collect_usable( $ids, $read_post, 1 )
-		: bws_collect_usable( array( bws_base_post_id_from_source( $base, $options ) ), $read_post, 1 );
-	return $found ? (string) $found[0] : '';
+	// (ADR 0007). The helper keeps today's single falsy-id read on an empty fan.
+	return bws_base_post_first_usable(
+		$base,
+		$options,
+		static fn( $post_id ) => bws_post_permalink_core( $post_id, $options, $instance )
+	);
 }
 
 /**
@@ -1468,26 +1458,25 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		// stripped at compile — and output the first usable term image. The cores
 		// keep their per-read stated-fallback semantics untouched: a stated fallback
 		// image is a non-empty read, exactly as it was for this loop's predecessor.
-		$found = bws_collect_usable(
-			bws_base_term_ids_from_source( $base, $options, true ),
-			static fn( $tid ) => bws_term_custom_image_core( (int) $tid, $options, $instance ),
-			1
+		$value = bws_base_term_first_usable(
+			$base,
+			$options,
+			static fn( $tid ) => bws_term_custom_image_core( (int) $tid, $options, $instance )
 		);
-		if ( $found ) {
-			return (string) $found[0];
+		if ( '' !== $value ) {
+			return $value;
 		}
-		$value = '';
 	} else {
 		// POST route: first usable image off the whole fan — same rule as the term
-		// route (ADR 0007). Empty fan keeps today's single falsy-id read.
-		$read_post = static fn( $post_id ) => 'featured' === $use
-			? bws_featured_image_core( $post_id, $options, $instance )
-			: bws_custom_image_core( $post_id, $options, $instance );
-		$ids   = bws_base_post_ids_from_source( $base, $options, true );
-		$found = $ids
-			? bws_collect_usable( $ids, $read_post, 1 )
-			: bws_collect_usable( array( bws_base_post_id_from_source( $base, $options ) ), $read_post, 1 );
-		$value = $found ? (string) $found[0] : '';
+		// route (ADR 0007). The helper keeps today's single falsy-id read on an
+		// empty fan.
+		$value = bws_base_post_first_usable(
+			$base,
+			$options,
+			static fn( $post_id ) => 'featured' === $use
+				? bws_featured_image_core( $post_id, $options, $instance )
+				: bws_custom_image_core( $post_id, $options, $instance )
+		);
 	}
 
 	if ( '' !== $value ) {

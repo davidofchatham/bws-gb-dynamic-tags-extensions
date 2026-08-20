@@ -762,6 +762,19 @@ rows on `/matrix-post-meta/`. Every row measured 2026-08-20 against this build.
 | F15.6 | post-meta | `{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}` | `Dr.` | `try_` inherits from the base template — no separate arm |
 | F15.7 | terms-mixed | `{{text src:terms,department,limit(1)\|use:key\|key:charter}}` | **EMPTY** | DISCLOSURE, not a defect: list-mode tags are NOT fixed by this release — `{{text}}` still slices before it reads (slice C) |
 
+**Stated exception (ticket 07 — a slot limit binds its own step):** the probative render shape —
+an earlier step pinning a limit with an unlimited later step whose fan EXCEEDS that pin — has no
+fixture: no seeded relationship target carries more than one term, so old and new selection render
+identically on every expressible row. Pinned purely instead (`slot-fold-test.php` §P13.6c, five
+rows), per this file's exception convention. The common shape (limit on the LAST step) is already
+covered by §F7a/§F7b, re-measured below. **Wire round-trip under suppression (ticket 05)** is pinned
+by the grammar's own emit rows (`slot-fold-test.php` §P9 — `limit` tokens survive parse/emit) plus
+the control's keep-limit-on-slug-change rule; the suppressed control writes nothing by construction.
+
+**Byte-identity spot-run, 2026-08-20 (ticket 04):** ten pre-existing term-route rows re-measured on
+`/matrix-terms-valid/` after the selector rewiring — F7a.1/.2/.3/.5/.7, F7b.7, F7d.1/.2, the
+`{{content}}` blurb walk, and phone R3.2 — all render their stated values unchanged.
+
 Editor-eyeball (open a collapsing tag on any page): no **Limit results** field on any step of
 `{{content}}` / `{{permalink}}` / `{{image}}` or their `try_` slots; present unchanged on
 `{{text}}` etc.; the group-end advisory appears once when the chain fans and not otherwise; the

@@ -1336,6 +1336,43 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
 }
 
 /**
+ * First USABLE post read off a base tag's whole chain (ADR 0007, [I19]).
+ *
+ * The collapsing callbacks' shared POST route: the unbounded fan (every step limit
+ * stripped), selected at n = 1 through bws_collect_usable(). An EMPTY post-kind fan
+ * keeps today's single falsy-id read — the cores' own loop-row semantics (mode 2b)
+ * and every none-usable tail must not move — so the reader always runs at least once,
+ * exactly as the pre-extraction callbacks did.
+ *
+ * @since 1.18.0
+ * @param array    $base    Base resolved source.
+ * @param array    $options Tag options.
+ * @param callable $read    fn( int|false $post_id ): string — one candidate's read.
+ * @return string First usable read, or ''.
+ */
+function bws_base_post_first_usable( array $base, array $options, callable $read ): string {
+	$ids   = bws_base_post_ids_from_source( $base, $options, true );
+	$found = $ids
+		? bws_collect_usable( $ids, $read, 1 )
+		: bws_collect_usable( array( bws_base_post_id_from_source( $base, $options ) ), $read, 1 );
+	return $found ? (string) $found[0] : '';
+}
+
+/**
+ * First USABLE term read off a base tag's whole chain — the term-route twin.
+ *
+ * @since 1.18.0
+ * @param array    $base    Base resolved source.
+ * @param array    $options Tag options.
+ * @param callable $read    fn( int $term_id ): string — one candidate's read.
+ * @return string First usable read, or ''.
+ */
+function bws_base_term_first_usable( array $base, array $options, callable $read ): string {
+	$found = bws_collect_usable( bws_base_term_ids_from_source( $base, $options, true ), $read, 1 );
+	return $found ? (string) $found[0] : '';
+}
+
+/**
  * Whether a base callback should read the AMBIENT TERM instead of a post.
  *
  * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own

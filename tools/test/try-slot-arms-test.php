@@ -308,6 +308,9 @@ require_once __DIR__ . '/../../includes/helpers/serialization-order.php';
 require_once __DIR__ . '/../../includes/helpers/slot-fold.php';
 
 // (Flat `src:site` and a bare chain root are the SAME string — one row covers both.)
+// bws_fold_src_resolution() IS the shipped dispatch: email/phone call it through
+// bws_base_src_resolution(), a documented no-fallback shim (base-shared.php) that
+// returns this function's answer verbatim — so pinning here pins the shipped path.
 foreach ( array(
 	'A6.1 bare token'                 => 'site',
 	'A6.3 decorated root (limit)'     => 'site,limit[2]',
