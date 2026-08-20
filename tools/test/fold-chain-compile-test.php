@@ -680,6 +680,51 @@ assert_same(
 	bws_field_values_assemble_steps( array( 'src' => 'site', 'srcTermIn' => 'department' ) )
 );
 
+echo "\n§C8 \$ignore_limits — the collapsing-tag compile (takes_first_usable, ADR 0007)\n";
+
+// A collapsing tag compiles its chain with EVERY step limit stripped — intermediate
+// and last alike — and is otherwise byte-identical: same steps, same order, same
+// args. Covered on BOTH assemblers, because both are its render paths.
+assert_same(
+	'assemble + ignore_limits: limits stripped at EVERY position, steps otherwise identical',
+	array(
+		array( 'type' => 'refs', 'field' => 'offices' ),
+		array( 'type' => 'terms', 'slug' => 'category' ),
+	),
+	bws_field_values_assemble_steps( array( 'src' => 'refs,offices,limit(1);terms,category,limit(2)' ), true )
+);
+assert_same(
+	'the same wire WITHOUT the flag keeps its limits — one param, no other difference',
+	array(
+		array( 'type' => 'refs', 'field' => 'offices', 'limit' => 1 ),
+		array( 'type' => 'terms', 'slug' => 'category', 'limit' => 2 ),
+	),
+	bws_field_values_assemble_steps( array( 'src' => 'refs,offices,limit(1);terms,category,limit(2)' ) )
+);
+// The migration-stamped shape that regressed in 1.17.0: flat wire converted to
+// `terms,category limit[1]`. Under the flag the stamp compiles away and the tag
+// searches every term again.
+assert_same(
+	'the 1.17.0 stamped limit(1) compiles away under the flag',
+	array( array( 'type' => 'terms', 'slug' => 'category' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'terms,category,limit(1)' ), true )
+);
+assert_same(
+	'wrapper + ignore_limits: the leading ref run sheds its limits too',
+	array(
+		array( 'type' => 'refs', 'field' => 'a' ),
+		array( 'type' => 'refs', 'field' => 'b' ),
+	),
+	bws_wrapper_ref_steps( array( 'src' => 'refs,a,limit(2);refs,b,limit(1)' ), true )
+);
+// A hand-typed limit and a stamped one are ONE rule: both stripped. (The wire itself
+// is untouched — this is a compile-time read, and nothing here re-serializes.)
+assert_same(
+	'legacy flat wire under the flag: same steps as flat wire ever had (flat never carried step limits)',
+	array( array( 'type' => 'refs', 'field' => 'related' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'ref', 'ref' => 'related' ), true )
+);
+
 echo "\n";
 if ( $failures ) {
 	echo "FAILED: {$failures}/{$count}\n";

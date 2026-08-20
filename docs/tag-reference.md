@@ -334,6 +334,36 @@ Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode 
 
 **List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies only when exactly one result renders — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12), and the single-result rule is a join constraint, not a linking one. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
+### Collapsing tags (first-usable result)
+
+`{{content}}`, `{{permalink}}` and `{{image}}` have no list mode — there is nowhere for a second
+result to go. Each declares the **`takes_first_usable`** template capability
+([`class-tag-template-registry.php`](../includes/classes/class-tag-template-registry.php) descriptor
+docblock owns the axis; [ADR 0007](adr/0007-a-limit-counts-usable-results.md) the decision): the tag
+searches every candidate its chain resolves — whether the chain resolves to terms or to posts — and
+outputs the first usable one. `try_content`, `try_permalink` and `try_image` inherit it from their
+base templates, per attempt.
+
+Consequences, each stated once here:
+
+- **Every `limit` on the chain is inert, at every position** — stamped by migration or typed by
+  hand, step-level or the tag-level key. A bound on how many results to show is meaningless where
+  only one can be shown, so the number is ignored rather than narrowing the search. Enforced where
+  the chain compiles to steps (`bws_fold_chain_to_steps()` `$ignore_limits`), so both step
+  assemblers behave identically and neither the engine nor any callback carries a special case.
+- **Stored wire is untouched.** A saved `limit` stays exactly as authored and starts applying again
+  if the tag type changes. The tag-level `limit` read is control-retired, not deprecated
+  ([ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md)) — ignored here, never
+  removed.
+- **The editor offers no Limit results control on these tags** (base chain and `try_` slots both),
+  and the field configuration note stops predicting several results there —
+  [`editor-controls.md` §Chain step controls](editor-controls.md#chain-step-controls).
+- **`{{table}}` declares the capability explicitly false** (its registration in
+  `table-tags.php` says why silence would be wrong there).
+
+Selection runs through `bws_collect_usable()` (field-helpers.php) at n = 1 — the same selector the
+`try_` emit loop donated — so the rule exists once and the next tag that needs it inherits it.
+
 ---
 
 ## Default-enabled logic

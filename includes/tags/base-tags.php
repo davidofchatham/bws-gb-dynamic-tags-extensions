@@ -445,6 +445,7 @@ function bws_register_base_tags(): void {
 		'try_per_slot_use'      => true,
 		'try_use_no_key_values' => array( 'content', 'excerpt' ),
 		'is_image'              => false,
+		'takes_first_usable'    => true,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -476,6 +477,7 @@ function bws_register_base_tags(): void {
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
+		'takes_first_usable' => true,
 	) );
 
 	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
@@ -547,6 +549,7 @@ function bws_register_base_tags(): void {
 		'try_per_slot_use'      => true,
 		'try_use_no_key_values' => array( 'featured' ),
 		'is_image'              => true,
+		'takes_first_usable'    => true,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -1167,8 +1170,9 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
 	if ( 'term' === $res['kind'] ) {
-		// content has no list mode — first non-empty term wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable read.
+		foreach ( bws_base_term_ids_from_source( $base, $options, true ) as $tid ) {
 			$result = 'key' === $use
 				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
 				: bws_term_description_core( (int) $tid, $opts, $instance );
@@ -1352,8 +1356,9 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	}
 
 	if ( 'term' === $res['kind'] ) {
-		// permalink has no list mode — first non-empty term URL wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable term URL.
+		foreach ( bws_base_term_ids_from_source( $base, $options, true ) as $tid ) {
 			$result = bws_term_permalink_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;
@@ -1419,8 +1424,9 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 	if ( 'term' === $res['kind'] ) {
-		// image has no list mode — first non-empty term image wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable term image.
+		foreach ( bws_base_term_ids_from_source( $base, $options, true ) as $tid ) {
 			$result = bws_term_custom_image_core( (int) $tid, $options, $instance );
 			if ( '' !== $result ) {
 				return $result;

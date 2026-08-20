@@ -1219,18 +1219,25 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * Order is document order (the engine appends, never sorts). Only sources of the
  * requested kind contribute; the caller slices to `limit` and joins with `sep`.
  *
+ * `$ignore_limits` is the collapsing-tag read (ADR 0007): a `takes_first_usable`
+ * template searches its whole chain and selects, so its callback asks for the
+ * UNBOUNDED fan and the compile strips every step limit. Every other caller leaves
+ * the default and is byte-identical to before the parameter existed.
+ *
  * @since 1.14.0
  * @since 1.17.0 Compiles the whole chain and takes a $kind; was ref-only steps.
- * @param array  $base    Base resolved source.
- * @param array  $options Tag options.
- * @param string $kind    Resolved-source kind to keep ('post'|'term'|…).
+ * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags).
+ * @param array  $base          Base resolved source.
+ * @param array  $options       Tag options.
+ * @param string $kind          Resolved-source kind to keep ('post'|'term'|…).
+ * @param bool   $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Entity ids in document order (may be empty).
  */
-function bws_base_source_ids_of_kind( array $base, array $options, string $kind ): array {
+function bws_base_source_ids_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
 	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 		return array();
 	}
-	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
+	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
 	$ids     = array();
 	foreach ( $sources as $src ) {
 		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
@@ -1251,12 +1258,14 @@ function bws_base_source_ids_of_kind( array $base, array $options, string $kind 
  * (bws_run_traversal keeps all, §V6) — not just the first.
  *
  * @since 1.14.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
+ * @since 1.18.0 $ignore_limits (collapsing tags — the whole fan, no step limits).
+ * @param array $base          Base resolved source.
+ * @param array $options       Tag options.
+ * @param bool  $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Post ids in document order (may be empty).
  */
-function bws_base_post_ids_from_source( array $base, array $options ): array {
-	return bws_base_source_ids_of_kind( $base, $options, 'post' );
+function bws_base_post_ids_from_source( array $base, array $options, bool $ignore_limits = false ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'post', $ignore_limits );
 }
 
 /**
@@ -1280,12 +1289,14 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  * - Ids, not WP_Term objects. Every caller only ever read `->term_id`.
  *
  * @since 1.17.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
+ * @since 1.18.0 $ignore_limits (collapsing tags — the whole fan, no step limits).
+ * @param array $base          Base resolved source.
+ * @param array $options       Tag options.
+ * @param bool  $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Term ids in document order (may be empty).
  */
-function bws_base_term_ids_from_source( array $base, array $options ): array {
-	return bws_base_source_ids_of_kind( $base, $options, 'term' );
+function bws_base_term_ids_from_source( array $base, array $options, bool $ignore_limits = false ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'term', $ignore_limits );
 }
 
 /**

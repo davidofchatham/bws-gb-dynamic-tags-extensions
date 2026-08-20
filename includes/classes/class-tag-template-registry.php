@@ -53,6 +53,25 @@ class TagTemplateRegistry {
 	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
+	 *   takes_first_usable    bool     The tag emits at most ONE result, selected as the FIRST
+	 *                    USABLE one, whatever its chain produces (ADR 0007). THE AXIS, owned
+	 *                    here: keyed on the template's DISPOSITION toward a plural
+	 *                    resolved-source list — NOT on list mode and NOT on any list flag,
+	 *                    because `{{table}}` (no list mode, the most load-bearing step limit
+	 *                    in the plugin) is exactly the template a list-shaped proxy
+	 *                    misclassifies. Named for the SELECTION rather than the cardinality
+	 *                    on purpose: limits are inert on these tags precisely BECAUSE
+	 *                    selection scans for the first usable result, which a
+	 *                    cardinality-shaped name would leave a reader expecting a limit to
+	 *                    bound. Consequences (stated, not decided, elsewhere): the render
+	 *                    path compiles the chain with every step limit stripped and selects
+	 *                    at n = 1 (bws_collect_usable); the try_ constructor forces the slot
+	 *                    bound to 1; the editor suppresses the Limit results control and the
+	 *                    field note's several-results clause. Reaches render the way is_image
+	 *                    does — captured at registration, no registry lookup — and is
+	 *                    UNPREFIXED because both the base registration and the slot builder
+	 *                    consume it (`try_` marks flags only the try_ constructor reads).
+	 *                    True today of exactly content / permalink / image.
 	 */
 	private static array $modifier_templates = [];
 

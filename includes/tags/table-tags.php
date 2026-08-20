@@ -73,6 +73,15 @@ function bws_register_table_tag(): void {
 		'description' => __( 'Builds a table from a repeater field. Outputs a full <table>; do not place inside a <p> or <span> — use a Div or other block element.', 'generateblocks' ),
 		'options'     => bws_get_table_options(),
 		'return'      => 'bws_table_callback',
+		// EXPLICITLY FALSE, never defaulted. {{table}} registers no modifier-template
+		// record, so this is stated here, beside the tag it describes (GB stores unknown
+		// registration keys untouched). Silence would be wrong because {{table}} is
+		// exactly the template a list-shaped heuristic misclassifies: it has no list
+		// mode (it repeats rows, joins nothing) yet its `rows` step limit is the most
+		// load-bearing limit in the plugin — a first-usable reading of {{table}} would
+		// collapse the table to one row. The capability's axis is owned at the
+		// modifier-template descriptor docblock (class-tag-template-registry.php).
+		'takes_first_usable' => false,
 	) );
 }
 
