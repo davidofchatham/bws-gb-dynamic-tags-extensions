@@ -24,5 +24,3 @@ The tracker is hybrid (see `issue-tracker.md`), so a role reaches an item one of
   same five role names verbatim.
 
 Same vocabulary either way. A ticket that moves from one half to the other keeps its role name.
-
-Edit the right-hand column to match whatever vocabulary you actually use.

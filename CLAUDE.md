@@ -80,7 +80,7 @@ reason the exemption is this narrow, and why it is not a general licence for tes
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
 | Current architecture (templates, sources, options, GB types, render order) | `docs/tag-reference.md` | Authoritative |
 | Cross-cutting vocabulary (output-shape terms: single-result, composite string, list mode, query loop; etc.) | Owning schema doc (e.g. `docs/tag-reference.md` §Output shape) | Defined ONCE beside the schema it describes — NO standalone glossary (avoids schema/glossary drift). `CONTEXT.md` invariants *use* terms, never define them. |
-| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `.scratch/plans/archive/`. NOT schemas/state-tables/narrative. Post-ship migration target — see §Spec lifecycle. |
+| Cross-cutting LIVE invariants / design models (source-analog, `use`-dispatch Model B, strip-default, qualifying gate, label-scope) | `CONTEXT.md` | Principles that span many callbacks + bind now. Links schemas in `tag-reference.md`, rationale in `docs/design-history/` once the plan is finished (a live plan until then). NOT schemas/state-tables/narrative. Post-ship migration target — see §Spec lifecycle. |
 | Editor-time tag configuration preview text (markers, assembly, warnings, per-template + try_ shapes, examples) | `docs/editor-tag-previews.md` | Authoritative; `tag-reference.md` keeps a one-line forward-ref. Built by `bws_build_preview_label()` in `preview-helpers.php`. |
 | Plugin's response to GB constraints (default-strip strategy, etc.) | `docs/tag-reference.md` | Lives alongside the architecture it shapes; editor-JS control *mechanism* owned by `docs/editor-controls.md` |
 | GB-imposed constraints | `docs/gb-constraints.md` | Pure GB facts; our responses go in `tag-reference.md` |
@@ -127,8 +127,8 @@ a number:
 - MEMORY.md entries pointing at `docs/` are one-liners only.
 - When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
 - **MOVING A PLAN REPOINTS WHAT CITES IT, IN THE SAME EDIT.** Archiving is the usual mover
-  (a live plan moves to the archive, or out to `docs/design-history/`), renaming the other. Both leave every
-  leave every existing citation pointing at nothing, and nothing fails when they do — the pointer
+  (a live plan moves to the archive, or out to `docs/design-history/`), renaming the other. Both leave
+  every existing citation pointing at nothing, and nothing fails when they do — the pointer
   is prose. An ADR is why this is a rule rather than tidiness: its `Status:` line cites the plan the
   decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
   evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
@@ -138,15 +138,19 @@ a number:
   the GitHub issue**: a plan's own internal item numbering is a third sequence, and must be resolved
   to a committed handle before it is cited, or the reader resolves it against the wrong one and lands
   somewhere real and unrelated.
-- **A COMMITTED FILE MAY ONLY CITE A COMMITTED PLAN.** Live plans and most archived ones are
-  gitignored, so a pointer into `.scratch/plans/` from anything tracked is unreadable to every reader
-  but the author — and nothing fails when it breaks. The trigger runs one way: when a committed
-  file first needs to cite a private archived plan, the PLAN MOVES to `docs/design-history/`; the
-  citation is not softened and the plan is not copied. `git grep -o '\.scratch/plans/[a-z0-9./-]*\.md'`
-  lists the violations. Two exceptions, both real: a sibling repo's own plan path (`bws-portal-system/...`)
-  is that repo's business, and a `docs/future-work.md` row may point at a private LIVE plan — the
-  tracker exists to be the visible surface over hidden detail homes, which is the opposite case.
-- **`docs/design-history/` IS EXEMPT FROM THAT GREP, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
+- **A COMMITTED FILE MAY POINT AT A PRIVATE PLAN ONLY AS A DETAIL HOME.** A detail home is a visible
+  surface naming where the design lives — the tracker's own shape, and legitimate wherever a doc plays
+  that role. What may NOT cite a private plan is anything that becomes **unverifiable** without it:
+  shipped code under `includes/` or `assets/` (own bullet above), an ADR `Status:` line — whose whole
+  job is to name what a decision was hardened against, so an unresolvable pointer is an accepted
+  decision whose evidence cannot be checked — and `README.md` / `CHANGELOG.md`, whose reader is the
+  one guaranteed not to have `.scratch/`. Those fail silently and have no other source; a prose detail
+  home in `CONTEXT.md` has the doc itself. The plan commits when it is FINISHED (§Spec lifecycle), and
+  its citations repoint in that same edit.
+  `git grep '\.scratch/plans/' -- includes assets docs/adr README.md CHANGELOG.md` lists the violations.
+  Scoping the grep to the forbidden zones is what lets it drop the filename requirement — the earlier
+  `[a-z0-9./-]*\.md` pattern silently missed a bare `.scratch/plans/archive/` citation.
+- **`docs/design-history/` IS OUT OF THAT GREP'S SCOPE, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
   files name the paths that were live when they were written; a record saying "was
   `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING (that spelling is the point —
   the tree moved to `.scratch/plans/` on 2026-08-20 and the record still names where it was). Publishing a record makes
@@ -183,9 +187,34 @@ gets corrected, present tense being a claim about now.
   - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
   - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
   - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
-  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in `.scratch/plans/<feature>.md` (or its `archive/`). Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
+  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in the plan — `.scratch/plans/<feature>.md` while that plan is live, `docs/design-history/` once it is finished, and the citation repoints in the same edit as the move. Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
 - Closed/deferred task rows: delete them from the spec's task list, or delete the spec directory (on GitHub, close the issue).
 - Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
+
+### A PLAN COMMITS WHEN IT IS FINISHED, NOT WHEN IT SHIPS
+
+A plan that ships in phases is not finished; committing it whole at a phase boundary freezes a draft
+as a record and states in-progress design as history. Two events, two moves — and nothing is judged,
+because the event says which applies:
+
+| Event | Move | Where it lands |
+|---|---|---|
+| **A phase ships**, plan continues | Lift that phase out. The boundary is clean by construction — the phase is done and the rest is not. | The lifted file commits to `docs/design-history/` **immediately**: it is a finished record on its own. The live plan stays private. |
+| **The plan retires** — every phase done, or abandoned, or superseded | **Extract what is still OPEN into a new live plan; commit the ORIGINAL whole.** | `docs/design-history/`. |
+
+**The retirement split runs backwards from the old archive rhythm, deliberately.** Lifting the
+SHIPPED half assembles a NEW file by pulling prose out, and lifting is where a record gets falsified —
+someone decides what to take. Extracting the OPEN half instead leaves the record byte-for-byte
+original, so nothing can be lifted wrong. It is also the bounded side: what is open is enumerated by
+the plan's own §OPEN index, while what shipped is everything else. Entanglement then never has to be
+resolved — it stays together, which is where entangled reasoning belongs — and a §SETTLED index
+survives whole instead of being shredded across two files. `docs/design-history/src-chain-encoding.md`
+is the build record of this working on the one plan that resisted splitting.
+
+**Migration is copy-and-own, so the committed record is NOT drained first.** Load-bearing substance
+lands at its owner per the list above and the plan text stays put; what makes the record safe is a
+header pointer naming that owner ("check THOSE first — this file is decision history"), not a
+disentangling operation.
 
 **A spec is source of truth only while the work is in flight.** Once merged it is a record of how
 something came to be, not a statement of how it currently works — the same reading posture
