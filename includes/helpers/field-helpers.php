@@ -720,6 +720,64 @@ function bws_collect_value_list( array $items, callable $render, array $options 
 }
 
 /**
+ * The usable-result SELECTOR: read sources in order, keep what survives, stop at $n.
+ *
+ * THE ONE IMPLEMENTATION of "first non-empty wins" (CONTEXT.md I19 — a limit bounds
+ * USABLE results). Extracted FROM the try_ emit loop in
+ * TagTemplateRegistry::generate_base_try_tags(), which already implemented the rule
+ * correctly, rather than designed fresh; the collapsing base tags
+ * (content/permalink/image, ADR 0007) consume it at $n = 1 and try_ consumes it with
+ * the slot's own bound, so the two halves stop being two implementations of one rule.
+ *
+ * COLLECT-then-slice, never slice-then-collect — this PHPDoc is the AXIS OWNER for
+ * that rule (CLAUDE.md §Documentation ownership): a source is read, an empty result
+ * is discarded, and only what survives is counted, so the bound counts USABLE
+ * results and never candidates examined. The walk stops as soon as $n usable results
+ * exist — once $n is reached the reader is NOT called again, which is the whole
+ * observable difference between counting results and counting candidates. A single
+ * read may return SEVERAL items (a list-mode slot renders one string per value);
+ * every usable item is kept and the overshoot is sliced off the tail, exactly as the
+ * donor loop did.
+ *
+ * PURE, and provenance-blind BY CONTRACT. The reader is injected and no WP symbol is
+ * named, which is what lets tools/test/collect-usable-test.php require this real
+ * file rather than copy the rule. The function is never told which INPUT produced
+ * which source: per-input grouping (the terminal step limit's per-input semantics)
+ * is a WRAPPER's job — group the sources, call this per group — so the collapsing
+ * loops, try_, and any future flat-stream consumer use it unchanged.
+ *
+ * What counts as unusable here is the read-result emptiness test the donor loop's
+ * normalizer applied ('' / false / null); the visibility half of "usable" lands
+ * upstream when its slice ships, not in this predicate.
+ *
+ * @since 1.18.0
+ * @param array    $sources Candidates in document order (resolved sources, entity
+ *                          ids — whatever $read consumes; opaque here).
+ * @param callable $read    fn( $source ): string|array — one candidate's read.
+ *                          May return one value or a list of finished values.
+ * @param int      $n       Usable results to stop at; 0 or less = unbounded.
+ * @return array Up to $n usable (non-empty) reads, in encounter order.
+ */
+if ( ! function_exists( 'bws_collect_usable' ) ) {
+function bws_collect_usable( array $sources, callable $read, int $n ): array {
+	$out = array();
+	foreach ( $sources as $source ) {
+		if ( $n > 0 && count( $out ) >= $n ) {
+			break; // Enough usable results — the reader is not called again.
+		}
+		$reads = $read( $source );
+		foreach ( ( is_array( $reads ) ? $reads : array( $reads ) ) as $value ) {
+			if ( '' !== $value && false !== $value && null !== $value ) {
+				$out[] = $value;
+			}
+		}
+	}
+	// One source may return several items, so the tail can overshoot $n.
+	return ( $n > 0 ) ? array_slice( $out, 0, $n ) : $out;
+}
+}
+
+/**
  * Internal: route a meta read through GenerateBlocks_Meta_Handler with raw WP fallback.
  *
  * @since 1.7.0

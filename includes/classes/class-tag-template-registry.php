@@ -941,38 +941,36 @@ class TagTemplateRegistry {
 					}
 
 					// ── ONE EMIT for every arm ─────────────────────────────────────
-					// COLLECT-then-slice, not slice-then-collect: one entity may return
-					// several finished items, so the bound is on ITEMS. That is the shipped
-					// srcTermIn arm's shape (break early while hopping, then slice), kept
-					// verbatim rather than routed through bws_collect_value_list(), whose
-					// slice lands on the ITEM LIST and would move output wherever a single
-					// entity yields more than one value.
+					// The bound is on ITEMS, not entities — one entity may return several
+					// finished items. The walk-and-count rule itself lives in
+					// bws_collect_usable() (field-helpers.php, required at plugin init),
+					// the selector THIS LOOP DONATED: it was extracted from here, so the
+					// swap is render-identical and the existing try_ matrix rows pin it.
+					// The reader closure keeps $first_id (the winning slot's link
+					// identity) because the selector is provenance-blind by contract.
 					//
-					// Link-wrap applies to a SINGLE-result item only, and the count is taken
-					// AFTER the slice (mirrors the base text core: a limit:1 chain over many
-					// non-empty entities still wraps the lone shown item).
-					$items    = [];
+					// Link-wrap applies to a SINGLE-result item only, and the count is
+					// taken on the selector's already-bounded return (mirrors the base
+					// text core: a limit:1 chain over many non-empty entities still wraps
+					// the lone shown item).
 					$first_id = 0;
-					foreach ( $ids as $entity_id ) {
-						$rendered = function_exists( 'bws_try_normalize_items' )
-							? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
-							: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
-						foreach ( $rendered as $it ) {
-							$items[] = $it;
-							if ( ! $first_id ) {
+					$shown    = bws_collect_usable(
+						$ids,
+						static function ( $entity_id ) use ( &$first_id, $render_fn, $slot_opts, $inst ) {
+							$rendered = function_exists( 'bws_try_normalize_items' )
+								? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
+								: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+							if ( $rendered && ! $first_id ) {
 								$first_id = (int) $entity_id;
 							}
-						}
-						if ( $slot_max && count( $items ) >= $slot_max ) {
-							break; // Enough to satisfy the limit — stop stepping entities.
-							// $slot_max 0 = UNLIMITED: never break early, step every one.
-						}
-					}
-					if ( ! $items ) {
+							return $rendered;
+						},
+						$slot_max
+					);
+					if ( ! $shown ) {
 						continue;   // this attempt resolved and found nothing — try the next.
 					}
 
-					$shown  = array_slice( $items, 0, $slot_max ?: null );
 					$joined = function_exists( 'bws_try_join_items' )
 						? bws_try_join_items( $shown, $sep, $slot_max )
 						: (string) reset( $shown );
