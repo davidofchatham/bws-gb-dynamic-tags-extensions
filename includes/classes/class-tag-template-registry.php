@@ -67,7 +67,7 @@ class TagTemplateRegistry {
 	 *                    cardinality-shaped name would leave a reader expecting a limit to
 	 *                    bound. Consequences (stated, not decided, elsewhere): the render
 	 *                    path compiles the chain with every step limit stripped and reads
-	 *                    at n = 1 (bws_collect_usable, no predicate); the try_ constructor
+	 *                    at n = 1 (bws_read_bounded_sources, no predicate); the try_ constructor
 	 *                    forces the slot bound to 1; the editor suppresses the limit control
 	 *                    and the field note's several-results clause. Reaches render the way is_image
 	 *                    does — captured at registration, no registry lookup — and is
@@ -981,7 +981,7 @@ class TagTemplateRegistry {
 
 					// ── ONE EMIT for every arm ─────────────────────────────────────
 					// The bound counts SOURCES READ ([I19], the 2026-08-21 reversal):
-					// bws_collect_usable() (field-helpers.php) with NO predicate reads
+					// bws_read_bounded_sources() (field-helpers.php) with NO predicate reads
 					// the first $slot_max entities and drops only empty VALUES from its
 					// return — an entity with nothing to show keeps its slot, so which
 					// entities a slot reads never depends on which field it asks for.
@@ -996,7 +996,7 @@ class TagTemplateRegistry {
 					// text core: a limit:1 chain over many non-empty entities still wraps
 					// the lone shown item).
 					$first_id = 0;
-					$shown    = bws_collect_usable(
+					$shown    = bws_read_bounded_sources(
 						$ids,
 						static function ( $entity_id ) use ( &$first_id, $render_fn, $slot_opts, $inst ) {
 							$rendered = function_exists( 'bws_try_normalize_items' )

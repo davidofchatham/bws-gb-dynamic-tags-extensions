@@ -1358,7 +1358,7 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
  *
  * The collapsing callbacks' shared POST route: the unbounded fan (every step limit
  * stripped) arrives already gated (bws_source_gate — resolvable × exists × visible),
- * and bws_collect_usable() at n = 1 with NO predicate reads the FIRST source only,
+ * and bws_read_bounded_sources() at n = 1 with NO predicate reads the FIRST source only,
  * returning its read even conceptually-empty (the wrapper renders '' then). It does
  * NOT search past an empty field — selection is field-independent (the 2026-08-21
  * reversal; ADR 0007 §Why the read-based axis was reversed). An EMPTY post-kind fan
@@ -1375,8 +1375,8 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
 function bws_base_post_first_usable( array $base, array $options, callable $read ): string {
 	$ids   = bws_base_post_ids_from_source( $base, $options, true );
 	$found = $ids
-		? bws_collect_usable( $ids, $read, 1 )
-		: bws_collect_usable( array( bws_base_post_id_from_source( $base, $options ) ), $read, 1 );
+		? bws_read_bounded_sources( $ids, $read, 1 )
+		: bws_read_bounded_sources( array( bws_base_post_id_from_source( $base, $options ) ), $read, 1 );
 	return $found ? (string) $found[0] : '';
 }
 
@@ -1391,7 +1391,7 @@ function bws_base_post_first_usable( array $base, array $options, callable $read
  * @return string First usable read, or ''.
  */
 function bws_base_term_first_usable( array $base, array $options, callable $read ): string {
-	$found = bws_collect_usable( bws_base_term_ids_from_source( $base, $options, true ), $read, 1 );
+	$found = bws_read_bounded_sources( bws_base_term_ids_from_source( $base, $options, true ), $read, 1 );
 	return $found ? (string) $found[0] : '';
 }
 

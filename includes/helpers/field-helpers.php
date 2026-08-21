@@ -726,7 +726,7 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * @invariant SELECTION IS FIELD-INDEPENDENT BY DEFAULT — this PHPDoc is the AXIS
  * OWNER for that rule (CLAUDE.md §Documentation ownership; the 2026-08-21
  * determinism reversal, ADR 0007 §Why the read-based axis was reversed). With no
- * $usable predicate, the bound counts SOURCES READ: the first $n sources are read
+ * $populated predicate, the bound counts SOURCES READ: the first $n sources are read
  * (0 or less = all), each source consumes its slot whatever its read returns, and
  * only EMPTY VALUES ('' / false / null) are dropped from the RETURN — never from
  * the count. So `limit:3` can print two, a collapsing tag at $n = 1 outputs its
@@ -735,44 +735,44 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * the engine gate's axis (bws_source_gate, traversal-pipeline.php — resolvable ×
  * exists × visible), decided before this function ever sees them.
  *
- * THE $usable PREDICATE IS A DORMANT SEAM (FW-88), called by nothing shipped.
+ * THE $populated PREDICATE IS A DORMANT SEAM (FW-88), called by nothing shipped.
  * When supplied, the walk becomes collect-then-slice: a source whose reads all
  * fail the predicate is skipped WITHOUT consuming a slot, and the walk stops as
  * soon as $n surviving values exist (the reader is not called again). That is the
  * pre-reversal "search past empty fields" behaviour, preserved for a possible
- * tag-level OPT-IN — bws_collect_usable_populated() is the predicate it would
+ * tag-level OPT-IN — bws_value_is_populated() is the predicate it would
  * wire. It must never become a default: the instability it reintroduces is the
  * defect the reversal removed.
  *
  * PURE, and provenance-blind BY CONTRACT. Reader and predicate are injected and
- * no WP symbol is named, which is what lets tools/test/collect-usable-test.php
+ * no WP symbol is named, which is what lets tools/test/read-bounded-sources-test.php
  * require this real file rather than copy the rule. Extracted FROM the try_ emit
  * loop; the collapsing base tags (content/permalink/image, takes_first_usable)
  * consume it at $n = 1 and try_ consumes it with the slot's own bound.
  *
  * @since 1.18.0
- * @since 1.18.0 $usable — the dormant opt-in predicate (default null = none).
+ * @since 1.18.0 $populated — the dormant opt-in predicate (default null = none).
  * @param array         $sources Candidates in document order (resolved sources,
  *                               entity ids — whatever $read consumes; opaque here).
  * @param callable      $read    fn( $source ): string|array — one candidate's read.
  *                               May return one value or a list of finished values.
  * @param int           $n       Sources to read (no predicate) / surviving values
  *                               to stop at (with predicate); 0 or less = unbounded.
- * @param callable|null $usable  DORMANT: fn( $value ): bool — keeps a value and
+ * @param callable|null $populated DORMANT: fn( $value ): bool — keeps a value and
  *                               lets its source consume a slot. Null = no skipping.
  * @return array The non-empty reads, in encounter order.
  */
-if ( ! function_exists( 'bws_collect_usable' ) ) {
-function bws_collect_usable( array $sources, callable $read, int $n, ?callable $usable = null ): array {
+if ( ! function_exists( 'bws_read_bounded_sources' ) ) {
+function bws_read_bounded_sources( array $sources, callable $read, int $n, ?callable $populated = null ): array {
 	$out = array();
-	if ( null === $usable ) {
+	if ( null === $populated ) {
 		// Default: the bound counts SOURCES READ. Slice first, read what remains,
 		// drop empty values from the return only.
 		$slice = ( $n > 0 ) ? array_slice( $sources, 0, $n ) : $sources;
 		foreach ( $slice as $source ) {
 			$reads = $read( $source );
 			foreach ( ( is_array( $reads ) ? $reads : array( $reads ) ) as $value ) {
-				if ( '' !== $value && false !== $value && null !== $value ) {
+				if ( bws_value_is_populated( $value ) ) {
 					$out[] = $value;
 				}
 			}
@@ -787,7 +787,7 @@ function bws_collect_usable( array $sources, callable $read, int $n, ?callable $
 		}
 		$reads = $read( $source );
 		foreach ( ( is_array( $reads ) ? $reads : array( $reads ) ) as $value ) {
-			if ( $usable( $value ) ) {
+			if ( $populated( $value ) ) {
 				$out[] = $value;
 			}
 		}
@@ -798,19 +798,24 @@ function bws_collect_usable( array $sources, callable $read, int $n, ?callable $
 }
 
 /**
- * The dormant populated-value predicate for bws_collect_usable()'s opt-in path.
+ * Does this value render anything? The one emptiness test.
  *
- * Shipped UNWIRED (FW-88): no caller passes it. Pinned by
- * tools/test/collect-usable-test.php so the behaviour a future tag-level opt-in
- * would enable cannot rot while dormant. The test is the donor emit loop's
+ * TWO ROLES, deliberately one function. LIVE: the default path of
+ * bws_read_bounded_sources() calls it to drop empty values from its return.
+ * DORMANT (FW-88): it is also the predicate a future tag-level "search past
+ * empty fields" opt-in would pass as that function's $populated argument —
+ * nothing shipped passes it, and it must never become the default.
+ *
+ * The dormant ROLE is what tools/test/read-bounded-sources-test.php pins, so the
+ * behaviour cannot rot while unwired; the test is the donor emit loop's
  * normalizer test, verbatim.
  *
  * @since 1.18.0
  * @param mixed $value One value from a source's read.
  * @return bool True when the value would render something.
  */
-if ( ! function_exists( 'bws_collect_usable_populated' ) ) {
-function bws_collect_usable_populated( $value ): bool {
+if ( ! function_exists( 'bws_value_is_populated' ) ) {
+function bws_value_is_populated( $value ): bool {
 	return '' !== $value && false !== $value && null !== $value;
 }
 }

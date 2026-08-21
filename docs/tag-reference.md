@@ -367,7 +367,7 @@ Consequences, each stated once here:
 - **`{{table}}` declares the capability explicitly false** (its registration in
   `table-tags.php` says why silence would be wrong there).
 
-Selection runs through `bws_collect_usable()` (field-helpers.php) at n = 1 with no read predicate —
+Selection runs through `bws_read_bounded_sources()` (field-helpers.php) at n = 1 with no read predicate —
 the same selector the `try_` emit loop donated — so the rule exists once and the next tag that needs
 it inherits it. The selector's optional read-predicate parameter is a DORMANT seam for a possible
 future opt-in ("search past empty fields"), called by nothing shipped; the tracker row in
