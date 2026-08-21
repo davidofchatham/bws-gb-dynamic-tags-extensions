@@ -257,13 +257,19 @@ function bws_fixture_core_structures_register_acf() {
 				// ALONE, so a chain hopping through it is cut at the hop even
 				// though the hop's own target is published (§F17.4).
 				//
-				// return_format `id` DELIBERATELY: ACF's `object` format resolves
-				// the ids through a query that drops what the viewer cannot read,
-				// so the gate would never see them and the rows would pass with the
-				// engine gate deleted. The third shape — a STALE id, a post that no
-				// longer exists — has no ACF field at all: ACF's own formatter drops
-				// it, so `stale_ref` is seeded as PLAIN meta and reaches the reader's
-				// raw get_post_meta fallback (§F17.3).
+				// return_format `id` DELIBERATELY, and MEASURED (2026-08-21) rather
+				// than assumed — the first version of this comment had the reason
+				// wrong. `id` never queries at all (format_value returns the raw
+				// ids), so every stored id reaches the gate. `object` calls
+				// acf_get_posts(), i.e. get_posts( post_status => 'any' ), which
+				// does NOT hide drafts or private posts from anyone (measured: both
+				// come back for uid=0) — 'any' subtracts only the statuses flagged
+				// exclude_from_search. What it DOES drop before the gate could see
+				// it is a TRASHED target and a dead id (nothing matches post__in).
+				// So the draft/private rows would survive an `object` field, and the
+				// TRASH and STALE rows would not: both are seeded as PLAIN meta
+				// (`trash_ref`, `stale_ref`) so they reach the reader's raw
+				// get_post_meta fallback with the id intact (§F17.3, §F17.8).
 				array(
 					'key'           => 'field_bwsfx_gate_staff',
 					'name'          => 'gate_staff',
