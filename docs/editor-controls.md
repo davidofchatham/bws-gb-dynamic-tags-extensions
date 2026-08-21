@@ -456,7 +456,7 @@ mount side hand-lists NOTHING: container config, including `flatAxes`, arrives o
 definition rather than being duplicated in JS.
 
 
-### Why the image composite does NOT migrate on mount (1.17.1)
+### Why the image composite does NOT migrate on mount (1.18.0)
 
 The `bws-as-size` composite owns the `as` token end to end, so completing a legacy bare `as:url` to
 `as:url,full` on mount looks like the same two-path shape as above, on a key the editor genuinely

@@ -379,7 +379,7 @@ class MigrationRegistry {
 	 * trigger that exposed it was the as+size fold, which through 1.17.0 matched on `as` —
 	 * a key surviving its own transform — so `{{try_image as:url,large|src:ref|…}}` no-opped
 	 * there and everything registered after it (including the FW-56/57 slot fold) was
-	 * unreachable. That entry can no longer be the blocker: 1.17.1 cut `as` from its match
+	 * unreachable. That entry can no longer be the blocker: 1.18.0 cut `as` from its match
 	 * list, so it matches only what it can change (see its registration in
 	 * `bws_register_option_migrations()` for why). THE RULE IS NOT SPECIFIC TO IT and
 	 * outlives it — it is pinned on synthetic entries in `tools/test/fold-migration-test.php`

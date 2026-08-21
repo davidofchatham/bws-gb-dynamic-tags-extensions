@@ -1053,7 +1053,7 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
 		$size_key = $prefix . 'size';
 
 		// Skip slots with no size to fold — and this entry does not match on `as` at all,
-		// so a size-less tag never reaches here (1.17.1; the registration says why). A bare
+		// so a size-less tag never reaches here (1.18.0; the registration says why). A bare
 		// `as:url` IS completed to `url,full`, but by the sibling entry
 		// (bws_migrate_image_as_bare_url), which gates on the `as` value. Splitting them is
 		// what keeps each entry matching only what it moves; one entry cannot express
@@ -1099,7 +1099,7 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * round trip through another size and back.
  *
  * **RENDER EQUIVALENCE IS NOT THE TEST HERE, and reaching for it is the trap** — it is
- * why this migration was declined in 1.17.1 and then written. The opt-out does not exist
+ * why this migration was declined and then written, both inside 1.18.0 (the work carried a 1.17.1 header for a while; that version never shipped and folded in). The opt-out does not exist
  * to change what a tag renders; it exists so the mode is visible in the string. A rewrite
  * that changes no output is exactly what an always-serialize rule is for.
  *
@@ -1127,12 +1127,12 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * 1.17.0 restored it — so by the always-serialize rule they are exactly as non-canonical
  * as a bare `as:url`. What keeps this entry off them is the GATE: `entry_matches()` has no
  * absent-key predicate, and every key-presence gate available matches something every
- * image tag carries, which is the over-match 1.17.1 removed. So the case is DECLINED, not
+ * image tag carries, which is the over-match 1.18.0 removed. So the case is DECLINED, not
  * argued away: new tags get the token from GB's tag-select seed, older ones keep an absent
  * `as` and render identically meanwhile. Only a PRESENT-but-partial token is this
  * callback's business.
  *
- * @since 1.17.1
+ * @since 1.18.0
  * @param string $tag_string Raw tag string.
  * @return string Rewritten tag string (unchanged when the token is already canonical).
  */
@@ -2270,7 +2270,7 @@ function bws_register_option_migrations(): void {
 		) );
 	}
 
-	// image / term_image / try_image: complete a bare `as:url` (1.17.1).
+	// image / term_image / try_image: complete a bare `as:url` (1.18.0).
 	// REGISTERED AFTER THE FOLD, and the order is load-bearing. A tag carrying both a
 	// legacy `size:` and a bare `as:url` matches BOTH entries; which one then acts is
 	// `MigrationRegistry::apply_option_migration()`'s rule, and `TagConverter::scan()`
