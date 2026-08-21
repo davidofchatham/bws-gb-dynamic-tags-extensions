@@ -173,8 +173,9 @@ built several; *source configuration* names the whole thing without borrowing th
 control's own label. *Return* is unavailable: **Return As** already labels the image `as` option
 and the datetime output option, and **Return Type** a third, so on an Image tag the advisory would
 sit a few controls above a box using that word for something else. The modal is load-bearing too —
-fanning is CAPACITY, not outcome ([`CONTEXT.md` §Singular vs fanning sources](../CONTEXT.md)), so
-*can match* is true of a chain that resolves exactly one and a bare *matches* would not be.
+the line says a chain *can* match several, never that it did ([`CONTEXT.md`
+§Language](../CONTEXT.md#language) owns the rule that decides which), so *can match* is true of a
+chain that resolves exactly one and a bare *matches* would not be.
 
 It exists because the field configuration note structurally cannot carry this fact: a note is
 attached to a FIELD, while fanning is a property of the CHAIN — a `terms` step has no field key for

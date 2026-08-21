@@ -1099,7 +1099,8 @@ function bws_migrate_image_as_size_fold( string $tag_string ): string {
  * round trip through another size and back.
  *
  * **RENDER EQUIVALENCE IS NOT THE TEST HERE, and reaching for it is the trap** — it is
- * why this migration was declined and then written, both inside 1.18.0 (the work carried a 1.17.1 header for a while; that version never shipped and folded in). The opt-out does not exist
+ * why this migration was declined and then written, both inside 1.18.0 (the work carried a
+ * 1.17.1 header for a while; that version never shipped and folded in). The opt-out does not exist
  * to change what a tag renders; it exists so the mode is visible in the string. A rewrite
  * that changes no output is exactly what an always-serialize rule is for.
  *

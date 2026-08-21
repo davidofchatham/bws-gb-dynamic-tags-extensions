@@ -211,7 +211,7 @@ foreach ( $detection_cases as $case ) {
 
 
 // ===============================================
-// A4 — BARE `as:url` NORMALIZE (1.17.1)
+// A4 — BARE `as:url` NORMALIZE (1.18.0)
 // ===============================================
 //
 // SAME AXIS AS A3, applied to the second entry: it must match a shape IF AND ONLY IF its
