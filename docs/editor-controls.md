@@ -165,7 +165,16 @@ rewritten.
 On the three collapsing tags (`content` / `permalink` / `image` — the `takes_first_usable`
 templates), one display-only line closes the source group whenever the tag's chain actually fans:
 
-> *This source can match more than one item. This tag shows the first one.*
+> *This source configuration can match more than one item. Only the first item is read.*
+
+**"Source configuration", not "source", and "match", not "return"** (user, 2026-08-21). *Source*
+alone is ambiguous once a source is a root plus steps, and it says one where the author may have
+built several; *source configuration* names the whole thing without borrowing the **Source**
+control's own label. *Return* is unavailable: **Return As** already labels the image `as` option
+and the datetime output option, and **Return Type** a third, so on an Image tag the advisory would
+sit a few controls above a box using that word for something else. The modal is load-bearing too —
+fanning is CAPACITY, not outcome ([`CONTEXT.md` §Singular vs fanning sources](../CONTEXT.md)), so
+*can match* is true of a chain that resolves exactly one and a bare *matches* would not be.
 
 It exists because the field configuration note structurally cannot carry this fact: a note is
 attached to a FIELD, while fanning is a property of the CHAIN — a `terms` step has no field key for

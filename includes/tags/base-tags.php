@@ -71,7 +71,7 @@ function bws_register_base_tags(): void {
 	$fan_advisory = array(
 		'srcFanNote' => array(
 			'type' => 'bws-fanning-advisory',
-			'help' => __( 'This source can match more than one item. This tag shows the first one.', 'generateblocks' ),
+			'help' => __( 'This source configuration can match more than one item. Only the first item is read.', 'generateblocks' ),
 		),
 	);
 	$traversal_opts = bws_base_traversal_options();
