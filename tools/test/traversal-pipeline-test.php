@@ -57,6 +57,17 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 	}
 }
 
+// SOURCE-GATE STUB, defined BEFORE the require so the real file's function_exists
+// guard yields to it (plan §S20 corrected — the harness supplies its own predicate;
+// the REAL gate names get_post/current_user_can and is integration-tested on the
+// testbed, never here). Controllable: a source carrying '__gated' => true is
+// dropped, every other source passes, so pre-gate rows are untouched and the gate
+// section below drives budget/stepping-stone behaviour through the same default
+// path the shipped callers take.
+if ( ! function_exists( 'bws_source_gate' ) ) {
+	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
+}
+
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 // sanitize_key shim — the assemble-steps helper (in field-helpers.php) uses it.
@@ -161,6 +172,61 @@ eq(
 	'V9 order preserved across sources',
 	array( post_src( 100 ), post_src( 101 ), post_src( 200 ) ),
 	bws_run_traversal( array( post_src( 1 ), post_src( 2 ) ), array( array( 'type' => 'refs', 'field' => 'rel' ) ), $reader )
+);
+
+// ── §S48 — the source gate (I19: a gated-out source never spends limit budget) ──
+// The DEFAULT path runs this harness's stub gate (drops '__gated' sources); the
+// explicit-$gate rows drive the injected parameter the same way shipped consumers
+// could. The REAL bws_source_gate body is WP-bound and integration-tested only.
+
+// The INITIAL source list is gated, not just hop produce (depth-0 reads covered).
+eq(
+	'S48 initial list gated (default gate)',
+	array( post_src( 1 ) ),
+	bws_run_traversal( array( post_src( 1 ), array( 'kind' => 'post', 'id' => 2, '__gated' => true ) ), array() )
+);
+
+// Gate runs BEFORE the per-step limit slice: with limit(1) and the first produced
+// source gated out, the SECOND source takes the slot — a gated source spent none.
+$reader = make_reader( array( 'post:10' => array( 21, 22, 23 ) ) );
+$gate21 = function ( array $s ) { return 21 !== (int) ( $s['id'] ?? 0 ); };
+eq(
+	'S48 gate before limit slice — budget not consumed',
+	array( post_src( 22 ) ),
+	bws_run_traversal(
+		array( post_src( 10 ) ),
+		array( array( 'type' => 'refs', 'field' => 'rel', 'limit' => 1 ) ),
+		$reader,
+		$gate21
+	)
+);
+
+// STEPPING-STONE CUT: a gated intermediate's subtree is unreachable — its reads
+// never happen. Recording reader proves post:21 is never consulted.
+$calls  = array();
+$rec    = function ( $step, $source ) use ( &$calls ) {
+	$k       = $source['kind'] . ':' . ( $source['id'] ?? '?' );
+	$calls[] = $k;
+	$map     = array( 'post:1' => array( 21, 22 ), 'post:22' => array( 31 ) );
+	return $map[ $k ] ?? '';
+};
+eq(
+	'S48 stepping stone cut — gated hop subtree unread',
+	array( post_src( 31 ) ),
+	bws_run_traversal(
+		array( post_src( 1 ) ),
+		array( array( 'type' => 'refs', 'field' => 'a' ), array( 'type' => 'refs', 'field' => 'b' ) ),
+		$rec,
+		$gate21
+	)
+);
+eq( 'S48 gated intermediate never read', false, in_array( 'post:21', $calls, true ) );
+
+// An explicit permissive $gate OVERRIDES the default — the parameter is the seam.
+eq(
+	'S48 injected gate overrides default',
+	array( array( 'kind' => 'post', 'id' => 2, '__gated' => true ) ),
+	bws_run_traversal( array( array( 'kind' => 'post', 'id' => 2, '__gated' => true ) ), array(), null, function () { return true; } )
 );
 
 // Chained steps: ref → ref.

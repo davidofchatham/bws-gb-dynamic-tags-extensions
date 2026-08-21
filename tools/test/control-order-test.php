@@ -574,6 +574,75 @@ foreach ( $slot_offers as $tag => $offer ) {
 	assert_same( "{{{$tag}}} — slot offer equals the base tag's", $base_offer, $offer );
 }
 
+echo "\n§8 takes_first_usable agrees across all three constructors (ADR 0007)\n";
+
+// The failure this pins: a Limit results control suppressed on a tag whose render
+// still applies the limit, or the reverse. The capability has ONE source — the
+// template record — and two editor surfaces derive from it (the base chain option's
+// fold config; every try_ slot's fold config). This is the one harness that sees all
+// three registration constructors at once, so the agreement is asserted here.
+
+$tags = GenerateBlocks_Register_Dynamic_Tag::get_tags();
+
+// The record itself: exactly the three collapsing templates declare it.
+$declared = array();
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+	if ( ! empty( $tpl['takes_first_usable'] ) ) {
+		$declared[] = $tpl['key'];
+	}
+}
+sort( $declared );
+assert_same( 'the record: exactly content/image/permalink declare the capability', array( 'content', 'image', 'permalink' ), $declared );
+
+// Base surface: the chain option's fold flag ⇔ the record, on every base tag that
+// registers the chain control.
+foreach ( $tags as $tag => $args ) {
+	$src = $args['options']['src'] ?? null;
+	if ( ! is_array( $src ) || 'bws-src-chain' !== ( $src['type'] ?? '' ) ) {
+		continue;
+	}
+	$expect = in_array( $tag, array( 'content', 'permalink', 'image' ), true );
+	assert_same(
+		"{{{$tag}}} — chain option fold takesFirstUsable matches the record",
+		$expect,
+		! empty( $src['fold']['takesFirstUsable'] )
+	);
+}
+
+// try_ surface: every slot option's fold flag ⇔ the record, per template.
+foreach ( $tags as $tag => $args ) {
+	if ( 0 !== strpos( $tag, 'try_' ) ) {
+		continue;
+	}
+	$expect = in_array( $tag, array( 'try_content', 'try_permalink', 'try_image' ), true );
+	foreach ( $args['options'] as $key => $opt ) {
+		if ( 'bws-slot-fold' !== ( $opt['type'] ?? '' ) ) {
+			continue;
+		}
+		assert_same(
+			"{{{$tag}}} slot {$key} — fold takesFirstUsable matches the record",
+			$expect,
+			! empty( $opt['fold']['takesFirstUsable'] )
+		);
+	}
+}
+
+// The third constructor (register_modifier / term_) authors no chain and no folded
+// slot, so it has no surface to suppress — asserted so a future term_ chain control
+// cannot pick the capability up by accident without a row here changing.
+foreach ( $tags as $tag => $args ) {
+	if ( 0 !== strpos( $tag, 'term_' ) ) {
+		continue;
+	}
+	foreach ( $args['options'] as $key => $opt ) {
+		assert_same(
+			"{{{$tag}}} {$key} — no fold carries takesFirstUsable on the flat-select family",
+			false,
+			! empty( $opt['fold']['takesFirstUsable'] )
+		);
+	}
+}
+
 // ---------------------------------------------------------------------------
 
 echo "\n";

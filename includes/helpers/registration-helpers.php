@@ -87,6 +87,13 @@ function bws_option_visual_groups(): array {
 		'src'             => array( 'group' => 'source', 'lead' => true ),
 		'ref'             => array( 'group' => 'source', 'lead' => false ),
 		'srcTermIn'       => array( 'group' => 'source', 'lead' => false ),
+		// The group-end fanning advisory on the collapsing tags (ADR 0007 pass two):
+		// a display-only control describing the SOURCE, so it shares the source box.
+		// Registered after the chain and its legacy siblings — an ungrouped control
+		// spliced between grouped ones splits the box, which is what this row and
+		// control-order-test.php §1 exist to prevent. Never a lead: it renders
+		// nothing on a non-fanning chain, and a box around a note alone is noise.
+		'srcFanNote'      => array( 'group' => 'source', 'lead' => false ),
 		'sep'             => array( 'group' => 'source', 'lead' => false ),
 		// What to read off it. BOTH are leads, and `key` has to be: on `{{email}}`,
 		// `{{phone}}` and `{{table}}` the field key is the tag's ENTIRE read — there is no

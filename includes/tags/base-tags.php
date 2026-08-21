@@ -58,6 +58,22 @@ function bws_register_base_tags(): void {
 	// Base tags author their source as a CHAIN (FW-56): a root plus ordered fanning
 	// steps. The derived families keep the plain select — see bws_build_src_chain_option().
 	$source_opt     = bws_build_src_chain_option();
+	// The SAME chain control with the collapsing capability set (ADR 0007) — one extra
+	// build call shared by content/permalink/image, so the editor suppresses the
+	// per-step limit control on exactly the tags whose render ignores it.
+	$source_opt_fu  = bws_build_src_chain_option( array( 'takes_first_usable' => true ) );
+	// Group-end FANNING ADVISORY for the collapsing tags (ADR 0007 pass two). One line
+	// at the end of the source group, shown only when the chain actually fans — the
+	// editor control (src-chain-control.js) owns the conditional; the COPY lives here.
+	// The field configuration note cannot carry this fact: it is attached to a FIELD,
+	// while fanning is the CHAIN's property (a terms step has no field key at all).
+	// `srcFanNote` holds no value and is never serialized; the control only displays.
+	$fan_advisory = array(
+		'srcFanNote' => array(
+			'type' => 'bws-fanning-advisory',
+			'help' => __( 'This source configuration can match more than one item. Only the first item is read.', 'generateblocks' ),
+		),
+	);
 	$traversal_opts = bws_base_traversal_options();
 	$text_field     = bws_get_text_field_options();
 
@@ -145,8 +161,9 @@ function bws_register_base_tags(): void {
 		'type'     => 'cross-source',
 		'supports' => array(),
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
+			$source_opt_fu,
 			$traversal_opts,
+			$fan_advisory,
 			array(
 				'use'      => array(
 					'type'           => 'select',
@@ -224,8 +241,9 @@ function bws_register_base_tags(): void {
 		// never an arbitrary option read. Bare {{permalink src:site}} → home_url()
 		// (V9 narrowed: URL-valued options reachable via {{text src:site|key:...}}).
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
-			$traversal_opts
+			$source_opt_fu,
+			$traversal_opts,
+			$fan_advisory
 		) ),
 		'return'   => 'bws_base_permalink_callback',
 	) );
@@ -252,8 +270,9 @@ function bws_register_base_tags(): void {
 		// `as` serialization opt-out means it is always present). Its `size` argument
 		// rides inside the `as` value (as+size fold) — no separate size option.
 		'options'  => bws_prepare_registration_options( array_merge(
-			$source_opt,
+			$source_opt_fu,
 			$traversal_opts,
+			$fan_advisory,
 			array(
 				'use'      => array(
 					'type'           => 'select',
@@ -445,6 +464,7 @@ function bws_register_base_tags(): void {
 		'try_per_slot_use'      => true,
 		'try_use_no_key_values' => array( 'content', 'excerpt' ),
 		'is_image'              => false,
+		'takes_first_usable'    => true,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -476,6 +496,7 @@ function bws_register_base_tags(): void {
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'is_image'     => false,
+		'takes_first_usable' => true,
 	) );
 
 	// image: register_modifier() (is_image=true) builds its own option set and ignores 'options'.
@@ -547,6 +568,7 @@ function bws_register_base_tags(): void {
 		'try_per_slot_use'      => true,
 		'try_use_no_key_values' => array( 'featured' ),
 		'is_image'              => true,
+		'takes_first_usable'    => true,
 	) );
 
 	TagTemplateRegistry::register_modifier_template( array(
@@ -1167,26 +1189,34 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
 	if ( 'term' === $res['kind'] ) {
-		// content has no list mode — first non-empty term wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
-			$result = 'key' === $use
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable read.
+		$value = bws_base_term_first_usable(
+			$base,
+			$options,
+			static fn( $tid ) => 'key' === $use
 				? bws_term_custom_text_core( (int) $tid, $opts, $instance )
-				: bws_term_description_core( (int) $tid, $opts, $instance );
-			if ( '' !== $result ) {
-				return $result;
-			}
+				: bws_term_description_core( (int) $tid, $opts, $instance )
+		);
+		if ( '' !== $value ) {
+			return $value;
 		}
-		$value = '';
 	} else {
-		$post_id = bws_base_post_id_from_source( $base, $options );
-		if ( 'excerpt' === $use ) {
-			$value = bws_post_excerpt_core( $post_id, $opts, $instance );
-		} elseif ( 'key' === $use ) {
-			$opts['type'] = 'custom_field';
-			$value = bws_post_content_core( $post_id, $opts, $instance );
-		} else {
-			$value = bws_post_content_core( $post_id, $opts, $instance );
-		}
+		// The POST route takes the first USABLE read too — same rule as the term
+		// route, same selector, whole compiled chain (not the wrapper's leading ref
+		// run). Its old shape — first resolved source, read once — was the surviving
+		// instance of the single-target collapse CONTEXT.md §Language names a defect.
+		$value = bws_base_post_first_usable( $base, $options, static function ( $post_id ) use ( $use, $opts, $instance ) {
+			if ( 'excerpt' === $use ) {
+				return bws_post_excerpt_core( $post_id, $opts, $instance );
+			}
+			if ( 'key' === $use ) {
+				$key_opts         = $opts;
+				$key_opts['type'] = 'custom_field';
+				return bws_post_content_core( $post_id, $key_opts, $instance );
+			}
+			return bws_post_content_core( $post_id, $opts, $instance );
+		} );
 	}
 
 	if ( '' !== $value ) {
@@ -1352,17 +1382,22 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 	}
 
 	if ( 'term' === $res['kind'] ) {
-		// permalink has no list mode — first non-empty term URL wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
-			$result = bws_term_permalink_core( (int) $tid, $options, $instance );
-			if ( '' !== $result ) {
-				return $result;
-			}
-		}
-		return '';
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable term URL.
+		return bws_base_term_first_usable(
+			$base,
+			$options,
+			static fn( $tid ) => bws_term_permalink_core( (int) $tid, $options, $instance )
+		);
 	}
 
-	return bws_post_permalink_core( bws_base_post_id_from_source( $base, $options ), $options, $instance );
+	// POST route: first usable URL off the whole fan — same rule as the term route
+	// (ADR 0007). The helper keeps today's single falsy-id read on an empty fan.
+	return bws_base_post_first_usable(
+		$base,
+		$options,
+		static fn( $post_id ) => bws_post_permalink_core( $post_id, $options, $instance )
+	);
 }
 
 /**
@@ -1419,19 +1454,29 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}
 	if ( 'term' === $res['kind'] ) {
-		// image has no list mode — first non-empty term image wins (unchanged).
-		foreach ( bws_base_term_ids_from_source( $base, $options ) as $tid ) {
-			$result = bws_term_custom_image_core( (int) $tid, $options, $instance );
-			if ( '' !== $result ) {
-				return $result;
-			}
+		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
+		// stripped at compile — and output the first usable term image. The cores
+		// keep their per-read stated-fallback semantics untouched: a stated fallback
+		// image is a non-empty read, exactly as it was for this loop's predecessor.
+		$value = bws_base_term_first_usable(
+			$base,
+			$options,
+			static fn( $tid ) => bws_term_custom_image_core( (int) $tid, $options, $instance )
+		);
+		if ( '' !== $value ) {
+			return $value;
 		}
-		$value = '';
 	} else {
-		$post_id = bws_base_post_id_from_source( $base, $options );
-		$value   = 'featured' === $use
-			? bws_featured_image_core( $post_id, $options, $instance )
-			: bws_custom_image_core( $post_id, $options, $instance );
+		// POST route: first usable image off the whole fan — same rule as the term
+		// route (ADR 0007). The helper keeps today's single falsy-id read on an
+		// empty fan.
+		$value = bws_base_post_first_usable(
+			$base,
+			$options,
+			static fn( $post_id ) => 'featured' === $use
+				? bws_featured_image_core( $post_id, $options, $instance )
+				: bws_custom_image_core( $post_id, $options, $instance )
+		);
 	}
 
 	if ( '' !== $value ) {

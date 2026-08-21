@@ -319,11 +319,21 @@ function bws_fold_chain_root( array $chain ): string {
  * step and compiles in wire order, so the #44 rule (`refs` before `terms`, because a term
  * step needs a post input) is carried by the WIRE rather than re-imposed here.
  *
+ * `$ignore_limits` is the collapsing-tag switch (ADR 0007): a template that takes a
+ * single usable result (`takes_first_usable`) resolves its WHOLE chain and selects,
+ * so no step limit rides its compiled steps — at any position, stamped or hand-typed.
+ * Enforced HERE, at the one point both step assemblers pass through, so neither the
+ * engine nor any callback carries a special case. The WIRE is untouched: suppression
+ * is an editor concern and serialization is the grammar's, so a saved `limit(N)`
+ * stays exactly as authored and starts applying again if the tag type changes.
+ *
  * @since 1.17.0
- * @param array $chain Parsed chain (bws_fold_parse_chain shape).
+ * @since 1.18.0 $ignore_limits — collapsing tags compile every step limit-free.
+ * @param array $chain         Parsed chain (bws_fold_parse_chain shape).
+ * @param bool  $ignore_limits Compile every step WITHOUT its limit (collapsing tags).
  * @return array[] Engine steps for bws_run_traversal().
  */
-function bws_fold_chain_to_steps( array $chain ): array {
+function bws_fold_chain_to_steps( array $chain, bool $ignore_limits = false ): array {
 	$steps = array();
 
 	foreach ( array_values( $chain ) as $i => $step ) {
@@ -371,8 +381,8 @@ function bws_fold_chain_to_steps( array $chain ): array {
 
 		// Only a REAL bound rides the step: 0/-1 are unlimited and the engine spells that
 		// as an absent key, which also keeps an unlimited step byte-identical to the flat
-		// assemblers' output.
-		$limit = $step['limit'] ?? null;
+		// assemblers' output. A collapsing tag rides no bound at all (see the docblock).
+		$limit = $ignore_limits ? null : ( $step['limit'] ?? null );
 		if ( null !== $limit && '' !== $limit && is_numeric( $limit ) && (int) $limit > 0 ) {
 			$engine_step['limit'] = (int) $limit;
 		}
@@ -516,12 +526,14 @@ function bws_fold_src_root_token( array $options ): string {
  * @since 1.14.0
  * @since 1.14.0 #44: src:ref + srcTermIn now compound instead of dropping ref.
  * @since 1.17.0 Compiles the depth-0 chain (arbitrary steps); moved here from field-helpers.php.
- * @param array $options Tag options (src, ref, srcTermIn).
+ * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags, ADR 0007).
+ * @param array $options       Tag options (src, ref, srcTermIn).
+ * @param bool  $ignore_limits Compile every step WITHOUT its limit (collapsing tags).
  * @return array[] Ordered traversal steps (may be empty).
  */
 if ( ! function_exists( 'bws_field_values_assemble_steps' ) ) {
-function bws_field_values_assemble_steps( array $options ): array {
-	return bws_fold_chain_to_steps( bws_fold_chain_from_options( $options ) );
+function bws_field_values_assemble_steps( array $options, bool $ignore_limits = false ): array {
+	return bws_fold_chain_to_steps( bws_fold_chain_from_options( $options ), $ignore_limits );
 }
 }
 
@@ -545,13 +557,15 @@ function bws_field_values_assemble_steps( array $options ): array {
  *
  * @since 1.14.0
  * @since 1.17.0 Leading run of ref steps off the compiled chain; moved here from base-shared.php.
- * @param array $options Tag options (src, ref).
+ * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags, ADR 0007).
+ * @param array $options       Tag options (src, ref).
+ * @param bool  $ignore_limits Compile every step WITHOUT its limit (collapsing tags).
  * @return array[] Zero or more consecutive leading ref steps.
  */
 if ( ! function_exists( 'bws_wrapper_ref_steps' ) ) {
-function bws_wrapper_ref_steps( array $options ): array {
+function bws_wrapper_ref_steps( array $options, bool $ignore_limits = false ): array {
 	$leading = array();
-	foreach ( bws_field_values_assemble_steps( $options ) as $step ) {
+	foreach ( bws_field_values_assemble_steps( $options, $ignore_limits ) as $step ) {
 		if ( 'refs' !== ( $step['type'] ?? '' ) ) {
 			break;
 		}

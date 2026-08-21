@@ -93,7 +93,7 @@ converter, NOT by opening the block. Editor-open only REORDERS (moves the tokens
 ranks format,1 so it leads) — it does not fold. Tracked as
 [issue #53](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/53).
 
-**⚠ AND THE SAME VERDICT FOR THE BARE-`as:url` COMPLETION, by a different route (1.17.1).**
+**⚠ AND THE SAME VERDICT FOR THE BARE-`as:url` COMPLETION, by a different route (1.18.0).**
 A tag saved before the fold spells the url return as a bare `as:url`; the canonical token carries
 its size, so `bws_migrate_image_as_bare_url()` completes it to `as:url,full` (O4.8). A mount effect
 for that one WAS built and backed out — it touches only `as`, so unlike the fold it is reachable
@@ -105,12 +105,12 @@ never by opening the block.
 | Row | Authored / action | Result | Path | What it proves |
 |---|---|---|---|---|
 | O4.1 | `{{image as:url,medium\|use:key\|key:feature_image}}` | `{{image as:url,medium\|src:...\|use:key\|key:feature_image}}` on open | editor open | already-folded `as` value survives; whole token leads (format group) |
-| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | composite renders url + size `full`; string writes `as:url,full` **once the author touches a control** (mount does not write) | editor open | default size arg (`full`) is the composite's rendered value; serialized on next edit. Mount-writing is REFUSED, and 1.17.1 re-decided it deliberately: see the second ⚠ above. The converter completes this tag (O4.8) |
+| O4.2 | `{{image as:url\|use:key\|key:feature_image}}` (size arg absent) | composite renders url + size `full`; string writes `as:url,full` **once the author touches a control** (mount does not write) | editor open | default size arg (`full`) is the composite's rendered value; serialized on next edit. Mount-writing is REFUSED, and 1.18.0 re-decided it deliberately: see the second ⚠ above. The converter completes this tag (O4.8) |
 | O4.3 | `{{image as:alt\|use:key\|key:feature_image}}` | `{{image as:alt\|use:key\|key:feature_image}}` | editor open | nullary return — NO size sub-slot (bare mode); size dropdown hidden in modal |
 | O4.4 | migration: `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (legacy split) | `{{image as:url,medium\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open — see ⚠ above) | `transform_callback` folds legacy `size:` into `as`; orphan `size:` token gone |
 | O4.5 | migration: `{{image as:alt\|size:large\|key:feature_image\|use:key}}` (dead size on nullary) | `{{image as:alt\|use:key\|key:feature_image}}` | **Tag Converter** (NOT on open) | legacy `size:` on a nullary mode is DROPPED (was dead at render) |
 | O4.6 | on-open of a legacy split: open `{{image size:medium\|as:url\|...}}` in the editor, do NOT run the converter | `size:medium` SURVIVES (reordered to lead), composite shows size `full` | editor open (negative) | pins the GB-private-`imageSize` limitation: open-fold is impossible; converter required |
-| O4.7 | migration NEGATIVE: a page holding `{{image as:url,full\|src:refs,…\|use:featured}}`, `{{try_image as:url,full\|2-as:url}}`, `{{image as:alt}}`, `{{image as:url,medium\|…}}` — every shape already canonical — scan only | NOT listed at all | **Tag Converter** (scan) | the converter reports only work it will do. Pre-1.17.1 `as` was in the fold entry's `match_any_options`, so every image tag was listed for a fold the callback declines and the page relisted after every run |
+| O4.7 | migration NEGATIVE: a page holding `{{image as:url,full\|src:refs,…\|use:featured}}`, `{{try_image as:url,full\|2-as:url}}`, `{{image as:alt}}`, `{{image as:url,medium\|…}}` — every shape already canonical — scan only | NOT listed at all | **Tag Converter** (scan) | the converter reports only work it will do. Pre-1.18.0 `as` was in the fold entry's `match_any_options`, so every image tag was listed for a fold the callback declines and the page relisted after every run |
 | O4.8 | migration: a page holding a bare `{{image as:url\|src:refs,…\|use:featured}}` AND a legacy split `{{image as:url\|size:medium\|use:key\|key:feature_image}}` (plus the two unreportable shapes) — scan, migrate, RESCAN | listed with BOTH labels, migrate reports `option_count: 2`; the bare one becomes `as:url,full`, the split one becomes **`as:url,medium`**; rescan does NOT list the page | **Tag Converter** (scan → migrate → scan) | the completion entry writes the canonical token, AND entry ORDER holds: the fold is registered first, so a tag matching both keeps its authored size instead of being overwritten with `full` |
 
 **Size-visible-only-on-`url` gate (editor-only, no string — do by hand in O4.1):** in the

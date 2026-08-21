@@ -97,7 +97,7 @@ control and a multislot container's `bws-slot-fold` slot — so a step reads ide
 `{{text}}` and inside a `{{join}}` field.
 
 **Every string that names a SCHEMA fact arrives on the PHP option definition** — the step enum's
-row labels, the Relationship Field Key picker and the whole of Limit results, all from
+row labels, the Relationship Field Key picker and the whole of the per-step limit control (its per-step labels and both help forms), all from
 `bws_fold_wire_vocabulary()` / `bws_base_traversal_options()`. The control hand-authors none of
 those; a second copy there is how the image tag's `Return type:` / `Return image as:` labels
 drifted. The two strings it does author — the step picker's own "Source" label and "Taxonomy" —
@@ -109,9 +109,9 @@ with.
 | Source | the step's own **slug** — `refs` / `terms` / `entries`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
 | Relationship Field Key | the **arg** of a `refs` (or `entries`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `entries`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
 | Taxonomy | the **arg** of a `terms` step — `terms,<taxonomy>` | — | Step slug is `terms`. Enum = public taxonomies, shipped with the definition |
-| Limit results | the step's **`limit(N)` token** — `refs,office,limit(3)` | *Maximum number of results. Leave blank for all.* — or, where an earlier step fans, *Maximum number of results for each previous-step result. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
+| Limit Posts Read / Limit Terms Read / Limit Repeater Rows Read (per step; *Limit items read* is the fallback) | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
 
-**Limit results carries two help forms, chosen by whether an earlier step actually FANS — not by
+**The limit control carries two help forms, chosen by whether an earlier step actually FANS — not by
 step position.** Per-step limits are per-input and multiply (`∏ limitₙ`), but where nothing
 upstream fans there is exactly one input, so per-input and total coincide and the clause would ask
 the author to reason about a distinction that cannot arise. A step at chain position 3 whose
@@ -120,8 +120,38 @@ count, because the compiler drops it. The predicate is `bws_fold_chain_fanning_s
 one the migrator stamps by and the render seam defaults by — reached in the editor through its
 shipped JS twin, never re-derived from the index.
 
-The Limit results control carried a draft label of **Limit per source** for most of 1.17.0's
-development and was corrected before release
+**The limit control is SUPPRESSED on a collapsing tag** — `content` / `permalink` / `image` and their
+`try_` slots, the templates whose `takes_first_usable` capability makes the render ignore every
+step limit ([tag-reference.md §Collapsing tags](tag-reference.md#collapsing-tags-first-usable-source)).
+Suppressed, not reworded: rewording asks the author to read an explanation of why a visible control
+does nothing. The mechanism is an **explicit conditional in the shared step renderer** reading
+`takesFirstUsable` off the fold config (threaded from the template record through
+`bws_build_src_chain_option()` / `bws_build_fold_slot_options()`), never an omitted `limitOption`
+vocabulary — an absent config still renders an unlabelled text box, and an explicit conditional
+means a template gaining or losing the capability moves the control with no second list to
+remember. Stored wire is untouched: a saved `limit(N)` survives the round-trip and applies again if
+the tag type changes. Pinned by `control-order-test.php` §8 (which surfaces carry the flag) and
+`editor-filter-chain-test.js` (that the flag removes the control).
+
+**The label moved once shipped, too: 1.17.0's *Limit results* became *Limit items read* in 1.18.0**
+(the determinism reversal, [ADR 0007](adr/0007-a-limit-counts-usable-sources.md)) — the number
+counts items read, and an item whose field is empty keeps its place, so a label promising results
+promised what the render no longer does. Label and help only; the option key and stored wire did
+not move, so there is no row in `deprecated-tags-options.md`.
+
+**Then the label became PER STEP, in the same release.** A step names what it produces — *Limit
+Posts Read* on `refs`, *Limit Terms Read* on `terms`, *Limit Repeater Rows Read* on `entries` — and
+*Limit items read* is what a step wears when it ships without one. The noun is AUTHORED on the step
+record (`steps[<slug>].limitLabel`, beside the row label it already declares) rather than derived
+from the step's `produces` kind: `meta_row` is the engine's word for a repeater row, and deriving
+the label would put a naming decision in a map keyed on internals. Which label a step wears is the
+step record's answer; the generic string is a fallback, never a composition — the control picks one
+or the other exactly as it picks between the two help forms. Pinned by
+`slot-options-build-test.php` (registration ships the three nouns) and
+`slot-fold-repeater-test.js` (the control reads the record, and falls back when it is absent).
+
+Before either shipped label, the control carried a draft label of **Limit per source** for most of
+1.17.0's development and was corrected before release
 ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)) — it sat three
 rows below a control labelled *Source* meaning something else, named sources while bounding results,
 and stated the per-input rule everywhere except the label. **No author ever saw it, so it is not a
@@ -130,9 +160,44 @@ rename**: nothing shipped under it, no CHANGELOG entry describes it, and it has 
 stand that long was the absence of this table. The option key did not move and no stored wire was
 rewritten.
 
+#### Group-end fanning advisory
+
+On the three collapsing tags (`content` / `permalink` / `image` — the `takes_first_usable`
+templates), one display-only line closes the source group whenever the tag's chain actually fans:
+
+> *This source configuration can match more than one item. Only the first item is read.*
+
+**"Source configuration", not "source", and "match", not "return"** (user, 2026-08-21). *Source*
+alone is ambiguous once a source is a root plus steps, and it says one where the author may have
+built several; *source configuration* names the whole thing without borrowing the **Source**
+control's own label. *Return* is unavailable: **Return As** already labels the image `as` option
+and the datetime output option, and **Return Type** a third, so on an Image tag the advisory would
+sit a few controls above a box using that word for something else. The modal is load-bearing too —
+the line says a chain *can* match several, never that it did ([`CONTEXT.md`
+§Language](../CONTEXT.md#language) owns the rule that decides which), so *can match* is true of a
+chain that resolves exactly one and a bare *matches* would not be.
+
+It exists because the field configuration note structurally cannot carry this fact: a note is
+attached to a FIELD, while fanning is a property of the CHAIN — a `terms` step has no field key for
+a note to attach to, and a chain can fan with no multi-value field involved. One advisory at the
+group's end covers both holes and the ordinary case alike, once per chain rather than once per
+step. The wording states what the author observes and deliberately does not name the rule that
+decides fanning — that axis is owned at the predicate (`bws_fold_chain_fanning_steps()`), reached
+here through its grammar twin, the same one the limit-control help forms and the migrator's stamp
+use.
+
+Mechanics: option `srcFanNote`, type `bws-fanning-advisory`, registered at the end of the source
+group with a row in `bws_option_visual_groups()` (an ungrouped control spliced between grouped ones
+splits the box). The copy arrives on the option definition (`help`) — the control hand-authors no
+vocabulary. The control writes nothing, the option is never serialized, and the filter returns
+`null` on a non-fanning chain (the conditional-options pattern) so the group wrapper — which boxes
+any non-null element — never draws an empty member. Pinned by `editor-filter-chain-test.js`
+(conditional both ways, once-per-chain, composition with the group wrapper) and
+`control-order-test.php` §1 (contiguity).
+
 #### Field configuration note
 
-Between the Relationship Field Key control and Limit results, a selected field can carry a **field
+Between the Relationship Field Key control and the step's limit control, a selected field can carry a **field
 configuration note**: a statement of what ACF does and does not enforce about how many entries that
 field can hold ([#96](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/96)).
 It exists because three facts that change what a `refs` step returns are invisible from the tag
@@ -142,7 +207,7 @@ silently hold several entries — and the ACF admin is unreachable from the cont
 exists to serve.
 
 **It describes and never gates.** No wire changes, no save is blocked, no rendered output moves. Its
-value is that the *enforced* bound is the Limit results control sitting directly beneath it, so the
+value is that the *enforced* bound is the step's own limit control sitting directly beneath it, so the
 note reads as the setup for the number about to be chosen. That adjacency is left implicit; the note
 carries no call to action.
 
@@ -163,6 +228,14 @@ control renders what it is given.
 
 The **consequence clause**, emphasised, is: *The first stored entry will be the only result while
 this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.*
+
+**On a collapsing tag the clause is dropped and the rest of the note stands.** Its prediction —
+all entries becoming results — is false on a tag that renders one result, while the multi-value
+fact above it stays true and useful. The envelope is tag-blind (no tag identity reaches the REST
+route), so PHP MARKS the segment (`consequence => true` beside `emph`) and the note renderer drops
+marked segments where the fold config carries `takesFirstUsable`. The note says nothing about
+collapsing itself — that is a fact about the CHAIN, carried by the group-end fanning advisory, not
+by a note attached to a field.
 
 Everything else is silent, and **silence is information**: the presence of a note means there is
 something to know.
@@ -224,7 +297,7 @@ validation message cannot appear together, since the note requires a selected fi
 fires only when none is set.
 
 **Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time,
-does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps.
+does not pre-fill the limit control from it, and does not appear on field pickers outside chain steps.
 
 The surface that invites the question is the [Field group](tag-reference.md#field-group)'s own `key`,
 where the same picker offers the same relationship fields — and the note is right to stay away,
@@ -384,7 +457,7 @@ mount side hand-lists NOTHING: container config, including `flatAxes`, arrives o
 definition rather than being duplicated in JS.
 
 
-### Why the image composite does NOT migrate on mount (1.17.1)
+### Why the image composite does NOT migrate on mount (1.18.0)
 
 The `bws-as-size` composite owns the `as` token end to end, so completing a legacy bare `as:url` to
 `as:url,full` on mount looks like the same two-path shape as above, on a key the editor genuinely

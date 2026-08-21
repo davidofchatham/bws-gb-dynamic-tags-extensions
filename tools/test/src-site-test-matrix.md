@@ -163,6 +163,10 @@ whichever store it names. `2-key:` does not exist here and rows that spell it re
 **The property under test is byte-parity with the base tag**, single-result site output wrapping with
 the `('site', 1)` sentinel exactly as `{{datetime_single src:site}}` does.
 
+**MEASURED 2026-08-21** on the 1.18.0 build, `/matrix-post-meta/` — R8.1 through R8.7 all render as
+stated, including R8.4's site-sentinel link wrap and the R8.5/R8.6 fallthrough pair. R8.8 is
+editor-only and is not covered by this stamp.
+
 Visible rows: `matrix-post-meta` page, section "Site R8 - datetime try_ site slots" (R8.1–R8.7).
 `org_conference_start` / `org_conference_end` are seeded by `core-structures` for R8.3/R8.7 — the two
 pre-existing site date keys are a founding date and a party datetime, which pair into a nonsense

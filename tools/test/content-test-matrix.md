@@ -64,7 +64,7 @@ so the callback's arms are covered in one place rather than scattered across fam
 | # | Tag | Expected |
 |---|---|---|
 | CT4 | `{{content src:ref\|ref:related_staff\|use:key\|key:main_line}}` | `(555) 200-3000` — jane's line, not the page's `(321) 555-0100` |
-| CT5 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `Sales handles quotes, renewals and the annual customer roadshow.` — support carries NO blurb, so this also pins that the term walk skips an empty term rather than stopping at it |
+| CT5 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `Sales handles quotes, renewals and the annual customer roadshow.` — the first usable SOURCE is Sales (WP returns terms by name), and Sales is the one carrying a blurb. Support carries none, so a read in ASSIGNMENT order would render empty: since the 2026-08-21 determinism reversal (ADR 0007) this row pins the ORDER, not a skip — a collapsing tag reads the first usable source and renders its empty field as empty |
 
 ## §CT6 — the ambient contrast
 

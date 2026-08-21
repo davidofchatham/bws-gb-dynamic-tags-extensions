@@ -302,9 +302,17 @@ function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
 	// only enforcement point correctly implies that imports, WP-CLI and every other
 	// programmatic write bypass it too, rather than pinning the bypass on
 	// bidirectionality alone.
+	// `consequence` MARKS the segment, it does not render: the REST envelope is
+	// tag-blind by construction (no tag identity reaches this route), so which tags
+	// may show this clause is decided client-side, off the consuming tag's
+	// takes_first_usable capability (ADR 0007) — on a collapsing tag the prediction
+	// "all entries will be results" is false, the multi-value FACT above it stays
+	// true, and the note must lose only the false half. Marking here keeps the drop
+	// structural rather than keyed on `emph`, which is presentation.
 	$consequence = array(
-		'text' => __( 'The first stored entry will be the only result while this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.', 'generateblocks' ),
-		'emph' => true,
+		'text'        => __( 'The first stored entry will be the only result while this field is single-entry; all entries will be results if it is reconfigured as multiple-entry.', 'generateblocks' ),
+		'emph'        => true,
+		'consequence' => true,
 	);
 
 	// Case 2 — a bidirectional field with no limit SETTING to report. Reached by a

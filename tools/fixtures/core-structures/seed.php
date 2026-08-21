@@ -93,6 +93,9 @@ $field_keys = array(
 		'lead_staff_obj'    => 'field_bwsfx_lead_staff_obj',
 		// The SECOND-DEGREE link (#55) — staff→staff, so a chain can hop twice.
 		'reports_to'        => 'field_bwsfx_reports_to',
+		// SOURCE GATE corpus (v13, ADR 0007) — see schema.php for why both return ids.
+		'gate_staff'        => 'field_bwsfx_gate_staff',
+		'via_draft'         => 'field_bwsfx_via_draft',
 		// join matrix (manifest v2) — person-name / role / height fields.
 		'name_honorific'      => 'field_bwsfx_name_honorific',
 		'name_first'          => 'field_bwsfx_name_first',
@@ -139,6 +142,7 @@ $field_keys = array(
 		'phone'      => 'field_bwsfx_phone',
 		'email'      => 'field_bwsfx_department_email',
 		'event_date' => 'field_bwsfx_dept_event_date',
+		'charter'    => 'field_bwsfx_charter',   // v12 first-usable corpus (§F15).
 	),
 );
 
@@ -315,7 +319,14 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 		array(
 			'name'        => $def['post_name'],
 			'post_type'   => $def['post_type'],
-			'post_status' => 'any',
+			// EXPLICIT status list, not 'any': WP_Query's 'any' subtracts every status
+			// flagged exclude_from_search, which is where the gate corpus's draft lives.
+			// A miss here is not an error — it silently seeds a SECOND post each run,
+			// and the duplicate takes the slug the rows read by.
+			// `trash` is in the list for the same reason (v14, §F17.8): a trashed
+			// fixture the lookup cannot see is re-created on every reseed, and the
+			// duplicate takes the slug while the original keeps the row's id.
+			'post_status' => array( 'publish', 'draft', 'private', 'pending', 'future', 'trash' ),
 			'numberposts' => 1,
 		)
 	);
@@ -323,7 +334,10 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 		'post_type'    => $def['post_type'],
 		'post_name'    => $def['post_name'],
 		'post_title'   => $def['post_title'],
-		'post_status'  => 'publish',
+		// Absent = publish, which every fixture but the gate corpus (v13) wants.
+		// The gate rows need posts differing ONLY in readability, so a post's status
+		// is fixture DATA there rather than a constant here.
+		'post_status'  => isset( $def['post_status'] ) ? $def['post_status'] : 'publish',
 		'post_content' => $content,
 	);
 	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
@@ -444,7 +458,7 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		// stores the id whatever the field's return_format is, so every such field
 		// resolves identically here and the format only shows up on the READ.
 		// A single-slug value (post_object) resolves to a scalar id, not a list.
-		if ( in_array( $name, array( 'related_staff', 'related_staff_obj', 'lead_staff_obj', 'reports_to' ), true ) ) {
+		if ( in_array( $name, array( 'related_staff', 'related_staff_obj', 'lead_staff_obj', 'reports_to', 'gate_staff', 'via_draft' ), true ) ) {
 			$slug_to_id = function ( $ref ) use ( $post_ids ) {
 				return isset( $post_ids[ $ref ] ) ? $post_ids[ $ref ] : 0;
 			};
@@ -480,11 +494,50 @@ foreach ( $manifest['post_fields'] as $slug => $fields ) {
 		}
 	}
 }
+// The gate corpus's EXISTENCE fixture (v13, §F17.3): a genuinely deleted post id.
+// Created and force-deleted here rather than hardcoded — a made-up high number passes
+// vacuously today and starts failing the day the site's auto-increment reaches it.
+// Resolved into plain meta below as the {DELETED_POST_ID} token.
+$deleted_post_id = 0;
+if ( ! empty( $manifest['post_meta'] ) ) {
+	$throwaway = wp_insert_post(
+		array(
+			'post_type'   => 'staff',
+			'post_title'  => 'BWS Fixture Throwaway (deleted at seed time)',
+			'post_status' => 'draft',
+		)
+	);
+	if ( $throwaway && ! is_wp_error( $throwaway ) ) {
+		$deleted_post_id = (int) $throwaway;
+		wp_delete_post( $deleted_post_id, true ); // Force — a trashed post still EXISTS.
+		if ( get_post( $deleted_post_id ) ) {
+			$log( 'WARNING: throwaway post ' . $deleted_post_id . ' survived deletion — §F17.3 would assert nothing' );
+		}
+	}
+}
+
 foreach ( $manifest['post_meta'] as $slug => $meta ) {
 	if ( ! isset( $post_ids[ $slug ] ) ) {
 		continue;
 	}
 	foreach ( $meta as $name => $value ) {
+		// Plain meta carries the gate corpus's raw ref list, so it needs the same
+		// slug→id resolution the ACF loop above does, plus the deleted-id token.
+		if ( is_array( $value ) ) {
+			$value = array_values(
+				array_filter(
+					array_map(
+						function ( $entry ) use ( $post_ids, $deleted_post_id ) {
+							if ( '{DELETED_POST_ID}' === $entry ) {
+								return $deleted_post_id;
+							}
+							return isset( $post_ids[ $entry ] ) ? $post_ids[ $entry ] : $entry;
+						},
+						$value
+					)
+				)
+			);
+		}
 		update_post_meta( $post_ids[ $slug ], $name, $value );
 	}
 }

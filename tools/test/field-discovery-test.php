@@ -325,7 +325,7 @@ assert_eq(
 	'case 4: single-entry post object + native bidirectional',
 	array(
 		array( 'text' => $CASE4, 'emph' => false ),
-		array( 'text' => $CONSEQ, 'emph' => true ),
+		array( 'text' => $CONSEQ, 'emph' => true, 'consequence' => true ),
 	),
 	bws_field_discovery_field_note( $note_native( array( 'type' => 'post_object' ) ) )
 );
@@ -347,7 +347,7 @@ assert_eq(
 	'case 6: single-entry post object, not bidirectional',
 	array(
 		array( 'text' => $CASE6, 'emph' => false ),
-		array( 'text' => $CONSEQ, 'emph' => true ),
+		array( 'text' => $CONSEQ, 'emph' => true, 'consequence' => true ),
 	),
 	bws_field_discovery_field_note( array( 'type' => 'post_object' ) )
 );
@@ -358,7 +358,7 @@ assert_eq(
 	'both bidirectional flavours enabled -> native wording',
 	array(
 		array( 'text' => $CASE4, 'emph' => false ),
-		array( 'text' => $CONSEQ, 'emph' => true ),
+		array( 'text' => $CONSEQ, 'emph' => true, 'consequence' => true ),
 	),
 	bws_field_discovery_field_note( $note_acfe( $note_native( array( 'type' => 'post_object' ) ) ) )
 );
@@ -382,7 +382,7 @@ assert_eq(
 	'options-page single-entry post object takes case 6, not case 4',
 	array(
 		array( 'text' => $CASE6, 'emph' => false ),
-		array( 'text' => $CONSEQ, 'emph' => true ),
+		array( 'text' => $CONSEQ, 'emph' => true, 'consequence' => true ),
 	),
 	bws_field_discovery_field_note( $note_native( array( 'type' => 'post_object' ) ), 'site' )
 );

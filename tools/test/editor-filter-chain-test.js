@@ -647,6 +647,210 @@ check(
 		.map( f => f.ns + '@' + f.priority ).join( ', ' )
 );
 
+// ── takes_first_usable suppresses the Limit results control (ADR 0007) ──────
+//
+// ONE renderer serves both surfaces — the base tag's chain control and every folded
+// slot render steps through bwsSlotFoldRepeater.chainSteps — so the suppression is
+// asserted once, against the shared component, on both values of the capability.
+// The PHP half (which tags carry the flag on which surface) is control-order-test.php
+// §8; this half is that the flag, once on the config, actually removes the control.
+console.log( '\ntakes_first_usable — Limit results suppression (ADR 0007)\n' );
+
+const repeaterX = global.window.bwsSlotFoldRepeater;
+
+/** Depth-first: does the element tree contain a control labelled `label`? */
+function treeHasLabel( nodes, label ) {
+	return ( Array.isArray( nodes ) ? nodes : [ nodes ] ).some( function walk( n ) {
+		if ( ! n || 'object' !== typeof n ) {
+			return false;
+		}
+		if ( n.props && n.props.label === label ) {
+			return true;
+		}
+		const kids = ( n.children || [] ).concat( n.props && n.props.children ? [ n.props.children ] : [] );
+		return kids.some( function ( k ) {
+			return Array.isArray( k ) ? k.some( walk ) : walk( k );
+		} );
+	} );
+}
+
+// The label a `terms` step actually wears since 1.18.0. NOT the generic
+// `limitOption.label`: that is the FALLBACK for a slug shipped without a
+// limitLabel, and asserting against it made both suppression rows below pass
+// while rendering the per-kind label, which is the shape a stale sentinel always
+// takes — the string moved, the assertion kept checking the old one, and absence
+// is what a suppression row is looking for anyway.
+const LIMIT_LABEL = 'Limit Terms Read';
+// THROUGH foldConfig, never a hand-built object. foldConfig() returns a FRESH
+// object with a named key list, so a config key it does not carry is invisible to
+// every consumer regardless of what PHP sent — and a harness that skips it asserts
+// a shape the product never passes. takesFirstUsable was dropped there for the
+// whole of its first release, suppressing nothing, with these rows green.
+function stepsConf( extra ) {
+	return repeaterX.foldConfig( { fold: Object.assign( {
+		steps: {
+			refs:  { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
+			terms: { label: 'In Taxonomy Term', limitLabel: LIMIT_LABEL, arg: 'slug', produces: 'term' }
+		},
+		roots: { site: 'site' },
+		retiredSrc: [],
+		offer: [ 'refs', 'terms' ],
+		taxonomies: [ { value: '', label: 'Select…' }, { value: 'category', label: 'Categories' } ],
+		refOption: { label: 'Field' },
+		defaultRoot: 'current',
+		srcRows: [ { value: 'current', label: 'Current' }, { value: 'refs', label: 'Ref' }, { value: 'terms', label: 'Terms' } ],
+		limitOption: { label: 'Limit items read', placeholder: '0 (all)', help: 'Maximum number of results. Leave blank for all.', helpFanning: 'per input' }
+	}, extra || {} ) } );
+}
+
+function renderSteps( conf ) {
+	return repeaterX.chainSteps( {
+		conf: conf,
+		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'terms', 'category', 2 ) ],
+		onChange: function () {},
+		inheritOnEmpty: false,
+		slotNoun: 'tag',
+		stepContext: function () {
+			return { state: {}, setState: function () {} };
+		}
+	} );
+}
+
+check(
+	'a non-collapsing config renders the Limit results control on a fanning step',
+	treeHasLabel( renderSteps( stepsConf() ), LIMIT_LABEL )
+);
+check(
+	'takesFirstUsable on the SAME config suppresses it — an explicit conditional, not a vocabulary omission',
+	! treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), LIMIT_LABEL )
+);
+// Everything else about the step survives suppression: the taxonomy picker is the
+// nearest sibling and must not go with it.
+check(
+	'the step\'s other controls survive the suppression',
+	treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), 'Taxonomy' )
+);
+
+// ── The field note's CONSEQUENCE clause, the flag's second consumer ──────────
+//
+// takesFirstUsable is read in exactly two places, and nothing pinned this one:
+// F14.16 is an eyeball row, and it verified the note's CASES, not the collapsing
+// drop. So when the flag stopped arriving, the limit control and this clause both
+// reverted silently and the only signal was a screenshot. Two consumers, one flag,
+// one normalizer — the second one gets a pin.
+//
+// Segments arrive on window.bwsFieldEnvelope (the field-discovery envelope), so the
+// stub below is the smallest shape fieldNote() will match: one kind, one group, one
+// field, whose note carries a plain segment and a `consequence` one.
+global.window.bwsFieldEnvelope = {
+	post: [ {
+		fields: [ {
+			name: 'partner_staff',
+			note: [
+				{ text: 'Bidirectional field with a configured limit of 3.' },
+				{ text: 'All entries will be results.', consequence: true }
+			]
+		} ]
+	} ]
+};
+
+/** Depth-first: does the tree contain this text anywhere? */
+function treeHasText( nodes, text ) {
+	return ( Array.isArray( nodes ) ? nodes : [ nodes ] ).some( function walk( n ) {
+		if ( 'string' === typeof n ) {
+			return -1 !== n.indexOf( text );
+		}
+		if ( ! n || 'object' !== typeof n ) {
+			return false;
+		}
+		const kids = ( n.children || [] ).concat( n.props && n.props.children ? [ n.props.children ] : [] );
+		return kids.some( function ( k ) {
+			return Array.isArray( k ) ? k.some( walk ) : walk( k );
+		} );
+	} );
+}
+
+function renderRefsStep( extra ) {
+	return repeaterX.chainSteps( {
+		conf: stepsConf( extra ),
+		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'refs', 'partner_staff', null ) ],
+		onChange: function () {},
+		inheritOnEmpty: false,
+		slotNoun: 'tag',
+		stepContext: function () {
+			return { state: {}, setState: function () {} };
+		}
+	} );
+}
+
+console.log( '\ntakes_first_usable — the field note consequence clause (ADR 0007)\n' );
+
+check(
+	'a non-collapsing tag keeps the note consequence clause',
+	treeHasText( renderRefsStep(), 'All entries will be results.' )
+);
+check(
+	'a collapsing tag drops the consequence clause and KEEPS the multi-value fact',
+	! treeHasText( renderRefsStep( { takesFirstUsable: true } ), 'All entries will be results.' )
+		&& treeHasText( renderRefsStep( { takesFirstUsable: true } ), 'Bidirectional field with a configured limit of 3.' )
+);
+
+// ── The group-end fanning advisory (bws-fanning-advisory, ADR 0007 pass two) ──
+//
+// The advisory COMPOSES with the other per-tag controls rather than assuming an
+// order: its filter replaces the option's element (key preserved) and nulls it on a
+// non-fanning chain, so the group wrapper behind it boxes a real advisory and skips
+// an absent one — an element that merely RENDERED null would still leave an empty
+// member extending the source box.
+console.log( '\ngroup-end fanning advisory (ADR 0007 pass two)\n' );
+
+const advisoryFilter = filters.filter( f => 'bws/fanning-advisory' === f.ns )[ 0 ];
+check( 'the advisory filter is registered', !! advisoryFilter );
+check(
+	'…ahead of the group wrapper, so its null is respected',
+	!! advisoryFilter && !! groupReg && advisoryFilter.priority < groupReg.priority,
+	advisoryFilter && advisoryFilter.priority
+);
+
+const ADV_OPTS = {
+	srcFanNote: { type: 'bws-fanning-advisory', help: 'more than one item', _group: 'source' }
+};
+function advise( state ) {
+	return applyFilters( { key: 'srcFanNote', type: 'control' }, ADV_OPTS, { state: state, setState: function () {} } );
+}
+
+check( 'a NON-fanning chain shows nothing — no element, no empty group member', null === advise( {} ) );
+check( 'a bare root shows nothing', null === advise( { src: 'current' } ) );
+// The condition is that the CHAIN fans — not that a field is multi-value, and with no
+// field key involved anywhere on the terms shape.
+const advFan = advise( { src: 'refs,office' } );
+check( 'a fanning chain shows the advisory, boxed into the source group', isMemberBox( advFan ), JSON.stringify( advFan && advFan.type ) );
+check( 'a taxonomy-step chain shows it too (no field key involved)', isMemberBox( advise( { src: 'terms,category' } ) ) );
+check( 'legacy flat wire counts as its chain (src:ref + ref)', isMemberBox( advise( { src: 'ref', ref: 'office' } ) ) );
+// An argless fanning step fans only by inheritance and resolves nothing here.
+check( 'an ARGLESS fanning step does not trigger it', null === advise( { src: 'refs' } ) );
+
+// The advisory renders ONCE per chain, however many steps fan.
+const advTree = advise( { src: 'refs,office;terms,region' } );
+function countAdvisories( n ) {
+	if ( ! n || 'object' !== typeof n ) {
+		return 0;
+	}
+	let c = /bws-fanning-advisory/.test( String( ( n.props && n.props.className ) || '' ) ) ? 1 : 0;
+	const kids = ( n.children || [] ).concat( ( n.props && n.props.children ) ? [ n.props.children ] : [] );
+	kids.forEach( function ( k ) {
+		( Array.isArray( k ) ? k : [ k ] ).forEach( function ( kk ) {
+			c += countAdvisories( kk );
+		} );
+	} );
+	// The advisory component itself defers rendering; resolve it for the walk.
+	if ( 'function' === typeof n.type ) {
+		c += countAdvisories( n.type( n.props ) );
+	}
+	return c;
+}
+check( 'a chain fanning at TWO steps shows the advisory once', 1 === countAdvisories( advTree ), String( countAdvisories( advTree ) ) );
+
 console.log( '' );
 if ( fail ) {
 	console.log( 'FAILED: ' + fail + '/' + ( pass + fail ) );

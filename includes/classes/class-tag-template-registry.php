@@ -53,6 +53,27 @@ class TagTemplateRegistry {
 	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
+	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
+	 *                    USABLE source its chain produces — usable = resolvable × exists ×
+	 *                    visible (the engine gate), NEVER field-populated, so the read may
+	 *                    be empty and selection is field-independent (ADR 0007, the
+	 *                    2026-08-21 reversal). THE AXIS, owned here: keyed on the template's
+	 *                    DISPOSITION toward a plural resolved-source list — NOT on list mode
+	 *                    and NOT on any list flag, because `{{table}}` (no list mode, the
+	 *                    most load-bearing step limit in the plugin) is exactly the template
+	 *                    a list-shaped proxy misclassifies. Named for the SELECTION rather
+	 *                    than the cardinality on purpose: limits are inert on these tags
+	 *                    precisely BECAUSE selection takes the first usable source, which a
+	 *                    cardinality-shaped name would leave a reader expecting a limit to
+	 *                    bound. Consequences (stated, not decided, elsewhere): the render
+	 *                    path compiles the chain with every step limit stripped and reads
+	 *                    at n = 1 (bws_read_bounded_sources, no predicate); the try_ constructor
+	 *                    forces the slot bound to 1; the editor suppresses the limit control
+	 *                    and the field note's several-results clause. Reaches render the way is_image
+	 *                    does — captured at registration, no registry lookup — and is
+	 *                    UNPREFIXED because both the base registration and the slot builder
+	 *                    consume it (`try_` marks flags only the try_ constructor reads).
+	 *                    True today of exactly content / permalink / image.
 	 */
 	private static array $modifier_templates = [];
 
@@ -594,6 +615,11 @@ class TagTemplateRegistry {
 						// position — same split, same owner, as the trailing-option strip
 						// below and the converter migrator.
 						'tag_level'       => self::try_slot_axes( $tpl )['tag_level'],
+						// The base template's collapsing capability, threaded per slot
+						// (ADR 0007): the one step renderer then suppresses the Limit
+						// results control on try_content/try_permalink/try_image slots
+						// exactly as on their base tags.
+						'takes_first_usable' => ! empty( $tpl['takes_first_usable'] ),
 						// "attempt" nouns ONE RUNG of the fallback chain, which is what a
 						// try_ slot is (src-chain-encoding.md §5.1a, user 2026-08-01).
 						// One noun, both surfaces: "+ Add attempt" and the header
@@ -686,12 +712,16 @@ class TagTemplateRegistry {
 			// Their default-on anchor would corrupt the <img src>. Mirrors the base
 			// {{email}}/{{phone}} VE-vis/VP-vis backstop. [SPEC §32 V11]
 			$media_guard = ! empty( $tpl['try_media_block_guard'] );
+			// takes_first_usable, inherited from the base template — no separate arm
+			// (ADR 0007). Captured into the closure the way is_image is; consumed at
+			// the slot bound and the id reads below.
+			$collapse    = ! empty( $tpl['takes_first_usable'] );
 			// Slot 1 default 'use' token = first option value in template's use definition.
 			$default_use = $tpl_options['use']['options'][0]['value'] ?? '';
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -803,6 +833,14 @@ class TagTemplateRegistry {
 					$slot_max           = bws_clamp_limit( $slot_read['limit'] ?? $opts['limit'] ?? null, $limit_default );
 					$slot_opts['limit'] = (string) $slot_max;
 
+					// A collapsing template's attempt wants ONE result, whatever any
+					// limit says — pinned, tag-level or inherited alike (ADR 0007,
+					// same rule as its base tag). The stored wire keeps its number.
+					if ( $collapse ) {
+						$slot_max           = 1;
+						$slot_opts['limit'] = '1';
+					}
+
 					// ── ARM DISPATCH (FW-71, retires the FW-5 fork) ────────────────
 					// FOUR hand-written arms stood here, each testing the flat source
 					// token directly (`'' !== $stm_raw`, `'site' === $last_src`,
@@ -903,7 +941,8 @@ class TagTemplateRegistry {
 					}
 					switch ( $arm['ids'] ) {
 						case 'term':
-							$ids = bws_base_term_ids_from_source( $base, $slot_opts );
+							// $collapse = the whole fan, step limits stripped (ADR 0007).
+							$ids = bws_base_term_ids_from_source( $base, $slot_opts, $collapse );
 							break;
 						case 'user':
 							// WITHOUT this case `user` took `default:` — post ids — and read
@@ -914,7 +953,7 @@ class TagTemplateRegistry {
 							$ids = [ 0 ];   // the site store carries a namespace, not an id (ADR 0002).
 							break;
 						default:
-							$ids = bws_base_post_ids_from_source( $base, $slot_opts );
+							$ids = bws_base_post_ids_from_source( $base, $slot_opts, $collapse );
 					}
 
 					// Mode 2b — the flat repeater row. It has NO kind: the factory resolves
@@ -941,38 +980,39 @@ class TagTemplateRegistry {
 					}
 
 					// ── ONE EMIT for every arm ─────────────────────────────────────
-					// COLLECT-then-slice, not slice-then-collect: one entity may return
-					// several finished items, so the bound is on ITEMS. That is the shipped
-					// srcTermIn arm's shape (break early while hopping, then slice), kept
-					// verbatim rather than routed through bws_collect_value_list(), whose
-					// slice lands on the ITEM LIST and would move output wherever a single
-					// entity yields more than one value.
+					// The bound counts SOURCES READ ([I19], the 2026-08-21 reversal):
+					// bws_read_bounded_sources() (field-helpers.php) with NO predicate reads
+					// the first $slot_max entities and drops only empty VALUES from its
+					// return — an entity with nothing to show keeps its slot, so which
+					// entities a slot reads never depends on which field it asks for.
+					// The search-past-empties walk is FW-88's dormant opt-in, wired
+					// nowhere. ACROSS attempts first-populated still wins — that is the
+					// try_ product, and it lives in the `continue` below, not in the
+					// selector. The reader closure keeps $first_id (the winning slot's
+					// link identity) because the selector is provenance-blind by contract.
 					//
-					// Link-wrap applies to a SINGLE-result item only, and the count is taken
-					// AFTER the slice (mirrors the base text core: a limit:1 chain over many
-					// non-empty entities still wraps the lone shown item).
-					$items    = [];
+					// Link-wrap applies to a SINGLE-result item only, and the count is
+					// taken on the selector's already-bounded return (mirrors the base
+					// text core: a limit:1 chain over many non-empty entities still wraps
+					// the lone shown item).
 					$first_id = 0;
-					foreach ( $ids as $entity_id ) {
-						$rendered = function_exists( 'bws_try_normalize_items' )
-							? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
-							: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
-						foreach ( $rendered as $it ) {
-							$items[] = $it;
-							if ( ! $first_id ) {
+					$shown    = bws_read_bounded_sources(
+						$ids,
+						static function ( $entity_id ) use ( &$first_id, $render_fn, $slot_opts, $inst ) {
+							$rendered = function_exists( 'bws_try_normalize_items' )
+								? bws_try_normalize_items( $render_fn( $entity_id, $slot_opts, $inst ) )
+								: array_filter( [ $render_fn( $entity_id, $slot_opts, $inst ) ], static fn( $v ) => '' !== $v && false !== $v );
+							if ( $rendered && ! $first_id ) {
 								$first_id = (int) $entity_id;
 							}
-						}
-						if ( $slot_max && count( $items ) >= $slot_max ) {
-							break; // Enough to satisfy the limit — stop stepping entities.
-							// $slot_max 0 = UNLIMITED: never break early, step every one.
-						}
-					}
-					if ( ! $items ) {
+							return $rendered;
+						},
+						$slot_max
+					);
+					if ( ! $shown ) {
 						continue;   // this attempt resolved and found nothing — try the next.
 					}
 
-					$shown  = array_slice( $items, 0, $slot_max ?: null );
 					$joined = function_exists( 'bws_try_join_items' )
 						? bws_try_join_items( $shown, $sep, $slot_max )
 						: (string) reset( $shown );

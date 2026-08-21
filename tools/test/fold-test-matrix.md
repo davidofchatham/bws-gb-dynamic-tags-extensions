@@ -424,7 +424,7 @@ family with no list mode takes a different branch from one that has. One `refs` 
 | F9a.1 | `{{title src:ref\|ref:related_staff\|limit:0}}` | `{{title src:refs,related_staff}}` | `Jane Partner, Tom Associate` (list-capable) |
 | F9a.2 | `{{title srcTermIn:department\|limit:0}}` | `{{title src:terms,department}}` | `Sales, Support` |
 | F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | the two must MATCH, on JANE's content — her `J1` row reads `Jane, Johnson`. The pair is an EQUIVALENCE only; that the entity is right is [`content-test-matrix.md`](content-test-matrix.md) §CT1/§CT2's property, and was [#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58) |
-| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb — the Sales blurb (support carries none). Correctness lives in §CT5 |
+| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | the FIRST usable source's blurb — Sales, which WP returns first (by name) and which is the term carrying one. Not a search past Support: since the reversal (§F15) an empty first source renders empty. Correctness lives in §CT5 |
 | F9a.5 | `{{permalink src:ref\|ref:related_staff}}` | `{{permalink src:refs,related_staff}}` | jane's URL. Not list-capable |
 | F9a.6 | `{{permalink srcTermIn:department}}` | `{{permalink src:terms,department}}` | first term URL |
 | F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable. ⚠ **VACUOUS TODAY** — the blueprint seeds no attachments, so both sides render empty and the row asserts nothing. It needs a fixture (a featured image on a staff single and an image field on a department term) before it is worth trusting |
@@ -728,8 +728,8 @@ rows are the fastest way in) and check each.
 | F14.13 | Open a legacy BASE tag (`{{text src:ref\|ref:related_staff\|use:title}}`) and commit | the mount migrator rewrites it to `src:refs,related_staff,limit(1)` — the limit on the STEP, no tag-level `limit` written, the flat `ref` gone. The wire must match byte-for-byte what the converter writes for the same tag (`fold-migration-corpus.json` §baseSrc holds the pair): a divergence stores one tag two ways depending on which path reached it first, and neither path is wrong in isolation |
 | F14.14 | Open a FLAT-wire tag that stores a `limit` (any §F7c row) | NO "Result Limit" control anywhere in the panel (#62). The open MIGRATES it, exactly as F14.13 says: the number lands on the fanning step and shows in that step's own **Limit** field, or, for an explicit `0`/`-1`, is deleted outright — chain wire already means unlimited and there is no field left to see the key in (§F7c.3). "Result Separator" is unchanged; on a `try_*` it renders BARE (no box), the attempts being that tag's source and drawing their own boxes. **VERIFIED, user 2026-08-07** |
 | F14.14b | Open **L4.3** — the seeded chain-wire row that carries a tag-level limit, `{{text src:refs,related_staff\|use:title\|limit:1\|linkTo:permalink}}` on `/matrix-post-meta/` (`limit-default-test-matrix.md` §L4). No migration path WRITES that shape, so the fixture is the only way in without hand-typing a tag | the number is ABSORBED onto the step it bounds — `src:refs,related_staff,limit(1)` — the tag-level key gone, the step's own **Limit** field showing `1` and clearing. Output does not move: `Jane Partner`, still in an `<a>` (the link gate is count-based, so a silent unbounding would drop the anchor too). **VERIFIED on mount, user 2026-08-07.** **A tag-level limit is legacy by POSITION, not by spelling**: before this the chain branch was skipped whole, which left the one shape where a bound is INVISIBLE — the step field read `0 (all)` while the tag rendered one result, and #62 had removed the only control that could reach the key. Three stand-downs, each a NO-OP rather than a rewrite: a non-numeric value (chain wire is not changing era, so there is no default to carry — materializing 1 would bound a tag that renders unlimited today, L4.6), a chain that already states its own step limits (L4.8), and a chain that does not fan |
-| F14.15 | Open any chain-authoring tag and read the per-step limit control's LABEL and HELP, on a one-step chain (`src:refs,related_staff`) and then after adding a `terms` step | the label reads **Limit results** on every step (#95) — never "Limit per source", which sat three rows under a `Source` control meaning something else. The `refs` step's help reads *"Maximum number of results. Leave blank for all."*; the `terms` step BELOW it reads *"…for each previous-step result…"*, while the `refs` step keeps the plain form. The condition is whether an earlier step actually FANS, so leaving the `refs` step's field EMPTY puts the `terms` step back on the plain form — the compiler drops an argless step, so nothing upstream fans. **No new fixture**: this is a §F14 editor row, so it rides the visible fold rows the blueprint already seeds (see this section's header) rather than needing a `blocks.php` group of its own. **Eyeball-only above the harness**: `slot-fold-repeater-test.js` asserts the rendered strings, so this row is for the two things it cannot see — that the control is the one on screen, and that the sentence reads right in the panel |
-| F14.16 | On any chain-authoring tag, add a `refs` step and pick **Partner Staff** in its field picker (blueprint v9, `partner_staff` — page + staff groups; a bidirectional relationship field with a configured limit of 3, though **nothing in the picker row says so** — that is the point of the note) | a **field configuration note** appears BETWEEN the field picker and **Limit results**, reading *"Bidirectional field with a configured limit of 3. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF."* (note case 1). Grey panel with a left rule, no icon, no label. Then switch the picker to **Lead Staff** (`lead_staff_obj`, single-entry, not bidirectional): the note becomes case 6, and its CLOSING sentence is **emphasised**. Then switch to **Related Staff** (`related_staff` — plain relationship, neither setting): the note DISAPPEARS entirely. Then clear the field: no note, and the "will be skipped unless a field is set" warning takes its place. **Requires a reseed** (`bin/seed.sh testbed core-structures`) — `partner_staff` is new in blueprint v9. **Definitions only**: the note reads no value, so it must render identically on a page with no `partner_staff` value stored, and in a WP Pattern with no post in scope at all — which is the case worth checking, since it is the whole reason the note exists. **VERIFIED, user 2026-08-14** |
+| F14.15 | Open any chain-authoring tag and read the per-step limit control's LABEL and HELP, on a one-step chain (`src:refs,related_staff`) and then after adding a `terms` step | the label NAMES WHAT THE STEP PRODUCES: **Limit Posts Read** on the `refs` step, **Limit Terms Read** on the `terms` step (1.18.0, ADR 0007 — the reframe, then the per-kind pass; #95's "Limit per source" stays dead, and the generic *Limit items read* is a fallback no shipped step reaches). The `refs` step's help reads *"How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all."*; the `terms` step BELOW it reads the *"…for each previous-step item…"* form, while the `refs` step keeps the plain form. The condition is whether an earlier step actually FANS, so leaving the `refs` step's field EMPTY puts the `terms` step back on the plain form — the compiler drops an argless step, so nothing upstream fans. **No new fixture**: this is a §F14 editor row, so it rides the visible fold rows the blueprint already seeds (see this section's header) rather than needing a `blocks.php` group of its own. **Eyeball-only above the harness**: `slot-fold-repeater-test.js` asserts the rendered strings, so this row is for the two things it cannot see — that the control is the one on screen, and that the sentence reads right in the panel. **VERIFIED, user 2026-08-21**, and running it is what found the suppression defect: reading this row on `{{content}}` is how a **Limit Posts Read** box that should not exist at all became visible (`foldConfig()` was dropping `takesFirstUsable`). Read it on a NON-collapsing tag for the labels and help, and on a collapsing one for the absence |
+| F14.16 | On any chain-authoring tag, add a `refs` step and pick **Partner Staff** in its field picker (blueprint v9, `partner_staff` — page + staff groups; a bidirectional relationship field with a configured limit of 3, though **nothing in the picker row says so** — that is the point of the note) | a **field configuration note** appears BETWEEN the field picker and **Limit results**, reading *"Bidirectional field with a configured limit of 3. Edits to its bidirectional target field(s) on other posts, terms, or users can add more entries; the limit is enforced only when this field is edited directly, using ACF."* (note case 1). Grey panel with a left rule, no icon, no label. Then switch the picker to **Lead Staff** (`lead_staff_obj`, single-entry, not bidirectional): the note becomes case 6, and its CLOSING sentence is **emphasised**. Then switch to **Related Staff** (`related_staff` — plain relationship, neither setting): the note DISAPPEARS entirely. Then clear the field: no note, and the "will be skipped unless a field is set" warning takes its place. **Requires a reseed** (`bin/seed.sh testbed core-structures`) — `partner_staff` is new in blueprint v9. **Definitions only**: the note reads no value, so it must render identically on a page with no `partner_staff` value stored, and in a WP Pattern with no post in scope at all — which is the case worth checking, since it is the whole reason the note exists. **VERIFIED, user 2026-08-14** — the note's CASES. Its collapsing-tag half (the consequence clause dropping on `{{content}}` and returning on `{{text}}`) was verified separately on **2026-08-21**, and could not have been covered by the 2026-08-14 run: `takesFirstUsable` was not reaching the control at all then, so the clause rendered on every tag |
 | F14.17 | With the note showing (F14.16), save the tag and read the tag string; then reopen | the wire is **byte-identical** to what the same tag saves with no note on screen. The note describes and never gates: no key is written, no save is blocked, and Limit results, Add step and the step picker all behave as they do without one. `slot-fold-repeater-test.js` asserts the last part on the rendered tree; this row is for the wire. **VERIFIED, user 2026-08-14** |
 | F14.18 | Open a tag whose source is a typo'd root — `{{text src:currnet\|use:key\|key:bio}}` | `[⚠ Unknown source 'currnet']`. **This was invisible before #105**: the namer emits no segment for a root it cannot find, so the tag previewed exactly like a bare `{{text key:name_first}}` while rendering nothing. ADR 0004 makes the wire hand-authorable, so a typo'd source name is what an author actually produces. A registered-but-UNOFFERED root must NOT flag — offering is not resolving (`/matrix-fixture-roots/` §FR rows are the live negatives) |
 | F14.19 | Open a tag with an unknown step BEHIND a good one — `{{text src:refs,related_staff;bogus,x\|use:key\|key:bio}}` | `[⚠ Unknown source step 'bogus']`. The row that says the check WALKS the chain rather than reading a kind. THIS tag's kind is `''` (the unknown slug is the tail), but move the unknown slug into the middle — `testroot;bogus,x;refs,y` — and the kind comes back `post` off the TAIL while nothing resolves, so a flag derived from `kind === ''` reads that tag as fine. `preview-label-test.php` pins the mid-chain case, which no fixture can reach without a registered root. `BWS_FOLD_STEP_TYPES` owns what counts as known |
@@ -738,6 +738,131 @@ rows are the fastest way in) and check each.
 | F14.22 | Open `{{try_text A:src(bogus,x);use(key);key(bio)\|B:src(currnet);use(key);key(bio)}}` | `[⚠ Try: A, B misconfigured]` — two slots, two different unknown tokens, so the detail drops and the letters remain. Change B's source to `bogus` as well and the bracket becomes `[⚠ Try: A, B unknown source 'bogus']`: one distinct issue, so the detail comes back. That pair is the collapse rule in one interaction |
 |  |  | **`bio` IS ON NO FIXTURE, and it no longer has to be — but do not "improve" these keys without reading why they are here.** These five rows were written while a base tag with an unresolvable source did NOT render nothing, and the preview is built ONLY where resolution came back empty — so a row keyed on a field the page HAS would have rendered a plausible wrong value and shown no preview at all. Every row therefore names a field nothing carries. Since [#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112) closed both leaks the constraint is gone and a real key would work, but the keys are LEFT AS THEY ARE: a `bio`-keyed row is empty for two independent reasons now, so it stays green under a regression in either, and the rows that would catch one are §F11a's, keyed on fields the page carries and stating each pre-fix answer. Rendered output cannot distinguish a skip from an empty read; these rows' evidence is the bracket string, and only the editor shows it. **VERIFIED, user 2026-08-17** — all five bracket strings read in the editor exactly as stated above. (Also swept with `render-tag`, all five resolving empty, and curled back on `/matrix-post-meta/` after a reseed — but neither of those can see a preview.) |
 ---
+
+## §F15 — collapsing tags read the FIRST usable SOURCE (ADR 0007, the 2026-08-21 reversal)
+
+**Restated AND re-measured 2026-08-21** for the determinism reversal — every row below rendered as
+stated on the testbed (the 2026-08-20 measurements it replaced pinned the now-reversed
+first-POPULATED build). Fixtures: blueprint v12 (`charter` on Warehouse ALONE; `feature_image` on Tom
+alone — Jane, the first `related_staff` target, deliberately has none). `usable` = a source passing
+the gate (resolvable × exists × visible) — NEVER "field populated"
+([`tag-reference.md` §List mode](../../docs/tag-reference.md#list-mode-limit--sep)); an empty read
+of a usable source renders empty rather than moving on, so which entity is read never depends on
+which field is asked for.
+
+Term-route rows run on **`/matrix-terms-mixed/`** (terms resolve alphabetically: Sales, Support,
+Warehouse — Sales is the first source, and only Warehouse carries `charter`, so the collapsing
+read lands on an EMPTY field by design). Post-route rows on `/matrix-post-meta/`.
+
+| # | Context | Tag | Expect | Why |
+|---|---|---|---|---|
+| F15.1 | terms-mixed | `{{content src:terms,department,limit(1)\|use:key\|key:charter}}` | **EMPTY** | The stamped `limit(1)` is still IGNORED (S24) — but the first source is Sales, whose `charter` is empty, and the tag does NOT search past it. INVERTED from the reversed build, which rendered Warehouse's charter here |
+| F15.1b | terms-mixed | `{{content src:terms,department,limit(2)\|use:key\|key:charter}}` | **EMPTY**, same as F15.1 | A typed limit is ignored on the same terms — one rule |
+| F15.1c | terms-mixed | `{{content src:terms,department\|use:key\|key:charter}}` | **EMPTY**, same as F15.1 | The unlimited twin — all three rows EQUAL because selection is deterministic, not because a search succeeded |
+| F15.2 | post-meta | `{{permalink src:refs,related_staff,limit(1);refs,reports_to}}` | `https://testbed.test/staff/jane-partner/` | UNCHANGED by the reversal, and the distinction is the row's point: Jane (first ref) has no `reports_to`, so her PATH produces no source at all — fan dead-ends vanish at RESOLUTION, which is path-dependent and deterministic. Tom's path yields Jane. The intermediate `limit(1)` is still ignored |
+| F15.3 | post-meta | `{{content src:refs,related_staff\|use:key\|key:name_honorific}}` | **EMPTY** | Jane is the first usable source and her honorific is empty; the tag does not skip to Tom. INVERTED from the reversed build (`Dr.`) |
+| F15.4 | post-meta | `{{image src:refs,related_staff\|use:key\|key:feature_image\|as:url,full}}` | **EMPTY** | Jane has no `feature_image`, and the tag reads HER, not whichever post has a photo. INVERTED. The removed search survives only as FW-88's dormant opt-in |
+| F15.5 | post-meta | `{{content src:refs,related_staff\|use:key\|key:name_first}}` | `Jane` | First source has a value → renders it. Unchanged in output; now also the DETERMINISM PIN with F15.3/F15.4: all three rows read JANE — a title from one post can no longer pair with an image from another |
+| F15.6 | post-meta | `{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}` | **EMPTY** | `try_` inherits base behaviour WITHIN the slot: the slot reads Jane, gets nothing, the ATTEMPT loses — and with no attempt B, nothing renders. INVERTED (`Dr.` on the reversed build). Across-slot first-populated fallback is pinned by the existing §F13 rows |
+| F15.7 | terms-mixed | `{{text src:terms,department,limit(1)\|use:key\|key:charter}}` | **EMPTY** | POSITIVE pin now, not a disclosure: `limit(1)` reads the first source (Sales), whose field is empty — the DESIGNED deterministic rule, identical for list-mode and collapsing tags. Slice C is retired |
+
+**Stated exception (ticket 07 — a slot limit binds its own step):** the probative render shape —
+an earlier step pinning a limit with an unlimited later step whose fan EXCEEDS that pin — has no
+fixture: no seeded relationship target carries more than one term, so old and new selection render
+identically on every expressible row. Pinned purely instead (`slot-fold-test.php` §P13.6c, five
+rows), per this file's exception convention. The common shape (limit on the LAST step) is already
+covered by §F7a/§F7b, re-measured below. **Wire round-trip under suppression (ticket 05)** is pinned
+by the grammar's own emit rows (`slot-fold-test.php` §P9 — `limit` tokens survive parse/emit) plus
+the control's keep-limit-on-slug-change rule; the suppressed control writes nothing by construction.
+
+**Byte-identity spot-run, re-run 2026-08-21 on the REVERSED build (ticket 04):** the same ten
+pre-existing rows — F7a.1/.2/.3/.5/.7 and F7b.7 on `/matrix-terms-valid/`, F7d.1/.2 on
+`/matrix-terms-mixed/`, the `{{content}}` blurb walk on `/matrix-content/`, phone R3.2 — all render
+their stated values unchanged, as they did on 2026-08-20. Every one reads a POPULATED first source,
+which is why the two builds agree on them and disagree on §F15: the only rows the reversal can move
+are those whose first usable source has an empty field.
+
+Editor-eyeball (open a collapsing tag on any page): no limit field (**Limit Posts Read** and its per-step siblings) on any
+step of `{{content}}` / `{{permalink}}` / `{{image}}` or their `try_` slots; present with the
+REFRAMED label and help on `{{text}}` etc.; the group-end advisory appears once when the chain
+fans (copy: "…Only the first item is read.") and not otherwise; the field configuration note on a
+collapsing tag keeps its multi-value sentence and drops "all entries will be results…".
+**VERIFIED, user 2026-08-21 — and it FAILED first.** The suppression and the note's consequence
+drop both read a `takesFirstUsable` that `foldConfig()` was dropping (it rebuilds the config from a
+named key list), so both rendered the non-collapsing branch on a testbed whose PHP was correct.
+Pick a field for the note half that HAS a consequence clause: `partner_staff` is case 1, one
+segment, nothing to drop — `lead_staff_obj` is the single-entry case that carries one.
+
+## §F16 — the site branch is taken by RESOLVED KIND (email/phone)
+
+Both spellings of one source take the same branch (`try-slot-arms-test.php` §A6/§A7 is the pure
+pin; these are the render proof). `/matrix-post-meta/`; site options: `organization_email`
+`info@example.test`, `org_phone` `(987) 555-0000`. Measured 2026-08-20, **re-measured 2026-08-21 on
+the post-reversal build, all six rows as stated**. The re-run is not ceremony: the 2026-08-20 stamp
+predates the determinism reversal, which moved the try_ slot arms F16.5/F16.6 ride. Compare email
+rows DECODED (`antispambot` randomizes entity encoding per render).
+
+| # | Tag | Expect | Why |
+|---|---|---|---|
+| F16.1 | `{{email src:site\|key:organization_email}}` | mailto `info@example.test` | Flat spelling — the previously-working one, must not move |
+| F16.2 | `{{email src:site,limit(2)\|key:organization_email}}` | same as F16.1, decoded | DECORATED root-only site chain — the compare-miss shape that read the AMBIENT entity on the previous build |
+| F16.3 | `{{phone src:site\|key:org_phone}}` | tel `+1-987-555-0000` / `(987) 555-0000` | Flat spelling, unchanged |
+| F16.4 | `{{phone src:site,limit(2)\|key:org_phone}}` | same as F16.3 | Decorated twin |
+| F16.5 | `{{try_email A:src(fixture_scoped);key(contact_email)\|B:src(site);key(organization_email)}}` | B's site email | An attempt whose source cannot resolve (scope-bound root off its page) is SKIPPED — the NEXT attempt renders, and the assertion is WHICH attempt won, not that output is non-empty |
+| F16.6 | `{{try_phone A:src(site,limit[2]);key(org_phone)}}` | site phone, as F16.3 | The decorated site slot takes the site arm's read — the [I15] wrong-entity leak this section pins closed |
+
+## §F17 — the source gate: exists + visible (ADR 0007, [I19]; blueprint v14)
+
+All rows on **`/matrix-gate/`**, whose `gate_staff` names three staff singles differing in ONE
+property — a DRAFT (`Dana Draft`), a PRIVATE (`Paul Private`) and a PUBLISHED one
+(`Grace Published`), in that order. `stale_ref` is PLAIN meta (ACF's own formatter drops a deleted
+post before the gate could see it) holding a genuinely deleted id ahead of Grace; `via_draft` names
+the draft alone, and the draft's `reports_to` is Grace.
+
+**v14 adds the three shapes where the answer is not "is the status in a list".** `trash_ref` is
+plain meta naming a TRASHED staff post ahead of Grace; `feature_image` on the page names the seeded
+ATTACHMENT, whose stored status is the internal `inherit`; and the draft is now AUTHORED BY
+`fixture-author`, with a second author-role user (`fixture-other-author`) seeded as the viewer who
+is equally logged in and still may not read it.
+
+**THE ONLY ROWS IN THE SUITE THAT READ DIFFERENTLY PER VIEWER**, which is the visible level working
+rather than a flaky fixture. Two runs, and both are needed — a row that agreed across them would
+mean the viewer-relative arm had been deleted:
+
+```
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/                             # anonymous
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=1                    # administrator
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=fixture-author       # the draft's OWNER
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=fixture-other-author # a different author
+```
+
+WP-CLI runs with NO current user unless `--user` is passed, so the bare command is the logged-out
+arm — the same arm a front-end curl reads, and the opposite of what the editor shows.
+
+The two author arms are what make "viewer-relative" mean anything: both are logged in and neither
+can read every draft, so ownership is the only difference between them. The editor role cannot
+serve as the negative — `edit_others_posts` reads the draft, so `bwsut-editor` would print the
+owner's answer and the row would pass while measuring the opposite fact.
+
+Every row is also a VISIBLE block on `/matrix-gate/` (open it in the editor for the administrator
+arm), and `verify.php` renders every arm off one ambient post so a hand run cannot measure one
+viewer and call it the property. **Measured 2026-08-21, every arm, all ten rows as stated.**
+§F17.8 and §F17.9 were also measured against the PRE-FIX gate, which printed `Trish` to the
+administrator and an empty string to the visitor — the rows fail without the fix, which is the only
+evidence that a passing row is testing anything.
+
+| # | Viewer | Tag | Expect | Why |
+|---|---|---|---|---|
+| F17.1 | anonymous | `{{content src:refs,gate_staff\|use:key\|key:name_first}}` | `Grace` | Draft and private targets fail VISIBLE for a visitor and consume no slot, so the third target IS the first usable source |
+| F17.2 | administrator | same tag | `Dana` | Viewer-relative by design (plan §S19) — an author previewing their own draft resolves it. Per-viewer divergence is the assertion; the page-cache consequence is stated beside the gate in `tag-reference.md` |
+| F17.1b | both | `{{text src:refs,gate_staff\|use:key\|key:name_first\|limit:0\|sep:, }}` | anon `Grace`; admin `Dana, Paul, Grace` | NON-VACUITY. Without it every row above passes just as well with `gate_staff` unseeded, which looks identical from the front end. It also names WHICH sources survived, so a gate that dropped the wrong one is legible |
+| F17.3 | both (identical) | `{{text src:refs,stale_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | EXISTS, not visible: a deleted id fails the gate for everyone and spends no limit budget, so `limit:1` still reaches a real entity. A row that diverged by viewer here would mean existence had been folded into the viewer-relative arm |
+| F17.4 | anonymous | `{{content src:refs,via_draft;refs,reports_to\|use:key\|key:name_first}}` | **EMPTY** | STEPPING-STONE CUT: the chain is cut at the unreadable hop even though the hop's own target is published |
+| F17.5 | administrator | same tag | `Grace` | The other half of F17.4, and what keeps its empty honest: the destination is reachable, so F17.4 is about the stone and not about a missing `reports_to` |
+| F17.6 | `fixture-author` (the draft's OWNER) | `{{content src:refs,gate_staff\|use:key\|key:name_first}}` | `Dana` | The test is WHO IS ASKING. A non-admin with no power over other people's drafts still reads their own, which is what makes previewing work |
+| F17.7 | `fixture-other-author` | same tag | `Grace` | The pair is the assertion, not either half: `Grace` alone would also be printed by a gate refusing every logged-in non-admin, and `Dana` alone by one resolving any draft for anyone signed in |
+| F17.8 | both (identical) | `{{text src:refs,trash_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | TRASHED: the one status where `exists` passes and `visible` fails for EVERYONE. WP maps `read_post` on trash toward `edit_post`, so a capability-only gate prints `Trish` to an administrator and nothing to a visitor — while WP's own front end 404s a trashed permalink for both. A deletion state is not a publication state |
+| F17.9 | both (identical) | `{{text src:refs,feature_image\|use:title}}` | `Fixture Photo` | ATTACHMENT AS A SOURCE: an attachment stores the INTERNAL `inherit`, which resolves to the parent's status (or `publish` when unattached). Raw-column testing dropped every attachment for visitors only. Invisible to every other row, because plain `{{image}}` reads never enter the pipeline |
 
 ## Fail triage
 

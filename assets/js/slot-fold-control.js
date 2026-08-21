@@ -143,6 +143,15 @@
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
 			// touch, because both are spelled exactly like slot 1's axes.
 			flatAxes: c.flatAxes || [],
+			// The template's COLLAPSING capability (ADR 0007), PHP-set only when true
+			// (bws_build_src_chain_option / bws_build_fold_slot_options). It must be
+			// carried through this normalizer explicitly: the return below is a fresh
+			// object with a named key list, not a merge, so a key absent HERE is absent
+			// from every consumer no matter what PHP sent. Two of them read it — the
+			// per-step limit suppression and the field note's consequence clause — and
+			// both silently reverted to the non-collapsing branch while the config that
+			// feeds them was correct end to end.
+			takesFirstUsable: !! c.takesFirstUsable,
 			// Which tag-level option names the repeater a row-scoped picker narrows to.
 			// The control passes its VALUE down as an explicit `scopeKey` prop rather
 			// than letting the picker reach outward for a bare `key` — under the fold
@@ -218,7 +227,7 @@
 	//
 	// A statement about the FIELD the author just picked, not about the control: what
 	// ACF does and does not enforce about how many entries that field can hold. It sits
-	// between the field key control and Limit results, so it reads as the setup for the
+	// between the field key control and the limit control, so it reads as the setup for the
 	// number about to be chosen — an adjacency left implicit, since the note carries no
 	// call to action.
 	//
@@ -306,10 +315,18 @@
 	 * that have any today. Position is carried by the structure, so a second emphasised
 	 * fragment, or one mid-note, needs no shape change here or in PHP.
 	 */
-	function noteNode( segments ) {
+	function noteNode( segments, dropConsequence ) {
 		var kids = [];
 		( segments || [] ).forEach( function ( seg, i ) {
 			if ( ! seg || ! seg.text ) {
+				return;
+			}
+			// On a collapsing tag (takesFirstUsable) the note keeps its multi-value
+			// FACT and loses its CONSEQUENCE clause — the segment PHP marks
+			// `consequence` — because "all entries will be results" is false on a tag
+			// that renders one. The note says nothing about collapsing itself: that is
+			// the chain's axis, not a field's (the group-end advisory carries it).
+			if ( dropConsequence && seg.consequence ) {
 				return;
 			}
 			if ( kids.length ) {
@@ -791,12 +808,12 @@
 					) ) );
 				} else {
 					// The field configuration note (#96) — beneath the field key control,
-					// above Limit results. Mutually exclusive with the warning above by
+					// above the limit control. Mutually exclusive with the warning above by
 					// construction: the note needs a selected field, the warning fires
 					// only when there is none. A field with nothing noteworthy (and an
 					// `entries` step's repeater field, which has no such settings at all)
 					// yields null, so the presence of a note carries information.
-					var note = noteNode( fieldNote( stepObj.arg ) );
+					var note = noteNode( fieldNote( stepObj.arg ), !! conf.takesFirstUsable );
 					if ( note ) {
 						stepKids.push( note );
 					}
@@ -845,15 +862,31 @@
 			// (bws_fold_chain_fanning_steps) — deriving it from the step INDEX here
 			// would be a second rule, and it would be wrong on a chain whose earlier
 			// steps are single-valued.
-			if ( known ) {
+			//
+			// SUPPRESSED, not reworded, on a collapsing tag (takesFirstUsable — the
+			// template capability on the fold config, ADR 0007): its render ignores
+			// every step limit, so there is nothing for the control to bound, and a
+			// visible control that does nothing asks the author to read an explanation
+			// instead. An EXPLICIT conditional rather than an omitted limitOption
+			// vocabulary: an absent config still RENDERS (an unlabelled text box), so
+			// omission is not a suppression mechanism — and a template gaining or
+			// losing the capability moves the control with no second list to remember.
+			// Stored wire is untouched either way; a saved limit(N) survives the
+			// round-trip (the grammar preserves tokens the panel does not show).
+			if ( known && ! conf.takesFirstUsable ) {
 				var limitCfg = conf.limitOption || {};
+				// The step names its own bound where it can ("Limit Posts Read"), because
+				// what the number counts is what the step PRODUCES and only the step knows
+				// that noun. Both strings arrive on the config; the generic one is the
+				// fallback for a slug shipped without a limitLabel, never a composition.
+				var limitLabel = ( stepDef( conf, stepObj.slug ) || {} ).limitLabel || limitCfg.label;
 				var upstreamFans = fold.chainFanningSteps( chain ).some( function ( j ) {
 					return j < i;
 				} );
 				stepKids.push( el( 'div', { key: 'limit', style: STACKED },
 					el( TextControl, {
 						type: 'number',
-						label: limitCfg.label,
+						label: limitLabel,
 						value: ( stepObj.limit === null || stepObj.limit === undefined ) ? '' : String( stepObj.limit ),
 						placeholder: limitCfg.placeholder,
 						help: upstreamFans ? limitCfg.helpFanning : limitCfg.help,

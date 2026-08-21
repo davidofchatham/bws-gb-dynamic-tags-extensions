@@ -134,6 +134,10 @@ function bws_fold_picker_config( array $def ): array {
  *
  *   steps      the FULL step vocabulary, one record per WIRE slug (#70):
  *                label    — the step's row label, declared HERE and nowhere else.
+ *                limitLabel — the label its per-step Limit field wears, naming what the
+ *                           step PRODUCES ("Limit Posts Read"). Declared here for the
+ *                           same reason `label` is; `limitOption.label` is the fallback
+ *                           for a slug that ships without one.
  *                arg      — the key a step's argument rides (the compiler seam's own
  *                           value, BWS_FOLD_STEP_TYPES). Comparing two slugs' `arg` is
  *                           what decides whether a slug switch keeps the field.
@@ -167,19 +171,29 @@ function bws_fold_picker_config( array $def ): array {
  * @return array Chain-config fragment to merge into a container's `fold` array.
  */
 function bws_fold_wire_vocabulary(): array {
-	// The one authored fact per step is its LABEL; everything else is derived from the
-	// engine/compiler constants below. A slug missing from this list has no row text,
-	// so it is not offerable — which is why a new engine step type ships to the editor
-	// only once it is named here.
+	// The authored facts per step are its ROW LABEL and its LIMIT label; everything else
+	// is derived from the engine/compiler constants below. A slug missing from this list
+	// has no row text, so it is not offerable — which is why a new engine step type ships
+	// to the editor only once it is named here.
+	//
+	// TWO LABELS BECAUSE THE LIMIT NAMES WHAT THE STEP PRODUCES, not what it reads from
+	// (1.18.0, ADR 0007). `produces` already carries the kind, but a kind is not a noun an
+	// author reads — `meta_row` is the engine's word for a repeater row — and deriving
+	// the label from it would put the naming decision in a map keyed on internals. The
+	// generic `limitOption.label` stays as the fallback for a slug that ships without one.
 	$labels = array(
-		'refs'    => __( 'In Reference/Relational Field', 'generateblocks' ),
-		'terms'   => __( 'In Taxonomy Term', 'generateblocks' ),
-		'entries' => __( 'In Repeater Rows', 'generateblocks' ),
+		'refs'    => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms'   => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'entries' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();
-	foreach ( $labels as $slug => $label ) {
-		$step = array( 'label' => $label );
+	foreach ( $labels as $slug => $authored ) {
+		list( $label, $limit_label ) = $authored;
+		$step = array(
+			'label'      => $label,
+			'limitLabel' => $limit_label,
+		);
 		if ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
 			$step['arg'] = BWS_FOLD_STEP_TYPES[ $slug ];
 		}
@@ -198,10 +212,14 @@ function bws_fold_wire_vocabulary(): array {
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// LABELLED FOR WHAT IT BOUNDS, not for what it divides by (#95). The draft label
 		// "Limit per source" sat three rows under a control labelled `Source` meaning
-		// something else, named sources while bounding results, and stated the per-input
-		// rule everywhere except the label. `result` is what a step produces; a limit
-		// bounds results and can never promise output, since the read drops empties
-		// afterwards.
+		// something else and stated the per-input rule everywhere except the label.
+		// REFRAMED 1.18.0 (the determinism reversal, ADR 0007): the number counts
+		// ITEMS READ, not results shown — an item whose field is empty keeps its
+		// place rather than being replaced by the next one, so the copy must not
+		// promise output. THIS LABEL IS NOW THE FALLBACK: a step that names what it
+		// produces wears its own (`steps[<slug>].limitLabel`), and every shipped slug
+		// does, so the generic wording is reached only by a slug that ships without
+		// one. Wording pending user prose review.
 		//
 		// TWO HELPS, chosen by whether an EARLIER step actually FANS — not by position.
 		// Per-step limits are per-input and MULTIPLY (`∏ limitₙ`), but where nothing
@@ -212,14 +230,14 @@ function bws_fold_wire_vocabulary(): array {
 		// predicate the migrator stamps by and the render seam defaults by — reached in
 		// the editor through its shipped twin, never re-derived from the step index.
 		'limitOption' => array(
-			'label'       => __( 'Limit results', 'generateblocks' ),
+			'label'       => __( 'Limit items read', 'generateblocks' ),
 			// Names the VALUE that produces the behaviour rather than saying "all", so
 			// this field and the tag-level `limit` help teach one rule — and the box
 			// reads `0 (all)` before the author types and `0 (all)` again after the `0`
 			// is normalized away.
 			'placeholder' => __( '0 (all)', 'generateblocks' ),
-			'help'        => __( 'Maximum number of results. Leave blank for all.', 'generateblocks' ),
-			'helpFanning' => __( 'Maximum number of results for each previous-step result. Leave blank for all.', 'generateblocks' ),
+			'help'        => __( 'How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.', 'generateblocks' ),
+			'helpFanning' => __( 'How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.', 'generateblocks' ),
 		),
 	);
 }
@@ -276,6 +294,9 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *                             arm consumes a meta_row, so offering it would author a
  *                             chain that renders nothing. It belongs with the table
  *                             authoring pass.
+ *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
+ *                             the step renderer suppresses the limit control
+ *                             where it is set. Default false.
  * }
  * @return array Single-entry array keyed 'src'.
  */
@@ -345,6 +366,10 @@ function bws_build_src_chain_option( array $args = array() ): array {
 		// pair is what the retired arms used to dispatch on.
 		'flatAxes'    => array( 'ref', 'srcTermIn' ),
 	);
+	// takes_first_usable (ADR 0007) — set only when true; see the slot builder's twin.
+	if ( ! empty( $args['takes_first_usable'] ) ) {
+		$source_opt['src']['fold']['takesFirstUsable'] = true;
+	}
 	// The wire's own vocabulary — steps / roots / retiredSrc, identical in every
 	// container because all three describe the wire rather than the container.
 	$source_opt['src']['fold'] = array_merge(
@@ -635,6 +660,11 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *                                   two registered strings for one unit drift apart.
  *     @type string $field_scope     Field-picker scope ('row' for a repeater container).
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
+ *     @type bool   $takes_first_usable The base template's collapsing capability (ADR
+ *                                   0007), threaded per slot so the editor's one step
+ *                                   renderer suppresses the limit control and
+ *                                   the field note drops its several-results clause.
+ *                                   Default false.
  * }
  * @return array Option definitions keyed by SLOT ORDINAL — `A`..`bws_slot_ordinal($max)`.
  *               The key IS the wire spelling (`B:`), so nothing downstream translates.
@@ -776,6 +806,12 @@ function bws_build_fold_slot_options( array $args ): array {
 	}
 	if ( ! empty( $args['scope_state_key'] ) ) {
 		$fold['scopeStateKey'] = (string) $args['scope_state_key'];
+	}
+	// takes_first_usable (ADR 0007) — SET ONLY WHEN TRUE, so every non-collapsing
+	// container's fold config stays byte-identical to before the capability existed.
+	// One source: the template record; this is a wire to the editor, not a decision.
+	if ( ! empty( $args['takes_first_usable'] ) ) {
+		$fold['takesFirstUsable'] = true;
 	}
 
 	$options = array();
@@ -1219,18 +1255,25 @@ function bws_base_post_id_from_source( array $base, array $options ) {
  * Order is document order (the engine appends, never sorts). Only sources of the
  * requested kind contribute; the caller slices to `limit` and joins with `sep`.
  *
+ * `$ignore_limits` is the collapsing-tag read (ADR 0007): a `takes_first_usable`
+ * template searches its whole chain and selects, so its callback asks for the
+ * UNBOUNDED fan and the compile strips every step limit. Every other caller leaves
+ * the default and is byte-identical to before the parameter existed.
+ *
  * @since 1.14.0
  * @since 1.17.0 Compiles the whole chain and takes a $kind; was ref-only steps.
- * @param array  $base    Base resolved source.
- * @param array  $options Tag options.
- * @param string $kind    Resolved-source kind to keep ('post'|'term'|…).
+ * @since 1.18.0 $ignore_limits threaded to the compile (collapsing tags).
+ * @param array  $base          Base resolved source.
+ * @param array  $options       Tag options.
+ * @param string $kind          Resolved-source kind to keep ('post'|'term'|…).
+ * @param bool   $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Entity ids in document order (may be empty).
  */
-function bws_base_source_ids_of_kind( array $base, array $options, string $kind ): array {
+function bws_base_source_ids_of_kind( array $base, array $options, string $kind, bool $ignore_limits = false ): array {
 	if ( ! function_exists( 'bws_run_traversal' ) || ! function_exists( 'bws_field_values_assemble_steps' ) ) {
 		return array();
 	}
-	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options ) );
+	$sources = bws_run_traversal( array( $base ), bws_field_values_assemble_steps( $options, $ignore_limits ) );
 	$ids     = array();
 	foreach ( $sources as $src ) {
 		if ( is_array( $src ) && $kind === ( $src['kind'] ?? '' ) ) {
@@ -1251,12 +1294,14 @@ function bws_base_source_ids_of_kind( array $base, array $options, string $kind 
  * (bws_run_traversal keeps all, §V6) — not just the first.
  *
  * @since 1.14.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
+ * @since 1.18.0 $ignore_limits (collapsing tags — the whole fan, no step limits).
+ * @param array $base          Base resolved source.
+ * @param array $options       Tag options.
+ * @param bool  $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Post ids in document order (may be empty).
  */
-function bws_base_post_ids_from_source( array $base, array $options ): array {
-	return bws_base_source_ids_of_kind( $base, $options, 'post' );
+function bws_base_post_ids_from_source( array $base, array $options, bool $ignore_limits = false ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'post', $ignore_limits );
 }
 
 /**
@@ -1280,12 +1325,14 @@ function bws_base_post_ids_from_source( array $base, array $options ): array {
  * - Ids, not WP_Term objects. Every caller only ever read `->term_id`.
  *
  * @since 1.17.0
- * @param array $base    Base resolved source.
- * @param array $options Tag options.
+ * @since 1.18.0 $ignore_limits (collapsing tags — the whole fan, no step limits).
+ * @param array $base          Base resolved source.
+ * @param array $options       Tag options.
+ * @param bool  $ignore_limits Compile the chain with every step limit stripped.
  * @return int[] Term ids in document order (may be empty).
  */
-function bws_base_term_ids_from_source( array $base, array $options ): array {
-	return bws_base_source_ids_of_kind( $base, $options, 'term' );
+function bws_base_term_ids_from_source( array $base, array $options, bool $ignore_limits = false ): array {
+	return bws_base_source_ids_of_kind( $base, $options, 'term', $ignore_limits );
 }
 
 /**
@@ -1304,6 +1351,48 @@ function bws_base_term_ids_from_source( array $base, array $options ): array {
  */
 function bws_base_user_ids_from_source( array $base, array $options ): array {
 	return bws_base_source_ids_of_kind( $base, $options, 'user' );
+}
+
+/**
+ * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
+ *
+ * The collapsing callbacks' shared POST route: the unbounded fan (every step limit
+ * stripped) arrives already gated (bws_source_gate — resolvable × exists × visible),
+ * and bws_read_bounded_sources() at n = 1 with NO predicate reads the FIRST source only,
+ * returning its read even conceptually-empty (the wrapper renders '' then). It does
+ * NOT search past an empty field — selection is field-independent (the 2026-08-21
+ * reversal; ADR 0007 §Why the read-based axis was reversed). An EMPTY post-kind fan
+ * keeps the single falsy-id read — the cores' own loop-row semantics (mode 2b) must
+ * not move — so the reader always runs at least once, exactly as the pre-extraction
+ * callbacks did.
+ *
+ * @since 1.18.0
+ * @param array    $base    Base resolved source.
+ * @param array    $options Tag options.
+ * @param callable $read    fn( int|false $post_id ): string — one candidate's read.
+ * @return string First usable read, or ''.
+ */
+function bws_base_post_first_usable( array $base, array $options, callable $read ): string {
+	$ids   = bws_base_post_ids_from_source( $base, $options, true );
+	$found = $ids
+		? bws_read_bounded_sources( $ids, $read, 1 )
+		: bws_read_bounded_sources( array( bws_base_post_id_from_source( $base, $options ) ), $read, 1 );
+	return $found ? (string) $found[0] : '';
+}
+
+/**
+ * The FIRST usable term's read — the term-route twin. Reads the first gated term
+ * only (WP's own term ordering, passed through); no search past an empty field.
+ *
+ * @since 1.18.0
+ * @param array    $base    Base resolved source.
+ * @param array    $options Tag options.
+ * @param callable $read    fn( int $term_id ): string — one candidate's read.
+ * @return string First usable read, or ''.
+ */
+function bws_base_term_first_usable( array $base, array $options, callable $read ): string {
+	$found = bws_read_bounded_sources( bws_base_term_ids_from_source( $base, $options, true ), $read, 1 );
+	return $found ? (string) $found[0] : '';
 }
 
 /**

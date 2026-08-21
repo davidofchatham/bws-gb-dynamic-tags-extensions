@@ -248,6 +248,44 @@ function bws_fixture_core_structures_register_acf() {
 					'bidirectional'        => 1,
 					'bidirectional_target' => array( 'field_bwsfx_partner_staff' ),
 				),
+				// --- SOURCE GATE corpus (1.18.0, ADR 0007) ----------------------
+				// Two relationship fields whose TARGETS are the fixture, not the
+				// field: `gate_staff` leads with a DRAFT and a PRIVATE staff post
+				// before a published one, so a viewer-relative gate changes which
+				// entity a collapsing tag reads without changing the wire
+				// (fold matrix §F17.1/§F17.2). `via_draft` points at that draft
+				// ALONE, so a chain hopping through it is cut at the hop even
+				// though the hop's own target is published (§F17.4).
+				//
+				// return_format `id` DELIBERATELY, and MEASURED (2026-08-21) rather
+				// than assumed — the first version of this comment had the reason
+				// wrong. `id` never queries at all (format_value returns the raw
+				// ids), so every stored id reaches the gate. `object` calls
+				// acf_get_posts(), i.e. get_posts( post_status => 'any' ), which
+				// does NOT hide drafts or private posts from anyone (measured: both
+				// come back for uid=0) — 'any' subtracts only the statuses flagged
+				// exclude_from_search. What it DOES drop before the gate could see
+				// it is a TRASHED target and a dead id (nothing matches post__in).
+				// So the draft/private rows would survive an `object` field, and the
+				// TRASH and STALE rows would not: both are seeded as PLAIN meta
+				// (`trash_ref`, `stale_ref`) so they reach the reader's raw
+				// get_post_meta fallback with the id intact (§F17.3, §F17.8).
+				array(
+					'key'           => 'field_bwsfx_gate_staff',
+					'name'          => 'gate_staff',
+					'label'         => 'Gate Staff',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'id',
+				),
+				array(
+					'key'           => 'field_bwsfx_via_draft',
+					'name'          => 'via_draft',
+					'label'         => 'Via Draft',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'id',
+				),
 				// FW-52 image editor rows — an ACF image field returning the
 				// attachment ID, so {{image use:key|key:feature_image}} resolves a
 				// real attachment for the as:url/alt/id/caption editor eyeball.
@@ -634,6 +672,10 @@ function bws_fixture_core_structures_register_acf() {
 				// content matrix CT4 / fold F9a.4 — the term-hop {{content use:key}}
 				// read. Sparse on warehouse so the first-non-empty walk is visible.
 				$text( 'blurb', 'Department Blurb' ),
+				// First-usable matrix (§F15) — seeded ONLY on warehouse, the LAST
+				// department term alphabetically, so a three-term walk meets two
+				// empty reads before the value. The collapsing-tag headline shape.
+				$text( 'charter', 'Department Charter' ),
 				array(
 					// datetime matrix D4 — srcTermIn list rows (valid on support/sales,
 					// junk on warehouse per the manifest).

@@ -1080,6 +1080,27 @@ $lim_none_carry = array();
 $lim_none_raw   = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => 'key(a)' ), 'join' ), $lim_none_carry, true );
 check( 'P13.6 no limit token → no limit key (the caller default stands)', ! isset( $lim_none_raw['limit'] ), json_encode( $lim_none_raw ) );
 
+// P13.6c — A LIMIT BINDS THE STEP IT IS WRITTEN ON (ADR 0005 one level down; slice A).
+// The selection this replaced kept the last step that PINNED one, so a number written
+// on an earlier step went on governing the slot's rendered items after the author
+// appended an unbounded later step — a number stated in one place acting on another.
+// Only the FINAL step's limit can be the item bound now; an earlier step's number
+// still rides the emitted wire and bounds ITS OWN step in the engine (P13.7 below
+// pins the wire half staying put).
+$own_carry = array();
+$own_raw   = bws_fold_slot_chain_options( bws_fold_slot_struct( 1, array( 'A' => 'src(refs,office,limit[3];terms,region);key(a)' ), 'join' ), $own_carry, true );
+check( 'P13.6c an EARLIER step\'s limit no longer becomes the item bound', ! isset( $own_raw['limit'] ), json_encode( $own_raw ) );
+check( 'P13.6c …and it still rides the emitted wire, on its own step', 'refs,office,limit(3);terms,region' === ( $own_raw['src'] ?? null ), json_encode( $own_raw['src'] ?? null ) );
+$own_two = t_seam_walk( array( 'A' => 'src(refs,office,limit[2];terms,region,limit[3]);key(a)' ), 'join' );
+check( 'P13.6c limits on two steps: the LAST step\'s is the item bound', '3' === ( $own_two[1]['limit'] ?? null ), json_encode( $own_two[1] ?? null ) );
+// The migration-written shape (1 on earlier, N on last) is the one the old and new
+// selections agree on — asserted so the agreement is measured, not assumed.
+$own_mig = t_seam_walk( array( 'A' => 'src(refs,office,limit[1];terms,department,limit[3]);key(a)' ), 'join' );
+check( 'P13.6c migrated wire is unmoved (N on the last fanning step)', '3' === ( $own_mig[1]['limit'] ?? null ), json_encode( $own_mig[1] ?? null ) );
+// With the final step unbounded, the slot-level token is next in precedence, as ever.
+$own_tok = t_seam_walk( array( 'A' => 'src(refs,office,limit[3];terms,region);limit(4);key(a)' ), 'join' );
+check( 'P13.6c final step unbounded → the slot-level token governs', '4' === ( $own_tok[1]['limit'] ?? null ), json_encode( $own_tok[1] ?? null ) );
+
 // P13.6b — THE ERA THE FLATTEN ERASES, handed back (#60). A slot's own source spelling
 // decides its own default exactly as a base tag's does, and the flat triple below cannot
 // answer that question: its `src` is a legacy token on every slot, which is why every slot

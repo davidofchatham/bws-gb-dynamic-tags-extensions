@@ -117,7 +117,7 @@ once an author converts it or the Tag Converter rewrites it.
   `terms` step to one yields one term per referenced post rather than one term overall. Product
   semantics across a chain. Unlimited by default, for every step type. Distinct from the tag-level
   `limit`, which bounds the resolved-source list ONCE, before the read — see
-  [§List mode](#list-mode-limit--sep). Its control is **Limit results**, and it is a position in
+  [§List mode](#list-mode-limit--sep). Its control is labelled for what the step produces (**Limit Posts Read**, **Limit Terms Read**, **Limit Repeater Rows Read**), and it is a position in
   this value rather than an option key — [§Chain step controls](editor-controls.md#chain-step-controls).
 - **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`:
   kind ∈ `post|term|meta_row|site|base`, plus whether it fans). Pure and static, from the wire
@@ -261,7 +261,13 @@ rewritten to `src:ref` + `ref` — see the value row in
 
 Selected templates support outputting multiple results as a delimited list. When more than one result renders, they are joined with `sep` (default: `, `).
 
-`limit` bounds the **resolved-source list**, once, before the read — the last step's output. It never bounds values: the read is one value per resolved source with empties dropped afterwards, so `limit:3` can print two.
+`limit` bounds the **usable resolved-source list**, once, before the read — the last step's output after the source gate. It never bounds values: the read is one value per usable source with empties dropped from the OUTPUT afterwards, so `limit:3` can print two. Because the test is a property of the SOURCE and never of the read, selection is deterministic: adjacent tags on the same source path read the same entities, and `limit:1` means the first stored entry, only.
+
+**`usable`** — what a limit is decided to COUNT ([ADR 0007](adr/0007-a-limit-counts-usable-sources.md)): a source that passes the gate — **resolvable × exists × visible** ([`CONTEXT.md` §Language](../CONTEXT.md#language) owns the three level terms; [I19](../CONTEXT.md#i19--a-limit-bounds-usable-sources) the invariant). A source failing the gate never consumes limit budget; an empty read of a usable source consumes its slot and outputs nothing. Field population is deliberately no part of the test (the 2026-08-21 reversal — ADR 0007 §Why the read-based axis was reversed).
+
+**The source gate** applies at EVERY chain position, per step, before that step's limit, and what an author observes is this: an author previewing their own draft resolves it, a visitor does not resolve drafts or private posts, and trashed content resolves for nobody. An entity failing the gate cannot be a stepping stone — the chain is cut at that hop even toward public targets. The deciding rule (which kinds are tested, and against what) is owned at the gate itself, `bws_source_gate()`'s PHPDoc in `includes/helpers/traversal-pipeline.php`. **Caching note:** the visible test is viewer-relative, so a full-page cache serves whichever viewer primed the page; a cache that does not vary on login state will show every visitor the logged-out render, which is the safe direction, but a cache primed by a logged-in view can persist privileged output. This is guidance for debugging a cache, not a plugin setting.
+
+_Avoid_: `usable` in USER-FACING copy (help text, labels, notices, README). The author-facing word is **results**-family, and the shipped 1.17.0 Upgrade Notice's "unusable sources output nothing" now carries the SAME resolution-level sense — one sense everywhere, kept out of author surfaces all the same because it is model vocabulary.
 
 **`limit` is interpreted in ONE place — `bws_clamp_limit( $raw, int $default )` (field-helpers.php).** Three call sites route through it: the seam (`bws_resolve_field_values`), the shared list fold (`bws_collect_value_list`), and try_ slot dispatch (`class-tag-template-registry.php`). `bws_try_join_items` takes an already-resolved int — it holds no options, so it structurally cannot know which default applies. The rule, as of 1.17.0:
 
@@ -330,6 +336,43 @@ Term-modifier tags (`term_text`, `term_title`, etc.) inherit the same list-mode 
 
 **List collection is ONE fold (FW-49, 1.16.0):** every list-mode branch — text/title srcTermIn + src:ref, `datetime_single`/`datetime_range` per-term / per-ref-target (shipped with [#30](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/30) via a datetime-local fold, converged 1.16.0) — collects through `bws_collect_value_list()` (field-helpers.php): empty items are skipped, the list is sliced to `limit` and joined with `sep`, the `fallback` is suppressed per item and fires once on all-empty output, and link-wrap applies only when exactly one result renders — each collected value carries a link identity (`{kind,id}` or none; CONTEXT.md I12), and the single-result rule is a join constraint, not a linking one. Two separators on the range tag: `sep` between whole ranges, `rangeSep` between each start and end.
 
+### Collapsing tags (first-usable source)
+
+`{{content}}`, `{{permalink}}` and `{{image}}` have no list mode — there is nowhere for a second
+result to go. Each declares the **`takes_first_usable`** template capability
+([`class-tag-template-registry.php`](../includes/classes/class-tag-template-registry.php) descriptor
+docblock owns the axis; [ADR 0007](adr/0007-a-limit-counts-usable-sources.md) the decision): the tag
+reads the FIRST usable source its chain resolves — identically whether the chain resolves to terms
+or to posts — and outputs that read, **even when the read is empty**. It does not search past an
+empty field to a later source; which entity is read never depends on which field the tag asks for,
+so adjacent tags on the same path agree. (For terms, "first" is WP's own ordering — author/plugin
+term ordering respected, alphabetical by default — passed through, never overridden.)
+`try_content`, `try_permalink` and `try_image` inherit it from their base templates, per attempt:
+a slot whose first usable source reads empty loses its attempt and the chain falls to the next one.
+
+Consequences, each stated once here:
+
+- **Every `limit` on the chain is inert, at every position** — stamped by migration or typed by
+  hand, step-level or the tag-level key. A bound on how many results to show is meaningless where
+  only one can be shown, so the number is ignored rather than narrowing. Enforced where
+  the chain compiles to steps (`bws_fold_chain_to_steps()` `$ignore_limits`), so both step
+  assemblers behave identically and neither the engine nor any callback carries a special case.
+- **Stored wire is untouched.** A saved `limit` stays exactly as authored and starts applying again
+  if the tag type changes. The tag-level `limit` read is control-retired, not deprecated
+  ([ADR 0005](adr/0005-limits-are-stated-where-the-source-is-stated.md)) — ignored here, never
+  removed.
+- **The editor offers no Limit results control on these tags** (base chain and `try_` slots both),
+  and the field configuration note stops predicting several results there —
+  [`editor-controls.md` §Chain step controls](editor-controls.md#chain-step-controls).
+- **`{{table}}` declares the capability explicitly false** (its registration in
+  `table-tags.php` says why silence would be wrong there).
+
+Selection runs through `bws_read_bounded_sources()` (field-helpers.php) at n = 1 with no read predicate —
+the same selector the `try_` emit loop donated — so the rule exists once and the next tag that needs
+it inherits it. The selector's optional read-predicate parameter is a DORMANT seam for a possible
+future opt-in ("search past empty fields"), called by nothing shipped; the tracker row in
+[`docs/future-work.md`](future-work.md) owns that deferral.
+
 ---
 
 ## Default-enabled logic
@@ -377,7 +420,7 @@ For image tags, the `as` option is **always serialized** — `{{image as:url,ful
 
 **The mechanism is `'default' => 'url,full'`, and it is the whole mechanism.** Not stripping is necessary but not sufficient: GB writes an untouched option to the wire only if it was seeded, and it seeds from non-empty `default`s at tag-**select** time ([`gb-constraints.md` §Option Serialization Order](gb-constraints.md#option-serialization-order) — `updateDynamicTag`). v1.16.0's fold dropped the `default` on the theory that the composite would write `url,full` on mount; it writes on change only, so `{{image}}` carried no `as` at all until v1.17.0 restored it. Mount-**seeding** would have been the wrong repair — a tag with no `as` at all was never legacy wire, so writing one on open would mean opening a tag's panel edits it (the rule the folded-slot control's `stripDefaultRoot` exists to hold). GB does not validate a `default` against the option rows, so the folded `url,full` seeds even though it is not one of them. Pre-existing tags with **no** `as` keep it absent and render identically via the read seam below.
 
-**A pre-existing bare `as:url` is a different case, and it IS completed (v1.17.1) — by the Tag Converter.** An `as` that is present but partial is legacy wire: the token exists and does not say what the rule above says it must say. `bws_migrate_image_as_bare_url()` rewrites it to `as:url,full`. It leaves an absent `as`, an already-sized `url` and every nullary mode alone. **Render equivalence is not the test** — a bare `as:url` renders exactly as `as:url,full` does, and the opt-out exists for legibility in a copied tag string, not for output; a rewrite that changes no output is what an always-serialize rule is for.
+**A pre-existing bare `as:url` is a different case, and it IS completed (v1.18.0) — by the Tag Converter.** An `as` that is present but partial is legacy wire: the token exists and does not say what the rule above says it must say. `bws_migrate_image_as_bare_url()` rewrites it to `as:url,full`. It leaves an absent `as`, an already-sized `url` and every nullary mode alone. **Render equivalence is not the test** — a bare `as:url` renders exactly as `as:url,full` does, and the opt-out exists for legibility in a copied tag string, not for output; a rewrite that changes no output is what an always-serialize rule is for.
 
 **And it is Tag-Converter-ONLY.** The fold is unreachable in the editor because it must read and clear `size`; the completion touches only `as`, so it looks reachable and is not. A mount effect was built and backed out; the mechanism is owned by [`editor-controls.md` §Why the image composite does NOT migrate on mount](editor-controls.md). What makes the converter safe is ORDER: its fold entry is registered first, so a tag carrying both a legacy `size:` and a bare `as:url` is folded to `as:url,<authored size>` and never reaches the completion.
 
@@ -412,6 +455,7 @@ Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each e
 | `bws-format-input` | TextControl that escapes `:` / `\|` on save and unescapes for display, so format strings containing colons (e.g. `g:i A` time tokens) survive GB's JS `parseTag()` round-trip | `assets/js/format-input-control.js` | `format` option on `datetime_single`, `datetime_range` |
 | `bws-slot-fold` | The slot REPEATER: owns one folded slot value whole (source chain + field read + per-slot options), parsing and emitting it only through the grammar twin `assets/js/slot-fold-grammar.js`. Explicit add/remove slot count; removal compacts, materializing inherited axes first so a `same` backreference cannot silently re-point. Renders `bws-field-combo` against a synthetic context for the field pickers (the shipped control is unmodified; it takes the repeater scope as an explicit `scopeKey` prop). Every enum, label and noun arrives on the PHP option definition's `fold` sub-array from `bws_build_fold_slot_options()` — the control hand-authors no vocabulary. Recovers legacy flat keys at mount and rewrites the slot on first commit. | `assets/js/slot-fold-control.js` | folded slot keys `A`, `B`, … on `{{join}}` and `try_*` (v1.17.0); `{{table}}` arrives folded. Three read SHAPES, all read off the derived config rather than the container name: kind enum + picker, picker alone (a key axis with no `use` enum), or no read at all. See [§Folded slot wire](#folded-slot-wire-multislot-containers) |
 | `bws-src-chain` | The BASE tag's source chain: a root plus ordered fanning steps, each with an optional per-step limit. Renders the SAME step component the folded-slot control uses (`window.bwsSlotFoldRepeater.chainSteps`) — a second renderer is where a hand-authored third spelling of `terms` gets in. Every enum, label, noun and slug map arrives on the PHP option definition's `fold` sub-array from `bws_build_src_chain_option()`. Reads a legacy tag's flat `src`/`ref`/`srcTermIn` as the chain they describe (display only, so a cancelled modal leaves stored wire untouched); the first commit writes chain wire, deletes the flat siblings, and carries the limit the old spelling implied onto the STEPS (`limit(1)` on each fanning step, visible in the step's own Limit field; an author's tag-level `limit` MOVES onto the last fanning step rather than staying behind) — because chain wire defaults to unlimited and a conversion that wrote nothing would fan the tag out under the author's hands. One mapping, `bws_fold_chain_apply_legacy_limit()`, shared with both migration paths so a converted tag and a scanned one are byte-identical. Edits the SOURCE only; the base tag keeps its own `use`/`key`. | `assets/js/src-chain-control.js` | `src` on `text`, `content`, `title`, `permalink`, `image`, `email`, `phone`, `datetime_single`, `datetime_range`. NOT on `term_*`/`try_*`/`{{table}}` — those derive their own surfaces from the root enum, and a slot authors its chain inside its folded value |
+| `bws-fanning-advisory` | Display-only, group-end advisory for the collapsing tags: one line at the end of the source box, shown only when the tag's chain actually fans (the grammar twin of `bws_fold_chain_fanning_steps()`). The copy arrives on the PHP option definition (`help`); the control writes nothing and its option (`srcFanNote`) is never serialized. The filter nulls it on a non-fanning chain so the group wrapper never draws an empty member. Mechanism: [`editor-controls.md` §Group-end fanning advisory](editor-controls.md#group-end-fanning-advisory). | `assets/js/src-chain-control.js` | `srcFanNote` on `content`, `permalink`, `image` (the `takes_first_usable` templates — [§Collapsing tags](#collapsing-tags-first-usable-source)) |
 | `bws-field-combo` | Discovery-backed field picker: a searchable `ComboboxControl` over the field envelope inlined as `window.bwsFieldEnvelope` (assembled once per editor load from the REST route `bws-dynamic-tags/v1/fields`, no runtime fetch), plus two `SelectControl` filters above it (**location** — a path tree `Post/Term/Site fields › group › container`, container fields flagged `(repeater)`/`(group)`; **type** — ACF type or "Loop fields"). Flat list, one row per `(kind, key, label)`; a key in several groups collapses and shows under each, distinct labels stay separate. Serializes the **bare key** as a plain string (option `value` is a private merge key; the `valueToKey` map strips it in `onChange`), so it is a pure render swap for the old `text` input. Free-text via a synthetic "Use custom key" option; clear via `allowReset`. Reads optional `dynamicLabel` (label tracks the active location's group/kind) and `labelPrefix` from PHP option config. Composes with the conditional-options filter (`if (!element) return element`). Offered keys are filtered through `GenerateBlocks_Dynamic_Tag_Security::DISALLOWED_KEYS` server-side (offered ⟺ resolvable). | `assets/js/field-combo-control.js` + `includes/rest/field-discovery.php` | `key` (base/content/email/phone), `ref`, `linkKey` (`labelPrefix:'URL'`), datetime `key`/`timeKey`/`startKey`/`startTimeKey`/`endKey`/`endTimeKey`, and their `N-` per-slot try_ equivalents |
 
 Image size selection is the `bws-as-size` composite (above) as of v1.16.0 — GB's native `image-size` support is dropped and size folds into the `as` value (see [§`as` serialization opt-out + `as`+`size` fold](#as-serialization-opt-out--assize-fold-image-term_image-try_image)). (History: a `bws-img-size` ComboboxControl was tried then retired mid-1.6.0 for GB's native support; the fold now retires the GB control in turn.)

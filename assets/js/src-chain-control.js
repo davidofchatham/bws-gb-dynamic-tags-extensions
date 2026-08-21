@@ -320,10 +320,75 @@
 		}
 	);
 
+	// ── The group-end FANNING ADVISORY (`bws-fanning-advisory`, ADR 0007 pass two) ──
+	//
+	// One line at the END of the source control group, shown only when the tag's
+	// chain actually fans. It exists because the field configuration note structurally
+	// cannot carry this fact: a note is attached to a FIELD, while fanning is a
+	// property of the CHAIN — a `terms` step has no field key for a note to attach to,
+	// and a chain can fan with no multi-value field involved. One advisory at the
+	// group's end covers both holes and the ordinary case alike, once per chain
+	// rather than once per step.
+	//
+	// The COPY arrives on the option definition (`help`), never typed here; the
+	// predicate is the grammar twin of bws_fold_chain_fanning_steps() — the same one
+	// the limit help-forms and the migrator's stamp use — so the advisory can never
+	// disagree with the render seam about whether a chain fans. It renders NOTHING on
+	// a non-fanning chain (null, the conditional-options pattern), and it never
+	// writes: `srcFanNote` has no value and is never serialized.
+	var ADVISORY_STYLE = {
+		fontSize: '11px',
+		lineHeight: 1.5,
+		margin: '6px 0 0',
+		padding: '8px 10px',
+		background: '#f0f0f0',
+		borderLeft: '3px solid #c3c4c7',
+		color: '#1e1e1e'
+	};
+
+	function FanningAdvisory( props ) {
+		var state = ( props.context && props.context.state ) || {};
+		if ( ! fold.chainFanningSteps( chainFromOptions( state ) ).length ) {
+			return null;
+		}
+		return el( 'div', {
+			className: 'bws-fanning-advisory',
+			style: ADVISORY_STYLE
+		}, props.text || '' );
+	}
+
+	wp.hooks.addFilter(
+		'generateblocks.editor.tagSpecificControls',
+		'bws/fanning-advisory',
+		function ( element, allOptions, context ) {
+			if ( ! element || ! allOptions || ! context ) {
+				return element;
+			}
+			var cfg = allOptions[ element.key ];
+			if ( ! cfg || 'bws-fanning-advisory' !== cfg.type ) {
+				return element;
+			}
+			// The conditional lives HERE, not only in the component: the option-group
+			// wrapper (priority 30) boxes any non-null element, so a component that
+			// renders null would still leave an empty group member extending the
+			// source box on every non-fanning chain. Null at the filter is the
+			// conditional-options pattern, and the wrapper then skips it.
+			if ( ! fold.chainFanningSteps( chainFromOptions( ( context && context.state ) || {} ) ).length ) {
+				return null;
+			}
+			return el( FanningAdvisory, {
+				key: element.key,
+				text: cfg.help || '',
+				context: context
+			} );
+		}
+	);
+
 	// Exported for the editor harness: these are the pure decisions (what the legacy
 	// keys mean as a chain, whether a chain fans, what a conversion writes) that no
 	// render assertion can reach.
 	window.bwsSrcChain = {
+		fanningAdvisory: FanningAdvisory,
 		chainFromOptions: chainFromOptions,
 		displayChain: displayChain,
 		convertUpdate: convertUpdate,

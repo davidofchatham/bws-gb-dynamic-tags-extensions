@@ -3,7 +3,7 @@ Contributors: david-mitchell
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.17.1
+Stable tag: 1.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -11,8 +11,8 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
-= 1.17.1 =
-✓ Fixes the Migration Tool listing every image tag as needing conversion when there was nothing to convert. If your list would not clear no matter how many times you ran it, update and rescan. Image tags saved before 1.16.0 are listed once, then not again.
+= 1.18.0 =
+⚠ Two changes and a fix. Taxonomy-sourced Content, Permalink and Image tags show the first term only now, not the first with a filled field. Drafts and private posts resolve only for users allowed to see them; trashed posts never. The Migration Tool stops re-listing image tags it cannot convert.
 
 = 1.17.0 =
 ⚠ Ran the Migration Tool before? Check for loss of new-tab settings on link-wrapped tags and show-year/show-midnight settings on pre-1.6 datetime tags. New: multi-step source paths; result limit of 0 or -1 means no limit; unusable sources output nothing, not from the current context; and more.
