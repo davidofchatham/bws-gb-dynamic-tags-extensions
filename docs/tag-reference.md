@@ -117,7 +117,7 @@ once an author converts it or the Tag Converter rewrites it.
   `terms` step to one yields one term per referenced post rather than one term overall. Product
   semantics across a chain. Unlimited by default, for every step type. Distinct from the tag-level
   `limit`, which bounds the resolved-source list ONCE, before the read — see
-  [§List mode](#list-mode-limit--sep). Its control is **Limit items read**, and it is a position in
+  [§List mode](#list-mode-limit--sep). Its control is labelled for what the step produces (**Limit Posts Read**, **Limit Terms Read**, **Limit Repeater Rows Read**), and it is a position in
   this value rather than an option key — [§Chain step controls](editor-controls.md#chain-step-controls).
 - **What a chain RESOLVES TO is the render path's dispatch axis** (`bws_fold_src_resolution()`:
   kind ∈ `post|term|meta_row|site|base`, plus whether it fans). Pure and static, from the wire

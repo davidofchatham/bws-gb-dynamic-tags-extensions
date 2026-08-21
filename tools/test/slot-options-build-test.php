@@ -661,6 +661,13 @@ assert_same( '...and so is the per-step limit control (#95)', $fold['limitOption
 // READ, never results shown — an empty field keeps its place — so no string may
 // promise output. Wording pending user prose review; update here WITH the copy.
 assert_same( 'limitOption: labelled for what it COUNTS — items read, not results shown', 'Limit items read', $fold['limitOption']['label'] );
+// PER-KIND LABELS (1.18.0, second pass): the generic string above is the FALLBACK, and
+// every shipped slug names what it produces instead. Asserted per slug rather than as a
+// set, because the failure worth catching is one slug losing its noun and silently
+// wearing the generic label — which reads fine and is wrong.
+assert_same( 'refs: the limit names what the step PRODUCES', 'Limit Posts Read', $fold['steps']['refs']['limitLabel'] );
+assert_same( 'terms: likewise', 'Limit Terms Read', $fold['steps']['terms']['limitLabel'] );
+assert_same( 'entries: likewise, in the author\'s noun and not the engine\'s meta_row', 'Limit Repeater Rows Read', $fold['steps']['entries']['limitLabel'] );
 assert_same( 'limitOption: the placeholder names the unlimited VALUE', '0 (all)', $fold['limitOption']['placeholder'] );
 assert_same(
 	'limitOption: the plain help, for a step with nothing fanning above it',

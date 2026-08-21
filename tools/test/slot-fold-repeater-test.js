@@ -722,6 +722,30 @@ check( 'the placeholder is the definition\'s', sent[ 0 ] && sent[ 0 ].placeholde
 check( 'the plain help is the definition\'s', sent[ 0 ] && sent[ 0 ].help, 'H-PLAIN' );
 check( 'the fanning help is the definition\'s', sent[ 1 ] && sent[ 1 ].help, 'H-FAN' );
 
+// PER-STEP limit labels (1.18.0): a step that names what it PRODUCES wears its own label
+// and the generic one is the fallback. Sentinels again, and the two rows are one property
+// — a control that always read the step record would leave a limitLabel-less slug
+// unlabelled, and one that never did would show the generic string on every step.
+const PERKIND = rep.foldConfig( { fold: Object.assign( {}, CHAIN_CONF, {
+	limitOption: { label: 'L-GENERIC', placeholder: 'P', help: 'H', helpFanning: 'HF' },
+	steps: Object.assign( {}, CHAIN_CONF.steps, {
+		refs: Object.assign( {}, CHAIN_CONF.steps.refs, { limitLabel: 'L-REFS' } )
+	} )
+} ) } );
+const perKind = limitsIn( rep.chainSteps( {
+	conf: PERKIND,
+	chain: [
+		{ slug: 'refs', arg: 'office', limit: null },
+		{ slug: 'terms', arg: 'department', limit: null }
+	],
+	onChange: function () {},
+	inheritOnEmpty: false,
+	slotNoun: 'attempt',
+	stepContext: function () { return { state: {}, setState: function () {} }; }
+} ) );
+check( 'a step with its own limitLabel wears it', perKind[ 0 ] && perKind[ 0 ].label, 'L-REFS' );
+check( '...and a step without one falls back to the generic label', perKind[ 1 ] && perKind[ 1 ].label, 'L-GENERIC' );
+
 // Derived means DEPENDENT — same posture as `stepArg` above and as `flatAxes` in the
 // migrate twin: with no `limitOption` on the definition the control renders an unlabelled,
 // help-less field rather than inventing words. Asserted so the dependency is VISIBLE here

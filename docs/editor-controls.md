@@ -97,7 +97,7 @@ control and a multislot container's `bws-slot-fold` slot — so a step reads ide
 `{{text}}` and inside a `{{join}}` field.
 
 **Every string that names a SCHEMA fact arrives on the PHP option definition** — the step enum's
-row labels, the Relationship Field Key picker and the whole of the per-step limit control (Limit items read), all from
+row labels, the Relationship Field Key picker and the whole of the per-step limit control (its per-step labels and both help forms), all from
 `bws_fold_wire_vocabulary()` / `bws_base_traversal_options()`. The control hand-authors none of
 those; a second copy there is how the image tag's `Return type:` / `Return image as:` labels
 drifted. The two strings it does author — the step picker's own "Source" label and "Taxonomy" —
@@ -109,7 +109,7 @@ with.
 | Source | the step's own **slug** — `refs` / `terms` / `entries`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
 | Relationship Field Key | the **arg** of a `refs` (or `entries`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `entries`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
 | Taxonomy | the **arg** of a `terms` step — `terms,<taxonomy>` | — | Step slug is `terms`. Enum = public taxonomies, shipped with the definition |
-| Limit items read | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
+| Limit Posts Read / Limit Terms Read / Limit Repeater Rows Read (per step; *Limit items read* is the fallback) | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
 
 **The limit control carries two help forms, chosen by whether an earlier step actually FANS — not by
 step position.** Per-step limits are per-input and multiply (`∏ limitₙ`), but where nothing
@@ -137,8 +137,18 @@ the tag type changes. Pinned by `control-order-test.php` §8 (which surfaces car
 (the determinism reversal, [ADR 0007](adr/0007-a-limit-counts-usable-sources.md)) — the number
 counts items read, and an item whose field is empty keeps its place, so a label promising results
 promised what the render no longer does. Label and help only; the option key and stored wire did
-not move, so there is no row in `deprecated-tags-options.md`. A dynamic per-kind form ("Limit Posts
-Read" / "Limit Terms Read" / "Limit Repeater Rows Read") is a planned second pass.
+not move, so there is no row in `deprecated-tags-options.md`.
+
+**Then the label became PER STEP, in the same release.** A step names what it produces — *Limit
+Posts Read* on `refs`, *Limit Terms Read* on `terms`, *Limit Repeater Rows Read* on `entries` — and
+*Limit items read* is what a step wears when it ships without one. The noun is AUTHORED on the step
+record (`steps[<slug>].limitLabel`, beside the row label it already declares) rather than derived
+from the step's `produces` kind: `meta_row` is the engine's word for a repeater row, and deriving
+the label would put a naming decision in a map keyed on internals. Which label a step wears is the
+step record's answer; the generic string is a fallback, never a composition — the control picks one
+or the other exactly as it picks between the two help forms. Pinned by
+`slot-options-build-test.php` (registration ships the three nouns) and
+`slot-fold-repeater-test.js` (the control reads the record, and falls back when it is absent).
 
 Before either shipped label, the control carried a draft label of **Limit per source** for most of
 1.17.0's development and was corrected before release
@@ -177,7 +187,7 @@ any non-null element — never draws an empty member. Pinned by `editor-filter-c
 
 #### Field configuration note
 
-Between the Relationship Field Key control and the Limit items read control, a selected field can carry a **field
+Between the Relationship Field Key control and the step's limit control, a selected field can carry a **field
 configuration note**: a statement of what ACF does and does not enforce about how many entries that
 field can hold ([#96](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/96)).
 It exists because three facts that change what a `refs` step returns are invisible from the tag
@@ -187,7 +197,7 @@ silently hold several entries — and the ACF admin is unreachable from the cont
 exists to serve.
 
 **It describes and never gates.** No wire changes, no save is blocked, no rendered output moves. Its
-value is that the *enforced* bound is the Limit items read control sitting directly beneath it, so the
+value is that the *enforced* bound is the step's own limit control sitting directly beneath it, so the
 note reads as the setup for the number about to be chosen. That adjacency is left implicit; the note
 carries no call to action.
 

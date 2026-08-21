@@ -134,6 +134,10 @@ function bws_fold_picker_config( array $def ): array {
  *
  *   steps      the FULL step vocabulary, one record per WIRE slug (#70):
  *                label    — the step's row label, declared HERE and nowhere else.
+ *                limitLabel — the label its per-step Limit field wears, naming what the
+ *                           step PRODUCES ("Limit Posts Read"). Declared here for the
+ *                           same reason `label` is; `limitOption.label` is the fallback
+ *                           for a slug that ships without one.
  *                arg      — the key a step's argument rides (the compiler seam's own
  *                           value, BWS_FOLD_STEP_TYPES). Comparing two slugs' `arg` is
  *                           what decides whether a slug switch keeps the field.
@@ -167,19 +171,29 @@ function bws_fold_picker_config( array $def ): array {
  * @return array Chain-config fragment to merge into a container's `fold` array.
  */
 function bws_fold_wire_vocabulary(): array {
-	// The one authored fact per step is its LABEL; everything else is derived from the
-	// engine/compiler constants below. A slug missing from this list has no row text,
-	// so it is not offerable — which is why a new engine step type ships to the editor
-	// only once it is named here.
+	// The authored facts per step are its ROW LABEL and its LIMIT label; everything else
+	// is derived from the engine/compiler constants below. A slug missing from this list
+	// has no row text, so it is not offerable — which is why a new engine step type ships
+	// to the editor only once it is named here.
+	//
+	// TWO LABELS BECAUSE THE LIMIT NAMES WHAT THE STEP PRODUCES, not what it reads from
+	// (1.18.0, ADR 0007). `produces` already carries the kind, but a kind is not a noun an
+	// author reads — `meta_row` is the engine's word for a repeater row — and deriving
+	// the label from it would put the naming decision in a map keyed on internals. The
+	// generic `limitOption.label` stays as the fallback for a slug that ships without one.
 	$labels = array(
-		'refs'    => __( 'In Reference/Relational Field', 'generateblocks' ),
-		'terms'   => __( 'In Taxonomy Term', 'generateblocks' ),
-		'entries' => __( 'In Repeater Rows', 'generateblocks' ),
+		'refs'    => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms'   => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'entries' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();
-	foreach ( $labels as $slug => $label ) {
-		$step = array( 'label' => $label );
+	foreach ( $labels as $slug => $authored ) {
+		list( $label, $limit_label ) = $authored;
+		$step = array(
+			'label'      => $label,
+			'limitLabel' => $limit_label,
+		);
 		if ( defined( 'BWS_FOLD_STEP_TYPES' ) && isset( BWS_FOLD_STEP_TYPES[ $slug ] ) ) {
 			$step['arg'] = BWS_FOLD_STEP_TYPES[ $slug ];
 		}
@@ -202,8 +216,10 @@ function bws_fold_wire_vocabulary(): array {
 		// REFRAMED 1.18.0 (the determinism reversal, ADR 0007): the number counts
 		// ITEMS READ, not results shown — an item whose field is empty keeps its
 		// place rather than being replaced by the next one, so the copy must not
-		// promise output. Dynamic per-kind labels ("Limit Posts Read" …) are a
-		// planned second pass; wording here pending user prose review.
+		// promise output. THIS LABEL IS NOW THE FALLBACK: a step that names what it
+		// produces wears its own (`steps[<slug>].limitLabel`), and every shipped slug
+		// does, so the generic wording is reached only by a slug that ships without
+		// one. Wording pending user prose review.
 		//
 		// TWO HELPS, chosen by whether an EARLIER step actually FANS — not by position.
 		// Per-step limits are per-input and MULTIPLY (`∏ limitₙ`), but where nothing

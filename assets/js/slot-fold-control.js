@@ -866,13 +866,18 @@
 			// round-trip (the grammar preserves tokens the panel does not show).
 			if ( known && ! conf.takesFirstUsable ) {
 				var limitCfg = conf.limitOption || {};
+				// The step names its own bound where it can ("Limit Posts Read"), because
+				// what the number counts is what the step PRODUCES and only the step knows
+				// that noun. Both strings arrive on the config; the generic one is the
+				// fallback for a slug shipped without a limitLabel, never a composition.
+				var limitLabel = ( stepDef( conf, stepObj.slug ) || {} ).limitLabel || limitCfg.label;
 				var upstreamFans = fold.chainFanningSteps( chain ).some( function ( j ) {
 					return j < i;
 				} );
 				stepKids.push( el( 'div', { key: 'limit', style: STACKED },
 					el( TextControl, {
 						type: 'number',
-						label: limitCfg.label,
+						label: limitLabel,
 						value: ( stepObj.limit === null || stepObj.limit === undefined ) ? '' : String( stepObj.limit ),
 						placeholder: limitCfg.placeholder,
 						help: upstreamFans ? limitCfg.helpFanning : limitCfg.help,

@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= 1.18.0 =
+⚠ Two behavior changes. Content, Permalink and Image tags now read the first source in order, even when its field is empty, instead of searching on for a filled one. Drafts and private posts no longer resolve for site visitors, only for users allowed to see them.
+
 = 1.17.1 =
 ✓ Fixes the Migration Tool listing every image tag as needing conversion when there was nothing to convert. If your list would not clear no matter how many times you ran it, update and rescan. Image tags saved before 1.16.0 are listed once, then not again.
 
