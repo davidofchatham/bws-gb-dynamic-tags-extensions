@@ -72,9 +72,19 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  * (visible — viewer-relative). Per kind:
  *
  *   post      exists = get_post() non-null (a TRASHED post exists);
- *             visible = its status is publicly viewable, OR the current user
- *             has `read_post` on it — viewer-relative BY DESIGN, so an author
- *             previewing their own draft resolves it (plan §S19).
+ *             visible = the RESOLVED status (get_post_status(), never the raw
+ *             column) is publicly viewable, OR — for a status that is neither
+ *             public nor `internal` — the current user has `read_post` on it.
+ *             Viewer-relative BY DESIGN there, so an author previewing their
+ *             own draft resolves it (plan §S19). An INTERNAL status is refused
+ *             for EVERY viewer, capability or not: `trash` and `auto-draft` are
+ *             deletion/scratch states rather than publication ones, and WP's own
+ *             front end renders neither to anyone, so honouring `read_post` on
+ *             them would show an editor content no visitor can reach.
+ *             Resolving first is load-bearing: an attachment stores `inherit`,
+ *             which is itself an internal status and would be refused, while
+ *             get_post_status() answers it with the parent's status (or
+ *             `publish` when unattached).
  *   term      exists = get_term() yields a WP_Term; no publication status, so
  *             visible adds nothing (plan §S21).
  *   user      exists = get_userdata() truthy; same, existence only.
@@ -112,8 +122,13 @@ function bws_source_gate( array $source ) {
 		if ( ! $post instanceof WP_Post ) {
 			return false; // Fails EXISTS.
 		}
-		if ( is_post_status_viewable( $post->post_status ) ) {
+		$status = get_post_status( $post ); // Resolves an attachment's `inherit`.
+		if ( is_post_status_viewable( $status ) ) {
 			return true;
+		}
+		$status_obj = get_post_status_object( (string) $status );
+		if ( is_object( $status_obj ) && ! empty( $status_obj->internal ) ) {
+			return false; // trash / auto-draft: refused for every viewer.
 		}
 		return current_user_can( 'read_post', $post->ID ); // VISIBLE, viewer-relative.
 	}
