@@ -804,7 +804,7 @@ pin; these are the render proof). `/matrix-post-meta/`; site options: `organizat
 | F16.5 | `{{try_email A:src(fixture_scoped);key(contact_email)\|B:src(site);key(organization_email)}}` | B's site email | An attempt whose source cannot resolve (scope-bound root off its page) is SKIPPED — the NEXT attempt renders, and the assertion is WHICH attempt won, not that output is non-empty |
 | F16.6 | `{{try_phone A:src(site,limit[2]);key(org_phone)}}` | site phone, as F16.3 | The decorated site slot takes the site arm's read — the [I15] wrong-entity leak this section pins closed |
 
-## §F17 — the source gate: exists + visible (ADR 0007, [I19]; blueprint v13)
+## §F17 — the source gate: exists + visible (ADR 0007, [I19]; blueprint v14)
 
 All rows on **`/matrix-gate/`**, whose `gate_staff` names three staff singles differing in ONE
 property — a DRAFT (`Dana Draft`), a PRIVATE (`Paul Private`) and a PUBLISHED one
@@ -812,21 +812,37 @@ property — a DRAFT (`Dana Draft`), a PRIVATE (`Paul Private`) and a PUBLISHED 
 post before the gate could see it) holding a genuinely deleted id ahead of Grace; `via_draft` names
 the draft alone, and the draft's `reports_to` is Grace.
 
+**v14 adds the three shapes where the answer is not "is the status in a list".** `trash_ref` is
+plain meta naming a TRASHED staff post ahead of Grace; `feature_image` on the page names the seeded
+ATTACHMENT, whose stored status is the internal `inherit`; and the draft is now AUTHORED BY
+`fixture-author`, with a second author-role user (`fixture-other-author`) seeded as the viewer who
+is equally logged in and still may not read it.
+
 **THE ONLY ROWS IN THE SUITE THAT READ DIFFERENTLY PER VIEWER**, which is the visible level working
 rather than a flaky fixture. Two runs, and both are needed — a row that agreed across them would
 mean the viewer-relative arm had been deleted:
 
 ```
-bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/            # anonymous
-bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=1   # administrator
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/                             # anonymous
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=1                    # administrator
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=fixture-author       # the draft's OWNER
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=fixture-other-author # a different author
 ```
 
 WP-CLI runs with NO current user unless `--user` is passed, so the bare command is the logged-out
 arm — the same arm a front-end curl reads, and the opposite of what the editor shows.
 
+The two author arms are what make "viewer-relative" mean anything: both are logged in and neither
+can read every draft, so ownership is the only difference between them. The editor role cannot
+serve as the negative — `edit_others_posts` reads the draft, so `bwsut-editor` would print the
+owner's answer and the row would pass while measuring the opposite fact.
+
 Every row is also a VISIBLE block on `/matrix-gate/` (open it in the editor for the administrator
-arm), and `verify.php` renders both arms off one ambient post so a hand run cannot measure one
-viewer and call it the property. **Measured 2026-08-21, both arms, all six rows as stated.**
+arm), and `verify.php` renders every arm off one ambient post so a hand run cannot measure one
+viewer and call it the property. **Measured 2026-08-21, every arm, all ten rows as stated.**
+§F17.8 and §F17.9 were also measured against the PRE-FIX gate, which printed `Trish` to the
+administrator and an empty string to the visitor — the rows fail without the fix, which is the only
+evidence that a passing row is testing anything.
 
 | # | Viewer | Tag | Expect | Why |
 |---|---|---|---|---|
@@ -836,6 +852,10 @@ viewer and call it the property. **Measured 2026-08-21, both arms, all six rows 
 | F17.3 | both (identical) | `{{text src:refs,stale_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | EXISTS, not visible: a deleted id fails the gate for everyone and spends no limit budget, so `limit:1` still reaches a real entity. A row that diverged by viewer here would mean existence had been folded into the viewer-relative arm |
 | F17.4 | anonymous | `{{content src:refs,via_draft;refs,reports_to\|use:key\|key:name_first}}` | **EMPTY** | STEPPING-STONE CUT: the chain is cut at the unreadable hop even though the hop's own target is published |
 | F17.5 | administrator | same tag | `Grace` | The other half of F17.4, and what keeps its empty honest: the destination is reachable, so F17.4 is about the stone and not about a missing `reports_to` |
+| F17.6 | `fixture-author` (the draft's OWNER) | `{{content src:refs,gate_staff\|use:key\|key:name_first}}` | `Dana` | The test is WHO IS ASKING. A non-admin with no power over other people's drafts still reads their own, which is what makes previewing work |
+| F17.7 | `fixture-other-author` | same tag | `Grace` | The pair is the assertion, not either half: `Grace` alone would also be printed by a gate refusing every logged-in non-admin, and `Dana` alone by one resolving any draft for anyone signed in |
+| F17.8 | both (identical) | `{{text src:refs,trash_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | TRASHED: the one status where `exists` passes and `visible` fails for EVERYONE. WP maps `read_post` on trash toward `edit_post`, so a capability-only gate prints `Trish` to an administrator and nothing to a visitor — while WP's own front end 404s a trashed permalink for both. A deletion state is not a publication state |
+| F17.9 | both (identical) | `{{text src:refs,feature_image\|use:title}}` | `Fixture Photo` | ATTACHMENT AS A SOURCE: an attachment stores the INTERNAL `inherit`, which resolves to the parent's status (or `publish` when unattached). Raw-column testing dropped every attachment for visitors only. Invisible to every other row, because plain `{{image}}` reads never enter the pipeline |
 
 ## Fail triage
 

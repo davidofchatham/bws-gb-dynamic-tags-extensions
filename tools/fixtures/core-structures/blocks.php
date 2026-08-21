@@ -1306,6 +1306,9 @@ function bws_fixture_page_content_matrix_gate() {
 		bws_fixture_gb_row( 'F17.1b NON-VACUITY: the same path in list mode, so the row names every source that survived the gate (-> logged out: Grace alone; administrator: Dana, Paul, Grace)', '{{text src:refs,gate_staff|use:key|key:name_first|limit:0|sep:, }}' ),
 		bws_fixture_gb_row( 'F17.3 EXISTS, not visible: stale_ref is plain meta holding a DELETED id ahead of a live one, and the dead id spends no limit budget, so limit:1 still reaches a real entity (-> Grace, for every viewer)', '{{text src:refs,stale_ref|use:key|key:name_first|limit:1}}' ),
 		bws_fixture_gb_empty_row( 'F17.4/F17.5 STEPPING-STONE CUT: the chain routes through the draft, whose own reports_to IS published - logged out the chain is cut at that hop (-> EMPTY); as an administrator the same wire resolves it (-> Grace)', '{{content src:refs,via_draft;refs,reports_to|use:key|key:name_first}}' ),
+		bws_fixture_gb_row( 'F17.6/F17.7 WHO IS ASKING, not who is logged in: the draft is owned by fixture-author, so THAT user reads it (-> Dana) while a different author-role user does not (-> Grace). Both arms are logged in; only the owner differs', '{{content src:refs,gate_staff|use:key|key:name_first}}' ),
+		bws_fixture_gb_row( 'F17.8 TRASHED: trash_ref is plain meta naming a TRASHED post ahead of a live one. A trashed post EXISTS, so this is the visible half - and it is refused for EVERY viewer, so limit:1 reaches Grace here and in the editor alike (-> Grace, both)', '{{text src:refs,trash_ref|use:key|key:name_first|limit:1}}' ),
+		bws_fixture_gb_row( 'F17.9 ATTACHMENT AS A SOURCE: hopping onto an image field reaches an attachment, whose stored status is the INTERNAL inherit - a gate reading that column raw drops it for logged-out visitors only. Same value in both arms (-> Fixture Photo)', '{{text src:refs,feature_image|use:title}}' ),
 	) );
 
 	return implode( "\n\n", $sections );

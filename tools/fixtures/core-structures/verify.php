@@ -283,6 +283,8 @@ if ( $gate_page instanceof WP_Post ) {
 	$first_tag = '{{content src:refs,gate_staff|use:key|key:name_first}}';
 	$hop_tag   = '{{content src:refs,via_draft;refs,reports_to|use:key|key:name_first}}';
 	$stale_tag = '{{text src:refs,stale_ref|use:key|key:name_first|limit:1}}';
+	$trash_tag = '{{text src:refs,trash_ref|use:key|key:name_first|limit:1}}';
+	$att_tag   = '{{text src:refs,feature_image|use:title}}';
 
 	// WP-CLI runs with NO current user unless --user is passed, and this script does
 	// not assume one the way seed.php does — so the administrator arm has to set one
@@ -292,15 +294,48 @@ if ( $gate_page instanceof WP_Post ) {
 	$admin_id = (int) ( $admins[0] ?? 0 );
 	$check( 'an administrator exists to run the viewer-relative arm as', $admin_id > 0, 'user=' . $admin_id );
 
+	// The two AUTHOR arms (v14, §F17.6/§F17.7). Both are logged in and neither can
+	// read every draft, so what separates them is ownership alone — which is the
+	// difference between a viewer-relative gate and a logged-in-relative one.
+	$owner_user = get_user_by( 'login', 'fixture-author' );
+	$owner_id   = $owner_user ? (int) $owner_user->ID : 0;
+	$other_user = get_user_by( 'login', 'fixture-other-author' );
+	$other_id   = $other_user ? (int) $other_user->ID : 0;
+	$check( 'the gate draft is OWNED by fixture-author (an admin-authored draft cannot measure ownership)', $owner_id > 0 && $draft_id && (int) get_post_field( 'post_author', $draft_id ) === $owner_id, 'owner=' . $owner_id . ' draft_author=' . ( $draft_id ? get_post_field( 'post_author', $draft_id ) : 'n/a' ) );
+	$check( 'a SECOND author-role user exists for the negative arm', $other_id > 0 && in_array( 'author', (array) ( $other_user->roles ?? array() ), true ), 'user=' . $other_id );
+
+	$trash_ref = (array) get_post_meta( $gate_page->ID, 'trash_ref', true );
+	$check(
+		'trash_ref leads with a TRASHED post and follows with a live one',
+		2 === count( $trash_ref ) && 'trash' === get_post_status( (int) $trash_ref[0] ) && 'publish' === get_post_status( (int) ( $trash_ref[1] ?? 0 ) ),
+		'statuses=' . get_post_status( (int) ( $trash_ref[0] ?? 0 ) ) . ',' . get_post_status( (int) ( $trash_ref[1] ?? 0 ) )
+	);
+	$att_id = (int) get_post_meta( $gate_page->ID, 'feature_image', true );
+	$check(
+		'feature_image on the gate page names an ATTACHMENT whose raw status is the internal `inherit`',
+		$att_id && 'attachment' === get_post_type( $att_id ) && 'inherit' === get_post_field( 'post_status', $att_id ),
+		'att=' . $att_id . ' raw=' . ( $att_id ? get_post_field( 'post_status', $att_id ) : 'n/a' )
+	);
+
 	wp_set_current_user( $admin_id );
 	$admin_first = $render( $first_tag );
 	$admin_hop   = $render( $hop_tag );
 	$admin_stale = $render( $stale_tag );
+	$admin_trash = $render( $trash_tag );
+	$admin_att   = $render( $att_tag );
+
+	wp_set_current_user( $owner_id );
+	$owner_first = $render( $first_tag );
+
+	wp_set_current_user( $other_id );
+	$other_first = $render( $first_tag );
 
 	wp_set_current_user( 0 );
 	$anon_first = $render( $first_tag );
 	$anon_hop   = $render( $hop_tag );
 	$anon_stale = $render( $stale_tag );
+	$anon_trash = $render( $trash_tag );
+	$anon_att   = $render( $att_tag );
 
 	wp_set_current_user( $prev_user );
 	$GLOBALS['post'] = $prev_post;
@@ -315,6 +350,15 @@ if ( $gate_page instanceof WP_Post ) {
 	// EXISTS is not viewer-relative, so this pair must AGREE. A divergence here means
 	// the deleted id started being answered by a capability check.
 	$check( 'F17.3 a deleted id fails for BOTH viewers and spends no limit budget', 'Grace' === $anon_stale && $anon_stale === $admin_stale, 'anon=' . var_export( $anon_stale, true ) . ' admin=' . var_export( $admin_stale, true ) );
+	$check( 'F17.6 the draft OWNER reads their own draft', 'Dana' === $owner_first, 'out=' . var_export( $owner_first, true ) );
+	// The pair is the assertion, not either half: 'Grace' alone would also be
+	// printed by a gate that refused every logged-in non-admin, and 'Dana' alone by
+	// one that resolved any draft for anyone signed in.
+	$check( 'F17.7 a DIFFERENT author, equally logged in, does not', 'Grace' === $other_first, 'out=' . var_export( $other_first, true ) );
+	// Trash is the one status where EXISTS passes and VISIBLE fails for everyone, so
+	// this pair must AGREE while F17.1/F17.2 diverge on the same page.
+	$check( 'F17.8 a TRASHED source is refused for both viewers and spends no limit budget', 'Grace' === $anon_trash && $anon_trash === $admin_trash, 'anon=' . var_export( $anon_trash, true ) . ' admin=' . var_export( $admin_trash, true ) );
+	$check( 'F17.9 an ATTACHMENT source resolves for a visitor (its `inherit` is the PARENT status, not an internal refusal)', 'Fixture Photo' === $anon_att && $anon_att === $admin_att, 'anon=' . var_export( $anon_att, true ) . ' admin=' . var_export( $admin_att, true ) );
 }
 
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";

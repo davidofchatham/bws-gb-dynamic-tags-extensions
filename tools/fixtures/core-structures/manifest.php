@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 13, // 13: SOURCE GATE corpus (1.18.0, ADR 0007) — three staff singles that differ ONLY in readability (`staff-gate-draft` draft, `staff-gate-private` private, `staff-gate-public` published) plus the `matrix-gate` page that references them, in that order, through `gate_staff`. The gate is viewer-RELATIVE, so the same tag on one page is two assertions: anonymous reads the published target, an administrator reads the draft (fold matrix §F17.1/§F17.2). `via_draft` points at the draft alone, so a chain THROUGH it is cut at the hop (§F17.4) while the draft's own `reports_to` proves the hop target is reachable when the viewer may read it (§F17.5). The third shape is EXISTENCE, not visibility: `stale_ref` is PLAIN meta (no ACF field — ACF's formatter drops a deleted post before the gate could see it) holding a genuinely deleted id ahead of a live one, seeded by creating a post and force-deleting it (§F17.3). Additive; post_status is a new per-post manifest key, absent = publish. 12: FIRST-USABLE corpus (slice A, ADR 0007) — `charter` term field seeded on department-warehouse ALONE (the last term alphabetically, so the §F15 term walk meets two empty reads first) + `feature_image` on staff-tom-associate (Jane, the first related_staff target, deliberately has none — the post-route {{image}} first-usable case). Additive. 11: 11: SCOPE-BOUND fixture root (1.17.0, #112) — `fixture_scoped`, a filter-route root that resolves on `/matrix-fixture-roots/` and answers FALSE everywhere else. Schema-only; no seeded state of its own (it reuses the class route's target). It is the #76 category-2 shape, and it is the only one of the three fixture roots that ever refuses: a registered source, correctly written, off its scope. That is the shape the census found in real wire — the other two always resolve, so before this the rendered refusal could only be reached by an UNREGISTERED token, which is a different decline. It must resolve on its own page too, or "refuses off its scope" reads identically to "is broken". 10: BLOCK PATTERN fixture (1.17.0, #99) — the `patterns` section plus seed.php's ADMINISTRATOR context, which is what makes it non-empty: GB Pro's cache listener is capability-gated, and a capability-less seed produces a wp_block with no `generateblocks_patterns_tree` row at all. The pattern carries a pre-1.6 tag name (so the converter always rewrites it, creating the divergence the reconcile repairs) and literal backslashes in both the block-comment JSON and the rendered code block (so the meta layer's recursive unslash has something to damage — a corpus without one passes the escaping assertion while testing nothing). Browsable with no blocks.php row by construction: a wp_block is in the pattern inserter and editable at Appearance → Patterns. 9: FIELD CONFIGURATION NOTE corpus (1.17.0, #96) — `partner_staff` on the page+staff group: a bidirectional relationship field with a configured limit of 3, self-targeting (a legitimate symmetric relationship, and one field instead of a pair). LABELLED "Partner Staff", as a real field would be — the picker row is the wrong place to state a configuration, since the note IS that statement. SCHEMA-ONLY BY CONSTRUCTION — the note is derived from field DEFINITIONS, never a value read, so there is nothing to seed and nothing for verify.php to assert; it exists to be picked in a `refs` step's field picker and read (fold matrix F14.16). The other cases already have fixtures: `lead_staff_obj` is a single-entry post object with no bidirectional setting (case 6), and `related_staff` must stay silent. 8: EXTERNAL-SOURCE contract corpus (1.17.0, #85) — the `fixture-root` staff post (the class-route root's target: its own main_line/role, `related_staff` leading with TOM where matrix-post-meta's leads with Jane, and the SALES department term alone where the matrix pages carry Support first) plus the `matrix-fixture-roots` page carrying the base-root rows, the folded-slot rows and the `fixture_*` MODIFIER corpus in the six shapes #84's transform maps. Every value on the target is deliberately distinct from the ambient page's: a root whose reads matched the current post would pass whether it resolved or not. The SOURCE and the modifier family are registered in schema.php; the filter-route root (`fixture_alt`) resolves the existing `sample-event` post and needs no new state. 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 14, // 14: SOURCE GATE corpus, second pass (1.18.0) — the three shapes v13 could not reach, each one a case where the gate's answer is NOT "is the status in a list". TRASHED (`staff-gate-trashed`, reached through the plain-meta `trash_ref`): the only status where EXISTS passes and VISIBLE fails for EVERY viewer, administrators included — WP maps `read_post` on trash toward `edit_post`, so a capability-only gate renders it to editors and to nobody else, and WP's own front end renders it to no one at all. ATTACHMENT (`feature_image` on the gate page, hopped onto as a SOURCE): an attachment stores `inherit`, an INTERNAL status, so a gate testing the raw column drops every attachment for logged-out visitors while showing it to logged-in ones; invisible to every other row because plain {{image}} reads never enter the traversal pipeline. OWN DRAFT (`post_author` on `staff-gate-draft`, plus the `author-other` user): seed.php runs as an administrator, so a draft it authors itself can only be read by someone who can read every draft — the owner arm and the different-author arm are what separate viewer-relative from logged-in-relative, and the existing editor cannot serve as the negative because `edit_others_posts` reads the draft. Additive; `trash` joins the seed's explicit status lookup list, or a trashed fixture is re-created on every reseed. 13: SOURCE GATE corpus (1.18.0, ADR 0007) — three staff singles that differ ONLY in readability (`staff-gate-draft` draft, `staff-gate-private` private, `staff-gate-public` published) plus the `matrix-gate` page that references them, in that order, through `gate_staff`. The gate is viewer-RELATIVE, so the same tag on one page is two assertions: anonymous reads the published target, an administrator reads the draft (fold matrix §F17.1/§F17.2). `via_draft` points at the draft alone, so a chain THROUGH it is cut at the hop (§F17.4) while the draft's own `reports_to` proves the hop target is reachable when the viewer may read it (§F17.5). The third shape is EXISTENCE, not visibility: `stale_ref` is PLAIN meta (no ACF field — ACF's formatter drops a deleted post before the gate could see it) holding a genuinely deleted id ahead of a live one, seeded by creating a post and force-deleting it (§F17.3). Additive; post_status is a new per-post manifest key, absent = publish. 12: FIRST-USABLE corpus (slice A, ADR 0007) — `charter` term field seeded on department-warehouse ALONE (the last term alphabetically, so the §F15 term walk meets two empty reads first) + `feature_image` on staff-tom-associate (Jane, the first related_staff target, deliberately has none — the post-route {{image}} first-usable case). Additive. 11: 11: SCOPE-BOUND fixture root (1.17.0, #112) — `fixture_scoped`, a filter-route root that resolves on `/matrix-fixture-roots/` and answers FALSE everywhere else. Schema-only; no seeded state of its own (it reuses the class route's target). It is the #76 category-2 shape, and it is the only one of the three fixture roots that ever refuses: a registered source, correctly written, off its scope. That is the shape the census found in real wire — the other two always resolve, so before this the rendered refusal could only be reached by an UNREGISTERED token, which is a different decline. It must resolve on its own page too, or "refuses off its scope" reads identically to "is broken". 10: BLOCK PATTERN fixture (1.17.0, #99) — the `patterns` section plus seed.php's ADMINISTRATOR context, which is what makes it non-empty: GB Pro's cache listener is capability-gated, and a capability-less seed produces a wp_block with no `generateblocks_patterns_tree` row at all. The pattern carries a pre-1.6 tag name (so the converter always rewrites it, creating the divergence the reconcile repairs) and literal backslashes in both the block-comment JSON and the rendered code block (so the meta layer's recursive unslash has something to damage — a corpus without one passes the escaping assertion while testing nothing). Browsable with no blocks.php row by construction: a wp_block is in the pattern inserter and editable at Appearance → Patterns. 9: FIELD CONFIGURATION NOTE corpus (1.17.0, #96) — `partner_staff` on the page+staff group: a bidirectional relationship field with a configured limit of 3, self-targeting (a legitimate symmetric relationship, and one field instead of a pair). LABELLED "Partner Staff", as a real field would be — the picker row is the wrong place to state a configuration, since the note IS that statement. SCHEMA-ONLY BY CONSTRUCTION — the note is derived from field DEFINITIONS, never a value read, so there is nothing to seed and nothing for verify.php to assert; it exists to be picked in a `refs` step's field picker and read (fold matrix F14.16). The other cases already have fixtures: `lead_staff_obj` is a single-entry post object with no bidirectional setting (case 6), and `related_staff` must stay silent. 8: EXTERNAL-SOURCE contract corpus (1.17.0, #85) — the `fixture-root` staff post (the class-route root's target: its own main_line/role, `related_staff` leading with TOM where matrix-post-meta's leads with Jane, and the SALES department term alone where the matrix pages carry Support first) plus the `matrix-fixture-roots` page carrying the base-root rows, the folded-slot rows and the `fixture_*` MODIFIER corpus in the six shapes #84's transform maps. Every value on the target is deliberately distinct from the ambient page's: a root whose reads matched the current post would pass whether it resolved or not. The SOURCE and the modifier family are registered in schema.php; the filter-route root (`fixture_alt`) resolves the existing `sample-event` post and needs no new state. 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -49,6 +49,18 @@ return array(
 			'user_email'   => 'author@example.test',
 			'role'         => 'author',
 			'description'  => 'Fixture Author writes the sample posts that back the author-archive context rows. This bio is the user description meta the {{content}} author analog reads.',
+		),
+		// The gate corpus's NEGATIVE viewer (v14, §F17.7). It owns nothing and
+		// appears on no archive; its whole job is to be a logged-in user who still
+		// cannot read another author's draft. The role is what makes it work: the
+		// existing bwsut-editor has `edit_others_posts` and therefore READS the
+		// draft, so using an editor here would measure the opposite fact and pass.
+		'author-other'   => array(
+			'user_login'    => 'fixture-other-author',
+			'user_nicename' => 'fixture-other-author',
+			'display_name'  => 'Other Author',
+			'user_email'    => 'other-author@example.test',
+			'role'          => 'author',
 		),
 	),
 
@@ -230,11 +242,17 @@ return array(
 		// A DRAFT and a PRIVATE post rather than one of each kind of unreadable:
 		// they fail the gate through different halves of `is_post_status_viewable`
 		// and a fixture with only one of them passes with the other's arm deleted.
+		// AUTHORED BY A NON-ADMIN (v14): the viewer-relative arm is "who is asking",
+		// and seed.php runs as an administrator, so a draft it authors itself can
+		// only ever be read by users who can read EVERY draft. Owned by
+		// author-fixture, §F17.6 measures the author previewing their own draft and
+		// §F17.7 measures a different author failing to.
 		'staff-gate-draft'   => array(
 			'post_type'   => 'staff',
 			'post_name'   => 'gate-draft',
 			'post_title'  => 'Dana Draft',
 			'post_status' => 'draft',
+			'post_author' => 'author-fixture',
 		),
 		'staff-gate-private' => array(
 			'post_type'   => 'staff',
@@ -246,6 +264,19 @@ return array(
 			'post_type'  => 'staff',
 			'post_name'  => 'gate-public',
 			'post_title' => 'Grace Published',
+		),
+
+		// TRASHED (v14, §F17.8). The one status where EXISTS passes and VISIBLE
+		// fails for every viewer including an administrator, whose `read_post` WP
+		// maps toward `edit_post` and answers true — so a gate that honoured the
+		// capability alone would render it to editors and to nobody else. Distinct
+		// from the {DELETED_POST_ID} throwaway, which is force-deleted precisely
+		// BECAUSE a trashed post still exists; this row needs the surviving one.
+		'staff-gate-trashed' => array(
+			'post_type'   => 'staff',
+			'post_name'   => 'gate-trashed',
+			'post_title'  => 'Trish Trashed',
+			'post_status' => 'trash',
 		),
 
 		// The gate corpus page (§F17). Its own values are NOT read by any gate row —
@@ -483,6 +514,9 @@ return array(
 		'staff-gate-public'  => array(
 			'name_first' => 'Grace',
 		),
+		'staff-gate-trashed' => array(
+			'name_first' => 'Trish',
+		),
 
 		'page-matrix-gate' => array(
 			// Draft first, private second, published third — the ORDER is the
@@ -490,6 +524,14 @@ return array(
 			// that dropped the viewer-relative arm reads Grace for everyone.
 			'gate_staff' => array( 'staff-gate-draft', 'staff-gate-private', 'staff-gate-public' ),
 			'via_draft'  => array( 'staff-gate-draft' ),
+			// The ATTACHMENT arm (v14, §F17.9). An attachment stores post_status
+			// `inherit`, which is an INTERNAL status: a gate that tests the raw
+			// column reads "not publicly viewable", falls to the capability, and
+			// drops every attachment for logged-out visitors. Shipped nowhere, but
+			// live for a whole branch, and invisible to every other row because
+			// plain {{image}} reads never enter the traversal pipeline. This row
+			// hops onto the attachment AS A SOURCE, which is the only way to see it.
+			'feature_image' => 'fixture-photo',
 		),
 
 		'post-sample-event' => array(
@@ -526,6 +568,13 @@ return array(
 		// starts failing the day the site grows past it, and passes vacuously until then).
 		'page-matrix-gate' => array(
 			'stale_ref' => array( '{DELETED_POST_ID}', 'staff-gate-public' ),
+			// The TRASHED arm (v14, §F17.8), plain meta for the same reason as
+			// stale_ref: ACF's relationship formatter runs its own query, and what
+			// it drops before the gate sees it is exactly what the row measures.
+			// Trashed first, published second: the assertion is that the trashed
+			// source is dropped for BOTH viewers and spends no limit budget, so a
+			// `limit:1` still reaches Grace.
+			'trash_ref' => array( 'staff-gate-trashed', 'staff-gate-public' ),
 		),
 		'page-matrix-post-meta' => array(
 			'bws_page_only'  => 'page-only note value',

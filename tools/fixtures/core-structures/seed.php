@@ -323,7 +323,10 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 			// flagged exclude_from_search, which is where the gate corpus's draft lives.
 			// A miss here is not an error — it silently seeds a SECOND post each run,
 			// and the duplicate takes the slug the rows read by.
-			'post_status' => array( 'publish', 'draft', 'private', 'pending', 'future' ),
+			// `trash` is in the list for the same reason (v14, §F17.8): a trashed
+			// fixture the lookup cannot see is re-created on every reseed, and the
+			// duplicate takes the slug while the original keeps the row's id.
+			'post_status' => array( 'publish', 'draft', 'private', 'pending', 'future', 'trash' ),
 			'numberposts' => 1,
 		)
 	);
