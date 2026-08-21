@@ -226,5 +226,96 @@ $mod5  = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{fixture_text src:
 $base5 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{text src:site|use:key|key:organization_email}}', [], $instance );
 $check( 'site shape renders EMPTY today and its migrated wire renders (a KNOWN divergence)', '' === trim( (string) $mod5 ) && 'info@example.test' === trim( (string) $base5 ), 'modifier=' . var_export( $mod5, true ) . ' migrated=' . var_export( $base5, true ) );
 
+// ---------------------------------------------------------------------------
+// SOURCE GATE corpus (v13, ADR 0007) — fold matrix §F17.
+// ---------------------------------------------------------------------------
+// The only fixture in the blueprint whose rows READ DIFFERENTLY PER VIEWER, which is
+// why it is asserted here rather than left to the matrix alone: a hand run measures
+// whichever viewer the operator happened to be, and the two arms are the property.
+// Each shape is rendered TWICE off one ambient post, as administrator (this script's
+// own context) and as nobody, and the assertions are on the DIVERGENCE.
+//
+// Fixture integrity first. Every render below reads `Grace` when the gate works and
+// also when `gate_staff` is empty, so an unseeded field would pass the anonymous arm
+// silently — these four checks are what make the arms mean something.
+$gate_page = get_page_by_path( 'matrix-gate' );
+$check( 'page matrix-gate exists', $gate_page instanceof WP_Post );
+if ( $gate_page instanceof WP_Post ) {
+	$gate_refs   = (array) get_post_meta( $gate_page->ID, 'gate_staff', true );
+	$gate_status = array_map(
+		function ( $id ) {
+			$p = get_post( (int) $id );
+			return $p ? $p->post_status : 'MISSING';
+		},
+		$gate_refs
+	);
+	$check(
+		'gate_staff names a draft, then a private, then a published staff single',
+		array( 'draft', 'private', 'publish' ) === array_values( $gate_status ),
+		'statuses=' . implode( ',', $gate_status )
+	);
+
+	$stale = (array) get_post_meta( $gate_page->ID, 'stale_ref', true );
+	$check(
+		'stale_ref leads with a genuinely DELETED id and follows with a live one',
+		2 === count( $stale ) && null === get_post( (int) $stale[0] ) && null !== get_post( (int) ( $stale[1] ?? 0 ) ),
+		'stale_ref=' . implode( ',', $stale )
+	);
+
+	$draft_ref = (array) get_post_meta( $gate_page->ID, 'via_draft', true );
+	$draft_id  = (int) ( $draft_ref[0] ?? 0 );
+	$check(
+		'via_draft names the draft, whose own reports_to is PUBLISHED (so §F17.4 is about the stone)',
+		$draft_id && 'draft' === get_post_status( $draft_id )
+			&& 'publish' === get_post_status( (int) ( ( (array) get_post_meta( $draft_id, 'reports_to', true ) )[0] ?? 0 ) ),
+		'via_draft=' . $draft_id
+	);
+
+	// Both arms, one ambient post. The user swap is restored before the summary.
+	$prev_post       = $GLOBALS['post'] ?? null;
+	$prev_user       = get_current_user_id();
+	$GLOBALS['post'] = $gate_page;
+	setup_postdata( $gate_page );
+
+	$render = function ( $tag ) use ( $instance ) {
+		return trim( (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( $tag, [], $instance ) );
+	};
+	$first_tag = '{{content src:refs,gate_staff|use:key|key:name_first}}';
+	$hop_tag   = '{{content src:refs,via_draft;refs,reports_to|use:key|key:name_first}}';
+	$stale_tag = '{{text src:refs,stale_ref|use:key|key:name_first|limit:1}}';
+
+	// WP-CLI runs with NO current user unless --user is passed, and this script does
+	// not assume one the way seed.php does — so the administrator arm has to set one
+	// explicitly. Without it BOTH arms are anonymous, they agree, and the divergence
+	// this section exists to assert reads as a code regression.
+	$admins   = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+	$admin_id = (int) ( $admins[0] ?? 0 );
+	$check( 'an administrator exists to run the viewer-relative arm as', $admin_id > 0, 'user=' . $admin_id );
+
+	wp_set_current_user( $admin_id );
+	$admin_first = $render( $first_tag );
+	$admin_hop   = $render( $hop_tag );
+	$admin_stale = $render( $stale_tag );
+
+	wp_set_current_user( 0 );
+	$anon_first = $render( $first_tag );
+	$anon_hop   = $render( $hop_tag );
+	$anon_stale = $render( $stale_tag );
+
+	wp_set_current_user( $prev_user );
+	$GLOBALS['post'] = $prev_post;
+	if ( $prev_post ) {
+		setup_postdata( $prev_post );
+	}
+
+	$check( 'F17.1 anonymous reads the first VISIBLE source, past the draft and the private one', 'Grace' === $anon_first, 'out=' . var_export( $anon_first, true ) );
+	$check( 'F17.2 an administrator reads the DRAFT — the visible level is viewer-relative', 'Dana' === $admin_first, 'out=' . var_export( $admin_first, true ) );
+	$check( 'F17.4 the chain through the draft is CUT for a visitor', '' === $anon_hop, 'out=' . var_export( $anon_hop, true ) );
+	$check( 'F17.5 the same chain resolves for a viewer who may read the stone (so F17.4 is not a missing hop)', 'Grace' === $admin_hop, 'out=' . var_export( $admin_hop, true ) );
+	// EXISTS is not viewer-relative, so this pair must AGREE. A divergence here means
+	// the deleted id started being answered by a capability check.
+	$check( 'F17.3 a deleted id fails for BOTH viewers and spends no limit budget', 'Grace' === $anon_stale && $anon_stale === $admin_stale, 'anon=' . var_export( $anon_stale, true ) . ' admin=' . var_export( $admin_stale, true ) );
+}
+
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );

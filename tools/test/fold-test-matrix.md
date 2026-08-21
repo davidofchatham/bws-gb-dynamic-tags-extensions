@@ -424,7 +424,7 @@ family with no list mode takes a different branch from one that has. One `refs` 
 | F9a.1 | `{{title src:ref\|ref:related_staff\|limit:0}}` | `{{title src:refs,related_staff}}` | `Jane Partner, Tom Associate` (list-capable) |
 | F9a.2 | `{{title srcTermIn:department\|limit:0}}` | `{{title src:terms,department}}` | `Sales, Support` |
 | F9a.3 | `{{content src:ref\|ref:related_staff}}` | `{{content src:refs,related_staff}}` | the two must MATCH, on JANE's content — her `J1` row reads `Jane, Johnson`. The pair is an EQUIVALENCE only; that the entity is right is [`content-test-matrix.md`](content-test-matrix.md) §CT1/§CT2's property, and was [#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58) |
-| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | first non-empty term blurb — the Sales blurb (support carries none). Correctness lives in §CT5 |
+| F9a.4 | `{{content srcTermIn:department\|use:key\|key:blurb}}` | `{{content src:terms,department\|use:key\|key:blurb}}` | the FIRST usable source's blurb — Sales, which WP returns first (by name) and which is the term carrying one. Not a search past Support: since the reversal (§F15) an empty first source renders empty. Correctness lives in §CT5 |
 | F9a.5 | `{{permalink src:ref\|ref:related_staff}}` | `{{permalink src:refs,related_staff}}` | jane's URL. Not list-capable |
 | F9a.6 | `{{permalink srcTermIn:department}}` | `{{permalink src:terms,department}}` | first term URL |
 | F9a.7 | `{{image src:ref\|ref:related_staff\|use:featured\|as:url}}` | `{{image src:refs,related_staff\|use:featured\|as:url}}` | jane's featured image URL. Not list-capable. ⚠ **VACUOUS TODAY** — the blueprint seeds no attachments, so both sides render empty and the row asserts nothing. It needs a fixture (a featured image on a staff single and an image field on a department term) before it is worth trusting |
@@ -741,9 +741,9 @@ rows are the fastest way in) and check each.
 
 ## §F15 — collapsing tags read the FIRST usable SOURCE (ADR 0007, the 2026-08-21 reversal)
 
-**Expectations restated 2026-08-21 for the determinism reversal and NOT yet re-measured** — the
-2026-08-20 measurements below pinned the now-reversed first-POPULATED build. Re-measure every row on
-the next testbed run. Fixtures: blueprint v12 (`charter` on Warehouse ALONE; `feature_image` on Tom
+**Restated AND re-measured 2026-08-21** for the determinism reversal — every row below rendered as
+stated on the testbed (the 2026-08-20 measurements it replaced pinned the now-reversed
+first-POPULATED build). Fixtures: blueprint v12 (`charter` on Warehouse ALONE; `feature_image` on Tom
 alone — Jane, the first `related_staff` target, deliberately has none). `usable` = a source passing
 the gate (resolvable × exists × visible) — NEVER "field populated"
 ([`tag-reference.md` §List mode](../../docs/tag-reference.md#list-mode-limit--sep)); an empty read
@@ -775,32 +775,18 @@ covered by §F7a/§F7b, re-measured below. **Wire round-trip under suppression (
 by the grammar's own emit rows (`slot-fold-test.php` §P9 — `limit` tokens survive parse/emit) plus
 the control's keep-limit-on-slug-change rule; the suppressed control writes nothing by construction.
 
-**Byte-identity spot-run, 2026-08-20 (ticket 04):** ten pre-existing term-route rows re-measured on
-`/matrix-terms-valid/` after the selector rewiring — F7a.1/.2/.3/.5/.7, F7b.7, F7d.1/.2, the
-`{{content}}` blurb walk, and phone R3.2 — all render their stated values unchanged. (Measured on
-the pre-reversal build; the reversal touches only empty-field selection and the gate, so these
-all-populated rows should hold — confirm on the re-measure.)
+**Byte-identity spot-run, re-run 2026-08-21 on the REVERSED build (ticket 04):** the same ten
+pre-existing rows — F7a.1/.2/.3/.5/.7 and F7b.7 on `/matrix-terms-valid/`, F7d.1/.2 on
+`/matrix-terms-mixed/`, the `{{content}}` blurb walk on `/matrix-content/`, phone R3.2 — all render
+their stated values unchanged, as they did on 2026-08-20. Every one reads a POPULATED first source,
+which is why the two builds agree on them and disagree on §F15: the only rows the reversal can move
+are those whose first usable source has an empty field.
 
 Editor-eyeball (open a collapsing tag on any page): no limit field (**Limit items read**) on any
 step of `{{content}}` / `{{permalink}}` / `{{image}}` or their `try_` slots; present with the
 REFRAMED label and help on `{{text}}` etc.; the group-end advisory appears once when the chain
 fans (copy: "…This tag shows the first one.") and not otherwise; the field configuration note on a
 collapsing tag keeps its multi-value sentence and drops "all entries will be results…".
-
-## §F17 — the source gate: exists + visible (ADR 0007, [I19]; NEEDS blueprint v13, NOT YET SEEDED)
-
-Fixture needs, to design into the next blueprint bump before these rows can run (then reseed +
-generate the group as VISIBLE GB blocks per [docs/testbed.md](../../docs/testbed.md), mandatory):
-a DRAFT staff post and a PRIVATE staff post both referenced from a published page's `related_staff`
-(positions 1 and 2, a published target at 3); a relationship field carrying one STALE id (a deleted
-post) ahead of a live target — seeded via raw meta, since ACF's formatter drops deleted posts.
-
-| # | Context | Tag | Expect | Why |
-|---|---|---|---|---|
-| F17.1 | gate page, logged OUT (curl) | `{{content src:refs,gate_staff\|use:key\|key:name_first}}` | the first PUBLISHED target's value | Draft and private refs fail VISIBLE for a visitor and consume no slot — the third target is read as the FIRST usable source |
-| F17.2 | gate page, logged IN (admin) | same tag | the DRAFT target's value | Viewer-relative: the same tag reads the draft for a user who may read it (S19) — expect per-viewer divergence, and note the page-cache guidance beside the gate in tag-reference |
-| F17.3 | gate page | `{{text src:refs,stale_ref\|use:key\|key:name_first\|limit:1}}` | the LIVE target's value | A deleted id fails EXISTS and never consumes limit budget — `limit:1` reaches the first real entity |
-| F17.4 | gate page, logged OUT | `{{content src:refs,via_draft;refs,reports_to\|use:key\|key:name_first}}` | **EMPTY** | STEPPING-STONE CUT: a chain routed through an unreadable post is cut at that hop even though the hop's target is published |
 
 ## §F16 — the site branch is taken by RESOLVED KIND (email/phone)
 
@@ -817,6 +803,39 @@ pin; these are the render proof). `/matrix-post-meta/`; site options: `organizat
 | F16.4 | `{{phone src:site,limit(2)\|key:org_phone}}` | same as F16.3 | Decorated twin |
 | F16.5 | `{{try_email A:src(fixture_scoped);key(contact_email)\|B:src(site);key(organization_email)}}` | B's site email | An attempt whose source cannot resolve (scope-bound root off its page) is SKIPPED — the NEXT attempt renders, and the assertion is WHICH attempt won, not that output is non-empty |
 | F16.6 | `{{try_phone A:src(site,limit[2]);key(org_phone)}}` | site phone, as F16.3 | The decorated site slot takes the site arm's read — the [I15] wrong-entity leak this section pins closed |
+
+## §F17 — the source gate: exists + visible (ADR 0007, [I19]; blueprint v13)
+
+All rows on **`/matrix-gate/`**, whose `gate_staff` names three staff singles differing in ONE
+property — a DRAFT (`Dana Draft`), a PRIVATE (`Paul Private`) and a PUBLISHED one
+(`Grace Published`), in that order. `stale_ref` is PLAIN meta (ACF's own formatter drops a deleted
+post before the gate could see it) holding a genuinely deleted id ahead of Grace; `via_draft` names
+the draft alone, and the draft's `reports_to` is Grace.
+
+**THE ONLY ROWS IN THE SUITE THAT READ DIFFERENTLY PER VIEWER**, which is the visible level working
+rather than a flaky fixture. Two runs, and both are needed — a row that agreed across them would
+mean the viewer-relative arm had been deleted:
+
+```
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/            # anonymous
+bin/wp.sh testbed bws render-tag '<tag>' --url=https://testbed.test/matrix-gate/ --user=1   # administrator
+```
+
+WP-CLI runs with NO current user unless `--user` is passed, so the bare command is the logged-out
+arm — the same arm a front-end curl reads, and the opposite of what the editor shows.
+
+Every row is also a VISIBLE block on `/matrix-gate/` (open it in the editor for the administrator
+arm), and `verify.php` renders both arms off one ambient post so a hand run cannot measure one
+viewer and call it the property. **Measured 2026-08-21, both arms, all six rows as stated.**
+
+| # | Viewer | Tag | Expect | Why |
+|---|---|---|---|---|
+| F17.1 | anonymous | `{{content src:refs,gate_staff\|use:key\|key:name_first}}` | `Grace` | Draft and private targets fail VISIBLE for a visitor and consume no slot, so the third target IS the first usable source |
+| F17.2 | administrator | same tag | `Dana` | Viewer-relative by design (plan §S19) — an author previewing their own draft resolves it. Per-viewer divergence is the assertion; the page-cache consequence is stated beside the gate in `tag-reference.md` |
+| F17.1b | both | `{{text src:refs,gate_staff\|use:key\|key:name_first\|limit:0\|sep:, }}` | anon `Grace`; admin `Dana, Paul, Grace` | NON-VACUITY. Without it every row above passes just as well with `gate_staff` unseeded, which looks identical from the front end. It also names WHICH sources survived, so a gate that dropped the wrong one is legible |
+| F17.3 | both (identical) | `{{text src:refs,stale_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | EXISTS, not visible: a deleted id fails the gate for everyone and spends no limit budget, so `limit:1` still reaches a real entity. A row that diverged by viewer here would mean existence had been folded into the viewer-relative arm |
+| F17.4 | anonymous | `{{content src:refs,via_draft;refs,reports_to\|use:key\|key:name_first}}` | **EMPTY** | STEPPING-STONE CUT: the chain is cut at the unreadable hop even though the hop's own target is published |
+| F17.5 | administrator | same tag | `Grace` | The other half of F17.4, and what keeps its empty honest: the destination is reachable, so F17.4 is about the stone and not about a missing `reports_to` |
 
 ## Fail triage
 

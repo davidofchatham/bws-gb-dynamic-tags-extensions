@@ -248,6 +248,38 @@ function bws_fixture_core_structures_register_acf() {
 					'bidirectional'        => 1,
 					'bidirectional_target' => array( 'field_bwsfx_partner_staff' ),
 				),
+				// --- SOURCE GATE corpus (1.18.0, ADR 0007) ----------------------
+				// Two relationship fields whose TARGETS are the fixture, not the
+				// field: `gate_staff` leads with a DRAFT and a PRIVATE staff post
+				// before a published one, so a viewer-relative gate changes which
+				// entity a collapsing tag reads without changing the wire
+				// (fold matrix §F17.1/§F17.2). `via_draft` points at that draft
+				// ALONE, so a chain hopping through it is cut at the hop even
+				// though the hop's own target is published (§F17.4).
+				//
+				// return_format `id` DELIBERATELY: ACF's `object` format resolves
+				// the ids through a query that drops what the viewer cannot read,
+				// so the gate would never see them and the rows would pass with the
+				// engine gate deleted. The third shape — a STALE id, a post that no
+				// longer exists — has no ACF field at all: ACF's own formatter drops
+				// it, so `stale_ref` is seeded as PLAIN meta and reaches the reader's
+				// raw get_post_meta fallback (§F17.3).
+				array(
+					'key'           => 'field_bwsfx_gate_staff',
+					'name'          => 'gate_staff',
+					'label'         => 'Gate Staff',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'id',
+				),
+				array(
+					'key'           => 'field_bwsfx_via_draft',
+					'name'          => 'via_draft',
+					'label'         => 'Via Draft',
+					'type'          => 'relationship',
+					'post_type'     => array( 'staff' ),
+					'return_format' => 'id',
+				),
 				// FW-52 image editor rows — an ACF image field returning the
 				// attachment ID, so {{image use:key|key:feature_image}} resolves a
 				// real attachment for the as:url/alt/id/caption editor eyeball.

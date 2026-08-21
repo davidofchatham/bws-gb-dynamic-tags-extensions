@@ -13,6 +13,9 @@ manual matrices assume:
 - the external-source contract rows on `matrix-fixture-roots` (added 1.17.0, #85 — two
   registered chain roots plus the `fixture_*` modifier corpus the migration rehearses
   against; see §External-source contract below; manifest v8)
+- [`tools/test/fold-test-matrix.md`](../../test/fold-test-matrix.md) §F15/§F17 (added 1.18.0,
+  ADR 0007 — the determinism rows on the existing matrix pages at v12, then the source-gate
+  corpus on its own `matrix-gate` page at v13; see §Source-gate corpus below)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -47,7 +50,7 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 | `seed.php` | Idempotent applier — reads the manifest, upserts by fixture slug. `wp eval-file`-able. |
 | `blocks.php` | GB block markup generator (4 shapes) — builds the matrix pages' content from tag strings. |
 | `fixture-source.php` | The class-route chain-root source (#85). Required lazily from `schema.php`'s registration callback — it extends a plugin class, so a top-level declaration would fatal a site with the plugin off. |
-| `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`. Not a matrix replacement. |
+| `verify.php` | Post-seed smoke test — renders through the real seam against `/matrix-post-meta/`, plus the source-gate rows off `matrix-gate` under BOTH viewers (v13). Not a matrix replacement. |
 | `verify-migration.php` | The modifier→base migration end to end (#86) — report, run, byte-identical render. **Converts the corpus in place; reseed after.** |
 | `verify-datetime-migration.php` | The pre-1.6 datetime migration end to end (#90) — report, run, and whether the injected flags move the RENDERED axes. Self-cleaning: it converts its own throwaway draft, so no reseed. |
 | `verify-pattern-cache.php` | The GB Pro pattern-cache reconcile end to end (#99) — the defect reproduced, the repair, idempotence, duplicate-row convergence, and the escaping round trip through real meta storage. Self-cleaning: its destructive work happens on throwaway `wp_block` posts, so no reseed. |
@@ -154,6 +157,8 @@ so the schema survives snapshot restores.
   the converter always rewrites it, plus literal backslashes in both the block-comment JSON
   and a rendered code block so the meta layer's recursive unslash has something to damage.
   Browsable with no `blocks.php` row by construction.
+- Source-gate corpus (v13): page `matrix-gate` + staff `gate-draft` (draft) / `gate-private`
+  (private) / `gate-public`. See §Source-gate corpus.
 - Options page **Site Settings** with `organization_*` fields.
 - Fixture user `fixture-author` (display name + bio) authoring `sample-event`
   → the author-archive context fixture (`/author/fixture-author/`, C3/C13).
@@ -220,6 +225,32 @@ Two rows behave in ways that look like faults and are not:
 
 Running the Tag Converter over the site rewrites the FR3 rows into base tags — that is
 what they are for. A reseed puts them back.
+
+## Source-gate corpus (ADR 0007, manifest v13)
+
+The fixture for the gate's two viewer-independent-and-not levels — EXISTS and VISIBLE
+(fold matrix [§F17](../../test/fold-test-matrix.md)). One page, `matrix-gate`, three staff
+singles differing in exactly one property, and three reference shapes:
+
+| Piece | What it is |
+|---|---|
+| `gate_staff` | ACF relationship (return `id`) naming `Dana Draft` (draft), `Paul Private` (private), `Grace Published` — IN THAT ORDER. Anonymous readers get Grace, an administrator gets Dana, from identical wire |
+| `stale_ref` | PLAIN post meta holding a genuinely deleted id ahead of Grace. Not ACF: ACF's own relationship formatter drops a dead id before the gate could see it, so an ACF-backed fixture would pass with the engine gate deleted |
+| `via_draft` | Names the draft alone; the draft's `reports_to` is Grace. A chain through it is cut at the hop for a visitor and resolves for an administrator, which is what keeps the empty honest |
+
+**THE ONLY FIXTURE HERE THAT READS DIFFERENTLY PER VIEWER**, and both readings are the
+assertion — a row that agreed across the two would mean the viewer-relative arm had been
+deleted. WP-CLI runs with no current user unless `--user` is passed, so a bare `render-tag`
+and a front-end curl are the anonymous arm while the block editor shows the administrator's.
+`verify.php` renders both arms off one ambient post rather than leaving it to whichever
+viewer a hand run happens to be.
+
+The deleted id is created and force-deleted AT SEED TIME (`{DELETED_POST_ID}`): a hardcoded
+high number passes vacuously until the site's auto-increment reaches it, then fails.
+
+**Row labels must not contain `{{`.** A fixture label is a GB text block like any other, so a
+literal tag spelled inside one is parsed and rendered — F15.7's label named the text tag,
+resolved to nothing, and GB took the label block down with it, which reads as missing fixture.
 
 ## Known gaps
 

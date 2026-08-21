@@ -951,16 +951,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F13.3 legacy twin of F13.2 (-> same output; that agreement IS the property)', '{{try_phone src:ref|ref:related_staff|key:main_line|2-key:main_line|limit:2}}' ),
 	) );
 
-	// F15/F16 — the first-usable slice (ADR 0007, slice A). Rows:
+	// F15/F16 — determinism (ADR 0007, the 2026-08-21 reversal). Rows:
 	// tools/test/fold-test-matrix.md §F15/§F16. Post-route rows here; the term-route
 	// rows live in the term-hop builder (they need the department terms as fixture).
 	// Needs blueprint v12 (feature_image on Tom alone — Jane deliberately has none).
-	$sections[] = bws_fixture_gb_section( 'Fold F15 - collapsing tags take the first USABLE result (ADR 0007)', array(
-		bws_fixture_gb_row( 'F15.3 POST route first-usable: Jane has no honorific, Tom does (-> Dr.; was EMPTY - first source read once)', '{{content src:refs,related_staff|use:key|key:name_honorific}}' ),
-		bws_fixture_gb_row( 'F15.4 the headline case - the picture from whichever related post has one (-> fixture photo URL; was EMPTY)', '{{image src:refs,related_staff|use:key|key:feature_image|as:url,full}}' ),
-		bws_fixture_gb_row( 'F15.5 first target HAS a value - unchanged, the fix widens the search, never reorders it (-> Jane)', '{{content src:refs,related_staff|use:key|key:name_first}}' ),
-		bws_fixture_gb_row( 'F15.2 an INTERMEDIATE limit is ignored too: past Jane (no reports_to) to Tom, whose reports_to is Jane (-> Jane staff URL; was EMPTY)', '{{permalink src:refs,related_staff,limit(1);refs,reports_to}}' ),
-		bws_fixture_gb_row( 'F15.6 try_ inherits from the base template, no separate arm (-> Dr.)', '{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}' ),
+	//
+	// READ .3/.4/.5 TOGETHER: three field keys, one source path, and all three read
+	// JANE. That is the property the reversal bought — a title from one post can no
+	// longer pair with an image from another — so two of them rendering empty is the
+	// assertion, not a gap in the fixture.
+	$sections[] = bws_fixture_gb_section( 'Fold F15 - collapsing tags read the first USABLE SOURCE (ADR 0007)', array(
+		bws_fixture_gb_row( 'F15.2 fan dead-ends vanish at RESOLUTION, path by path: Jane has no reports_to, Tom\'s is Jane, and the intermediate limit(1) is still ignored (-> Jane staff URL)', '{{permalink src:refs,related_staff,limit(1);refs,reports_to}}' ),
+		bws_fixture_gb_empty_row( 'F15.3 Jane is the first usable SOURCE and her honorific is empty - the tag does NOT skip to Tom (-> EMPTY; the 1.17.0 build read Dr.)', '{{content src:refs,related_staff|use:key|key:name_honorific}}' ),
+		bws_fixture_gb_empty_row( 'F15.4 same path, different field: Jane has no feature_image, and the tag reads HER, not whichever post has a photo (-> EMPTY; the search survives only as FW-88\'s dormant opt-in)', '{{image src:refs,related_staff|use:key|key:feature_image|as:url,full}}' ),
+		bws_fixture_gb_row( 'F15.5 the same source, a field she DOES carry - selection never depended on the field, so this row is unchanged (-> Jane)', '{{content src:refs,related_staff|use:key|key:name_first}}' ),
+		bws_fixture_gb_empty_row( 'F15.6 try_ inherits the base rule WITHIN a slot: the attempt reads Jane, gets nothing, and there is no attempt B (-> EMPTY; across-slot fallback is §F13\'s)', '{{try_content A:src(refs,related_staff);use(key);key(name_honorific)}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F16 - the site branch is taken by RESOLVED KIND (email/phone)', array(
@@ -1110,18 +1115,28 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'D4.4', '{{datetime_single srcTermIn:department|key:event_date|limit:5|fallback:Dates TBA}}' ),
 		bws_fixture_gb_row( 'D4.5', '{{datetime_range srcTermIn:department|startKey:event_date|limit:5|sep:; }}' ),
 	) )
-	// F15 TERM route — the first-usable slice (ADR 0007). Rows:
+	// F15 TERM route — determinism (ADR 0007, the 2026-08-21 reversal). Rows:
 	// tools/test/fold-test-matrix.md §F15. Expectations stated for
 	// /matrix-terms-mixed/ (Sales, Support, Warehouse alphabetically; only
-	// Warehouse carries `charter`, blueprint v12) — on the valid page the walk has
-	// no Warehouse term and the rows read EMPTY, which the split labels survive.
+	// Warehouse carries `charter`, blueprint v12) — so the FIRST term is Sales,
+	// whose charter is empty, and the read stops there. All four rows are empty on
+	// every term page, and they are empty for the SAME reason on each.
+	//
+	// This is the group that changed direction: the 1.17.0 build searched past Sales
+	// and Support to Warehouse's charter. That search is what the reversal removed,
+	// and it is the subtraction the Upgrade Notice carries.
 	. "
 
-" . bws_fixture_gb_section( 'Fold F15 - collapsing TERM route: first USABLE result (ADR 0007; expectations on /matrix-terms-mixed/)', array(
-		bws_fixture_gb_empty_row( 'F15.1 the 1.17.0 stamped limit(1) is IGNORED - two empty terms searched past (-> mixed: Warehouse charter...; was EMPTY; valid page: EMPTY, no warehouse term)', '{{content src:terms,department,limit(1)|use:key|key:charter}}' ),
-		bws_fixture_gb_empty_row( 'F15.1b a limit the author TYPED is ignored on the same terms - one rule (-> same as F15.1)', '{{content src:terms,department,limit(2)|use:key|key:charter}}' ),
-		bws_fixture_gb_empty_row( 'F15.1c the unlimited twin - F15.1/.1b must equal THIS row, not merely be non-empty', '{{content src:terms,department|use:key|key:charter}}' ),
-		bws_fixture_gb_empty_row( 'F15.7 DISCLOSURE, not a defect: list-mode {{text}} still slices before it reads - NOT fixed this release (-> EMPTY everywhere)', '{{text src:terms,department,limit(1)|use:key|key:charter}}' ),
+" . bws_fixture_gb_section( 'Fold F15 - collapsing TERM route: the first usable SOURCE, empty field and all (ADR 0007; expectations on /matrix-terms-mixed/)', array(
+		bws_fixture_gb_empty_row( 'F15.1 the 1.17.0 stamped limit(1) is still IGNORED, but the first term (Sales) carries no charter and the tag does not move on (-> EMPTY; the 1.17.0 build printed the Warehouse charter)', '{{content src:terms,department,limit(1)|use:key|key:charter}}' ),
+		bws_fixture_gb_empty_row( 'F15.1b a limit the author TYPED is ignored on the same terms - one rule (-> EMPTY, same as F15.1)', '{{content src:terms,department,limit(2)|use:key|key:charter}}' ),
+		bws_fixture_gb_empty_row( 'F15.1c the unlimited twin - all three rows must be EQUAL, which is now because selection is deterministic rather than because a search succeeded', '{{content src:terms,department|use:key|key:charter}}' ),
+		// NO BRACES IN A LABEL. A label is a GB text block like any other, so a
+		// literal {{tag}} spelled in one is PARSED — this row's label named the text
+		// tag, resolved to nothing, and GB took the whole label block down with it.
+		// The row then read as missing fixture, which is precisely the failure the
+		// split-label shape exists to prevent.
+		bws_fixture_gb_empty_row( 'F15.7 a list-mode text tag slices before it reads, and that is now the DESIGNED rule rather than a disclosure: limit(1) reads Sales, whose field is empty (-> EMPTY)', '{{text src:terms,department,limit(1)|use:key|key:charter}}' ),
 	) );
 }
 
@@ -1155,7 +1170,7 @@ function bws_fixture_page_content_matrix_content() {
 	// content family's arms are covered in one place.
 	$sections[] = bws_fixture_gb_section( 'Content CT4-CT5 - the field-read arms', array(
 		bws_fixture_gb_row( "CT4 post arm, use:key (-> jane's main line, (555) 200-3000)", '{{content src:ref|ref:related_staff|use:key|key:main_line}}' ),
-		bws_fixture_gb_row( 'CT5 term arm, use:key - support carries no blurb, so the walk skips to sales (-> the Sales blurb)', '{{content srcTermIn:department|use:key|key:blurb}}' ),
+		bws_fixture_gb_row( 'CT5 term arm, use:key - the FIRST usable source is Sales (WP hands terms back by name), and Sales is the one carrying a blurb (-> the Sales blurb). Support has none, so a read in ASSIGNMENT order would print nothing: this row pins the order, not a search', '{{content srcTermIn:department|use:key|key:blurb}}' ),
 	) );
 
 	// CT6 — the ambient read is the contrast that makes CT1 non-vacuous: same tag,
@@ -1265,6 +1280,37 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-gate — the SOURCE GATE corpus (1.18.0, ADR 0007; blueprint v13).
+ *
+ * The one page in the blueprint whose rows read DIFFERENTLY depending on who is
+ * looking, and that is the property under test: the gate's visible level is
+ * viewer-relative, so an anonymous visitor and an administrator resolve different
+ * entities from identical wire. Read the front end and the editor side by side —
+ * the divergence IS the assertion, and a page cache that serves one viewer's copy
+ * to the other is the hazard the tag-reference gate paragraph warns about.
+ *
+ * Expected on the FRONT END, logged out (`?nocache=` bust after a reseed):
+ * Grace everywhere, and F17.4 empty. Expected in the EDITOR, as an administrator:
+ * Dana for the gate rows, and F17.4 resolving to Grace through her.
+ *
+ * F17.1b is the non-vacuity row and is not optional: without it every gate row
+ * could be passing because `gate_staff` is unseeded, which looks exactly the same
+ * from the front end.
+ */
+function bws_fixture_page_content_matrix_gate() {
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'Fold F17 - the source gate: EXISTS + VISIBLE (ADR 0007)', array(
+		bws_fixture_gb_row( 'F17.1/F17.2 gate_staff leads with a DRAFT and a PRIVATE staff post - logged out the first usable source is the third target (-> Grace); in the editor, as an administrator, the same wire reads the draft (-> Dana)', '{{content src:refs,gate_staff|use:key|key:name_first}}' ),
+		bws_fixture_gb_row( 'F17.1b NON-VACUITY: the same path in list mode, so the row names every source that survived the gate (-> logged out: Grace alone; administrator: Dana, Paul, Grace)', '{{text src:refs,gate_staff|use:key|key:name_first|limit:0|sep:, }}' ),
+		bws_fixture_gb_row( 'F17.3 EXISTS, not visible: stale_ref is plain meta holding a DELETED id ahead of a live one, and the dead id spends no limit budget, so limit:1 still reaches a real entity (-> Grace, for every viewer)', '{{text src:refs,stale_ref|use:key|key:name_first|limit:1}}' ),
+		bws_fixture_gb_empty_row( 'F17.4/F17.5 STEPPING-STONE CUT: the chain routes through the draft, whose own reports_to IS published - logged out the chain is cut at that hop (-> EMPTY); as an administrator the same wire resolves it (-> Grace)', '{{content src:refs,via_draft;refs,reports_to|use:key|key:name_first}}' ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
@@ -1273,6 +1319,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_content'       => 'bws_fixture_page_content_matrix_content',
 		'staff_join'           => 'bws_fixture_page_content_staff_join',
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
+		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
