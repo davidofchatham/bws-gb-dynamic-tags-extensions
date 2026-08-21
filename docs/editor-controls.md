@@ -97,7 +97,7 @@ control and a multislot container's `bws-slot-fold` slot — so a step reads ide
 `{{text}}` and inside a `{{join}}` field.
 
 **Every string that names a SCHEMA fact arrives on the PHP option definition** — the step enum's
-row labels, the Relationship Field Key picker and the whole of Limit results, all from
+row labels, the Relationship Field Key picker and the whole of the per-step limit control (Limit items read), all from
 `bws_fold_wire_vocabulary()` / `bws_base_traversal_options()`. The control hand-authors none of
 those; a second copy there is how the image tag's `Return type:` / `Return image as:` labels
 drifted. The two strings it does author — the step picker's own "Source" label and "Taxonomy" —
@@ -109,9 +109,9 @@ with.
 | Source | the step's own **slug** — `refs` / `terms` / `entries`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
 | Relationship Field Key | the **arg** of a `refs` (or `entries`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `entries`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
 | Taxonomy | the **arg** of a `terms` step — `terms,<taxonomy>` | — | Step slug is `terms`. Enum = public taxonomies, shipped with the definition |
-| Limit results | the step's **`limit(N)` token** — `refs,office,limit(3)` | *Maximum number of results. Leave blank for all.* — or, where an earlier step fans, *Maximum number of results for each previous-step result. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
+| Limit items read | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
 
-**Limit results carries two help forms, chosen by whether an earlier step actually FANS — not by
+**The limit control carries two help forms, chosen by whether an earlier step actually FANS — not by
 step position.** Per-step limits are per-input and multiply (`∏ limitₙ`), but where nothing
 upstream fans there is exactly one input, so per-input and total coincide and the clause would ask
 the author to reason about a distinction that cannot arise. A step at chain position 3 whose
@@ -120,9 +120,9 @@ count, because the compiler drops it. The predicate is `bws_fold_chain_fanning_s
 one the migrator stamps by and the render seam defaults by — reached in the editor through its
 shipped JS twin, never re-derived from the index.
 
-**Limit results is SUPPRESSED on a collapsing tag** — `content` / `permalink` / `image` and their
+**The limit control is SUPPRESSED on a collapsing tag** — `content` / `permalink` / `image` and their
 `try_` slots, the templates whose `takes_first_usable` capability makes the render ignore every
-step limit ([tag-reference.md §Collapsing tags](tag-reference.md#collapsing-tags-first-usable-result)).
+step limit ([tag-reference.md §Collapsing tags](tag-reference.md#collapsing-tags-first-usable-source)).
 Suppressed, not reworded: rewording asks the author to read an explanation of why a visible control
 does nothing. The mechanism is an **explicit conditional in the shared step renderer** reading
 `takesFirstUsable` off the fold config (threaded from the template record through
@@ -133,8 +133,15 @@ remember. Stored wire is untouched: a saved `limit(N)` survives the round-trip a
 the tag type changes. Pinned by `control-order-test.php` §8 (which surfaces carry the flag) and
 `editor-filter-chain-test.js` (that the flag removes the control).
 
-The Limit results control carried a draft label of **Limit per source** for most of 1.17.0's
-development and was corrected before release
+**The label moved once shipped, too: 1.17.0's *Limit results* became *Limit items read* in 1.18.0**
+(the determinism reversal, [ADR 0007](adr/0007-a-limit-counts-usable-sources.md)) — the number
+counts items read, and an item whose field is empty keeps its place, so a label promising results
+promised what the render no longer does. Label and help only; the option key and stored wire did
+not move, so there is no row in `deprecated-tags-options.md`. A dynamic per-kind form ("Limit Posts
+Read" / "Limit Terms Read" / "Limit Repeater Rows Read") is a planned second pass.
+
+Before either shipped label, the control carried a draft label of **Limit per source** for most of
+1.17.0's development and was corrected before release
 ([#95](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/95)) — it sat three
 rows below a control labelled *Source* meaning something else, named sources while bounding results,
 and stated the per-input rule everywhere except the label. **No author ever saw it, so it is not a
@@ -148,7 +155,7 @@ rewritten.
 On the three collapsing tags (`content` / `permalink` / `image` — the `takes_first_usable`
 templates), one display-only line closes the source group whenever the tag's chain actually fans:
 
-> *This source can match more than one item. This tag shows the first one that has a value.*
+> *This source can match more than one item. This tag shows the first one.*
 
 It exists because the field configuration note structurally cannot carry this fact: a note is
 attached to a FIELD, while fanning is a property of the CHAIN — a `terms` step has no field key for
@@ -156,7 +163,7 @@ a note to attach to, and a chain can fan with no multi-value field involved. One
 group's end covers both holes and the ordinary case alike, once per chain rather than once per
 step. The wording states what the author observes and deliberately does not name the rule that
 decides fanning — that axis is owned at the predicate (`bws_fold_chain_fanning_steps()`), reached
-here through its grammar twin, the same one the Limit results help forms and the migrator's stamp
+here through its grammar twin, the same one the limit-control help forms and the migrator's stamp
 use.
 
 Mechanics: option `srcFanNote`, type `bws-fanning-advisory`, registered at the end of the source
@@ -170,7 +177,7 @@ any non-null element — never draws an empty member. Pinned by `editor-filter-c
 
 #### Field configuration note
 
-Between the Relationship Field Key control and Limit results, a selected field can carry a **field
+Between the Relationship Field Key control and the Limit items read control, a selected field can carry a **field
 configuration note**: a statement of what ACF does and does not enforce about how many entries that
 field can hold ([#96](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/96)).
 It exists because three facts that change what a `refs` step returns are invisible from the tag
@@ -180,7 +187,7 @@ silently hold several entries — and the ACF admin is unreachable from the cont
 exists to serve.
 
 **It describes and never gates.** No wire changes, no save is blocked, no rendered output moves. Its
-value is that the *enforced* bound is the Limit results control sitting directly beneath it, so the
+value is that the *enforced* bound is the Limit items read control sitting directly beneath it, so the
 note reads as the setup for the number about to be chosen. That adjacency is left implicit; the note
 carries no call to action.
 
@@ -270,7 +277,7 @@ validation message cannot appear together, since the note requires a selected fi
 fires only when none is set.
 
 **Out of scope, deliberately.** The note does not enforce ACF's configured limit at render time,
-does not pre-fill Limit results from it, and does not appear on field pickers outside chain steps.
+does not pre-fill the limit control from it, and does not appear on field pickers outside chain steps.
 
 The surface that invites the question is the [Field group](tag-reference.md#field-group)'s own `key`,
 where the same picker offers the same relationship fields — and the note is right to stay away,

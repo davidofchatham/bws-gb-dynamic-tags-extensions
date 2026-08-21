@@ -6,21 +6,22 @@ Version number provisional; the header is renamed at release per the usual revie
 
 ### Added
 
-- **A note under the source controls on the Content, Permalink and Image tags** when the source can match more than one item, saying that the first one with a value is shown. It appears only when the source actually spreads out, and never on other tags.
+- **A note under the source controls on the Content, Permalink and Image tags** when the source can match more than one item, saying that the first one is shown. It appears only when the source actually spreads out, and never on other tags.
 
 ### Changed
 
-- **The Limit results control is no longer offered on the Content, Permalink and Image tags**, including their try_ attempts. These tags show one result, so there is nothing for the control to bound. A limit already saved in a tag stays there untouched and applies again if the tag is switched to one that uses it.
-- **The field configuration note no longer predicts several results on those three tags.** It still says the field holds multiple values; it stops claiming they will all render where only one can.
+- **Content, Permalink and Image tags now read the first item their source reaches, and only it.** They no longer skip past an item whose field is empty to a later one that has a value. Which item is read never depends on which field the tag asks for, so tags sharing a source path always agree: a title and an image pulled through the same relationship field come from the same post. If the first item's field is empty, the tag shows nothing. Before this release the taxonomy route searched: a term image stored on the third of a post's three categories used to appear, and now appears only when that category is the first the source reaches. Rides the Upgrade Notice.
+- **Unpublished content no longer feeds tag output for readers who cannot see it.** Draft, private and trashed posts stop resolving for visitors, on every tag; an author previewing their own draft still sees it, because the test is who is looking, not the status alone. A source chain that passes through an unreadable post stops there, even when the chain's final target is public. Rides the Upgrade Notice.
+- **The Limit results control is no longer offered on the Content, Permalink and Image tags**, including their try_ attempts. These tags show one result, so there is nothing for the control to bound, and every limit saved in such a tag is ignored at render, at any position, whether typed by hand or written by the Migration Tool. A saved limit stays in the tag untouched and applies again if the tag is switched to one that uses it.
+- **The limit controls now say what the number counts.** A limit selects how many items are read from the source, and an item whose field is empty keeps its place rather than being replaced by the next one. The labels and help text now state that. (Final wording pending review.)
+- **The field configuration note no longer predicts several results on the Content, Permalink and Image tags.** It still says the field holds multiple values; it stops claiming they will all render where only one can.
 
 ### Fixed
 
-- **Content, Permalink and Image tags now search everything their source reaches and show the first result that has a value.** These tags can only show one result, so a limit on their source had nothing to bound and now has no effect on them, at any position, whether it was typed by hand or written by the Migration Tool. This undoes a regression shipped in 1.17.0: converting a tag stamped a limit of 1 onto its source, which cut the search short on exactly these tags. A post in three categories with the image on the third found it before 1.17.0, lost it after converting, and finds it again now, with no editing required.
-- **The same three tags now behave the same whether the source resolves to terms or to related posts.** Pointed through a relationship field at posts where only the second has an image, the Image tag now finds it; before, it read the first post and gave up. The try_ versions inherit the same behavior.
+- **A limit no longer spends one of its slots on a deleted item.** A stale reference left behind in a field, or a removed post still named by stored data, is skipped without counting against the limit, so a limit of 1 reaches the first item that actually exists.
+- **The Content, Permalink and Image tags behave the same whether the source resolves to terms or to related posts.** The two routes selected differently before; both now read the first item. The try_ versions inherit the same behavior per attempt: an attempt whose first item has nothing to show passes to the next attempt.
 - **Email and Phone tags read the site value for every spelling of a site source.** One spelling skipped the site branch and silently read the current post instead, and that plausible wrong value could win a try_ fallback chain so the later attempts never ran. Both spellings now reach the same read, and an attempt whose source cannot resolve is skipped rather than answered from the wrong place.
 - **A results limit inside a try_ attempt now applies to the step it is written on.** A number written on one step no longer bounds a later step's output after another step is added behind it.
-
-**Not in this release, stated so it is not discovered:** list tags (Text, Title, Datetime) still count what they looked at rather than what rendered when a limit is set and some values are empty; that fix ships separately. And the test for which result counts will tighten in a later release, when unpublished content stops resolving, so behavior around drafts and private posts may change again then.
 
 ## [1.17.1] — unreleased
 

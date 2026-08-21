@@ -1,14 +1,19 @@
-# A limit counts usable results
+# A limit counts usable sources
 
 **Status:** accepted (2026-08-20, the grill session opened on
-[#118](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/118) — which arrived
-as an editor-surface cleanup and turned out to be the visible corner of this decision).
+[#118](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/118)); **revised in
+place 2026-08-21** before any release carried it — the original axis ("a limit counts usable
+RESULTS", where usable included a non-empty read) proved non-deterministic and was replaced. The
+plan records the reversal; nothing published ever stated the old axis.
 
-A limit bounds **usable results** — candidates that survive to output — never candidates examined.
-Anything filtered out on the way (an entity the viewer cannot read, an empty read) never consumed
-budget. The invariant is [`CONTEXT.md` I19](../../CONTEXT.md#i19--a-limit-bounds-usable-results);
-the schema term `usable`, and its avoid-note, live at
-[`tag-reference.md` §List mode](../tag-reference.md#list-mode-limit--sep).
+A limit bounds **usable sources** — candidates that pass the source gate — never candidates merely
+emitted, and never a count of non-empty reads. `usable` is a property of a SOURCE:
+**resolvable × exists × visible**. A source failing the gate never consumes budget; an EMPTY READ
+of a usable source consumes its slot and outputs nothing. Field population is no part of the test,
+anywhere. The invariant is [`CONTEXT.md` I19](../../CONTEXT.md#i19--a-limit-bounds-usable-sources);
+the schema term `usable` lives at
+[`tag-reference.md` §List mode](../tag-reference.md#list-mode-limit--sep); the level terms
+(`resolvable`, `exists`, `visible`) at [`CONTEXT.md` §Language](../../CONTEXT.md#language).
 
 **Companion to [ADR 0005](0005-limits-are-stated-where-the-source-is-stated.md), not an amendment.**
 0005 owns WHERE a limit is stated (on the step it bounds); this ADR owns WHAT the stated number
@@ -17,75 +22,69 @@ default and the permanent tag-level read all stand.
 
 ## The rule
 
-A step's limit bounds its usable outputs, where "usable" is the strongest test computable at that
-step. These are two different QUANTITIES, not one quantity measured at two precisions:
+Every step's limit is the SAME kind of bound: a resolution bound over usable sources, applied per
+input, in the engine, AFTER the source gate has dropped what fails it and BEFORE the next step
+runs. There is no separate "output bound" at the terminal position. The tag-level `limit` is the
+one exception in SCOPE only — a global slice over the whole resolved list, a preserved holdover
+(ADR 0005), not a design position — and it, too, slices usable sources.
 
-- **An intermediate step's limit** bounds how far a fan SPREADS — a resolution bound over valid
-  entities. Applied per input, by the engine, as today.
-- **The last step's limit, and the tag-level `limit`,** bound how many results RENDER — an output
-  bound over non-empty (eventually: visible and non-empty) reads. Applied by the collector, after
-  reading.
-
-Stated the other way round, which is the clearer form: the bound counts only what will be output.
+The gate applies at every position uniformly. Consequence, decided rather than incidental: **an
+entity that fails the gate cannot be a stepping stone** — a chain routed through a post the viewer
+may not read is cut at that hop, even when the hop's targets are public.
 
 **A stated limit applies to the step it is stated on, not to the chain.** That is ADR 0005's own
 sentence applied one level down, and it settles what happens when a step is appended after a
-bounded one: the number stays where the author put it and goes on bounding that step — which now
-spreads rather than renders. The bound's observable meaning changing there is correct, not a
-defect.
+bounded one: the number stays where the author put it and goes on bounding that step.
 
-**A tag that can only output one result ignores every limit at every position** and outputs the
-first usable result its whole chain produces. A bound that can only ever subtract usable results
-from a tag that returns one result is not a control, it is a trap. This is why `content`,
-`permalink` and `image` carry the `takes_first_usable` template capability and offer no
-**Limit results** control.
+**A tag that can only output one result ignores every limit at every position** and reads the
+FIRST usable source its whole chain produces — outputting that source's read even when the read is
+empty. A bound that can only ever subtract from a tag that returns one result is not a control, it
+is a trap. This is why `content`, `permalink` and `image` carry the `takes_first_usable` template
+capability and offer no **Limit results** control.
 
-## Why this is a restoration, not a redesign
+## Why the read-based axis was reversed
 
-Both controls have always been labelled in terms of results — the retired tag-level control was
-*Result Limit*, the step control is *Limit results*, helped by "Maximum number of results". The
-control has promised an output count on both spellings since the beginning; the CODE drifted from
-the LABEL, not the other way round. Consequence: the behaviour changes ship as CHANGELOG **Fixed**
-entries, not **Changed**.
+The 2026-08-20 form counted non-empty reads: a limit "never spent budget on an empty read", and a
+collapsing tag searched its fan for the first POPULATED value. That makes source selection depend
+on WHICH FIELD the tag asks for — two adjacent tags on the same source path can read different
+entities (`{{title}}` from post A, `{{image}}` from post B), and no configuration can pin which
+source is used. The pattern it breaks (a `limit(1)` refs step feeding several one-field tags) is
+the plugin's most common composition. Determinism won: selection is field-independent, so the same
+path always reads the same entity, and an author's `limit(1)` means "the first stored reference,
+only".
+
+The populated-search is preserved as a dormant, caller-less predicate seam on the selector, for a
+possible future tag-level OPT-IN (tracked in `docs/future-work.md`); it is not a default anywhere.
 
 ## Considered options
 
-- **Count usable results (accepted).** Cost: the meaning of a stored number changes with no wire
-  change to mark it — a `limit:3` that showed one result starts showing three. Accepted because
-  every such change renders MORE where something rendered less (or the right entity where it read
-  the wrong one), and because the number finally does what its label always said.
-- **Keep counting candidates examined, document it (rejected).** Freezes a drift as a contract.
-  It is also the shape of the 1.17.0 collapsing-tag regression: the Migration Tool stamped a
-  `limit(1)` whose candidate-counting read narrowed a search the flat tag ran in full.
-- **A second token (`take(N)`) for the new counting, keeping `limit(N)` as-is (rejected).** Two
-  numbers for one author-visible quantity, and the old one would remain wrong under its own label.
-  One token, consumer-dependent meaning: `limit(N)` = N usable.
-
-**On the Upgrade Notice — and how this differs from 0005's rejected-options list.** 0005 rejected
-"accept the output change with an Upgrade Notice" because a notice cannot SUBSTITUTE for
-serialization — it can only accompany it; the 1.17.0 notice ACCOMPANIED a serialization change,
-which 0005 explicitly permits. Here there is **no serialization change to accompany**: this
-decision changes how stored wire is READ, writes nothing, migrates nothing, and re-serializes
-nothing. The additive slice (the collapsing tags) therefore ships with no notice at all; the later
-slices carry their own notice for their one subtractive consequence, alongside nothing, because
-there is still nothing being rewritten.
+- **Count usable sources (accepted, 2026-08-21).** Deterministic; one rule at every position; the
+  number pins sources the author can enumerate.
+- **Count non-empty reads (the 2026-08-20 acceptance — reversed).** Non-deterministic across
+  adjacent tags; see above. Its one real virtue — "show me the picture, wherever it is" — returns
+  as the opt-in.
+- **Keep counting candidates examined WITHOUT a gate, document it (rejected 2026-08-20, stands).**
+  Freezes a drift as a contract; a deleted or unreadable entity spending budget is the 1.17.0
+  regression's shape.
+- **A second token (`take(N)`) (rejected 2026-08-20, stands).** Two numbers for one author-visible
+  quantity.
 
 ## What this does not touch
 
-- **The resolved-source payload decision ([ADR 0002](0002-resolved-source-variable-payload.md)) is
-  untouched.** A sharpening that would have made validity part of resolved-source-hood was
-  examined and declined: the engine emitting a bound for a deleted post is correct — that source
-  simply fails a later test. A reader should not go looking for a payload change here.
+- **The resolved-source payload decision ([ADR 0002](0002-resolved-source-variable-payload.md)).**
+  "Resolved" keeps its mechanical meaning — a bound was emitted, whatever it names. The gate is a
+  LATER test; existence is its own level (`exists`), not part of resolved-source-hood. The
+  sharpening remains declined.
 - **Where a limit is stated (ADR 0005), and every migration mapping it describes.**
-- **`{{table}}`'s `rows` step limit**, which bounds repeater rows and is the most load-bearing
-  limit in the plugin — `{{table}}` declares `takes_first_usable` explicitly false.
+- **`{{table}}`'s `rows` step limit** — `{{table}}` declares `takes_first_usable` explicitly false.
 
 ## Consequences
 
-- "Usable" currently means **a non-empty read** and TIGHTENS to **visible and non-empty** when the
-  visibility gate ships. Regression rows written against today's meaning are known to need
-  revising; the release notes say so rather than letting it be discovered.
-- `tag-reference.md` §List mode keeps describing the shipped slice-before-read order for
-  list-mode tags until their slice lands; I19 names the disagreement out loud.
-- The glossary terms this ADR depends on (`resolvable`, `visible`) ship with it, in
-  [`CONTEXT.md` §Language](../../CONTEXT.md#language).
+- The gate ships WITH this release (exists + visible arms live: posts get status + viewer
+  capability, terms/users existence only, site vacuous) — "usable" reaches its final meaning once;
+  no interim tightening, no matrix rows written to be revised.
+- Two subtractive author-visible changes ride one Upgrade Notice: the term route of collapsing
+  tags no longer searches past the first term, and unpublished content stops resolving for viewers
+  who cannot read it. Everything else renders the same or more.
+- The visibility filter HOOK does not ship; the predicate is filterable by construction and the
+  hook lands when a consumer asks (restrict-only, AND-composed).
