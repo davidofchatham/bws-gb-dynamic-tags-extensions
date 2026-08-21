@@ -398,7 +398,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'L1.7 (expect ONE dept name, no separator)', '{{try_text srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'L1.8 (expect ONE mailto anchor)', '{{email src:ref|ref:related_staff|key:contact_email}}' ),
 		bws_fixture_gb_row( 'L1.9 (expect ONE tel anchor)', '{{phone src:ref|ref:related_staff|key:main_line}}' ),
-		bws_fixture_gb_row( 'L1.10 (expect ONE dept name joined to the role)', '{{join srcTermIn:department|use:title|2-key:role}}' ),
+		bws_fixture_gb_row( 'L1.10 (expect ONE dept name joined to THAT term\'s blurb -> Sales, Sales handles quotes...)', '{{join srcTermIn:department|use:title|2-key:blurb}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Limit L2 - explicit values still behave', array(

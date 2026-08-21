@@ -70,7 +70,7 @@ default; a row that renders one value with no `<a>` has broken the count-based g
 | L1.7 | `{{try_text srcTermIn:department\|use:title}}` | ONE dept name, no `, ` separator | try_ dispatch |
 | L1.8 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | ONE `mailto:` anchor (jane@example.test) | seam |
 | L1.9 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | ONE `tel:` anchor (jane's line) | seam |
-| L1.10 | `{{join srcTermIn:department\|use:title\|2-key:role}}` | slot 1 = ONE dept name, joined to the role | seam (per-slot) |
+| L1.10 | `{{join srcTermIn:department\|use:title\|2-key:blurb}}` | `Sales, Sales handles quotes, renewals and the annual customer roadshow.` — slot 1 = ONE dept name, joined to THAT SAME term's blurb | seam (per-slot). The key must exist on the INHERITED source: this read `2-key:role` until 2026-08-21 and could never have joined anything, because `role` is post meta and slot 2 inherits slot 1's TERM. It passed for months on a bare `Sales` looking plausible |
 
 **email / phone read differently and that is correct:** both wrap EVERY value in its own
 `mailto:`/`tel:` anchor, so link presence there is not count-gated. L1.8/L1.9 are still count
@@ -108,6 +108,11 @@ rows pin the other half, and every one is a **pair of spellings for the same sou
 ⇒ **Rows here assert the link too**, for the same count-based reason L1 does — chain wire
 defaulting to many means link-wrapping differs by spelling, on new wire.
 
+> **RE-MEASURED 2026-08-21** on the 1.18.0 build, `/matrix-post-meta/` — L1, L2, L3 and L4 all
+> render as stated. Worth the re-run rather than trusting the 2026-08-05 stamp: ADR 0007 changed
+> what a limit COUNTS (usable sources, field population removed), and these rows are where a
+> miscount would show. It also caught L1.10, whose expectation had never been achievable.
+>
 > **MEASURED 2026-08-05** against the branch on `/matrix-post-meta/`; every row below is an
 > observed value. The two that carry the whole rule: L4.1 renders one name wrapped in `<a>`, L4.2
 > renders both names with NO `<a>` — same source, different spelling, and the anchor is legitimately

@@ -797,8 +797,10 @@ segment, nothing to drop — `lead_staff_obj` is the single-entry case that carr
 
 Both spellings of one source take the same branch (`try-slot-arms-test.php` §A6/§A7 is the pure
 pin; these are the render proof). `/matrix-post-meta/`; site options: `organization_email`
-`info@example.test`, `org_phone` `(987) 555-0000`. Measured 2026-08-20. Compare email rows DECODED
-(`antispambot` randomizes entity encoding per render).
+`info@example.test`, `org_phone` `(987) 555-0000`. Measured 2026-08-20, **re-measured 2026-08-21 on
+the post-reversal build, all six rows as stated**. The re-run is not ceremony: the 2026-08-20 stamp
+predates the determinism reversal, which moved the try_ slot arms F16.5/F16.6 ride. Compare email
+rows DECODED (`antispambot` randomizes entity encoding per render).
 
 | # | Tag | Expect | Why |
 |---|---|---|---|
