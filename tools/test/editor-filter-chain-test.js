@@ -674,12 +674,23 @@ function treeHasLabel( nodes, label ) {
 	} );
 }
 
-const LIMIT_LABEL = 'Limit results';
+// The label a `terms` step actually wears since 1.18.0. NOT the generic
+// `limitOption.label`: that is the FALLBACK for a slug shipped without a
+// limitLabel, and asserting against it made both suppression rows below pass
+// while rendering the per-kind label, which is the shape a stale sentinel always
+// takes — the string moved, the assertion kept checking the old one, and absence
+// is what a suppression row is looking for anyway.
+const LIMIT_LABEL = 'Limit Terms Read';
+// THROUGH foldConfig, never a hand-built object. foldConfig() returns a FRESH
+// object with a named key list, so a config key it does not carry is invisible to
+// every consumer regardless of what PHP sent — and a harness that skips it asserts
+// a shape the product never passes. takesFirstUsable was dropped there for the
+// whole of its first release, suppressing nothing, with these rows green.
 function stepsConf( extra ) {
-	return Object.assign( {
+	return repeaterX.foldConfig( { fold: Object.assign( {
 		steps: {
 			refs:  { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
-			terms: { label: 'In Taxonomy Term', arg: 'slug', produces: 'term' }
+			terms: { label: 'In Taxonomy Term', limitLabel: LIMIT_LABEL, arg: 'slug', produces: 'term' }
 		},
 		roots: { site: 'site' },
 		retiredSrc: [],
@@ -688,8 +699,8 @@ function stepsConf( extra ) {
 		refOption: { label: 'Field' },
 		defaultRoot: 'current',
 		srcRows: [ { value: 'current', label: 'Current' }, { value: 'refs', label: 'Ref' }, { value: 'terms', label: 'Terms' } ],
-		limitOption: { label: LIMIT_LABEL, placeholder: '0 (all)', help: 'Maximum number of results. Leave blank for all.', helpFanning: 'per input' }
-	}, extra || {} );
+		limitOption: { label: 'Limit items read', placeholder: '0 (all)', help: 'Maximum number of results. Leave blank for all.', helpFanning: 'per input' }
+	}, extra || {} ) } );
 }
 
 function renderSteps( conf ) {
@@ -718,6 +729,70 @@ check(
 check(
 	'the step\'s other controls survive the suppression',
 	treeHasLabel( renderSteps( stepsConf( { takesFirstUsable: true } ) ), 'Taxonomy' )
+);
+
+// ── The field note's CONSEQUENCE clause, the flag's second consumer ──────────
+//
+// takesFirstUsable is read in exactly two places, and nothing pinned this one:
+// F14.16 is an eyeball row, and it verified the note's CASES, not the collapsing
+// drop. So when the flag stopped arriving, the limit control and this clause both
+// reverted silently and the only signal was a screenshot. Two consumers, one flag,
+// one normalizer — the second one gets a pin.
+//
+// Segments arrive on window.bwsFieldEnvelope (the field-discovery envelope), so the
+// stub below is the smallest shape fieldNote() will match: one kind, one group, one
+// field, whose note carries a plain segment and a `consequence` one.
+global.window.bwsFieldEnvelope = {
+	post: [ {
+		fields: [ {
+			name: 'partner_staff',
+			note: [
+				{ text: 'Bidirectional field with a configured limit of 3.' },
+				{ text: 'All entries will be results.', consequence: true }
+			]
+		} ]
+	} ]
+};
+
+/** Depth-first: does the tree contain this text anywhere? */
+function treeHasText( nodes, text ) {
+	return ( Array.isArray( nodes ) ? nodes : [ nodes ] ).some( function walk( n ) {
+		if ( 'string' === typeof n ) {
+			return -1 !== n.indexOf( text );
+		}
+		if ( ! n || 'object' !== typeof n ) {
+			return false;
+		}
+		const kids = ( n.children || [] ).concat( n.props && n.props.children ? [ n.props.children ] : [] );
+		return kids.some( function ( k ) {
+			return Array.isArray( k ) ? k.some( walk ) : walk( k );
+		} );
+	} );
+}
+
+function renderRefsStep( extra ) {
+	return repeaterX.chainSteps( {
+		conf: stepsConf( extra ),
+		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'refs', 'partner_staff', null ) ],
+		onChange: function () {},
+		inheritOnEmpty: false,
+		slotNoun: 'tag',
+		stepContext: function () {
+			return { state: {}, setState: function () {} };
+		}
+	} );
+}
+
+console.log( '\ntakes_first_usable — the field note consequence clause (ADR 0007)\n' );
+
+check(
+	'a non-collapsing tag keeps the note consequence clause',
+	treeHasText( renderRefsStep(), 'All entries will be results.' )
+);
+check(
+	'a collapsing tag drops the consequence clause and KEEPS the multi-value fact',
+	! treeHasText( renderRefsStep( { takesFirstUsable: true } ), 'All entries will be results.' )
+		&& treeHasText( renderRefsStep( { takesFirstUsable: true } ), 'Bidirectional field with a configured limit of 3.' )
 );
 
 // ── The group-end fanning advisory (bws-fanning-advisory, ADR 0007 pass two) ──

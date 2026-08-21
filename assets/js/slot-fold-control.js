@@ -143,6 +143,15 @@
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
 			// touch, because both are spelled exactly like slot 1's axes.
 			flatAxes: c.flatAxes || [],
+			// The template's COLLAPSING capability (ADR 0007), PHP-set only when true
+			// (bws_build_src_chain_option / bws_build_fold_slot_options). It must be
+			// carried through this normalizer explicitly: the return below is a fresh
+			// object with a named key list, not a merge, so a key absent HERE is absent
+			// from every consumer no matter what PHP sent. Two of them read it — the
+			// per-step limit suppression and the field note's consequence clause — and
+			// both silently reverted to the non-collapsing branch while the config that
+			// feeds them was correct end to end.
+			takesFirstUsable: !! c.takesFirstUsable,
 			// Which tag-level option names the repeater a row-scoped picker narrows to.
 			// The control passes its VALUE down as an explicit `scopeKey` prop rather
 			// than letting the picker reach outward for a bare `key` — under the fold
