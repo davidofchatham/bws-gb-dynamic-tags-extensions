@@ -234,6 +234,15 @@ function bws_table_collect_columns( array $options, int $max ): array {
  * use:title → the sub-field holds a relationship id; step it ref→post (limit-1)
  *             and read the post title. Missing sub-field / no target → ''.
  *
+ * SOURCE-GATE AUDIT (1.18.0). The `use:key` arm reads a value straight off the
+ * row and never constructs an entity source, so the gate (bws_source_gate,
+ * traversal-pipeline.php) is both out of reach and NOT NEEDED here: a meta_row
+ * carries a row, not an id, and there is nothing whose existence or readability
+ * could be tested. The `use:title` arm is the opposite case and needs no special
+ * care for the same reason it needs no coercer of its own — it runs the REAL
+ * fold below, so the ids it steps onto pass the gate like any other post source,
+ * and a row naming a draft reads empty for a visitor.
+ *
  * @since 1.17.0
  * @param array  $row_source { kind:'meta_row', row }.
  * @param array  $col        { use, key, label }.

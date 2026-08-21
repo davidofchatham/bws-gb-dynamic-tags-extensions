@@ -76,7 +76,8 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  *             column) is publicly viewable, OR — for a status that is neither
  *             public nor `internal` — the current user has `read_post` on it.
  *             Viewer-relative BY DESIGN there, so an author previewing their
- *             own draft resolves it (plan §S19). An INTERNAL status is refused
+ *             own draft resolves it (record: docs/design-history/
+ *             deterministic-source-selection.md §S19). An INTERNAL status is refused
  *             for EVERY viewer, capability or not: `trash` and `auto-draft` are
  *             deletion/scratch states rather than publication ones, and WP's own
  *             front end renders neither to anyone, so honouring `read_post` on
@@ -86,10 +87,13 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  *             get_post_status() answers it with the parent's status (or
  *             `publish` when unattached).
  *   term      exists = get_term() yields a WP_Term; no publication status, so
- *             visible adds nothing (plan §S21).
+ *             visible adds nothing (that record's §S21).
  *   user      exists = get_userdata() truthy; same, existence only.
  *   site      vacuously usable — no entity to test.
- *   meta_row  vacuously usable — carries a row, not an entity id (§S48 audit).
+ *   meta_row  vacuously usable — carries a row, not an entity id; the direct
+ *             reader {{table}} uses for `use:key` rows holds no entity to test,
+ *             so it is out of gate reach AND out of gate need (that record's
+ *             §S48 records the audit; the note also sits at the reader).
  *   other     passes — the gate restricts only what it can test (S27's
  *             restrict-only posture); `unresolved` is refused by the input-kind
  *             gate, not here.
@@ -101,13 +105,14 @@ const BWS_SOURCE_KIND_UNRESOLVED = 'unresolved';
  *
  * Filterable BY CONSTRUCTION, unshipped: when a consumer needs the hook (the
  * known one is Portal System's is_post_visible), an AND-composed, restrict-only
- * apply_filters lands inside this body — one line, no seam change (plan §S22
- * loosened, §O8 contract).
+ * apply_filters lands inside this body — one line, no seam change. The contract
+ * is decided and the row is FW-89; the record is
+ * docs/design-history/deterministic-source-selection.md §S22 loosened + §O8.
  *
  * Pure-harness note: this function names WP symbols and is therefore NEVER
  * called by tools/test/traversal-pipeline-test.php, which injects its own
  * predicate — that injectability is what keeps the engine harness pure
- * (plan §S20 corrected).
+ * (that record's §S20 corrected).
  *
  * @since 1.18.0
  * @param array $source Resolved source (see file header typedef).

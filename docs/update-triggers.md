@@ -185,3 +185,19 @@ run `php tools/test/pattern-cache-test.php` (pure decision logic) **and** the te
 **Fires on:** `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance)
 
 run `tools/test/limit-default-test-matrix.md` against the testbed (see [testbed.md](testbed.md)). **Unset `limit` MUST stay 1 on every pre-existing tag** (ADR 0005; L1 rows), and each L1 row asserts single-value AND link-present — the link gate is count-based, so a silent 1→many flip drops anchors while the text still reads fine. L3 rows pin `0`/`-1` = unlimited (ADR 0005) and the `is_numeric()` guard that keeps a typo off that path
+
+---
+
+## Source-gate change
+
+**Fires on:** source-gate change (`bws_source_gate()` in `includes/helpers/traversal-pipeline.php`, or the `$gate` parameter threading it through `bws_run_traversal` and applying it to the initial source list and each hop's emissions)
+
+run `php tools/test/traversal-pipeline-test.php`, then the fold matrix's [§F17](../tools/test/fold-test-matrix.md) rows and `verify.php`'s gate section against the testbed (see [testbed.md](testbed.md)).
+
+**The harness cannot reach the real gate, by construction.** `bws_source_gate()` names WP symbols, so `traversal-pipeline-test.php` injects its own predicate — what it pins is the ENGINE's contract (a gated-out source is dropped before that hop's limit slice and spends no budget; a gated-out entity cannot be a stepping stone), never the deciding rule. A green harness after a gate-body edit proves nothing about the edit. §F17 and `verify.php` are the only pins the body has.
+
+**A gate row is measured PER VIEWER, and WP-CLI's default viewer is anonymous.** `wp bws render-tag` with no `--user` runs with NO current user — the same arm a front-end curl reads, and the opposite of what the block editor shows. A run that forgets `--user` measures the visitor arm and reports it as the property; that is not hypothetical, it produced a wrong measurement during the 1.18.0 build and a `verify.php` FAIL that looked like a code regression. §F17 states its arms per row and `verify.php` renders all four off one ambient post so a hand run cannot pick one and call it the answer.
+
+**Prove a new row FAILS before you trust it passing.** Every §F17 row reads a plausible value on a broken gate too — `Grace` is what most of them print when the gate is deleted AND when it works. Measure the row against the previous gate body (or with the fixture unseeded) and record what it printed; §F17.8 and §F17.9 carry theirs.
+
+**The viewer-relative arm needs a viewer who FAILS it.** An editor has `edit_others_posts` and reads other people's drafts, so an editor-vs-anonymous pair measures logged-in-ness, not readability. The blueprint seeds two author-role users for exactly this, and the negative arm is half the assertion (see [§F17.6/§F17.7](../tools/test/fold-test-matrix.md)).

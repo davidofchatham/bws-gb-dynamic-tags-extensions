@@ -12,10 +12,7 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 == Upgrade Notice ==
 
 = 1.18.0 =
-⚠ Two behavior changes. Content, Permalink and Image tags now read the first source in order, even when its field is empty, instead of searching on for a filled one. Drafts and private posts no longer resolve for site visitors, only for users allowed to see them.
-
-= 1.17.1 =
-✓ Fixes the Migration Tool listing every image tag as needing conversion when there was nothing to convert. If your list would not clear no matter how many times you ran it, update and rescan. Image tags saved before 1.16.0 are listed once, then not again.
+⚠ Two changes and a fix. Taxonomy-sourced Content, Permalink and Image tags show the first term only now, not the first with a filled field. Drafts and private posts resolve only for users allowed to see them; trashed posts never. The Migration Tool stops re-listing image tags it cannot convert.
 
 = 1.17.0 =
 ⚠ Ran the Migration Tool before? Check for loss of new-tab settings on link-wrapped tags and show-year/show-midnight settings on pre-1.6 datetime tags. New: multi-step source paths; result limit of 0 or -1 means no limit; unusable sources output nothing, not from the current context; and more.

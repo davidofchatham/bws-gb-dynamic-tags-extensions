@@ -3,8 +3,11 @@
 **Status:** accepted (2026-08-20, the grill session opened on
 [#118](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/118)); **revised in
 place 2026-08-21** before any release carried it — the original axis ("a limit counts usable
-RESULTS", where usable included a non-empty read) proved non-deterministic and was replaced. The
-plan records the reversal; nothing published ever stated the old axis.
+RESULTS", where usable included a non-empty read) proved non-deterministic and was replaced.
+Hardened against
+[`docs/design-history/deterministic-source-selection.md`](../design-history/deterministic-source-selection.md),
+the whole grill record — including the argument for the axis this one replaced. Nothing published
+ever stated the old axis.
 
 A limit bounds **usable sources** — candidates that pass the source gate — never candidates merely
 emitted, and never a count of non-empty reads. `usable` is a property of a SOURCE:
@@ -40,7 +43,9 @@ bounded one: the number stays where the author put it and goes on bounding that 
 FIRST usable source its whole chain produces — outputting that source's read even when the read is
 empty. A bound that can only ever subtract from a tag that returns one result is not a control, it
 is a trap. This is why `content`, `permalink` and `image` carry the `takes_first_usable` template
-capability and offer no **Limit results** control.
+capability and offer no per-step limit control at all. (This ADR names the ABSENCE; the control's
+own label is owned by [`editor-controls.md`](../editor-controls.md) and has changed since — it was
+**Limit results** when this was accepted.)
 
 ## Why the read-based axis was reversed
 
@@ -80,9 +85,9 @@ possible future tag-level OPT-IN (tracked in `docs/future-work.md`); it is not a
 
 ## Consequences
 
-- The gate ships WITH this release (exists + visible arms live: posts get status + viewer
-  capability, terms/users existence only, site vacuous) — "usable" reaches its final meaning once;
-  no interim tightening, no matrix rows written to be revised.
+- The gate ships WITH this release, both arms live (exists and visible), so "usable" reaches its
+  final meaning once: no interim tightening, no matrix rows written to be revised. What each kind
+  is tested against is the gate's rule, not this decision's — `bws_source_gate()`'s PHPDoc.
 - Two subtractive author-visible changes ride one Upgrade Notice: the term route of collapsing
   tags no longer searches past the first term, and unpublished content stops resolving for viewers
   who cannot read it. Everything else renders the same or more.
