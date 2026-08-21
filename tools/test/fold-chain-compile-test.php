@@ -61,6 +61,11 @@ if ( ! function_exists( 'bws_extract_post_id' ) ) {
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// Source-gate stub before the engine require (same seam as the traversal harness):
+// this file drives the COMPILER; every source it feeds the engine should pass.
+if ( ! function_exists( 'bws_source_gate' ) ) {
+	function bws_source_gate( array $source ) { return empty( $source['__gated'] ); }
+}
 require __DIR__ . '/../../includes/helpers/traversal-pipeline.php';
 
 $failures = 0;

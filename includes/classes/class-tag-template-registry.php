@@ -53,21 +53,23 @@ class TagTemplateRegistry {
 	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
-	 *   takes_first_usable    bool     The tag emits at most ONE result, selected as the FIRST
-	 *                    USABLE one, whatever its chain produces (ADR 0007). THE AXIS, owned
-	 *                    here: keyed on the template's DISPOSITION toward a plural
-	 *                    resolved-source list — NOT on list mode and NOT on any list flag,
-	 *                    because `{{table}}` (no list mode, the most load-bearing step limit
-	 *                    in the plugin) is exactly the template a list-shaped proxy
-	 *                    misclassifies. Named for the SELECTION rather than the cardinality
-	 *                    on purpose: limits are inert on these tags precisely BECAUSE
-	 *                    selection scans for the first usable result, which a
+	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
+	 *                    USABLE source its chain produces — usable = resolvable × exists ×
+	 *                    visible (the engine gate), NEVER field-populated, so the read may
+	 *                    be empty and selection is field-independent (ADR 0007, the
+	 *                    2026-08-21 reversal). THE AXIS, owned here: keyed on the template's
+	 *                    DISPOSITION toward a plural resolved-source list — NOT on list mode
+	 *                    and NOT on any list flag, because `{{table}}` (no list mode, the
+	 *                    most load-bearing step limit in the plugin) is exactly the template
+	 *                    a list-shaped proxy misclassifies. Named for the SELECTION rather
+	 *                    than the cardinality on purpose: limits are inert on these tags
+	 *                    precisely BECAUSE selection takes the first usable source, which a
 	 *                    cardinality-shaped name would leave a reader expecting a limit to
 	 *                    bound. Consequences (stated, not decided, elsewhere): the render
-	 *                    path compiles the chain with every step limit stripped and selects
-	 *                    at n = 1 (bws_collect_usable); the try_ constructor forces the slot
-	 *                    bound to 1; the editor suppresses the Limit results control and the
-	 *                    field note's several-results clause. Reaches render the way is_image
+	 *                    path compiles the chain with every step limit stripped and reads
+	 *                    at n = 1 (bws_collect_usable, no predicate); the try_ constructor
+	 *                    forces the slot bound to 1; the editor suppresses the limit control
+	 *                    and the field note's several-results clause. Reaches render the way is_image
 	 *                    does — captured at registration, no registry lookup — and is
 	 *                    UNPREFIXED because both the base registration and the slot builder
 	 *                    consume it (`try_` marks flags only the try_ constructor reads).
@@ -978,13 +980,16 @@ class TagTemplateRegistry {
 					}
 
 					// ── ONE EMIT for every arm ─────────────────────────────────────
-					// The bound is on ITEMS, not entities — one entity may return several
-					// finished items. The walk-and-count rule itself lives in
-					// bws_collect_usable() (field-helpers.php, required at plugin init),
-					// the selector THIS LOOP DONATED: it was extracted from here, so the
-					// swap is render-identical and the existing try_ matrix rows pin it.
-					// The reader closure keeps $first_id (the winning slot's link
-					// identity) because the selector is provenance-blind by contract.
+					// The bound counts SOURCES READ ([I19], the 2026-08-21 reversal):
+					// bws_collect_usable() (field-helpers.php) with NO predicate reads
+					// the first $slot_max entities and drops only empty VALUES from its
+					// return — an entity with nothing to show keeps its slot, so which
+					// entities a slot reads never depends on which field it asks for.
+					// The search-past-empties walk is FW-88's dormant opt-in, wired
+					// nowhere. ACROSS attempts first-populated still wins — that is the
+					// try_ product, and it lives in the `continue` below, not in the
+					// selector. The reader closure keeps $first_id (the winning slot's
+					// link identity) because the selector is provenance-blind by contract.
 					//
 					// Link-wrap applies to a SINGLE-result item only, and the count is
 					// taken on the selector's already-bounded return (mirrors the base

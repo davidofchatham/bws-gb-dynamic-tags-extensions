@@ -60,7 +60,7 @@ function bws_register_base_tags(): void {
 	$source_opt     = bws_build_src_chain_option();
 	// The SAME chain control with the collapsing capability set (ADR 0007) — one extra
 	// build call shared by content/permalink/image, so the editor suppresses the
-	// per-step Limit results control on exactly the tags whose render ignores it.
+	// per-step limit control on exactly the tags whose render ignores it.
 	$source_opt_fu  = bws_build_src_chain_option( array( 'takes_first_usable' => true ) );
 	// Group-end FANNING ADVISORY for the collapsing tags (ADR 0007 pass two). One line
 	// at the end of the source group, shown only when the chain actually fans — the
@@ -71,7 +71,7 @@ function bws_register_base_tags(): void {
 	$fan_advisory = array(
 		'srcFanNote' => array(
 			'type' => 'bws-fanning-advisory',
-			'help' => __( 'This source can match more than one item. This tag shows the first one that has a value.', 'generateblocks' ),
+			'help' => __( 'This source can match more than one item. This tag shows the first one.', 'generateblocks' ),
 		),
 	);
 	$traversal_opts = bws_base_traversal_options();

@@ -198,10 +198,12 @@ function bws_fold_wire_vocabulary(): array {
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// LABELLED FOR WHAT IT BOUNDS, not for what it divides by (#95). The draft label
 		// "Limit per source" sat three rows under a control labelled `Source` meaning
-		// something else, named sources while bounding results, and stated the per-input
-		// rule everywhere except the label. `result` is what a step produces; a limit
-		// bounds results and can never promise output, since the read drops empties
-		// afterwards.
+		// something else and stated the per-input rule everywhere except the label.
+		// REFRAMED 1.18.0 (the determinism reversal, ADR 0007): the number counts
+		// ITEMS READ, not results shown — an item whose field is empty keeps its
+		// place rather than being replaced by the next one, so the copy must not
+		// promise output. Dynamic per-kind labels ("Limit Posts Read" …) are a
+		// planned second pass; wording here pending user prose review.
 		//
 		// TWO HELPS, chosen by whether an EARLIER step actually FANS — not by position.
 		// Per-step limits are per-input and MULTIPLY (`∏ limitₙ`), but where nothing
@@ -212,14 +214,14 @@ function bws_fold_wire_vocabulary(): array {
 		// predicate the migrator stamps by and the render seam defaults by — reached in
 		// the editor through its shipped twin, never re-derived from the step index.
 		'limitOption' => array(
-			'label'       => __( 'Limit results', 'generateblocks' ),
+			'label'       => __( 'Limit items read', 'generateblocks' ),
 			// Names the VALUE that produces the behaviour rather than saying "all", so
 			// this field and the tag-level `limit` help teach one rule — and the box
 			// reads `0 (all)` before the author types and `0 (all)` again after the `0`
 			// is normalized away.
 			'placeholder' => __( '0 (all)', 'generateblocks' ),
-			'help'        => __( 'Maximum number of results. Leave blank for all.', 'generateblocks' ),
-			'helpFanning' => __( 'Maximum number of results for each previous-step result. Leave blank for all.', 'generateblocks' ),
+			'help'        => __( 'How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.', 'generateblocks' ),
+			'helpFanning' => __( 'How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.', 'generateblocks' ),
 		),
 	);
 }
@@ -277,7 +279,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *                             chain that renders nothing. It belongs with the table
  *                             authoring pass.
  *     @type bool  $takes_first_usable The template's collapsing capability (ADR 0007):
- *                             the step renderer suppresses the Limit results control
+ *                             the step renderer suppresses the limit control
  *                             where it is set. Default false.
  * }
  * @return array Single-entry array keyed 'src'.
@@ -644,7 +646,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type string $scope_state_key Tag-level option whose value scopes the picker.
  *     @type bool   $takes_first_usable The base template's collapsing capability (ADR
  *                                   0007), threaded per slot so the editor's one step
- *                                   renderer suppresses the Limit results control and
+ *                                   renderer suppresses the limit control and
  *                                   the field note drops its several-results clause.
  *                                   Default false.
  * }
@@ -1336,13 +1338,17 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
 }
 
 /**
- * First USABLE post read off a base tag's whole chain (ADR 0007, [I19]).
+ * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
  *
  * The collapsing callbacks' shared POST route: the unbounded fan (every step limit
- * stripped), selected at n = 1 through bws_collect_usable(). An EMPTY post-kind fan
- * keeps today's single falsy-id read — the cores' own loop-row semantics (mode 2b)
- * and every none-usable tail must not move — so the reader always runs at least once,
- * exactly as the pre-extraction callbacks did.
+ * stripped) arrives already gated (bws_source_gate — resolvable × exists × visible),
+ * and bws_collect_usable() at n = 1 with NO predicate reads the FIRST source only,
+ * returning its read even conceptually-empty (the wrapper renders '' then). It does
+ * NOT search past an empty field — selection is field-independent (the 2026-08-21
+ * reversal; ADR 0007 §Why the read-based axis was reversed). An EMPTY post-kind fan
+ * keeps the single falsy-id read — the cores' own loop-row semantics (mode 2b) must
+ * not move — so the reader always runs at least once, exactly as the pre-extraction
+ * callbacks did.
  *
  * @since 1.18.0
  * @param array    $base    Base resolved source.
@@ -1359,7 +1365,8 @@ function bws_base_post_first_usable( array $base, array $options, callable $read
 }
 
 /**
- * First USABLE term read off a base tag's whole chain — the term-route twin.
+ * The FIRST usable term's read — the term-route twin. Reads the first gated term
+ * only (WP's own term ordering, passed through); no search past an empty field.
  *
  * @since 1.18.0
  * @param array    $base    Base resolved source.

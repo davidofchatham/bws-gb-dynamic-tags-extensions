@@ -218,7 +218,7 @@
 	//
 	// A statement about the FIELD the author just picked, not about the control: what
 	// ACF does and does not enforce about how many entries that field can hold. It sits
-	// between the field key control and Limit results, so it reads as the setup for the
+	// between the field key control and the limit control, so it reads as the setup for the
 	// number about to be chosen — an adjacency left implicit, since the note carries no
 	// call to action.
 	//
@@ -799,7 +799,7 @@
 					) ) );
 				} else {
 					// The field configuration note (#96) — beneath the field key control,
-					// above Limit results. Mutually exclusive with the warning above by
+					// above the limit control. Mutually exclusive with the warning above by
 					// construction: the note needs a selected field, the warning fires
 					// only when there is none. A field with nothing noteworthy (and an
 					// `entries` step's repeater field, which has no such settings at all)
