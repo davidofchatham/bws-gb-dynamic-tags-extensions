@@ -50,12 +50,26 @@ the cheap what-if engine) and `bin/seed.sh testbed core-structures` (reseeds fix
 
 Single source of truth per content type. Other files link, never duplicate.
 
-**On doc/code drift the OWNER DOC wins and the CODE moves to match it.** The doc is where
-a decision was recorded; shipped code is only evidence of what happened to get written.
-Resolving the other way — editing the doc to describe what shipped — is an EXCEPTION, needs
-saying out loud, and gets a note at the site of the change explaining why it was allowed
-there (see `tools/test/control-order-test.php`'s `showCurrentYear` comment, the one
-standing instance). An exception is not precedent: the next drift moves the code.
+**DOC/CODE DRIFT IS SURFACED FOR A HUMAN DECISION, NEVER RESOLVED ON A DEFAULT.** Quote both
+sides, say what `git log` shows about when each was written, and ask which one moves. The
+direction is NOT derivable from the artifacts, because two opposite histories leave identical
+evidence:
+
+- **the code is UNFINISHED against a recorded decision** — the doc IS the decision, the code
+  never caught up, and the repair is to finish the code;
+- **the code changed deliberately and the doc was never updated** — the decision itself moved,
+  and only the person who moved it knows that; rewriting the code would silently undo a
+  considered change.
+
+A decision taken in conversation that reached a plan but no commit looks exactly like the second
+and is the first. Nothing in the tree distinguishes them.
+
+**The PRESUMPTION still favors the doc** — documentation here usually precedes code, so that is
+the way to bet — but a presumption is where the conversation starts, not a licence to edit.
+Resolving toward the doc needs no note once decided. Resolving the other way — editing the doc
+to describe what shipped — additionally gets a note at the site of the change explaining why it
+was allowed there (see `tools/test/control-order-test.php`'s `showCurrentYear` comment, the one
+standing instance). An exception is not precedent.
 
 **A RULE'S AXIS IS OWNED ONCE; ITS CONSEQUENCE MAY BE RESTATED ANYWHERE.** The axis is *what
 decides* — the predicate, the comparison, the derivation. The consequence is what an author or a
