@@ -15,10 +15,12 @@
  * RUNS a chain — engine step types are render-side vocabulary the editor has no use for —
  * so this half is PHP-only and a reader should not go looking for its mirror.
  *
- * Vocabulary is DECOUPLED on purpose (plan DECISION 3): the wire slug names the step
- * category and signals cardinality by number (`refs`/`terms`/`rows`, all plural),
- * while the engine `type` is an internal name that predates it (`ref`/`srcTermIn`/
- * `rows`). The map below is the only place the two meet.
+ * The wire slug names the step category and signals cardinality by number
+ * (`refs`/`terms`/`rows`, all plural). It is ALSO the engine's step type — one
+ * vocabulary across both layers since the V9 alignment, which is stated where it is
+ * enforced (`BWS_TRAVERSAL_STEP_INPUT_KINDS` in `traversal-pipeline.php`, keyed by
+ * that slug). The map below is not a translation, then: it carries the one fact the
+ * slug does not, which is the KEY a step's argument rides.
  *
  * Load-bearing properties:
  *
@@ -76,9 +78,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 1.17.0 V9: narrowed from slug => { type, arg } — engine types align to the slugs.
  */
 const BWS_FOLD_STEP_TYPES = array(
-	'refs'    => 'field',
-	'terms'   => 'slug',
-	'rows' => 'field',
+	'refs'  => 'field',
+	'terms' => 'slug',
+	'rows'  => 'field',
 );
 
 /**
@@ -93,13 +95,13 @@ const BWS_FOLD_STEP_TYPES = array(
  * @since 1.17.0
  */
 const BWS_FOLD_STEP_KINDS = array(
-	'refs'    => 'post',
-	'terms'   => 'term',
-	'rows' => 'meta_row',
+	'refs'  => 'post',
+	'terms' => 'term',
+	'rows'  => 'meta_row',
 );
 
 /**
- * Root token → the resolved-source KIND it carries, for the roots where that is STATIC.
+ * Root token → the resolved-source KIND it carries, for the roots that answer at PARSE TIME.
  *
  * Only `site` is. Every other root — `current`, a registry source name — is the source
  * FACTORY's to resolve at render, and comes back `render_time` (see bws_fold_chain_resolution's
@@ -204,7 +206,7 @@ function bws_fold_chain_join( array $inherited, array $own ): array {
  * TO. This answers the second, so an arm dispatches on the same fact whichever way
  * the source is spelled.
  *
- * PURE and STATIC — a function of the wire alone, with no query and no render. That
+ * PURE and PARSE-TIME — a function of the wire alone, with no query and no render. That
  * is a hard requirement, not an optimisation: the editor's field pickers and the
  * `limit` control's reveal predicate both have to scope themselves before anything
  * resolves.
@@ -219,11 +221,12 @@ function bws_fold_chain_join( array $inherited, array $own ): array {
  *   'render_time' root-only, rooted at the ambient entity or a registry source — the
  *              kind is whatever the FACTORY resolves at render (post on a singular
  *              page, term on a term archive, user on an author archive, meta_row in
- *              a flat repeater row). Static analysis cannot say which, and an arm
+ *              a flat repeater row). Parse-time analysis cannot say which, and an arm
  *              that needs to know branches on `$base['kind']` as it always has.
- *   ''         the last step is unknown vocabulary. The engine answers empty for an
- *              unknown type, so the chain short-circuits; the kind is honestly
- *              unknown rather than guessed back to the root. DISTINCT FROM `render_time`,
+ *   ''         UNRECOGNIZED — the last step is vocabulary this engine does not know.
+ *              The engine answers empty for an unknown type, so the chain
+ *              short-circuits; the kind is honestly unrecognized rather than guessed
+ *              back to the root. DISTINCT FROM `render_time`,
  *              which is the honest answer for a chain with no steps at all — an arm
  *              that treats the two alike reads the chain's prefix instead of nothing
  *              (GH #109; bws_fold_chain_join() below is the posture to copy).

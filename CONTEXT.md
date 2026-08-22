@@ -401,7 +401,7 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
 
 **Inert chain**:
-A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Statically decidable with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
+A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Decidable at parse time with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
 
 Three neighbours it is NOT, each of which renders empty too:
 - **Unfinished** — a fanning step with no argument (`src:terms` with no taxonomy). Expressible and half-written; the author's next act is to finish it, not to replace it.
