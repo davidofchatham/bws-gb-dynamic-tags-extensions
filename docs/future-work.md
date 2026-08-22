@@ -39,7 +39,7 @@ never orphans a reference.
 | **ID** | Stable `FW-N` handle. Cross-refs use this, never prose. IDs are permanent — a shipped/cut row's ID is retired, never reused. |
 | **Item** | Short title. |
 | **Description** | The detail + rationale hooks. |
-| **Blocked by** | Hard prerequisite, typed: `row:FW-N` (another row) · `ship:X.Y.Z` (a version — satisfied once shipped) · `decision:<what>` (an open choice) · `code:<condition>` (a code state). `—` = unblocked. |
+| **Blocked by** | Hard prerequisite, typed: `row:FW-N` (another row) · `ship:X.Y.Z` (a version — satisfied once shipped) · `decision:<what>` (an open choice) · `code:<condition>` (a code state). `—` = unblocked. **A blocker states a CODE FACT, never a scheduling preference** — “this cannot land until X”, not “do this after X”. So a rescan may re-derive one from the code and swap it without asking what the ordering was meant to achieve; there is no hidden intent to preserve. |
 | **Interacts with** | Softer coupling (reshapes / reshaped-by / ship-near) as `FW-N` ids + external `#issue`. Not a gate. |
 | **Target** | *In-flight table only.* The version the in-flight work is landing in (e.g. `1.17.0`). A soft timeline, not a gate; the branch / CHANGELOG own the actual state. Future/possibility rows have no Target column. |
 | **Detail home** | Where the design/rationale + implicit certainty (concept vs planned) live. |
