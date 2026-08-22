@@ -164,7 +164,14 @@ function bws_extract_post_id( $post_data ) {
  * Resolve loop-row context from a block instance.
  *
  * Inspects $instance->context for GB Pro post_meta loop data and classifies the
- * row into one of three states. Result cached on $instance->context['bws/loopItemPostId']
+ * row into one of three states.
+ *
+ * THE ITEM SHAPES ARE AN ASSUMPTION, NOT A CHECK (#123). array | WP_Post | numeric
+ * covers everything GB itself loops over, and anything else reports NOT IN A LOOP
+ * rather than "in a loop I cannot resolve" - so a caller falls through to the ambient
+ * entity and renders a plausible value from an entity the wire never named ([I15]).
+ * An extension that loops over TERMS makes that reachable; a term id would be worse
+ * than a WP_Term, since is_numeric() passes and the id is read as a POST's. Result cached on $instance->context['bws/loopItemPostId']
  * so callers paying for `get_post()` only do so once per block render.
  *
  * Returned shape:

@@ -334,7 +334,9 @@ over": it names one specific supplier.
 The one entity GB hands a block for the iteration it is rendering inside (`generateblocks/loopItem`).
 Two shapes, and no third is recognized: a **post** — any query type, so a plain post loop and a
 relationship loop look the same to us — or a **repeater row**, a bag of fields with no entity identity
-of its own (kind `meta_row`). Where loops nest, the innermost item is the one that counts. "Query loop"
+of its own (kind `meta_row`). A THIRD shape exists in the wild and is not recognized: an extension can
+loop over TERMS, and such an item reads as no loop at all
+([#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123)). Where loops nest, the innermost item is the one that counts. "Query loop"
 itself is the output shape defined in [`tag-reference.md`](docs/tag-reference.md) §Output shape.
 
 _Avoid_: "mode 2a" / "mode 2b" (retired 2026-08-22 — coined in a 2026-05 plan whose Mode 1 stopped
