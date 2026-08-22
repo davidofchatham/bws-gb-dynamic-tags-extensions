@@ -962,7 +962,7 @@ function bws_get_join_options(): array {
 				// A slot's source is a base tag's source (#104, [I16]), so the offer is the
 				// base tag's: the seam hands the whole chain on as depth-0 chain wire and
 				// the arms dispatch on what it resolves to, so nothing here truncates it.
-				// `entries` stays out for the reason it stays out of the base offer — no
+				// `rows` stays out for the reason it stays out of the base offer — no
 				// join arm assembles a repeater row; that is `{{table}}`'s.
 				'steps'            => array( 'refs', 'terms' ),
 				// One noun, both surfaces: "+ Add field" and the header "Field A"

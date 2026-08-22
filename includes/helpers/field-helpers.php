@@ -588,7 +588,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 	// src:site keeps its dot-path affordance (ACF options can be dotted); other
 	// sources require a valid flat meta key. Gate BEFORE resolution to preserve
 	// the historical early-return on invalid non-site keys.
-	// Read the source ROOT, not the raw value: a depth-0 chain (`src:site;entries,rows`)
+	// Read the source ROOT, not the raw value: a depth-0 chain (`src:site;rows,rows`)
 	// still ROOTS at the site store, so its dot-path keys must survive the gate below.
 	$is_site = 'site' === ( function_exists( 'bws_fold_src_root_token' )
 		? bws_fold_src_root_token( $options )

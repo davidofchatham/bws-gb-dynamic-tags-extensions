@@ -439,7 +439,7 @@ function bws_table_callback( $options, $block, $instance ): string {
 	$base = bws_base_resolve_source_for_callback( $options, $instance );
 
 	$ref_steps = function_exists( 'bws_wrapper_ref_steps' ) ? bws_wrapper_ref_steps( $options ) : array();
-	$steps     = array_merge( $ref_steps, array( array( 'type' => 'entries', 'field' => $rows_field ) ) );
+	$steps     = array_merge( $ref_steps, array( array( 'type' => 'rows', 'field' => $rows_field ) ) );
 
 	$row_sources = bws_run_traversal( array( $base ), $steps );
 	if ( empty( $row_sources ) ) {

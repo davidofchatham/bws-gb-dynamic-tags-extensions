@@ -85,7 +85,7 @@ deliberately not the same rule.
   `site` has one); a chain rooted at a registered source resolves to the kind the factory
   determines at render, and the editor's step-offer filter stays permissive there.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
-  step slug (`refs`/`terms`/`entries`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
+  step slug (`refs`/`terms`/`rows`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
   slot inherit sentinel `same`, or one carrying a grammar character — each would parse back as
   something other than a root, offering a row that cannot resolve. Route A cannot hit this; its
   keys are class-authored.
@@ -104,7 +104,7 @@ root vocabulary; a step continues from wherever the previous one landed.
 |---|---|---|
 | `refs,<field>` | a relationship / post-object field | `post` |
 | `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` |
-| `entries,<field>` | a repeater field's rows | `meta_row` |
+| `rows,<field>` | a repeater field's rows | `meta_row` |
 
 Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
 `src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
@@ -131,7 +131,7 @@ once an author converts it or the Tag Converter rewrites it.
   ambient entity. The rule and what decides it are [I15]'s (`CONTEXT.md`); the author-facing
   consequence for an integrator is in
   [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
-- **`entries` is not offered on a base tag.** The step type exists and runs, but no base arm
+- **`rows` is not offered on a base tag.** The step type exists and runs, but no base arm
   consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
   needs a hand edit, and it renders nothing.
 - **The derived families keep the flat select.** `term_*`, `try_*` and `{{table}}` build their own
@@ -562,7 +562,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 `}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%A`…`%J` (following the slot keys; `%1`…`%10` is still read and always will be — both alphabets collapse to one internal token, so nothing downstream can tell them apart).
 
-**Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
+**Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `rows` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
 
 **A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
@@ -586,7 +586,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **The slot count is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
 
-**A SLOT'S SOURCE IS HANDED ON AS CHAIN WIRE**, in the same option key a base tag states its source in, and that is the whole of why a slot's source is not a weaker thing than a base tag's ([`CONTEXT.md` I16](../CONTEXT.md)). Through 1.16.x the seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple, which holds ONE `refs` step and ONE `terms` step — so a second step on either axis, or a repeater `entries` step, was SKIPPED rather than resolved, because resolving the expressible PREFIX would silently read a different source than the wire states. The re-spelling was deleted in 1.17.0 ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)); the slot's registered step OFFER is the base tag's, and every slot's chain resolves whole.
+**A SLOT'S SOURCE IS HANDED ON AS CHAIN WIRE**, in the same option key a base tag states its source in, and that is the whole of why a slot's source is not a weaker thing than a base tag's ([`CONTEXT.md` I16](../CONTEXT.md)). Through 1.16.x the seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple, which holds ONE `refs` step and ONE `terms` step — so a second step on either axis, or a repeater `rows` step, was SKIPPED rather than resolved, because resolving the expressible PREFIX would silently read a different source than the wire states. The re-spelling was deleted in 1.17.0 ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)); the slot's registered step OFFER is the base tag's, and every slot's chain resolves whole.
 
 Three things ride on that and are easy to get wrong from the code alone:
 

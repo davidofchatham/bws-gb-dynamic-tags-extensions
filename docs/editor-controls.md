@@ -106,8 +106,8 @@ with.
 
 | Control label | Position in the chain value | Help text | Shown when |
 |---|---|---|---|
-| Source | the step's own **slug** — `refs` / `terms` / `entries`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
-| Relationship Field Key | the **arg** of a `refs` (or `entries`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `entries`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
+| Source | the step's own **slug** — `refs` / `terms` / `rows`, or at step 1 the chain ROOT (`current`, `site`, a registered root, or `same` in a slot ≥2) | — | Every step. The visible label is suppressed on a single-step chain (the group caption already says "Source"); the label still exists for screen readers |
+| Relationship Field Key | the **arg** of a `refs` (or `rows`) step — `refs,<field>` | ACF relationship or post object field key. | Step slug is `refs` or `rows`. Same definition the flat `ref` option ships, so the picker reads alike either side of the fold |
 | Taxonomy | the **arg** of a `terms` step — `terms,<taxonomy>` | — | Step slug is `terms`. Enum = public taxonomies, shipped with the definition |
 | Limit Posts Read / Limit Terms Read / Limit Repeater Rows Read (per step; *Limit items read* is the fallback) | the step's **`limit(N)` token** — `refs,office,limit(3)` | *How many items this step reads, in stored order. An item with an empty field keeps its place. Leave blank for all.* — or, where an earlier step fans, *How many items this step reads for each previous-step item, in stored order. An item with an empty field keeps its place. Leave blank for all.* | Every step (never a bare root: a source resolving one entity has nothing to bound). Blank = unlimited; `0` is normalized to blank and never serialized, `-1` parses the same way for hand-edited wire |
 
@@ -140,7 +140,7 @@ promised what the render no longer does. Label and help only; the option key and
 not move, so there is no row in `deprecated-tags-options.md`.
 
 **Then the label became PER STEP, in the same release.** A step names what it produces — *Limit
-Posts Read* on `refs`, *Limit Terms Read* on `terms`, *Limit Repeater Rows Read* on `entries` — and
+Posts Read* on `refs`, *Limit Terms Read* on `terms`, *Limit Repeater Rows Read* on `rows` — and
 *Limit items read* is what a step wears when it ships without one. The noun is AUTHORED on the step
 record (`steps[<slug>].limitLabel`, beside the row label it already declares) rather than derived
 from the step's `produces` kind: `meta_row` is the engine's word for a repeater row, and deriving

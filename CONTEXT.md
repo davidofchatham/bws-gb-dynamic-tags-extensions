@@ -192,7 +192,7 @@ Spans: the render seam, both previews, both migrators, the editor control, and t
 
 ## I14 — A source chain's ROOT is not a step
 
-A folded slot's source is an ordered CHAIN: a **root** plus N **steps**. Its first token is either an **entity root** (`current`, `site`, a registry source) or already a **fanning step** (`refs`, `terms`, `entries`), and which one it is is decidable **from the slug alone** — root slugs are singular, step slugs plural. **The plural spelling is a CATEGORY marker, never a count claim:** a fanning step *may* resolve many, and routinely resolves one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater). The root binds *where* traversal starts, which is the factory's job ([I9] ambient resolution); the steps are what the engine folds.
+A folded slot's source is an ordered CHAIN: a **root** plus N **steps**. Its first token is either an **entity root** (`current`, `site`, a registry source) or already a **fanning step** (`refs`, `terms`, `rows`), and which one it is is decidable **from the slug alone** — root slugs are singular, step slugs plural. **The plural spelling is a CATEGORY marker, never a count claim:** a fanning step *may* resolve many, and routinely resolves one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater). The root binds *where* traversal starts, which is the factory's job ([I9] ambient resolution); the steps are what the engine folds.
 
 **Rule:** compile a chain by consuming the root into the source factory and the remaining steps into the engine. Do not model the root as a step-zero, and do not let a step stand in for it. Three consequences worth stating because each has a wrong-looking-right alternative:
 
@@ -246,7 +246,7 @@ Four consequences, each with a wrong-looking-right alternative:
 
 **The identity is SOURCE-only, and the read is NOT part of it — decided, twice.** Read-as-chain-terminal was superseded 2026-07-31 (the read is a sibling token, `src(chain);use(x)`); folding the read on base tags was locked out 2026-07-28 as all cost and no payoff. A slot's read and a base tag's read are the same two axes (`use`/`key`) stored two ways, exactly as the source is. Do not read this invariant as licence to revisit either.
 
-**SHIPPED 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)). Two things it moved that a reader will meet before they meet this invariant: a slot's registered step OFFER is now the base tag's (`refs` + `terms`, `entries` on neither, because no arm assembles a repeater row), and the `limit`-era write-back in both container loops became load-bearing — `src` is chain wire on every slot, including one recovered from legacy flat keys, so a container re-deriving the default from it answers *unlimited* where the slot has always bounded at 1.
+**SHIPPED 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)). Two things it moved that a reader will meet before they meet this invariant: a slot's registered step OFFER is now the base tag's (`refs` + `terms`, `rows` on neither, because no arm assembles a repeater row), and the `limit`-era write-back in both container loops became load-bearing — `src` is chain wire on every slot, including one recovered from legacy flat keys, so a container re-deriving the default from it answers *unlimited* where the slot has always bounded at 1.
 
 Enforced at: `bws_fold_slot_chain_options()` PHPDoc (slot-fold.php), which replaced `bws_fold_slot_flat_options()`. Tests: `tools/test/slot-fold-test.php` §P18 (the emit fixed point, the chain-shaped carry, the named leak, the per-step bounds) and §P13.5, whose four inexpressible-chain SKIPS inverted to resolves; `tools/test/control-order-test.php` §7 (the offer). Measured divergences: `tools/test/fold-test-matrix.md` §F9d. Schema: [`tag-reference.md` §Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers). Rationale + the rejected alternatives: `docs/design-history/multi-step-slot-sources.md`. Related: [I13] (storage is the other axis), [I14] (root is not a step; its slot half resolves here), [I15] (the inherit corollary becomes structural), [ADR 0004].
 
@@ -341,7 +341,7 @@ L2a's output — **WHICH field to read**, determined by (resolved-source TYPE ×
 L2b's output — the **fetched datum** off the resolved field. The raw value before L3 assembly.
 
 **Singular vs fanning sources**:
-A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root (`current`, `site`) is **singular**: exactly one, always. A **fanning** step (`refs` — ACF relationship/post-object array; `terms` — taxonomy term set; `entries` — repeater rows) **may** resolve many. List mode originates here — *a fanning source, read once per source* — NOT a read-time loop.
+A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root (`current`, `site`) is **singular**: exactly one, always. A **fanning** step (`refs` — ACF relationship/post-object array; `terms` — taxonomy term set; `rows` — repeater rows) **may** resolve many. List mode originates here — *a fanning source, read once per source* — NOT a read-time loop.
 
 **`fanning` is a STATIC property, read off the wire: capacity, not outcome.** A fanning step routinely resolves exactly one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater), and that is not a different kind of source. The runtime count is a **length**, and needs no adjective. This split is what FW-63's dispatch depends on — I8 forbids a live probe, so "does it fan" must be answerable from the wire alone.
 
@@ -355,7 +355,7 @@ A source chain that resolves to **nothing on every tag, for a reason readable of
 Three neighbours it is NOT, each of which renders empty too:
 - **Unfinished** — a fanning step with no argument (`src:terms` with no taxonomy). Expressible and half-written; the author's next act is to finish it, not to replace it.
 - **Unconfigured** — no read stated yet. A normal in-progress state.
-- **Unimplemented** — well-formed wire no arm consumes *yet* (an `entries` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
+- **Unimplemented** — well-formed wire no arm consumes *yet* (an `rows` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
 
 _Avoid_: "unsupported source" (retired in 1.17.0 with the flatten — it named a limit of the *storage*, not of the source); "invalid" (reserved for the `src:site`-on-a-modifier combo, which is invalid *for that tag* and resolves fine on the base one).
 

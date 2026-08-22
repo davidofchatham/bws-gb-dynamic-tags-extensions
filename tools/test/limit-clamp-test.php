@@ -100,7 +100,7 @@ assert_same( 'FLAT src:ref → 1 (the legacy default it has always had)', 1, bws
 assert_same( 'FLAT srcTermIn → 1 — srcTermIn is not part of the src VALUE', 1, bws_limit_default( array( 'srcTermIn' => 'department' ) ) );
 assert_same( 'CHAIN src:refs,office → 0 (unlimited)', 0, bws_limit_default( array( 'src' => 'refs,office' ) ) );
 assert_same( 'CHAIN src:terms,department → 0', 0, bws_limit_default( array( 'src' => 'terms,department' ) ) );
-assert_same( 'CHAIN src:site;entries,rows → 0', 0, bws_limit_default( array( 'src' => 'site;entries,rows' ) ) );
+assert_same( 'CHAIN src:site;rows,rows → 0', 0, bws_limit_default( array( 'src' => 'site;rows,rows' ) ) );
 assert_same( 'a bare fanning slug is one-hop chain wire → 0', 0, bws_limit_default( array( 'src' => 'refs' ) ) );
 assert_same( 'legacy `source` key is read too', 0, bws_limit_default( array( 'source' => 'refs,office' ) ) );
 

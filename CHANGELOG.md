@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **The source path step for repeater rows is now written `rows`, not `entries`.** A source path written by hand as `src(entries,my_repeater)` no longer resolves; write `src(rows,my_repeater)` instead. The step is offered by no editor control — a base tag and a try_ slot both offer reference and taxonomy steps only — so a saved tag can carry the old spelling only if it was typed in by hand, and nothing migrates it. The word was already doing other work in the editor, where a reference field's configuration note calls what such a field holds its entries.
+
 ## [1.18.0] — 2026-08-21
 
 ### Highlights

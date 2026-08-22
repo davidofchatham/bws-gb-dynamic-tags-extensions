@@ -445,7 +445,7 @@ assert_same(
 // an author writing a chain that renders nothing with no control saying why.
 assert_same(
 	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
-	array( 'refs', 'terms', 'entries' ),
+	array( 'refs', 'terms', 'rows' ),
 	array_keys( $fold['steps'] )
 );
 // `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the
@@ -641,7 +641,7 @@ assert_same(
 	$base_chain['src']['options'][0]['value'],
 	$base_fold['defaultRoot']
 );
-// The base tag OFFERS both steps (`entries` deliberately absent — no base-tag arm
+// The base tag OFFERS both steps (`rows` deliberately absent — no base-tag arm
 // consumes a meta_row), and the vocabulary record it ships is BYTE-IDENTICAL to the
 // slot builder's: container-invariant by construction, both consuming one helper (#70).
 assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
@@ -667,7 +667,7 @@ assert_same( 'limitOption: labelled for what it COUNTS — items read, not resul
 // wearing the generic label — which reads fine and is wrong.
 assert_same( 'refs: the limit names what the step PRODUCES', 'Limit Posts Read', $fold['steps']['refs']['limitLabel'] );
 assert_same( 'terms: likewise', 'Limit Terms Read', $fold['steps']['terms']['limitLabel'] );
-assert_same( 'entries: likewise, in the author\'s noun and not the engine\'s meta_row', 'Limit Repeater Rows Read', $fold['steps']['entries']['limitLabel'] );
+assert_same( 'rows: likewise, in the author\'s noun and not the engine\'s meta_row', 'Limit Repeater Rows Read', $fold['steps']['rows']['limitLabel'] );
 assert_same( 'limitOption: the placeholder names the unlimited VALUE', '0 (all)', $fold['limitOption']['placeholder'] );
 assert_same(
 	'limitOption: the plain help, for a step with nothing fanning above it',

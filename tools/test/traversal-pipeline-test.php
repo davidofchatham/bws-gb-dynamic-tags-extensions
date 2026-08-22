@@ -683,7 +683,7 @@ eq( 'V7 user base -> 0 (term gate)', 0, bws_base_ambient_term_id( user_src( 7 ),
 // term's analog on a tag whose source states a hop.
 eq( 'FW-63 chain terms hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'terms,category' ) ) );
 eq( 'FW-63 chain refs hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'refs,related' ) ) );
-eq( 'FW-63 chain entries hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'entries,rows' ) ) );
+eq( 'FW-63 chain rows hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'rows,rows' ) ) );
 // A REGISTRY-source root is root-only, so it still reaches the $base['kind'] test —
 // exactly as the old "src is not site/ref" test let it through.
 eq( 'FW-63 registry root still reaches the kind test', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'related_post' ) ) );
@@ -948,19 +948,19 @@ foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => use
 	eq(
 		"rows step accepts {$kname} input",
 		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
-		bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), $src, $rows_reader )
+		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
 	);
 }
 eq(
 	'rows step rejects unknown kind -> []',
 	array(),
-	bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
+	bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
 );
 
 // --- fold: rows then bare column read (meta_row reader arm) ------------------
 // rows fans a post to 3 meta_rows; the meta_row source then reads a scalar column.
 $rows_then = function ( $step, $source ) {
-	if ( 'entries' === $step['type'] ) {
+	if ( 'rows' === $step['type'] ) {
 		return array(
 			array( 'name' => 'Ann', 'role' => 'Lead' ),
 			array( 'name' => 'Bo',  'role' => 'Dev' ),
@@ -974,7 +974,7 @@ $rows_then = function ( $step, $source ) {
 	}
 	return '';
 };
-$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $rows_then );
+$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $rows_then );
 eq(
 	'rows fold: post -> 3 meta_rows',
 	array(
@@ -1011,7 +1011,7 @@ $empty_rows = function ( $step, $source ) { return array(); };
 eq(
 	'rows fold: empty repeater short-circuits',
 	array(),
-	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $empty_rows )
+	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $empty_rows )
 );
 
 // ── Registry delegation — OFFERING IS NOT RESOLVING (#83) ────────────────────

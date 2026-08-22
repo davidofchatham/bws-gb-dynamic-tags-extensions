@@ -92,7 +92,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * @since 1.17.0
  * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'inherit'` added with the
  *               ambient-fallback skips (#74).
- * @since 1.17.0 #104: `'chain'` retired with the flatten; `'step:entries'` named.
+ * @since 1.17.0 #104: `'chain'` retired with the flatten; `'step:rows'` named.
  * @since 1.17.0 #105: returns the bare detail; the slot letter belongs to the composer.
  * @param string $reason Skip reason from the seam. Default ''.
  * @return string Detail phrase, or '' when the reason is a silent one.
@@ -105,7 +105,7 @@ function bws_fold_skip_warning( string $reason = '' ): string {
 	$phrases = array(
 		'step:refs'    => 'no ref',
 		'step:terms'   => 'no taxonomy',
-		'step:entries' => 'no repeater field',
+		'step:rows' => 'no repeater field',
 		'inherit'      => 'no previous source',
 	);
 	return $phrases[ $reason ] ?? '';
@@ -750,7 +750,7 @@ function bws_preview_tax_label( string $tax ): string {
  * that switch would silently stop flagging on every slot.
  *
  * @param array $missing Out-param: slugs of fanning steps with no argument, as
- *                       `array( 'refs' => true, 'terms' => true, 'entries' => true )`.
+ *                       `array( 'refs' => true, 'terms' => true, 'rows' => true )`.
  * @param array $inert   Out-param: what makes this chain resolve to nothing, as at most one
  *                       of `retired`/`root`/`step` keyed to the offending token. Worded by
  *                       bws_preview_inert_warning(), never here.
@@ -843,11 +843,11 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 			} else {
 				$term_args[] = $arg;
 			}
-		} elseif ( 'entries' === $slug && '' === $arg ) {
+		} elseif ( 'rows' === $slug && '' === $arg ) {
 			// Reported but never NAMED: a repeater step has no author-facing segment yet
 			// (the arm that consumes one is FW-74). Unfinished is unfinished under any
 			// future arm, so the missing argument speaks now.
-			$missing['entries'] = true;
+			$missing['rows'] = true;
 		}
 	}
 
@@ -1240,7 +1240,7 @@ function bws_build_preview_label( array $options, string $template ): string {
 	if ( ! empty( $src_missing['terms'] ) ) {
 		$missing[] = 'taxonomy';
 	}
-	if ( ! empty( $src_missing['entries'] ) ) {
+	if ( ! empty( $src_missing['rows'] ) ) {
 		$missing[] = 'repeater field';
 	}
 	if ( 'text' === $base_template && '' === $key && 'title' !== $use ) {

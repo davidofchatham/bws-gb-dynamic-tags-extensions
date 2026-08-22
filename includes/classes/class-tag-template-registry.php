@@ -588,7 +588,7 @@ class TagTemplateRegistry {
 			// flatten stood — the triple had no spelling for a second relationship step,
 			// so a wider offer would have authored wire that skipped.
 			//
-			// `entries` is still absent, for the same reason it is absent from the base
+			// `rows` is still absent, for the same reason it is absent from the base
 			// offer: no `try_` arm assembles a repeater row (try-slot-arms.php refuses the
 			// `meta_row` kind), so offering it would author a chain that renders nothing.
 			//

@@ -16,7 +16,7 @@
  * so this half is PHP-only and a reader should not go looking for its mirror.
  *
  * Vocabulary is DECOUPLED on purpose (plan DECISION 3): the wire slug names the step
- * category and signals cardinality by number (`refs`/`terms`/`entries`, all plural),
+ * category and signals cardinality by number (`refs`/`terms`/`rows`, all plural),
  * while the engine `type` is an internal name that predates it (`ref`/`srcTermIn`/
  * `rows`). The map below is the only place the two meet.
  *
@@ -78,7 +78,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const BWS_FOLD_STEP_TYPES = array(
 	'refs'    => 'field',
 	'terms'   => 'slug',
-	'entries' => 'field',
+	'rows' => 'field',
 );
 
 /**
@@ -95,7 +95,7 @@ const BWS_FOLD_STEP_TYPES = array(
 const BWS_FOLD_STEP_KINDS = array(
 	'refs'    => 'post',
 	'terms'   => 'term',
-	'entries' => 'meta_row',
+	'rows' => 'meta_row',
 );
 
 /**
@@ -215,7 +215,7 @@ function bws_fold_chain_join( array $inherited, array $own ): array {
  *   'site'     the chain roots at the site store and never steps (`src:site`).
  *   'post'     the last step is `refs`.
  *   'term'     the last step is `terms`.
- *   'meta_row' the last step is `entries`.
+ *   'meta_row' the last step is `rows`.
  *   'render_time' root-only, rooted at the ambient entity or a registry source — the
  *              kind is whatever the FACTORY resolves at render (post on a singular
  *              page, term on a term archive, user on an author archive, meta_row in

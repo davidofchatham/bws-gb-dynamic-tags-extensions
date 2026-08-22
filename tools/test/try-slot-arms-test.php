@@ -323,9 +323,9 @@ foreach ( array(
 // The contrast row: a site root with a real step behind it is NOT a site read any
 // more — the chain moved on — and must not take the site branch.
 assert_same(
-	'A6.5 site root + entries step is not the site arm\'s',
+	'A6.5 site root + rows step is not the site arm\'s',
 	'meta_row',
-	bws_fold_src_resolution( array( 'src' => 'site;entries,rows' ) )['kind']
+	bws_fold_src_resolution( array( 'src' => 'site;rows,rows' ) )['kind']
 );
 
 // §A7 — the CLASS pin: no shipped code compares a serialized `src` to a literal.

@@ -141,7 +141,7 @@ Warnings replace the **entire** preview. Collect all missing required items; joi
 | `ref` + `tax` | `⚠ No ref key or taxonomy set` |
 | `tax` + `key` | `⚠ No taxonomy or meta key set` |
 | `ref` + `tax` + `key` | `⚠ No ref key, taxonomy, or meta key set` |
-| `entries` step with no repeater field | `⚠ No repeater field set` (1.17.0) |
+| `rows` step with no repeater field | `⚠ No repeater field set` (1.17.0) |
 
 ### Inert-chain warning (a source that cannot resolve)
 
@@ -177,7 +177,7 @@ is what the list is built to. Three things therefore **never** flag:
 - **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
   offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by
   mutation in the harness.)
-- **A well-formed source no arm consumes YET** — an `entries` step with its repeater field set,
+- **A well-formed source no arm consumes YET** — an `rows` step with its repeater field set,
   today. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on
   a fanning tag it would concatenate like any other step. Flagging it would encode a per-template
   fact with a shelf life. The arm is FW-74.
@@ -328,7 +328,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | Template mode, no `format` | `no format set` |
 | Slot with an INCOMPLETE `terms` step (no taxonomy) | `<L> no taxonomy` (1.17.0) |
 | Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `<L> no ref` (1.17.0) |
-| Slot with an INCOMPLETE `entries` step (no repeater field) | `<L> no repeater field` (1.17.0) |
+| Slot with an INCOMPLETE `rows` step (no repeater field) | `<L> no repeater field` (1.17.0) |
 | Slot whose source is `same` with no earlier slot resolved | `<L> no previous source` (1.17.0) |
 
 ### Slots are named by LETTER, and details collapse when slots disagree
@@ -365,7 +365,7 @@ grammars.
 
 **`slot N source not supported` was RETIRED in 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)),
 and it is worth knowing why rather than merely that. It flagged a slot whose source chain had no
-flat spelling — a SECOND step on one axis (`src(refs,a;refs,b)`), or a repeater `entries` step —
+flat spelling — a SECOND step on one axis (`src(refs,a;refs,b)`), or a repeater `rows` step —
 because the render seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple and refused
 what it could not hold. The seam hands the whole chain on now, so such a slot RESOLVES and its
 source is named the way any other slot's is, one segment per step. The wording is gone from the

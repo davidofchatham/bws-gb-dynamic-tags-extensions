@@ -99,7 +99,7 @@ function bws_registered_root_rows(): array {
 /**
  * A field picker's editor-facing config, trimmed to what it actually declares.
  *
- * Both chain-config builders ship pickers (`refOption`, `keyOption`, `entriesOption`)
+ * Both chain-config builders ship pickers (`refOption`, `keyOption`, `rowsOption`)
  * derived from the shipped option definitions rather than re-typed, and both want the
  * same subset with the empty entries dropped — an empty `placeholder` reaching JS as
  * `''` is falsy and harmless, but an empty `label` renders a blank label strip above
@@ -184,7 +184,7 @@ function bws_fold_wire_vocabulary(): array {
 	$labels = array(
 		'refs'    => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
 		'terms'   => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
-		'entries' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		'rows' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();
@@ -289,7 +289,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms'] — `entries` is deliberately
+ *                             Default ['refs','terms'] — `rows` is deliberately
  *                             absent: the step type exists and runs, but no base-tag
  *                             arm consumes a meta_row, so offering it would author a
  *                             chain that renders nothing. It belongs with the table
@@ -634,7 +634,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     exactly the containers whose resolver honors it.
  *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
  *     list, not decoration: a step no arm consumes authors a chain that renders nothing
- *     (which is why `entries` is on no offer). It was also once the CONTAINER's ceiling —
+ *     (which is why `rows` is on no offer). It was also once the CONTAINER's ceiling —
  *     the retired flatten re-spelled a slot as one relationship step plus one term step —
  *     and since #104 the seam hands the whole chain on, so a slot offers what a base tag
  *     offers ([I16]).
@@ -798,8 +798,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
 	}
-	if ( ! empty( $args['entries_option'] ) ) {
-		$fold['entriesOption'] = bws_fold_picker_config( (array) $args['entries_option'] );
+	if ( ! empty( $args['rows_option'] ) ) {
+		$fold['rowsOption'] = bws_fold_picker_config( (array) $args['rows_option'] );
 	}
 	if ( ! empty( $args['field_scope'] ) ) {
 		$fold['fieldScope'] = (string) $args['field_scope'];
