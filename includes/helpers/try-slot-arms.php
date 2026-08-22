@@ -127,7 +127,7 @@ const BWS_TRY_SLOT_ARMS = array(
 	// CHAIN kind (a slot's own `rows` step, refused HERE) it is a repeater-row SOURCE;
 	// as a RESOLVED BASE kind (bws_try_slot_base_branch_kind()'s `$base_kind`, the flat
 	// repeater ROW a query-loop hands the callback) it is not a source at all and must
-	// reach the post arm below, or mode 2b's loop fallthrough disappears.
+	// reach the post arm below, or the repeater row's loop fallthrough disappears.
 	'meta_row' => array(
 		'ids'        => '',
 		'fn'         => '',
@@ -175,7 +175,7 @@ function bws_try_slot_arm( string $kind ): ?array {
  *
  * ANYTHING NOT BRANCHABLE FALLS TO THE POST ARM, which is not a guess: it is what ships.
  * A `meta_row` base is the flat-repeater-row case, where the post arm resolves no id and
- * the loop fallthrough (mode 2b) hands the row to the core function directly. Refusing it
+ * the loop fallthrough hands a repeater row to the core function directly. Refusing it
  * here would delete that path.
  *
  * THE ONE EXCEPTION IS THE REFUSAL KIND (BWS_SOURCE_KIND_UNRESOLVED, GH #75 / #76), and

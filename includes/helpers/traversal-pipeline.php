@@ -526,7 +526,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
 	}
 
-	// 2b. Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+	// 2b. A repeater row (in a loop, no post behind it) → meta_row.
 	if ( ! empty( $loop['in_loop'] ) && is_array( $loop['loop_item'] ?? null ) ) {
 		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
 	}

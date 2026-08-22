@@ -166,6 +166,11 @@ function bws_extract_post_id( $post_data ) {
  * Inspects $instance->context for GB Pro post_meta loop data and classifies the
  * row into one of three states.
  *
+ * TWO SHAPES: the query loop's item is a POST, or it is a REPEATER ROW. A post can
+ * arrive three ways — a WP_Post, a bare id, or (under a post_meta query type) an
+ * array carrying an explicit ID. All three resolve to row_post_id; an array without
+ * one is a repeater row.
+ *
  * THE ITEM SHAPES ARE AN ASSUMPTION, NOT A CHECK (#123). array | WP_Post | numeric
  * covers everything GB itself loops over, and anything else reports NOT IN A LOOP
  * rather than "in a loop I cannot resolve" - so a caller falls through to the ambient
@@ -177,7 +182,7 @@ function bws_extract_post_id( $post_data ) {
  * Returned shape:
  *   [
  *     'loop_item'   => mixed   // raw row (WP_Post|array|int|null when not in a loop)
- *     'row_post_id' => int|false // resolved post ID for Mode 2a; false for Mode 2b/none
+ *     'row_post_id' => int|false // the post, when the item is one; false otherwise
  *     'in_loop'     => bool    // true when GB Pro loop row context detected
  *   ]
  *
@@ -212,8 +217,8 @@ function bws_get_loop_row_context( $instance ): array {
 		// Non-array rows (WP_Post / numeric) carry post identity directly under any
 		// queryType — covers standard 'WP_Query' post loops and post-meta relationship
 		// loops that GB Pro materializes into WP_Post instances. Array rows resolve only
-		// under 'post_meta' AND with an explicit 'ID' key, so flat repeater rows
-		// (Mode 2b) don't accidentally extract a post id via list-of-posts fallback.
+		// under 'post_meta' AND with an explicit 'ID' key, so a repeater row does
+		// not accidentally extract a post id via the list-of-posts fallback.
 		$query_type = $instance->context['generateblocks/queryType'] ?? '';
 		$candidate  = 0;
 		if ( ! is_array( $raw_item ) ) {
@@ -241,8 +246,8 @@ function bws_get_loop_row_context( $instance ): array {
  *
  * Branching order:
  *  1. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
- *  2. Mode 2a (loop row resolves to post, no explicit id) → read post meta on row post
- *  3. Mode 2b (flat repeater row, no explicit id)         → read $loop_item[$key] directly
+ *  2. The query loop's post (no explicit id)          → read post meta on it
+ *  3. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
  *  4. Term archive (non-REST, no explicit id)             → read term meta on queried term
  *  5. null
  *
@@ -268,7 +273,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		return null;
 	}
 
-	// Mode 2 subtype detection.
+	// Which shape did the query loop hand us?
 	// Explicit $post_id (e.g. resolved via src:relationship step) always wins — caller has already
 	// done entity resolution and the row entity is irrelevant to that target.
 	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
@@ -276,11 +281,11 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 
 	$loop = bws_get_loop_row_context( $instance );
 	if ( $loop['in_loop'] && ! $has_explicit_post_id ) {
-		// Mode 2a — row resolves to a post entity.
+		// A post — read its meta.
 		if ( $loop['row_post_id'] ) {
 			return bws_meta_handler_read( (int) $loop['row_post_id'], $key, $single_only, 'get_post_meta' );
 		}
-		// Mode 2b — flat repeater row; read directly from row data.
+		// A repeater row — no entity behind it; read the row directly.
 		if ( is_array( $loop['loop_item'] ) ) {
 			return $loop['loop_item'][ $key ] ?? null;
 		}
@@ -856,8 +861,8 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
  *
  * Some ACF-aware code paths (notably datetime return_format detection in
  * bws_parse_combined_date_time()) need an object id to fetch field metadata even
- * when the caller has no resolved row entity — e.g. flat ACF repeater rows
- * (Mode 2b) under GB Pro's TYPE_OPTION or TYPE_POST_META query loops. This
+ * when the caller has no resolved row entity — e.g. a repeater row under
+ * GB Pro's TYPE_OPTION or TYPE_POST_META query loops. This
  * helper consolidates the resolution rules:
  *
  *  1. Explicit caller-resolved $post_id wins (int > 0, numeric string > 0,

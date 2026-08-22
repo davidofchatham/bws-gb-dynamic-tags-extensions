@@ -218,11 +218,11 @@ assert_same( 'A4.2 an author archive branches to the user arm', 'user', bws_try_
 assert_same( 'A4.3 a singular page branches to the post arm', 'post', bws_try_slot_base_branch_kind( 'post' ) );
 
 // A flat repeater row resolves a meta_row base and MUST reach the post arm — that is
-// where mode 2b's loop fallthrough lives, and refusing here would delete it. This is the
+// where the repeater row's loop fallthrough lives, and refusing here would delete it. This is the
 // one place `meta_row` is not a refusal, and the two cases are genuinely different: the
 // CHAIN kind meta_row means the wire asked for repeater rows, while a meta_row BASE means
 // the ambient context happens to be one.
-assert_same( 'A4.4 a flat repeater row branches to the post arm (mode 2b survives)', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
+assert_same( 'A4.4 a repeater row branches to the post arm (the loop fallthrough survives)', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
 
 // `site` is a real kind but not a branch target: a site base cannot arrive from a
 // root-only chain that resolved to `render_time` in the first place.

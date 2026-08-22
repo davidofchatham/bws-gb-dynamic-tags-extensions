@@ -457,7 +457,7 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
 | `bws_read_field( $post_id, $key )` | Canonical post-meta/ACF read (routes through `GenerateBlocks_Meta_Handler`) |
 | `bws_read_term_field( $term_id, $key )` | Canonical term-meta/ACF read |
-| `bws_get_loop_row_context()` | Detect GB list-block loop row (Mode 2a post, Mode 2b flat repeater) |
+| `bws_get_loop_row_context()` | Detect a GB query-loop item and its shape (a post, or a repeater row) |
 
 ### Preview helpers (`includes/helpers/preview-helpers.php`)
 

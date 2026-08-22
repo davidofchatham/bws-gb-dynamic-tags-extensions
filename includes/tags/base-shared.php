@@ -1036,9 +1036,9 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
  * post, SPEC §V1/§V7) + a REF-ONLY step assembly (bws_wrapper_ref_steps, SPEC
  * §V13) run through bws_run_traversal, then collapses to the FIRST post id
  * (bws_first_post_id_from_sources, SPEC §V4). A non-post base — term ambient on an
- * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
+ * archive (V7) or a meta_row (src:current on a repeater row) — yields
  * false, never leaks a term/row id as a post id. That is byte-compatible with the
- * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
+ * old wrapper for src:current (a repeater row → false, unchanged); for src:ref it applies
  * the V11 leak-fix (base the relationship step on the ambient term, not on get_the_ID()).
  *
  * REF-ONLY (SPEC §V13): the wrapper NEVER assembles a `srcTermIn` step. srcTermIn
@@ -1171,7 +1171,7 @@ function bws_base_src_resolution( array $options ): array {
  *
  * THAT LAST FACT IS WHY THE TEST RUNS AFTER THE FACTORY, not before it. The cores'
  * falsy-id guard looks like it already refuses and does not: the loop-row read beneath
- * it is load-bearing for the flat-repeater path (mode 2b), where an ABSENT source
+ * it is load-bearing for the repeater-row path, where an ABSENT source
  * legitimately means the row. Absence and refusal have to part company above the core,
  * because the core cannot tell them apart.
  *
@@ -1362,7 +1362,7 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
  * returning its read even conceptually-empty (the wrapper renders '' then). It does
  * NOT search past an empty field — selection is field-independent (the 2026-08-21
  * reversal; ADR 0007 §Why the read-based axis was reversed). An EMPTY post-kind fan
- * keeps the single falsy-id read — the cores' own loop-row semantics (mode 2b) must
+ * keeps the single falsy-id read — the cores' own repeater-row semantics must
  * not move — so the reader always runs at least once, exactly as the pre-extraction
  * callbacks did.
  *

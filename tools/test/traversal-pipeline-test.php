@@ -438,7 +438,7 @@ eq(
 	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
 );
 
-// Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+// A repeater row (in a loop, no post behind it) → meta_row.
 eq(
 	'flat repeater row -> meta_row',
 	array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ),
@@ -611,7 +611,7 @@ eq( 'V4 plural collapses to first', 21, bws_first_post_id_from_sources( array( p
 // Term ambient base (archive) → false, NOT the term id (post-only callers).
 eq( 'V4 term base -> false', false, bws_first_post_id_from_sources( array( term_src( 34 ) ) ) );
 
-// Mode 2b meta_row base (src:current on a flat row) → false (matches old wrapper).
+// meta_row base (src:current on a repeater row) → false (matches old wrapper).
 eq( 'V4 meta_row base -> false', false, bws_first_post_id_from_sources( array( array( 'kind' => 'meta_row', 'row' => array( 'x' => 1 ) ) ) ) );
 
 // site base → false.
@@ -1216,12 +1216,12 @@ eq(
 //
 // That is why the refusal is caught ABOVE the core, by bws_base_read_refused(), and why
 // absence and refusal have to part company there: the loop-row read beneath that guard is
-// load-bearing for the flat-repeater path (mode 2b), where an absent source legitimately
+// load-bearing for the repeater-row path, where an absent source legitimately
 // DOES mean the row. The core cannot tell the two apart, so it must not be asked to.
 eq(
 	'the arms refuse a factory refusal BEFORE any core sees it',
 	true,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), $refusal )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), $refusal )
 );
 eq(
 	'…and refuse an unknown chain step the same way, for the same reason',
@@ -1231,14 +1231,14 @@ eq(
 eq(
 	'…while a resolvable source on a resolvable chain is NOT refused',
 	false,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'post', 'id' => 7 ) )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'post', 'id' => 7 ) )
 );
-// Mode 2b, the path the guard must not delete: an absent source in a flat repeater row
+// The path the guard must not delete: an absent source in a repeater row
 // resolves a meta_row, and that is a legitimate read rather than a refusal.
 eq(
 	'…and a flat repeater row is a READ, not a refusal',
 	false,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
 // ── report ───────────────────────────────────────────────────────────────────

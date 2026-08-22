@@ -956,7 +956,7 @@ class TagTemplateRegistry {
 							$ids = bws_base_post_ids_from_source( $base, $slot_opts, $collapse );
 					}
 
-					// Mode 2b — the flat repeater row. It has NO kind: the factory resolves
+					// A repeater row from the query loop. It has NO kind: the factory resolves
 					// a meta_row, no post id comes out of it, and the core fn still reads
 					// the value off $loop_item[$key]. Survives as a post-arm special case,
 					// gated exactly as before.

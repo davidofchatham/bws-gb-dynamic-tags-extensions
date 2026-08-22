@@ -339,6 +339,10 @@ loop over TERMS, and such an item reads as no loop at all
 ([#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123)). Where loops nest, the innermost item is the one that counts. "Query loop"
 itself is the output shape defined in [`tag-reference.md`](docs/tag-reference.md) §Output shape.
 
+Say **query-loop item** where the umbrella is the subject — defining it, or mapping iterations to what
+they hold. Once the loop is the subject, name the shape alone: *a post*, *a repeater row*. Never "post
+item" or "repeater-row item".
+
 _Avoid_: "mode 2a" / "mode 2b" (retired 2026-08-22 — coined in a 2026-05 plan whose Mode 1 stopped
 existing days later, and defined in no committed file); "row" for the post shape, which is not
 row-shaped; "loop row" for either.
