@@ -147,8 +147,8 @@ function bws_fold_picker_config( array $def ): array {
  *                           Display only — a stored step is always shown in its own
  *                           picker; an absent list means "offer it", never "refuse it".
  *                produces — the kind the step's output carries (BWS_FOLD_STEP_KINDS).
- *   roots      root token → static resolved kind (BWS_FOLD_STATIC_ROOT_KINDS). A fact
- *              about roots, not steps — only `site` is static; every other root is the
+ *   roots      root token → parse-time resolved kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS). A fact
+ *              about roots, not steps — only `site` has a parse-time kind; every other root is the
  *              factory's to resolve at render, so the editor filters nothing off it.
  *   retiredSrc the retired source tokens the mount migrator must DECLINE rather than
  *              fold (#56), read from the same constant the converter's guard reads.
@@ -208,7 +208,7 @@ function bws_fold_wire_vocabulary(): array {
 
 	return array(
 		'steps'       => $steps,
-		'roots'       => defined( 'BWS_FOLD_STATIC_ROOT_KINDS' ) ? BWS_FOLD_STATIC_ROOT_KINDS : array(),
+		'roots'       => defined( 'BWS_FOLD_PARSE_TIME_ROOT_KINDS' ) ? BWS_FOLD_PARSE_TIME_ROOT_KINDS : array(),
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// LABELLED FOR WHAT IT BOUNDS, not for what it divides by (#95). The draft label
 		// "Limit per source" sat three rows under a control labelled `Source` meaning
@@ -1419,9 +1419,9 @@ function bws_base_ambient_term_id( array $base, array $options ): int {
 	// branch that owns its own render — 'term' is the explicit post→term step (which
 	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
 	// term→post (§V11) so the post path must not be short-circuited to the term's
-	// own analog. A registry-source root still reads 'base' and still reaches the
+	// own analog. A registry-source root still reads 'render_time' and still reaches the
 	// $base['kind'] test below, exactly as the old src test let it.
-	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return 0;
 	}
 	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
@@ -1512,7 +1512,7 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  */
 function bws_base_ambient_user_id( array $base, array $options ): int {
 	// Same one-test gate as the term twin (FW-63) — see bws_base_ambient_term_id().
-	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return 0;
 	}
 	if ( 'user' !== ( $base['kind'] ?? '' ) ) {

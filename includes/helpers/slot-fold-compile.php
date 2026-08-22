@@ -102,8 +102,8 @@ const BWS_FOLD_STEP_KINDS = array(
  * Root token → the resolved-source KIND it carries, for the roots where that is STATIC.
  *
  * Only `site` is. Every other root — `current`, a registry source name — is the source
- * FACTORY's to resolve at render, and comes back `base` (see bws_fold_chain_resolution's
- * `kind` list), so static analysis cannot say more than "ask the factory".
+ * FACTORY's to resolve at render, and comes back `render_time` (see bws_fold_chain_resolution's
+ * `kind` list), so the wire cannot say more than "ask the factory".
  *
  * A map rather than the inline ternary it replaces, because there are TWO readers and
  * they read it in opposite directions: bws_fold_chain_resolution() answers what a
@@ -114,7 +114,7 @@ const BWS_FOLD_STEP_KINDS = array(
  *
  * @since 1.17.0
  */
-const BWS_FOLD_STATIC_ROOT_KINDS = array(
+const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 	'site' => 'site',
 );
 
@@ -216,14 +216,14 @@ function bws_fold_chain_join( array $inherited, array $own ): array {
  *   'post'     the last step is `refs`.
  *   'term'     the last step is `terms`.
  *   'meta_row' the last step is `entries`.
- *   'base'     root-only, rooted at the ambient entity or a registry source — the
+ *   'render_time' root-only, rooted at the ambient entity or a registry source — the
  *              kind is whatever the FACTORY resolves at render (post on a singular
  *              page, term on a term archive, user on an author archive, meta_row in
  *              a flat repeater row). Static analysis cannot say which, and an arm
  *              that needs to know branches on `$base['kind']` as it always has.
  *   ''         the last step is unknown vocabulary. The engine answers empty for an
  *              unknown type, so the chain short-circuits; the kind is honestly
- *              unknown rather than guessed back to the root. DISTINCT FROM `base`,
+ *              unknown rather than guessed back to the root. DISTINCT FROM `render_time`,
  *              which is the honest answer for a chain with no steps at all — an arm
  *              that treats the two alike reads the chain's prefix instead of nothing
  *              (GH #109; bws_fold_chain_join() below is the posture to copy).
@@ -263,7 +263,7 @@ function bws_fold_chain_resolution( array $chain ): array {
 	if ( ! $fans ) {
 		return array(
 			'root' => $root,
-			'kind' => BWS_FOLD_STATIC_ROOT_KINDS[ $root ] ?? 'base',
+			'kind' => BWS_FOLD_PARSE_TIME_ROOT_KINDS[ $root ] ?? 'render_time',
 			'fans' => false,
 		);
 	}

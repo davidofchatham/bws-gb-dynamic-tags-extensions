@@ -49,7 +49,7 @@ define( 'ABSPATH', __DIR__ );
 
 require __DIR__ . '/../../includes/helpers/try-slot-arms.php';
 // The compiler is loaded for its VOCABULARY, not for its behaviour: BWS_FOLD_STEP_KINDS
-// and BWS_FOLD_STATIC_ROOT_KINDS are what the table has to stay total over. Restating
+// and BWS_FOLD_PARSE_TIME_ROOT_KINDS are what the table has to stay total over. Restating
 // those kinds here would be the second literal that lets the two drift apart in exactly
 // the direction nothing would notice — a new step kind with no arm renders empty.
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
@@ -86,20 +86,20 @@ echo "\n§A1 — every kind the compiler can answer has a decision\n";
 
 $arms = bws_try_slot_arms();
 
-// bws_fold_chain_resolution() answers exactly: a step kind, a static root kind, 'base'
-// (root-only, non-static root), or '' (unknown step slug). Build that set from the
+// bws_fold_chain_resolution() answers exactly: a step kind, a parse-time root kind, 'render_time'
+// (root-only, no parse-time root kind), or '' (unknown step slug). Build that set from the
 // compiler's own constants.
 $compiler_kinds = array_values( BWS_FOLD_STEP_KINDS );
-foreach ( BWS_FOLD_STATIC_ROOT_KINDS as $static_kind ) {
-	$compiler_kinds[] = $static_kind;
+foreach ( BWS_FOLD_PARSE_TIME_ROOT_KINDS as $parse_time_kind ) {
+	$compiler_kinds[] = $parse_time_kind;
 }
-$compiler_kinds[] = 'base';
+$compiler_kinds[] = 'render_time';
 $compiler_kinds   = array_values( array_unique( $compiler_kinds ) );
 sort( $compiler_kinds );
 
 assert_same(
 	'A1.1 the compiler\'s answerable kinds are the ones this suite reasons about',
-	array( 'base', 'meta_row', 'post', 'site', 'term' ),
+	array( 'meta_row', 'post', 'render_time', 'site', 'term' ),
 	$compiler_kinds
 );
 
@@ -108,7 +108,7 @@ foreach ( $compiler_kinds as $kind ) {
 }
 
 // The table carries ONE key the compiler never answers: `user`. That is deliberate — it
-// is a BRANCH target, reachable only once the factory has resolved a `base` root, and it
+// is a BRANCH target, reachable only once the factory has resolved a `render_time` root, and it
 // ships wired (#108). Any OTHER extra key would be a row nothing can reach.
 assert_same(
 	'A1.3 the only non-compiler key is the base-branch target `user`',
@@ -139,7 +139,7 @@ $expected_rows = array(
 	'term'     => array( 'term', 'term', 'term', true, true ),
 	'site'     => array( 'none', 'site', 'site', true, false ),
 	'post'     => array( 'post', 'core', 'post', true, true ),
-	'base'     => array( 'branch', 'branch', 'branch', true, false ),
+	'render_time' => array( 'branch', 'branch', 'branch', true, false ),
 	'user'     => array( 'user', 'user', 'user', false, true ),
 	'meta_row' => array( '', '', '', false, false ),
 );
@@ -225,9 +225,9 @@ assert_same( 'A4.3 a singular page branches to the post arm', 'post', bws_try_sl
 assert_same( 'A4.4 a flat repeater row branches to the post arm (mode 2b survives)', 'post', bws_try_slot_base_branch_kind( 'meta_row' ) );
 
 // `site` is a real kind but not a branch target: a site base cannot arrive from a
-// root-only chain that resolved to `base` in the first place.
+// root-only chain that resolved to `render_time` in the first place.
 assert_same( 'A4.5 a non-branchable kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( 'site' ) );
-assert_same( 'A4.6 `base` never branches to itself', 'post', bws_try_slot_base_branch_kind( 'base' ) );
+assert_same( 'A4.6 `render_time` never branches to itself', 'post', bws_try_slot_base_branch_kind( 'base' ) );
 assert_same( 'A4.7 an empty base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( '' ) );
 assert_same( 'A4.8 an unknown base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( 'wormhole' ) );
 
@@ -258,7 +258,7 @@ assert_same(
 // instruction. The refusal arm of this is not decoration — the caller dereferences the
 // re-looked-up arm, so a branch that refuses without the caller re-checking trades a
 // wrong value for a fatal.
-foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'base', '', 'wormhole', BWS_SOURCE_KIND_UNRESOLVED ) as $probe ) {
+foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'render_time', '', 'wormhole', BWS_SOURCE_KIND_UNRESOLVED ) as $probe ) {
 	$landed = bws_try_slot_base_branch_kind( $probe );
 	if ( null === $landed ) {
 		assert_same( "A4.9 branch of '{$probe}' refuses", BWS_SOURCE_KIND_UNRESOLVED, $probe );

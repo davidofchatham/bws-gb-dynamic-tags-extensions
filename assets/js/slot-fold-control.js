@@ -123,7 +123,7 @@
 			// The per-container OFFER: an ordered slug list, the only per-container
 			// step fact. Labels come off `steps`, never typed beside the offer.
 			offer: c.offer || [],
-			// Root token → static resolved kind (only `site` is static).
+			// Root token → parse-time resolved kind (only `site` has one).
 			roots: c.roots || {},
 			// The per-step limit control's whole vocabulary — label, placeholder and
 			// BOTH help forms (#95). Container-invariant, because a step's `limit[N]`
@@ -532,7 +532,7 @@
 	 * sibling `src` token; under the fold the source is a CHAIN, so the preset derives
 	 * from the chain's TERMINAL step — the step whose output the read applies to.
 	 * That is FW-56's stated editor-UX floor (the terminal step's output kind must be
-	 * statically computable from the wire), exercised here for real.
+	 * computable from the wire at parse time), exercised here for real.
 	 *
 	 * `refs` is deliberately NOT preset: the step target's post type is not reliably
 	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving

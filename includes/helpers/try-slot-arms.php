@@ -38,7 +38,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Resolved source kind → how a `try_` slot resolves, renders, wraps and lists.
  *
  * Keys are bws_fold_chain_resolution()'s `kind` vocabulary, verbatim — plus the two
- * kinds a `base` root can BRANCH to at render (see `branchable`). A kind with no row
+ * kinds a `render_time` root can BRANCH to at render (see `branchable`). A kind with no row
  * here is SKIPPED, never guessed at: the `''` kind means the chain's last step is
  * unknown vocabulary, the engine answers empty for it, and picking the nearest
  * consumable arm would read a different source than the wire states.
@@ -59,8 +59,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   `link`       The entity type bws_wrap_with_link() is handed for a SINGLE-result
  *                output. '' → this arm never link-wraps.
  *   `list`       Whether the slot's limit slice + `sep` join seam applies.
- *   `branchable` Whether a root-only (`base`) chain may land on this arm once the factory
- *                has resolved. `base` itself is not branchable — that would loop.
+ *   `branchable` Whether a root-only (`render_time`) chain may land on this arm once the factory
+ *                has resolved. `render_time` itself is not branchable — that would loop.
  *
  * WHERE THIS TABLE DIFFERS FROM THE TICKET'S SKETCH (#103), and why: the sketch marks
  * `site` list handling "n/a". The shipped site arm does normalize, slice and join exactly
@@ -100,7 +100,7 @@ const BWS_TRY_SLOT_ARMS = array(
 	),
 	// Root-only: the factory decides at render. Resolve it ONCE, then branch on the
 	// resolved source's own kind through bws_try_slot_base_branch_kind().
-	'base'     => array(
+	'render_time' => array(
 		'ids'        => 'branch',
 		'fn'         => 'branch',
 		'link'       => 'branch',
@@ -169,7 +169,7 @@ function bws_try_slot_arm( string $kind ): ?array {
 /**
  * Which arm a ROOT-ONLY chain lands on, once the factory has resolved its base source.
  *
- * The `base` kind means "static analysis cannot say" — the factory answers `post` on a
+ * The `render_time` kind means the WIRE cannot say — the factory answers `post` on a
  * singular page, `term` on a term archive, `user` on an author archive, `meta_row` in a
  * flat repeater row. This maps that answer onto an arm.
  *
@@ -191,7 +191,7 @@ function bws_try_slot_arm( string $kind ): ?array {
  * consumes, which they did not before.
  *
  * This reproduces bws_base_ambient_term_id() / bws_base_ambient_user_id() rather than
- * competing with them: both gate on the chain resolving to `base` (established before this
+ * competing with them: both gate on the chain resolving to `render_time` (established before this
  * is called) and then on the base source's own kind, which is what this tests. Kept pure
  * and separate so the branch is assertable without a WordPress query.
  *

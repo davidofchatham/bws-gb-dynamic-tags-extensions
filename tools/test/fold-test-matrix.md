@@ -480,7 +480,7 @@ rather than an empty one, so a single green row proves very little.
 |---|---|---|
 | F9b.6 | `{{try_text src:ref\|ref:related_staff\|use:title}}` | `Jane Partner` — the compatibility floor. Flat, unbounded wire still bounds at 1 |
 | F9b.7 | `{{try_phone src:site\|key:org_phone}}` | the site number, `tel:`-wrapped — the site arm's SECOND leg (no `try_site_fn` on phone; `try_core_fn( 0, … )` serves it and takes no link identity of its own) |
-| F9b.8 | `{{try_title}}` on `/department/sales/` | `Sales` — the ambient-term arm, which is now a BRANCH off the root-only `base` kind rather than a `'current' === $last_src` test |
+| F9b.8 | `{{try_title}}` on `/department/sales/` | `Sales` — the ambient-term arm, which is now a BRANCH off the root-only `render_time` kind rather than a `'current' === $last_src` test |
 | F9b.9 | `{{try_title linkTo:post}}` on `/staff/jane-partner/` | the linked title — per-arm link-wrap entity survived the merge into one emit |
 | F9b.10 | `{{try_text srcTermIn:department\|use:title\|linkTo:term}}` | the linked term title — the same, on the arm with a different entity type |
 | F9b.11 | `{{try_text A:src(entries,team_members);use(key);key(name)\|B:key(role)}}` | `Captain` — a repeater-row source is still refused, and slot 2 still runs |
@@ -493,9 +493,9 @@ rather than an empty one, so a single green row proves very little.
 opposite answers, which is the whole content of this section:
 
 - **Off the WIRE** — `src(entries,…)`, so `bws_fold_chain_resolution()` answers `meta_row`
-  statically, before anything renders. The author asked for repeater rows, and no `try_` arm
+  at parse time, before anything renders. The author asked for repeater rows, and no `try_` arm
   assembles those. **Refuse**; `{{table}}` owns that.
-- **Off the AMBIENT CONTEXT** — the wire is silent (`src:current`), the chain kind is `base`, and
+- **Off the AMBIENT CONTEXT** — the wire is silent (`src:current`), the chain kind is `render_time`, and
   the factory comes back with a `meta_row` because the tag is standing inside a GB Pro repeater
   loop. The author asked for *here*. **Continue to the post arm**, which resolves no id, at which
   point the loop fallthrough hands the row to the core fn, which reads `$loop_item[$key]`.

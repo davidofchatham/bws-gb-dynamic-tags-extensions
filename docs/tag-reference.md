@@ -81,8 +81,8 @@ deliberately not the same rule.
   derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
-- **Registered roots declare no static kind.** `BWS_FOLD_STATIC_ROOT_KINDS` stays as it is (only
-  `site` is static); a chain rooted at a registered source resolves to the kind the factory
+- **Registered roots declare no parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` stays as it is (only
+  `site` has one); a chain rooted at a registered source resolves to the kind the factory
   determines at render, and the editor's step-offer filter stays permissive there.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
   step slug (`refs`/`terms`/`entries`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the

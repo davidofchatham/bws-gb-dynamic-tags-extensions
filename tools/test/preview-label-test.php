@@ -979,7 +979,7 @@ check(
 // nothing, and base tags never had one at all. Four conditions, all decidable from the
 // WIRE with no per-template knowledge — an unknown step slug, an unregistered root, a
 // retired token, and an argless `entries` step. What is NOT here is as load-bearing: an
-// ambient root (statically unknowable), an unoffered root (offering ≠ resolving), and a
+// ambient root (not knowable at parse time), an unoffered root (offering ≠ resolving), and a
 // well-formed source no arm consumes YET (unimplemented ≠ inert — that is FW-74).
 //
 // MUTATIONS pinned here, each confirmed failing when this landed:

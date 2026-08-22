@@ -738,7 +738,7 @@ function bws_preview_tax_label( string $tax ): string {
  *   - an unknown STEP slug, at any position (BWS_FOLD_STEP_TYPES owns that definition)
  *   - an unregistered ROOT token
  *   - a RETIRED source token (BWS_FOLD_RETIRED_SRC_TOKENS), which has a NAMED REPAIR
- * An AMBIENT root never flags: what the ambient entity is on a given request is statically
+ * An AMBIENT root never flags: what the ambient entity is on a given request is not knowable at parse time,
  * unknowable ([I9]), so guessing would cry wolf on every ordinary tag. A registered but
  * UNOFFERED root never flags either — offering is not resolving, and a source an integrator
  * stopped offering still renders (gating this on `is_selectable_root()` is the named trap).

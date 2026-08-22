@@ -172,7 +172,7 @@ key says.
 **All three are decidable from the WIRE alone, with no per-template knowledge**, and that bound
 is what the list is built to. Three things therefore **never** flag:
 
-- **An ambient root.** What the ambient entity is on a given request is statically unknowable, so
+- **An ambient root.** What the ambient entity is on a given request is not knowable at parse time, so
   guessing would cry wolf on every ordinary tag.
 - **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
   offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by

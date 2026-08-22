@@ -624,12 +624,12 @@ $res = static function ( array $options ): string {
 
 // Root-only chains. The case the previous framing could not express: a chain with
 // NO steps still has a kind.
-assert_same( 'bare tag → base kind, no fan', 'base/one/', $res( array() ) );
-assert_same( 'src:current → base kind (root token kept)', 'base/one/current', $res( array( 'src' => 'current' ) ) );
+assert_same( 'bare tag → render_time kind, no fan', 'render_time/one/', $res( array() ) );
+assert_same( 'src:current → render_time kind (root token kept)', 'render_time/one/current', $res( array( 'src' => 'current' ) ) );
 assert_same( 'src:site → site kind, no fan', 'site/one/site', $res( array( 'src' => 'site' ) ) );
 assert_same(
-	'a registry source root reads as base — the factory decides its kind',
-	'base/one/related_post',
+	'a registry source root reads as render_time — the factory decides its kind',
+	'render_time/one/related_post',
 	$res( array( 'src' => 'related_post' ) )
 );
 

@@ -1103,8 +1103,8 @@ eq(
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
 
 // A root is the chain's FIRST segment, so a rooted chain reaches the same delegation and
-// its steps stay the engine's. This is what "registered roots declare no static kind"
-// buys: the factory answers at render, and the compiler's static map is untouched.
+// its steps stay the engine's. This is what "registered roots declare no parse-time kind"
+// buys: the factory answers at render, and the compiler's parse-time map is untouched.
 eq(
 	'registry: a rooted CHAIN delegates on its root token',
 	array( 'kind' => 'post', 'id' => 4242 ),

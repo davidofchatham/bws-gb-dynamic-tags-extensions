@@ -417,7 +417,7 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it: one record per WIRE
 	// slug — label declared once, `arg` from the compiler seam, `accepts` from the
 	// engine's own refusal list, `produces` the step's output kind — plus the per-
-	// container ordered OFFER and the static root kinds (only `site` is static).
+	// container ordered OFFER and the parse-time root kinds (only `site` has one).
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
@@ -612,7 +612,7 @@ const siteTermsOnly = rep.chainSteps( {
 } );
 check( 'Add step is withheld when every registered step is refused', hasAddStep( siteTermsOnly ), false );
 
-// An ambient root has no static kind, so nothing is filtered — the editor must not
+// An ambient root has no parse-time kind, so nothing is filtered — the editor must not
 // guess whether `current` is a post or a term.
 const fromCurrent = renderChain( [ { slug: 'current', arg: null, limit: null } ], false );
 check( 'an ambient root filters nothing', lastPickerValues( fromCurrent ).indexOf( 'terms' ) !== -1, true );
