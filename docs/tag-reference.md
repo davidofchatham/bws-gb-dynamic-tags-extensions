@@ -25,7 +25,22 @@ Four output shapes, deliberately distinguished (the word "scalar" is retired —
 | **single-result** | one result → one string | one result (the result may itself be a composite string); NOT list mode | `{{email}}` one address; `{{permalink}}` one URL |
 | **composite string** | many fields → one string | different pieces combined into one piece | `datetime_range` → `Jan 1 – Jan 5`; phone+ext → `555-1234 ext. 200` |
 | **list mode** | one field → many values → one joined string | many of the same thing, glued with `sep` | every email across a term's posts → `a@x, b@x` |
-| **query loop** | many entities → repeated markup | a row/card per entity, each with its own fields | staff directory (photo+name+phone block per person) — **GB query-loop territory, NOT a dynamic tag** |
+| **query loop** | many entities → repeated markup | a row/card per entity, each with its own fields | staff directory (photo+name+phone block per person) — mostly GB's, **but no longer exclusively** (see below) |
+
+**The fourth shape is no longer GB-only, deliberately.** `{{table}}` produces repeated markup from
+ONE tag — a row per resolved source — which the row above once called "NOT a dynamic tag". Two
+reasons for crossing that border, and the second is the durable one:
+
+1. **GB's query loop cannot build the markup.** Its `looper`/`loop-item` `tagName` enums omit every
+   table tag, so a query loop can build `ul`/`ol` but not `table` or `dl` —
+   [`gb-constraints.md` §tagName enums](gb-constraints.md#tagname-enums-editor-restricted-render-permissive)
+   owns that fact and the sweep behind it.
+2. **GB's query loop cannot reach this plugin's sources** without query-loop hacking. A source path —
+   a root plus `refs`/`terms`/`rows` steps — is not a `WP_Query`, and nothing in GB consumes one.
+
+**Not registered by default while v1 is built:** `bws_register_table_tag()` runs only behind the
+`bws_dynamic_tags_register_table_tag` filter (default `false`), so the border is crossed by an opt-in
+tag rather than by the shipped set.
 
 A **single-result** output can be a **composite string** (`datetime_range` is both: one result, built from start+end fields). These are independent axes — composite-vs-not describes *how the one string is built*; list-mode-vs-not describes *how many strings are joined*. `try_` is transparent to both (see [CONTEXT.md](../CONTEXT.md) I6); query loop is out of dynamic-tag scope entirely.
 
