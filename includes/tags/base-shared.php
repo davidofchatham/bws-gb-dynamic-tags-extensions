@@ -99,7 +99,7 @@ function bws_registered_root_rows(): array {
 /**
  * A field picker's editor-facing config, trimmed to what it actually declares.
  *
- * Both chain-config builders ship pickers (`refOption`, `keyOption`, `entriesOption`)
+ * Both chain-config builders ship pickers (`refOption`, `keyOption`, `rowsOption`)
  * derived from the shipped option definitions rather than re-typed, and both want the
  * same subset with the empty entries dropped — an empty `placeholder` reaching JS as
  * `''` is falsy and harmless, but an empty `label` renders a blank label strip above
@@ -147,8 +147,8 @@ function bws_fold_picker_config( array $def ): array {
  *                           Display only — a stored step is always shown in its own
  *                           picker; an absent list means "offer it", never "refuse it".
  *                produces — the kind the step's output carries (BWS_FOLD_STEP_KINDS).
- *   roots      root token → static resolved kind (BWS_FOLD_STATIC_ROOT_KINDS). A fact
- *              about roots, not steps — only `site` is static; every other root is the
+ *   roots      root token → parse-time resolved kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS). A fact
+ *              about roots, not steps — only `site` has a parse-time kind; every other root is the
  *              factory's to resolve at render, so the editor filters nothing off it.
  *   retiredSrc the retired source tokens the mount migrator must DECLINE rather than
  *              fold (#56), read from the same constant the converter's guard reads.
@@ -182,9 +182,9 @@ function bws_fold_wire_vocabulary(): array {
 	// the label from it would put the naming decision in a map keyed on internals. The
 	// generic `limitOption.label` stays as the fallback for a slug that ships without one.
 	$labels = array(
-		'refs'    => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
-		'terms'   => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
-		'entries' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		'refs'  => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms' => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'rows'  => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();
@@ -208,7 +208,7 @@ function bws_fold_wire_vocabulary(): array {
 
 	return array(
 		'steps'       => $steps,
-		'roots'       => defined( 'BWS_FOLD_STATIC_ROOT_KINDS' ) ? BWS_FOLD_STATIC_ROOT_KINDS : array(),
+		'roots'       => defined( 'BWS_FOLD_PARSE_TIME_ROOT_KINDS' ) ? BWS_FOLD_PARSE_TIME_ROOT_KINDS : array(),
 		'retiredSrc'  => defined( 'BWS_FOLD_RETIRED_SRC_TOKENS' ) ? BWS_FOLD_RETIRED_SRC_TOKENS : array(),
 		// LABELLED FOR WHAT IT BOUNDS, not for what it divides by (#95). The draft label
 		// "Limit per source" sat three rows under a control labelled `Source` meaning
@@ -289,7 +289,7 @@ function bws_fold_step_offer( array $steps, array $vocab ): array {
  *     @type array $source_opt A bws_base_source_option()-shaped array to upgrade.
  *                             Default bws_base_source_option().
  *     @type array $steps       WIRE step slugs offered as steps, in offer order.
- *                             Default ['refs','terms'] — `entries` is deliberately
+ *                             Default ['refs','terms'] — `rows` is deliberately
  *                             absent: the step type exists and runs, but no base-tag
  *                             arm consumes a meta_row, so offering it would author a
  *                             chain that renders nothing. It belongs with the table
@@ -634,7 +634,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     exactly the containers whose resolver honors it.
  *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
  *     list, not decoration: a step no arm consumes authors a chain that renders nothing
- *     (which is why `entries` is on no offer). It was also once the CONTAINER's ceiling —
+ *     (which is why `rows` is on no offer). It was also once the CONTAINER's ceiling —
  *     the retired flatten re-spelled a slot as one relationship step plus one term step —
  *     and since #104 the seam hands the whole chain on, so a slot offers what a base tag
  *     offers ([I16]).
@@ -798,8 +798,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	if ( ! empty( $base_key ) ) {
 		$fold['keyOption'] = bws_fold_picker_config( $base_key );
 	}
-	if ( ! empty( $args['entries_option'] ) ) {
-		$fold['entriesOption'] = bws_fold_picker_config( (array) $args['entries_option'] );
+	if ( ! empty( $args['rows_option'] ) ) {
+		$fold['rowsOption'] = bws_fold_picker_config( (array) $args['rows_option'] );
 	}
 	if ( ! empty( $args['field_scope'] ) ) {
 		$fold['fieldScope'] = (string) $args['field_scope'];
@@ -1036,9 +1036,9 @@ function bws_build_slot_traversal_options( int $n, array $base_src, array $base_
  * post, SPEC §V1/§V7) + a REF-ONLY step assembly (bws_wrapper_ref_steps, SPEC
  * §V13) run through bws_run_traversal, then collapses to the FIRST post id
  * (bws_first_post_id_from_sources, SPEC §V4). A non-post base — term ambient on an
- * archive (V7) or a Mode-2b meta_row (src:current on a flat repeater row) — yields
+ * archive (V7) or a meta_row (src:current on a repeater row) — yields
  * false, never leaks a term/row id as a post id. That is byte-compatible with the
- * old wrapper for src:current (Mode 2b → false, unchanged); for src:ref it applies
+ * old wrapper for src:current (a repeater row → false, unchanged); for src:ref it applies
  * the V11 leak-fix (base the relationship step on the ambient term, not on get_the_ID()).
  *
  * REF-ONLY (SPEC §V13): the wrapper NEVER assembles a `srcTermIn` step. srcTermIn
@@ -1171,7 +1171,7 @@ function bws_base_src_resolution( array $options ): array {
  *
  * THAT LAST FACT IS WHY THE TEST RUNS AFTER THE FACTORY, not before it. The cores'
  * falsy-id guard looks like it already refuses and does not: the loop-row read beneath
- * it is load-bearing for the flat-repeater path (mode 2b), where an ABSENT source
+ * it is load-bearing for the repeater-row path, where an ABSENT source
  * legitimately means the row. Absence and refusal have to part company above the core,
  * because the core cannot tell them apart.
  *
@@ -1362,7 +1362,7 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
  * returning its read even conceptually-empty (the wrapper renders '' then). It does
  * NOT search past an empty field — selection is field-independent (the 2026-08-21
  * reversal; ADR 0007 §Why the read-based axis was reversed). An EMPTY post-kind fan
- * keeps the single falsy-id read — the cores' own loop-row semantics (mode 2b) must
+ * keeps the single falsy-id read — the cores' own repeater-row semantics must
  * not move — so the reader always runs at least once, exactly as the pre-extraction
  * callbacks did.
  *
@@ -1419,9 +1419,9 @@ function bws_base_ambient_term_id( array $base, array $options ): int {
 	// branch that owns its own render — 'term' is the explicit post→term step (which
 	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
 	// term→post (§V11) so the post path must not be short-circuited to the term's
-	// own analog. A registry-source root still reads 'base' and still reaches the
+	// own analog. A registry-source root still reads 'render_time' and still reaches the
 	// $base['kind'] test below, exactly as the old src test let it.
-	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return 0;
 	}
 	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
@@ -1512,7 +1512,7 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
  */
 function bws_base_ambient_user_id( array $base, array $options ): int {
 	// Same one-test gate as the term twin (FW-63) — see bws_base_ambient_term_id().
-	if ( 'base' !== bws_base_src_resolution( $options )['kind'] ) {
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return 0;
 	}
 	if ( 'user' !== ( $base['kind'] ?? '' ) ) {

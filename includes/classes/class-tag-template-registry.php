@@ -588,7 +588,7 @@ class TagTemplateRegistry {
 			// flatten stood — the triple had no spelling for a second relationship step,
 			// so a wider offer would have authored wire that skipped.
 			//
-			// `entries` is still absent, for the same reason it is absent from the base
+			// `rows` is still absent, for the same reason it is absent from the base
 			// offer: no `try_` arm assembles a repeater row (try-slot-arms.php refuses the
 			// `meta_row` kind), so offering it would author a chain that renders nothing.
 			//
@@ -956,7 +956,7 @@ class TagTemplateRegistry {
 							$ids = bws_base_post_ids_from_source( $base, $slot_opts, $collapse );
 					}
 
-					// Mode 2b — the flat repeater row. It has NO kind: the factory resolves
+					// A repeater row from the query loop. It has NO kind: the factory resolves
 					// a meta_row, no post id comes out of it, and the core fn still reads
 					// the value off $loop_item[$key]. Survives as a post-arm special case,
 					// gated exactly as before.

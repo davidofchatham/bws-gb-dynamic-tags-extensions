@@ -396,7 +396,7 @@ function bws_field_discovery_field_note( array $field, string $kind = 'post' ) {
  *   - GROUP child          → `parent_child` composite (stable, resolves via
  *     get_post_meta everywhere), context_hint `field`
  *   - REPEATER / FLEXIBLE child → BARE child `name`, context_hint `row`
- *     (resolves only inside a query loop over that repeater, Mode 2b,
+ *     (resolves only inside a query loop over that repeater,
  *     field-helpers.php:253-255)
  *
  * Recurses `sub_fields` (group + repeater) and flexible-content

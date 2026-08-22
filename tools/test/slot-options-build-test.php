@@ -445,7 +445,7 @@ assert_same(
 // an author writing a chain that renders nothing with no control saying why.
 assert_same(
 	'steps is keyed by WIRE slug, in the vocabulary\'s own order',
-	array( 'refs', 'terms', 'entries' ),
+	array( 'refs', 'terms', 'rows' ),
 	array_keys( $fold['steps'] )
 );
 // `accepts` IS the engine's refusal list. Since V9 that list is itself keyed by the
@@ -469,13 +469,13 @@ assert_same(
 	BWS_FOLD_STEP_KINDS,
 	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'produces' ) )
 );
-// Only `site` has a statically-known root kind. Every other root resolves at render, so
+// Only `site` has a parse-time root kind. Every other root resolves at render, so
 // the editor must offer everything there rather than guess whether `current` is a post
 // or a term — a guess would hide the taxonomy step on every ordinary tag. `roots` is
 // its own top-level key: a fact about roots, not about steps.
 assert_same(
-	'roots is its own key and only `site` is static',
-	BWS_FOLD_STATIC_ROOT_KINDS,
+	'roots is its own key and only `site` has a parse-time kind',
+	BWS_FOLD_PARSE_TIME_ROOT_KINDS,
 	$fold['roots']
 );
 // ...and the map the EDITOR filters by is the same one the RENDER path dispatches on.
@@ -483,10 +483,10 @@ assert_same(
 // the editor asks "what may follow this"), so a divergence would not error anywhere —
 // the editor would simply offer, or withhold, a step against a kind the renderer does
 // not agree the root has. Driven through the shipped resolution rather than compared to
-// the constant twice, so the assertion covers the `?? 'base'` fallback too.
+// the constant twice, so the assertion covers the `?? 'render_time'` fallback too.
 assert_same(
-	'the static root map agrees with what a root-only chain RESOLVES to',
-	array( 'site', 'base' ),
+	'the parse-time root map agrees with what a root-only chain RESOLVES to',
+	array( 'site', 'render_time' ),
 	array(
 		bws_fold_chain_resolution( array( array( 'slug' => 'site' ) ) )['kind'],
 		bws_fold_chain_resolution( array( array( 'slug' => 'current' ) ) )['kind'],
@@ -641,7 +641,7 @@ assert_same(
 	$base_chain['src']['options'][0]['value'],
 	$base_fold['defaultRoot']
 );
-// The base tag OFFERS both steps (`entries` deliberately absent — no base-tag arm
+// The base tag OFFERS both steps (`rows` deliberately absent — no base-tag arm
 // consumes a meta_row), and the vocabulary record it ships is BYTE-IDENTICAL to the
 // slot builder's: container-invariant by construction, both consuming one helper (#70).
 assert_same( 'base chain: offer = refs,terms in offer order', array( 'refs', 'terms' ), $base_fold['offer'] );
@@ -667,7 +667,7 @@ assert_same( 'limitOption: labelled for what it COUNTS — items read, not resul
 // wearing the generic label — which reads fine and is wrong.
 assert_same( 'refs: the limit names what the step PRODUCES', 'Limit Posts Read', $fold['steps']['refs']['limitLabel'] );
 assert_same( 'terms: likewise', 'Limit Terms Read', $fold['steps']['terms']['limitLabel'] );
-assert_same( 'entries: likewise, in the author\'s noun and not the engine\'s meta_row', 'Limit Repeater Rows Read', $fold['steps']['entries']['limitLabel'] );
+assert_same( 'rows: likewise, in the author\'s noun and not the engine\'s meta_row', 'Limit Repeater Rows Read', $fold['steps']['rows']['limitLabel'] );
 assert_same( 'limitOption: the placeholder names the unlimited VALUE', '0 (all)', $fold['limitOption']['placeholder'] );
 assert_same(
 	'limitOption: the plain help, for a step with nothing fanning above it',

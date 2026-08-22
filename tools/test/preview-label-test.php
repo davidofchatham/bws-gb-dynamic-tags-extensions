@@ -856,7 +856,7 @@ check(
 // spelling left to fail at and the refusal dissolved with it — these are now the acceptance
 // signal for FW-71, and they assert the slots RESOLVE and are NAMED.
 //
-// FIVE reasons remain (the four that survived, plus `step:entries` which arrived with the emit
+// FIVE reasons remain (the four that survived, plus `step:rows` which arrived with the emit
 // change), and FOUR of them fire with their own wording immediately below — `read`, an
 // unconfigured combining slot, is silent by design because it is a resting state. Deleting the
 // refusal wholesale would have removed correct refusals along with the dissolved one.
@@ -871,8 +871,8 @@ check(
 	"[Join Title from Ref 'a' Ref 'b', 'role']"
 );
 check(
-	'join: an `entries` step resolves at the seam (the container refuses the kind, not the wire)',
-	bws_build_join_preview_label( [ 'A' => 'src(entries,rows);key(name)' ] ),
+	'join: a `rows` step resolves at the seam (the container refuses the kind, not the wire)',
+	bws_build_join_preview_label( [ 'A' => 'src(rows,rows);key(name)' ] ),
 	"[Join 'name']"
 );
 check(
@@ -881,8 +881,8 @@ check(
 	"[Try 'sku' from Current, 'x' from Ref 'a' Ref 'b']"
 );
 check(
-	'try_: a lone `entries` slot is a slot, not "no slots configured"',
-	bws_build_try_preview_label( [ 'A' => 'src(entries,rows);key(name)' ], 'text' ),
+	'try_: a lone `rows` slot is a slot, not "no slots configured"',
+	bws_build_try_preview_label( [ 'A' => 'src(rows,rows);key(name)' ], 'text' ),
 	"[Try 'name']"
 );
 // A `same` root with nothing to be the same AS gets its OWN wording (#74). Reusing
@@ -978,8 +978,8 @@ check(
 // Deleting the flatten deleted the only author-facing signal that a chain resolves to
 // nothing, and base tags never had one at all. Four conditions, all decidable from the
 // WIRE with no per-template knowledge — an unknown step slug, an unregistered root, a
-// retired token, and an argless `entries` step. What is NOT here is as load-bearing: an
-// ambient root (statically unknowable), an unoffered root (offering ≠ resolving), and a
+// retired token, and an argless `rows` step. What is NOT here is as load-bearing: an
+// ambient root (not knowable at parse time), an unoffered root (offering ≠ resolving), and a
 // well-formed source no arm consumes YET (unimplemented ≠ inert — that is FW-74).
 //
 // MUTATIONS pinned here, each confirmed failing when this landed:
@@ -1014,23 +1014,23 @@ check(
 	bws_build_preview_label( [ 'src' => 'currnet;bogus,x', 'use' => 'key', 'key' => 'name' ], 'text' ),
 	"[⚠ Unknown source 'currnet']"
 );
-// ARGLESS `entries` joins the MISSING list rather than the inert one — an unfinished step
+// ARGLESS `rows` joins the MISSING list rather than the inert one — an unfinished step
 // is unfinished under any future arm, so it speaks now even though the arm is FW-74.
 check(
-	'base: an argless `entries` step reports a missing repeater field',
-	bws_build_preview_label( [ 'src' => 'entries', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	'base: an argless `rows` step reports a missing repeater field',
+	bws_build_preview_label( [ 'src' => 'rows', 'use' => 'key', 'key' => 'name' ], 'text' ),
 	'[⚠ No repeater field set]'
 );
 check(
 	'…and it joins the other missing items in one sentence',
-	bws_build_preview_label( [ 'src' => 'entries', 'use' => 'key' ], 'text' ),
+	bws_build_preview_label( [ 'src' => 'rows', 'use' => 'key' ], 'text' ),
 	'[⚠ No repeater field or meta key set]'
 );
-// A COMPLETE `entries` step is NOT flagged. It is well-formed wire the base arms do not
+// A COMPLETE `rows` step is NOT flagged. It is well-formed wire the base arms do not
 // consume yet (FW-74) — flagging it would encode a per-template fact with a shelf life.
 check(
-	'base: a COMPLETE `entries` step is silent (unimplemented ≠ inert)',
-	bws_build_preview_label( [ 'src' => 'entries,team_members', 'use' => 'key', 'key' => 'name' ], 'text' ),
+	'base: a COMPLETE `rows` step is silent (unimplemented ≠ inert)',
+	bws_build_preview_label( [ 'src' => 'rows,team_members', 'use' => 'key', 'key' => 'name' ], 'text' ),
 	"['name']"
 );
 // NEGATIVES — the internal spellings of the ambient entity and of a relationship hop all

@@ -100,7 +100,7 @@ const BWS_FOLD_FLAGS = array( 'newTab', 'showCurrentYear', 'showMidnight', 'noLi
 const BWS_FOLD_FREEFORM = array( 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' );
 
 /** Chain step slugs that FAN OUT (one → many). Used by the legacy limit mapping. */
-const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'entries' );
+const BWS_FOLD_FANNING_SLUGS = array( 'refs', 'terms', 'rows' );
 
 /**
  * The largest magnitude a `limit` can hold IDENTICALLY in both languages — JS's
@@ -503,8 +503,8 @@ function bws_fold_parse_token( string $tok ) {
  * NAMED bracket-kv tokens (`limit[5]` today; unknown names are preserved verbatim
  * so a future keyword does not break an older parser). `limit` is named rather
  * than positional because argless-with-limit is a reachable state, so a positional
- * encoding needs an interior hole (`entries,,5`) that fails SILENTLY when it is
- * missing — `entries,5` parses as arg=5.
+ * encoding needs an interior hole (`rows,,5`) that fails SILENTLY when it is
+ * missing — `rows,5` parses as arg=5.
  *
  * `limit` accepts `0` and `-1` (both mean unlimited in the wild — GB uses `-1`,
  * WP's Query Loop uses `0`); emit normalizes to `0`. A non-numeric limit is a
@@ -1397,8 +1397,8 @@ function bws_fold_empty_carry( string $default_read = '' ): array {
  *   - `'inherit'`      a `same` root with nothing to be the same AS.
  *   - `'step:refs'`    a relationship step with no field AND nothing carried to inherit one.
  *   - `'step:terms'`   a term step with no taxonomy.
- *   - `'step:entries'` a repeater step with no field. It is listed apart from the other two
- *                      because it is the one the FLATTEN never reached: `entries` was refused
+ *   - `'step:rows'` a repeater step with no field. It is listed apart from the other two
+ *                      because it is the one the FLATTEN never reached: `rows` was refused
  *                      outright as inexpressible, argument or not, so an unfinished one had
  *                      nowhere to be reported from. The rule is the fanning family's, not a
  *                      per-slug decision — an argless fanning step of any slug is unfinished.

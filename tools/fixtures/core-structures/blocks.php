@@ -134,9 +134,9 @@ function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed ) 
 }
 
 /**
- * A GB Pro POST_META query loop — one loop row per ACF repeater row (Mode 2b).
+ * A GB Pro POST_META query loop — one item per ACF repeater row.
  *
- * The ONLY fixture shape that reaches Mode 2b, and it cannot be substituted. A loop row
+ * The ONLY fixture whose loop is on repeater rows, and it cannot be substituted. A loop row
  * here is a bare ACF sub-field ARRAY with no `ID` key, so `bws_get_loop_row_context()`
  * reports `in_loop` with `row_post_id` FALSE — no post entity to bind. That is what makes
  * the loop-fallthrough branch fire: the source factory resolves a `meta_row`, no post id
@@ -793,7 +793,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// NB the label says "the table tag", not the tag SPELLING — a `{{…}}` inside
 		// a label is live wire, and GB renders it. Spelled out here, the empty
 		// {{table}} it produced hid this row's whole label block.
-		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:entries,team_members|use:key|key:name|limit:0}}' ),
+		bws_fixture_gb_empty_row( 'F9.5 STILL DIVERGENT by decision: no base arm consumes a meta_row source (-> empty; the table tag fills this gap, not the text arm)', '{{text src:rows,team_members|use:key|key:name|limit:0}}' ),
 		// The one flat-wire behaviour change, shown rather than hidden. It uses
 		// portal_visibility, NOT department: jane and tom carry no department terms,
 		// so that taxonomy makes the row empty either way and it asserts nothing.
@@ -829,7 +829,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F9b.7 control for F9b.5: the plain site attempt, which never broke (-> the same number)', '{{try_phone src:site|key:org_phone}}' ),
 		bws_fixture_gb_row( 'F9b.8 the ambient-TERM attempt is a branch off the root-only kind now, not a src:current test (-> the ambient page title here; Sales on /department/sales/)', '{{try_title}}' ),
 		bws_fixture_gb_row( 'F9b.9 per-arm link-wrap survived the merge into one emit (-> the term title, LINKED)', '{{try_text srcTermIn:department|use:title|linkTo:term}}' ),
-		bws_fixture_gb_row( 'F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain)', '{{try_text A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_row( 'F9b.11 a repeater-row source is still refused, and the next attempt still runs (-> Captain)', '{{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F9b.12 an inexpressible chain still skips at the SEAM, which #103 did not touch (-> Captain)', '{{try_text A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		// F9b.13 IS NOT HERE, and the omission is the stated exception: the I6 parity
 		// defect needs an AUTHOR ARCHIVE as ambient context, which has no page
@@ -837,12 +837,12 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// term archive. It is render-tag-only, and the matrix says so.
 	) );
 
-	// F9c — MODE 2b, the flat ACF repeater row, which had NO rendered coverage on any
+	// F9c — the query loop's REPEATER ROW, the flat ACF shape, which had NO rendered coverage on any
 	// tag family until #103. It matters here for two reasons and the second is the
 	// bigger one.
 	//
 	// (1) `meta_row` names ONE resolved-source kind and a slot can arrive at it two
-	// ways. Off the WIRE (`src(entries,…)`) the author asked for repeater rows, and
+	// ways. Off the WIRE (`src(rows,…)`) the author asked for repeater rows, and
 	// no try_ arm assembles those — refuse, {{table}} owns it. Off the AMBIENT
 	// CONTEXT (silent wire, standing inside a repeater row) the author asked for
 	// "here", and refusing would blank an ordinary tag — so it continues to the post
@@ -857,14 +857,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// NOTHING ELSE REACHES THIS. A WP_Query loop's rows are WP_Post objects, so a post
 	// id always resolves and the branch never runs; `render-tag --loop-item` takes a
 	// post id by construction. The fixture builder's docblock carries the detail.
-	$sections[] = bws_fixture_gb_section( 'Fold F9c - MODE 2b: the flat ACF repeater row (loop fallthrough)', array(
+	$sections[] = bws_fixture_gb_section( 'Fold F9c - the query loop\'s repeater row, the flat ACF shape (loop fallthrough)', array(
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.1 base tag in a repeater row (-> Alice Adams / Bob Brown, one per row): {{text key:name}}', 'f9c1-base' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.2 the try_ twin, which is the loop fallthrough (-> the SAME two names): {{try_text A:key(name)}}', 'f9c2-try' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.3 the attempt chain still advances inside a row: slot 1 misses, slot 2 hits (-> Engineering / Operations): {{try_text A:key(nope)|B:key(role)}}', 'f9c3-advance' ),
 		// The row that proves the two arrival routes do not collide. Slot 1 names a
 		// repeater source ON THE WIRE while STANDING IN a repeater row: it is refused
 		// as a chain kind, and slot 2's ambient read still takes the fallthrough.
-		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): {{try_text A:src(entries,team_members);use(key);key(name)|B:key(role)}}', 'f9c4-axes' ),
+		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.4 a WIRE-stated repeater source is refused even from inside a repeater row, and the ambient attempt still resolves (-> Engineering / Operations): {{try_text A:src(rows,team_members);use(key);key(name)|B:key(role)}}', 'f9c4-axes' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.5 a sub-field that is a relationship still hops out of the row (-> Jane Partner / empty; row 2 leaves lead_ref blank): {{try_text A:src(refs,lead_ref);use(title)}}', 'f9c5-hop' ),
 	) );
 
@@ -886,8 +886,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F10.1 BASE twin - the identity under test (-> same)', '{{text src:refs,related_staff;terms,portal_visibility|use:title}}' ),
 		bws_fixture_gb_row( 'F10.2 try_ slot, same chain; slot 2 must NOT run because slot 1 resolved (-> All Users, All Users)', '{{try_text A:src(refs,related_staff;terms,portal_visibility);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.3 a SECOND ref hop now runs and finds nothing (staff carry no related_staff of their own), so slot 2 answers (-> Captain, as it did when slot 1 was SKIPPED)', '{{join A:src(refs,related_staff;refs,related_staff);use(title)|B:key(role)}}' ),
-		bws_fixture_gb_row( 'F10.4 entries resolves and renders nothing - no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain)', '{{join A:src(entries,team_members);use(key);key(name)|B:key(role)}}' ),
-		bws_fixture_gb_empty_row( 'F10.4 BASE twin - the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag)', '{{text src:entries,team_members|use:key|key:name}}' ),
+		bws_fixture_gb_row( 'F10.4 a rows step resolves and renders nothing - no join/try_ arm assembles a repeater row, which is why it is on no step offer (-> Captain)', '{{join A:src(rows,team_members);use(key);key(name)|B:key(role)}}' ),
+		bws_fixture_gb_empty_row( 'F10.4 BASE twin - the refusal belongs to the CONTAINER, not to the slot spelling, so the plain tag is empty too (-> EMPTY; F9.5 is the same fact stated on the base tag)', '{{text src:rows,team_members|use:key|key:name}}' ),
 		bws_fixture_gb_row( 'F10.5 ref+term on department - expressible before #104 too, empty then and now (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.6 a SITE root never takes the legacy term step, on the slot as on the base tag (-> the org number)', '{{join src:site|srcTermIn:department|key:org_phone}}' ),
 		// F10.6b - the shape #104's first draft deleted. The old editor authored this pair

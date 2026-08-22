@@ -204,7 +204,7 @@ $corpus = array(
 	array( 'join', 'src(same)' ),
 	array( 'join', 'src(refs,office)' ),
 	// unlimited, author-pinned
-	array( 'table', 'src(entries,staff_members,limit[0]);key(name)' ),
+	array( 'table', 'src(rows,staff_members,limit[0]);key(name)' ),
 );
 foreach ( $corpus as $i => $case ) {
 	list( $container, $wire ) = $case;
@@ -251,7 +251,7 @@ $structs = array(
 	array( 'table', array(
 		'label' => null,
 		'type'  => null,
-		'chain' => array( array( 'slug' => 'entries', 'arg' => 'staff_members', 'limit' => '0', 'extra' => array() ) ),
+		'chain' => array( array( 'slug' => 'rows', 'arg' => 'staff_members', 'limit' => '0', 'extra' => array() ) ),
 		'read'  => array( 'kind' => 'key', 'field' => 'name' ),
 		'opts'  => array(),
 		'extra' => array(),
@@ -505,7 +505,7 @@ $limit_cases = array(
 	array( 'src(refs,office,limit[5])', '5', 'src(refs,office,limit[5])' ),
 	array( 'src(refs,office,limit[0])', '0', 'src(refs,office,limit[0])' ),          // 0 survives as a literal
 	array( 'src(refs,office,limit[-1])', '0', 'src(refs,office,limit[0])' ),         // parse both, emit 0
-	array( 'src(entries,limit[5])', '5', 'src(entries,limit[5])' ),                  // argless step, no positional hole
+	array( 'src(rows,limit[5])', '5', 'src(rows,limit[5])' ),                  // argless step, no positional hole
 	array( 'src(refs,office,limit(5))', '5', 'src(refs,office,limit[5])' ),          // lenient pair, canonical out
 );
 foreach ( $limit_cases as $i => $case ) {
@@ -977,13 +977,13 @@ check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[
 // author wrote, re-leveled to depth 0.
 //
 // A CHAIN THAT RESOLVES IS NOT A CHAIN THAT RENDERS, and the difference is deliberate:
-// `entries` still returns nothing, because no `try_`/join arm assembles a repeater row.
+// `rows` still returns nothing, because no `try_`/join arm assembles a repeater row.
 // That refusal MOVED to the container that consumes the kind (try-slot-arms.php) rather
 // than living in a re-spelling that could not describe the wire.
 foreach ( array(
 	'two ref hops'   => array( 'src(refs,a;refs,b);key(x)', 'refs,a;refs,b' ),
 	'two term hops'  => array( 'src(terms,category;terms,post_tag);key(x)', 'terms,category;terms,post_tag' ),
-	'repeater entry' => array( 'src(entries,rows);key(x)', 'entries,rows' ),
+	'repeater entry' => array( 'src(rows,rows);key(x)', 'rows,rows' ),
 	'ref after term' => array( 'src(terms,category;refs,a);key(x)', 'terms,category;refs,a' ),
 ) as $why => $case ) {
 	list( $wire, $want ) = $case;
@@ -1004,7 +1004,7 @@ foreach ( array(
 // moment one does not.
 $sr_carry = array();
 $sr       = 'STALE';
-bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(entries,rows);key(x)' ), $sr_carry, true, $sr );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(rows,rows);key(x)' ), $sr_carry, true, $sr );
 check( 'P13.5b the `chain` reason is RETIRED — a multi-step chain reports no skip', '' === $sr, var_export( $sr, true ) );
 $sr_carry = array();
 bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(site)' ), $sr_carry, true, $sr );
@@ -1117,7 +1117,7 @@ $era_cases = array(
 	// folded wire, container, expected default, why
 	array( 'src(terms,department);use(title)', 'try', 0, 'chain-spelled and fans → unlimited' ),
 	array( 'src(refs,related_staff);key(name)', 'join', 0, 'a refs-spelled slot fans too' ),
-	array( 'src(entries,rows);key(a)', 'table', 0, 'a repeater step fans (its container refuses the kind, era still reported)' ),
+	array( 'src(rows,rows);key(a)', 'table', 0, 'a repeater step fans (its container refuses the kind, era still reported)' ),
 	array( 'src(site);key(org_phone)', 'join', 1, 'a singular chain states no list to bound' ),
 	array( 'key(a)', 'join', 1, 'no chain at all' ),
 	array( 'src(same);key(b)', 'join', 1, 'inherits a source, so states no bound of its own' ),
@@ -1747,7 +1747,7 @@ $fixed_point = array(
 	'two ref hops'           => 'src(refs,a;refs,b);key(x)',
 	'ref then terms'         => 'src(refs,office;terms,category);use(title)',
 	'rooted, bound, hopped'  => 'src(site;refs,partner,limit[2];terms,category,limit[0]);key(a)',
-	'repeater rows'          => 'src(entries,rows);key(a)',
+	'repeater rows'          => 'src(rows,rows);key(a)',
 	'unknown step slug'      => 'src(refs,a;wibble,b);key(x)',
 );
 foreach ( $fixed_point as $why => $wire ) {

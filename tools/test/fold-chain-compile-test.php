@@ -106,7 +106,7 @@ assert_same( "'ref' → token (the LEGACY spelling, singular)", false, bws_fold_
 assert_same( "'portal_resource' → registry token", false, bws_fold_chain_is_wire( 'portal_resource' ) );
 assert_same( "'refs' → one-hop chain (plural)", true, bws_fold_chain_is_wire( 'refs' ) );
 assert_same( "'terms' → one-hop chain", true, bws_fold_chain_is_wire( 'terms' ) );
-assert_same( "'entries' → one-hop chain", true, bws_fold_chain_is_wire( 'entries' ) );
+assert_same( "'rows' → one-hop chain", true, bws_fold_chain_is_wire( 'rows' ) );
 assert_same( 'step separator → chain', true, bws_fold_chain_is_wire( 'refs,office' ) );
 assert_same( 'hop separator → chain', true, bws_fold_chain_is_wire( 'site;terms,category' ) );
 assert_same( 'bracket → chain', true, bws_fold_chain_is_wire( 'refs,office,limit(2)' ) );
@@ -116,9 +116,9 @@ echo "\n§C2 bws_fold_chain_root — the ROOT is not a step\n";
 assert_same( 'empty chain → ambient', '', bws_fold_chain_root( array() ) );
 assert_same( 'leading refs hop → ambient root', '', bws_fold_chain_root( chain_of( 'refs,office' ) ) );
 assert_same( 'leading terms hop → ambient root', '', bws_fold_chain_root( chain_of( 'terms,category' ) ) );
-assert_same( 'leading entries hop → ambient root', '', bws_fold_chain_root( chain_of( 'entries,rows' ) ) );
+assert_same( 'leading rows hop → ambient root', '', bws_fold_chain_root( chain_of( 'rows,rows' ) ) );
 assert_same( 'site root', 'site', bws_fold_chain_root( chain_of( 'site' ) ) );
-assert_same( 'site root before a hop', 'site', bws_fold_chain_root( chain_of( 'site;entries,rows' ) ) );
+assert_same( 'site root before a hop', 'site', bws_fold_chain_root( chain_of( 'site;rows,rows' ) ) );
 assert_same( 'explicit current root', 'current', bws_fold_chain_root( chain_of( 'current' ) ) );
 // A registry source name is opaque to the compiler — it goes to the factory verbatim.
 assert_same( 'registry root passes through', 'portal_resource', bws_fold_chain_root( chain_of( 'portal_resource' ) ) );
@@ -156,7 +156,7 @@ assert_same( "src:ref with no field also roots at ''", '', bws_fold_src_root_tok
 assert_same(
 	'chain wire root is the ROOT, not the whole value',
 	'site',
-	bws_fold_src_root_token( array( 'src' => 'site;entries,rows' ) )
+	bws_fold_src_root_token( array( 'src' => 'site;rows,rows' ) )
 );
 assert_same(
 	'chain leading with a hop roots at ambient',
@@ -205,7 +205,7 @@ $pairs = array(
 	),
 	'src:site vs a site-rooted chain'        => array(
 		array( 'src' => 'site' ),
-		array( 'src' => 'site;entries,rows' ),
+		array( 'src' => 'site;rows,rows' ),
 		$signals_term,
 		array( 'kind' => 'site' ),
 	),
@@ -230,9 +230,9 @@ assert_same(
 	bws_fold_chain_to_steps( chain_of( 'terms,category' ) )
 );
 assert_same(
-	'entries → rows/field (the repeater step, author-facing since 1.17.0)',
-	array( array( 'type' => 'entries', 'field' => 'staff_rows' ) ),
-	bws_fold_chain_to_steps( chain_of( 'entries,staff_rows' ) )
+	'rows → rows/field (the repeater step, author-facing since 1.17.0)',
+	array( array( 'type' => 'rows', 'field' => 'staff_rows' ) ),
+	bws_fold_chain_to_steps( chain_of( 'rows,staff_rows' ) )
 );
 assert_same(
 	'root is dropped, hops are kept in WIRE order',
@@ -267,7 +267,7 @@ assert_same(
 // set"), so the code now does what the UI says.
 assert_same( 'argless refs → argument-less step, never dropped', array( array( 'type' => 'refs' ) ), bws_fold_chain_to_steps( chain_of( 'refs' ) ) );
 assert_same( 'argless terms → argument-less step, never dropped', array( array( 'type' => 'terms' ) ), bws_fold_chain_to_steps( chain_of( 'terms' ) ) );
-assert_same( 'argless entries → argument-less step, never dropped', array( array( 'type' => 'entries' ) ), bws_fold_chain_to_steps( chain_of( 'entries' ) ) );
+assert_same( 'argless rows → argument-less step, never dropped', array( array( 'type' => 'rows' ) ), bws_fold_chain_to_steps( chain_of( 'rows' ) ) );
 assert_same(
 	'a slug that sanitizes to nothing is argless too (unusable arg, same answer)',
 	array( array( 'type' => 'terms' ) ),
@@ -485,9 +485,9 @@ assert_same(
 	bws_wrapper_ref_steps( array( 'src' => 'refs,a;terms,category;refs,b' ) )
 );
 assert_same(
-	'wrapper stops at an entries hop too (a meta_row is not a post)',
+	'wrapper stops at a rows hop too (a meta_row is not a post)',
 	array(),
-	bws_wrapper_ref_steps( array( 'src' => 'entries,rows;refs,a' ) )
+	bws_wrapper_ref_steps( array( 'src' => 'rows,rows;refs,a' ) )
 );
 assert_same(
 	'wrapper carries a per-hop limit',
@@ -624,12 +624,12 @@ $res = static function ( array $options ): string {
 
 // Root-only chains. The case the previous framing could not express: a chain with
 // NO steps still has a kind.
-assert_same( 'bare tag → base kind, no fan', 'base/one/', $res( array() ) );
-assert_same( 'src:current → base kind (root token kept)', 'base/one/current', $res( array( 'src' => 'current' ) ) );
+assert_same( 'bare tag → render_time kind, no fan', 'render_time/one/', $res( array() ) );
+assert_same( 'src:current → render_time kind (root token kept)', 'render_time/one/current', $res( array( 'src' => 'current' ) ) );
 assert_same( 'src:site → site kind, no fan', 'site/one/site', $res( array( 'src' => 'site' ) ) );
 assert_same(
-	'a registry source root reads as base — the factory decides its kind',
-	'base/one/related_post',
+	'a registry source root reads as render_time — the factory decides its kind',
+	'render_time/one/related_post',
 	$res( array( 'src' => 'related_post' ) )
 );
 
@@ -648,11 +648,11 @@ assert_same(
 	'term/fans/',
 	$res( array( 'src' => 'refs,office;terms,department' ) )
 );
-assert_same( 'CHAIN src:entries,rows → meta_row', 'meta_row/fans/', $res( array( 'src' => 'entries,team' ) ) );
+assert_same( 'CHAIN src:rows,rows → meta_row', 'meta_row/fans/', $res( array( 'src' => 'rows,team' ) ) );
 assert_same(
-	'CHAIN site;entries,rows → meta_row, ROOTED at site',
+	'CHAIN site;rows,rows → meta_row, ROOTED at site',
 	'meta_row/fans/site',
-	$res( array( 'src' => 'site;entries,team' ) )
+	$res( array( 'src' => 'site;rows,team' ) )
 );
 
 // An ARGLESS fanning step is a step on the WIRE, and since #74 it is a step in the

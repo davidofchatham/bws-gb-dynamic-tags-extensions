@@ -438,7 +438,7 @@ eq(
 	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
 );
 
-// Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+// A repeater row (in a loop, no post behind it) → meta_row.
 eq(
 	'flat repeater row -> meta_row',
 	array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ),
@@ -611,7 +611,7 @@ eq( 'V4 plural collapses to first', 21, bws_first_post_id_from_sources( array( p
 // Term ambient base (archive) → false, NOT the term id (post-only callers).
 eq( 'V4 term base -> false', false, bws_first_post_id_from_sources( array( term_src( 34 ) ) ) );
 
-// Mode 2b meta_row base (src:current on a flat row) → false (matches old wrapper).
+// meta_row base (src:current on a repeater row) → false (matches old wrapper).
 eq( 'V4 meta_row base -> false', false, bws_first_post_id_from_sources( array( array( 'kind' => 'meta_row', 'row' => array( 'x' => 1 ) ) ) ) );
 
 // site base → false.
@@ -683,7 +683,7 @@ eq( 'V7 user base -> 0 (term gate)', 0, bws_base_ambient_term_id( user_src( 7 ),
 // term's analog on a tag whose source states a hop.
 eq( 'FW-63 chain terms hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'terms,category' ) ) );
 eq( 'FW-63 chain refs hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'refs,related' ) ) );
-eq( 'FW-63 chain entries hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'entries,rows' ) ) );
+eq( 'FW-63 chain rows hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'rows,rows' ) ) );
 // A REGISTRY-source root is root-only, so it still reaches the $base['kind'] test —
 // exactly as the old "src is not site/ref" test let it through.
 eq( 'FW-63 registry root still reaches the kind test', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'related_post' ) ) );
@@ -948,19 +948,19 @@ foreach ( array( 'post' => post_src( 5 ), 'term' => term_src( 5 ), 'user' => use
 	eq(
 		"rows step accepts {$kname} input",
 		array( row_src( array( 'c' => 'p' ) ), row_src( array( 'c' => 'q' ) ) ),
-		bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), $src, $rows_reader )
+		bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), $src, $rows_reader )
 	);
 }
 eq(
 	'rows step rejects unknown kind -> []',
 	array(),
-	bws_run_step( array( 'type' => 'entries', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
+	bws_run_step( array( 'type' => 'rows', 'field' => 'rep' ), array( 'kind' => 'date' ), $rows_reader )
 );
 
 // --- fold: rows then bare column read (meta_row reader arm) ------------------
 // rows fans a post to 3 meta_rows; the meta_row source then reads a scalar column.
 $rows_then = function ( $step, $source ) {
-	if ( 'entries' === $step['type'] ) {
+	if ( 'rows' === $step['type'] ) {
 		return array(
 			array( 'name' => 'Ann', 'role' => 'Lead' ),
 			array( 'name' => 'Bo',  'role' => 'Dev' ),
@@ -974,7 +974,7 @@ $rows_then = function ( $step, $source ) {
 	}
 	return '';
 };
-$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $rows_then );
+$rows_out = bws_run_traversal( array( post_src( 9 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $rows_then );
 eq(
 	'rows fold: post -> 3 meta_rows',
 	array(
@@ -1011,7 +1011,7 @@ $empty_rows = function ( $step, $source ) { return array(); };
 eq(
 	'rows fold: empty repeater short-circuits',
 	array(),
-	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'entries', 'field' => 'team' ) ), $empty_rows )
+	bws_run_traversal( array( post_src( 1 ) ), array( array( 'type' => 'rows', 'field' => 'team' ) ), $empty_rows )
 );
 
 // ── Registry delegation — OFFERING IS NOT RESOLVING (#83) ────────────────────
@@ -1103,8 +1103,8 @@ eq(
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
 
 // A root is the chain's FIRST segment, so a rooted chain reaches the same delegation and
-// its steps stay the engine's. This is what "registered roots declare no static kind"
-// buys: the factory answers at render, and the compiler's static map is untouched.
+// its steps stay the engine's. This is what "registered roots declare no parse-time kind"
+// buys: the factory answers at render, and the compiler's parse-time map is untouched.
 eq(
 	'registry: a rooted CHAIN delegates on its root token',
 	array( 'kind' => 'post', 'id' => 4242 ),
@@ -1216,12 +1216,12 @@ eq(
 //
 // That is why the refusal is caught ABOVE the core, by bws_base_read_refused(), and why
 // absence and refusal have to part company there: the loop-row read beneath that guard is
-// load-bearing for the flat-repeater path (mode 2b), where an absent source legitimately
+// load-bearing for the repeater-row path, where an absent source legitimately
 // DOES mean the row. The core cannot tell the two apart, so it must not be asked to.
 eq(
 	'the arms refuse a factory refusal BEFORE any core sees it',
 	true,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), $refusal )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), $refusal )
 );
 eq(
 	'…and refuse an unknown chain step the same way, for the same reason',
@@ -1231,14 +1231,14 @@ eq(
 eq(
 	'…while a resolvable source on a resolvable chain is NOT refused',
 	false,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'post', 'id' => 7 ) )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'post', 'id' => 7 ) )
 );
-// Mode 2b, the path the guard must not delete: an absent source in a flat repeater row
+// The path the guard must not delete: an absent source in a repeater row
 // resolves a meta_row, and that is a legitimate read rather than a refusal.
 eq(
 	'…and a flat repeater row is a READ, not a refusal',
 	false,
-	bws_base_read_refused( array( 'kind' => 'base', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
+	bws_base_read_refused( array( 'kind' => 'render_time', 'fans' => false ), array( 'kind' => 'meta_row', 'row' => array( 'name' => 'x' ) ) )
 );
 
 // ── report ───────────────────────────────────────────────────────────────────

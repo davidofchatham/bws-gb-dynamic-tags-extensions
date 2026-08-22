@@ -22,9 +22,9 @@
  * `'cross-source'` — `{{call}}` has none of the term/site/media/taxonomy editor
  * features the cross-source type implies.
  *
- * KNOWN LIMIT — `bws_resolve_post_by_source` resolves to a POST ID. Mode 2a
- * loops (relationship / post-object — the row IS a post) resolve and are the
- * driver. Mode 2b (flat ACF repeater, no row post entity) returns false for
+ * KNOWN LIMIT — `bws_resolve_post_by_source` resolves to a POST ID. A query
+ * loop standing on a POST (relationship / post-object) resolves and is the
+ * driver. A repeater row has no post entity, so `src:current` returns false for
  * `src:current`; there is no post to bind and the `$post_id` function contract
  * cannot consume a bag of row fields. Passing current-repeater-row FIELDS into a
  * function needs a different fn contract + a new src mode — a separate, deferred

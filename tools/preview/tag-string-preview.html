@@ -446,7 +446,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-limitslash">
-      <span class="toggle-desc">[REJECTED 2026-08-01 — kept as a look-back; OFF is the decision] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>entries/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. <strong>REJECTED once per-step <code>sep</code> entered the picture:</strong> a step that can carry more than one option must spell them ONE way, and <code>refs,rel_post/2,sep(; )</code> mixes a dedicated char with kv while <code>refs,rel_post,limit(2),sep(; )</code> is uniform. The asymmetry is permanent — every future per-step option arrives as kv, so the slash stays the sole exception rather than becoming one member of a set. OFF is the approved form.</span>
+      <span class="toggle-desc">[REJECTED 2026-08-01 — kept as a look-back; OFF is the decision] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>rows/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. <strong>REJECTED once per-step <code>sep</code> entered the picture:</strong> a step that can carry more than one option must spell them ONE way, and <code>refs,rel_post/2,sep(; )</code> mixes a dedicated char with kv while <code>refs,rel_post,limit(2),sep(; )</code> is uniform. The asymmetry is permanent — every future per-step option arrives as kv, so the slash stays the sole exception rather than becoming one member of a set. OFF is the approved form.</span>
     </label>
     <label class="toggle-row" style="margin-top:4px">
       <input type="checkbox" id="cb-chainexplicitroot">
@@ -539,7 +539,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div class="sb-h">src Chain (FW-56) — FLAT (locked)</div>
     <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
       One <code>src</code> key; value = sep-joined steps <code>slug,arg</code> (FLAT step body, no step
-      brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>entries</code>; starts
+      brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
       <code>post</code>/<code>term</code>/<code>user</code>. Root IMPLIED (<code>current</code> only as
       an override/reset). Per-step limit is BRACKET-KV, not positional (decided 2026-07-31):
       <code>refs,rel_post,limit[5]</code> — the bracket char alternates with depth like every other,
@@ -981,8 +981,8 @@ const SCENARIO_GROUPS = [
     {label:'start post → ref, limited',
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       cols:[{label:'Name',use:'title'}]},
-    {label:'repeater rows (entries)',
-      rowChain:[{slug:'entries',arg:'staff_members'}],
+    {label:'repeater rows',
+      rowChain:[{slug:'rows',arg:'staff_members'}],
       cols:[{label:'Name',key:'name'},{label:'Role',key:'role'}]},
   ]},
 
@@ -1153,7 +1153,7 @@ const SCENARIO_GROUPS = [
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
     {label:'repeater rows: name + role + email',
-      rowChain:[{slug:'entries',arg:'staff_members'}],
+      rowChain:[{slug:'rows',arg:'staff_members'}],
       slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Role',tag:'text',read:{kind:'key',field:'role'}},
              {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
@@ -1205,7 +1205,7 @@ const SCENARIO_GROUPS = [
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'When',tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date',format:'M j'}}]},
     {label:'repeater rows: milestone + datetime',
-      rowChain:[{slug:'entries',arg:'milestones'}],
+      rowChain:[{slug:'rows',arg:'milestones'}],
       slots:[{label:'Milestone',tag:'text',read:{kind:'key',field:'name'}},
              {label:'Date',tag:'datetime_single',read:{kind:'key',field:'due'},dtKeys:{as:'date',key:'due'}}]},
   ]},
@@ -1227,11 +1227,11 @@ const SCENARIO_GROUPS = [
   ]},
   { title:'escape hazards — table labels (brackets + colon)', foldClass:'table', scenarios:[
     {label:'balanced brackets + colon in labels',
-      rowChain:[{slug:'entries',arg:'products'}],
+      rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
              {label:'Price: USD',tag:'text',read:{kind:'key',field:'price'}}]},
     {label:'UNBALANCED bracket in label (flagged)',
-      rowChain:[{slug:'entries',arg:'products'}],
+      rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Note [TBD',tag:'text',read:{kind:'key',field:'note'}},
              {label:'OK [done]',tag:'text',read:{kind:'key',field:'status'}}]},
   ]},
@@ -1268,7 +1268,7 @@ const S = {
   //   'slash'      : refs,related_staff/5         — DEDICATED CHAR, no bracket, no depth question.
   // The slash candidate is worth eyeballing because it dissolves the `,,` interior-empty hole that
   // killed the ORIGINAL positional form: with a dedicated separator the limit is named-by-separator
-  // rather than by position, so an argless step is `entries/5` — there is no gap to leave empty.
+  // rather than by position, so an argless step is `rows/5` — there is no gap to leave empty.
   // Costs to weigh on review: (a) ~~`/` must be REMOVED from the lenient hop class~~ — NO LONGER A
   // COST of this candidate (user, 2026-08-01, approved-twins-only rule): `/` was rejected as the
   // canonical hop char, so accepting it leniently was an UNAPPROVED twin and comes out regardless.
@@ -1525,9 +1525,9 @@ function buildCfgTag() {
 }
 
 // FW-56 src-chain slug vocabulary (DECISION 3, grilled + locked 2026-07-27).
-//   hop family:   refs (ref field) / terms (taxonomy) / entries (repeater) → fan-out, arg = field/tax
+//   hop family:   refs (ref field) / terms (taxonomy) / rows (repeater) → fan-out, arg = field/tax
 //   start family: post / term / user → kind,id ; only valid as the FIRST step
-const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',label:'terms (taxonomy)'},{value:'entries',label:'entries (repeater)'}];
+const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',label:'terms (taxonomy)'},{value:'rows',label:'rows (repeater)'}];
 const CHAIN_STARTS = [{value:'post',label:'post (kind,id)'},{value:'term',label:'term (kind,id)'},{value:'user',label:'user (kind,id)'}];
 function chainSlugChoices(isFirst) { return isFirst ? [...CHAIN_STARTS,...CHAIN_HOPS] : CHAIN_HOPS; }
 
@@ -1549,11 +1549,11 @@ function bracketAt(depth) {
 //
 // `limit` — DECIDED 2026-07-31 (supersedes the positional form): BRACKET-KV `limit[5]`, appended as
 // its own intra-step token. The old positional `refs,rel_post,5` was cut as too fragile: it made
-// arg-vs-limit purely ordinal, so a blank arg shreds to an interior `,,` (`entries,,5`) that reads
+// arg-vs-limit purely ordinal, so a blank arg shreds to an interior `,,` (`rows,,5`) that reads
 // as an empty operand, and any future third step token would be ambiguous against it. Bracket-kv
 // NAMES the token, so it is order-free, omissible without a hole, and extensible.
 //   DECIDED  → refs,rel_post,limit[5]        (named, holes impossible)
-//   rejected → refs,rel_post,5               (positional; `entries,,5` shreds)
+//   rejected → refs,rel_post,5               (positional; `rows,,5` shreds)
 // The datetime `,,` precedent does NOT transfer — datetime's slots are dependency-ordered, so an
 // interior blank is structurally impossible there; a chain step's arg is independently omissible.
 // BRACKET CHAR follows the depth-alternation rule like every other bracket: `limit` nests one level
@@ -1591,7 +1591,7 @@ function serializeStep(h, depth) {
   else bits.push(slug, arg);
   // SLASH candidate (REJECTED — look-back only, see S.limitStyle): dedicated char suffixed to the
   // step BASE. No bracket → no depth question, and an argless step needs no placeholder
-  // (`entries/5`, not `entries,,5`).
+  // (`rows/5`, not `rows,,5`).
   if (S.limitStyle === 'slash') { if (lim!=='') bits[bits.length-1] += (S.limitSep || '/') + lim; }
   else if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
   // A step sep is FREE-FORM author text, so it takes the same escape as every other free-form value

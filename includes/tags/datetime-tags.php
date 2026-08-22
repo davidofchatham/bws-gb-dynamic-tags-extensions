@@ -446,7 +446,7 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * Core datetime single logic.
  *
  * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
- * loop-row context (`generateblocks/loopItem` set). Mode 2b flat-repeater rows
+ * loop-row context (`generateblocks/loopItem` set). Repeater rows
  * (GB Pro TYPE_OPTION site-options repeaters, TYPE_POST_META post-meta repeaters)
  * legitimately have no row entity, but the field-read layer (`bws_read_field()`)
  * can still resolve subfield values from `$loop_item[$key]`. Bailing before that

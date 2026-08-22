@@ -123,7 +123,7 @@
 			// The per-container OFFER: an ordered slug list, the only per-container
 			// step fact. Labels come off `steps`, never typed beside the offer.
 			offer: c.offer || [],
-			// Root token → static resolved kind (only `site` is static).
+			// Root token → parse-time resolved kind (only `site` has one).
 			roots: c.roots || {},
 			// The per-step limit control's whole vocabulary — label, placeholder and
 			// BOTH help forms (#95). Container-invariant, because a step's `limit[N]`
@@ -137,7 +137,7 @@
 			taxonomies: c.taxonomies || [],
 			refOption: c.refOption || null,
 			keyOption: c.keyOption || null,
-			entriesOption: c.entriesOption || null,
+			rowsOption: c.rowsOption || null,
 			// The LEGACY per-slot axes, PHP-derived (bws_fold_slot_flat_axes) — this
 			// control never lists them. A hand-kept list deleted a try_ template's
 			// TAG-level `limit` and a try_datetime_single's TAG-level `key` on first
@@ -171,7 +171,7 @@
 	 * arriving on the vocabulary record, never typed here. Comparing two slugs' answers
 	 * is what decides whether a slug switch keeps the field: two steps that both
 	 * consume a FIELD keep it across the switch. (The retired comparison used engine
-	 * spellings, under which `refs` ↔ `entries` compared unequal and dropped the field
+	 * spellings, under which `refs` ↔ `rows` compared unequal and dropped the field
 	 * — unreachable only because no container offered both.)
 	 *
 	 * '' means the slug takes no arg — a root, an unknown slug, or a registration that
@@ -532,7 +532,7 @@
 	 * sibling `src` token; under the fold the source is a CHAIN, so the preset derives
 	 * from the chain's TERMINAL step — the step whose output the read applies to.
 	 * That is FW-56's stated editor-UX floor (the terminal step's output kind must be
-	 * statically computable from the wire), exercised here for real.
+	 * computable from the wire at parse time), exercised here for real.
 	 *
 	 * `refs` is deliberately NOT preset: the step target's post type is not reliably
 	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving
@@ -760,7 +760,7 @@
 						return;
 					}
 					// Keep the arg only when the new slug consumes the SAME arg (the
-					// vocabulary record's `arg`, so `refs` ↔ `entries` keep the field);
+					// vocabulary record's `arg`, so `refs` ↔ `rows` keep the field);
 					// keep `limit` always (it bounds the step, not the arg).
 					var keepArg = stepArg( conf, v ) && stepArg( conf, v ) === stepArg( conf, stepObj.slug );
 					writeChainAt( i, step( v, keepArg ? stepObj.arg : null, stepObj.limit ) );
@@ -772,8 +772,8 @@
 			// step at all is presence in the vocabulary. Two questions the retired
 			// argKind() answered with one engine-spelled string.
 			var known = !! stepDef( conf, stepObj.slug );
-			if ( known && ( 'refs' === stepObj.slug || 'entries' === stepObj.slug ) ) {
-				var argCfg = ( 'entries' === stepObj.slug ? conf.entriesOption : conf.refOption ) || {};
+			if ( known && ( 'refs' === stepObj.slug || 'rows' === stepObj.slug ) ) {
+				var argCfg = ( 'rows' === stepObj.slug ? conf.rowsOption : conf.refOption ) || {};
 				var commitArg = function ( v ) {
 					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
 				};
@@ -811,7 +811,7 @@
 					// above the limit control. Mutually exclusive with the warning above by
 					// construction: the note needs a selected field, the warning fires
 					// only when there is none. A field with nothing noteworthy (and an
-					// `entries` step's repeater field, which has no such settings at all)
+					// `rows` step's repeater field, which has no such settings at all)
 					// yields null, so the presence of a note carries information.
 					var note = noteNode( fieldNote( stepObj.arg ), !! conf.takesFirstUsable );
 					if ( note ) {

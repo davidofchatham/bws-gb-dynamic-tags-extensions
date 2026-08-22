@@ -140,7 +140,7 @@ Each spec is adapted into a registered source and registered normally, so it lan
 - **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
 - **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
 - **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
-- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `entries`), the slot inherit sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
+- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `rows`), the slot inherit sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
 - **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
 
 ### What the opt-in does and does not govern
@@ -457,7 +457,7 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
 | `bws_read_field( $post_id, $key )` | Canonical post-meta/ACF read (routes through `GenerateBlocks_Meta_Handler`) |
 | `bws_read_term_field( $term_id, $key )` | Canonical term-meta/ACF read |
-| `bws_get_loop_row_context()` | Detect GB list-block loop row (Mode 2a post, Mode 2b flat repeater) |
+| `bws_get_loop_row_context()` | Detect a GB query-loop item and its shape (a post, or a repeater row) |
 
 ### Preview helpers (`includes/helpers/preview-helpers.php`)
 

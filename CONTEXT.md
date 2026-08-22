@@ -192,7 +192,7 @@ Spans: the render seam, both previews, both migrators, the editor control, and t
 
 ## I14 — A source chain's ROOT is not a step
 
-A folded slot's source is an ordered CHAIN: a **root** plus N **steps**. Its first token is either an **entity root** (`current`, `site`, a registry source) or already a **fanning step** (`refs`, `terms`, `entries`), and which one it is is decidable **from the slug alone** — root slugs are singular, step slugs plural. **The plural spelling is a CATEGORY marker, never a count claim:** a fanning step *may* resolve many, and routinely resolves one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater). The root binds *where* traversal starts, which is the factory's job ([I9] ambient resolution); the steps are what the engine folds.
+A folded slot's source is an ordered CHAIN: a **root** plus N **steps**. Its first token is either an **entity root** (`current`, `site`, a registry source) or already a **fanning step** (`refs`, `terms`, `rows`), and which one it is is decidable **from the slug alone** — root slugs are singular, step slugs plural. **The plural spelling is a CATEGORY marker, never a count claim:** a fanning step *may* resolve many, and routinely resolves one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater). The root binds *where* traversal starts, which is the factory's job ([I9] ambient resolution); the steps are what the engine folds.
 
 **Rule:** compile a chain by consuming the root into the source factory and the remaining steps into the engine. Do not model the root as a step-zero, and do not let a step stand in for it. Three consequences worth stating because each has a wrong-looking-right alternative:
 
@@ -246,7 +246,7 @@ Four consequences, each with a wrong-looking-right alternative:
 
 **The identity is SOURCE-only, and the read is NOT part of it — decided, twice.** Read-as-chain-terminal was superseded 2026-07-31 (the read is a sibling token, `src(chain);use(x)`); folding the read on base tags was locked out 2026-07-28 as all cost and no payoff. A slot's read and a base tag's read are the same two axes (`use`/`key`) stored two ways, exactly as the source is. Do not read this invariant as licence to revisit either.
 
-**SHIPPED 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)). Two things it moved that a reader will meet before they meet this invariant: a slot's registered step OFFER is now the base tag's (`refs` + `terms`, `entries` on neither, because no arm assembles a repeater row), and the `limit`-era write-back in both container loops became load-bearing — `src` is chain wire on every slot, including one recovered from legacy flat keys, so a container re-deriving the default from it answers *unlimited* where the slot has always bounded at 1.
+**SHIPPED 1.17.0** ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)). Two things it moved that a reader will meet before they meet this invariant: a slot's registered step OFFER is now the base tag's (`refs` + `terms`, `rows` on neither, because no arm assembles a repeater row), and the `limit`-era write-back in both container loops became load-bearing — `src` is chain wire on every slot, including one recovered from legacy flat keys, so a container re-deriving the default from it answers *unlimited* where the slot has always bounded at 1.
 
 Enforced at: `bws_fold_slot_chain_options()` PHPDoc (slot-fold.php), which replaced `bws_fold_slot_flat_options()`. Tests: `tools/test/slot-fold-test.php` §P18 (the emit fixed point, the chain-shaped carry, the named leak, the per-step bounds) and §P13.5, whose four inexpressible-chain SKIPS inverted to resolves; `tools/test/control-order-test.php` §7 (the offer). Measured divergences: `tools/test/fold-test-matrix.md` §F9d. Schema: [`tag-reference.md` §Folded slot wire](docs/tag-reference.md#folded-slot-wire-multislot-containers). Rationale + the rejected alternatives: `docs/design-history/multi-step-slot-sources.md`. Related: [I13] (storage is the other axis), [I14] (root is not a step; its slot half resolves here), [I15] (the inherit corollary becomes structural), [ADR 0004].
 
@@ -324,6 +324,57 @@ The **declared read intent** of a tag — its (source + key) specification. `{sr
 
 Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`term`/`ref`/`view_`) | global (`site`) | ID (`src:<type>,<ID>`). Prefer **global** over "fixed" for `site` — "fixed" also fits ID sources (fixed-per-render), so it under-discriminates. _Avoid_: "contextual"/"context source" as the NAME of this axis-2 pole — say **detected** (the pole spans query, a `refs` step, AND session/view; "context" in the doc means specifically the #19 *query*-context, a subset, so naming the whole pole "contextual" blurs it with that subset). "context modifier"/"context-aware"/"context kind" elsewhere are unaffected. Also avoid "entityless" for `global` (collides with unresolvable-read / post/0 empty).
 
+**Ambient**:
+Supplied by the RENDER's own context rather than by the wire — the queried object on a
+singular page, term archive or author archive, or the row a query loop is standing on. An
+ambient read is legitimate ([I15] says when), and "ambient" never means "whatever is left
+over": it names one specific supplier.
+
+**Query-loop item**:
+The one entity GB hands a block for the iteration it is rendering inside (`generateblocks/loopItem`).
+Two shapes, and no third is recognized: a **post** — any query type, so a plain post loop and a
+relationship loop look the same to us — or a **repeater row**, a bag of fields with no entity identity
+of its own (kind `meta_row`). A THIRD shape exists in the wild and is not recognized: an extension can
+loop over TERMS, and such an item reads as no loop at all
+([#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123)). Where loops nest, the innermost item is the one that counts. "Query loop"
+itself is the output shape defined in [`tag-reference.md`](docs/tag-reference.md) §Output shape.
+
+Say **query-loop item** where the umbrella is the subject — defining it, or mapping iterations to what
+they hold. Once the loop is the subject, name the shape alone: *a post*, *a repeater row*. Never "post
+item" or "repeater-row item".
+
+_Avoid_: "mode 2a" / "mode 2b" (retired 2026-08-22 — coined in a 2026-05 plan whose Mode 1 stopped
+existing days later, and defined in no committed file); "row" for the post shape, which is not
+row-shaped; "loop row" for either.
+
+**A query-loop item is GIVEN; a fan is DERIVED** — and that is the whole distinction between the two
+iterations live in one render. The item is a ROOT: GB chose it, and a source path starts there. A
+**fan** is what our own path produces from a root (`refs`/`terms`/`rows` steps), and what it yields are
+**sources**, never "items". So: **"loop" alone always means GB's query loop**; our iteration over a fan
+is never called one, whichever shape the item has.
+
+**Kind determination** (a third axis, alongside the two source-binding axes above, and
+independent of both): *when is the kind a chain resolves to knowable?* Three answers, and
+they must stay three — collapsing the last two into one "unknown" is what GH #109 cost.
+
+- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render
+  needed.
+- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers
+  BOTH an ambient root and a registered source answering for itself, which is why the name
+  says *when* rather than *how*. Spelled `render_time` in code.
+- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there
+  is nothing to know, and the chain short-circuits to empty. Spelled `''`.
+
+Which answer a given chain gets is `bws_fold_chain_resolution()`'s to decide and is stated
+there. Note the layering: this axis says what kind SHOULD arrive, while resolvable / exists /
+visible below says whether anything DID — a render-time chain makes no promise that the
+factory finds something, and an unresolvable source is not an unrecognized one.
+
+_Avoid_: "static"/"dynamic" for the first two poles ("dynamic" is this plugin's own name, and
+"static analysis" is a term of art this vocabulary deliberately does without); "base" for the
+render-time pole, the spelling retired 2026-08-22 — it read as "the base tag" on the two
+surfaces where that is false, a root-only chain in a `try_` or `{{join}}` slot.
+
 **Resolved source**:
 L1's output executing a target — the **bound *where*** a read happens, key not yet applied. post/term carry an id (meta-read needs one); **site** carries the `wp_options` namespace; future ones (#19 date/search, possible external Site-Views option-set source) carry their own payload. id is a post/term implementation detail, not universal. **Payload may legitimately vary by read mechanism within one kind:** site-datetime reads via ACF `get_field(key,'option')`, site-text via plain `get_option` — same `site` kind, different L2b read path. Frame-B variable payload (ADR 0002). **Distinguish legitimate payload-variance from a contradiction-to-refactor:** today datetime overloads the *post_id parameter slot* by passing the literal string `'option'` through it (datetime-tags.php:1005) — that param-overload is a contradiction of this model (a resolved-source payload smuggled through an id arg), REFACTORABLE, not canonical. Likewise `ref` collapsing to one target (`bws_extract_post_id`) contradicts the fanning-source model → fix the code, don't model around it.
 
@@ -341,7 +392,7 @@ L2a's output — **WHICH field to read**, determined by (resolved-source TYPE ×
 L2b's output — the **fetched datum** off the resolved field. The raw value before L3 assembly.
 
 **Singular vs fanning sources**:
-A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root (`current`, `site`) is **singular**: exactly one, always. A **fanning** step (`refs` — ACF relationship/post-object array; `terms` — taxonomy term set; `entries` — repeater rows) **may** resolve many. List mode originates here — *a fanning source, read once per source* — NOT a read-time loop.
+A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root (`current`, `site`) is **singular**: exactly one, always. A **fanning** step (`refs` — ACF relationship/post-object array; `terms` — taxonomy term set; `rows` — repeater rows) **may** resolve many. List mode originates here — *a fanning source, read once per source* — NOT a read-time loop.
 
 **`fanning` is a STATIC property, read off the wire: capacity, not outcome.** A fanning step routinely resolves exactly one (a relationship field limited to 1, a single-term taxonomy, a one-row repeater), and that is not a different kind of source. The runtime count is a **length**, and needs no adjective. This split is what FW-63's dispatch depends on — I8 forbids a live probe, so "does it fan" must be answerable from the wire alone.
 
@@ -350,12 +401,12 @@ A resolved source is **`ResolvedSource[]`** — a list, usually length 1. A root
 _Avoid_: "target cardinality" (the property is the SOURCE's, and :236 reserves "target" for read target); "plural source" as a claim about a given render (says outcome where only capacity is known); "multi-valued" (a step produces resolved *sources*, not **field values**).
 
 **Inert chain**:
-A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Statically decidable with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
+A source chain that resolves to **nothing on every tag, for a reason readable off the wire alone**: an unknown step slug (the engine short-circuits, [I14]), an unregistered root token, or a retired source token. Decidable at parse time with no per-template knowledge, which is what makes it sayable in an editor preview — see [`editor-tag-previews.md` §Inert-chain warning](docs/editor-tag-previews.md).
 
 Three neighbours it is NOT, each of which renders empty too:
 - **Unfinished** — a fanning step with no argument (`src:terms` with no taxonomy). Expressible and half-written; the author's next act is to finish it, not to replace it.
 - **Unconfigured** — no read stated yet. A normal in-progress state.
-- **Unimplemented** — well-formed wire no arm consumes *yet* (an `entries` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
+- **Unimplemented** — well-formed wire no arm consumes *yet* (a `rows` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
 
 _Avoid_: "unsupported source" (retired in 1.17.0 with the flatten — it named a limit of the *storage*, not of the source); "invalid" (reserved for the `src:site`-on-a-modifier combo, which is invalid *for that tag* and resolves fine on the base one).
 

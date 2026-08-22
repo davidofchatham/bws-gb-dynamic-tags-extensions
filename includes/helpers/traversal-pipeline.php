@@ -205,7 +205,7 @@ function bws_source_gate( array $source ) {
  * @since 1.17.0 Per-step `limit` (FW-56).
  * @since 1.18.0 $gate — the injected source gate, default bws_source_gate.
  * @param array[] $sources Resolved sources (see file header typedef).
- * @param array[] $steps   Ordered steps; each: array( 'type' => 'refs'|'terms'|'entries',
+ * @param array[] $steps   Ordered steps; each: array( 'type' => 'refs'|'terms'|'rows',
  *                         … , 'limit' => int|null ).
  * @param callable|null $reader Optional field reader injected for testing —
  *                              signature ( array $step, array $source ): array
@@ -255,7 +255,7 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * the drift the derived config exists to prevent.
  *
  * Keyed by the step type, which since the V9 alignment IS the wire's slug
- * (`refs`/`terms`/`entries`) — one vocabulary, both layers. BWS_FOLD_STEP_TYPES stays
+ * (`refs`/`terms`/`rows`) — one vocabulary, both layers. BWS_FOLD_STEP_TYPES stays
  * the seam for the one fact the slug does not carry: which key a step's argument rides.
  *
  * A kind absent from a step's list is a REFUSAL, not an omission: bws_run_step returns
@@ -265,9 +265,9 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * @since 1.17.0
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
-	'refs'    => array( 'post', 'term', 'user', 'meta_row', 'site' ),
-	'terms'   => array( 'post' ),
-	'entries' => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'terms' => array( 'post' ),
+	'rows'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
 );
 
 /**
@@ -281,7 +281,7 @@ const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
  *               bws_extract_post_id first-only collapse).
  *   - terms   : step to taxonomy terms via get_the_terms → term[]
  *               Valid input kind: post only.
- *   - entries : step into a repeater field via get_field → meta_row[]
+ *   - rows    : step into a repeater field via get_field → meta_row[]
  *               Valid input kinds: post, term, user, meta_row, site.
  *
  * Unknown step type, unknown/terminal source kind, or an input kind invalid for
@@ -316,7 +316,7 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 	switch ( $type ) {
 		case 'refs':
 			// Valid input: entity kinds, PLUS site (1.17.0). An ACF options page holds
-			// relationship fields like any other field store, and `case 'entries'` below
+			// relationship fields like any other field store, and `case 'rows'` below
 			// has always accepted site for exactly that reason — so refusing a
 			// relationship out of the same store the engine already reads a repeater
 			// from was an asymmetry in this allowlist, not a rule. It stayed
@@ -331,7 +331,7 @@ function bws_run_step( array $step, array $source, $reader = null ) {
 			$raw = call_user_func( $reader, $step, $source );
 			return bws_pipeline_terms_to_sources( $raw );
 
-		case 'entries':
+		case 'rows':
 			// Hop into a repeater field → meta_row[] (one row per repeater entry).
 			// Valid input: entity kinds that own a repeater (post/term/user via
 			// get_field's kind-prefixed selector; meta_row for a nested repeater
@@ -419,7 +419,7 @@ function bws_pipeline_terms_to_sources( $raw ) {
 /**
  * Coerce a raw repeater-field read into a meta_row resolved-source list.
  *
- * The `entries` step core (structural twin of bws_pipeline_terms_to_sources): a
+ * The `rows` step core (structural twin of bws_pipeline_terms_to_sources): a
  * repeater field is an array-of-rows, each row an assoc array of sub-field
  * values. Every array row becomes one { kind:'meta_row', row } — preserving
  * document order (append order), NO first-only collapse. A column step then
@@ -526,7 +526,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
 	}
 
-	// 2b. Mode 2b flat repeater row (in loop, no row post id) → meta_row.
+	// 2b. A repeater row (in a loop, no post behind it) → meta_row.
 	if ( ! empty( $loop['in_loop'] ) && is_array( $loop['loop_item'] ?? null ) ) {
 		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
 	}
@@ -745,7 +745,7 @@ function bws_factory_current_post_id( array $options, $instance ) {
 }
 
 /**
- * Default field reader — the real WP/ACF read behind refs/terms/entries steps.
+ * Default field reader — the real WP/ACF read behind refs/terms/rows steps.
  *
  * Isolated so bws_run_traversal/bws_run_step stay pure and unit-testable: the
  * test harness injects a stub reader, keeping the fold WP-free (SPEC §V9).
@@ -777,7 +777,7 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 		return ( is_wp_error( $terms ) || empty( $terms ) ) ? array() : array_values( $terms );
 	}
 
-	if ( 'entries' === $type ) {
+	if ( 'rows' === $type ) {
 		// Read a repeater field off the source entity → array-of-rows. The ACF
 		// kind→selector prefixes live here (same idiom the ref arm uses): post is
 		// a bare id, term/user carry ACF's 'term_'/'user_' prefix, site reads the

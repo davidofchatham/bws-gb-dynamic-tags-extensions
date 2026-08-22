@@ -364,15 +364,15 @@ const HOPS = rep.foldConfig( {
 		steps: {
 			refs: { label: 'In Reference/Relational Field', arg: 'field' },
 			terms: { label: 'In Taxonomy Term', arg: 'slug' },
-			entries: { label: 'In Repeater Rows', arg: 'field' }
+			rows: { label: 'In Repeater Rows', arg: 'field' }
 		}
 	}
 } );
 check( 'stepArg: refs consumes a field', rep.stepArg( HOPS, 'refs' ), 'field' );
 check( 'stepArg: terms consumes a taxonomy slug', rep.stepArg( HOPS, 'terms' ), 'slug' );
-// refs and entries CONSUME THE SAME ARG — that equality is what lets a slug switch
+// refs and rows CONSUME THE SAME ARG — that equality is what lets a slug switch
 // between them keep the field (asserted on the rendered picker below).
-check( 'stepArg: entries consumes a field too', rep.stepArg( HOPS, 'entries' ), 'field' );
+check( 'stepArg: rows consumes a field too', rep.stepArg( HOPS, 'rows' ), 'field' );
 // A ROOT slug and an unknown one both take no arg, and the '' is load-bearing: it
 // gates the Add-step row.
 check( 'stepArg: an entity root takes no arg', rep.stepArg( HOPS, 'current' ), '' );
@@ -417,11 +417,11 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it: one record per WIRE
 	// slug — label declared once, `arg` from the compiler seam, `accepts` from the
 	// engine's own refusal list, `produces` the step's output kind — plus the per-
-	// container ordered OFFER and the static root kinds (only `site` is static).
+	// container ordered OFFER and the parse-time root kinds (only `site` has one).
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
-		entries: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
+		rows: { label: 'In Repeater Rows', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'meta_row' }
 	},
 	offer: [ 'terms', 'refs' ],
 	roots: { site: 'site' },
@@ -506,8 +506,8 @@ check( 'a configured chain still shows its own root', selectsIn( real )[ 0 ].val
 
 // ── Slug switch: the ARG follows the vocabulary's `arg`, not the slug ────────
 // Switching between two steps that CONSUME THE SAME ARG keeps the field (refs and
-// entries both consume a field); a different arg kind drops it. The retired compare
-// used engine spellings, under which refs ↔ entries compared unequal and silently
+// rows both consume a field); a different arg kind drops it. The retired compare
+// used engine spellings, under which refs ↔ rows compared unequal and silently
 // dropped the field — unreachable then only because no container offered both.
 // `limit` rides along either way: it bounds the step, not the arg.
 let committed = null;
@@ -520,9 +520,9 @@ const switchable = rep.chainSteps( {
 	stepContext: function () { return { state: {}, setState: function () {} }; }
 } );
 const switchPicker = selectsIn( switchable )[ 0 ];
-switchPicker.onChange( 'entries' );
+switchPicker.onChange( 'rows' );
 check( 'same arg kind: the field survives the slug switch', committed[ 0 ].arg, 'office' );
-check( '...on the new slug', committed[ 0 ].slug, 'entries' );
+check( '...on the new slug', committed[ 0 ].slug, 'rows' );
 check( '...with the limit riding along', committed[ 0 ].limit, 3 );
 switchPicker.onChange( 'terms' );
 check( 'different arg kind: the field is dropped', committed[ 0 ].arg, null );
@@ -596,7 +596,7 @@ const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
-		entries: { label: 'In Repeater Rows', arg: 'field', produces: 'meta_row' }
+		rows: { label: 'In Repeater Rows', arg: 'field', produces: 'meta_row' }
 	},
 	offer: [ 'terms' ],
 	roots: { site: 'site' },
@@ -612,7 +612,7 @@ const siteTermsOnly = rep.chainSteps( {
 } );
 check( 'Add step is withheld when every registered step is refused', hasAddStep( siteTermsOnly ), false );
 
-// An ambient root has no static kind, so nothing is filtered — the editor must not
+// An ambient root has no parse-time kind, so nothing is filtered — the editor must not
 // guess whether `current` is a post or a term.
 const fromCurrent = renderChain( [ { slug: 'current', arg: null, limit: null } ], false );
 check( 'an ambient root filters nothing', lastPickerValues( fromCurrent ).indexOf( 'terms' ) !== -1, true );
@@ -942,14 +942,14 @@ const noted = withEnvelope( envWith( [ { name: 'partners', type: 'relationship',
 		slotNoun: 'attempt',
 		stepContext: function () { return { state: {}, setState: function () {} }; }
 	} );
-	selectsIn( nodes )[ 0 ].onChange( 'entries' );
+	selectsIn( nodes )[ 0 ].onChange( 'rows' );
 	return { nodes: nodes, committed: out };
 } );
 check( 'with a note present, the limit control still renders', limitsIn( noted.nodes ).length, 1 );
 check( '...with its own value untouched', limitsIn( noted.nodes )[ 0 ].value, '3' );
 check( '...and its own help', limitsIn( noted.nodes )[ 0 ].help, 'Maximum number of results. Leave blank for all.' );
 check( '...Add step is still reachable', hasAddStep( noted.nodes ), true );
-check( '...and a slug switch commits exactly what it would without one', noted.committed[ 0 ].slug, 'entries' );
+check( '...and a slug switch commits exactly what it would without one', noted.committed[ 0 ].slug, 'rows' );
 check( '...carrying the same field', noted.committed[ 0 ].arg, 'partners' );
 check( '...and the same limit', noted.committed[ 0 ].limit, 3 );
 

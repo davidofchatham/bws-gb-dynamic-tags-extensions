@@ -78,7 +78,7 @@
 	var TYPES = [ 'title', 'content', 'email', 'phone', 'permalink', 'image', 'datetime_single', 'datetime_range' ];
 	var FLAGS = [ 'newTab', 'showCurrentYear', 'showMidnight', 'noLink' ];
 	var FREEFORM = [ 'format', 'fallback', 'sep', 'valueSep', 'rangeSep', 'timeSep', 'label' ];
-	var FANNING_SLUGS = [ 'refs', 'terms', 'entries' ];
+	var FANNING_SLUGS = [ 'refs', 'terms', 'rows' ];
 
 	// Option names the emitter ranks. Membership only — the RANKS come from
 	// window.bwsReorderKeys, so this list must not grow its own ordering opinion.
@@ -220,7 +220,7 @@
 	 * tokens (`limit[5]`; unknown names preserved verbatim so a future keyword does
 	 * not break an older parser). `limit` is named rather than positional because
 	 * argless-with-limit is reachable, and a positional encoding fails SILENTLY
-	 * there (`entries,5` parses as arg=5).
+	 * there (`rows,5` parses as arg=5).
 	 *
 	 * Both `0` and `-1` read as unlimited; the struct holds one representation (`0`),
 	 * so nothing downstream needs to know both. A non-numeric limit is an ERROR, not

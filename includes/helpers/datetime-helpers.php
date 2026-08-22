@@ -232,8 +232,8 @@ function bws_value_looks_time_only( $value ) {
  * thread resolved sources themselves (FW-38 coordination).
  *
  * Payload: `['kind' => 'post'|'term'|'site', 'id' => int|false, 'taxonomy' => string]`
- * — 'taxonomy' on term kind only; a false 'id' means no entity (loop-row Mode 2b
- * reads may still resolve via the block instance). Idempotent: an array with a
+ * — 'taxonomy' on term kind only; a false 'id' means no entity (a repeater row
+ * may still resolve its read via the block instance). Idempotent: an array with a
  * 'kind' passes through verbatim.
  *
  * @since 1.15.0
@@ -260,7 +260,7 @@ function bws_datetime_coerce_read_target( $target ) {
  *
  * INVARIANT: ACF field-config lookups (`bws_get_acf_return_format()`,
  * `bws_parse_acf_date_value()`) must receive the resolved ACF object_id, NOT a
- * raw caller-supplied post id that may be false in loop-row Mode 2b. Use
+ * raw caller-supplied post id, which is false on a repeater row. Use
  * `bws_resolve_acf_object_id( $instance, $id )` which maps GB Pro
  * TYPE_OPTION rows → 'option' and TYPE_POST_META rows → outer page's postId.
  * Without this, `get_field_object()` fails on flat ACF repeater rows under GB
@@ -311,8 +311,8 @@ function bws_parse_combined_date_time( $target, $date_field, $time_field, $conte
     $term_id = $is_term ? (int) ( $source['id'] ?? 0 ) : 0;
 
     // Resolve ACF object_id for field-config lookups. Term kind builds ACF's
-    // "{taxonomy}_{term_id}" object id. For loop-row Mode 2b contexts (flat ACF
-    // repeater rows under TYPE_OPTION / TYPE_POST_META) the post id is false but
+    // "{taxonomy}_{term_id}" object id. On a repeater row (TYPE_OPTION /
+    // TYPE_POST_META query loops) the post id is false but
     // ACF still needs an object_id ('option' or outer page id) to return field
     // metadata.
     if ( $is_term ) {

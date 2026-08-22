@@ -25,7 +25,22 @@ Four output shapes, deliberately distinguished (the word "scalar" is retired —
 | **single-result** | one result → one string | one result (the result may itself be a composite string); NOT list mode | `{{email}}` one address; `{{permalink}}` one URL |
 | **composite string** | many fields → one string | different pieces combined into one piece | `datetime_range` → `Jan 1 – Jan 5`; phone+ext → `555-1234 ext. 200` |
 | **list mode** | one field → many values → one joined string | many of the same thing, glued with `sep` | every email across a term's posts → `a@x, b@x` |
-| **query loop** | many entities → repeated markup | a row/card per entity, each with its own fields | staff directory (photo+name+phone block per person) — **GB query-loop territory, NOT a dynamic tag** |
+| **query loop** | many entities → repeated markup | a row/card per entity, each with its own fields | staff directory (photo+name+phone block per person) — mostly GB's, **but no longer exclusively** (see below) |
+
+**The fourth shape is no longer GB-only, deliberately.** `{{table}}` produces repeated markup from
+ONE tag — a row per resolved source — which the row above once called "NOT a dynamic tag". Two
+reasons for crossing that border, and the second is the durable one:
+
+1. **GB's query loop cannot build the markup.** Its `looper`/`loop-item` `tagName` enums omit every
+   table tag, so a query loop can build `ul`/`ol` but not `table` or `dl` —
+   [`gb-constraints.md` §tagName enums](gb-constraints.md#tagname-enums-editor-restricted-render-permissive)
+   owns that fact and the sweep behind it.
+2. **GB's query loop cannot reach this plugin's sources** without query-loop hacking. A source path —
+   a root plus `refs`/`terms`/`rows` steps — is not a `WP_Query`, and nothing in GB consumes one.
+
+**Not registered by default while v1 is built:** `bws_register_table_tag()` runs only behind the
+`bws_dynamic_tags_register_table_tag` filter (default `false`), so the border is crossed by an opt-in
+tag rather than by the shipped set.
 
 A **single-result** output can be a **composite string** (`datetime_range` is both: one result, built from start+end fields). These are independent axes — composite-vs-not describes *how the one string is built*; list-mode-vs-not describes *how many strings are joined*. `try_` is transparent to both (see [CONTEXT.md](../CONTEXT.md) I6); query loop is out of dynamic-tag scope entirely.
 
@@ -81,11 +96,11 @@ deliberately not the same rule.
   derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
-- **Registered roots declare no static kind.** `BWS_FOLD_STATIC_ROOT_KINDS` stays as it is (only
-  `site` is static); a chain rooted at a registered source resolves to the kind the factory
+- **Registered roots declare no parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` stays as it is (only
+  `site` has one); a chain rooted at a registered source resolves to the kind the factory
   determines at render, and the editor's step-offer filter stays permissive there.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
-  step slug (`refs`/`terms`/`entries`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
+  step slug (`refs`/`terms`/`rows`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
   slot inherit sentinel `same`, or one carrying a grammar character — each would parse back as
   something other than a root, offering a row that cannot resolve. Route A cannot hit this; its
   keys are class-authored.
@@ -104,7 +119,7 @@ root vocabulary; a step continues from wherever the previous one landed.
 |---|---|---|
 | `refs,<field>` | a relationship / post-object field | `post` |
 | `terms,<taxonomy>` | the entity's terms in that taxonomy | `term` |
-| `entries,<field>` | a repeater field's rows | `meta_row` |
+| `rows,<field>` | a repeater field's rows | `meta_row` |
 
 Chain wire lives in the same `src` option, `;`-separated, each step `slug[,arg][,limit(N)]` —
 `src:refs,office;terms,category`. The flat spelling (`src:ref` + `ref:` + `srcTermIn:`) is READ
@@ -131,7 +146,7 @@ once an author converts it or the Tag Converter rewrites it.
   ambient entity. The rule and what decides it are [I15]'s (`CONTEXT.md`); the author-facing
   consequence for an integrator is in
   [`plugin-integration.md`](plugin-integration.md#what-a-non-resolving-source-renders).
-- **`entries` is not offered on a base tag.** The step type exists and runs, but no base arm
+- **`rows` is not offered on a base tag.** The step type exists and runs, but no base arm
   consumes a `meta_row` — that is the gap `{{table}}` fills with its own assembly. Authoring one
   needs a hand edit, and it renders nothing.
 - **The derived families keep the flat select.** `term_*`, `try_*` and `{{table}}` build their own
@@ -562,7 +577,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 `}` never appears (GB's tag parser rejects it anywhere in a tag's options — [`gb-constraints.md`](gb-constraints.md)), which is why the wire is brace-free and the format control's tokens are `%A`…`%J` (following the slot keys; `%1`…`%10` is still read and always will be — both alphabets collapse to one internal token, so nothing downstream can tell them apart).
 
-**Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `entries` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
+**Step slugs are wire vocabulary, and the engine's step types follow them:** `refs` (relationship), `terms` (taxonomy), `rows` (repeater rows), plus `same` (inherit) and the base `src` values (`current`, `site`, …). One map holds the correspondence (`BWS_FOLD_STEP_TYPES`), so the layers *can* diverge; the values are deliberately identical so a reader has no translation to hold.
 
 **A chain is a ROOT plus N STEPS**, and which one the leading token is is decidable from the slug alone — root slugs singular, step slugs plural. The plural spelling is a **category marker, never a count claim**: a **fanning** step *may* resolve many and routinely resolves one (a relationship field limited to 1, a single-term taxonomy). See [`CONTEXT.md`](../CONTEXT.md) I14.
 
@@ -586,7 +601,7 @@ The **legacy `N-` sibling prefixes stay digits** (`2-src`, `2-key`). That wire w
 
 **The slot count is explicit.** The `bws-slot-fold` repeater adds and removes slots, and removal compacts (closing the hole re-points `same` backreferences, so inherited axes are materialized against the removed slot first). Nothing is inferred from how far configuration got, which is why the old combining reveal predicates are gone.
 
-**A SLOT'S SOURCE IS HANDED ON AS CHAIN WIRE**, in the same option key a base tag states its source in, and that is the whole of why a slot's source is not a weaker thing than a base tag's ([`CONTEXT.md` I16](../CONTEXT.md)). Through 1.16.x the seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple, which holds ONE `refs` step and ONE `terms` step — so a second step on either axis, or a repeater `entries` step, was SKIPPED rather than resolved, because resolving the expressible PREFIX would silently read a different source than the wire states. The re-spelling was deleted in 1.17.0 ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)); the slot's registered step OFFER is the base tag's, and every slot's chain resolves whole.
+**A SLOT'S SOURCE IS HANDED ON AS CHAIN WIRE**, in the same option key a base tag states its source in, and that is the whole of why a slot's source is not a weaker thing than a base tag's ([`CONTEXT.md` I16](../CONTEXT.md)). Through 1.16.x the seam re-spelled every slot as a flat `src`/`ref`/`srcTermIn` triple, which holds ONE `refs` step and ONE `terms` step — so a second step on either axis, or a repeater `rows` step, was SKIPPED rather than resolved, because resolving the expressible PREFIX would silently read a different source than the wire states. The re-spelling was deleted in 1.17.0 ([#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)); the slot's registered step OFFER is the base tag's, and every slot's chain resolves whole.
 
 Three things ride on that and are easy to get wrong from the code alone:
 
@@ -1004,7 +1019,7 @@ Plus two global **Settings → Tag Extensions → Phone** options (not per-tag):
 
 **Post-context-only — a stated design non-goal, not a gap.** The source menu offers **Current** + **In Reference/Relational Field** ONLY; both resolve to a post id, exactly what a `$post_id`-contract function consumes. `src:site` (a wp_options namespace) and `srcTermIn` (terms) are deliberately **not offered** — neither is a post id, a `$post_id` function cannot consume them, and they add no post-binding affordance (the [qualifying test](#qualifying-test-for-new-use-values) applied at the source level). A future reader must not "fix" this by adding term/site sources: the post binding is the entire purpose. The GB type is `'post'` precisely because `{{call}}` has none of the term/site/media/taxonomy editor features `'cross-source'` implies.
 
-**Known limit — flat repeater rows.** `bws_resolve_post_by_source` resolves a post id. Mode 2a loops (relationship / post-object — the row IS a post) resolve and are the driver. Mode 2b (a flat ACF repeater row with no underlying post) returns false for `src:current`; there is no post to bind, and the `$post_id` function contract cannot consume a bag of row fields. Passing current-repeater-row fields into a function needs a different fn contract + a new src mode — a separate, deferred design, not a bug.
+**Known limit — repeater rows.** `bws_resolve_post_by_source` resolves a post id. A query loop standing on a POST (relationship / post-object) resolves and is the driver. A repeater row has no post behind it, so `src:current` returns false; there is no post to bind, and the `$post_id` function contract cannot consume a bag of row fields. Passing current-repeater-row fields into a function needs a different fn contract + a new src mode — a separate, deferred design, not a bug.
 
 **Allowlist — code, not the database.** The source of truth is the `bws_fn_passthrough_functions` filter (default empty). Register either way: the raw filter (power users / bulk), or the `bws_register_call_function( 'my_fn', $meta = [] )` helper (runs the gate at registration and fails fast via `_doing_it_wrong`). Storage is associative from v1 (`[ 'my_fn' => [] ]`); bare-string filter entries are normalized to that shape on read; re-registering a name overwrites its meta (last-write-wins, so a richer v2 meta update sticks). `$meta` is stored but unused in v1 (pretty labels / `post_id_arg` are future). The trust boundary is **file/code access only** — no DB-write widening — so `{{call}}` grants editors no capability a developer didn't already hold in PHP. It is a routing convenience, not privilege escalation.
 

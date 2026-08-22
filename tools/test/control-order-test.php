@@ -545,7 +545,7 @@ echo "\n§7 A slot's STEP OFFER is the base tag's (#104)\n";
 // had no spelling and offering it would have authored wire that skipped. The seam hands
 // the whole chain on now (#104) and the arms dispatch on what it resolves to (#103).
 //
-// `entries` stays OFF every offer, base and slot alike, and that is not an oversight: no
+// `rows` stays OFF every offer, base and slot alike, and that is not an oversight: no
 // arm assembles a repeater row, so offering it would author a chain that renders nothing.
 // {{table}} is where that gap closes, with its own arm.
 $base_offer = null;

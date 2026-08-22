@@ -293,7 +293,7 @@
 				"type": null,
 				"chain": [
 					{
-						"slug": "entries",
+						"slug": "rows",
 						"arg": "staff",
 						"limit": 0,
 						"extra": []
