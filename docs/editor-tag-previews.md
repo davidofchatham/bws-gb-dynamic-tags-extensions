@@ -177,7 +177,7 @@ is what the list is built to. Three things therefore **never** flag:
 - **A registered but UNOFFERED root.** Offering is not resolving; a source an integrator stopped
   offering still renders. (Gating this on `is_selectable_root()` is the named trap, pinned by
   mutation in the harness.)
-- **A well-formed source no arm consumes YET** — an `rows` step with its repeater field set,
+- **A well-formed source no arm consumes YET** — a `rows` step with its repeater field set,
   today. Unimplemented is not inert: `{{table}}` wants a repeater row as its read context, and on
   a fanning tag it would concatenate like any other step. Flagging it would encode a per-template
   fact with a shelf life. The arm is FW-74.

@@ -871,7 +871,7 @@ check(
 	"[Join Title from Ref 'a' Ref 'b', 'role']"
 );
 check(
-	'join: an `rows` step resolves at the seam (the container refuses the kind, not the wire)',
+	'join: a `rows` step resolves at the seam (the container refuses the kind, not the wire)',
 	bws_build_join_preview_label( [ 'A' => 'src(rows,rows);key(name)' ] ),
 	"[Join 'name']"
 );

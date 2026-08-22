@@ -324,6 +324,34 @@ The **declared read intent** of a tag — its (source + key) specification. `{sr
 
 Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`term`/`ref`/`view_`) | global (`site`) | ID (`src:<type>,<ID>`). Prefer **global** over "fixed" for `site` — "fixed" also fits ID sources (fixed-per-render), so it under-discriminates. _Avoid_: "contextual"/"context source" as the NAME of this axis-2 pole — say **detected** (the pole spans query, a `refs` step, AND session/view; "context" in the doc means specifically the #19 *query*-context, a subset, so naming the whole pole "contextual" blurs it with that subset). "context modifier"/"context-aware"/"context kind" elsewhere are unaffected. Also avoid "entityless" for `global` (collides with unresolvable-read / post/0 empty).
 
+**Ambient**:
+Supplied by the RENDER's own context rather than by the wire — the queried object on a
+singular page, term archive or author archive, or the row a query loop is standing on. An
+ambient read is legitimate ([I15] says when), and "ambient" never means "whatever is left
+over": it names one specific supplier.
+
+**Kind determination** (a third axis, alongside the two source-binding axes above, and
+independent of both): *when is the kind a chain resolves to knowable?* Three answers, and
+they must stay three — collapsing the last two into one "unknown" is what GH #109 cost.
+
+- **parse-time** — the wire names the kind. Reading the parsed chain is enough; no render
+  needed.
+- **render-time** — the wire cannot say, so the factory answers when the tag runs. Covers
+  BOTH an ambient root and a registered source answering for itself, which is why the name
+  says *when* rather than *how*. Spelled `render_time` in code.
+- **unrecognized** — the wire names step vocabulary we do not have. Not "known later": there
+  is nothing to know, and the chain short-circuits to empty. Spelled `''`.
+
+Which answer a given chain gets is `bws_fold_chain_resolution()`'s to decide and is stated
+there. Note the layering: this axis says what kind SHOULD arrive, while resolvable / exists /
+visible below says whether anything DID — a render-time chain makes no promise that the
+factory finds something, and an unresolvable source is not an unrecognized one.
+
+_Avoid_: "static"/"dynamic" for the first two poles ("dynamic" is this plugin's own name, and
+"static analysis" is a term of art this vocabulary deliberately does without); "base" for the
+render-time pole, the spelling retired 2026-08-22 — it read as "the base tag" on the two
+surfaces where that is false, a root-only chain in a `try_` or `{{join}}` slot.
+
 **Resolved source**:
 L1's output executing a target — the **bound *where*** a read happens, key not yet applied. post/term carry an id (meta-read needs one); **site** carries the `wp_options` namespace; future ones (#19 date/search, possible external Site-Views option-set source) carry their own payload. id is a post/term implementation detail, not universal. **Payload may legitimately vary by read mechanism within one kind:** site-datetime reads via ACF `get_field(key,'option')`, site-text via plain `get_option` — same `site` kind, different L2b read path. Frame-B variable payload (ADR 0002). **Distinguish legitimate payload-variance from a contradiction-to-refactor:** today datetime overloads the *post_id parameter slot* by passing the literal string `'option'` through it (datetime-tags.php:1005) — that param-overload is a contradiction of this model (a resolved-source payload smuggled through an id arg), REFACTORABLE, not canonical. Likewise `ref` collapsing to one target (`bws_extract_post_id`) contradicts the fanning-source model → fix the code, don't model around it.
 
@@ -355,7 +383,7 @@ A source chain that resolves to **nothing on every tag, for a reason readable of
 Three neighbours it is NOT, each of which renders empty too:
 - **Unfinished** — a fanning step with no argument (`src:terms` with no taxonomy). Expressible and half-written; the author's next act is to finish it, not to replace it.
 - **Unconfigured** — no read stated yet. A normal in-progress state.
-- **Unimplemented** — well-formed wire no arm consumes *yet* (an `rows` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
+- **Unimplemented** — well-formed wire no arm consumes *yet* (a `rows` step outside `{{table}}`, FW-74). **Unimplemented is not inert**, and conflating them is the mistake this term exists to prevent: it encodes a per-template fact with a shelf life, and the tag becomes correct without anyone touching the sentence that called it broken.
 
 _Avoid_: "unsupported source" (retired in 1.17.0 with the flatten — it named a limit of the *storage*, not of the source); "invalid" (reserved for the `src:site`-on-a-modifier combo, which is invalid *for that tag* and resolves fine on the base one).
 
