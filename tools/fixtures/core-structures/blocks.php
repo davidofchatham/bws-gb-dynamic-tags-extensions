@@ -837,7 +837,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		// term archive. It is render-tag-only, and the matrix says so.
 	) );
 
-	// F9c — MODE 2b, the flat ACF repeater row, which had NO rendered coverage on any
+	// F9c — the query loop's REPEATER ROW, the flat ACF shape, which had NO rendered coverage on any
 	// tag family until #103. It matters here for two reasons and the second is the
 	// bigger one.
 	//
@@ -857,7 +857,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// NOTHING ELSE REACHES THIS. A WP_Query loop's rows are WP_Post objects, so a post
 	// id always resolves and the branch never runs; `render-tag --loop-item` takes a
 	// post id by construction. The fixture builder's docblock carries the detail.
-	$sections[] = bws_fixture_gb_section( 'Fold F9c - MODE 2b: the flat ACF repeater row (loop fallthrough)', array(
+	$sections[] = bws_fixture_gb_section( 'Fold F9c - the query loop\'s repeater row, the flat ACF shape (loop fallthrough)', array(
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.1 base tag in a repeater row (-> Alice Adams / Bob Brown, one per row): {{text key:name}}', 'f9c1-base' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.2 the try_ twin, which is the loop fallthrough (-> the SAME two names): {{try_text A:key(name)}}', 'f9c2-try' ),
 		bws_fixture_gb_post_meta_loop( 'team_members', 'F9c.3 the attempt chain still advances inside a row: slot 1 misses, slot 2 hits (-> Engineering / Operations): {{try_text A:key(nope)|B:key(role)}}', 'f9c3-advance' ),

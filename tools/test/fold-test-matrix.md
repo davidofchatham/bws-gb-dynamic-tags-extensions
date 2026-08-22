@@ -487,7 +487,7 @@ rather than an empty one, so a single green row proves very little.
 | F9b.12 | `{{try_text A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | `Captain` — an inexpressible chain still skips at the SEAM, which #103 did not touch (#104 dissolves it) |
 | F9b.13 | `{{try_text use:title}}` / `{{try_title}}` / `{{try_content}}` on `/author/fixture-author/` | **RENDER-TAG ONLY, stated exception** (an author ARCHIVE is the ambient context and has no page content to hang a fixture row on — the same exception text T4 takes for a term archive). EMPTY, all three — the [I6] parity defect is deliberately still open here. The `user` row exists in the arm table and is `branchable`; no template carries a user function yet, so the dispatcher's fn-absent fallthrough sends it to the post arm exactly as the token arms did. **#108 is what flips these three**, with its own replay run whose expected diff is exactly these rows |
 
-## §F9c — MODE 2b: the flat ACF repeater row (the loop fallthrough)
+## §F9c — the query loop's repeater row, the flat ACF shape (the loop fallthrough)
 
 **`meta_row` names ONE resolved-source kind, and a slot can arrive at it two ways.** The two need
 opposite answers, which is the whole content of this section:

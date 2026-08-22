@@ -227,7 +227,7 @@ assert_same( 'A4.4 a repeater row branches to the post arm (the loop fallthrough
 // `site` is a real kind but not a branch target: a site base cannot arrive from a
 // root-only chain that resolved to `render_time` in the first place.
 assert_same( 'A4.5 a non-branchable kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( 'site' ) );
-assert_same( 'A4.6 `render_time` never branches to itself', 'post', bws_try_slot_base_branch_kind( 'base' ) );
+assert_same( 'A4.6 `render_time` never branches to itself', 'post', bws_try_slot_base_branch_kind( 'render_time' ) );
 assert_same( 'A4.7 an empty base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( '' ) );
 assert_same( 'A4.8 an unknown base kind falls to the post arm', 'post', bws_try_slot_base_branch_kind( 'wormhole' ) );
 

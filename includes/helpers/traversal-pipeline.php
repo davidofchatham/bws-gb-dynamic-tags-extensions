@@ -265,9 +265,9 @@ function bws_run_traversal( array $sources, array $steps, $reader = null, $gate 
  * @since 1.17.0
  */
 const BWS_TRAVERSAL_STEP_INPUT_KINDS = array(
-	'refs'    => array( 'post', 'term', 'user', 'meta_row', 'site' ),
-	'terms'   => array( 'post' ),
-	'rows' => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'refs'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
+	'terms' => array( 'post' ),
+	'rows'  => array( 'post', 'term', 'user', 'meta_row', 'site' ),
 );
 
 /**

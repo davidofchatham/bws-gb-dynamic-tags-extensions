@@ -182,9 +182,9 @@ function bws_fold_wire_vocabulary(): array {
 	// the label from it would put the naming decision in a map keyed on internals. The
 	// generic `limitOption.label` stays as the fallback for a slug that ships without one.
 	$labels = array(
-		'refs'    => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
-		'terms'   => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
-		'rows' => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
+		'refs'  => array( __( 'In Reference/Relational Field', 'generateblocks' ), __( 'Limit Posts Read', 'generateblocks' ) ),
+		'terms' => array( __( 'In Taxonomy Term', 'generateblocks' ), __( 'Limit Terms Read', 'generateblocks' ) ),
+		'rows'  => array( __( 'In Repeater Rows', 'generateblocks' ), __( 'Limit Repeater Rows Read', 'generateblocks' ) ),
 	);
 
 	$steps = array();

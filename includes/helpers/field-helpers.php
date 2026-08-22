@@ -173,11 +173,13 @@ function bws_extract_post_id( $post_data ) {
  *
  * THE ITEM SHAPES ARE AN ASSUMPTION, NOT A CHECK (#123). array | WP_Post | numeric
  * covers everything GB itself loops over, and anything else reports NOT IN A LOOP
- * rather than "in a loop I cannot resolve" - so a caller falls through to the ambient
+ * rather than "in a loop I cannot resolve" — so a caller falls through to the ambient
  * entity and renders a plausible value from an entity the wire never named ([I15]).
  * An extension that loops over TERMS makes that reachable; a term id would be worse
- * than a WP_Term, since is_numeric() passes and the id is read as a POST's. Result cached on $instance->context['bws/loopItemPostId']
- * so callers paying for `get_post()` only do so once per block render.
+ * than a WP_Term, since is_numeric() passes and the id is read as a POST's.
+ *
+ * Result cached on $instance->context['bws/loopItemPostId'] so callers paying for
+ * `get_post()` only do so once per block render.
  *
  * Returned shape:
  *   [
@@ -600,7 +602,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
 	// src:site keeps its dot-path affordance (ACF options can be dotted); other
 	// sources require a valid flat meta key. Gate BEFORE resolution to preserve
 	// the historical early-return on invalid non-site keys.
-	// Read the source ROOT, not the raw value: a depth-0 chain (`src:site;rows,rows`)
+	// Read the source ROOT, not the raw value: a depth-0 chain (`src:site;rows,team_members`)
 	// still ROOTS at the site store, so its dot-path keys must survive the gate below.
 	$is_site = 'site' === ( function_exists( 'bws_fold_src_root_token' )
 		? bws_fold_src_root_token( $options )
