@@ -330,6 +330,23 @@ singular page, term archive or author archive, or the row a query loop is standi
 ambient read is legitimate ([I15] says when), and "ambient" never means "whatever is left
 over": it names one specific supplier.
 
+**Query-loop item**:
+The one entity GB hands a block for the iteration it is rendering inside (`generateblocks/loopItem`).
+Two shapes, and no third is recognized: a **post** — any query type, so a plain post loop and a
+relationship loop look the same to us — or a **repeater row**, a bag of fields with no entity identity
+of its own (kind `meta_row`). Where loops nest, the innermost item is the one that counts. "Query loop"
+itself is the output shape defined in [`tag-reference.md`](docs/tag-reference.md) §Output shape.
+
+_Avoid_: "mode 2a" / "mode 2b" (retired 2026-08-22 — coined in a 2026-05 plan whose Mode 1 stopped
+existing days later, and defined in no committed file); "row" for the post shape, which is not
+row-shaped; "loop row" for either.
+
+**A query-loop item is GIVEN; a fan is DERIVED** — and that is the whole distinction between the two
+iterations live in one render. The item is a ROOT: GB chose it, and a source path starts there. A
+**fan** is what our own path produces from a root (`refs`/`terms`/`rows` steps), and what it yields are
+**sources**, never "items". So: **"loop" alone always means GB's query loop**; our iteration over a fan
+is never called one, whichever shape the item has.
+
 **Kind determination** (a third axis, alongside the two source-binding axes above, and
 independent of both): *when is the kind a chain resolves to knowable?* Three answers, and
 they must stay three — collapsing the last two into one "unknown" is what GH #109 cost.
