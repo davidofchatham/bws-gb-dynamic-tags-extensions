@@ -504,6 +504,45 @@ function bws_page_snapshot_capture_all( array $opts = array() ) {
 }
 
 /**
+ * Which pages block a baseline write.
+ *
+ * ALL OR NOTHING, AND THE REASON IS THE FAILURE THAT FOLLOWS A PARTIAL ONE. Writing the
+ * reachable pages and printing a warning leaves 8 fresh files beside 1 stale one, which is
+ * exactly the state a `git add -A` commits; the stale file then diffs clean forever, so the
+ * warning is announced once, at the moment nobody is looking, and is silent from then on.
+ * Refusing costs nothing here because bws_page_snapshot_capture_all() completes every fetch
+ * before the caller writes anything.
+ *
+ * A null shot with no recorded error counts too: an unexplained empty capture is the one
+ * shape that would otherwise be written out as a legitimate baseline.
+ *
+ * WHAT THIS CANNOT PROMISE: atomicity. A write can still fail on file 5 of 9, leaving a mixed
+ * set — the caller reports that separately, and both docs state the limit rather than implying
+ * it away.
+ *
+ * Pure: no filesystem, no network.
+ *
+ * @param array $captured Return value of bws_page_snapshot_capture_all().
+ * @return array Page keys that make the capture uncommittable; empty means write.
+ */
+function bws_page_snapshot_capture_blockers( array $captured ) {
+	$errors = isset( $captured['errors'] ) ? (array) $captured['errors'] : array();
+	$shots  = isset( $captured['shots'] ) ? (array) $captured['shots'] : array();
+
+	$blockers = array_keys( $errors );
+
+	foreach ( $shots as $key => $shot ) {
+		if ( null === $shot && ! isset( $errors[ $key ] ) ) {
+			$blockers[] = $key;
+		}
+	}
+
+	sort( $blockers, SORT_STRING );
+
+	return array_values( array_unique( $blockers ) );
+}
+
+/**
  * Compare live pages against the committed baseline.
  *
  * Returns a report: per-page status ('same' | 'differs' | 'missing-baseline' |
@@ -695,15 +734,34 @@ if ( bws_page_snapshot_is_cli_entry() ) {
 			)
 		);
 
+		// REFUSE BEFORE WRITING ANYTHING. Every fetch is already done at this point, so a
+		// single unreachable page means no file is touched at all — see
+		// bws_page_snapshot_capture_blockers() for why a warned-about partial baseline is
+		// worse than none.
+		$bws_blockers = bws_page_snapshot_capture_blockers( $bws_res );
+
+		if ( $bws_blockers ) {
+			foreach ( $bws_blockers as $bws_key ) {
+				printf(
+					"[FAIL] %-26s %s — %s\n",
+					$bws_key,
+					isset( $bws_pages[ $bws_key ]['path'] ) ? $bws_pages[ $bws_key ]['path'] : '?',
+					isset( $bws_res['errors'][ $bws_key ] ) ? $bws_res['errors'][ $bws_key ] : 'captured nothing, with no error reported'
+				);
+			}
+
+			printf(
+				"\nNOTHING WRITTEN — %d of %d page(s) unreachable. The baseline on disk is untouched.\n",
+				count( $bws_blockers ),
+				count( $bws_pages )
+			);
+
+			exit( 1 );
+		}
+
 		$bws_bad = 0;
 
 		foreach ( $bws_pages as $bws_key => $bws_page ) {
-			if ( isset( $bws_res['errors'][ $bws_key ] ) ) {
-				printf( "[FAIL] %-26s %s — %s\n", $bws_key, $bws_page['path'], $bws_res['errors'][ $bws_key ] );
-				$bws_bad++;
-				continue;
-			}
-
 			$bws_written = file_put_contents( bws_page_snapshot_path( $bws_key ), $bws_res['shots'][ $bws_key ] );
 
 			if ( false === $bws_written ) {
@@ -717,8 +775,11 @@ if ( bws_page_snapshot_is_cli_entry() ) {
 			printf( "[capture] %-24s %s (%d bytes normalized)\n", $bws_key, $bws_page['path'], $bws_written );
 		}
 
+		// The residual case the refusal above cannot reach: every page fetched, but a write
+		// failed partway through. That DOES leave a mixed set on disk, and saying so is the
+		// only thing left to do about it.
 		echo $bws_bad
-			? "\nCAPTURE INCOMPLETE ({$bws_bad} page(s) unreachable) — do NOT commit a partial baseline.\n"
+			? "\nCAPTURE INCOMPLETE — {$bws_bad} page(s) fetched but not written, so the baseline on disk is MIXED. Do not commit it; re-run.\n"
 			: "\nBaseline written to tools/test/snapshots/. Re-record env-versions.php in the SAME commit.\n";
 
 		exit( $bws_bad ? 1 : 0 );

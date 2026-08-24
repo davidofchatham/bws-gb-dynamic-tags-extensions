@@ -321,5 +321,60 @@ $check( 'P14.2 every derived path is absolute-rooted and slash-terminated', $rea
 	return '/' === substr( $p['path'], 0, 1 ) && '/' === substr( $p['path'], -1 );
 } ) );
 
+/* ======================================================================
+ * §P15 — a capture with any unreachable page writes NOTHING
+ *
+ * The rule the CLI's capture branch reads before it touches disk. Pinned because the
+ * alternative failure is invisible: a partial baseline is 8 fresh files beside 1 stale one,
+ * committable by accident, and clean-diffing forever after. Documented in
+ * docs/testbed.md and docs/update-triggers.md, which state the residual limit — a write
+ * failing partway through still leaves a mixed set — that this rule cannot cover.
+ * ====================================================================== */
+
+$check(
+	'P15.1 a fully successful capture blocks nothing',
+	array() === bws_page_snapshot_capture_blockers(
+		array(
+			'shots'  => array( 'a' => '<html>a</html>', 'b' => '<html>b</html>' ),
+			'errors' => array(),
+		)
+	)
+);
+
+$check(
+	'P15.2 one unreachable page blocks the whole write',
+	array( 'b' ) === bws_page_snapshot_capture_blockers(
+		array(
+			'shots'  => array( 'a' => '<html>a</html>', 'b' => null ),
+			'errors' => array( 'b' => 'HTTP 404' ),
+		)
+	)
+);
+
+$check(
+	'P15.3 a null shot with no error blocks too — an unexplained empty capture is not a baseline',
+	array( 'c' ) === bws_page_snapshot_capture_blockers(
+		array(
+			'shots'  => array( 'a' => '<html>a</html>', 'c' => null ),
+			'errors' => array(),
+		)
+	)
+);
+
+$check(
+	'P15.4 blockers are deduplicated and ordered, so the report does not vary with page order',
+	array( 'a', 'b' ) === bws_page_snapshot_capture_blockers(
+		array(
+			'shots'  => array( 'b' => null, 'a' => null ),
+			'errors' => array( 'b' => 'HTTP 500', 'a' => 'timeout' ),
+		)
+	)
+);
+
+$check(
+	'P15.5 an empty capture reports no blockers rather than erroring — the empty-set guard is P14.1 job',
+	array() === bws_page_snapshot_capture_blockers( array() )
+);
+
 echo $fail ? "\nPAGE-SNAPSHOT NORMALIZE TEST FAILED ({$fail})\n" : "\nPAGE-SNAPSHOT NORMALIZE TEST PASSED\n";
 exit( $fail ? 1 : 0 );

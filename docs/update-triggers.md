@@ -218,7 +218,7 @@ run `php tools/test/page-snapshot-normalize-test.php` (the pure half — normali
 
 **It proves stability, never correctness.** Wrong output captured as a baseline diffs clean forever, which is the failure mode of every golden-file instrument. The `*-test-matrix.md` files own what a row SHOULD say; this owns whether it changed. The corollary is a capture rule: capture the baseline BEFORE the change under test, never after — a baseline taken afterwards asserts the new behaviour is the old one.
 
-**A diff is not automatically your regression.** `verify.php` prints the dependency-version comparison first for that reason; read it before reading the hunks. Re-capture and re-record `env-versions.php` in the SAME commit (that file's header owns why), and never commit a partial capture — the script refuses one rather than leaving fresh files beside stale ones.
+**A diff is not automatically your regression.** `verify.php` prints the dependency-version comparison first for that reason; read it before reading the hunks. Re-capture and re-record `env-versions.php` in the SAME commit (that file's header owns why), and never commit a partial capture — an unreachable page makes the script write nothing at all, leaving the baseline on disk untouched, and a write that fails partway through is reported as a MIXED set rather than a finished one.
 
 **A fixture-page change is EXPECTED to diff, and it is the one case where re-capturing is the answer rather than a cover-up.** A new visible block group moves page output by design, so the baseline is re-captured in the same commit as the blueprint edit and the reviewer reads the diff as the new rows arriving. If it also shows a page you did not touch, that is the finding.
 

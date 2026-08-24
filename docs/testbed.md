@@ -142,9 +142,11 @@ and ACF Pro, with our own version deliberately excluded (that file's header has 
 prints the comparison FIRST and a drift line is a WARNING, never a failure: it exists to tell you
 a diff below is attributable to a dependency rather than to your change.
 
-**Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A partial
-capture (any page unreachable) is not committable either; the script says so and exits non-zero
-rather than leaving eight fresh files beside one stale one.
+**Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A capture
+with any page unreachable **writes nothing at all**: every fetch completes before the first write,
+so the baseline on disk is left untouched and the run exits non-zero. The one case that escapes
+that guard is a write failing partway through, which does leave a mixed set on disk — the run says
+so explicitly and asks you to re-run rather than commit.
 
 `php tools/test/page-snapshot-normalize-test.php` covers the pure half (normalization, diffing,
 deriving the page set) with no site and no network.
