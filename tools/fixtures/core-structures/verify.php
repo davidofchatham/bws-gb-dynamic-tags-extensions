@@ -361,5 +361,110 @@ if ( $gate_page instanceof WP_Post ) {
 	$check( 'F17.9 an ATTACHMENT source resolves for a visitor (its `inherit` is the PARENT status, not an internal refusal)', 'Fixture Photo' === $anon_att && $anon_att === $admin_att, 'anon=' . var_export( $anon_att, true ) . ' admin=' . var_export( $admin_att, true ) );
 }
 
+/* ---------------------------------------------------------------------------
+ * PAGE SNAPSHOTS + the dependency-version record.
+ *
+ * RUNS ON EVERY VERIFICATION, not only when something looks suspicious. A baseline
+ * consulted occasionally is a baseline nobody trusts: the diff it eventually reports spans
+ * every change since the last time anyone looked, which is precisely the state in which a
+ * real regression is indistinguishable from accumulated drift.
+ *
+ * THE TWO REPORTS ARE SEPARATE ON PURPOSE, and the separation is the whole design. A
+ * snapshot diff on its own cannot say WHY output moved. Printing the dependency-version
+ * comparison beside it — and printing it FIRST — reframes an unexplained diff from "we broke
+ * it" to "something changed under us", which is a different question with a different next
+ * step. A version change is therefore a WARNING and never a failure: only a human can judge
+ * whether moved output is acceptable, and the diff below is what tells them what moved.
+ *
+ * The checks live here rather than in the pure harnesses because none of those can reach
+ * this: `render-tag` and the replay scripts both call replace_tags() directly and never
+ * touch `generateblocks_dynamic_tag_replacement`, so a real request is the only thing that
+ * covers the full path. `tools/test/page-snapshots.php`'s own header has the rest.
+ */
+$snapshot_lib = dirname( dirname( __DIR__ ) ) . '/test/page-snapshots.php';
+
+if ( ! is_readable( $snapshot_lib ) ) {
+	// `tools/` is .distignore'd, so a released build has no such file. Never reached in a
+	// dev checkout, which is the only place verify.php runs at all.
+	printf( "\n[SKIP] page snapshots — %s not readable (released build?)\n", $snapshot_lib );
+} else {
+	require_once $snapshot_lib;
+
+	echo "\n--- environment the baseline was captured under ---\n";
+
+	$env = bws_page_snapshot_env_drift();
+
+	printf( "recorded %s (%d dependencies)\n", $env['captured'], $env['checked'] );
+
+	foreach ( $env['missing'] as $missing ) {
+		printf( "[WARN] %s is RECORDED but NOT INSTALLED — every snapshot below was captured with it present.\n", $missing );
+	}
+
+	foreach ( $env['drift'] as $drift ) {
+		printf( "[WARN] %s\n", $drift );
+	}
+
+	if ( ! $env['checked'] ) {
+		// UNREADABLE RECORD, NOT A CLEAN ONE. Zero comparisons made and zero
+		// disagreements found are the same value, and printing "[ok]" for the second
+		// would report the strongest possible result for the weakest possible reason.
+		$check( 'dependency-version record is readable and non-empty', false, 'env-versions.php checked 0 dependencies' );
+	} elseif ( ! $env['drift'] && ! $env['missing'] ) {
+		echo "[ok] every recorded dependency version matches what is installed.\n";
+	} else {
+		echo "      A page diff below is therefore ATTRIBUTABLE: re-read it as \"a dependency moved\"\n"
+			. "      before reading it as a regression. If the new output is correct, re-capture the\n"
+			. "      baseline and re-record env-versions.php IN THE SAME COMMIT.\n";
+	}
+
+	echo "\n--- page snapshots ---\n";
+
+	$snap_base  = rtrim( home_url(), '/' );
+	$snap_pages = bws_page_snapshot_pages();
+
+	// AN EMPTY PAGE SET PASSES EVERY ASSERTION BELOW, on zero pages, silently and forever.
+	// The set is DERIVED from the manifest (the `content_builder` key), so a blueprint
+	// rename empties it without touching a line of this file — and the report would go on
+	// printing a clean run. The CLI carries the same guard for the same reason.
+	$check( 'page-snapshot set is non-empty', (bool) $snap_pages, count( $snap_pages ) . ' page(s) derived from the manifest' );
+
+	// THE DERIVED PERMALINK IS CHECKED AGAINST WORDPRESS'S OWN, because a stale derivation
+	// fails SILENTLY in the worst possible direction: it captures 404 pages, which normalize
+	// perfectly well and diff clean against each other forever. This is the only place the
+	// rule can be checked at all — the capture path is deliberately WordPress-free.
+	foreach ( bws_page_snapshot_assert_permalinks( $snap_pages, $snap_base ) as $bad_url ) {
+		$check( 'page-snapshot URL derivation', false, $bad_url );
+	}
+
+	$snap = bws_page_snapshot_compare_all(
+		array(
+			'base_url' => $snap_base,
+			'pages'    => $snap_pages,
+		)
+	);
+
+	foreach ( $snap['pages'] as $snap_key => $snap_row ) {
+		if ( 'same' === $snap_row['status'] ) {
+			$check( "snapshot {$snap_key} ({$snap_row['path']})", true );
+			continue;
+		}
+
+		$snap_detail = 'differs' === $snap_row['status']
+			? count( $snap_row['diffs'] ) . ' line(s) differ'
+			: $snap_row['detail'];
+
+		$check( "snapshot {$snap_key} ({$snap_row['path']})", false, $snap_detail );
+
+		foreach ( $snap_row['diffs'] as $snap_d ) {
+			if ( null === $snap_d['baseline'] ) {
+				continue;
+			}
+
+			printf( "         L%-6d - %s\n", $snap_d['line'], substr( $snap_d['baseline'], 0, 150 ) );
+			printf( "         %-7s + %s\n", '', substr( $snap_d['current'], 0, 150 ) );
+		}
+	}
+}
+
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );

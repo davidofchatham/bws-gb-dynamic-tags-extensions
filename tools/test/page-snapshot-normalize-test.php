@@ -1,0 +1,325 @@
+<?php
+/**
+ * Pure harness for the page-snapshot normalizer, its differ, and its page-set derivation.
+ *
+ * Loads the REAL file (tools/test/page-snapshots.php) rather than a transcribed copy — the
+ * newer house convention, whose whole point is that a test-local copy of a rule is the drift
+ * the extraction removed. That file's CLI block is guarded on being the ENTRY script, so
+ * requiring it here runs nothing.
+ *
+ * WHY THIS HARNESS EXISTS AT ALL, given that the instrument's real acceptance test is
+ * empirical (capture twice, diff must be empty): that test needs a served fixture site, and
+ * it answers only "is the current rule set sufficient TODAY". It cannot say WHICH rule
+ * carries a case, so deleting a rule that has gone quiet — because the dependency stopped
+ * emitting that churn this month — passes it. Every rule below is therefore pinned to the
+ * shape it exists for.
+ *
+ * THE ONE RULE WORTH NAMING TWICE is the `bws-` <style> exemption (§P3). It is the only
+ * place the normalizer deliberately PRESERVES generated content, and it is preserved because
+ * {{table}}'s update trigger says to confirm on the front end that its footer CSS prints
+ * exactly once. A normalizer that swallowed it would answer that question "yes" forever,
+ * and nothing else in the tree would notice.
+ *
+ * Run:  php tools/test/page-snapshot-normalize-test.php   (exit 0 = pass, 1 = fail)
+ *
+ * @package BWS_Dynamic_Tags
+ */
+
+require_once __DIR__ . '/page-snapshots.php';
+
+$fail = 0;
+
+$check = function ( $label, $ok, $detail = '' ) use ( &$fail ) {
+	printf( "[%s] %s%s\n", $ok ? 'PASS' : 'FAIL', $label, '' !== $detail ? " — {$detail}" : '' );
+	if ( ! $ok ) {
+		$fail++;
+	}
+};
+
+$norm = static function ( $html ) {
+	return bws_page_snapshot_normalize( $html, 'https://testbed.test' );
+};
+
+/* =========================================================================
+ * §P1 — cache-plugin footprints
+ * ====================================================================== */
+
+$check(
+	'P1.1 the LiteSpeed footer comment (timestamped every render) is stripped',
+	false === strpos( $norm( "<p>x</p>\n<!-- Page cached by LiteSpeed Cache 7.9 on 2026-08-24 11:21:14 -->" ), 'LiteSpeed' )
+);
+
+// The two captures differ ONLY in that timestamp, which is the shape that made this rule
+// necessary. Comparing them to each other rather than to a literal is the point: what must
+// hold is that they AGREE, not what they agree on.
+$check(
+	'P1.2 two renders differing only in the cache timestamp normalize equal',
+	$norm( "<p>x</p>\n<!-- Page cached by LiteSpeed Cache 7.9 on 2026-08-24 11:21:14 -->" )
+		=== $norm( "<p>x</p>\n<!-- Page cached by LiteSpeed Cache 7.9 on 2026-08-24 11:59:02 -->" )
+);
+
+/* =========================================================================
+ * §P2/§P3 — generated <style> bodies, and the one exemption
+ * ====================================================================== */
+
+$third_party = '<style id="generateblocks-inline-css">.gb-a{color:red}</style>';
+$out         = $norm( $third_party );
+
+$check( 'P2.1 a third-party generated stylesheet loses its BODY', false === strpos( $out, 'color:red' ) );
+$check( 'P2.2 ...but keeps its tag and id, so the block VANISHING is still a diff', false !== strpos( $out, 'id="generateblocks-inline-css"' ) );
+
+$ours = '<style id="bws-table-inline-css">.bws-table{border:0}</style>';
+
+$check(
+	'P3.1 OUR stylesheet is preserved verbatim — {{table}}\'s footer CSS is an assertion surface, not churn',
+	false !== strpos( $norm( $ours ), 'border:0' )
+);
+$check(
+	'P3.2 the exemption is keyed on the id PREFIX, so a future bws-* block inherits it',
+	false !== strpos( $norm( '<style id="bws-something-new-inline-css">.z{a:b}</style>' ), 'a:b' )
+);
+$check(
+	'P3.3 ...and does not leak to an id merely CONTAINING "bws-"',
+	false === strpos( $norm( '<style id="theme-bws-ish-css">.z{a:b}</style>' ), 'a:b' )
+);
+
+/* =========================================================================
+ * §P1b — post-lifecycle timestamps
+ *
+ * `post_modified` moves every time the seeder touches a post, so without this rule the
+ * documented `bin/seed.sh` reseed invalidates all nine committed baselines at once and the
+ * instrument fails on its own maintenance.
+ *
+ * THE RULE IS NAMED-CARRIER-ONLY, and §P1b.4 is the case that says why: rendered
+ * {{datetime_*}} output sits on these same pages and IS the signal. A generic date pattern
+ * would eat it.
+ * ====================================================================== */
+
+$check(
+	'P1b.1 article:modified_time is collapsed (post_modified moves on every reseed)',
+	$norm( '<meta property="article:modified_time" content="2026-08-22T11:29:19-04:00">' )
+		=== $norm( '<meta property="article:modified_time" content="2026-09-01T09:00:00-04:00">' )
+);
+$check(
+	'P1b.2 article:published_time and og:updated_time go the same way',
+	$norm( '<meta property="article:published_time" content="2026-08-22T11:29:19-04:00"><meta property="og:updated_time" content="2026-08-22T11:29:19-04:00">' )
+		=== $norm( '<meta property="article:published_time" content="2020-01-01T00:00:00-04:00"><meta property="og:updated_time" content="2021-02-03T04:05:06-04:00">' )
+);
+$check(
+	'P1b.3 the JSON-LD datePublished/dateModified pair is collapsed',
+	$norm( '<script>{"datePublished":"2026-07-17T14:05:57-04:00","dateModified":"2026-08-22T11:29:19-04:00"}</script>' )
+		=== $norm( '<script>{"datePublished":"2001-01-01T00:00:00-04:00","dateModified":"2002-02-02T00:00:00-04:00"}</script>' )
+);
+$check(
+	'P1b.4 rendered {{datetime_*}} output is NOT collapsed — it is the signal, not chrome',
+	$norm( '<p class="gb-text">D0.3: 2030-08-12 9:00 am</p>' ) !== $norm( '<p class="gb-text">D0.3: 2031-08-12 9:00 am</p>' )
+);
+$check(
+	'P1b.5 ...including an ISO-shaped one a tag could legitimately render',
+	$norm( '<p class="gb-text">D9: 2030-08-12T09:00:00-04:00</p>' ) !== $norm( '<p class="gb-text">D9: 2031-08-12T09:00:00-04:00</p>' )
+);
+$check(
+	'P1b.6 the JSON-LD rule keeps the surrounding keys, so a structural change is still a diff',
+	false !== strpos( $norm( '<script>{"datePublished":"2026-07-17T14:05:57-04:00","isPartOf":"x"}</script>' ), 'isPartOf' )
+);
+
+/* =========================================================================
+ * §P4 — nonces
+ *
+ * These regenerate on a 12-hour tick, so without this rule a committed baseline goes stale
+ * by the CLOCK rather than by anything having changed — the worst kind of red, because
+ * re-running fixes it and teaches the operator that red means nothing.
+ * ====================================================================== */
+
+$check(
+	'P4.1 a _wpnonce query arg is collapsed',
+	$norm( '<a href="/x?_wpnonce=a1b2c3d4e5">n</a>' ) === $norm( '<a href="/x?_wpnonce=99887766ff">n</a>' )
+);
+$check(
+	'P4.2 a JSON nonce field is collapsed',
+	$norm( '<script>var s={"nonce":"a1b2c3d4e5"};</script>' ) === $norm( '<script>var s={"nonce":"5f4e3d2c1b"};</script>' )
+);
+
+/* =========================================================================
+ * §P5 — cache-busting and asset-version query strings
+ * ====================================================================== */
+
+$check(
+	'P5.1 the capture\'s own ?nocache= bust is collapsed (it differs on every single capture)',
+	$norm( '<link href="/s.css?nocache=17771">' ) === $norm( '<link href="/s.css?nocache=48812">' )
+);
+$check(
+	'P5.2 ?ver= is collapsed — it moves on every dependency upgrade, and env-versions.php reports that ONCE rather than as a hundred diff lines',
+	$norm( '<link href="/s.css?ver=2.4.1">' ) === $norm( '<link href="/s.css?ver=2.5.0">' )
+);
+$check(
+	'P5.3 ...and a ver= in the middle of a query string keeps the rest of it',
+	false !== strpos( $norm( '<link href="/s.css?ver=1.0&amp;x=keep">' ), 'x=keep' )
+);
+// WordPress emits `&amp;` between query args inside an attribute, so a bare [?&] class
+// reaches only the FIRST argument. Any asset carrying `ver` in second position would leak
+// its dependency version into every diff — the exact noise P5.2 exists to keep out.
+$check(
+	'P5.4 a ver= behind an &amp;-encoded separator is collapsed too',
+	$norm( '<link href="/s.css?x=1&amp;ver=2.4.1">' ) === $norm( '<link href="/s.css?x=1&amp;ver=9.9.9">' )
+);
+$check(
+	'P5.5 ...and behind a numeric-entity separator',
+	$norm( '<link href="/s.css?x=1&#038;ver=2.4.1">' ) === $norm( '<link href="/s.css?x=1&#038;ver=9.9.9">' )
+);
+
+/* =========================================================================
+ * §P6 — absolute URLs
+ *
+ * The host is an operator's choice, not a property of the output. This is what lets a
+ * baseline captured on the HOST diff clean against a comparison run from INSIDE the
+ * container, which is exactly how the two entrypoints are used.
+ * ====================================================================== */
+
+$check(
+	'P6.1 the configured base URL is stripped to root-relative',
+	$norm( '<a href="https://testbed.test/matrix-post-meta/">x</a>' ) === $norm( '<a href="/matrix-post-meta/">x</a>' )
+);
+$check(
+	'P6.2 a protocol-relative form of the same host is stripped too',
+	$norm( '<img src="//testbed.test/a.png">' ) === $norm( '<img src="/a.png">' )
+);
+$check(
+	'P6.3 a DIFFERENTLY-NAMED local env normalizes onto the same bytes',
+	$norm( '<a href="https://other-box.test/p/">x</a>' ) === $norm( '<a href="/p/">x</a>' )
+);
+$check(
+	'P6.4 a genuine external URL is NOT stripped — it is content, and a tag emitting one that changed is exactly what this instrument is for',
+	false !== strpos( $norm( '<a href="https://example.com/ext">x</a>' ), 'https://example.com/ext' )
+);
+
+/* =========================================================================
+ * §P7 — generated block ids
+ * ====================================================================== */
+
+$check(
+	'P7.1 GB per-block class suffixes are collapsed (a reseed regenerates them)',
+	$norm( '<figure class="gb-media-2e07464f">x</figure>' ) === $norm( '<figure class="gb-media-9911aabb">x</figure>' )
+);
+$check(
+	'P7.2 ...but the KIND is preserved, so gb-media turning into gb-element is still a diff',
+	$norm( '<figure class="gb-media-2e07464f">x</figure>' ) !== $norm( '<figure class="gb-element-2e07464f">x</figure>' )
+);
+$check(
+	'P7.3 a core per-block element id is collapsed',
+	$norm( '<div id="block-a1b2c3d4-e5f6">x</div>' ) === $norm( '<div id="block-99887766-5544">x</div>' )
+);
+
+/* =========================================================================
+ * §P8/§P9 — antispambot()'s per-character coin flip
+ *
+ * THE LARGEST CHURN SOURCE ON THE FIXTURE SITE, and the one that cannot be reasoned to:
+ * WordPress's antispambot() calls mt_rand() per CHARACTER to decide between a literal and a
+ * numeric entity, so every {{email}} renders differently on every request. The markup looks
+ * perfectly stable until two captures are diffed.
+ * ====================================================================== */
+
+$check(
+	'P9.1 two antispambot encodings of ONE address normalize to the same bytes',
+	$norm( '<a href="mailto:&#106;a&#110;&#101;&#064;&#101;&#120;a&#109;&#112;l&#101;.&#116;e&#115;&#116;">m</a>' )
+		=== $norm( '<a href="mailto:jane&#064;&#101;x&#097;mpl&#101;&#046;t&#101;st">m</a>' )
+);
+$check(
+	'P9.2 ...and they normalize to the LITERAL address, so a diff on one is readable',
+	false !== strpos( $norm( '<a href="mailto:&#106;a&#110;&#101;&#064;&#101;&#120;a&#109;&#112;l&#101;.&#116;e&#115;&#116;">m</a>' ), 'mailto:jane@example.test' )
+);
+$check(
+	'P9.3 a DIFFERENT address still differs after normalizing (the rule collapses spelling, not identity)',
+	$norm( '<a href="mailto:&#106;ane&#064;example.test">m</a>' ) !== $norm( '<a href="mailto:&#106;ohn&#064;example.test">m</a>' )
+);
+$check(
+	'P8.1 hex numeric references in the ASCII range decode too',
+	$norm( '<p>&#x6a;&#x40;a</p>' ) === $norm( '<p>j@a</p>' )
+);
+$check(
+	'P8.2 a NON-ASCII numeric reference is left alone (&#8211; is an en dash the page really contains)',
+	false !== strpos( $norm( '<p>a &#8211; b</p>' ), '&#8211;' )
+);
+$check(
+	'P8.3 the five markup-significant characters are left encoded — antispambot cannot emit them, and a decoded &#60; would make a diff line unreadable',
+	false !== strpos( $norm( '<p>&#60;&#62;&#38;&#34;&#39;</p>' ), '&#60;&#62;&#38;&#34;&#39;' )
+);
+$check(
+	'P8.4 a named entity is untouched',
+	false !== strpos( $norm( '<p>a &amp; b</p>' ), '&amp;' )
+);
+
+/* =========================================================================
+ * §P10 — line-ending and whitespace agnosticism
+ *
+ * The baseline is committed on Windows and compared from a Linux container, so a rule that
+ * did not do this would report every page as wholly changed depending on who ran it.
+ * ====================================================================== */
+
+$check( 'P10.1 CRLF and LF input normalize identically', $norm( "<p>a</p>\r\n<p>b</p>" ) === $norm( "<p>a</p>\n<p>b</p>" ) );
+$check( 'P10.2 trailing whitespace is dropped', $norm( "<p>a</p>   \n<p>b</p>" ) === $norm( "<p>a</p>\n<p>b</p>" ) );
+$check( 'P10.3 blank-line runs collapse', $norm( "<p>a</p>\n\n\n\n<p>b</p>" ) === $norm( "<p>a</p>\n\n<p>b</p>" ) );
+$check( 'P10.4 output always ends in exactly one newline', "\n" === substr( $norm( '<p>a</p>' ), -1 ) && "\n" !== substr( $norm( '<p>a</p>' ), -2, 1 ) );
+
+/* =========================================================================
+ * §P11/§P12 — the differ
+ * ====================================================================== */
+
+$check( 'P11.1 identical input reports no differences', array() === bws_page_snapshot_diff( "a\nb\nc", "a\nb\nc" ) );
+
+$one = bws_page_snapshot_diff( "a\nb\nc", "a\nX\nc" );
+$check( 'P11.2 one changed line reports exactly one difference', 1 === count( $one ) );
+$check( 'P11.3 ...at the right 1-indexed line, carrying both sides', 2 === $one[0]['line'] && 'b' === $one[0]['baseline'] && 'X' === $one[0]['current'] );
+
+$short = bws_page_snapshot_diff( "a\nb\nc", 'a' );
+$check( 'P11.4 a SHORTER current side marks the vanished lines rather than silently ending', 2 === count( $short ) && '<<absent>>' === $short[0]['current'] );
+
+$long = bws_page_snapshot_diff( 'a', "a\nb" );
+$check( 'P11.5 a LONGER current side marks the added lines the same way', 1 === count( $long ) && '<<absent>>' === $long[0]['baseline'] );
+
+$many = bws_page_snapshot_diff( implode( "\n", array_fill( 0, 40, 'a' ) ), implode( "\n", array_fill( 0, 40, 'b' ) ), 5 );
+$check( 'P12.1 every difference past the limit is still COUNTED', 40 === count( $many ) );
+$check( 'P12.2 ...but carries no text, so a wholesale change does not print a book', null !== $many[4]['baseline'] && null === $many[5]['baseline'] );
+
+/* =========================================================================
+ * §P13 — the page set derived from a manifest
+ *
+ * The selector is `content_builder`, which marks an entry whose content was generated to be
+ * READ. Entries without one render none of our tags, so they would contribute a page of
+ * theme chrome to every diff and nothing else.
+ * ====================================================================== */
+
+$fake = array(
+	'posts' => array(
+		'z-page'      => array( 'post_type' => 'page', 'post_name' => 'zeta', 'content_builder' => 'x' ),
+		'a-staff'     => array( 'post_type' => 'staff', 'post_name' => 'alpha', 'content_builder' => 'x' ),
+		'no-builder'  => array( 'post_type' => 'page', 'post_name' => 'plain' ),
+		'no-slug'     => array( 'post_type' => 'page', 'content_builder' => 'x' ),
+	),
+);
+
+$set = bws_page_snapshot_pages( $fake );
+
+$check( 'P13.1 only entries with a content_builder AND a slug are selected', array( 'a-staff', 'z-page' ) === array_keys( $set ) );
+$check( 'P13.2 a `page` derives /<slug>/', '/zeta/' === $set['z-page']['path'] );
+$check( 'P13.3 any other post type derives /<post_type>/<slug>/', '/staff/alpha/' === $set['a-staff']['path'] );
+// Sorted so the baseline filenames and the report are stable against manifest reordering —
+// otherwise a cosmetic move in the blueprint reads as a changed instrument.
+$check( 'P13.4 the set is key-sorted, so manifest reordering does not move the report', array_keys( $set ) === array( 'a-staff', 'z-page' ) );
+$check( 'P13.5 an empty manifest yields an empty set rather than a notice', array() === bws_page_snapshot_pages( array() ) );
+
+/* =========================================================================
+ * §P14 — the real manifest still yields a set
+ *
+ * A guard against the selector silently emptying: bws_page_snapshot_pages() returning
+ * nothing would make the comparison pass trivially, on zero pages, forever.
+ * ====================================================================== */
+
+$real = bws_page_snapshot_pages();
+$check( 'P14.1 the shipped manifest yields a non-empty page set', count( $real ) > 0, count( $real ) . ' page(s)' );
+$check( 'P14.2 every derived path is absolute-rooted and slash-terminated', $real === array_filter( $real, static function ( $p ) {
+	return '/' === substr( $p['path'], 0, 1 ) && '/' === substr( $p['path'], -1 );
+} ) );
+
+echo $fail ? "\nPAGE-SNAPSHOT NORMALIZE TEST FAILED ({$fail})\n" : "\nPAGE-SNAPSHOT NORMALIZE TEST PASSED\n";
+exit( $fail ? 1 : 0 );
