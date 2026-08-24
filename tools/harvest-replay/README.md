@@ -23,21 +23,35 @@ files this repo ships and how they compose with the harvest half, not how to run
 Each file's docblock is the authority on its own mechanism — this page is the connective layer
 between them and the harvest half, not a re-export of that detail.
 
-## Two experiments, two baselines
+## The replays, and their baselines
 
-The trio runs two distinct experiments, and conflating their baselines makes one invisible:
+**Each replay is named for what VARIES between its two renders**; everything else is held fixed.
+That is the whole legend — a run report says what moved without one. The trio runs two of them
+today, and conflating their baselines makes one invisible:
 
-- **Experiment M — the migrator**, against real wire nobody designed for. Baseline is
-  pre-1.17.0 → 1.17.0: harvest + replay on the old build (`A`), upgrade and run
+- **The migration replay — the WIRE changed**, and it is real wire nobody designed for. Baseline
+  is pre-1.17.0 → 1.17.0: harvest + replay on the old build (`A`), upgrade and run
   `run-converter.php` (wire changes — that's the point), harvest + replay again (`C`). The
   assertion is `A-render ≡ C-render` via `diff-replays.php --map=mapping.jsonl`; the wire diff
-  (`A-wire` vs `B-wire`) is reviewed, not gated.
-- **Experiment R — the resolver**, same wire both sides. Baseline is one clone, same declared
-  plugin version, before/after a resolver change — no converter run, no `--map`, no DB
+  (`A-wire` vs `B-wire`) is reviewed, not gated. A re-run after the migrator itself has moved is
+  **the second migration replay**, and is the same experiment against a later converter.
+- **The build replay — OUR BUILD changed**, same wire both sides. Baseline is one clone, same
+  declared plugin version, before/after a resolver change — no converter run, no `--map`, no DB
   restore. The gate expects the diff to come back **empty**; `diff-replays.php`'s build-identity
-  check exists specifically because R's failure mode is silent — an unswapped build also diffs
-  empty, which is R's own pass condition, so the diff independently confirms the swap happened
-  (recorded commit + a stat-only digest of the source tree) before trusting an empty result.
+  check exists specifically because this replay's failure mode is silent — an unswapped build
+  also diffs empty, which is this replay's own pass condition, so the diff independently confirms
+  the swap happened (recorded commit + a stat-only digest of the source tree) before trusting an
+  empty result.
+- **The dependency replay — A DEPENDENCY'S VERSION changed**, with our build and the wire both
+  held fixed. **Reserved, not built.** Named here because the name is the hard part: without it
+  the case has nowhere to land, and a dependency-driven diff gets filed under one of the two
+  above, where it reads as our regression.
+
+> **Renamed 2026-08-24.** These were `Experiment M`, `Experiment R` and `Experiment E`, with `M2`
+> for the second migration run. The letter scheme already needed a numeric suffix to stay
+> unambiguous and never said what was held fixed. **Run records under `docs/design-history/` keep
+> the old codes and are deliberately not rewritten** — they record runs that happened under those
+> names, so a reader crossing into them should expect the mismatch.
 
 ## The seam is two artifacts, not one
 

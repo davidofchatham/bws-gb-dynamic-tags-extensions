@@ -172,7 +172,7 @@ run `php tools/test/slot-fold-test.php` (§P13/§P14 equivalence — two chain-w
 
 **Fires on:** Harvest/replay verification change — `tools/harvest-replay/replay-tags.php`, `diff-replays.php` or `run-converter.php` (this repo), or `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php` (the ENV repo)
 
-read `tools/harvest-replay/README.md` FIRST — it owns what the instrument is, why the two experiments' baselines differ and conflating them makes one invisible, the two-artifact seam and why it cannot be one, and the harvest-side stratification a replay result must be read against. Then the touched file's own header, which is the authority on its own mechanism; every assertion the diff makes (build identity, census digest, non-vacuity, the migration run's expected row loss) is listed in `diff-replays.php`'s header. It is a REGRESSION instrument, not a coverage one: it answers "did this break wire that EXISTS", and nothing in the wild exercises a capability that was never authorable
+read `tools/harvest-replay/README.md` FIRST — it owns what the instrument is, why the replays' baselines differ and conflating them makes one invisible, the two-artifact seam and why it cannot be one, and the harvest-side stratification a replay result must be read against. Then the touched file's own header, which is the authority on its own mechanism; every assertion the diff makes (build identity, census digest, non-vacuity, the migration run's expected row loss) is listed in `diff-replays.php`'s header. It is a REGRESSION instrument, not a coverage one: it answers "did this break wire that EXISTS", and nothing in the wild exercises a capability that was never authorable
 
 ## GB Pro PATTERN-CACHE reconcile change
 
