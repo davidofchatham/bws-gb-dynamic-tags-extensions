@@ -59,8 +59,8 @@ rows here.
 
 ## T5 — `'0'` preservation
 
-Three of these four rows are **first-party GB tags**, which is why they are here: T5.2 and T5.4
-come back with the zero intact, T5.3 comes back empty. That is what the guard produces, observed —
+Four of these five rows are **first-party GB tags**, which is why they are here: T5.2, T5.4 and
+T5.5 come back with the zero intact, T5.3 comes back empty. That is what the guard produces, observed —
 what it applies to is decided at `includes/hooks.php`, and this section neither states nor extends
 that. Measured 2026-08-24 against GenerateBlocks 2.4.1 / GB Pro 2.7.0.
 
@@ -72,9 +72,9 @@ that. Measured 2026-08-24 against GenerateBlocks 2.4.1 / GB Pro 2.7.0.
 | T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-row `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on row 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first row with it. |
 | T5.5 | `{{loop_item key:qty}}`, inside the `team_members` repeater loop | `0` then `4` — the second GB Pro tag here, and the one that shows the guard acting per **value**: two rows of one loop, one padded and one untouched. |
 
-F3 of the interop spec measured a fourth first-party tag, `{{term_count}}` in a term loop. It has no
+A fourth first-party tag was measured reaching the guard, `{{term_count}}` in a term loop, and has no
 row here because no fixture page carries a term query loop yet; it belongs with the loop rows when
-one exists. Read the enumeration as four measured, three pinned.
+one exists. Four measured, three pinned — the dated enumeration is at the guard's own PHPDoc.
 
 ## T6 — editor preview fallback
 

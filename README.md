@@ -24,7 +24,11 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 
 #### Zero values
 
-GB suppresses the block when a dynamic tag inside it returns nothing, unless `required:false` is set. The underlying logic treats the string `0` as nothing, so a field holding a real value of `0` would result in the block being suppressed instead of returning "0". We work around that by returning '0 ' (zero followed by a space); the space collapses in rendered HTML output, so you see just **0**. (Note that if you're injecting a text field which may have a zero value into a URL or attribute, the added space could cause problems.)
+GB suppresses the block when a dynamic tag inside it returns nothing, unless `required:false` is set. The underlying logic treats the string `0` as nothing, so a tag returning a real value of `0` takes its whole block down with it. We work around that by returning '0 ' (zero followed by a space); the space collapses in rendered HTML output, so you see just **0**. (Note that if you're injecting a value which may be zero into a URL or attribute, the added space could cause problems.)
+
+**This is not limited to our own tags.** The suppression it prevents is GB's, and it hits every dynamic tag equally, so our workaround covers them all: GenerateBlocks' own tags, GenerateBlocks Pro's, and any other plugin's. GB Pro's loop index returns a bare `0` on the first row of a zero-based loop, and without this that row would go blank.
+
+What it cannot do is recover a zero a tag threw away before returning. GB's own `{{post_meta}}` comes back empty for a field holding `0`, and `required:false` does not bring the value back either. Read that field with our `{{text}}` tag instead.
 
 #### Empty alt text
 

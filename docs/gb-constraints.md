@@ -373,7 +373,9 @@ legitimate use.
 Available on every registered tag without declaring `supports`:
 
 - `id:N` — explicit entity ID.
-- `required:false` — when tag resolves empty, **don't render the containing block** (otherwise GB renders block with empty tag output). Useful for conditional layouts.
+- `required:false` — when the tag resolves empty, **still render the containing block**. The default is the other way: every tag is required unless this says otherwise, and GB returns `''` for the whole block when the replacement is falsy (`class-register-dynamic-tag.php` — `$required = ! isset( $options['required'] ) || 'false' !== $options['required']`, then `if ( $required && ! $replacement ) return '';`; read in GB 2.3.0 source, behavior measured on GB 2.4.1 2026-08-24). Useful for conditional layouts.
+
+  **It keeps the BLOCK, not the VALUE, so it is not the remedy for a field holding `0`.** A GB callback is free to discard a falsy value before the required check is ever reached: `{{post_meta key:<field holding 0>}}` comes back `''` from `get_post_meta()`'s own `if ( ! $value )`, and `required:false` renders the block around nothing (measured 2026-08-24, GB 2.4.1 — text matrix T5.3). What preserves a real zero is the `generateblocks_dynamic_tag_replacement` filter below; the rule for what that covers is stated at [`includes/hooks.php`](../includes/hooks.php) and only there.
 - `link:post|term|author|comments` — wraps output in link (requires `'link'` in `supports`).
 - `trunc:N`, `trunc:N,words` — truncate by chars or words.
 - `case:lower|upper|title` — case transform.
@@ -515,7 +517,7 @@ syntax can never ride the wire (`{{join 1:{{text …}}}}` is unparseable by cons
 
 | Hook | Signature | This plugin's use |
 |---|---|---|
-| `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php:30`](../includes/hooks.php) — falsy-replacement block-kill |
+| `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php`](../includes/hooks.php) — defeats the falsy-replacement block-kill for a bare `'0'` and for an empty `as:alt`, on every tag GB renders (the rule and its scope are stated there) |
 | `generateblocks_before_dynamic_tag_replace` | `($content, $args)` — pre-replace HTML hook | not used |
 | `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID. Applied only in `GenerateBlocks_Dynamic_Tags::get_id()`, which our tags never reach: GB calls it from its own built-in callbacks and from `with_link()`, and `with_link()` early-returns unless `$options['link']` is set. We never set `link` (we link-wrap via our own `linkTo`/`linkKey` — see [`link-helpers.php`](../includes/helpers/link-helpers.php)), so this hook cannot fire for a BWS tag. | not used (removed in 1.14.1; a filter here would silently defeat §V1 source resolution) |
 | `generateblocks_dynamic_tag_output` | `($output, $options, $raw_output)` — final output transform | preserved as third-party extension point by [`bws_safe_content_output()`](../includes/helpers/content-helpers.php) (see [`post-content-processing-reference.md`](post-content-processing-reference.md#L211)) |

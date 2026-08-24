@@ -6,7 +6,7 @@ See [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership
 
 **How this doc is organized.** Three parts, each a different reader-mode:
 
-- **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, custom editor controls, the option layout & visibility model.
+- **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, the falsy-replacement pads, custom editor controls, the option layout & visibility model.
 - **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its control order — plus the try_ tags. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
 - **[Part III — Trackers](#part-iii--trackers)** — read on change. Potential future templates; how to keep this document current.
 
@@ -455,6 +455,28 @@ as:<mode>        // nullary return (id/alt/title/caption) — bare mode, NO size
 - **Bare-`as:url` completion — Tag Converter ONLY too:** `bws_migrate_image_as_bare_url()`, gated on an `as` value of exactly `url` (or the hand-edited `url,`). No mount path, and the paragraph above says why the one that looks reachable is not. Registered **after** the `size` fold, and the order decides the outcome: a tag carrying both a legacy `size:` and a bare `as:url` matches both entries, and the cascade takes the first that changes, so the fold wins and keeps the authored size. Reversed, this entry would write `url,full` first and the fold would then read an `as` that already carries a size and drop the legacy `size:` as stale. Pinned by `tools/test/as-size-fold-test.php` §A4-A5. A legacy per-slot `N-as` is left alone: post-fold the tag-level token governs every attempt, so completing one would carry dead wire forward looking live.
 
 All other image options follow the standard rule. `as` is the documented exception.
+
+---
+
+## Falsy replacement: the `'0'` and empty-`alt` pads
+
+GB kills the containing block when a tag's replacement is falsy, and PHP counts `'0'` as falsy
+beside `''` (the GB fact, plus what `required:false` does and does not recover:
+[`gb-constraints.md` §Built-in tag parameters](gb-constraints.md#built-in-tag-parameters)). The
+plugin answers on the `generateblocks_dynamic_tag_replacement` filter: a bare `'0'` comes back
+`'0 '`, and an empty replacement on a tag carrying `as:alt` comes back `' '`. Both pads collapse in
+rendered HTML, so an author sees `0` and an empty alt attribute.
+
+**That response is not scoped to our own tags.** What an author sees padded is any tag on the page,
+GenerateBlocks' own and GB Pro's included — three first-party tags are pinned reaching it
+([`text-test-matrix.md` §T5](../tools/test/text-test-matrix.md)). Which replacements it covers, why
+that scope is deliberate, and the dated enumeration of what was measured are stated at the filter
+itself ([`includes/hooks.php`](../includes/hooks.php)) and nowhere else.
+
+Two consequences worth carrying: the pad is a real byte, so a zero routed into a URL or attribute
+value arrives with a trailing space (body-content tags are unaffected, which is what makes the pad
+safe for them); and the filter runs after the callback returns, so it cannot recover a value a
+callback already discarded.
 
 ---
 

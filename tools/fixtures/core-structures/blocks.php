@@ -282,10 +282,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T3.3', '{{text srcTermIn:department|use:title|limit:1|linkTo:permalink}}' ),
 	) );
 
-	// T5 — what the '0' guard in includes/hooks.php PRODUCES, observed. Three of these four
-	// rows are FIRST-PARTY GB tags: T5.2 and T5.4 come back with the zero intact, T5.3 comes
-	// back empty. T5.4 is the row that breaks first if the guard is ever narrowed to our own
-	// tags, and it needs no author setup beyond ticking a checkbox.
+	// T5 — what the '0' guard in includes/hooks.php PRODUCES, observed. Four of these five
+	// rows are FIRST-PARTY GB tags: T5.2, T5.4 and T5.5 come back with the zero intact, T5.3
+	// comes back empty. T5.4 is the row that breaks first if the guard is ever narrowed to our
+	// own tags, and it needs no author setup beyond ticking a checkbox.
 	//
 	// Per-row expectations live in tools/test/text-test-matrix.md §T5; what the guard applies
 	// to is decided at the guard itself, not here or there. Measured 2026-08-24 against
