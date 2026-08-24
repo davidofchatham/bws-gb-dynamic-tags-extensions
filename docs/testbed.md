@@ -102,6 +102,49 @@ check reveal rows. Do NOT leave rows as `render-tag`-only. Reseed + curl the fro
 Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4),
 or synthetic per-field blanking with no fixture (join J23/J24) — state the exception in the matrix.
 
-NB the front-end page runs WP content filters (`wptexturize` — straight quotes → curly; use prime
-marks `′`/`″` for units) that `--porcelain` skips, so the visible rows are also a bug surface
-render-tag can't reach.
+NB the visible rows are a bug surface `render-tag` cannot reach, and text formatting is the
+smaller half of it. A front-end request runs the WHOLE render path: WP content filters
+(`wptexturize` — straight quotes → curly; use prime marks `′`/`″` for units) and, before them,
+the `generateblocks_dynamic_tag_replacement` filter chain, where any co-resident plugin can
+rewrite what our callback returned. `--porcelain` skips both, and so do the replay scripts. The
+page snapshots below are what pin that path; [`update-triggers.md`](update-triggers.md#page-snapshot-instrument-or-baseline-change)
+owns what a clean run of them does and does not prove.
+
+## Page snapshots — the committed rendered-output baseline
+
+`tools/test/page-snapshots.php` curls every fixture page, normalizes away per-render churn, and
+diffs the result against a baseline committed under `tools/test/snapshots/`. It is the only
+instrument here that sees the full render path (above), so it is what a change that could move
+rendered output is measured against.
+
+```
+php tools/test/page-snapshots.php              # compare against the baseline (exit 1 on diff)
+php tools/test/page-snapshots.php --capture    # write/refresh the baseline
+php tools/test/page-snapshots.php --base-url=https://other.test
+```
+
+**Run it from the host, from the repo root** — the repo is bind-mounted read-only into the
+container, so a capture under `wp eval-file` can write nothing. Comparison only reads, so
+`verify.php` runs it in-container as part of every verification — you do not have to remember to.
+
+**The page set comes from the blueprint manifest**, not from a list kept in the script: every
+`posts` entry carrying a `content_builder` is snapshotted, so a new fixture page enters the set
+by existing. Nothing to register.
+
+**Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
+generates its own bust value per request — do not wrap it in one). A reseed does not invalidate
+the baseline either: `post_modified` and its siblings are normalized out, so `bin/seed.sh` and
+`--capture` are independent operations.
+
+**The environment the baseline was captured under is recorded** in
+`tools/fixtures/core-structures/env-versions.php` — GenerateBlocks, GB Pro, GB Query Enhancements
+and ACF Pro, with our own version deliberately excluded (that file's header has why). `verify.php`
+prints the comparison FIRST and a drift line is a WARNING, never a failure: it exists to tell you
+a diff below is attributable to a dependency rather than to your change.
+
+**Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A partial
+capture (any page unreachable) is not committable either; the script says so and exits non-zero
+rather than leaving eight fresh files beside one stale one.
+
+`php tools/test/page-snapshot-normalize-test.php` covers the pure half (normalization, diffing,
+deriving the page set) with no site and no network.

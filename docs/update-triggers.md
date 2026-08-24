@@ -201,3 +201,35 @@ run `php tools/test/traversal-pipeline-test.php`, then the fold matrix's [§F17]
 **Prove a new row FAILS before you trust it passing.** Every §F17 row reads a plausible value on a broken gate too — `Grace` is what most of them print when the gate is deleted AND when it works. Measure the row against the previous gate body (or with the fixture unseeded) and record what it printed; §F17.8 and §F17.9 carry theirs.
 
 **The viewer-relative arm needs a viewer who FAILS it.** An editor has `edit_others_posts` and reads other people's drafts, so an editor-vs-anonymous pair measures logged-in-ness, not readability. The blueprint seeds two author-role users for exactly this, and the negative arm is half the assertion (see [§F17.6/§F17.7](../tools/test/fold-test-matrix.md)).
+
+---
+
+## Page-snapshot instrument or baseline change
+
+**Fires on:** page-snapshot instrument or baseline change — `tools/test/page-snapshots.php`, the committed baseline under `tools/test/snapshots/`, the dependency record `tools/fixtures/core-structures/env-versions.php`, or `verify.php`'s snapshot section
+
+run `php tools/test/page-snapshot-normalize-test.php` (the pure half — normalization, diffing, deriving the page set), then `php tools/test/page-snapshots.php` against the testbed. [`testbed.md`](testbed.md#page-snapshots--the-committed-rendered-output-baseline) owns operating it, including why capture is host-side and why a reseed does not invalidate the baseline; this section owns what a run PROVES.
+
+**A clean diff proves rendered output did not move on any fixture page, and NO OTHER INSTRUMENT WE OWN CAN PROVE THAT.** `wp bws render-tag` and every script under `tools/harvest-replay/` call `GenerateBlocks_Register_Dynamic_Tag::replace_tags()` directly, which never reaches `generateblocks_dynamic_tag_replacement`. Anything hooked there — our own `'0'` guard is one; a co-resident plugin rewriting a value after our callback returned it is the case that costs us — is invisible to every pure harness, to render-tag, to `verify.php`'s own `replace_tags()` assertions, AND to the whole harvest/replay instrument. Only a real block render on a real request reaches it. Measured 2026-08-24: `render-tag --porcelain` returned a bare `0` for a tag whose front-end render was `0 ` — same site, same build, same tag string.
+
+**It is a pin over the fixture PAGES, so it proves nothing about a tag that has no visible block.** That is what makes [testbed.md](testbed.md)'s mandatory-visible-blocks rule load-bearing rather than hygiene: a matrix row that stayed `render-tag`-only sits outside the only instrument that sees the filter layer, and no run reports its absence — the diff is clean because nothing was looked at.
+
+**It proves stability, never correctness.** Wrong output captured as a baseline diffs clean forever, which is the failure mode of every golden-file instrument. The `*-test-matrix.md` files own what a row SHOULD say; this owns whether it changed. The corollary is a capture rule: capture the baseline BEFORE the change under test, never after — a baseline taken afterwards asserts the new behaviour is the old one.
+
+**A diff is not automatically your regression.** `verify.php` prints the dependency-version comparison first for that reason; read it before reading the hunks. Re-capture and re-record `env-versions.php` in the SAME commit (that file's header owns why), and never commit a partial capture — the script refuses one rather than leaving fresh files beside stale ones.
+
+**A fixture-page change is EXPECTED to diff, and it is the one case where re-capturing is the answer rather than a cover-up.** A new visible block group moves page output by design, so the baseline is re-captured in the same commit as the blueprint edit and the reviewer reads the diff as the new rows arriving. If it also shows a page you did not touch, that is the finding.
+
+---
+
+## Dependency version change
+
+**Fires on:** a dependency the fixture site runs on moving version — GenerateBlocks, GB Pro, GB Query Enhancements, ACF Pro (the set `tools/fixtures/core-structures/env-versions.php` records)
+
+run `php tools/test/page-snapshots.php` against the testbed. If output moved and the new output is CORRECT, re-capture the baseline and re-record `env-versions.php` in the same commit; if it moved and is not correct, that is a bug against the new version and the diff is the report.
+
+**This is the one trigger with no code change behind it.** Every other row here fires on an edit somebody made and can review. A dependency update moves rendered output with our tree byte-identical: no harness fires, no diff exists to read, and the next person to see it is a site owner. The version bump itself is therefore the trigger, and the recorded set is the answer to "what environment were these results true in" — not a changelog of theirs.
+
+**Our rendered output is a joint product**, which is why the snapshot and the version record are two reports rather than one. A page diff alone cannot separate "we broke it" from "GenerateBlocks changed under us", and those want opposite next steps.
+
+**The fixture site is the only corpus this covers.** Running the same question over the harvest corpus — real wire from real sites, our build and the wire both held fixed — is the **dependency replay**, named and reserved but not built ([`harvest-replay/README.md`](../tools/harvest-replay/README.md), FW-96). A clean snapshot run says nothing about wire shapes the fixture pages do not contain.

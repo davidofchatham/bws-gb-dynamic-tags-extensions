@@ -41,11 +41,18 @@ today, and conflating their baselines makes one invisible:
   check exists specifically because this replay's failure mode is silent — an unswapped build
   also diffs empty, which is this replay's own pass condition, so the diff independently confirms
   the swap happened (recorded commit + a stat-only digest of the source tree) before trusting an
-  empty result.
+  empty result. **Its diff also cannot see the tag-replacement filter layer, and that is a
+  property of the whole instrument rather than of this replay.** `replay-tags.php` calls
+  `replace_tags()` directly, so `generateblocks_dynamic_tag_replacement` never fires: a
+  co-resident plugin rewriting our output after we return it moves every real page and moves
+  nothing here. An empty diff is therefore a statement about our resolver over real wire, not
+  about what a visitor sees. `tools/test/page-snapshots.php` is the only instrument that covers
+  that half, and it covers the fixture site only — [`docs/update-triggers.md`](../../docs/update-triggers.md#page-snapshot-instrument-or-baseline-change)
+  owns the rule.
 - **The dependency replay — A DEPENDENCY'S VERSION changed**, with our build and the wire both
   held fixed. **Reserved, not built.** Named here because the name is the hard part: without it
   the case has nowhere to land, and a dependency-driven diff gets filed under one of the two
-  above, where it reads as our regression.
+  above, where it reads as our regression. Tracked as FW-96.
 
 > **Renamed 2026-08-24.** These were `Experiment M`, `Experiment R` and `Experiment E`, with `M2`
 > for the second migration run. The letter scheme already needed a numeric suffix to stay
