@@ -282,8 +282,24 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T3.3', '{{text srcTermIn:department|use:title|limit:1|linkTo:permalink}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'Text T5 - zero preservation', array(
-		bws_fixture_gb_row( 'T5.1', '{{text key:bws_zero_probe}}' ),
+	// T5 — the '0' guard in includes/hooks.php, and the two things about it that keep
+	// getting rediscovered. It is NOT scoped to our own tags (T5.2 is a GB CORE tag it
+	// rescues), and it cannot recover a zero GB's own callback already threw away (T5.3
+	// reads the SAME field as T5.1 through GB's meta tag and comes back empty). T5.4 is
+	// the PIN: GB Pro's loop index returns a bare '0' on row 1 of a zero-based loop with
+	// no author setup beyond ticking a checkbox, so scoping the guard to our tags would
+	// visibly break a first-party one. The guard's own comment claimed no first-party tag
+	// returns a bare '0'; these rows are what makes that claim fail out loud if restored.
+	// Measured 2026-08-24 against GB 2.4.1 / GB Pro 2.7.0.
+	$sections[] = bws_fixture_gb_section( 'Text T5 - zero preservation (the guard is not ours alone)', array(
+		bws_fixture_gb_row( 'T5.1 (expect 0 - our text tag preserves a field holding zero)', '{{text key:bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T5.2 (expect 0 - a GB CORE tag reaching the same guard; this page has no comments, so the none label prints and it is a bare zero)', '{{comments_count none:0}}' ),
+		bws_fixture_gb_empty_row( 'T5.3 (expect EMPTY, DISAGREEING with T5.1 on the same field - GB core meta read, whose callback discards the zero at source, before any filter can see it)', '{{post_meta key:bws_zero_probe}}' ),
+		bws_fixture_gb_query_loop(
+			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
+			'T5.4 THE PIN (expect 0 then 1 - GB Pro loop index, zero-based; row 1 is a bare zero and its whole block dies without the guard): {{loop_index zeroBased:1}}',
+			't5-4-loop-index-zero-based'
+		),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Text T7 - src:ref list mode', array(

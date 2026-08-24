@@ -59,9 +59,17 @@ rows here.
 
 ## T5 — `'0'` preservation
 
+The guard lives in `includes/hooks.php` and fires for **any** tag returning a bare `'0'`, ours or
+not. T5.2 and T5.4 are first-party GB tags it rescues; T5.3 is the case it cannot rescue, because
+GB's own callback discards the zero before any filter runs. Measured 2026-08-24 against
+GenerateBlocks 2.4.1 / GB Pro 2.7.0.
+
 | # | Tag (on `/matrix-post-meta/`) | Expected |
 |---|---|---|
-| T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows bare `0`; in a real GB block render the hooks.php `'0'`→`'0 '` falsy guard applies downstream.) |
+| T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows `0` plus the pad byte; the hooks.php `'0'`→`'0 '` falsy guard fires on both render paths, `verify.php` pins that byte for byte.) |
+| T5.2 | `{{comments_count none:0}}` | renders `0` — GB **core** tag, rescued by our guard. This page has no comments, so the `none` label prints and it is a bare `'0'`. Scoping the guard to our own tags would blank this row. |
+| T5.3 | `{{post_meta key:bws_zero_probe}}` | **EMPTY** — same field as T5.1, read through GB's own meta tag. GB's callback returns `''` for any falsy value, so the zero is gone at source and no filter can see it. The T5.1/T5.3 disagreement is GB's, not ours; `required:false` does not recover it either. |
+| T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-row `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on row 1 with no author setup beyond ticking the zero-based checkbox. Without the guard GB's required-bail kills the whole first row. |
 
 ## T6 — editor preview fallback
 

@@ -241,9 +241,23 @@
 </div>
 
 <div>
-<h2 class="wp-block-heading">Text T5 &#8211; zero preservation</h2>
+<h2 class="wp-block-heading">Text T5 &#8211; zero preservation (the guard is not ours alone)</h2>
 
-<p class="gb-text">T5.1: 0 </p>
+<p class="gb-text">T5.1 (expect 0 &#8211; our text tag preserves a field holding zero): 0 </p>
+
+<p class="gb-text">T5.2 (expect 0 &#8211; a GB CORE tag reaching the same guard; this page has no comments, so the none label prints and it is a bare zero): 0 </p>
+
+<p class="gb-text">T5.3 (expect EMPTY, DISAGREEING with T5.1 on the same field &#8211; GB core meta read, whose callback discards the zero at source, before any filter can see it):</p>
+
+<div><ol >
+<li class="gb-loop-item post-278 staff type-staff status-publish hentry department-warehouse">
+<p class="gb-text">T5.4 THE PIN (expect 0 then 1 &#8211; GB Pro loop index, zero-based; row 1 is a bare zero and its whole block dies without the guard): 0 </p>
+</li>
+
+<li class="gb-loop-item post-277 staff type-staff status-publish hentry department-sales">
+<p class="gb-text">T5.4 THE PIN (expect 0 then 1 &#8211; GB Pro loop index, zero-based; row 1 is a bare zero and its whole block dies without the guard): 1</p>
+</li>
+</ol></div>
 </div>
 
 <div>
