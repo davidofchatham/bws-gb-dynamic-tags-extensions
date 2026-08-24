@@ -11,14 +11,23 @@
  * normalization, diffing, and deriving the page set — is callable with no WordPress and no
  * network, and `page-snapshot-normalize-test.php` is what exercises it.
  *
- * WHY IT EXISTS: NO OTHER INSTRUMENT WE OWN CAN SEE THE TAG-REPLACEMENT FILTER LAYER.
+ * WHY IT EXISTS: THE FIXTURE PAGES ARE THE ONLY CORPUS RENDERED THE WAY A VISITOR GETS IT.
  * `wp bws render-tag` and `tools/harvest-replay/replay-tags.php` both call
- * GenerateBlocks_Register_Dynamic_Tag::replace_tags() directly, which never reaches
- * `generateblocks_dynamic_tag_replacement`. A regression in that layer is therefore
- * invisible to every pure harness, to render-tag, AND to the entire harvest/replay
- * instrument. Only a real block render on a real request reaches it, which makes the
- * fixture pages the only corpus that covers the full path — and makes the
- * mandatory-visible-blocks rule load-bearing rather than hygiene.
+ * GenerateBlocks_Register_Dynamic_Tag::replace_tags() directly. That DOES reach
+ * `generateblocks_dynamic_tag_replacement` — the filter is applied inside replace_tags()
+ * itself. An earlier version of this header said the opposite, on a measurement that did
+ * not reproduce: re-measured 2026-08-24, `{{text key:bws_zero_probe}}` through render-tag
+ * returns three bytes, the third being the trailing space includes/hooks.php's guard adds
+ * to a bare '0'. `verify.php` now pins that rather than leaving it to prose.
+ *
+ * What a direct call cannot produce is the RENDER AROUND the tag: `$block` arrives as
+ * array(), so anything keyed on real block markup or GB's block-name gate is unreachable;
+ * `--loop-item` fakes only queryType 'WP_Query', so a TERM or USER query loop cannot be
+ * produced at any flag combination; and the_content filters, wptexturize included, never
+ * run. The loop gap is the load-bearing one — it is the exact shape of the leak this
+ * instrument was built to measure, so acceptance evidence for it cannot come from
+ * render-tag. That is also what keeps the mandatory-visible-blocks rule load-bearing
+ * rather than hygiene: a matrix row that never became a block is outside this instrument.
  *
  * THE PAGE SET COMES FROM THE MANIFEST, NOT FROM A LIST KEPT HERE. Every `posts` entry
  * carrying a `content_builder` is a page built to be looked at, so it is a page worth

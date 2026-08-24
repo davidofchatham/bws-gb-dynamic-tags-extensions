@@ -26,8 +26,11 @@ SOURCE rather than calling it, because the script under test executes a replay o
 touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No
 CI runs these; run them locally before commit.
 
-   **One is not pure and cannot be** — `control-order-test.php`, the only harness that sees all
-   three registration constructors at once (its own header has the full rationale).
+   **Two are not pure, for different reasons** — `control-order-test.php` runs against no world
+   at all but is the only harness that sees all three registration constructors at once, and
+   `page-snapshots.php` needs a SERVED fixture site, which nothing else under `tools/test/` does.
+   Each file's own header carries its rationale; `page-snapshot-normalize-test.php` covers the
+   second one's pure half (normalization, diffing, deriving the page set) with no site at all.
 
    **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`
    (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to
@@ -313,7 +316,7 @@ has nothing to add beyond what it says here.
 | New/changed fixture state a matrix or discovery row assumes | update the `core-structures` blueprint (`tools/fixtures/core-structures/` — manifest = data, schema = code, blocks = page markup), reseed (`bin/seed.sh testbed core-structures`), re-run `verify.php`, and re-capture the page-snapshot baseline in the SAME commit (new fixture output moves pages by design); keep matrices linking, not duplicating | — |
 | New `*-test-matrix.md` rows for a tag family | ALSO generate them as visible GB blocks in `blocks.php` (see [docs/testbed.md](docs/testbed.md) "make them VISIBLE" — mandatory, missed twice); reseed + curl the front end + re-capture the page-snapshot baseline; matrix links, page shows | — |
 | Page-snapshot instrument or baseline change (`tools/test/page-snapshots.php`, the committed baseline under `tools/test/snapshots/`, `tools/fixtures/core-structures/env-versions.php`, or `verify.php`'s snapshot section) | `php tools/test/page-snapshot-normalize-test.php`, then `php tools/test/page-snapshots.php` against the testbed | [rules](docs/update-triggers.md#page-snapshot-instrument-or-baseline-change) |
-| Dependency version change on the fixture site — GenerateBlocks, GB Pro, GB Query Enhancements or ACF Pro moving version (the set `env-versions.php` records) | `php tools/test/page-snapshots.php`; re-capture the baseline + re-record `env-versions.php` in the SAME commit if the new output is correct | [rules](docs/update-triggers.md#dependency-version-change) |
+| Dependency version change on the fixture site — GenerateBlocks, GB Pro, GB Query Enhancements or ACF Pro moving version (the set `env-versions.php` records) | `php tools/test/page-snapshots.php`; re-capture the baseline + re-record `env-versions.php` in the SAME commit when the new output is right | [rules](docs/update-triggers.md#dependency-version-change) |
 | New option rename | `deprecated-tags-options.md` tracker + `tag-reference.md` if it affects current names | — |
 | New GB constraint discovered | `gb-constraints.md`; if it forces a design change, note the response in `tag-reference.md` | — |
 | New external-plugin API affordance | `plugin-integration.md`; CHANGELOG entry | — |

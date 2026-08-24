@@ -361,6 +361,70 @@ if ( $gate_page instanceof WP_Post ) {
 	$check( 'F17.9 an ATTACHMENT source resolves for a visitor (its `inherit` is the PARENT status, not an internal refusal)', 'Fixture Photo' === $anon_att && $anon_att === $admin_att, 'anon=' . var_export( $anon_att, true ) . ' admin=' . var_export( $admin_att, true ) );
 }
 
+/*
+ * THE FILTER LAYER, PINNED — one tag string, both render paths.
+ *
+ * `replace_tags()` called directly DOES reach `generateblocks_dynamic_tag_replacement`; the
+ * filter is applied inside it, between the callback and the required-bail. That is easy to
+ * get backwards, and this file said the opposite until 2026-08-24 on a misread `od -c`. A
+ * false does-not-prove is worse than silence: it retires an instrument nobody then rechecks.
+ * Nothing failed while it was wrong, which is why it is an assertion now rather than prose.
+ *
+ * Both arms render the SAME string. Brackets delimit the tag so the output can be lifted out
+ * of the block arm's markup by position — the subject is the trailing space
+ * includes/hooks.php adds to a bare '0', and any trim() on the way would erase it.
+ *
+ * MUTATION-VERIFIED 2026-08-24: disabling the '0' branch in includes/hooks.php makes BOTH
+ * arms report NOT FOUND rather than a bare '0' — without the pad, GB's required-bail kills
+ * the whole string, brackets included. The guard is what keeps such a block on the page at
+ * all, which is the point the two assertions below are standing on.
+ *
+ * NOT a claim that the two paths are equivalent. They are not: $block is array() here, no
+ * query loop exists, and the_content filters never run. Those gaps are what the page
+ * snapshots below cover. This pins the part that IS shared.
+ */
+$zero_wire = '[{{text key:bws_zero_probe}}]';
+
+$zero_lift = static function ( $html ) {
+	$open = strpos( (string) $html, '[' );
+
+	if ( false === $open ) {
+		return null;
+	}
+
+	$close = strpos( (string) $html, ']', $open );
+
+	return false === $close ? null : substr( (string) $html, $open + 1, $close - $open - 1 );
+};
+
+$zero_direct = $zero_lift(
+	GenerateBlocks_Register_Dynamic_Tag::replace_tags( $zero_wire, [], $instance )
+);
+
+$zero_block = $zero_lift(
+	do_blocks(
+		'<!-- wp:generateblocks/text {"uniqueId":"bwszeropin","tagName":"p","className":""} -->' . PHP_EOL
+		. '<p class="gb-text">' . $zero_wire . '</p>' . PHP_EOL
+		. '<!-- /wp:generateblocks/text -->'
+	)
+);
+
+$zero_hex = static function ( $v ) {
+	return null === $v ? 'NOT FOUND' : bin2hex( $v ) . ' (' . strlen( $v ) . ' bytes)';
+};
+
+$check(
+	'replacement filter fires through replace_tags() — bare 0 comes back padded',
+	'0 ' === $zero_direct,
+	$zero_hex( $zero_direct ) . ', expected ' . bin2hex( '0 ' )
+);
+
+$check(
+	'both render paths agree on the tag output, byte for byte',
+	null !== $zero_direct && $zero_direct === $zero_block,
+	'direct ' . $zero_hex( $zero_direct ) . ' vs block ' . $zero_hex( $zero_block )
+);
+
 /* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *
@@ -377,9 +441,10 @@ if ( $gate_page instanceof WP_Post ) {
  * whether moved output is acceptable, and the diff below is what tells them what moved.
  *
  * The checks live here rather than in the pure harnesses because none of those can reach
- * this: `render-tag` and the replay scripts both call replace_tags() directly and never
- * touch `generateblocks_dynamic_tag_replacement`, so a real request is the only thing that
- * covers the full path. `tools/test/page-snapshots.php`'s own header has the rest.
+ * this: a served page is the only place `$block` is real, a term or user query loop exists
+ * at all, and the_content filters run. (An earlier version of this paragraph said the
+ * replacement FILTER was the unreachable part. It is not — the pin above measures it firing
+ * through both paths. `tools/test/page-snapshots.php`'s own header has the rest.)
  */
 $snapshot_lib = dirname( dirname( __DIR__ ) ) . '/test/page-snapshots.php';
 

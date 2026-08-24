@@ -102,20 +102,20 @@ check reveal rows. Do NOT leave rows as `render-tag`-only. Reseed + curl the fro
 Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4),
 or synthetic per-field blanking with no fixture (join J23/J24) — state the exception in the matrix.
 
-NB the visible rows are a bug surface `render-tag` cannot reach, and text formatting is the
-smaller half of it. A front-end request runs the WHOLE render path: WP content filters
-(`wptexturize` — straight quotes → curly; use prime marks `′`/`″` for units) and, before them,
-the `generateblocks_dynamic_tag_replacement` filter chain, where any co-resident plugin can
-rewrite what our callback returned. `--porcelain` skips both, and so do the replay scripts. The
-page snapshots below are what pin that path; [`update-triggers.md`](update-triggers.md#page-snapshot-instrument-or-baseline-change)
+NB the visible rows are a bug surface `render-tag` cannot reach, and `wptexturize` is only part
+of it. A front-end request renders each tag inside a real block, on a real query, through
+`the_content` — `$block` is empty under `render-tag`, term and user loops cannot be faked at any
+flag combination, and `--porcelain` skips the content filters entirely. (Straight quotes do turn
+curly there, so keep using prime marks `′`/`″` for units.) The page snapshots below are what pin
+that path; [`update-triggers.md`](update-triggers.md#page-snapshot-instrument-or-baseline-change)
 owns what a clean run of them does and does not prove.
 
 ## Page snapshots — the committed rendered-output baseline
 
 `tools/test/page-snapshots.php` curls every fixture page, normalizes away per-render churn, and
 diffs the result against a baseline committed under `tools/test/snapshots/`. It is the only
-instrument here that sees the full render path (above), so it is what a change that could move
-rendered output is measured against.
+instrument here that renders a tag the way a visitor gets it (above), so it is what a change that
+could move rendered output is measured against.
 
 ```
 php tools/test/page-snapshots.php              # compare against the baseline (exit 1 on diff)
