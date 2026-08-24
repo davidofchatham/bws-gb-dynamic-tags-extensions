@@ -94,6 +94,15 @@ it goes wrong" — so an UNPINNED clause in an otherwise-pinned block still take
 `bws_fold_chain_join()`'s PHPDoc instead). A stale comment never fails a suite; that is the whole
 reason the exemption is this narrow, and why it is not a general licence for test files.
 
+**A CLAIM ABOUT WHAT AN INSTRUMENT DOES IS MEASURED OR PINNED, NEVER INFERRED.** Prose describing
+how an instrument behaves rests on a run, or on an assertion that holds the behavior. The code's
+shape is not evidence for it, and neither is the code's own output: **a runtime message is an
+instruction to the operator, not a description of the script.** The two rules above govern WHO may
+state a rule and WHERE a pinned one may be repeated; this one governs what a sentence rests on, and
+it is the rule the drift rule cannot reach — drift fires once two sides disagree, and a claim
+nobody measured reads as agreement until someone checks. Where an instrument's doc and its code
+already disagree, resolve it as drift; this clause is about not writing the sentence that way.
+
 | Content type | Owner | Notes |
 |---|---|---|
 | User-facing tag overview / quickstart | `README.md` | Repo-visitor framing; don't replicate technical schemas |
