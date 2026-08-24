@@ -425,6 +425,27 @@ $check(
 	'direct ' . $zero_hex( $zero_direct ) . ' vs block ' . $zero_hex( $zero_block )
 );
 
+/*
+ * Text matrix T5.2's expectation, and the one thing that can falsify it QUIETLY.
+ *
+ * T5.2 renders `{{comments_count none:0}}` and expects a bare '0' — but only because this page
+ * has no comments, which nothing seeds and nothing closes. One comment and the row prints a real
+ * count instead, the page snapshot fails, and the diff reads exactly like the zero guard having
+ * stopped covering GB's own tags. It is not detection that is missing (the snapshot catches it);
+ * it is the cause, which the diff cannot show.
+ *
+ * So this assertion is diagnostic, not protective. Its message is the whole point of it.
+ */
+$zero_comments = (int) get_comments( array( 'post_id' => $page->ID, 'count' => true ) );
+
+$check(
+	'text matrix T5.2 assumes /matrix-post-meta/ has no comments',
+	0 === $zero_comments,
+	$zero_comments . ' comment(s) on /matrix-post-meta/. Non-zero here means T5.2 renders that '
+		. 'count instead of a bare 0, so a page-snapshot diff on that row is THIS, not the zero '
+		. 'guard having stopped covering GB\'s own tags.'
+);
+
 /* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *

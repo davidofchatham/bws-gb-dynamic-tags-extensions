@@ -442,6 +442,17 @@ function bws_fixture_core_structures_register_acf() {
 							'type'          => 'relationship',
 							'return_format' => 'id',
 						),
+						// Text, not number, so the seeded '0' arrives as the STRING '0' —
+						// which is what the zero guard is about (text matrix T5.5, the
+						// second GB Pro tag reaching it). Row 1 holds it; row 2 holds a
+						// non-zero so the loop shows the guard is per-value, not per-row.
+						// No {{table}} column names this key, so the TB rows are unmoved.
+						array(
+							'key'   => 'field_bwsfx_team_qty',
+							'name'  => 'qty',
+							'label' => 'Quantity',
+							'type'  => 'text',
+						),
 					),
 				),
 			),

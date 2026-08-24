@@ -299,6 +299,11 @@ function bws_fixture_page_content_matrix_post_meta() {
 			'T5.4 THE PIN (expect 0 then 1 - GB Pro loop index, zero-based; row 1 is a bare zero, and its whole block goes with it if the guard stops covering this tag): {{loop_index zeroBased:1}}',
 			't5-4-loop-index-zero-based'
 		),
+		bws_fixture_gb_post_meta_loop(
+			'team_members',
+			'T5.5 (expect 0 then 4 - GB Pro loop item on the qty sub-field; row 1 holds the string zero, so the guard acts per VALUE inside one loop): {{loop_item key:qty}}',
+			't5-5-loop-item-zero'
+		),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Text T7 - src:ref list mode', array(
