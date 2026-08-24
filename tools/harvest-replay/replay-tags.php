@@ -191,7 +191,15 @@ $source_identity = static function ( string $root ): array {
 	);
 };
 
-$source = $source_identity( dirname( __DIR__ ) );
+// THE REPO ROOT, WHICH IS TWO LEVELS UP AND WAS ONE BEFORE 72bb5f7 (2026-08-19). This file
+// moved from `tools/` into `tools/harvest-replay/` and the argument did not follow, so from
+// then until the fix `$root` was `tools/`: no `.git` there, so `commit` came back null, and
+// the stat digest fingerprinted the 26 PHP files under `tools/` while `includes/` -- the build
+// the tripwire exists to attest -- could change without moving it. Both halves of the check
+// failed OPEN, which is the shape the build replay cannot survive: its pass condition is an
+// empty diff, and an unswapped build diffs empty too. Pinned by
+// `tools/test/replay-source-identity-test.php`, which resolves this expression statically.
+$source = $source_identity( dirname( dirname( __DIR__ ) ) );
 
 // ---------------------------------------------------------------------------
 // 1. Real ambient context. --url only set $_SERVER; wp() is what makes it genuine.

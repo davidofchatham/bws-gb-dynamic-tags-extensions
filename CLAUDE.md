@@ -20,7 +20,9 @@ No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 exercise inline (house pattern); newer ones **require the real file** when it is pure, because a
 test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
 `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`,
-`related-post-src-migration-test.php`, `pattern-cache-test.php`). Run the one whose domain you
+`related-post-src-migration-test.php`, `pattern-cache-test.php`); one reads a sibling script's
+SOURCE rather than calling it, because the script under test executes a replay on load
+(`replay-source-identity-test.php`). Run the one whose domain you
 touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No
 CI runs these; run them locally before commit.
 
@@ -334,7 +336,7 @@ has nothing to add beyond what it says here.
 | `try_` slot ARM change — `includes/helpers/try-slot-arms.php` (the kind→arm table plus `bws_try_slot_arm()` / `bws_try_slot_base_branch_kind()`), or the dispatch and shared emit in `TagTemplateRegistry::generate_base_try_tags()`'s callback | `try-slot-arms-test.php`, `try-join-seam-test.php`, `limit-clamp-test.php`, `control-order-test.php`, `fold-test-matrix.md` | [rules](docs/update-triggers.md#try_-slot-arm-change) |
 | ANY fold change that can move rendered output or the editor's slot UI (i.e. any of the five fold rows above) | `fold-test-matrix.md` | [rules](docs/update-triggers.md#any-fold-change-that-moves-rendered-output-or-the-editor-slot-ui) |
 | SLOT SOURCE HAND-OFF change — `bws_fold_slot_chain_options()` in `slot-fold.php` (the seam that replaced the deleted `bws_fold_slot_flat_options()`, FW-71), the `same` merge it delegates to (`bws_fold_chain_join()` in `slot-fold-compile.php`), either container's slot loop, or the shared preview source namer extracted out of `bws_build_preview_label()` | `slot-fold-test.php`, `slot-fold-twin-test.php`, `preview-label-test.php`, `fold-test-matrix.md` | [rules](docs/update-triggers.md#slot-source-hand-off-change) |
-| Harvest/replay verification change — `tools/harvest-replay/replay-tags.php`, `diff-replays.php` or `run-converter.php` (this repo), or `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php` (the ENV repo) | *see detail* | [rules](docs/update-triggers.md#harvestreplay-verification-change) |
+| Harvest/replay verification change — `tools/harvest-replay/replay-tags.php`, `diff-replays.php` or `run-converter.php` (this repo), or `bin/harvest-tags.sh` + `fixtures/harvest/harvest-tags.php` (the ENV repo) | `replay-source-identity-test.php`, then *see detail* | [rules](docs/update-triggers.md#harvestreplay-verification-change) |
 | GB Pro PATTERN-CACHE reconcile change — anything in `includes/classes/admin/class-pattern-cache.php`, the triggers that call it (`TagConverter::ajax_scan`/`ajax_migrate`, `bws_dynamic_tags_rebuild_allowlist_on_upgrade`, and `tools/harvest-replay/run-converter.php` — the harvest/replay driver, which mirrors the admin button and is not a trigger the plugin ships), the `bws_dynamic_tags_content_written` action in `migrate_post()`, or the reported line (`format_status` + `#bws-pattern-cache-status` + `setPatternCacheLine` in `admin-tag-scanner.js`) | `pattern-cache-test.php` | [rules](docs/update-triggers.md#gb-pro-pattern-cache-reconcile-change) |
 | Pipeline / helper internals change | `post-content-processing-reference.md` (if content-rendering) or PHPDoc only (if narrow) | — |
 | User-visible feature ships | `README.md` overview update + CHANGELOG | — |
