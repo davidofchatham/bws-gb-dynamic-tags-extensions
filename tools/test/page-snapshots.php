@@ -615,51 +615,72 @@ function bws_page_snapshot_compare_all( array $opts = array() ) {
  * ---------------------------------------------------------------------- */
 
 /**
- * Compare the recorded dependency versions against what is actually installed.
+ * Compare a dependency record against a map of what is installed. PURE.
  *
- * Returns array( 'drift' => string[], 'missing' => string[], 'checked' => int,
- * 'captured' => string ).
+ * `$installed` is keyed by plugin file, each entry array( 'version' => string, 'active' =>
+ * bool ) — the shape bws_page_snapshot_env_drift() builds from WordPress. Splitting it out
+ * is what lets the rule below be pinned with no site at all; the WordPress half is a
+ * lookup, and a lookup was never the part that could be wrong.
  *
- * REPORTING ONLY, and the split matters: a version CHANGE is a warning, because only a
- * human can judge whether moved output is acceptable and the instrument that says WHAT
- * moved is the snapshot diff sitting beside this. A required dependency being ABSENT is a
- * different claim entirely and is not this function's call to make.
+ * Returns array(
+ *   'drift'    => string[]  version disagreements, one human line each,
+ *   'missing'  => array[]   each array( file, label, reason, required ),
+ *   'blocking' => int       how many of those are REQUIRED,
+ *   'checked'  => int,
+ *   'captured' => string,
+ * ).
  *
- * Needs WordPress: get_plugins() is an admin-side function.
+ * STILL REPORTING ONLY. What a caller DOES with the two lists — warn on one, fail on the
+ * other — is verify.php's business, and `env-versions.php`'s header owns why they differ.
+ *
+ * NOT ACTIVE COUNTS AS MISSING, and it is the case worth naming: an installed-but-inactive
+ * plugin runs no filters and registers no tags, so it changes rendered output exactly as
+ * much as an absent one does, while passing any check that only asks whether the files are
+ * on disk. Its version is deliberately not compared afterwards — a version line about a
+ * plugin that is not running would be a second, quieter statement contradicting the first.
  */
-function bws_page_snapshot_env_drift( $record = null ) {
-	if ( null === $record ) {
-		$record = is_readable( BWS_PAGE_SNAPSHOT_ENV_RECORD ) ? require BWS_PAGE_SNAPSHOT_ENV_RECORD : array();
-	}
-
+function bws_page_snapshot_env_compare( array $record, array $installed ) {
 	$out = array(
 		'drift'    => array(),
 		'missing'  => array(),
+		'blocking' => 0,
 		'checked'  => 0,
 		'captured' => isset( $record['captured'] ) ? $record['captured'] : '?',
 	);
-
-	if ( ! function_exists( 'get_plugins' ) ) {
-		if ( ! defined( 'ABSPATH' ) || ! is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
-			return $out;
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-	}
-
-	$installed = get_plugins();
 
 	foreach ( (array) ( isset( $record['plugins'] ) ? $record['plugins'] : array() ) as $file => $spec ) {
 		$out['checked']++;
 
 		$label = isset( $spec['label'] ) ? $spec['label'] : $file;
 
+		// SILENCE MEANS REQUIRED — env-versions.php's header owns why an entry that says
+		// nothing is read as must-be-present rather than as optional.
+		$required = ! isset( $spec['required'] ) || $spec['required'];
+
+		$reason = '';
+
 		if ( ! isset( $installed[ $file ] ) ) {
-			$out['missing'][] = $label;
+			$reason = 'NOT INSTALLED';
+		} elseif ( empty( $installed[ $file ]['active'] ) ) {
+			$reason = 'installed but NOT ACTIVE';
+		}
+
+		if ( '' !== $reason ) {
+			$out['missing'][] = array(
+				'file'     => $file,
+				'label'    => $label,
+				'reason'   => $reason,
+				'required' => $required,
+			);
+
+			if ( $required ) {
+				$out['blocking']++;
+			}
+
 			continue;
 		}
 
-		$live     = isset( $installed[ $file ]['Version'] ) ? (string) $installed[ $file ]['Version'] : '';
+		$live     = isset( $installed[ $file ]['version'] ) ? (string) $installed[ $file ]['version'] : '';
 		$recorded = isset( $spec['version'] ) ? (string) $spec['version'] : '';
 
 		if ( '' === $recorded ) {
@@ -675,6 +696,53 @@ function bws_page_snapshot_env_drift( $record = null ) {
 	}
 
 	return $out;
+}
+
+/**
+ * Read the dependency record and compare it against this site. The WordPress half.
+ *
+ * Returns whatever bws_page_snapshot_env_compare() returns — see there for the shape and
+ * for the rules. All this adds is the lookup: get_plugins() for what is on disk and at
+ * which version, is_plugin_active() for whether it is running.
+ *
+ * Needs WordPress: both are admin-side functions.
+ */
+function bws_page_snapshot_env_drift( $record = null ) {
+	if ( null === $record ) {
+		$record = is_readable( BWS_PAGE_SNAPSHOT_ENV_RECORD ) ? require BWS_PAGE_SNAPSHOT_ENV_RECORD : array();
+	}
+
+	$record = (array) $record;
+
+	if ( ! function_exists( 'get_plugins' ) || ! function_exists( 'is_plugin_active' ) ) {
+		if ( ! defined( 'ABSPATH' ) || ! is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+			// CANNOT LOOK, WHICH IS NOT THE SAME AS LOOKING AND FINDING NOTHING. Handing
+			// the comparison an empty installed map would turn "no WordPress here" into
+			// "every dependency is missing" — the loudest possible failure, for the one
+			// reason that says nothing at all about the site. Report zero comparisons and
+			// let the caller's non-empty check speak.
+			return array(
+				'drift'    => array(),
+				'missing'  => array(),
+				'blocking' => 0,
+				'checked'  => 0,
+				'captured' => isset( $record['captured'] ) ? $record['captured'] : '?',
+			);
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+
+	$installed = array();
+
+	foreach ( get_plugins() as $file => $data ) {
+		$installed[ $file ] = array(
+			'version' => isset( $data['Version'] ) ? (string) $data['Version'] : '',
+			'active'  => is_plugin_active( $file ),
+		);
+	}
+
+	return bws_page_snapshot_env_compare( $record, $installed );
 }
 
 /* -------------------------------------------------------------------------

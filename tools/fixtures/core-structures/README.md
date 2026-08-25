@@ -58,8 +58,11 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 
 ## Seeding
 
-Prereqs: a dedicated test site with GenerateBlocks (Pro) + ACF Pro active
-(licensed baseline saved via the env's snapshot tool). From the wp-litespeed env:
+Prereqs: a dedicated test site with GenerateBlocks (Pro), ACF Pro and GB Query Enhancements
+active (licensed baseline saved via the env's snapshot tool). All four are declared in
+`env-versions.php`, and `verify.php` FAILS by name when one is missing or deactivated
+([`docs/testbed.md`](../../../docs/testbed.md) says what the query extension's presence changes and
+why it is on this list at all). From the wp-litespeed env:
 
 > **Seeding runs as an ADMINISTRATOR, and that is load-bearing (#99).** `seed.php` calls
 > `bws_fixture_assume_administrator()` before anything else, because WP-CLI runs with no

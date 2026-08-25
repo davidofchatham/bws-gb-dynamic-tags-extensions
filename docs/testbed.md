@@ -138,9 +138,24 @@ the baseline either: `post_modified` and its siblings are normalized out, so `bi
 
 **The environment the baseline was captured under is recorded** in
 `tools/fixtures/core-structures/env-versions.php` — GenerateBlocks, GB Pro, GB Query Enhancements
-and ACF Pro, with our own version deliberately excluded (that file's header has why). `verify.php`
-prints the comparison FIRST and a drift line is a WARNING, never a failure: it exists to tell you
-a diff below is attributable to a dependency rather than to your change.
+and ACF Pro, with our own version deliberately excluded (that file's header has why, and owns which
+entries must be present). `verify.php` prints the comparison FIRST. A version drift line is a
+**WARNING**: it exists to tell you a diff below is attributable to a dependency rather than to your
+change. A dependency the record requires and the site cannot use **FAILS the run, naming it**,
+instead of skipping, so deactivating one is enough to stop a verification.
+
+**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no
+fixture row's content; it is a co-resident extension that filters our tag rendering itself.
+Measured against GBQE 1.3.0 on the fixture site: it hooks `generateblocks_dynamic_tag_id` from
+three of its query classes and `generateblocks_dynamic_tag_output` once, and both run on every tag
+render. Every baseline below was therefore captured with them in the chain, and the defect that
+made that visible is GitHub
+[#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
+
+What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**:
+measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the
+dependency check was the only failure. Today's agreement is a coincidence nobody measured forward, and it is exactly the
+state in which a silent variable is easiest to acquire.
 
 **Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A capture
 with any page unreachable **writes nothing at all**: every fetch completes before the first write,

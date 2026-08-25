@@ -376,5 +376,159 @@ $check(
 	array() === bws_page_snapshot_capture_blockers( array() )
 );
 
+/* ======================================================================
+ * §P16 — the dependency record: what is a warning, what is a failure
+ *
+ * `bws_page_snapshot_env_compare()` is the pure half of the env check, split out of
+ * `bws_page_snapshot_env_drift()` so this can exist: the WordPress half is a get_plugins()
+ * lookup, and a lookup was never the part that could be wrong. What is pinned here is the
+ * SPLIT — a required dependency being unusable blocks, a version change does not — because
+ * getting it wrong fails silently in the expensive direction. A missing dependency demoted
+ * to a warning yields a full page comparison against a baseline captured on a different
+ * site, and every diff it prints is attributed to the change under review.
+ *
+ * The rule itself is owned by `env-versions.php`'s header (which axis is answered how) and
+ * enforced in `verify.php` (which turns a required absence into a failed check).
+ * ====================================================================== */
+
+$env_record = array(
+	'captured' => '2026-01-01',
+	'plugins'  => array(
+		'a/a.php' => array( 'label' => 'Aye', 'version' => '1.0.0', 'required' => true ),
+		'b/b.php' => array( 'label' => 'Bee', 'version' => '2.0.0', 'required' => false ),
+		'c/c.php' => array( 'label' => 'Cee', 'version' => '3.0.0' ),
+	),
+);
+
+$env_present = static function ( $version, $active = true ) {
+	return array( 'version' => $version, 'active' => $active );
+};
+
+$env_clean = bws_page_snapshot_env_compare(
+	$env_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0' ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check(
+	'P16.1 a matching environment reports no drift and nothing missing',
+	array() === $env_clean['drift'] && array() === $env_clean['missing']
+);
+$check(
+	'P16.2 every recorded entry is counted, so an empty record is distinguishable from a clean one',
+	3 === $env_clean['checked']
+);
+$check( 'P16.3 the capture date is carried through for the reader', '2026-01-01' === $env_clean['captured'] );
+
+// BOTH AXES IN ONE CALL: Aye is gone (blocking), Bee moved version (a warning, never
+// blocking). Asserting them together is the point — the split is the property, not either
+// half on its own.
+$env_mixed = bws_page_snapshot_env_compare(
+	$env_record,
+	array(
+		'b/b.php' => $env_present( '2.1.0' ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check( 'P16.4 an absent REQUIRED dependency blocks', 1 === $env_mixed['blocking'] );
+$check(
+	'P16.5 it is named and its reason given, so the operator is told which one and why',
+	'Aye' === $env_mixed['missing'][0]['label'] && 'NOT INSTALLED' === $env_mixed['missing'][0]['reason']
+);
+$check(
+	'P16.6 a version change is reported and does NOT block',
+	array( 'Bee: recorded 2.0.0, installed 2.1.0' ) === $env_mixed['drift'] && 1 === $env_mixed['blocking']
+);
+
+// INSTALLED BUT NOT ACTIVE renders exactly like absent — no filters, no tags — so it counts
+// as missing. A check that only asked whether the files were on disk passes here, and then
+// compares against a baseline captured with the plugin running.
+$env_inactive = bws_page_snapshot_env_compare(
+	$env_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0', false ),
+		'b/b.php' => $env_present( '2.0.0' ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check(
+	'P16.7 installed but INACTIVE counts as missing, and blocks',
+	1 === $env_inactive['blocking'] && 'installed but NOT ACTIVE' === $env_inactive['missing'][0]['reason']
+);
+$check( 'P16.8 an inactive plugin gets no version line quietly contradicting that', array() === $env_inactive['drift'] );
+
+// Bee opted out explicitly. Still reported so the operator can see it; the run continues.
+// This is the only shape that distinguishes `required => false` from silence.
+$env_optional = bws_page_snapshot_env_compare(
+	$env_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check(
+	'P16.9 an absent OPTIONAL dependency is reported but does not block',
+	0 === $env_optional['blocking'] && 1 === count( $env_optional['missing'] )
+);
+
+// SILENCE MEANS REQUIRED. Cee carries no `required` key at all. A dependency added to the
+// record without one must fail loudly rather than join it as an optional extra nobody reads.
+$env_silent = bws_page_snapshot_env_compare(
+	$env_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0' ),
+	)
+);
+
+$check(
+	'P16.10 an entry with NO required key defaults to required',
+	1 === $env_silent['blocking'] && 'Cee' === $env_silent['missing'][0]['label']
+);
+
+$env_unpinned = bws_page_snapshot_env_compare(
+	array( 'plugins' => array( 'a/a.php' => array( 'label' => 'Aye' ) ) ),
+	array( 'a/a.php' => $env_present( '1.0.0' ) )
+);
+
+$check(
+	'P16.11 an entry with no recorded version says it pins nothing, once, rather than drifting against the empty string',
+	1 === count( $env_unpinned['drift'] ) && false !== strpos( $env_unpinned['drift'][0], 'pins nothing' )
+);
+$check(
+	'P16.12 an empty record compares nothing rather than erroring',
+	0 === bws_page_snapshot_env_compare( array(), array() )['checked']
+);
+
+/* ----------------------------------------------------------------------
+ * The SHIPPED record, not a fixture.
+ *
+ * Pinned because nothing else in the tree fails if the query extension's entry is deleted
+ * from the record: no page moves without it today, which is the measurement
+ * `docs/testbed.md` carries and the reason the declaration has to be checked rather than
+ * relied on.
+ * -------------------------------------------------------------------- */
+
+$env_shipped = require dirname( __DIR__ ) . '/fixtures/core-structures/env-versions.php';
+$env_gbqe    = 'gb-query-enhancements/gb-query-enhancements.php';
+
+$check( 'P16.13 the shipped record declares the query extension', isset( $env_shipped['plugins'][ $env_gbqe ] ) );
+$check( 'P16.14 it is declared REQUIRED', ! empty( $env_shipped['plugins'][ $env_gbqe ]['required'] ) );
+$check(
+	'P16.15 every shipped entry pins a version, so none of them silently pins nothing',
+	array() === array_filter(
+		$env_shipped['plugins'],
+		static function ( $spec ) {
+			return empty( $spec['version'] );
+		}
+	)
+);
+
 echo $fail ? "\nPAGE-SNAPSHOT NORMALIZE TEST FAILED ({$fail})\n" : "\nPAGE-SNAPSHOT NORMALIZE TEST PASSED\n";
 exit( $fail ? 1 : 0 );

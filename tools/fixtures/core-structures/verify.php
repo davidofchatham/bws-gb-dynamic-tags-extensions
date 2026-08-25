@@ -459,7 +459,9 @@ $check(
  * comparison beside it — and printing it FIRST — reframes an unexplained diff from "we broke
  * it" to "something changed under us", which is a different question with a different next
  * step. A version change is therefore a WARNING and never a failure: only a human can judge
- * whether moved output is acceptable, and the diff below is what tells them what moved.
+ * whether moved output is acceptable, and the diff below is what tells them what moved. A
+ * REQUIRED dependency that is not usable is the other case and FAILS the run instead of
+ * skipping it -- `env-versions.php` declares which entries those are and owns the rule.
  *
  * The checks live here rather than in the pure harnesses because none of those can reach
  * this: a served page is the only place `$block` is real, a term or user query loop exists
@@ -483,7 +485,30 @@ if ( ! is_readable( $snapshot_lib ) ) {
 	printf( "recorded %s (%d dependencies)\n", $env['captured'], $env['checked'] );
 
 	foreach ( $env['missing'] as $missing ) {
-		printf( "[WARN] %s is RECORDED but NOT INSTALLED — every snapshot below was captured with it present.\n", $missing );
+		if ( ! $missing['required'] ) {
+			printf(
+				"[WARN] %s: %s — every snapshot below was captured with it running.\n",
+				$missing['label'],
+				$missing['reason']
+			);
+			continue;
+		}
+
+		// FAILS, AND DOES NOT SKIP — worth saying because the pages below will not back it
+		// up today. Measured 2026-08-24: with the query extension deactivated, all nine
+		// snapshots still matched and this was the only failure. That is the argument FOR
+		// the check rather than against it. The baseline was captured with the plugin
+		// running, today's agreement is a coincidence nobody measured forward, and the first
+		// page that does depend on it would arrive with nothing left to notice. The
+		// fail-vs-warn split itself is env-versions.php's rule; this is where it is enforced.
+		$check(
+			sprintf( 'required dependency present: %s', $missing['label'] ),
+			false,
+			sprintf(
+				'%s. Install and activate it, then re-run. Do NOT re-capture the baseline to make this quiet.',
+				$missing['reason']
+			)
+		);
 	}
 
 	foreach ( $env['drift'] as $drift ) {
@@ -497,7 +522,11 @@ if ( ! is_readable( $snapshot_lib ) ) {
 		$check( 'dependency-version record is readable and non-empty', false, 'env-versions.php checked 0 dependencies' );
 	} elseif ( ! $env['drift'] && ! $env['missing'] ) {
 		echo "[ok] every recorded dependency version matches what is installed.\n";
-	} else {
+	} elseif ( $env['drift'] || count( $env['missing'] ) > $env['blocking'] ) {
+		// ATTRIBUTION ADVICE ONLY WHERE RE-CAPTURING IS ACTUALLY THE ANSWER. A blocking
+		// absence is excluded deliberately: the failure above tells the operator to install
+		// the dependency, and printing "re-capture the baseline" beside it would offer the
+		// one action that makes a missing dependency permanently invisible.
 		echo "      A page diff below is therefore ATTRIBUTABLE: re-read it as \"a dependency moved\"\n"
 			. "      before reading it as a regression. If the new output is correct, re-capture the\n"
 			. "      baseline and re-record env-versions.php IN THE SAME COMMIT.\n";
