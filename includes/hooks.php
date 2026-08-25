@@ -42,11 +42,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   {{loop_index zeroBased:1}}   row 1 of any loop        GB Pro    PINNED, text matrix T5.4
  *   {{comments_count none:0}}    a post with 0 comments   GB core   PINNED, text matrix T5.2
  *   {{loop_item key:<key>}}      a row value of 0         GB Pro    PINNED, text matrix T5.5
- *   {{term_count}}               an empty term            —         measured only: no fixture
- *                                                                   page carries a term query
- *                                                                   loop yet
+ *   {{term_count}}               an empty term            —         PINNED, loop matrix QL3.2
  *
- * Four measured, three pinned. The list is what was looked at on that date, not what
+ * Four measured, four pinned. The list is what was looked at on that date, not what
  * exists — a tag added tomorrow can join it with nothing here changing — and the rule
  * above does not rest on the list.
  */

@@ -468,8 +468,9 @@ plugin answers on the `generateblocks_dynamic_tag_replacement` filter: a bare `'
 rendered HTML, so an author sees `0` and an empty alt attribute.
 
 **That response is not scoped to our own tags.** What an author sees padded is any tag on the page,
-GenerateBlocks' own and GB Pro's included — three first-party tags are pinned reaching it
-([`text-test-matrix.md` §T5](../tools/test/text-test-matrix.md)). Which replacements it covers, why
+GenerateBlocks' own and GB Pro's included — four tags that are not ours are pinned reaching it
+([`text-test-matrix.md` §T5](../tools/test/text-test-matrix.md) and
+[`loop-test-matrix.md` §QL3](../tools/test/loop-test-matrix.md)). Which replacements it covers, why
 that scope is deliberate, and the dated enumeration of what was measured are stated at the filter
 itself ([`includes/hooks.php`](../includes/hooks.php)) and nowhere else.
 

@@ -43,7 +43,9 @@ bin/seed.sh testbed core-structures
 
 Idempotent. The `core-structures` **blueprint** (`tools/fixtures/core-structures/`) seeds the state
 the `*-test-matrix.md` files assume — matrix pages are split by source-state (`matrix-post-meta`,
-`matrix-terms-valid|mixed|junk`); tag families accrete rows into them.
+`matrix-terms-valid|mixed|junk`); tag families accrete rows into them. A page that splits on
+something else says so in its own builder docblock — `matrix-loops`, whose axis is the loop
+context a row renders inside.
 
 **Group rows by tag in [`tag-reference.md`](tag-reference.md) Catalog order** (the §Base tag GB types
 table sequence: text→content→title→permalink→image→datetime_single→datetime_range→email→phone→join→

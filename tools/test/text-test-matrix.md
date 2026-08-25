@@ -72,9 +72,10 @@ that. Measured 2026-08-24 against GenerateBlocks 2.4.1 / GB Pro 2.7.0.
 | T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-row `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on row 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first row with it. |
 | T5.5 | `{{loop_item key:qty}}`, inside the `team_members` repeater loop | `0` then `4` — the second GB Pro tag here, and the one that shows the guard acting per **value**: two rows of one loop, one padded and one untouched. |
 
-A fourth first-party tag was measured reaching the guard, `{{term_count}}` in a term loop, and has no
-row here because no fixture page carries a term query loop yet; it belongs with the loop rows when
-one exists. Four measured, three pinned — the dated enumeration is at the guard's own PHPDoc.
+A fourth tag not ours reaches the guard, `{{term_count}}` in a term loop, and its row is not here:
+it needs a term query loop, so it lives with the loop rows that now exist
+([`loop-test-matrix.md`](loop-test-matrix.md) §QL3, on `/matrix-loops/`). Four measured, four pinned —
+the dated enumeration is at the guard's own PHPDoc.
 
 ## T6 — editor preview fallback
 

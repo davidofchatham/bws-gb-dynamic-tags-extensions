@@ -446,6 +446,31 @@ $check(
 		. 'guard having stopped covering GB\'s own tags.'
 );
 
+/*
+ * Loop matrix QL3's expectation, and it fails the same QUIET way T5.2 does.
+ *
+ * QL3 renders `{{term_count}}` in a term loop and expects a bare '0' on the Workshop term — but
+ * only because that term is assigned to no post, which is the whole reason it exists (blueprint
+ * v16). Assign one and the row prints a real count, the page snapshot fails, and the diff reads
+ * exactly like the zero guard having stopped covering tags that are not ours. Diagnostic, not
+ * protective: the snapshot already detects it, and what is missing from that diff is the cause.
+ *
+ * The repair is by hand unless the post that gained the term is one the manifest's `post_terms`
+ * lists, since that is the set a reseed rewrites.
+ */
+$workshop = get_term_by( 'slug', 'workshop', 'department' );
+
+$check(
+	'loop matrix QL3 assumes the Workshop department term carries no posts',
+	$workshop && 0 === (int) $workshop->count,
+	$workshop
+		? 'Workshop holds ' . (int) $workshop->count . ' post(s). Non-zero here means QL3 renders '
+			. 'that count instead of a bare 0, so a page-snapshot diff on that row is THIS, not the '
+			. 'zero guard having stopped covering tags that are not ours. Unassign it; a reseed rewrites '
+			. 'terms only on the posts the manifest lists.'
+		: 'No `workshop` term in the `department` taxonomy. Reseed; QL3 has nothing to read without it.'
+);
+
 /* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *

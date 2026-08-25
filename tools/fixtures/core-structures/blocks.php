@@ -86,7 +86,7 @@ function bws_fixture_gb_media_block( $tag, $seed = '' ) {
 	);
 }
 
-/** Shape 4 — query/looper nest around one inner tag string. */
+/** Shape 4 — query/looper nest around one inner tag string. Post loops only; see 4b. */
 function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
 	return bws_fixture_gb_query_loop_blocks(
 		$query,
@@ -108,9 +108,19 @@ function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
  * / looper / loop-item wrapper is one structure and GB's block grammar is where it is
  * defined, not here.
  *
+ * `$query_type` is the block attribute GB dispatches the query on, and the same reason
+ * keeps it here: a term loop and a user loop differ from a post loop in that string and
+ * in the `query` args, not in the nest. The two non-post values belong to the co-resident
+ * query extension, and BLOCK MARKUP IS THE ONE PLACE THAT MAY NAME THEM — an author
+ * building the loop in the editor picks it from that extension's own control. Nothing
+ * under includes/ keys on them: recognition there is on the shape of the loop item, so it
+ * holds for any extension. Shape 4 does not take it: post loops are what it is for, and a
+ * parameter with no caller is a guess about the next one.
+ *
  * @since 1.17.0
+ * @since 1.19.0 $query_type.
  */
-function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed ) {
+function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed, $query_type = 'WP_Query' ) {
 	$q_uid  = bws_fixture_gb_uid( 'query:' . $seed );
 	$l_uid  = bws_fixture_gb_uid( 'looper:' . $seed );
 	$i_uid  = bws_fixture_gb_uid( 'item:' . $seed );
@@ -118,7 +128,7 @@ function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed ) 
 		array(
 			'uniqueId'  => $q_uid,
 			'tagName'   => 'div',
-			'queryType' => 'WP_Query',
+			'queryType' => $query_type,
 			'query'     => $query,
 			'className' => '',
 		)
@@ -286,6 +296,10 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// rows are FIRST-PARTY GB tags: T5.2, T5.4 and T5.5 come back with the zero intact, T5.3
 	// comes back empty. T5.4 is the row that breaks first if the guard is ever narrowed to our
 	// own tags, and it needs no author setup beyond ticking a checkbox.
+	//
+	// The FOURTH tag NOT OURS reaching the guard is not here and never was: {{term_count}}
+	// needs a term query loop, so it is pinned on /matrix-loops/ (loop matrix §QL3). All four
+	// are pinned as of blueprint v16.
 	//
 	// Per-row expectations live in tools/test/text-test-matrix.md §T5; what the guard applies
 	// to is decided at the guard itself, not here or there. Measured 2026-08-24 against
@@ -1334,6 +1348,164 @@ function bws_fixture_page_content_matrix_gate() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-loops — the QUERY LOOP corpus (1.19.0; blueprint v16).
+ *
+ * The only fixture page whose loops iterate something that is not a post. A term
+ * loop and a user loop are ONE mechanism with two item shapes, which is why they
+ * share a page: splitting them would hide that, and the fix keys on the shape.
+ *
+ * WHAT THE PAGE SHOWS TODAY, AND IT IS THE BUG. Inside either loop, the co-resident
+ * query extension supplies the loop item's id to `generateblocks_dynamic_tag_id`,
+ * and GB does not pass a fallback type to that filter — so the term or user id
+ * overrides our POST fallback and a bare tag of ours reads whatever post carries
+ * that id. Term ids and post ids collide on every install. Each group therefore
+ * reads the same datum three ways side by side: a BARE tag (wrong today), an
+ * explicit source (right today), and the query extension's own tag (right today).
+ * A reader sees one wrong and two right, on one line.
+ *
+ * THE BARE ROWS ARE SEEDED WRONG ON PURPOSE and their snapshot baseline records
+ * the leaked values. That is what makes the fix's diff proof rather than assertion:
+ * when item-shape recognition lands, exactly these cells move and nothing else does.
+ * Their labels say "expect WRONG at this point in the sequence" and are rewritten
+ * to the correct values by the ticket that fixes them.
+ *
+ * BOTH SHAPES OF THE LEAK ARE HERE, and they look unalike to a reader: one lands on
+ * a real post and prints a plausible value from the wrong entity (QL1.1, QL2.1's
+ * first row), the other lands on nothing and prints empty (QL1.4, and QL2.1's second
+ * row, whose user id no post carries). Rows that can come back empty take the
+ * split-label form, for the reason bws_fixture_gb_empty_row() states.
+ *
+ * The USER group has two reads, not three, and says so in a row of its own. There
+ * is no explicit user source token today — user entities are reachable only
+ * ambiently, on an author archive (context matrix C3) — so the middle read cannot
+ * be written, and the absence IS the finding: closing the bare row is what makes a
+ * user readable inside a loop at all.
+ *
+ * QL3 IS NOT THE LEAK. It rides this page because it needs a term query loop and
+ * nothing else has one — see its own preamble.
+ *
+ * Requires the query extension to be ACTIVE (env-versions.php declares it required,
+ * verify.php fails without it). Absent, every loop here renders nothing at all and
+ * the page reads as broken rather than as three empty groups.
+ */
+function bws_fixture_page_content_matrix_loops() {
+	$sections = array();
+
+	// QL1 — the leak, term shape. The three reads are inside ONE loop item, so each
+	// term prints wrong/right/right adjacent rather than three groups a reader has
+	// to align by eye.
+	//
+	// THE LOOP IS OVER `category`, RESTRICTED TO THE DEFAULT TERM, because that is
+	// where the collision is GUARANTEED: WordPress creates Uncategorized as term 1
+	// and "Hello world!" as post 1 on every install, so the leaked read lands on a
+	// real post and prints a title from the wrong entity. That is the shape the
+	// finding is about, and it is what was measured. Restricted by SLUG rather than
+	// by id: the id is what makes the collision, but writing it into the query would
+	// make this fixture depend on the number instead of on the install rule. The
+	// blueprint's own `department` terms cannot serve here — their ids are whatever
+	// the seed produced (6/7/8 on the reference site) and no post carries them, so
+	// the leak lands on nothing. QL1.4 is that second shape, deliberately kept.
+	//
+	// QL1.3 uses the extension's ARCHIVE URL tag rather than its title tag on
+	// purpose: we register a `term_title` of our own, so that name is a registration
+	// collision (spec D4) and which plugin answers depends on load order. This row
+	// exists to show a third-party read landing on the loop's term, not to measure
+	// whose registration won.
+	$sections[] = bws_fixture_gb_section( 'Loops QL1 - a query loop over TERMS: the id leak', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'taxonomy'       => 'category',
+				'slug'           => 'uncategorized',
+				'posts_per_page' => 5,
+				'orderby'        => 'name',
+				'order'          => 'ASC',
+				'hide_empty'     => false,
+			),
+			bws_fixture_gb_row( 'QL1.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the term id, which on a WordPress install is the first post; -> the loop term name once item-shape recognition lands)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_row( 'QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name)', '{{title src:term}}' )
+				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' ),
+			'ql1-term-loop-leak',
+			'WP_Term_Query'
+		),
+		// The same leak with nothing to land on. Kept because the two shapes fail
+		// differently for a reader: QL1.1 prints a plausible value from the wrong
+		// entity, this one prints nothing at all and reads like a tag that declined.
+		// Both are the id leak, and both flip to the term name together.
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'taxonomy'       => 'department',
+				'posts_per_page' => 10,
+				'orderby'        => 'name',
+				'order'          => 'ASC',
+				'hide_empty'     => true,
+			),
+			bws_fixture_gb_empty_row( 'QL1.4 the SAME bare tag on fixture terms whose ids no post carries, expect EMPTY at this point in the sequence (-> nothing, which is the leak too; -> the loop term name once item-shape recognition lands)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name)', '{{title src:term}}' ),
+			'ql1-term-loop-no-collision',
+			'WP_Term_Query'
+		),
+	) );
+
+	// QL2 — the leak, user shape. Same mechanism, and the rows are deliberately the
+	// same three positions so the two groups read as one finding.
+	//
+	// role__in rather than ids: the two author-role fixture users are stable by
+	// role and display name, while their ids are whatever the seed order produced.
+	//
+	// QL2.1 and QL2.4 are split-label rows even though the first user's id DOES land
+	// on a post: the expectation differs per loop item here, and a row that prints
+	// for one user and vanishes for the next would read as a broken fixture on the
+	// second. Both leak; only one has somewhere to land.
+	$sections[] = bws_fixture_gb_section( 'Loops QL2 - a query loop over USERS: the same leak, second item shape', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'role__in'       => array( 'author' ),
+				'posts_per_page' => 5,
+				'orderby'        => 'display_name',
+				'order'          => 'ASC',
+			),
+			bws_fixture_gb_empty_row( 'QL2.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the user id, or nothing where no post carries it; -> the loop user display name once item-shape recognition lands)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_text_block( 'QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS - there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user is exactly what closing QL2.1 buys.', 'ql2-2-absence' )
+				. "\n\n" . bws_fixture_gb_row( 'QL2.3 the query extension own user tag, correct today (-> the loop user display name)', '{{user_display_name}}' )
+				. "\n\n" . bws_fixture_gb_empty_row( 'QL2.4 a URL read leaks the same way, and it is the one that does NOT become correct (-> an unrelated post permalink; -> EMPTY once the loop user is recognized, because a user has no permalink of ours to give)', '{{permalink}}' ),
+			'ql2-user-loop-leak',
+			'WP_User_Query'
+		),
+	) );
+
+	// QL3 — NOT the leak. `{{term_count}}` on an empty term returns a bare '0', the
+	// fourth tag NOT ours measured reaching the falsy-replacement guard in
+	// includes/hooks.php and the only one that could not be pinned before this page:
+	// pinning it needs a term query loop, and nothing else in the blueprint has one.
+	//
+	// QL3.2 inlines its tag rather than splitting the label, which is the T5.4 idiom
+	// and deliberate: the row disappearing IS the signal, and QL3.1 beside it keeps
+	// the term visible so a reader can see WHICH row went.
+	//
+	// `hide_empty` OFF here, which is what reaches the unstaffed Workshop term at
+	// all. The staffed departments loop with it and are the non-vacuity control: a
+	// zero beside real counts is the guard working, while a column of nothing is a
+	// loop that did not run. What the guard applies to is decided at the guard.
+	$sections[] = bws_fixture_gb_section( 'Loops QL3 - a preserved zero in a term loop (not the leak)', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'taxonomy'       => 'department',
+				'posts_per_page' => 10,
+				'orderby'        => 'name',
+				'order'          => 'ASC',
+				'hide_empty'     => false,
+			),
+			bws_fixture_gb_row( 'QL3.1 term (the identity for the count beside it)', '{{title src:term}}' )
+				. "\n\n" . bws_fixture_gb_row( 'QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag)', '{{term_count}}' ),
+			'ql3-term-count-zero',
+			'WP_Term_Query'
+		),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
@@ -1343,6 +1515,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'staff_join'           => 'bws_fixture_page_content_staff_join',
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
+		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
