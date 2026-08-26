@@ -472,7 +472,7 @@ assert_same( 'K6 numeric string → post kind (no term-regex false positive)',
 	array( 'kind' => 'post', 'id' => 123 ),
 	bws_datetime_coerce_read_target( '123' )
 );
-assert_same( 'K7 false → post kind, id false (loop-row entity-less read)',
+assert_same( 'K7 false → post kind, id false (loop-item entity-less read)',
 	array( 'kind' => 'post', 'id' => false ),
 	bws_datetime_coerce_read_target( false )
 );

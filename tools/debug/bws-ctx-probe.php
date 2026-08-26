@@ -104,7 +104,7 @@ function bws_ctx_probe_callback( $options, $block, $instance ) {
 		}
 	}
 
-	// --- Existing loop-row detection (precedence candidate #1). ---
+	// --- Existing loop-item detection (precedence candidate #1). ---
 	$loop_ctx = null;
 	if ( function_exists( 'bws_get_loop_item_context' ) ) {
 		$raw      = bws_get_loop_item_context( $instance );

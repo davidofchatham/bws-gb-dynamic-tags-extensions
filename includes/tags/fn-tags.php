@@ -166,7 +166,7 @@ function bws_call_passes_gate( string $fn ): bool {
 	// Reflection is the costly part and a defined function's internal-ness is
 	// immutable within a request, so memoize the verdict per name (keyed only
 	// once function_exists is true). Spares a ReflectionFunction construction on
-	// every render — e.g. one {{call}} per row across a long query loop.
+	// every render — e.g. one {{call}} per item across a long query loop.
 	static $verdict = array();
 	if ( isset( $verdict[ $fn ] ) ) {
 		return $verdict[ $fn ];

@@ -191,7 +191,7 @@ $pairs = array(
 		$signals_term,
 		array( 'kind' => 'term', 'id' => 34 ),
 	),
-	'src:ref vs a refs chain, in a loop row' => array(
+	'src:ref vs a refs chain, in a query loop' => array(
 		array( 'src' => 'ref', 'ref' => 'office' ),
 		array( 'src' => 'refs,office' ),
 		$signals_loop,

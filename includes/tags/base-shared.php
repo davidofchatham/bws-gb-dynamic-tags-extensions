@@ -1164,13 +1164,14 @@ function bws_base_src_resolution( array $options ): array {
  * path runs, and a stated fallback fires. Refusing is NOT the same as reading and
  * finding nothing — it is [I15] ("an ambient read must be SPELLED, never reached by
  * fallback"). The arms' catch-all performs the SINGULAR read, and a singular read with
- * no id does not stop: bws_read_field() falls back to the query-loop ROW and then to
- * the queried TERM. So a refused source used to render a real, plausible value from an
- * entity the wire never named, which is strictly worse than an empty one — an empty
- * one gets reported.
+ * no id does not stop: bws_read_field() falls back to a query-loop item it can be served
+ * from and then to the queried TERM (which item shapes it serves is its own docblock's
+ * branch order — a TERM or USER item is served by none of them). So a refused source used
+ * to render a real, plausible value from an entity the wire never named, which is strictly
+ * worse than an empty one — an empty one gets reported.
  *
  * THAT LAST FACT IS WHY THE TEST RUNS AFTER THE FACTORY, not before it. The cores'
- * falsy-id guard looks like it already refuses and does not: the loop-row read beneath
+ * falsy-id guard looks like it already refuses and does not: the loop-item read beneath
  * it is load-bearing for the repeater-row path, where an ABSENT source
  * legitimately means the row. Absence and refusal have to part company above the core,
  * because the core cannot tell them apart.
@@ -1404,8 +1405,9 @@ function bws_base_term_first_usable( array $base, array $options, callable $read
  * HOPS the term's relationship field term→post[] via the post path's ref step,
  * then reads the target POST's analog — it must NOT short-circuit to the term's
  * own analog), and (c) the factory's base resolved source is a term — i.e. a bare
- * base tag on a term archive (SPEC §V7). Explicit options (loop row, src:current,
- * id) win inside the factory itself (SPEC §V1), so this returns false whenever the
+ * base tag on a term archive (SPEC §V7). Explicit options (a query-loop item,
+ * src:current, id) win inside the factory itself (SPEC §V1), so this returns false
+ * whenever the
  * author pinned a non-term source.
  *
  * @since 1.14.0

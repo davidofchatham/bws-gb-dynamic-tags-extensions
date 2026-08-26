@@ -414,10 +414,10 @@ eq(
 	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
 );
 
-// V1: loop row WINS over ambient term (bare tag inside a query loop on an
-// archive reads the ROW, not the term — the precedence that stops the leak).
+// V1: the loop ITEM WINS over ambient term (bare tag inside a query loop on an
+// archive reads the ITEM, not the term — the precedence that stops the leak).
 eq(
-	'V1 loop row wins over ambient term',
+	'V1 loop item wins over ambient term',
 	array( 'kind' => 'post', 'id' => 48418 ),
 	bws_resolve_base_source(
 		array(),
@@ -630,9 +630,9 @@ eq(
 	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'term_context_unresolved' => true ) ) )
 );
 
-// V17: a loop row still wins over the flag (loop precedes the flag check).
+// V17: a loop item still wins over the flag (loop precedes the flag check).
 eq(
-	'V17 loop row beats unresolved-term flag',
+	'V17 loop item beats unresolved-term flag',
 	array( 'kind' => 'post', 'id' => 555 ),
 	bws_resolve_base_source(
 		array(),
@@ -1306,13 +1306,14 @@ eq(
 //    MISTAKE THIS ROW EXISTS TO STOP ───────────────────────────────────────────
 //
 // "The singular cores' falsy-id guard refuses by construction" reads true and is not:
-// bws_read_field() does not stop at a falsy id, it falls back to the query-loop ROW and
-// then to the queried TERM. So consumer 3 handing the arm `false` is only half the
-// story — a core called with it still reads an ambient entity, which is the very defect,
-// arriving one layer lower.
+// bws_read_field() does not stop at a falsy id, it falls back to a query-loop item it can
+// be served from and then to the queried TERM (bws_read_field()'s own docblock owns which
+// shapes those are; a TERM or USER item is not one of them). So consumer 3 handing the arm
+// `false` is only half the story — a core called with it still reads an ambient entity,
+// which is the very defect, arriving one layer lower.
 //
 // That is why the refusal is caught ABOVE the core, by bws_base_read_refused(), and why
-// absence and refusal have to part company there: the loop-row read beneath that guard is
+// absence and refusal have to part company there: the loop-item read beneath that guard is
 // load-bearing for the repeater-row path, where an absent source legitimately
 // DOES mean the row. The core cannot tell the two apart, so it must not be asked to.
 eq(

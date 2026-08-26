@@ -1004,17 +1004,17 @@ class TagTemplateRegistry {
 					// try_image / try_phone / try_email, and the datetime one printed the
 					// surrounding archive's term date.
 					if ( ! $ids && 'post' === $arm['ids'] ) {
-						$in_loop_row = function_exists( 'bws_loop_item_is_post_or_row' )
+						$read_may_serve = function_exists( 'bws_loop_item_is_post_or_row' )
 							&& bws_loop_item_is_post_or_row( $inst );
 						// THE GATE IS "THIS SLOT STATES NO SOURCE OF ITS OWN", and it used to be
 						// spelled `'current' === $last_src` off the flat triple. That token is gone
 						// (#104), and re-deriving it from the chain's root would be WRONG rather
 						// than merely different: a chain leading with a step has no root token
-						// either, so a `refs` slot that resolved nothing would take the loop row —
+						// either, so a `refs` slot that resolved nothing would take the loop item —
 						// a plausible value from the wrong entity. Ask the resolution instead.
 						$src_res    = bws_base_src_resolution( $slot_opts );
 						$is_ambient = ! $src_res['fans'] && in_array( $src_res['root'], [ '', 'current' ], true );
-						if ( $in_loop_row && $is_ambient && '' !== $last_key ) {
+						if ( $read_may_serve && $is_ambient && '' !== $last_key ) {
 							$ids = [ false ];
 						}
 					}

@@ -599,7 +599,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	// 3b. Degenerate term context (SPEC §V17): the conditional tags claimed a
 	//     taxonomy archive but no WP_Term resolved. A bare tag here must NOT leak
 	//     the main query's first post — short-circuit to empty (V2 shape). This is
-	//     AFTER explicit src / loop rows (they returned above), so only the bare
+	//     AFTER explicit src / query-loop items (they returned above), so only the bare
 	//     ambient read on a broken term context reaches this.
 	if ( ! empty( $signals['term_context_unresolved'] ) ) {
 		return array();

@@ -502,9 +502,9 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * than a post-meta read. Nothing here needs to know that; the branch order already
  * expresses it, and this note exists so the fallthrough is not read as a hole.
  *
- * INVARIANT: An explicit `$post_id` passed by the caller always wins over loop-row
+ * INVARIANT: An explicit `$post_id` passed by the caller always wins over loop-item
  * inference. Try-loop `src:ref` slots resolve a target post via `bws_resolve_post_by_source()`
- * and pass that id here; if loop-row inference were allowed to override it, the slot would
+ * and pass that id here; if loop-item inference were allowed to override it, the slot would
  * silently read from the page entity instead of the resolved ref target — breaking
  * fall-through across slots inside any GB query loop. (Bugfix v1.7.1.)
  *
@@ -526,7 +526,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 
 	// Which shape did the query loop hand us?
 	// Explicit $post_id (e.g. resolved via src:relationship step) always wins — caller has already
-	// done entity resolution and the row entity is irrelevant to that target.
+	// done entity resolution and the loop item is irrelevant to that target.
 	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
 		|| ( is_numeric( $post_id ) && (int) $post_id > 0 );
 
@@ -1112,7 +1112,7 @@ function bws_meta_handler_read( int $object_id, string $key, bool $single_only, 
  *
  * Some ACF-aware code paths (notably datetime return_format detection in
  * bws_parse_combined_date_time()) need an object id to fetch field metadata even
- * when the caller has no resolved row entity — e.g. a repeater row under
+ * when the caller has no resolved entity — e.g. a repeater row under
  * GB Pro's TYPE_OPTION or TYPE_POST_META query loops. This
  * helper consolidates the resolution rules:
  *

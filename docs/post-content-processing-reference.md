@@ -110,7 +110,7 @@ Returns the rendered HTML, or `''` on early exit.
 
 Step 5 above (`do_blocks()`) renders the post's own blocks, and the dynamic tags inside them carry no block context. They fall back to the global `$post` / `get_the_ID()` — the **ambient** entity, whichever page the outer tag is rendering on. When the outer read HOPPED (`{{content src:ref|ref:related_staff}}`), that fallback made the target post's inner tags resolve against the viewing page: the hopped post's block STRUCTURE filled with the ambient page's VALUES ([#58](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/58)).
 
-The wrapper swaps the global `$post` to the post being rendered, calls `setup_postdata()`, runs the callable, and restores in a `finally` — the same mechanism a query loop applies per row. Two call sites:
+The wrapper swaps the global `$post` to the post being rendered, calls `setup_postdata()`, runs the callable, and restores in a `finally` — the same mechanism a query loop applies per item. Two call sites:
 
 - `bws_process_post_content()` — around `ContentProcessor::render()`, so inner tags resolve against the rendered post.
 - `bws_post_excerpt_core()` — around `get_the_excerpt()`, because excerpt generation and its filters read the global post too. The visible symptom there was a read-more link pointing at the ambient page rather than the excerpted post.

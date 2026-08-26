@@ -445,10 +445,11 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
 /**
  * Core datetime single logic.
  *
- * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
- * loop-row context (`generateblocks/loopItem` set). Repeater rows
+ * INVARIANT: must not hard-bail on `! $post_id` when the query-loop item is one the
+ * field read can still be served from — bws_loop_item_is_post_or_row() owns that
+ * question, and an item merely being PRESENT is not it. Repeater rows
  * (GB Pro TYPE_OPTION site-options repeaters, TYPE_POST_META post-meta repeaters)
- * legitimately have no row entity, but the field-read layer (`bws_read_field()`)
+ * legitimately have no entity of their own, but the field-read layer (`bws_read_field()`)
  * can still resolve subfield values from `$loop_item[$key]`. Bailing before that
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
@@ -513,9 +514,9 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 /**
  * Core datetime range logic.
  *
- * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
- * loop-row context (see bws_datetime_single_core() for full rationale). Bugfix
- * v1.7.2, issue #22.
+ * INVARIANT: must not hard-bail on `! $post_id` when the query-loop item is one the
+ * field read can still be served from (see bws_datetime_single_core() for full
+ * rationale). Bugfix v1.7.2, issue #22.
  *
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
@@ -855,8 +856,9 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
-		// handed a falsy id does not stop, it reads the query-loop row and then the
-		// queried term. This arm's own empty path is the all-empty fallback below.
+		// handed a falsy id does not stop, it reads a query-loop item it can be served
+		// from (bws_loop_item_is_post_or_row() is that question) and then the queried
+		// term. This arm's own empty path is the all-empty fallback below.
 		$value = '';
 	} elseif ( $ambient_term_id ) {
 		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );

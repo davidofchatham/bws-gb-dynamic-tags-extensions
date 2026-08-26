@@ -168,7 +168,7 @@ once an author converts it or the Tag Converter rewrites it.
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | |
 
-The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop row overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
@@ -1143,7 +1143,7 @@ short-circuits), keeps all non-empty values, and assembles them into one output 
 neither a base tag nor a modifier: it resolves no read of its own — each slot **absorbs** a full
 base `text` read via the extracted seam (`bws_base_text_resolve_value`, 1.14.1), so every current
 and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref list modes,
-loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
+query-loop item context, term-analog arm) works inside a join slot by construction. One GB tag
 (`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
 
 **Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option
@@ -1232,7 +1232,7 @@ therefore depends on **which render path the block sits in**, not on the tag:
 
 **Being inside a query loop does not matter.** `do_blocks` runs on `the_content` at priority 9 and
 `wptexturize` at 10, so blocks render *first* and texturize then sweeps the whole resulting string,
-loop-generated rows included. A loop row is built by a direct `WP_Block::render()` in
+loop-generated output included. A loop iteration is built by a direct `WP_Block::render()` in
 `GenerateBlocks_Block_Looper::render_wp_query()` (which applies the `render_block` filter, never
 `the_content`), but it is already inline in the output before `wptexturize` runs — so it is
 texturized exactly like a static block. Verified: J11/J11c both render `5’11”` on a normal page.

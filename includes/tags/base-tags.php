@@ -10,8 +10,11 @@
  *
  * Resolution (since 1.14.0 — the L1-full traversal pipeline, NOT source classes):
  *   L1 base source — `bws_resolve_base_source()` (includes/helpers/traversal-pipeline.php)
- *     resolves the ambient/explicit base resolved source: loop row → ambient term
- *     (term archive) → current post, or an explicit `src:site` / registry source.
+ *     resolves the ambient/explicit base resolved source: a query-loop item of a shape
+ *     it knows → ambient term (term archive) → current post, or an explicit `src:site` /
+ *     registry source. An item of any OTHER shape ENDS the precedence instead of
+ *     continuing down it: the read is refused, not answered from ambient (step 2e in
+ *     that function, which owns why).
  *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
  *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship step,
  *     plural), `srcTermIn` a term-step step; run through `bws_run_traversal()`.

@@ -31,9 +31,10 @@ docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && w
 bin/wp.sh testbed bws render-tag '{{...}}' --url=https://testbed.test/<context>/
 ```
 
-`--loop-item=<id>` for a synthetic query-loop row, `--porcelain` for output-only. Runs the real main
-query so `is_tax()` / queried-object / current-post are genuine. This is the cheap what-if /
-discovery-row engine — use it before building a page to answer "what does this tag do on context X".
+`--loop-item=<post_id>` for a synthetic query-loop item, `--porcelain` for output-only. Runs the
+real main query so `is_tax()` / queried-object / current-post are genuine. This is the cheap
+what-if / discovery-row engine — use it before building a page to answer "what does this tag do on
+context X".
 
 ### (Re)seed fixture state
 

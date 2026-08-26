@@ -268,7 +268,7 @@ function bws_email_finish_values( array $raw, array $options ): array {
  *
  * Returns finished mailto/plain address strings for the slot (CONTEXT.md I6 — the
  * try_ machinery joins; this produces the per-item finished strings). Honors the
- * registry-resolved $post_id (loop-row override, feedback_loop_context_override)
+ * registry-resolved $post_id (loop-item override, feedback_loop_context_override)
  * for post/term sources; src:site reads the option (no entity, $post_id ignored).
  *
  * @since 1.11.0

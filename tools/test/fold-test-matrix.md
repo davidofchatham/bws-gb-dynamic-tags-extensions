@@ -504,8 +504,8 @@ Measured inside the loop: `in_loop=true`, `item_post_id=false`, base kind `meta_
 `bws_base_post_ids_from_source()` `[]`, `bws_resolve_post_by_source()` `false`. So the fallthrough
 is not a defensive branch — it is the only thing that renders these rows at all.
 
-**NOTHING ELSE REACHES THIS.** A `WP_Query` loop's rows are `WP_Post` objects, so a post id always
-resolves and the branch never runs; `wp bws render-tag --loop-item=<id>` takes a post id by
+**NOTHING ELSE REACHES THIS.** A `WP_Query` loop's items are `WP_Post` objects, so a post id always
+resolves and the branch never runs; `wp bws render-tag --loop-item=<post_id>` takes a post id by
 construction. Until #103 the branch had **no rendered coverage on any tag family** — `{{call}}`'s
 [R1.4](call-test-matrix.md) names the case but records it as a known limit rather than exercising
 it. The rows below are on `/matrix-post-meta/`, inside a GB Pro `post_meta` query loop over the
@@ -513,7 +513,7 @@ seeded `team_members` repeater.
 
 | # | Tag | Expected |
 |---|---|---|
-| F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per loop row — the BASE tag's own path, which is a control rather than the subject |
+| F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per repeater row — the BASE tag's own path, which is a control rather than the subject |
 | F9c.2 | `{{try_text A:key(name)}}` | the SAME two names. This is the `try_` fallthrough |
 | F9c.3 | `{{try_text A:key(nope)\|B:key(role)}}` | `Engineering` / `Operations` — the attempt chain still advances inside a row: slot 1 takes the fallthrough and finds nothing, slot 2 takes it and hits |
 | F9c.4 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: refused as a chain kind. Slot 2's silent wire takes the fallthrough and resolves |
@@ -639,22 +639,23 @@ had.
 
 **§F11a CANNOT catch a regression in the unregistered-root guard, and finding that out cost a
 mutation.** Removing the text arm's guard entirely leaves every §F11a row green: off-loop, the
-singular cores return before reading anything (`! $post_id && ! $is_loop_row`), so the arm guard and
+singular cores return before reading anything (`! $post_id && ! $read_may_serve`), so the arm guard and
 the core's guard produce the same empty output. The guard earns its place only where the core would
-have gone on to read something — a query-loop ROW, or the queried TERM on an archive.
+have gone on to read something — a query-loop item the read can be served from
+(`bws_loop_item_is_post_or_row()` is that question), or the queried TERM on an archive.
 
 That asymmetry is not a defect in §F11a; those rows pin the unknown-STEP door, which IS observable
 off-loop (removing the title arm's guard makes §F11a.6 render `Jane Partner`). It just means the two
 doors need different rows, and only one of them was written first.
 
-Loop is over the `staff` post type, so each row's ambient entity is a staff member with values of
+Loop is over the `staff` post type, so each item's ambient entity is a staff member with values of
 its own. Jane's `main_line` is `(555) 200-3000`. `render-tag` reaches these with
 `--loop-item=<staff id>`.
 
 | # | Tag (inside the loop) | Expected |
 |---|---|---|
-| F11c.1 | `{{text use:key\|key:main_line}}` | the ROW's number — the CONTROL. A bare tag in a loop reads the row, and must go on doing so |
-| F11c.2 | `{{text src:currnet\|use:key\|key:main_line}}` | EMPTY. **This is the row that fails if the arm guard goes** (*was*, and is again without it, the row's own number) |
+| F11c.1 | `{{text use:key\|key:main_line}}` | the ITEM's number — the CONTROL. A bare tag in a loop reads the loop item, and must go on doing so |
+| F11c.2 | `{{text src:currnet\|use:key\|key:main_line}}` | EMPTY. **This is the row that fails if the arm guard goes** (*was*, and is again without it, this item's own number) |
 | F11c.3 | `{{text src:related_post\|use:key\|key:main_line}}` | EMPTY — the registered-but-inert token, same door, same exposure |
 | F11c.4 | `{{title src:currnet}}` | EMPTY. `{{title}}`'s core has a plain falsy-id guard and no loop read, so this row is green either way — kept as the stated NEGATIVE, so a reader does not mistake it for coverage |
 

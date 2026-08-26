@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * OBSERVATION, NOT AN INVARIANT — measured 2026-08-24 against GenerateBlocks 2.4.1 and
  * GB Pro 2.7.0. Tags NOT ours seen returning a bare '0', i.e. reaching this filter:
  *
- *   {{loop_index zeroBased:1}}   row 1 of any loop        GB Pro    PINNED, text matrix T5.4
+ *   {{loop_index zeroBased:1}}   item 1 of any loop       GB Pro    PINNED, text matrix T5.4
  *   {{comments_count none:0}}    a post with 0 comments   GB core   PINNED, text matrix T5.2
  *   {{loop_item key:<key>}}      a row value of 0         GB Pro    PINNED, text matrix T5.5
  *   {{term_count}}               an empty term            —         PINNED, loop matrix QL3.2

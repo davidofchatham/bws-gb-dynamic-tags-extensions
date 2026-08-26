@@ -75,11 +75,11 @@ measured against GB Query Enhancements 1.3.0.
 | T5.1b | `{{text key:bws_zero_probe\|fallback:REPLACED}}` | renders `0`, **not** `REPLACED` — the same field and the same pad byte as T5.1, with a fallback attached. A co-resident extension re-applies `fallback` whenever the output tests `empty()`, and `'0'` is empty to PHP, so this rendered `REPLACED` until the output boundary stopped publishing a consumed `fallback` to `generateblocks_dynamic_tag_output`. **What keeps it from being vacuous is [`fold-test-matrix.md`](fold-test-matrix.md) §F11b.1**, on this same page: a `fallback` that fires on a genuinely empty read. Without a row of that shape somewhere, a `fallback` that had stopped being read at all would also render `0` here. |
 | T5.2 | `{{comments_count none:0}}` | renders `0` — GB **core** tag, zero intact. This page has no comments, so the `none` label prints and it is a bare `'0'`. This row is the one that blanks if the guard stops covering GB's own tags. |
 | T5.3 | `{{post_meta key:bws_zero_probe}}` | **EMPTY** — same field as T5.1, read through GB's own meta tag, which comes back empty for a zero. Measured: `required:false` does not recover it either. The T5.1/T5.3 disagreement is GB's, not ours. |
-| T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-row `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on row 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first row with it. |
+| T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-item `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on item 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first item with it. |
 | T5.5 | `{{loop_item key:qty}}`, inside the `team_members` repeater loop | `0` then `4` — the second GB Pro tag here, and the one that shows the guard acting per **value**: two rows of one loop, one padded and one untouched. |
 
 A fourth tag not ours reaches the guard, `{{term_count}}` in a term loop, and its row is not here:
-it needs a term query loop, so it lives with the loop rows that now exist
+it needs a term query loop, so it lives with the loop-matrix rows that now exist
 ([`loop-test-matrix.md`](loop-test-matrix.md) §QL3, on `/matrix-loops/`). Four measured, four pinned —
 the dated enumeration is at the guard's own PHPDoc.
 

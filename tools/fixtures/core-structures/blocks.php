@@ -98,9 +98,9 @@ function bws_fixture_gb_query_loop( array $query, $inner_tag, $seed ) {
 /**
  * Shape 4b — the same nest around ALREADY-BUILT inner blocks.
  *
- * Exists for the one case Shape 4 cannot express: a loop row whose tag is EXPECTED to
+ * Exists for the one case Shape 4 cannot express: a loop item whose tag is EXPECTED to
  * render empty. GB hides a text block whose tag resolves to nothing and hides the WHOLE
- * block, so a single-block row inside a loop takes its own static label with it and the
+ * block, so a single-block item inside a loop takes its own static label with it and the
  * case reads as missing fixture — exactly what bws_fixture_gb_empty_row() solves outside
  * a loop, and it needs two blocks to do it.
  *
@@ -146,16 +146,16 @@ function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed, $
 /**
  * A GB Pro POST_META query loop — one item per ACF repeater row.
  *
- * The ONLY fixture whose loop is on repeater rows, and it cannot be substituted. A loop row
+ * The ONLY fixture whose loop is on repeater rows, and it cannot be substituted. An item
  * here is a bare ACF sub-field ARRAY with no `ID` key, so `bws_get_loop_item_context()`
  * reports `in_loop` with `item_post_id` FALSE — no post entity to bind. That is what makes
  * the loop-fallthrough branch fire: the source factory resolves a `meta_row`, no post id
  * comes out of it, and the core fn reads the value off `$loop_item[$key]` instead.
  *
- * A `WP_Query` loop (bws_fixture_gb_query_loop) CANNOT stand in for this: its rows are
+ * A `WP_Query` loop (bws_fixture_gb_query_loop) CANNOT stand in for this: its items are
  * WP_Post objects, so a post id always resolves and the branch never runs. Neither can
- * `wp bws render-tag --loop-item=<id>`, which takes a post id by construction. So this is
- * the one place the branch is observable at all, on any tag family.
+ * `wp bws render-tag --loop-item=<post_id>`, which takes a post id by construction. So
+ * this is the one place the branch is observable at all, on any tag family.
  *
  * `meta_key_id` empty = read the repeater off the CURRENT post, which is the page these
  * rows are seeded onto. `posts_per_page` is the string '-1' because GB Pro compares it
@@ -317,7 +317,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_empty_row( 'T5.3 (expect EMPTY, DISAGREEING with T5.1 on the same field - GB core meta read, which comes back empty for a zero)', '{{post_meta key:bws_zero_probe}}' ),
 		bws_fixture_gb_query_loop(
 			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
-			'T5.4 THE PIN (expect 0 then 1 - GB Pro loop index, zero-based; row 1 is a bare zero, and its whole block goes with it if the guard stops covering this tag): {{loop_index zeroBased:1}}',
+			'T5.4 THE PIN (expect 0 then 1 - GB Pro loop index, zero-based; item 1 is a bare zero, and its whole block goes with it if the guard stops covering this tag): {{loop_index zeroBased:1}}',
 			't5-4-loop-index-zero-based'
 		),
 		bws_fixture_gb_post_meta_loop(
@@ -758,26 +758,27 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// F11c - IN A QUERY LOOP, and it is the ONLY place the root-door guard is observable.
 	//
 	// Found by mutation: removing the text arm's guard leaves every F11a row green. Off
-	// loop the singular cores return before reading anything (! $post_id && ! $is_loop_row),
+	// loop the singular cores return before reading anything (! $post_id && ! $read_may_serve),
 	// so the arm guard and the core's guard produce the same empty output. The guard earns
-	// its place only where the core would have gone on to read something - a loop ROW, or
-	// the queried TERM on an archive. F11a still pins the unknown-STEP door, which IS
+	// its place only where the core would have gone on to read something - a loop item the
+	// read can be served from (bws_loop_item_is_post_or_row() is that question), or the
+	// queried TERM on an archive. F11a still pins the unknown-STEP door, which IS
 	// observable off loop; the two doors simply need different rows.
 	//
-	// Loop over `staff`, so each row's ambient entity carries values of its own.
+	// Loop over `staff`, so each item's ambient entity carries values of its own.
 	$sections[] = bws_fixture_gb_section( 'Fold F11c - the root door in a QUERY LOOP (where the arm guard is observable at all)', array(
 		bws_fixture_gb_query_loop(
 			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
-			'F11c.1 CONTROL - a bare tag in a loop reads the ROW, and must go on doing so (-> each row\'s own number): {{text use:key|key:main_line}}',
+			'F11c.1 CONTROL - a bare tag in a loop reads the loop ITEM, and must go on doing so (-> each item\'s own number): {{text use:key|key:main_line}}',
 			'f11c1-loop-control'
 		),
 		// Split-label form, inside the loop: an empty tag takes its whole block down, so
-		// a one-block loop row would read as missing fixture rather than as the asserted
+		// a one-block loop item would read as missing fixture rather than as the asserted
 		// empty. Two rows print, each a label with nothing after it.
 		bws_fixture_gb_query_loop_blocks(
 			array( 'post_type' => 'staff', 'posts_per_page' => 2, 'orderby' => 'title', 'order' => 'ASC' ),
 			bws_fixture_gb_empty_row(
-				'F11c.2 THE ROW THAT FAILS IF THE ARM GUARD GOES - unregistered token in a loop row (-> EMPTY; was this row\'s own number)',
+				'F11c.2 THE ROW THAT FAILS IF THE ARM GUARD GOES - unregistered token inside a query loop (-> EMPTY; was this item\'s own number)',
 				'{{text src:currnet|use:key|key:main_line}}'
 			),
 			'f11c2-loop-unregistered'
@@ -900,7 +901,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// a slot's source on as chain wire. These rows exist so that change has something
 	// to break. Written after it, they would be worth much less.
 	//
-	// NOTHING ELSE REACHES THIS. A WP_Query loop's rows are WP_Post objects, so a post
+	// NOTHING ELSE REACHES THIS. A WP_Query loop's items are WP_Post objects, so a post
 	// id always resolves and the branch never runs; `render-tag --loop-item` takes a
 	// post id by construction. The fixture builder's docblock carries the detail.
 	$sections[] = bws_fixture_gb_section( 'Fold F9c - the query loop\'s repeater row, the flat ACF shape (loop fallthrough)', array(
@@ -1385,8 +1386,8 @@ function bws_fixture_page_content_matrix_gate() {
  *
  * BOTH SHAPES OF THE LEAK WERE HERE, and they looked unalike to a reader: one landed
  * on a real post and printed a plausible value from the wrong entity (QL1.1, QL2.1's
- * first row), the other landed on nothing and printed empty (QL1.4, and QL2.1's
- * second row, whose user id no post carries). Both now print the loop's own entity,
+ * first item), the other landed on nothing and printed empty (QL1.4, and QL2.1's
+ * second item, whose user id no post carries). Both now print the loop's own entity,
  * so both are ordinary inline rows; QL2.4 is the ONE row still expected empty and
  * keeps the split-label form, for the reason bws_fixture_gb_empty_row() states.
  *

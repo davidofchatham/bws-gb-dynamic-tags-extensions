@@ -56,7 +56,7 @@ shipping the PTA guard next.
 
 Precedence verified on the author archive: `linkTo:permalink` wraps the author
 URL (`get_author_posts_url`); `src:site` still wins (author does not hijack);
-`--loop-item` row wins over author ambient. Same guard spine as the term kind.
+the `--loop-item` post wins over author ambient. Same guard spine as the term kind.
 
 ## Fixture gaps / notes
 

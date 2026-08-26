@@ -356,7 +356,7 @@ function bws_process_post_content_fallback( $post_id, $args = array() ) {
  * post's inner tags resolve against the viewing page (#58). This is the
  * front-end analog of the editor-only id threading in CONTEXT.md I11.
  *
- * Swap-and-restore, the same mechanism a query loop applies per row. The swap
+ * Swap-and-restore, the same mechanism a query loop applies per item. The swap
  * is skipped when $post_id already IS the ambient post: the callable would see
  * the identical context either way, so the work and the global writes are pure
  * cost.
