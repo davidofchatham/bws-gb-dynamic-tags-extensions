@@ -53,7 +53,7 @@ same page for the outside-loop baseline.
 | Record | Question |
 |---|---|
 | `instance_ctx` has `generateblocks/loopItem` (loop placements) | Does GB context propagate to tags inside Element-rendered loops? |
-| `loop_ctx.in_loop` / `row_post_id` | Does existing loop detection fire there? |
+| `loop_ctx.in_loop` / `item_post_id` | Does existing loop detection fire there? |
 | `queried_object` inside loop items | Still `WP_Term`, or clobbered per-row? |
 | `get_the_id` / `post_global` inside loop items | Row post (GB swaps globals) or unchanged? |
 | `is_main_query` inside loop items | Secondary-query state at tag render time |
@@ -214,6 +214,10 @@ When the sweep is done: distill the per-context truth table + precedence
 decisions into the two plan files (§Base Resolution / §Context Taxonomy), then
 delete the probe file and this matrix per the debug-workflow rule.
 
+*Run records below quote the probe's log fields under the names emitted on the
+run date. The post-id field was renamed in 1.19.0; the matrix rows above, the
+probe itself, and the prescriptions in §Findings locked carry the current name.*
+
 ### Runs so far (2026-07-06)
 
 **P0 — static front page, `element-header` — PASS.** singular+front true,
@@ -286,7 +290,7 @@ from the earliest hook.
 2. **`instance_ctx.postId` is NOT a dependable identity cross-check.** On
    archives it mirrors stale `$post` (48418), is ABSENT in one pre-loop wrapper
    state, and only tracks the row inside the loop. Factory should ignore it and
-   use `loop_ctx.row_post_id` (derived correctly) + `queried_object`. Kills the
+   use `loop_ctx.item_post_id` (derived correctly) + `queried_object`. Kills the
    "cheap cross-check" idea.
 
 3. **Pre-loop wrapper renders in ≥2 distinct context states** (one with

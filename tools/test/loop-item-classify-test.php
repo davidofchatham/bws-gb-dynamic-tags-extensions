@@ -25,7 +25,7 @@
  *   §C4  the term-before-user ORDER, on an item that satisfies both arms
  *   §C5  the taxonomy cross-check
  *   §C6  bws_loop_item_is_post_or_row() — the predicate six render sites gate on
- *   §C7  bws_get_loop_row_context() — returned shape, the cache, and `in_loop` derived
+ *   §C7  bws_get_loop_item_context() — returned shape, the cache, and `in_loop` derived
  *        from the classification rather than tested a second time
  *
  * Run:  php tools/test/loop-item-classify-test.php   (exit 0 = pass, 1 = fail)
@@ -206,33 +206,33 @@ $term_inst = inst( new WP_Term( 7, 'department' ) );
 assert_same(
 	'C6.9 in_loop and the predicate DISAGREE on a term item, and that is the point',
 	'in_loop=true predicate=false',
-	'in_loop=' . var_export( bws_get_loop_row_context( $term_inst )['in_loop'], true )
+	'in_loop=' . var_export( bws_get_loop_item_context( $term_inst )['in_loop'], true )
 		. ' predicate=' . var_export( bws_loop_item_is_post_or_row( $term_inst ), true )
 );
 
-echo "\n=== C7 - bws_get_loop_row_context(): shape, cache, and in_loop ===\n";
+echo "\n=== C7 - bws_get_loop_item_context(): shape, cache, and in_loop ===\n";
 
-$ctx_none = bws_get_loop_row_context( inst( null ) );
+$ctx_none = bws_get_loop_item_context( inst( null ) );
 assert_same( 'C7.1 no item -> in_loop false', false, $ctx_none['in_loop'] );
 assert_same( 'C7.2 no item -> item_kind empty', '', $ctx_none['item_kind'] );
-assert_same( 'C7.3 no item -> row_post_id false', false, $ctx_none['row_post_id'] );
+assert_same( 'C7.3 no item -> item_post_id false', false, $ctx_none['item_post_id'] );
 
-$ctx_post = bws_get_loop_row_context( inst( new WP_Post( 5 ) ) );
-assert_same( 'C7.4 post item -> row_post_id carries it', 5, $ctx_post['row_post_id'] );
+$ctx_post = bws_get_loop_item_context( inst( new WP_Post( 5 ) ) );
+assert_same( 'C7.4 post item -> item_post_id carries it', 5, $ctx_post['item_post_id'] );
 assert_same( 'C7.5 post item -> item_kind/item_id agree with it', 'post:5', $ctx_post['item_kind'] . ':' . $ctx_post['item_id'] );
 
-$ctx_term = bws_get_loop_row_context( inst( new WP_Term( 7, 'department' ) ) );
+$ctx_term = bws_get_loop_item_context( inst( new WP_Term( 7, 'department' ) ) );
 assert_same( 'C7.6 term item -> in_loop true', true, $ctx_term['in_loop'] );
-assert_same( 'C7.7 term item -> row_post_id STAYS FALSE (it holds a post and only a post)', false, $ctx_term['row_post_id'] );
+assert_same( 'C7.7 term item -> item_post_id STAYS FALSE (it holds a post and only a post)', false, $ctx_term['item_post_id'] );
 assert_same( 'C7.8 term item -> item_kind/item_id carry the entity', 'term:7', $ctx_term['item_kind'] . ':' . $ctx_term['item_id'] );
 
-$ctx_unknown = bws_get_loop_row_context( inst( (object) array( 'id' => 3, 'name' => 'A Product' ) ) );
+$ctx_unknown = bws_get_loop_item_context( inst( (object) array( 'id' => 3, 'name' => 'A Product' ) ) );
 assert_same( 'C7.9 UNKNOWN is in a loop - "item unreadable" is NOT "no loop"', true, $ctx_unknown['in_loop'] );
 assert_same( 'C7.10 UNKNOWN reports its kind so the caller can refuse', 'unknown', $ctx_unknown['item_kind'] );
 
 // The cache is READ, not merely written: poison it and the poisoned answer comes back.
 $cached = inst( new WP_Post( 5 ) );
-bws_get_loop_row_context( $cached );
+bws_get_loop_item_context( $cached );
 assert_same(
 	'C7.11 the classification is cached on the context',
 	'post:5',
@@ -240,13 +240,13 @@ assert_same(
 );
 assert_same( 'C7.12 the legacy post-id cache key is written beside it', 5, $cached->context['bws/loopItemPostId'] );
 $cached->context['bws/loopItemEntity'] = array( 'kind' => 'term', 'id' => 7 );
-$reread                                = bws_get_loop_row_context( $cached );
+$reread                                = bws_get_loop_item_context( $cached );
 assert_same( 'C7.13 a second call READS the cache rather than re-classifying', 'term:7', $reread['item_kind'] . ':' . $reread['item_id'] );
 
 // NOTHING is cached when there is no loop — a context with no item keeps the keys it
 // arrived with, so a non-loop render is not given loop bookkeeping it never asked for.
 $no_loop = inst( null );
-bws_get_loop_row_context( $no_loop );
+bws_get_loop_item_context( $no_loop );
 assert_same(
 	'C7.14 no item -> no cache keys written',
 	false,

@@ -2,7 +2,7 @@
 /**
  * Field/meta extraction helper functions.
  *
- * Shared functions for ACF/meta field reading, loop-row context resolution,
+ * Shared functions for ACF/meta field reading, loop-item context resolution,
  * ACF object_id resolution, and related-post data extraction. All field
  * reads route through GenerateBlocks_Meta_Handler when available.
  *
@@ -355,7 +355,7 @@ function bws_loop_item_user_id( $item ): int {
 }
 
 /**
- * Resolve loop-row context from a block instance.
+ * Resolve loop-item context from a block instance.
  *
  * Inspects $instance->context for the query loop GB is rendering and classifies the
  * item. WHAT the item is, is decided by bws_classify_loop_item() and nowhere else;
@@ -368,7 +368,7 @@ function bws_loop_item_user_id( $item ): int {
  * unreadable — which is a different answer from NOT IN A LOOP and must stay one: the
  * caller refuses on the first and resolves ambient on the second ([I15]).
  *
- * `row_post_id` HOLDS A POST AND ONLY A POST. A term or user item leaves it false
+ * `item_post_id` HOLDS A POST AND ONLY A POST. A term or user item leaves it false
  * while `in_loop` is true, which is now an ordinary state rather than an edge case.
  * Anything reading it as "the loop's entity" is reading it wrong; `item_kind` +
  * `item_id` are what carry the entity.
@@ -385,11 +385,11 @@ function bws_loop_item_user_id( $item ): int {
  *
  * Returned shape:
  *   [
- *     'loop_item'   => mixed   // raw item (WP_Post|WP_Term|object|array|int|null)
- *     'row_post_id' => int|false // the post, when the item is one; false otherwise
- *     'in_loop'     => bool    // true when a query-loop item is present
- *     'item_kind'   => string  // ''|'post'|'term'|'user'|'row'|'unknown'
- *     'item_id'     => int     // the entity id for post/term/user; 0 otherwise
+ *     'loop_item'    => mixed   // raw item (WP_Post|WP_Term|object|array|int|null)
+ *     'item_post_id' => int|false // the post, when the item is one; false otherwise
+ *     'in_loop'      => bool    // true when a query-loop item is present
+ *     'item_kind'    => string  // ''|'post'|'term'|'user'|'row'|'unknown'
+ *     'item_id'      => int     // the entity id for post/term/user; 0 otherwise
  *   ]
  *
  * @since 1.7.0
@@ -398,14 +398,14 @@ function bws_loop_item_user_id( $item ): int {
  * @param mixed $instance Block instance (WP_Block) or anything else.
  * @return array
  */
-if ( ! function_exists( 'bws_get_loop_row_context' ) ) {
-function bws_get_loop_row_context( $instance ): array {
+if ( ! function_exists( 'bws_get_loop_item_context' ) ) {
+function bws_get_loop_item_context( $instance ): array {
 	$out = array(
-		'loop_item'   => null,
-		'row_post_id' => false,
-		'in_loop'     => false,
-		'item_kind'   => '',
-		'item_id'     => 0,
+		'loop_item'    => null,
+		'item_post_id' => false,
+		'in_loop'      => false,
+		'item_kind'    => '',
+		'item_id'      => 0,
 	);
 
 	if ( ! is_object( $instance ) || ! isset( $instance->context ) || ! is_array( $instance->context ) ) {
@@ -436,11 +436,11 @@ function bws_get_loop_row_context( $instance ): array {
 		return $out;
 	}
 
-	$out['in_loop']     = true;
-	$out['loop_item']   = $raw_item;
-	$out['item_kind']   = (string) ( $entity['kind'] ?? '' );
-	$out['item_id']     = (int) ( $entity['id'] ?? 0 );
-	$out['row_post_id'] = ( 'post' === $out['item_kind'] && $out['item_id'] > 0 ) ? $out['item_id'] : false;
+	$out['in_loop']      = true;
+	$out['loop_item']    = $raw_item;
+	$out['item_kind']    = (string) ( $entity['kind'] ?? '' );
+	$out['item_id']      = (int) ( $entity['id'] ?? 0 );
+	$out['item_post_id'] = ( 'post' === $out['item_kind'] && $out['item_id'] > 0 ) ? $out['item_id'] : false;
 
 	return $out;
 }
@@ -476,7 +476,7 @@ function bws_get_loop_row_context( $instance ): array {
  */
 if ( ! function_exists( 'bws_loop_item_is_post_or_row' ) ) {
 function bws_loop_item_is_post_or_row( $instance ): bool {
-	$kind = bws_get_loop_row_context( $instance )['item_kind'];
+	$kind = bws_get_loop_item_context( $instance )['item_kind'];
 	return 'post' === $kind || 'row' === $kind;
 }
 }
@@ -530,11 +530,11 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	$has_explicit_post_id = ( is_int( $post_id ) && $post_id > 0 )
 		|| ( is_numeric( $post_id ) && (int) $post_id > 0 );
 
-	$loop = bws_get_loop_row_context( $instance );
+	$loop = bws_get_loop_item_context( $instance );
 	if ( $loop['in_loop'] && ! $has_explicit_post_id ) {
 		// A post — read its meta.
-		if ( $loop['row_post_id'] ) {
-			return bws_meta_handler_read( (int) $loop['row_post_id'], $key, $single_only, 'get_post_meta' );
+		if ( $loop['item_post_id'] ) {
+			return bws_meta_handler_read( (int) $loop['item_post_id'], $key, $single_only, 'get_post_meta' );
 		}
 		// A repeater row — no entity behind it; read the row directly.
 		if ( is_array( $loop['loop_item'] ) ) {

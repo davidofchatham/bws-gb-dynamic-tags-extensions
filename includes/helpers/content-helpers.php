@@ -8,7 +8,7 @@
  * setup phase detection, and safe-output (strips destructive output options for HTML).
  *
  * Other helpers split across:
- *  - field-helpers.php        (meta/ACF reads, loop-row context, ACF object_id)
+ *  - field-helpers.php        (meta/ACF reads, loop-item context, ACF object_id)
  *  - preview-helpers.php      (editor preview labels)
  *  - link-helpers.php         (linkTo/linkKey resolution + <a> wrapping)
  *  - registration-helpers.php (wire-format / GB-registration utilities)

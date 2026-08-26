@@ -401,7 +401,7 @@ function sig( $overrides = array() ) {
 			'queried_kind' => null,
 			'queried_id'   => 0,
 			'is_tax'       => false,
-			'loop'         => array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null ),
+			'loop'         => array( 'in_loop' => false, 'item_post_id' => false, 'loop_item' => null ),
 		),
 		$overrides
 	);
@@ -426,7 +426,7 @@ eq(
 			'queried_kind' => 'term',
 			'queried_id'   => 34,
 			'is_tax'       => true,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => 48418, 'loop_item' => null ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => 48418, 'loop_item' => null ),
 		)
 	)
 );
@@ -449,7 +449,7 @@ eq(
 			'queried_kind' => null,
 			'queried_id'   => 0,
 			'is_tax'       => false,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => array( 'name' => 'x' ) ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => array( 'name' => 'x' ) ),
 		)
 	)
 );
@@ -460,7 +460,7 @@ eq(
 // $fallback_type to `generateblocks_dynamic_tag_id`, so such an extension cannot
 // tell a post fallback from a term one and hands the item's id to a POST fallback;
 // term ids and post ids collide on every install (term 1, post 1). The factory now
-// takes the item's own kind from bws_get_loop_row_context() instead, which is why
+// takes the item's own kind from bws_get_loop_item_context() instead, which is why
 // none of these rows carries a query-type string: recognition is keyed on the item's
 // SHAPE, and the factory only maps the answer.
 //
@@ -482,13 +482,13 @@ function loop_sig( $loop ) {
 eq(
 	'#123 term loop item -> term source',
 	array( 'kind' => 'term', 'id' => 7 ),
-	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
 );
 
 eq(
 	'#123 user loop item -> user source',
 	array( 'kind' => 'user', 'id' => 4 ),
-	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'user', 'item_id' => 4 ) ) )
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'user', 'item_id' => 4 ) ) )
 );
 
 // A term loop item still LOSES to an explicit src, exactly as a post row does —
@@ -496,7 +496,7 @@ eq(
 eq(
 	'#123 explicit src:site beats a term loop item',
 	array( 'kind' => 'site' ),
-	bws_resolve_base_source( array( 'src' => 'site' ), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+	bws_resolve_base_source( array( 'src' => 'site' ), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
 );
 
 // And a term loop item BEATS an ambient term archive, the same way a post row does:
@@ -511,7 +511,7 @@ eq(
 			'queried_kind' => 'term',
 			'queried_id'   => 34,
 			'is_tax'       => true,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ),
 		)
 	)
 );
@@ -523,7 +523,7 @@ eq(
 eq(
 	'#123 unreadable loop item REFUSES rather than falling through',
 	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
-	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ) ) )
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ) ) )
 );
 
 // It refuses over an ambient term archive too — a fallthrough that lands on a REAL
@@ -538,17 +538,17 @@ eq(
 			'queried_kind' => 'term',
 			'queried_id'   => 34,
 			'is_tax'       => true,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ),
 		)
 	)
 );
 
-// A loop item that IS a post keeps its old answer, and the published `row_post_id`
+// A loop item that IS a post keeps its old answer, and the published `item_post_id`
 // key is what still decides it — the post arm is read before any item_kind branch.
 eq(
-	'#123 a post item is unchanged, read from row_post_id',
+	'#123 a post item is unchanged, read from item_post_id',
 	array( 'kind' => 'post', 'id' => 48418 ),
-	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => 48418, 'loop_item' => null, 'item_kind' => 'post', 'item_id' => 48418 ) ) )
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => 48418, 'loop_item' => null, 'item_kind' => 'post', 'item_id' => 48418 ) ) )
 );
 
 // V1: NO ambient term + no loop → falls through to current-post path. With no
@@ -642,7 +642,7 @@ eq(
 			'queried_id'              => 0,
 			'is_tax'                  => false,
 			'term_context_unresolved' => true,
-			'loop'                    => array( 'in_loop' => true, 'row_post_id' => 555, 'loop_item' => null ),
+			'loop'                    => array( 'in_loop' => true, 'item_post_id' => 555, 'loop_item' => null ),
 		)
 	)
 );

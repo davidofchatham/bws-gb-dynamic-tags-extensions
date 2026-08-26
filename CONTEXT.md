@@ -108,11 +108,11 @@ Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (
 The traversal pipeline (shipped 1.14.0) resolves *where a bare tag reads from* through a single **source factory** (`bws_resolve_base_source`), by a fixed precedence — the load-bearing rule the whole context-aware feature rests on:
 
 1. **Explicit `src`** (site / registry source / `ref` as a step off the base) — author intent always wins.
-2. **Loop row** (`bws_get_loop_row_context`) — a bare tag inside a query loop reads the ROW (post or Mode-2b meta_row), not the archive.
+2. **Query-loop item** (`bws_get_loop_item_context`) — a bare tag inside a query loop reads the ITEM the loop is standing on (a post, a term, a user or a repeater row), not the archive; an item matching none of those shapes is refused rather than read, so nothing from an entity the wire never named reaches the page ([I15]). Which shape an item is, is `bws_classify_loop_item()`'s to decide and is stated there.
 3. **Ambient queried object** — `get_queried_object()` is a `WP_Term` → the **term** (the #19 term-archive kind, shipped 1.14.0); a `WP_User` → the **user** (the #19 author-archive kind, shipped 1.15.0).
 4. **Current post** — else the singular post.
 
-**`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a loop row (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
+**`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a post-shaped loop item (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
 
 Two guards keep the leak dead at the edges:
 - **A claimed-taxonomy-context with no resolvable term yields EMPTY, never the leaked post.** When `is_tax`/`is_category`/`is_tag` fire but `get_queried_object()` is not a `WP_Term` (deleted term, malformed query), the factory short-circuits to empty rather than falling to the current post.
@@ -151,7 +151,7 @@ GB's editor **preview REST route** resolves the edited post by appending `id:<po
 
 **Rule:** a composing tag MUST thread its tag-level `id` into every **post-based** sub-read it delegates. `src:ref` sub-reads carry it too (the current post is where the `refs` step starts). Only **entity-blind** sources skip it — `src:site` reads a `wp_options` datum, never a post, so passing `id` there is meaningless.
 
-**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-row / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
+**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-item / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
 
 This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot resolves identically to the same tag standalone — which fails silently in the editor if the id isn't propagated). Enforced at: `bws_join_callback` `$explicit_id` PHPDoc (base-tags.php). Schema/behavior: `tag-reference.md` §join (editor preview) + `tools/test/join-test-matrix.md` §Editor preview.
 
@@ -322,7 +322,7 @@ The **declared read intent** of a tag — its (source + key) specification. `{sr
 - **explicit** — a source is serialized (author-selected). EVERY other flavor, incl. `src:current` (same OUTCOME as implicit — reads the queried item — but explicit once written, e.g. a serialized try_ slot 2+). "selected" is an informal synonym for explicit (the author selected a Source); it is NOT a pole name — all three axis-2 flavors below are "selected" in this loose sense.
 
 *Axis 2 — entity provenance (who supplies the read-entity — the meaningful split among explicit sources; the implicit tag's hidden provenance is always `detected`):*
-- **detected** — an ambient signal supplies the entity, so it varies per render: WP query object / loop row (`src:current`, term-archive), a related-post step (`src:ref`), or the active Site View / user session (`view_`). `view_` is detected-yet-explicit — detection is NOT the same axis as implicit/explicit.
+- **detected** — an ambient signal supplies the entity, so it varies per render: WP query object / query-loop item (`src:current`, term-archive), a related-post step (`src:ref`), or the active Site View / user session (`view_`). `view_` is detected-yet-explicit — detection is NOT the same axis as implicit/explicit.
 - **global** — no per-entity read; a site-wide datum (`src:site`). A Site View may ALSO act site-wide, but `view_` stays **detected** because a signal (the active view) selects it; `src:site` consults nothing.
 - **ID** — the author identifies ONE specific entity and its id is serialized into the token (probable `src:<type>,<ID>` shape, **not final**). The **ID source** — the only flavor carrying a serialized entity id. This is the "pinned/specific resource" concept the qualifying gate points at (FW-39 ID source, FW-33 `term_` deprecation). Names the mechanism (serialized id) = the provenance (author supplies it).
 
@@ -330,7 +330,7 @@ Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`t
 
 **Ambient**:
 Supplied by the RENDER's own context rather than by the wire — the queried object on a
-singular page, term archive or author archive, or the row a query loop is standing on. An
+singular page, term archive or author archive, or the item a query loop is standing on. An
 ambient read is legitimate ([I15] says when), and "ambient" never means "whatever is left
 over": it names one specific supplier.
 

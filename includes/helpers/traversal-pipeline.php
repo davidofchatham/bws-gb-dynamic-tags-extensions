@@ -525,14 +525,14 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	}
 
 	// 2. The loop's own item wins over ambient (a bare tag in a query loop reads the
-	//    ITEM). One branch per kind bws_get_loop_row_context() can report, in the
+	//    ITEM). One branch per kind bws_get_loop_item_context() can report, in the
 	//    order the item shapes were learned; the ORDER carries no rule, since the
-	//    kinds are disjoint. `row_post_id` is read first and separately because it is
+	//    kinds are disjoint. `item_post_id` is read first and separately because it is
 	//    the published key: it holds the post arm and nothing else.
-	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'row_post_id' => false );
+	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'item_post_id' => false );
 	if ( ! empty( $loop['in_loop'] ) ) {
-		if ( ! empty( $loop['row_post_id'] ) ) {
-			return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
+		if ( ! empty( $loop['item_post_id'] ) ) {
+			return array( 'kind' => 'post', 'id' => (int) $loop['item_post_id'] );
 		}
 
 		$item_kind = (string) ( $loop['item_kind'] ?? '' );
@@ -688,9 +688,9 @@ function bws_capture_ambient_signals( $instance ) {
 		}
 	}
 
-	$loop = function_exists( 'bws_get_loop_row_context' )
-		? bws_get_loop_row_context( $instance )
-		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => '', 'item_id' => 0 );
+	$loop = function_exists( 'bws_get_loop_item_context' )
+		? bws_get_loop_item_context( $instance )
+		: array( 'in_loop' => false, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => '', 'item_id' => 0 );
 
 	return array(
 		'queried_kind'            => $queried_kind,

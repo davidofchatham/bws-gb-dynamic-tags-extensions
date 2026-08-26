@@ -500,7 +500,7 @@ opposite answers, which is the whole content of this section:
   loop. The author asked for *here*. **Continue to the post arm**, which resolves no id, at which
   point the loop fallthrough hands the row to the core fn, which reads `$loop_item[$key]`.
 
-Measured inside the loop: `in_loop=true`, `row_post_id=false`, base kind `meta_row`,
+Measured inside the loop: `in_loop=true`, `item_post_id=false`, base kind `meta_row`,
 `bws_base_post_ids_from_source()` `[]`, `bws_resolve_post_by_source()` `false`. So the fallthrough
 is not a defensive branch — it is the only thing that renders these rows at all.
 

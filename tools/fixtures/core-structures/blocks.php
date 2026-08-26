@@ -147,8 +147,8 @@ function bws_fixture_gb_query_loop_blocks( array $query, $inner_blocks, $seed, $
  * A GB Pro POST_META query loop — one item per ACF repeater row.
  *
  * The ONLY fixture whose loop is on repeater rows, and it cannot be substituted. A loop row
- * here is a bare ACF sub-field ARRAY with no `ID` key, so `bws_get_loop_row_context()`
- * reports `in_loop` with `row_post_id` FALSE — no post entity to bind. That is what makes
+ * here is a bare ACF sub-field ARRAY with no `ID` key, so `bws_get_loop_item_context()`
+ * reports `in_loop` with `item_post_id` FALSE — no post entity to bind. That is what makes
  * the loop-fallthrough branch fire: the source factory resolves a `meta_row`, no post id
  * comes out of it, and the core fn reads the value off `$loop_item[$key]` instead.
  *
