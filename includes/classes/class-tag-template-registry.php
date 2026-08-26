@@ -37,8 +37,11 @@ class TagTemplateRegistry {
 	 *                    author-archive slot handler (#108). Present on the three templates
 	 *                    the user analog covers (text/title/content), a thin closure over
 	 *                    bws_base_user_analog_read('<tag>',…). ABSENT IS LOAD-BEARING on the
-	 *                    other six: they take the fn-absent fallthrough to the post arm, which
-	 *                    is the only path to the mode-2b flat-repeater-row gate.
+	 *                    other six: they take the fn-absent fallthrough to the post arm, and
+	 *                    the post arm is the only one that reaches the no-entity loop read at
+	 *                    the foot of the slot loop — the `[ false ]` branch that hands the
+	 *                    core fn no id so the field read can serve itself off the query-loop
+	 *                    item.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -950,7 +953,9 @@ class TagTemplateRegistry {
 						// This TEMPLATE has no function for the arm — a family with no
 						// try_term_fn, and the six families with no try_user_fn (#108 wired
 						// text/title/content and left the rest here deliberately: this
-						// fallthrough is their only route to the mode-2b gate below).
+						// fallthrough is their only route to the no-entity loop read
+						// below, the `[ false ]` branch that lets the field read serve
+						// itself off the query-loop item).
 						// Falling through to the post arm is not a fallback invented
 						// here: it is exactly what the token arms did, since both the
 						// term-ambient arm and the srcTermIn arm were gated on `$tcf`.

@@ -136,7 +136,7 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
 | T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — the arm table's `link:'user'` column's only evidence anywhere |
-| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the mode-2b flat-repeater-row gate. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the no-entity loop read at the foot of the slot loop — the `[ false ]` branch that lets the field read serve itself off the query-loop item. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
 T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
 2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at

@@ -617,7 +617,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
  * The back-compat contract of bws_resolve_post_by_source(): callers want a POST
  * id | false, nothing else. Take the first resolved source and return its id ONLY
  * when its kind is 'post'. A non-post base (term ambient on an archive, meta_row
- * for a Mode-2b flat row, site) yields false — those callers are post-semantic
+ * for a repeater row, site) yields false — those callers are post-semantic
  * (bws_get_srcterm_terms needs a post, {{call}}/datetime treat the result as a
  * post id / link_type:'post'), so a term/row id must NEVER leak out as a "post id".
  *
@@ -882,9 +882,10 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 				// returns the PLURAL array (feeds the §V6 coercer). On empty — ACF
 				// absent, the field is not an ACF relationship, or a non-ACF handler
 				// (Pods/Carbon/core) stored the id(s) in plain meta — FALL BACK to a raw
-				// post-meta read (the OLD Mode-2a path). bws_pipeline_ref_to_posts then
-				// coerces whatever shape the raw meta holds (id / list of ids), with its
-				// string-keyed-assoc guard preventing per-scalar fabrication (review #2).
+				// get_post_meta() on the source post, which asks nothing about field
+				// type. bws_pipeline_ref_to_posts then coerces whatever shape the raw
+				// meta holds (id / list of ids), with its string-keyed-assoc guard
+				// preventing per-scalar fabrication (review #2).
 				$post_ref_id = (int) ( $source['id'] ?? 0 );
 				if ( function_exists( 'bws_get_related_posts_data' ) ) {
 					$acf = bws_get_related_posts_data( $post_ref_id, $field );
