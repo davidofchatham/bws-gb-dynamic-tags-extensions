@@ -20,8 +20,8 @@ No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 exercise inline (house pattern); newer ones **require the real file** when it is pure, because a
 test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
 `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`,
-`related-post-src-migration-test.php`, `pattern-cache-test.php`); one reads a sibling script's
-SOURCE rather than calling it, because the script under test executes a replay on load
+`related-post-src-migration-test.php`, `pattern-cache-test.php`, `gb-output-boundary-test.php`);
+one reads a sibling script's SOURCE rather than calling it, because the script under test executes a replay on load
 (`replay-source-identity-test.php`). Run the one whose domain you
 touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No
 CI runs these; run them locally before commit.
@@ -356,5 +356,6 @@ has nothing to add beyond what it says here.
 | `limit`-default / list-slice change (`bws_clamp_limit` or any of its four call sites; also the `limit` help text, which states the `0` affordance) | `limit-default-test-matrix.md` | [rules](docs/update-triggers.md#limit-default--list-slice-change) |
 | Source-gate change (`bws_source_gate` in `traversal-pipeline.php`, or the `$gate` thread through `bws_run_traversal` — the initial list and every hop, before the limit slice) | `traversal-pipeline-test.php`, `fold-test-matrix.md` §F17, `verify.php`'s gate section | [rules](docs/update-triggers.md#source-gate-change) |
 | Falsy-replacement guard change — either branch of the `generateblocks_dynamic_tag_replacement` filter in `includes/hooks.php` (the bare `'0'` pad, the `as:alt` pad), or its scope | `verify.php`'s zero-guard section (the two-arm byte pin + the T5.2 no-comments assumption), then `php tools/test/page-snapshots.php` against the testbed — the guard's visible rows are text matrix §T5, all on `/matrix-post-meta/` | — |
+| GB output-BOUNDARY change — `BWS_GB_TAG_OUTPUT_OPTIONS` (the option keys GB's own output pipeline consumes), its recorded `BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM`, or `bws_gb_tag_output()` in `includes/helpers/gb-output-boundary.php`; also a call site moving on or off it | `gb-output-boundary-test.php`, then `fold-test-matrix.md` §F11b against the testbed (the visible row is F11b.3b, on `/matrix-post-meta/`) | — |
 | Collapsing-capability change — `takes_first_usable` on a template record, the selector (`bws_read_bounded_sources` in `field-helpers.php`) or a consumer swap, the `$ignore_limits` thread (`bws_fold_chain_to_steps` → both assemblers → `bws_base_source_ids_of_kind`), the editor suppression conditional, or the `bws-fanning-advisory` control | `read-bounded-sources-test.php`, `fold-chain-compile-test.php`, `control-order-test.php`, `editor-filter-chain-test.js`, `fold-test-matrix.md` §F15 | — |
 | Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files under §Spec lifecycle | — |

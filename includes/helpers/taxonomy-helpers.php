@@ -190,7 +190,7 @@ function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_siz
 				$result = bws_get_attachment_data( $attachment_id, $return_type, $image_size );
 
 				if ( ! empty( $result ) ) {
-					return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+					return bws_gb_tag_output( $result, $options, $instance );
 				}
 			}
 		}
@@ -198,16 +198,16 @@ function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_siz
 		// For external URLs or when we can't find an attachment, return based on return type.
 		switch ( $return_type ) {
 			case 'url':
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( esc_url( $fallback_url ), $options, $instance );
+				return bws_gb_tag_output( esc_url( $fallback_url ), $options, $instance );
 
 			case 'id':
 				if ( $site_url_host === $fallback_url_host ) {
 					$attachment_id = bws_get_attachment_id_from_url( $fallback_url );
 					if ( $attachment_id ) {
-						return GenerateBlocks_Dynamic_Tag_Callbacks::output( (string) $attachment_id, $options, $instance );
+						return bws_gb_tag_output( (string) $attachment_id, $options, $instance );
 					}
 				}
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
+				return bws_gb_tag_output( '', $options, $instance );
 
 			case 'alt':
 			case 'caption':
@@ -216,11 +216,11 @@ function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_siz
 					if ( $attachment_id ) {
 						$result = bws_get_attachment_data( $attachment_id, $return_type, $image_size );
 						if ( ! empty( $result ) ) {
-							return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+							return bws_gb_tag_output( $result, $options, $instance );
 						}
 					}
 				}
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
+				return bws_gb_tag_output( '', $options, $instance );
 		}
 	}
 
@@ -242,11 +242,11 @@ function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_siz
 				break;
 		}
 
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $placeholder, $options, $instance );
+		return bws_gb_tag_output( $placeholder, $options, $instance );
 	}
 
 	// Frontend: Return empty if no fallback available.
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
+	return bws_gb_tag_output( '', $options, $instance );
 }
 }
 

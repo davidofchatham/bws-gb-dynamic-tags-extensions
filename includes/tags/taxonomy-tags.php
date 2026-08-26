@@ -179,7 +179,7 @@ function bws_term_custom_image_core( $term_id, $options, $instance ) {
 	$image_data = bws_get_term_field_image_data( $term->term_id, $field_key, $return_type, $image_size );
 
 	if ( ! empty( $image_data ) ) {
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $image_data, $options, $instance );
+		return bws_gb_tag_output( $image_data, $options, $instance );
 	}
 
 	return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );

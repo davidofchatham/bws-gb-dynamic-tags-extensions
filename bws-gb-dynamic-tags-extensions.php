@@ -105,6 +105,9 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/hooks.php';
 
 	// Load helper functions.
+	// The GB output BOUNDARY (allowlist of the options GB's output pipeline consumes).
+	// Loads FIRST among the helpers: every tag file's render path ends in it.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-output-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	// Traversal pipeline engine + source factory (L1-full) — must load before the
 	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /

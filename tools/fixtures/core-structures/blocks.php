@@ -790,9 +790,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// pre-emption traded for another, which is not a fix. Three of these route past a
 	// core that OWNS the family's fallback emit, so they are the rows that catch a guard
 	// which returned early instead of landing on the arm's own empty path.
+	// F11b.3b runs the other way and is not about a refusal at all: its fallback CANNOT
+	// fire, and the assertion is that nothing prints - least of all the fallback's own
+	// argument. Its id is chosen never to exist, which is what makes it VISIBLE where
+	// F11b.3 (a seeded attachment id) can only be a render-tag row.
 	$sections[] = bws_fixture_gb_section( 'Fold F11b - the stated fallback fires; the other two containers do not blank', array(
 		bws_fixture_gb_row( 'F11b.1 text: the fallback fires, not empty (-> No source)', '{{text src:currnet|use:key|key:role|fallback:No source}}' ),
 		bws_fixture_gb_row( 'F11b.2 content: its fallback lives INSIDE the core a refusal must not run (-> No source)', '{{content src:currnet|use:key|key:role|fallback:No source}}' ),
+		bws_fixture_gb_empty_row( 'F11b.3b image, a fallback that CANNOT fire: expects EMPTY - a broken fallback attachment must not print its raw id (no feature_image_missing on this page, no attachment 999999)', '{{image key:feature_image_missing|fallback:999999|as:url}}' ),
 		bws_fixture_gb_row( 'F11b.4 datetime: its all-empty fallback is gated on the chain FANNING, which a root-refused tag does not (-> No date)', '{{datetime_single src:currnet|key:event_datetime|fallback:No date}}' ),
 		bws_fixture_gb_row( 'F11b.5 join DROPS the field from the composite (-> Jane; was Captain, Jane - the misattribution the whole fix is about)', '{{join A:src(bogus,x);key(role)|B:key(name_first)}}' ),
 		bws_fixture_gb_row( 'F11b.6 try_ ADVANCES to attempt B (-> Jane; was Captain - attempt A read the ambient entity, SUCCEEDED, and stopped the chain so B never ran)', '{{try_text A:src(currnet);use(key);key(role)|B:use(key);key(name_first)}}' ),

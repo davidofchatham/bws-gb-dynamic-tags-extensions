@@ -74,7 +74,7 @@ function bws_featured_image_core( $post_id, $options, $instance ) {
 			$result = bws_get_attachment_data( $featured_attachment_id, $return_type, $image_size );
 
 			if ( ! empty( $result ) ) {
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+				return bws_gb_tag_output( $result, $options, $instance );
 			}
 		}
 	}
@@ -105,7 +105,7 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 	}
 
 	if ( ! bws_is_valid_meta_key( $field_key ) ) {
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
+		return bws_gb_tag_output( '', $options, $instance );
 	}
 
 	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
@@ -114,7 +114,7 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 		$result = bws_get_meta_image_data( $post_id, $field_key, $return_type, $image_size, $instance );
 
 		if ( ! empty( $result ) ) {
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+			return bws_gb_tag_output( $result, $options, $instance );
 		}
 	}
 

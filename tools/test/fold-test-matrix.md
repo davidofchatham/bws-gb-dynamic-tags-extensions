@@ -663,11 +663,20 @@ its own. Jane's `main_line` is `(555) 200-3000`. `render-tag` reaches these with
 A refusal produces nothing, and "produced nothing" is what a fallback is FOR. Asserted separately
 from §F11a because "renders empty" passes whether or not the fallback fired.
 
+**One row runs the other way, and it is the only row here that is not about §F11a's refusal at
+all.** F11b.3b's fallback CANNOT fire — the attachment it names does not exist — and what it
+asserts is that nothing is printed, in particular not the fallback's own argument. It reaches the
+fallback through an ordinary missing key rather than a refused source, which is why it needs no
+seeded id and can be a static string. It sits in this section because this is where what a
+fallback PRODUCES is asserted, and beside F11b.3 because the two are the same seam in opposite
+directions.
+
 | # | Tag | Expected |
 |---|---|---|
 | F11b.1 | `{{text src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — not empty. Front end only; the editor shows the configuration preview instead (F14.18) |
 | F11b.2 | `{{content src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — content's fallback lives inside its core, which a refusal must not run, so this row is the one that catches a refusal that returned early |
 | F11b.3 | `{{image src:currnet\|use:key\|key:feature_image\|fallback:<id>}}` | the fallback IMAGE renders. Same split as F11b.2 one seam over. **`render-tag` only, and the exception is stated here per the visible-rows rule**: the fallback is a Media Library ID assigned at seed time, so no static string in `blocks.php` can name it. Pass the seeded attachment's id (`wp post list --post_type=attachment`). Its refusal half IS visible, as F11a.4b |
+| F11b.3b | `{{image key:feature_image_missing\|fallback:999999\|as:url}}` | **EMPTY**, and above all NOT `999999`. The page carries no `feature_image_missing` and the site has no attachment 999999, so the read is empty and the stated fallback cannot fire either. The raw id appearing as the image src is a co-resident extension re-applying a `fallback` this tag had already consumed and failed on. VISIBLE, unlike F11b.3, precisely because an id chosen never to exist needs no seed. Which options leave us at all is owned by `BWS_GB_TAG_OUTPUT_OPTIONS` ([`gb-output-boundary.php`](../../includes/helpers/gb-output-boundary.php)); its membership is pinned by [`gb-output-boundary-test.php`](gb-output-boundary-test.php) |
 | F11b.4 | `{{datetime_single src:currnet\|key:event_datetime\|fallback:No date}}` | `No date`. Its arm's fallback is gated on the chain FANNING, which a root-refused tag does not do — so a refusal joins that gate explicitly |
 | F11b.5 | `{{join A:src(bogus,x);key(role)\|B:key(name_first)}}` | `Jane` — the combining container DROPS the field. Not `Captain, Jane`, which is the pre-fix answer and the misattribution the whole fix is about |
 | F11b.6 | `{{try_text A:src(currnet);use(key);key(role)\|B:use(key);key(name_first)}}` | `Jane` — the selecting container ADVANCES to attempt B. *Was* `Captain`: attempt A read the ambient entity, SUCCEEDED, and stopped the chain, so B never ran. This is the row where the fix changes output to a different real value rather than to nothing |

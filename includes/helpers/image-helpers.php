@@ -462,11 +462,11 @@ function bws_handle_media_fallback( $fallback, $return_type, $image_size, $optio
 			$result = bws_get_attachment_data( $id, $return_type, $image_size );
 
 			if ( ! empty( $result ) ) {
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
+				return bws_gb_tag_output( $result, $options, $instance );
 			}
 		}
 	}
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
+	return bws_gb_tag_output( '', $options, $instance );
 }
 }

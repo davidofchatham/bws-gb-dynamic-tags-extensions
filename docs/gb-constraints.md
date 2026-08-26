@@ -191,7 +191,10 @@ return value and the rendered page.
   through only two `apply_filters` (`generateblocks_dynamic_tag_replacement` `:147`,
   `generateblocks_before_dynamic_tag_replace` `:181`).
 - `GenerateBlocks_Dynamic_Tag_Callbacks::output()` (`class-dynamic-tag-callbacks.php:218-234`) is
-  pure string transforms — trunc, replace, trim, case, wpautop, link. Nothing escapes.
+  pure string transforms — trunc, replace, trim, case, wpautop, link. Nothing escapes. (The option
+  keys that method CONSUMES are a different question from the transforms it applies, and are
+  enumerated once, in `BWS_GB_TAG_OUTPUT_OPTIONS`
+  — [`includes/helpers/gb-output-boundary.php`](../includes/helpers/gb-output-boundary.php).)
 - `wp_kses_post` appears only **inside three specific GB callbacks**, applied to untrusted stored
   meta (`:387-389` `get_post_meta`, `:495-497` `get_author_meta`, `:665,672` excerpt read-more) —
   never as a pipeline gate. Each wraps the call in a filter that **widens** the allowlist
