@@ -142,7 +142,18 @@ class TagTemplateRegistry {
 		// Include 'source' support (GB entity picker) unless explicitly excluded.
 		$base_supports = in_array( 'source', $excl, true ) ? [] : [ 'source' ];
 
-		// Snapshot existing tags for dup-check.
+		// Snapshot existing tags for the dup-check inside the template loop.
+		//
+		// AXIS - A MODIFIER TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED. We yield to
+		// whoever registered it first. A modifier family is an optional extra over the base
+		// tags, so losing one member to a name clash costs an editor affordance and leaves
+		// published pages alone; overwriting a stranger's tag to gain it would be the worse
+		// trade.
+		//
+		// THE BASE HALF DOES THE OPPOSITE, ON PURPOSE - it registers OVER a taken name and
+		// reports the collision, because a base tag that stood down would stop rendering on
+		// pages already using it. Do not make the two consistent. The reasoning is at
+		// bws_gb_register_tag() in includes/helpers/gb-registration-boundary.php.
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
 		// Reuse canonical source + traversal definitions from base-tags.php so labels stay
@@ -520,7 +531,13 @@ class TagTemplateRegistry {
 			return;
 		}
 
-		// Snapshot existing tags for dup-check.
+		// Snapshot existing tags for the dup-check inside the template loop.
+		//
+		// AXIS - A try_ TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED, same yield as the
+		// term_ constructor above and for the same reason: a fallback-chain tag is an extra
+		// over the base tag it is built from, so a name clash costs an affordance rather
+		// than an already-rendering page. The base half overwrites instead - the asymmetry
+		// is deliberate and is explained at bws_gb_register_tag().
 		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
 
 		foreach ( self::$modifier_templates as $tpl ) {
@@ -1093,7 +1110,12 @@ class TagTemplateRegistry {
 		if ( ! empty( $visibility ) ) {
 			$args['visibility'] = $visibility;
 		}
-		new \GenerateBlocks_Register_Dynamic_Tag( $args );
+		// THE plugin's one registration site is bws_gb_register_tag(), in
+		// includes/helpers/gb-registration-boundary.php. Both template constructors reach GB
+		// through it. Neither can hand it a taken name: each skips one at its dup-check
+		// (see the two AXIS comments above), so every collision that function reports is
+		// a base-tag collision.
+		bws_gb_register_tag( $args );
 	}
 
 }

@@ -32,6 +32,17 @@
  * Per-tag expected sequences are asserted on top of that for the shapes whose order was
  * wrong, so a regression names itself instead of showing up as a vague box complaint.
  *
+ * TWO REGISTRATION-BOUNDARY SECTIONS RIDE ALONG (§9 and §10, added 1.19.0), because what
+ * they protect is this file's subject. Every tag the plugin ships now reaches GB through
+ * bws_gb_register_tag(), and that boundary decays by ADDITION rather than by edit: a new
+ * tag file constructing GB's registrar itself changes nothing any assertion here reads, and
+ * moves no rendered page either, since a name collision is invisible until two plugins
+ * meet. §9 re-reads the tree for a second door. §10 drives a collision through the boundary
+ * in BOTH directions -- the overwrite and its report, the two template constructors'
+ * opposite yield, and the reverse case where a later registrar takes one of our names and
+ * the late re-read is the only thing that notices. A harness of their own would be a
+ * second place to remember, for two sections.
+ *
  * Run:  php tools/test/control-order-test.php
  * Exit 0 = pass, 1 = fail.
  *
@@ -73,6 +84,15 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); }
 }
+// CAPTURING stub, not a silencing one: §10 asserts what the collision report SAYS, and the
+// shipped code reports only where this function exists (registration also runs in harnesses
+// where it does not). Nothing loaded below calls it during a clean registration pass.
+$GLOBALS['bws_doing_it_wrong'] = array();
+if ( ! function_exists( '_doing_it_wrong' ) ) {
+	function _doing_it_wrong( $fn, $message, $version ) {
+		$GLOBALS['bws_doing_it_wrong'][] = array( $fn, $message, $version );
+	}
+}
 
 /**
  * Capturing stand-in for GB's registrar. Registration is the whole subject here, so the
@@ -104,6 +124,7 @@ require $root . '/autoload.php';
 
 foreach ( array(
 	'includes/helpers/gb-output-boundary.php',
+	'includes/helpers/gb-registration-boundary.php',
 	'includes/helpers/image-helpers.php',
 	'includes/helpers/traversal-pipeline.php',
 	'includes/helpers/field-helpers.php',
@@ -643,6 +664,328 @@ foreach ( $tags as $tag => $args ) {
 		);
 	}
 }
+
+// ---------------------------------------------------------------------------
+
+echo "\n§9 NOTHING the plugin ships registers a tag except through the boundary\n";
+
+// §1-§8 hold what registration PRODUCES. This one holds that there is still one door.
+// A `new GenerateBlocks_Register_Dynamic_Tag` anywhere else is a tag whose name collision
+// nobody would ever hear about, and no assertion above can see it: the option array such a
+// site registers is as correct as any other.
+//
+// IT READS THE TREE RATHER THAN COUNTING. A count would pass a change that routed one site
+// and un-routed another, and could only report that a number moved. This one names the
+// file, the line and the code. Same shape, and the same reasoning, as §B6 of
+// gb-output-boundary-test.php, which does this for the OUTPUT boundary.
+//
+// THE AXIS IS CONSTRUCTION, not mention. `class_exists( 'GenerateBlocks_Register_Dynamic_Tag' )`
+// is a dependency check and `::get_tags()` is a read; both are legitimate anywhere and
+// neither registers a tag. What may happen at one site only is `new`.
+//
+// COMMENTS COUNT, DELIBERATELY - the pattern cannot tell a call from prose, and writing out
+// the construction belongs to the boundary file, which is where the reason to write it
+// lives. Elsewhere it is either a call or a sentence that outlived one.
+//
+// SCOPE IS DEFAULT-IN: every .php file in the repo except the directories below.
+
+$skip_dirs = array(
+	'.git',
+	'.scratch',
+	'.claude',
+	'deprecated-files',
+	'docs',          // prose and design history; records what WAS true, by design.
+	'libs',          // vendored third party (PUC); not ours to route.
+	'node_modules',
+	'tools',         // not shipped, and a harness legitimately STUBS GB's class -
+	                 // this very file defines one.
+);
+
+/** Files that may name GB's registrar, with the reason. */
+$exempt = array(
+	// The boundary itself: the one site that is supposed to register, and the one PHPDoc
+	// that explains why the others must not.
+	'includes/helpers/gb-registration-boundary.php',
+);
+
+$scan = static function ( string $dir ) use ( $skip_dirs ): array {
+	$hits = array();
+	$it   = new RecursiveIteratorIterator(
+		new RecursiveCallbackFilterIterator(
+			new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ),
+			static function ( $current ) use ( $skip_dirs ) {
+				return ! ( $current->isDir() && in_array( $current->getFilename(), $skip_dirs, true ) );
+			}
+		)
+	);
+	foreach ( $it as $file ) {
+		if ( ! $file->isFile() || 'php' !== strtolower( $file->getExtension() ) ) {
+			continue;
+		}
+		$rel   = strtr( substr( $file->getPathname(), strlen( $dir ) + 1 ), DIRECTORY_SEPARATOR, '/' );
+		$lines = preg_split( '~\R~', (string) file_get_contents( $file->getPathname() ) );
+		foreach ( $lines as $n => $line ) {
+			if ( preg_match( '~new\s+\\\\?GenerateBlocks_Register_Dynamic_Tag~', $line ) ) {
+				$hits[] = array( $rel, $n + 1, trim( $line ) );
+			}
+		}
+	}
+	return $hits;
+};
+
+$stray = array_values( array_filter(
+	$scan( $root ),
+	static function ( array $hit ) use ( $exempt ) {
+		return ! in_array( $hit[0], $exempt, true );
+	}
+) );
+
+$one_door = 'no shipped file outside the boundary constructs GB' . "'" . 's registrar';
+if ( $stray ) {
+	fail(
+		$one_door,
+		array(),
+		array_map( static function ( $h ) { return "{$h[0]}:{$h[1]} {$h[2]}"; }, $stray )
+	);
+} else {
+	ok( $one_door );
+}
+
+// ---------------------------------------------------------------------------
+
+echo "\n§10 Which way a name collision went, in BOTH directions\n";
+
+// The asymmetry the boundary exists for, DRIVEN rather than read, and driven on both
+// sides: the base half OVERWRITES a taken name and says so, the two template constructors
+// YIELD one. Arm C exercises the yield, so the sentence about it is a claim this section
+// checks rather than a claim about somewhere else.
+//
+// AND THE REVERSE COLLISION, which matters most and is the one no registration-time check
+// can see. Something registering our name after our pass has no effect any assertion above
+// would notice: GB holds one entry per name, the overwrite is a plain assignment, and our
+// registration function returned long ago. The late re-read is what turns that into a
+// record, and a status surface that could not tell the two apart would print ALL CLEAR on
+// the one site that is genuinely broken.
+//
+// SYNTHETIC NAMES, not ours: the subject is the RULE, and asserting it on {{text}} would
+// mean registering a stranger's {{text}} into the same stub §1-§8 read.
+
+// --- A. we register OVER a taken name ---------------------------------------
+
+$GLOBALS['bws_doing_it_wrong'] = array();
+
+new GenerateBlocks_Register_Dynamic_Tag( array(
+	'tag'    => 'bws_collision_probe',
+	'title'  => 'Someone Else',
+	'type'   => 'post',
+	'return' => static function () { return 'theirs'; },
+) );
+
+bws_gb_register_tag( array(
+	'tag'      => 'bws_collision_probe',
+	'title'    => 'Ours',
+	'type'     => 'post',
+	'supports' => array(),
+	'options'  => array(),
+	'return'   => static function () { return 'ours'; },
+) );
+
+$after = GenerateBlocks_Register_Dynamic_Tag::get_tags()['bws_collision_probe'] ?? array();
+assert_same( 'the taken name now holds OUR registration', 'Ours', $after['title'] ?? null );
+
+$collisions = bws_gb_tag_name_collisions();
+assert_same( 'the collision is recorded, keyed by tag name', true, isset( $collisions['bws_collision_probe'] ) );
+assert_same(
+	'the record says WE kept the name',
+	'kept',
+	$collisions['bws_collision_probe']['outcome'] ?? null
+);
+assert_same(
+	'the record names who held it first',
+	'Someone Else',
+	$collisions['bws_collision_probe']['previous_title'] ?? null
+);
+assert_same(
+	'the record locates the earlier registrar by file',
+	true,
+	(bool) preg_match( '~control-order-test\.php$~', (string) ( $collisions['bws_collision_probe']['previous_source'] ?? '' ) )
+);
+
+// The REPORT, not just the record. The settings-page row reads the record; a developer with
+// WP_DEBUG on reads this, and it has to name the tag to be worth firing.
+assert_same( 'exactly one notice fired for one collision', 1, count( $GLOBALS['bws_doing_it_wrong'] ) );
+$notice = $GLOBALS['bws_doing_it_wrong'][0] ?? array( '', '', '' );
+
+// WordPress prints the first argument as "Function %s was called incorrectly", so what goes
+// there decides whether the first line of a debug log names the SITUATION or accuses our own
+// code of an event it only observed. Both halves are pinned: it says what happened, and it
+// names no function of ours.
+assert_same( 'the notice subject names the collision', "BWS GB dynamic tag 'bws_collision_probe' collision", $notice[0] );
+assert_same( 'the notice subject accuses no function of ours', false, false !== strpos( (string) $notice[0], 'bws_gb_' ) );
+assert_same( 'the notice names the tag', true, false !== strpos( (string) $notice[1], 'bws_collision_probe' ) );
+assert_same( 'the notice names who held it first', true, false !== strpos( (string) $notice[1], 'Someone Else' ) );
+
+// --- B. a free name is not a collision --------------------------------------
+
+// Without this arm every assertion above still passes if the boundary reports on EVERY
+// registration.
+$GLOBALS['bws_doing_it_wrong'] = array();
+bws_gb_register_tag( array(
+	'tag'      => 'bws_collision_probe_free',
+	'title'    => 'Ours Alone',
+	'type'     => 'post',
+	'supports' => array(),
+	'options'  => array(),
+	'return'   => static function () { return 'ours'; },
+) );
+assert_same(
+	'a free name registers',
+	'Ours Alone',
+	GenerateBlocks_Register_Dynamic_Tag::get_tags()['bws_collision_probe_free']['title'] ?? null
+);
+assert_same( 'a free name fires no notice', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
+assert_same( 'a free name records no collision', false, isset( bws_gb_tag_name_collisions()['bws_collision_probe_free'] ) );
+
+// --- C. the OTHER half of the asymmetry: a template constructor yields ------
+
+// The base half's rule is only half a rule without this. register_modifier() is driven with
+// a synthetic prefix whose first template name has already been taken, so the skip is
+// measured on the same run as the overwrite rather than asserted about another file. A
+// second member of the same family must still register, or "yielded" would be
+// indistinguishable from "the constructor did nothing".
+
+$probe_prefix = 'bws_yield_probe';
+$tpl_keys     = array_values( array_filter( array_map(
+	static function ( $tpl ) { return (string) ( $tpl['key'] ?? '' ); },
+	\BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates()
+) ) );
+$taken_name   = $probe_prefix . '_' . ( $tpl_keys[0] ?? 'text' );
+
+new GenerateBlocks_Register_Dynamic_Tag( array(
+	'tag'    => $taken_name,
+	'title'  => 'Stranger Modifier',
+	'type'   => 'term',
+	'return' => static function () { return 'theirs'; },
+) );
+
+$GLOBALS['bws_doing_it_wrong'] = array();
+\BWS\DynamicTags\TagTemplateRegistry::register_modifier( array(
+	'prefix'               => $probe_prefix,
+	'gb_type'              => 'term',
+	'modifier_label'       => 'yield-probe',
+	'traversal_source_key' => 'term_related_post',
+	'base_source_key'      => 'term',
+	'excluded_supports'    => array(),
+) );
+
+$probe_family = array_filter(
+	array_keys( GenerateBlocks_Register_Dynamic_Tag::get_tags() ),
+	static function ( $t ) use ( $probe_prefix ) { return 0 === strpos( (string) $t, $probe_prefix . '_' ); }
+);
+assert_same(
+	'the modifier constructor YIELDS a name already taken',
+	'Stranger Modifier',
+	GenerateBlocks_Register_Dynamic_Tag::get_tags()[ $taken_name ]['title'] ?? null
+);
+assert_same( 'and it registered its other members, so the yield is a skip not a no-op', true, count( $probe_family ) > 1 );
+assert_same( 'a yielded name fires no notice', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
+assert_same( 'a yielded name records no collision', false, isset( bws_gb_tag_name_collisions()[ $taken_name ] ) );
+
+// --- D. the late re-read is quiet while every name is still ours ------------
+
+// The negative arm for the reverse direction, run over the whole real registration rather
+// than over a probe: every tag §1-§8 read, each still holding the callable we handed GB.
+$GLOBALS['bws_doing_it_wrong'] = array();
+bws_gb_recheck_tag_ownership();
+assert_same( 'the late re-read fires nothing while every name is still ours', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
+assert_same(
+	'and records nothing lost',
+	0,
+	count( array_filter(
+		bws_gb_tag_name_collisions(),
+		static function ( $c ) { return 'lost' === ( $c['outcome'] ?? '' ); }
+	) )
+);
+
+// --- E. we LOSE a name to a later registrar ---------------------------------
+
+bws_gb_register_tag( array(
+	'tag'      => 'bws_takeover_probe',
+	'title'    => 'Ours To Lose',
+	'type'     => 'post',
+	'supports' => array(),
+	'options'  => array(),
+	'return'   => static function () { return 'ours'; },
+) );
+
+$GLOBALS['bws_doing_it_wrong'] = array();
+
+// Two names taken over at once: one we had registered cleanly, and one we had already
+// registered OVER somebody. The second is what makes the merge rule observable — the record
+// has to end up saying we lost it without losing who held it before us.
+new GenerateBlocks_Register_Dynamic_Tag( array(
+	'tag'    => 'bws_takeover_probe',
+	'title'  => 'Late Stranger',
+	'type'   => 'post',
+	'return' => static function () { return 'theirs'; },
+) );
+new GenerateBlocks_Register_Dynamic_Tag( array(
+	'tag'    => 'bws_collision_probe',
+	'title'  => 'Third Plugin',
+	'type'   => 'post',
+	'return' => static function () { return 'theirs too'; },
+) );
+
+// THE EVENT ITSELF IS SILENT. That is the whole reason the late re-read exists, and it is
+// worth one assertion: nothing is reported at the moment our tag stops being ours.
+assert_same( 'nothing is reported at the moment a name is taken over', 0, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+bws_gb_recheck_tag_ownership();
+
+$lost = bws_gb_tag_name_collisions()['bws_takeover_probe'] ?? array();
+assert_same( 'the late re-read records the name as lost', 'lost', $lost['outcome'] ?? null );
+assert_same( 'the record names who holds it now', 'Late Stranger', $lost['later_title'] ?? null );
+assert_same(
+	'the record locates the later registrar by file',
+	true,
+	(bool) preg_match( '~control-order-test\.php$~', (string) ( $lost['later_source'] ?? '' ) )
+);
+
+// The merge: a name we had kept and then lost reads as LOST, and still names the registrar
+// we took it from. Dropping either half would misdescribe a three-way contest.
+$merged = bws_gb_tag_name_collisions()['bws_collision_probe'] ?? array();
+assert_same( 'a kept name that is later taken over reads as lost', 'lost', $merged['outcome'] ?? null );
+assert_same( 'and still names who held it before us', 'Someone Else', $merged['previous_title'] ?? null );
+assert_same( 'while naming who holds it now', 'Third Plugin', $merged['later_title'] ?? null );
+
+assert_same( 'exactly two notices fired, for the two lost names', 2, count( $GLOBALS['bws_doing_it_wrong'] ) );
+
+$subjects = array_map( static function ( $n ) { return (string) $n[0]; }, $GLOBALS['bws_doing_it_wrong'] );
+sort( $subjects );
+assert_same(
+	'each losing notice names the situation and its tag',
+	array( "BWS GB dynamic tag 'bws_collision_probe' taken over", "BWS GB dynamic tag 'bws_takeover_probe' taken over" ),
+	$subjects
+);
+
+// The two directions must not read alike. A reader who cannot tell them apart cannot act:
+// on a collision we won, the other plugin's author is the person to tell; on one we lost,
+// our own tag has stopped rendering on pages already using it.
+assert_same(
+	'a losing subject is not a winning subject',
+	false,
+	in_array( "BWS GB dynamic tag 'bws_takeover_probe' collision", $subjects, true )
+);
+
+$lost_notice = '';
+foreach ( $GLOBALS['bws_doing_it_wrong'] as $n ) {
+	if ( false !== strpos( (string) $n[0], 'bws_takeover_probe' ) ) {
+		$lost_notice = (string) $n[1];
+	}
+}
+assert_same( 'the losing message names who took the name', true, false !== strpos( $lost_notice, 'Late Stranger' ) );
+assert_same( 'the losing message says the blocks already using the tag are affected', true, false !== strpos( $lost_notice, 'already using this tag' ) );
+assert_same( 'the losing message does not claim we registered over anyone', false, false !== strpos( $lost_notice, 'has registered over it' ) );
 
 // ---------------------------------------------------------------------------
 

@@ -249,24 +249,3 @@ function bws_post_term_image_options(): array {
 	);
 }
 }
-
-/**
- * Get GenerateBlocks image placeholder URL.
- *
- * @since 1.1.0
- * @return string Placeholder URL.
- */
-if ( ! function_exists( 'bws_get_generateblocks_image_placeholder' ) ) {
-function bws_get_generateblocks_image_placeholder() {
-	if ( defined( 'GENERATEBLOCKS_DIR_URL' ) ) {
-		$placeholder_path = GENERATEBLOCKS_DIR_URL . 'assets/images/image-placeholder.png';
-		$placeholder_file = str_replace( GENERATEBLOCKS_DIR_URL, GENERATEBLOCKS_DIR, $placeholder_path );
-		if ( file_exists( $placeholder_file ) ) {
-			return $placeholder_path;
-		}
-	}
-
-	// Fallback to a simple data URL placeholder.
-	return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmMWYxIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNHB4IiBmaWxsPSIjNjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPkltYWdlIFBsYWNlaG9sZGVyPC90ZXh0Pjwvc3ZnPg==';
-}
-}

@@ -302,7 +302,7 @@ function bws_register_call_tag(): void {
 	$ref_opt         = bws_base_traversal_options()['ref'];
 	$ref_opt['help'] = __( 'ACF relationship or post object field key (the related post the function runs on).', 'generateblocks' );
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Call Custom Function', 'generateblocks' ),
 		'tag'      => 'call',
 		'type'     => 'post',

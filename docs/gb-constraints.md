@@ -20,6 +20,13 @@ GB does not allow one dynamic tag to start with the same string as another exist
 - `current_post_acf_date_single` + `current_post_acf_date_range` → OK (neither is prefix of other)
 - `related_post_meta_field` + `related_post_meta_image` → OK
 
+## Duplicate tag names: last write wins, silently
+`GenerateBlocks_Register_Dynamic_Tag::__construct()` guards only for completeness (it returns unless `tag`, `return` and `title` are all set, and defaults `type` to `post`) and then ends in one assignment, `self::$tags[ $args['tag'] ] = $args`. No duplicate check, no warning, no return value: registering a name another plugin already registered replaces that plugin's whole entry, the `return` callback included. Whichever plugin registers LAST owns the tag.
+
+Read from GenerateBlocks 2.4.1 (`includes/dynamic-tags/class-register-dynamic-tag.php`, re-read against the fixture site's own copy 2026-08-26) and measured there the same day, by registering a second `text` tag at `init` priority 5 and reading `get_tags()` back after this plugin's own pass at priority 20, then again with the stranger at priority 99 to see the collision go the other way.
+
+Nothing in GB surfaces the event in either direction, so a site whose tag output changed after an unrelated plugin was installed has nothing to read. This plugin's response is at `bws_gb_register_tag()` and `bws_gb_recheck_tag_ownership()` ([`includes/helpers/gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php)); its shape is summarized in [`tag-reference.md` §Tag name collisions](tag-reference.md#tag-name-collisions).
+
 ## Custom Tag Types
 - Single-word names confirmed working; **hyphenated names also confirmed usable** in the latest GB version (e.g. "select-a-source") — 2026-04-10
 - Can define custom types beyond GB's built-in set

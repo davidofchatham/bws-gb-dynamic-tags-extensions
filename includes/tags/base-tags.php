@@ -81,7 +81,7 @@ function bws_register_base_tags(): void {
 	// text — ACF/meta field or entity title; supports_list
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Text Fields', 'generateblocks' ),
 		'tag'      => 'text',
 		'type'     => 'cross-source',
@@ -155,7 +155,7 @@ function bws_register_base_tags(): void {
 	// content — post content, excerpt, or WYSIWYG field
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Content', 'generateblocks' ),
 		'tag'      => 'content',
 		'type'     => 'cross-source',
@@ -202,7 +202,7 @@ function bws_register_base_tags(): void {
 	// title — entity title/name; source traversal + srcTerm
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Title/Name', 'generateblocks' ),
 		'tag'      => 'title',
 		'type'     => 'cross-source',
@@ -232,7 +232,7 @@ function bws_register_base_tags(): void {
 	// permalink — post/entity URL; source traversal + srcTerm
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Permalink', 'generateblocks' ),
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
@@ -259,7 +259,7 @@ function bws_register_base_tags(): void {
 	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Image', 'generateblocks' ),
 		'tag'      => 'image',
 		'type'     => 'cross-source',
@@ -333,7 +333,7 @@ function bws_register_base_tags(): void {
 	// datetime_single — single date/time field(s) with mode switch
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Date/Time', 'generateblocks' ),
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
@@ -346,7 +346,7 @@ function bws_register_base_tags(): void {
 	// datetime_range — start/end date/time range with mode switch
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
@@ -363,7 +363,7 @@ function bws_register_base_tags(): void {
 	// per-source variants. Shares the base-tag picker group for UX only.
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Join Fields', 'generateblocks' ),
 		'tag'      => 'join',
 		'type'     => 'cross-source',

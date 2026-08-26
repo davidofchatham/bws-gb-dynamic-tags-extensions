@@ -481,6 +481,34 @@ callback already discarded.
 
 ---
 
+## Tag name collisions
+
+GB's registrar is last-write-wins on a tag name, with no duplicate check and no notice (the GB
+fact: [`gb-constraints.md` §Duplicate tag names](gb-constraints.md#duplicate-tag-names-last-write-wins-silently)).
+Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and the three
+constructors do not answer a taken name the same way:
+
+| Constructor | A name another plugin registered first |
+|---|---|
+| `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
+| `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name |
+| `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name |
+
+A collision is detected twice, because it can go two ways and the remedies differ:
+
+| Detected | When | Recorded outcome |
+|---|---|---|
+| Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
+| Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
+
+The report goes two ways for each: `_doing_it_wrong()` with a subject naming the collision and the
+tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
+to show it. Why the two constructors differ, what decides that a tag is still ours, what reporting
+on every request costs, and which collision neither detection can see are stated at
+[`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
+
+---
+
 ## Custom editor controls registered
 
 Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each entry maps a custom option `type` string (referenced in PHP option definitions) to a React control:

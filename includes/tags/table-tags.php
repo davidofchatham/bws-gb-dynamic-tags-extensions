@@ -63,7 +63,7 @@ function bws_register_table_tag(): void {
 	}
 	$registered = true;
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'       => __( 'Table', 'generateblocks' ),
 		'tag'         => 'table',
 		'type'        => 'cross-source',

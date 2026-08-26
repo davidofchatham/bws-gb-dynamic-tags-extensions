@@ -105,9 +105,12 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/hooks.php';
 
 	// Load helper functions.
-	// The GB output BOUNDARY (allowlist of the options GB's output pipeline consumes).
-	// Loads FIRST among the helpers: every tag file's render path ends in it.
+	// The two GB BOUNDARIES first — one per GB entry point we cross. Output: the allowlist
+	// of options GB's output pipeline consumes, which every tag file's render path ends in.
+	// Registration: the single wrapper over GB's tag registrar, which every tag file's
+	// registration goes through, including the two template constructors.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-output-boundary.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-registration-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	// Traversal pipeline engine + source factory (L1-full) — must load before the
 	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /
@@ -172,6 +175,13 @@ function bws_dynamic_tags_init() {
 
 	// Register dynamic tags.
 	add_action( 'init', 'bws_dynamic_tags_register_all', 20 );
+
+	// The other half of the registration boundary: one late re-read of GB's registry,
+	// recording any of our tag names something took over AFTER the pass above. Priority 20
+	// wins every collision it can SEE; this is the arm for the one it cannot. `wp_loaded`
+	// is the last hook every request type fires and the first that is after all of `init` —
+	// the reasoning, and what it still cannot see, are at bws_gb_recheck_tag_ownership().
+	add_action( 'wp_loaded', 'bws_gb_recheck_tag_ownership', PHP_INT_MAX );
 
 	// Rebuild the deprecated/removed scan allowlist once per version change (a fresh
 	// install has no stored version either, so it falls through this same check on its
