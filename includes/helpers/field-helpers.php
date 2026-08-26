@@ -200,6 +200,16 @@ function bws_extract_post_id( $post_data ) {
  * The only real repair is upstream, in an item shape that names its own kind. Do not
  * read the numeric arm as safe because the object arms are.
  *
+ * WHERE THAT HOLE IS ACTUALLY REACHABLE IS ONE LEVEL UP, NOT HERE. #123's own route
+ * was never a bare-integer loop ITEM: the co-resident extension's term items are
+ * `WP_Term` objects, which this now recognizes. The integer arrived instead through
+ * `generateblocks_dynamic_tag_id`, which our own post source reaches by calling GB's
+ * get_id() (`CurrentPost::resolve_id()`), and which GB does not tell what entity kind
+ * its id stood for -- so a hook returns a term id where a post id was asked for and
+ * nothing downstream can tell. Backtraced 2026-08-26 against GB 2.4.1; the GB half is
+ * recorded in docs/gb-constraints.md. This arm is the same hole in a shape we own;
+ * that one is the same hole in a shape we do not.
+ *
  * THE DUCK-TYPED ARMS ARE LOAD-BEARING, NOT DEFENSIVE. Measured on the reference
  * site 2026-08-26: the co-resident extension's TERM items are `WP_Term` instances,
  * but its USER items are plain `stdClass` records (`ID`, `user_login`,

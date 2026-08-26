@@ -700,6 +700,15 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
 
+**WHETHER A GIVEN `term_*` TAG IS OURS DEPENDS ON THE SITE, AND THIS DOC CANNOT KNOW.** Where
+another plugin already holds one of these names, the tag of that name is theirs and nothing
+described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
+outcome means, and the reader's own site answers which case it is, in the `yielded` rows of the
+settings page's **Integration Status** block. Measured on the reference fixture site 2026-08-26: GB
+Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
+examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
+on a site without that plugin.
+
 **`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
 
 **try_ modifier** produces `try_text`, `try_image`, etc. with GB type `'first-available'`. Up to 5 slots, one folded option key each; the slot count is explicit (add/remove), not revealed by configuration progress.
