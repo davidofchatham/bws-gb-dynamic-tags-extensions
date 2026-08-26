@@ -154,7 +154,13 @@ class TagTemplateRegistry {
 		// reports the collision, because a base tag that stood down would stop rendering on
 		// pages already using it. Do not make the two consistent. The reasoning is at
 		// bws_gb_register_tag() in includes/helpers/gb-registration-boundary.php.
-		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+		//
+		// THE YIELD IS REPORTED, THOUGH - see the note call below. Yielding costs an
+		// affordance, and an affordance that vanishes without a word is indistinguishable
+		// from one that was never built. The whole registry is kept, not just its keys,
+		// because the report names who holds the name and where their code lives.
+		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
+		$existing      = array_keys( $existing_tags );
 
 		// Reuse canonical source + traversal definitions from base-tags.php so labels stay
 		// unified across base and modifier tags. Option key 'src' (not 'source') — GB's
@@ -194,6 +200,7 @@ class TagTemplateRegistry {
 			$tag_name = $prefix . '_' . $tpl['key'];
 
 			if ( in_array( $tag_name, $existing, true ) ) {
+				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
 				continue;
 			}
 			$existing[] = $tag_name;
@@ -538,7 +545,12 @@ class TagTemplateRegistry {
 		// over the base tag it is built from, so a name clash costs an affordance rather
 		// than an already-rendering page. The base half overwrites instead - the asymmetry
 		// is deliberate and is explained at bws_gb_register_tag().
-		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+		//
+		// AND THE YIELD IS REPORTED, same as the term_ half: bws_gb_note_tag_yielded() at the
+		// dup-check below. The whole registry is kept rather than its keys because the report
+		// names who holds the name.
+		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
+		$existing      = array_keys( $existing_tags );
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -548,6 +560,7 @@ class TagTemplateRegistry {
 			$tag_name = 'try_' . $tpl['key'];
 
 			if ( in_array( $tag_name, $existing, true ) ) {
+				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
 				continue;
 			}
 			$existing[] = $tag_name;

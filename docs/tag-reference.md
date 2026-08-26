@@ -491,20 +491,28 @@ constructors do not answer a taken name the same way:
 | Constructor | A name another plugin registered first |
 |---|---|
 | `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
-| `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name |
-| `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name |
+| `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
+| `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
-A collision is detected twice, because it can go two ways and the remedies differ:
+A collision is detected three times, because it can go three ways and the remedies all differ:
 
 | Detected | When | Recorded outcome |
 |---|---|---|
 | Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
 | Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
+| Something already held a `term_*` / `try_*` name, so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists, nothing of ours renders, and the other tag is unaffected |
 
-The report goes two ways for each: `_doing_it_wrong()` with a subject naming the collision and the
+**A `yielded` row means this doc does not describe that tag on that site.** It is the one outcome
+where nothing broke and nothing changed: the tag simply is not there, so a page describing it — this
+one included — is describing something the reader cannot use. That is what makes it worth reporting
+rather than a silent non-event.
+
+The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
 tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
-to show it. Why the two constructors differ, what decides that a tag is still ours, what reporting
-on every request costs, and which collision neither detection can see are stated at
+to show it. The shipped surface for that record is the settings page's **Integration Status** block,
+which names the tag, which of the three happened, and the other plugin. Why the constructors differ,
+what decides that a tag is still ours, when a report is repeated and when it is not, and which
+collision no detection can see are stated at
 [`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
 
 ---
