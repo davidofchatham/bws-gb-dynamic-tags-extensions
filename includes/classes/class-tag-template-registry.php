@@ -990,9 +990,22 @@ class TagTemplateRegistry {
 					// a meta_row, no post id comes out of it, and the core fn still reads
 					// the value off $loop_item[$key]. Survives as a post-arm special case,
 					// gated exactly as before.
+					//
+					// THE LOOP HALF OF THE GATE ASKS bws_loop_item_is_post_or_row(), NOT
+					// `in_loop`. `[ false ]` hands the core fn no entity at all and trusts
+					// the field read to find one on the loop item, so the question is
+					// whether that read can be served — which is true for a post and a
+					// repeater row and false for everything else. It matters most where
+					// this branch is easiest to reach: a template with no try_ arm for the
+					// resolved kind falls through to the post arm above, so a TERM or USER
+					// item lands here with $ids empty and would be handed to a
+					// $loop_item[$key] read it cannot satisfy. Measured 2026-08-26 — a
+					// stdClass user item fired this gate on try_datetime_single /
+					// try_image / try_phone / try_email, and the datetime one printed the
+					// surrounding archive's term date.
 					if ( ! $ids && 'post' === $arm['ids'] ) {
-						$in_loop_row = function_exists( 'bws_get_loop_row_context' )
-							&& bws_get_loop_row_context( $inst )['in_loop'];
+						$in_loop_row = function_exists( 'bws_loop_item_is_post_or_row' )
+							&& bws_loop_item_is_post_or_row( $inst );
 						// THE GATE IS "THIS SLOT STATES NO SOURCE OF ITS OWN", and it used to be
 						// spelled `'current' === $last_src` off the flat triple. That token is gone
 						// (#104), and re-deriving it from the chain's root would be WRONG rather

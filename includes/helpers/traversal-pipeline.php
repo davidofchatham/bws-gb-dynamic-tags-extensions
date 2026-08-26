@@ -462,8 +462,12 @@ function bws_pipeline_rows_to_sources( $raw ) {
  *      registry / ref step (delegated by the caller — factory returns the
  *      current-context base they step FROM, unless the token names a distinct
  *      pinned/registry source).
- *   2. loop_ctx.in_loop + row_post_id → { kind:'post', id:row } (loop wins over
- *      ambient — a bare tag inside a query loop reads the ROW, not the archive).
+ *   2. loop_ctx.in_loop → THE LOOP'S OWN ITEM, whatever kind it is (loop wins over
+ *      ambient — a bare tag inside a query loop reads the ITEM, not the archive):
+ *      a post → { kind:'post' }, a term → { kind:'term' }, a user → { kind:'user' },
+ *      a repeater row → { kind:'meta_row' }, and an item whose shape is not one of
+ *      those → REFUSES (BWS_SOURCE_KIND_UNRESOLVED). What each item IS is decided by
+ *      bws_classify_loop_item(); this step only maps its answer onto a source kind.
  *   3. ambient queried-object is a TERM (is_tax/category/tag) → { kind:'term' }
  *      (SPEC §V7 term ambient — the first #19 kind).
  *   4. else current post via SourceRegistry 'post' → { kind:'post', id } (or a
@@ -520,15 +524,53 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		}
 	}
 
-	// 2. Loop row wins over ambient (bare tag in a query loop reads the row).
+	// 2. The loop's own item wins over ambient (a bare tag in a query loop reads the
+	//    ITEM). One branch per kind bws_get_loop_row_context() can report, in the
+	//    order the item shapes were learned; the ORDER carries no rule, since the
+	//    kinds are disjoint. `row_post_id` is read first and separately because it is
+	//    the published key: it holds the post arm and nothing else.
 	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'row_post_id' => false );
-	if ( ! empty( $loop['in_loop'] ) && ! empty( $loop['row_post_id'] ) ) {
-		return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
-	}
+	if ( ! empty( $loop['in_loop'] ) ) {
+		if ( ! empty( $loop['row_post_id'] ) ) {
+			return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
+		}
 
-	// 2b. A repeater row (in a loop, no post behind it) → meta_row.
-	if ( ! empty( $loop['in_loop'] ) && is_array( $loop['loop_item'] ?? null ) ) {
-		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
+		$item_kind = (string) ( $loop['item_kind'] ?? '' );
+		$item_id   = (int) ( $loop['item_id'] ?? 0 );
+
+		// 2b. A TERM item — an extension looping over terms. The arms need nothing:
+		//     bws_base_ambient_term_id() gates on the WIRE kind plus this kind, never
+		//     on is_tax(), so a term reached through a loop takes the same analog read
+		//     as a term reached through an archive (FW-63 pre-paid for it).
+		if ( 'term' === $item_kind && $item_id ) {
+			return array( 'kind' => 'term', 'id' => $item_id );
+		}
+
+		// 2c. A USER item — the same, through bws_base_ambient_user_id(). This is also
+		//     the first NON-AMBIENT user source the plugin has: the analogs FW-47 defers
+		//     (permalink, image) render EMPTY here rather than a wrong post, which is
+		//     that gap reached by a new route and not a new one.
+		if ( 'user' === $item_kind && $item_id ) {
+			return array( 'kind' => 'user', 'id' => $item_id );
+		}
+
+		// 2d. A repeater row (in a loop, no entity behind it) → meta_row.
+		if ( is_array( $loop['loop_item'] ?? null ) ) {
+			return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
+		}
+
+		// 2e. IN A LOOP, ITEM UNREADABLE — REFUSE ([I15]). Falling through to steps 3/4
+		//     would answer with the surrounding page's entity, or with whatever
+		//     `generateblocks_dynamic_tag_id` was handed for an entity we did not
+		//     recognise; GB passes that filter no fallback TYPE, so a co-resident
+		//     extension cannot tell a post fallback from a term one and a term id
+		//     arrives where a post id was wanted (#123). A plausible value from the
+		//     wrong entity is strictly worse than an empty one, because nothing looks
+		//     broken. This branch is the whole reason recognising two shapes was cheap:
+		//     the next shape has no arm, and it must not borrow somebody else's.
+		if ( 'unknown' === $item_kind ) {
+			return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
+		}
 	}
 
 	// 3. Ambient term archive → term source (SPEC §V7/§V11). queried_kind captured
@@ -648,7 +690,7 @@ function bws_capture_ambient_signals( $instance ) {
 
 	$loop = function_exists( 'bws_get_loop_row_context' )
 		? bws_get_loop_row_context( $instance )
-		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null );
+		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => '', 'item_id' => 0 );
 
 	return array(
 		'queried_kind'            => $queried_kind,

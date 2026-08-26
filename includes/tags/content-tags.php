@@ -35,9 +35,11 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 	// --- Custom field branch ---
 	if ( 'custom_field' === $type ) {
-		$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+		// See bws_loop_item_is_post_or_row(): this bail is skipped only when the loop
+		// item is one the field read below can serve without a post id.
+		$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 
-		if ( ! $post_id && ! $is_loop_row ) {
+		if ( ! $post_id && ! $read_may_serve ) {
 			return '' !== $fallback
 				? bws_gb_tag_output( $fallback, $options, $instance )
 				: '';
@@ -181,9 +183,10 @@ function bws_post_permalink_core( $post_id, $options, $instance ) {
 function bws_post_custom_text_core( $post_id, $options, $instance ) {
 	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+	// See bws_loop_item_is_post_or_row(): a post or a repeater row, not `in_loop`.
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 
-	if ( ! $post_id && ! $is_loop_row ) {
+	if ( ! $post_id && ! $read_may_serve ) {
 		return '' !== $fallback
 			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';

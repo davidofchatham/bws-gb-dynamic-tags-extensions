@@ -229,9 +229,13 @@ function bws_get_attachment_data( $attachment_id, $return_type = 'url', $size = 
  */
 if ( ! function_exists( 'bws_get_meta_image_data' ) ) {
 function bws_get_meta_image_data( $post_id, $meta_key, $return_type = 'url', $size = 'full', $instance = null ) {
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+	// "A READ MAY STILL SUCCEED WITH NO POST ID" — a post or a repeater row, never
+	// `in_loop` (bws_loop_item_is_post_or_row()). The read below is bws_read_field(),
+	// which serves those two item kinds and nothing else; letting a TERM or USER item
+	// past this bail sends it to that function's term-archive fallback instead.
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 
-	if ( ! $is_loop_row && ( ! $post_id || ! get_post( $post_id ) ) ) {
+	if ( ! $read_may_serve && ( ! $post_id || ! get_post( $post_id ) ) ) {
 		return '';
 	}
 

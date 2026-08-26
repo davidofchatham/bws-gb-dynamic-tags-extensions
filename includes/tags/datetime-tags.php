@@ -462,11 +462,16 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_datetime_single_core( $target, $options, $instance ) {
-	$source      = bws_datetime_coerce_read_target( $target );
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
-	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
+	$source         = bws_datetime_coerce_read_target( $target );
+	// The INVARIANT above is about repeater rows, and this is the predicate that says
+	// so: a post or a repeater row, never bare `in_loop`. A TERM or USER loop item
+	// reaching the read below leaves it with no entity and no row, and it answers with
+	// the surrounding archive's term meta — measured 2026-08-26, and the reason this
+	// gate narrowed (bws_loop_item_is_post_or_row()).
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
+	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
@@ -522,11 +527,12 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * @return string
  */
 function bws_datetime_range_core( $target, $options, $instance ) {
-	$source      = bws_datetime_coerce_read_target( $target );
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
-	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
+	$source         = bws_datetime_coerce_read_target( $target );
+	// Same predicate as the single core above, same reason.
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
+	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 

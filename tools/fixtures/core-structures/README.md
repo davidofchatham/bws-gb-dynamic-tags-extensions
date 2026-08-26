@@ -284,15 +284,17 @@ is absent. Without it every group here renders nothing and the page reads as bro
 
 | Piece | What it is |
 |---|---|
-| The `category` loop (QL1.1–QL1.3) | Restricted to the DEFAULT term, where the id collision is guaranteed by WordPress itself: Uncategorized is term 1 and the first post is post 1 on every install, so a bare tag of ours prints a real title from the wrong entity. Restricted by SLUG, not by id — the id is what makes the collision, but writing it into the query would pin the fixture to the number instead of to the install rule |
-| The `department` loop (QL1.4) | The same leak with nothing to land on: the blueprint's own term ids (6/7/8 on the reference site) are carried by no post, so the read comes back EMPTY. Kept because the two shapes look unalike to a reader and are one defect. QL1.4b is its non-vacuity control |
+| The `category` loop (QL1.1–QL1.3) | Restricted to the DEFAULT term, where the id collision is guaranteed by WordPress itself: Uncategorized is term 1 and the first post is post 1 on every install, so a bare tag of ours printed a real title from the wrong entity. Restricted by SLUG, not by id — the id is what makes the collision, but writing it into the query would pin the fixture to the number instead of to the install rule |
+| The `department` loop (QL1.4) | The same leak with nothing to land on: the blueprint's own term ids (6/7/8 on the reference site) are carried by no post, so the read came back EMPTY. Kept because the two shapes looked unalike to a reader and are one defect. QL1.4b is its non-vacuity control |
 | The user loop (QL2) | The two author-role users, ordered by display name — by ROLE rather than by id, since their ids are whatever the seed order produced. QL2.2 is a row with no tag: there is no explicit user source token, so QL1's middle read cannot be written, and a group with one read missing would otherwise look like a group with a broken row |
 | `department-workshop` (QL3) | A department term assigned to no post, so `{{term_count}}` on it is a bare `'0'` — the fourth tag NOT OURS measured reaching the falsy-replacement guard, and the one that needed a term query loop before it could be pinned. Reachable ONLY with `hide_empty` off, which no other fixture sets, so it is invisible to every existing department row (each of those walks the terms assigned to a POST) |
 
-**THE BARE-TAG ROWS ARE SEEDED WRONG ON PURPOSE**, and the page snapshot holds those leaked
-values. That is what makes the fix's diff proof rather than assertion: when item-shape
-recognition ships, exactly those cells move and nothing else does. The labels say so on the
-page, and they are rewritten to the correct values by the change that fixes them.
+**THE BARE-TAG ROWS WERE SEEDED WRONG ON PURPOSE** through blueprint v16, and the page snapshot
+held those leaked values, which is what made the fix's diff proof rather than assertion: exactly
+those cells moved and nothing else did. Since 1.19.0 they read the loop's own entity and their
+labels say what each should now print; the group's job is now to catch the leak coming back.
+**QL2.4 is the one row still expected empty** — `{{permalink}}` on a recognized user has no
+author analog to give, a deferred gap reached by a new route rather than a regression.
 
 These loops carry the query extension's own `queryType` strings, which nothing under `includes/`
 does. Where that line sits, and why, is stated at `bws_fixture_gb_query_loop_blocks()`.

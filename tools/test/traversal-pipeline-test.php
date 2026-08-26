@@ -454,6 +454,103 @@ eq(
 	)
 );
 
+// ── #123 — THE LOOP'S ITEM IS THE SOURCE, WHATEVER KIND IT IS ────────────────
+//
+// A co-resident query extension can loop over TERMS or USERS. GB passes no
+// $fallback_type to `generateblocks_dynamic_tag_id`, so such an extension cannot
+// tell a post fallback from a term one and hands the item's id to a POST fallback;
+// term ids and post ids collide on every install (term 1, post 1). The factory now
+// takes the item's own kind from bws_get_loop_row_context() instead, which is why
+// none of these rows carries a query-type string: recognition is keyed on the item's
+// SHAPE, and the factory only maps the answer.
+//
+// Signals here are INJECTED, so what these rows pin is the mapping, not the
+// recognition. What decides an item's kind is bws_classify_loop_item()'s PHPDoc, and
+// the shape rules themselves are pinned in `tools/test/loop-item-classify-test.php`
+// (stubbed WP lookups, no site). The rendered proof is `tools/test/loop-test-matrix.md`
+// §QL on /matrix-loops/.
+
+function loop_sig( $loop ) {
+	return array(
+		'queried_kind' => null,
+		'queried_id'   => 0,
+		'is_tax'       => false,
+		'loop'         => $loop,
+	);
+}
+
+eq(
+	'#123 term loop item -> term source',
+	array( 'kind' => 'term', 'id' => 7 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+);
+
+eq(
+	'#123 user loop item -> user source',
+	array( 'kind' => 'user', 'id' => 4 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'user', 'item_id' => 4 ) ) )
+);
+
+// A term loop item still LOSES to an explicit src, exactly as a post row does —
+// author intent is step 1 and the loop is step 2.
+eq(
+	'#123 explicit src:site beats a term loop item',
+	array( 'kind' => 'site' ),
+	bws_resolve_base_source( array( 'src' => 'site' ), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+);
+
+// And a term loop item BEATS an ambient term archive, the same way a post row does:
+// the loop is nearer than the page.
+eq(
+	'#123 term loop item beats the ambient term archive',
+	array( 'kind' => 'term', 'id' => 7 ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => 'term',
+			'queried_id'   => 34,
+			'is_tax'       => true,
+			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ),
+		)
+	)
+);
+
+// THE REFUSAL, and it is the half that makes recognising two shapes cheap: the term
+// and user arms already existed, any FUTURE shape has none, and falling through
+// returns a plausible value from an entity the wire never named ([I15]). An
+// unreadable item is NOT "no loop" — that distinction is the whole fix.
+eq(
+	'#123 unreadable loop item REFUSES rather than falling through',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ) ) )
+);
+
+// It refuses over an ambient term archive too — a fallthrough that lands on a REAL
+// entity is the dangerous one, since nothing looks broken.
+eq(
+	'#123 an unreadable item refuses over an ambient term archive',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => 'term',
+			'queried_id'   => 34,
+			'is_tax'       => true,
+			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ),
+		)
+	)
+);
+
+// A loop item that IS a post keeps its old answer, and the published `row_post_id`
+// key is what still decides it — the post arm is read before any item_kind branch.
+eq(
+	'#123 a post item is unchanged, read from row_post_id',
+	array( 'kind' => 'post', 'id' => 48418 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'row_post_id' => 48418, 'loop_item' => null, 'item_kind' => 'post', 'item_id' => 48418 ) ) )
+);
+
 // V1: NO ambient term + no loop → falls through to current-post path. With no
 // SourceRegistry loaded in this harness, current-post id resolves 0 → post/0.
 // Confirms $post is never consulted for ambient (there is none here) and the

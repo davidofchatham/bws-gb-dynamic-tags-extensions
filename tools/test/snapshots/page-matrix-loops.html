@@ -152,7 +152,7 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">QL1.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the term id, which on a WordPress install is the first post; -> the loop term name once item-shape recognition lands): Hello world!</p>
+<p class="gb-text">QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post): Uncategorized</p>
 
 <p class="gb-text">QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name): Uncategorized</p>
 
@@ -162,19 +162,19 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries, expect EMPTY at this point in the sequence (-> nothing, which is the leak too; -> the loop term name once item-shape recognition lands):</p>
+<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Sales</p>
 
 <p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Sales</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries, expect EMPTY at this point in the sequence (-> nothing, which is the leak too; -> the loop term name once item-shape recognition lands):</p>
+<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Support</p>
 
 <p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Support</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries, expect EMPTY at this point in the sequence (-> nothing, which is the leak too; -> the loop term name once item-shape recognition lands):</p>
+<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Warehouse</p>
 
 <p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name): Warehouse</p>
 </li>
@@ -186,27 +186,24 @@
 
 <div><ol >
 <li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the user id, or nothing where no post carries it; -> the loop user display name once item-shape recognition lands):</p>
+<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-> the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Fixture Author</p>
 
-<p class="gb-text">Sample Page</p>
+<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
 
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user is exactly what closing QL2.1 buys.</p>
+<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-> the loop user display name): Fixture Author</p>
 
-<p class="gb-text">QL2.3 the query extension own user tag, correct today (-> the loop user display name): Fixture Author</p>
+<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-> nothing: the loop user IS recognized now, and a user has no permalink of ours to give &#8211; a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
 
-<p class="gb-text">QL2.4 a URL read leaks the same way, and it is the one that does NOT become correct (-> an unrelated post permalink; -> EMPTY once the loop user is recognized, because a user has no permalink of ours to give):</p>
-
-<p class="gb-text">/sample-page/</p>
 </li>
 
 <li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the user id, or nothing where no post carries it; -> the loop user display name once item-shape recognition lands):</p>
+<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-> the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Other Author</p>
 
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user is exactly what closing QL2.1 buys.</p>
+<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS &#8211; there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
 
-<p class="gb-text">QL2.3 the query extension own user tag, correct today (-> the loop user display name): Other Author</p>
+<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-> the loop user display name): Other Author</p>
 
-<p class="gb-text">QL2.4 a URL read leaks the same way, and it is the one that does NOT become correct (-> an unrelated post permalink; -> EMPTY once the loop user is recognized, because a user has no permalink of ours to give):</p>
+<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-> nothing: the loop user IS recognized now, and a user has no permalink of ours to give &#8211; a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
 
 </li>
 </ol></div>

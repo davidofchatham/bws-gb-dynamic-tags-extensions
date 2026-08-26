@@ -1367,26 +1367,28 @@ function bws_fixture_page_content_matrix_gate() {
  * loop and a user loop are ONE mechanism with two item shapes, which is why they
  * share a page: splitting them would hide that, and the fix keys on the shape.
  *
- * WHAT THE PAGE SHOWS TODAY, AND IT IS THE BUG. Inside either loop, the co-resident
- * query extension supplies the loop item's id to `generateblocks_dynamic_tag_id`,
- * and GB does not pass a fallback type to that filter — so the term or user id
- * overrides our POST fallback and a bare tag of ours reads whatever post carries
- * that id. Term ids and post ids collide on every install. Each group therefore
- * reads the same datum three ways side by side: a BARE tag (wrong today), an
- * explicit source (right today), and the query extension's own tag (right today).
- * A reader sees one wrong and two right, on one line.
+ * WHAT THESE ROWS GUARD, AND IT USED TO BE THE BUG. Inside either loop, the
+ * co-resident query extension supplies the loop item's id to
+ * `generateblocks_dynamic_tag_id`, and GB does not pass a fallback type to that
+ * filter — so the term or user id overrides our POST fallback and a bare tag of ours
+ * read whatever post carried that id. Term ids and post ids collide on every
+ * install. Since 1.19.0 a bare tag takes the loop ITEM's own kind instead, so each
+ * group now reads the same datum three ways side by side and all three agree: a BARE
+ * tag, an explicit source, and the query extension's own tag. A row that disagrees
+ * with its neighbours is the leak coming back.
  *
- * THE BARE ROWS ARE SEEDED WRONG ON PURPOSE and their snapshot baseline records
- * the leaked values. That is what makes the fix's diff proof rather than assertion:
- * when item-shape recognition lands, exactly these cells move and nothing else does.
- * Their labels say "expect WRONG at this point in the sequence" and are rewritten
- * to the correct values by the ticket that fixes them.
+ * THE BARE ROWS WERE SEEDED WRONG ON PURPOSE and their first snapshot baseline
+ * recorded the leaked values, so the fix's diff was proof rather than assertion.
+ * Measured on the reference site before and after: QL1.1 `Hello world!` →
+ * `Uncategorized`, QL1.4 empty → the department names, QL2.1 `Sample Page`/empty →
+ * the two author display names, QL2.4 a `/sample-page/` permalink → empty.
  *
- * BOTH SHAPES OF THE LEAK ARE HERE, and they look unalike to a reader: one lands on
- * a real post and prints a plausible value from the wrong entity (QL1.1, QL2.1's
- * first row), the other lands on nothing and prints empty (QL1.4, and QL2.1's second
- * row, whose user id no post carries). Rows that can come back empty take the
- * split-label form, for the reason bws_fixture_gb_empty_row() states.
+ * BOTH SHAPES OF THE LEAK WERE HERE, and they looked unalike to a reader: one landed
+ * on a real post and printed a plausible value from the wrong entity (QL1.1, QL2.1's
+ * first row), the other landed on nothing and printed empty (QL1.4, and QL2.1's
+ * second row, whose user id no post carries). Both now print the loop's own entity,
+ * so both are ordinary inline rows; QL2.4 is the ONE row still expected empty and
+ * keeps the split-label form, for the reason bws_fixture_gb_empty_row() states.
  *
  * The USER group has two reads, not three, and says so in a row of its own. There
  * is no explicit user source token today — user entities are reachable only
@@ -1434,16 +1436,16 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => false,
 			),
-			bws_fixture_gb_row( 'QL1.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the term id, which on a WordPress install is the first post; -> the loop term name once item-shape recognition lands)', '{{title}}' )
+			bws_fixture_gb_row( 'QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post)', '{{title}}' )
 				. "\n\n" . bws_fixture_gb_row( 'QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name)', '{{title src:term}}' )
 				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
 		),
-		// The same leak with nothing to land on. Kept because the two shapes fail
-		// differently for a reader: QL1.1 prints a plausible value from the wrong
-		// entity, this one prints nothing at all and reads like a tag that declined.
-		// Both are the id leak, and both flip to the term name together.
+		// The same leak with nothing to land on. Kept because the two shapes failed
+		// differently for a reader: QL1.1 printed a plausible value from the wrong
+		// entity, this one printed nothing at all and read like a tag that declined.
+		// Both were the id leak, and both flipped to the term name together.
 		bws_fixture_gb_query_loop_blocks(
 			array(
 				'taxonomy'       => 'department',
@@ -1452,7 +1454,7 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => true,
 			),
-			bws_fixture_gb_empty_row( 'QL1.4 the SAME bare tag on fixture terms whose ids no post carries, expect EMPTY at this point in the sequence (-> nothing, which is the leak too; -> the loop term name once item-shape recognition lands)', '{{title}}' )
+			bws_fixture_gb_row( 'QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land)', '{{title}}' )
 				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name)', '{{title src:term}}' ),
 			'ql1-term-loop-no-collision',
 			'WP_Term_Query'
@@ -1465,10 +1467,11 @@ function bws_fixture_page_content_matrix_loops() {
 	// role__in rather than ids: the two author-role fixture users are stable by
 	// role and display name, while their ids are whatever the seed order produced.
 	//
-	// QL2.1 and QL2.4 are split-label rows even though the first user's id DOES land
-	// on a post: the expectation differs per loop item here, and a row that prints
-	// for one user and vanishes for the next would read as a broken fixture on the
-	// second. Both leak; only one has somewhere to land.
+	// QL2.1 was a split-label row while it leaked, because the expectation differed
+	// per loop item — it printed for one user and vanished for the next, which reads
+	// as a broken fixture on the second. It prints for every user now, so it is an
+	// ordinary inline row. QL2.4 keeps the split-label form and is the only row on
+	// this page still expected empty.
 	$sections[] = bws_fixture_gb_section( 'Loops QL2 - a query loop over USERS: the same leak, second item shape', array(
 		bws_fixture_gb_query_loop_blocks(
 			array(
@@ -1477,10 +1480,10 @@ function bws_fixture_page_content_matrix_loops() {
 				'orderby'        => 'display_name',
 				'order'          => 'ASC',
 			),
-			bws_fixture_gb_empty_row( 'QL2.1 BARE tag, expect WRONG at this point in the sequence (-> the post that shares the user id, or nothing where no post carries it; -> the loop user display name once item-shape recognition lands)', '{{title}}' )
-				. "\n\n" . bws_fixture_gb_text_block( 'QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS - there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user is exactly what closing QL2.1 buys.', 'ql2-2-absence' )
-				. "\n\n" . bws_fixture_gb_row( 'QL2.3 the query extension own user tag, correct today (-> the loop user display name)', '{{user_display_name}}' )
-				. "\n\n" . bws_fixture_gb_empty_row( 'QL2.4 a URL read leaks the same way, and it is the one that does NOT become correct (-> an unrelated post permalink; -> EMPTY once the loop user is recognized, because a user has no permalink of ours to give)', '{{permalink}}' ),
+			bws_fixture_gb_row( 'QL2.1 BARE tag, the user shape of the row QL1.1 is (-> the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_text_block( 'QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS - there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.', 'ql2-2-absence' )
+				. "\n\n" . bws_fixture_gb_row( 'QL2.3 the query extension own user tag, correct throughout (-> the loop user display name)', '{{user_display_name}}' )
+				. "\n\n" . bws_fixture_gb_empty_row( 'QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-> nothing: the loop user IS recognized now, and a user has no permalink of ours to give - a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink)', '{{permalink}}' ),
 			'ql2-user-loop-leak',
 			'WP_User_Query'
 		),

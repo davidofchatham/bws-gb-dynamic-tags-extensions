@@ -108,9 +108,10 @@ function bws_custom_image_core( $post_id, $options, $instance ) {
 		return bws_gb_tag_output( '', $options, $instance );
 	}
 
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
+	// See bws_loop_item_is_post_or_row(): a post or a repeater row, not `in_loop`.
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
 
-	if ( $post_id || $is_loop_row ) {
+	if ( $post_id || $read_may_serve ) {
 		$result = bws_get_meta_image_data( $post_id, $field_key, $return_type, $image_size, $instance );
 
 		if ( ! empty( $result ) ) {
