@@ -1124,7 +1124,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		}
 		return bws_base_stated_fallback( (array) $options, $instance );
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $assembled, $options, $instance );
+	return bws_gb_tag_output( $assembled, $options, $instance );
 }
 
 /**
@@ -1421,7 +1421,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	$use = $options['use'] ?? 'key';
 	$res = bws_base_src_resolution( $options );
 
-	// Site read — logo/option via resolver (logo already routed through GB ::output()).
+	// Site read — logo/option via resolver (logo already routed through the boundary).
 	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'image', $options, $instance );
 		if ( '' !== $value ) {
@@ -1672,9 +1672,11 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			if ( empty( $result ) ) {
 				return '';
 			}
-			// Route through GB output for fallback/markup parity with image tag.
+			// Route through the GB output boundary for fallback/markup parity with
+			// the image tag. The class_exists guard stays: it is what keeps a
+			// GB-less install returning the bare value rather than fatalling.
 			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
-				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+				? (string) bws_gb_tag_output( $result, $options, $instance )
 				: (string) $result;
 
 		// text: keyed by nature — empty/bare `use` has no analog default → ''.

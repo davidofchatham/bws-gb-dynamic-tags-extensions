@@ -335,7 +335,7 @@ function bws_date_single_core( $target, $options, $instance ) {
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $date_options );
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -391,7 +391,7 @@ function bws_date_range_core( $target, $options, $instance ) {
 		$date_options
 	);
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -486,7 +486,7 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 	// Handle true time-only case.
 	if ( $result['time_only'] && ! $result['date'] ) {
 		$formatted = wp_date( 'g:i A', $result['time_only']->getTimestamp() );
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+		return bws_gb_tag_output( $formatted, $options, $instance );
 	}
 
 	$time_only    = ! empty( $options['time_only'] );
@@ -502,7 +502,7 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $options );
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -569,13 +569,13 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 				$smart_time  = ! empty( $options['smart_time'] );
 				$time_format = bws_resolve_time_only_format( $options, $start_result );
 				$time_range  = bws_format_time_range( $start_dt, $end_dt, $smart_time, $time_format );
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
+				return bws_gb_tag_output( $time_range, $options, $instance );
 			}
 			// Single-ended time: honor custom format (time tokens only), then the
 			// ACF field's time format, then the WordPress time_format option.
 			$time_format = bws_resolve_time_only_format( $options, $start_result );
 			$formatted   = wp_date( $time_format, $start_dt->getTimestamp() );
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+			return bws_gb_tag_output( $formatted, $options, $instance );
 		}
 	}
 
@@ -591,7 +591,7 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 	}
 	if ( ! empty( $partial_parts ) && ! $start_result['date'] ) {
 		$formatted = implode( '; ', $partial_parts );
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+		return bws_gb_tag_output( $formatted, $options, $instance );
 	}
 
 	if ( ! $start_result['date'] && ! $time_only ) {
@@ -609,7 +609,7 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 		$options
 	);
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**

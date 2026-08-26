@@ -1029,7 +1029,7 @@ class TagTemplateRegistry {
 
 				// All slots exhausted — apply the fallback, then label if in preview.
 				if ( '' !== $fallback ) {
-					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
+					return bws_gb_tag_output( $fallback, $opts, $inst );
 				}
 
 				return $is_preview && function_exists( 'bws_build_try_preview_label' )

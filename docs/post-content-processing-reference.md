@@ -249,17 +249,19 @@ GB's `GenerateBlocks_Dynamic_Tag_Callbacks::output()` applies value-shaping opti
 - `wpautop` — pipeline already ran it once; second pass shifts whitespace inside block markup.
 - `link` — wrapping rendered HTML inside `<a>` produces invalid markup.
 
-`bws_safe_content_output()` strips these four keys from the options array before calling GB's `output()`, preserving the `generateblocks_dynamic_tag_output` filter hook for third-party compatibility:
+`bws_safe_content_output()` strips these four keys from the options array, then hands the value to `bws_gb_tag_output()` — which still reaches GB's pipeline, so the `generateblocks_dynamic_tag_output` filter hook stays available to third parties:
 
 ```php
 function bws_safe_content_output( $content, $options, $instance ) {
     $safe_options = $options;
     unset( $safe_options['trunc'], $safe_options['case'], $safe_options['wpautop'], $safe_options['link'] );
-    return GenerateBlocks_Dynamic_Tag_Callbacks::output( $content, $safe_options, $instance );
+    return bws_gb_tag_output( $content, $safe_options, $instance );
 }
 ```
 
-Always use this helper for content-template callbacks. Other text-template callbacks (`text`, `title`, etc.) call `output()` directly since their values are short scalars where the standard options are appropriate.
+The two seams compose rather than stack: this helper decides what would corrupt rich HTML, and `bws_gb_tag_output()` decides what reaches GB at all. Its PHPDoc in `includes/helpers/content-helpers.php` states why the order of the two is immaterial.
+
+Always use this helper for content-template callbacks. Other text-template callbacks (`text`, `title`, etc.) go straight to `bws_gb_tag_output()` without the unsets, since their values are short scalars where GB's standard options are appropriate.
 
 ---
 

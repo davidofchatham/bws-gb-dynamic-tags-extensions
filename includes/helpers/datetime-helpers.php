@@ -1035,6 +1035,6 @@ function bws_handle_date_time_fallback( $options, $instance, $tag_type ) {
         return '';
     }
 
-    return GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback_text, $options, $instance );
+    return bws_gb_tag_output( $fallback_text, $options, $instance );
 }
 }

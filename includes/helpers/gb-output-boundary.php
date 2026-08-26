@@ -41,6 +41,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   link     with_link()     wraps the output in <a>
  *   id       with_link()     indirectly, via GenerateBlocks_Dynamic_Tags::get_id()
  *
+ * `tag_name` IS NOT HERE, AND THE OMISSION IS A DECISION, taken 2026-08-26 after being
+ * deferred twice. Nothing on the fixture site reads `$options['tag_name']` -- measured
+ * across GB 2.4.1, GB Pro 2.7.0, GB Query Enhancements 1.3.0, GB Query Filter 0.4.0 and
+ * every mu-plugin. If something ever wants it, it needs its OWN constant: the axis above
+ * is "GB's output pipeline reads it", `tag_name` fails that axis, and adding it here
+ * would make the axis statement false rather than the set larger.
+ *
  * A future GB release adding a transform makes this set incomplete, and the symptom is
  * silent: a documented GB option would simply stop working on our tags. The version below
  * is recorded so a GB upgrade has something to re-read this set against. GB moving is
@@ -76,17 +83,34 @@ const BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM = '2.4.1';
  * Call this instead of GenerateBlocks_Dynamic_Tag_Callbacks::output() directly. GB's
  * transforms are unaffected -- every option they consume is in the allowlist -- but the
  * options WE have already consumed (`fallback` above all, on 37 tags) stop travelling into
- * `generateblocks_dynamic_tag_output` FROM THE CALL SITES THAT USE THIS FUNCTION, where a
- * co-resident extension re-applies them to an output that has already had them applied.
+ * `generateblocks_dynamic_tag_output`, where a co-resident extension re-applies them to an
+ * output that has already had them applied.
  *
- * WHAT THAT IS TRUE OF TODAY IS NARROWER THAN THE PLUGIN, AND THE SCOPE IS MEASURED, NOT
- * ASSUMED. Counted 2026-08-26 over `includes/`: 14 call sites route through here -- the
- * image family and its term sibling, the one path with an observable defect -- and 38 still
- * call GB's output method directly, handing it the full option array. An option we consumed
- * therefore still travels from those 38. Routing them is a deliberately separate change in
- * this same release, kept separate because it moves no output and proving THAT is its whole
- * deliverable; burying it beside the one call site that fixes something would make neither
- * reviewable. Until it lands, read the guarantee above as scoped to the image family.
+ * THE SCOPE IS THE WHOLE PLUGIN, and the two halves of that rest on different things.
+ * That NOTHING bypasses this function is PINNED: §B6 of
+ * tools/test/gb-output-boundary-test.php re-reads every .php file in the tree and fails by
+ * file and line if a direct call to GB's output method reappears, so the zero is re-checked
+ * on every run. HOW MANY route through here is a MEASUREMENT and nothing observes it -- 44
+ * call sites, counted over `includes/` on 2026-08-26. Read that number as of its date; a
+ * new tag file moves it without failing anything.
+ *
+ * One caller LAYERS rather than bypasses: bws_safe_content_output() unsets the transforms
+ * that corrupt rich HTML and then ends here. Its own PHPDoc says why the two sets can
+ * intersect without the composition becoming order-dependent.
+ *
+ * ROUTING THE 38 THAT WERE STILL DIRECT MOVED NO EXISTING RENDERED OUTPUT, and proving
+ * that was the whole point of doing it as its own change: at each of them the value handed
+ * to GB is empty-guarded on the line above, or the tag carries no `fallback` at all -- with
+ * one class of exception, below.
+ *
+ * THE EXCEPTION IS A NON-EMPTY FALSY VALUE, and it is why "empty-guarded" above is not the
+ * whole story. The measured extension tests `empty( $output )`, not `'' === $output`, so a
+ * tag resolving to the bare string `0` while carrying a `fallback` had its zero replaced by
+ * the fallback text. Our tags preserve `'0'` on purpose (the falsy guard in
+ * includes/hooks.php exists for it), so that was a real defect on every non-image tag. It
+ * closes here, and it is pinned rather than left to a reader: text matrix §T5's T5.1b, on
+ * /matrix-post-meta/, is a zero-valued read carrying a fallback and renders the zero.
+ * Measured 2026-08-26 against GB Query Enhancements 1.3.0.
  *
  * The measured instance: a co-resident query extension re-applies `fallback` whenever the
  * output is empty, so `{{image key:missing|fallback:<missing attachment id>}}` -- which our

@@ -39,7 +39,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 		if ( ! $post_id && ! $is_loop_row ) {
 			return '' !== $fallback
-				? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+				? bws_gb_tag_output( $fallback, $options, $instance )
 				: '';
 		}
 
@@ -47,7 +47,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 		if ( empty( $key ) || ! bws_is_valid_meta_key( $key ) ) {
 			return '' !== $fallback
-				? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+				? bws_gb_tag_output( $fallback, $options, $instance )
 				: '';
 		}
 
@@ -56,7 +56,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 		if ( null === $value || '' === $value ) {
 			return '' !== $fallback
-				? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+				? bws_gb_tag_output(
 					$fallback,
 					array_merge( $options, array( 'id' => $post_id ) ),
 					$instance
@@ -64,7 +64,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 				: '';
 		}
 
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+		return bws_gb_tag_output(
 			$value,
 			array_merge( $options, array( 'id' => $post_id ) ),
 			$instance
@@ -74,7 +74,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 	// --- Default content branch ---
 	if ( ! $post_id ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';
 	}
 
@@ -87,7 +87,7 @@ function bws_post_content_core( $post_id, $options, $instance ) {
 
 	if ( empty( $content ) ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';
 	}
 
@@ -111,7 +111,7 @@ function bws_post_title_core( $post_id, $options, $instance ) {
 		return '';
 	}
 	$title = get_the_title( $post_id );
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		$title,
 		array_merge( $options, array( 'id' => $post_id ) ),
 		$instance
@@ -137,7 +137,7 @@ function bws_post_excerpt_core( $post_id, $options, $instance ) {
 	// bootstrap, and a function_exists fallback here would silently restore the
 	// bug rather than fail.
 	$excerpt = bws_with_post_context( $post_id, static fn() => get_the_excerpt( $post_id ) );
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		$excerpt,
 		array_merge( $options, array( 'id' => $post_id ) ),
 		$instance
@@ -158,7 +158,7 @@ function bws_post_permalink_core( $post_id, $options, $instance ) {
 		return '';
 	}
 	$permalink = get_permalink( $post_id );
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		esc_url( $permalink ),
 		array_merge( $options, array( 'id' => $post_id ) ),
 		$instance
@@ -185,7 +185,7 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 
 	if ( ! $post_id && ! $is_loop_row ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';
 	}
 
@@ -200,7 +200,7 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 
 	if ( null === $value || '' === $value ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+			? bws_gb_tag_output(
 				$fallback,
 				array_merge( $options, array( 'id' => $post_id ) ),
 				$instance
@@ -208,7 +208,7 @@ function bws_post_custom_text_core( $post_id, $options, $instance ) {
 			: '';
 	}
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		$value,
 		array_merge( $options, array( 'id' => $post_id ) ),
 		$instance

@@ -59,14 +59,20 @@ rows here.
 
 ## T5 — `'0'` preservation
 
-Four of these five rows are **first-party GB tags**, which is why they are here: T5.2, T5.4 and
+Four of these six rows are **first-party GB tags**, which is why they are here: T5.2, T5.4 and
 T5.5 come back with the zero intact, T5.3 comes back empty. That is what the guard produces, observed —
 what it applies to is decided at `includes/hooks.php`, and this section neither states nor extends
 that. Measured 2026-08-24 against GenerateBlocks 2.4.1 / GB Pro 2.7.0.
 
+**T5.1b is the one row here whose subject is not the guard.** A zero that survives the guard has
+one more hand-off to survive, the one to GB's output pipeline, and that is decided at
+[`gb-output-boundary.php`](../../includes/helpers/gb-output-boundary.php). Added 2026-08-26,
+measured against GB Query Enhancements 1.3.0.
+
 | # | Tag (on `/matrix-post-meta/`) | Expected |
 |---|---|---|
 | T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows `0` plus the pad byte; the hooks.php `'0'`→`'0 '` falsy guard fires on both render paths, `verify.php` pins that byte for byte.) |
+| T5.1b | `{{text key:bws_zero_probe\|fallback:REPLACED}}` | renders `0`, **not** `REPLACED` — the same field and the same pad byte as T5.1, with a fallback attached. A co-resident extension re-applies `fallback` whenever the output tests `empty()`, and `'0'` is empty to PHP, so this rendered `REPLACED` until the output boundary stopped publishing a consumed `fallback` to `generateblocks_dynamic_tag_output`. **What keeps it from being vacuous is [`fold-test-matrix.md`](fold-test-matrix.md) §F11b.1**, on this same page: a `fallback` that fires on a genuinely empty read. Without a row of that shape somewhere, a `fallback` that had stopped being read at all would also render `0` here. |
 | T5.2 | `{{comments_count none:0}}` | renders `0` — GB **core** tag, zero intact. This page has no comments, so the `none` label prints and it is a bare `'0'`. This row is the one that blanks if the guard stops covering GB's own tags. |
 | T5.3 | `{{post_meta key:bws_zero_probe}}` | **EMPTY** — same field as T5.1, read through GB's own meta tag, which comes back empty for a zero. Measured: `required:false` does not recover it either. The T5.1/T5.3 disagreement is GB's, not ours. |
 | T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-row `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on row 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first row with it. |

@@ -245,6 +245,8 @@
 
 <p class="gb-text">T5.1 (expect 0 &#8211; our text tag preserves a field holding zero): 0 </p>
 
+<p class="gb-text">T5.1b (expect 0, NOT the word REPLACED &#8211; the same zero read, now carrying a fallback; a co-resident extension re-applies fallback whenever the output tests empty(), and zero is empty to PHP, so before the output boundary this row printed its fallback instead of the zero): 0 </p>
+
 <p class="gb-text">T5.2 (expect 0 &#8211; a GB CORE tag, zero intact; this page has no comments, so the none label prints and it is a bare zero): 0 </p>
 
 <p class="gb-text">T5.3 (expect EMPTY, DISAGREEING with T5.1 on the same field &#8211; GB core meta read, which comes back empty for a zero):</p>

@@ -292,10 +292,16 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'T3.3', '{{text srcTermIn:department|use:title|limit:1|linkTo:permalink}}' ),
 	) );
 
-	// T5 — what the '0' guard in includes/hooks.php PRODUCES, observed. Four of these five
+	// T5 — what the '0' guard in includes/hooks.php PRODUCES, observed. Four of these six
 	// rows are FIRST-PARTY GB tags: T5.2, T5.4 and T5.5 come back with the zero intact, T5.3
 	// comes back empty. T5.4 is the row that breaks first if the guard is ever narrowed to our
 	// own tags, and it needs no author setup beyond ticking a checkbox.
+	//
+	// T5.1b is the SIXTH row and the only one here whose subject is not the guard: it is the
+	// same zero read as T5.1 with a fallback attached, and what it holds is that a zero which
+	// SURVIVED the guard then survives the hand-off to GB. Before the output boundary it did
+	// not — a co-resident extension re-applies `fallback` on an `empty()` test, and `'0'` is
+	// empty to PHP. Added 2026-08-26; the rule is at includes/helpers/gb-output-boundary.php.
 	//
 	// The FOURTH tag NOT OURS reaching the guard is not here and never was: {{term_count}}
 	// needs a term query loop, so it is pinned on /matrix-loops/ (loop matrix §QL3). All four
@@ -306,6 +312,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 	// GB 2.4.1 / GB Pro 2.7.0.
 	$sections[] = bws_fixture_gb_section( 'Text T5 - zero preservation', array(
 		bws_fixture_gb_row( 'T5.1 (expect 0 - our text tag preserves a field holding zero)', '{{text key:bws_zero_probe}}' ),
+		bws_fixture_gb_row( 'T5.1b (expect 0, NOT the word REPLACED - the same zero read, now carrying a fallback; a co-resident extension re-applies fallback whenever the output tests empty(), and zero is empty to PHP, so before the output boundary this row printed its fallback instead of the zero)', '{{text key:bws_zero_probe|fallback:REPLACED}}' ),
 		bws_fixture_gb_row( 'T5.2 (expect 0 - a GB CORE tag, zero intact; this page has no comments, so the none label prints and it is a bare zero)', '{{comments_count none:0}}' ),
 		bws_fixture_gb_empty_row( 'T5.3 (expect EMPTY, DISAGREEING with T5.1 on the same field - GB core meta read, which comes back empty for a zero)', '{{post_meta key:bws_zero_probe}}' ),
 		bws_fixture_gb_query_loop(

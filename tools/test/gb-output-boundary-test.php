@@ -32,10 +32,23 @@
  * dependency-version trigger fires on the env record moving, and would leave this
  * constant behind.
  *
- * NOT IN SCOPE — whether the plugin's remaining direct calls to GB's output method have
- * been routed through this boundary. That is a different question (a census of call
- * sites, not the content of a set), it is deliberately a separate change, and a check
- * for it belongs beside that change rather than here.
+ * ONE DERIVED CLAIM IS HELD TOO, at the end of §B3. bws_safe_content_output() unsets the
+ * four transforms that corrupt rich HTML and then ends here, and its PHPDoc states what a
+ * content tag consequently hands GB. That residue is a function of two sets rather than a
+ * property of either, so it can go stale without either side being edited — a GB release
+ * adding a transform is enough. The real function is loaded and run for it, since a
+ * test-local copy of its four keys would be the same second home the paragraph above
+ * refuses.
+ *
+ * THE THIRD THING HELD HERE IS A CENSUS RATHER THAN A SET — §B6, added 2026-08-26 when
+ * the last direct call site was routed. From that point the set's guarantee stopped being
+ * a statement about the image family and became one about the whole plugin, and a
+ * statement of that shape decays by ADDITION, not by edit: a new tag file that calls GB's
+ * output method directly changes nothing in this file, and changes no fixture page either,
+ * since the option array GB receives is visible only to whatever hooks its output filter.
+ * So §B6 re-reads the tree. It lives in this file rather than a harness of its own because
+ * what it protects is this file's subject; a separate one would be a second place to
+ * remember, for one assertion.
  *
  * Run:  php tools/test/gb-output-boundary-test.php   (exit 0 = pass, 1 = fail)
  *
@@ -141,6 +154,36 @@ assert_same(
 	) )
 );
 
+// THE COMPOSED CONTENT PATH. bws_safe_content_output() is the one caller that layers
+// its own unsets on top of the boundary, and its PHPDoc states what a content tag then
+// hands GB. That sentence is DERIVED from two sets neither of which it owns — its four
+// content-unsafe keys and the allowlist above — so a GB release adding a transform would
+// falsify it with nothing failing. Asserted through the REAL function, never against a
+// copy of its four keys: a local copy would agree with itself while the shipped rule
+// moved. content-helpers.php is inert at load (every function in it is
+// function_exists-wrapped) and this path calls no WordPress function.
+require $root . '/includes/helpers/content-helpers.php';
+
+GenerateBlocks_Dynamic_Tag_Callbacks::$received = array();
+bws_safe_content_output(
+	'CONTENT',
+	array_merge(
+		array_fill_keys( BWS_GB_TAG_OUTPUT_OPTIONS, 'X' ),
+		array( 'fallback' => 'F', 'key' => 'charter' )
+	),
+	null
+);
+assert_same(
+	'a content tag hands GB replace, trim and id — nothing else, GB transform or ours',
+	array( 'replace' => 'X', 'trim' => 'X', 'id' => 'X' ),
+	GenerateBlocks_Dynamic_Tag_Callbacks::$received['options']
+);
+assert_same(
+	'the content string survives the composed path untouched',
+	'CONTENT',
+	bws_safe_content_output( 'CONTENT', array( 'wpautop' => 'true', 'fallback' => 'F' ), null )
+);
+
 echo "\n§B4 — the non-array branch\n";
 
 // The function's only other path. A tag that reaches the boundary with no options at
@@ -164,6 +207,116 @@ assert_same(
 	$gb,
 	BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM
 );
+
+echo "\n§B6 — NOTHING the plugin ships calls GB's output method directly\n";
+
+// The set checks (§B1-§B5) hold what the boundary DOES. This one holds that the
+// boundary is still the only door: a call site that goes straight to
+// GenerateBlocks_Dynamic_Tag_Callbacks::output() hands GB the whole option array
+// again, and the options we already consumed go back to being published to
+// `generateblocks_dynamic_tag_output`. That regression is one line, renders
+// identically on every fixture page, and no set assertion above can see it.
+//
+// IT READS THE TREE RATHER THAN COUNTING. A count would pass a change that routed
+// one site and un-routed another, and its failure message could only say a number
+// moved. This one names the file, the line and the code.
+//
+// COMMENTS COUNT, DELIBERATELY. The regex cannot tell a call from prose, and
+// tightening it to exclude comment lines would be a second, subtler thing to keep
+// right. Naming GB's method belongs to the boundary file, which is where the
+// reason to name it lives; anywhere else, a mention is either a call or a sentence
+// that has outlived the call it described. If a future comment genuinely needs to
+// say it, the fix is a new row in $exempt below with the reason written out, not a
+// looser pattern.
+//
+// SCOPE IS DEFAULT-IN. Every .php file in the repo is scanned unless its directory
+// is excluded below, so a new shipped directory is covered without anyone
+// remembering to add it here.
+
+$skip_dirs = array(
+	'.git',
+	'.scratch',
+	'.claude',
+	'deprecated-files',
+	'docs',          // prose and design history; records what WAS true, by design.
+	'libs',          // vendored third party (PUC); not ours to route.
+	'node_modules',
+	'tools',         // not shipped, and a harness legitimately STUBS GB's class —
+	                 // this very file defines one.
+);
+
+/** Files that may name GB's output method, with the reason. */
+$exempt = array(
+	// The boundary itself: the one site that is supposed to call GB, and the one
+	// PHPDoc that explains why the others must not.
+	'includes/helpers/gb-output-boundary.php',
+);
+
+$scan = static function ( string $dir ) use ( $skip_dirs ): array {
+	$hits  = array();
+	$files = 0;
+	$it    = new RecursiveIteratorIterator(
+		new RecursiveCallbackFilterIterator(
+			new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ),
+			static function ( $current ) use ( $skip_dirs ) {
+				return ! ( $current->isDir() && in_array( $current->getFilename(), $skip_dirs, true ) );
+			}
+		)
+	);
+	foreach ( $it as $file ) {
+		if ( ! $file->isFile() || 'php' !== strtolower( $file->getExtension() ) ) {
+			continue;
+		}
+		$files++;
+		$rel   = strtr( substr( $file->getPathname(), strlen( $dir ) + 1 ), DIRECTORY_SEPARATOR, '/' );
+		$lines = preg_split( '~\R~', (string) file_get_contents( $file->getPathname() ) );
+		foreach ( $lines as $n => $line ) {
+			if ( preg_match( '~Dynamic_Tag_Callbacks\s*::\s*output~', $line ) ) {
+				$hits[] = array( $rel, $n + 1, trim( $line ) );
+			}
+		}
+	}
+	return array( $hits, $files );
+};
+
+list( $all_hits, $files_scanned ) = $scan( $root );
+
+// NON-VACUITY FIRST. A scanner that read nothing, or a pattern that stopped
+// matching, would otherwise report a clean tree — the one failure mode a
+// "found nothing" assertion cannot distinguish from success. Both are pinned
+// against the boundary file, which is guaranteed to contain a real call.
+assert_same( 'the scan reached the plugin source', true, $files_scanned > 20 );
+assert_same(
+	'the pattern still matches real code (the boundary file is found)',
+	true,
+	(bool) array_filter( $all_hits, static fn( $h ) => 'includes/helpers/gb-output-boundary.php' === $h[0] )
+);
+
+// An exemption for a file that no longer exists is a hole nobody can see: the
+// pattern it excused is gone, but the row stays and would excuse a NEW file that
+// happened to take the same path.
+foreach ( $exempt as $path ) {
+	assert_same( "the exemption `{$path}` still names a real file", true, is_file( $root . '/' . $path ) );
+}
+
+$offenders = array_values( array_filter( $all_hits, static fn( $h ) => ! in_array( $h[0], $exempt, true ) ) );
+
+// Asserted on the COUNT, so the pass line stays one line and the failure detail is
+// printed below it rather than inside a var_export of nested arrays.
+assert_same(
+	'no file outside the boundary names GB\'s output method',
+	0,
+	count( $offenders )
+);
+
+foreach ( $offenders as $h ) {
+	echo "       {$h[0]}:{$h[1]}  {$h[2]}\n";
+}
+if ( $offenders ) {
+	echo "       route each of these through bws_gb_tag_output(), or add the file to\n";
+	echo "       \$exempt above WITH the reason written out.\n";
+	echo "       ({$files_scanned} php files scanned.)\n";
+}
 
 echo "\n";
 if ( $failures ) {

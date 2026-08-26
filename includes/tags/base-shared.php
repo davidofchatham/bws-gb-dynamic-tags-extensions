@@ -1217,7 +1217,7 @@ function bws_base_read_refused( array $res, array $base ): bool {
 function bws_base_stated_fallback( array $options, $instance ): string {
 	$fallback = sanitize_text_field( $options['fallback'] ?? '' );
 	return '' !== $fallback
-		? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+		? (string) bws_gb_tag_output( $fallback, $options, $instance )
 		: '';
 }
 
@@ -1536,7 +1536,7 @@ function bws_base_ambient_user_id( array $base, array $options ): int {
  *             1.17.0, #108. This clause claimed it for three releases while
  *             the matrix row for it was failing.)
  *
- * Values route through GenerateBlocks_Dynamic_Tag_Callbacks::output() so GB's
+ * Values route through bws_gb_tag_output() so GB's
  * per-tag transforms (trunc/replace/trim/case/wpautop/link) apply, matching the
  * term analog readers.
  *
@@ -1571,7 +1571,7 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			if ( ! is_string( $name ) || '' === $name ) {
 				return '';
 			}
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $name, $options, $instance );
+			return bws_gb_tag_output( $name, $options, $instance );
 
 		case 'text':
 			// Mirror of the term analog's text dispatch: use:title → the intrinsic
@@ -1589,17 +1589,17 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 			$value = ( is_scalar( $raw ) && '' !== (string) $raw ) ? (string) $raw : '';
 			if ( '' === $value ) {
 				return '' !== $fallback
-					? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+					? bws_gb_tag_output( $fallback, $options, $instance )
 					: '';
 			}
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $value, $options, $instance );
+			return bws_gb_tag_output( $value, $options, $instance );
 
 		case 'content':
 			$bio = get_the_author_meta( 'description', $user_id );
 			if ( ! is_string( $bio ) || '' === $bio ) {
 				return '';
 			}
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+			return bws_gb_tag_output(
 				bws_sanitize_rich_content( $bio ),
 				$options,
 				$instance
