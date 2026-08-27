@@ -11,6 +11,9 @@ See README.md for overview, docs/tag-reference.md for architecture, and CHANGELO
 
 == Upgrade Notice ==
 
+= 1.19.0 =
+⚠ Calling bws_get_loop_row_context() from custom code? Renamed to bws_get_loop_item_context(), no compatibility shim; search your code before updating. Separately, tags in a query loop over terms or users now read that term or user, not an unrelated post.
+
 = 1.18.0 =
 ⚠ Two changes and a fix. Taxonomy-sourced Content, Permalink and Image tags show the first term only now, not the first with a filled field. Drafts and private posts resolve only for users allowed to see them; trashed posts never. The Migration Tool stops re-listing image tags it cannot convert.
 
