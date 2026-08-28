@@ -474,6 +474,8 @@ the first refuses, the second resolves the ambient entity. Which shape an item I
 listed above as a consequence of that decision, and the predicate assigning one, along with the
 residual hole it cannot close, live only there.
 
+**`item_post_id` is an identity, not a permission (v1.19.0).** It names the loop item's post whatever that post's status is, and reading a field off it goes through the same source gate a chain-resolved post passes, so a post the gate refuses reads nothing.
+
 ### Preview helpers (`includes/helpers/preview-helpers.php`)
 
 | Function | Purpose |

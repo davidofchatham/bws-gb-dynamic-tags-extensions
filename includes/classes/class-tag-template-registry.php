@@ -57,9 +57,9 @@ class TagTemplateRegistry {
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
 	 *   takes_first_usable    bool     The tag emits at most ONE result: the read of the FIRST
-	 *                    USABLE source its chain produces — usable = resolvable × exists ×
-	 *                    visible (the engine gate), NEVER field-populated, so the read may
-	 *                    be empty and selection is field-independent (ADR 0007, the
+	 *                    USABLE source its chain produces — usable is the engine gate's
+	 *                    question and bws_source_gate() states it, NEVER field-populated,
+	 *                    so the read may be empty and selection is field-independent (ADR 0007, the
 	 *                    2026-08-21 reversal). THE AXIS, owned here: keyed on the template's
 	 *                    DISPOSITION toward a plural resolved-source list — NOT on list mode
 	 *                    and NOT on any list flag, because `{{table}}` (no list mode, the
