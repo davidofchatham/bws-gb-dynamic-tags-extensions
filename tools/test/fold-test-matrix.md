@@ -874,6 +874,36 @@ evidence that a passing row is testing anything.
 | F17.8 | both (identical) | `{{text src:refs,trash_ref\|use:key\|key:name_first\|limit:1}}` | `Grace` | TRASHED: the one status where `exists` passes and `visible` fails for EVERYONE. WP maps `read_post` on trash toward `edit_post`, so a capability-only gate prints `Trish` to an administrator and nothing to a visitor — while WP's own front end 404s a trashed permalink for both. A deletion state is not a publication state |
 | F17.9 | both (identical) | `{{text src:refs,feature_image\|use:title}}` | `Fixture Photo` | ATTACHMENT AS A SOURCE: an attachment stores the INTERNAL `inherit`, which resolves to the parent's status (or `publish` when unattached). Raw-column testing dropped every attachment for visitors only. Invisible to every other row, because plain `{{image}}` reads never enter the pipeline |
 
+## §F18 — the same gate, on a QUERY LOOP item (#122)
+
+All rows on **`/matrix-gate/`**, over the same four staff singles §F17 uses, reached the other way: not through a chain the wire states but through the loop's own item, which `bws_read_field()` used to read straight to a meta call with no gate at all. The loop is scoped by `post_name__in`, not by id, so a reseed cannot repoint it, and it names `post_status` explicitly.
+
+**THE LOGGED-OUT ARM IS VACUOUS, AND THAT IS THE FINDING RATHER THAN A FIXTURE FAULT.** GenerateBlocks clamps a non-`publish` `post_status` back to `publish` for any viewer lacking `read_private_posts` (`class-query-loop.php` and `class-query-utils.php` both carry the clamp), so a visitor's loop is handed one item and the three unreadable ones never arrive. Measured 2026-08-28: with the gate call deleted, the whole section renders byte-identically for an anonymous viewer. **The leak was never reachable through an ordinary GB query loop by a logged-out visitor**, which settles the reachability question issue #122 left open and is the opposite of what the issue's headline implied.
+
+**The arm where it IS reachable is a viewer WITH `read_private_posts`.** There the clamp does not fire, all four items present, and the pre-fix build printed **Trish** off a TRASHED post beside the three readable ones. That is the live defect: not a visitor reading drafts, but a privileged viewer reading trash, which is the one status 1.18.0 promised resolves for nobody at all. Draft and private printing to that viewer is the gate working, not the leak.
+
+**The clamp is GB's, not ours, and is not a second gate we may lean on.** It bounds one query builder's args; a loop fed by a query extension, a `pre_get_posts` filter, or GB Pro's own related-query classes is not bounded by it, and neither is `wp bws render-tag --loop-item=<id>`, which is how the leak was found. The guard's absence was the defect whatever any one caller happens to pass.
+
+**The privileged arm was measured on the FRONT END, not in the editor**, and the distinction is load-bearing here in a way it is not in §F17: the editor is a surface §F18's own divergence row expects to disagree, so measuring the mutation evidence there would prove the wrong thing. The run was the page's own content through `do_blocks()` under `wp_set_current_user( 1 )`, which is a front-end render with a privileged viewer — the arm a logged-in visitor gets, reproducible without a session cookie. The logged-out arm is curl `/matrix-gate/?nocache=`, as §F17's is. The synthetic arm reaches the read on ANY viewer and is how the leak was found:
+
+```
+bin/wp.sh testbed bws render-tag '{{text key:name_first}}' --loop-item=<staff id>            # anonymous
+bin/wp.sh testbed bws render-tag '{{text key:name_first}}' --loop-item=<staff id> --user=1   # administrator
+```
+
+The staff ids come from `wp post list --post_type=staff --post_status=publish,draft,private,trash --fields=ID,post_name,post_status`; never hard-code them, since a reseed is free to move them. **Measured 2026-08-28, both arms, all rows as stated, against the fix and against the gate call deleted.**
+
+| # | Viewer | Tag (inside the loop) | Expect | Why |
+|---|---|---|---|---|
+| F18.1 | anonymous | `{{text key:name_first}}` | `Grace` | VACUOUS, deliberately kept: GB's clamp leaves one item, so this arm reads the same with the gate deleted. It is here because a row that only ever ran privileged would read as an admin-only concern, and F18.2 is what says why this arm proves nothing |
+| F18.1b | administrator | same tag | `Dana`, `Paul`, `Grace` | THE ROW. Four items present; the two the viewer may read resolve, the published one resolves, and the TRASHED one refuses. Pre-fix this printed a fourth line, `Trish` — the mutation evidence, without which a passing row is testing nothing |
+| F18.2 | anonymous | `{{loop_index}}` | `1` | NON-VACUITY, and the reachability answer. The index counts what the QUERY presented, before any gate of ours, so a one-line answer names GB's clamp as the reason F18.1 is quiet rather than our gate |
+| F18.2b | administrator | same tag | `1`, `2`, `3`, `4` | The other half: four items really do reach the loop for this viewer, so F18.1b's three lines are a refusal and not a short query |
+| F18.1c | administrator, **in the EDITOR** | same tag as F18.1b | `Dana`, `Paul`, `Grace` | THE DIVERGENCE ROW, and it is EXPECTED rather than a defect. The gate ends in `current_user_can( 'read_post' )`, so an editor preview shows an administrator values a logged-out visitor's front end does not — the same viewer-relative behaviour 1.18.0 accepted for the chain route (§F17.2), reached through the loop instead. Trash is refused in BOTH surfaces, which is what separates "this viewer may read it" from "this content resolves for nobody". A run finding the editor and the front end disagreeing on draft or private has measured the design, not a bug |
+| F18.3 | both | `{{try_text A:key(name_first)}}` | as F18.1 / F18.1b | The `try_` family reaches the same read through the loop fallthrough (a slot stating no source of its own), so it must blank with it. A `try_` arm that kept rendering here would mean the fallthrough had grown its own ungated read |
+
+> **The repeater-row path must NOT move, and §F9c is what says so.** A GB Pro repeater row has no post behind it, so the loop branch it uses never reaches the gate at all — what the gate would do with a `meta_row` source is `bws_source_gate()`'s own PHPDoc, and no row here pins it. A fix that refused falsy ids wholesale would blank every §F9c row, which is the failure to check for first if this section and that one ever go red together.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

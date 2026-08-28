@@ -1358,7 +1358,7 @@ function bws_base_user_ids_from_source( array $base, array $options ): array {
  * The FIRST usable post's read, off a base tag's whole chain (ADR 0007, [I19]).
  *
  * The collapsing callbacks' shared POST route: the unbounded fan (every step limit
- * stripped) arrives already gated (bws_source_gate — resolvable × exists × visible),
+ * stripped) arrives already gated (bws_source_gate, whose PHPDoc states the criterion),
  * and bws_read_bounded_sources() at n = 1 with NO predicate reads the FIRST source only,
  * returning its read even conceptually-empty (the wrapper renders '' then). It does
  * NOT search past an empty field — selection is field-independent (the 2026-08-21

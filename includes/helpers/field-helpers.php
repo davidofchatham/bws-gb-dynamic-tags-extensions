@@ -373,6 +373,14 @@ function bws_loop_item_user_id( $item ): int {
  * Anything reading it as "the loop's entity" is reading it wrong; `item_kind` +
  * `item_id` are what carry the entity.
  *
+ * IT IS ALSO UNGATED — a bare identity, carrying no claim that the viewer may read the
+ * post it names. Code about to READ off it wants bws_loop_item_gated_post_id() (#122);
+ * this key is what that helper is derived FROM. Three things read it: that helper, then
+ * bws_resolve_base_source(), whose own route is gated one layer down by
+ * bws_run_traversal, and a debug probe that only REPORTS the identity and never reads a
+ * field off it. loop-item-classify-test.php §C8.7 is a tree-wide census that fails by
+ * name when a fourth appears, because a consumer forgetting to gate is how #122 was made.
+ *
  * `in_loop` MEANS "AN ITEM IS PRESENT" AND NOTHING MORE — not that a field read can
  * be served from it. Through 1.18.x the two coincided, because the only items
  * recognized were the two that a read CAN be served from; they no longer do. A caller
@@ -482,6 +490,58 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
 }
 
 /**
+ * The query loop item's post id, GATED — or false when it may not be read.
+ *
+ * THE SAME GATE A CHAIN-RESOLVED SOURCE PASSES, applied to the entity a loop item
+ * names. bws_source_gate() (traversal-pipeline.php) owns the axis and states it; this
+ * function owns nothing but the decision to apply it here, and deliberately does not
+ * restate what it decides. `item_post_id` on the context is the UNGATED identity and
+ * stays that way; a caller about to READ off a loop item wants this instead.
+ *
+ * WHY IT EXISTS (#122). Two things answer "which entity does this tag read", and
+ * until 1.19.0 only one of them was gated: bws_resolve_base_source() turns a loop
+ * item into a {kind:post} source and bws_run_traversal gates it, while
+ * bws_read_field() read `item_post_id` straight through to a meta read. A draft, a
+ * private post and a TRASHED one all rendered their meta inside a query loop — the
+ * last of them for every viewer including none, which contradicts the 1.18.0 gate
+ * outright rather than merely falling short of it.
+ *
+ * THE FACTORY ROUTE DOES NOT SHARE THIS, DELIBERATELY, and must not be "unified"
+ * with it. Both call bws_source_gate(), so the criterion is single-owned; what
+ * differs is the LAYER, and a refusal costs a different thing at each. At the factory
+ * a refused post is removed from the FAN, which changes WHICH ARM RUNS — a post-kind
+ * source that becomes nothing there falls into the meta_row / fallthrough territory
+ * the repeater-row rendering depends on (tools/test/fold-test-matrix.md §F9c, whose
+ * own note says that fallthrough "is the only thing that renders these rows at all").
+ * Here the arm is already chosen and a refusal only stops the read.
+ *
+ * REFUSING IS A HARD STOP AT THE CALL SITE, not a skipped branch — bws_read_field()'s
+ * loop branch states why, beside the return that does it.
+ *
+ * NO function_exists() GUARD on the gate, deliberately. traversal-pipeline.php is
+ * required one line before this file in the plugin bootstrap, so a guard defends a
+ * state that cannot occur — and if it ever could, the guard would make the refusal
+ * disappear silently and hand back the unreadable post's value again. That is the
+ * defect, not a degradation of it. Same posture, and the same reasoning, as
+ * bws_base_read_refused().
+ *
+ * @since 1.19.0
+ * @param mixed $instance Block instance (WP_Block) or anything else.
+ * @return int|false The post id when the gate passes; false otherwise.
+ */
+if ( ! function_exists( 'bws_loop_item_gated_post_id' ) ) {
+function bws_loop_item_gated_post_id( $instance ) {
+	$post_id = bws_get_loop_item_context( $instance )['item_post_id'];
+	if ( ! $post_id ) {
+		return false;
+	}
+	return bws_source_gate( array( 'kind' => 'post', 'id' => (int) $post_id ) )
+		? (int) $post_id
+		: false;
+}
+}
+
+/**
  * Read a meta/ACF field for a post-like context.
  *
  * Routes through GenerateBlocks_Meta_Handler so GB Pro's ACF integration fires
@@ -490,7 +550,8 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  *
  * Branching order:
  *  1. $post_id > 0 (explicit caller-resolved target)  → read post meta on that id
- *  2. The query loop's post (no explicit id)          → read post meta on it
+ *  2. The query loop's post (no explicit id)          → read post meta on it, or STOP
+ *                                                       when the source gate refuses it
  *  3. The query loop's repeater row (no explicit id)  → read $loop_item[$key] directly
  *  4. Term archive (non-REST, no explicit id)             → read term meta on queried term
  *  5. null
@@ -501,6 +562,11 @@ function bws_loop_item_is_post_or_row( $instance ): bool {
  * this function, by the source factory, and reaches the term/user reader arms rather
  * than a post-meta read. Nothing here needs to know that; the branch order already
  * expresses it, and this note exists so the fallthrough is not read as a hole.
+ *
+ * A LOOP POST THE SOURCE GATE REFUSES STOPS THE READ AT BRANCH 2 — it does not continue
+ * to 3 or 4, and returning null there is the point rather than a shortcut (#122).
+ * bws_loop_item_gated_post_id() owns the decision to apply the gate here and owns why
+ * the factory route does not share it; bws_source_gate() owns the criterion itself.
  *
  * INVARIANT: An explicit `$post_id` passed by the caller always wins over loop-item
  * inference. Try-loop `src:ref` slots resolve a target post via `bws_resolve_post_by_source()`
@@ -532,9 +598,16 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 
 	$loop = bws_get_loop_item_context( $instance );
 	if ( $loop['in_loop'] && ! $has_explicit_post_id ) {
-		// A post — read its meta.
+		// A post — read its meta, if it may be read at all (#122).
+		// THE REFUSAL RETURNS, it does not fall through to the branch below. A post item's
+		// raw value is a WP_Post or an id rather than an array, so a merely-skipped branch
+		// walks on to the TERM-ARCHIVE read and serves the SURROUNDING archive's meta:
+		// the [I15] failure, and worse than the leak it would be replacing.
 		if ( $loop['item_post_id'] ) {
-			return bws_meta_handler_read( (int) $loop['item_post_id'], $key, $single_only, 'get_post_meta' );
+			$gated = bws_loop_item_gated_post_id( $instance );
+			return $gated
+				? bws_meta_handler_read( $gated, $key, $single_only, 'get_post_meta' )
+				: null;
 		}
 		// A repeater row — no entity behind it; read the row directly.
 		if ( is_array( $loop['loop_item'] ) ) {
@@ -994,9 +1067,9 @@ function bws_collect_value_list( array $items, callable $render, array $options 
  * only EMPTY VALUES ('' / false / null) are dropped from the RETURN — never from
  * the count. So `limit:3` can print two, a collapsing tag at $n = 1 outputs its
  * first source's read even when that read is empty, and adjacent tags on the same
- * source path always read the same entities. Which sources are ELIGIBLE at all is
- * the engine gate's axis (bws_source_gate, traversal-pipeline.php — resolvable ×
- * exists × visible), decided before this function ever sees them.
+ * source path always read the same entities. Which sources are ELIGIBLE at all is a
+ * different axis, owned by bws_source_gate() (traversal-pipeline.php) and stated there,
+ * decided before this function ever sees them.
  *
  * THE $populated PREDICATE IS A DORMANT SEAM (FW-88), called by nothing shipped.
  * When supplied, the walk becomes collect-then-slice: a source whose reads all

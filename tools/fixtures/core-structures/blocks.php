@@ -1344,6 +1344,12 @@ function bws_fixture_page_content_matrix_fixture_roots() {
  * F17.1b is the non-vacuity row and is not optional: without it every gate row
  * could be passing because `gate_staff` is unseeded, which looks exactly the same
  * from the front end.
+ *
+ * §F18 (1.19.0, #122) reaches the SAME criterion through a query loop's own item
+ * rather than through a chain, and it inverts the reading instruction above: those
+ * rows are VACUOUS logged out and are measured in the PRIVILEGED arm, because GB
+ * clamps a non-publish post_status back to publish for anyone without
+ * `read_private_posts`. F18.2 is the row that says so; see the note above the group.
  */
 function bws_fixture_page_content_matrix_gate() {
 	$sections = array();
@@ -1356,6 +1362,46 @@ function bws_fixture_page_content_matrix_gate() {
 		bws_fixture_gb_row( 'F17.6/F17.7 WHO IS ASKING, not who is logged in: the draft is owned by fixture-author, so THAT user reads it (-> Dana) while a different author-role user does not (-> Grace). Both arms are logged in; only the owner differs', '{{content src:refs,gate_staff|use:key|key:name_first}}' ),
 		bws_fixture_gb_row( 'F17.8 TRASHED: trash_ref is plain meta naming a TRASHED post ahead of a live one. A trashed post EXISTS, so this is the visible half - and it is refused for EVERY viewer, so limit:1 reaches Grace here and in the editor alike (-> Grace, both)', '{{text src:refs,trash_ref|use:key|key:name_first|limit:1}}' ),
 		bws_fixture_gb_row( 'F17.9 ATTACHMENT AS A SOURCE: hopping onto an image field reaches an attachment, whose stored status is the INTERNAL inherit - a gate reading that column raw drops it for logged-out visitors only. Same value in both arms (-> Fixture Photo)', '{{text src:refs,feature_image|use:title}}' ),
+	) );
+
+	// F18 — the gate's SECOND application site (#122). Same four staff singles as F17
+	// and the same criterion, reached the other way: not through a chain the wire
+	// states, but through the QUERY LOOP's own item. Scoped by post_name rather than
+	// by id, so a reseed cannot silently repoint it.
+	//
+	// THESE ROWS ARE VACUOUS LOGGED OUT, AND THAT IS THE MEASUREMENT, not a fixture
+	// fault. GB clamps a non-`publish` post_status back to `publish` for any viewer
+	// without `read_private_posts` (class-query-loop.php / class-query-utils.php), so
+	// a visitor's loop is handed one item and the unreadable three never arrive.
+	// Measured 2026-08-28: the whole section renders identically with the gate call
+	// deleted. The arm where it is NOT vacuous is a viewer who HAS that capability,
+	// where all four items present and the pre-fix build printed TRISH — a trashed
+	// row, which is the one status 1.18.0 promised resolves for nobody at all. F18.2
+	// is what keeps the logged-out arm honest instead of looking like a passing test.
+	$gate_loop_query = array(
+		'post_type'      => 'staff',
+		'post_name__in'  => array( 'gate-draft', 'gate-private', 'gate-public', 'gate-trashed' ),
+		'post_status'    => array( 'publish', 'draft', 'private', 'trash' ),
+		'orderby'        => 'post_name__in',
+		'posts_per_page' => 4,
+	);
+
+	$sections[] = bws_fixture_gb_section( 'Fold F18 - the source gate on a QUERY LOOP item (#122)', array(
+		bws_fixture_gb_query_loop(
+			$gate_loop_query,
+			'F18.1 THE LEAK ROW - a meta read off the loop item, whose post is a draft, a private, a published and a TRASHED staff single in that order. Logged out ONE line prints and the row proves nothing (-> Grace, gate or no gate - see F18.2). As an ADMINISTRATOR three print (-> Dana, Paul, Grace); the pre-fix build printed a fourth, Trish, off a TRASHED post: {{text key:name_first}}',
+			'f18-1-loop-gate-leak'
+		),
+		bws_fixture_gb_query_loop(
+			$gate_loop_query,
+			'F18.2 WHY F18.1 IS VACUOUS LOGGED OUT - the loop index counts the items the QUERY presented, before any gate of ours. Logged out ONE line (-> 1): GB clamps post_status back to publish for a viewer without read_private_posts, so the unreadable three never reach the loop. As an administrator FOUR (-> 1, 2, 3, 4), which is the arm F18.1 and F18.3 are actually measured in: {{loop_index}}',
+			'f18-2-loop-gate-count'
+		),
+		bws_fixture_gb_query_loop(
+			$gate_loop_query,
+			'F18.3 THE SAME GATE THROUGH THE try_ FAMILY - a slot with no source of its own takes the loop fallthrough and lands on the same read, so it must blank with it. Same two arms as F18.1 (-> Grace logged out; Dana, Paul, Grace as an administrator): {{try_text A:key(name_first)}}',
+			'f18-3-loop-gate-try'
+		),
 	) );
 
 	return implode( "\n\n", $sections );

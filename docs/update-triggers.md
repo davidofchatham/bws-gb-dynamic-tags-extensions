@@ -198,9 +198,13 @@ run `tools/test/limit-default-test-matrix.md` against the testbed (see [testbed.
 
 ## Source-gate change
 
-**Fires on:** source-gate change (`bws_source_gate()` in `includes/helpers/traversal-pipeline.php`, or the `$gate` parameter threading it through `bws_run_traversal` and applying it to the initial source list and each hop's emissions)
+**Fires on:** source-gate change (`bws_source_gate()` in `includes/helpers/traversal-pipeline.php`, or the `$gate` parameter threading it through `bws_run_traversal` and applying it to the initial source list and each hop's emissions), or a change to the gate's SECOND application site — `bws_loop_item_gated_post_id()` in `includes/helpers/field-helpers.php` and the `bws_read_field()` loop branch that calls it
 
-run `php tools/test/traversal-pipeline-test.php`, then the fold matrix's [§F17](../tools/test/fold-test-matrix.md) rows and `verify.php`'s gate section against the testbed (see [testbed.md](testbed.md)).
+run `php tools/test/traversal-pipeline-test.php` and `php tools/test/loop-item-classify-test.php`, then the fold matrix's [§F17](../tools/test/fold-test-matrix.md) and [§F18](../tools/test/fold-test-matrix.md) rows and `verify.php`'s gate section against the testbed (see [testbed.md](testbed.md)).
+
+**ONE CRITERION, TWO APPLICATION SITES (#122).** `bws_source_gate()` is the axis and both routes call it, so the criterion never forks; what forks is the layer, and a refusal costs a different thing at each. A change to one site is therefore not automatically owed to the other, and "unify them" is a change in behaviour rather than a tidy. `bws_loop_item_gated_post_id()`'s PHPDoc holds the argument for why they are separate, and is where to argue with it.
+
+**The loop-route refusal must RETURN, not skip.** `bws_read_field()`'s later branches would otherwise serve the surrounding archive's term meta, which is a plausible value from an entity the wire never named and strictly worse than the leak it replaces. §C8.3 pins the stop and §C8.4 is what stops §C8.3 passing because the fallback was broken; mutating the `return` into an `if` fails §C8.3 alone, which is the shape of the failure to expect.
 
 **The harness cannot reach the real gate, by construction.** `bws_source_gate()` names WP symbols, so `traversal-pipeline-test.php` injects its own predicate — what it pins is the ENGINE's contract (a gated-out source is dropped before that hop's limit slice and spends no budget; a gated-out entity cannot be a stepping stone), never the deciding rule. A green harness after a gate-body edit proves nothing about the edit. §F17 and `verify.php` are the only pins the body has.
 
