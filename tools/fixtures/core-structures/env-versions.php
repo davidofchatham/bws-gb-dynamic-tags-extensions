@@ -52,7 +52,23 @@
 return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
-	'captured' => '2026-08-24',
+	//
+	// THE 2026-08-28 RE-CAPTURE MOVED EVERY PAGE, AND NO RENDERED TAG MOVED WITH THEM.
+	// Two co-resident BWS plugins (`bws-sticky-header` and the viewport-height styles
+	// beside it) were ACTIVE when the previous baseline was taken and are inactive now,
+	// so their stylesheet and inline-CSS blocks left the document head and every line
+	// after them shifted. That is the whole of a 252-line deletion; the recapture was
+	// verified against a page diff carrying no tag output at all.
+	//
+	// NEITHER IS RECORDED BELOW, and their absence is not an omission to repair: this
+	// record holds what was PRESENT at capture, so an entry for a plugin the baseline
+	// was taken WITHOUT would assert the opposite of the truth. The note is the record.
+	// What it exposes is that ANY plugin toggling on the fixture site reshuffles every
+	// baseline, since the normalizer keeps third-party `<link>` and `<style id>` lines
+	// and only blanks their bodies. Teaching it to drop non-fixture assets is tracked
+	// rather than done here — that is a page-snapshot INSTRUMENT change with its own
+	// trigger, and burying it in a recapture is how an instrument change goes unread.
+	'captured' => '2026-08-28',
 
 	// Keyed by plugin FILE (the `plugin_basename()` form), because that is the key
 	// `get_plugins()` returns and the only identifier that survives a display-name
@@ -65,7 +81,7 @@ return array(
 		),
 		'generateblocks-pro/plugin.php' => array(
 			'label'    => 'GenerateBlocks Pro',
-			'version'  => '2.7.0',
+			'version'  => '2.7.1',
 			'required' => true,
 		),
 		// Recorded for a reason no fixture row shows: it supplies no row's content, it
