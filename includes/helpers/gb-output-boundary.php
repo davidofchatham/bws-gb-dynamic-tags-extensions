@@ -119,6 +119,11 @@ const BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM = '2.4.1';
  * before it left us; publishing it said otherwise. Nothing here is conditional on which
  * extension is installed, because the statement being fixed is about our boundary.
  *
+ * The decision that produced this boundary -- the four measured findings, why the fix strips at
+ * OUR edge rather than conditioning on any extension, and why the allowlist is a recorded constant
+ * -- is `docs/design-history/query-extension-interop.md`. Provenance only: that file records what
+ * was decided in 1.19.0 and is never corrected, so the rule above is what binds, not it.
+ *
  * $instance is passed through untouched: it is GB's own block instance, not our options.
  *
  * @since 1.19.0
