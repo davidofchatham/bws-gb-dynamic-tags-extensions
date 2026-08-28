@@ -130,6 +130,14 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 | Claude in-repo behavior + this policy | `CLAUDE.md` | Dependencies, dev workflow, and the §Update triggers INDEX (last section — trigger + harnesses + link); all schema and all trigger RULES deferred to `docs/` |
 | Agent-skill config (issue tracker, triage labels, domain doc layout) | `docs/agents/*.md` | Consumed by Pocock engineering skills; set via `/setup-matt-pocock-skills` |
 
+### Line wrapping
+
+**Markdown prose is NOT hard-wrapped. One paragraph, one line.** Blank lines separate blocks; table rows, list items and code blocks keep their own lines. This is a readability and diff convention, not a rendering one — no renderer is claimed to break on wrapped repo files. A fixed wrap column fights every window that is not that width, and editing one word inside a wrapped paragraph rewrites every line after it, so the diff shows a paragraph changing where a word did.
+
+**One rule, no exceptions by destination.** A per-surface split was considered and rejected: it depends on remembering where a file is headed, and the case that motivated the rule is exactly a draft written to be read as a file and then posted verbatim. `docs/agents/issue-tracker.md` states what the same rule costs on a POSTED surface, where GitHub's line-break extension turns the wrap into visible mid-sentence breaks.
+
+**Going forward only, decided 2026-08-28.** 44 of 58 tracked `.md` files were hard-wrapped when the rule was set; converting them in one pass would rewrite nearly every prose line in the repo and point `git blame` for the whole doc corpus at that commit. Unwrap a file's prose when you are already editing it, and leave the rest alone.
+
 ### This file's own budget
 
 **CLAUDE.md carries RULES; the commit body carries the INSTANCE that produced them.** Test: would the

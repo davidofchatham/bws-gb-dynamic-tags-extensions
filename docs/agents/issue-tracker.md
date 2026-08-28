@@ -63,9 +63,9 @@ A paragraph wrapped at 100 columns therefore renders with a break every 100 char
 and the damage is worse on a narrow screen than on the desktop width it was wrapped for. One
 paragraph, one line; blank lines separate blocks; tables and list items keep their own lines.
 
-This bites specifically when a `.scratch/` draft becomes a post. Files in the repo and under
-`.scratch/` are read raw and SHOULD wrap; commit messages should too, since git never reflows them.
-Unwrap at the moment of posting, not in the source.
+This is the same shape as the house Markdown convention (`CLAUDE.md` §Line wrapping) and lands here
+because the consequence is different: elsewhere hard wrap costs readability and diff churn, and on a
+posted surface it is visible breakage in the rendered text.
 
 ## When a skill says "fetch the relevant ticket"
 
