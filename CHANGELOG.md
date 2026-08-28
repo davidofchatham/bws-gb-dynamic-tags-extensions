@@ -4,9 +4,9 @@
 
 ### Highlights
 
-- Tags inside a query loop over terms or users now read that term or user. They had been reading an unrelated post that happened to share the ID, which on a fresh install is most of them. *(Fixed)*
-
 - **Calling `bws_get_loop_row_context()` from your own code? It is `bws_get_loop_item_context()` now, with no compatibility alias.** Search your code for the old name before you update. *(Changed)*
+
+- Tags inside a query loop over terms or users now read that term or user. They had been reading an unrelated post that happened to share the ID, which on a fresh install is most of them. *(Fixed)*
 
 - WooCommerce product loops render nothing after this update. A loop item whose shape this plugin cannot identify no longer resolves at all, and a product is one of those shapes. *(Changed)*
 

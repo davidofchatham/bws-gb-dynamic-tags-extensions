@@ -691,7 +691,7 @@ function my_result( $post_id, $arg = '' ) {
 							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
 						</p>
 					</div>
-					<h3 class="bws-subhead"><?php esc_html_e( 'Registered functions', 'generateblocks' ); ?></h3>
+					<h3 class="bws-subhead"><?php esc_html_e( 'Registered Functions', 'generateblocks' ); ?></h3>
 					<table class="bws-tags-table widefat">
 						<tbody>
 						<?php if ( empty( $bws_call_rows ) ) : ?>

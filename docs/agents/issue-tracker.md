@@ -57,6 +57,16 @@ A bare integer is ambiguous between all three. `FW-71` and `#71` are different t
 - A **bug**, or anything whose record must outlive the change → `gh issue create`.
 - Unsure → ask. Do not default to GitHub.
 
+**Text that will be POSTED is not hard-wrapped.** GitHub renders issue comments, issue bodies, PR
+bodies and review comments with GFM's line-break extension, where a single newline becomes a `<br>`.
+A paragraph wrapped at 100 columns therefore renders with a break every 100 characters, mid-sentence,
+and the damage is worse on a narrow screen than on the desktop width it was wrapped for. One
+paragraph, one line; blank lines separate blocks; tables and list items keep their own lines.
+
+This bites specifically when a `.scratch/` draft becomes a post. Files in the repo and under
+`.scratch/` are read raw and SHOULD wrap; commit messages should too, since git never reflows them.
+Unwrap at the moment of posting, not in the source.
+
 ## When a skill says "fetch the relevant ticket"
 
 A path → read the file. A bare `#42` → `gh issue view 42 --comments`.
