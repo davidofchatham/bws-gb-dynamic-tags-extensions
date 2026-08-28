@@ -136,6 +136,8 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 
 **One rule, no exceptions by destination.** A per-surface split was considered and rejected: it depends on remembering where a file is headed, and the case that motivated the rule is exactly a draft written to be read as a file and then posted verbatim. `docs/agents/issue-tracker.md` states what the same rule costs on a POSTED surface, where GitHub's line-break extension turns the wrap into visible mid-sentence breaks.
 
+**Commit messages are the one surface that stays wrapped, confirmed 2026-08-28.** They are not Markdown, git never reflows them, and `git log` does not soft-wrap — so the reason the rule exists inverts there. "No exceptions by destination" is about where a Markdown file is HEADED, which is what a reader cannot be relied on to remember; a commit message is a different kind of artifact, not a destination a doc might travel to.
+
 **Going forward only, decided 2026-08-28.** 44 of 58 tracked `.md` files were hard-wrapped when the rule was set; converting them in one pass would rewrite nearly every prose line in the repo and point `git blame` for the whole doc corpus at that commit. Unwrap a file's prose when you are already editing it, and leave the rest alone.
 
 ### This file's own budget
