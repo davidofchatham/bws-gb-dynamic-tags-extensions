@@ -319,7 +319,7 @@ class SettingsPage {
 	}
 
 	/**
-	 * Build the read-only tag-name-conflict rows for the Integration Status block.
+	 * Build the read-only tag-name-conflict rows for the Tag Name Conflicts block.
 	 *
 	 * A MIRROR OF THIS REQUEST'S COLLISION RECORD, in the order the page shows it.
 	 * bws_gb_tag_name_collisions() (includes/helpers/gb-registration-boundary.php) owns the
@@ -1079,7 +1079,7 @@ function my_result( $post_id, $arg = '' ) {
 					</table>
 				</div>
 
-				<?php /* ── Integration Status (read-only; NOT config, changes nothing) ── */ ?>
+				<?php /* ── Tag Name Conflicts (read-only; NOT config, changes nothing) ── */ ?>
 				<?php
 				// The read happens HERE, at render, and that is load-bearing: the collision record
 				// is request-scoped and is only complete after `wp_loaded`. See
@@ -1087,20 +1087,29 @@ function my_result( $post_id, $arg = '' ) {
 				$bws_collisions = self::get_tag_collision_status();
 				?>
 				<div class="bws-tag-group">
-					<h2 class="bws-section-header"><?php esc_html_e( 'Integration Status', 'generateblocks' ); ?></h2>
+					<?php
+					// ONE HEADING OVER ONE TABLE, and the heading names the subject rather than the
+					// category. It was built as `Integration Status` with a `Tag name conflicts`
+					// subhead under it, which was right while the block had a SECOND subsection --
+					// dependency-version drift, cut on 2026-08-26 and deferred as FW-99. With one
+					// subject left, the broad name promised a breadth the table does not have, and
+					// the subhead restated the H2 one line below it.
+					//
+					// The subhead's own reason is DISCHARGED, not overridden: it existed because the
+					// table has no <caption> and would otherwise be unlabelled to a reader navigating
+					// by heading. The H2 now sits directly above the table and is that label.
+					//
+					// If FW-99 lands this widens again -- a second subsection needs a category name
+					// back. That is a rename of a user-visible heading, so it is a decision then, not
+					// a reversal of this one.
+					?>
+					<h2 class="bws-section-header"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></h2>
 					<div class="bws-section-desc">
 						<p style="margin-top:0">
 							<?php esc_html_e( 'Read-only. One thing can change what your tags output with nothing in your content having changed: another plugin claiming one of this plugin\'s tag names.', 'generateblocks' ); ?>
 						</p>
 					</div>
 
-					<?php
-					// The subhead stays with one subsection under it. It is the table's only label --
-					// there is no <caption> -- so a reader navigating by heading loses what the table
-					// lists without it. It is not a leftover of the dependency-versions half that was
-					// cut on 2026-08-26 (FW-99); that half took its own subhead with it.
-					?>
-					<h3 class="bws-call-subhead"><?php esc_html_e( 'Tag name conflicts', 'generateblocks' ); ?></h3>
 					<table class="bws-tags-table widefat">
 						<tbody>
 						<?php if ( empty( $bws_collisions ) ) : ?>

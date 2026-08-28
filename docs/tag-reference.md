@@ -509,7 +509,7 @@ rather than a silent non-event.
 
 The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
 tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
-to show it. The shipped surface for that record is the settings page's **Integration Status** block,
+to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts** block,
 which names the tag, which of the three happened, and the other plugin. Why the constructors differ,
 what decides that a tag is still ours, when a report is repeated and when it is not, and which
 collision no detection can see are stated at
@@ -704,7 +704,7 @@ The term_ modifier produces additional tags with GB type `'term'`: `term_text`, 
 another plugin already holds one of these names, the tag of that name is theirs and nothing
 described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
 outcome means, and the reader's own site answers which case it is, in the `yielded` rows of the
-settings page's **Integration Status** block. Measured on the reference fixture site 2026-08-26: GB
+settings page's **Tag Name Conflicts** block. Measured on the reference fixture site 2026-08-26: GB
 Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
 examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
 on a site without that plugin.
