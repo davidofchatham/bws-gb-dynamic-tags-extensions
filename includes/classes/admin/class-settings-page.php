@@ -319,7 +319,7 @@ class SettingsPage {
 	}
 
 	/**
-	 * Build the read-only tag-name-conflict rows for the Tag Name Conflicts block.
+	 * Build the read-only tag-name-conflict rows for the Tag Name Conflicts subsection.
 	 *
 	 * A MIRROR OF THIS REQUEST'S COLLISION RECORD, in the order the page shows it.
 	 * bws_gb_tag_name_collisions() (includes/helpers/gb-registration-boundary.php) owns the
@@ -1070,7 +1070,7 @@ function my_result( $post_id, $arg = '' ) {
 					// LATER look. Ordering by what is read rather than by what is editable also
 					// keeps the one subsection that can carry a warning above the fold.
 					//
-					// Tag name conflicts was its own H2 until this. It was `Integration Status` with
+					// Tag Name Conflicts was its own H2 until this. It was `Integration Status` with
 					// a subhead before that, narrowed on 2026-08-26 when its second subsection
 					// (dependency-version drift) was cut and deferred as FW-99, on the rule that one
 					// heading over one table names the subject rather than the category. The rule
@@ -1082,14 +1082,14 @@ function my_result( $post_id, $arg = '' ) {
 					?>
 					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
 
-					<?php /* ── Tag name conflicts (read-only; NOT config, changes nothing) ── */ ?>
+					<?php /* ── Tag Name Conflicts (read-only; NOT config, changes nothing) ── */ ?>
 					<?php
 					// The read happens HERE, at render, and that is load-bearing: the collision
 					// record is request-scoped and is only complete after `wp_loaded`. See
 					// get_tag_collision_status().
 					$bws_collisions = self::get_tag_collision_status();
 					?>
-					<h3 class="bws-subhead" id="bws-tag-name-conflicts"><?php esc_html_e( 'Tag name conflicts', 'generateblocks' ); ?></h3>
+					<h3 class="bws-subhead" id="bws-tag-name-conflicts"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></h3>
 					<?php
 					// TWO USER-FACING STATES OVER THE RECORD'S THREE OUTCOMES, and the map from one
 					// to the other lives HERE, at the only surface that collapses them. The record
@@ -1258,10 +1258,10 @@ function my_result( $post_id, $arg = '' ) {
 								<?php if ( empty( $bws_c_seen[ $bws_c_key ] ) ) : ?>
 									<?php continue; ?>
 								<?php endif; ?>
-								<h3>
+								<h4>
 									<span class="<?php echo 'warn' === $bws_c_state['icon'] ? 'bws-call-warn' : 'bws-call-info'; ?>" aria-hidden="true"><?php echo 'warn' === $bws_c_state['icon'] ? '⚠' : 'ℹ'; ?></span>
 									<?php echo esc_html( $bws_c_state['heading'] ); ?>
-								</h3>
+								</h4>
 								<p class="description"><?php echo esc_html( $bws_c_state['long'] ); ?></p>
 								<p class="description"><?php echo esc_html( $bws_c_state['remedy'] ); ?></p>
 							<?php endforeach; ?>
@@ -1362,7 +1362,7 @@ function my_result( $post_id, $arg = '' ) {
 				border: 1px solid #c3c4c7;
 				border-top: none;
 			}
-			.bws-dynamic-tags-settings .bws-conflict-legend h3 { font-size: 13px; margin: 12px 0 4px; }
+			.bws-dynamic-tags-settings .bws-conflict-legend h4 { font-size: 13px; margin: 12px 0 4px; }
 			.bws-dynamic-tags-settings .bws-conflict-legend p  { margin: 0 0 6px; }
 			.bws-dynamic-tags-settings .bws-tags-table { border-top: none; }
 			.bws-dynamic-tags-settings .bws-tag-row td { padding: 6px 12px; vertical-align: middle; }

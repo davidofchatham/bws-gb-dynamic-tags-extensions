@@ -515,7 +515,7 @@ two — the evidence was the previous request's registry. The axis is stated at
 
 The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
 tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
-to show it. The shipped surface for that record is the settings page's **Tag name conflicts**
+to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts**
 subsection, under Diagnostics. **It shows TWO states over these three outcomes**, because the
 remedies that separate them — rename a tag, move a registration off `init` priority 20 — are things
 only a plugin's own developer can do: `kept` reads as *this plugin's tag is active*, and `lost` and
@@ -716,7 +716,7 @@ The term_ modifier produces additional tags with GB type `'term'`: `term_text`, 
 another plugin already holds one of these names, the tag of that name is theirs and nothing
 described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
 outcome means, and the reader's own site answers which case it is: the rows reading *another
-plugin's tag is active* in the settings page's **Tag name conflicts** subsection, under Diagnostics.
+plugin's tag is active* in the settings page's **Tag Name Conflicts** subsection, under Diagnostics.
 Measured on the reference fixture site 2026-08-26: GB
 Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
 examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
