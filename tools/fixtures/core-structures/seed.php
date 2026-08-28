@@ -194,30 +194,32 @@ $log( 'terms: ' . count( $term_ids ) . ' upserted' );
 // ---------------------------------------------------------------------------
 $user_ids = array();
 foreach ( ( $manifest['users'] ?? array() ) as $slug => $def ) {
+	// `description` is OPTIONAL and is OMITTED when the manifest does not carry one, rather
+	// than passed as an empty string. Only `author-fixture` declares a bio (it is the payload
+	// the author-archive {{content}} analog reads); `author-other` exists to be a logged-in
+	// non-owner and declares none. Passing the key through unset read it as null and WROTE
+	// that, so every reseed cleared whatever was there — the opposite of the additive posture
+	// this seeder documents, and it emitted an undefined-key warning on the way.
+	$user_args = array(
+		'display_name' => $def['display_name'],
+		'user_email'   => $def['user_email'],
+		'role'         => $def['role'],
+	);
+
+	if ( isset( $def['description'] ) ) {
+		$user_args['description'] = $def['description'];
+	}
+
 	$existing = get_user_by( 'login', $def['user_login'] );
 	if ( $existing ) {
-		$uid = (int) $existing->ID;
-		wp_update_user(
-			array(
-				'ID'           => $uid,
-				'display_name' => $def['display_name'],
-				'user_email'   => $def['user_email'],
-				'description'  => $def['description'],
-				'role'         => $def['role'],
-			)
-		);
+		$user_args['ID'] = (int) $existing->ID;
+		$uid             = (int) $existing->ID;
+		wp_update_user( $user_args );
 	} else {
-		$uid = wp_insert_user(
-			array(
-				'user_login'    => $def['user_login'],
-				'user_nicename' => $def['user_nicename'],
-				'user_pass'     => wp_generate_password( 24 ),
-				'display_name'  => $def['display_name'],
-				'user_email'    => $def['user_email'],
-				'description'   => $def['description'],
-				'role'          => $def['role'],
-			)
-		);
+		$user_args['user_login']    = $def['user_login'];
+		$user_args['user_nicename'] = $def['user_nicename'];
+		$user_args['user_pass']     = wp_generate_password( 24 );
+		$uid                        = wp_insert_user( $user_args );
 	}
 	if ( ! is_wp_error( $uid ) ) {
 		$user_ids[ $slug ] = (int) $uid;

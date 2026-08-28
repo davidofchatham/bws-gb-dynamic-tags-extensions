@@ -10,8 +10,11 @@
  *
  * Resolution (since 1.14.0 — the L1-full traversal pipeline, NOT source classes):
  *   L1 base source — `bws_resolve_base_source()` (includes/helpers/traversal-pipeline.php)
- *     resolves the ambient/explicit base resolved source: loop row → ambient term
- *     (term archive) → current post, or an explicit `src:site` / registry source.
+ *     resolves the ambient/explicit base resolved source: a query-loop item of a shape
+ *     it knows → ambient term (term archive) → current post, or an explicit `src:site` /
+ *     registry source. An item of any OTHER shape ENDS the precedence instead of
+ *     continuing down it: the read is refused, not answered from ambient (step 2e in
+ *     that function, which owns why).
  *     `$post` / get_the_ID() is NEVER an ambient fallback (SPEC §V1).
  *   L1 steps — `src:ref` appends a generic `ref` step (ACF relationship step,
  *     plural), `srcTermIn` a term-step step; run through `bws_run_traversal()`.
@@ -81,7 +84,7 @@ function bws_register_base_tags(): void {
 	// text — ACF/meta field or entity title; supports_list
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Text Fields', 'generateblocks' ),
 		'tag'      => 'text',
 		'type'     => 'cross-source',
@@ -155,7 +158,7 @@ function bws_register_base_tags(): void {
 	// content — post content, excerpt, or WYSIWYG field
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Content', 'generateblocks' ),
 		'tag'      => 'content',
 		'type'     => 'cross-source',
@@ -202,7 +205,7 @@ function bws_register_base_tags(): void {
 	// title — entity title/name; source traversal + srcTerm
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Title/Name', 'generateblocks' ),
 		'tag'      => 'title',
 		'type'     => 'cross-source',
@@ -232,7 +235,7 @@ function bws_register_base_tags(): void {
 	// permalink — post/entity URL; source traversal + srcTerm
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Permalink', 'generateblocks' ),
 		'tag'      => 'permalink',
 		'type'     => 'cross-source',
@@ -259,7 +262,7 @@ function bws_register_base_tags(): void {
 	// `use:featured` hidden when srcTerm set — terms have no featured image.
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Image', 'generateblocks' ),
 		'tag'      => 'image',
 		'type'     => 'cross-source',
@@ -333,7 +336,7 @@ function bws_register_base_tags(): void {
 	// datetime_single — single date/time field(s) with mode switch
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Date/Time', 'generateblocks' ),
 		'tag'      => 'datetime_single',
 		'type'     => 'cross-source',
@@ -346,7 +349,7 @@ function bws_register_base_tags(): void {
 	// datetime_range — start/end date/time range with mode switch
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Date/Time Range', 'generateblocks' ),
 		'tag'      => 'datetime_range',
 		'type'     => 'cross-source',
@@ -363,7 +366,7 @@ function bws_register_base_tags(): void {
 	// per-source variants. Shares the base-tag picker group for UX only.
 	// =========================================================
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Join Fields', 'generateblocks' ),
 		'tag'      => 'join',
 		'type'     => 'cross-source',
@@ -1124,7 +1127,7 @@ function bws_join_callback( $options, $block, $instance ): string {
 		}
 		return bws_base_stated_fallback( (array) $options, $instance );
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $assembled, $options, $instance );
+	return bws_gb_tag_output( $assembled, $options, $instance );
 }
 
 /**
@@ -1421,7 +1424,7 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 	$use = $options['use'] ?? 'key';
 	$res = bws_base_src_resolution( $options );
 
-	// Site read — logo/option via resolver (logo already routed through GB ::output()).
+	// Site read — logo/option via resolver (logo already routed through the boundary).
 	if ( 'site' === $res['kind'] ) {
 		$value = bws_site_resolve_value( 'image', $options, $instance );
 		if ( '' !== $value ) {
@@ -1672,9 +1675,11 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 			if ( empty( $result ) ) {
 				return '';
 			}
-			// Route through GB output for fallback/markup parity with image tag.
+			// Route through the GB output boundary for fallback/markup parity with
+			// the image tag. The class_exists guard stays: it is what keeps a
+			// GB-less install returning the bare value rather than fatalling.
 			return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
-				? (string) GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance )
+				? (string) bws_gb_tag_output( $result, $options, $instance )
 				: (string) $result;
 
 		// text: keyed by nature — empty/bare `use` has no analog default → ''.

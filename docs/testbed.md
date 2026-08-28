@@ -31,9 +31,10 @@ docker exec wp-litespeed-litespeed-1 sh -c 'cd /var/www/vhosts/testbed/html && w
 bin/wp.sh testbed bws render-tag '{{...}}' --url=https://testbed.test/<context>/
 ```
 
-`--loop-item=<id>` for a synthetic query-loop row, `--porcelain` for output-only. Runs the real main
-query so `is_tax()` / queried-object / current-post are genuine. This is the cheap what-if /
-discovery-row engine — use it before building a page to answer "what does this tag do on context X".
+`--loop-item=<post_id>` for a synthetic query-loop item, `--porcelain` for output-only. Runs the
+real main query so `is_tax()` / queried-object / current-post are genuine. This is the cheap
+what-if / discovery-row engine — use it before building a page to answer "what does this tag do on
+context X".
 
 ### (Re)seed fixture state
 
@@ -43,7 +44,9 @@ bin/seed.sh testbed core-structures
 
 Idempotent. The `core-structures` **blueprint** (`tools/fixtures/core-structures/`) seeds the state
 the `*-test-matrix.md` files assume — matrix pages are split by source-state (`matrix-post-meta`,
-`matrix-terms-valid|mixed|junk`); tag families accrete rows into them.
+`matrix-terms-valid|mixed|junk`); tag families accrete rows into them. A page that splits on
+something else says so in its own builder docblock — `matrix-loops`, whose axis is the loop
+context a row renders inside.
 
 **Group rows by tag in [`tag-reference.md`](tag-reference.md) Catalog order** (the §Base tag GB types
 table sequence: text→content→title→permalink→image→datetime_single→datetime_range→email→phone→join→
@@ -102,6 +105,66 @@ check reveal rows. Do NOT leave rows as `render-tag`-only. Reseed + curl the fro
 Exceptions (render-tag/harness-only): a bare tag needing a term ARCHIVE as ambient context (text T4),
 or synthetic per-field blanking with no fixture (join J23/J24) — state the exception in the matrix.
 
-NB the front-end page runs WP content filters (`wptexturize` — straight quotes → curly; use prime
-marks `′`/`″` for units) that `--porcelain` skips, so the visible rows are also a bug surface
-render-tag can't reach.
+NB the visible rows are a bug surface `render-tag` cannot reach, and `wptexturize` is only part
+of it. A front-end request renders each tag inside a real block, on a real query, through
+`the_content` — `$block` is empty under `render-tag`, term and user loops cannot be faked at any
+flag combination, and `--porcelain` skips the content filters entirely. (Straight quotes do turn
+curly there, so keep using prime marks `′`/`″` for units.) The page snapshots below are what pin
+that path; [`update-triggers.md`](update-triggers.md#page-snapshot-instrument-or-baseline-change)
+owns what a clean run of them does and does not prove.
+
+## Page snapshots — the committed rendered-output baseline
+
+`tools/test/page-snapshots.php` curls every fixture page, normalizes away per-render churn, and
+diffs the result against a baseline committed under `tools/test/snapshots/`. It is the only
+instrument here that renders a tag the way a visitor gets it (above), so it is what a change that
+could move rendered output is measured against.
+
+```
+php tools/test/page-snapshots.php              # compare against the baseline (exit 1 on diff)
+php tools/test/page-snapshots.php --capture    # write/refresh the baseline
+php tools/test/page-snapshots.php --base-url=https://other.test
+```
+
+**Run it from the host, from the repo root** — the repo is bind-mounted read-only into the
+container, so a capture under `wp eval-file` can write nothing. Comparison only reads, so
+`verify.php` runs it in-container as part of every verification — you do not have to remember to.
+
+**The page set comes from the blueprint manifest**, not from a list kept in the script: every
+`posts` entry carrying a `content_builder` is snapshotted, so a new fixture page enters the set
+by existing. Nothing to register.
+
+**Cache-busting is built in** (the §page cache rule above applies to this instrument too, and it
+generates its own bust value per request — do not wrap it in one). A reseed does not invalidate
+the baseline either: `post_modified` and its siblings are normalized out, so `bin/seed.sh` and
+`--capture` are independent operations.
+
+**The environment the baseline was captured under is recorded** in
+`tools/fixtures/core-structures/env-versions.php` — GenerateBlocks, GB Pro, GB Query Enhancements
+and ACF Pro, with our own version deliberately excluded (that file's header has why, and owns which
+entries must be present). `verify.php` prints the comparison FIRST. A version drift line is a
+**WARNING**: it exists to tell you a diff below is attributable to a dependency rather than to your
+change. A dependency the record requires and the site cannot use **FAILS the run, naming it**,
+instead of skipping, so deactivating one is enough to stop a verification.
+
+**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no
+fixture row's content; it is a co-resident extension that filters our tag rendering itself.
+Measured against GBQE 1.3.0 on the fixture site: it hooks `generateblocks_dynamic_tag_id` from
+three of its query classes and `generateblocks_dynamic_tag_output` once, and both run on every tag
+render. Every baseline below was therefore captured with them in the chain, and the defect that
+made that visible is GitHub
+[#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
+
+What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**:
+measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the
+dependency check was the only failure. Today's agreement is a coincidence nobody measured forward, and it is exactly the
+state in which a silent variable is easiest to acquire.
+
+**Re-capture and re-record in the SAME commit** — `env-versions.php`'s header owns why. A capture
+with any page unreachable **writes nothing at all**: every fetch completes before the first write,
+so the baseline on disk is left untouched and the run exits non-zero. The one case that escapes
+that guard is a write failing partway through, which does leave a mixed set on disk — the run says
+so explicitly and asks you to re-run rather than commit.
+
+`php tools/test/page-snapshot-normalize-test.php` covers the pure half (normalization, diffing,
+deriving the page set) with no site and no network.

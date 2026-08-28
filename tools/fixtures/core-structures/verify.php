@@ -361,5 +361,250 @@ if ( $gate_page instanceof WP_Post ) {
 	$check( 'F17.9 an ATTACHMENT source resolves for a visitor (its `inherit` is the PARENT status, not an internal refusal)', 'Fixture Photo' === $anon_att && $anon_att === $admin_att, 'anon=' . var_export( $anon_att, true ) . ' admin=' . var_export( $admin_att, true ) );
 }
 
+/*
+ * THE FILTER LAYER, PINNED — one tag string, both render paths.
+ *
+ * `replace_tags()` called directly DOES reach `generateblocks_dynamic_tag_replacement`; the
+ * filter is applied inside it, between the callback and the required-bail. That is easy to
+ * get backwards, and this file said the opposite until 2026-08-24 on a misread `od -c`. A
+ * false does-not-prove is worse than silence: it retires an instrument nobody then rechecks.
+ * Nothing failed while it was wrong, which is why it is an assertion now rather than prose.
+ *
+ * Both arms render the SAME string. Brackets delimit the tag so the output can be lifted out
+ * of the block arm's markup by position — the subject is the trailing space
+ * includes/hooks.php adds to a bare '0', and any trim() on the way would erase it.
+ *
+ * MUTATION-VERIFIED 2026-08-24: disabling the '0' branch in includes/hooks.php makes BOTH
+ * arms report NOT FOUND rather than a bare '0' — without the pad, GB's required-bail kills
+ * the whole string, brackets included. The guard is what keeps such a block on the page at
+ * all, which is the point the two assertions below are standing on.
+ *
+ * NOT a claim that the two paths are equivalent. They are not: $block is array() here, no
+ * query loop exists, and the_content filters never run. Those gaps are what the page
+ * snapshots below cover. This pins the part that IS shared.
+ */
+$zero_wire = '[{{text key:bws_zero_probe}}]';
+
+$zero_lift = static function ( $html ) {
+	$open = strpos( (string) $html, '[' );
+
+	if ( false === $open ) {
+		return null;
+	}
+
+	$close = strpos( (string) $html, ']', $open );
+
+	return false === $close ? null : substr( (string) $html, $open + 1, $close - $open - 1 );
+};
+
+$zero_direct = $zero_lift(
+	GenerateBlocks_Register_Dynamic_Tag::replace_tags( $zero_wire, [], $instance )
+);
+
+$zero_block = $zero_lift(
+	do_blocks(
+		'<!-- wp:generateblocks/text {"uniqueId":"bwszeropin","tagName":"p","className":""} -->' . PHP_EOL
+		. '<p class="gb-text">' . $zero_wire . '</p>' . PHP_EOL
+		. '<!-- /wp:generateblocks/text -->'
+	)
+);
+
+$zero_hex = static function ( $v ) {
+	return null === $v ? 'NOT FOUND' : bin2hex( $v ) . ' (' . strlen( $v ) . ' bytes)';
+};
+
+$check(
+	'replacement filter fires through replace_tags() — bare 0 comes back padded',
+	'0 ' === $zero_direct,
+	$zero_hex( $zero_direct ) . ', expected ' . bin2hex( '0 ' )
+);
+
+$check(
+	'both render paths agree on the tag output, byte for byte',
+	null !== $zero_direct && $zero_direct === $zero_block,
+	'direct ' . $zero_hex( $zero_direct ) . ' vs block ' . $zero_hex( $zero_block )
+);
+
+/*
+ * Text matrix T5.2's expectation, and the one thing that can falsify it QUIETLY.
+ *
+ * T5.2 renders `{{comments_count none:0}}` and expects a bare '0' — but only because this page
+ * has no comments, which nothing seeds and nothing closes. One comment and the row prints a real
+ * count instead, the page snapshot fails, and the diff reads exactly like the zero guard having
+ * stopped covering GB's own tags. It is not detection that is missing (the snapshot catches it);
+ * it is the cause, which the diff cannot show.
+ *
+ * So this assertion is diagnostic, not protective. Its message is the whole point of it.
+ */
+$zero_comments = (int) get_comments( array( 'post_id' => $page->ID, 'count' => true ) );
+
+$check(
+	'text matrix T5.2 assumes /matrix-post-meta/ has no comments',
+	0 === $zero_comments,
+	$zero_comments . ' comment(s) on /matrix-post-meta/. Non-zero here means T5.2 renders that '
+		. 'count instead of a bare 0, so a page-snapshot diff on that row is THIS, not the zero '
+		. 'guard having stopped covering GB\'s own tags.'
+);
+
+/*
+ * Loop matrix QL3's expectation, and it fails the same QUIET way T5.2 does.
+ *
+ * QL3 renders `{{term_count}}` in a term loop and expects a bare '0' on the Workshop term — but
+ * only because that term is assigned to no post, which is the whole reason it exists (blueprint
+ * v16). Assign one and the row prints a real count, the page snapshot fails, and the diff reads
+ * exactly like the zero guard having stopped covering tags that are not ours. Diagnostic, not
+ * protective: the snapshot already detects it, and what is missing from that diff is the cause.
+ *
+ * The repair is by hand unless the post that gained the term is one the manifest's `post_terms`
+ * lists, since that is the set a reseed rewrites.
+ */
+$workshop = get_term_by( 'slug', 'workshop', 'department' );
+
+$check(
+	'loop matrix QL3 assumes the Workshop department term carries no posts',
+	$workshop && 0 === (int) $workshop->count,
+	$workshop
+		? 'Workshop holds ' . (int) $workshop->count . ' post(s). Non-zero here means QL3 renders '
+			. 'that count instead of a bare 0, so a page-snapshot diff on that row is THIS, not the '
+			. 'zero guard having stopped covering tags that are not ours. Unassign it; a reseed rewrites '
+			. 'terms only on the posts the manifest lists.'
+		: 'No `workshop` term in the `department` taxonomy. Reseed; QL3 has nothing to read without it.'
+);
+
+/* ---------------------------------------------------------------------------
+ * PAGE SNAPSHOTS + the dependency-version record.
+ *
+ * RUNS ON EVERY VERIFICATION, not only when something looks suspicious. A baseline
+ * consulted occasionally is a baseline nobody trusts: the diff it eventually reports spans
+ * every change since the last time anyone looked, which is precisely the state in which a
+ * real regression is indistinguishable from accumulated drift.
+ *
+ * THE TWO REPORTS ARE SEPARATE ON PURPOSE, and the separation is the whole design. A
+ * snapshot diff on its own cannot say WHY output moved. Printing the dependency-version
+ * comparison beside it — and printing it FIRST — reframes an unexplained diff from "we broke
+ * it" to "something changed under us", which is a different question with a different next
+ * step. A version change is therefore a WARNING and never a failure: only a human can judge
+ * whether moved output is acceptable, and the diff below is what tells them what moved. A
+ * REQUIRED dependency that is not usable is the other case and FAILS the run instead of
+ * skipping it -- `env-versions.php` declares which entries those are and owns the rule.
+ *
+ * The checks live here rather than in the pure harnesses because none of those can reach
+ * this: a served page is the only place `$block` is real, a term or user query loop exists
+ * at all, and the_content filters run. (An earlier version of this paragraph said the
+ * replacement FILTER was the unreachable part. It is not — the pin above measures it firing
+ * through both paths. `tools/test/page-snapshots.php`'s own header has the rest.)
+ */
+$snapshot_lib = dirname( dirname( __DIR__ ) ) . '/test/page-snapshots.php';
+
+if ( ! is_readable( $snapshot_lib ) ) {
+	// `tools/` is .distignore'd, so a released build has no such file. Never reached in a
+	// dev checkout, which is the only place verify.php runs at all.
+	printf( "\n[SKIP] page snapshots — %s not readable (released build?)\n", $snapshot_lib );
+} else {
+	require_once $snapshot_lib;
+
+	echo "\n--- environment the baseline was captured under ---\n";
+
+	$env = bws_page_snapshot_env_drift();
+
+	printf( "recorded %s (%d dependencies)\n", $env['captured'], $env['checked'] );
+
+	foreach ( $env['missing'] as $missing ) {
+		if ( ! $missing['required'] ) {
+			printf(
+				"[WARN] %s: %s — every snapshot below was captured with it running.\n",
+				$missing['label'],
+				$missing['reason']
+			);
+			continue;
+		}
+
+		// FAILS, AND DOES NOT SKIP — worth saying because the pages below will not back it
+		// up today. Measured 2026-08-24: with the query extension deactivated, all nine
+		// snapshots still matched and this was the only failure. That is the argument FOR
+		// the check rather than against it. The baseline was captured with the plugin
+		// running, today's agreement is a coincidence nobody measured forward, and the first
+		// page that does depend on it would arrive with nothing left to notice. The
+		// fail-vs-warn split itself is env-versions.php's rule; this is where it is enforced.
+		$check(
+			sprintf( 'required dependency present: %s', $missing['label'] ),
+			false,
+			sprintf(
+				'%s. Install and activate it, then re-run. Do NOT re-capture the baseline to make this quiet.',
+				$missing['reason']
+			)
+		);
+	}
+
+	foreach ( $env['drift'] as $drift ) {
+		printf( "[WARN] %s\n", $drift );
+	}
+
+	if ( ! $env['checked'] ) {
+		// UNREADABLE RECORD, NOT A CLEAN ONE. Zero comparisons made and zero
+		// disagreements found are the same value, and printing "[ok]" for the second
+		// would report the strongest possible result for the weakest possible reason.
+		$check( 'dependency-version record is readable and non-empty', false, 'env-versions.php checked 0 dependencies' );
+	} elseif ( ! $env['drift'] && ! $env['missing'] ) {
+		echo "[ok] every recorded dependency version matches what is installed.\n";
+	} elseif ( $env['drift'] || count( $env['missing'] ) > $env['blocking'] ) {
+		// ATTRIBUTION ADVICE ONLY WHERE RE-CAPTURING IS ACTUALLY THE ANSWER. A blocking
+		// absence is excluded deliberately: the failure above tells the operator to install
+		// the dependency, and printing "re-capture the baseline" beside it would offer the
+		// one action that makes a missing dependency permanently invisible.
+		echo "      A page diff below is therefore ATTRIBUTABLE: re-read it as \"a dependency moved\"\n"
+			. "      before reading it as a regression. If the new output is correct, re-capture the\n"
+			. "      baseline and re-record env-versions.php IN THE SAME COMMIT.\n";
+	}
+
+	echo "\n--- page snapshots ---\n";
+
+	$snap_base  = rtrim( home_url(), '/' );
+	$snap_pages = bws_page_snapshot_pages();
+
+	// AN EMPTY PAGE SET PASSES EVERY ASSERTION BELOW, on zero pages, silently and forever.
+	// The set is DERIVED from the manifest (the `content_builder` key), so a blueprint
+	// rename empties it without touching a line of this file — and the report would go on
+	// printing a clean run. The CLI carries the same guard for the same reason.
+	$check( 'page-snapshot set is non-empty', (bool) $snap_pages, count( $snap_pages ) . ' page(s) derived from the manifest' );
+
+	// THE DERIVED PERMALINK IS CHECKED AGAINST WORDPRESS'S OWN, because a stale derivation
+	// fails SILENTLY in the worst possible direction: it captures 404 pages, which normalize
+	// perfectly well and diff clean against each other forever. This is the only place the
+	// rule can be checked at all — the capture path is deliberately WordPress-free.
+	foreach ( bws_page_snapshot_assert_permalinks( $snap_pages, $snap_base ) as $bad_url ) {
+		$check( 'page-snapshot URL derivation', false, $bad_url );
+	}
+
+	$snap = bws_page_snapshot_compare_all(
+		array(
+			'base_url' => $snap_base,
+			'pages'    => $snap_pages,
+		)
+	);
+
+	foreach ( $snap['pages'] as $snap_key => $snap_row ) {
+		if ( 'same' === $snap_row['status'] ) {
+			$check( "snapshot {$snap_key} ({$snap_row['path']})", true );
+			continue;
+		}
+
+		$snap_detail = 'differs' === $snap_row['status']
+			? count( $snap_row['diffs'] ) . ' line(s) differ'
+			: $snap_row['detail'];
+
+		$check( "snapshot {$snap_key} ({$snap_row['path']})", false, $snap_detail );
+
+		foreach ( $snap_row['diffs'] as $snap_d ) {
+			if ( null === $snap_d['baseline'] ) {
+				continue;
+			}
+
+			printf( "         L%-6d - %s\n", $snap_d['line'], substr( $snap_d['baseline'], 0, 150 ) );
+			printf( "         %-7s + %s\n", '', substr( $snap_d['current'], 0, 150 ) );
+		}
+	}
+}
+
 echo $fail ? "\nVERIFY FAILED ({$fail})\n" : "\nVERIFY PASSED\n";
 exit( $fail ? 1 : 0 );

@@ -20,6 +20,13 @@ GB does not allow one dynamic tag to start with the same string as another exist
 - `current_post_acf_date_single` + `current_post_acf_date_range` → OK (neither is prefix of other)
 - `related_post_meta_field` + `related_post_meta_image` → OK
 
+## Duplicate tag names: last write wins, silently
+`GenerateBlocks_Register_Dynamic_Tag::__construct()` guards only for completeness (it returns unless `tag`, `return` and `title` are all set, and defaults `type` to `post`) and then ends in one assignment, `self::$tags[ $args['tag'] ] = $args`. No duplicate check, no warning, no return value: registering a name another plugin already registered replaces that plugin's whole entry, the `return` callback included. Whichever plugin registers LAST owns the tag.
+
+Read from GenerateBlocks 2.4.1 (`includes/dynamic-tags/class-register-dynamic-tag.php`, re-read against the fixture site's own copy 2026-08-26) and measured there the same day, by registering a second `text` tag at `init` priority 5 and reading `get_tags()` back after this plugin's own pass at priority 20, then again with the stranger at priority 99 to see the collision go the other way.
+
+Nothing in GB surfaces the event in either direction, so a site whose tag output changed after an unrelated plugin was installed has nothing to read. This plugin's response is at `bws_gb_register_tag()` and `bws_gb_recheck_tag_ownership()` ([`includes/helpers/gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php)); its shape is summarized in [`tag-reference.md` §Tag name collisions](tag-reference.md#tag-name-collisions).
+
 ## Custom Tag Types
 - Single-word names confirmed working; **hyphenated names also confirmed usable** in the latest GB version (e.g. "select-a-source") — 2026-04-10
 - Can define custom types beyond GB's built-in set
@@ -191,7 +198,10 @@ return value and the rendered page.
   through only two `apply_filters` (`generateblocks_dynamic_tag_replacement` `:147`,
   `generateblocks_before_dynamic_tag_replace` `:181`).
 - `GenerateBlocks_Dynamic_Tag_Callbacks::output()` (`class-dynamic-tag-callbacks.php:218-234`) is
-  pure string transforms — trunc, replace, trim, case, wpautop, link. Nothing escapes.
+  pure string transforms — trunc, replace, trim, case, wpautop, link. Nothing escapes. (The option
+  keys that method CONSUMES are a different question from the transforms it applies, and are
+  enumerated once, in `BWS_GB_TAG_OUTPUT_OPTIONS`
+  — [`includes/helpers/gb-output-boundary.php`](../includes/helpers/gb-output-boundary.php).)
 - `wp_kses_post` appears only **inside three specific GB callbacks**, applied to untrusted stored
   meta (`:387-389` `get_post_meta`, `:495-497` `get_author_meta`, `:665,672` excerpt read-more) —
   never as a pipeline gate. Each wraps the call in a filter that **widens** the allowlist
@@ -373,7 +383,18 @@ legitimate use.
 Available on every registered tag without declaring `supports`:
 
 - `id:N` — explicit entity ID.
-- `required:false` — when tag resolves empty, **don't render the containing block** (otherwise GB renders block with empty tag output). Useful for conditional layouts.
+- `required:false` — when the tag resolves empty, **still render the containing block**. The default is the other way: every tag is required unless this says otherwise, and GB returns `''` for the whole block when the replacement is falsy (`class-register-dynamic-tag.php` — `$required = ! isset( $options['required'] ) || 'false' !== $options['required']`, then `if ( $required && ! $replacement ) return '';`; read in GB 2.3.0 source, behavior measured on GB 2.4.1 2026-08-24). Useful for conditional layouts.
+
+  **It keeps the BLOCK, not the VALUE, so it is not the remedy for a field holding `0`.** A GB callback is free to discard a falsy value before the required check is ever reached: `{{post_meta key:<field holding 0>}}` comes back `''` from `get_post_meta()`'s own `if ( ! $value )`, and `required:false` renders the block around nothing (measured 2026-08-24, GB 2.4.1 — text matrix T5.3). What preserves a real zero is the `generateblocks_dynamic_tag_replacement` filter below; the rule for what that covers is stated at [`includes/hooks.php`](../includes/hooks.php) and only there.
+
+  **It DOES preserve a real `0` the callback returned** — the other half of the same rule, and the
+  case that says where a zero is lost decides the remedy. When the callback hands back a genuine
+  `'0'`, the required check is the only thing between that value and the page, so turning the check
+  off renders the zero. Measured 2026-08-28 on GB 2.4.1 / GB Pro 2.7.0, **with this plugin
+  deactivated** so its `'0'` guard could not confound the reading: text matrix T5.4's
+  `{{loop_index zeroBased:1}}` on item 1 renders `0` with the editor's **Required to render**
+  toggle unticked, and is suppressed with it ticked. Discarded inside the callback, nothing
+  recovers it; discarded at the required check, either unticking or this plugin's guard does.
 - `link:post|term|author|comments` — wraps output in link (requires `'link'` in `supports`).
 - `trunc:N`, `trunc:N,words` — truncate by chars or words.
 - `case:lower|upper|title` — case transform.
@@ -515,11 +536,35 @@ syntax can never ride the wire (`{{join 1:{{text …}}}}` is unparseable by cons
 
 | Hook | Signature | This plugin's use |
 |---|---|---|
-| `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php:30`](../includes/hooks.php) — falsy-replacement block-kill |
+| `generateblocks_dynamic_tag_replacement` | `($replacement, $context)` — `$context` keys: `tag`, `full_tag`, `content`, `block`, `instance`, `options`, `supports` | [`includes/hooks.php`](../includes/hooks.php) — defeats the falsy-replacement block-kill for a bare `'0'` and for an empty `as:alt`, on every tag GB renders (the rule and its scope are stated there) |
 | `generateblocks_before_dynamic_tag_replace` | `($content, $args)` — pre-replace HTML hook | not used |
-| `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID. Applied only in `GenerateBlocks_Dynamic_Tags::get_id()`, which our tags never reach: GB calls it from its own built-in callbacks and from `with_link()`, and `with_link()` early-returns unless `$options['link']` is set. We never set `link` (we link-wrap via our own `linkTo`/`linkKey` — see [`link-helpers.php`](../includes/helpers/link-helpers.php)), so this hook cannot fire for a BWS tag. | not used (removed in 1.14.1; a filter here would silently defeat §V1 source resolution) |
-| `generateblocks_dynamic_tag_output` | `($output, $options, $raw_output)` — final output transform | preserved as third-party extension point by [`bws_safe_content_output()`](../includes/helpers/content-helpers.php) (see [`post-content-processing-reference.md`](post-content-processing-reference.md#L211)) |
+| `generateblocks_dynamic_tag_id` | `($id, $options, $instance)` — override resolved entity ID. Applied in `GenerateBlocks_Dynamic_Tags::get_id()`. **IT DOES FIRE FOR OUR TAGS — measured 2026-08-26 against GB 2.4.1**, once per render for `{{title}}` and `{{text}}` alike, the same as for GB's own `{{post_title}}`. **The route is a call of OURS, not a GB one:** `CurrentPost::resolve_id()` calls `GenerateBlocks_Dynamic_Tags::get_id()` itself ([`class-current-post.php`](../includes/classes/sources/class-current-post.php) line 46, reached from `bws_resolve_base_source()`), so every base tag resolving a post source enters `get_id()` and the filter fires there. An earlier reading here said the hook could not fire for a BWS tag, on the argument that `get_id()` is reached only from GB's built-in callbacks and from `with_link()`, which early-returns unless `$options['link']` is set, and that we never set `link` (we link-wrap via our own `linkTo`/`linkKey` — see [`link-helpers.php`](../includes/helpers/link-helpers.php)). **Both of those GB facts still hold on 2.4.1** (measured 2026-08-26: every `Dynamic_Tags::get_id` call site inside GB is in its own `class-dynamic-tag-callbacks.php`, and `with_link()` still early-returns on an empty `link`). What that reading enumerated was GB's routes into `get_id()`, and it did not check ours — our source classes have called `get_id()` since v1.2.0 (`562d662`), predating the note. The conclusion was therefore wrong when it was recorded in 1.14.1, not overtaken by a GB change. It is what let #123 read as our loop detection alone. **GB does not pass `$fallback_type` to it**, so a callback cannot tell which entity kind the id it is overriding stood for — see [§`generateblocks_dynamic_tag_id` is not told WHICH entity the id was a fallback for](#generateblocks_dynamic_tag_id-is-not-told-which-entity-the-id-was-a-fallback-for). | not used by us (removed in 1.14.1; a filter here would silently defeat source resolution) — but a co-resident extension hooking it reaches our tags, which is [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123)'s upstream half |
+| `generateblocks_dynamic_tag_output` | `($output, $options, $raw_output)` — final output transform | preserved as a third-party extension point on every tag, since 1.19.0 through the single seam [`bws_gb_tag_output()`](../includes/helpers/gb-output-boundary.php) that all of our output now ends at. The filter still fires; what reaches it is the options GB's own pipeline consumes, and which those are is decided at that seam. The content path layers its own unsets on top of it — [`bws_safe_content_output()`](../includes/helpers/content-helpers.php), see [`post-content-processing-reference.md`](post-content-processing-reference.md#L211) |
 | `generateblocks.dynamicTags.sourceOptions` (JS) | `(options, context)` — add entries to source dropdown | not used; potential future hook for custom source contributions from third-party plugins |
+
+### `generateblocks_dynamic_tag_id` is not told WHICH entity the id was a fallback for
+
+`GenerateBlocks_Dynamic_Tags::get_id( $options, $fallback_type = 'post', $instance = null )` picks the
+id from `$fallback_type` — `get_current_user_id()` for `'user'`, `get_queried_object_id()` for
+`'term'`, `get_the_ID()` otherwise — and then filters it. **`$fallback_type` is not among the filter's
+arguments**, which are `$id`, `$options` and `$instance` only (read 2026-08-26 in GB **2.4.1**, the
+version `tools/fixtures/core-structures/env-versions.php` records on the fixture site —
+`includes/dynamic-tags/class-dynamic-tags.php`, `get_id()` at lines 403–427 with the
+`apply_filters()` call at 421–426; the docblock above it at 414–420 lists the same three).
+
+A callback on this hook therefore receives a bare integer with nothing saying what kind of entity it
+names, and cannot decline the cases it was not written for: a plugin that publishes its query loop's
+TERM id through the hook overrides a **post** fallback with a **term** id, and no consumer downstream
+of the filter can tell that it happened. The two id spaces collide constantly — every fresh install
+has post 1 and term 1 — so the override lands on a real, wrong entity rather than on nothing.
+
+There is no discriminating argument to read, and no other hook in GB's dynamic-tag surface carries
+one either — **method:** all 13 `apply_filters()` calls under `includes/dynamic-tags/` were
+enumerated on 2.4.1, 2026-08-26, and the only two naming an entity kind
+(`generateblocks_dynamic_tags_post_record_response`, `generateblocks_dynamic_tags_user_record_response`)
+name it in the hook name, are REST endpoints for the editor, and do not fire in a front-end render.
+A filter callback can only look at `$options` and `$instance`, neither of which states the fallback
+type. Anything that needs to know what an entity id *is* has to establish it some other way.
 
 ### Type values
 

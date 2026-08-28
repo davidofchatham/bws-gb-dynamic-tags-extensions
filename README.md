@@ -24,11 +24,15 @@ GB's field selector is post-type-based, so when you're building GP Elements or W
 
 #### Zero values
 
-GB suppresses the block when a dynamic tag inside it returns nothing, unless `required:false` is set. The underlying logic treats the string `0` as nothing, so a field holding a real value of `0` would result in the block being suppressed instead of returning "0". We work around that by returning '0 ' (zero followed by a space); the space collapses in rendered HTML output, so you see just **0**. (Note that if you're injecting a text field which may have a zero value into a URL or attribute, the added space could cause problems.)
+When "Required to render" is checked for a tag (the default), real values of `0` are treated as an empty result, and the whole block is suppressed. When this extension is enabled, zeroes are padded with a space, returning '0 '. GB doesn't treat *that* as an empty result, so the block renders and you see **0**.
+
+*The zero padding isn't limited to our own tags:* It applies to GenerateBlocks and GenerateBlocks Pro tags, as well as any other extension's tags. For example, GB Pro's `loop_index` returns a bare `0` on the first row of a zero-based loop; without this extension, it's suppressed unless you uncheck "Required to render." However, even with this installed, GB's `post_meta` returns empty for a field holding `0`, so neither unchecking "Required" nor our zero padding has any effect; use our `text` tag instead.
+
+Note that if you're injecting a value which may be `0` into a URL or attribute, or using a value directly followed by punctuation, the added space could cause problems. For the latter case, try our `join` tag.
 
 #### Empty alt text
 
-If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exists but doesn't have stored alt text will result in the entire `img` tag being suppressed (again, unless `required:false` is set). For our `{{image as:alt|use:featured|…}}` dynamic tag, we inject a space so it doesn't fail GB's empty-result check even if you forget to set `required:false`. (It should still parse as empty alt text for screen readers.)
+If you use GB's `{{featured_image key:alt|…}}` for alt text, an image that exists but doesn't have stored alt text will result in the *entire* `img` tag being suppressed, unless "Required to render" is unchecked. For our `{{image as:alt|…}}` dynamic tag, we inject a space so it doesn't fail GB's empty-result check even if you forget to uncheck the "Required" toggle. (It should still parse as empty alt text for screen readers.)
 
 ## Cross-source base tags
 

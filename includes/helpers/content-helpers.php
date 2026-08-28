@@ -8,7 +8,7 @@
  * setup phase detection, and safe-output (strips destructive output options for HTML).
  *
  * Other helpers split across:
- *  - field-helpers.php        (meta/ACF reads, loop-row context, ACF object_id)
+ *  - field-helpers.php        (meta/ACF reads, loop-item context, ACF object_id)
  *  - preview-helpers.php      (editor preview labels)
  *  - link-helpers.php         (linkTo/linkKey resolution + <a> wrapping)
  *  - registration-helpers.php (wire-format / GB-registration utilities)
@@ -356,7 +356,7 @@ function bws_process_post_content_fallback( $post_id, $args = array() ) {
  * post's inner tags resolve against the viewing page (#58). This is the
  * front-end analog of the editor-only id threading in CONTEXT.md I11.
  *
- * Swap-and-restore, the same mechanism a query loop applies per row. The swap
+ * Swap-and-restore, the same mechanism a query loop applies per item. The swap
  * is skipped when $post_id already IS the ambient post: the callable would see
  * the identical context either way, so the work and the global writes are pure
  * cost.
@@ -463,13 +463,34 @@ function bws_process_post_content( $post_id, $args = array() ) {
 /**
  * Output helper that strips options unsafe for rich HTML content.
  *
- * GB's output() utility applies text filters (truncation, case conversion,
+ * GB's output pipeline applies text filters (truncation, case conversion,
  * wpautop, link-wrapping) designed for simple text values. These are
- * destructive on full rendered HTML. This helper removes them before
- * passing to output() while preserving the generateblocks_dynamic_tag_output
- * filter hook for third-party compatibility.
+ * destructive on full rendered HTML. This helper removes them, then hands the
+ * value to bws_gb_tag_output() — which still reaches GB's pipeline, so the
+ * generateblocks_dynamic_tag_output hook stays available to third parties.
+ *
+ * TWO SEAMS THAT COMPOSE RATHER THAN STACK. This function owns CONTENT SAFETY:
+ * which of GB's transforms would corrupt rich HTML. WHICH OPTIONS REACH GB AT
+ * ALL is not decided here — that rule, and why it is an allowlist, live on
+ * BWS_GB_TAG_OUTPUT_OPTIONS. The consequence for a reader of this function:
+ * nothing below unsets `fallback`, because the boundary already drops it for
+ * every tag, and a second unset here would be the same rule in two places.
+ *
+ * ORDER IS IMMATERIAL, which is worth stating because the two sets INTERSECT:
+ * all four keys below are also keys GB consumes. Unsetting then intersecting
+ * gives the same array as intersecting then unsetting — a set identity that holds
+ * for ANY two sets, so the composition is order-free by construction rather than
+ * by what either set happens to contain today.
+ *
+ * WHAT THE COMPOSITION CURRENTLY LEAVES is a smaller claim, and it is checked
+ * rather than taken on trust: a content tag hands GB at most `replace`, `trim`
+ * and `id`. That residue is derived from two sets, only one of which this
+ * function owns, so a GB release adding a transform would falsify it in silence.
+ * §B3 of tools/test/gb-output-boundary-test.php runs THIS function and asserts
+ * the residue, which is where such a release breaks instead.
  *
  * @since 1.1.0
+ * @since 1.19.0 Ends in bws_gb_tag_output() instead of calling GB directly.
  * @param string $content  Processed HTML content.
  * @param array  $options  Tag options.
  * @param object $instance Block instance.
@@ -482,7 +503,7 @@ function bws_safe_content_output( $content, $options, $instance ) {
 	unset( $safe_options['case'] );    // strtolower() breaks HTML/CSS.
 	unset( $safe_options['wpautop'] ); // Pipeline already ran wpautop.
 	unset( $safe_options['link'] );    // Wrapping HTML in <a> is invalid HTML.
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $content, $safe_options, $instance );
+	return bws_gb_tag_output( $content, $safe_options, $instance );
 }
 }
 

@@ -63,7 +63,7 @@ function bws_register_table_tag(): void {
 	}
 	$registered = true;
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'       => __( 'Table', 'generateblocks' ),
 		'tag'         => 'table',
 		'type'        => 'cross-source',
@@ -483,9 +483,11 @@ function bws_table_callback( $options, $block, $instance ): string {
 		bws_queue_inline_css( 'bws-table-inline-css', BWS_TABLE_INLINE_CSS );
 	}
 
-	// text-as-div host: hand the atomic <table> to GB's output() so link/attr
-	// handling stays consistent, but the value is already fully-formed HTML.
+	// text-as-div host: hand the atomic <table> to the GB output boundary so
+	// link/attr handling stays consistent, but the value is already fully-formed
+	// HTML. The class_exists guard stays: it is what keeps a GB-less install
+	// returning the bare markup rather than fatalling.
 	return class_exists( 'GenerateBlocks_Dynamic_Tag_Callbacks' )
-		? GenerateBlocks_Dynamic_Tag_Callbacks::output( $html, $options, $instance )
+		? bws_gb_tag_output( $html, $options, $instance )
 		: $html;
 }

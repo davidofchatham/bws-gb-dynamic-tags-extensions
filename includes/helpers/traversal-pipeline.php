@@ -462,8 +462,12 @@ function bws_pipeline_rows_to_sources( $raw ) {
  *      registry / ref step (delegated by the caller — factory returns the
  *      current-context base they step FROM, unless the token names a distinct
  *      pinned/registry source).
- *   2. loop_ctx.in_loop + row_post_id → { kind:'post', id:row } (loop wins over
- *      ambient — a bare tag inside a query loop reads the ROW, not the archive).
+ *   2. loop_ctx.in_loop → THE LOOP'S OWN ITEM, whatever kind it is (loop wins over
+ *      ambient — a bare tag inside a query loop reads the ITEM, not the archive):
+ *      a post → { kind:'post' }, a term → { kind:'term' }, a user → { kind:'user' },
+ *      a repeater row → { kind:'meta_row' }, and an item whose shape is not one of
+ *      those → REFUSES (BWS_SOURCE_KIND_UNRESOLVED). What each item IS is decided by
+ *      bws_classify_loop_item(); this step only maps its answer onto a source kind.
  *   3. ambient queried-object is a TERM (is_tax/category/tag) → { kind:'term' }
  *      (SPEC §V7 term ambient — the first #19 kind).
  *   4. else current post via SourceRegistry 'post' → { kind:'post', id } (or a
@@ -520,15 +524,53 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		}
 	}
 
-	// 2. Loop row wins over ambient (bare tag in a query loop reads the row).
-	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'row_post_id' => false );
-	if ( ! empty( $loop['in_loop'] ) && ! empty( $loop['row_post_id'] ) ) {
-		return array( 'kind' => 'post', 'id' => (int) $loop['row_post_id'] );
-	}
+	// 2. The loop's own item wins over ambient (a bare tag in a query loop reads the
+	//    ITEM). One branch per kind bws_get_loop_item_context() can report, in the
+	//    order the item shapes were learned; the ORDER carries no rule, since the
+	//    kinds are disjoint. `item_post_id` is read first and separately because it is
+	//    the published key: it holds the post arm and nothing else.
+	$loop = $signals['loop'] ?? array( 'in_loop' => false, 'item_post_id' => false );
+	if ( ! empty( $loop['in_loop'] ) ) {
+		if ( ! empty( $loop['item_post_id'] ) ) {
+			return array( 'kind' => 'post', 'id' => (int) $loop['item_post_id'] );
+		}
 
-	// 2b. A repeater row (in a loop, no post behind it) → meta_row.
-	if ( ! empty( $loop['in_loop'] ) && is_array( $loop['loop_item'] ?? null ) ) {
-		return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
+		$item_kind = (string) ( $loop['item_kind'] ?? '' );
+		$item_id   = (int) ( $loop['item_id'] ?? 0 );
+
+		// 2b. A TERM item — an extension looping over terms. The arms need nothing:
+		//     bws_base_ambient_term_id() gates on the WIRE kind plus this kind, never
+		//     on is_tax(), so a term reached through a loop takes the same analog read
+		//     as a term reached through an archive (FW-63 pre-paid for it).
+		if ( 'term' === $item_kind && $item_id ) {
+			return array( 'kind' => 'term', 'id' => $item_id );
+		}
+
+		// 2c. A USER item — the same, through bws_base_ambient_user_id(). This is also
+		//     the first NON-AMBIENT user source the plugin has: the analogs FW-47 defers
+		//     (permalink, image) render EMPTY here rather than a wrong post, which is
+		//     that gap reached by a new route and not a new one.
+		if ( 'user' === $item_kind && $item_id ) {
+			return array( 'kind' => 'user', 'id' => $item_id );
+		}
+
+		// 2d. A repeater row (in a loop, no entity behind it) → meta_row.
+		if ( is_array( $loop['loop_item'] ?? null ) ) {
+			return array( 'kind' => 'meta_row', 'row' => $loop['loop_item'] );
+		}
+
+		// 2e. IN A LOOP, ITEM UNREADABLE — REFUSE ([I15]). Falling through to steps 3/4
+		//     would answer with the surrounding page's entity, or with whatever
+		//     `generateblocks_dynamic_tag_id` was handed for an entity we did not
+		//     recognise; GB passes that filter no fallback TYPE, so a co-resident
+		//     extension cannot tell a post fallback from a term one and a term id
+		//     arrives where a post id was wanted (#123). A plausible value from the
+		//     wrong entity is strictly worse than an empty one, because nothing looks
+		//     broken. This branch is the whole reason recognising two shapes was cheap:
+		//     the next shape has no arm, and it must not borrow somebody else's.
+		if ( 'unknown' === $item_kind ) {
+			return array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED );
+		}
 	}
 
 	// 3. Ambient term archive → term source (SPEC §V7/§V11). queried_kind captured
@@ -557,7 +599,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	// 3b. Degenerate term context (SPEC §V17): the conditional tags claimed a
 	//     taxonomy archive but no WP_Term resolved. A bare tag here must NOT leak
 	//     the main query's first post — short-circuit to empty (V2 shape). This is
-	//     AFTER explicit src / loop rows (they returned above), so only the bare
+	//     AFTER explicit src / query-loop items (they returned above), so only the bare
 	//     ambient read on a broken term context reaches this.
 	if ( ! empty( $signals['term_context_unresolved'] ) ) {
 		return array();
@@ -575,7 +617,7 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
  * The back-compat contract of bws_resolve_post_by_source(): callers want a POST
  * id | false, nothing else. Take the first resolved source and return its id ONLY
  * when its kind is 'post'. A non-post base (term ambient on an archive, meta_row
- * for a Mode-2b flat row, site) yields false — those callers are post-semantic
+ * for a repeater row, site) yields false — those callers are post-semantic
  * (bws_get_srcterm_terms needs a post, {{call}}/datetime treat the result as a
  * post id / link_type:'post'), so a term/row id must NEVER leak out as a "post id".
  *
@@ -646,9 +688,9 @@ function bws_capture_ambient_signals( $instance ) {
 		}
 	}
 
-	$loop = function_exists( 'bws_get_loop_row_context' )
-		? bws_get_loop_row_context( $instance )
-		: array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null );
+	$loop = function_exists( 'bws_get_loop_item_context' )
+		? bws_get_loop_item_context( $instance )
+		: array( 'in_loop' => false, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => '', 'item_id' => 0 );
 
 	return array(
 		'queried_kind'            => $queried_kind,
@@ -840,9 +882,10 @@ function bws_pipeline_default_reader( array $step, array $source ) {
 				// returns the PLURAL array (feeds the §V6 coercer). On empty — ACF
 				// absent, the field is not an ACF relationship, or a non-ACF handler
 				// (Pods/Carbon/core) stored the id(s) in plain meta — FALL BACK to a raw
-				// post-meta read (the OLD Mode-2a path). bws_pipeline_ref_to_posts then
-				// coerces whatever shape the raw meta holds (id / list of ids), with its
-				// string-keyed-assoc guard preventing per-scalar fabrication (review #2).
+				// get_post_meta() on the source post, which asks nothing about field
+				// type. bws_pipeline_ref_to_posts then coerces whatever shape the raw
+				// meta holds (id / list of ids), with its string-keyed-assoc guard
+				// preventing per-scalar fabrication (review #2).
 				$post_ref_id = (int) ( $source['id'] ?? 0 );
 				if ( function_exists( 'bws_get_related_posts_data' ) ) {
 					$acf = bws_get_related_posts_data( $post_ref_id, $field );

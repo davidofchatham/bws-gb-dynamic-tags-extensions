@@ -54,7 +54,7 @@ function bws_register_phone_tag(): void {
 	$source_opt     = bws_build_src_chain_option();
 	$traversal_opts = bws_base_traversal_options();
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'      => __( 'Phone', 'generateblocks' ),
 		'tag'        => 'phone',
 		'type'       => 'cross-source',

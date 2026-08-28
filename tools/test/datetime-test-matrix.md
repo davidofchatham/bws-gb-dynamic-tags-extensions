@@ -95,7 +95,7 @@ Mirrors base text/title list mode: slice to `limit` (default 1), join with `sep`
 | D5.2 | `{{datetime_single src:site|key:organization_founded|format:F j, Y}}` | `January 15, 2020` |
 | D5.3 | `{{datetime_single src:site|key:org_party_datetime}}` | `September 20, 2030 6:00 PM` (DT-1 `'option'` value read) |
 | D5.4 | `{{datetime_single src:ref|ref:related_staff|key:event_datetime}}` | `May 1, 2030 10:00 AM` (single ref read, jane first) |
-| D5.5 | `{{datetime_single key:event_datetime}}` + `--loop-item=<jane id>` | `May 1, 2030 10:00 AM` (loop row wins over page context). **render-tag-only** — synthetic loop row, no fixture query loop on the page (stated exception to the visible-rows rule) |
+| D5.5 | `{{datetime_single key:event_datetime}}` + `--loop-item=<jane id>` | `May 1, 2030 10:00 AM` (the loop item wins over page context). **render-tag-only** — synthetic loop item, no fixture query loop on the page (stated exception to the visible-rows rule) |
 | D5.6 | `{{datetime_single key:missing_dt_field|fallback:Date TBA}}` | `Date TBA` |
 
 `src:site` range rows: see [`src-site-test-matrix.md`](src-site-test-matrix.md) §R5 (R5.3) — linked, not duplicated.

@@ -59,9 +59,29 @@ rows here.
 
 ## T5 — `'0'` preservation
 
+Four of these six rows are **first-party GB tags**, which is why they are here: T5.2, T5.4 and
+T5.5 come back with the zero intact, T5.3 comes back empty. That is what the guard produces, observed —
+what it applies to is decided at `includes/hooks.php`, and this section neither states nor extends
+that. Measured 2026-08-24 against GenerateBlocks 2.4.1 / GB Pro 2.7.0.
+
+**T5.1b is the one row here whose subject is not the guard.** A zero that survives the guard has
+one more hand-off to survive, the one to GB's output pipeline, and that is decided at
+[`gb-output-boundary.php`](../../includes/helpers/gb-output-boundary.php). Added 2026-08-26,
+measured against GB Query Enhancements 1.3.0.
+
 | # | Tag (on `/matrix-post-meta/`) | Expected |
 |---|---|---|
-| T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows bare `0`; in a real GB block render the hooks.php `'0'`→`'0 '` falsy guard applies downstream.) |
+| T5.1 | `{{text key:bws_zero_probe}}` | renders `0` — must NOT be empty. (`render-tag` shows `0` plus the pad byte; the hooks.php `'0'`→`'0 '` falsy guard fires on both render paths, `verify.php` pins that byte for byte.) |
+| T5.1b | `{{text key:bws_zero_probe\|fallback:REPLACED}}` | renders `0`, **not** `REPLACED` — the same field and the same pad byte as T5.1, with a fallback attached. A co-resident extension re-applies `fallback` whenever the output tests `empty()`, and `'0'` is empty to PHP, so this rendered `REPLACED` until the output boundary stopped publishing a consumed `fallback` to `generateblocks_dynamic_tag_output`. **What keeps it from being vacuous is [`fold-test-matrix.md`](fold-test-matrix.md) §F11b.1**, on this same page: a `fallback` that fires on a genuinely empty read. Without a row of that shape somewhere, a `fallback` that had stopped being read at all would also render `0` here. |
+| T5.2 | `{{comments_count none:0}}` | renders `0` — GB **core** tag, zero intact. This page has no comments, so the `none` label prints and it is a bare `'0'`. This row is the one that blanks if the guard stops covering GB's own tags. |
+| T5.3 | `{{post_meta key:bws_zero_probe}}` | **EMPTY** — same field as T5.1, read through GB's own meta tag, which comes back empty for a zero. Measured: `required:false` does not recover it either. The T5.1/T5.3 disagreement is GB's, not ours. |
+| T5.4 | `{{loop_index zeroBased:1}}`, inside a 2-item `staff` query loop | `0` then `1` — **the pin.** GB Pro returns a bare `'0'` on item 1, with no author setup beyond ticking the zero-based checkbox. If the guard stops covering this tag, GB's required-bail takes the whole first item with it. |
+| T5.5 | `{{loop_item key:qty}}`, inside the `team_members` repeater loop | `0` then `4` — the second GB Pro tag here, and the one that shows the guard acting per **value**: two rows of one loop, one padded and one untouched. |
+
+A fourth tag not ours reaches the guard, `{{term_count}}` in a term loop, and its row is not here:
+it needs a term query loop, so it lives with the loop-matrix rows that now exist
+([`loop-test-matrix.md`](loop-test-matrix.md) §QL3, on `/matrix-loops/`). Four measured, four pinned —
+the dated enumeration is at the guard's own PHPDoc.
 
 ## T6 — editor preview fallback
 
@@ -116,7 +136,7 @@ to sit outside the loop, and the blueprint has to say so.
 | T8.9 | `{{try_title}}` | `Fixture Author` — second template |
 | T8.10 | `{{try_content}}` | the fixture bio — third template |
 | T8.11 | `{{try_text use:title\|linkTo:permalink}}` | `<a href="…/author/fixture-author/">Fixture Author</a>` — the arm table's `link:'user'` column's only evidence anywhere |
-| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the mode-2b flat-repeater-row gate. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
+| T8.12 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty — unchanged**, captured BEFORE (`main@e1bff07`) as well as after. These six families carry no `try_user_fn` and must keep taking the fn-absent fallthrough to the post arm, which is their only route to the no-entity loop read at the foot of the slot loop — the `[ false ]` branch that lets the field read serve itself off the query-loop item. Without the before-capture the row is unfalsifiable — an empty result proves nothing on its own |
 
 T8.1–T8.6 verified 2026-07-21 (build f6f8d1e). T8.6 flipped and T8.7–T8.12 added + verified
 2026-08-17 (#108), all via `render-tag`; T8.12's before-values captured on a stashed tree at

@@ -104,14 +104,14 @@ function bws_ctx_probe_callback( $options, $block, $instance ) {
 		}
 	}
 
-	// --- Existing loop-row detection (precedence candidate #1). ---
+	// --- Existing loop-item detection (precedence candidate #1). ---
 	$loop_ctx = null;
-	if ( function_exists( 'bws_get_loop_row_context' ) ) {
-		$raw      = bws_get_loop_row_context( $instance );
+	if ( function_exists( 'bws_get_loop_item_context' ) ) {
+		$raw      = bws_get_loop_item_context( $instance );
 		$loop_ctx = array(
-			'in_loop'     => $raw['in_loop'],
-			'row_post_id' => $raw['row_post_id'],
-			'item_type'   => is_object( $raw['loop_item'] ) ? get_class( $raw['loop_item'] ) : gettype( $raw['loop_item'] ),
+			'in_loop'      => $raw['in_loop'],
+			'item_post_id' => $raw['item_post_id'],
+			'item_type'    => is_object( $raw['loop_item'] ) ? get_class( $raw['loop_item'] ) : gettype( $raw['loop_item'] ),
 		);
 	}
 

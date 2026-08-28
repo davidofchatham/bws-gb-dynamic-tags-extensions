@@ -2,9 +2,9 @@
 /**
  * run-converter.php — run the tag converter over a whole site, and record what it did.
  *
- * The middle step of Experiment M, between `replay-A` and `replay-C`. See
+ * The middle step of the MIGRATION REPLAY, between `replay-A` and `replay-C`. See
  * `tools/harvest-replay/README.md` for how this fits the harvest/replay/diff/convert whole
- * and the two experiment baselines.
+ * and the replay baselines.
  *
  * THIS PLUGIN'S CONVERTER DOES NOT RUN BY ITSELF. It is admin-triggered
  * (`wp_ajax_bws_scan_tags` / `wp_ajax_bws_migrate_tags` on the settings page) — there is no

@@ -50,7 +50,7 @@ function bws_demo_raw( $post_id = null ) { return 'raw-ok'; }
 | # | Context | Tag | Expected |
 |---|---|---|---|
 | R1.1 | Current single post | `{{call fn:bws_demo_result}}` | `<span class="r">Win #<current id></span>` |
-| R1.2 | GB query loop over a **relationship/post-object** field — the loop is on a post | `{{call fn:bws_demo_result}}` (`src:current`) | Each row outputs the **row post's** id — NOT the outer page's (the fix for the ambient `get_the_ID()` break) |
+| R1.2 | GB query loop over a **relationship/post-object** field — the loop is on a post | `{{call fn:bws_demo_result}}` (`src:current`) | Each iteration outputs the **loop item's** id — NOT the outer page's (the fix for the ambient `get_the_ID()` break) |
 | R1.3 | Related-post hop | `{{call src:ref\|ref:[SUB rel]\|fn:bws_demo_result}}` | Output for the related post's id |
 | R1.4 | The loop is on a repeater row, `src:current` | `{{call fn:bws_demo_result\|fallback:—}}` | `—` (no post entity to bind — documented known limit, bucket B) |
 | R1.5 | `fn:` select in editor | (inspect) | Offers **Current** + **In Reference/Relational Field** ONLY — no Site, no taxonomy-term hop (VC2) |

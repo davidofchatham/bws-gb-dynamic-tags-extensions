@@ -335,7 +335,7 @@ function bws_date_single_core( $target, $options, $instance ) {
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $date_options );
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -391,7 +391,7 @@ function bws_date_range_core( $target, $options, $instance ) {
 		$date_options
 	);
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -445,10 +445,11 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
 /**
  * Core datetime single logic.
  *
- * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
- * loop-row context (`generateblocks/loopItem` set). Repeater rows
+ * INVARIANT: must not hard-bail on `! $post_id` when the query-loop item is one the
+ * field read can still be served from — bws_loop_item_is_post_or_row() owns that
+ * question, and an item merely being PRESENT is not it. Repeater rows
  * (GB Pro TYPE_OPTION site-options repeaters, TYPE_POST_META post-meta repeaters)
- * legitimately have no row entity, but the field-read layer (`bws_read_field()`)
+ * legitimately have no entity of their own, but the field-read layer (`bws_read_field()`)
  * can still resolve subfield values from `$loop_item[$key]`. Bailing before that
  * path runs produces silent fallback output. (Bugfix v1.7.2, issue #22.)
  *
@@ -462,11 +463,16 @@ function bws_term_date_range_core( $term_id, $options, $instance ) {
  * @return string
  */
 function bws_datetime_single_core( $target, $options, $instance ) {
-	$source      = bws_datetime_coerce_read_target( $target );
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
-	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
+	$source         = bws_datetime_coerce_read_target( $target );
+	// The INVARIANT above is about repeater rows, and this is the predicate that says
+	// so: a post or a repeater row, never bare `in_loop`. A TERM or USER loop item
+	// reaching the read below leaves it with no entity and no row, and it answers with
+	// the surrounding archive's term meta — measured 2026-08-26, and the reason this
+	// gate narrowed (bws_loop_item_is_post_or_row()).
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
+	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'single' );
 	}
 
@@ -486,7 +492,7 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 	// Handle true time-only case.
 	if ( $result['time_only'] && ! $result['date'] ) {
 		$formatted = wp_date( 'g:i A', $result['time_only']->getTimestamp() );
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+		return bws_gb_tag_output( $formatted, $options, $instance );
 	}
 
 	$time_only    = ! empty( $options['time_only'] );
@@ -502,15 +508,15 @@ function bws_datetime_single_core( $target, $options, $instance ) {
 
 	$formatted = bws_format_single_date_time( $result['date'], $format, $options );
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
  * Core datetime range logic.
  *
- * INVARIANT: must not hard-bail on `! $post_id` when the block instance is in a GB
- * loop-row context (see bws_datetime_single_core() for full rationale). Bugfix
- * v1.7.2, issue #22.
+ * INVARIANT: must not hard-bail on `! $post_id` when the query-loop item is one the
+ * field read can still be served from (see bws_datetime_single_core() for full
+ * rationale). Bugfix v1.7.2, issue #22.
  *
  * @since 1.0.0
  * @since 1.15.0 First arg accepts a resolved-source payload (FW-3a); legacy
@@ -522,11 +528,12 @@ function bws_datetime_single_core( $target, $options, $instance ) {
  * @return string
  */
 function bws_datetime_range_core( $target, $options, $instance ) {
-	$source      = bws_datetime_coerce_read_target( $target );
-	$is_loop_row = bws_get_loop_row_context( $instance )['in_loop'];
-	$has_entity  = 'site' === $source['kind'] || ! empty( $source['id'] );
+	$source         = bws_datetime_coerce_read_target( $target );
+	// Same predicate as the single core above, same reason.
+	$read_may_serve = bws_loop_item_is_post_or_row( $instance );
+	$has_entity     = 'site' === $source['kind'] || ! empty( $source['id'] );
 
-	if ( ! $has_entity && ! $is_loop_row ) {
+	if ( ! $has_entity && ! $read_may_serve ) {
 		return bws_handle_date_time_fallback( $options, $instance, 'range' );
 	}
 
@@ -569,13 +576,13 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 				$smart_time  = ! empty( $options['smart_time'] );
 				$time_format = bws_resolve_time_only_format( $options, $start_result );
 				$time_range  = bws_format_time_range( $start_dt, $end_dt, $smart_time, $time_format );
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( $time_range, $options, $instance );
+				return bws_gb_tag_output( $time_range, $options, $instance );
 			}
 			// Single-ended time: honor custom format (time tokens only), then the
 			// ACF field's time format, then the WordPress time_format option.
 			$time_format = bws_resolve_time_only_format( $options, $start_result );
 			$formatted   = wp_date( $time_format, $start_dt->getTimestamp() );
-			return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+			return bws_gb_tag_output( $formatted, $options, $instance );
 		}
 	}
 
@@ -591,7 +598,7 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 	}
 	if ( ! empty( $partial_parts ) && ! $start_result['date'] ) {
 		$formatted = implode( '; ', $partial_parts );
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+		return bws_gb_tag_output( $formatted, $options, $instance );
 	}
 
 	if ( ! $start_result['date'] && ! $time_only ) {
@@ -609,7 +616,7 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 		$options
 	);
 
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( $formatted, $options, $instance );
+	return bws_gb_tag_output( $formatted, $options, $instance );
 }
 
 /**
@@ -849,8 +856,9 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 
 	if ( $refused ) {
 		// REFUSED (GH #75/#76/#109) — read nothing, and skip the core: a datetime core
-		// handed a falsy id does not stop, it reads the query-loop row and then the
-		// queried term. This arm's own empty path is the all-empty fallback below.
+		// handed a falsy id does not stop, it reads a query-loop item it can be served
+		// from (bws_loop_item_is_post_or_row() is that question) and then the queried
+		// term. This arm's own empty path is the all-empty fallback below.
 		$value = '';
 	} elseif ( $ambient_term_id ) {
 		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );

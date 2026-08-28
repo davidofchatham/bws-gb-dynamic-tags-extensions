@@ -3,13 +3,16 @@ Contributors: david-mitchell
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.18.0
+Stable tag: 1.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 See README.md for overview, docs/tag-reference.md for architecture, and CHANGELOG.md for version history.
 
 == Upgrade Notice ==
+
+= 1.19.0 =
+Tags in a term or user query loop now read that term or user, not an unrelated post. ⚠ 1) Calling bws_get_loop_row_context() from custom code? Renamed to bws_get_loop_item_context(), no compatibility shim; search your code before updating. 2) WooCommerce product loops now render nothing.
 
 = 1.18.0 =
 ⚠ Two changes and a fix. Taxonomy-sourced Content, Permalink and Image tags show the first term only now, not the first with a filled field. Drafts and private posts resolve only for users allowed to see them; trashed posts never. The Migration Tool stops re-listing image tags it cannot convert.

@@ -457,7 +457,22 @@ These functions are available once `bws-gb-dynamic-tags-extensions` is active. A
 | `bws_is_valid_meta_key( $meta_key )` | Validate meta key format |
 | `bws_read_field( $post_id, $key )` | Canonical post-meta/ACF read (routes through `GenerateBlocks_Meta_Handler`) |
 | `bws_read_term_field( $term_id, $key )` | Canonical term-meta/ACF read |
-| `bws_get_loop_row_context()` | Detect a GB query-loop item and its shape (a post, or a repeater row) |
+| `bws_get_loop_item_context()` | Detect a GB query-loop item and its shape (a post, a term, a user or a repeater row — see the contract note below) |
+| `bws_loop_item_is_post_or_row()` | **(v1.19.0)** True when the loop item is one a post-meta/repeater read can be served from. Ask this, not the in-loop flag, before skipping a "no entity" bail |
+
+**`bws_get_loop_item_context()` — the states a caller can meet (v1.19.0).** The loop item may now hold
+a **post**, a **term**, a **user** or a repeater **row**, and a fifth answer says an item is present
+that we could not read. `item_kind` (`''|post|term|user|row|unknown`) and `item_id` carry the entity;
+`item_post_id` holds a post and only a post, so it is `false` while `in_loop` is `true` for every term
+and user loop — **an ordinary state, not an edge case**, and code that reads `item_post_id` as "the
+loop's entity" reads a term loop as no loop. `in_loop` means an item is present and nothing more: it
+is true for a term, a user and an unreadable item too, none of which a post-meta read can serve, so a
+caller about to skip its own "no entity, give up" bail wants `bws_loop_item_is_post_or_row()`
+instead. An `unknown` item is *in a loop, unreadable* and is a different answer from *not in a loop*:
+the first refuses, the second resolves the ambient entity. Which shape an item IS, is decided at
+[`field-helpers.php`](../includes/helpers/field-helpers.php) and by nothing else — the shapes are
+listed above as a consequence of that decision, and the predicate assigning one, along with the
+residual hole it cannot close, live only there.
 
 ### Preview helpers (`includes/helpers/preview-helpers.php`)
 

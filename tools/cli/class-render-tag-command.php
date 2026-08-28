@@ -46,8 +46,8 @@ class BWS_Render_Tag_Command {
 	 *   detects its presence via the runtime config, not $assoc_args.
 	 *
 	 * [--loop-item=<post_id>]
-	 * : Simulate a query-loop row by seeding the block context with this post
-	 *   ID as the loop item (queryType WP_Query). Loop-row context wins over
+	 * : Simulate a query-loop item by seeding the block context with this post
+	 *   ID as the loop item (queryType WP_Query). Query-loop context wins over
 	 *   ambient, matching front-end precedence.
 	 *
 	 * [--preview]

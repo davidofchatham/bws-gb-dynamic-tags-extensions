@@ -175,14 +175,14 @@ $signals_term = array(
 	'queried_id'              => 34,
 	'is_tax'                  => true,
 	'term_context_unresolved' => false,
-	'loop'                    => array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null ),
+	'loop'                    => array( 'in_loop' => false, 'item_post_id' => false, 'loop_item' => null ),
 );
 $signals_loop = array(
 	'queried_kind'            => null,
 	'queried_id'              => 0,
 	'is_tax'                  => false,
 	'term_context_unresolved' => false,
-	'loop'                    => array( 'in_loop' => true, 'row_post_id' => 77, 'loop_item' => null ),
+	'loop'                    => array( 'in_loop' => true, 'item_post_id' => 77, 'loop_item' => null ),
 );
 $pairs = array(
 	'src:ref vs a refs chain, term archive'  => array(
@@ -191,7 +191,7 @@ $pairs = array(
 		$signals_term,
 		array( 'kind' => 'term', 'id' => 34 ),
 	),
-	'src:ref vs a refs chain, in a loop row' => array(
+	'src:ref vs a refs chain, in a query loop' => array(
 		array( 'src' => 'ref', 'ref' => 'office' ),
 		array( 'src' => 'refs,office' ),
 		$signals_loop,

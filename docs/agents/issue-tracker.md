@@ -57,6 +57,16 @@ A bare integer is ambiguous between all three. `FW-71` and `#71` are different t
 - A **bug**, or anything whose record must outlive the change → `gh issue create`.
 - Unsure → ask. Do not default to GitHub.
 
+**Text that will be POSTED is not hard-wrapped.** GitHub renders issue comments, issue bodies, PR
+bodies and review comments with GFM's line-break extension, where a single newline becomes a `<br>`.
+A paragraph wrapped at 100 columns therefore renders with a break every 100 characters, mid-sentence,
+and the damage is worse on a narrow screen than on the desktop width it was wrapped for. One
+paragraph, one line; blank lines separate blocks; tables and list items keep their own lines.
+
+This is the same shape as the house Markdown convention (`CLAUDE.md` §Line wrapping) and lands here
+because the consequence is different: elsewhere hard wrap costs readability and diff churn, and on a
+posted surface it is visible breakage in the rendered text.
+
 ## When a skill says "fetch the relevant ticket"
 
 A path → read the file. A bare `#42` → `gh issue view 42 --comments`.

@@ -6,7 +6,7 @@ See [`CLAUDE.md` §Documentation ownership](../CLAUDE.md#documentation-ownership
 
 **How this doc is organized.** Three parts, each a different reader-mode:
 
-- **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, custom editor controls, the option layout & visibility model.
+- **[Part I — Concepts](#part-i--concepts)** — read once. The vocabulary and design models that make the catalog legible: output shapes, the source model & `src` values & analog resolution, the site source, modifier prefixes, list mode, the default-strip/serialization strategy, default-enabled logic, the falsy-replacement pads, custom editor controls, the option layout & visibility model.
 - **[Part II — Catalog](#part-ii--catalog)** — browse daily. A per-tag section for every base tag (`text`/`content`/`title`/`permalink`/`image`/`datetime_*`/`email`/`phone`) — prose + that tag's own options + its control order — plus the try_ tags. The options common to most tags are defined once in [§Shared option groups](#shared-option-groups); each per-tag section lists only what's tag-specific and links there.
 - **[Part III — Trackers](#part-iii--trackers)** — read on change. Potential future templates; how to keep this document current.
 
@@ -168,7 +168,7 @@ once an author converts it or the Tag Converter rewrites it.
 | `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | |
 | `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | |
 
-The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop row overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 
@@ -458,6 +458,77 @@ All other image options follow the standard rule. `as` is the documented excepti
 
 ---
 
+## Falsy replacement: the `'0'` and empty-`alt` pads
+
+GB kills the containing block when a tag's replacement is falsy, and PHP counts `'0'` as falsy
+beside `''` (the GB fact, plus what `required:false` does and does not recover:
+[`gb-constraints.md` §Built-in tag parameters](gb-constraints.md#built-in-tag-parameters)). The
+plugin answers on the `generateblocks_dynamic_tag_replacement` filter: a bare `'0'` comes back
+`'0 '`, and an empty replacement on a tag carrying `as:alt` comes back `' '`. Both pads collapse in
+rendered HTML, so an author sees `0` and an empty alt attribute.
+
+**That response is not scoped to our own tags.** What an author sees padded is any tag on the page,
+GenerateBlocks' own and GB Pro's included — four tags that are not ours are pinned reaching it
+([`text-test-matrix.md` §T5](../tools/test/text-test-matrix.md) and
+[`loop-test-matrix.md` §QL3](../tools/test/loop-test-matrix.md)). Which replacements it covers, why
+that scope is deliberate, and the dated enumeration of what was measured are stated at the filter
+itself ([`includes/hooks.php`](../includes/hooks.php)) and nowhere else.
+
+Two consequences worth carrying: the pad is a real byte, so a zero routed into a URL or attribute
+value arrives with a trailing space (body-content tags are unaffected, which is what makes the pad
+safe for them); and the filter runs after the callback returns, so it cannot recover a value a
+callback already discarded.
+
+---
+
+## Tag name collisions
+
+GB's registrar is last-write-wins on a tag name, with no duplicate check and no notice (the GB
+fact: [`gb-constraints.md` §Duplicate tag names](gb-constraints.md#duplicate-tag-names-last-write-wins-silently)).
+Every tag this plugin registers goes through one function, `bws_gb_register_tag()`, and the three
+constructors do not answer a taken name the same way:
+
+| Constructor | A name another plugin registered first |
+|---|---|
+| `bws_register_base_tags()`, plus the standalone base tags (`{{email}}`, `{{phone}}`, `{{table}}`, `{{call}}`) | Registered OVER, and the collision reported |
+| `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
+| `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
+
+A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
+
+| Detected | When | Recorded outcome |
+|---|---|---|
+| Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
+| Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
+| Something already held a `term_*` / `try_*` name, so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
+
+**A `yielded` outcome means this doc does not describe that tag on that site.** The tag simply is
+not there, so a page describing it — this one included — is describing something the reader cannot
+use. That is what makes it worth reporting rather than a silent non-event.
+
+**An outcome is this request's registration order, not the site's history**, and `yielded` is
+therefore silence about whether anything broke rather than proof that nothing did: a site that used
+`{{term_title}}` and then installed the other plugin records `yielded` on every request afterwards,
+while its author lived through the takeover `lost` describes. Nothing in the record separates the
+two — the evidence was the previous request's registry. The axis is stated at
+`bws_gb_tag_name_collisions()`.
+
+The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
+tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
+to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts**
+subsection, under Diagnostics. **It shows TWO states over these three outcomes**, because the
+remedies that separate them — rename a tag, move a registration off `init` priority 20 — are things
+only a plugin's own developer can do: `kept` reads as *this plugin's tag is active*, and `lost` and
+`yielded` both read as *another plugin's tag is active*, which is the whole of what a site owner can
+act on. The developer-facing `_doing_it_wrong()` notices keep all three. The subsection names the
+tag, the state, the OTHER PLUGIN (derived from the registrar's file, not the other tag's label) and
+that file. Why the constructors differ,
+what decides that a tag is still ours, when a report is repeated and when it is not, and which
+collision no detection can see are stated at
+[`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
+
+---
+
 ## Custom editor controls registered
 
 Registered via the `generateblocks.editor.tagSpecificControls` JS filter. Each entry maps a custom option `type` string (referenced in PHP option definitions) to a React control:
@@ -640,6 +711,16 @@ In the source-agnostic architecture, each template has one GB tag registration. 
 | `call` | `'Call Custom Function'` | *(no term_ variant)* | `'post'` | ❌ | **Structural outlier — not a base tag.** Binds the loop-correct post (L1 only), then delegates to an allowlisted site PHP function; output is the function's return string, verbatim + unescaped. Type `'post'` (NOT `'cross-source'`) — no term/site/media/taxonomy features; `src` offers Current + Ref only. Ships with an empty allowlist. See [§Call tag](#call-tag). |
 
 The term_ modifier produces additional tags with GB type `'term'`: `term_text`, `term_image`, `term_title`, `term_permalink`. `src` unset = user-selected term (never serialized); `src:'ref'` = term→related post traversal. `term_image` uses GB type `'term'`; `as` and `size` registered as custom options (same pattern as base `image` — `'media'` type not used on any image tag). `as` serialization exception applies to `term_image` as well — default `as:url` is always written to the tag string.
+
+**WHETHER A GIVEN `term_*` TAG IS OURS DEPENDS ON THE SITE, AND THIS DOC CANNOT KNOW.** Where
+another plugin already holds one of these names, the tag of that name is theirs and nothing
+described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
+outcome means, and the reader's own site answers which case it is: the rows reading *another
+plugin's tag is active* in the settings page's **Tag Name Conflicts** subsection, under Diagnostics.
+Measured on the reference fixture site 2026-08-26: GB
+Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
+examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
+on a site without that plugin.
 
 **`term_image use:featured` gating:** `use:featured` only valid on `term_image` when `src:ref` set. Term entities have no featured image; gate hides the option until a post-context traversal is selected.
 
@@ -1075,7 +1156,7 @@ short-circuits), keeps all non-empty values, and assembles them into one output 
 neither a base tag nor a modifier: it resolves no read of its own — each slot **absorbs** a full
 base `text` read via the extracted seam (`bws_base_text_resolve_value`, 1.14.1), so every current
 and future text behavior (the `'0'`-is-a-real-value rule, the site arm, term/ref list modes,
-loop-row context, term-analog arm) works inside a join slot by construction. One GB tag
+query-loop item context, term-analog arm) works inside a join slot by construction. One GB tag
 (`'Join Fields'`, type `'cross-source'`), no prefix fan-out, no per-source variants.
 
 **Slots.** Up to **10** (`BWS_JOIN_MAX_SLOTS`), on the **folded slot wire** (v1.17.0 — one option
@@ -1164,7 +1245,7 @@ therefore depends on **which render path the block sits in**, not on the tag:
 
 **Being inside a query loop does not matter.** `do_blocks` runs on `the_content` at priority 9 and
 `wptexturize` at 10, so blocks render *first* and texturize then sweeps the whole resulting string,
-loop-generated rows included. A loop row is built by a direct `WP_Block::render()` in
+loop-generated output included. A loop iteration is built by a direct `WP_Block::render()` in
 `GenerateBlocks_Block_Looper::render_wp_query()` (which applies the `render_block` filter, never
 `the_content`), but it is already inline in the output before `wptexturize` runs — so it is
 texturized exactly like a static block. Verified: J11/J11c both render `5’11”` on a normal page.

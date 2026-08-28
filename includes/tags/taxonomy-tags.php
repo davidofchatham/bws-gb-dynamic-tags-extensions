@@ -35,7 +35,7 @@ function bws_term_title_core( $term_id, $options, $instance ) {
 	if ( ! $term ) {
 		return '';
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		$term->name,
 		array_merge( $options, array( 'id' => $term_id ) ),
 		$instance
@@ -63,7 +63,7 @@ function bws_term_permalink_core( $term_id, $options, $instance ) {
 	if ( is_wp_error( $permalink ) ) {
 		return '';
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( esc_url( $permalink ), $options, $instance );
+	return bws_gb_tag_output( esc_url( $permalink ), $options, $instance );
 }
 
 /**
@@ -83,7 +83,7 @@ function bws_term_description_core( $term_id, $options, $instance ) {
 	if ( ! $term || empty( $term->description ) ) {
 		return '';
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		bws_sanitize_rich_content( $term->description ),
 		array_merge( $options, array( 'id' => $term_id ) ),
 		$instance
@@ -107,13 +107,13 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
 
 	if ( ! $term_id ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';
 	}
 	$term = bws_get_validated_term( $term_id );
 	if ( ! $term ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $options, $instance )
+			? bws_gb_tag_output( $fallback, $options, $instance )
 			: '';
 	}
 	$key = sanitize_text_field( $options['key'] ?? '' );
@@ -124,14 +124,14 @@ function bws_term_custom_text_core( $term_id, $options, $instance ) {
 	$value = ( is_scalar( $raw ) && null !== $raw && false !== $raw && '' !== $raw ) ? (string) $raw : '';
 	if ( '' === $value ) {
 		return '' !== $fallback
-			? GenerateBlocks_Dynamic_Tag_Callbacks::output(
+			? bws_gb_tag_output(
 				$fallback,
 				array_merge( $options, array( 'id' => $term_id ) ),
 				$instance
 			)
 			: '';
 	}
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output(
+	return bws_gb_tag_output(
 		$value,
 		array_merge( $options, array( 'id' => $term_id ) ),
 		$instance
@@ -179,7 +179,7 @@ function bws_term_custom_image_core( $term_id, $options, $instance ) {
 	$image_data = bws_get_term_field_image_data( $term->term_id, $field_key, $return_type, $image_size );
 
 	if ( ! empty( $image_data ) ) {
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $image_data, $options, $instance );
+		return bws_gb_tag_output( $image_data, $options, $instance );
 	}
 
 	return bws_handle_media_fallback( $fallback, $return_type, $image_size, $options, $instance );

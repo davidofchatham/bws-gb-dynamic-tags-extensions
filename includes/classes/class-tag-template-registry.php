@@ -37,8 +37,11 @@ class TagTemplateRegistry {
 	 *                    author-archive slot handler (#108). Present on the three templates
 	 *                    the user analog covers (text/title/content), a thin closure over
 	 *                    bws_base_user_analog_read('<tag>',…). ABSENT IS LOAD-BEARING on the
-	 *                    other six: they take the fn-absent fallthrough to the post arm, which
-	 *                    is the only path to the mode-2b flat-repeater-row gate.
+	 *                    other six: they take the fn-absent fallthrough to the post arm, and
+	 *                    the post arm is the only one that reaches the no-entity loop read at
+	 *                    the foot of the slot loop — the `[ false ]` branch that hands the
+	 *                    core fn no id so the field read can serve itself off the query-loop
+	 *                    item.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -142,8 +145,25 @@ class TagTemplateRegistry {
 		// Include 'source' support (GB entity picker) unless explicitly excluded.
 		$base_supports = in_array( 'source', $excl, true ) ? [] : [ 'source' ];
 
-		// Snapshot existing tags for dup-check.
-		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+		// Snapshot existing tags for the dup-check inside the template loop.
+		//
+		// AXIS - A MODIFIER TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED. We yield to
+		// whoever registered it first. A modifier family is an optional extra over the base
+		// tags, so losing one member to a name clash costs an editor affordance and leaves
+		// published pages alone; overwriting a stranger's tag to gain it would be the worse
+		// trade.
+		//
+		// THE BASE HALF DOES THE OPPOSITE, ON PURPOSE - it registers OVER a taken name and
+		// reports the collision, because a base tag that stood down would stop rendering on
+		// pages already using it. Do not make the two consistent. The reasoning is at
+		// bws_gb_register_tag() in includes/helpers/gb-registration-boundary.php.
+		//
+		// THE YIELD IS REPORTED, THOUGH - see the note call below. Yielding costs an
+		// affordance, and an affordance that vanishes without a word is indistinguishable
+		// from one that was never built. The whole registry is kept, not just its keys,
+		// because the report names who holds the name and where their code lives.
+		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
+		$existing      = array_keys( $existing_tags );
 
 		// Reuse canonical source + traversal definitions from base-tags.php so labels stay
 		// unified across base and modifier tags. Option key 'src' (not 'source') — GB's
@@ -183,6 +203,7 @@ class TagTemplateRegistry {
 			$tag_name = $prefix . '_' . $tpl['key'];
 
 			if ( in_array( $tag_name, $existing, true ) ) {
+				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
 				continue;
 			}
 			$existing[] = $tag_name;
@@ -520,8 +541,19 @@ class TagTemplateRegistry {
 			return;
 		}
 
-		// Snapshot existing tags for dup-check.
-		$existing = array_keys( \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [] );
+		// Snapshot existing tags for the dup-check inside the template loop.
+		//
+		// AXIS - A try_ TAG WHOSE NAME IS ALREADY TAKEN IS NOT REGISTERED, same yield as the
+		// term_ constructor above and for the same reason: a fallback-chain tag is an extra
+		// over the base tag it is built from, so a name clash costs an affordance rather
+		// than an already-rendering page. The base half overwrites instead - the asymmetry
+		// is deliberate and is explained at bws_gb_register_tag().
+		//
+		// AND THE YIELD IS REPORTED, same as the term_ half: bws_gb_note_tag_yielded() at the
+		// dup-check below. The whole registry is kept rather than its keys because the report
+		// names who holds the name.
+		$existing_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags() ?? [];
+		$existing      = array_keys( $existing_tags );
 
 		foreach ( self::$modifier_templates as $tpl ) {
 			if ( empty( $tpl['supports_try'] ) ) {
@@ -531,6 +563,7 @@ class TagTemplateRegistry {
 			$tag_name = 'try_' . $tpl['key'];
 
 			if ( in_array( $tag_name, $existing, true ) ) {
+				bws_gb_note_tag_yielded( $tag_name, $existing_tags[ $tag_name ] ?? null );
 				continue;
 			}
 			$existing[] = $tag_name;
@@ -920,7 +953,9 @@ class TagTemplateRegistry {
 						// This TEMPLATE has no function for the arm — a family with no
 						// try_term_fn, and the six families with no try_user_fn (#108 wired
 						// text/title/content and left the rest here deliberately: this
-						// fallthrough is their only route to the mode-2b gate below).
+						// fallthrough is their only route to the no-entity loop read
+						// below, the `[ false ]` branch that lets the field read serve
+						// itself off the query-loop item).
 						// Falling through to the post arm is not a fallback invented
 						// here: it is exactly what the token arms did, since both the
 						// term-ambient arm and the srcTermIn arm were gated on `$tcf`.
@@ -960,18 +995,31 @@ class TagTemplateRegistry {
 					// a meta_row, no post id comes out of it, and the core fn still reads
 					// the value off $loop_item[$key]. Survives as a post-arm special case,
 					// gated exactly as before.
+					//
+					// THE LOOP HALF OF THE GATE ASKS bws_loop_item_is_post_or_row(), NOT
+					// `in_loop`. `[ false ]` hands the core fn no entity at all and trusts
+					// the field read to find one on the loop item, so the question is
+					// whether that read can be served — which is true for a post and a
+					// repeater row and false for everything else. It matters most where
+					// this branch is easiest to reach: a template with no try_ arm for the
+					// resolved kind falls through to the post arm above, so a TERM or USER
+					// item lands here with $ids empty and would be handed to a
+					// $loop_item[$key] read it cannot satisfy. Measured 2026-08-26 — a
+					// stdClass user item fired this gate on try_datetime_single /
+					// try_image / try_phone / try_email, and the datetime one printed the
+					// surrounding archive's term date.
 					if ( ! $ids && 'post' === $arm['ids'] ) {
-						$in_loop_row = function_exists( 'bws_get_loop_row_context' )
-							&& bws_get_loop_row_context( $inst )['in_loop'];
+						$read_may_serve = function_exists( 'bws_loop_item_is_post_or_row' )
+							&& bws_loop_item_is_post_or_row( $inst );
 						// THE GATE IS "THIS SLOT STATES NO SOURCE OF ITS OWN", and it used to be
 						// spelled `'current' === $last_src` off the flat triple. That token is gone
 						// (#104), and re-deriving it from the chain's root would be WRONG rather
 						// than merely different: a chain leading with a step has no root token
-						// either, so a `refs` slot that resolved nothing would take the loop row —
+						// either, so a `refs` slot that resolved nothing would take the loop item —
 						// a plausible value from the wrong entity. Ask the resolution instead.
 						$src_res    = bws_base_src_resolution( $slot_opts );
 						$is_ambient = ! $src_res['fans'] && in_array( $src_res['root'], [ '', 'current' ], true );
-						if ( $in_loop_row && $is_ambient && '' !== $last_key ) {
+						if ( $read_may_serve && $is_ambient && '' !== $last_key ) {
 							$ids = [ false ];
 						}
 					}
@@ -1029,7 +1077,7 @@ class TagTemplateRegistry {
 
 				// All slots exhausted — apply the fallback, then label if in preview.
 				if ( '' !== $fallback ) {
-					return \GenerateBlocks_Dynamic_Tag_Callbacks::output( $fallback, $opts, $inst );
+					return bws_gb_tag_output( $fallback, $opts, $inst );
 				}
 
 				return $is_preview && function_exists( 'bws_build_try_preview_label' )
@@ -1093,7 +1141,12 @@ class TagTemplateRegistry {
 		if ( ! empty( $visibility ) ) {
 			$args['visibility'] = $visibility;
 		}
-		new \GenerateBlocks_Register_Dynamic_Tag( $args );
+		// THE plugin's one registration site is bws_gb_register_tag(), in
+		// includes/helpers/gb-registration-boundary.php. Both template constructors reach GB
+		// through it. Neither can hand it a taken name: each skips one at its dup-check
+		// (see the two AXIS comments above), so every collision that function reports is
+		// a base-tag collision.
+		bws_gb_register_tag( $args );
 	}
 
 }

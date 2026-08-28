@@ -16,6 +16,9 @@ manual matrices assume:
 - [`tools/test/fold-test-matrix.md`](../../test/fold-test-matrix.md) §F15/§F17 (added 1.18.0,
   ADR 0007 — the determinism rows on the existing matrix pages at v12, then the source-gate
   corpus on its own `matrix-gate` page at v13/v14; see §Source-gate corpus below)
+- [`tools/test/loop-test-matrix.md`](../../test/loop-test-matrix.md) (added 1.19.0 — the query
+  loop corpus on its own `matrix-loops` page: a term loop and a user loop, plus the unstaffed
+  `department-workshop` term; see §Query-loop corpus below; manifest v16)
 
 Holds the SHARED schema (CPTs, taxonomies, field groups) for the plugin family;
 later blueprints (e.g. portal-system) compose on top and must not redefine keys
@@ -58,8 +61,11 @@ wp-litespeed env `bin/seed-all.sh <site>`.
 
 ## Seeding
 
-Prereqs: a dedicated test site with GenerateBlocks (Pro) + ACF Pro active
-(licensed baseline saved via the env's snapshot tool). From the wp-litespeed env:
+Prereqs: a dedicated test site with GenerateBlocks (Pro), ACF Pro and GB Query Enhancements
+active (licensed baseline saved via the env's snapshot tool). All four are declared in
+`env-versions.php`, and `verify.php` FAILS by name when one is missing or deactivated
+([`docs/testbed.md`](../../../docs/testbed.md) says what the query extension's presence changes and
+why it is on this list at all). From the wp-litespeed env:
 
 > **Seeding runs as an ADMINISTRATOR, and that is load-bearing (#99).** `seed.php` calls
 > `bws_fixture_assume_administrator()` before anything else, because WP-CLI runs with no
@@ -157,6 +163,8 @@ so the schema survives snapshot restores.
   the converter always rewrites it, plus literal backslashes in both the block-comment JSON
   and a rendered code block so the meta layer's recursive unslash has something to damage.
   Browsable with no `blocks.php` row by construction.
+- Query-loop corpus (v16): page `matrix-loops` (a term loop and a user loop) + the
+  `department-workshop` term, assigned to no post. See §Query-loop corpus.
 - Source-gate corpus (v13/v14): page `matrix-gate` + staff `gate-draft` (draft, owned by
   `fixture-author`) / `gate-private` (private) / `gate-public` / `gate-trashed` (trash), plus the
   `fixture-other-author` user. See §Source-gate corpus.
@@ -261,6 +269,35 @@ the lookup cannot see is re-created on each reseed, with the duplicate taking th
 **Row labels must not contain `{{`.** A fixture label is a GB text block like any other, so a
 literal tag spelled inside one is parsed and rendered — F15.7's label named the text tag,
 resolved to nothing, and GB took the label block down with it, which reads as missing fixture.
+
+## Query-loop corpus (manifest v16)
+
+The fixture for tags rendered inside a query loop whose items are NOT posts — one page,
+`matrix-loops`, carrying a term loop and a user loop (loop matrix
+[§QL](../../test/loop-test-matrix.md)). They are one mechanism with two item shapes, which is
+why they share a page.
+
+**It is the one page in the blueprint whose loops need a THIRD-PARTY plugin to run at all.**
+GB itself has no term or user query type; the co-resident query extension supplies both, which
+is why `env-versions.php` declares it required and `verify.php` fails rather than skips when it
+is absent. Without it every group here renders nothing and the page reads as broken.
+
+| Piece | What it is |
+|---|---|
+| The `category` loop (QL1.1–QL1.3) | Restricted to the DEFAULT term, where the id collision is guaranteed by WordPress itself: Uncategorized is term 1 and the first post is post 1 on every install, so a bare tag of ours printed a real title from the wrong entity. Restricted by SLUG, not by id — the id is what makes the collision, but writing it into the query would pin the fixture to the number instead of to the install rule |
+| The `department` loop (QL1.4) | The same leak with nothing to land on: the blueprint's own term ids (6/7/8 on the reference site) are carried by no post, so the read came back EMPTY. Kept because the two shapes looked unalike to a reader and are one defect. QL1.4b is its non-vacuity control |
+| The user loop (QL2) | The two author-role users, ordered by display name — by ROLE rather than by id, since their ids are whatever the seed order produced. QL2.2 is a row with no tag: there is no explicit user source token, so QL1's middle read cannot be written, and a group with one read missing would otherwise look like a group with a broken row |
+| `department-workshop` (QL3) | A department term assigned to no post, so `{{term_count}}` on it is a bare `'0'` — the fourth tag NOT OURS measured reaching the falsy-replacement guard, and the one that needed a term query loop before it could be pinned. Reachable ONLY with `hide_empty` off, which no other fixture sets, so it is invisible to every existing department row (each of those walks the terms assigned to a POST) |
+
+**THE BARE-TAG ROWS WERE SEEDED WRONG ON PURPOSE** through blueprint v16, and the page snapshot
+held those leaked values, which is what made the fix's diff proof rather than assertion: exactly
+those cells moved and nothing else did. Since 1.19.0 they read the loop's own entity and their
+labels say what each should now print; the group's job is now to catch the leak coming back.
+**QL2.4 is the one row still expected empty** — `{{permalink}}` on a recognized user has no
+author analog to give, a deferred gap reached by a new route rather than a regression.
+
+These loops carry the query extension's own `queryType` strings, which nothing under `includes/`
+does. Where that line sits, and why, is stated at `bws_fixture_gb_query_loop_blocks()`.
 
 ## Known gaps
 

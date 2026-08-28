@@ -401,7 +401,7 @@ function sig( $overrides = array() ) {
 			'queried_kind' => null,
 			'queried_id'   => 0,
 			'is_tax'       => false,
-			'loop'         => array( 'in_loop' => false, 'row_post_id' => false, 'loop_item' => null ),
+			'loop'         => array( 'in_loop' => false, 'item_post_id' => false, 'loop_item' => null ),
 		),
 		$overrides
 	);
@@ -414,10 +414,10 @@ eq(
 	bws_resolve_base_source( array(), null, sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) ) )
 );
 
-// V1: loop row WINS over ambient term (bare tag inside a query loop on an
-// archive reads the ROW, not the term — the precedence that stops the leak).
+// V1: the loop ITEM WINS over ambient term (bare tag inside a query loop on an
+// archive reads the ITEM, not the term — the precedence that stops the leak).
 eq(
-	'V1 loop row wins over ambient term',
+	'V1 loop item wins over ambient term',
 	array( 'kind' => 'post', 'id' => 48418 ),
 	bws_resolve_base_source(
 		array(),
@@ -426,7 +426,7 @@ eq(
 			'queried_kind' => 'term',
 			'queried_id'   => 34,
 			'is_tax'       => true,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => 48418, 'loop_item' => null ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => 48418, 'loop_item' => null ),
 		)
 	)
 );
@@ -449,9 +449,106 @@ eq(
 			'queried_kind' => null,
 			'queried_id'   => 0,
 			'is_tax'       => false,
-			'loop'         => array( 'in_loop' => true, 'row_post_id' => false, 'loop_item' => array( 'name' => 'x' ) ),
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => array( 'name' => 'x' ) ),
 		)
 	)
+);
+
+// ── #123 — THE LOOP'S ITEM IS THE SOURCE, WHATEVER KIND IT IS ────────────────
+//
+// A co-resident query extension can loop over TERMS or USERS. GB passes no
+// $fallback_type to `generateblocks_dynamic_tag_id`, so such an extension cannot
+// tell a post fallback from a term one and hands the item's id to a POST fallback;
+// term ids and post ids collide on every install (term 1, post 1). The factory now
+// takes the item's own kind from bws_get_loop_item_context() instead, which is why
+// none of these rows carries a query-type string: recognition is keyed on the item's
+// SHAPE, and the factory only maps the answer.
+//
+// Signals here are INJECTED, so what these rows pin is the mapping, not the
+// recognition. What decides an item's kind is bws_classify_loop_item()'s PHPDoc, and
+// the shape rules themselves are pinned in `tools/test/loop-item-classify-test.php`
+// (stubbed WP lookups, no site). The rendered proof is `tools/test/loop-test-matrix.md`
+// §QL on /matrix-loops/.
+
+function loop_sig( $loop ) {
+	return array(
+		'queried_kind' => null,
+		'queried_id'   => 0,
+		'is_tax'       => false,
+		'loop'         => $loop,
+	);
+}
+
+eq(
+	'#123 term loop item -> term source',
+	array( 'kind' => 'term', 'id' => 7 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+);
+
+eq(
+	'#123 user loop item -> user source',
+	array( 'kind' => 'user', 'id' => 4 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'user', 'item_id' => 4 ) ) )
+);
+
+// A term loop item still LOSES to an explicit src, exactly as a post row does —
+// author intent is step 1 and the loop is step 2.
+eq(
+	'#123 explicit src:site beats a term loop item',
+	array( 'kind' => 'site' ),
+	bws_resolve_base_source( array( 'src' => 'site' ), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ) ) )
+);
+
+// And a term loop item BEATS an ambient term archive, the same way a post row does:
+// the loop is nearer than the page.
+eq(
+	'#123 term loop item beats the ambient term archive',
+	array( 'kind' => 'term', 'id' => 7 ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => 'term',
+			'queried_id'   => 34,
+			'is_tax'       => true,
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'term', 'item_id' => 7 ),
+		)
+	)
+);
+
+// THE REFUSAL, and it is the half that makes recognising two shapes cheap: the term
+// and user arms already existed, any FUTURE shape has none, and falling through
+// returns a plausible value from an entity the wire never named ([I15]). An
+// unreadable item is NOT "no loop" — that distinction is the whole fix.
+eq(
+	'#123 unreadable loop item REFUSES rather than falling through',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ) ) )
+);
+
+// It refuses over an ambient term archive too — a fallthrough that lands on a REAL
+// entity is the dangerous one, since nothing looks broken.
+eq(
+	'#123 an unreadable item refuses over an ambient term archive',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source(
+		array(),
+		null,
+		array(
+			'queried_kind' => 'term',
+			'queried_id'   => 34,
+			'is_tax'       => true,
+			'loop'         => array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'unknown', 'item_id' => 0 ),
+		)
+	)
+);
+
+// A loop item that IS a post keeps its old answer, and the published `item_post_id`
+// key is what still decides it — the post arm is read before any item_kind branch.
+eq(
+	'#123 a post item is unchanged, read from item_post_id',
+	array( 'kind' => 'post', 'id' => 48418 ),
+	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => 48418, 'loop_item' => null, 'item_kind' => 'post', 'item_id' => 48418 ) ) )
 );
 
 // V1: NO ambient term + no loop → falls through to current-post path. With no
@@ -533,9 +630,9 @@ eq(
 	bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'term_context_unresolved' => true ) ) )
 );
 
-// V17: a loop row still wins over the flag (loop precedes the flag check).
+// V17: a loop item still wins over the flag (loop precedes the flag check).
 eq(
-	'V17 loop row beats unresolved-term flag',
+	'V17 loop item beats unresolved-term flag',
 	array( 'kind' => 'post', 'id' => 555 ),
 	bws_resolve_base_source(
 		array(),
@@ -545,7 +642,7 @@ eq(
 			'queried_id'              => 0,
 			'is_tax'                  => false,
 			'term_context_unresolved' => true,
-			'loop'                    => array( 'in_loop' => true, 'row_post_id' => 555, 'loop_item' => null ),
+			'loop'                    => array( 'in_loop' => true, 'item_post_id' => 555, 'loop_item' => null ),
 		)
 	)
 );
@@ -1209,13 +1306,14 @@ eq(
 //    MISTAKE THIS ROW EXISTS TO STOP ───────────────────────────────────────────
 //
 // "The singular cores' falsy-id guard refuses by construction" reads true and is not:
-// bws_read_field() does not stop at a falsy id, it falls back to the query-loop ROW and
-// then to the queried TERM. So consumer 3 handing the arm `false` is only half the
-// story — a core called with it still reads an ambient entity, which is the very defect,
-// arriving one layer lower.
+// bws_read_field() does not stop at a falsy id, it falls back to a query-loop item it can
+// be served from and then to the queried TERM (bws_read_field()'s own docblock owns which
+// shapes those are; a TERM or USER item is not one of them). So consumer 3 handing the arm
+// `false` is only half the story — a core called with it still reads an ambient entity,
+// which is the very defect, arriving one layer lower.
 //
 // That is why the refusal is caught ABOVE the core, by bws_base_read_refused(), and why
-// absence and refusal have to part company there: the loop-row read beneath that guard is
+// absence and refusal have to part company there: the loop-item read beneath that guard is
 // load-bearing for the repeater-row path, where an absent source legitimately
 // DOES mean the row. The core cannot tell the two apart, so it must not be asked to.
 eq(

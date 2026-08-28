@@ -3,7 +3,7 @@
  * diff-replays.php — compare two replay artifacts and decide whether the gate holds.
  *
  * Third piece of the harvest/replay instrument. See `tools/harvest-replay/README.md` for how
- * this fits the harvest/replay/diff/convert whole and the two experiment baselines. Harvest
+ * this fits the harvest/replay/diff/convert whole and the replay baselines. Harvest
  * says what wire exists; replay says what it renders; this says whether the two sides agree,
  * and — where they do not — puts each disagreement in a bucket a reviewer can act on.
  *
@@ -168,7 +168,7 @@ if ( false !== strpos( $a_version, ',' ) || false !== strpos( $b_version, ',' ) 
 }
 // ACROSS A MIGRATION BOUNDARY THE TAG STRINGS THEMSELVES CHANGE, so the two sides cannot be
 // keyed against each other directly — the pairing has to come from the converter, which emits
-// it as mapping.jsonl. Without --map the comparison is same-wire-both-sides (Experiment R).
+// it as mapping.jsonl. Without --map the comparison is same-wire-both-sides (the build replay).
 //
 // It is READ HERE, ahead of the build-identity guard below, because that guard consults it:
 // a non-empty mapping is evidence that a migration happened, whoever shipped it.
@@ -196,10 +196,10 @@ if ( null !== $map_path ) {
 	$line();
 }
 
-// BUILD IDENTITY. Two builds of one declared version is Experiment R's normal shape, so the
+// BUILD IDENTITY. Two builds of one declared version is the BUILD REPLAY's normal shape, so the
 // version alone cannot say whether the swap happened — and if it did not, the diff comes back
-// EMPTY, which is R's pass condition. Asserted only when the versions match, because that is
-// precisely R's signature: in a migration run the versions differ and the dev mount legitimately
+// EMPTY, which is that replay's pass condition. Asserted only when the versions match, because
+// that is precisely its signature: in a migration replay the versions differ and the dev mount legitimately
 // sits at one commit for both sides.
 $field_of = static function ( array $side, string $field ): string {
 	$v = array();
@@ -225,7 +225,7 @@ if ( $a_version === $b_version ) {
 		$fail++;
 	} elseif ( $a_commit === $b_commit && $a_digest === $b_digest && $map ) {
 		// A MIGRATION BOUNDARY NEED NOT BE THIS PLUGIN'S. The guard below assumes the wire moved
-		// because THIS build moved, which is true of Experiment M and false the moment a second
+		// because THIS build moved, which is true of the MIGRATION REPLAY and false the moment a second
 		// plugin migrates tags through this converter — bws-portal-system 5.7.0 rewrites its own
 		// view_* tags onto base tags, so a staged run holds this build fixed on both sides while
 		// the wire changes underneath it. A non-empty mapping is the evidence that distinguishes
@@ -248,14 +248,14 @@ if ( $a_version === $b_version ) {
 //   1. The two sides rendered different corpora. They are not comparable at all.
 //   2. The sides agree with each other but not with the census passed here, so every
 //      attested/synthetic classification below is being read off the wrong corpus.
-// Live case for (2) on 2026-08-17: Experiment R's Site P pair outlived its census by four
+// Live case for (2) on 2026-08-17: the build replay's Site P pair outlived its census by four
 // hours and would still have produced a confident, wrongly-bucketed verdict.
 $a_census = $field_of( $a, 'census_digest' );
 $b_census = $field_of( $b, 'census_digest' );
 
 if ( '?' === $a_census || '?' === $b_census ) {
 	// A WARNING, NOT A FAILURE, and deliberately weaker than the build-identity rule above.
-	// An unrecorded corpus is merely unverifiable; an unrecorded BUILD makes an R run
+	// An unrecorded corpus is merely unverifiable; an unrecorded BUILD makes a BUILD REPLAY
 	// worthless, because the empty diff it produces is the pass condition. Artifacts
 	// predating this field are otherwise perfectly good and must stay diffable.
 	$line( '[!] census digest not recorded on one or both sides (pre-2026-08-17 replay) — corpus identity cannot be verified.' );
@@ -267,7 +267,7 @@ if ( '?' === $a_census || '?' === $b_census ) {
 			$line( '[X] THE TWO SIDES RENDERED DIFFERENT CENSUSES. Same-version runs share one corpus by construction; two corpora are not comparable, and the pairs that exist on only one side silently vanish from the verdict. Re-run both sides against one census.' );
 			$fail++;
 		} else {
-			// Experiment M's normal shape: migration rewrites the wire, so B is harvested
+			// The migration replay's normal shape: migration rewrites the wire, so B is harvested
 			// afterwards and the two corpora differ BY DESIGN. That is what --map exists to
 			// bridge, so its presence is the statement that a divergence is intended.
 			$line( '[!] censuses differ, and --map was supplied — expected for a migration run, wrong for a same-version resolver run.' );

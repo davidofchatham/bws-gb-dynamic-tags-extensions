@@ -3,7 +3,7 @@
  * replay-tags.php — render a harvested tag corpus against ONE real URL.
  *
  * The replay half of the harvest/replay instrument. See `tools/harvest-replay/README.md` for
- * how this fits the harvest/replay/diff/convert whole and the two experiment baselines.
+ * how this fits the harvest/replay/diff/convert whole and the replay baselines.
  * Harvest (env repo) answers "what wire exists and where can it be seen"; this answers "what
  * does that wire render, with genuine ambient context".
  *
@@ -17,8 +17,8 @@
  *      yields real output rather than preview text.
  *
  * WHY NOT JUST CALL `wp bws render-tag`. That command lives under `tools/`, which is
- * `.distignore`d — a clone running the site's RELEASED build has no such command. Experiment
- * M's A-side runs against exactly that build. This file is reachable anyway because the dev
+ * `.distignore`d — a clone running the site's RELEASED build has no such command. The
+ * MIGRATION REPLAY's A-side runs against exactly that build. This file is reachable anyway because the dev
  * repo is bind-mounted read-only into the wp-cli container at
  * /plugins/bws-gb-dynamic-tags-extensions, independent of what the site has installed. That
  * also means ONE replay implementation renders both sides of every diff, which is the point:
@@ -114,13 +114,13 @@ if ( ! class_exists( 'GenerateBlocks_Register_Dynamic_Tag' ) ) {
 // ---------------------------------------------------------------------------
 // 0b. BUILD IDENTITY — which COMMIT rendered, not just which version.
 //
-// The version check above answers "what is the site running", which is what Experiment M
-// needs, because there the A side runs the site's own released copy. Experiment R is the
-// opposite shape: two builds of the SAME declared version, so that check passes trivially on
+// The version check above answers "what is the site running", which is what the MIGRATION
+// REPLAY needs, because there the A side runs the site's own released copy. The BUILD REPLAY is
+// the opposite shape: two builds of the SAME declared version, so that check passes trivially on
 // both sides and nothing in the artifact says the swap happened. A branch not switched or a
-// worktree symlink not repointed then yields an EMPTY diff — which is R's PASS condition.
+// worktree symlink not repointed then yields an EMPTY diff — which is its PASS condition.
 //
-// Recorded from the DEV MOUNT, because in an R run the site renders through that symlink, so
+// Recorded from the DEV MOUNT, because in a build replay the site renders through that symlink, so
 // the mount is what executed. Two independent facts, because they fail differently: the commit
 // misses uncommitted edits, and the digest misses nothing but cannot name what it saw.
 $source_identity = static function ( string $root ): array {
@@ -191,7 +191,15 @@ $source_identity = static function ( string $root ): array {
 	);
 };
 
-$source = $source_identity( dirname( __DIR__ ) );
+// THE REPO ROOT, WHICH IS TWO LEVELS UP AND WAS ONE BEFORE 72bb5f7 (2026-08-19). This file
+// moved from `tools/` into `tools/harvest-replay/` and the argument did not follow, so from
+// then until the fix `$root` was `tools/`: no `.git` there, so `commit` came back null, and
+// the stat digest fingerprinted the 26 PHP files under `tools/` while `includes/` -- the build
+// the tripwire exists to attest -- could change without moving it. Both halves of the check
+// failed OPEN, which is the shape the build replay cannot survive: its pass condition is an
+// empty diff, and an unswapped build diffs empty too. Pinned by
+// `tools/test/replay-source-identity-test.php`, which resolves this expression statically.
+$source = $source_identity( dirname( dirname( __DIR__ ) ) );
 
 // ---------------------------------------------------------------------------
 // 1. Real ambient context. --url only set $_SERVER; wp() is what makes it genuine.
@@ -337,7 +345,7 @@ sort( $tags, SORT_STRING );
 // `bin/harvest-tags.sh` overwrites that census in place. So a re-harvest silently orphans
 // every artifact already sitting beside it: the files still parse, still diff, and still
 // report a verdict, but against a corpus that no longer exists. Cost real evidence on
-// 2026-08-17 — Experiment R's Site P pair was rendered against the 08-14 census, which
+// 2026-08-17 — the build replay's Site P pair was rendered against the 08-14 census, which
 // #112's census step then overwrote, leaving two artifacts that can never be re-diffed with
 // census classification again (`fixtures/harvest/<site>-B/_superseded/`).
 //

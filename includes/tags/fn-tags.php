@@ -166,7 +166,7 @@ function bws_call_passes_gate( string $fn ): bool {
 	// Reflection is the costly part and a defined function's internal-ness is
 	// immutable within a request, so memoize the verdict per name (keyed only
 	// once function_exists is true). Spares a ReflectionFunction construction on
-	// every render — e.g. one {{call}} per row across a long query loop.
+	// every render — e.g. one {{call}} per item across a long query loop.
 	static $verdict = array();
 	if ( isset( $verdict[ $fn ] ) ) {
 		return $verdict[ $fn ];
@@ -302,7 +302,7 @@ function bws_register_call_tag(): void {
 	$ref_opt         = bws_base_traversal_options()['ref'];
 	$ref_opt['help'] = __( 'ACF relationship or post object field key (the related post the function runs on).', 'generateblocks' );
 
-	new GenerateBlocks_Register_Dynamic_Tag( array(
+	bws_gb_register_tag( array(
 		'title'    => __( 'Call Custom Function', 'generateblocks' ),
 		'tag'      => 'call',
 		'type'     => 'post',

@@ -116,7 +116,7 @@ Same tag string on both contexts. Format (7 slots): `%1 %2 %3. %4 %5, %6, %7`
 >   content filter → straight `5'11"` survives.
 >
 > **Loop-vs-static is NOT the axis.** `do_blocks` runs on `the_content` at priority 9 and
-> `wptexturize` at 10, so loop rows are already inline when texturize sweeps the string. J11c/J11d
+> `wptexturize` at 10, so loop output is already inline when texturize sweeps the string. J11c/J11d
 > below are the negative control pinning this: J11c must equal J11.
 >
 > GB itself never calls `the_content` or `wptexturize` (zero references in the plugin). Mechanism +

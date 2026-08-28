@@ -53,15 +53,15 @@ same page for the outside-loop baseline.
 | Record | Question |
 |---|---|
 | `instance_ctx` has `generateblocks/loopItem` (loop placements) | Does GB context propagate to tags inside Element-rendered loops? |
-| `loop_ctx.in_loop` / `row_post_id` | Does existing loop detection fire there? |
-| `queried_object` inside loop items | Still `WP_Term`, or clobbered per-row? |
-| `get_the_id` / `post_global` inside loop items | Row post (GB swaps globals) or unchanged? |
+| `loop_ctx.in_loop` / `item_post_id` | Does existing loop detection fire there? |
+| `queried_object` inside loop items | Still `WP_Term`, or clobbered per loop item? |
+| `get_the_id` / `post_global` inside loop items | The loop item's post (GB swaps globals) or unchanged? |
 | `is_main_query` inside loop items | Secondary-query state at tag render time |
 
-**FAIL (a) =** `loopItem` context missing in `element-loop-item` → loop-row
+**FAIL (a) =** `loopItem` context missing in `element-loop-item` → loop-item
 detection impossible in Elements → factory precedence rule (loop_ctx wins over
 ambient) has a blind spot; need another loop signal before designing dispatch.
-**FAIL (b) =** `queried_object` changes to the row post inside loops → ambient
+**FAIL (b) =** `queried_object` changes to the loop item's post inside loops → ambient
 detection is NOT stable under loops → factory cannot read queried-object lazily;
 must capture ambient once pre-loop. Either fail reshapes §Base Resolution.
 
@@ -214,6 +214,10 @@ When the sweep is done: distill the per-context truth table + precedence
 decisions into the two plan files (§Base Resolution / §Context Taxonomy), then
 delete the probe file and this matrix per the debug-workflow rule.
 
+*Run records below quote the probe's log fields under the names emitted on the
+run date. The post-id field was renamed in 1.19.0; the matrix rows above, the
+probe itself, and the prescriptions in §Findings locked carry the current name.*
+
 ### Runs so far (2026-07-06)
 
 **P0 — static front page, `element-header` — PASS.** singular+front true,
@@ -273,7 +277,9 @@ from the earliest hook.
    `queried_object` = null but `post_global` = 47955 (first hit). Zero-result
    contexts (404) don't leak (`$post` null), so the hazard is specifically
    *non-singular + has results*. `$post` trustworthy ONLY inside a confirmed
-   loop row (`loop_ctx.in_loop`).
+   query-loop item whose shape a post-semantic read can serve — and since 1.19.0
+   `loop_ctx.in_loop` alone no longer says that (a term or user item sets it too;
+   bws_loop_item_is_post_or_row() is the question).
 
    → **§V-candidate (the factory precedence guard):**
    `loop_ctx → queried_object → query-context-by-conditional → ($post only inside
@@ -285,8 +291,8 @@ from the earliest hook.
 
 2. **`instance_ctx.postId` is NOT a dependable identity cross-check.** On
    archives it mirrors stale `$post` (48418), is ABSENT in one pre-loop wrapper
-   state, and only tracks the row inside the loop. Factory should ignore it and
-   use `loop_ctx.row_post_id` (derived correctly) + `queried_object`. Kills the
+   state, and only tracks the item inside the loop. Factory should ignore it and
+   use `loop_ctx.item_post_id` (derived correctly) + `queried_object`. Kills the
    "cheap cross-check" idea.
 
 3. **Pre-loop wrapper renders in ≥2 distinct context states** (one with

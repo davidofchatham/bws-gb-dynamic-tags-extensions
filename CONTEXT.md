@@ -108,11 +108,11 @@ Load-bearing detail lives as PHPDoc on the enforcers: `field-combo-control.js` (
 The traversal pipeline (shipped 1.14.0) resolves *where a bare tag reads from* through a single **source factory** (`bws_resolve_base_source`), by a fixed precedence — the load-bearing rule the whole context-aware feature rests on:
 
 1. **Explicit `src`** (site / registry source / `ref` as a step off the base) — author intent always wins.
-2. **Loop row** (`bws_get_loop_row_context`) — a bare tag inside a query loop reads the ROW (post or Mode-2b meta_row), not the archive.
+2. **Query-loop item** (`bws_get_loop_item_context`) — a bare tag inside a query loop reads the ITEM the loop is standing on (a post, a term, a user or a repeater row), not the archive; an item matching none of those shapes is refused rather than read, so nothing from an entity the wire never named reaches the page ([I15]). Which shape an item is, is `bws_classify_loop_item()`'s to decide and is stated there.
 3. **Ambient queried object** — `get_queried_object()` is a `WP_Term` → the **term** (the #19 term-archive kind, shipped 1.14.0); a `WP_User` → the **user** (the #19 author-archive kind, shipped 1.15.0).
 4. **Current post** — else the singular post.
 
-**`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a loop row (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
+**`$post` / `get_the_ID()` is NEVER an ambient fallback.** Probe-proven: `$post` carries the main query's FIRST row on every results-bearing non-singular context (term archive, search, empty-search), so a `$post` fallback renders a plausible-but-wrong entity exactly where context-awareness matters. Only a post-shaped loop item (rule 2) or an explicit id feeds a post source. This is why the factory reads `get_queried_object()` (hook- and loop-stable), not `$post`.
 
 Two guards keep the leak dead at the edges:
 - **A claimed-taxonomy-context with no resolvable term yields EMPTY, never the leaked post.** When `is_tax`/`is_category`/`is_tag` fire but `get_queried_object()` is not a `WP_Term` (deleted term, malformed query), the factory short-circuits to empty rather than falling to the current post.
@@ -151,7 +151,7 @@ GB's editor **preview REST route** resolves the edited post by appending `id:<po
 
 **Rule:** a composing tag MUST thread its tag-level `id` into every **post-based** sub-read it delegates. `src:ref` sub-reads carry it too (the current post is where the `refs` step starts). Only **entity-blind** sources skip it — `src:site` reads a `wp_options` datum, never a post, so passing `id` there is meaningless.
 
-**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-row / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
+**Front-end safety by construction:** GB injects `id` ONLY on the editor REST route. On the front end the tag-level `id` is empty → nothing is threaded → the loop-item / ambient context (I9) resolves each sub-read, and [[feedback_loop_context_override]]'s "explicit `$post_id` wins over loop inference" is not disturbed (no explicit id exists to win). So this is an editor-only correction.
 
 This is the composing-tag corollary to I9 (L1 ambient resolution) and I6 (a slot resolves identically to the same tag standalone — which fails silently in the editor if the id isn't propagated). Enforced at: `bws_join_callback` `$explicit_id` PHPDoc (base-tags.php). Schema/behavior: `tag-reference.md` §join (editor preview) + `tools/test/join-test-matrix.md` §Editor preview.
 
@@ -221,13 +221,17 @@ Four shapes it decides, each of which used to fall back:
 - **A `src` token the factory cannot identify** — unregistered, or a registered source whose `resolve_id()` finds nothing (an inert one, or a scope-bound one off its scope). Both refuse, unconditionally and with no per-source opt-out; the source factory answers a NAMED refusal kind rather than a null the caller would read as "no source stated" ([#75](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/75), [#76](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/76)). **Not every way the factory declines is a refusal** — which ones are, and why the odd one out is not, is `bws_factory_registry_source()`'s.
 - **A STEP whose slug is unknown vocabulary**, at any non-leading position. Refuses too, and it is a DIFFERENT read from the one above rather than the same leak twice — disjoint by POSITION, since an unknown slug at position 0 is a ROOT and goes to the shape above, because a root is not a step ([I14]). What made it a leak: the base arms fell to a catch-all singular read with no case for the `''` kind such a chain resolves to, so the unknown step was silently DROPPED and the chain's PREFIX was read, collapsed to its first result ([#109](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/109)).
 
+**A LOOP ITEM WE CANNOT READ IS THIS SAME FAILURE REACHED FROM OUTSIDE THE WIRE, AND SINCE 1.19.0 IT REFUSES TOO.** Not a fifth wire shape — the wire is not involved. GB hands the block whatever the loop is iterating, a co-resident query extension can make that a term, a user or a record nobody here has met, and an item we did not recognize used to read as *not in a loop*, so nothing resolved the item's own entity. What then reached the page was not the surrounding entity either: our post source calls GB's `get_id()` itself, a co-resident hook on `generateblocks_dynamic_tag_id` overrode the id it returned with the loop's TERM id, and we consumed that as a post id — so a `{{title}}` in a term loop **on a page** rendered post 1's title (`Hello world!`, measured 2026-08-26). What lands is a plausible value from an entity the wire never named, which is the failure this invariant is about, with the wire saying nothing wrong at all and nothing looking broken. Recognized items now resolve their own entity and an unrecognized one says nothing. WHICH shape an item IS, is decided by `bws_classify_loop_item()` and by nothing else — the shapes may be listed anywhere, and are; the predicate that assigns one lives only there.
+
+**THE INVARIANT IS LIVE, AND BEING IN A LOOP IS NOT ITSELF A LICENSE TO SKIP A "NO ENTITY" BAIL.** An item a post-meta read cannot serve falls past every loop branch to the term-archive read, and on an archive page that returns the surrounding archive's term meta. A wrong value does not suppress a configured fallback; it PRE-EMPTS it, which is the same sentence as the bold rule above from the other end. Whether a field read can be served from the item at all is `bws_loop_item_is_post_or_row()`'s question — its PHPDoc owns the predicate and carries the measurement that produced it (a widened gate reintroducing exactly this failure during 1.19.0's own build) — and every site that asks it states the consequence and points there.
+
 **Where the two are caught, and why it is not the obvious place.** Both are refused ABOVE the render cores, at the arm — never by handing a core no id and trusting it to stop. It does not stop, and it must not be changed to, because the read it falls through to is load-bearing elsewhere. `bws_base_read_refused()` owns what that costs and why the guard therefore sits where it does.
 
 **Corollary — an inherited source carries what it IS, not merely its root.** `src(same)` names the same *source*, so its steps travel with it: a leading `terms` step leaves the root unset by design, and an inheriting slot that took only the root landed on the ambient entity. Contrast `limit`, which is a *parameter of* a source and is container-sensitive for that reason. **HALF OF IT IS STRUCTURAL since [#104](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/104)** — the carry holds a chain, and a chain holds its own hops, so the `$tax_inherit` scalar that carried the hop is gone. The DISPLACE half is not structural and is still a rule: part of the inherited chain can GIVE WAY to a step this slot states of its own, and the ROOT never does, because a slot inherits the SOURCE. It is a rule about what `same` means — a slot sentinel the container resolves before compiling — not about the chain grammar, so a base tag's `terms,a;terms,b` still hops twice.
 
 **WHAT DECIDES HOW MUCH GIVES WAY IS OWNED BY `bws_fold_chain_join()` AND IS STATED NOWHERE ELSE, THIS INVARIANT INCLUDED.** It changed axis three times during #104, each reading correct on every legacy shape and wrong on a different hand-written one, and every site that had named an axis went stale while every site naming only the consequence stayed true — which is where the ownership rule in `CLAUDE.md` §Documentation ownership came from. The three readings and what each cost are in `docs/design-history/multi-step-slot-sources.md` §Corrections.
 
-Enforced at: `bws_fold_slot_chain_options()` PHPDoc (slot-fold.php), `bws_fold_chain_to_steps()` and **`bws_fold_chain_join()`** (slot-fold-compile.php — the corollary's displace half, and the owner of what decides it); for the last two shapes, **`bws_factory_registry_source()`** (traversal-pipeline.php — which of its three declines refuse), `BWS_SOURCE_KIND_UNRESOLVED` (the refusal kind itself), **`bws_base_read_refused()`** (base-shared.php — the arms' one test) and `bws_try_slot_base_branch_kind()` (try-slot-arms.php — the selecting container's). Tests: `tools/test/slot-fold-test.php` §P16, `tools/test/fold-chain-compile-test.php` §C3/§C6, `tools/test/traversal-pipeline-test.php` (the two terminal refusals, the load-fallthrough staying non-terminal, and the refusal reaching each consumer), `tools/test/try-slot-arms-test.php` §A4.11–13. Rendered: `tools/test/fold-test-matrix.md` §F11. Rationale: [#74](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/74), [#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112). Related: [I13] (wire era is per slot), [I14] (root is not a step; the fourth shape above is its unknown-step case), [I16] (the corollary becomes structural once the carry holds a chain).
+Enforced at: `bws_fold_slot_chain_options()` PHPDoc (slot-fold.php), `bws_fold_chain_to_steps()` and **`bws_fold_chain_join()`** (slot-fold-compile.php — the corollary's displace half, and the owner of what decides it); for the last two shapes, **`bws_factory_registry_source()`** (traversal-pipeline.php — which of its three declines refuse), `BWS_SOURCE_KIND_UNRESOLVED` (the refusal kind itself), **`bws_base_read_refused()`** (base-shared.php — the arms' one test) and `bws_try_slot_base_branch_kind()` (try-slot-arms.php — the selecting container's). For the loop-item route, **`bws_classify_loop_item()`** and **`bws_loop_item_is_post_or_row()`** (field-helpers.php — what an item is, and what a field read can be served from). Tests: `tools/test/slot-fold-test.php` §P16, `tools/test/fold-chain-compile-test.php` §C3/§C6, `tools/test/traversal-pipeline-test.php` (the two terminal refusals, the load-fallthrough staying non-terminal, the refusal reaching each consumer, and its `#123` section for the loop item), `tools/test/try-slot-arms-test.php` §A4.11–13, `tools/test/loop-item-classify-test.php` (the five answers and the refusal). Rendered: `tools/test/fold-test-matrix.md` §F11, `tools/test/loop-test-matrix.md` (the loop-item route). Rationale: [#74](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/74), [#112](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/112). Related: [I13] (wire era is per slot), [I14] (root is not a step; the fourth shape above is its unknown-step case), [I16] (the corollary becomes structural once the carry holds a chain).
 
 ---
 
@@ -318,7 +322,7 @@ The **declared read intent** of a tag — its (source + key) specification. `{sr
 - **explicit** — a source is serialized (author-selected). EVERY other flavor, incl. `src:current` (same OUTCOME as implicit — reads the queried item — but explicit once written, e.g. a serialized try_ slot 2+). "selected" is an informal synonym for explicit (the author selected a Source); it is NOT a pole name — all three axis-2 flavors below are "selected" in this loose sense.
 
 *Axis 2 — entity provenance (who supplies the read-entity — the meaningful split among explicit sources; the implicit tag's hidden provenance is always `detected`):*
-- **detected** — an ambient signal supplies the entity, so it varies per render: WP query object / loop row (`src:current`, term-archive), a related-post step (`src:ref`), or the active Site View / user session (`view_`). `view_` is detected-yet-explicit — detection is NOT the same axis as implicit/explicit.
+- **detected** — an ambient signal supplies the entity, so it varies per render: WP query object / query-loop item (`src:current`, term-archive), a related-post step (`src:ref`), or the active Site View / user session (`view_`). `view_` is detected-yet-explicit — detection is NOT the same axis as implicit/explicit.
 - **global** — no per-entity read; a site-wide datum (`src:site`). A Site View may ALSO act site-wide, but `view_` stays **detected** because a signal (the active view) selects it; `src:site` consults nothing.
 - **ID** — the author identifies ONE specific entity and its id is serialized into the token (probable `src:<type>,<ID>` shape, **not final**). The **ID source** — the only flavor carrying a serialized entity id. This is the "pinned/specific resource" concept the qualifying gate points at (FW-39 ID source, FW-33 `term_` deprecation). Names the mechanism (serialized id) = the provenance (author supplies it).
 
@@ -326,22 +330,25 @@ Grid: `implicit`→bare queried (detected). `explicit`→ detected (`current`/`t
 
 **Ambient**:
 Supplied by the RENDER's own context rather than by the wire — the queried object on a
-singular page, term archive or author archive, or the row a query loop is standing on. An
+singular page, term archive or author archive, or the item a query loop is standing on. An
 ambient read is legitimate ([I15] says when), and "ambient" never means "whatever is left
 over": it names one specific supplier.
 
 **Query-loop item**:
 The one entity GB hands a block for the iteration it is rendering inside (`generateblocks/loopItem`).
-Two shapes, and no third is recognized: a **post** — any query type, so a plain post loop and a
-relationship loop look the same to us — or a **repeater row**, a bag of fields with no entity identity
-of its own (kind `meta_row`). A THIRD shape exists in the wild and is not recognized: an extension can
-loop over TERMS, and such an item reads as no loop at all
-([#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123)). Where loops nest, the innermost item is the one that counts. "Query loop"
+Four shapes are recognized: a **post** — any query type, so a plain post loop and a
+relationship loop look the same to us — a **term**, a **user**, or a **repeater row**, a bag of fields
+with no entity identity of its own (kind `meta_row`). Terms and users arrived in 1.19.0; the ones
+measured came from a co-resident query extension, GB core's own loops having yielded posts. A shape
+that fits none of the four is a fifth state and is **not** "no loop": we are in a loop holding an item we cannot read,
+and it refuses rather than resolving the surrounding page ([I15]). Which shape an item IS, is decided
+by `bws_classify_loop_item()` (field-helpers.php) and by nothing else. Where loops nest, the
+innermost item is the one that counts. "Query loop"
 itself is the output shape defined in [`tag-reference.md`](docs/tag-reference.md) §Output shape.
 
 Say **query-loop item** where the umbrella is the subject — defining it, or mapping iterations to what
-they hold. Once the loop is the subject, name the shape alone: *a post*, *a repeater row*. Never "post
-item" or "repeater-row item".
+they hold. Once the loop is the subject, name the shape alone: *a post*, *a term*, *a user*, *a
+repeater row*. Never "post item" or "repeater-row item".
 
 _Avoid_: "mode 2a" / "mode 2b" (retired 2026-08-22 — coined in a 2026-05 plan whose Mode 1 stopped
 existing days later, and defined in no committed file); "row" for the post shape, which is not

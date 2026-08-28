@@ -165,92 +165,6 @@ function bws_get_term_field_image_data( $term_id, $field_key, $return_type = 'ur
 }
 
 /**
- * Handle image fallback for term field images using URLs and placeholders.
- *
- * @since 1.1.0
- * @param string $fallback_url Fallback image URL.
- * @param string $return_type  Type of data to return.
- * @param string $image_size   Image size (not used for URLs).
- * @param array  $options      Tag options.
- * @param object $instance     Block instance.
- * @return string
- */
-if ( ! function_exists( 'bws_handle_term_image_fallback' ) ) {
-function bws_handle_term_image_fallback( $fallback_url, $return_type, $image_size, $options, $instance ) {
-	// First try the URL fallback.
-	if ( ! empty( $fallback_url ) && filter_var( $fallback_url, FILTER_VALIDATE_URL ) ) {
-		$site_url_host     = wp_parse_url( home_url(), PHP_URL_HOST );
-		$fallback_url_host = wp_parse_url( $fallback_url, PHP_URL_HOST );
-
-		// If it's a local URL, try to get attachment data.
-		if ( $site_url_host === $fallback_url_host ) {
-			$attachment_id = bws_get_attachment_id_from_url( $fallback_url );
-
-			if ( $attachment_id ) {
-				$result = bws_get_attachment_data( $attachment_id, $return_type, $image_size );
-
-				if ( ! empty( $result ) ) {
-					return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
-				}
-			}
-		}
-
-		// For external URLs or when we can't find an attachment, return based on return type.
-		switch ( $return_type ) {
-			case 'url':
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( esc_url( $fallback_url ), $options, $instance );
-
-			case 'id':
-				if ( $site_url_host === $fallback_url_host ) {
-					$attachment_id = bws_get_attachment_id_from_url( $fallback_url );
-					if ( $attachment_id ) {
-						return GenerateBlocks_Dynamic_Tag_Callbacks::output( (string) $attachment_id, $options, $instance );
-					}
-				}
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
-
-			case 'alt':
-			case 'caption':
-				if ( $site_url_host === $fallback_url_host ) {
-					$attachment_id = bws_get_attachment_id_from_url( $fallback_url );
-					if ( $attachment_id ) {
-						$result = bws_get_attachment_data( $attachment_id, $return_type, $image_size );
-						if ( ! empty( $result ) ) {
-							return GenerateBlocks_Dynamic_Tag_Callbacks::output( $result, $options, $instance );
-						}
-					}
-				}
-				return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
-		}
-	}
-
-	// Editor context: Use placeholders when no fallback URL is available.
-	if ( is_admin() || wp_is_json_request() ) {
-		switch ( $return_type ) {
-			case 'id':
-				$placeholder = '0';
-				break;
-			case 'alt':
-				$placeholder = 'Term image alt text placeholder';
-				break;
-			case 'caption':
-				$placeholder = 'Term image caption placeholder';
-				break;
-			case 'url':
-			default:
-				$placeholder = bws_get_generateblocks_image_placeholder();
-				break;
-		}
-
-		return GenerateBlocks_Dynamic_Tag_Callbacks::output( $placeholder, $options, $instance );
-	}
-
-	// Frontend: Return empty if no fallback available.
-	return GenerateBlocks_Dynamic_Tag_Callbacks::output( '', $options, $instance );
-}
-}
-
-/**
  * Get WP_Term objects for a post in a given taxonomy.
  *
  * Used as get_entities_fn for post-referenced term-extraction templates.
@@ -333,26 +247,5 @@ function bws_post_term_image_options(): array {
 			'placeholder' => 'thumbnail',
 		),
 	);
-}
-}
-
-/**
- * Get GenerateBlocks image placeholder URL.
- *
- * @since 1.1.0
- * @return string Placeholder URL.
- */
-if ( ! function_exists( 'bws_get_generateblocks_image_placeholder' ) ) {
-function bws_get_generateblocks_image_placeholder() {
-	if ( defined( 'GENERATEBLOCKS_DIR_URL' ) ) {
-		$placeholder_path = GENERATEBLOCKS_DIR_URL . 'assets/images/image-placeholder.png';
-		$placeholder_file = str_replace( GENERATEBLOCKS_DIR_URL, GENERATEBLOCKS_DIR, $placeholder_path );
-		if ( file_exists( $placeholder_file ) ) {
-			return $placeholder_path;
-		}
-	}
-
-	// Fallback to a simple data URL placeholder.
-	return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmMWYxIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNHB4IiBmaWxsPSIjNjY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPkltYWdlIFBsYWNlaG9sZGVyPC90ZXh0Pjwvc3ZnPg==';
 }
 }

@@ -319,6 +319,69 @@ class SettingsPage {
 	}
 
 	/**
+	 * Build the read-only tag-name-conflict rows for the Tag Name Conflicts subsection.
+	 *
+	 * A MIRROR OF THIS REQUEST'S COLLISION RECORD, in the order the page shows it.
+	 * bws_gb_tag_name_collisions() (includes/helpers/gb-registration-boundary.php) owns the
+	 * record and what each outcome means, and bws_gb_collision_other_parties() owns which of
+	 * its field pairs names which party. THIS FUNCTION DECIDES NEITHER. It used to answer the
+	 * second question itself, in a copy of the mapping the report sentences also carried, and
+	 * a mapping written twice is one an added outcome gets right in one place only.
+	 *
+	 * BOTH PARTIES TRAVEL, NOT THE RELEVANT ONE. A record where a takeover merged onto an
+	 * earlier conflict names two strangers, and picking one here would decide, on the page's
+	 * behalf, which half of a three-way contest a reader is allowed to see.
+	 *
+	 * READ AT RENDER, WHICH IS WHY THIS IS SAFE. The record is request-scoped: written by
+	 * the init:20 registration pass and completed by bws_gb_recheck_tag_ownership() on
+	 * `wp_loaded` at PHP_INT_MAX. An admin page body renders well after `wp_loaded`, so the
+	 * record is complete here. A consumer running EARLIER would read a half-built one.
+	 *
+	 * THE OWNER NAME IS RESOLVED HERE, ONCE PER PARTY, so the markup below stays a template.
+	 * It is DERIVED, not recorded — bws_gb_registrar_plugin_name() owns the derivation and
+	 * what '' means — and it is added to the party pairs rather than replacing anything: the
+	 * tag `title` is what a reader sees in the editor and the file is what they can open, so
+	 * both survive as evidence behind an owner the page leads with.
+	 *
+	 * @since 1.19.0
+	 * @return array<int,array{tag:string,outcome:string,before:?array{title:string,source:string,plugin:string},after:?array{title:string,source:string,plugin:string},subject:string}>
+	 */
+	public static function get_tag_collision_status(): array {
+		if (
+			! function_exists( 'bws_gb_tag_name_collisions' )
+			|| ! function_exists( 'bws_gb_collision_other_parties' )
+			|| ! function_exists( 'bws_gb_registrar_plugin_name' )
+		) {
+			return array();
+		}
+
+		$record = bws_gb_tag_name_collisions();
+		ksort( $record );
+
+		$rows = array();
+
+		foreach ( $record as $tag => $entry ) {
+			$parties = bws_gb_collision_other_parties( $entry );
+
+			foreach ( array( 'before', 'after' ) as $role ) {
+				if ( is_array( $parties[ $role ] ) ) {
+					$parties[ $role ]['plugin'] = bws_gb_registrar_plugin_name( $parties[ $role ]['source'] );
+				}
+			}
+
+			$rows[] = array_merge(
+				array(
+					'tag'     => (string) $tag,
+					'outcome' => (string) ( $entry['outcome'] ?? '' ),
+				),
+				$parties
+			);
+		}
+
+		return $rows;
+	}
+
+	/**
 	 * Build a short Approach-A migration target string from a registry entry.
 	 *
 	 * Renders only the parts of the migration that are required for the migrated
@@ -628,7 +691,7 @@ function my_result( $post_id, $arg = '' ) {
 							<?php esc_html_e( 'Properly registered functions will appear in the {{call}} tag\'s Function dropdown for easy access. Manually inserting an unregistered function in a {{call}} tag will cause it to return the tag\'s fallback text, if available, or return empty.', 'generateblocks' ); ?>
 						</p>
 					</div>
-					<h3 class="bws-call-subhead"><?php esc_html_e( 'Registered functions', 'generateblocks' ); ?></h3>
+					<h3 class="bws-subhead"><?php esc_html_e( 'Registered Functions', 'generateblocks' ); ?></h3>
 					<table class="bws-tags-table widefat">
 						<tbody>
 						<?php if ( empty( $bws_call_rows ) ) : ?>
@@ -992,9 +1055,220 @@ function my_result( $post_id, $arg = '' ) {
 					</div>
 				</div>
 
-				<?php /* ── Diagnostics ── */ ?>
+				<?php /* ── Diagnostics: settings, then read-only reports ── */ ?>
 				<div class="bws-tag-group">
+					<?php
+					// ONE HEADING OVER TWO SUBSECTIONS, so the heading names the CATEGORY and each
+					// subhead names its subject. The conflicts half changes nothing and only
+					// reports; the settings half changes behaviour. Labelling only one of them
+					// would leave the other orphaned, which is why "Settings" exists at all --
+					// three checkboxes do not need a name until something else sits beside them.
+					//
+					// THE REPORT COMES FIRST, THE SWITCHES SECOND. A reader arriving at Diagnostics
+					// is answering "did something break", and the answer is a finding, not a
+					// checkbox; the settings here only decide what gets written to a log for a
+					// LATER look. Ordering by what is read rather than by what is editable also
+					// keeps the one subsection that can carry a warning above the fold.
+					//
+					// Tag Name Conflicts was its own H2 until this. It was `Integration Status` with
+					// a subhead before that, narrowed on 2026-08-26 when its second subsection
+					// (dependency-version drift) was cut and deferred as FW-99, on the rule that one
+					// heading over one table names the subject rather than the category. The rule
+					// holds; what changed is that the block is no longer alone. FW-99 lands here as
+					// a third subhead rather than as a section of its own.
+					//
+					// The shape is not invented here: Call Custom Function is one H2 over its own
+					// settings plus a `Registered functions` subhead labelling a read-only table.
+					?>
 					<h2 class="bws-section-header"><?php esc_html_e( 'Diagnostics', 'generateblocks' ); ?></h2>
+
+					<?php /* ── Tag Name Conflicts (read-only; NOT config, changes nothing) ── */ ?>
+					<?php
+					// The read happens HERE, at render, and that is load-bearing: the collision
+					// record is request-scoped and is only complete after `wp_loaded`. See
+					// get_tag_collision_status().
+					$bws_collisions = self::get_tag_collision_status();
+					?>
+					<h3 class="bws-subhead" id="bws-tag-name-conflicts"><?php esc_html_e( 'Tag Name Conflicts', 'generateblocks' ); ?></h3>
+					<?php
+					// TWO USER-FACING STATES OVER THE RECORD'S THREE OUTCOMES, and the map from one
+					// to the other lives HERE, at the only surface that collapses them. The record
+					// keeps 'kept' / 'lost' / 'yielded' apart because they are different events with
+					// different DEVELOPER remedies, and its merge rule depends on the distinction --
+					// see bws_gb_tag_name_collisions(). This page has a different reader. To a site
+					// owner, 'lost' and 'yielded' say one thing: another plugin's code answers for
+					// this name and ours does not. Which of the two put us there is invisible from
+					// the editor, invisible on the front end, and asks for the same action.
+					//
+					// THE PROSE IS A PROPERTY OF THE STATE, SO IT PRINTS ONCE PER STATE, BELOW THE
+					// TABLE. It used to print per ROW, which meant three tags standing down behind
+					// one plugin printed the same paragraph three times.
+					//
+					// REMEDIES ARE OWNER ACTIONS. Renaming a tag, or moving a registration to a
+					// different init priority, is something only whoever ships the plugin can do.
+					// Those instructions stay in the _doing_it_wrong() notices, whose reader needs
+					// WP_DEBUG and a log file and is a developer by construction.
+					$bws_c_state_of = array(
+						'kept'    => 'ours',
+						'lost'    => 'theirs',
+						'yielded' => 'theirs',
+					);
+
+					$bws_c_states = array(
+						// Order is the order the legend prints in: the state that leaves this
+						// plugin's tag inactive is the one a reader came here about.
+						'theirs'  => array(
+							'icon'    => 'warn',
+							'heading' => __( 'Another plugin\'s tag is active', 'generateblocks' ),
+							'long'    => __( 'Another plugin registered this tag name, so this plugin\'s version is inactive. If you previously inserted any instances of our version of the tag into your content, they still carry the settings you chose, but the other plugin likely does not recognize them, so their output may be different from what you intended.', 'generateblocks' ),
+							'remedy'  => __( 'If you want this plugin\'s version, deactivate the other plugin, or ask either developer for help with the conflict.', 'generateblocks' ),
+						),
+						'ours'    => array(
+							'icon'    => 'info',
+							'heading' => __( 'This plugin\'s tag is active', 'generateblocks' ),
+							'long'    => __( 'Another plugin registered this tag name first, but this plugin registered over it, so their version is inactive. If you previously inserted any instances of their version of the tag into your content, they still carry the settings you chose, but this plugin likely does not recognize them, so their output may be different from what you intended.', 'generateblocks' ),
+							'remedy'  => __( 'If the other plugin\'s version is the one you want, deactivate this plugin, or ask either developer for help with the conflict.', 'generateblocks' ),
+						),
+						// UNREACHABLE BY CONSTRUCTION, AND KEPT ANYWAY. The three outcome values are
+						// written at three sites in gb-registration-boundary.php and nowhere else,
+						// and no filter reaches the record. What this state buys is the behaviour on
+						// the day a FOURTH outcome is added there: a row saying a conflict exists,
+						// rather than a blank status and an undefined-index notice, on a diagnostics
+						// page whose whole job is to stay readable when something is wrong.
+						'unknown' => array(
+							'icon'    => 'warn',
+							'heading' => __( 'Tag name conflict', 'generateblocks' ),
+							'long'    => __( 'Two plugins registered this tag name. Which one is active could not be determined.', 'generateblocks' ),
+							'remedy'  => __( 'Deactivate one of the two plugins, or ask either developer for help with the conflict.', 'generateblocks' ),
+						),
+					);
+
+					// Only the states that actually occurred get prose printed for them.
+					$bws_c_seen = array();
+					?>
+					<?php if ( empty( $bws_collisions ) ) : ?>
+						<?php
+						// THE EMPTY STATE CARRIES THE EXPLANATION, because nothing else is left to
+						// carry it. Where there ARE conflicts the legend under the table says all of
+						// this and says it per state, so an intro paragraph above the table would be
+						// a third copy of the same warning. Where there are none there is no legend,
+						// so this one sentence says both what the subsection is for and what it
+						// found -- and a table with no columns holding a sentence is not a table.
+						?>
+						<div class="bws-section-desc bws-conflict-none">
+							<p style="margin:0">
+								<span class="bws-call-ok" aria-hidden="true">✓</span>
+								<?php esc_html_e( 'If more than one plugin registers the same tag name, frontend output can change without warning. As of now, this plugin can register all its tags without conflict.', 'generateblocks' ); ?>
+							</p>
+						</div>
+					<?php else : ?>
+					<table class="bws-tags-table widefat">
+						<thead>
+								<tr>
+									<th style="width:1.5em"></th>
+									<th><?php esc_html_e( 'Tag', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Status', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Other plugin', 'generateblocks' ); ?></th>
+									<th><?php esc_html_e( 'Registered in', 'generateblocks' ); ?></th>
+								</tr>
+							</thead>
+						<tbody>
+							<?php foreach ( $bws_collisions as $bws_collision ) : ?>
+								<?php
+								$bws_c_key   = $bws_c_state_of[ $bws_collision['outcome'] ] ?? 'unknown';
+								$bws_c_state = $bws_c_states[ $bws_c_key ];
+
+								$bws_c_seen[ $bws_c_key ] = true;
+
+								// THE OWNER IS A PLUGIN, NEVER THE OTHER TAG'S LABEL: `title` says
+								// "Term Title", which reads as a party while naming nothing anybody
+								// can go and deactivate. The name is derived off the accessor above;
+								// '' means it could not be told from the file, and the stand-in says
+								// exactly that rather than putting a tag label in an owner's place.
+								$bws_c_subject = $bws_collision[ $bws_collision['subject'] ];
+								$bws_c_owner   = '' !== $bws_c_subject['plugin']
+									? $bws_c_subject['plugin']
+									: __( 'another plugin', 'generateblocks' );
+
+								// BOTH PARTIES, IN THE ORDER THEY HELD THE NAME. A record that merged
+								// a takeover onto an earlier conflict carries two strangers, and
+								// showing one of them discards the half the merge exists to preserve.
+								// The earlier one rides under the party column as a second line: it
+								// is context for who is contesting the name, not a status of its own.
+								// WHICH pair of record fields is which party is not decided here --
+								// see bws_gb_collision_other_parties().
+								$bws_c_other = $bws_collision[ 'before' === $bws_collision['subject'] ? 'after' : 'before' ];
+								$bws_c_prior = null !== $bws_c_other && '' !== $bws_c_other['plugin'] ? $bws_c_other['plugin'] : '';
+								?>
+								<tr class="bws-tag-row">
+									<td class="bws-tag-checkbox" style="width:1.5em">
+										<?php
+										// Decorative, and it carries NO screen-reader text: the status
+										// is printed as visible text two cells along, so a span here
+										// would have it read out twice in a row. The glyph varies by
+										// state rather than marking every row the same way, which told
+										// a reader only what the table's presence already told them.
+										?>
+										<span class="<?php echo 'warn' === $bws_c_state['icon'] ? 'bws-call-warn' : 'bws-call-info'; ?>" aria-hidden="true"><?php echo 'warn' === $bws_c_state['icon'] ? '⚠' : 'ℹ'; ?></span>
+									</td>
+									<td><code><?php echo esc_html( '{{' . $bws_collision['tag'] . '}}' ); ?></code></td>
+									<?php
+									// The status text IS the legend heading below, word for word. That
+									// is what links a row to the paragraph explaining it, with no
+									// cross-reference to write and nothing to keep in step by hand.
+									?>
+									<td><?php echo esc_html( $bws_c_state['heading'] ); ?></td>
+									<td>
+										<strong><?php echo esc_html( $bws_c_owner ); ?></strong>
+										<?php if ( '' !== $bws_c_subject['title'] ) : ?>
+											<span class="bws-tag-name"><?php echo esc_html( $bws_c_subject['title'] ); ?></span>
+										<?php endif; ?>
+										<?php if ( '' !== $bws_c_prior ) : ?>
+											<p class="description" style="margin:2px 0 0">
+												<?php
+												/* translators: %s: name of a plugin that held the tag name before either of the current two */
+												echo esc_html( sprintf( __( 'before that: %s', 'generateblocks' ), $bws_c_prior ) );
+												?>
+											</p>
+										<?php endif; ?>
+									</td>
+									<td>
+										<?php if ( '' !== $bws_c_subject['source'] ) : ?>
+											<?php
+											// THE PATH IS RELATIVE TO THE WORDPRESS ROOT ONLY WHEN THE
+											// FILE IS UNDER IT, and absolute otherwise -- see
+											// bws_gb_tag_registrar_file(). A symlinked plugins directory
+											// is enough to make the absolute form the normal one
+											// (measured on the fixture site), so it is not an edge case
+											// and the two forms can sit side by side in one table.
+											// Neither is dressed up as the other: trimming an absolute
+											// path to look relative would stop it naming a file the
+											// reader can open, which is the whole of what this is for.
+											?>
+											<code><?php echo esc_html( $bws_c_subject['source'] ); ?></code>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+
+						<div class="bws-conflict-legend">
+							<?php foreach ( $bws_c_states as $bws_c_key => $bws_c_state ) : ?>
+								<?php if ( empty( $bws_c_seen[ $bws_c_key ] ) ) : ?>
+									<?php continue; ?>
+								<?php endif; ?>
+								<h4>
+									<span class="<?php echo 'warn' === $bws_c_state['icon'] ? 'bws-call-warn' : 'bws-call-info'; ?>" aria-hidden="true"><?php echo 'warn' === $bws_c_state['icon'] ? '⚠' : 'ℹ'; ?></span>
+									<?php echo esc_html( $bws_c_state['heading'] ); ?>
+								</h4>
+								<p class="description"><?php echo esc_html( $bws_c_state['long'] ); ?></p>
+								<p class="description"><?php echo esc_html( $bws_c_state['remedy'] ); ?></p>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+
+					<h3 class="bws-subhead"><?php esc_html_e( 'Settings', 'generateblocks' ); ?></h3>
 					<table class="bws-tags-table widefat">
 						<tbody>
 							<tr class="bws-tag-row">
@@ -1032,6 +1306,7 @@ function my_result( $post_id, $arg = '' ) {
 							</tr>
 						</tbody>
 					</table>
+
 				</div>
 
 				<?php submit_button( __( 'Save Settings', 'generateblocks' ) ); ?>
@@ -1055,7 +1330,7 @@ function my_result( $post_id, $arg = '' ) {
 				border-top: none;
 				border-bottom: none;
 			}
-			.bws-dynamic-tags-settings .bws-call-subhead {
+			.bws-dynamic-tags-settings .bws-subhead {
 				margin: 0;
 				padding: 8px 12px;
 				background: #fff;
@@ -1065,6 +1340,30 @@ function my_result( $post_id, $arg = '' ) {
 			}
 			.bws-dynamic-tags-settings .bws-call-ok   { color: #008a20; font-weight: 600; }
 			.bws-dynamic-tags-settings .bws-call-warn { color: #b32d2e; font-weight: 600; }
+			.bws-dynamic-tags-settings .bws-call-info { color: #2271b1; font-weight: 600; }
+			/* A subhead that FOLLOWS a subsection needs air, but the air goes INSIDE the box:
+			   every element in a group shares one continuous border, so a margin here breaks
+			   one section into two floating boxes instead of separating two subsections. The
+			   preceding table's bottom border is the divider; this only adds room above the
+			   heading and drops the doubled border line. */
+			.bws-dynamic-tags-settings .bws-tags-table + .bws-subhead,
+			.bws-dynamic-tags-settings .bws-conflict-none + .bws-subhead,
+			.bws-dynamic-tags-settings .bws-conflict-legend + .bws-subhead {
+				margin-top: 0;
+				padding-top: 18px;
+				border-top: none;
+			}
+			/* The empty state is the only subsection that ends in a paragraph rather than a
+			   table or the legend, so it carries the divider its neighbours get for free. */
+			.bws-dynamic-tags-settings .bws-conflict-none { border-bottom: 1px solid #c3c4c7; }
+			.bws-dynamic-tags-settings .bws-conflict-legend {
+				padding: 4px 12px 12px;
+				background: #fff;
+				border: 1px solid #c3c4c7;
+				border-top: none;
+			}
+			.bws-dynamic-tags-settings .bws-conflict-legend h4 { font-size: 13px; margin: 12px 0 4px; }
+			.bws-dynamic-tags-settings .bws-conflict-legend p  { margin: 0 0 6px; }
 			.bws-dynamic-tags-settings .bws-tags-table { border-top: none; }
 			.bws-dynamic-tags-settings .bws-tag-row td { padding: 6px 12px; vertical-align: middle; }
 			.bws-dynamic-tags-settings .bws-tag-checkbox { width: 30px; }

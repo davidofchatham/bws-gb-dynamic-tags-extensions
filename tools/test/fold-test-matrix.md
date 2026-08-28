@@ -500,12 +500,12 @@ opposite answers, which is the whole content of this section:
   loop. The author asked for *here*. **Continue to the post arm**, which resolves no id, at which
   point the loop fallthrough hands the row to the core fn, which reads `$loop_item[$key]`.
 
-Measured inside the loop: `in_loop=true`, `row_post_id=false`, base kind `meta_row`,
+Measured inside the loop: `in_loop=true`, `item_post_id=false`, base kind `meta_row`,
 `bws_base_post_ids_from_source()` `[]`, `bws_resolve_post_by_source()` `false`. So the fallthrough
 is not a defensive branch — it is the only thing that renders these rows at all.
 
-**NOTHING ELSE REACHES THIS.** A `WP_Query` loop's rows are `WP_Post` objects, so a post id always
-resolves and the branch never runs; `wp bws render-tag --loop-item=<id>` takes a post id by
+**NOTHING ELSE REACHES THIS.** A `WP_Query` loop's items are `WP_Post` objects, so a post id always
+resolves and the branch never runs; `wp bws render-tag --loop-item=<post_id>` takes a post id by
 construction. Until #103 the branch had **no rendered coverage on any tag family** — `{{call}}`'s
 [R1.4](call-test-matrix.md) names the case but records it as a known limit rather than exercising
 it. The rows below are on `/matrix-post-meta/`, inside a GB Pro `post_meta` query loop over the
@@ -513,7 +513,7 @@ seeded `team_members` repeater.
 
 | # | Tag | Expected |
 |---|---|---|
-| F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per loop row — the BASE tag's own path, which is a control rather than the subject |
+| F9c.1 | `{{text key:name}}` | `Alice Adams` / `Bob Brown`, one per repeater row — the BASE tag's own path, which is a control rather than the subject |
 | F9c.2 | `{{try_text A:key(name)}}` | the SAME two names. This is the `try_` fallthrough |
 | F9c.3 | `{{try_text A:key(nope)\|B:key(role)}}` | `Engineering` / `Operations` — the attempt chain still advances inside a row: slot 1 takes the fallthrough and finds nothing, slot 2 takes it and hits |
 | F9c.4 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: refused as a chain kind. Slot 2's silent wire takes the fallthrough and resolves |
@@ -639,22 +639,23 @@ had.
 
 **§F11a CANNOT catch a regression in the unregistered-root guard, and finding that out cost a
 mutation.** Removing the text arm's guard entirely leaves every §F11a row green: off-loop, the
-singular cores return before reading anything (`! $post_id && ! $is_loop_row`), so the arm guard and
+singular cores return before reading anything (`! $post_id && ! $read_may_serve`), so the arm guard and
 the core's guard produce the same empty output. The guard earns its place only where the core would
-have gone on to read something — a query-loop ROW, or the queried TERM on an archive.
+have gone on to read something — a query-loop item the read can be served from
+(`bws_loop_item_is_post_or_row()` is that question), or the queried TERM on an archive.
 
 That asymmetry is not a defect in §F11a; those rows pin the unknown-STEP door, which IS observable
 off-loop (removing the title arm's guard makes §F11a.6 render `Jane Partner`). It just means the two
 doors need different rows, and only one of them was written first.
 
-Loop is over the `staff` post type, so each row's ambient entity is a staff member with values of
+Loop is over the `staff` post type, so each item's ambient entity is a staff member with values of
 its own. Jane's `main_line` is `(555) 200-3000`. `render-tag` reaches these with
 `--loop-item=<staff id>`.
 
 | # | Tag (inside the loop) | Expected |
 |---|---|---|
-| F11c.1 | `{{text use:key\|key:main_line}}` | the ROW's number — the CONTROL. A bare tag in a loop reads the row, and must go on doing so |
-| F11c.2 | `{{text src:currnet\|use:key\|key:main_line}}` | EMPTY. **This is the row that fails if the arm guard goes** (*was*, and is again without it, the row's own number) |
+| F11c.1 | `{{text use:key\|key:main_line}}` | the ITEM's number — the CONTROL. A bare tag in a loop reads the loop item, and must go on doing so |
+| F11c.2 | `{{text src:currnet\|use:key\|key:main_line}}` | EMPTY. **This is the row that fails if the arm guard goes** (*was*, and is again without it, this item's own number) |
 | F11c.3 | `{{text src:related_post\|use:key\|key:main_line}}` | EMPTY — the registered-but-inert token, same door, same exposure |
 | F11c.4 | `{{title src:currnet}}` | EMPTY. `{{title}}`'s core has a plain falsy-id guard and no loop read, so this row is green either way — kept as the stated NEGATIVE, so a reader does not mistake it for coverage |
 
@@ -663,11 +664,20 @@ its own. Jane's `main_line` is `(555) 200-3000`. `render-tag` reaches these with
 A refusal produces nothing, and "produced nothing" is what a fallback is FOR. Asserted separately
 from §F11a because "renders empty" passes whether or not the fallback fired.
 
+**One row runs the other way, and it is the only row here that is not about §F11a's refusal at
+all.** F11b.3b's fallback CANNOT fire — the attachment it names does not exist — and what it
+asserts is that nothing is printed, in particular not the fallback's own argument. It reaches the
+fallback through an ordinary missing key rather than a refused source, which is why it needs no
+seeded id and can be a static string. It sits in this section because this is where what a
+fallback PRODUCES is asserted, and beside F11b.3 because the two are the same seam in opposite
+directions.
+
 | # | Tag | Expected |
 |---|---|---|
 | F11b.1 | `{{text src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — not empty. Front end only; the editor shows the configuration preview instead (F14.18) |
 | F11b.2 | `{{content src:currnet\|use:key\|key:role\|fallback:No source}}` | `No source` — content's fallback lives inside its core, which a refusal must not run, so this row is the one that catches a refusal that returned early |
 | F11b.3 | `{{image src:currnet\|use:key\|key:feature_image\|fallback:<id>}}` | the fallback IMAGE renders. Same split as F11b.2 one seam over. **`render-tag` only, and the exception is stated here per the visible-rows rule**: the fallback is a Media Library ID assigned at seed time, so no static string in `blocks.php` can name it. Pass the seeded attachment's id (`wp post list --post_type=attachment`). Its refusal half IS visible, as F11a.4b |
+| F11b.3b | `{{image key:feature_image_missing\|fallback:999999\|as:url}}` | **EMPTY**, and above all NOT `999999`. The page carries no `feature_image_missing` and the site has no attachment 999999, so the read is empty and the stated fallback cannot fire either. The raw id appearing as the image src is a co-resident extension re-applying a `fallback` this tag had already consumed and failed on. VISIBLE, unlike F11b.3, precisely because an id chosen never to exist needs no seed. Which options leave us at all is owned by `BWS_GB_TAG_OUTPUT_OPTIONS` ([`gb-output-boundary.php`](../../includes/helpers/gb-output-boundary.php)); its membership is pinned by [`gb-output-boundary-test.php`](gb-output-boundary-test.php) |
 | F11b.4 | `{{datetime_single src:currnet\|key:event_datetime\|fallback:No date}}` | `No date`. Its arm's fallback is gated on the chain FANNING, which a root-refused tag does not do — so a refusal joins that gate explicitly |
 | F11b.5 | `{{join A:src(bogus,x);key(role)\|B:key(name_first)}}` | `Jane` — the combining container DROPS the field. Not `Captain, Jane`, which is the pre-fix answer and the misattribution the whole fix is about |
 | F11b.6 | `{{try_text A:src(currnet);use(key);key(role)\|B:use(key);key(name_first)}}` | `Jane` — the selecting container ADVANCES to attempt B. *Was* `Captain`: attempt A read the ambient entity, SUCCEEDED, and stopped the chain, so B never ran. This is the row where the fix changes output to a different real value rather than to nothing |
