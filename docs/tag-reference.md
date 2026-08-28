@@ -494,23 +494,35 @@ constructors do not answer a taken name the same way:
 | `TagTemplateRegistry::register_modifier()` (the `term_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 | `TagTemplateRegistry::generate_base_try_tags()` (the `try_*` half) | Skipped; the first registrar keeps the name, and the skip is reported |
 
-A collision is detected three times, because it can go three ways and the remedies all differ:
+A collision is detected three times, because it can go three ways and the DEVELOPER remedies differ:
 
 | Detected | When | Recorded outcome |
 |---|---|---|
 | Something already held one of our base-tag names when our pass reached it | `bws_gb_register_tag()`, during registration | `kept` — we own the name, the other tag of that name does not render |
 | Something takes one of our names after our pass | `bws_gb_recheck_tag_ownership()`, once on `wp_loaded` | `lost` — every block already using our tag now renders through their callback |
-| Something already held a `term_*` / `try_*` name, so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists, nothing of ours renders, and the other tag is unaffected |
+| Something already held a `term_*` / `try_*` name, so that constructor stood down | `bws_gb_note_tag_yielded()`, at either constructor's dup-check | `yielded` — no tag of ours by that name exists and nothing of ours renders under it |
 
-**A `yielded` row means this doc does not describe that tag on that site.** It is the one outcome
-where nothing broke and nothing changed: the tag simply is not there, so a page describing it — this
-one included — is describing something the reader cannot use. That is what makes it worth reporting
-rather than a silent non-event.
+**A `yielded` outcome means this doc does not describe that tag on that site.** The tag simply is
+not there, so a page describing it — this one included — is describing something the reader cannot
+use. That is what makes it worth reporting rather than a silent non-event.
+
+**An outcome is this request's registration order, not the site's history**, and `yielded` is
+therefore silence about whether anything broke rather than proof that nothing did: a site that used
+`{{term_title}}` and then installed the other plugin records `yielded` on every request afterwards,
+while its author lived through the takeover `lost` describes. Nothing in the record separates the
+two — the evidence was the previous request's registry. The axis is stated at
+`bws_gb_tag_name_collisions()`.
 
 The report goes two ways for each: `_doing_it_wrong()` with a subject naming the situation and the
 tag, and a per-request record `bws_gb_tag_name_collisions()` hands back for any surface that wants
-to show it. The shipped surface for that record is the settings page's **Tag Name Conflicts** block,
-which names the tag, which of the three happened, and the other plugin. Why the constructors differ,
+to show it. The shipped surface for that record is the settings page's **Tag name conflicts**
+subsection, under Diagnostics. **It shows TWO states over these three outcomes**, because the
+remedies that separate them — rename a tag, move a registration off `init` priority 20 — are things
+only a plugin's own developer can do: `kept` reads as *this plugin's tag is active*, and `lost` and
+`yielded` both read as *another plugin's tag is active*, which is the whole of what a site owner can
+act on. The developer-facing `_doing_it_wrong()` notices keep all three. The subsection names the
+tag, the state, the OTHER PLUGIN (derived from the registrar's file, not the other tag's label) and
+that file. Why the constructors differ,
 what decides that a tag is still ours, when a report is repeated and when it is not, and which
 collision no detection can see are stated at
 [`gb-registration-boundary.php`](../includes/helpers/gb-registration-boundary.php) and nowhere else.
@@ -703,8 +715,9 @@ The term_ modifier produces additional tags with GB type `'term'`: `term_text`, 
 **WHETHER A GIVEN `term_*` TAG IS OURS DEPENDS ON THE SITE, AND THIS DOC CANNOT KNOW.** Where
 another plugin already holds one of these names, the tag of that name is theirs and nothing
 described here applies to it — [§Tag name collisions](#tag-name-collisions) owns why and what the
-outcome means, and the reader's own site answers which case it is, in the `yielded` rows of the
-settings page's **Tag Name Conflicts** block. Measured on the reference fixture site 2026-08-26: GB
+outcome means, and the reader's own site answers which case it is: the rows reading *another
+plugin's tag is active* in the settings page's **Tag name conflicts** subsection, under Diagnostics.
+Measured on the reference fixture site 2026-08-26: GB
 Query Enhancements holds `term_title` there, so no `{{term_title}}` of ours exists on it — while the
 examples using that tag elsewhere in this doc and in [`editor-controls.md`](editor-controls.md) hold
 on a site without that plugin.

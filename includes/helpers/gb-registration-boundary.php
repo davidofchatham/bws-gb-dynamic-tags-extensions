@@ -285,13 +285,35 @@ function bws_gb_note_tag_yielded( string $tag, $existing = null ): void {
  * registration and it has a title; on a yield we never built one, so there is no title of
  * ours to report and the tag name is the whole of what a reader has.
  *
- * THE THREE OUTCOMES ARE NOT ONE EVENT SEEN THREE TIMES, and a reader must be able to tell
- * them apart because the remedies differ. On 'kept' the stranger's tag is the one that
+ * THE THREE OUTCOMES ARE NOT ONE EVENT SEEN THREE TIMES, and a DEVELOPER must be able to
+ * tell them apart because the remedies differ. On 'kept' the stranger's tag is the one that
  * stopped working, and whoever installed the stranger is the person to tell. On 'lost' OUR
  * tag stopped working, silently, on pages already using it — that is the failure the whole
  * boundary exists for, and the one a status surface must not round off to "a collision
- * happened". On 'yielded' nothing of ours ever rendered and nothing broke: a tag simply is
- * not there, which no other signal on the site says at all.
+ * happened". On 'yielded' nothing of ours rendered THIS REQUEST: a tag simply is not there,
+ * which no other signal on the site says at all.
+ *
+ * AXIS — AN OUTCOME IS THIS REQUEST'S REGISTRATION ORDER, NOT THE SITE'S HISTORY. 'yielded'
+ * says a stranger held the name when our pass reached it. It does NOT say that no block ever
+ * rendered through our tag: a site that used {{term_title}} and then installed the stranger
+ * records 'yielded' on every request afterwards, while its author lived through exactly the
+ * takeover 'lost' describes. Nothing in the record separates the two, and nothing can — the
+ * evidence that a takeover happened was the PREVIOUS request's registry, and it is gone.
+ *
+ * So a yield is not a guarantee that nothing broke; it is silence about whether anything
+ * did. A surface reporting one to an AUTHOR carries the same warning 'lost' carries, and for
+ * the same reason: if blocks already used this name, their output has moved and no other
+ * signal says so. What stays true of a yield alone is the rest — no tag of ours exists, it
+ * is absent from the editor, and documentation describing it does not apply here.
+ *
+ * WHICH IS WHY A SURFACE MAY SHOW FEWER STATES THAN THIS RECORDS. The remedies that separate
+ * the outcomes are DEVELOPER remedies: rename a tag, move a registration off init priority
+ * 20. A site owner has neither, and to them 'lost' and 'yielded' say one thing — another
+ * plugin's code answers for this name and ours does not. The notice channel here needs
+ * WP_DEBUG and a log file, so it reports all three; the settings page reports two and owns
+ * that map (see SettingsPage's Tag Name Conflicts block). The record keeps three regardless:
+ * the merge rule depends on the distinction, and a surface can always collapse what it is
+ * given, while nothing can recover a distinction the record threw away.
  *
  * A 'yielded' RECORD IS EXCLUSIVE PER NAME BY CONSTRUCTION, so it needs no merge rule of
  * its own. A name we stood down from was never handed to GB, so bws_gb_register_tag() never
@@ -431,10 +453,12 @@ function bws_gb_report_tag_collision( string $tag ): void {
 		_doing_it_wrong(
 			// Says the consequence, not the mechanism: what a reader needs on line one is
 			// that a tag they expected does not exist, which "collision" would not tell them.
+			// The body carries the takeover warning as well, restating what the record's own
+			// axis note says a yield is silent about — see bws_gb_tag_name_collisions().
 			sprintf( "BWS GB dynamic tag '%s' not registered", $tag ),
 			sprintf(
 				/* translators: 1: dynamic tag name, 2: title and file of the code that registered it first */
-				__( 'The dynamic tag name "%1$s" was already registered by %2$s, so BWS Dynamic Tag Extensions did not register its own tag of that name. The other tag is unaffected and keeps working; the BWS tag does not exist on this site and will not appear in the editor. Rename or remove the other tag if you want the BWS one instead.', 'generateblocks' ),
+				__( 'The dynamic tag name "%1$s" was already registered by %2$s, so BWS Dynamic Tag Extensions did not register its own tag of that name. The other tag is unaffected and keeps working; the BWS tag does not exist on this site and will not appear in the editor. If blocks here used this tag name before the other code was installed, they now render through it instead and their output may have changed. Rename or remove the other tag if you want the BWS one instead.', 'generateblocks' ),
 				$tag,
 				bws_gb_other_registrar_phrase( $other['title'], $other['source'] )
 			),
@@ -511,11 +535,160 @@ function bws_gb_collision_other_parties( array $collision ): array {
 }
 
 /**
+ * Best-effort: the human name of the plugin, theme or core directory a registrar file is in.
+ *
+ * AXIS — WHO OWNS A CONTESTED NAME IS DERIVED FROM THE FILE, AND ONLY HERE. GB's registry
+ * cannot answer it: what it holds per tag is `title` — the other TAG's editor label, e.g.
+ * "Term Title" — and the callable. A tag label in an owner slot reads as an owner
+ * ("registered by Term Title") while naming nothing a reader can go and uninstall, so every
+ * surface names the owner from bws_gb_tag_registrar_file()'s path instead, through this.
+ *
+ * BEST-EFFORT MEANS '', NEVER A GUESS. A path under no root below, a folder with no readable
+ * plugin header, a registrar reflection could not open — all return '', and the caller falls
+ * back to the file itself, which at least names something openable. A WRONG plugin name is
+ * worse than none: it sends a reader to deactivate the wrong plugin.
+ *
+ * ONE FOLDER'S HEADERS, NOT get_plugins() ENTIRE. This runs on the notice path as well as
+ * the settings page, and that path is a front-end request. `get_plugins( '/<folder>' )`
+ * reads the headers of one directory. Results memoize per source path, because a settings
+ * page renders several rows and a merged record names two parties.
+ *
+ * @since 1.19.0
+ * @internal
+ * @param string $source A path from bws_gb_tag_registrar_file(), or ''.
+ * @return string A human name ("GB Query Enhancements"), or '' when it cannot be told.
+ */
+function bws_gb_registrar_plugin_name( string $source ): string {
+	static $named = array();
+
+	if ( '' === $source ) {
+		return '';
+	}
+
+	if ( isset( $named[ $source ] ) ) {
+		return $named[ $source ];
+	}
+
+	$named[ $source ] = '';
+	$path             = strtr( $source, '\\', '/' );
+
+	// bws_gb_tag_registrar_file() returns an ABSPATH-relative path when the file is under the
+	// root and an absolute one otherwise, so re-absolutize before comparing against any root.
+	$is_absolute = 0 === strpos( $path, '/' ) || 1 === preg_match( '#^[A-Za-z]:/#', $path );
+
+	if ( ! $is_absolute ) {
+		if ( ! defined( 'ABSPATH' ) ) {
+			return '';
+		}
+		$path = rtrim( strtr( (string) ABSPATH, '\\', '/' ), '/' ) . '/' . ltrim( $path, '/' );
+	}
+
+	$roots = array();
+
+	if ( defined( 'WP_PLUGIN_DIR' ) ) {
+		$roots[] = array( 'kind' => 'plugin', 'dir' => (string) WP_PLUGIN_DIR );
+	}
+	if ( defined( 'WPMU_PLUGIN_DIR' ) ) {
+		$roots[] = array( 'kind' => 'mu', 'dir' => (string) WPMU_PLUGIN_DIR );
+	}
+	if ( function_exists( 'get_theme_root' ) ) {
+		$roots[] = array( 'kind' => 'theme', 'dir' => (string) get_theme_root() );
+	}
+	if ( defined( 'ABSPATH' ) ) {
+		$core    = rtrim( strtr( (string) ABSPATH, '\\', '/' ), '/' );
+		$roots[] = array( 'kind' => 'core', 'dir' => $core . '/wp-includes' );
+		$roots[] = array( 'kind' => 'core', 'dir' => $core . '/wp-admin' );
+	}
+
+	foreach ( $roots as $root ) {
+		$rest = null;
+
+		// THE REAL PATH IS TRIED TOO, because reflection reports the file it opened. A
+		// symlinked plugins directory — normal enough that bws_gb_tag_registrar_file() already
+		// returns absolute paths because of it — makes the constant and the file disagree.
+		foreach ( array( $root['dir'], (string) @realpath( $root['dir'] ) ) as $candidate ) {
+			$candidate = rtrim( strtr( (string) $candidate, '\\', '/' ), '/' );
+
+			if ( '' === $candidate || 0 !== strpos( $path, $candidate . '/' ) ) {
+				continue;
+			}
+
+			$rest = substr( $path, strlen( $candidate ) + 1 );
+			break;
+		}
+
+		if ( null === $rest || '' === $rest ) {
+			continue;
+		}
+
+		if ( 'core' === $root['kind'] ) {
+			$named[ $source ] = __( 'WordPress core', 'generateblocks' );
+			return $named[ $source ];
+		}
+
+		$slash  = strpos( $rest, '/' );
+		$folder = false !== $slash ? substr( $rest, 0, $slash ) : '';
+
+		if ( 'theme' === $root['kind'] ) {
+			$theme = '' !== $folder && function_exists( 'wp_get_theme' ) ? wp_get_theme( $folder ) : null;
+			$name  = null !== $theme ? (string) $theme->get( 'Name' ) : '';
+
+			if ( '' !== $name ) {
+				/* translators: %s: theme name */
+				$named[ $source ] = sprintf( __( '%s (theme)', 'generateblocks' ), $name );
+			}
+
+			return $named[ $source ];
+		}
+
+		if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && file_exists( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		$name = '';
+
+		if ( '' !== $folder && 'plugin' === $root['kind'] && function_exists( 'get_plugins' ) ) {
+			// The FIRST readable header in the folder. A plugin directory normally holds one
+			// file with a Plugin Name; where it holds more, any of them names the same plugin
+			// to a reader, and choosing between them would be a guess dressed as precision.
+			foreach ( get_plugins( '/' . $folder ) as $data ) {
+				$name = (string) ( $data['Name'] ?? '' );
+
+				if ( '' !== $name ) {
+					break;
+				}
+			}
+		} elseif ( '' === $folder && function_exists( 'get_plugin_data' ) ) {
+			// A single-file plugin, or a must-use file, sitting directly in the root.
+			$data = get_plugin_data( rtrim( strtr( $root['dir'], '\\', '/' ), '/' ) . '/' . $rest, false, false );
+			$name = (string) ( $data['Name'] ?? '' );
+		}
+
+		if ( '' !== $name && 'mu' === $root['kind'] ) {
+			/* translators: %s: must-use plugin name */
+			$name = sprintf( __( '%s (must-use)', 'generateblocks' ), $name );
+		}
+
+		$named[ $source ] = $name;
+
+		return $named[ $source ];
+	}
+
+	return $named[ $source ];
+}
+
+/**
  * Name the other party in a collision, as far as GB's registry lets us.
  *
  * Shared by all three report directions: the identity of the other registrar is the one
  * thing they have in common, which is why this is the piece that was extracted and the
  * sentences were not. WHICH party that is comes from bws_gb_collision_other_parties().
+ *
+ * THE OWNER LEADS, THE TAG LABEL IS EVIDENCE BEHIND IT. `$title` is the other TAG's label,
+ * not its owner, and this phrase used to lead with it — naming "Term Title" as the party
+ * that registered a tag. bws_gb_registrar_plugin_name() answers the owner question from the
+ * file; both remain in the sentence, because the label is what a reader sees in the editor
+ * and the file is what they can open when the name resolves to nothing.
  *
  * The title and the file both come from another plugin, so both are escaped here, where
  * they enter our message. The finished sentence is deliberately NOT escaped as a whole —
@@ -529,14 +702,34 @@ function bws_gb_collision_other_parties( array $collision ): array {
  * @return string A phrase naming them, or a translated stand-in when neither is known.
  */
 function bws_gb_other_registrar_phrase( string $title, string $source ): string {
-	$phrase = '' !== $title ? '"' . htmlspecialchars( $title, ENT_QUOTES, 'UTF-8' ) . '"' : '';
+	$escape = static function ( string $value ): string {
+		return htmlspecialchars( $value, ENT_QUOTES, 'UTF-8' );
+	};
 
+	$evidence = array();
+
+	if ( '' !== $title ) {
+		$evidence[] = '"' . $escape( $title ) . '"';
+	}
 	if ( '' !== $source ) {
-		$where  = htmlspecialchars( $source, ENT_QUOTES, 'UTF-8' );
-		$phrase = '' !== $phrase ? $phrase . ' (' . $where . ')' : $where;
+		$evidence[] = $escape( $source );
 	}
 
-	return '' !== $phrase ? $phrase : __( 'another plugin', 'generateblocks' );
+	$owner = bws_gb_registrar_plugin_name( $source );
+
+	if ( '' !== $owner ) {
+		$owner = $escape( $owner );
+
+		return $evidence ? $owner . ' (' . implode( ', ', $evidence ) . ')' : $owner;
+	}
+
+	if ( ! $evidence ) {
+		return __( 'another plugin', 'generateblocks' );
+	}
+
+	// Owner unknown: the label and the file, in that order, exactly as this read before an
+	// owner could be named at all.
+	return count( $evidence ) > 1 ? $evidence[0] . ' (' . $evidence[1] . ')' : $evidence[0];
 }
 
 /**
