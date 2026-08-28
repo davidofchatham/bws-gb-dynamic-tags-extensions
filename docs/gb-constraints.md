@@ -386,6 +386,15 @@ Available on every registered tag without declaring `supports`:
 - `required:false` — when the tag resolves empty, **still render the containing block**. The default is the other way: every tag is required unless this says otherwise, and GB returns `''` for the whole block when the replacement is falsy (`class-register-dynamic-tag.php` — `$required = ! isset( $options['required'] ) || 'false' !== $options['required']`, then `if ( $required && ! $replacement ) return '';`; read in GB 2.3.0 source, behavior measured on GB 2.4.1 2026-08-24). Useful for conditional layouts.
 
   **It keeps the BLOCK, not the VALUE, so it is not the remedy for a field holding `0`.** A GB callback is free to discard a falsy value before the required check is ever reached: `{{post_meta key:<field holding 0>}}` comes back `''` from `get_post_meta()`'s own `if ( ! $value )`, and `required:false` renders the block around nothing (measured 2026-08-24, GB 2.4.1 — text matrix T5.3). What preserves a real zero is the `generateblocks_dynamic_tag_replacement` filter below; the rule for what that covers is stated at [`includes/hooks.php`](../includes/hooks.php) and only there.
+
+  **It DOES preserve a real `0` the callback returned** — the other half of the same rule, and the
+  case that says where a zero is lost decides the remedy. When the callback hands back a genuine
+  `'0'`, the required check is the only thing between that value and the page, so turning the check
+  off renders the zero. Measured 2026-08-28 on GB 2.4.1 / GB Pro 2.7.0, **with this plugin
+  deactivated** so its `'0'` guard could not confound the reading: text matrix T5.4's
+  `{{loop_index zeroBased:1}}` on item 1 renders `0` with the editor's **Required to render**
+  toggle unticked, and is suppressed with it ticked. Discarded inside the callback, nothing
+  recovers it; discarded at the required check, either unticking or this plugin's guard does.
 - `link:post|term|author|comments` — wraps output in link (requires `'link'` in `supports`).
 - `trunc:N`, `trunc:N,words` — truncate by chars or words.
 - `case:lower|upper|title` — case transform.
