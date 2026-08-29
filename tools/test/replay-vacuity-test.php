@@ -31,7 +31,7 @@
  * property a tracker row could never have.
  *
  * MUTATION-CHECKED 2026-08-29, because a guard that asserts the wrong things passes forever
- * and nobody looks again. Five rules were broken one at a time in the two shipped files and
+ * and nobody looks again. Five rules were broken one at a time in the shipped files and
  * every one failed here by name: restoring the unrecorded-identity fail-open (§V2.4, §V3.2),
  * collapsing the exit statuses back to one (fourteen §V2 assertions), removing the env
  * attestation (§V2.5, §V3.2), making the differ fail everything (§V1.1, §V1.2 — the positive
@@ -373,7 +373,7 @@ foreach ( $cases as $label => $case ) {
  * §V3 — THE CENSUS
  *
  * The half that makes this a guard rather than fourteen more cases. Every fatal message the
- * two shipped files can emit is scanned out of their SOURCE and matched against what the runs
+ * file in the instrument directory can emit is scanned out of its SOURCE and matched against what the runs
  * above actually provoked. A check, a mode or a message added later is therefore covered by a
  * test nobody remembered to update — and if it is genuinely unreachable from a fixture, that
  * is a finding about the check, not about this file.
@@ -406,23 +406,41 @@ $signature_of = static function ( $text ) {
 
 $declared = array();
 
-// `[X] …` STRING LITERALS in the differ, and only those. An earlier pass matched on the token
-// alone and picked up a code COMMENT that mentions `[X]` lines — a message the file cannot
-// emit, reported as coverage it did not have.
-if ( preg_match_all( '/[\'"]\[X\]\s+([^\'"]{12,140})/', (string) file_get_contents( $differ ), $m ) ) {
-	foreach ( $m[1] as $text ) {
-		$declared[] = $signature_of( $text );
+// EVERY FILE IN THE DIRECTORY, NOT THE TWO THAT CARRY THESE MESSAGES TODAY. Naming the two
+// would leave the guard blind to a check added in a third — the same "covered by a case nobody
+// wrote" property, lost at the file boundary for no reason. The two patterns below match
+// nothing in the files that hold no findings, so the widening costs a glob.
+$sources = array();
+
+foreach ( (array) glob( dirname( $differ ) . '/*.php' ) as $file ) {
+	$sources[] = (string) file_get_contents( $file );
+}
+
+$check(
+	'V3.0 the scan reads the whole instrument directory, so a check added in a NEW file is covered too',
+	count( $sources ) >= 3,
+	count( $sources ) . ' file(s)'
+);
+
+// `[X] …` STRING LITERALS, and only those. An earlier pass matched on the token alone and
+// picked up a code COMMENT that mentions `[X]` lines — a message no file can emit, reported as
+// coverage it did not have.
+foreach ( $sources as $src ) {
+	if ( preg_match_all( '/[\'"]\[X\]\s+([^\'"]{12,140})/', $src, $m ) ) {
+		foreach ( $m[1] as $text ) {
+			$declared[] = $signature_of( $text );
+		}
 	}
 }
 
 // Fatal findings in the rules file carry their text in a `'message' =>` beside `'fatal' => true`.
 // Read structurally rather than by pattern: an informational message must never be counted as
 // a fatal one, and there is exactly one of those today.
-$rules_src = (string) file_get_contents( $rules );
-
-if ( preg_match_all( "/'fatal'\s*=>\s*true,\s*'message'\s*=>\s*(?:sprintf\(\s*)?'((?:[^'\\\\]|\\\\.){12,140})/", $rules_src, $m ) ) {
-	foreach ( $m[1] as $text ) {
-		$declared[] = $signature_of( str_replace( "\\'", "'", $text ) );
+foreach ( $sources as $src ) {
+	if ( preg_match_all( "/'fatal'\s*=>\s*true,\s*'message'\s*=>\s*(?:sprintf\(\s*)?'((?:[^'\\\\]|\\\\.){12,140})/", $src, $m ) ) {
+		foreach ( $m[1] as $text ) {
+			$declared[] = $signature_of( str_replace( "\\'", "'", $text ) );
+		}
 	}
 }
 
@@ -464,7 +482,7 @@ foreach ( $declared as $text ) {
 }
 
 $check(
-	'V3.2 every fatal message the two files can emit was provoked by a case above',
+	'V3.2 every fatal message the instrument can emit was provoked by a case above',
 	array() === $unprovoked,
 	$unprovoked ? "never reached: \n        - " . implode( "\n        - ", array_map( static function ( $t ) {
 		return substr( $t, 0, 60 );
