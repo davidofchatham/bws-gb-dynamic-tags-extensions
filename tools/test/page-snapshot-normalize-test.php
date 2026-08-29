@@ -122,6 +122,16 @@ $check(
 	'P1b.6 the JSON-LD rule keeps the surrounding keys, so a structural change is still a diff',
 	false !== strpos( $norm( '<script>{"datePublished":"2026-07-17T14:05:57-04:00","isPartOf":"x"}</script>' ), 'isPartOf' )
 );
+$check(
+	'P1b.7 GP\'s posted-on MODIFIED time is collapsed whole, attribute and text (the body carrier a reseed moves)',
+	$norm( '<span class="posted-on"><time class="updated" datetime="2026-08-29T11:53:19-04:00" itemprop="dateModified">August 29, 2026</time></span>' )
+		=== $norm( '<span class="posted-on"><time class="updated" datetime="2026-09-01T00:00:01-04:00" itemprop="dateModified">September 1, 2026</time></span>' )
+);
+$check(
+	'P1b.8 ...while the PUBLISHED twin stays asserted (manifest-stable post_date)',
+	$norm( '<time class="entry-date published" datetime="2026-07-22T09:00:00-04:00" itemprop="datePublished">July 22, 2026</time>' )
+		!== $norm( '<time class="entry-date published" datetime="2027-07-22T09:00:00-04:00" itemprop="datePublished">July 22, 2027</time>' )
+);
 
 /* =========================================================================
  * §P4 — nonces
@@ -403,12 +413,96 @@ $fake = array(
 $set = bws_page_snapshot_pages( $fake );
 
 $check( 'P13.1 only entries with a content_builder AND a slug are selected', array( 'a-staff', 'z-page' ) === array_keys( $set ) );
+$check( 'P13.1b ...and they are marked post-derived, which is what routes them to the permalink guard', 'post' === $set['z-page']['provenance'] );
 $check( 'P13.2 a `page` derives /<slug>/', '/zeta/' === $set['z-page']['path'] );
 $check( 'P13.3 any other post type derives /<post_type>/<slug>/', '/staff/alpha/' === $set['a-staff']['path'] );
 // Sorted so the baseline filenames and the report are stable against manifest reordering —
 // otherwise a cosmetic move in the blueprint reads as a changed instrument.
 $check( 'P13.4 the set is key-sorted, so manifest reordering does not move the report', array_keys( $set ) === array( 'a-staff', 'z-page' ) );
 $check( 'P13.5 an empty manifest yields an empty set rather than a notice', array() === bws_page_snapshot_pages( array() ) );
+
+/* =========================================================================
+ * §P13a — the other two provenances
+ *
+ * A post-type archive and a date archive are DERIVED (the blueprint implies them, so a new
+ * CPT gets its archive by existing); a request-shaped URL is DECLARED in `context_pages`
+ * (nothing implies it). Both are still manifest-sourced, which is the property this file's
+ * subject rejects a hand-kept list to protect.
+ * ====================================================================== */
+
+$fake2 = array(
+	'defines'       => array( 'post_types' => array( 'staff' ) ),
+	'posts'         => array(
+		'dated'   => array( 'post_type' => 'post', 'post_name' => 'ev', 'post_date' => '2026-07-17 13:30:01', 'date_archive' => true ),
+		'pinned'  => array( 'post_type' => 'post', 'post_name' => 'lead', 'post_date' => '2026-08-25 09:00:00' ),
+		'undated' => array( 'post_type' => 'post', 'post_name' => 'other' ),
+	),
+	'context_pages' => array(
+		'ctx-404' => array( 'path' => '/nope/', 'body_class' => 'error404', 'expect_status' => 404 ),
+		'ctx-s'   => array( 'path' => '/?s=matrix', 'body_class' => 'search-results' ),
+		'ctx-bad' => array( 'body_class' => 'x' ),
+	),
+);
+
+$set2      = bws_page_snapshot_pages( $fake2 );
+$date_rows = array_filter( array_keys( $set2 ), static function ( $k ) {
+	return 0 === strpos( $k, 'ctx-date-' );
+} );
+
+$check( 'P13a.1 a declared post type yields its archive path', '/staff/' === $set2['ctx-pta-staff']['path'] );
+$check( 'P13a.2 ...carrying the body class that proves it is still an archive', 'post-type-archive-staff' === $set2['ctx-pta-staff']['body_class'] );
+// The whole reason the date is derived rather than declared: a written-down /YYYY/MM/ is
+// only true for the month the fixture happened to be seeded in.
+$check( 'P13a.3 a pinned post_date yields its date archive', '/2026/07/' === $set2['ctx-date-202607']['path'] );
+// TWO exclusions, and they are different facts. An unpinned post has no stable month at
+// all; a pinned one without the opt-in has a month somebody else's fixtures occupy, so its
+// archive baseline would be their content.
+$check( 'P13a.4 exactly one date row — neither the unpinned post nor the pinned-but-not-opted-in one contributes', array( 'ctx-date-202607' ) === array_values( $date_rows ) );
+$check( 'P13a.5 a declared context page enters the set', '/?s=matrix' === $set2['ctx-s']['path'] );
+$check( 'P13a.6 ...marked declared, so the permalink guard skips it', 'declared' === $set2['ctx-s']['provenance'] );
+$check( 'P13a.7 an expected status rides the row', 404 === $set2['ctx-404']['expect_status'] );
+$check( 'P13a.8 a context page with no path is dropped rather than fetched as the bare base URL', ! isset( $set2['ctx-bad'] ) );
+$check( 'P13a.9 a manifest with none of these sections still yields only its posts', array( 'a-staff', 'z-page' ) === array_keys( bws_page_snapshot_pages( $fake ) ) );
+
+/* =========================================================================
+ * §P13b — the body class assert
+ *
+ * The guard that replaces the permalink comparison where there is no permalink. Its failure
+ * mode is the point: an emptied archive or a newly-assigned front page normalizes perfectly
+ * well and would diff clean forever, so the token is checked on the RAW response.
+ * ====================================================================== */
+
+$body_dq = '<html><body class="archive date post-type-archive-staff"><p>x</p></body></html>';
+$body_sq = "<html><body id='top' class='error404 not-found'><p>x</p></body></html>";
+
+$check( 'P13b.1 a present token passes', bws_page_snapshot_has_body_class( $body_dq, 'date' ) );
+$check( 'P13b.2 an absent token fails', ! bws_page_snapshot_has_body_class( $body_dq, 'error404' ) );
+$check( 'P13b.3 single-quoted class attributes are read too', bws_page_snapshot_has_body_class( $body_sq, 'error404' ) );
+$check( 'P13b.4 other body attributes do not defeat the match', bws_page_snapshot_has_body_class( $body_sq, 'not-found' ) );
+// Substring matching would let `date` be satisfied by a compound like `date-archive`, and
+// `home` by `home-page`, so the token is compared whole.
+$check( 'P13b.5 a PARTIAL token does not satisfy the assert', ! bws_page_snapshot_has_body_class( $body_dq, 'arch' ) );
+$check( 'P13b.6 a document with no body tag fails rather than passing vacuously', ! bws_page_snapshot_has_body_class( '<html><p>x</p></html>', 'date' ) );
+$check( 'P13b.7 a body tag with no class attribute fails', ! bws_page_snapshot_has_body_class( '<html><body><p>x</p></body></html>', 'date' ) );
+$check( 'P13b.8 a row asserting NO class passes anything — post-derived rows have the permalink guard instead', bws_page_snapshot_has_body_class( '<html><p>x</p></html>', '' ) );
+$check( 'P13b.9 the expected-class reader defaults to asserting nothing', '' === bws_page_snapshot_expected_body_class( array( 'path' => '/x/' ) ) );
+$check( 'P13b.10 ...and returns the declared token when there is one', 'home' === bws_page_snapshot_expected_body_class( array( 'path' => '/', 'body_class' => 'home' ) ) );
+
+/* =========================================================================
+ * §P13c — the shipped manifest carries the context corpus
+ *
+ * A guard against the sections being dropped: without them the query-context rows vanish
+ * from the set and the comparison passes on the pages that were always there.
+ * ====================================================================== */
+
+$real_keys = array_keys( bws_page_snapshot_pages() );
+
+foreach ( array( 'ctx-404', 'ctx-search', 'ctx-home-latest', 'ctx-author', 'ctx-pta-staff' ) as $needed ) {
+	$check( 'P13c ' . $needed . ' is in the shipped page set', in_array( $needed, $real_keys, true ) );
+}
+$check( 'P13c the shipped manifest pins a date, so a date-archive row exists', (bool) array_filter( $real_keys, static function ( $k ) {
+	return 0 === strpos( $k, 'ctx-date-' );
+} ) );
 
 /* =========================================================================
  * §P14 — the real manifest still yields a set
@@ -419,8 +513,15 @@ $check( 'P13.5 an empty manifest yields an empty set rather than a notice', arra
 
 $real = bws_page_snapshot_pages();
 $check( 'P14.1 the shipped manifest yields a non-empty page set', count( $real ) > 0, count( $real ) . ' page(s)' );
-$check( 'P14.2 every derived path is absolute-rooted and slash-terminated', $real === array_filter( $real, static function ( $p ) {
-	return '/' === substr( $p['path'], 0, 1 ) && '/' === substr( $p['path'], -1 );
+// NARROWED, not weakened: slash-termination is a property of a PERMALINK, and a declared
+// context URL is not one — `/?s=matrix` is correctly absolute-rooted and correctly not
+// slash-terminated. Absolute-rooting still binds every row, because that is what makes
+// `$base . $path` a URL rather than a relative join.
+$check( 'P14.2 every path is absolute-rooted', $real === array_filter( $real, static function ( $p ) {
+	return '/' === substr( $p['path'], 0, 1 );
+} ) );
+$check( 'P14.2b every path a permalink guard checks is also slash-terminated', array() === array_filter( $real, static function ( $p ) {
+	return 'post' === $p['provenance'] && '/' !== substr( $p['path'], -1 );
 } ) );
 
 /* ======================================================================

@@ -107,13 +107,18 @@ foreach ( $compiler_kinds as $kind ) {
 	assert_true( "A1.2 kind '{$kind}' has a row (a decision, not an omission)", isset( $arms[ $kind ] ) );
 }
 
-// The table carries ONE key the compiler never answers: `user`. That is deliberate — it
-// is a BRANCH target, reachable only once the factory has resolved a `render_time` root, and it
-// ships wired (#108). Any OTHER extra key would be a row nothing can reach.
+// The table carries TWO keys the compiler never answers: `user` and
+// `query_context`. Both are deliberate — they are BRANCH targets, reachable only
+// once the factory has resolved a `render_time` root (`user` wired by #108,
+// `query_context` by FW-9, 1.19.0). Any OTHER extra key would be a row nothing
+// can reach.
 assert_same(
-	'A1.3 the only non-compiler key is the base-branch target `user`',
-	array( 'user' ),
-	array_values( array_diff( array_keys( $arms ), $compiler_kinds ) )
+	'A1.3 the only non-compiler keys are the base-branch targets',
+	array( 'query_context', 'user' ),
+	( static function ( $extra ) {
+		sort( $extra );
+		return $extra;
+	} )( array_values( array_diff( array_keys( $arms ), $compiler_kinds ) ) )
 );
 
 // Every row states every column — a row missing one reads as a falsy answer at dispatch.
@@ -141,6 +146,7 @@ $expected_rows = array(
 	'post'     => array( 'post', 'core', 'post', true, true ),
 	'render_time' => array( 'branch', 'branch', 'branch', true, false ),
 	'user'     => array( 'user', 'user', 'user', false, true ),
+	'query_context' => array( 'none', 'query', '', false, true ),
 	'meta_row' => array( '', '', '', false, false ),
 );
 
@@ -153,10 +159,10 @@ foreach ( $expected_rows as $kind => $row ) {
 	assert_same( "A2.{$kind} branchable", $row[4], $arm['branchable'] );
 }
 
-// The site arm is the one with no entity — stated positively so a future edit that hands
-// it an id has to change this line and say why (ADR 0002: the site source carries a
-// namespace, not an id).
-assert_same( 'A2.1 only the site arm resolves no entity while still rendering', 'none', bws_try_slot_arm( 'site' )['ids'] );
+// The two entity-LESS arms — stated positively so a future edit that hands either
+// an id has to change this line and say why (ADR 0002: the site source carries a
+// namespace, the query-context source a sub-kind + payload; neither has an id).
+assert_same( 'A2.1 site and query_context resolve no entity while still rendering', array( 'none', 'none' ), array( bws_try_slot_arm( 'site' )['ids'], bws_try_slot_arm( 'query_context' )['ids'] ) );
 
 // The single-result LINK entity differs per arm, and the difference is the whole reason
 // the arms could not simply be merged. Pinned as a set so a copy-paste that gives two
@@ -217,6 +223,13 @@ assert_same( 'A4.1 a term archive branches to the term arm', 'term', bws_try_slo
 assert_same( 'A4.2 an author archive branches to the user arm', 'user', bws_try_slot_base_branch_kind( 'user' ) );
 assert_same( 'A4.3 a singular page branches to the post arm', 'post', bws_try_slot_base_branch_kind( 'post' ) );
 
+// A query context branches to its own arm (FW-9). FALSE WOULD BE ACTIVELY WRONG:
+// a bare slot on a PTA would take the post arm WITH a query-context base —
+// bws_factory_current_post_id()'s leaked $post, the exact defect this kind
+// removes, preserved inside try_ slots after the base tags were fixed. Contrast
+// meta_row's false (A4.4), which is false for the opposite reason.
+assert_same( 'A4.2b a query context branches to the query arm', 'query_context', bws_try_slot_base_branch_kind( 'query_context' ) );
+
 // A flat repeater row resolves a meta_row base and MUST reach the post arm — that is
 // where the repeater row's loop fallthrough lives, and refusing here would delete it. This is the
 // one place `meta_row` is not a refusal, and the two cases are genuinely different: the
@@ -258,7 +271,7 @@ assert_same(
 // instruction. The refusal arm of this is not decoration — the caller dereferences the
 // re-looked-up arm, so a branch that refuses without the caller re-checking trades a
 // wrong value for a fatal.
-foreach ( array( 'post', 'term', 'user', 'meta_row', 'site', 'render_time', '', 'wormhole', BWS_SOURCE_KIND_UNRESOLVED ) as $probe ) {
+foreach ( array( 'post', 'term', 'user', 'query_context', 'meta_row', 'site', 'render_time', '', 'wormhole', BWS_SOURCE_KIND_UNRESOLVED ) as $probe ) {
 	$landed = bws_try_slot_base_branch_kind( $probe );
 	if ( null === $landed ) {
 		assert_same( "A4.9 branch of '{$probe}' refuses", BWS_SOURCE_KIND_UNRESOLVED, $probe );

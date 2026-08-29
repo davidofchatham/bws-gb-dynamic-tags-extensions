@@ -419,6 +419,7 @@ function bws_register_base_tags(): void {
 		'try_term_fn'           => 'bws_try_text_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'text', (int) $user_id, (array) $opts, $inst ),
+		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'text', (array) $base, (array) $opts, $inst ),
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -461,6 +462,7 @@ function bws_register_base_tags(): void {
 		'try_term_fn'           => 'bws_try_content_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
 		'try_user_fn'           => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'content', (int) $user_id, (array) $opts, $inst ),
+		'try_query_fn'          => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'content', (array) $base, (array) $opts, $inst ),
 		'try_allow_site_slot'   => true,
 		'supports_try'          => true,
 		'try_per_slot_key'      => true,
@@ -481,6 +483,7 @@ function bws_register_base_tags(): void {
 		'try_term_fn'  => 'bws_term_title_core',
 		'try_site_fn'  => static fn( $opts, $inst ) => bws_site_resolve_value( 'title', (array) $opts, $inst ),
 		'try_user_fn'  => static fn( $user_id, $opts, $inst ) => bws_base_user_analog_read( 'title', (int) $user_id, (array) $opts, $inst ),
+		'try_query_fn' => static fn( $base, $opts, $inst ) => bws_base_query_context_analog_read( 'title', (array) $base, (array) $opts, $inst ),
 		'try_allow_site_slot' => true,
 		'supports_try' => true,
 		'try_list_options' => true,
@@ -756,25 +759,14 @@ function bws_base_text_resolve_value( array $options, $instance ): array {
 		return array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' );
 	}
 
-	$term_id = bws_base_ambient_term_id( $base, $options );
-	if ( $term_id ) {
-		return array(
-			'value'     => bws_base_term_analog_read( 'text', $term_id, $options, $instance ),
-			'link_id'   => $term_id,
-			'link_type' => 'term',
-		);
-	}
-	// Ambient author archive → user analog/meta read (FW-48 seam half, 1.16.0).
-	// Mirrors title/content's user arms; closing it HERE closes it for every
-	// ABSORB-seam reader — which is {{join}}'s slots, and NOT try_text: a try_ slot
-	// runs its own dispatcher, whose user arm is wired separately (try_user_fn, #108).
-	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
-	if ( $user_id ) {
-		return array(
-			'value'     => bws_base_user_analog_read( 'text', $user_id, $options, $instance ),
-			'link_id'   => $user_id,
-			'link_type' => 'user',
-		);
+	// Ambient dispatch (term archive → analog, author archive → user analog/meta,
+	// FW-48 seam half) through the one kind-dispatching seam. Closing it HERE closes
+	// it for every ABSORB-seam reader — which is {{join}}'s slots, and NOT try_text: a
+	// try_ slot runs its own dispatcher, whose arms are wired separately (#108). The
+	// seam's triple IS this arm's return shape, tail and all.
+	$ambient = bws_base_ambient_analog( 'text', $base, $options, $instance );
+	if ( null !== $ambient ) {
+		return $ambient;
 	}
 	// Both list branches run their own plural traversal below, so the collapsing
 	// resolve is deferred into the singular arms — computing it here would run the
@@ -1174,20 +1166,12 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 			: bws_base_stated_fallback( $options, $instance );
 	}
 
-	$term_id = bws_base_ambient_term_id( $base, $options );
-	if ( $term_id ) {
-		$value = bws_base_term_analog_read( 'content', $term_id, $options, $instance );
-		if ( '' !== $value ) {
-			return $value; // content is not link-wrapped (parity with post path below).
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
-	}
-	// Ambient author archive → biographical info analog (#19 author kind, 1.15.0).
-	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
-	if ( $user_id ) {
-		$value = bws_base_user_analog_read( 'content', $user_id, $options, $instance );
-		if ( '' !== $value ) {
-			return $value;
+	// Ambient dispatch (term description/key analog §V7; author bio, #19) through
+	// the one kind-dispatching seam; this arm's own tail stays here.
+	$ambient = bws_base_ambient_analog( 'content', $base, $options, $instance );
+	if ( null !== $ambient ) {
+		if ( '' !== $ambient['value'] ) {
+			return $ambient['value']; // content is not link-wrapped (parity with post path below).
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
 	}
@@ -1268,26 +1252,15 @@ function bws_base_title_callback( $options, $block, $instance ): string {
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
 	}
 
-	$term_id = bws_base_ambient_term_id( $base, $options );
-	if ( $term_id ) {
-		$value = bws_base_term_analog_read( 'title', $term_id, $options, $instance );
+	// Ambient dispatch (term name §V7; author display name, #19 — user archives
+	// have a canonical URL via get_author_posts_url, so both kinds link-wrap on the
+	// seam's derived identity) through the one kind-dispatching seam.
+	$ambient = bws_base_ambient_analog( 'title', $base, $options, $instance );
+	if ( null !== $ambient ) {
+		$value = $ambient['value'];
 		if ( '' !== $value ) {
-			if ( function_exists( 'bws_wrap_with_link' ) ) {
-				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $term_id, 'term' );
-			}
-			return $value;
-		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'title' ) : '';
-	}
-	// Ambient author archive → display name analog (#19 author kind, 1.15.0).
-	$user_id = function_exists( 'bws_base_ambient_user_id' ) ? bws_base_ambient_user_id( $base, $options ) : 0;
-	if ( $user_id ) {
-		$value = bws_base_user_analog_read( 'title', $user_id, $options, $instance );
-		if ( '' !== $value ) {
-			// User archives have a canonical URL (get_author_posts_url); wrap when
-			// the author asked for a link, mirroring the term branch.
-			if ( function_exists( 'bws_wrap_with_link' ) ) {
-				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $user_id, 'user' );
+			if ( $ambient['link_id'] && function_exists( 'bws_wrap_with_link' ) ) {
+				$value = bws_wrap_with_link( $value, $link_to, $link_key, $new_tab, $ambient['link_id'], $ambient['link_type'] );
 			}
 			return $value;
 		}
@@ -1379,9 +1352,12 @@ function bws_base_permalink_callback( $options, $block, $instance ): string {
 		return '';
 	}
 
-	$term_id = bws_base_ambient_term_id( $base, $options );
-	if ( $term_id ) {
-		return bws_base_term_analog_read( 'permalink', $term_id, $options, $instance );
+	// Ambient dispatch (term URL analog §V7) through the one kind-dispatching seam.
+	// {{permalink}} has no tail (see the refusal note above), so the seam's value is
+	// the whole return, '' included — matching the old bare-return term arm.
+	$ambient = bws_base_ambient_analog( 'permalink', $base, $options, $instance );
+	if ( null !== $ambient ) {
+		return $ambient['value'];
 	}
 
 	if ( 'term' === $res['kind'] ) {
@@ -1448,11 +1424,15 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 			: bws_image_stated_fallback( $options, $instance );
 	}
 
-	$term_id = bws_base_ambient_term_id( $base, $options );
-	if ( $term_id ) {
-		$value = bws_base_term_analog_read( 'image', $term_id, $options, $instance );
-		if ( '' !== $value ) {
-			return $value;
+	// Ambient dispatch (term image field by key, or the configured Media Library
+	// fallback — see the §V7 note above) through the one kind-dispatching seam. The
+	// seam does NOT claim the user kind for image (its PHPDoc has the measurement):
+	// an author archive falls through to the post route below, where the image
+	// cores' stated-fallback emit still applies.
+	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
+	if ( null !== $ambient ) {
+		if ( '' !== $ambient['value'] ) {
+			return $ambient['value'];
 		}
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'image' ) : '';
 	}

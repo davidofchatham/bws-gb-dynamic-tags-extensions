@@ -805,7 +805,7 @@ function bws_base_map_datetime_range_options( array $options ): array {
  * Term-ambient parity (FW-3a, SPEC §V7 / CONTEXT.md I1): a bare tag on a term
  * archive reads the ambient term's date field through the same term core the
  * explicit srcTermIn branch uses — one factory call (§V1), kind branch via
- * bws_base_ambient_term_id(), matching base text/title.
+ * bws_base_ambient_analog(), matching base text/title.
  *
  * @since 1.6.0
  * @since 1.15.0 List mode (limit/sep); src:ref fans out through the shared
@@ -841,14 +841,15 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_single' ) : '';
 	}
 
-	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
-	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
+	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
+	// one kind-dispatching seam (FW-3a term parity kept byte-identical through it).
+	// Explicit src/loop/id already won inside the factory.
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
 		? bws_base_resolve_source_for_callback( $options, $instance )
 		: array( 'kind' => 'post', 'id' => 0 );
-	$ambient_term_id = function_exists( 'bws_base_ambient_term_id' )
-		? bws_base_ambient_term_id( $base, $options )
-		: 0;
+	$ambient = function_exists( 'bws_base_ambient_analog' )
+		? bws_base_ambient_analog( 'datetime_single', $base, $options, $instance )
+		: null;
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
 	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
@@ -860,10 +861,21 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 		// from (bws_loop_item_is_post_or_row() is that question) and then the queried
 		// term. This arm's own empty path is the all-empty fallback below.
 		$value = '';
-	} elseif ( $ambient_term_id ) {
-		$value     = bws_term_datetime_single_core( $ambient_term_id, $mapped, $instance );
-		$link_id   = $ambient_term_id;
-		$link_type = 'term';
+	} elseif ( null !== $ambient ) {
+		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
+			// Ambient dispatch ONLY rides the seam: the datetime VALUE still reads
+			// through the term core, never the analog reader — FW-3's remaining half
+			// is gated on a field-object-formats read the seam does not expose, so
+			// the seam's own value for a datetime tag is '' by construction.
+			$value     = bws_term_datetime_single_core( (int) $ambient['link_id'], $mapped, $instance );
+			$link_id   = (int) $ambient['link_id'];
+			$link_type = 'term';
+		} else {
+			// A non-term ambient claim carries the seam's value itself — '' for any
+			// kind whose reader has no datetime arm, so the tag renders empty rather
+			// than reading an entity the context did not put there.
+			$value = (string) $ambient['value'];
+		}
 	} elseif ( 'term' === $res['kind'] ) {
 		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
 		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.
@@ -978,14 +990,16 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'datetime_range' ) : '';
 	}
 
-	// L1 — resolve the base source once (SPEC §V1); ambient term archive → term
-	// read (FW-3a, SPEC §V7). Explicit src/loop/id already won inside the factory.
+	// L1 — resolve the base source once (SPEC §V1); ambient dispatch through the
+	// one kind-dispatching seam — as bws_base_datetime_single_callback(), which
+	// carries the why (value read stays on the cores; a non-term claim is the
+	// seam's own value). Explicit src/loop/id already won inside the factory.
 	$base = function_exists( 'bws_base_resolve_source_for_callback' )
 		? bws_base_resolve_source_for_callback( $options, $instance )
 		: array( 'kind' => 'post', 'id' => 0 );
-	$ambient_term_id = function_exists( 'bws_base_ambient_term_id' )
-		? bws_base_ambient_term_id( $base, $options )
-		: 0;
+	$ambient = function_exists( 'bws_base_ambient_analog' )
+		? bws_base_ambient_analog( 'datetime_range', $base, $options, $instance )
+		: null;
 
 	// Unguarded, unlike its neighbours above — see bws_base_read_refused(). Those guards
 	// degrade a read; this one would delete a REFUSAL, silently restoring the defect.
@@ -995,10 +1009,14 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 		// REFUSED (GH #75/#76/#109) — read nothing; the all-empty fallback below fires.
 		// See bws_base_datetime_single_callback() for why the core is skipped.
 		$value = '';
-	} elseif ( $ambient_term_id ) {
-		$value     = bws_term_datetime_range_core( $ambient_term_id, $mapped, $instance );
-		$link_id   = $ambient_term_id;
-		$link_type = 'term';
+	} elseif ( null !== $ambient ) {
+		if ( 'term' === $ambient['link_type'] && $ambient['link_id'] ) {
+			$value     = bws_term_datetime_range_core( (int) $ambient['link_id'], $mapped, $instance );
+			$link_id   = (int) $ambient['link_id'];
+			$link_type = 'term';
+		} else {
+			$value = (string) $ambient['value'];
+		}
 	} elseif ( 'term' === $res['kind'] ) {
 		// Shared L3 fold (FW-49): suppression + slice + join live in the helper;
 		// $mapped ⊇ $options (additive normalizer), so it serves limit/sep too.

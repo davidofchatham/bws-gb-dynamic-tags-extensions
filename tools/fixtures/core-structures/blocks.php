@@ -1579,11 +1579,95 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
+		'context_header'       => 'bws_fixture_element_content_context_header',
+		'home_lead'            => 'bws_fixture_page_content_home_lead',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';
 	}
 	return call_user_func( $map[ $builder ] );
+}
+
+
+/**
+ * The GP Element carrying the query-context rows (context-test-matrix C-rows).
+ *
+ * WHY AN ELEMENT AND NOT A PAGE. Every other fixture row group lives in page content, and
+ * that route is closed here: all five query contexts need a NON-SINGULAR main query, where
+ * page content does not exist. The matrix has recorded that exception since the C-rows were
+ * written, and named this as the eventual visible surface; a kind shipping is what makes it
+ * due. Without it the query-context snapshots pin theme chrome and nothing of ours, and the
+ * only evidence for what a tag renders on an archive comes from `render-tag`, which cannot
+ * reach `the_content`, a real block render, or wptexturize.
+ *
+ * DISPLAY CONDITIONS EXCLUDE SINGULAR, deliberately. The element is scoped to blog +
+ * archive + search + 404 (see the manifest's `elements` section), so the ten singular
+ * baselines are untouched and only the context rows move. Scoping it site-wide would have
+ * re-captured every page to measure six.
+ *
+ * `{{content}}` uses the empty-expecting row shape on purpose: it resolves on a post-type
+ * archive alone (the post type's own description) and is empty by design on date, search,
+ * 404 and latest-home. GB hides a text block whose tag renders nothing, taking a combined
+ * label down with it, so a one-block row would read as missing fixture rather than as the
+ * asserted empty.
+ *
+ * @since 1.19.0
+ * @return string
+ */
+function bws_fixture_element_content_context_header() {
+	return bws_fixture_gb_section(
+		'Query-context rows (C-rows)',
+		array(
+			bws_fixture_gb_row(
+				'C-T1 bare title -> this context\'s own heading (PTA label / date span / search phrase / 404 line / site name)',
+				'{{title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-C1 bare content -> the post type description on a PTA; the GP text borrow on a 404; EMPTY on date, search and latest-home',
+				'{{content}}'
+			),
+			bws_fixture_gb_row(
+				'C-X1 text use:title -> SAME value as C-T1 on every context (the absorb seam and the title callback must agree)',
+				'{{text use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-X2 try_text key-first -> a custom heading where an author set one, else this context\'s canonical title -> SAME value as C-T1 here (no post carries the key on these URLs; I6: slot == standalone)',
+				'{{try_text 1-key:context_custom_heading|2-use:title}}'
+			),
+		)
+	);
+}
+
+/**
+ * Content for the post that leads the latest-posts home.
+ *
+ * IT EXISTS TO BE NON-EMPTY. `{{content}}` on a latest-posts home reads whatever post the
+ * main query put first, and on this shared fixture site that was `BWSUT Target Post` —
+ * another plugin's fixture, carrying zero bytes of content. So the C-row would have pinned
+ * "empty" and proved nothing, then flipped to a real value the moment anyone reseeded
+ * anything. A post this blueprint owns, with content, dated to lead, makes the row mean
+ * what it says.
+ *
+ * Kept deliberately short: it renders inside the home page's post list, so every byte of it
+ * is in the ctx-home-latest baseline.
+ *
+ * @since 1.19.0
+ * @return string
+ */
+function bws_fixture_page_content_home_lead() {
+	// NO LITERAL TAG SYNTAX IN FIXTURE BODY TEXT. The first wording of this sentence
+	// named the content tag in braces, GB parsed it as a real dynamic tag, the
+	// self-reference resolved empty, and GB hid the whole block — so the post that exists
+	// to be non-empty rendered an empty body everywhere, its own page included.
+	// `searchpin` is the ctx-search row's whole result set, on purpose. A search for a
+	// word many fixtures contain returns a set of same-second posts whose relevance ties
+	// MySQL breaks differently per query plan — measured: the same URL served different
+	// post lists to the host and the container, so the snapshot could never be stable.
+	// One post matching, and it a post this blueprint owns, is what determinism costs.
+	return bws_fixture_gb_text_block(
+		'Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context. Search pin: searchpin.',
+		'home-lead'
+	);
 }
 
 /**

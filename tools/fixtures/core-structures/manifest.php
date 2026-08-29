@@ -15,7 +15,7 @@
 
 return array(
 	'blueprint' => 'core-structures',
-	'version'   => 16, // 16: QUERY LOOP corpus — the `matrix-loops` page (term loop + user loop, loop matrix §QL) plus `department-workshop`, a department term assigned to no post. The page is the first fixture whose loops iterate something other than posts, which is the whole point: a term or user loop is where a co-resident query extension feeds the loop item's id to `generateblocks_dynamic_tag_id`, and a bare tag of ours consumes it as a POST id (term 1 = post 1 on every install). The bare rows were therefore seeded WRONG, and their FIRST snapshot baseline recorded the leaked values so the fix's diff would be proof rather than assertion; item-shape recognition landed in 1.19.0 and they now read the loop's own entity. CORRECTED IN PLACE rather than in a new entry: `version` was deliberately not bumped for that fix (no data-contract change, and external blueprints pin the number), so there is no v17 line to carry the correction and a present-tense claim about seeded-wrong rows would otherwise stand as current. The term is additive and reachable by nothing else: every existing department read walks the terms ASSIGNED TO A POST, and a term query loop meets an unassigned term only with `hide_empty` off. It exists so `{{term_count}}` can be pinned at zero — the fourth tag NOT OURS measured reaching the falsy-replacement guard, and the one no page could carry before this one. 15: ZERO-GUARD loop sub-field — `qty` on the matrix-post-meta `team_members` rows ('0' then '4'), plus its schema sub-field. Makes {{loop_item key:qty}} expressible inside the existing repeater loop, which is the SECOND GB Pro tag reaching the '0' guard (text matrix T5.5). Additive: no {{table}} column and no F9c row names the key, so every existing row on that repeater is unmoved. 14: SOURCE GATE corpus, second pass (1.18.0) — the three shapes v13 could not reach, each one a case where the gate's answer is NOT "is the status in a list". TRASHED (`staff-gate-trashed`, reached through the plain-meta `trash_ref`): the only status where EXISTS passes and VISIBLE fails for EVERY viewer, administrators included — WP maps `read_post` on trash toward `edit_post`, so a capability-only gate renders it to editors and to nobody else, and WP's own front end renders it to no one at all. ATTACHMENT (`feature_image` on the gate page, hopped onto as a SOURCE): an attachment stores `inherit`, an INTERNAL status, so a gate testing the raw column drops every attachment for logged-out visitors while showing it to logged-in ones; invisible to every other row because plain {{image}} reads never enter the traversal pipeline. OWN DRAFT (`post_author` on `staff-gate-draft`, plus the `author-other` user): seed.php runs as an administrator, so a draft it authors itself can only be read by someone who can read every draft — the owner arm and the different-author arm are what separate viewer-relative from logged-in-relative, and the existing editor cannot serve as the negative because `edit_others_posts` reads the draft. Additive; `trash` joins the seed's explicit status lookup list, or a trashed fixture is re-created on every reseed. 13: SOURCE GATE corpus (1.18.0, ADR 0007) — three staff singles that differ ONLY in readability (`staff-gate-draft` draft, `staff-gate-private` private, `staff-gate-public` published) plus the `matrix-gate` page that references them, in that order, through `gate_staff`. The gate is viewer-RELATIVE, so the same tag on one page is two assertions: anonymous reads the published target, an administrator reads the draft (fold matrix §F17.1/§F17.2). `via_draft` points at the draft alone, so a chain THROUGH it is cut at the hop (§F17.4) while the draft's own `reports_to` proves the hop target is reachable when the viewer may read it (§F17.5). The third shape is EXISTENCE, not visibility: `stale_ref` is PLAIN meta (no ACF field — ACF's formatter drops a deleted post before the gate could see it) holding a genuinely deleted id ahead of a live one, seeded by creating a post and force-deleting it (§F17.3). Additive; post_status is a new per-post manifest key, absent = publish. 12: FIRST-USABLE corpus (slice A, ADR 0007) — `charter` term field seeded on department-warehouse ALONE (the last term alphabetically, so the §F15 term walk meets two empty reads first) + `feature_image` on staff-tom-associate (Jane, the first related_staff target, deliberately has none — the post-route {{image}} first-usable case). Additive. 11: 11: SCOPE-BOUND fixture root (1.17.0, #112) — `fixture_scoped`, a filter-route root that resolves on `/matrix-fixture-roots/` and answers FALSE everywhere else. Schema-only; no seeded state of its own (it reuses the class route's target). It is the #76 category-2 shape, and it is the only one of the three fixture roots that ever refuses: a registered source, correctly written, off its scope. That is the shape the census found in real wire — the other two always resolve, so before this the rendered refusal could only be reached by an UNREGISTERED token, which is a different decline. It must resolve on its own page too, or "refuses off its scope" reads identically to "is broken". 10: BLOCK PATTERN fixture (1.17.0, #99) — the `patterns` section plus seed.php's ADMINISTRATOR context, which is what makes it non-empty: GB Pro's cache listener is capability-gated, and a capability-less seed produces a wp_block with no `generateblocks_patterns_tree` row at all. The pattern carries a pre-1.6 tag name (so the converter always rewrites it, creating the divergence the reconcile repairs) and literal backslashes in both the block-comment JSON and the rendered code block (so the meta layer's recursive unslash has something to damage — a corpus without one passes the escaping assertion while testing nothing). Browsable with no blocks.php row by construction: a wp_block is in the pattern inserter and editable at Appearance → Patterns. 9: FIELD CONFIGURATION NOTE corpus (1.17.0, #96) — `partner_staff` on the page+staff group: a bidirectional relationship field with a configured limit of 3, self-targeting (a legitimate symmetric relationship, and one field instead of a pair). LABELLED "Partner Staff", as a real field would be — the picker row is the wrong place to state a configuration, since the note IS that statement. SCHEMA-ONLY BY CONSTRUCTION — the note is derived from field DEFINITIONS, never a value read, so there is nothing to seed and nothing for verify.php to assert; it exists to be picked in a `refs` step's field picker and read (fold matrix F14.16). The other cases already have fixtures: `lead_staff_obj` is a single-entry post object with no bidirectional setting (case 6), and `related_staff` must stay silent. 8: EXTERNAL-SOURCE contract corpus (1.17.0, #85) — the `fixture-root` staff post (the class-route root's target: its own main_line/role, `related_staff` leading with TOM where matrix-post-meta's leads with Jane, and the SALES department term alone where the matrix pages carry Support first) plus the `matrix-fixture-roots` page carrying the base-root rows, the folded-slot rows and the `fixture_*` MODIFIER corpus in the six shapes #84's transform maps. Every value on the target is deliberately distinct from the ambient page's: a root whose reads matched the current post would pass whether it resolved or not. The SOURCE and the modifier family are registered in schema.php; the filter-route root (`fixture_alt`) resolves the existing `sample-event` post and needs no new state. 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
+	'version'   => 18, // 18: THE CONTEXT ELEMENT + the home-lead post. `elements` seeds a GP block element (block type `hook`, at generate_after_header) carrying a bare {{title}} and {{content}} row, scoped by GP's own display conditions to blog + archive + search + 404 and deliberately NOT to singular — the query contexts cannot carry page content, so an element is the only visible surface they have, and excluding singular keeps ten baselines still while six move. `post-home-lead` owns the latest-posts home: {{content}} there reads the main query's first post, which was another plugin's zero-byte fixture, so the row pinned empty and proved nothing. Date-archive rows now require an explicit `date_archive` opt-in rather than following any pinned date, or the second pinned post would add an archive baseline made of other plugins' content. 17: CONTEXT PAGES + a pinned date. `context_pages` declares the four URLs that exist because of a request shape rather than a post (404, search, latest-posts home, author archive) so the page-snapshot instrument can reach them; each states the body class its page must carry, because there is no permalink to check a declared URL against and a degraded archive normalizes into a clean-forever 404. Separately `post-sample-event` gains `post_date`, the first pinned date in the blueprint: that post's date IS the date archive's URL, so a site seeded from scratch put the archive somewhere the C1/C11 rows do not look. Reseeding never moved it (wp_update_post preserves a date nobody passes), which is why a fixture that only worked on one machine's July seeding went unnoticed. Both additive; absent `post_date` still means seeded-at-insert. 16: QUERY LOOP corpus — the `matrix-loops` page (term loop + user loop, loop matrix §QL) plus `department-workshop`, a department term assigned to no post. The page is the first fixture whose loops iterate something other than posts, which is the whole point: a term or user loop is where a co-resident query extension feeds the loop item's id to `generateblocks_dynamic_tag_id`, and a bare tag of ours consumes it as a POST id (term 1 = post 1 on every install). The bare rows were therefore seeded WRONG, and their FIRST snapshot baseline recorded the leaked values so the fix's diff would be proof rather than assertion; item-shape recognition landed in 1.19.0 and they now read the loop's own entity. CORRECTED IN PLACE rather than in a new entry: `version` was deliberately not bumped for that fix (no data-contract change, and external blueprints pin the number), so there is no v17 line to carry the correction and a present-tense claim about seeded-wrong rows would otherwise stand as current. The term is additive and reachable by nothing else: every existing department read walks the terms ASSIGNED TO A POST, and a term query loop meets an unassigned term only with `hide_empty` off. It exists so `{{term_count}}` can be pinned at zero — the fourth tag NOT OURS measured reaching the falsy-replacement guard, and the one no page could carry before this one. 15: ZERO-GUARD loop sub-field — `qty` on the matrix-post-meta `team_members` rows ('0' then '4'), plus its schema sub-field. Makes {{loop_item key:qty}} expressible inside the existing repeater loop, which is the SECOND GB Pro tag reaching the '0' guard (text matrix T5.5). Additive: no {{table}} column and no F9c row names the key, so every existing row on that repeater is unmoved. 14: SOURCE GATE corpus, second pass (1.18.0) — the three shapes v13 could not reach, each one a case where the gate's answer is NOT "is the status in a list". TRASHED (`staff-gate-trashed`, reached through the plain-meta `trash_ref`): the only status where EXISTS passes and VISIBLE fails for EVERY viewer, administrators included — WP maps `read_post` on trash toward `edit_post`, so a capability-only gate renders it to editors and to nobody else, and WP's own front end renders it to no one at all. ATTACHMENT (`feature_image` on the gate page, hopped onto as a SOURCE): an attachment stores `inherit`, an INTERNAL status, so a gate testing the raw column drops every attachment for logged-out visitors while showing it to logged-in ones; invisible to every other row because plain {{image}} reads never enter the traversal pipeline. OWN DRAFT (`post_author` on `staff-gate-draft`, plus the `author-other` user): seed.php runs as an administrator, so a draft it authors itself can only be read by someone who can read every draft — the owner arm and the different-author arm are what separate viewer-relative from logged-in-relative, and the existing editor cannot serve as the negative because `edit_others_posts` reads the draft. Additive; `trash` joins the seed's explicit status lookup list, or a trashed fixture is re-created on every reseed. 13: SOURCE GATE corpus (1.18.0, ADR 0007) — three staff singles that differ ONLY in readability (`staff-gate-draft` draft, `staff-gate-private` private, `staff-gate-public` published) plus the `matrix-gate` page that references them, in that order, through `gate_staff`. The gate is viewer-RELATIVE, so the same tag on one page is two assertions: anonymous reads the published target, an administrator reads the draft (fold matrix §F17.1/§F17.2). `via_draft` points at the draft alone, so a chain THROUGH it is cut at the hop (§F17.4) while the draft's own `reports_to` proves the hop target is reachable when the viewer may read it (§F17.5). The third shape is EXISTENCE, not visibility: `stale_ref` is PLAIN meta (no ACF field — ACF's formatter drops a deleted post before the gate could see it) holding a genuinely deleted id ahead of a live one, seeded by creating a post and force-deleting it (§F17.3). Additive; post_status is a new per-post manifest key, absent = publish. 12: FIRST-USABLE corpus (slice A, ADR 0007) — `charter` term field seeded on department-warehouse ALONE (the last term alphabetically, so the §F15 term walk meets two empty reads first) + `feature_image` on staff-tom-associate (Jane, the first related_staff target, deliberately has none — the post-route {{image}} first-usable case). Additive. 11: 11: SCOPE-BOUND fixture root (1.17.0, #112) — `fixture_scoped`, a filter-route root that resolves on `/matrix-fixture-roots/` and answers FALSE everywhere else. Schema-only; no seeded state of its own (it reuses the class route's target). It is the #76 category-2 shape, and it is the only one of the three fixture roots that ever refuses: a registered source, correctly written, off its scope. That is the shape the census found in real wire — the other two always resolve, so before this the rendered refusal could only be reached by an UNREGISTERED token, which is a different decline. It must resolve on its own page too, or "refuses off its scope" reads identically to "is broken". 10: BLOCK PATTERN fixture (1.17.0, #99) — the `patterns` section plus seed.php's ADMINISTRATOR context, which is what makes it non-empty: GB Pro's cache listener is capability-gated, and a capability-less seed produces a wp_block with no `generateblocks_patterns_tree` row at all. The pattern carries a pre-1.6 tag name (so the converter always rewrites it, creating the divergence the reconcile repairs) and literal backslashes in both the block-comment JSON and the rendered code block (so the meta layer's recursive unslash has something to damage — a corpus without one passes the escaping assertion while testing nothing). Browsable with no blocks.php row by construction: a wp_block is in the pattern inserter and editable at Appearance → Patterns. 9: FIELD CONFIGURATION NOTE corpus (1.17.0, #96) — `partner_staff` on the page+staff group: a bidirectional relationship field with a configured limit of 3, self-targeting (a legitimate symmetric relationship, and one field instead of a pair). LABELLED "Partner Staff", as a real field would be — the picker row is the wrong place to state a configuration, since the note IS that statement. SCHEMA-ONLY BY CONSTRUCTION — the note is derived from field DEFINITIONS, never a value read, so there is nothing to seed and nothing for verify.php to assert; it exists to be picked in a `refs` step's field picker and read (fold matrix F14.16). The other cases already have fixtures: `lead_staff_obj` is a single-entry post object with no bidirectional setting (case 6), and `related_staff` must stay silent. 8: EXTERNAL-SOURCE contract corpus (1.17.0, #85) — the `fixture-root` staff post (the class-route root's target: its own main_line/role, `related_staff` leading with TOM where matrix-post-meta's leads with Jane, and the SALES department term alone where the matrix pages carry Support first) plus the `matrix-fixture-roots` page carrying the base-root rows, the folded-slot rows and the `fixture_*` MODIFIER corpus in the six shapes #84's transform maps. Every value on the target is deliberately distinct from the ambient page's: a root whose reads matched the current post would pass whether it resolved or not. The SOURCE and the modifier family are registered in schema.php; the filter-route root (`fixture_alt`) resolves the existing `sample-event` post and needs no new state. 7: SECOND-DEGREE relationship (1.17.0, #55) — `reports_to` (staff→staff) on staff-tom-associate, the only staff→staff link in the blueprint. Makes `src:refs,related_staff;refs,reports_to` expressible, which is the spec's OWN headline case ("the office of the staff member this event references") and was unexercised by every harness and matrix: every relationship value sat on matrix-post-meta, so no second hop had anywhere to land. Distinct field per step on purpose — hopping one field twice cannot distinguish composition from repetition. Jane deliberately has none, so the second step is sparse (F8.7/F8.8). 6: ref-hop RETURN-FORMAT coverage (1.17.0) — `related_staff_obj` (relationship, return_format object) + `lead_staff_obj` (post_object, object, singular) on matrix-post-meta, both carrying the SAME targets as `related_staff` so the hop is an equivalence assertion (fold matrix RF1/RF2). 5: FW-52 serialization-order editor fixtures — a seeded image attachment (`attachments`) + `feature_image` ACF image field on matrix-post-meta (backs the standalone {{image}} editor rows); the fw52-order section is editor-eyeball only. 4: author-archive context fixture (#19 author kind) — users section (author-fixture: display_name + bio, authors sample-event), department-sales term description, sample-event categoryless + portal-visible for the date archive. 3: datetime matrix fields — Event Schedule group (page+staff), dept event_date term field, org_party_datetime option, plain_meta_date. {CURRENT_YEAR} value token resolved at seed time.
 
 	// Keys this blueprint DEFINES (collision rule: later blueprints must not
 	// redefine these — compose + reuse instead).
@@ -322,15 +322,124 @@ return array(
 
 		// Editor-side discovery post: Event Details + repeater values live here.
 		// ALSO the date-archive context fixture (context-test-matrix C-rows):
-		// seed keeps it categoryless + portal-visible so /2026/07/ has results
+		// seed keeps it categoryless + portal-visible so the archive has results
 		// under the portal-system anonymous query filter (see seed.php).
 		'post-sample-event' => array(
 			'post_type'   => 'post',
 			'post_name'   => 'sample-event',
 			'post_title'  => 'Sample Event',
+			// PINNED, and it is the only post here that pins one (v17). This post's
+			// date IS the date archive's URL, so without it the archive lives
+			// somewhere different on every site seeded from scratch and the C1/C11
+			// rows 404 — silently, because a 404 normalizes clean and diffs clean
+			// forever. The value matches what the existing testbed already holds, so
+			// pinning it moved nothing there; what it fixes is REPRODUCIBILITY, on a
+			// rebuilt container or a second machine. Reseeding never moved it either
+			// way: wp_update_post preserves a date nobody passes, so this only ever
+			// bit a fresh insert, which is exactly why it went unnoticed.
+			'post_date'   => '2026-07-22 09:00:00', // leads July: the other July posts are same-second ties (another plugin's), and the date archive's one visible post must be deterministic — so it is ours
+			// OPT-IN, and it is not implied by pinning a date. Every post carrying a
+			// date would otherwise contribute an archive row, and the second pinned
+			// post (`post-home-lead`) sits in a month full of other plugins' fixtures
+			// — so its archive baseline would be their content, moving whenever they
+			// reseed. This post's month holds theirs too, but it is the one whose
+			// archive a C-row actually names.
+			'date_archive' => true,
 			// Authored by the fixture user so /author/fixture-author/ has a
 			// visible post (author-archive context fixture, C3/C13).
 			'post_author' => 'author-fixture',
+		),
+
+		// OWNS THE LATEST-POSTS HOME, which nothing in this blueprint did. `{{content}}`
+		// there reads whatever post the main query puts first, and on this shared fixture
+		// site that was another plugin's post carrying zero bytes — so the C-row would
+		// have pinned "empty" and proved nothing, then flipped the moment anyone reseeded.
+		// The date leads every post on the site as measured 2026-08-29 and is pinned for
+		// the same reason sample-event's is: dated-at-insert means a fresh site puts it
+		// somewhere else. It does NOT opt into a date-archive row (see sample-event).
+		'post-home-lead' => array(
+			'post_type'       => 'post',
+			'post_name'       => 'home-lead',
+			'post_title'      => 'Home Lead Post',
+			'post_date'       => '2026-08-25 09:00:00',
+			'content_builder' => 'home_lead',
+		),
+	),
+
+	// CONTEXT PAGES — URLs that exist because of a REQUEST SHAPE rather than because of a
+	// post. Nothing in `posts` implies them and there is no permalink to derive or check
+	// them against, so they are declared. They live HERE and not in page-snapshots.php on
+	// purpose: that file's header rejects a hand-kept URL list as "a second source of truth
+	// over the blueprint" (spec D24), and the objection is to the SCRIPT holding fixture
+	// facts, not to the facts being written down. A search term only matches because of what
+	// this blueprint seeds, and a 404 path is only a 404 because nothing here claims it —
+	// both are blueprint data.
+	//
+	// NOT here: the post-type archive and the date archive. Both are DERIVED from `posts`
+	// (see bws_page_snapshot_pages), so a new CPT gets its archive snapshot by existing and
+	// the date archive tracks the post that creates it.
+	//
+	// `body_class` is what makes a declared URL safe. There is no permalink to compare
+	// against, so the row instead states the class its page must carry and the instrument
+	// fails the row when it is absent — which is what stops a degraded archive being
+	// captured as a clean 404 and diffing clean forever after.
+	'context_pages' => array(
+		'ctx-404'         => array(
+			'path'          => '/no-such-page-xyz/',
+			'body_class'    => 'error404',
+			// The only row that is not HTTP 200. Without this the row cannot be
+			// captured at all — the whole run refuses to write, not just this page.
+			// Why is bws_page_snapshot_fetch()'s to say, not this file's.
+			'expect_status' => 404,
+		),
+		'ctx-search'      => array(
+			// `searchpin` lives in ONE post's body (`post-home-lead`) and nowhere
+			// else, deliberately: a term many fixtures match returns a set of
+			// same-second posts whose relevance ties MySQL breaks differently per
+			// query plan, so the page was serving different result lists to the host
+			// and the container and the snapshot could never hold. If the token
+			// vanishes the page becomes search-no-results and the body_class assert
+			// says so.
+			'path'       => '/?s=searchpin',
+			'body_class' => 'search-results',
+		),
+		'ctx-home-latest' => array(
+			// Latest-posts home: the testbed assigns no static front page, and the
+			// `home` class is what proves it still does not. Assign one and this row
+			// fails rather than quietly snapshotting a singular page.
+			'path'       => '/',
+			'body_class' => 'home',
+		),
+		'ctx-author'      => array(
+			// The author kind shipped in 1.15.0 and had no rendered-output row. It is
+			// the CONTROL for the query-context rows: an ambient kind that already
+			// resolves correctly, captured the same way.
+			'path'       => '/author/fixture-author/',
+			'body_class' => 'author',
+		),
+	),
+
+	// GP ELEMENTS — the visible surface for contexts that cannot carry page content.
+	//
+	// Every other row group in this blueprint lives in page content. That route is closed
+	// for the C-rows: all five query contexts need a NON-SINGULAR main query, where page
+	// content does not exist, and the matrix has carried that exception since those rows
+	// were written. This is the surface it named as the eventual answer.
+	//
+	// SHAPE IS COPIED FROM A WORKING ELEMENT, not derived from GP's source: a block element
+	// whose block type is `hook` renders its content at the named hook with no page-hero
+	// wrapper. Conditions are GP's own rule vocabulary (`class-conditions.php`), and the
+	// set below is chosen to EXCLUDE `general:singular` — the ten singular snapshot
+	// baselines must not move to measure six context ones.
+	'elements' => array(
+		'element-context-header' => array(
+			'post_name'       => 'bws-fixture-context-header',
+			'post_title'      => 'BWS Fixture: query-context rows',
+			'content_builder' => 'context_header',
+			'element_type'    => 'block',
+			'block_type'      => 'hook',
+			'hook'            => 'generate_after_header',
+			'conditions'      => array( 'general:blog', 'general:archive', 'general:search', 'general:404' ),
 		),
 	),
 
@@ -621,6 +730,15 @@ return array(
 	// settings baseline — matrix default state: global CC 1, strip OFF; rows
 	// that need other states toggle in the UI per the matrix).
 	'wp_options' => array(
+		// ONE POST PER LISTING, and it is a determinism decision, not a display one.
+		// Every listing context (home, date archive, PTA, search) orders by date and
+		// this shared site is full of same-second fixture posts — other plugins' as
+		// well as ours — whose relevance/date ties MySQL breaks differently per query
+		// plan. verify.php caught the host and the container disagreeing about the
+		// SAME page. A one-post list renders no tie anywhere, which fixes the class
+		// rather than the instances; the leak evidence the context rows exist for is
+		// the FIRST post, which each context now pins deterministically.
+		'posts_per_page' => 1,
 		'bws_dynamic_tags_settings' => array(
 			'phone' => array(
 				'country_code'     => '1',

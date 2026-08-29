@@ -31,6 +31,11 @@ function bws_fixture_core_structures_register_types() {
 		'staff',
 		array(
 			'label'        => 'Staff',
+			// The PTA {{content}} analog reads this (get_the_post_type_description,
+			// C12/C-C1) — without it the row renders '' and the mechanism is
+			// indistinguishable from no read at all. No literal tag syntax in the
+			// value (the standing fixture caution — GB parses it wherever it renders).
+			'description'  => 'The staff directory. This description is the post type archive content analog on the staff archive.',
 			'public'       => true,
 			'show_in_rest' => true,
 			'supports'     => array( 'title', 'editor', 'custom-fields', 'thumbnail' ),
@@ -848,6 +853,22 @@ function bws_fixture_core_structures_preview_map( $map ) {
 	return $map;
 }
 
+/**
+ * A recognizable string on GP's `generate_404_title` filter, so the C5 row can
+ * assert the 404 BORROW's override path (#19 / FW-9). A borrow with nothing
+ * registered on the filter is indistinguishable from no borrow at all — both
+ * return the default — so a green default row proves nothing about the
+ * mechanism; this callback is what makes the override arm measurable. The
+ * DEFAULT arm is measured on the text filter, which deliberately has NO
+ * fixture callback (context-test-matrix.md C5/C16 own the pairing).
+ *
+ * @param string $title GP's default 404 title.
+ * @return string
+ */
+function bws_fixture_core_structures_404_title( $title ) {
+	return 'Fixture 404 Title (filter)';
+}
+
 // Runtime path (mu-plugin loader stub): hook normally.
 if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	add_action( 'init', 'bws_fixture_core_structures_register_types', 5 );
@@ -867,6 +888,10 @@ if ( function_exists( 'add_action' ) && ! defined( 'BWS_FIXTURE_SEEDING' ) ) {
 	// The preview's prefix map, so an unresolvable fixture_* tag previews as "Fixture …"
 	// rather than as its raw tag name — the same registration the real family makes.
 	add_filter( 'bws_dynamic_tags_preview_modifier_map', 'bws_fixture_core_structures_preview_map' );
+
+	// The 404-borrow override arm (C5). Title only — the text filter stays bare so
+	// C16 measures the default arm of the same borrow.
+	add_filter( 'generate_404_title', 'bws_fixture_core_structures_404_title' );
 
 	// {{table}} is a PROTOTYPE and registers off by default from 1.17.0, so the plugin
 	// does not ship a half-built tag. The testbed is where it is built and where its

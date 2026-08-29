@@ -2,12 +2,10 @@
 <html lang="en-US">
 <head>
 <!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->
-<title>Matrix: Content &#8211; BWS Testbed</title>
-<meta name="description" content="Content CT1-CT3 - a hopped read lands on the TARGET entity (#58) CT1 plain hop (-&gt; jane&#039;s blocks, and her J1 row reads Jane, Johnson - NOT this page&#039;s values):">
-<meta property="og:description" content="Content CT1-CT3 - a hopped read lands on the TARGET entity (#58) CT1 plain hop (-&gt; jane&#039;s blocks, and her J1 row reads Jane, Johnson - NOT this page&#039;s values):">
+<title>Staff &#8211; BWS Testbed</title>
 </head>
 
-<body class="wp-singular page-template-default page page-id-248 wp-embed-responsive wp-theme-generatepress post-image-above-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/WebPage" itemscope>
+<body class="archive post-type-archive post-type-archive-staff wp-embed-responsive wp-theme-generatepress post-image-below-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/Blog" itemscope>
 	<a class="screen-reader-text skip-link" href="#content" title="Skip to content">Skip to content</a>			<nav id="secondary-navigation" aria-label="Secondary" class="secondary-navigation" itemtype="https://schema.org/SiteNavigationElement" itemscope>
 				<div class="inside-navigation grid-container grid-parent">
 										<button class="menu-toggle secondary-menu-toggle">
@@ -43,114 +41,53 @@
 </ul></div>			</div><!-- .inside-navigation -->
 		</nav><!-- #site-navigation -->
 
+<div>
+<h2 class="wp-block-heading">Query-context rows (C-rows)</h2>
+
+<p class="gb-text">C-T1 bare title -> this context's own heading (PTA label / date span / search phrase / 404 line / site name): Staff</p>
+
+<p class="gb-text">C-C1 bare content -> the post type description on a PTA; the GP text borrow on a 404; EMPTY on date, search and latest-home:</p>
+
+<p class="gb-text"><p>The staff directory. This description is the post type archive content analog on the staff archive.</p>
+</p>
+
+<p class="gb-text">C-X1 text use:title -> SAME value as C-T1 on every context (the absorb seam and the title callback must agree): Staff</p>
+
+<p class="gb-text">C-X2 try_text key-first -> a custom heading where an author set one, else this context's canonical title -> SAME value as C-T1 here (no post carries the key on these URLs; I6: slot == standalone): Staff</p>
+</div>
+
 	<div class="site grid-container container hfeed" id="page">
 				<div class="site-content" id="content">
 
 	<div class="content-area" id="primary">
 		<main class="site-main" id="main">
+					<header class="page-header" aria-label="Page">
 
-<article id="post-248" class="post-248 page type-page status-publish department-sales department-support" itemtype="https://schema.org/CreativeWork" itemscope>
+			<h1 class="page-title">
+				Archives: <span>Staff</span>			</h1>
+
+			<div class="taxonomy-description"><p>The staff directory. This description is the post type archive content analog on the staff archive.</p>
+</div>		</header>
+		<article id="post-1692" class="post-1692 staff type-staff status-publish hentry" itemtype="https://schema.org/CreativeWork" itemscope>
 	<div class="inside-article">
+					<header class="entry-header">
+				<h2 class="entry-title" itemprop="headline"><a href="/staff/gate-public/" rel="bookmark">Grace Published</a></h2>			</header>
 
-			<header class="entry-header">
-				<h1 class="entry-title" itemprop="headline">Matrix: Content</h1>			</header>
-
-		<div class="entry-content" itemprop="text">
-
-<div>
-<h2 class="wp-block-heading">Content CT1-CT3 &#8211; a hopped read lands on the TARGET entity (#58)</h2>
-
-<p class="gb-text">CT1 plain hop (-> jane&#8217;s blocks, and her J1 row reads Jane, Johnson &#8211; NOT this page&#8217;s values): <div>
-<h2 class="wp-block-heading">Join &#8211; separator mode (name)</h2>
-<p class="gb-text">J1: Jane, Johnson</p>
-<p class="gb-text">J1b: Jane Johnson</p>
-<p class="gb-text">J2: Jane, Johnson</p>
-<p class="gb-text">J3 (jane: both slots empty -&gt; em dash fallback; tom: Jr., PhD): —</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Fold F1 &#8211; join folded == legacy (name rows)</h2>
-<p class="gb-text">F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson</p>
-<p class="gb-text">F1.1 folded (-&gt; same): Jane, Johnson</p>
-<p class="gb-text">F1.8 legacy template mode (jane: Jane (Johnson) / tom: Tom (Smith)): Jane (Johnson)</p>
-<p class="gb-text">F1.8 folded, canonical %A tokens (-&gt; same): Jane (Johnson)</p>
-<p class="gb-text">F1.8b folded wire, DIGIT tokens still read (-&gt; same): Jane (Johnson)</p>
-<p class="gb-text">F1.8c %%B is a LITERAL, so slot 2 is never read (jane: Jane (%B) / tom: Tom (%B)): Jane (%B)</p>
-<p class="gb-text">F1.10 legacy fallback (jane: em dash / tom: Jr., PhD): —</p>
-<p class="gb-text">F1.10 folded (-&gt; same): —</p>
-<p class="gb-text">F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.)): Jane Johnson</p>
-<p class="gb-text">F5.7 try_permalink, no-read shape (-&gt; this staff single&#8217;s URL): /staff/jane-partner/</p>
-<p class="gb-text">N6 try_text fallback on empty slots (jane: None / tom: Jr.): None</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Join &#8211; template mode (name)</h2>
-<p class="gb-text">J5: Jane (Johnson)</p>
-<p class="gb-text">J6: Jane</p>
-<p class="gb-text">J7: Johnson</p>
-<p class="gb-text">J8: Jane</p>
-<p class="gb-text">J9: (Jane.)</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Join &#8211; full personal name</h2>
-<p class="gb-text">J21/J22: Jane Johnson</p>
-</div>
-</p>
-
-<p class="gb-text">CT2 chain-spelled twin (-> same as CT1): <div>
-<h2 class="wp-block-heading">Join &#8211; separator mode (name)</h2>
-<p class="gb-text">J1: Jane, Johnson</p>
-<p class="gb-text">J1b: Jane Johnson</p>
-<p class="gb-text">J2: Jane, Johnson</p>
-<p class="gb-text">J3 (jane: both slots empty -&gt; em dash fallback; tom: Jr., PhD): —</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Fold F1 &#8211; join folded == legacy (name rows)</h2>
-<p class="gb-text">F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson</p>
-<p class="gb-text">F1.1 folded (-&gt; same): Jane, Johnson</p>
-<p class="gb-text">F1.8 legacy template mode (jane: Jane (Johnson) / tom: Tom (Smith)): Jane (Johnson)</p>
-<p class="gb-text">F1.8 folded, canonical %A tokens (-&gt; same): Jane (Johnson)</p>
-<p class="gb-text">F1.8b folded wire, DIGIT tokens still read (-&gt; same): Jane (Johnson)</p>
-<p class="gb-text">F1.8c %%B is a LITERAL, so slot 2 is never read (jane: Jane (%B) / tom: Tom (%B)): Jane (%B)</p>
-<p class="gb-text">F1.10 legacy fallback (jane: em dash / tom: Jr., PhD): —</p>
-<p class="gb-text">F1.10 folded (-&gt; same): —</p>
-<p class="gb-text">F1.9 folded 7-slot full name (jane: Jane Johnson / tom: Dr. Tom M. Smith Jr., PhD, USN (Ret.)): Jane Johnson</p>
-<p class="gb-text">F5.7 try_permalink, no-read shape (-&gt; this staff single&#8217;s URL): /staff/jane-partner/</p>
-<p class="gb-text">N6 try_text fallback on empty slots (jane: None / tom: Jr.): None</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Join &#8211; template mode (name)</h2>
-<p class="gb-text">J5: Jane (Johnson)</p>
-<p class="gb-text">J6: Jane</p>
-<p class="gb-text">J7: Johnson</p>
-<p class="gb-text">J8: Jane</p>
-<p class="gb-text">J9: (Jane.)</p>
-</div>
-<div>
-<h2 class="wp-block-heading">Join &#8211; full personal name</h2>
-<p class="gb-text">J21/J22: Jane Johnson</p>
-</div>
-</p>
-
-<p class="gb-text">CT3 excerpt hop (-> jane&#8217;s content trimmed, her values, and the read-more link points at /staff/jane-partner/): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -> em dash fallback; tom: Jr., PhD): — Fold F1 &#8211; join folded == legacy (name rows) F1.1 legacy (jane: Jane, Johnson / tom: Tom, Smith): Jane, Johnson F1.1 folded (-> same): Jane, Johnson F1.8 legacy &#8230; <a title="Jane Partner" class="read-more" href="/staff/jane-partner/" aria-label="Read more about Jane Partner">Read more</a></p>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Content CT4-CT5 &#8211; the field-read arms</h2>
-
-<p class="gb-text">CT4 post arm, use:key (-> jane&#8217;s main line, (555) 200-3000): (555) 200-3000</p>
-
-<p class="gb-text">CT5 term arm, use:key &#8211; the FIRST usable source is Sales (WP hands terms back by name), and Sales is the one carrying a blurb (-> the Sales blurb). Support has none, so a read in ASSIGNMENT order would print nothing: this row pins the order, not a search: Sales handles quotes, renewals and the annual customer roadshow.</p>
-</div>
-
-<div>
-<h2 class="wp-block-heading">Content CT6 &#8211; the ambient contrast</h2>
-
-<p class="gb-text">CT6 no hop, this page&#8217;s own field (-> (321) 555-0100, this page&#8217;s line, NOT jane&#8217;s): (321) 555-0100</p>
-</div>
-		</div>
+			<div class="entry-summary" itemprop="text">
+							</div>
 
 			</div>
 </article>
-		</main>
+		<nav id="nav-below" class="paging-navigation" aria-label="Archive Page">
+								<div class="nav-previous">
+						<span class="gp-icon icon-arrow"><svg viewBox="0 0 330 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"><path d="M305.913 197.085c0 2.266-1.133 4.815-2.833 6.514L171.087 335.593c-1.7 1.7-4.249 2.832-6.515 2.832s-4.815-1.133-6.515-2.832L26.064 203.599c-1.7-1.7-2.832-4.248-2.832-6.514s1.132-4.816 2.832-6.515l14.162-14.163c1.7-1.699 3.966-2.832 6.515-2.832 2.266 0 4.815 1.133 6.515 2.832l111.316 111.317 111.316-111.317c1.7-1.699 4.249-2.832 6.515-2.832s4.815 1.133 6.515 2.832l14.162 14.163c1.7 1.7 2.833 4.249 2.833 6.515z" /></svg></span>						<span class="prev" title="Previous"><a href="/staff/page/2/?nocache=BUST" >Older posts</a></span>
+					</div>
+					<div class="nav-links"><span aria-current="page" class="page-numbers current"><span class="screen-reader-text">Page</span>1</span>
+<a class="page-numbers" href="/staff/page/2/?nocache=BUST"><span class="screen-reader-text">Page</span>2</a>
+<span class="page-numbers dots">&hellip;</span>
+<a class="page-numbers" href="/staff/page/5/?nocache=BUST"><span class="screen-reader-text">Page</span>5</a>
+<a class="next page-numbers" href="/staff/page/2/?nocache=BUST">Next <span aria-hidden="true">&rarr;</span></a></div>		</nav>
+				</main>
 	</div>
 
 	<div class="widget-area sidebar is-right-sidebar" id="right-sidebar">
@@ -181,7 +118,7 @@
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/matrix-content/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Matrix: Content"}]},{"@type":"WebPage","@id":"/matrix-content/#webpage","url":"/matrix-content/","inLanguage":"en-US","name":"Matrix: Content – BWS Testbed","description":"Content CT1-CT3 - a hopped read lands on the TARGET entity (#58) CT1 plain hop (-> jane's blocks, and her J1 row reads Jane, Johnson - NOT this page's values):","datePublished":"TIMESTAMP","dateModified":"TIMESTAMP","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/matrix-content/#breadcrumblist"},"potentialAction":{"@id":"/matrix-content/#readaction"}},{"@type":"ReadAction","@id":"/matrix-content/#readaction","target":"/matrix-content/"},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script><script id="generate-menu-js-before">
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"/staff/#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Staff"}]},{"@type":"CollectionPage","@id":"/staff/#webpage","url":"/staff/","inLanguage":"en-US","name":"Staff – BWS Testbed","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"/staff/#breadcrumblist"}},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script><script id="generate-menu-js-before">
 var generatepressMenu = {"toggleOpenedSubMenus":true,"openSubMenuLabel":"Open Sub-Menu","closeSubMenuLabel":"Close Sub-Menu"};
 //# sourceURL=generate-menu-js-before
 </script>

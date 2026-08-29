@@ -159,16 +159,34 @@ once an author converts it or the Tag Converter rewrites it.
 
 *Mode terminology:* a `use`/`key` selection is **explicit** (written in the string), **implicit** (absent but recoverable — the stripped default, or a mode implied by a present `key`/`ref`; a selection IS in effect even though the selector's default isn't serialized), or **unset** (no choice and nothing to recover, e.g. no `src` → current entity). "Implicit" ≠ "unset": the panel always shows a default selection. Implicit mode resolves the analog only at **base / slot 1** — inside a try_ slot, the same wire-absence means *inherit* (the implicit-in-slot collision), not analog.
 
-| Base tag | post | term | user (author archive) | site |
-|---|---|---|---|---|
-| `title` | post title | term name | author display name | site name |
-| `content` | post content | term description | author biographical info (`description`) | *(none — site has no long-form body datum; the tagline is short, and has no `content`-tag path — see note)* |
-| `permalink` | post URL | term URL | *(not yet author-aware — deferred)* | site home URL |
-| `image` | featured image | *(none — terms have no native image; key required)* | *(not yet author-aware — deferred)* | site logo *(via explicit `use:featured` — see note)* |
-| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | |
-| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | |
+| Base tag | post | term | user (author archive) | query context (archive / search / 404 / home) | site |
+|---|---|---|---|---|---|
+| `title` | post title | term name | author display name | the context's canonical heading (see below) | site name |
+| `content` | post content | term description | author biographical info (`description`) | post type description (PTA); 404 text borrow; else empty | *(none — site has no long-form body datum; the tagline is short, and has no `content`-tag path — see note)* |
+| `permalink` | post URL | term URL | *(not yet author-aware — deferred)* | *(none — empty)* | site home URL |
+| `image` | featured image | *(none — terms have no native image; key required)* | *(not yet author-aware — deferred)* | *(none — empty)* | site logo *(via explicit `use:featured` — see note)* |
+| `text` | *(keyed — no intrinsic analog; key required in all contexts)* | | | | |
+| `datetime_single` / `datetime_range` | *(field-keyed — no intrinsic analog; key/field required in all contexts)* | | | | |
 
 The **user** column resolves on an author archive only (ambient `WP_User`, #19 author kind, 1.15.0). Scope is `title`/`content` (1.15.0) + `text` (1.16.0: `use:title` → display name, key-mode → the author's user meta field). `{{join}}` slots inherit it through the text read seam; `try_text`/`try_title`/`try_content` slots resolve it too since 1.17.0, on their own dispatcher arm — the other six `try_` families follow their base tag and render empty there. `permalink`/`image`/datetime author analogs are deferred and render empty (not wrong) there. An explicit source (`src:site`/`src:ref`/`srcTermIn`) or a query-loop item overrides the author ambient, exactly as with the term column. `linkTo:permalink` on the author `title` links the author's archive URL.
+
+#### Context coverage — the query-context kinds (1.19.0)
+
+The **query context** column resolves on the five entity-less main-query contexts (#19 / FW-9, 1.19.0): a date archive, a post-type archive, search results, a 404, and the latest-posts home (no assigned front page — an assigned front or posts page is a page entity and takes the post column). The resolved source carries the context itself, not an entity; there is no field to read, so key-mode reads and `linkTo` resolve empty/unwrapped there.
+
+**`{{title}}` follows WP core** — each value is the branch core's own `wp_get_document_title()` takes for that context, unprefixed, produced by the same core primitive (so its core filter applies):
+
+| Context | `{{title}}` | Core primitive |
+|---|---|---|
+| Post type archive | the type's archive label (`Staff`) | `post_type_archive_title()` |
+| Date archive | the span — day (`get_the_date()`), month (`July 2026`), or year (`2026`) | `get_the_date()` + core's archive formats |
+| Search results | core's formatted heading (`Search Results for “…”`) | core msgid + `get_search_query()` |
+| 404 | the site's own `generate_404_title` callback where GeneratePress is active, then GP's default; core's `Page not found` msgid without GP | `apply_filters( 'generate_404_title', … )` |
+| Latest-posts home | the site name | `get_bloginfo( 'name' )` |
+
+Where core and GB Pro's `{{archive_title}}` disagree (search: Pro returns the bare query; latest-home: Pro returns the literal `Blog`), **we follow core** — `wp_get_document_title()` backs both values. Date and 404 are not divergences; Pro has no branch for either.
+
+**`{{content}}`** resolves the post type description on a PTA (core's `get_the_post_type_description` filter applies, `wpautop` included) and the `generate_404_text` borrow on a GP 404; the other contexts render empty — including the latest-posts home, which before 1.19.0 leaked the first post's entire rendered content there. **`{{text use:title}}`** reads the same heading as `{{title}}` (the absorb seam, so `{{join}}` slots inherit it), and the `try_text`/`try_title`/`try_content` slot arm agrees with the standalone tags; the other six `try_` families render empty. Everything else — key-mode `text`, `permalink`, `image`, datetime — renders **empty, not wrong**: before 1.19.0 every one of these read whatever post WordPress happened to leave in `$post` (the main query's first row). Explicit sources and query-loop items override the ambient context exactly as in the other columns. The search/404/latest-home override options are deferred (`docs/future-work.md`), and on a core-only site the **raw search query** is currently unreachable — the deferred search-format option is its designated home.
 
 Where a source has **no** intrinsic analog for a tag (term image, site content-body), the implicit-mode tag resolves empty and a `key`/field is required — the gap is honest, not papered over. (Site has no long-form content datum: its "Tagline" is a short string — WordPress itself frames it "In a few words…" — so it is *not* forced into the `content` slot. It also gets no dedicated `text` value, because it fails *both* sides of the gate — no unique affordance over GB's native `{{site_tagline}}`, and no strong cross-source analog (see the [qualifying test](#qualifying-test-for-new-use-values) below).) A *corollary*: a named `use:` value that would duplicate a datum already reachable elsewhere must not exist (e.g. no `use:home_url` when `permalink src:site` already = home URL). This keeps one canonical path per datum.
 

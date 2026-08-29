@@ -147,7 +147,23 @@ template carries which `try_*_fn`, and the fn-absent fallthrough — lives insid
 `generate_base_try_tags()`'s callback closure, which no pure harness reaches: the arm-table
 harness sees data, `control-order-test.php` sees registration. Adding a `try_user_fn` to a
 seventh template or reordering that fallthrough fails nothing. Accepted for 1.17.0; the
-extraction is noted on FW-43's row.
+extraction is noted on FW-43's row. The same gap covers the `try_query_fn` leg (T9 below + `fold-test-matrix.md` §F19 are its pins).
+
+---
+
+## T9 — query-context arm of the absorb seam (bare tag on the five entity-less contexts, 1.19.0 FW-9)
+
+**Mostly render-tag** (T4/T8's archive-context rule) — but unlike T8 these rows DO have a visible surface: the C-element (`context-test-matrix.md`, "VISIBLE SINCE 2026-08-29") renders C-X1 (`{{text use:title}}`) and C-X2 (the `try_text` composition) on every query-context page, and the page snapshots pin them. Context here: `/staff/` (PTA); the per-context VALUES are `context-test-matrix.md`'s business — these rows pin the SEAM's dispatch, one context standing for the five.
+
+| # | Tag (on `/staff/`) | Expected |
+|---|---|---|
+| T9.1 | `{{text use:title}}` | `Staff` — same value as bare `{{title}}` there (the absorb seam and the title callback must agree) |
+| T9.2 | `{{text key:role}}` | empty — key-mode has no entity to read on a query context |
+| T9.3 | `{{text key:role\|fallback:NOPE}}` | `NOPE` — the empty claim still routes through the callback's own fallback tail |
+| T9.4 | `{{join use:title}}` | `Staff` — a join slot absorbs the query-context arm through the seam |
+| T9.5 | `{{text use:title\|linkTo:permalink}}` | `Staff` **unwrapped** — a query context has no link identity (`bws_source_link_identity()` maps it to null), so `linkTo` configures nothing |
+
+Verified 2026-08-29 via `render-tag`. The `try_` half lives in `fold-test-matrix.md` §F19.
 
 ## Fail triage
 

@@ -539,14 +539,14 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		$item_id   = (int) ( $loop['item_id'] ?? 0 );
 
 		// 2b. A TERM item — an extension looping over terms. The arms need nothing:
-		//     bws_base_ambient_term_id() gates on the WIRE kind plus this kind, never
+		//     bws_base_ambient_analog() gates on the WIRE kind plus this kind, never
 		//     on is_tax(), so a term reached through a loop takes the same analog read
 		//     as a term reached through an archive (FW-63 pre-paid for it).
 		if ( 'term' === $item_kind && $item_id ) {
 			return array( 'kind' => 'term', 'id' => $item_id );
 		}
 
-		// 2c. A USER item — the same, through bws_base_ambient_user_id(). This is also
+		// 2c. A USER item — the same, through bws_base_ambient_analog(). This is also
 		//     the first NON-AMBIENT user source the plugin has: the analogs FW-47 defers
 		//     (permalink, image) render EMPTY here rather than a wrong post, which is
 		//     that gap reached by a new route and not a new one.
@@ -594,6 +594,25 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 	//     here. src:ref keeps its meaning (falls through — no user relationship step yet).
 	if ( 'user' === ( $signals['queried_kind'] ?? '' ) && ! empty( $signals['queried_id'] ) ) {
 		return array( 'kind' => 'user', 'id' => (int) $signals['queried_id'] );
+	}
+
+	// 3d. Ambient QUERY CONTEXT (#19 / FW-9, 1.19.0): date archive, post-type
+	//     archive, search results, 404, latest-posts home. An entity-LESS resolved
+	//     source (ADR 0002 variable payload): it carries the sub-kind + query
+	//     payload and has NO field to read — L2 is skipped, and the context IS
+	//     the value (bws_base_query_context_analog_read). Explicit src, loop
+	//     items and explicit ids all returned above, so only a bare tag on one
+	//     of these contexts reaches this; static front/posts pages have an
+	//     assigned page as queried_object and never signal a query context
+	//     (probe-verified, plan §Detection signals). This branch is what stops
+	//     the $post leak: the main query's first row no longer reaches step 4's
+	//     current-post read on a results-bearing non-singular context.
+	if ( '' !== (string) ( $signals['query_context'] ?? '' ) ) {
+		return array(
+			'kind'    => 'query_context',
+			'sub'     => (string) $signals['query_context'],
+			'payload' => is_array( $signals['query_payload'] ?? null ) ? $signals['query_payload'] : array(),
+		);
 	}
 
 	// 3b. Degenerate term context (SPEC §V17): the conditional tags claimed a
@@ -655,13 +674,17 @@ function bws_first_post_id_from_sources( array $sources ) {
  * @since 1.14.0
  * @param object $instance GB tag instance (loop context).
  * @return array { queried_kind:'term'|'post'|'user'|null, queried_id:int,
- *                 is_tax:bool, term_context_unresolved:bool, loop:array }
+ *                 is_tax:bool, term_context_unresolved:bool,
+ *                 query_context:''|'404'|'search'|'date'|'post_type_archive'|'latest_home',
+ *                 query_payload:array, loop:array }
  */
 if ( ! function_exists( 'bws_capture_ambient_signals' ) ) {
 function bws_capture_ambient_signals( $instance ) {
 	$queried_kind            = null;
 	$queried_id              = 0;
 	$term_context_unresolved = false;
+	$query_context           = '';
+	$query_payload           = array();
 
 	// Term archive detection — gate on is_tax/category/tag so we only claim a
 	// term when WP actually queried one (mirrors bws_reliable_term_context_detection).
@@ -686,6 +709,41 @@ function bws_capture_ambient_signals( $instance ) {
 			$queried_kind = 'user';
 			$queried_id   = (int) $qo->ID;
 		}
+	} elseif ( function_exists( 'is_404' ) ) {
+		// Query-context detection (#19 / FW-9, 1.19.0) — the five entity-LESS
+		// contexts, each by its probe-verified signal (plan §Detection signals,
+		// P6/P7). Order: 404 excludes everything; search before the archives
+		// (WP's own document-title precedence — a search never claims an
+		// archive); date and PTA are disjoint; latest-home last, the ONLY
+		// no-canonical-entity case (home && front && queried_object null — a
+		// static front page or posts page has an assigned page as
+		// queried_object, never enters this chain's null cases, and resolves
+		// the page entity through the post path).
+		if ( is_404() ) {
+			$query_context = '404';
+		} elseif ( is_search() ) {
+			// queried_object null while $post is populated — the sharpest leak.
+			$query_context = 'search';
+			$query_payload = array( 's' => (string) get_query_var( 's' ) );
+		} elseif ( is_date() ) {
+			$query_context = 'date';
+			$query_payload = array(
+				'year'     => (int) get_query_var( 'year' ),
+				'monthnum' => (int) get_query_var( 'monthnum' ),
+				'day'      => (int) get_query_var( 'day' ),
+			);
+		} elseif ( is_post_type_archive() ) {
+			$qo = get_queried_object();
+			if ( $qo instanceof WP_Post_Type ) {
+				$query_context = 'post_type_archive';
+				$query_payload = array(
+					'post_type' => (string) $qo->name,
+					'label'     => (string) $qo->label,
+				);
+			}
+		} elseif ( is_home() && is_front_page() && null === get_queried_object() ) {
+			$query_context = 'latest_home';
+		}
 	}
 
 	$loop = function_exists( 'bws_get_loop_item_context' )
@@ -697,6 +755,8 @@ function bws_capture_ambient_signals( $instance ) {
 		'queried_id'              => $queried_id,
 		'is_tax'                  => (bool) $queried_kind,
 		'term_context_unresolved' => $term_context_unresolved,
+		'query_context'           => $query_context,
+		'query_payload'           => $query_payload,
 		'loop'                    => $loop,
 	);
 }

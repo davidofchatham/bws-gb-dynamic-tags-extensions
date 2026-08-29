@@ -29,11 +29,30 @@
  * render-tag. That is also what keeps the mandatory-visible-blocks rule load-bearing
  * rather than hygiene: a matrix row that never became a block is outside this instrument.
  *
- * THE PAGE SET COMES FROM THE MANIFEST, NOT FROM A LIST KEPT HERE. Every `posts` entry
- * carrying a `content_builder` is a page built to be looked at, so it is a page worth
- * pinning; a new fixture page enters the snapshot set by existing. A hand-kept URL list
+ * THE PAGE SET COMES FROM THE MANIFEST, NOT FROM A LIST KEPT HERE. A hand-kept URL list
  * would be a second source of truth over the blueprint, which is the same objection that
- * rejected a matrix-row runner (spec D24).
+ * rejected a matrix-row runner (spec D24). Three provenances, and the rule holds for all
+ * three because the blueprint states or implies every one of them:
+ *
+ *   POST-DERIVED   Every `posts` entry carrying a `content_builder` is a page built to be
+ *                  looked at, so it is worth pinning; a new fixture page enters the set by
+ *                  existing. Guarded by the permalink comparison below.
+ *   DERIVED        A post-type archive exists because a post type does, and a date archive
+ *                  exists because a post has a date. Both are read off the manifest rather
+ *                  than written down twice, so a new CPT gets its archive for free and the
+ *                  date archive follows the post that creates it.
+ *   DECLARED       URLs that exist because of a REQUEST SHAPE — a search query, a path
+ *                  nothing claims, the site root. Nothing implies them, so the manifest's
+ *                  `context_pages` states them. They are still blueprint facts: a search
+ *                  term matches because of what this blueprint seeds.
+ *
+ * THE LAST TWO CANNOT USE THE PERMALINK GUARD, so they carry a body class instead. There is
+ * no permalink to compare a request-shaped URL against, and their failure mode is the one
+ * this instrument is blindest to: an archive that empties, or a front page that acquires a
+ * static assignment, degrades into a document that normalizes perfectly well and diffs clean
+ * forever. Each such row states the class its page must carry, asserted on the RAW response
+ * before normalization, and a miss is a capture BLOCKER rather than a warning — a degraded
+ * page must not be allowed to become the baseline that hides it.
  *
  * PERMALINKS ARE DERIVED, AND THE DERIVATION IS PINNED. With no WordPress there is no
  * `get_permalink()`, so the URL is built from the manifest: a `page` is `/<slug>/` and any
@@ -102,18 +121,149 @@ function bws_page_snapshot_pages( $manifest = null ) {
 		$slug = $entry['post_name'];
 
 		$out[ $key ] = array(
-			'key'       => $key,
-			'post_type' => $type,
-			'slug'      => $slug,
+			'key'        => $key,
+			'provenance' => 'post',
+			'post_type'  => $type,
+			'slug'       => $slug,
 			// The derivation the docblock describes, and the thing
 			// bws_page_snapshot_assert_permalinks() checks when WP is around.
-			'path'      => 'page' === $type ? "/{$slug}/" : "/{$type}/{$slug}/",
+			// `page` AND `post` are flat under this site's /%postname%/ permastruct;
+			// every other type is prefixed. The rule can rot, which is exactly what
+			// bws_page_snapshot_assert_permalinks() exists to catch under WP.
+			'path'       => in_array( $type, array( 'page', 'post' ), true ) ? "/{$slug}/" : "/{$type}/{$slug}/",
 		);
+	}
+
+	// DERIVED — a post-type archive exists because a post type does, so it enters the set
+	// the same way a page does: by the blueprint declaring the type. A new CPT gets its
+	// archive snapshot with no registration step, which is the manifest-derived property
+	// this file already has for singles, one level up.
+	foreach ( (array) ( isset( $manifest['defines']['post_types'] ) ? $manifest['defines']['post_types'] : array() ) as $type ) {
+		$out[ 'ctx-pta-' . $type ] = array(
+			'key'        => 'ctx-pta-' . $type,
+			'provenance' => 'derived',
+			'path'       => "/{$type}/",
+			'body_class' => 'post-type-archive-' . $type,
+		);
+	}
+
+	// DERIVED — the date archive's URL IS a post's date, so it is read off the post rather
+	// than written down twice. Declaring it instead is what made the C1 row depend on the
+	// month the fixture happened to be seeded in; deriving it means the row follows the
+	// post that creates it. Only a post pinning `post_date` qualifies: an unpinned one is
+	// dated at insert and would move the archive under the baseline.
+	foreach ( (array) ( isset( $manifest['posts'] ) ? $manifest['posts'] : array() ) as $key => $entry ) {
+		// OPT-IN, not implied by the date. A second pinned post exists to lead the
+		// latest-posts home, and its month is full of other plugins' fixtures — an
+		// archive row there would pin THEIR content and move whenever they reseed. So a
+		// post says whether its archive is one a row actually names.
+		if ( empty( $entry['post_date'] ) || empty( $entry['date_archive'] ) ) {
+			continue;
+		}
+
+		$parts = explode( '-', substr( (string) $entry['post_date'], 0, 7 ) );
+
+		if ( 2 !== count( $parts ) ) {
+			continue;
+		}
+
+		$path = '/' . $parts[0] . '/' . $parts[1] . '/';
+
+		// Two pinned posts in the same month are one archive, not two rows.
+		$out[ 'ctx-date-' . $parts[0] . $parts[1] ] = array(
+			'key'        => 'ctx-date-' . $parts[0] . $parts[1],
+			'provenance' => 'derived',
+			'path'       => $path,
+			'body_class' => 'date',
+		);
+	}
+
+	// DECLARED — URLs that exist because of a request shape. Nothing implies them, so the
+	// blueprint states them; see the manifest's own `context_pages` comment for why they
+	// live there and not here.
+	foreach ( (array) ( isset( $manifest['context_pages'] ) ? $manifest['context_pages'] : array() ) as $key => $entry ) {
+		if ( empty( $entry['path'] ) ) {
+			continue;
+		}
+
+		$row = array(
+			'key'        => $key,
+			'provenance' => 'declared',
+			'path'       => $entry['path'],
+		);
+
+		if ( ! empty( $entry['body_class'] ) ) {
+			$row['body_class'] = $entry['body_class'];
+		}
+
+		if ( isset( $entry['expect_status'] ) ) {
+			$row['expect_status'] = (int) $entry['expect_status'];
+		}
+
+		$out[ $key ] = $row;
 	}
 
 	ksort( $out );
 
 	return $out;
+}
+
+/**
+ * The body class a page must carry, or '' when the row asserts none.
+ *
+ * WHY A DECLARED URL NEEDS THIS AND A POST-DERIVED ONE DOES NOT. A post-derived path is
+ * checked against get_permalink() (below), which catches a stale derivation. A declared or
+ * context-derived path has no permalink to compare against, and its failure mode is the one
+ * this whole instrument is most blind to: an archive that empties, or a front page that
+ * gets assigned, degrades into a page that normalizes perfectly well and diffs clean
+ * forever. The class is the cheapest thing that distinguishes "this is still a date
+ * archive" from "this is now a 404".
+ *
+ * Pure: no filesystem, no network.
+ *
+ * @param array $page One page-set row.
+ * @return string Expected body class token, '' when the row asserts none.
+ */
+function bws_page_snapshot_expected_body_class( array $page ) {
+	return isset( $page['body_class'] ) ? (string) $page['body_class'] : '';
+}
+
+/**
+ * Whether a fetched document carries a body class token.
+ *
+ * Runs on the RAW response, before normalization, deliberately: an assertion made against
+ * normalized output can be silently defeated by a later normalization rule, which is how the
+ * permalink derivation acquired the blind spot this function exists to cover.
+ *
+ * Matches the token within the class attribute rather than anywhere in the document, so a
+ * theme printing the word elsewhere cannot satisfy it.
+ *
+ * Pure: no filesystem, no network.
+ *
+ * @param string $html  Raw response body.
+ * @param string $token Expected class token ('' asserts nothing and always passes).
+ * @return bool
+ */
+function bws_page_snapshot_has_body_class( $html, $token ) {
+	if ( '' === $token ) {
+		return true;
+	}
+
+	if ( ! preg_match( '/<body\b([^>]*)>/i', (string) $html, $tag ) ) {
+		return false;
+	}
+
+	// Quote style is matched per-variant rather than with a backreference: WordPress
+	// themes emit either, and the two-pattern form stays readable in a single-quoted
+	// PHP literal where an escaped delimiter would not.
+	if ( ! preg_match( '/\bclass\s*=\s*"([^"]*)"/i', $tag[1], $m )
+		&& ! preg_match( "/\bclass\s*=\s*'([^']*)'/i", $tag[1], $m ) ) {
+		return false;
+	}
+
+	$classes = preg_split( '/\s+/', trim( $m[1] ) );
+
+	return in_array( $token, (array) $classes, true );
 }
 
 /**
@@ -133,6 +283,14 @@ function bws_page_snapshot_assert_permalinks( array $pages, $base_url ) {
 	}
 
 	foreach ( $pages as $page ) {
+		// Post-derived rows only. A derived or declared context URL has no post behind
+		// it and nothing for get_permalink() to answer; what guards those is the body
+		// class assert in bws_page_snapshot_capture_all(), which is a different axis and
+		// not a weaker version of this one.
+		if ( 'post' !== ( isset( $page['provenance'] ) ? $page['provenance'] : 'post' ) ) {
+			continue;
+		}
+
 		$found = get_posts(
 			array(
 				'name'        => $page['slug'],
@@ -185,8 +343,10 @@ function bws_page_snapshot_assert_permalinks( array $pages, $base_url ) {
  *
  * Returns array( 'body' => string, 'error' => string|null, 'status' => int ).
  */
-function bws_page_snapshot_fetch( $url ) {
+function bws_page_snapshot_fetch( $url, $expect_status = 200 ) {
 	static $seq = 0;
+
+	$expect_status = (int) $expect_status;
 
 	// UNIQUE ACROSS PROCESSES, not merely within one. `time()` alone collides between two
 	// runs started in the same second, and a collision means the second run is served the
@@ -222,7 +382,7 @@ function bws_page_snapshot_fetch( $url ) {
 
 		return array(
 			'body'   => (string) wp_remote_retrieve_body( $res ),
-			'error'  => 200 === $code ? null : "HTTP {$code}",
+			'error'  => $expect_status === $code ? null : "HTTP {$code} (expected {$expect_status})",
 			'status' => $code,
 		);
 	}
@@ -261,7 +421,7 @@ function bws_page_snapshot_fetch( $url ) {
 
 	return array(
 		'body'   => $body,
-		'error'  => 200 === $code ? null : "HTTP {$code}",
+		'error'  => $expect_status === $code ? null : "HTTP {$code} (expected {$expect_status})",
 		'status' => $code,
 	);
 }
@@ -325,8 +485,31 @@ function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAU
 	);
 	$s = preg_replace( '#("(?:datePublished|dateModified)"\s*:\s*")[^"]+#i', '${1}TIMESTAMP', $s );
 
+	//     GP's visible posted-on MODIFIED time is the fourth named carrier, and it is
+	//     BODY markup rather than head metadata — found 2026-08-29, the first reseed
+	//     after the context corpus added pages that render GP's single/loop templates
+	//     (post-home-lead, the author and date archives). `<time class="updated">`
+	//     carries post_modified in both its datetime attribute (seconds precision —
+	//     moves on EVERY reseed) and its text (day precision — moves on the next
+	//     reseed after midnight), so the whole element is replaced. Still a named
+	//     carrier: the class pair is GP's own posted-on markup, derived from the post
+	//     row; our datetime tags emit plain text, never a <time> element. The
+	//     PUBLISHED twin (`entry-date published`) is manifest-stable post_date and is
+	//     deliberately left asserted.
+	$s = preg_replace(
+		'#<time\s+class="updated"\s+datetime="[^"]*"[^>]*>.*?</time>#s',
+		'<time class="updated">TIMESTAMP</time>',
+		$s
+	);
+
 	// 1b. Cache-plugin footprints. Timestamped by construction.
-	$s = preg_replace( '#<!--\s*Page cached by LiteSpeed Cache.*?-->#s', '', $s );
+	//
+	// BOTH VERBS. LiteSpeed stamps `Page cached` on a page it served from cache and
+	// `Page uncached` on one it declined to cache, and only the second carries a live
+	// clock on every render. No fixture page produced it until the context corpus
+	// arrived: a search URL is uncacheable by construction, so it emits the uncached
+	// form with a fresh timestamp each time and would fail its own row forever.
+	$s = preg_replace( '#<!--\s*Page (?:un)?cached by LiteSpeed Cache.*?-->#s', '', $s );
 	$s = preg_replace( '#<!--\s*(?:QUIC\.cloud|Powered by LiteSpeed).*?-->#s', '', $s );
 
 	// 2. Generated <style> bodies. Ours (id="bws-*") are content, not churn — see docblock.
@@ -543,11 +726,29 @@ function bws_page_snapshot_capture_all( array $opts = array() ) {
 	$errors = array();
 
 	foreach ( $pages as $key => $page ) {
-		$res = bws_page_snapshot_fetch( $base . $page['path'] );
+		$expect = isset( $page['expect_status'] ) ? (int) $page['expect_status'] : 200;
+		$res    = bws_page_snapshot_fetch( $base . $page['path'], $expect );
 
 		if ( null !== $res['error'] ) {
 			$errors[ $key ] = $res['error'];
 			$shots[ $key ]  = null;
+			continue;
+		}
+
+		// THE CONTEXT ASSERT, and it runs BEFORE normalization on purpose. A row whose
+		// page has stopped being what the row is named for — an archive that emptied to
+		// a 404, a front page that acquired a static assignment — still normalizes
+		// perfectly well and would diff clean forever after. Failing here makes it a
+		// capture BLOCKER, so a degraded page cannot become the baseline that hides it.
+		$class = bws_page_snapshot_expected_body_class( $page );
+
+		if ( ! bws_page_snapshot_has_body_class( $res['body'], $class ) ) {
+			$errors[ $key ] = sprintf(
+				'expected body class "%s" is absent — %s is no longer the context this row pins',
+				$class,
+				$page['path']
+			);
+			$shots[ $key ] = null;
 			continue;
 		}
 

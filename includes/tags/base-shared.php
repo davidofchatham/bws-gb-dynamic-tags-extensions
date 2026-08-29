@@ -1397,42 +1397,6 @@ function bws_base_term_first_usable( array $base, array $options, callable $read
 }
 
 /**
- * Whether a base callback should read the AMBIENT TERM instead of a post.
- *
- * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own
- * post→term traversal and is incoherent from a term base), (b) `src` is neither
- * the site source (own early gate) NOR `ref` (SPEC §V11: src:ref on a term archive
- * HOPS the term's relationship field term→post[] via the post path's ref step,
- * then reads the target POST's analog — it must NOT short-circuit to the term's
- * own analog), and (c) the factory's base resolved source is a term — i.e. a bare
- * base tag on a term archive (SPEC §V7). Explicit options (a query-loop item,
- * src:current, id) win inside the factory itself (SPEC §V1), so this returns false
- * whenever the
- * author pinned a non-term source.
- *
- * @since 1.14.0
- * @param array  $base     Base resolved source from bws_resolve_base_source().
- * @param array  $options  Tag options.
- * @return int Term id when the ambient-term analog path applies, else 0.
- */
-function bws_base_ambient_term_id( array $base, array $options ): int {
-	// One test replaces three (FW-63): the ambient analog applies only when the
-	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
-	// branch that owns its own render — 'term' is the explicit post→term step (which
-	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
-	// term→post (§V11) so the post path must not be short-circuited to the term's
-	// own analog. A registry-source root still reads 'render_time' and still reaches the
-	// $base['kind'] test below, exactly as the old src test let it.
-	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
-		return 0;
-	}
-	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
-		return 0;
-	}
-	return (int) ( $base['id'] ?? 0 );
-}
-
-/**
  * Read a base tag's TERM analog on a term archive (SPEC §V7, CONTEXT.md I1).
  *
  * The I1 source-analog table applied to an ambient term: each base tag, at its
@@ -1497,31 +1461,6 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 // ===============================================
 // USER-AMBIENT DISPATCH (#19 author kind, 1.15.0)
 // ===============================================
-
-/**
- * Whether a base callback should read the AMBIENT USER instead of a post.
- *
- * The user-kind counterpart of bws_base_ambient_term_id(): true iff the factory's
- * base resolved source is a user (bare tag on an author archive, #19). Mirrors the
- * term gate's guards — an explicit srcTermIn step, src:site, or src:ref keeps its
- * own meaning (no user relationship step exists yet, so src:ref falls through to the post
- * path), and explicit src/loop/id already won inside the factory (SPEC §V1).
- *
- * @since 1.15.0
- * @param array $base    Base resolved source from bws_resolve_base_source().
- * @param array $options Tag options.
- * @return int User id when the ambient-user analog path applies, else 0.
- */
-function bws_base_ambient_user_id( array $base, array $options ): int {
-	// Same one-test gate as the term twin (FW-63) — see bws_base_ambient_term_id().
-	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
-		return 0;
-	}
-	if ( 'user' !== ( $base['kind'] ?? '' ) ) {
-		return 0;
-	}
-	return (int) ( $base['id'] ?? 0 );
-}
 
 /**
  * Read a base tag's USER analog on an author archive (#19, CONTEXT.md I1).
@@ -1609,5 +1548,227 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 	}
 
 	return '';
+}
+
+// ===============================================
+// QUERY-CONTEXT DISPATCH (#19 / FW-9, 1.19.0)
+// ===============================================
+
+/**
+ * Read a base tag's QUERY-CONTEXT analog (#19 / FW-9, CONTEXT.md I1).
+ *
+ * The third analog reader, twin of bws_base_term_analog_read() /
+ * bws_base_user_analog_read(), and like them it ends in a bare `return '';` so
+ * an unhandled tag renders EMPTY rather than wrong. Takes $base, NOT an entity
+ * id: a query-context source carries a sub-kind + payload and has no id (ADR
+ * 0002 variable payload), and an id-shaped signature would force a parallel
+ * path the sub-kind switch could never live in.
+ *
+ *   title   → the context's canonical heading (per sub-kind below)
+ *   text    → use:title reads the title analog (the try_ composition: key-mode
+ *             attempt first, canonical title second); key-mode has no entity → ''
+ *   content → post_type_archive: post type description; 404: the GP borrow; the rest ''
+ *
+ * WE FOLLOW WP CORE, and record it that way: every title value is the branch
+ * wp_get_document_title() takes for the same context, called through the same
+ * PRIMITIVES rather than through that function (its return appends site name +
+ * page number, and harvesting `document_title_parts` runs every listener on a
+ * hook built for wp_head). Calling each primitive gives authors the core
+ * filter for free — `post_type_archive_title`, `get_the_post_type_description`,
+ * the `get_the_date` chain, `pre_option_blogname`; the two kinds with no core
+ * filter (404, search) ride core's own stable-since-4.4 msgids, spelled with
+ * the explicit 'default' domain so a moved msgid degrades to English rather
+ * than fataling. Unprefixed throughout, matching the shipped term kind
+ * (`Sales`, not `Department: Sales`).
+ *
+ * THE 404 BORROW: site's own `generate_404_title` / `generate_404_text`
+ * callbacks → GP's own default msgid → core's msgid (title) / '' (content).
+ * Gated on GENERATE_VERSION not for safety (apply_filters on an unregistered
+ * hook is free) but because a non-GP theme could define the hook name for its
+ * own purpose. Output routes through bws_gb_tag_output() — GP echoes the text
+ * unescaped and its own inline comment says HTML is allowed there.
+ *
+ * @since 1.19.0
+ * @param string $tag      One of text|content|title (others → '').
+ * @param array  $base     Query-context resolved source ({kind, sub, payload}).
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return string Rendered analog value ('' on miss/gap/unsupported tag).
+ */
+function bws_base_query_context_analog_read( string $tag, array $base, array $options, $instance ): string {
+	$sub     = (string) ( $base['sub'] ?? '' );
+	$payload = is_array( $base['payload'] ?? null ) ? $base['payload'] : array();
+
+	switch ( $tag ) {
+		case 'title':
+			$value = '';
+			switch ( $sub ) {
+				case 'post_type_archive':
+					// Unprefixed core primitive; fires the `post_type_archive_title` filter.
+					$value = (string) post_type_archive_title( '', false );
+					break;
+
+				case 'date':
+					// wp_get_document_title()'s own day/month/year branch, keyed off the
+					// payload the signals captured; get_the_date reads the main query's
+					// first row, whose date IS the archive's span (core does the same).
+					if ( ! empty( $payload['day'] ) ) {
+						$value = (string) get_the_date();
+					} elseif ( ! empty( $payload['monthnum'] ) ) {
+						$value = (string) get_the_date( _x( 'F Y', 'monthly archives date format', 'default' ) );
+					} else {
+						$value = (string) get_the_date( _x( 'Y', 'yearly archives date format', 'default' ) );
+					}
+					break;
+
+				case 'search':
+					$value = sprintf( __( 'Search Results for &#8220;%s&#8221;', 'default' ), get_search_query() );
+					break;
+
+				case '404':
+					$value = defined( 'GENERATE_VERSION' )
+						? (string) apply_filters( 'generate_404_title', __( 'Oops! That page can&rsquo;t be found.', 'generatepress' ) )
+						: __( 'Page not found', 'default' );
+					break;
+
+				case 'latest_home':
+					$value = (string) get_bloginfo( 'name', 'display' );
+					break;
+			}
+			return '' !== $value ? bws_gb_tag_output( $value, $options, $instance ) : '';
+
+		case 'text':
+			// Mirror of the term/user readers' text dispatch: use:title → the
+			// context's title analog. Key-mode has no entity to read → ''.
+			if ( 'title' === ( $options['use'] ?? 'key' ) ) {
+				return bws_base_query_context_analog_read( 'title', $base, $options, $instance );
+			}
+			return '';
+
+		case 'content':
+			// Mirror of the term reader's shape: only `key` branches away (no
+			// entity to read → ''); every other `use` takes the analog.
+			if ( 'key' === ( $options['use'] ?? 'content' ) ) {
+				return '';
+			}
+			$value = '';
+			if ( 'post_type_archive' === $sub ) {
+				$value = (string) get_the_post_type_description();
+			} elseif ( '404' === $sub && defined( 'GENERATE_VERSION' ) ) {
+				$value = (string) apply_filters( 'generate_404_text', __( 'It looks like nothing was found at this location. Maybe try searching?', 'generatepress' ) );
+			}
+			if ( '' === $value ) {
+				return '';
+			}
+			return bws_gb_tag_output( bws_sanitize_rich_content( $value ), $options, $instance );
+	}
+
+	return '';
+}
+
+// ===============================================
+// AMBIENT-ANALOG SEAM (FW-9 collapse, 1.19.0)
+// ===============================================
+
+/**
+ * The ONE place a base callback asks "does an ambient kind answer this tag".
+ *
+ * Replaces the per-KIND arm blocks the base callbacks each hand-wrote (the term
+ * kind occupied five sites in base-tags.php, the user kind three, datetime two)
+ * and the ambient-id twins that gated them (bws_base_ambient_term_id /
+ * bws_base_ambient_user_id, retired 1.19.0 — this seam is now the FW-63 gate's
+ * one owner). Gates ONCE on the chain resolving to `render_time`, then
+ * dispatches on the resolved base source's kind to the per-kind analog readers
+ * above.
+ *
+ * Only the per-KIND block collapses. Link-wrap policy, preview-label emission
+ * and the empty path are per-TAG and stay in each callback's own tail; a caller
+ * receiving a non-null triple runs its existing tail on it, and a null falls
+ * through to its existing post/term/list path.
+ *
+ * Both readers end in a bare `return '';`, so a (tag, kind) pair a reader does
+ * not handle renders empty through the seam — which is what those pairs render
+ * today through the callbacks' post-route fallthrough. ONE measured exception:
+ * the user kind is claimed only for the tags bws_base_user_analog_read()
+ * handles (title/content/text), because {{image}} on an author archive reaches
+ * bws_custom_image_core() through the post route today and a configured Media
+ * Library fallback still renders there (the cores own the stated-fallback emit,
+ * which the seam's '' would silently drop). {{permalink}} is byte-equal either
+ * way ('' both ways) and stays out with it: the user arm claims exactly what
+ * the reader answers, and widens when FW-47 gives the reader those analogs.
+ *
+ * Link identity is DERIVED, not decided here: bws_source_link_identity() is the
+ * one owner (CONTEXT.md I12), and a null identity on an entity kind (id 0)
+ * returns null, sending the caller down its post path exactly as the retired
+ * twins' 0 did.
+ *
+ * @since 1.19.0
+ * @param string $tag      One of text|content|title|permalink|image.
+ * @param array  $base     Base resolved source from bws_resolve_base_source().
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}|null Triple when an
+ *                        ambient arm applies (value may be ''), null to fall through.
+ */
+function bws_base_ambient_analog( string $tag, array $base, array $options, $instance ): ?array {
+	// One test replaces three (FW-63): the ambient analog applies only when the
+	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
+	// branch that owns its own render — 'term' is the explicit post→term step (which
+	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
+	// term→post (§V11: src:ref on a term archive HOPS the relationship field
+	// term→post[] and reads the target POST's analog, so the post path must not be
+	// short-circuited to the term's own analog). A registry-source root still reads
+	// 'render_time' and still reaches the kind switch below. Explicit options (a
+	// query-loop item, src:current, id) won inside the factory itself (SPEC §V1),
+	// so a pinned non-ambient source never lands an ambient kind here.
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
+		return null;
+	}
+
+	switch ( $base['kind'] ?? '' ) {
+		case 'term':
+			$identity = bws_source_link_identity( $base );
+			if ( null === $identity ) {
+				return null;
+			}
+			return array(
+				'value'     => bws_base_term_analog_read( $tag, $identity['id'], $options, $instance ),
+				'link_id'   => $identity['id'],
+				'link_type' => $identity['kind'],
+			);
+
+		case 'user':
+			// The measured image/permalink carve-out — see the PHPDoc above.
+			if ( ! in_array( $tag, array( 'title', 'content', 'text' ), true ) ) {
+				return null;
+			}
+			$identity = bws_source_link_identity( $base );
+			if ( null === $identity ) {
+				return null;
+			}
+			return array(
+				'value'     => bws_base_user_analog_read( $tag, $identity['id'], $options, $instance ),
+				'link_id'   => $identity['id'],
+				'link_type' => $identity['kind'],
+			);
+
+		case 'query_context':
+			// Entity-LESS kind (#19 / FW-9): claimed for EVERY tag, because the
+			// fallthrough would hand a query-context base to the post route and a
+			// falsy-id core read — the leak class this kind exists to stop, one
+			// layer down. The reader answers '' for a tag it has no analog for
+			// (empty, not wrong). Identity is DERIVED here too, not decided:
+			// bws_source_link_identity() refuses this kind by name (null), and its
+			// null translates to the refused arms' no-wrap pair — so if the owner
+			// ever grants this kind an identity, the seam follows automatically.
+			$identity = bws_source_link_identity( $base );
+			return array(
+				'value'     => bws_base_query_context_analog_read( $tag, $base, $options, $instance ),
+				'link_id'   => $identity ? $identity['id'] : 0,
+				'link_type' => $identity ? $identity['kind'] : 'post',
+			);
+	}
+
+	return null;
 }
 

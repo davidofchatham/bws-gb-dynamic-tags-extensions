@@ -42,6 +42,14 @@ class TagTemplateRegistry {
 	 *                    the foot of the slot loop — the `[ false ]` branch that hands the
 	 *                    core fn no id so the field read can serve itself off the query-loop
 	 *                    item.
+	 *   try_query_fn     callable|null  fn($base, $opts, $inst): string — try_ ambient
+	 *                    query-context slot handler (#19 / FW-9, 1.19.0). Takes the resolved
+	 *                    BASE, not an entity id (the kind has none — ADR 0002). Present on
+	 *                    text/title/content as a thin closure over
+	 *                    bws_base_query_context_analog_read('<tag>',…); absent on the other
+	 *                    six, which take the same fn-absent fallthrough as try_user_fn — the
+	 *                    post arm resolves no id off a query-context base and the loop read
+	 *                    cannot serve on an archive, so they render EMPTY, not wrong.
 	 *   supports_try     bool      Whether this template generates a try_ tag.
 	 *   leading_options       array    Global formatting options (as, size, the datetime format
 	 *                    cluster). Named for the term_ constructor, where they LEAD; the try_
@@ -576,6 +584,7 @@ class TagTemplateRegistry {
 			$try_term_fn     = $tpl['try_term_fn'] ?? null;
 			$try_site_fn     = $tpl['try_site_fn'] ?? null;
 			$try_user_fn     = $tpl['try_user_fn'] ?? null;
+			$try_query_fn    = $tpl['try_query_fn'] ?? null;
 			$per_slot_key    = ! empty( $tpl['try_per_slot_key'] );
 			$per_slot_use    = ! empty( $tpl['try_per_slot_use'] );
 			$no_key_uses     = $tpl['try_use_no_key_values'] ?? [];
@@ -735,6 +744,7 @@ class TagTemplateRegistry {
 			$tcf  = $try_term_fn;
 			$sf   = $try_site_fn;
 			$uf   = $try_user_fn;
+			$qf   = $try_query_fn;
 			$psk  = $per_slot_key;
 			$psu  = $per_slot_use;
 			$nku  = $no_key_uses;
@@ -754,7 +764,7 @@ class TagTemplateRegistry {
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $qf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -947,6 +957,18 @@ class TagTemplateRegistry {
 							// templates the user analog covers carry a try_user_fn; the other
 							// six leave it null ON PURPOSE and fall through below.
 							$render_fn = $uf;
+							break;
+						case 'query':
+							// The ambient query context (#19 / FW-9, [I6] parity with the
+							// text absorb seam). Reachable ONLY through the render_time
+							// branch above — no chain spelling resolves to this kind — so
+							// $base is the resolved query-context source, and the closure
+							// hands IT to try_query_fn, which takes the base rather than an
+							// entity id (the kind has none — ADR 0002). Templates without a
+							// try_query_fn fall through below exactly as try_user_fn's six.
+							$render_fn = ( $qf && is_array( $base ) )
+								? static fn( $id, $o, $i ) => $qf( $base, $o, $i )
+								: null;
 							break;
 					}
 					if ( null === $render_fn ) {
