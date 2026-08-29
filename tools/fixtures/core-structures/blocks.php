@@ -1579,11 +1579,78 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
+		'context_header'       => 'bws_fixture_element_content_context_header',
+		'home_lead'            => 'bws_fixture_page_content_home_lead',
 	);
 	if ( ! isset( $map[ $builder ] ) ) {
 		return '';
 	}
 	return call_user_func( $map[ $builder ] );
+}
+
+
+/**
+ * The GP Element carrying the query-context rows (context-test-matrix C-rows).
+ *
+ * WHY AN ELEMENT AND NOT A PAGE. Every other fixture row group lives in page content, and
+ * that route is closed here: all five query contexts need a NON-SINGULAR main query, where
+ * page content does not exist. The matrix has recorded that exception since the C-rows were
+ * written, and named this as the eventual visible surface; a kind shipping is what makes it
+ * due. Without it the query-context snapshots pin theme chrome and nothing of ours, and the
+ * only evidence for what a tag renders on an archive comes from `render-tag`, which cannot
+ * reach `the_content`, a real block render, or wptexturize.
+ *
+ * DISPLAY CONDITIONS EXCLUDE SINGULAR, deliberately. The element is scoped to blog +
+ * archive + search + 404 (see the manifest's `elements` section), so the ten singular
+ * baselines are untouched and only the context rows move. Scoping it site-wide would have
+ * re-captured every page to measure six.
+ *
+ * `{{content}}` uses the empty-expecting row shape on purpose: it resolves on a post-type
+ * archive alone (the post type's own description) and is empty by design on date, search,
+ * 404 and latest-home. GB hides a text block whose tag renders nothing, taking a combined
+ * label down with it, so a one-block row would read as missing fixture rather than as the
+ * asserted empty.
+ *
+ * @since 1.19.0
+ * @return string
+ */
+function bws_fixture_element_content_context_header() {
+	return bws_fixture_gb_section(
+		'Query-context rows (C-rows)',
+		array(
+			bws_fixture_gb_row(
+				'C-T1 bare title -> this context\'s own heading (PTA label / date span / search phrase / 404 line / site name)',
+				'{{title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-C1 bare content -> the post type description on a PTA; EMPTY on date, search, 404 and latest-home',
+				'{{content}}'
+			),
+		)
+	);
+}
+
+/**
+ * Content for the post that leads the latest-posts home.
+ *
+ * IT EXISTS TO BE NON-EMPTY. `{{content}}` on a latest-posts home reads whatever post the
+ * main query put first, and on this shared fixture site that was `BWSUT Target Post` —
+ * another plugin's fixture, carrying zero bytes of content. So the C-row would have pinned
+ * "empty" and proved nothing, then flipped to a real value the moment anyone reseeded
+ * anything. A post this blueprint owns, with content, dated to lead, makes the row mean
+ * what it says.
+ *
+ * Kept deliberately short: it renders inside the home page's post list, so every byte of it
+ * is in the ctx-home-latest baseline.
+ *
+ * @since 1.19.0
+ * @return string
+ */
+function bws_fixture_page_content_home_lead() {
+	return bws_fixture_gb_text_block(
+		'Lead post for the latest-posts home context row. Its body is what a bare {{content}} resolves to there.',
+		'home-lead'
+	);
 }
 
 /**

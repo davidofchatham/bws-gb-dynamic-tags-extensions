@@ -127,7 +127,10 @@ function bws_page_snapshot_pages( $manifest = null ) {
 			'slug'       => $slug,
 			// The derivation the docblock describes, and the thing
 			// bws_page_snapshot_assert_permalinks() checks when WP is around.
-			'path'       => 'page' === $type ? "/{$slug}/" : "/{$type}/{$slug}/",
+			// `page` AND `post` are flat under this site's /%postname%/ permastruct;
+			// every other type is prefixed. The rule can rot, which is exactly what
+			// bws_page_snapshot_assert_permalinks() exists to catch under WP.
+			'path'       => in_array( $type, array( 'page', 'post' ), true ) ? "/{$slug}/" : "/{$type}/{$slug}/",
 		);
 	}
 
@@ -150,7 +153,11 @@ function bws_page_snapshot_pages( $manifest = null ) {
 	// post that creates it. Only a post pinning `post_date` qualifies: an unpinned one is
 	// dated at insert and would move the archive under the baseline.
 	foreach ( (array) ( isset( $manifest['posts'] ) ? $manifest['posts'] : array() ) as $key => $entry ) {
-		if ( empty( $entry['post_date'] ) ) {
+		// OPT-IN, not implied by the date. A second pinned post exists to lead the
+		// latest-posts home, and its month is full of other plugins' fixtures — an
+		// archive row there would pin THEIR content and move whenever they reseed. So a
+		// post says whether its archive is one a row actually names.
+		if ( empty( $entry['post_date'] ) || empty( $entry['date_archive'] ) ) {
 			continue;
 		}
 

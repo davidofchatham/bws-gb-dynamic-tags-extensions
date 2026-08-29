@@ -387,12 +387,20 @@ $log( 'post→term assignments applied' );
 // categoryless + all-users-visible. portal_visibility belongs to
 // bws-portal-system — guard on taxonomy existence so this blueprint stays
 // loadable without it.
-if ( isset( $post_ids['post-sample-event'] ) ) {
-	wp_set_object_terms( $post_ids['post-sample-event'], array(), 'category' );
-	if ( taxonomy_exists( 'portal_visibility' ) ) {
-		wp_set_object_terms( $post_ids['post-sample-event'], array( 'all-users' ), 'portal_visibility' );
+// Both posts need it for the same reason: the portal-system filter empties an anonymous
+// query of anything not marked visible, which would take sample-event out of its date
+// archive and home-lead out of the latest-posts home it exists to lead. Measured rather
+// than assumed the second time — home-lead was seeded without it and simply did not
+// appear in the front end's post list at all.
+foreach ( array( 'post-sample-event', 'post-home-lead' ) as $ctx_slug ) {
+	if ( ! isset( $post_ids[ $ctx_slug ] ) ) {
+		continue;
 	}
-	$log( 'sample-event date-archive visibility ensured (no category, all-users)' );
+	wp_set_object_terms( $post_ids[ $ctx_slug ], array(), 'category' );
+	if ( taxonomy_exists( 'portal_visibility' ) ) {
+		wp_set_object_terms( $post_ids[ $ctx_slug ], array( 'all-users' ), 'portal_visibility' );
+	}
+	$log( $ctx_slug . ': context visibility ensured (no category, all-users)' );
 }
 
 // ---------------------------------------------------------------------------
@@ -454,6 +462,72 @@ if ( ! empty( $manifest['patterns'] ) && post_type_exists( 'wp_block' ) ) {
 	$log( 'patterns: ' . count( $pattern_ids ) . ' upserted' );
 } elseif ( ! empty( $manifest['patterns'] ) ) {
 	$log( 'patterns: SKIPPED — wp_block post type not registered' );
+}
+
+// ---------------------------------------------------------------------------
+// 4c. GP Elements — the visible surface for non-singular contexts.
+// ---------------------------------------------------------------------------
+// The C-rows need a bare {{title}} / {{content}} rendered through a REAL front-end request
+// on a query context, and page content cannot reach them: every one of those contexts has a
+// non-singular main query. A GP block element hooked at generate_after_header is the only
+// surface that does.
+//
+// SCOPED, NOT SITE-WIDE. The display conditions come from the manifest and deliberately omit
+// `general:singular`, so the ten singular page-snapshot baselines do not move to measure six
+// context ones. Getting that wrong is not subtle — it re-captures every page in the set.
+//
+// Skips cleanly when GP Premium's element post type is absent, exactly as the pattern
+// section skips without wp_block: the fixture is inert rather than broken, and says so.
+$element_ids = array();
+if ( ! empty( $manifest['elements'] ) && post_type_exists( 'gp_elements' ) ) {
+	foreach ( $manifest['elements'] as $slug => $def ) {
+		$content  = bws_fixture_build_page_content( $def['content_builder'] );
+		$existing = get_posts(
+			array(
+				'name'        => $def['post_name'],
+				'post_type'   => 'gp_elements',
+				'post_status' => 'any',
+				'numberposts' => 1,
+			)
+		);
+		$args = array(
+			'post_type'    => 'gp_elements',
+			'post_name'    => $def['post_name'],
+			'post_title'   => $def['post_title'],
+			'post_status'  => 'publish',
+			'post_content' => wp_slash( $content ),
+		);
+		if ( $existing ) {
+			$args['ID']          = $existing[0]->ID;
+			$element_ids[ $slug ] = (int) wp_update_post( $args );
+		} else {
+			$element_ids[ $slug ] = (int) wp_insert_post( $args );
+		}
+
+		$eid = $element_ids[ $slug ];
+
+		// The meta keys GP Premium reads (elements/class-block.php, class-hooks.php). A
+		// block element whose type is `hook` keeps the hook named here rather than having
+		// one forced on it by the type switch, which is what site-header and page-hero do.
+		update_post_meta( $eid, '_generate_element_type', $def['element_type'] );
+		update_post_meta( $eid, '_generate_block_type', $def['block_type'] );
+		update_post_meta( $eid, '_generate_hook', $def['hook'] );
+
+		// GP stores conditions as a list of rule/object pairs and serializes them itself.
+		// `object` is '0' for every `general:` rule — it carries an id only where the rule
+		// names a specific post or term.
+		$conditions = array();
+		foreach ( (array) $def['conditions'] as $rule ) {
+			$conditions[] = array(
+				'rule'   => $rule,
+				'object' => '0',
+			);
+		}
+		update_post_meta( $eid, '_generate_element_display_conditions', $conditions );
+	}
+	$log( 'elements: ' . count( $element_ids ) . ' upserted' );
+} elseif ( ! empty( $manifest['elements'] ) ) {
+	$log( 'elements: SKIPPED — gp_elements post type not registered (GP Premium inactive)' );
 }
 
 // ---------------------------------------------------------------------------

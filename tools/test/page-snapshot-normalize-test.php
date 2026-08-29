@@ -423,7 +423,8 @@ $check( 'P13.5 an empty manifest yields an empty set rather than a notice', arra
 $fake2 = array(
 	'defines'       => array( 'post_types' => array( 'staff' ) ),
 	'posts'         => array(
-		'dated'   => array( 'post_type' => 'post', 'post_name' => 'ev', 'post_date' => '2026-07-17 13:30:01' ),
+		'dated'   => array( 'post_type' => 'post', 'post_name' => 'ev', 'post_date' => '2026-07-17 13:30:01', 'date_archive' => true ),
+		'pinned'  => array( 'post_type' => 'post', 'post_name' => 'lead', 'post_date' => '2026-08-25 09:00:00' ),
 		'undated' => array( 'post_type' => 'post', 'post_name' => 'other' ),
 	),
 	'context_pages' => array(
@@ -443,7 +444,10 @@ $check( 'P13a.2 ...carrying the body class that proves it is still an archive', 
 // The whole reason the date is derived rather than declared: a written-down /YYYY/MM/ is
 // only true for the month the fixture happened to be seeded in.
 $check( 'P13a.3 a pinned post_date yields its date archive', '/2026/07/' === $set2['ctx-date-202607']['path'] );
-$check( 'P13a.4 an UNPINNED post contributes no date row — its date moves on a fresh insert', 1 === count( $date_rows ) );
+// TWO exclusions, and they are different facts. An unpinned post has no stable month at
+// all; a pinned one without the opt-in has a month somebody else's fixtures occupy, so its
+// archive baseline would be their content.
+$check( 'P13a.4 exactly one date row — neither the unpinned post nor the pinned-but-not-opted-in one contributes', array( 'ctx-date-202607' ) === array_values( $date_rows ) );
 $check( 'P13a.5 a declared context page enters the set', '/?s=matrix' === $set2['ctx-s']['path'] );
 $check( 'P13a.6 ...marked declared, so the permalink guard skips it', 'declared' === $set2['ctx-s']['provenance'] );
 $check( 'P13a.7 an expected status rides the row', 404 === $set2['ctx-404']['expect_status'] );
