@@ -675,7 +675,7 @@ function bws_first_post_id_from_sources( array $sources ) {
  * @param object $instance GB tag instance (loop context).
  * @return array { queried_kind:'term'|'post'|'user'|null, queried_id:int,
  *                 is_tax:bool, term_context_unresolved:bool,
- *                 query_context:''|'404'|'search'|'date'|'pta'|'latest_home',
+ *                 query_context:''|'404'|'search'|'date'|'post_type_archive'|'latest_home',
  *                 query_payload:array, loop:array }
  */
 if ( ! function_exists( 'bws_capture_ambient_signals' ) ) {
@@ -735,7 +735,7 @@ function bws_capture_ambient_signals( $instance ) {
 		} elseif ( is_post_type_archive() ) {
 			$qo = get_queried_object();
 			if ( $qo instanceof WP_Post_Type ) {
-				$query_context = 'pta';
+				$query_context = 'post_type_archive';
 				$query_payload = array(
 					'post_type' => (string) $qo->name,
 					'label'     => (string) $qo->label,

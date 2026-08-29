@@ -514,7 +514,7 @@ eq(
 // tested via the C-rows; these rows pin the factory's MAPPING and precedence.
 
 foreach ( array(
-	array( 'pta', array( 'post_type' => 'staff', 'label' => 'Staff' ) ),
+	array( 'post_type_archive', array( 'post_type' => 'staff', 'label' => 'Staff' ) ),
 	array( 'date', array( 'year' => 2026, 'monthnum' => 7, 'day' => 0 ) ),
 	array( 'search', array( 's' => 'searchpin' ) ),
 	array( '404', array() ),

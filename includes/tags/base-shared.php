@@ -1567,7 +1567,7 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
  *   title   → the context's canonical heading (per sub-kind below)
  *   text    → use:title reads the title analog (the try_ composition: key-mode
  *             attempt first, canonical title second); key-mode has no entity → ''
- *   content → pta: post type description; 404: the GP borrow; the rest ''
+ *   content → post_type_archive: post type description; 404: the GP borrow; the rest ''
  *
  * WE FOLLOW WP CORE, and record it that way: every title value is the branch
  * wp_get_document_title() takes for the same context, called through the same
@@ -1603,7 +1603,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 		case 'title':
 			$value = '';
 			switch ( $sub ) {
-				case 'pta':
+				case 'post_type_archive':
 					// Unprefixed core primitive; fires the `post_type_archive_title` filter.
 					$value = (string) post_type_archive_title( '', false );
 					break;
@@ -1652,7 +1652,7 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
 				return '';
 			}
 			$value = '';
-			if ( 'pta' === $sub ) {
+			if ( 'post_type_archive' === $sub ) {
 				$value = (string) get_the_post_type_description();
 			} elseif ( '404' === $sub && defined( 'GENERATE_VERSION' ) ) {
 				$value = (string) apply_filters( 'generate_404_text', __( 'It looks like nothing was found at this location. Maybe try searching?', 'generatepress' ) );
