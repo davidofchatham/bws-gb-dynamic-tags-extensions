@@ -36,7 +36,13 @@
  *   wp eval-file /plugins/bws-gb-dynamic-tags-extensions/tools/harvest-replay/run-converter.php \
  *       <census.jsonl> <outdir>
  *
- * Writes <outdir>/mapping.jsonl and <outdir>/convert-report.json.
+ * Writes <outdir>/mapping.jsonl, <outdir>/removed-wire.jsonl and <outdir>/convert-report.json.
+ *
+ * THE REMOVAL ARTIFACT IS THE THIRD ONE, and it is separate from the mapping on purpose: a
+ * mapping row means "this became that", and the pattern-cache repair does not rename wire, it
+ * REMOVES it. `diff-replays.php --removed=` reads it so a repaired row stops reading as a
+ * vanished one; the rule is owned and pinned by `bws_replay_split_missing()` in
+ * replay-verdict.php.
  *
  * MUTATES CONTENT. Snapshot first (bin/dev-plugin.sh --dev does).
  */
@@ -151,13 +157,27 @@ WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_coun
 // migration predating the clone; `bws_dynamic_tags_pattern_cache_status` named the upgrade trigger
 // and one reconciled entry. A skip flag was built for this and DELETED — it isolated nothing,
 // because by the time this file runs the upgrade path has already repaired the tree.
+//
+// WHAT THE REPAIR CLEARED IS NOW RECORDED, which is what lets the diff tell a repaired row
+// from a vanished one instead of failing on every one of them (212 such pairs beside 13,445
+// identical on the run above). Its own artifact, deliberately: `mapping.jsonl` means "this
+// became that", and a removal is not a rename.
 $pattern_cache = array();
+$cleared_wire  = array();
 if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 	$pattern_cache = \BWS\DynamicTags\Admin\PatternCache::reconcile_site( 'migrate' );
+	$cleared_wire  = (array) ( $pattern_cache['cleared'] ?? array() );
+
+	// Out of the JSON report and into its own file — the report is a summary a human reads,
+	// and this list is bounded only by the size of the pattern library.
+	unset( $pattern_cache['cleared'] );
+	$pattern_cache['cleared_wire'] = count( $cleared_wire );
+
 	WP_CLI::log( sprintf(
-		'pattern cache: %d entries checked, %d reconciled',
+		'pattern cache: %d entries checked, %d reconciled, %d stale tag string(s) cleared',
 		(int) ( $pattern_cache['checked'] ?? 0 ),
-		(int) ( $pattern_cache['reconciled'] ?? 0 )
+		(int) ( $pattern_cache['reconciled'] ?? 0 ),
+		count( $cleared_wire )
 	) );
 }
 
@@ -223,6 +243,46 @@ foreach ( $mapping as $old => $new ) {
 }
 fclose( $mh );
 
+// THE REMOVAL ARTIFACT. `diff-replays.php --removed=` reads it to tell a pattern-cache repair
+// from a genuine disappearance; `bws_replay_split_missing()` in replay-verdict.php owns that
+// rule and pins it. Written on EVERY run, including empty ones — an absent file and a file
+// naming nothing are the same forgiveness, and only one of them says a run happened.
+//
+// THE `meta` ROW EXISTS BECAUSE THE KEYS HAVE TO MATCH. Harvest builds every census
+// `tag_string` with its own regex, which it takes as a command-line argument, so a harvest run
+// that overrode it produces strings these can never equal. That fails SAFE — an unmatched pair
+// stays the hard failure it already is — and it fails SILENTLY, so the pattern that produced
+// this file is recorded beside it. Threading an override through the reconcile is not done:
+// nothing has needed one, and a knob with no caller is a second way to key an artifact wrong.
+$removed_path = rtrim( $outdir, '/' ) . '/removed-wire.jsonl';
+$rh           = fopen( $removed_path, 'w' );
+fwrite(
+	$rh,
+	wp_json_encode(
+		array(
+			'kind'         => 'meta',
+			'recorded_at'  => gmdate( 'c' ),
+			'plugin_version' => $version,
+			'wire_pattern' => class_exists( '\BWS\DynamicTags\Admin\PatternCache' )
+				? \BWS\DynamicTags\Admin\PatternCache::WIRE_PATTERN
+				: null,
+		)
+	) . "\n"
+);
+foreach ( $cleared_wire as $row ) {
+	fwrite(
+		$rh,
+		wp_json_encode(
+			array(
+				'kind'       => 'removed',
+				'post_id'    => (int) ( $row['post_id'] ?? 0 ),
+				'tag_string' => (string) ( $row['tag_string'] ?? '' ),
+			)
+		) . "\n"
+	);
+}
+fclose( $rh );
+
 $report = array(
 	'converted_at'      => gmdate( 'c' ),
 	'plugin_version'    => $version,
@@ -249,3 +309,4 @@ WP_CLI::log( sprintf(
 	count( $unverified )
 ) );
 WP_CLI::log( 'written: ' . $map_path );
+WP_CLI::log( 'written: ' . $removed_path );

@@ -252,6 +252,72 @@ class PatternCache {
 		);
 	}
 
+	/**
+	 * The wire pattern a removal report is keyed by.
+	 *
+	 * DELIBERATELY THE HARVEST DEFAULT, byte for byte. `fixtures/harvest/harvest-tags.php` in
+	 * the ENV repo builds the census — and therefore every `tag_string` a replay artifact
+	 * carries — with this expression, so a removal report written under a different one names
+	 * strings that can never match. That failure is SAFE (an unmatched pair stays the hard
+	 * failure it is today) and SILENT, which is why the report records the pattern it used and
+	 * why `cleared_wire()` takes it as an argument: harvest accepts an override on the command
+	 * line, so a run that used one has to be able to say so.
+	 *
+	 * @since 1.19.0
+	 */
+	const WIRE_PATTERN = '/\{\{[a-z0-9_]+(?:\s[^{}]*)?\}\}/i';
+
+	/**
+	 * Which tag strings stopped existing between two versions of one content string.
+	 *
+	 * PURE. The reconcile overwrites a cached copy of `post_content` with the current one, so
+	 * anything the old copy held and the new content does not has left the site's renderable
+	 * wire. Counting those was not enough: a migration replay reads each of them as a
+	 * (url, tag) pair present on only one side — a hard failure that is not a render change,
+	 * measured at 212 pairs beside 13,445 identical on one run — and only the strings
+	 * themselves distinguish a repair from a disappearance.
+	 *
+	 * REMOVALS ONLY, AND EXACT STRINGS. Wire the repair ADDED is not this question; and
+	 * reporting a tag NAME where a whole tag string was removed would forgive nothing while
+	 * looking like it had, because two configurations of one tag are two different pieces of
+	 * wire and the replay keys on the whole string.
+	 *
+	 * @since 1.19.0
+	 * @param string $before  The content as the cache held it.
+	 * @param string $after   The content as it now is.
+	 * @param string $pattern Wire pattern; see WIRE_PATTERN for why it is an argument.
+	 * @return string[] Distinct tag strings present in $before and absent from $after.
+	 * @throws \InvalidArgumentException If $pattern is not a usable expression — reporting an
+	 *                                  empty set would read as "nothing was cleared", which is
+	 *                                  the answer that silently turns every repair back into an
+	 *                                  unexplained disappearance downstream.
+	 */
+	public static function cleared_wire( string $before, string $after, string $pattern = self::WIRE_PATTERN ): array {
+		if ( false === strpos( $before, '{{' ) && $pattern === self::WIRE_PATTERN ) {
+			return array();
+		}
+
+		$found = @preg_match_all( $pattern, $before, $m );
+
+		if ( false === $found ) {
+			throw new \InvalidArgumentException( 'cleared_wire(): unusable wire pattern ' . $pattern );
+		}
+
+		if ( ! $found ) {
+			return array();
+		}
+
+		$gone = array();
+
+		foreach ( array_unique( $m[0] ) as $tag ) {
+			if ( false === strpos( $after, $tag ) ) {
+				$gone[] = $tag;
+			}
+		}
+
+		return array_values( $gone );
+	}
+
 	// ===============================================
 	// SITE-WIDE RECONCILE
 	// ===============================================
@@ -274,9 +340,16 @@ class PatternCache {
 	 * excludes the same two statuses, so what the converter rewrites and what this repairs
 	 * stay the same population.
 	 *
+	 * `cleared` IS RETURNED BUT NOT RECORDED. The stored status stays two counts and a
+	 * timestamp: it is an option read on admin screens, and a per-string list on a large
+	 * pattern library has no bound. The strings go to the caller that asked for them —
+	 * `tools/harvest-replay/run-converter.php` writes them to a file beside its mapping — and
+	 * a removal is deliberately NOT folded into `mapping.jsonl`, which means "this became
+	 * that".
+	 *
 	 * @since 1.17.0
 	 * @param string $trigger Untranslated slug: 'upgrade', 'scan' or 'migrate'.
-	 * @return array{checked:int, reconciled:int}
+	 * @return array{checked:int, reconciled:int, cleared:array<int,array{post_id:int,tag_string:string}>}
 	 */
 	public static function reconcile_site( string $trigger ): array {
 		global $wpdb;
@@ -297,6 +370,7 @@ class PatternCache {
 
 		$checked    = 0;
 		$reconciled = 0;
+		$cleared    = array();
 
 		if ( ! empty( $rows ) ) {
 			// Prime once rather than letting each get_post_meta() prime its own post.
@@ -304,8 +378,18 @@ class PatternCache {
 
 			foreach ( $rows as $row ) {
 				++$checked;
-				if ( self::reconcile_post( (int) $row->ID, (string) $row->post_content ) ) {
+
+				$gone = null;
+
+				if ( self::reconcile_post( (int) $row->ID, (string) $row->post_content, $gone ) ) {
 					++$reconciled;
+
+					foreach ( (array) $gone as $tag ) {
+						$cleared[] = array(
+							'post_id'    => (int) $row->ID,
+							'tag_string' => (string) $tag,
+						);
+					}
 				}
 			}
 		}
@@ -315,6 +399,7 @@ class PatternCache {
 		return array(
 			'checked'    => $checked,
 			'reconciled' => $reconciled,
+			'cleared'    => $cleared,
 		);
 	}
 
@@ -345,13 +430,23 @@ class PatternCache {
 	 * nobody reads over the one everybody does; and the skip is not permanent, since it
 	 * resolves the moment the unreadable row goes.
 	 *
+	 * WHAT `$cleared` IS FOR, and why it is an out-parameter rather than a wider return: the
+	 * bool is what every caller acts on, and three of them do not care which strings moved.
+	 * The one that does is the harvest/replay driver, which needs them because a migration
+	 * replay reads each removed string as a (url, tag) pair present on only one side. It is
+	 * reported only where a write actually happened — a run that changed nothing cleared
+	 * nothing, and saying so with an empty array beats saying it with a null nobody checks.
+	 *
 	 * @since 1.17.0
-	 * @param int    $post_id Pattern post ID.
-	 * @param string $content The post's current content.
+	 * @param int        $post_id Pattern post ID.
+	 * @param string     $content The post's current content.
+	 * @param array|null $cleared Receives the tag strings this repair removed from the cached
+	 *                            copy. Always set: an empty array where nothing left.
 	 * @return bool Whether meta was written.
 	 */
-	public static function reconcile_post( int $post_id, string $content ): bool {
-		$rows = get_post_meta( $post_id, self::META_KEY, false );
+	public static function reconcile_post( int $post_id, string $content, ?array &$cleared = null ): bool {
+		$cleared = array();
+		$rows    = get_post_meta( $post_id, self::META_KEY, false );
 
 		if ( empty( $rows ) || ! is_array( $rows ) ) {
 			return false;
@@ -382,9 +477,46 @@ class PatternCache {
 			return false;
 		}
 
+		// READ THE OLD COPY BEFORE THE WRITE, and read it through the same entry matcher the
+		// decision used — a positional read would name the wrong entry in exactly the tree
+		// shape reconcile_tree() is careful about.
+		$before = self::cached_pattern( $rows[0], $post_id );
+
 		update_post_meta( $post_id, self::META_KEY, wp_slash( $write ) );
 
+		if ( null !== $before ) {
+			$cleared = self::cleared_wire( $before, $content );
+		}
+
 		return true;
+	}
+
+	/**
+	 * The content this post's own cache entry was holding, or null if it has none.
+	 *
+	 * PURE, and matching by the entry's OWN identifier rather than by position for the reason
+	 * reconcile_tree() gives: the live shape is a one-entry list, so a positional read passes
+	 * every ordinary case and names the wrong entry in the unexpected one.
+	 *
+	 * @since 1.19.0
+	 * @param mixed $tree    Decoded cache value.
+	 * @param int   $post_id Pattern post ID.
+	 * @return string|null
+	 */
+	public static function cached_pattern( $tree, int $post_id ): ?string {
+		if ( ! is_array( $tree ) ) {
+			return null;
+		}
+
+		$id = self::entry_id( $post_id );
+
+		foreach ( $tree as $entry ) {
+			if ( self::is_entry_for( $entry, $id ) && self::entry_has_content( $entry ) ) {
+				return (string) $entry['pattern'];
+			}
+		}
+
+		return null;
 	}
 
 	// ===============================================

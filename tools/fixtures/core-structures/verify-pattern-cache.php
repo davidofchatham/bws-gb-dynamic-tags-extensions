@@ -235,6 +235,34 @@ $check( 'PC3.8 the cached CONTENT carries a backslash (else PC3.3 is vacuous)',
 $check( 'PC3.9 GB Pro stores non-content fields ALREADY unslashed (so PC3.4/3.5 cannot see the hazard)',
 	false, false !== strpos( (string) $original['preview'], '\\' ) );
 
+// WHICH STRINGS LEFT, not how many. A migration replay reads every string this repair clears
+// as a (url, tag) pair present on only one side, and only the strings themselves tell that
+// apart from a genuine disappearance — `diff-replays.php --removed=` is what consumes them.
+// Counting was the shape that could not.
+//
+// ASSERTED AS A PROPERTY, NOT AGAINST AN EXPECTED LIST. Building the expected list here would
+// mean either calling cleared_wire() to check cleared_wire(), or keeping a second copy of its
+// regex in this file — the drift the extraction removed. What holds instead is that every
+// reported string was in the pre-migration content and is not in the migrated content, which
+// is the whole claim the artifact makes, plus a non-vacuity check so an empty list cannot
+// satisfy it.
+$probe_cleared = array();
+foreach ( (array) ( $run['cleared'] ?? array() ) as $row ) {
+	if ( (int) ( $row['post_id'] ?? 0 ) === $probe_id ) {
+		$probe_cleared[] = (string) $row['tag_string'];
+	}
+}
+
+$check( 'PC3.10 the run reports WHICH wire it cleared from the probe, not merely that it did',
+	true, count( $probe_cleared ) > 0 );
+
+$not_in_before = array_values( array_filter( $probe_cleared, static fn( $t ) => false === strpos( $content, $t ) ) );
+$still_present = array_values( array_filter( $probe_cleared, static fn( $t ) => false !== strpos( $migrated, $t ) ) );
+
+$check( 'PC3.11 every string it names was in the PRE-migration cached copy', array(), $not_in_before );
+$check( 'PC3.12 …and none of them survives in the migrated content — they really did stop existing',
+	array(), $still_present );
+
 // ---------------------------------------------------------------------------
 WP_CLI::log( "\nPC4 — idempotence: a second pass writes nothing at all" );
 

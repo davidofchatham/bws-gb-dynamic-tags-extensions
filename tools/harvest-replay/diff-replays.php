@@ -27,8 +27,26 @@
  *     empty artifacts — the shape an unbootable clone or a botched swap produces — so an
  *     all-empty A side is its own hard failure, not merely an unremarkable diff.
  *
- * The exception list is CLOSED — a list assembled after seeing a diff is a rationalisation,
- * not a gate. So ANY difference fails. Buckets exist to make triage possible, not to excuse
+ * TWO LEGITIMATE RUNS USED TO FAIL BY CONSTRUCTION, and each now has a flag. Both loosen a
+ * gate, so both are pinned in `tools/test/replay-verdict-test.php` against the pure rules in
+ * `replay-verdict.php` — this file is a script, so its decisions cannot be called from a
+ * harness while they live inline.
+ *
+ *   --removed=<removed-wire.jsonl>  A pattern-cache repair REMOVES stale shadow wire, so a
+ *       migration run's B-side census legitimately holds fewer rows than the A side rendered
+ *       and every removed string lands as a pair present on only one side. The artifact
+ *       `run-converter.php` writes says which strings the repair cleared, so those pairs
+ *       report as REPAIRED and every other one-sided pair stays the hard failure it was.
+ *   --dependency-replay             Our build is the HELD-FIXED half, so same-version-plus-
+ *       same-commit — fatal below, and rightly, for a build replay — is this replay's correct
+ *       shape. The varying axis becomes the `env` row the ENV repo's dep-versions.php appends.
+ *
+ * NEITHER IS AN EXCEPTION LIST. The exception list is CLOSED — a list assembled after seeing a
+ * diff is a rationalisation, not a gate — and `--removed=` stays on the right side of that
+ * line only because the artifact is produced BY the run, as the repair happens. An artifact
+ * naming nothing forgives nothing, which is what makes a hand-written file useless here.
+ *
+ * So ANY unexplained difference fails. Buckets exist to make triage possible, not to excuse
  * anything:
  *
  *   attested  — the tag really is stored in content reachable at that URL, so the change has
@@ -52,25 +70,34 @@
  *
  * Usage:
  *   php tools/harvest-replay/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=20]
+ *       [--map=mapping.jsonl] [--removed=removed-wire.jsonl] [--dependency-replay]
  *
  * Exit 0 iff the gate holds.
  */
 
+require_once __DIR__ . '/replay-verdict.php';
+
 $argv_in = $argv;
 array_shift( $argv_in );
 
-$paths    = array();
-$full     = false;
-$max      = 20;
-$map_path = null;
+$paths        = array();
+$full         = false;
+$max          = 20;
+$map_path     = null;
+$removed_path = null;
+$dep_replay   = false;
 
 foreach ( $argv_in as $arg ) {
 	if ( '--full' === $arg ) {
 		$full = true;
+	} elseif ( '--dependency-replay' === $arg ) {
+		$dep_replay = true;
 	} elseif ( 0 === strpos( $arg, '--max=' ) ) {
 		$max = max( 1, (int) substr( $arg, 6 ) );
 	} elseif ( 0 === strpos( $arg, '--map=' ) ) {
 		$map_path = substr( $arg, 6 );
+	} elseif ( 0 === strpos( $arg, '--removed=' ) ) {
+		$removed_path = substr( $arg, strlen( '--removed=' ) );
 	} else {
 		$paths[] = $arg;
 	}
@@ -94,6 +121,11 @@ $load = static function ( string $path ): array {
 	}
 	$runs    = array();
 	$renders = array();
+	// THE `env` ROW WAS SKIPPED UNTIL THE DEPENDENCY MODE NEEDED IT. It is appended once per
+	// run by the ENV repo's dep-versions.php and names every installed plugin with its version
+	// — the varying axis of a replay whose whole variable lives in neither repo. Reading it
+	// unconditionally costs nothing and keeps artifacts that lack one perfectly diffable.
+	$env     = null;
 	$fh      = fopen( $path, 'r' );
 	while ( false !== ( $line = fgets( $fh ) ) ) {
 		$line = trim( $line );
@@ -108,10 +140,16 @@ $load = static function ( string $path ): array {
 			$runs[ $row['url'] ] = $row;
 		} elseif ( 'render' === ( $row['kind'] ?? '' ) ) {
 			$renders[ $row['url'] . "\x00" . $row['tag_string'] ] = $row;
+		} elseif ( 'env' === ( $row['kind'] ?? '' ) ) {
+			$env = $row;
 		}
 	}
 	fclose( $fh );
-	return array( 'runs' => $runs, 'renders' => $renders );
+	return array(
+		'runs'    => $runs,
+		'renders' => $renders,
+		'env'     => $env,
+	);
 };
 
 $a = $load( $a_path );
@@ -135,6 +173,28 @@ if ( $census_path ) {
 	fclose( $fh );
 }
 
+// The removal artifact, if one was supplied. Loaded here beside the census for the same
+// reason: both are evidence the run produced, and both are unreadable-is-fatal rather than
+// quietly-absent — a `--removed=` pointing at nothing would forgive nothing while reading
+// like it had.
+$removed_index = array();
+if ( null !== $removed_path ) {
+	if ( ! is_readable( $removed_path ) ) {
+		fwrite( STDERR, "Removal artifact not readable: {$removed_path}\n" );
+		exit( 2 );
+	}
+	$removed_rows = array();
+	$fh           = fopen( $removed_path, 'r' );
+	while ( false !== ( $removed_line = fgets( $fh ) ) ) {
+		$row = json_decode( trim( $removed_line ), true );
+		if ( is_array( $row ) ) {
+			$removed_rows[] = $row;
+		}
+	}
+	fclose( $fh );
+	$removed_index = bws_replay_removed_wire_index( $removed_rows );
+}
+
 $fail = 0;
 $line = static function ( string $s = '' ) { echo $s . "\n"; };
 
@@ -142,6 +202,19 @@ $line( '=== replay diff ===' );
 $line( "A: {$a_path}" );
 $line( "B: {$b_path}" );
 $line( $census_path ? "census: {$census_path}" : 'census: (none — nothing can be classified as attested)' );
+if ( null !== $removed_path ) {
+	// The meta row names the wire pattern the artifact was keyed by. Print it: a harvest run
+	// that overrode its own regex produces census strings these can never match, and that
+	// mismatch is silent from here — every pair simply stays unexplained.
+	$removed_meta = '';
+	foreach ( $removed_rows as $row ) {
+		if ( 'meta' === ( $row['kind'] ?? '' ) ) {
+			$removed_meta = sprintf( ' [recorded %s, wire pattern %s]', $row['recorded_at'] ?? '?', $row['wire_pattern'] ?? '?' );
+			break;
+		}
+	}
+	$line( sprintf( 'removed wire: %s (%d distinct string(s) the pattern-cache repair cleared)%s', $removed_path, count( $removed_index ), $removed_meta ) );
+}
 $line();
 
 // ---------------------------------------------------------------------------
@@ -217,7 +290,23 @@ $b_digest = $field_of( $b, 'source_digest' );
 $line( sprintf( 'A: source %s (%s)', substr( $a_commit, 0, 12 ) ?: '?', $a_digest ) );
 $line( sprintf( 'B: source %s (%s)', substr( $b_commit, 0, 12 ) ?: '?', $b_digest ) );
 
-if ( $a_version === $b_version ) {
+// THE DEPENDENCY REPLAY INVERTS THE RULE BELOW, which is why it is a mode and not a
+// loosening: for a build replay, same-version-plus-same-commit means the swap did not happen
+// and the empty diff behind it means nothing; for a dependency replay that pair is the
+// HELD-FIXED half and its absence is the defect. `bws_replay_dependency_findings()` in
+// replay-verdict.php owns the rule and is where it is pinned.
+if ( $dep_replay ) {
+	$build_identical = ( $a_version === $b_version ) && ( $a_commit === $b_commit ) && ( $a_digest === $b_digest );
+
+	$line( '[i] dependency replay: our build is the held-fixed half, and the recorded environment is the variable.' );
+
+	foreach ( bws_replay_dependency_findings( $a['env'], $b['env'], $build_identical, (bool) $map ) as $finding ) {
+		$line( ( $finding['fatal'] ? '[X] ' : '[i] ' ) . $finding['message'] );
+		if ( $finding['fatal'] ) {
+			$fail++;
+		}
+	}
+} elseif ( $a_version === $b_version ) {
 	$line( "[!] both sides report plugin {$a_version} — expected for a same-version resolver run, wrong for a migration run." );
 
 	if ( '?' === $a_commit || '?' === $b_commit ) {
@@ -426,13 +515,28 @@ foreach ( $keys as $key ) {
 // A MIGRATION RUN CAN LOSE ROWS FOR A REASON THAT IS NOT A CONVERTER DEFECT: the GB Pro
 // pattern-cache reconcile fires from the upgrade trigger before this run happens, and removes
 // stale shadow wire from cached pattern trees, so a legitimately-repaired string surfaces here
-// as a pair present on only one side. Attribute a finding like that through the census's
-// container column plus `bws_dynamic_tags_pattern_cache_status`, never by widening this gate.
-if ( $missing ) {
-	$line( sprintf( '[X] %d (url, tag) pair(s) present on only one side.', count( $missing ) ) );
-	foreach ( array_slice( $missing, 0, $max ) as $m ) {
-		list( $url, $tag ) = explode( "\x00", $m['key'], 2 );
-		$line( "      {$m['side']}: {$tag}  @ {$url}" );
+// as a pair present on only one side. `--removed=` is how that is told apart — from the
+// artifact the repair itself wrote, never from a list assembled after reading this output.
+// Without the flag every one-sided pair is unexplained, exactly as before.
+// `bws_replay_split_missing()` owns the rule; what it costs when the artifact is absent or
+// keyed differently is a pair staying a hard failure, which is the safe direction.
+$split = bws_replay_split_missing( $missing, $removed_index );
+
+if ( $split['repaired'] ) {
+	$line( sprintf( '[i] %d pair(s) present on the A side only, and the pattern-cache repair recorded clearing that exact wire — a repair, not a disappearance.', count( $split['repaired'] ) ) );
+	foreach ( array_slice( $split['repaired'], 0, $max ) as $r ) {
+		$line( "      repaired: {$r['tag']}  @ {$r['url']}" );
+	}
+	if ( count( $split['repaired'] ) > $max ) {
+		$line( sprintf( '      ... %d more', count( $split['repaired'] ) - $max ) );
+	}
+	$line();
+}
+
+if ( $split['unexplained'] ) {
+	$line( sprintf( '[X] %d (url, tag) pair(s) present on only one side.', count( $split['unexplained'] ) ) );
+	foreach ( array_slice( $split['unexplained'], 0, $max ) as $m ) {
+		$line( "      {$m['side']}: {$m['tag']}  @ {$m['url']}" );
 	}
 	$fail++;
 	$line();

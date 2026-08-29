@@ -267,6 +267,98 @@ assert_eq( 'P6.6 trigger is stored, not rendered', false, false !== strpos( $lin
 assert_eq( 'P6.7 version is stored, not rendered', false, false !== strpos( $line, '1.17.0' ) );
 
 // ===========================================================================
+// ===========================================================================
+// §P9 — WHICH strings a repair cleared
+//
+// The reconcile REMOVES stale shadow wire: it overwrites a cached copy of post_content with
+// the current one, so any tag string the old copy held and the new content does not is gone
+// from the site's renderable wire. Counting those was not enough. A migration replay reads
+// each of them as a (url, tag) pair present on only one side — a hard failure that is not a
+// render change, 212 of them beside 13,445 identical on one measured run — and only the
+// strings themselves can tell a repair from a disappearance.
+//
+// PURE, AND DELIBERATELY NOT A DIFF OF THE TREE. What matters downstream is wire that STOPPED
+// EXISTING, which is a question about two content strings; the tree shape around them is
+// reconcile_tree()'s business and nothing here needs to know it.
+// ===========================================================================
+
+$before = 'a {{text src:ref|ref:body}} b {{email}} c';
+$after  = 'a {{text src:related_post|ref:body}} b {{email}} c';
+
+assert_eq(
+	'P9.1 a string the repair removed is reported',
+	array( '{{text src:ref|ref:body}}' ),
+	PatternCache::cleared_wire( $before, $after )
+);
+assert_eq(
+	'P9.2 a string that survived is NOT reported — it is still renderable wire',
+	false,
+	in_array( '{{email}}', PatternCache::cleared_wire( $before, $after ), true )
+);
+// The axis is one-directional: wire the repair ADDED is a different question, and the
+// replay already reports a B-only pair as its own finding.
+assert_eq(
+	'P9.3 a string the repair ADDED is not reported — this axis is removals only',
+	array(),
+	PatternCache::cleared_wire( 'a b c', 'a {{added}} b c' )
+);
+assert_eq(
+	'P9.4 identical content clears nothing',
+	array(),
+	PatternCache::cleared_wire( $before, $before )
+);
+assert_eq(
+	'P9.5 content with no wire at all clears nothing, and costs no regex',
+	array(),
+	PatternCache::cleared_wire( '<p>plain</p>', '<p>also plain</p>' )
+);
+
+// EXACT STRINGS, NOT TAG NAMES. The replay keys on the whole tag string, so reporting
+// `{{text}}` for a removed `{{text src:ref|ref:body}}` would forgive nothing and look like it
+// had. Two configurations of one tag are two different pieces of wire.
+assert_eq(
+	'P9.6 two configurations of the same tag are distinct strings',
+	array( '{{text key:a}}' ),
+	PatternCache::cleared_wire( '{{text key:a}} {{text key:b}}', '{{text key:b}}' )
+);
+
+// A pattern can hold the same string many times; the artifact is a set of strings, so one row
+// per distinct string is the right shape and a count would be a second, unused quantity.
+assert_eq(
+	'P9.7 a string removed twice is reported once',
+	array( '{{title}}' ),
+	PatternCache::cleared_wire( '{{title}} x {{title}}', 'x' )
+);
+
+// THE REGEX IS THE HARVEST\x27S, and it is a parameter for exactly that reason: harvest takes
+// it as a CLI argument, so a run that overrode it would produce census strings this could
+// never match. A mismatch fails SAFE — the pair stays unexplained, as it is today — but it
+// fails silently, so the artifact records which regex produced it.
+assert_eq(
+	'P9.8 a caller-supplied wire pattern is what decides, so a harvest override can be matched',
+	array( '[[gone]]' ),
+	PatternCache::cleared_wire( '[[gone]] {{kept}}', '{{kept}}', '/\[\[[a-z]+\]\]/i' )
+);
+
+// The default has to BE the harvest default, or every artifact this writes is keyed
+// differently from the census it will be compared against.
+assert_eq(
+	'P9.9 the default pattern is the harvest default, byte for byte',
+	'/\{\{[a-z0-9_]+(?:\s[^{}]*)?\}\}/i',
+	PatternCache::WIRE_PATTERN
+);
+
+// AN UNUSABLE PATTERN THROWS. Returning an empty array would read as "nothing was cleared",
+// which is the answer that silently turns every repair back into an unexplained
+// disappearance downstream — the exact failure this whole seam exists to end.
+$threw = false;
+try {
+	PatternCache::cleared_wire( '{{a}}', '', '/(/' );
+} catch ( InvalidArgumentException $e ) {
+	$threw = true;
+}
+assert_eq( 'P9.10 an invalid wire pattern THROWS rather than reporting an empty removal set', true, $threw );
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED — {$failures} of {$count}\n";
