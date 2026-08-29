@@ -147,6 +147,10 @@ entries must be present). `verify.php` prints the comparison FIRST. A version dr
 change. A dependency the record requires and the site cannot use **FAILS the run, naming it**,
 instead of skipping, so deactivating one is enough to stop a verification.
 
+**Every plugin that was ACTIVE at capture is recorded too**, in the same file's `active` list — not only the four required above. Re-record it from `wp plugin list --status=active --field=file` whenever you re-capture. A plugin activated or deactivated since capture prints as a **WARNING** in both directions and never fails the run: the fixture site is shared, so an unexpected co-resident plugin is something to attribute a diff to, not something to forbid. A warning with no page diff under it needs nothing done — say so in the commit rather than re-capturing to make it quiet.
+
+**A plugin toggle no longer moves the baseline.** The document head is not captured (bar `<title>`, the two description metas and any `bws-*` `<style>`), which is where co-resident stylesheet links live; `docs/update-triggers.md` owns what that costs. The practical consequence for operating this: you can activate and deactivate unrelated plugins on the fixture site without invalidating the committed baseline, and the warning line above is how you find out it happened.
+
 **All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no
 fixture row's content; it is a co-resident extension that filters our tag rendering itself.
 Measured against GBQE 1.3.0 on the fixture site: it hooks `generateblocks_dynamic_tag_id` from

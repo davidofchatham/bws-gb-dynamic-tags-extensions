@@ -540,21 +540,31 @@ if ( ! is_readable( $snapshot_lib ) ) {
 		printf( "[WARN] %s\n", $drift );
 	}
 
+	// THE ACTIVE SET, SECOND AND SEPARATE. It answers a different question from the version
+	// lines above — what ELSE was in the room — and it is printed on its own rather than
+	// folded into them, so an operator reading "ACTIVE since capture" is not left wondering
+	// which dependency moved. It never fails the run: env-versions.php owns that rule.
+	foreach ( $env['active_drift'] as $active_line ) {
+		printf( "[WARN] %s\n", $active_line );
+	}
+
 	if ( ! $env['checked'] ) {
 		// UNREADABLE RECORD, NOT A CLEAN ONE. Zero comparisons made and zero
 		// disagreements found are the same value, and printing "[ok]" for the second
 		// would report the strongest possible result for the weakest possible reason.
 		$check( 'dependency-version record is readable and non-empty', false, 'env-versions.php checked 0 dependencies' );
-	} elseif ( ! $env['drift'] && ! $env['missing'] ) {
-		echo "[ok] every recorded dependency version matches what is installed.\n";
-	} elseif ( $env['drift'] || count( $env['missing'] ) > $env['blocking'] ) {
+	} elseif ( ! $env['drift'] && ! $env['missing'] && ! $env['active_drift'] ) {
+		echo "[ok] every recorded dependency version matches what is installed, and the active plugin set is unchanged.\n";
+	} elseif ( $env['drift'] || $env['active_drift'] || count( $env['missing'] ) > $env['blocking'] ) {
 		// ATTRIBUTION ADVICE ONLY WHERE RE-CAPTURING IS ACTUALLY THE ANSWER. A blocking
 		// absence is excluded deliberately: the failure above tells the operator to install
 		// the dependency, and printing "re-capture the baseline" beside it would offer the
 		// one action that makes a missing dependency permanently invisible.
-		echo "      A page diff below is therefore ATTRIBUTABLE: re-read it as \"a dependency moved\"\n"
-			. "      before reading it as a regression. If the new output is correct, re-capture the\n"
-			. "      baseline and re-record env-versions.php IN THE SAME COMMIT.\n";
+		echo "      A page diff below is therefore ATTRIBUTABLE: re-read it as \"something under\n"
+			. "      us moved\" before reading it as a regression. If the new output is correct,\n"
+			. "      re-capture the baseline and re-record env-versions.php IN THE SAME COMMIT.\n"
+			. "      A line with no page diff under it needs nothing done: say so in the commit\n"
+			. "      rather than re-capturing to tidy it.\n";
 	}
 
 	echo "\n--- page snapshots ---\n";

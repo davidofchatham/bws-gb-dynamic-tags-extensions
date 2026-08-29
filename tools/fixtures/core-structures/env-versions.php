@@ -41,6 +41,14 @@
  * and records four, so one could legitimately be recorded for provenance alone, and the
  * flag is what keeps that from reading as a hard failure.
  *
+ * TWO LISTS, TWO QUESTIONS. `plugins` is the DEPENDENCY record — a short set with versions,
+ * and the two axes above are its rules. `active` is a PROVENANCE record: every plugin that
+ * was running at capture, no versions, no `required` flag, and never blocking. It exists
+ * because a co-resident plugin can move rendered output without being a dependency of ours,
+ * and reconstructing which one did that after the fact is what the 2026-08-28 note below
+ * records someone having to do. A change there is reported in BOTH directions and read as
+ * attribution, exactly like a version change.
+ *
  * WHEN THIS FILE MOVES. Re-record it in the SAME commit that re-captures the baseline,
  * never separately: a version bump recorded against an un-recaptured baseline silently
  * asserts that the new dependency version produces the old output, which is exactly the
@@ -53,22 +61,65 @@ return array(
 	// The date the baseline under `tools/test/snapshots/` was captured. Prose only —
 	// nothing compares it; it is here so a reader can place the record in time.
 	//
-	// THE 2026-08-28 RE-CAPTURE MOVED EVERY PAGE, AND NO RENDERED TAG MOVED WITH THEM.
-	// Two co-resident BWS plugins (`bws-sticky-header` and the viewport-height styles
-	// beside it) were ACTIVE when the previous baseline was taken and are inactive now,
-	// so their stylesheet and inline-CSS blocks left the document head and every line
-	// after them shifted. That is the whole of a 252-line deletion; the recapture was
-	// verified against a page diff carrying no tag output at all.
+	// THIS RE-CAPTURE DELETED THE DOCUMENT HEAD FROM EVERY BASELINE, ROUGHLY 80 LINES A PAGE.
+	// Nothing vanished from the output: `bws_page_snapshot_normalize()` grew a rule that stops
+	// capturing the head at all, bar `<title>`, `meta name="description"` and `og:description`.
+	// A reader hitting an ~800-line deletion in `git log` for this commit is looking at that
+	// rule arriving, not at rendered content disappearing.
 	//
-	// NEITHER IS RECORDED BELOW, and their absence is not an omission to repair: this
-	// record holds what was PRESENT at capture, so an entry for a plugin the baseline
-	// was taken WITHOUT would assert the opposite of the truth. The note is the record.
-	// What it exposes is that ANY plugin toggling on the fixture site reshuffles every
-	// baseline, since the normalizer keeps third-party `<link>` and `<style id>` lines
-	// and only blanks their bodies. Teaching it to drop non-fixture assets is tracked
-	// rather than done here — that is a page-snapshot INSTRUMENT change with its own
-	// trigger, and burying it in a recapture is how an instrument change goes unread.
+	// WHAT IT FIXED, recorded because the previous note is what identified it: the earlier
+	// 2026-08-28 capture moved every page with no rendered tag moving, because two co-resident
+	// BWS plugins (`bws-sticky-header` and the viewport-height styles beside it) had been
+	// ACTIVE when the baseline before it was taken and were inactive by then. Their stylesheet
+	// and inline-CSS blocks left the head and every line after them shifted — 252 lines over
+	// ten pages, carrying no tag output at all. Any plugin toggling on the fixture site did
+	// that, because the normalizer kept third-party `<link>` and `<style id>` lines and only
+	// blanked their bodies. It no longer reaches them to keep.
+	//
+	// NEITHER OF THOSE TWO IS IN THE `plugins` LIST BELOW, and their absence is still not an
+	// omission to repair: that list holds what was PRESENT at capture, so an entry for a plugin
+	// the baseline was taken WITHOUT would assert the opposite of the truth. They are absent
+	// from `active` for the same reason. What changed is that a future toggle is now REPORTED
+	// rather than reconstructed after the fact.
 	'captured' => '2026-08-28',
+
+	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
+	// list below answers "were the dependencies the same"; this answers "what else was in
+	// the room", which is the question a moved baseline actually raises. `bws_page_snapshot_
+	// env_compare()` reports a change here in BOTH directions and never blocks on it — the
+	// two-axis rule above is about REQUIRED dependencies, and an unexpected co-resident
+	// plugin is a thing to attribute, not a thing to forbid on a shared fixture site.
+	//
+	// THIS PLUGIN IS IN THE LIST. Our VERSION is excluded from the record on purpose (see
+	// above); our presence is not the same claim, and omitting it would make the list a
+	// curated set that the live comparison then reports as newly active on every run.
+	//
+	// Re-record it with the baseline, from:
+	//   wp plugin list --status=active --field=file
+	'active'   => array(
+		'acf-extended/acf-extended.php',
+		'acf-quickedit-fields/index.php',
+		'advanced-custom-fields-pro/acf.php',
+		'block-visibility/block-visibility.php',
+		'bws-block-visibility-acf-datetime-extension/bws-block-visibility-acf-datetime-extension.php',
+		'bws-gb-dynamic-tags-extensions/bws-gb-dynamic-tags-extensions.php',
+		'bws-generate-layout-conditions/bws-generate-layout-conditions.php',
+		'bws-pdf-viewer/bws-pdf-viewer.php',
+		'bws-portal-system/bws-portal-system.php',
+		'bws-user-based-terms/bws-user-based-terms.php',
+		'gb-query-enhancements/gb-query-enhancements.php',
+		'gb-query-filter/gb-query-filter.php',
+		'generateblocks-pro/plugin.php',
+		'generateblocks/plugin.php',
+		'gp-premium/gp-premium.php',
+		'litespeed-cache/litespeed-cache.php',
+		'meta-box-lite/meta-box-lite.php',
+		'meta-conductor/meta-conductor.php',
+		'redirection/redirection.php',
+		'slim-seo/slim-seo.php',
+		'wpcodebox2-keyed/wpcodebox2.php',
+		'ws-form-pro/ws-form.php',
+	),
 
 	// Keyed by plugin FILE (the `plugin_basename()` form), because that is the key
 	// `get_plugins()` returns and the only identifier that survives a display-name

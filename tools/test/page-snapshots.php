@@ -292,6 +292,11 @@ function bws_page_snapshot_fetch( $url ) {
  * churn and its BODY goes, while the tag and id stay, so a block vanishing entirely is
  * still a visible diff.
  *
+ * WHAT IS DELIBERATELY NOT CAPTURED AT ALL: the document HEAD, bar a whitelist of three
+ * lines. Rule 8 owns that decision and the reason; it is called out here because it is the
+ * one rule that removes a REGION rather than collapsing a value, and a reader looking for
+ * why a head-only change did not fail will not find it in any of the rules above.
+ *
  * Pure: no WordPress, no network, no filesystem.
  */
 function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAULT_BASE_URL ) {
@@ -302,7 +307,7 @@ function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAU
 
 	// 1a. POST-LIFECYCLE TIMESTAMPS. `post_modified` moves every time the seeder touches a
 	//     post, so without this rule `bin/seed.sh` — the operation `docs/testbed.md` tells
-	//     you to run — invalidates all nine baselines at once and the instrument cries wolf
+	//     you to run — invalidates every baseline at once and the instrument cries wolf
 	//     on its own maintenance. Confirmed empirically: every fixture page carries four of
 	//     these, all derived from the post row rather than from anything we render.
 	//
@@ -397,7 +402,59 @@ function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAU
 		$s
 	);
 
-	// 8. Trailing whitespace and blank-line runs. Cosmetic, but they make a real diff
+	// 8. THE DOCUMENT HEAD IS NOT ASSERTED, and the reason is that it is not ours. Roughly a
+	//    third of each fixture page's lines are head, and every co-resident stylesheet <link>
+	//    and generated <style id> lives there — so activating or deactivating any unrelated
+	//    plugin on the fixture site re-flowed every baseline at once, in a diff carrying no
+	//    tag output at all. `env-versions.php`'s `captured` note records the 2026-08-28
+	//    instance: 252 lines over ten pages, from two plugins we do not ship.
+	//
+	//    NARROWING THE CAPTURE, NOT SUPPRESSING THE LINES. Dropping non-`bws-` <link> and
+	//    <style id> lines wherever they appear would mask the same noise while costing the
+	//    property rule 2 keeps deliberately — a block VANISHING entirely is still a visible
+	//    diff — across the whole document. Removing the region those lines live in costs that
+	//    only inside the head, which is the region this rule has just declined to assert.
+	//
+	//    THREE HEAD LINES ARE STILL ASSERTED, and they are the ones our own output can reach:
+	//    <title>, meta name="description" and og:description are built from the post excerpt,
+	//    so a {{...}} inside an excerpt renders into them. No fixture page does that today and
+	//    nothing forbids one; silently stopping watching a surface our tags reach is the
+	//    failure this instrument exists to prevent. A bws-* <style> is kept too — rule 2's
+	//    exemption should not depend on {{table}} emitting at wp_footer:5, which is a fact
+	//    about another file.
+	//
+	//    WHAT THIS GIVES UP, stated because a later reader has to be able to tell "we chose
+	//    not to look" from "we looked and it was fine": a head-only regression is now
+	//    invisible here, and the artifact says so in its own text. Rule 1a's og/article
+	//    timestamp half consequently no longer fires on a real capture — it is kept for the
+	//    whitelist and pinned by the harness, and its JSON-LD half is still live because
+	//    slim-seo prints that block in the footer.
+	$s = preg_replace_callback(
+		'#(<head\b[^>]*>)(.*?)(</head\s*>)#is',
+		static function ( $m ) {
+			$kept = array();
+
+			preg_match_all(
+				'#<title\b[^>]*>.*?</title\s*>'
+				. '|<meta\b[^>]*\bname=(["\'])description\1[^>]*>'
+				. '|<meta\b[^>]*\bproperty=(["\'])og:description\2[^>]*>'
+				. '|<style\b[^>]*\bid=(["\'])bws-.*?</style\s*>#is',
+				$m[2],
+				$found
+			);
+
+			if ( ! empty( $found[0] ) ) {
+				$kept = $found[0];
+			}
+
+			return $m[1] . "\n<!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->\n"
+				. ( $kept ? implode( "\n", $kept ) . "\n" : '' )
+				. $m[3];
+		},
+		$s
+	);
+
+	// 9. Trailing whitespace and blank-line runs. Cosmetic, but they make a real diff
 	//    louder than it is.
 	$s = preg_replace( '#[ \t]+$#m', '', $s );
 	$s = preg_replace( "#\n{3,}#", "\n\n", $s );
@@ -623,11 +680,12 @@ function bws_page_snapshot_compare_all( array $opts = array() ) {
  * lookup, and a lookup was never the part that could be wrong.
  *
  * Returns array(
- *   'drift'    => string[]  version disagreements, one human line each,
- *   'missing'  => array[]   each array( file, label, reason, required ),
- *   'blocking' => int       how many of those are REQUIRED,
- *   'checked'  => int,
- *   'captured' => string,
+ *   'drift'        => string[]  version disagreements, one human line each,
+ *   'active_drift' => string[]  active-set disagreements, both directions — NEVER blocking,
+ *   'missing'      => array[]   each array( file, label, reason, required ),
+ *   'blocking'     => int       how many of those are REQUIRED,
+ *   'checked'      => int,
+ *   'captured'     => string,
  * ).
  *
  * STILL REPORTING ONLY. What a caller DOES with the two lists — warn on one, fail on the
@@ -641,8 +699,9 @@ function bws_page_snapshot_compare_all( array $opts = array() ) {
  */
 function bws_page_snapshot_env_compare( array $record, array $installed ) {
 	$out = array(
-		'drift'    => array(),
-		'missing'  => array(),
+		'drift'        => array(),
+		'active_drift' => array(),
+		'missing'      => array(),
 		'blocking' => 0,
 		'checked'  => 0,
 		'captured' => isset( $record['captured'] ) ? $record['captured'] : '?',
@@ -695,6 +754,47 @@ function bws_page_snapshot_env_compare( array $record, array $installed ) {
 		}
 	}
 
+	// THE ACTIVE SET IS A PROVENANCE AXIS, AND IT NEVER BLOCKS. The four `required` entries
+	// above are where "must be running" is enforced; this answers a different question —
+	// what ELSE was running when the baseline was captured. Rule 8 of the normalizer stops an
+	// unrelated plugin toggle from re-flowing every baseline, but it does not make the toggle
+	// VISIBLE, and those are different jobs: the 2026-08-28 re-capture was attributed only
+	// because someone went looking for what had changed on the box.
+	//
+	// A WARNING, LIKE A VERSION CHANGE, for the reason env-versions.php gives: only a human
+	// can judge whether a co-resident plugin matters. Failing on an unexpected one would make
+	// the fixture site unusable for anything else, which is the opposite of what a fixture
+	// site is for.
+	if ( ! isset( $record['active'] ) ) {
+		// SILENCE PINS NOTHING, said once. Comparing against an absent key would report every
+		// running plugin as newly active — the loudest possible output, for the one reason
+		// that says nothing at all about the site.
+		$out['active_drift'][] = 'no active plugin set recorded — this record pins nothing on that axis.';
+	} else {
+		$recorded_active = array_map( 'strval', (array) $record['active'] );
+
+		$live_active = array();
+
+		foreach ( $installed as $file => $spec ) {
+			if ( ! empty( $spec['active'] ) ) {
+				$live_active[] = (string) $file;
+			}
+		}
+
+		// BOTH DIRECTIONS, ALWAYS BOTH. Deactivating one plugin and activating another is a
+		// single operator action on the plugins screen; reporting only the first found would
+		// attribute a moved baseline to half its cause.
+		foreach ( array_diff( $live_active, $recorded_active ) as $added ) {
+			$out['active_drift'][] = sprintf( 'ACTIVE since capture: %s', $added );
+		}
+
+		foreach ( array_diff( $recorded_active, $live_active ) as $gone ) {
+			$out['active_drift'][] = sprintf( 'INACTIVE since capture: %s — the baseline was captured with it running.', $gone );
+		}
+
+		sort( $out['active_drift'], SORT_STRING );
+	}
+
 	return $out;
 }
 
@@ -722,11 +822,14 @@ function bws_page_snapshot_env_drift( $record = null ) {
 			// reason that says nothing at all about the site. Report zero comparisons and
 			// let the caller's non-empty check speak.
 			return array(
-				'drift'    => array(),
-				'missing'  => array(),
-				'blocking' => 0,
-				'checked'  => 0,
-				'captured' => isset( $record['captured'] ) ? $record['captured'] : '?',
+				'drift'        => array(),
+				// NOT the "pins nothing" line: that reports on the RECORD, and we did not fail
+				// to read the record — we failed to read the site.
+				'active_drift' => array(),
+				'missing'      => array(),
+				'blocking'     => 0,
+				'checked'      => 0,
+				'captured'     => isset( $record['captured'] ) ? $record['captured'] : '?',
 			);
 		}
 

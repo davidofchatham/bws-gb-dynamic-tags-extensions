@@ -87,7 +87,7 @@ $check(
  * §P1b — post-lifecycle timestamps
  *
  * `post_modified` moves every time the seeder touches a post, so without this rule the
- * documented `bin/seed.sh` reseed invalidates all nine committed baselines at once and the
+ * documented `bin/seed.sh` reseed invalidates every committed baseline at once and the
  * instrument fails on its own maintenance.
  *
  * THE RULE IS NAMED-CARRIER-ONLY, and §P1b.4 is the case that says why: rendered
@@ -260,6 +260,108 @@ $check( 'P10.1 CRLF and LF input normalize identically', $norm( "<p>a</p>\r\n<p>
 $check( 'P10.2 trailing whitespace is dropped', $norm( "<p>a</p>   \n<p>b</p>" ) === $norm( "<p>a</p>\n<p>b</p>" ) );
 $check( 'P10.3 blank-line runs collapse', $norm( "<p>a</p>\n\n\n\n<p>b</p>" ) === $norm( "<p>a</p>\n\n<p>b</p>" ) );
 $check( 'P10.4 output always ends in exactly one newline', "\n" === substr( $norm( '<p>a</p>' ), -1 ) && "\n" !== substr( $norm( '<p>a</p>' ), -2, 1 ) );
+
+/* =========================================================================
+ * §P17 — the document head is NOT asserted
+ *
+ * A snapshot of rendered tag output has no business asserting the shape of WordPress's
+ * `<head>`: on the fixture pages it is ~81 of ~700 lines, and every co-resident stylesheet
+ * `<link>` lives there. Measured 2026-08-28, two inactive co-resident BWS plugins accounted
+ * for a 252-line, ten-page diff carrying no tag output at all — so activating or deactivating
+ * ANY unrelated plugin re-flowed every committed baseline at once.
+ *
+ * NARROWING THE CAPTURE, NOT SUPPRESSING THE LINES. Dropping non-`bws-` `<link>` and
+ * `<style id>` lines outright would have masked the noise at the cost of §P2.2 — "a block
+ * vanishing entirely is still a visible diff" — across the whole document. Removing the
+ * REGION those lines live in costs that property only inside the head, which is the region we
+ * have just said we do not assert.
+ *
+ * THE WHITELIST IS WHY THIS SECTION IS LONG. `<title>`, `meta name="description"` and
+ * `og:description` are built from the post excerpt, so a `{{...}}` inside an excerpt renders
+ * into them. No fixture page does that today and nothing forbids one; a surface we silently
+ * stopped watching is the exact failure this instrument exists to prevent.
+ * ====================================================================== */
+
+$doc = static function ( $head, $body = '<p class="gb-text">T1: value</p>' ) {
+	return "<!DOCTYPE html>\n<html lang=\"en-US\">\n<head>\n{$head}\n</head>\n<body>\n{$body}\n</body>\n</html>";
+};
+
+$check(
+	'P17.1 an unrelated head <link> is GONE, not blanked — the head is not an assertion surface',
+	false === strpos( $norm( $doc( '<link rel="stylesheet" id="some-theme-css" href="/x.css">' ) ), 'some-theme-css' )
+);
+
+// THE REPRODUCTION, IN MINIATURE, and the reason the whole ticket exists: toggling a
+// co-resident plugin changes what the head contains and nothing else. What must hold is that
+// the two documents AGREE, not what they agree on.
+$check(
+	'P17.2 two documents differing ONLY in an unrelated head asset normalize equal',
+	$norm( $doc( '<link rel="stylesheet" id="sticky-header-css" href="/a.css">' ) ) === $norm( $doc( '' ) )
+);
+$check(
+	'P17.3 ...and a third-party head <style> goes with it, body and all',
+	$norm( $doc( '<style id="theme-inline-css">.a{color:red}</style>' ) ) === $norm( $doc( '' ) )
+);
+
+$check(
+	'P17.4 <title> survives — it is built from the post, and a tag in an excerpt reaches it',
+	false !== strpos( $norm( $doc( '<title>Matrix: Post Meta &#8211; BWS Testbed</title>' ) ), 'Matrix: Post Meta' )
+);
+$check(
+	'P17.5 meta name="description" survives, for the same reason',
+	false !== strpos( $norm( $doc( '<meta name="description" content="R0.1: (987) 654-3210">' ) ), 'R0.1: (987) 654-3210' )
+);
+$check(
+	'P17.6 og:description survives, for the same reason',
+	false !== strpos( $norm( $doc( '<meta property="og:description" content="J1: Jane, Johnson">' ) ), 'J1: Jane, Johnson' )
+);
+// THE WHITELIST IS A WHITELIST, not "keep anything og:". og:title carries the same text as
+// <title> and is dropped; if that ever needs watching it is added deliberately, here.
+$check(
+	'P17.7 og:title is NOT whitelisted — the list is enumerated, not pattern-guessed',
+	false === strpos( $norm( $doc( '<meta property="og:title" content="Matrix: Post Meta">' ) ), 'og:title' )
+);
+
+// OUR OWN OUTPUT KEEPS ITS §P3 EXEMPTION WHEREVER IT LANDS. {{table}} emits at wp_footer:5
+// today, so its <style> prints inside <body> — but that placement lives in another file, and
+// an exemption that silently depended on it would answer the "prints exactly once" question
+// "yes" forever if the emit ever moved.
+$check(
+	'P17.8 a bws-* <style> is kept even in the HEAD — the §P3 exemption does not depend on emit placement',
+	false !== strpos( $norm( $doc( '<style id="bws-table-inline-css">.bws-table{border:0}</style>' ) ), 'border:0' )
+);
+$check(
+	'P17.9 ...and a bws-* <style> in the BODY is untouched, which is where {{table}} actually emits',
+	false !== strpos( $norm( $doc( '', '<style id="bws-table-inline-css">.bws-table{border:0}</style>' ) ), 'border:0' )
+);
+
+$check(
+	'P17.10 the BODY is untouched — a rendered tag row is still the signal',
+	false !== strpos( $norm( $doc( '<link rel="stylesheet" id="x-css" href="/x.css">' ) ), 'T1: value' )
+);
+$check(
+	'P17.11 a body change is still a diff (narrowing removed noise, not the assertion)',
+	$norm( $doc( '', '<p>A</p>' ) ) !== $norm( $doc( '', '<p>B</p>' ) )
+);
+
+// A FRAGMENT HAS NO HEAD, and every other section of this harness feeds fragments. A rule
+// that matched loosely here would quietly eat the inputs the rest of the file is written on.
+$check(
+	'P17.12 a head-less fragment is untouched',
+	false !== strpos( $norm( '<p class="gb-text">D0.3: 2030-08-12 9:00 am</p>' ), 'D0.3: 2030-08-12 9:00 am' )
+);
+
+// SAY SO IN THE ARTIFACT, not only in the docblock. A reader landing on a baseline file — or
+// on a 250-line deletion in `git log` — has to be able to tell "we chose not to look" from
+// "we looked and it was fine".
+$check(
+	'P17.13 the narrowed head says in the file that it is not asserted',
+	false !== strpos( $norm( $doc( '<link rel="stylesheet" id="x-css" href="/x.css">' ) ), 'head not asserted' )
+);
+$check(
+	'P17.14 ...and the <head> element itself is still there, so the document shape did not change',
+	false !== strpos( $norm( $doc( '' ) ), '<head>' ) && false !== strpos( $norm( $doc( '' ) ), '</head>' )
+);
 
 /* =========================================================================
  * §P11/§P12 — the differ
@@ -526,6 +628,133 @@ $check(
 		$env_shipped['plugins'],
 		static function ( $spec ) {
 			return empty( $spec['version'] );
+		}
+	)
+);
+
+/* ======================================================================
+ * §P18 — the ACTIVE SET, a provenance axis that never blocks
+ *
+ * §P17 stops an unrelated plugin toggle from re-flowing the baselines. It does not make the
+ * toggle VISIBLE, and the two are different jobs: the 2026-08-28 re-capture was attributed
+ * only because someone went looking for what had changed on the box. Recording which plugins
+ * were running turns that into a statement the tooling makes.
+ *
+ * A WARNING, NEVER A FAILURE, and the split is the same one §P16 pins for versions: only a
+ * human can judge whether a co-resident plugin matters, and the four `required` entries are
+ * where "must be running" is already enforced. An unexpected active plugin failing the run
+ * would make the fixture site unusable for anything else.
+ * ====================================================================== */
+
+$env_active_record = array(
+	'captured' => '2026-01-01',
+	'active'   => array( 'a/a.php', 'b/b.php' ),
+	'plugins'  => array( 'a/a.php' => array( 'label' => 'Aye', 'version' => '1.0.0' ) ),
+);
+
+$env_same_set = bws_page_snapshot_env_compare(
+	$env_active_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0' ),
+		'z/z.php' => $env_present( '9.0.0', false ),
+	)
+);
+
+$check(
+	'P18.1 an unchanged active set reports nothing — an INSTALLED-but-inactive extra is not a change',
+	array() === $env_same_set['active_drift']
+);
+$check( 'P18.2 ...and it does not block, because nothing on this axis ever does', 0 === $env_same_set['blocking'] );
+
+$env_added = bws_page_snapshot_env_compare(
+	$env_active_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0' ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check(
+	'P18.3 a plugin activated since capture is named',
+	1 === count( $env_added['active_drift'] ) && false !== strpos( $env_added['active_drift'][0], 'c/c.php' )
+);
+$check( 'P18.4 ...and does not block', 0 === $env_added['blocking'] );
+
+// THE DIRECTION HAS TO BE READABLE. "Something differs" sends the operator to the plugins
+// screen to work out which way; the baseline was captured under one of these two sets and the
+// line has to say which.
+$env_removed = bws_page_snapshot_env_compare(
+	$env_active_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0', false ),
+	)
+);
+
+$check(
+	'P18.5 a plugin deactivated since capture is named, and the DIRECTION is stated',
+	1 === count( $env_removed['active_drift'] )
+		&& false !== strpos( $env_removed['active_drift'][0], 'b/b.php' )
+		&& $env_added['active_drift'][0] !== $env_removed['active_drift'][0]
+);
+
+// THIS IS THE 2026-08-28 SHAPE. Deactivating b and activating c at once is one operator
+// action on the plugins screen and two lines here; reporting only the first would attribute
+// the diff to half its cause.
+$env_both = bws_page_snapshot_env_compare(
+	$env_active_record,
+	array(
+		'a/a.php' => $env_present( '1.0.0' ),
+		'b/b.php' => $env_present( '2.0.0', false ),
+		'c/c.php' => $env_present( '3.0.0' ),
+	)
+);
+
+$check( 'P18.6 both directions are reported together, not the first one found', 2 === count( $env_both['active_drift'] ) );
+
+// SILENCE PINS NOTHING, said ONCE — the same shape §P16.11 gives an entry with no recorded
+// version. Comparing against an absent key would report every running plugin as newly active,
+// which is the loudest possible output for the one reason that says nothing about the site.
+$env_no_set = bws_page_snapshot_env_compare(
+	array( 'plugins' => array( 'a/a.php' => array( 'label' => 'Aye', 'version' => '1.0.0' ) ) ),
+	array( 'a/a.php' => $env_present( '1.0.0' ), 'q/q.php' => $env_present( '1.0.0' ) )
+);
+
+$check(
+	'P18.7 a record with no active set says it pins nothing, once, rather than listing the whole site',
+	1 === count( $env_no_set['active_drift'] ) && false !== strpos( $env_no_set['active_drift'][0], 'pins nothing' )
+);
+$check( 'P18.8 ...and the VERSION axis is unaffected by that', array() === $env_no_set['drift'] );
+
+$check(
+	'P18.9 an empty record reports the unpinned line rather than erroring',
+	1 === count( bws_page_snapshot_env_compare( array(), array() )['active_drift'] )
+);
+
+/* ----------------------------------------------------------------------
+ * The SHIPPED record again. `active` is what makes a moved baseline attributable, so an
+ * entry list that emptied — or was never re-recorded after a capture — has to fail here
+ * rather than go quiet: an unpinned axis reports one tidy line forever.
+ * -------------------------------------------------------------------- */
+
+$check( 'P18.10 the shipped record pins an active set', ! empty( $env_shipped['active'] ) );
+$check(
+	'P18.11 ...containing this plugin, which is running whenever a baseline is captured',
+	in_array( 'bws-gb-dynamic-tags-extensions/bws-gb-dynamic-tags-extensions.php', (array) $env_shipped['active'], true )
+);
+// The four `required` entries are a claim about what must be RUNNING. A required plugin
+// absent from the active set would be the record contradicting itself.
+$check(
+	'P18.12 every REQUIRED dependency also appears in the active set',
+	array() === array_filter(
+		array_keys( $env_shipped['plugins'] ),
+		static function ( $file ) use ( $env_shipped ) {
+			$spec = $env_shipped['plugins'][ $file ];
+
+			return ( ! isset( $spec['required'] ) || $spec['required'] )
+				&& ! in_array( $file, (array) $env_shipped['active'], true );
 		}
 	)
 );
