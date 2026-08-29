@@ -1757,12 +1757,15 @@ function bws_base_ambient_analog( string $tag, array $base, array $options, $ins
 			// fallthrough would hand a query-context base to the post route and a
 			// falsy-id core read — the leak class this kind exists to stop, one
 			// layer down. The reader answers '' for a tag it has no analog for
-			// (empty, not wrong), and bws_source_link_identity() maps this kind to
-			// null by name, so the triple carries the refused arms' no-wrap pair.
+			// (empty, not wrong). Identity is DERIVED here too, not decided:
+			// bws_source_link_identity() refuses this kind by name (null), and its
+			// null translates to the refused arms' no-wrap pair — so if the owner
+			// ever grants this kind an identity, the seam follows automatically.
+			$identity = bws_source_link_identity( $base );
 			return array(
 				'value'     => bws_base_query_context_analog_read( $tag, $base, $options, $instance ),
-				'link_id'   => 0,
-				'link_type' => 'post',
+				'link_id'   => $identity ? $identity['id'] : 0,
+				'link_type' => $identity ? $identity['kind'] : 'post',
 			);
 	}
 

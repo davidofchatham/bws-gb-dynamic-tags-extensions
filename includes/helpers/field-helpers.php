@@ -751,13 +751,16 @@ function bws_read_resolved_source( array $source, string $key, $instance ): stri
  * Link identity is the {kind,id} pair bws_resolve_link_url consumes
  * (post|term|user|site). Per CONTEXT.md I12, link-wrappability is a property
  * of the VALUE a source produces, not of the source kind — a source with no
- * link identity (meta_row, future query-context kinds) maps to null, NEVER a
- * sentinel id. site maps to sentinel id 1, matching the existing site
- * link-wrap call sites (bws_wrap_with_link(..., 1, 'site')) — that sentinel
- * is bws_resolve_link_url's own site convention, not an absence marker.
+ * link identity (meta_row, query_context) maps to null, NEVER a sentinel id.
+ * site maps to sentinel id 1, matching the existing site link-wrap call sites
+ * (bws_wrap_with_link(..., 1, 'site')) — that sentinel is
+ * bws_resolve_link_url's own site convention, not an absence marker.
  *
  * @since 1.16.0
- * @param array $source One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}).
+ * @since 1.19.0 query_context named (a refusal by name, not by fallthrough —
+ *               the ambient-analog seam derives from this answer, so a future
+ *               kind arriving here must be a decision, never an accident).
+ * @param array $source One resolved source ({kind,id}|{kind:site}|{kind:meta_row,row}|{kind:query_context,sub,payload}).
  * @return array{kind:string, id:int}|null Link identity, or null.
  */
 if ( ! function_exists( 'bws_source_link_identity' ) ) {
@@ -773,6 +776,10 @@ function bws_source_link_identity( array $source ): ?array {
 
 		case 'site':
 			return array( 'kind' => 'site', 'id' => 1 );
+
+		case 'query_context':
+			// Entity-less by construction (#19 / FW-9) — no id exists to link.
+			return null;
 	}
 
 	return null;
@@ -991,7 +998,7 @@ function bws_resolve_field_values( array $options, $instance, ?array &$links = n
  * not of the source kind. Each collected value carries `link` — the {kind,id}
  * pair bws_resolve_link_url consumes (post|term|user|site) — or null. "No link
  * identity" is null, NEVER a sentinel id; kinds with no link identity
- * (meta_row today, the #19 query-context kinds as they land) are normal, not
+ * (meta_row, the #19 query_context kind since 1.19.0) are normal, not
  * exceptional — they collect fine and simply cannot be link-wrapped. The
  * top-level single-result gate is a JOIN constraint, not a linking one: a
  * multi-value composite string is unwrappable as ONE link, while the

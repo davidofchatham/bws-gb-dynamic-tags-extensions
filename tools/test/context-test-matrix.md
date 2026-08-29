@@ -46,19 +46,9 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 
 ## Author-kind detail
 
-Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's
-author-archive dispatch rows). text/permalink/image/datetime author analogs are
-future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA
-query-context kind this section used to point at as "next" shipped 1.19.0
-(C2/C12 above).
+Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's author-archive dispatch rows). text/permalink/image/datetime author analogs are future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA query-context kind this section used to point at as "next" shipped 1.19.0 (C2/C12 above).
 
-**Query-context detail (1.19.0):** title/content/text (`use:title`) carry
-analogs; permalink/image/datetime and the other `try_` families render EMPTY on
-the five contexts, never a leaked entity — verified 2026-08-29
-(`{{try_datetime_single 1-key:event_date}}` on `/staff/` → empty, the
-six-template fallthrough). A `try_text` slot and the equivalent `{{text}}`
-agree (I6): `{{try_text 1-key:nosuchfield|2-use:title}}` on `/staff/` →
-`Staff`, the key-first/canonical-title-second composition.
+**Query-context detail (1.19.0):** title/content/text (`use:title`) carry analogs; permalink/image/datetime and the other `try_` families render EMPTY on the five contexts, never a leaked entity — verified 2026-08-29 (`{{try_datetime_single 1-key:event_date}}` on `/staff/` → empty, the six-template fallthrough). A `try_text` slot and the equivalent `{{text}}` agree (I6): `{{try_text 1-key:nosuchfield|2-use:title}}` on `/staff/` → `Staff`, the key-first/canonical-title-second composition.
 
 Precedence verified on the author archive: `linkTo:permalink` wraps the author
 URL (`get_author_posts_url`); `src:site` still wins (author does not hijack);
@@ -93,7 +83,7 @@ Two standing cautions this episode adds:
 
 ## C5 — the 404 borrow's two arms, split across the two filters
 
-The 404 borrow's precedence is: site's own callback → GP's own default msgid → core's msgid (title) / empty (content), gated on `GENERATE_VERSION`. A borrow with nothing registered on the filter is indistinguishable from no borrow at all, so the blueprint proves each arm on a DIFFERENT filter (landed 1.19.0, in the same change as the borrow — the arm pairing the pre-ship version of this section demanded):
+The 404 borrow's precedence is: site's own callback → GP's own default msgid → core's msgid (title) / empty (content), gated on `GENERATE_VERSION`. A borrow with nothing registered on the filter is indistinguishable from no borrow at all, so the blueprint proves each arm on a DIFFERENT filter (landed 1.19.0, in the same change as the borrow — the arm pairing the pre-ship version of this section demanded). NB the "exception is retired" note at the top of this file is about the C-rows' own visibility (the C-element); T9/F19's render-tag-only rows in the text/fold matrices still ride T4/T8's archive-context exception, which stands.
 
 - **Override arm** — `schema.php` registers `bws_fixture_core_structures_404_title` on `generate_404_title` returning `Fixture 404 Title (filter)`; C5 asserts it.
 - **Default arm** — `generate_404_text` deliberately has NO fixture callback, so C16 asserts GP's own default seed coming through the borrow.
