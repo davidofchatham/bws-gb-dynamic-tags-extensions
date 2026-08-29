@@ -260,10 +260,10 @@ fwrite(
 	$rh,
 	wp_json_encode(
 		array(
-			'kind'         => 'meta',
-			'recorded_at'  => gmdate( 'c' ),
+			'kind'           => 'meta',
+			'recorded_at'    => gmdate( 'c' ),
 			'plugin_version' => $version,
-			'wire_pattern' => class_exists( '\BWS\DynamicTags\Admin\PatternCache' )
+			'wire_pattern'   => class_exists( '\BWS\DynamicTags\Admin\PatternCache' )
 				? \BWS\DynamicTags\Admin\PatternCache::WIRE_PATTERN
 				: null,
 		)

@@ -48,7 +48,7 @@ $pair = static function ( $url, $tag ) {
  * ====================================================================== */
 
 $rows = array(
-	array( 'kind' => 'meta', 'recorded_at' => '2026-08-28T00:00:00+00:00', 'wire_regex' => '/x/' ),
+	array( 'kind' => 'meta', 'recorded_at' => '2026-08-28T00:00:00+00:00', 'wire_pattern' => '/x/' ),
 	array( 'kind' => 'removed', 'post_id' => 12, 'tag_string' => '{{text src:ref|ref:body}}' ),
 	array( 'kind' => 'removed', 'post_id' => 13, 'tag_string' => '{{text src:ref|ref:body}}' ),
 	array( 'kind' => 'removed', 'post_id' => 13, 'tag_string' => '{{email}}' ),

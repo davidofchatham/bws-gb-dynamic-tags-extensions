@@ -15,19 +15,7 @@ No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 
 **Two test layers — run the pure harness always, route integration through the testbed.**
 
-1. **Pure harnesses** under `tools/test/` — no framework, no autoload; each runs via
-`php tools/test/<name>.php`, exiting non-zero on failure. Older ones copy the pure functions they
-exercise inline (house pattern); newer ones **require the real file** when it is pure, because a
-test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`,
-`slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`,
-`related-post-src-migration-test.php`, `pattern-cache-test.php`, `gb-output-boundary-test.php`,
-`replay-verdict-test.php`);
-one reads a sibling script's SOURCE rather than calling it, because the script under test executes a replay on load
-(`replay-source-identity-test.php`); one requires two real files AND then scans every `.php` in the
-repo, because half of what it holds is a census of call sites rather than a property of any file
-(`gb-output-boundary-test.php`). Run the one whose domain you
-touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No
-CI runs these; run them locally before commit.
+1. **Pure harnesses** under `tools/test/` — no framework, no autoload; each runs via `php tools/test/<name>.php`, exiting non-zero on failure. Older ones copy the pure functions they exercise inline (house pattern); newer ones **require the real file** when it is pure, because a test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`, `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`, `related-post-src-migration-test.php`, `pattern-cache-test.php`, `gb-output-boundary-test.php`, `replay-verdict-test.php`); one reads a sibling script's SOURCE rather than calling it, because the script under test executes a replay on load (`replay-source-identity-test.php`); one requires two real files AND then scans every `.php` in the repo, because half of what it holds is a census of call sites rather than a property of any file (`gb-output-boundary-test.php`). Run the one whose domain you touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No CI runs these; run them locally before commit.
 
    **Two are not pure, for different reasons** — `control-order-test.php` runs against no world
    at all but is the only harness that sees all three registration constructors at once, and
@@ -35,12 +23,7 @@ CI runs these; run them locally before commit.
    Each file's own header carries its rationale; `page-snapshot-normalize-test.php` covers the
    second one's pure half (normalization, diffing, deriving the page set) with no site at all.
 
-   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`,
-`field-combo-control-test.js`
-   (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to
-   `node` for a twin-language check (`slot-fold-twin-test.php`, `serialization-order-test.php`,
-   `fold-migration-test.php`) — a missing `node` FAILS these rather than skipping, since a silent
-   pass would hide exactly the drift each exists to catch. Each file's own header has its mechanism.
+   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`, `field-combo-control-test.js` (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to `node` for a twin-language check (`slot-fold-twin-test.php`, `serialization-order-test.php`, `fold-migration-test.php`) — a missing `node` FAILS these rather than skipping, since a silent pass would hide exactly the drift each exists to catch. Each file's own header has its mechanism.
 
 2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
 WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that

@@ -267,7 +267,6 @@ assert_eq( 'P6.6 trigger is stored, not rendered', false, false !== strpos( $lin
 assert_eq( 'P6.7 version is stored, not rendered', false, false !== strpos( $line, '1.17.0' ) );
 
 // ===========================================================================
-// ===========================================================================
 // §P9 — WHICH strings a repair cleared
 //
 // The reconcile REMOVES stale shadow wire: it overwrites a cached copy of post_content with
@@ -330,7 +329,7 @@ assert_eq(
 	PatternCache::cleared_wire( '{{title}} x {{title}}', 'x' )
 );
 
-// THE REGEX IS THE HARVEST\x27S, and it is a parameter for exactly that reason: harvest takes
+// THE REGEX IS THE HARVEST SIDE'S, and it is a parameter for exactly that reason: harvest takes
 // it as a CLI argument, so a run that overrode it would produce census strings this could
 // never match. A mismatch fails SAFE — the pair stays unexplained, as it is today — but it
 // fails silently, so the artifact records which regex produced it.
