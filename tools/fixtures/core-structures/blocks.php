@@ -1623,8 +1623,16 @@ function bws_fixture_element_content_context_header() {
 				'{{title}}'
 			),
 			bws_fixture_gb_empty_row(
-				'C-C1 bare content -> the post type description on a PTA; EMPTY on date, search, 404 and latest-home',
+				'C-C1 bare content -> the post type description on a PTA; the GP text borrow on a 404; EMPTY on date, search and latest-home',
 				'{{content}}'
+			),
+			bws_fixture_gb_row(
+				'C-X1 text use:title -> SAME value as C-T1 on every context (the absorb seam and the title callback must agree)',
+				'{{text use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-X2 try_text key-first -> a custom heading where an author set one, else this context\'s canonical title -> SAME value as C-T1 here (no post carries the key on these URLs; I6: slot == standalone)',
+				'{{try_text 1-key:context_custom_heading|2-use:title}}'
 			),
 		)
 	);

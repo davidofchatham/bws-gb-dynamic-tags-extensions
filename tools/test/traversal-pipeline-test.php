@@ -506,6 +506,54 @@ eq(
 	bws_resolve_base_source( array(), null, loop_sig( array( 'in_loop' => true, 'item_post_id' => false, 'loop_item' => null, 'item_kind' => 'user', 'item_id' => 4 ) ) )
 );
 
+// ── #19 / FW-9 — query-context kinds (injected signals, 1.19.0) ──────────────
+//
+// Five entity-LESS contexts resolve a query_context source carrying sub-kind +
+// payload (ADR 0002 variable payload; no id, no fields, L2 skipped). Signals
+// injected — recognition (is_404/is_search/…) is live-WP and integration-
+// tested via the C-rows; these rows pin the factory's MAPPING and precedence.
+
+foreach ( array(
+	array( 'pta', array( 'post_type' => 'staff', 'label' => 'Staff' ) ),
+	array( 'date', array( 'year' => 2026, 'monthnum' => 7, 'day' => 0 ) ),
+	array( 'search', array( 's' => 'searchpin' ) ),
+	array( '404', array() ),
+	array( 'latest_home', array() ),
+) as list( $qc_sub, $qc_payload ) ) {
+	eq(
+		"FW-9 {$qc_sub} -> query_context source",
+		array( 'kind' => 'query_context', 'sub' => $qc_sub, 'payload' => $qc_payload ),
+		bws_resolve_base_source( array(), null, sig( array( 'query_context' => $qc_sub, 'query_payload' => $qc_payload ) ) )
+	);
+	// Explicit src still wins on every one of them (author intent is step 1).
+	eq(
+		"FW-9 explicit src:site beats {$qc_sub}",
+		array( 'kind' => 'site' ),
+		bws_resolve_base_source( array( 'src' => 'site' ), null, sig( array( 'query_context' => $qc_sub, 'query_payload' => $qc_payload ) ) )
+	);
+	// A query-loop item still wins over the ambient context on every one of them.
+	eq(
+		"FW-9 loop item beats {$qc_sub}",
+		array( 'kind' => 'post', 'id' => 48418 ),
+		bws_resolve_base_source(
+			array(),
+			null,
+			sig( array(
+				'query_context' => $qc_sub,
+				'query_payload' => $qc_payload,
+				'loop'          => array( 'in_loop' => true, 'item_post_id' => 48418, 'loop_item' => null ),
+			) )
+		)
+	);
+}
+
+// Absent payload key degrades to an empty array, never null.
+eq(
+	'FW-9 payload defaults to empty array',
+	array( 'kind' => 'query_context', 'sub' => '404', 'payload' => array() ),
+	bws_resolve_base_source( array(), null, sig( array( 'query_context' => '404' ) ) )
+);
+
 // A term loop item still LOSES to an explicit src, exactly as a post row does —
 // author intent is step 1 and the loop is step 2.
 eq(
@@ -855,6 +903,40 @@ eq( 'author srcTermIn set -> null', null, seam_title( user_src( 7 ), array( 'src
 // analogs — at which point these two rows are the ones to flip.
 eq( 'user x image -> null (post route keeps the stated-fallback emit)', null, bws_base_ambient_analog( 'image', user_src( 7 ), array(), null ) );
 eq( 'user x permalink -> null (claim-what-you-answer)', null, bws_base_ambient_analog( 'permalink', user_src( 7 ), array(), null ) );
+
+// ── #19 / FW-9 — the seam's query-context arm ─────────────────────────────────
+//
+// The OPPOSITE claiming rule from the user arm, on purpose: query_context is
+// claimed for EVERY tag, because a fallthrough would hand the entity-less base
+// to the post route and a falsy-id core read — the leak class the kind exists
+// to stop, one layer down. The reader answers '' for a tag with no analog
+// (empty, not wrong). Rows use the 404 sub-kind: without GENERATE_VERSION its
+// title is core's msgid through the __() shim, so no further WP surface is
+// touched (the other sub-kinds call live primitives and are pinned by the
+// C-rows on the testbed).
+$qc_404 = array( 'kind' => 'query_context', 'sub' => '404', 'payload' => array() );
+eq(
+	'FW-9 query context claims title (404 -> core msgid, no-wrap identity)',
+	array( 'value' => 'Page not found', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_base_ambient_analog( 'title', $qc_404, array(), null )
+);
+eq(
+	'FW-9 query context claims an analog-less tag with an EMPTY value',
+	array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_base_ambient_analog( 'image', $qc_404, array(), null )
+);
+eq(
+	'FW-9 text use:title reads the title analog (the try_ composition)',
+	array( 'value' => 'Page not found', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_base_ambient_analog( 'text', $qc_404, array( 'use' => 'title' ), null )
+);
+eq(
+	'FW-9 text key-mode has no entity to read',
+	array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_base_ambient_analog( 'text', $qc_404, array(), null )
+);
+// The FW-63 gate binds this arm too: a chain that states a hop is not ambient.
+eq( 'FW-9 chain hop on a query-context base -> null', null, bws_base_ambient_analog( 'title', $qc_404, array( 'src' => 'refs,related' ), null ) );
 
 // ── §V5 — modifier ref hop off a base source (T7 pipeline assembly) ───────────
 //

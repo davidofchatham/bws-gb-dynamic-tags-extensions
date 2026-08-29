@@ -904,6 +904,20 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 
 > **The repeater-row path must NOT move, and §F9c is what says so.** A GB Pro repeater row has no post behind it, so the loop branch it uses never reaches the gate at all — what the gate would do with a `meta_row` source is `bws_source_gate()`'s own PHPDoc, and no row here pins it. A fix that refused falsy ids wholesale would blank every §F9c row, which is the failure to check for first if this section and that one ever go red together.
 
+## §F19 — the `try_` query-context arm (1.19.0 FW-9)
+
+**render-tag rows on `/staff/`** (the archive-context rule, T4/T8's exception) — plus one VISIBLE twin: the C-element's C-X2 row renders the F19.2 composition on every query-context page and the page snapshots pin it. Per-context VALUES are `context-test-matrix.md`'s business; these rows pin the ARM — a root-only slot on a query context takes the `query_context` arm (`branchable: true`), never the post arm with a leaked base.
+
+| # | Tag (on `/staff/`) | Expected |
+|---|---|---|
+| F19.1 | `{{try_text use:title}}` | `Staff` — the [I6] parity row: same value as `{{text use:title}}` (text matrix T9.1) and bare `{{title}}` |
+| F19.2 | `{{try_text A:key(context_custom_heading)\|B:use(title)}}` | `Staff` — the composition the arm exists for: key-first attempt finds no entity and falls through, the canonical title answers. `{{title}}` cannot express it (no key-first path) |
+| F19.3 | `{{try_title}}` / `{{try_content}}` | `Staff` / the staff type description (`<p>`-wrapped) — the other two templates carrying a `try_query_fn` |
+| F19.4 | `{{try_permalink}}` / `{{try_image}}` / `{{try_datetime_single key:event_date}}` | **empty** — the six families with no `try_query_fn` take the fn-absent fallthrough to the post arm, which resolves no id off a query-context base and cannot serve off a loop item on an archive. Empty, never a leaked entity (pre-1.19.0 these read the main query's first row) |
+| F19.5 | `{{try_text use:title\|linkTo:permalink}}` | `Staff` **unwrapped** — the arm row's empty `link` column: a query context has no link identity |
+
+Verified 2026-08-29 via `render-tag`. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which template carries a `try_query_fn`, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

@@ -122,6 +122,16 @@ $check(
 	'P1b.6 the JSON-LD rule keeps the surrounding keys, so a structural change is still a diff',
 	false !== strpos( $norm( '<script>{"datePublished":"2026-07-17T14:05:57-04:00","isPartOf":"x"}</script>' ), 'isPartOf' )
 );
+$check(
+	'P1b.7 GP\'s posted-on MODIFIED time is collapsed whole, attribute and text (the body carrier a reseed moves)',
+	$norm( '<span class="posted-on"><time class="updated" datetime="2026-08-29T11:53:19-04:00" itemprop="dateModified">August 29, 2026</time></span>' )
+		=== $norm( '<span class="posted-on"><time class="updated" datetime="2026-09-01T00:00:01-04:00" itemprop="dateModified">September 1, 2026</time></span>' )
+);
+$check(
+	'P1b.8 ...while the PUBLISHED twin stays asserted (manifest-stable post_date)',
+	$norm( '<time class="entry-date published" datetime="2026-07-22T09:00:00-04:00" itemprop="datePublished">July 22, 2026</time>' )
+		!== $norm( '<time class="entry-date published" datetime="2027-07-22T09:00:00-04:00" itemprop="datePublished">July 22, 2027</time>' )
+);
 
 /* =========================================================================
  * §P4 — nonces

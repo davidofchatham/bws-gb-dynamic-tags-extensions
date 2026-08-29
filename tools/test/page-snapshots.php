@@ -485,6 +485,23 @@ function bws_page_snapshot_normalize( $html, $base_url = BWS_PAGE_SNAPSHOT_DEFAU
 	);
 	$s = preg_replace( '#("(?:datePublished|dateModified)"\s*:\s*")[^"]+#i', '${1}TIMESTAMP', $s );
 
+	//     GP's visible posted-on MODIFIED time is the fourth named carrier, and it is
+	//     BODY markup rather than head metadata — found 2026-08-29, the first reseed
+	//     after the context corpus added pages that render GP's single/loop templates
+	//     (post-home-lead, the author and date archives). `<time class="updated">`
+	//     carries post_modified in both its datetime attribute (seconds precision —
+	//     moves on EVERY reseed) and its text (day precision — moves on the next
+	//     reseed after midnight), so the whole element is replaced. Still a named
+	//     carrier: the class pair is GP's own posted-on markup, derived from the post
+	//     row; our datetime tags emit plain text, never a <time> element. The
+	//     PUBLISHED twin (`entry-date published`) is manifest-stable post_date and is
+	//     deliberately left asserted.
+	$s = preg_replace(
+		'#<time\s+class="updated"\s+datetime="[^"]*"[^>]*>.*?</time>#s',
+		'<time class="updated">TIMESTAMP</time>',
+		$s
+	);
+
 	// 1b. Cache-plugin footprints. Timestamped by construction.
 	//
 	// BOTH VERBS. LiteSpeed stamps `Page cached` on a page it served from cache and

@@ -119,6 +119,22 @@ const BWS_TRY_SLOT_ARMS = array(
 		'list'       => false,
 		'branchable' => true,
 	),
+	// Ambient query context (#19 / FW-9, 1.19.0): date/PTA/search/404/latest-home.
+	// Entity-LESS (ADR 0002) — `ids: none` (the read has no entity; the site row is the
+	// shape precedent), `fn: query` (try_query_fn takes the resolved BASE, not an id),
+	// empty `link` (bws_source_link_identity() maps this kind to null by name).
+	// `branchable: true` IS LOAD-BEARING: a bare slot has a root-only (render_time)
+	// chain, so the factory decides at render — false would send a slot on a PTA to
+	// the post arm WITH a query-context base, i.e. bws_factory_current_post_id()'s
+	// leaked $post, the exact defect this kind removes, preserved inside try_ slots.
+	// Contrast meta_row's false below, which is false for the OPPOSITE reason.
+	'query_context' => array(
+		'ids'        => 'none',
+		'fn'         => 'query',
+		'link'       => '',
+		'list'       => false,
+		'branchable' => true,
+	),
 	// A repeater `rows` step. NO `try_` arm consumes a meta_row and none should — that
 	// is `{{table}}`'s assembly, not a fallback attempt's. Skipped, with every column
 	// empty, so the skip is a property of the table rather than of a branch somewhere.
