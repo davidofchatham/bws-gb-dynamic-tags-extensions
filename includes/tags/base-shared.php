@@ -1611,3 +1611,81 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
 	return '';
 }
 
+// ===============================================
+// AMBIENT-ANALOG SEAM (FW-9 collapse, 1.19.0)
+// ===============================================
+
+/**
+ * The ONE place a base callback asks "does an ambient kind answer this tag".
+ *
+ * Replaces the per-KIND arm blocks the base callbacks each hand-wrote (the term
+ * kind occupied five sites in base-tags.php, the user kind three). Gates ONCE on
+ * the chain resolving to `render_time` — the same one-test gate both ambient-id
+ * twins carry (FW-63): every other resolution kind names a branch that owns its
+ * own render — then dispatches on the resolved base source's kind to the
+ * per-kind analog readers above.
+ *
+ * Only the per-KIND block collapses. Link-wrap policy, preview-label emission
+ * and the empty path are per-TAG and stay in each callback's own tail; a caller
+ * receiving a non-null triple runs its existing tail on it, and a null falls
+ * through to its existing post/term/list path.
+ *
+ * Both readers end in a bare `return '';`, so a (tag, kind) pair a reader does
+ * not handle renders empty through the seam — which is what those pairs render
+ * today through the callbacks' post-route fallthrough. ONE measured exception:
+ * the user kind is claimed only for the tags bws_base_user_analog_read()
+ * handles (title/content/text), because {{image}} on an author archive reaches
+ * bws_custom_image_core() through the post route today and a configured Media
+ * Library fallback still renders there (the cores own the stated-fallback emit,
+ * which the seam's '' would silently drop). {{permalink}} is byte-equal either
+ * way ('' both ways) and stays out with it: the user arm claims exactly what
+ * the reader answers, and widens when FW-47 gives the reader those analogs.
+ *
+ * Link identity is DERIVED, not decided here: bws_source_link_identity() is the
+ * one owner (CONTEXT.md I12), and a null identity on an entity kind (id 0)
+ * returns null exactly as the twins' 0 sent the caller down its post path.
+ *
+ * @since 1.19.0
+ * @param string $tag      One of text|content|title|permalink|image.
+ * @param array  $base     Base resolved source from bws_resolve_base_source().
+ * @param array  $options  Tag options.
+ * @param object $instance GB tag instance.
+ * @return array{value:string, link_id:int, link_type:string}|null Triple when an
+ *                        ambient arm applies (value may be ''), null to fall through.
+ */
+function bws_base_ambient_analog( string $tag, array $base, array $options, $instance ): ?array {
+	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
+		return null;
+	}
+
+	switch ( $base['kind'] ?? '' ) {
+		case 'term':
+			$identity = bws_source_link_identity( $base );
+			if ( null === $identity ) {
+				return null;
+			}
+			return array(
+				'value'     => bws_base_term_analog_read( $tag, $identity['id'], $options, $instance ),
+				'link_id'   => $identity['id'],
+				'link_type' => $identity['kind'],
+			);
+
+		case 'user':
+			// The measured image/permalink carve-out — see the PHPDoc above.
+			if ( ! in_array( $tag, array( 'title', 'content', 'text' ), true ) ) {
+				return null;
+			}
+			$identity = bws_source_link_identity( $base );
+			if ( null === $identity ) {
+				return null;
+			}
+			return array(
+				'value'     => bws_base_user_analog_read( $tag, $identity['id'], $options, $instance ),
+				'link_id'   => $identity['id'],
+				'link_type' => $identity['kind'],
+			);
+	}
+
+	return null;
+}
+
