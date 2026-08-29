@@ -72,7 +72,16 @@
  *   php tools/harvest-replay/diff-replays.php <a.jsonl> <b.jsonl> [census.jsonl] [--full] [--max=20]
  *       [--map=mapping.jsonl] [--removed=removed-wire.jsonl] [--dependency-replay]
  *
- * Exit 0 iff the gate holds.
+ * EXIT STATUS DISTINGUISHES A RESULT FROM AN INSTRUMENT FAILURE, and that is not cosmetic: a
+ * caller reading a single non-zero reports "this change moved rendered output" when what
+ * actually happened was a census mismatch or an unswapped build, which is a fabricated result.
+ *
+ *   0  the gate held — every comparable pair is byte-identical.
+ *   1  RENDERS MOVED. The buckets are the finding, and this is the answer a run exists to give.
+ *   3  the instrument CANNOT ANSWER: differing censuses or URL sets, an unexplained one-sided
+ *      pair, an all-empty A side, or — in --dependency-replay — an unrecorded or moved build.
+ *      Nothing printed is a statement about rendered output. A gate finding wins over a move,
+ *      because a comparison that cannot be trusted says nothing about renders either.
  */
 
 require_once __DIR__ . '/replay-verdict.php';
@@ -196,6 +205,10 @@ if ( null !== $removed_path ) {
 }
 
 $fail = 0;
+// Of those, how many are RENDERS THAT MOVED — the finding a run exists to produce. Everything
+// else $fail counts is the instrument reporting that it cannot answer, and the two exit
+// differently; see the bottom of this file.
+$moved = 0;
 $line = static function ( string $s = '' ) { echo $s . "\n"; };
 
 $line( '=== replay diff ===' );
@@ -296,11 +309,22 @@ $line( sprintf( 'B: source %s (%s)', substr( $b_commit, 0, 12 ) ?: '?', $b_diges
 // HELD-FIXED half and its absence is the defect. `bws_replay_dependency_findings()` in
 // replay-verdict.php owns the rule and is where it is pinned.
 if ( $dep_replay ) {
-	$build_identical = ( $a_version === $b_version ) && ( $a_commit === $b_commit ) && ( $a_digest === $b_digest );
-
 	$line( '[i] dependency replay: our build is the held-fixed half, and the recorded environment is the variable.' );
 
-	foreach ( bws_replay_dependency_findings( $a['env'], $b['env'], $build_identical, (bool) $map ) as $finding ) {
+	// THE THREE STRINGS, NOT A VERDICT ABOUT THEM. Composing them into a bool here was the
+	// fail-open the ENV repo reported on 2026-08-29: `$field_of()` yields '?' for a field no
+	// artifact recorded, two of those compare EQUAL, and the held-fixed half passed having
+	// proved nothing. The rule sees what was actually recorded now, and owns the whole
+	// decision — including "was anything recorded at all", which a bool cannot carry.
+	$build_of = static function ( array $side ) use ( $field_of ) {
+		return array(
+			'version' => $field_of( $side, 'plugin_version' ),
+			'commit'  => $field_of( $side, 'source_commit' ),
+			'digest'  => $field_of( $side, 'source_digest' ),
+		);
+	};
+
+	foreach ( bws_replay_dependency_findings( $a['env'], $b['env'], $build_of( $a ), $build_of( $b ), (bool) $map ) as $finding ) {
 		$line( ( $finding['fatal'] ? '[X] ' : '[i] ' ) . $finding['message'] );
 		if ( $finding['fatal'] ) {
 			$fail++;
@@ -563,6 +587,9 @@ foreach ( $buckets as $name => $rows ) {
 		continue;
 	}
 	$fail++;
+	// COUNTED SEPARATELY, because it is the only finding that is a RESULT. Everything else
+	// $fail counts is the instrument saying it cannot answer; see the exit statuses below.
+	$moved++;
 	$line( sprintf( '--- %s (%d) ---', strtoupper( $name ), count( $rows ) ) );
 	$show = $full ? $rows : array_slice( $rows, 0, $max );
 	foreach ( $show as $r ) {
@@ -596,6 +623,34 @@ if ( $same + $changed + $rescued === 0 ) {
 	$line( sprintf( '[i] non-vacuity: %d of %d A-side renders produced output.', $non_empty, count( $a['renders'] ) ) );
 }
 
+// TWO KINDS OF FAILURE, TWO STATUSES, and conflating them fabricates results. "Renders moved"
+// is the finding a run exists to produce; every other $fail — a census mismatch, differing URL
+// sets, an unexplained one-sided pair, an all-empty A side, our build having moved during a
+// dependency replay — is the instrument saying it CANNOT ANSWER. A caller reading only the
+// status reported the second as the first, i.e. as "this change moved rendered output", which
+// is a result nobody measured. Reported from the ENV repo on 2026-08-29, where the driver was
+// scanning stdout for `[X] ` lines to tell them apart.
+//
+// A GATE FINDING WINS OVER A MOVE. If the comparison cannot be trusted, what it says about
+// renders is not a finding either, so 3 is reported even when buckets are non-empty.
+$gate = $fail - $moved;
+
 $line();
-$line( $fail ? "GATE FAILED ({$fail} finding" . ( 1 === $fail ? '' : 's' ) . ')' : 'GATE HELD — every comparable pair is byte-identical.' );
-exit( $fail ? 1 : 0 );
+
+if ( ! $fail ) {
+	$line( 'GATE HELD — every comparable pair is byte-identical.' );
+	exit( 0 );
+}
+
+$line( "GATE FAILED ({$fail} finding" . ( 1 === $fail ? '' : 's' ) . ')' );
+
+if ( $gate ) {
+	$line( $moved
+		? sprintf( '  %d of them are the instrument reporting it cannot answer; the %d render difference(s) above are NOT a result until those are resolved.', $gate, $moved )
+		: '  The instrument cannot answer. Nothing above is a statement about rendered output.'
+	);
+	exit( 3 );
+}
+
+$line( '  Rendered output MOVED. The buckets above are the finding.' );
+exit( 1 );

@@ -167,17 +167,30 @@ $env_b = array(
 	'plugin_count' => 22,
 );
 
+// The build identity as `diff-replays.php`'s $field_of() hands it over: three strings, each
+// the literal '?' where the artifact recorded nothing, and comma-joined where the artifact
+// saw more than one distinct value.
+$build = static function ( $commit, $digest = 'dig1', $version = '1.19.0' ) {
+	return array(
+		'version' => $version,
+		'commit'  => $commit,
+		'digest'  => $digest,
+	);
+};
+
+$held = $build( 'abc123abc123' );
+
 $fatal = static function ( array $findings ) {
 	return array_values( array_filter( $findings, static fn( $f ) => ! empty( $f['fatal'] ) ) );
 };
 
-$good = bws_replay_dependency_findings( $env_a, $env_b, true, false );
+$good = bws_replay_dependency_findings( $env_a, $env_b, $held, $held, false );
 $check( 'R3.1 held-fixed build + a moved environment is a CLEAN dependency replay', array() === $fatal( $good ) );
 $check( 'R3.2 ...and it still says something, so the run is not silently trusted', count( $good ) > 0 );
 
 // THE SILENT FAILURE THIS MODE EXISTS TO CATCH, one axis over from the build replay's:
 // "I forgot to run the upgrade" and "the upgrade changed nothing" are the same empty diff.
-$same_env = bws_replay_dependency_findings( $env_a, $env_a, true, false );
+$same_env = bws_replay_dependency_findings( $env_a, $env_a, $held, $held, false );
 $check( 'R3.3 an UNMOVED environment is fatal — the swap did not happen and the empty diff means nothing', 1 === count( $fatal( $same_env ) ) );
 $check(
 	'R3.4 ...and the message says so rather than reporting a bare digest',
@@ -186,22 +199,26 @@ $check(
 
 // The build replay's own failure, inverted: here a MOVED build is the defect, because the
 // replay is named for its one variable and our build is not it.
-$moved_build = bws_replay_dependency_findings( $env_a, $env_b, false, false );
+$moved_build = bws_replay_dependency_findings( $env_a, $env_b, $held, $build( 'def456def456' ), false );
 $check( 'R3.5 a build that MOVED is fatal in this mode — two variables attribute nothing', 1 === count( $fatal( $moved_build ) ) );
+$check(
+	'R3.6 ...including one that moved only in its working tree, with the commit unchanged',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $held, $build( 'abc123abc123', 'dig2' ), false ) ) )
+);
 
 // An artifact from before dep-versions.php existed carries no env row. The honest verdict is
 // "unattestable", never "attested" — the same call attest-deps.php makes.
-$check( 'R3.6 a missing env row on the A side is fatal, not a warning', 1 === count( $fatal( bws_replay_dependency_findings( null, $env_b, true, false ) ) ) );
-$check( 'R3.7 ...and on the B side', 1 === count( $fatal( bws_replay_dependency_findings( $env_a, null, true, false ) ) ) );
-$check( 'R3.8 ...and on both, reported once rather than twice', 1 === count( $fatal( bws_replay_dependency_findings( null, null, true, false ) ) ) );
+$check( 'R3.7 a missing env row on the A side is fatal, not a warning', 1 === count( $fatal( bws_replay_dependency_findings( null, $env_b, $held, $held, false ) ) ) );
+$check( 'R3.8 ...and on the B side', 1 === count( $fatal( bws_replay_dependency_findings( $env_a, null, $held, $held, false ) ) ) );
+$check( 'R3.9 ...and on both, reported once rather than twice', 1 === count( $fatal( bws_replay_dependency_findings( null, null, $held, $held, false ) ) ) );
 
 // --map says "the wire moved on purpose"; the dependency replay holds the wire fixed. Asking
 // for both is asking for two different experiments in one run.
 $check(
-	'R3.9 --map alongside the dependency mode is fatal — they are different replays',
+	'R3.10 --map alongside the dependency mode is fatal — they are different replays',
 	1 === count(
 		array_filter(
-			$fatal( bws_replay_dependency_findings( $env_a, $env_b, true, true ) ),
+			$fatal( bws_replay_dependency_findings( $env_a, $env_b, $held, $held, true ) ),
 			static fn( $f ) => false !== strpos( $f['message'], 'map' )
 		)
 	)
@@ -212,10 +229,79 @@ $check(
 $blank = bws_replay_dependency_findings(
 	array( 'kind' => 'env' ),
 	array( 'kind' => 'env' ),
-	true,
+	$held,
+	$held,
 	false
 );
-$check( 'R3.10 an env row with no digest is fatal rather than compared', 1 === count( $fatal( $blank ) ) );
+$check( 'R3.11 an env row with no digest is fatal rather than compared', 1 === count( $fatal( $blank ) ) );
+
+/* =========================================================================
+ * §R4 — an UNRECORDED build identity is not a held-fixed one
+ *
+ * THE FAIL-OPEN THIS SECTION EXISTS FOR, reported from the ENV repo on 2026-08-29 after the
+ * flag was wired up there. `diff-replays.php`'s $field_of() yields the literal '?' when a
+ * field was never recorded, so two artifacts that said NOTHING about the build compared
+ * equal, the held-fixed half passed having proved nothing, and the run reported GATE HELD.
+ * Reproduced on the artifact pair the env repo held until 2026-08-29, written before
+ * `8714324` taught replay-tags.php which tree to fingerprint.
+ *
+ * IT IS THE SAME SHAPE THE BUILD-REPLAY BRANCH ALREADY GUARDS — "SAME VERSION AND NO BUILD
+ * IDENTITY RECORDED. Nothing here can show the swap happened" — one mode over, and it failed
+ * open in the direction that matters, because an empty diff is this replay's pass condition
+ * too.
+ *
+ * WHY THE RULE MOVED INSIDE THIS FUNCTION rather than being fixed at the call site: it used
+ * to take a pre-computed `$build_identical` bool, so the question "was anything recorded at
+ * all" could not be asked here and no assertion in this file could have caught the defect.
+ * The caller now hands over the three strings and the rule owns the whole decision.
+ * ====================================================================== */
+
+$unrecorded = $build( '?', '?' );
+
+$check(
+	'R4.1 an unrecorded build identity on BOTH sides is fatal, not "held fixed"',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $unrecorded, $unrecorded, false ) ) )
+);
+$check(
+	'R4.2 ...and the message says nothing was recorded, rather than reporting agreement',
+	false !== strpos( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $unrecorded, $unrecorded, false ) )[0]['message'], 'NO BUILD IDENTITY' )
+);
+$check(
+	'R4.3 an unrecorded identity on ONE side is fatal too — half an attestation is none',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $held, $unrecorded, false ) ) )
+);
+$check(
+	'R4.4 a recorded commit with an unrecorded DIGEST is fatal — both halves or neither',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $held, $build( 'abc123abc123', '?' ), false ) ) )
+);
+
+// $field_of() comma-joins the distinct values it saw, so an artifact that spans a swap prints
+// neither a commit nor a bare '?'. That is the case the env-side stopgap could not test for by
+// matching on 'source ?', and it is the shape a mid-run rebuild produces.
+$check(
+	'R4.5 an artifact spanning TWO builds is fatal — a comma-joined identity attests neither',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $build( '?,abc123abc123' ), $held, false ) ) )
+);
+$check(
+	'R4.6 ...including when both sides span, so they compare equal',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $build( 'aaa,bbb' ), $build( 'aaa,bbb' ), false ) ) )
+);
+
+// ORDER MATTERS: unrecorded is reported as unrecorded, never as "your build moved". The two
+// send an operator to different places — one to the replay that wrote the artifact, the other
+// to the branch they are sitting on.
+$mixed = $fatal( bws_replay_dependency_findings( $env_a, $env_b, $held, $unrecorded, false ) );
+$check(
+	'R4.7 an unrecorded side is reported as unrecorded, not as a moved build',
+	false !== strpos( $mixed[0]['message'], 'NO BUILD IDENTITY' ) && false === strpos( $mixed[0]['message'], 'MOVED' )
+);
+
+// The version alone is not identity. A replay has always recorded plugin_version, so treating
+// it as sufficient would leave the defect exactly where it was.
+$check(
+	'R4.8 a recorded VERSION does not rescue an unrecorded commit and digest',
+	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $build( '?', '?', '1.19.0' ), $build( '?', '?', '1.19.0' ), false ) ) )
+);
 
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
 exit( $fail ? 1 : 0 );

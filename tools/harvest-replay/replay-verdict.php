@@ -121,14 +121,40 @@ function bws_replay_split_missing( array $missing, array $removed ): array {
  * produced them lives there and a second copy of that rule here would be a drift pair. This
  * asks only whether the environment moved at all while our build did not.
  *
- * @param array|null $a_env          A side's decoded `env` row, or null if it has none.
- * @param array|null $b_env          B side's.
- * @param bool       $build_identical Whether both sides recorded the same version, commit and tree digest.
- * @param bool       $has_map        Whether --map was supplied.
+ * UNRECORDED IS NOT HELD-FIXED, and this rule lives HERE rather than at the call site for a
+ * reason worth keeping: it used to take a pre-computed `$build_identical` bool, and
+ * `diff-replays.php`'s `$field_of()` yields the literal '?' for a field no artifact recorded
+ * — so two sides that said NOTHING about the build compared equal, the held-fixed half passed
+ * having proved nothing, and the run reported GATE HELD. That is the same fail-open the
+ * build-replay branch already guards ("SAME VERSION AND NO BUILD IDENTITY RECORDED"), one
+ * mode over, and it failed open in the direction that matters because an empty diff is this
+ * replay's pass condition too. Reported from the ENV repo on 2026-08-29, reproduced on an
+ * artifact pair written before `8714324`. Taking the three strings instead of a bool is what
+ * lets the rule ask "was anything recorded at all", and what lets §R4 of
+ * `tools/test/replay-verdict-test.php` hold it.
+ *
+ * @param array|null $a_env   A side's decoded `env` row, or null if it has none.
+ * @param array|null $b_env   B side's.
+ * @param array      $a_build A side's build identity as `$field_of()` produced it:
+ *                            array( version, commit, digest ), each the literal '?' where
+ *                            nothing was recorded and comma-joined where the artifact spans
+ *                            more than one distinct value.
+ * @param array      $b_build B side's.
+ * @param bool       $has_map Whether --map was supplied.
  * @return array List of array( 'fatal' => bool, 'message' => string ).
  */
-function bws_replay_dependency_findings( $a_env, $b_env, bool $build_identical, bool $has_map ): array {
+function bws_replay_dependency_findings( $a_env, $b_env, array $a_build, array $b_build, bool $has_map ): array {
 	$findings = array();
+
+	// A field is USABLE only if it names exactly one recorded thing. '?' is $field_of()'s
+	// nothing-was-recorded, and a comma means the artifact saw several — a mid-run rebuild, or
+	// a corpus whose runs disagree. Neither attests anything, and the second cannot be spotted
+	// by looking for a bare '?'.
+	$recorded = static function ( $value ) {
+		$value = (string) $value;
+
+		return '' !== $value && '?' !== $value && false === strpos( $value, ',' );
+	};
 
 	if ( $has_map ) {
 		$findings[] = array(
@@ -153,12 +179,43 @@ function bws_replay_dependency_findings( $a_env, $b_env, bool $build_identical, 
 		return $findings;
 	}
 
+	// UNRECORDED BEFORE COMPARED, and the order is the point: two unrecorded sides compare
+	// EQUAL, so a comparison made first would report them as held-fixed — the fail-open. It
+	// also has to be reported as unrecorded rather than as a moved build, because the two send
+	// an operator to different places: one to the replay that wrote the artifact, the other to
+	// the branch they are sitting on.
+	$unusable = array();
+
+	foreach ( array( 'A' => $a_build, 'B' => $b_build ) as $side => $build ) {
+		if ( ! $recorded( $build['commit'] ?? '' ) || ! $recorded( $build['digest'] ?? '' ) ) {
+			$unusable[] = $side;
+		}
+	}
+
+	if ( $unusable ) {
+		// The VERSION is deliberately not enough on its own. Every replay has always recorded
+		// plugin_version, so accepting it would leave the hole exactly where it was.
+		$findings[] = array(
+			'fatal'   => true,
+			'message' => sprintf(
+				'NO BUILD IDENTITY RECORDED on %s. This replay holds our build fixed, and nothing in the artifact can show that it was — two sides that recorded nothing compare EQUAL, so the held-fixed half would pass having proved nothing. Re-run with a replay that records source_commit and source_digest.',
+				2 === count( $unusable ) ? 'either side' : 'the ' . $unusable[0] . ' side'
+			),
+		);
+
+		return $findings;
+	}
+
 	if ( $a_digest === $b_digest ) {
 		$findings[] = array(
 			'fatal'   => true,
 			'message' => sprintf( 'BOTH SIDES RENDERED THE SAME DEPENDENCY ENVIRONMENT (%s). The swap did not happen, and an empty diff here means nothing.', $a_digest ),
 		);
 	}
+
+	$build_identical = ( ( $a_build['version'] ?? '' ) === ( $b_build['version'] ?? '' ) )
+		&& ( $a_build['commit'] ?? '' ) === ( $b_build['commit'] ?? '' )
+		&& ( $a_build['digest'] ?? '' ) === ( $b_build['digest'] ?? '' );
 
 	if ( ! $build_identical ) {
 		$findings[] = array(
