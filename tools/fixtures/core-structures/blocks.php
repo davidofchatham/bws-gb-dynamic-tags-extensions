@@ -1647,8 +1647,12 @@ function bws_fixture_element_content_context_header() {
  * @return string
  */
 function bws_fixture_page_content_home_lead() {
+	// NO LITERAL TAG SYNTAX IN FIXTURE BODY TEXT. The first wording of this sentence
+	// named the content tag in braces, GB parsed it as a real dynamic tag, the
+	// self-reference resolved empty, and GB hid the whole block — so the post that exists
+	// to be non-empty rendered an empty body everywhere, its own page included.
 	return bws_fixture_gb_text_block(
-		'Lead post for the latest-posts home context row. Its body is what a bare {{content}} resolves to there.',
+		'Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context.',
 		'home-lead'
 	);
 }

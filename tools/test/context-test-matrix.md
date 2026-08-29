@@ -41,7 +41,7 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C12 | Post type archive | `/staff/` | **Tom Associate's full rendered GB page content** — worst leak in the set | empty / fallback option | EXPECTED-FAIL |
 | C13 | Author archive | `/author/fixture-author/` | author bio (`description` user meta) | author bio | **PASS (1.15.0)** |
 | C14 | Search | `/?s=matrix` | empty | empty / fallback option | (already target) |
-| C15 | Latest-posts home | `/` | empty — **measured, and not what was predicted**; see below | empty | (already target) |
+| C15 | Latest-posts home | `/` | `Lead post for the latest-posts home context row…` — the leaked first post's **whole rendered body**, visible inside the C-C1 row | empty | EXPECTED-FAIL |
 | C16 | 404 | `/no-such-page-xyz/` | empty | GP `generate_404_text` where present, else empty | (already target today) |
 | C17 | Term archive (control) | `/department/sales/` | Sales term description | term description | **PASS (1.15.0 fixture)** |
 
@@ -69,19 +69,21 @@ the `--loop-item` post wins over author ambient. Same guard spine as the term ki
   `tools/debug/bws-ctx-probe-matrix.md` (P6/P7).
 
 
-## The `{{content}}` leak does not reproduce on ANY query context — measured 2026-08-29
+## The `{{content}}` leak — declared dead 2026-08-29 and corrected the same day
 
-**This is the finding of the pass, and it is not what the rows above predicted.** With the element rendering a bare `{{content}}` on a real front-end request, the output is EMPTY on the post-type archive, the date archive, search, 404 and the latest-posts home alike. `render-tag` agrees on every one of them.
+**First measurement said the leak was gone; it was masked, twice over, and the correction is the useful record here.** With the element rendering a bare `{{content}}` on real requests, output was empty on all five query contexts, `render-tag` agreed, and the finding was written up as "not a leak to fix but an analog to add", with 1.18.0's source gate (`e55602e`, ADR 0007) as the suspected cause. A portal-system A/B (deactivate, measure, reactivate — title as the sensitivity control) exonerated that plugin, and then the actual mechanism fell out:
 
-That contradicts **C12**, which has recorded since 2026-07-18 that PTA `{{content}}` renders "Tom Associate's full rendered GB page content — worst leak in the set", and calls it "the strongest argument for shipping the PTA guard next". **C12's baseline no longer reproduces on either surface.** It is left standing rather than rewritten: a pinned baseline that stopped reproducing is evidence about when something changed, and deciding which way it moves is not this file's call.
+1. **Every post leading any archive carried a 0-byte body.** `Grace Published`, `VPost: Open (all-users)`, `BWSUT Target Post` — other plugins' fixtures, all empty, all sorting ahead of the July corpus. C12's July baseline leaked `Tom Associate` (6,861 bytes) because *he* led `/staff/` then. The leak reads whatever `$post` carries; when that post has no body, the leak renders nothing and looks fixed.
+2. **The one content-bearing post this blueprint added was masking itself.** `post-home-lead`'s body text named the content tag in braces; GB parsed it as a real dynamic tag, the self-reference resolved empty, and GB hid the whole block — so the post built to be non-empty rendered an empty body everywhere, its own singular page included.
 
-The `{{title}}` half is unaffected and every title row still leaks exactly as recorded.
+With the fixture sentence reworded, the decisive test ran: latest-home `{{title}}` → `Home Lead Post`, latest-home `{{content}}` → **its full rendered body**, on `render-tag` and on the real page alike. **The leak is alive, `e55602e` is exonerated, and no code change ever occurred** — C12's mechanism was right all along; only the leaked post moved.
 
-**What it means for scope, if it holds:** the `{{content}}` half of the query-context work is not a leak to fix but an analog to add — the post type's own description on a PTA, and nothing anywhere else, because empty is already the target on the other four. The likely cause is `e55602e` ("deterministic source selection — usable is a property of sources", ADR 0007, 1.18.0), which changed what a source has to satisfy before it is read at all. Confirm the mechanism before relying on this; the measurement is solid, the attribution is a lead.
+**C12 itself is still not directly reproducible today** — `/staff/` currently leads with a 0-byte post — but the mechanism it records is proven by C15, which pins the same leak on a post this blueprint owns. That is the durable lesson: **a leak row must lead with a post the blueprint controls, or its baseline records the sort order of other people's fixtures.**
 
-**C15 is therefore vacuous as an assertion** — current and target are both empty — and is recorded for coverage rather than as a pin. The prediction it was written to hold (that a featured-post home page would break) did not survive contact: nothing leaks there to break.
+Two standing cautions this episode adds:
 
-`post-home-lead` still earns its place, on the OTHER row. C6's title leak was another plugin's post and moved whenever anything else was reseeded; it is now a post this blueprint owns.
+- **A "leak fixed" reading needs a content-bearing leader before it is believed.** Empty output from a leak site is compatible with "fixed", "masked by an empty leader", and "masked by a self-hiding fixture" — and this pass hit all three readings in one afternoon.
+- **No literal tag syntax in fixture body text.** GB parses it wherever it renders, and a self-referencing tag hides the block that carries it.
 
 ## C5 — the 404 title override is not split yet
 
