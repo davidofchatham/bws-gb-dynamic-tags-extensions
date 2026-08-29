@@ -15,20 +15,20 @@ plan's dispatch table value and re-run.
 
 **VISIBLE SINCE 2026-08-29, and the exception is retired.** All C-rows need a non-singular main query (archive / search / 404 / home), where page content cannot exist — so these rows could not be `blocks.php` rows and were `render-tag`-only. The surface this note called eventual is now built: a GP block element (`elements` in the blueprint manifest, content in `bws_fixture_element_content_context_header()`) hooked at `generate_after_header` and scoped by GP's display conditions to blog + archive + search + 404. It carries C-T1 (`{{title}}`) and C-C1 (`{{content}}`), and the query-context page snapshots pin what they render. Scoped deliberately AWAY from `general:singular`, so the element never appears on the ten singular snapshot pages.
 
-**Prefer the front end over `render-tag` for these rows.** The two disagree, and it is not academic: on `/`, `render-tag` reported `BWSUT Target Post` while a real request rendered `Home Lead Post`. `render-tag` runs no `the_content`, no real block render and no `wptexturize`, which is exactly the path a leak surfaces through.
+**Prefer the front end over `render-tag` for these rows.** The two disagree, and it is not academic: on `/`, `render-tag` reported `BWSUT Target Post` while a real request rendered `Home Lead Post`. What `render-tag` cannot reach is stated once, by the instrument that covers the gap — [`tools/test/page-snapshots.php`](page-snapshots.php)'s own header — and that is the path a leak surfaces through.
 
 Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when the element made these rows visible; four had moved. `$post`-leak rows reconfirm probe finding #1 (`tools/debug/bws-ctx-probe-matrix.md`): the first main-query row leaks into `$post` on every results-bearing non-singular context.
 
-**A leaked value is not a stable expectation, and three of these are other plugins' fixtures.** This is a shared testbed, so which post leaks depends on what else is seeded — `/staff/` and `/2026/07/` both currently leak posts this blueprint does not own. That is why the rows record the leak's SHAPE as the assertion and the literal string only as of a date; when a kind ships, the expectation becomes a value the context itself determines and stops depending on the corpus at all. `/` is the exception by construction: `post-home-lead` exists so that row leaks a post we own.
+**A leaked value is not a stable expectation, and same-second ties made it worse than unstable.** This is a shared testbed, so which post leaks depends on what else is seeded — and because most fixtures here are seeded same-second, the date/relevance ties broke DIFFERENTLY per query plan: verify.php caught the host and the container disagreeing about the same page. Three moves pinned the leaders (2026-08-29): `posts_per_page = 1` (blueprint wp_options — no listing renders a tie anywhere), `sample-event` re-dated to lead July, and the search term changed to a token exactly one post matches. `/`, `/2026/07/` and `/?s=searchpin` now leak posts this blueprint owns; `/staff/` still leads with another plugin's post (`Grace Published`), so C2's literal string stays dated. When a kind ships, the expectation becomes a value the context itself determines and stops depending on the corpus at all.
 
 ## C-rows — bare `{{title}}`
 
 | # | Context | URL | Current output (pinned baseline) | Ships as (plan dispatch) | Status |
 |---|---|---|---|---|---|
-| C1 | Date archive (month) | `/2026/07/` | `VPost: Open (all-users)` — first-row `$post` leak (2026-08-29; another plugin's fixture) | formatted date span | EXPECTED-FAIL |
+| C1 | Date archive (month) | `/2026/07/` | `Sample Event` — first-row `$post` leak (ours: re-dated 2026-07-22 to lead July, because the posts ahead of it were same-second ties another plugin owns and the leader flipped between them per query plan) | formatted date span | EXPECTED-FAIL |
 | C2 | Post type archive | `/staff/` | `Grace Published` — first-row leak (2026-08-29; another plugin's fixture) | PTA label `Staff` | EXPECTED-FAIL |
 | C3 | Author archive | `/author/fixture-author/` | `Fixture Author` | display name | **PASS (1.15.0)** |
-| C4 | Search (results) | `/?s=matrix` | `Matrix: Query Loops` — first-hit leak (2026-08-29; sharpest silent-wrong case) | "Results for: matrix" (format option) | EXPECTED-FAIL |
+| C4 | Search (results) | `/?s=searchpin` | `Home Lead Post` — first-hit leak (sharpest silent-wrong case). URL changed from `?s=matrix` 2026-08-29: a many-hit term's same-second relevance ties order differently per query plan (verify.php caught the host and the container disagreeing), so the term now matches exactly one post, which this blueprint owns | "Search Results for &#8220;searchpin&#8221;" | EXPECTED-FAIL |
 | C5 | 404 | `/no-such-page-xyz/` | empty (benign — `$post` null on zero results) | static fallback option | EXPECTED-FAIL |
 | C6 | Latest-posts home | `/` (testbed: `show_on_front:posts`, nothing assigned) | `Home Lead Post` — first-row leak; ours by construction (`post-home-lead`), so this row does not move when another plugin reseeds | site name / title-source option | EXPECTED-FAIL |
 | C7 | Term archive (control) | `/department/sales/` | `Sales` | term name | **PASS (1.14.0)** |
@@ -40,7 +40,7 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C11 | Date archive | `/2026/07/` | empty | empty / fallback option | (already target) |
 | C12 | Post type archive | `/staff/` | **Tom Associate's full rendered GB page content** — worst leak in the set | empty / fallback option | EXPECTED-FAIL |
 | C13 | Author archive | `/author/fixture-author/` | author bio (`description` user meta) | author bio | **PASS (1.15.0)** |
-| C14 | Search | `/?s=matrix` | empty | empty / fallback option | (already target) |
+| C14 | Search | `/?s=searchpin` | leaked first hit's body (`post-home-lead`, same leak as C15) | empty / fallback option | EXPECTED-FAIL (was benign-empty while every leading hit had a 0-byte body — same masking C15's section records) |
 | C15 | Latest-posts home | `/` | `Lead post for the latest-posts home context row…` — the leaked first post's **whole rendered body**, visible inside the C-C1 row | empty | EXPECTED-FAIL |
 | C16 | 404 | `/no-such-page-xyz/` | empty | GP `generate_404_text` where present, else empty | (already target today) |
 | C17 | Term archive (control) | `/department/sales/` | Sales term description | term description | **PASS (1.15.0 fixture)** |

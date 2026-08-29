@@ -2,7 +2,7 @@
 <html lang="en-US">
 <head>
 <!-- head not asserted; see bws_page_snapshot_normalize() rule 8 -->
-<title>Search Results for &#8220;matrix&#8221; &#8211; BWS Testbed</title>
+<title>Search Results for &#8220;searchpin&#8221; &#8211; BWS Testbed</title>
 </head>
 
 <body class="search search-results wp-embed-responsive wp-theme-generatepress post-image-below-header post-image-aligned-center secondary-nav-above-header secondary-nav-aligned-right sticky-menu-fade mobile-header right-sidebar nav-float-right separate-containers header-aligned-left dropdown-hover" itemtype="https://schema.org/SearchResultsPage" itemscope>
@@ -44,80 +44,11 @@
 <div>
 <h2 class="wp-block-heading">Query-context rows (C-rows)</h2>
 
-<p class="gb-text">C-T1 bare title -> this context's own heading (PTA label / date span / search phrase / 404 line / site name): Matrix: Query Loops</p>
+<p class="gb-text">C-T1 bare title -> this context's own heading (PTA label / date span / search phrase / 404 line / site name): Home Lead Post</p>
 
 <p class="gb-text">C-C1 bare content -> the post type description on a PTA; EMPTY on date, search, 404 and latest-home:</p>
 
-<p class="gb-text"><div>
-<h2 class="wp-block-heading">Loops QL1 - a query loop over TERMS: the id leak</h2>
-<div>
-<ol>
-<li class="gb-loop-item">
-<p class="gb-text">QL1.1 BARE tag, and the row the whole page exists for (-&gt; the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post): Uncategorized</p>
-<p class="gb-text">QL1.2 the same read with an EXPLICIT source, correct today (-&gt; the loop term name): Uncategorized</p>
-<p class="gb-text">QL1.3 the query extension own term tag, correct today (-&gt; the loop term archive URL): /category/uncategorized/</p>
-</li>
-</ol>
-</div>
-<div>
-<ol>
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-&gt; the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Sales</p>
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-&gt; the loop term name): Sales</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-&gt; the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Support</p>
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-&gt; the loop term name): Support</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-&gt; the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land): Warehouse</p>
-<p class="gb-text">QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-&gt; the loop term name): Warehouse</p>
-</li>
-</ol>
-</div>
-</div>
-<div>
-<h2 class="wp-block-heading">Loops QL2 - a query loop over USERS: the same leak, second item shape</h2>
-<div>
-<ol>
-<li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-&gt; the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Fixture Author</p>
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS - there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
-<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-&gt; the loop user display name): Fixture Author</p>
-<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-&gt; nothing: the loop user IS recognized now, and a user has no permalink of ours to give - a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL2.1 BARE tag, the user shape of the row QL1.1 is (-&gt; the loop user display name, matching QL2.3 under it; before item-shape recognition it rendered the post that shares the user id, or nothing where no post carried it): Other Author</p>
-<p class="gb-text">QL2.2 NO FIRST-PARTY EQUIVALENT EXISTS - there is no explicit user source token, so the middle read of QL1 cannot be written here. Reaching a user ambiently inside a loop is exactly what QL2.1 now does.</p>
-<p class="gb-text">QL2.3 the query extension own user tag, correct throughout (-&gt; the loop user display name): Other Author</p>
-<p class="gb-text">QL2.4 a URL read leaked the same way and is the one row that does NOT become correct, expect EMPTY (-&gt; nothing: the loop user IS recognized now, and a user has no permalink of ours to give - a deferred author analog reached by a new route, not a regression; before item-shape recognition it rendered an unrelated post permalink):</p>
-</li>
-</ol>
-</div>
-</div>
-<div>
-<h2 class="wp-block-heading">Loops QL3 - a preserved zero in a term loop (not the leak)</h2>
-<div>
-<ol>
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Sales</p>
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 6</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Support</p>
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 6</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Warehouse</p>
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 3</p>
-</li>
-<li class="gb-loop-item">
-<p class="gb-text">QL3.1 term (the identity for the count beside it): Workshop</p>
-<p class="gb-text">QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag): 0 </p>
-</li>
-</ol>
-</div>
-</div>
+<p class="gb-text"><p class="gb-text">Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context. Search pin: searchpin.</p>
 </p>
 </div>
 
@@ -126,129 +57,27 @@
 
 	<div class="content-area" id="primary">
 		<main class="site-main" id="main">
-			<header class="page-header" aria-label="Page"><h1 class="page-title">Search Results for: <span>matrix</span></h1></header><article id="post-1732" class="post-1732 page type-page status-publish" itemtype="https://schema.org/CreativeWork" itemscope>
+			<header class="page-header" aria-label="Page"><h1 class="page-title">Search Results for: <span>searchpin</span></h1></header><article id="post-1777" class="post-1777 post type-post status-publish format-standard hentry" itemtype="https://schema.org/CreativeWork" itemscope>
 	<div class="inside-article">
 					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-loops/" rel="bookmark">Matrix: Query Loops</a></h2>			</header>
+				<h2 class="entry-title" itemprop="headline"><a href="/home-lead/" rel="bookmark">Home Lead Post</a></h2>		<div class="entry-meta">
+			<span class="posted-on"><time class="updated" datetime="2026-08-29T11:53:19-04:00" itemprop="dateModified">August 29, 2026</time><time class="entry-date published" datetime="2026-08-25T09:00:00-04:00" itemprop="datePublished">August 25, 2026</time></span> <span class="byline">by <span class="author vcard" itemprop="author" itemtype="https://schema.org/Person" itemscope><a class="url fn n" href="/author/admin/" title="View all posts by admin" rel="author" itemprop="url"><span class="author-name" itemprop="name">admin</span></a></span></span> 		</div>
+					</header>
 
 			<div class="entry-summary" itemprop="text">
-				<p>Loops QL1 &#8211; a query loop over TERMS: the id leak Loops QL2 &#8211; a query loop over USERS: the same leak, second item shape Loops QL3 &#8211; a preserved zero in a term loop (not the leak)</p>
+				<p>Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context. Search pin: searchpin.</p>
 			</div>
 
+				<footer class="entry-meta" aria-label="Entry meta">
+			<span class="cat-links"><span class="gp-icon icon-categories"><svg viewBox="0 0 512 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"><path d="M0 112c0-26.51 21.49-48 48-48h110.014a48 48 0 0143.592 27.907l12.349 26.791A16 16 0 00228.486 128H464c26.51 0 48 21.49 48 48v224c0 26.51-21.49 48-48 48H48c-26.51 0-48-21.49-48-48V112z" /></svg></span><span class="screen-reader-text">Categories </span>Uncategorized</span> <span class="comments-link"><span class="gp-icon icon-comments"><svg viewBox="0 0 512 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"><path d="M132.838 329.973a435.298 435.298 0 0016.769-9.004c13.363-7.574 26.587-16.142 37.419-25.507 7.544.597 15.27.925 23.098.925 54.905 0 105.634-15.311 143.285-41.28 23.728-16.365 43.115-37.692 54.155-62.645 54.739 22.205 91.498 63.272 91.498 110.286 0 42.186-29.558 79.498-75.09 102.828 23.46 49.216 75.09 101.709 75.09 101.709s-115.837-38.35-154.424-78.46c-9.956 1.12-20.297 1.758-30.793 1.758-88.727 0-162.927-43.071-181.007-100.61z"/><path d="M383.371 132.502c0 70.603-82.961 127.787-185.216 127.787-10.496 0-20.837-.639-30.793-1.757-38.587 40.093-154.424 78.429-154.424 78.429s51.63-52.472 75.09-101.67c-45.532-23.321-75.09-60.619-75.09-102.79C12.938 61.9 95.9 4.716 198.155 4.716 300.41 4.715 383.37 61.9 383.37 132.502z" /></svg></span><a href="/home-lead/#respond">Leave a comment</a></span> 		</footer>
 			</div>
 </article>
-<article id="post-1693" class="post-1693 page type-page status-publish" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-gate/" rel="bookmark">Matrix: Source Gate</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Fold F17 &#8211; the source gate: EXISTS + VISIBLE (ADR 0007) F17.1/F17.2 gate_staff leads with a DRAFT and a PRIVATE staff post &#8211; logged out the first usable source is the third target (-> Grace); in the editor, as an administrator, the same wire reads the draft (-> Dana): Grace F17.1b NON-VACUITY: the same path &#8230; <a title="Matrix: Source Gate" class="read-more" href="/matrix-gate/" aria-label="Read more about Matrix: Source Gate">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-334" class="post-334 page type-page status-publish" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/gbqf-targeting/" rel="bookmark">GBQF targeting matrix</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>1. control — no filter block names this loop 2. unscoped — filter block with targetId &#8221; 3. scoped — filter block targeting this loop by id 4. legacy — gbqf-target-* class, no filter block names it 5. classmatch — filter block targets a CLASS, loop id differs</p>
-			</div>
-
-			</div>
-</article>
-<article id="post-279" class="post-279 page type-page status-publish department-support" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-fixture-roots/" rel="bookmark">Matrix: Fixture Roots</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>FR1 &#8211; registered roots on a base tag FR1.1 class-route root, bare read (-> Fixture Root Role): Fixture Root Role FR1.2 the ambient contrast, same key, no root (-> Ambient Page Role): Ambient Page Role FR1.3 filter-route root, bare read (-> Chatham, sample-event&#8217;s venue_city): Chatham FR1.4 root then a relationship step (-> Fixture Ref Target): &#8230; <a title="Matrix: Fixture Roots" class="read-more" href="/matrix-fixture-roots/" aria-label="Read more about Matrix: Fixture Roots">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-248" class="post-248 page type-page status-publish department-sales department-support" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-content/" rel="bookmark">Matrix: Content</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Content CT1-CT3 &#8211; a hopped read lands on the TARGET entity (#58) CT1 plain hop (-> jane&#8217;s blocks, and her J1 row reads Jane, Johnson &#8211; NOT this page&#8217;s values): Join &#8211; separator mode (name) J1: Jane, Johnson J1b: Jane Johnson J2: Jane, Johnson J3 (jane: both slots empty -&gt; em dash fallback; tom: Jr., &#8230; <a title="Matrix: Content" class="read-more" href="/matrix-content/" aria-label="Read more about Matrix: Content">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-22" class="post-22 page type-page status-publish department-sales department-support" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-post-meta/" rel="bookmark">Matrix: Post Meta</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Phone R0 &#8211; href rebuild R0.1: (987) 654-3210 R0.2: 987.654.3210 R0.3: (987)654-3210 R0.4: 9876543210 R0.5: 987 654 3210 Phone R1 &#8211; country code + trunk-0 R1.1: +1 987 654 3210 R1.2: 0011 22 3333 R1.3/R1.4: 07911 123456 R1.5: 9876543210 Phone R2 &#8211; separated-CC dedupe R2.1/R2.2/R2.6: 1-800-555-1212 R2.3: 1 (800) 555-1212 R2.4: 1.800.555.1212 R2.5: 12-800-5551 Phone &#8230; <a title="Matrix: Post Meta" class="read-more" href="/matrix-post-meta/" aria-label="Read more about Matrix: Post Meta">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-23" class="post-23 page type-page status-publish department-sales department-support" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-terms-valid/" rel="bookmark">Matrix: Terms (all valid)</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Phone term hop (R3.2-R3.4) no fallback: (987) 333-4444, (987) 111-2222 with fallback: (987) 333-4444, (987) 111-2222 Text &#8211; term field via srcTermIn hop text-term-hop: sales@example.test, support@example.test Fold F7a &#8211; a slot spelling decides its own limit (#60) F7a.1 BASE tag, chain-spelled &#8211; the reference (-> every department term): Sales, Support F7a.2 try_ slot, same spelling &#8230; <a title="Matrix: Terms (all valid)" class="read-more" href="/matrix-terms-valid/" aria-label="Read more about Matrix: Terms (all valid)">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-24" class="post-24 page type-page status-publish department-sales department-support department-warehouse" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/matrix-terms-mixed/" rel="bookmark">Matrix: Terms (mixed junk)</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Phone term hop (R3.2-R3.4) no fallback: (987) 333-4444, (987) 111-2222 with fallback: (987) 333-4444, (987) 111-2222 Text &#8211; term field via srcTermIn hop text-term-hop: sales@example.test, support@example.test Fold F7a &#8211; a slot spelling decides its own limit (#60) F7a.1 BASE tag, chain-spelled &#8211; the reference (-> every department term): Sales, Support, Warehouse F7a.2 try_ slot, same &#8230; <a title="Matrix: Terms (mixed junk)" class="read-more" href="/matrix-terms-mixed/" aria-label="Read more about Matrix: Terms (mixed junk)">Read more</a></p>
-			</div>
-
-			</div>
-</article>
-<article id="post-330" class="post-330 post type-post status-publish format-standard hentry category-gbqf-fixture" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/gbqf-alpha/" rel="bookmark">GBQF Alpha</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Fixture post for the gb-query-filter targeting matrix.</p>
-			</div>
-
-			</div>
-</article>
-<article id="post-331" class="post-331 post type-post status-publish format-standard hentry category-gbqf-fixture" itemtype="https://schema.org/CreativeWork" itemscope>
-	<div class="inside-article">
-					<header class="entry-header">
-				<h2 class="entry-title" itemprop="headline"><a href="/gbqf-bravo/" rel="bookmark">GBQF Bravo</a></h2>			</header>
-
-			<div class="entry-summary" itemprop="text">
-				<p>Fixture post for the gb-query-filter targeting matrix.</p>
-			</div>
-
-			</div>
-</article>
-		<nav id="nav-below" class="paging-navigation" aria-label="Archive Page">
-								<div class="nav-previous">
-						<span class="gp-icon icon-arrow"><svg viewBox="0 0 330 512" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em"><path d="M305.913 197.085c0 2.266-1.133 4.815-2.833 6.514L171.087 335.593c-1.7 1.7-4.249 2.832-6.515 2.832s-4.815-1.133-6.515-2.832L26.064 203.599c-1.7-1.7-2.832-4.248-2.832-6.514s1.132-4.816 2.832-6.515l14.162-14.163c1.7-1.699 3.966-2.832 6.515-2.832 2.266 0 4.815 1.133 6.515 2.832l111.316 111.317 111.316-111.317c1.7-1.699 4.249-2.832 6.515-2.832s4.815 1.133 6.515 2.832l14.162 14.163c1.7 1.7 2.833 4.249 2.833 6.515z" /></svg></span>						<span class="prev" title="Previous"><a href="/page/2/?s=matrix&#038;nocache=BUST" >Older posts</a></span>
-					</div>
-					<div class="nav-links"><span aria-current="page" class="page-numbers current"><span class="screen-reader-text">Page</span>1</span>
-<a class="page-numbers" href="/page/2/?s=matrix&#038;nocache=BUST"><span class="screen-reader-text">Page</span>2</a>
-<a class="next page-numbers" href="/page/2/?s=matrix&#038;nocache=BUST">Next <span aria-hidden="true">&rarr;</span></a></div>		</nav>
-				</main>
+		</main>
 	</div>
 
 	<div class="widget-area sidebar is-right-sidebar" id="right-sidebar">
 	<div class="inside-right-sidebar">
-		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-2" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-2" placeholder="" value="matrix" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
+		<aside id="block-2" class="widget inner-padding widget_block widget_search"><form role="search" method="get" action="/" class="wp-block-search__button-outside wp-block-search__text-button wp-block-search" ><label class="wp-block-search__label" for="wp-block-search__input-1" >Search</label><div class="wp-block-search__inside-wrapper" ><input class="wp-block-search__input" id="wp-block-search__input-1" placeholder="" value="searchpin" type="search" name="s" required /><button aria-label="Search" class="wp-block-search__button wp-element-button" type="submit" >Search</button></div></form></aside><aside id="block-3" class="widget inner-padding widget_block"><div class="wp-block-group"><div class="wp-block-group__inner-container is-layout-flow wp-block-group-is-layout-flow"><h2 class="wp-block-heading">Recent Posts</h2><ul class="wp-block-latest-posts__list wp-block-latest-posts is-layout-flow wp-block-latest-posts-is-layout-flow"><li><a class="wp-block-latest-posts__post-title" href="/home-lead/">Home Lead Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/bwsut-target/">BWSUT Target Post</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-delta/">GBQF Delta</a></li>
 <li><a class="wp-block-latest-posts__post-title" href="/gbqf-charlie/">GBQF Charlie</a></li>
@@ -268,14 +97,13 @@
 		</footer>
 		</div>
 
-<style id="bws-table-inline-css">[role="region"][aria-labelledby][tabindex]{overflow:auto}[role="region"][aria-labelledby][tabindex]:focus{outline:.1em solid rgba(0,0,0,.35)}</style>
 <script type="speculationrules">
 {"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/generatepress/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
 </script>
 <script id="generate-a11y">
 !function(){"use strict";if("querySelector"in document&&"addEventListener"in window){var e=document.body;e.addEventListener("pointerdown",(function(){e.classList.add("using-mouse")}),{passive:!0}),e.addEventListener("keydown",(function(){e.classList.remove("using-mouse")}),{passive:!0})}}();
 </script>
-<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Search Results for “matrix”"}]},{"@type":"SearchResultsPage","@id":"#webpage","url":"","inLanguage":"en-US","name":"Search Results for “matrix” – BWS Testbed","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"#breadcrumblist"}},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script><script id="generate-menu-js-before">
+<script type="application/ld+json" id="slim-seo-schema">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"/#website","url":"/","name":"BWS Testbed","inLanguage":"en-US","potentialAction":{"@id":"/#searchaction"},"publisher":{"@id":"/#organization"}},{"@type":"SearchAction","@id":"/#searchaction","target":"/?s={search_term_string}","query-input":"required name=search_term_string"},{"@type":"BreadcrumbList","name":"Breadcrumbs","@id":"#breadcrumblist","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"/"},{"@type":"ListItem","position":2,"name":"Search Results for “searchpin”"}]},{"@type":"SearchResultsPage","@id":"#webpage","url":"","inLanguage":"en-US","name":"Search Results for “searchpin” – BWS Testbed","isPartOf":{"@id":"/#website"},"breadcrumb":{"@id":"#breadcrumblist"}},{"@type":"Organization","@id":"/#organization","url":"/","name":"BWS Testbed"}]}</script><script id="generate-menu-js-before">
 var generatepressMenu = {"toggleOpenedSubMenus":true,"openSubMenuLabel":"Open Sub-Menu","closeSubMenuLabel":"Close Sub-Menu"};
 //# sourceURL=generate-menu-js-before
 </script>

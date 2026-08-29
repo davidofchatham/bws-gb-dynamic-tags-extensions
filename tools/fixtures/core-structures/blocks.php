@@ -1651,8 +1651,13 @@ function bws_fixture_page_content_home_lead() {
 	// named the content tag in braces, GB parsed it as a real dynamic tag, the
 	// self-reference resolved empty, and GB hid the whole block — so the post that exists
 	// to be non-empty rendered an empty body everywhere, its own page included.
+	// `searchpin` is the ctx-search row's whole result set, on purpose. A search for a
+	// word many fixtures contain returns a set of same-second posts whose relevance ties
+	// MySQL breaks differently per query plan — measured: the same URL served different
+	// post lists to the host and the container, so the snapshot could never be stable.
+	// One post matching, and it a post this blueprint owns, is what determinism costs.
 	return bws_fixture_gb_text_block(
-		'Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context.',
+		'Lead post for the latest-posts home context row. Its body is what a bare content read resolves to on that context. Search pin: searchpin.',
 		'home-lead'
 	);
 }

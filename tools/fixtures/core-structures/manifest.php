@@ -337,7 +337,7 @@ return array(
 			// rebuilt container or a second machine. Reseeding never moved it either
 			// way: wp_update_post preserves a date nobody passes, so this only ever
 			// bit a fresh insert, which is exactly why it went unnoticed.
-			'post_date'   => '2026-07-17 13:30:01',
+			'post_date'   => '2026-07-22 09:00:00', // leads July: the other July posts are same-second ties (another plugin's), and the date archive's one visible post must be deterministic — so it is ours
 			// OPT-IN, and it is not implied by pinning a date. Every post carrying a
 			// date would otherwise contribute an archive row, and the second pinned
 			// post (`post-home-lead`) sits in a month full of other plugins' fixtures
@@ -387,15 +387,20 @@ return array(
 		'ctx-404'         => array(
 			'path'          => '/no-such-page-xyz/',
 			'body_class'    => 'error404',
-			// The only row that is not HTTP 200, and saying so is load-bearing: the
-			// fetcher treats any other status as unreachable, which would block every
-			// capture rather than record this page.
+			// The only row that is not HTTP 200. Without this the row cannot be
+			// captured at all — the whole run refuses to write, not just this page.
+			// Why is bws_page_snapshot_fetch()'s to say, not this file's.
 			'expect_status' => 404,
 		),
 		'ctx-search'      => array(
-			// `matrix` matches the seeded matrix pages. If that stops being true the
-			// page becomes search-no-results and the body_class assert says so.
-			'path'       => '/?s=matrix',
+			// `searchpin` lives in ONE post's body (`post-home-lead`) and nowhere
+			// else, deliberately: a term many fixtures match returns a set of
+			// same-second posts whose relevance ties MySQL breaks differently per
+			// query plan, so the page was serving different result lists to the host
+			// and the container and the snapshot could never hold. If the token
+			// vanishes the page becomes search-no-results and the body_class assert
+			// says so.
+			'path'       => '/?s=searchpin',
 			'body_class' => 'search-results',
 		),
 		'ctx-home-latest' => array(
@@ -725,6 +730,15 @@ return array(
 	// settings baseline — matrix default state: global CC 1, strip OFF; rows
 	// that need other states toggle in the UI per the matrix).
 	'wp_options' => array(
+		// ONE POST PER LISTING, and it is a determinism decision, not a display one.
+		// Every listing context (home, date archive, PTA, search) orders by date and
+		// this shared site is full of same-second fixture posts — other plugins' as
+		// well as ours — whose relevance/date ties MySQL breaks differently per query
+		// plan. verify.php caught the host and the container disagreeing about the
+		// SAME page. A one-post list renders no tie anywhere, which fixes the class
+		// rather than the instances; the leak evidence the context rows exist for is
+		// the FIRST post, which each context now pins deterministically.
+		'posts_per_page' => 1,
 		'bws_dynamic_tags_settings' => array(
 			'phone' => array(
 				'country_code'     => '1',
