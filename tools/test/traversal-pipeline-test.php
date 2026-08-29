@@ -103,6 +103,21 @@ foreach ( array( 'add_action', 'add_filter', 'do_action', 'apply_filters' ) as $
 }
 require __DIR__ . '/../../includes/tags/base-shared.php';
 
+// The ambient-analog SEAM (1.19.0, the twins' successor) derives link identity
+// through bws_source_link_identity(), which lives in field-helpers.php — loaded
+// REAL, not copied (function definitions only; inert behind the same shims).
+require __DIR__ . '/../../includes/helpers/field-helpers.php';
+
+// Value-read stubs for the seam rows. The property under test is the GATE and
+// the DISPATCH — which kind claims, off which entity, with what derived
+// identity — never a core's rendering: the cores are WP-bound and integration-
+// tested on the testbed. Sentinel values make the dispatch legible in the
+// expectations, and a mis-wired arm (term reader asked for a user, or the
+// reverse) surfaces as the wrong sentinel rather than as a silent ''.
+function bws_term_title_core( $term_id, $options, $instance ) { return 'TERM_TITLE_' . (int) $term_id; }
+function get_the_author_meta( $field, $user_id ) { return 'USER_' . $field . '_' . (int) $user_id; }
+function bws_gb_tag_output( $value, $options = array(), $instance = null ) { return $value; }
+
 // §V14 src:ref list-mode collapse — the post-kind id extraction from a fanned-out
 // ref source list. Mirrors bws_base_post_ids_from_source's filter (post-kind only,
 // order preserved, id>0); tested as a pure list transform so no WP reader is needed
@@ -745,65 +760,101 @@ eq( 'V13 wrapper src:current -> no step', array(), bws_wrapper_ref_steps( array(
 eq( 'V13 wrapper src:site -> no step', array(), bws_wrapper_ref_steps( array( 'src' => 'site' ) ) );
 eq( 'V13 wrapper src:ref no key -> argument-less step', array( array( 'type' => 'refs' ) ), bws_wrapper_ref_steps( array( 'src' => 'ref' ) ) );
 
-// ── §V7 — ambient-term analog gate (bws_base_ambient_term_id) ─────────────────
+// ── §V7 — the ambient-analog seam (bws_base_ambient_analog) ───────────────────
 //
-// Fires ONLY for a bare base tag on a term archive: term base, no srcTermIn, src
-// not site/ref. Otherwise 0 (post path runs).
+// One seam replaced the per-kind ambient arm blocks AND the ambient-id twins
+// (1.19.0). It claims ONLY for a bare base tag whose chain is root-only
+// (render_time) and whose resolved base is an ambient entity kind; every other
+// spelling returns NULL and the caller's own post/term/list path runs. These
+// rows carry the twins' whole truth table forward — a 0 became null, an id
+// became the claim triple with the value from the stubbed reader path and the
+// identity DERIVED through bws_source_link_identity().
 
-// Bare tag + term base → the term id (analog path).
-eq( 'V7 term base bare -> term id', 34, bws_base_ambient_term_id( term_src( 34 ), array() ) );
-eq( 'V7 term base src:current -> term id', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'current' ) ) );
+function seam_title( $base, $options ) { return bws_base_ambient_analog( 'title', $base, $options, null ); }
 
-// Post base → 0 (post path).
-eq( 'V7 post base -> 0', 0, bws_base_ambient_term_id( post_src( 10 ), array() ) );
+// Bare tag + term base → the term claim (analog path).
+eq(
+	'V7 term base bare -> term claim',
+	array( 'value' => 'TERM_TITLE_34', 'link_id' => 34, 'link_type' => 'term' ),
+	seam_title( term_src( 34 ), array() )
+);
+eq(
+	'V7 term base src:current -> term claim',
+	array( 'value' => 'TERM_TITLE_34', 'link_id' => 34, 'link_type' => 'term' ),
+	seam_title( term_src( 34 ), array( 'src' => 'current' ) )
+);
 
-// V11: src:ref on a term base → 0 (post path runs the term->post ref hop, NOT the
-// term's own analog). The load-bearing V11 guard.
-eq( 'V11 src:ref on term base -> 0 (ref hop owns it)', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
+// Post base → null (post path).
+eq( 'V7 post base -> null', null, seam_title( post_src( 10 ), array() ) );
 
-// Explicit srcTermIn → 0 (post->term branch owns it; incoherent from a term base).
-eq( 'V7 srcTermIn set -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'srcTermIn' => 'category' ) ) );
+// V11: src:ref on a term base → null (post path runs the term->post ref hop, NOT
+// the term's own analog). The load-bearing V11 guard.
+eq( 'V11 src:ref on term base -> null (ref hop owns it)', null, seam_title( term_src( 34 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
 
-// src:site → 0 (own gate).
-eq( 'V7 src:site -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'site' ) ) );
+// Explicit srcTermIn → null (post->term branch owns it; incoherent from a term base).
+eq( 'V7 srcTermIn set -> null', null, seam_title( term_src( 34 ), array( 'srcTermIn' => 'category' ) ) );
 
-// meta_row base → 0 (only 'term' kind qualifies).
-eq( 'V7 meta_row base -> 0', 0, bws_base_ambient_term_id( array( 'kind' => 'meta_row', 'row' => array() ), array() ) );
+// src:site → null (own gate).
+eq( 'V7 src:site -> null', null, seam_title( term_src( 34 ), array( 'src' => 'site' ) ) );
 
-// user base → 0 on the TERM gate (author archive is not a term archive).
-eq( 'V7 user base -> 0 (term gate)', 0, bws_base_ambient_term_id( user_src( 7 ), array() ) );
+// meta_row base → null (only entity kinds claim).
+eq( 'V7 meta_row base -> null', null, seam_title( array( 'kind' => 'meta_row', 'row' => array() ), array() ) );
 
-// FW-63: the gate now asks ONE question — is the chain root-only and rooted at the
+// Entity kind with id 0 → null identity → null (the caller's post path runs,
+// exactly as the twins' 0 sent it there).
+eq( 'V7 term base id 0 -> null', null, seam_title( term_src( 0 ), array() ) );
+
+// FW-63: the gate asks ONE question — is the chain root-only and rooted at the
 // ambient entity — so the CHAIN spelling of each source above answers identically.
 // These are the rows that would have caught the arm bug: before the refactor the
 // gate saw no `srcTermIn` and no `src:ref` token, fired, and read the ambient
 // term's analog on a tag whose source states a hop.
-eq( 'FW-63 chain terms hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'terms,category' ) ) );
-eq( 'FW-63 chain refs hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'refs,related' ) ) );
-eq( 'FW-63 chain rows hop on term base -> 0', 0, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'rows,rows' ) ) );
-// A REGISTRY-source root is root-only, so it still reaches the $base['kind'] test —
+eq( 'FW-63 chain terms hop on term base -> null', null, seam_title( term_src( 34 ), array( 'src' => 'terms,category' ) ) );
+eq( 'FW-63 chain refs hop on term base -> null', null, seam_title( term_src( 34 ), array( 'src' => 'refs,related' ) ) );
+eq( 'FW-63 chain rows hop on term base -> null', null, seam_title( term_src( 34 ), array( 'src' => 'rows,rows' ) ) );
+// A REGISTRY-source root is root-only, so it still reaches the kind switch —
 // exactly as the old "src is not site/ref" test let it through.
-eq( 'FW-63 registry root still reaches the kind test', 34, bws_base_ambient_term_id( term_src( 34 ), array( 'src' => 'related_post' ) ) );
-// And the user twin, so the pair cannot drift.
-eq( 'FW-63 chain hop on user base -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'refs,related' ) ) );
+eq(
+	'FW-63 registry root still reaches the kind switch',
+	array( 'value' => 'TERM_TITLE_34', 'link_id' => 34, 'link_type' => 'term' ),
+	seam_title( term_src( 34 ), array( 'src' => 'related_post' ) )
+);
+// And on a user base, so the arms cannot drift apart.
+eq( 'FW-63 chain hop on user base -> null', null, seam_title( user_src( 7 ), array( 'src' => 'refs,related' ) ) );
 
-// ── #19 author kind — ambient-user analog gate (bws_base_ambient_user_id) ──────
+// ── #19 author kind — the seam's user arm ─────────────────────────────────────
 //
-// Symmetric with the term gate: fires ONLY for a bare base tag on an author
-// archive (user base, no srcTermIn, src not site/ref). Otherwise 0.
+// Symmetric with the term arm: claims ONLY for a bare base tag on an author
+// archive (user base, root-only chain). Otherwise null.
 
-eq( 'author user base bare -> user id', 7, bws_base_ambient_user_id( user_src( 7 ), array() ) );
-eq( 'author user base src:current -> user id', 7, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'current' ) ) );
+eq(
+	'author user base bare -> user claim',
+	array( 'value' => 'USER_display_name_7', 'link_id' => 7, 'link_type' => 'user' ),
+	seam_title( user_src( 7 ), array() )
+);
+eq(
+	'author user base src:current -> user claim',
+	array( 'value' => 'USER_display_name_7', 'link_id' => 7, 'link_type' => 'user' ),
+	seam_title( user_src( 7 ), array( 'src' => 'current' ) )
+);
 
-// Cross-kind exclusion: term/post base → 0 on the USER gate.
-eq( 'author term base -> 0 (user gate)', 0, bws_base_ambient_user_id( term_src( 34 ), array() ) );
-eq( 'author post base -> 0 (user gate)', 0, bws_base_ambient_user_id( post_src( 10 ), array() ) );
+// Same guards as the term arm: src:ref / src:site / srcTermIn keep their own
+// meaning → null (post path / site gate / post->term branch owns the render).
+eq( 'author src:ref on user base -> null', null, seam_title( user_src( 7 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
+eq( 'author src:site -> null', null, seam_title( user_src( 7 ), array( 'src' => 'site' ) ) );
+eq( 'author srcTermIn set -> null', null, seam_title( user_src( 7 ), array( 'srcTermIn' => 'category' ) ) );
 
-// Same guards as the term gate: src:ref / src:site / srcTermIn keep their own
-// meaning → 0 (post path / site gate / post->term branch owns the render).
-eq( 'author src:ref on user base -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'ref', 'ref' => 'related' ) ) );
-eq( 'author src:site -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'src' => 'site' ) ) );
-eq( 'author srcTermIn set -> 0', 0, bws_base_ambient_user_id( user_src( 7 ), array( 'srcTermIn' => 'category' ) ) );
+// ── the user carve-out (build-ticket 03 deviation, measured 2026-08-29) ───────
+//
+// The user arm claims exactly the tags bws_base_user_analog_read() answers
+// (title/content/text). {{image}} keeps its post route: the image cores'
+// stated-fallback emit still renders a configured Media Library fallback off
+// the falsy-id read there, and a seam claim's '' would silently drop it.
+// {{permalink}} is byte-equal either way and stays out on the same
+// claim-what-you-answer rule. The arm widens when FW-47 gives the reader those
+// analogs — at which point these two rows are the ones to flip.
+eq( 'user x image -> null (post route keeps the stated-fallback emit)', null, bws_base_ambient_analog( 'image', user_src( 7 ), array(), null ) );
+eq( 'user x permalink -> null (claim-what-you-answer)', null, bws_base_ambient_analog( 'permalink', user_src( 7 ), array(), null ) );
 
 // ── §V5 — modifier ref hop off a base source (T7 pipeline assembly) ───────────
 //
@@ -1294,12 +1345,9 @@ eq(
 	)
 );
 eq(
-	'consumer 5/5: both ambient analogs decline a refusal',
-	array( 0, 0 ),
-	array(
-		bws_base_ambient_term_id( $refusal, array() ),
-		bws_base_ambient_user_id( $refusal, array() ),
-	)
+	'consumer 5/5: the ambient-analog seam declines a refusal',
+	null,
+	bws_base_ambient_analog( 'title', $refusal, array(), null )
 );
 
 // ── THE SIXTH CONSUMER IS NOT A CONSTRUCTION REFUSAL, AND ASSUMING IT WAS IS THE

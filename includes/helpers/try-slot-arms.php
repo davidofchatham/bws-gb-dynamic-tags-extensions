@@ -190,9 +190,9 @@ function bws_try_slot_arm( string $kind ): ?array {
  * already documents. The two adjacent lookups now give the same answer for a kind no arm
  * consumes, which they did not before.
  *
- * This reproduces bws_base_ambient_term_id() / bws_base_ambient_user_id() rather than
- * competing with them: both gate on the chain resolving to `render_time` (established before this
- * is called) and then on the base source's own kind, which is what this tests. Kept pure
+ * This reproduces bws_base_ambient_analog()'s dispatch rather than competing with it:
+ * both gate on the chain resolving to `render_time` (established before this is called)
+ * and then on the base source's own kind, which is what this tests. Kept pure
  * and separate so the branch is assertable without a WordPress query.
  *
  * @since 1.17.0

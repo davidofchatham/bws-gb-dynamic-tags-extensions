@@ -539,14 +539,14 @@ function bws_resolve_base_source( array $options, $instance, $signals = null ) {
 		$item_id   = (int) ( $loop['item_id'] ?? 0 );
 
 		// 2b. A TERM item — an extension looping over terms. The arms need nothing:
-		//     bws_base_ambient_term_id() gates on the WIRE kind plus this kind, never
+		//     bws_base_ambient_analog() gates on the WIRE kind plus this kind, never
 		//     on is_tax(), so a term reached through a loop takes the same analog read
 		//     as a term reached through an archive (FW-63 pre-paid for it).
 		if ( 'term' === $item_kind && $item_id ) {
 			return array( 'kind' => 'term', 'id' => $item_id );
 		}
 
-		// 2c. A USER item — the same, through bws_base_ambient_user_id(). This is also
+		// 2c. A USER item — the same, through bws_base_ambient_analog(). This is also
 		//     the first NON-AMBIENT user source the plugin has: the analogs FW-47 defers
 		//     (permalink, image) render EMPTY here rather than a wrong post, which is
 		//     that gap reached by a new route and not a new one.

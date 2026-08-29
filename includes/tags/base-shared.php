@@ -1397,42 +1397,6 @@ function bws_base_term_first_usable( array $base, array $options, callable $read
 }
 
 /**
- * Whether a base callback should read the AMBIENT TERM instead of a post.
- *
- * True iff (a) no explicit `srcTermIn` step is set (that branch owns its own
- * post→term traversal and is incoherent from a term base), (b) `src` is neither
- * the site source (own early gate) NOR `ref` (SPEC §V11: src:ref on a term archive
- * HOPS the term's relationship field term→post[] via the post path's ref step,
- * then reads the target POST's analog — it must NOT short-circuit to the term's
- * own analog), and (c) the factory's base resolved source is a term — i.e. a bare
- * base tag on a term archive (SPEC §V7). Explicit options (a query-loop item,
- * src:current, id) win inside the factory itself (SPEC §V1), so this returns false
- * whenever the
- * author pinned a non-term source.
- *
- * @since 1.14.0
- * @param array  $base     Base resolved source from bws_resolve_base_source().
- * @param array  $options  Tag options.
- * @return int Term id when the ambient-term analog path applies, else 0.
- */
-function bws_base_ambient_term_id( array $base, array $options ): int {
-	// One test replaces three (FW-63): the ambient analog applies only when the
-	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
-	// branch that owns its own render — 'term' is the explicit post→term step (which
-	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
-	// term→post (§V11) so the post path must not be short-circuited to the term's
-	// own analog. A registry-source root still reads 'render_time' and still reaches the
-	// $base['kind'] test below, exactly as the old src test let it.
-	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
-		return 0;
-	}
-	if ( 'term' !== ( $base['kind'] ?? '' ) ) {
-		return 0;
-	}
-	return (int) ( $base['id'] ?? 0 );
-}
-
-/**
  * Read a base tag's TERM analog on a term archive (SPEC §V7, CONTEXT.md I1).
  *
  * The I1 source-analog table applied to an ambient term: each base tag, at its
@@ -1497,31 +1461,6 @@ function bws_base_term_analog_read( string $tag, int $term_id, array $options, $
 // ===============================================
 // USER-AMBIENT DISPATCH (#19 author kind, 1.15.0)
 // ===============================================
-
-/**
- * Whether a base callback should read the AMBIENT USER instead of a post.
- *
- * The user-kind counterpart of bws_base_ambient_term_id(): true iff the factory's
- * base resolved source is a user (bare tag on an author archive, #19). Mirrors the
- * term gate's guards — an explicit srcTermIn step, src:site, or src:ref keeps its
- * own meaning (no user relationship step exists yet, so src:ref falls through to the post
- * path), and explicit src/loop/id already won inside the factory (SPEC §V1).
- *
- * @since 1.15.0
- * @param array $base    Base resolved source from bws_resolve_base_source().
- * @param array $options Tag options.
- * @return int User id when the ambient-user analog path applies, else 0.
- */
-function bws_base_ambient_user_id( array $base, array $options ): int {
-	// Same one-test gate as the term twin (FW-63) — see bws_base_ambient_term_id().
-	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
-		return 0;
-	}
-	if ( 'user' !== ( $base['kind'] ?? '' ) ) {
-		return 0;
-	}
-	return (int) ( $base['id'] ?? 0 );
-}
 
 /**
  * Read a base tag's USER analog on an author archive (#19, CONTEXT.md I1).
@@ -1619,11 +1558,12 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
  * The ONE place a base callback asks "does an ambient kind answer this tag".
  *
  * Replaces the per-KIND arm blocks the base callbacks each hand-wrote (the term
- * kind occupied five sites in base-tags.php, the user kind three). Gates ONCE on
- * the chain resolving to `render_time` — the same one-test gate both ambient-id
- * twins carry (FW-63): every other resolution kind names a branch that owns its
- * own render — then dispatches on the resolved base source's kind to the
- * per-kind analog readers above.
+ * kind occupied five sites in base-tags.php, the user kind three, datetime two)
+ * and the ambient-id twins that gated them (bws_base_ambient_term_id /
+ * bws_base_ambient_user_id, retired 1.19.0 — this seam is now the FW-63 gate's
+ * one owner). Gates ONCE on the chain resolving to `render_time`, then
+ * dispatches on the resolved base source's kind to the per-kind analog readers
+ * above.
  *
  * Only the per-KIND block collapses. Link-wrap policy, preview-label emission
  * and the empty path are per-TAG and stay in each callback's own tail; a caller
@@ -1643,7 +1583,8 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
  *
  * Link identity is DERIVED, not decided here: bws_source_link_identity() is the
  * one owner (CONTEXT.md I12), and a null identity on an entity kind (id 0)
- * returns null exactly as the twins' 0 sent the caller down its post path.
+ * returns null, sending the caller down its post path exactly as the retired
+ * twins' 0 did.
  *
  * @since 1.19.0
  * @param string $tag      One of text|content|title|permalink|image.
@@ -1654,6 +1595,16 @@ function bws_base_user_analog_read( string $tag, int $user_id, array $options, $
  *                        ambient arm applies (value may be ''), null to fall through.
  */
 function bws_base_ambient_analog( string $tag, array $base, array $options, $instance ): ?array {
+	// One test replaces three (FW-63): the ambient analog applies only when the
+	// chain is ROOT-ONLY and roots at the ambient entity. Every other kind names a
+	// branch that owns its own render — 'term' is the explicit post→term step (which
+	// is incoherent from a term base), 'site' has its own gate, and 'post' steps
+	// term→post (§V11: src:ref on a term archive HOPS the relationship field
+	// term→post[] and reads the target POST's analog, so the post path must not be
+	// short-circuited to the term's own analog). A registry-source root still reads
+	// 'render_time' and still reaches the kind switch below. Explicit options (a
+	// query-loop item, src:current, id) won inside the factory itself (SPEC §V1),
+	// so a pinned non-ambient source never lands an ambient kind here.
 	if ( 'render_time' !== bws_base_src_resolution( $options )['kind'] ) {
 		return null;
 	}
