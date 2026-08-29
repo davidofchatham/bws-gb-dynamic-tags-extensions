@@ -6,9 +6,11 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 
 ### Fewer tags, more sources
 
-Our tags currently work across post, loop item, and taxonomy term archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case!
+Our tags currently work across post, loop item, and archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case!
 
-> Blog, search, date, and post-type archives are not yet supported (they still return from the first post in the query); author archives are supported for the `text`, `title`, `content`, and their `try_` variants, plus `join` tags.
+On pages with no post of their own (blog home, search results, date and post-type archives, 404), `{{title}}` returns the same heading WordPress uses for the browser tab: the archive label, the date span, the search heading, or the site name. `{{content}}` returns the post type's description on a post-type archive and the theme's "not found" text on a 404. One `{{title}}` in a site-wide header element now covers every page type.
+
+> On those no-post pages, tags with no sensible value (permalink, image, date fields) render nothing. Author archives are supported for the `text`, `title`, `content`, and their `try_` variants, plus `join` tags; other tags render nothing there too.
 
 Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than one step, so it's possible to output data via a path of two or more relationships.
 
