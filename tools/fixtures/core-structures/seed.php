@@ -345,6 +345,18 @@ foreach ( $manifest['posts'] as $slug => $def ) {
 	if ( isset( $def['post_author'], $user_ids[ $def['post_author'] ] ) ) {
 		$args['post_author'] = $user_ids[ $def['post_author'] ];
 	}
+	// Absent = dated at insert, which is right for every fixture whose date nothing
+	// reads. It is fixture DATA for the one post whose date IS a URL: the date archive
+	// (context-test-matrix C1/C11) lives at whatever /YYYY/MM/ that post falls in, so an
+	// unpinned date puts the archive somewhere else on every site seeded from scratch.
+	// Passing it on the UPDATE path too is deliberate — a date pinned in the manifest
+	// should converge an existing site rather than leave the first insert authoritative
+	// forever, which is the shape that hid this (wp_update_post preserves a date nobody
+	// passes, so a reseed never surfaced the drift).
+	if ( isset( $def['post_date'] ) ) {
+		$args['post_date']     = $def['post_date'];
+		$args['post_date_gmt'] = get_gmt_from_date( $def['post_date'] );
+	}
 	if ( $existing ) {
 		$args['ID']         = $existing[0]->ID;
 		$post_ids[ $slug ]  = (int) wp_update_post( $args );
