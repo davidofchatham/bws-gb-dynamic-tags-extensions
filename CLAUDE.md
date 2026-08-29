@@ -35,7 +35,8 @@ CI runs these; run them locally before commit.
    Each file's own header carries its rationale; `page-snapshot-normalize-test.php` covers the
    second one's pure half (normalization, diffing, deriving the page set) with no site at all.
 
-   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`
+   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`,
+`field-combo-control-test.js`
    (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to
    `node` for a twin-language check (`slot-fold-twin-test.php`, `serialization-order-test.php`,
    `fold-migration-test.php`) — a missing `node` FAILS these rather than skipping, since a silent
@@ -326,7 +327,7 @@ has nothing to add beyond what it says here.
 | New source class / template / option key | `tag-reference.md` first; CHANGELOG entry | — |
 | New/changed editor preview text (a `bws_build_preview_label` case) | `editor-tag-previews.md` (markers/field-part/warning/example rows) + run `php tools/test/preview-label-test.php` | — |
 | Phone normalize / render / settings change (`bws_phone_normalize_tel` + sub-helpers, `bws_phone_callback`, `bws_phone_render_one`, phone settings/preview) | run `php tools/test/phone-normalize-test.php` (algorithm) + `tools/test/phone-test-matrix.md` rows against the testbed (`bws render-tag` / matrix pages; [docs/testbed.md](docs/testbed.md)) | — |
-| Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | `field-discovery-test.php`, `slot-fold-repeater-test.js`, `field-selector-test-matrix.md` | [rules](docs/update-triggers.md#field-discovery-change) |
+| Field-discovery change (`includes/rest/field-discovery.php` transforms, `assets/js/field-combo-control.js`, the enqueue/inline block, or a flip of any option to/from `bws-field-combo`) | `field-discovery-test.php`, `field-combo-control-test.js`, `slot-fold-repeater-test.js`, `field-selector-test-matrix.md` | [rules](docs/update-triggers.md#field-discovery-change) |
 | Text read-seam / link-wrap change (`bws_base_text_resolve_value`, `bws_base_text_callback`, `bws_wrap_with_link` / `bws_resolve_link_url`, or a new seam absorber e.g. `{{join}}` slots) | `tools/test/text-test-matrix.md` rows against the testbed (`bws render-tag`; [docs/testbed.md](docs/testbed.md)) | — |
 | Join assembly / slot change (`bws_join_callback`, `bws_get_join_options`, or any `includes/helpers/join-helpers.php` fn) | run `php tools/test/join-template-test.php` (pure Steps 1–5 + wire tokens) + `tools/test/join-test-matrix.md` rows against the testbed; a seam-implicating failure routes to the text matrix | — |
 | Format-TOKEN change (`bws_join_wire_format`, its preview twin `bws_join_preview_format`, the Format control's help/placeholder, or `bws_migrate_join_format_escape`) | `join-template-test.php`, `fold-migration-test.php`, `preview-label-test.php`, `fold-test-matrix.md` | [rules](docs/update-triggers.md#format-token-change) |
