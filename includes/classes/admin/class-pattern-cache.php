@@ -273,9 +273,9 @@ class PatternCache {
 	 * PURE. The reconcile overwrites a cached copy of `post_content` with the current one, so
 	 * anything the old copy held and the new content does not has left the site's renderable
 	 * wire. Counting those was not enough: a migration replay reads each of them as a
-	 * (url, tag) pair present on only one side — a hard failure that is not a render change,
-	 * measured at 212 pairs beside 13,445 identical on one run — and only the strings
-	 * themselves distinguish a repair from a disappearance.
+	 * (url, tag) pair present on only one side — a hard failure that is not a render change —
+	 * and only the strings themselves distinguish a repair from a disappearance. How often
+	 * that happens on a real corpus is measured in `tools/harvest-replay/README.md`.
 	 *
 	 * REMOVALS ONLY, AND EXACT STRINGS. Wire the repair ADDED is not this question; and
 	 * reporting a tag NAME where a whole tag string was removed would forgive nothing while

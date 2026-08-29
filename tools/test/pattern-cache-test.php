@@ -342,7 +342,7 @@ assert_eq(
 // The default has to BE the harvest default, or every artifact this writes is keyed
 // differently from the census it will be compared against.
 assert_eq(
-	'P9.9 the default pattern is the harvest default, byte for byte',
+	'P9.9 the default pattern is exactly this literal — changing it means changing the harvest side too',
 	'/\{\{[a-z0-9_]+(?:\s[^{}]*)?\}\}/i',
 	PatternCache::WIRE_PATTERN
 );

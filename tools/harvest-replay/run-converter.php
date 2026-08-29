@@ -159,9 +159,9 @@ WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_coun
 // because by the time this file runs the upgrade path has already repaired the tree.
 //
 // WHAT THE REPAIR CLEARED IS NOW RECORDED, which is what lets the diff tell a repaired row
-// from a vanished one instead of failing on every one of them (212 such pairs beside 13,445
-// identical on the run above). Its own artifact, deliberately: `mapping.jsonl` means "this
-// became that", and a removal is not a rename.
+// from a vanished one instead of failing on every one of them — how many that was on a real
+// corpus is in `tools/harvest-replay/README.md`. Its own artifact, deliberately:
+// `mapping.jsonl` means "this became that", and a removal is not a rename.
 $pattern_cache = array();
 $cleared_wire  = array();
 if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
