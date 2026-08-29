@@ -78,7 +78,11 @@ function bws_register_base_tags(): void {
 		),
 	);
 	$traversal_opts = bws_base_traversal_options();
+	// One field-option LEAF per tag with a read axis; the base registration and the
+	// modifier template below are two COMPOSITIONS of each, never two definitions.
 	$text_field     = bws_get_text_field_options();
+	$content_field  = bws_get_content_field_options();
+	$image_field    = bws_get_image_field_options();
 
 	// =========================================================
 	// text — ACF/meta field or entity title; supports_list
@@ -168,28 +172,18 @@ function bws_register_base_tags(): void {
 			$traversal_opts,
 			$fan_advisory,
 			array(
-				'use'      => array(
-					'type'           => 'select',
-					'label'          => __( 'Content Field', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-						array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
-					),
-					'_strip_default' => true,
-				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
-					'placeholder'  => 'field_name',
-					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
-					// value (rich render); use:content default → '' (site has no content
-					// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
-					'show_if'      => array(
-						'use' => 'key',
-					),
+				// use/key from the content FIELD LEAF; show_if is the caller's overlay.
+				'use'      => $content_field['use'],
+				'key'      => array_merge(
+					$content_field['key'],
+					array(
+						// Key-mode only (use:key). Under src:site, use:key reads a wp_options
+						// value (rich render); use:content default → '' (site has no content
+						// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
+						'show_if' => array(
+							'use' => 'key',
+						),
+					)
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -277,25 +271,18 @@ function bws_register_base_tags(): void {
 			$traversal_opts,
 			$fan_advisory,
 			array(
-				'use'      => array(
-					'type'           => 'select',
-					'label'          => __( 'Image Field', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-						array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
-					),
-					'show_if'        => array( 'srcTermIn' => 'empty' ),
-					'_strip_default' => true,
+				// use/key from the image FIELD LEAF; both show_if are the caller's overlay.
+				'use'      => array_merge(
+					$image_field['use'],
+					array( 'show_if' => array( 'srcTermIn' => 'empty' ) )
 				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
-					'placeholder'  => 'image_field',
-					// use:key → custom-field (post/term) or wp_options (site) read.
-					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
-					'show_if'      => array( 'use' => 'not:featured' ),
+				'key'      => array_merge(
+					$image_field['key'],
+					array(
+						// use:key → custom-field (post/term) or wp_options (site) read.
+						// Hidden for use:featured, which under src:site → site logo (V9, resolver).
+						'show_if' => array( 'use' => 'not:featured' ),
+					)
 				),
 				// Folded return-mode + size. The bws-as-size composite renders the mode
 				// dropdown + a size dropdown (url only) and owns the whole token.
@@ -432,29 +419,17 @@ function bws_register_base_tags(): void {
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'content',
 		'title'                 => __( 'Content', 'generateblocks' ),
-		'options'               => array(
-			'use'      => array(
-				'type'           => 'select',
-				'label'          => __( 'Content Field', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-					array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+		'options'               => array_merge(
+			// Same LEAF the base {{content}} registration consumes; no `show_if` overlay
+			// here (try_ states it via try_use_no_key_values), same as the text template.
+			$content_field,
+			array(
+				'fallback' => array(
+					'type'  => 'text',
+					'label' => __( 'Fallback Text', 'generateblocks' ),
+					'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
 				),
-				'_strip_default' => true,
-			),
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
-				'placeholder'  => 'field_name',
-			),
-			'fallback' => array(
-				'type'  => 'text',
-				'label' => __( 'Fallback Text', 'generateblocks' ),
-				'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
-			),
+			)
 		),
 		'term_fn'               => 'bws_term_description_core',
 		'post_fn'               => 'bws_post_content_core',
@@ -541,22 +516,13 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
 			),
-			'use'      => array(
-				'type'           => 'select',
-				'label'          => __( 'Image Field', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
-				),
-				'_strip_default' => true,
-			),
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
-				'placeholder'  => 'image_field',
-				'show_if'      => array( 'use' => 'not:featured' ),
+			// Same LEAF the base {{image}} registration consumes. Unlike text/content,
+			// this template KEEPS the key's `show_if` overlay: register_modifier() reads
+			// these options for term_image, whose panel has no declarative equivalent.
+			'use'      => $image_field['use'],
+			'key'      => array_merge(
+				$image_field['key'],
+				array( 'show_if' => array( 'use' => 'not:featured' ) )
 			),
 			'fallback' => array(
 				'type'  => 'bws-media-picker',

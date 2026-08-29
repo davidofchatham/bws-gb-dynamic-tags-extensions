@@ -525,6 +525,11 @@ function bws_base_traversal_options(): array {
  * twin (bws_build_slot_read_options()'s `$allow_same` is the precedent), never its
  * own literal.
  *
+ * ONE LEAF PER TAG THAT HAS A READ AXIS. bws_get_content_field_options() and
+ * bws_get_image_field_options() below are this leaf's siblings, extracted for the same
+ * reason: each of those enums was typed twice (base registration + modifier template),
+ * and content's had already drifted on a help string.
+ *
  * @since 1.17.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`
  *               (base overlays `use:not:title`; the template encodes the same fact
@@ -547,6 +552,71 @@ function bws_get_text_field_options(): array {
 			'dynamicLabel' => true,
 			'help'         => __( 'ACF or meta field key.', 'generateblocks' ),
 			'placeholder'  => 'field_name',
+		),
+	);
+}
+
+/**
+ * The content `use` + `key` field-option LEAF — bws_get_text_field_options()'s sibling.
+ *
+ * Same contract, same reason: the base `{{content}}` registration and the `content`
+ * modifier template each carried this enum as their own literal, and a literal typed
+ * twice is a label waiting to drift. `show_if` is the caller's overlay here too (base
+ * hides `key` unless `use:key`; try_ states the same fact via try_use_no_key_values).
+ *
+ * @since 1.19.0
+ * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`.
+ */
+function bws_get_content_field_options(): array {
+	return array(
+		'use' => array(
+			'type'           => 'select',
+			'label'          => __( 'Content Field', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
+				array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+				array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+			),
+			'_strip_default' => true,
+		),
+		'key' => array(
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
+			'placeholder'  => 'field_name',
+		),
+	);
+}
+
+/**
+ * The image `use` + `key` field-option LEAF — bws_get_text_field_options()'s sibling.
+ *
+ * Same contract. Both image consumers overlay `show_if` on `key` (`use:not:featured`),
+ * and the base registration additionally gates `use` itself on `srcTermIn:empty`; the
+ * leaf carries neither, because which conditions apply is the consumer's composition,
+ * not the enum's.
+ *
+ * @since 1.19.0
+ * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`.
+ */
+function bws_get_image_field_options(): array {
+	return array(
+		'use' => array(
+			'type'           => 'select',
+			'label'          => __( 'Image Field', 'generateblocks' ),
+			'options'        => array(
+				array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
+				array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
+			),
+			'_strip_default' => true,
+		),
+		'key' => array(
+			'type'         => 'bws-field-combo',
+			'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
+			'dynamicLabel' => true,
+			'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
+			'placeholder'  => 'image_field',
 		),
 	);
 }
