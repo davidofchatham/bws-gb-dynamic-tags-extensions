@@ -1306,8 +1306,10 @@ function bws_fold_empty_slot(): array {
  * lockstep, which is the tell.
  *
  * @since 1.17.0
- * @param string $default_read The template's stripped first `use` value, on a SELECTING
- *                             container that has a per-slot read axis. '' everywhere else.
+ * @param string $default_read The stripped first `use` value of the leaf the container's
+ *                             slots read through (bws_use_stripped_default()); '' on a
+ *                             container with no read axis. Every container states it —
+ *                             the seam writes no read default of its own.
  * @return array Carry accumulator.
  */
 function bws_fold_empty_carry( string $default_read = '' ): array {
@@ -1679,7 +1681,12 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		// value from the wrong entity rather than an empty one ([I15]).
 		'ref'       => '',
 		'srcTermIn' => '',
-		'use'       => '' === $use ? 'key' : $use,   // '' = the stripped `key` default (I3).
+		// The read is the CARRY's, seeded by the container with its template's stripped
+		// default (bws_fold_empty_carry) — this seam knows no tag and states no default.
+		// It held a literal 'key' through 1.18.x for the '' case, reachable only on a
+		// container with no read axis, where nothing reads it; the literal was correct
+		// solely because `content` (the one non-key default) always seeded its own.
+		'use'       => $use,
 		'key'       => $key,
 	);
 	if ( null !== $limit ) {

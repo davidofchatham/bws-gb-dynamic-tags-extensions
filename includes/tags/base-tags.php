@@ -1006,9 +1006,11 @@ function bws_get_join_options(): array {
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
 	// The accumulator's source axis is a CHAIN, not a token — `src(same)` inherits the
-	// prior slot's whole chain, hops and all (#104). Seeded by its owner, never a literal
-	// here: {{join}} has no tag-level read default, so it states none.
-	$carry  = bws_fold_empty_carry();
+	// prior slot's whole chain, hops and all (#104). The READ seeds the stripped default
+	// of the leaf {{join}}'s slots read through (the text leaf, per bws_get_join_options),
+	// so a slot that states no read resolves as the same read a bare {{text}} does: the
+	// seam carries the seed forward and writes no default of its own.
+	$carry  = bws_fold_empty_carry( bws_use_stripped_default( 'text' ) );
 
 	// Tag-level explicit post id — GB's editor preview REST route injects
 	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
@@ -1523,16 +1525,20 @@ function bws_site_allowlist_ok( string $key ): bool {
  * (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * @invariant (V11/B6) Empty wire `use` MUST be canonicalized to the tag's FIRST
- * enum value before dispatch (content → 'content', text/image → 'key'), never
- * treated as a distinct "no use" state. Dispatching on the literal empty string
- * drops the option read for key-mode-default tags (the B6 regression). The
- * stripped default MUST stay key-mode for text/image — the site logo is the
- * EXPLICIT use:featured value, not the implicit-mode tag — so the empty wire is an
- * unambiguous key-mode signal (no stale-key vs intended-analog ambiguity until
- * custom-control token authority exists; see SPEC §B6).
+ * THE B6 REGRESSION HAPPENED HERE, which is why the rule it produced is worth
+ * reading beside this function rather than only at its owner. This dispatcher
+ * branched on the literal empty string, and for every tag whose stripped default IS
+ * key-mode that silently dropped the option read: an unset `use` is the FIRST enum
+ * value, never a third "no use" state. So the canonicalization below runs before any
+ * branch, and it takes its value from BWS_USE_STRIPPED_DEFAULTS
+ * (registration-helpers.php), which owns both that obligation and the rule that the
+ * stripped default stays key-mode wherever key-mode and a named analog share an enum.
+ * Consequence worth stating here: title and permalink register no `use` enum, so they
+ * canonicalize to '' — the ternary this replaced gave them 'key', inertly, because
+ * every branch that could read it tests the tag name first.
  *
- * Per-tag site dispatch (V9 Model B; default = stripped first enum value):
+ * Per-tag site dispatch (V9 Model B; default = the tag's stripped first enum value,
+ * per BWS_USE_STRIPPED_DEFAULTS):
  *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
  *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
  *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt
@@ -1560,12 +1566,12 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 
 	// Canonicalize `use` to the tag's stripped default (its FIRST enum value) when
 	// the wire value is empty — strip-default means an unset `use` IS the first
-	// option, NOT a third "no use" state (B6). Mirrors the per-callback defaults
-	// (text/image → 'key', content → 'content'); title/permalink have no enum.
-	$use_default = ( 'content' === $tag ) ? 'content' : 'key';
-	$use         = (string) ( $options['use'] ?? '' );
+	// option, NOT a third "no use" state (B6). The value is the map's, not restated
+	// here: title/permalink register no `use` enum and get '' from it, which the
+	// ternary this replaced had been reading as 'key'.
+	$use = (string) ( $options['use'] ?? '' );
 	if ( '' === $use ) {
-		$use = $use_default;
+		$use = bws_use_stripped_default( $tag );
 	}
 
 	// title base tag (no `use` enum) and text use:title → site name.

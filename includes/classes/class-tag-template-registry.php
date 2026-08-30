@@ -786,10 +786,16 @@ class TagTemplateRegistry {
 				// resolver derived at slot 1 — and so does a later `use(same)` that reaches
 				// back past a slot which never set one.
 				//
+				// Seeded UNCONDITIONALLY, not only under per_slot_use: a template with no
+				// `use` enum derives '' anyway, and the seam writes no read default of its
+				// own — whatever the seed says is what a read-less slot resolves with. The
+				// `$psu ?` guard this replaced left the seam holding a literal 'key' for
+				// the case it never reached.
+				//
 				// The source axis is a CHAIN and not a token (#104): `src(same)` inherits the
 				// prior attempt's whole chain, hops included, which is what deleted the
 				// inherited-taxonomy special case the flat triple needed.
-				$carry = bws_fold_empty_carry( $psu ? $default_use : '' );
+				$carry = bws_fold_empty_carry( $default_use );
 
 				foreach ( range( 1, 5 ) as $n ) {
 					// Era per SLOT, not per tag: a folded value parses, an absent one is

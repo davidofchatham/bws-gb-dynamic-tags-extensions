@@ -223,7 +223,8 @@ function bws_drop_chain_flat_options( array $options ): array {
  * value flipped to '' so the wire format omits the default token (GB drops empty
  * values from the serialized tag string). Internal canonical token (e.g. 'current',
  * 'key', 'content') is preserved in source files for readability; consumers apply
- * `?? '<canonical>'` to restore it at read time.
+ * `?? '<canonical>'` to restore it at read time. For `use`, the value each consumer
+ * restores is stated once, in BWS_USE_STRIPPED_DEFAULTS below.
  *
  * The `_strip_default` marker itself is removed before passing to GB.
  *
@@ -254,5 +255,74 @@ function bws_prepare_registration_options( array $options ): array {
 		}
 	}
 	return $options;
+}
+}
+
+/**
+ * Each base tag's STRIPPED DEFAULT for `use`: the first value of its registered enum.
+ *
+ * bws_prepare_registration_options() above blanks that first value so the saved tag
+ * string never carries it, and every read site recovers it with `?? '<value>'`. Both
+ * halves are deliberate and both stay as written — the strip is what keeps unneeded
+ * tokens off the wire, and a `??` at the point of use is the honest spelling of "absent
+ * means the first option". What the convention never gave the VALUE was an owner: it was
+ * asserted at some twenty read sites and derived at one (the try_ slot-1 seed in
+ * TagTemplateRegistry). This map is that owner. The read sites keep their literals;
+ * tools/test/use-stripped-default-test.php reads every one of them against this map, and
+ * reads the map against the three field-option leaves in base-shared.php.
+ *
+ * ONE ROW PER TAG THAT REGISTERS A `use` ENUM, AND ABSENCE IS A STATEMENT. A tag with no
+ * row has no read axis, so nothing may assert a default for it: bws_use_stripped_default()
+ * answers '' there, which is what bws_site_resolve_value() had been getting wrong for
+ * title and permalink (it computed 'key' for every tag but content) until it read this map.
+ * `{{table}}`'s per-column `{N}-use` has no row on purpose — that option is being replaced
+ * by a source chain ending in a fanning step, so it is not enrolled.
+ *
+ * A DISPATCHER CANONICALIZES AN EMPTY `use` BEFORE IT BRANCHES. `??` fires on an ABSENT
+ * key, not on ''. GB drops the stripped value from the saved string, but any path that
+ * materializes every option key (a slot seam, a preview walk, a hand-built option set)
+ * can hand a dispatcher the literal '' — and a dispatcher that branches on '' silently
+ * drops the option read for every tag whose default IS key-mode. bws_site_resolve_value()'s
+ * @invariant records the instance that made this a rule (CONTEXT.md I3).
+ *
+ * THE STRIPPED DEFAULT IS KEY-MODE WHEREVER KEY-MODE AND A NAMED ANALOG SHARE ONE ENUM
+ * (text, image), and stays so until the `use`/`key` controls can auto-unset a stale `key`
+ * when `use` leaves key-mode: with the analog as the stripped value, an empty wire beside
+ * a leftover key could not be told from intended key-mode, so the analogs are always
+ * serialized and the empty wire is an unambiguous key-mode signal. `content` leads with
+ * its analog because its key-mode is always the explicit `use:key`, so no such ambiguity
+ * exists there. The reasoning in full: docs/tag-reference.md §Source-analog resolution,
+ * "Strip-default caveat".
+ *
+ * NOT AN ADR, DELIBERATELY. If the controls take over the strip, the registration-time
+ * half of this contract moves with them, and a decision record written against the
+ * current mechanism would then describe a mechanism that no longer exists. The rule
+ * lives here, on the artifact that would move with it.
+ *
+ * @since 1.19.0
+ */
+if ( ! defined( 'BWS_USE_STRIPPED_DEFAULTS' ) ) {
+	define( 'BWS_USE_STRIPPED_DEFAULTS', array(
+		'text'    => 'key',
+		'content' => 'content',
+		'image'   => 'key',
+	) );
+}
+
+/**
+ * The stripped default for one tag's `use`, or '' for a tag that has no read axis.
+ *
+ * Read this where the tag is a VARIABLE (a site dispatcher, a preview walking a template,
+ * a carry seed). Where the tag is fixed by the enclosing function, the read site keeps its
+ * literal `?? 'key'` — see BWS_USE_STRIPPED_DEFAULTS for why that is the convention and
+ * not a defect.
+ *
+ * @since 1.19.0
+ * @param string $tag Base tag name.
+ * @return string The tag's stripped first `use` value; '' when it registers no `use` enum.
+ */
+if ( ! function_exists( 'bws_use_stripped_default' ) ) {
+function bws_use_stripped_default( string $tag ): string {
+	return BWS_USE_STRIPPED_DEFAULTS[ $tag ] ?? '';
 }
 }

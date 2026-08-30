@@ -528,7 +528,10 @@ function bws_base_traversal_options(): array {
  * ONE LEAF PER TAG THAT HAS A READ AXIS. bws_get_content_field_options() and
  * bws_get_image_field_options() below are this leaf's siblings, extracted for the same
  * reason: each of those enums was typed twice (base registration + modifier template),
- * and content's had already drifted on a help string.
+ * and content's had already drifted on a help string. The first value of each leaf's
+ * `use` enum IS that tag's stripped default, which BWS_USE_STRIPPED_DEFAULTS
+ * (registration-helpers.php) states once and tools/test/use-stripped-default-test.php
+ * pins against these leaves — so a leaf's first value never moves alone.
  *
  * @since 1.17.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`

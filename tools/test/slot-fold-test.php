@@ -73,6 +73,10 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // bws_clamp_limit — the single limit INTERPRETER. §P13/§P14 compare what each era
 // RESOLVES rather than what it spells, so the walks below must clamp exactly as the
 // container arms do; re-inlining the rule here is what the extraction removed.
+// BWS_USE_STRIPPED_DEFAULTS — the try_ walks below are driven with each template's
+// stripped `use` default, and that value is DATA with an owner. A harness copy of
+// data is not an independent check, only a second thing to update.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 // THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
@@ -1289,6 +1293,12 @@ function t_migrate_try( $options, $psk, $psu, $max = 5 ) {
 	return null === $out ? $options : $out;
 }
 
+// The two templates the P14 walks model, each driven with its OWN stripped `use`
+// default read from the owner rather than re-typed here — a walk seeded with the wrong
+// default compares two spellings of the same mistake and passes.
+$text_default    = bws_use_stripped_default( 'text' );
+$content_default = bws_use_stripped_default( 'content' );
+
 // P14.1 — psu shape (text: default read `key`, no-key value `title`).
 $try_psu_cases = array(
 	'two keyed slots'        => array( 'key' => 'a', '2-use' => 'key', '2-key' => 'b' ),
@@ -1302,10 +1312,10 @@ $try_psu_cases = array(
 	'unset key mode slot 2'  => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key' ),
 );
 foreach ( $try_psu_cases as $name => $legacy ) {
-	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), 'key' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'title' ), 'key' );
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), $text_default );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'title' ), $text_default );
 	check( "P14.1 [psu: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
-	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), 'key' );
+	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), $text_default );
 	check( "P14.1 [psu: $name] dual-read of unmigrated wire resolves identically", $shipped === $dual, 'legacy: ' . json_encode( $shipped ) . "\n      dual:   " . json_encode( $dual ) );
 }
 
@@ -1316,7 +1326,7 @@ foreach ( $try_psu_cases as $name => $legacy ) {
 // only from hand-written `same` sentinels, because the shipped UI strips them as the
 // slot ≥2 default; the fold's own control seeds exactly this shape for a new slot,
 // which is why the seam must resolve it rather than treat it as absent.
-$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' );
+$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default );
 check(
 	'P14.1 all-inherit slot 2 resolves as a duplicate of slot 1',
 	isset( $all_inherit[2] ) && $all_inherit[1] === $all_inherit[2],
@@ -1324,7 +1334,7 @@ check(
 );
 check(
 	'P14.1 …and the flat resolver skipped it, so output is unchanged either way',
-	array() === array_diff_key( t_shipped_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' ), array( 1 => null ) ),
+	array() === array_diff_key( t_shipped_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default ), array( 1 => null ) ),
 	''
 );
 
@@ -1336,11 +1346,11 @@ $content_cases = array(
 	'key then inherit'       => array( 'use' => 'key', 'key' => 'body', '2-src' => 'ref', '2-ref' => 'office' ),
 );
 foreach ( $content_cases as $name => $legacy ) {
-	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), 'content' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'content', 'excerpt' ), 'content' );
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), $content_default );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'content', 'excerpt' ), $content_default );
 	check( "P14.2 [content: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
-$bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), 'content' );
+$bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), $content_default );
 check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && '' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
 
 // P14.3 — psk shape (email/phone: per-slot key, NO `use` enum). An empty key at slot
@@ -1395,7 +1405,7 @@ check( 'P14.4 read-less container emits a bare chain (carrying the flat era defa
 // not a parameter of the source but part of what the source IS. The previous comment here
 // recorded the mechanism ("the flat resolver's own variable never carried it") rather than
 // the cause, which is why the decision read as unmotivated on re-reading.
-$stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), 'key' );
+$stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), $text_default );
 check( 'P14.5 a term hop carries to a slot that inherits its source', 'terms,category' === ( $stm_walk[1]['src'] ?? null ) && 'terms,category' === ( $stm_walk[2]['src'] ?? null ), json_encode( $stm_walk ) );
 
 // P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
@@ -1408,7 +1418,7 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 // P14.7 — what the FOLD adds over the flat wire: an explicit per-slot read at slot ≥2
 // with no source of its own. Legacy `2-key` alone was DROPPED (FW-51) because a bare
 // key could not say whether it meant "override" or "left blank"; `2:key(b)` says it.
-$explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), 'key' );
+$explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), $text_default );
 check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && '' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
 // ── P15 THE INHERITED LIMIT (#61) ───────────────────────────────────────────
