@@ -1492,6 +1492,15 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 			default:
 				$use = (string) ( $read['slug'] ?? '' );
 				$key = '';
+				// AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's —
+				// which slot 1 seeds with the container's stripped default. `use()` is
+				// legal hand-written wire (ADR 0004) and parses to this shape; leaving
+				// the '' would hand a dispatcher the literal empty string, and a
+				// dispatcher's `?? '<default>'` does NOT fire on '' — that is the B6
+				// trap ([I3]), which this seam would otherwise re-open one layer down.
+				if ( '' === $use ) {
+					$use = $carry['use'];
+				}
 		}
 	}
 
@@ -1682,10 +1691,11 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		'ref'       => '',
 		'srcTermIn' => '',
 		// The read is the CARRY's, seeded by the container with its template's stripped
-		// default (bws_fold_empty_carry) — this seam knows no tag and states no default.
-		// It held a literal 'key' through 1.18.x for the '' case, reachable only on a
-		// container with no read axis, where nothing reads it; the literal was correct
-		// solely because `content` (the one non-key default) always seeded its own.
+		// default (bws_fold_empty_carry) — this seam knows no tag, so it states no
+		// default of its own. It held a literal 'key' here through 1.18.x, which was
+		// right only because `content` (the one non-key default) always seeded its own;
+		// the CANONICALIZATION that literal was also doing is kept, at the read axis
+		// above, where it can use the carry instead of guessing a value.
 		'use'       => $use,
 		'key'       => $key,
 	);

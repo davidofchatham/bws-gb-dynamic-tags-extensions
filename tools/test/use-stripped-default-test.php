@@ -19,9 +19,12 @@
  * of those lines matches both patterns at once.
  *
  * §4 holds the shapes that were CONVERTED away. Six read sites stated the canon in forms
- * no single pattern could see — a tag→default ternary, two inline tag=>default array maps,
- * a paired equality in a display path — and §2 is a one-pattern census only for as long as
- * they stay converted. Their return is what §4 fails on.
+ * no single pattern could see, and §2 is a one-pattern census only for as long as they
+ * stay converted. FOUR of the six have a regex here — the tag→default ternary, the inline
+ * tag=>default map, the seam's `'' === $use` ternary, and the paired equality in a display
+ * path. The other two do not, and saying so is the point: a `??` whose right operand is a
+ * VARIABLE is not a retired shape at all (it is how a site fed by the map spells itself),
+ * and the second inline map was byte-identical to the first, so one pattern covers both.
  *
  * WHAT THIS CANNOT PROVE, and the rules section says so too: the census reads a literal,
  * not the tag it belongs to. `?? 'key'` inside a content-shaped function is a wrong value
@@ -255,10 +258,29 @@ echo "\n§4 — the converted shapes stay converted\n";
 // canon in a form the pattern cannot see, so a returning one is invisible drift rather than
 // a failing check. Named individually: a count would say "something came back".
 $retired = array(
-	'tag-ternary'    => '/\(\s*\'content\'\s*===\s*\$\w+\s*\)\s*\?\s*\'content\'\s*:\s*\'key\'/',
-	'inline-map'     => '/\'text\'\s*=>\s*\'key\'\s*,\s*\'image\'\s*=>\s*\'key\'/',
-	'empty-ternary'  => '/\'\'\s*===\s*\$use\s*\?\s*\'(?:key|content)\'/',
+	'tag-ternary'     => '/\(\s*\'content\'\s*===\s*\$\w+\s*\)\s*\?\s*\'content\'\s*:\s*\'key\'/',
+	'inline-map'      => '/\'text\'\s*=>\s*\'key\'\s*,\s*\'image\'\s*=>\s*\'key\'/',
+	'empty-ternary'   => '/\'\'\s*===\s*\$use\s*\?\s*\'(?:key|content)\'/',
+	// A CARRY SEED IS A CANON ASSERTION IN A SHAPE §2 CANNOT SEE. Since the fold seam
+	// stopped writing a read default of its own, what a read-less slot resolves to IS
+	// this argument — so a literal here states a tag's stripped default just as much as
+	// a `??` does, and states it somewhere no `use` appears on the line. Found by
+	// mutation: seeding {{join}} with 'content' left the whole suite green.
+	'literal-carry-seed' => '/bws_fold_empty_carry\(\s*\'/',
 );
+
+// The paired equality is DERIVED from the map, not hand-written, and that is what makes it
+// precise enough to be safe. The retired shape tested a template against its OWN default
+// ("is this slot at the template default?"); a mode test that happens to pair a tag with
+// some other enum value is ordinary code — preview-helpers' key-required block pairs
+// `content` with `key`, and a hand-written alternation flagged it. Building the pattern
+// from BWS_USE_STRIPPED_DEFAULTS means only the (tag, ITS default) pairing matches, and a
+// map edit moves the pattern with it.
+$paired = array();
+foreach ( BWS_USE_STRIPPED_DEFAULTS as $tag => $default ) {
+	$paired[] = preg_quote( "'{$tag}'", '/' ) . '\s*===\s*\$\w+\s*&&\s*' . preg_quote( "'{$default}'", '/' ) . '\s*===';
+}
+$retired['paired-equality'] = '/(?:' . implode( '|', $paired ) . ')/';
 foreach ( $retired as $label => $re ) {
 	$hits = array();
 	foreach ( bws_include_files( $root ) as $rel ) {
@@ -275,9 +297,11 @@ foreach ( $retired as $label => $re ) {
 // And the patterns above must be able to fail — a typo'd regex that matches nothing
 // passes §4 forever while the shapes creep back.
 foreach ( array(
-	'tag-ternary'   => "\$d = ( 'content' === \$tag ) ? 'content' : 'key';",
-	'inline-map'    => "\$u = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );",
-	'empty-ternary' => "'use' => '' === \$use ? 'key' : \$use,",
+	'tag-ternary'     => "\$d = ( 'content' === \$tag ) ? 'content' : 'key';",
+	'inline-map'      => "\$u = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );",
+	'empty-ternary'   => "'use' => '' === \$use ? 'key' : \$use,",
+	'paired-equality' => "\$d = ( 'content' === \$base_template && 'content' === \$slot['use'] );",
+	'literal-carry-seed' => "\$carry = bws_fold_empty_carry( 'content' );",
 ) as $label => $sample ) {
 	assert_same( "…and the {$label} pattern still recognizes one", 1, preg_match( $retired[ $label ], $sample ) );
 }

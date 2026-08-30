@@ -667,6 +667,37 @@ foreach ( $tags as $tag => $args ) {
 
 // ---------------------------------------------------------------------------
 
+echo "\n§8b A `use` ENUM, `try_per_slot_use` AND A MAP ROW ARE ONE FACT\n";
+
+// Three surfaces answer "does this template have a read axis", and they answer it for
+// three different consumers: the template's own `use` enum (what registration builds a
+// per-slot read selector from), `try_per_slot_use` (what the RENDER loop branches on), and
+// membership of BWS_USE_STRIPPED_DEFAULTS (what the PREVIEW derives $per_slot_use from
+// since 1.19.0). They agree today, and nothing structural makes them: the constant is
+// edited for registration reasons, and a row added or dropped there silently moves what
+// the preview thinks a template is — a preview/render split, which is the failure the
+// preview walking the render seam exists to prevent. This is the only place all three are
+// in scope at once, which is why it lives here rather than beside the constant.
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $tpl ) {
+	$key      = $tpl['key'];
+	$has_enum = isset( $tpl['options']['use']['options'][0]['value'] );
+	$psu      = ! empty( $tpl['try_per_slot_use'] );
+	$mapped   = '' !== bws_use_stripped_default( $key );
+
+	assert_same( "{$key} — a `use` enum iff try_per_slot_use", $has_enum, $psu );
+	assert_same( "{$key} — a `use` enum iff a BWS_USE_STRIPPED_DEFAULTS row", $has_enum, $mapped );
+
+	if ( $has_enum ) {
+		assert_same(
+			"{$key} — the map states this template's OWN first enum value",
+			(string) $tpl['options']['use']['options'][0]['value'],
+			bws_use_stripped_default( $key )
+		);
+	}
+}
+
+// ---------------------------------------------------------------------------
+
 echo "\n§9 NOTHING the plugin ships registers a tag except through the boundary\n";
 
 // §1-§8 hold what registration PRODUCES. This one holds that there is still one door.

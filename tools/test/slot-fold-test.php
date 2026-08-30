@@ -78,6 +78,12 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // data is not an independent check, only a second thing to update.
 require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+
+// The two templates the P13/P14 walks model, each driven with its OWN stripped `use`
+// default read from the owner rather than re-typed here — a walk seeded with the wrong
+// default compares two spellings of the same mistake and passes.
+$text_default    = bws_use_stripped_default( 'text' );
+$content_default = bws_use_stripped_default( 'content' );
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 // THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
 // inherited step is dropped only where its slug CANNOT repeat, and "can it repeat" is
@@ -971,6 +977,56 @@ check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) &&
 $same_analog = t_seam_walk( array( 'A' => 'use(title)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
+// P13.4b — AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's.
+//
+// `use()` is legal hand-written wire (ADR 0004) and parses to {kind:analog, slug:''}. The
+// seam must not pass that '' on: a dispatcher's `?? '<default>'` does not fire on the empty
+// string, only on an absent key, so a bare '' reaches the branch as a third state and drops
+// the read — the B6 trap ([I3]) one layer down. Through 1.18.x a hardcoded 'key' covered
+// this, which was right for the containers that reached it and wrong for content's own
+// default; the carry answers it per container instead.
+// Driven at the seam with an EXPLICIT seed, because that is the variable under test —
+// t_seam_walk seeds nothing, which models a container with no read axis and would answer
+// a different question.
+function t_empty_analog( string $container, string $seed ) {
+	$slot = bws_fold_slot_struct( 1, array( 'A' => 'use()' ), $container, 'try' === $container );
+	if ( null === $slot ) {
+		return 'NO SLOT';
+	}
+	$carry = bws_fold_empty_carry( $seed );
+	$skip  = '';
+	$flat  = bws_fold_slot_chain_options( $slot, $carry, 'try' !== $container, $skip );
+	return null === $flat ? "SKIP({$skip})" : $flat['use'];
+}
+// The parse really does produce the shape under test — without this the three checks
+// below could pass against a slot that never had an empty analog slug in it.
+$empty_slug_slot = bws_fold_slot_struct( 1, array( 'A' => 'use()' ), 'join', false );
+check(
+	'P13.4b use() parses to an EMPTY ANALOG SLUG (the shape under test exists)',
+	array( 'kind' => 'analog', 'slug' => '' ) === ( $empty_slug_slot['read'] ?? null ),
+	json_encode( $empty_slug_slot['read'] ?? null )
+);
+check(
+	'P13.4b combining: use() takes the carry seed, not a bare empty read',
+	$text_default === t_empty_analog( 'join', $text_default ),
+	var_export( t_empty_analog( 'join', $text_default ), true )
+);
+check(
+	'P13.4b selecting: use() takes the TEMPLATE default, not a container-blind literal',
+	$content_default === t_empty_analog( 'try', $content_default ),
+	var_export( t_empty_analog( 'try', $content_default ), true )
+);
+// The bound of the rule, stated rather than left to be discovered: a container that seeds
+// NO default still resolves '' here. That is safe only because such a container has no
+// `use` dispatch to drop a read from — the same reason the hardcoded 'key' this replaced
+// was correct for the containers that reached it. A container that grows a read axis must
+// seed the carry, and §8b of control-order-test.php is what catches one that does not.
+check(
+	'P13.4b an unseeded container still resolves empty, and that is the rule\'s bound',
+	'' === t_empty_analog( 'join', '' ),
+	var_export( t_empty_analog( 'join', '' ), true )
+);
+
 // P13.5 — THE FOUR INEXPRESSIBLE-CHAIN SKIPS, INVERTED (#104).
 //
 // These four asserted a SKIP through 1.16.x: the flat triple held one relationship step
@@ -1292,12 +1348,6 @@ function t_migrate_try( $options, $psk, $psu, $max = 5 ) {
 	);
 	return null === $out ? $options : $out;
 }
-
-// The two templates the P14 walks model, each driven with its OWN stripped `use`
-// default read from the owner rather than re-typed here — a walk seeded with the wrong
-// default compares two spellings of the same mistake and passes.
-$text_default    = bws_use_stripped_default( 'text' );
-$content_default = bws_use_stripped_default( 'content' );
 
 // P14.1 — psu shape (text: default read `key`, no-key value `title`).
 $try_psu_cases = array(

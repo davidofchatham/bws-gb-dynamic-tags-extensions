@@ -242,7 +242,7 @@ function bws_build_join_preview_label( array $options ): string {
 			continue;
 		}
 
-		$eff_use = $flat['use'];   // The carry's read: seeded above, never '' here.
+		$eff_use = $flat['use'];   // Already canonicalized by the seam ([I3]).
 		$key     = $flat['key'];
 
 		$inert              = array();
