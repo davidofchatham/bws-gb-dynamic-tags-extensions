@@ -42,19 +42,9 @@ today, and conflating their baselines makes one invisible:
   cleared, so those report as repairs and every other one-sided pair stays the failure it was. It
   is evidence the run produced, not an exception list: an artifact naming nothing forgives nothing.
 
-  **DEFINE `BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE` IN THE CLONE'S `wp-config.php` BEFORE THE
-  RUN.** The same repair also fires from the plugin's own upgrade trigger, which runs before
-  `run-converter.php` ever gets to (ordering fact owned by
-  `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`'s PHPDoc) and discards the cleared strings
-  rather than recording them. Without the constant the artifact is not empty but PARTIAL: it
-  names the staleness this run's own migration created and misses everything already stale when
-  the run started, so the diff forgives most one-sided pairs and hard-fails on a residue that
-  reads like a render regression. `run-converter.php` refuses the run rather than writing that
-  artifact, and the refusal is `bws_replay_upgrade_reconcile_consumed()` in `replay-verdict.php`.
-  Deferring costs no fidelity — `PatternCache::upgrade_reconcile_deferred()`'s own PHPDoc owns
-  why — the repair is content-agnostic and site-wide, so one call after the migration loop
-  leaves the same end state. Measured on the fixture testbed 2026-08-31 with ordering as the only
-  variable: 0 strings recordable after the trigger ran, 1 with it deferred. GH #117.
+  **DEFINE `BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE` IN THE CLONE'S `wp-config.php` BEFORE THE SNAPSHOT RESTORE — not before the run.** The same repair also fires from the plugin's own upgrade trigger, which runs before `run-converter.php` ever gets to (ordering fact owned by `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`'s PHPDoc) and discards the cleared strings rather than recording them. Without the constant the artifact is not empty but PARTIAL: it names the staleness this run's own migration created and misses everything already stale when the run started, so the diff forgives most one-sided pairs and hard-fails on a residue that reads like a render regression. `run-converter.php` refuses the run rather than writing that artifact, and the refusal is `bws_replay_upgrade_reconcile_consumed()` in `replay-verdict.php`. Deferring costs no fidelity — `PatternCache::upgrade_reconcile_deferred()`'s own PHPDoc owns why — the repair is content-agnostic and site-wide, so one call after the migration loop leaves the same end state. Measured on the fixture testbed 2026-08-31 with ordering as the only variable: 0 strings recordable after the trigger ran, 1 with it deferred. GH #117.
+
+  **THE RESTORE IS WHAT SPENDS IT, WHICH IS WHY THE CONSTANT GOES IN FIRST.** `bin/snapshot.sh --restore` ends by flushing caches through wp-cli, and that boot alone fires the trigger — so does a bare `bin/wp.sh <site> option get`, and so does anyone loading a page on the clone. A constant added after the restore is added too late, and the run it protects has already lost the population. Verified on the Site H clone 2026-08-31 against its one genuine pre-1.17.0 snapshot (`predev-meta-conductor`, stamped 1.16.0), corpus 345 census rows over 16 pattern trees, ordering the only variable: **7 stale strings recorded with the constant in place before the restore, 5 with the trigger allowed to fire one request earlier.** The two lost were a pre-1.6 `post_acf_date_time_range` pair on a single post — staleness that predated the run, which is precisely what the artifact exists to name and what this run's own migration can never re-create.
 
   A re-run after the migrator itself has moved is **the second migration replay**, and is the same
   experiment against a later converter.

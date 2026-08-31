@@ -55,11 +55,31 @@ function bws_replay_removed_wire_index( array $rows ): array {
 /**
  * Whether the upgrade trigger already spent the population `run-converter.php` records.
  *
- * THE AXIS: the stored pattern-cache summary names the `upgrade` trigger AND its timestamp
- * is at or after this request began. Both halves carry weight. The trigger alone says only
- * that an upgrade repaired the cache at some point, which is the ordinary state of a site
- * that has been upgraded; what makes it fatal is that it happened during THIS request, so
- * the strings it cleared are gone from the trees with nothing written down.
+ * THE AXIS: the stored pattern-cache summary names the `upgrade` trigger, its `version` is
+ * the build running now, and it does not positively record having reconciled nothing. All
+ * three carry weight. The trigger alone says only that an upgrade repaired the cache at some
+ * point, which is the ordinary state of every upgraded site; the VERSION is what says the
+ * trigger fired for the build this run is using, so the strings it cleared are gone from the
+ * trees with nothing written down. A summary that records `reconciled` as exactly 0 cleared
+ * no strings and spent nothing, so it is the one shape that reads safe — absent or non-zero
+ * both refuse, because a half-written record cannot show that nothing was lost.
+ *
+ * TIMESTAMPS ARE NOT THE AXIS, AND WERE, THROUGH 1.19.0. The first spelling asked whether the
+ * reconcile happened during THIS request, which catches only the case where `run-converter.php`
+ * is the very first WordPress boot after the build swap. It is not: the trigger fires on ANY
+ * request — `bin/snapshot.sh --restore` ends with a wp-cli cache flush, and a bare
+ * `wp option get` does it too — so on a real clone the population is routinely spent one
+ * request before the run, and the old rule read that as a normal upgraded site and let the
+ * partial artifact through with a warning that said "nothing was lost on this request", which
+ * was true and irrelevant. Measured on a real corpus 2026-08-31 — numbers owned by
+ * `tools/harvest-replay/README.md`'s migration-replay bullet, not restated here. The version
+ * test subsumes the same-request case rather than extending it:
+ * a trigger that fires at `init` 25 has already written its summary by the time this is read.
+ *
+ * A DEFERRED RUN IS NOT CAUGHT BY THIS, and that is what makes the version the right field.
+ * `bws_dynamic_tags_rebuild_allowlist_on_upgrade()` stamps the installed version whether or
+ * not it reconciles, so a deferred clone leaves whatever summary it already had — an older
+ * build's, or none. Either way the version does not match and the run proceeds.
  *
  * WHY A RUN CANNOT CONTINUE PAST IT. The upgrade trigger runs before `run-converter.php`
  * ever gets to — see `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`'s own PHPDoc for the
@@ -74,16 +94,18 @@ function bws_replay_removed_wire_index( array $rows ): array {
  * PARTIAL is the state nothing else detects, and the reason this rule is a refusal rather
  * than a warning: the evidence is destroyed before the run can notice it is missing.
  * Reproduced on the fixture testbed 2026-08-31 (same staleness, same call, ordering the
- * only variable: cleared=0 after the trigger, cleared=1 without it). The axis that decides
- * whether the trigger stands down is `PatternCache::upgrade_reconcile_deferred()`'s, not
- * this one's — this only observes the outcome. GH #117 (FW-78).
+ * only variable: cleared=0 after the trigger, cleared=1 without it) and on the Site H
+ * corpus the same day, where the two strings lost were the ones that predated the run. The
+ * axis that decides whether the trigger stands down is
+ * `PatternCache::upgrade_reconcile_deferred()`'s, not this one's — this only observes the
+ * outcome. GH #117 (FW-78).
  *
- * @param array $status      `PatternCache::get_status()` output, or empty when never run.
- * @param int   $request_time Unix time this request began (`$_SERVER['REQUEST_TIME']`).
+ * @param array  $status          `PatternCache::get_status()` output, or empty when never run.
+ * @param string $running_version The build this run is using (`BWS_DYNAMIC_TAGS_VERSION`).
  * @return bool True when the run must refuse.
  */
-function bws_replay_upgrade_reconcile_consumed( array $status, int $request_time ): bool {
-	if ( ! isset( $status['time'], $status['trigger'] ) ) {
+function bws_replay_upgrade_reconcile_consumed( array $status, string $running_version ): bool {
+	if ( ! isset( $status['trigger'], $status['version'] ) ) {
 		return false;
 	}
 
@@ -91,7 +113,14 @@ function bws_replay_upgrade_reconcile_consumed( array $status, int $request_time
 		return false;
 	}
 
-	return (int) $status['time'] >= $request_time;
+	if ( '' === $running_version || (string) $status['version'] !== $running_version ) {
+		return false;
+	}
+
+	// PRESENT AND ZERO is the only shape that proves nothing was spent. Absent does not: a
+	// summary that cannot say what it repaired cannot say it repaired nothing, and this gate
+	// resolves what it cannot see toward refusing.
+	return ! ( isset( $status['reconciled'] ) && 0 === (int) $status['reconciled'] );
 }
 
 /**

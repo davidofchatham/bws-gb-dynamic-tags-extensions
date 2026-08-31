@@ -314,58 +314,102 @@ $check(
 // forgiving, and indistinguishable downstream from a real render regression. An empty
 // artifact is safe (§R2.6); a PARTIAL one is what nothing else catches.
 //
-// BOTH HALVES OF THE AXIS ARE PINNED SEPARATELY, because either alone is the common case:
-// an ordinary upgraded site has an `upgrade` summary from some earlier day, and a summary
-// written this request under any other trigger is this run's own work.
-$status = function ( $trigger, $time ) {
-	return array( 'trigger' => $trigger, 'time' => $time, 'checked' => 3, 'reconciled' => 1 );
+// EVERY HALF OF THE AXIS IS PINNED SEPARATELY, because each alone is the common case: an
+// ordinary upgraded site has an `upgrade` summary from some earlier BUILD, a summary under
+// any other trigger is this run's own work, and a reconcile that repaired nothing spent
+// nothing.
+//
+// THE TIMESTAMP IS PINNED AS IRRELEVANT, and that is the point of §R5.3/§R5.4. The rule read
+// it through 1.19.0 and therefore only caught a trigger that fired inside this very request,
+// which on a real clone is the rare case — `bin/snapshot.sh --restore` boots WordPress to
+// flush caches, so the population is normally spent one request EARLIER. Measured on the
+// Site H corpus 2026-08-31: 7 strings recorded deferred, 5 with the trigger allowed to fire
+// one request before the run.
+$status = function ( $trigger, $version, $reconciled = 1 ) {
+	return array( 'trigger' => $trigger, 'time' => 1756600000, 'checked' => 3, 'reconciled' => $reconciled, 'version' => $version );
 };
 
-$now = 1756600000;
+$running = '1.19.0';
 
 $check(
-	'R5.1 an upgrade reconcile during THIS request is fatal — the strings are gone unrecorded',
-	true === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now ), $now )
+	'R5.1 an upgrade reconcile for THIS build is fatal — the strings are gone unrecorded',
+	true === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $running ), $running )
+);
+
+// The gap the version test closed. This shape passed through 1.19.0 because its timestamp
+// predates the request; it is the shape a snapshot restore leaves behind.
+$check(
+	'R5.2 ...whatever its timestamp says, since the trigger fires on ANY earlier request',
+	true === bws_replay_upgrade_reconcile_consumed(
+		array( 'trigger' => 'upgrade', 'time' => 1, 'reconciled' => 1, 'version' => $running ),
+		$running
+	)
+);
+
+// The ordinary state of every upgraded site, and of a correctly deferred clone: the trigger
+// stamps the installed version without reconciling, so the summary it leaves names an older
+// build. Reading this as fatal would refuse the runs this gate exists to protect.
+$check(
+	'R5.3 an upgrade reconcile recorded under an EARLIER build is fine',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', '1.18.0' ), $running )
+);
+
+// A reconcile that repaired nothing cleared no strings. Present-and-zero is the only shape
+// that can say so, which is why it is pinned beside §R5.5 rather than folded into it.
+$check(
+	'R5.4 an upgrade reconcile for this build that repaired NOTHING spent nothing',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $running, 0 ), $running )
+);
+
+// The mirror of §R5.4, and the direction this gate resolves the unknown toward: a summary
+// that cannot say what it repaired cannot say it repaired nothing.
+$check(
+	'R5.5 ...but one that does not record `reconciled` at all still refuses',
+	true === bws_replay_upgrade_reconcile_consumed(
+		array( 'trigger' => 'upgrade', 'version' => $running ),
+		$running
+	)
+);
+
+// This run's own reconcile writes a `migrate` summary, and writes it under this same build.
+// Keying on the version alone would make the check fire on the run it is meant to protect.
+$check(
+	'R5.6 a MIGRATE reconcile for this build is not it — that is this script doing its job',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'migrate', $running ), $running )
 );
 
 $check(
-	'R5.2 ...and one a second later too, since the trigger runs after the request began',
-	true === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now + 1 ), $now )
-);
-
-// The ordinary state of every upgraded site. Reading this as fatal would refuse every run.
-$check(
-	'R5.3 an upgrade reconcile from BEFORE this request is fine — that is a normal site',
-	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now - 1 ), $now )
-);
-
-// This run's own reconcile writes a `migrate` summary. Keying on the timestamp alone would
-// make the check fire on the run it is meant to protect.
-$check(
-	'R5.4 a MIGRATE reconcile this request is not it — that is this script doing its job',
-	false === bws_replay_upgrade_reconcile_consumed( $status( 'migrate', $now ), $now )
-);
-
-$check(
-	'R5.5 a SCAN reconcile this request is not it either',
-	false === bws_replay_upgrade_reconcile_consumed( $status( 'scan', $now ), $now )
+	'R5.7 a SCAN reconcile for this build is not it either',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'scan', $running ), $running )
 );
 
 // A site where the reconcile has never run has nothing to have spent. Absent must read as
 // safe rather than as unknown-so-refuse, or a fresh clone could never be converted.
 $check(
-	'R5.6 a site with no stored summary at all is not it',
-	false === bws_replay_upgrade_reconcile_consumed( array(), $now )
+	'R5.8 a site with no stored summary at all is not it',
+	false === bws_replay_upgrade_reconcile_consumed( array(), $running )
 );
 
 $check(
-	'R5.7 a summary missing its timestamp is not it — a half-written record attests nothing',
-	false === bws_replay_upgrade_reconcile_consumed( array( 'trigger' => 'upgrade' ), $now )
+	'R5.9 a summary missing its version is not it — a half-written record names no build',
+	false === bws_replay_upgrade_reconcile_consumed( array( 'trigger' => 'upgrade', 'time' => 1 ), $running )
 );
 
 $check(
-	'R5.8 ...nor one missing its trigger',
-	false === bws_replay_upgrade_reconcile_consumed( array( 'time' => $now ), $now )
+	'R5.10 ...nor one missing its trigger',
+	false === bws_replay_upgrade_reconcile_consumed( array( 'version' => $running, 'time' => 1 ), $running )
+);
+
+// BWS_DYNAMIC_TAGS_VERSION is undefined only where the plugin did not load, and run-converter
+// passes the literal '?' as $running_version in that case — never '', which is why this pins
+// the PLACEHOLDER ON THE RUNNING SIDE rather than the stored one: that is the shape the real
+// caller can actually produce. PatternCache::get_status() has its own fallback for a missing
+// version and it is '', never '?' — the two ends were never meant to share a sentinel, and a
+// summary that happened to store the literal string '?' would be a distinct, correct refusal
+// (it would name a build that matches nothing recorded as a real version either).
+$check(
+	'R5.11 an unknown running build ("?") matches nothing recorded — a placeholder is not an identity',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $running ), '?' )
 );
 
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";

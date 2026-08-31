@@ -77,28 +77,33 @@ WP_CLI::log( "plugin version: {$version}" );
 // The plugin's own upgrade trigger reconciles the pattern cache too, and runs before this
 // script's body ever gets to (ordering fact + why it matters:
 // bws_dynamic_tags_rebuild_allowlist_on_upgrade()'s own PHPDoc; the fatal condition below is
-// bws_replay_upgrade_reconcile_consumed() in replay-verdict.php). A run that has already lost
-// the population cannot be salvaged in place — the strings are gone with nothing written
-// down. Restore the snapshot and start again. GH #117 (FW-78).
+// bws_replay_upgrade_reconcile_consumed() in replay-verdict.php, which owns what counts as
+// spent and why a timestamp does not). A run that has already lost the population cannot be
+// salvaged in place — the strings are gone with nothing written down. Restore the snapshot and
+// start again, with the constant defined BEFORE the restore, because the restore itself boots
+// WordPress. GH #117 (FW-78).
 require_once __DIR__ . '/replay-verdict.php';
 
 if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
 	$pc_status = \BWS\DynamicTags\Admin\PatternCache::get_status();
 
-	if ( bws_replay_upgrade_reconcile_consumed( $pc_status, (int) ( $_SERVER['REQUEST_TIME'] ?? 0 ) ) ) {
+	if ( bws_replay_upgrade_reconcile_consumed( $pc_status, (string) $version ) ) {
 		WP_CLI::error(
-			"The upgrade trigger already reconciled the pattern cache during this request,\n"
+			"The upgrade trigger has already reconciled the pattern cache for this build,\n"
 			. "so what it cleared is unrecorded and removed-wire.jsonl would be partial.\n"
-			. "Restore the pre-upgrade snapshot, define BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE\n"
-			. "in the clone's wp-config.php, and run again."
+			. "Define BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE in the clone's wp-config.php,\n"
+			. "THEN restore the pre-upgrade snapshot — the restore boots WordPress and fires\n"
+			. "the trigger itself — and run again."
 		);
 	}
 	if ( ! \BWS\DynamicTags\Admin\PatternCache::upgrade_reconcile_deferred() ) {
-		// The trigger did not fire THIS request, so nothing is lost yet — but it arms on any
-		// version change, and a re-run after a build swap would hit the branch above.
+		// Nothing detectable has been spent — the check above cleared it — but the trigger arms
+		// on any version change and fires on ANY request, so the next restore or stray wp call
+		// would take the population out from under a re-run.
 		WP_CLI::warning(
-			'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE is not defined. Nothing was lost on this '
-			. 'request, but define it on the clone before any run that follows a build swap.'
+			'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE is not defined. The upgrade trigger has '
+			. 'not spent anything for this build, but define it on the clone before the NEXT '
+			. 'restore or build swap — not after.'
 		);
 	}
 }
