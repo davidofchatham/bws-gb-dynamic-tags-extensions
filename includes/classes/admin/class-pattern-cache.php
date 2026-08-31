@@ -568,4 +568,41 @@ class PatternCache {
 		$status = get_option( self::STATUS_OPTION_NAME, array() );
 		return is_array( $status ) ? $status : array();
 	}
+
+	/**
+	 * Whether the caller should skip calling reconcile_site() and leave the repair to
+	 * whoever calls it next.
+	 *
+	 * THE SOLE DECIDER, and the constant it reads is this method's alone to name —
+	 * `bws_dynamic_tags_rebuild_allowlist_on_upgrade()` and `run-converter.php` both
+	 * consume the answer and neither re-derives it.
+	 *
+	 * FOR A HARVEST/REPLAY CLONE ONLY. Define BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE
+	 * truthy in that clone's wp-config.php and nothing else — a production site that
+	 * defines it and never runs a caller that reconciles keeps a stale cache for the rest
+	 * of the version's life, which is the bug #99 fixed.
+	 *
+	 * WHY DEFERRING IS SAFE: the reconcile is content-agnostic and site-wide (see class
+	 * docblock), so one call after a migration loop leaves the identical end state as one
+	 * before it plus one after — deferring costs no fidelity, only timing.
+	 *
+	 * WHY IT IS EVER NEEDED: reconcile_site() hands its caller the CLEARED tag strings and
+	 * records only counts; a caller that cannot use them repairs wire unrecorded. The
+	 * plugin's own upgrade trigger is exactly that caller, and it runs before
+	 * `run-converter.php` — the one caller that writes the strings down — ever gets to run,
+	 * because it fires at `init` 25, ahead of any `wp eval-file` body
+	 * (`bws_dynamic_tags_rebuild_allowlist_on_upgrade()` is the enforcing site for that
+	 * ordering fact). Left undeferred there, `run-converter.php`'s own reconcile call finds
+	 * nothing left of the population that predates the run and its removal artifact comes
+	 * back PARTIAL rather than empty — forgiving the pairs it can still name and hard-failing
+	 * the rest, which reads like a render regression rather than an instrument gap. Measured
+	 * on the fixture testbed 2026-08-31, ordering the only variable: 0 recordable strings
+	 * with the trigger left to fire, 1 with it deferred. GH #117 (FW-78).
+	 *
+	 * @since 1.19.0
+	 * @return bool True when the caller should skip its own reconcile_site() call.
+	 */
+	public static function upgrade_reconcile_deferred(): bool {
+		return defined( 'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE' ) && BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE;
+	}
 }

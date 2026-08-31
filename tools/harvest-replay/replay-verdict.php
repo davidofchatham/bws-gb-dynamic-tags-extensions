@@ -1,13 +1,14 @@
 <?php
 /**
- * replay-verdict.php — the two verdict rules `diff-replays.php` could not hold inline.
+ * replay-verdict.php — the verdict rules the harvest/replay SCRIPTS cannot hold inline.
  *
  * PURE. No WordPress, no filesystem, no output, no side effects on load. That is the whole
- * reason it exists as a file: `diff-replays.php` is a SCRIPT — requiring it runs a diff — so
- * nothing under `tools/test/` can call its decisions. `replay-source-identity-test.php`
- * works around the same problem by reading a sibling's SOURCE rather than calling it, which
- * is as far as that technique goes. These two rules both LOOSEN a gate, and a loosened gate
- * whose failure mode is silence has to be assertable, so they were extracted instead.
+ * reason it exists as a file: `diff-replays.php` and `run-converter.php` are SCRIPTS —
+ * requiring either one runs it — so nothing under `tools/test/` can call their decisions.
+ * `replay-source-identity-test.php` works around the same problem by reading a sibling's
+ * SOURCE rather than calling it, which is as far as that technique goes. Every rule here
+ * governs a gate whose failure mode is SILENCE — two loosen one, one refuses a run that
+ * would produce a quietly incomplete artifact — so they were extracted to be assertable.
  * `tools/test/replay-verdict-test.php` is what exercises them.
  *
  * Read `tools/harvest-replay/README.md` first — it owns what the instrument is, how a run is
@@ -49,6 +50,48 @@ function bws_replay_removed_wire_index( array $rows ): array {
 	}
 
 	return $index;
+}
+
+/**
+ * Whether the upgrade trigger already spent the population `run-converter.php` records.
+ *
+ * THE AXIS: the stored pattern-cache summary names the `upgrade` trigger AND its timestamp
+ * is at or after this request began. Both halves carry weight. The trigger alone says only
+ * that an upgrade repaired the cache at some point, which is the ordinary state of a site
+ * that has been upgraded; what makes it fatal is that it happened during THIS request, so
+ * the strings it cleared are gone from the trees with nothing written down.
+ *
+ * WHY A RUN CANNOT CONTINUE PAST IT. The upgrade trigger runs before `run-converter.php`
+ * ever gets to — see `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`'s own PHPDoc for the
+ * ordering fact and `PatternCache::upgrade_reconcile_deferred()`'s for why deferring it is
+ * safe. `run-converter.php`'s own reconcile then finds nothing left of the wire that was
+ * already stale when the run started, and writes an artifact holding ONLY the staleness
+ * this run's `migrate_post()` loop created. That artifact is not empty, which is what makes
+ * it dangerous: `bws_replay_split_missing()` forgives the pairs it names, and the ones it
+ * cannot name stay hard failures reading exactly like a render regression.
+ *
+ * Empty forgives nothing and is safe by construction — that is the property §R2.6 pins.
+ * PARTIAL is the state nothing else detects, and the reason this rule is a refusal rather
+ * than a warning: the evidence is destroyed before the run can notice it is missing.
+ * Reproduced on the fixture testbed 2026-08-31 (same staleness, same call, ordering the
+ * only variable: cleared=0 after the trigger, cleared=1 without it). The axis that decides
+ * whether the trigger stands down is `PatternCache::upgrade_reconcile_deferred()`'s, not
+ * this one's — this only observes the outcome. GH #117 (FW-78).
+ *
+ * @param array $status      `PatternCache::get_status()` output, or empty when never run.
+ * @param int   $request_time Unix time this request began (`$_SERVER['REQUEST_TIME']`).
+ * @return bool True when the run must refuse.
+ */
+function bws_replay_upgrade_reconcile_consumed( array $status, int $request_time ): bool {
+	if ( ! isset( $status['time'], $status['trigger'] ) ) {
+		return false;
+	}
+
+	if ( 'upgrade' !== $status['trigger'] ) {
+		return false;
+	}
+
+	return (int) $status['time'] >= $request_time;
 }
 
 /**

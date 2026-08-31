@@ -358,6 +358,49 @@ try {
 }
 assert_eq( 'P9.10 an invalid wire pattern THROWS rather than reporting an empty removal set', true, $threw );
 
+echo "\nP10 — upgrade_reconcile_deferred(): the sole decider both callers consume\n";
+
+// Undefined is the ordinary state of every site that has never opted in — must read as
+// "not deferred", or every production site's upgrade trigger silently stops repairing.
+assert_eq(
+	'P10.1 undefined constant means NOT deferred (production default)',
+	false,
+	PatternCache::upgrade_reconcile_deferred()
+);
+
+if ( ! defined( 'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE' ) ) {
+	define( 'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE', false );
+}
+assert_eq(
+	'P10.2 a FALSY defined constant is NOT deferred either — only truthy opts in',
+	false,
+	PatternCache::upgrade_reconcile_deferred()
+);
+
+// A TRUTHY define is the only case that opts a caller out, and PHP constants cannot be
+// redefined mid-process (P10.1/P10.2 already claimed the undefined/false states above) —
+// so this one runs in its own subprocess rather than being left unpinned. A temp SCRIPT
+// FILE, not `php -r`, sidesteps Windows' escapeshellarg stripping double quotes from a
+// nested argument.
+$php_bin    = defined( 'PHP_BINARY' ) && PHP_BINARY ? PHP_BINARY : 'php';
+$class_file = __DIR__ . '/../../includes/classes/admin/class-pattern-cache.php';
+$probe_file = tempnam( sys_get_temp_dir(), 'bws-pc-defer-' ) . '.php';
+file_put_contents(
+	$probe_file,
+	"<?php\n"
+	. "define( 'ABSPATH', __DIR__ );\n"
+	. "define( 'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE', true );\n"
+	. "require " . var_export( $class_file, true ) . ";\n"
+	. "echo \\BWS\\DynamicTags\\Admin\\PatternCache::upgrade_reconcile_deferred() ? '1' : '0';\n"
+);
+$true_check = shell_exec( escapeshellarg( $php_bin ) . ' ' . escapeshellarg( $probe_file ) );
+unlink( $probe_file );
+assert_eq(
+	'P10.3 a TRUTHY defined constant IS deferred — the one case that opts a caller out',
+	'1',
+	trim( (string) $true_check )
+);
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "FAILED — {$failures} of {$count}\n";

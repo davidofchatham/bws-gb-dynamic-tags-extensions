@@ -229,8 +229,22 @@ function bws_dynamic_tags_register_cli() {
  * screen. The admin/cron/CLI gate above is also what stands in for a capability check;
  * PatternCache deliberately carries none of its own (see its class docblock).
  *
+ * THE RECONCILE CALL ABOVE IS DEFERRABLE. `PatternCache::upgrade_reconcile_deferred()` is
+ * the sole decider (its own PHPDoc owns the constant and why deferring costs no fidelity);
+ * this call site is one of its two consumers and adds nothing to that rule.
+ *
+ * WHY DEFERRING IS EVER NEEDED: `reconcile_site()` hands the CLEARED tag strings to its
+ * caller and records only counts (its own docblock owns why), and THIS caller cannot use
+ * them — so wire repaired here is repaired unrecorded. `tools/harvest-replay/run-converter.php`
+ * is the caller that writes them down, and this call runs strictly earlier: `init` 25 fires
+ * before the body of any `wp eval-file`. Skipping the call here leaves the same end state
+ * for the repair — content-agnostic and site-wide, one call after the migration loop instead
+ * of one before it too — while letting that later call see the population intact. GH #117
+ * (FW-78).
+ *
  * @since 1.14.0
  * @since 1.17.0 Pattern-cache reconcile (#99).
+ * @since 1.19.0 Deferrable via PatternCache::upgrade_reconcile_deferred() (#117).
  */
 function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
 	$is_cli = defined( 'WP_CLI' ) && WP_CLI;
@@ -238,7 +252,9 @@ function bws_dynamic_tags_rebuild_allowlist_on_upgrade() {
 		return;
 	}
 	\BWS\DynamicTags\Admin\TagConverter::rebuild_allowlist();
-	\BWS\DynamicTags\Admin\PatternCache::reconcile_site( 'upgrade' );
+	if ( ! \BWS\DynamicTags\Admin\PatternCache::upgrade_reconcile_deferred() ) {
+		\BWS\DynamicTags\Admin\PatternCache::reconcile_site( 'upgrade' );
+	}
 	update_option( 'bws_dynamic_tags_installed_version', BWS_DYNAMIC_TAGS_VERSION );
 }
 

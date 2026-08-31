@@ -72,6 +72,37 @@ if ( ! class_exists( '\BWS\DynamicTags\Admin\TagConverter' ) ) {
 $version = defined( 'BWS_DYNAMIC_TAGS_VERSION' ) ? BWS_DYNAMIC_TAGS_VERSION : '?';
 WP_CLI::log( "plugin version: {$version}" );
 
+// REFUSE TO PRODUCE A SILENTLY PARTIAL REMOVAL ARTIFACT.
+//
+// The plugin's own upgrade trigger reconciles the pattern cache too, and runs before this
+// script's body ever gets to (ordering fact + why it matters:
+// bws_dynamic_tags_rebuild_allowlist_on_upgrade()'s own PHPDoc; the fatal condition below is
+// bws_replay_upgrade_reconcile_consumed() in replay-verdict.php). A run that has already lost
+// the population cannot be salvaged in place — the strings are gone with nothing written
+// down. Restore the snapshot and start again. GH #117 (FW-78).
+require_once __DIR__ . '/replay-verdict.php';
+
+if ( class_exists( '\BWS\DynamicTags\Admin\PatternCache' ) ) {
+	$pc_status = \BWS\DynamicTags\Admin\PatternCache::get_status();
+
+	if ( bws_replay_upgrade_reconcile_consumed( $pc_status, (int) ( $_SERVER['REQUEST_TIME'] ?? 0 ) ) ) {
+		WP_CLI::error(
+			"The upgrade trigger already reconciled the pattern cache during this request,\n"
+			. "so what it cleared is unrecorded and removed-wire.jsonl would be partial.\n"
+			. "Restore the pre-upgrade snapshot, define BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE\n"
+			. "in the clone's wp-config.php, and run again."
+		);
+	}
+	if ( ! \BWS\DynamicTags\Admin\PatternCache::upgrade_reconcile_deferred() ) {
+		// The trigger did not fire THIS request, so nothing is lost yet — but it arms on any
+		// version change, and a re-run after a build swap would hit the branch above.
+		WP_CLI::warning(
+			'BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE is not defined. Nothing was lost on this '
+			. 'request, but define it on the clone before any run that follows a build swap.'
+		);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 1. Derive old → new for every distinct tag string the census found.
 // ---------------------------------------------------------------------------
@@ -148,15 +179,17 @@ WP_CLI::log( sprintf( 'migrated %d posts, %d tag rewrites', $migrated, $tag_coun
 // the real migration route would have removed — which reads exactly like the bug the repair fixed,
 // and did on Site P on 2026-08-18, four days after that repair shipped.
 //
-// THE REPAIR IS NOT SEPARABLE FROM THE UPGRADE, AND AN M RUN MUST EXPECT ITS EFFECT. It also runs
-// from `bws_dynamic_tags_rebuild_allowlist_on_upgrade`, which fires on the first request after the
-// version moves — BEFORE this script gets to say anything. The repair REMOVES stale shadow wire, so
-// the B-side census loses rows the A side rendered, and each one lands in the diff as a pair
-// present on only one side. Measured on Site H 2026-08-18: one wp_block whose post_content
-// already held modern datetime_range wire kept two PRE-1.6 strings in its cached tree, from a
-// migration predating the clone; `bws_dynamic_tags_pattern_cache_status` named the upgrade trigger
-// and one reconciled entry. A skip flag was built for this and DELETED — it isolated nothing,
-// because by the time this file runs the upgrade path has already repaired the tree.
+// THE REPAIR REMOVES STALE SHADOW WIRE, AND A MIGRATION REPLAY MUST EXPECT ITS EFFECT: the B-side census
+// loses rows the A side rendered, and each one lands in the diff as a pair present on only one
+// side. Measured on Site H 2026-08-18: one wp_block whose post_content already held modern
+// datetime_range wire kept two PRE-1.6 strings in its cached tree, from a migration predating
+// the clone; `bws_dynamic_tags_pattern_cache_status` named the upgrade trigger and one
+// reconciled entry.
+//
+// THE CALL BELOW ONLY SEES THAT POPULATION IF THE UPGRADE TRIGGER STOOD DOWN, which is what the
+// precondition check at the top of this file enforces rather than assumes — an earlier skip flag
+// lived HERE, downstream of the trigger, and isolated nothing for that reason. The axis is at
+// `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`; this file only reports what it observes.
 //
 // WHAT THE REPAIR CLEARED IS NOW RECORDED, which is what lets the diff tell a repaired row
 // from a vanished one instead of failing on every one of them — how many that was on a real

@@ -18,7 +18,7 @@ files this repo ships and how they compose with the harvest half, not how to run
 |---|---|
 | `replay-tags.php` | Renders one harvested corpus against ONE real URL via `wp eval-file`, through genuine ambient context (`wp()`, not a bare `--url`). Carries the opcache and build-identity tripwires and the per-render volatility check. Own header has the full mechanism. |
 | `diff-replays.php` | Plain PHP, no WordPress — compares two replay artifacts. Asserts URL-set, census and build identity, then buckets every difference (`attested` / `synthetic` / `volatile` / `unclassified`) so a reviewer can triage rather than reason from a flat diff. **Exit status separates a result from an instrument failure** — `1` means renders moved, `3` means it cannot answer, and a caller that collapses them reports the second as the first. Own header has the full assertion list. |
-| `replay-verdict.php` | The two verdict rules `diff-replays.php` cannot hold inline. Pure and side-effect-free on load, which `diff-replays.php` is not — it is a script, so a harness cannot call its decisions. Both rules LOOSEN a gate, and a loosened gate fails silently, so they were extracted to be assertable. `tools/test/replay-verdict-test.php` exercises them. |
+| `replay-verdict.php` | The verdict rules `diff-replays.php` and `run-converter.php` cannot hold inline. Pure and side-effect-free on load, which neither of those is — they are scripts, so a harness cannot call their decisions. Every rule here governs a gate that fails SILENTLY: two loosen one, and one refuses a run that would write a quietly incomplete removal artifact. `tools/test/replay-verdict-test.php` exercises them. |
 | `run-converter.php` | Runs the tag converter over a whole clone exactly as the admin Migrate button does, and emits the old→new tag mapping (`mapping.jsonl`) that lets `diff-replays.php --map` compare wire across a migration boundary, where the tag strings themselves changed. Also writes `removed-wire.jsonl` — which strings the GB Pro pattern-cache repair CLEARED, a separate artifact because a removal is not a rename. Own header has the full mechanism. |
 
 Each file's docblock is the authority on its own mechanism — this page is the connective layer
@@ -35,14 +35,29 @@ today, and conflating their baselines makes one invisible:
   `run-converter.php` (wire changes — that's the point), harvest + replay again (`C`). The
   assertion is `A-render ≡ C-render` via `diff-replays.php --map=mapping.jsonl
   --removed=removed-wire.jsonl`; the wire diff (`A-wire` vs `B-wire`) is reviewed, not gated.
-  **`--removed=` is not optional in practice.** The GB Pro pattern-cache repair fires from the
-  upgrade trigger before the run and REMOVES stale shadow wire, so the C-side census legitimately
-  holds fewer rows and every removed string lands as a pair present on only one side — 212 of them
-  beside 13,445 identical on one measured run, every one a hard failure. The artifact
-  `run-converter.php` writes says which strings the repair cleared, so those report as repairs and
-  every other one-sided pair stays the failure it was. It is evidence the run produced, not an
-  exception list: an artifact naming nothing forgives nothing. A re-run after the migrator itself has moved is
-  **the second migration replay**, and is the same experiment against a later converter.
+  **`--removed=` is not optional in practice.** The GB Pro pattern-cache repair REMOVES stale
+  shadow wire, so the C-side census legitimately holds fewer rows and every removed string lands
+  as a pair present on only one side — 212 of them beside 13,445 identical on one measured run,
+  every one a hard failure. The artifact `run-converter.php` writes says which strings the repair
+  cleared, so those report as repairs and every other one-sided pair stays the failure it was. It
+  is evidence the run produced, not an exception list: an artifact naming nothing forgives nothing.
+
+  **DEFINE `BWS_DYNAMIC_TAGS_DEFER_UPGRADE_RECONCILE` IN THE CLONE'S `wp-config.php` BEFORE THE
+  RUN.** The same repair also fires from the plugin's own upgrade trigger, which runs before
+  `run-converter.php` ever gets to (ordering fact owned by
+  `bws_dynamic_tags_rebuild_allowlist_on_upgrade()`'s PHPDoc) and discards the cleared strings
+  rather than recording them. Without the constant the artifact is not empty but PARTIAL: it
+  names the staleness this run's own migration created and misses everything already stale when
+  the run started, so the diff forgives most one-sided pairs and hard-fails on a residue that
+  reads like a render regression. `run-converter.php` refuses the run rather than writing that
+  artifact, and the refusal is `bws_replay_upgrade_reconcile_consumed()` in `replay-verdict.php`.
+  Deferring costs no fidelity — `PatternCache::upgrade_reconcile_deferred()`'s own PHPDoc owns
+  why — the repair is content-agnostic and site-wide, so one call after the migration loop
+  leaves the same end state. Measured on the fixture testbed 2026-08-31 with ordering as the only
+  variable: 0 strings recordable after the trigger ran, 1 with it deferred. GH #117.
+
+  A re-run after the migrator itself has moved is **the second migration replay**, and is the same
+  experiment against a later converter.
 - **The build replay — OUR BUILD changed**, same wire both sides. Baseline is one clone, same
   declared plugin version, before/after a resolver change — no converter run, no `--map`, no DB
   restore. The gate expects the diff to come back **empty**; `diff-replays.php`'s build-identity

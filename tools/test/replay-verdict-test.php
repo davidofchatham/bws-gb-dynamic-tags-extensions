@@ -1,18 +1,19 @@
 <?php
 /**
- * Pure harness for the replay differ's two new verdict shapes.
+ * Pure harness for the verdict rules the harvest/replay scripts cannot hold inline.
  *
  * Loads the REAL file (tools/harvest-replay/replay-verdict.php) rather than a transcribed
  * copy — the newer house convention, whose point is that a test-local copy of a rule is the
  * drift the extraction removed. That file is pure by construction and requiring it runs
- * nothing; `diff-replays.php` itself cannot be loaded this way, which is why the decisions
- * were extracted rather than tested in place (the same reason
+ * nothing; `diff-replays.php` and `run-converter.php` cannot be loaded this way, which is why
+ * the decisions were extracted rather than tested in place (the same reason
  * `replay-source-identity-test.php` reads a sibling's SOURCE instead of calling it).
  *
- * WHAT THESE TWO SHAPES HAVE IN COMMON, and why they arrived together: `diff-replays.php`
- * read a legitimate run as a hard failure in two unrelated ways, and both fixes LOOSEN a
- * gate. A loosened gate is the change that has to be pinned hardest, because its failure
- * mode is silence — a rule that forgives too much reports GATE HELD.
+ * WHAT EVERY SHAPE HERE HAS IN COMMON IS A FAILURE MODE OF SILENCE, which is why they are
+ * pinned rather than left at their call sites. §R1–§R4 LOOSEN a gate: `diff-replays.php` read
+ * a legitimate run as a hard failure in two unrelated ways, and a rule that forgives too much
+ * reports GATE HELD. §R5 is the inverse and arrived later (2026-08-31) — a REFUSAL, covering
+ * a state that destroys the evidence it would take to notice the artifact came out partial.
  *
  * THE FORGIVENESS RULE IS EVIDENCE-SHAPED, NOT LIST-SHAPED. `diff-replays.php`'s standing
  * rule is that "a list assembled after seeing a diff is a rationalisation, not a gate". What
@@ -301,6 +302,70 @@ $check(
 $check(
 	'R4.8 a recorded VERSION does not rescue an unrecorded commit and digest',
 	1 === count( $fatal( bws_replay_dependency_findings( $env_a, $env_b, $build( '?', '?', '1.19.0' ), $build( '?', '?', '1.19.0' ), false ) ) )
+);
+
+// ---------------------------------------------------------------------------
+// §R5 — the run refuses when the upgrade trigger already spent the population
+//
+// The other rules here loosen a gate. This one REFUSES a run, and it is pinned for the
+// mirror-image reason: the state it detects destroys its own evidence. The upgrade trigger
+// clears stale shadow wire without recording which strings, so `run-converter.php`'s
+// artifact ends up naming only what this run's own migration created — non-empty, partially
+// forgiving, and indistinguishable downstream from a real render regression. An empty
+// artifact is safe (§R2.6); a PARTIAL one is what nothing else catches.
+//
+// BOTH HALVES OF THE AXIS ARE PINNED SEPARATELY, because either alone is the common case:
+// an ordinary upgraded site has an `upgrade` summary from some earlier day, and a summary
+// written this request under any other trigger is this run's own work.
+$status = function ( $trigger, $time ) {
+	return array( 'trigger' => $trigger, 'time' => $time, 'checked' => 3, 'reconciled' => 1 );
+};
+
+$now = 1756600000;
+
+$check(
+	'R5.1 an upgrade reconcile during THIS request is fatal — the strings are gone unrecorded',
+	true === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now ), $now )
+);
+
+$check(
+	'R5.2 ...and one a second later too, since the trigger runs after the request began',
+	true === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now + 1 ), $now )
+);
+
+// The ordinary state of every upgraded site. Reading this as fatal would refuse every run.
+$check(
+	'R5.3 an upgrade reconcile from BEFORE this request is fine — that is a normal site',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $now - 1 ), $now )
+);
+
+// This run's own reconcile writes a `migrate` summary. Keying on the timestamp alone would
+// make the check fire on the run it is meant to protect.
+$check(
+	'R5.4 a MIGRATE reconcile this request is not it — that is this script doing its job',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'migrate', $now ), $now )
+);
+
+$check(
+	'R5.5 a SCAN reconcile this request is not it either',
+	false === bws_replay_upgrade_reconcile_consumed( $status( 'scan', $now ), $now )
+);
+
+// A site where the reconcile has never run has nothing to have spent. Absent must read as
+// safe rather than as unknown-so-refuse, or a fresh clone could never be converted.
+$check(
+	'R5.6 a site with no stored summary at all is not it',
+	false === bws_replay_upgrade_reconcile_consumed( array(), $now )
+);
+
+$check(
+	'R5.7 a summary missing its timestamp is not it — a half-written record attests nothing',
+	false === bws_replay_upgrade_reconcile_consumed( array( 'trigger' => 'upgrade' ), $now )
+);
+
+$check(
+	'R5.8 ...nor one missing its trigger',
+	false === bws_replay_upgrade_reconcile_consumed( array( 'time' => $now ), $now )
 );
 
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
