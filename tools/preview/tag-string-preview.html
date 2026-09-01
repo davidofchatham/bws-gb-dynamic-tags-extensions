@@ -30,7 +30,7 @@ body {
   overflow: hidden;
 }
 
-/* ── Tabs ───────────────────────────────── */
+/* ── Header ─────────────────────────────── */
 header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -42,19 +42,6 @@ header {
   gap: 0;
 }
 header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: nowrap; }
-.tab {
-  padding: 0 14px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  user-select: none;
-}
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
 
 /* ── Layout ─────────────────────────────── */
 .layout {
@@ -71,7 +58,6 @@ header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: 
   padding: 12px;
 }
 .tab-content { flex: 1; overflow-y: auto; padding: 16px; }
-.tab-content.hidden { display: none; }
 
 /* ── Sidebar ────────────────────────────── */
 .sb-h {
@@ -145,101 +131,16 @@ input.name-inp:focus { outline: none; border-color: var(--accent); }
 .pfx-row label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
 .pfx-row input[type=radio] { accent-color: var(--accent); }
 
-/* ── Configure tab ──────────────────────── */
-.cfg-bar {
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 14px; margin-bottom: 14px;
-}
-.cfg-bar label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
-.cfg-bar select {
-  border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px;
-  font-size: 13px; background: var(--surface); color: var(--text);
-}
-.cfg-bar select:focus { outline: none; border-color: var(--accent); }
-.cfg-div { width: 1px; height: 20px; background: var(--border); }
-.cfg-lbl { font-size: 12px; color: var(--muted); }
-.cfg-bar input[type=radio] { accent-color: var(--accent); }
-
-/* Order card holds the left column across both rows; slots then preview stack on the right. */
-.cfg-cols {
-  display: grid; grid-template-columns: 260px 1fr; gap: 12px;
-  grid-template-areas: "order slots" "order preview";
-  align-items: start;
-}
-.cfg-col-order { grid-area: order; }
-.cfg-col-slots { grid-area: slots; }
-.cfg-col-preview { grid-area: preview; }
-
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px; margin-bottom: 12px;
-}
-.card h3 {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--muted); margin-bottom: 10px; font-weight: 600;
-}
-.opt-row {
-  display: grid; grid-template-columns: 110px 1fr;
-  gap: 8px; align-items: center;
-  padding: 4px 0; border-bottom: 1px solid var(--bg);
-  min-height: 26px;
-}
-.opt-row:last-child { border-bottom: none; }
-.opt-row.dim { opacity: 0.3; }
-.opt-lbl { font-size: 12px; color: var(--muted); }
-.opt-row select, .opt-row input[type=text] {
-  border: 1px solid var(--border); border-radius: 4px;
-  padding: 3px 7px; font-size: 13px;
-  background: var(--surface2); color: var(--text); width: 100%;
-}
-.opt-row select:focus, .opt-row input[type=text]:focus { outline: none; border-color: var(--accent); }
-.opt-row input[type=checkbox] { accent-color: var(--accent); }
-
-.src-block { border-left: 3px solid #4a90d9; padding-left: 10px; margin-bottom: 10px; }
-.src-block-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #4a90d9; margin-bottom: 5px; font-weight: 600; }
-.interm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.interm-tax-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
-
-.order-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; border-bottom: 1px solid var(--bg); }
-.order-row:last-child { border-bottom: none; }
-.arr-wrap { display: flex; flex-direction: column; }
-.arr-btn {
-  background: none; border: none; color: var(--muted); cursor: pointer;
-  padding: 0; font-size: 9px; line-height: 1.4;
-}
-.arr-btn:hover { color: var(--accent); }
-.arr-btn:disabled { opacity: 0.25; cursor: default; }
-.arr-btn:disabled:hover { color: var(--muted); }
-.order-lbl { font-size: 12px; flex: 1; font-family: ui-monospace, monospace; color: var(--text); }
-.order-lbl .grp { color: var(--accent); }
-.order-lbl .oid { color: var(--muted); font-size: 10px; }
-
-/* Preview */
-.preview-tag {
-  font-family: var(--gb-font);
-  font-size: 13px; color: var(--text);
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 14px;
-  word-break: break-all; margin-bottom: 12px; min-height: 44px;
-  user-select: all;
-}
-.btn-row { display: flex; gap: 6px; margin-bottom: 10px; }
+/* ── Shared button base ──────────────────── */
+/* Used by the sidebar's mobile toggle (.sb-toggle) and the preset-menu button; the Configure tab's
+   own button styling (btn-row/snap-*/order-row/arr-*/card/opt-row/cfg-*) was removed with it
+   2026-09-01 (FW-79) since nothing outside that tab used it. */
 button {
   background: var(--surface); border: 1px solid var(--border2);
   color: var(--text); padding: 4px 10px; border-radius: 6px;
   cursor: pointer; font-size: 12px; font-family: inherit;
 }
 button:hover { border-color: var(--accent); color: var(--accent); }
-.snap-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--bg); }
-.snap-item:last-child { border-bottom: none; }
-.snap-num { font-size: 11px; color: var(--muted); min-width: 18px; padding-top: 2px; }
-.snap-str {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px; flex: 1; word-break: break-word; color: var(--text);
-}
-.snap-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0; }
-.snap-del:hover { color: var(--text); }
 
 /* ── Permutations tab ───────────────────── */
 /* Invariant-check surfacing: a per-row badge plus a header summary. Deliberately loud on
@@ -343,22 +244,11 @@ button:hover { border-color: var(--accent); color: var(--accent); }
   .sidebar.open { transform: translateX(0); }
 
   .tab-content { padding: 10px; }
-
-  /* Two-column grids collapse; preview floats to the top, option order to the bottom. */
-  .cfg-cols { display: flex; flex-direction: column; }
-  .cfg-col-preview { order: 1; }
-  .cfg-col-slots   { order: 2; }
-  .cfg-col-order   { order: 3; }
-  .opt-row { grid-template-columns: 1fr; gap: 2px; padding: 6px 0; }
-  .opt-lbl { font-size: 11px; }
   .name-row { grid-template-columns: 64px 1fr auto; }
 
   /* iOS zooms any focused control under 16px — pin form text to 16px. */
-  .opt-row select, .opt-row input[type=text],
-  .cfg-bar select, .dummy-item input, input.name-inp { font-size: 16px; }
-  .opt-row select, .opt-row input[type=text], .cfg-bar select { min-height: 34px; }
-  button, .arr-btn, .snap-del, .preset-btn { min-height: 30px; }
-  .arr-btn { font-size: 11px; padding: 0 4px; }
+  .dummy-item input, input.name-inp { font-size: 16px; }
+  button, .preset-btn { min-height: 30px; }
 
   /* Permutation rows: label above the string instead of a 160px gutter. */
   .perm-row { flex-direction: column; align-items: stretch; gap: 3px; }
@@ -370,12 +260,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
   .dummy-item input { width: 100%; }
   .dummy-item { flex: 1 1 140px; }
-
-  /* Keep the serialized string on screen while editing options below it. */
-  #tab-configure .preview-tag {
-    position: sticky; top: 0; z-index: 5;
-    background: var(--surface2);
-  }
 }
 </style>
 </head>
@@ -383,9 +267,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
 <header>
   <button class="sb-toggle" id="sb-toggle" aria-label="Toggle settings sidebar" aria-expanded="false" aria-controls="sidebar">☰</button>
-  <h1>GB Tag String Preview</h1>
-  <div class="tab active" data-tab="configure">Configure</div>
-  <div class="tab" data-tab="perms">Permutations</div>
+  <h1>GB Tag String Preview — Permutations</h1>
 </header>
 
 <div class="layout">
@@ -526,8 +408,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       DID move with the keys (<code>"Slot B"</code>, <code>"Field B"</code>), because leaving them as
       digits just relocates the mapping tax into the editor. <code>bws_slot_ordinal()</code> shipped as
       the single owner of digit→letter for keys, labels and tokens alike; a <code>{N}-</code> SIBLING
-      key keeps its digit, and so does <code>{{table}}</code>'s <code>"Column 2 Header"</code>, since
-      nothing pins their order.
+      key keeps its digit, since nothing pins its order. (<code>{{table}}</code> is no longer an
+      example of this — its old flat-numeric prototype was retired 2026-09-01, FW-79, before any
+      release; a table column is a folded slot like any other, so it gets a letter key too.)
     </div>
 
     <div class="sb-h">Value Separator</div>
@@ -548,52 +431,10 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sep-controls" style="margin-top:8px"></div>
   </div>
 
-  <!-- Configure tab -->
-  <div class="tab-content" id="tab-configure">
-    <div class="cfg-bar">
-      <label>Template:
-        <select id="tmpl-sel">
-          <option value="text">text</option>
-          <option value="image_post">image (post)</option>
-          <option value="image_term">image (term)</option>
-          <option value="content">content</option>
-          <option value="datetime_single">datetime_single</option>
-          <option value="datetime_range">datetime_range</option>
-          <option value="table">table (FW-53)</option>
-        </select>
-      </label>
-      <div class="cfg-div"></div>
-      <span class="cfg-lbl">Mode:</span>
-      <label><input type="radio" name="mode" value="0" checked> base</label>
-      <label><input type="radio" name="mode" value="2"> try_ 2</label>
-      <label><input type="radio" name="mode" value="3"> try_ 3</label>
-      <label><input type="radio" name="mode" value="4"> try_ 4</label>
-      <label><input type="radio" name="mode" value="5"> try_ 5</label>
-    </div>
-
-    <div class="cfg-cols">
-      <div class="cfg-col-order">
-        <div class="card" id="order-card">
-          <h3>Option Order</h3>
-          <div id="order-list"></div>
-        </div>
-      </div>
-      <div class="cfg-col-slots" id="slots-container"></div>
-      <div class="card cfg-col-preview">
-        <h3>Preview</h3>
-        <div class="preview-tag" id="cfg-preview"></div>
-        <div class="btn-row">
-          <button id="cfg-copy">Copy</button>
-          <button id="cfg-snap">Save Snapshot</button>
-          <button id="cfg-clear">Clear</button>
-        </div>
-        <div id="cfg-snaps"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Permutations tab -->
-  <div class="tab-content hidden" id="tab-perms">
+  <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
+       only the pre-fold flat wire, never grew the fold/chain grammar, and had gone unused across
+       several dev cycles the Permutations side kept up with. See tag-string-preview-rebase.md. -->
+  <div class="tab-content" id="tab-perms">
     <div class="dummy-bar">
       <div class="dummy-bar-h">Dummy Values</div>
       <div class="dummy-item"><label>key1</label><input id="d-key1" value="custom_field"></div>
@@ -620,6 +461,10 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
+  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM) and stays
+  // the default — table-tag.md §GRILLED Q3 (2026-08-30) provisionally proposes renaming it to
+  // `header` for {{table}}'s column-header use, but that rename isn't in code yet, so this page
+  // doesn't pre-empt it. Add 'header' as a pickable alternate once the rename actually locks.
   label:           ['label','head','col'],
   caption:         ['caption'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
@@ -668,67 +513,6 @@ const TYPE_SEP_PRESETS = ['/', ',', '~'];   // ':' excluded — gb-reserved
 // respell separators: option-sep (was '|') + key/value-sep (was ':'). All gb-safe.
 const RESPELL_OPT_PRESETS = ['/', '~', '+', ';'];
 const RESPELL_KV_PRESETS  = ['=', '~', '-'];      // ':' and '|' excluded — gb-reserved
-
-// ── Template schemas ─────────────────────────────────────────────────────────
-const TMPL = {
-  text: [
-    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'Meta/Custom Field'},{value:'title',label:'Title/Name'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
-    {id:'fallback',label:'Fallback',type:'text'},
-    {id:'limit',label:'Limit',type:'text'},
-    {id:'sep',label:'Separator',type:'text'},
-  ],
-  // as+size FOLDED: size rides inside as (as:url,<size>). size control shown only for the
-  // url mode (id/alt/caption are nullary — no size). Emit handled specially (foldAsSize).
-  image_post: [
-    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
-    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'ACF/Meta Field'},{value:'featured',label:'Featured Image'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
-    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
-  ],
-  image_term: [
-    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
-    {id:'key',label:'Meta Key',type:'text'},
-    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
-  ],
-  content: [
-    {id:'use',label:'Content Mode',type:'select',choices:[{value:'',label:'Content/Description'},{value:'excerpt',label:'Excerpt'},{value:'key',label:'ACF/Custom Field'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:'key'}},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  datetime_single: [
-    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
-    {id:'format',label:'Format (PHP)',type:'text'},
-    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
-    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
-    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
-    {id:'key',label:'Date/Time Key',type:'text'},
-    {id:'timeKey',label:'Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  datetime_range: [
-    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
-    {id:'rangeSep',label:'Range Sep',type:'text'},
-    {id:'format',label:'Format (PHP)',type:'text'},
-    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
-    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
-    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
-    {id:'startKey',label:'Start Key',type:'text'},
-    {id:'startTimeKey',label:'Start Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'endKey',label:'End Key',type:'text'},
-    {id:'endTimeKey',label:'End Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'sep',label:'List Sep',type:'text'},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  // table (FW-53): row-set = the global src chain; columns = a repeater, each column its
-  // own mini src-chain (2-src:…) + label + cell reader (use/key). Columns handled specially
-  // in renderSlots (not this flat opt list). caption is a plain tag-level opt.
-  table: [
-    {id:'caption',label:'Caption',type:'text'},
-  ],
-};
 
 const DEFAULT_ORDER = {
   // Canonical serialization order per tools/test/serialization-order-test.php KEY_MAP:
@@ -779,7 +563,7 @@ const SCENARIO_GROUPS = [
   // no fold, so the substitution is isolated from the FW-57 slot question. `sep` stays a plain
   // tag option in both (it's a RENDER join of the list, not a traversal step); `limit` MOVES from
   // a tag option into the step it limits — that's the visible cardinality win.
-  { tmpl:'text', title:'built src values — shipped wire ⟷ chain (FW-56)', isContrast:true, scenarios:[
+  { tmpl:'text', title:'built src values — chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
     {label:'ref hop → key',
       parts:[['source','ref'],['ref','$ref'],['key','$key1']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1']]},
@@ -873,19 +657,21 @@ const SCENARIO_GROUPS = [
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
-    // NO shipped equivalent — the chain is strictly more expressive here.
+    // NO flat/legacy equivalent — the chain is strictly more expressive here. (Re-measured
+    // 2026-09-01, FW-79: the first two rows below now DO have a current [chain] form — they
+    // couldn't be spelled at all before 1.17.0. Only the third remains unbuilt on both wires.)
     {label:'term hop THEN ref hop',
       parts:null,
       chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}], rest:[['key','address']],
-      note:'no shipped form: srcTermIn is terminal, nothing hops off the term'},
+      note:'no flat/legacy form: srcTermIn was terminal pre-1.17.0, nothing could hop off a term — the chain closes this'},
     {label:'2× ref hop (staff → dept)',
       parts:null,
       chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}], rest:[['use','title']],
-      note:'no shipped form: one ref key per tag'},
+      note:'no flat/legacy form: the flat wire allows only one ref key per tag — multiple refs hops now ship via the chain'},
     {label:'pinned term start → key',
       parts:null,
       chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
-      note:'no shipped form: no pinned-entity source (FW-32 sibling)'},
+      note:'no flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39'},
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
@@ -938,8 +724,8 @@ const SCENARIO_GROUPS = [
   // so these get folded counterparts rather than staying shipped-only). try_ is a format-FIXED
   // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
   // `image`'s are featured + the as/size format options, which stay slot options under the fold.
-  { tmpl:'content', title:'try_content — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'content', title:'try_content — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['folded','shipped'], foldClass:'try', scenarios:[
     {label:'2: content, ACF',
       shippedSlots:[[],[['_content_key','$key1']]],
       slots:[{read:{kind:'analog',slug:'default'}},{read:{kind:'key',field:'$key1'}}]},
@@ -953,8 +739,8 @@ const SCENARIO_GROUPS = [
       shippedSlots:[[['_content_key','$key1']],[['use','excerpt']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
-  { tmpl:'image', title:'try_image — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'image', title:'try_image — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['folded','shipped'], foldClass:'try', scenarios:[
     {label:'2: key, featured',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'analog',slug:'featured'}}]},
@@ -968,23 +754,10 @@ const SCENARIO_GROUPS = [
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['use','featured']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['use','featured']]],
       slots:[{read:{kind:'analog',slug:'featured'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'featured'}}]},
   ]},
-  // FW-53/FW-56 table: rowChain = the global src chain; cols = [{label,use,key,chain}].
-  // Chains here are literal step arrays [{slug,arg,limit?}] — the tag string shows the DECIDED
-  // value encoding (src:slug,arg/… + {N}-src column mini-chains).
-  // NB rows expressible in BOTH spellings moved to the 'table — current ⟷ folded' contrast group
-  // below (2026-07-31). What stays here is current-prototype-only: shapes the fold does not add
-  // anything to, kept so the prototype wire is still visible on its own terms.
-  { tmpl:'table', title:'table — current prototype only (FW-53/56)', isTable:true, scenarios:[
-    {label:'2-hop rows (staff→dept)',
-      rowChain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],
-      cols:[{label:'Dept',use:'title'}]},
-    {label:'start post → ref, limited',
-      rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
-      cols:[{label:'Name',use:'title'}]},
-    {label:'repeater rows',
-      rowChain:[{slug:'rows',arg:'staff_members'}],
-      cols:[{label:'Name',key:'name'},{label:'Role',key:'role'}]},
-  ]},
+  // The old flat-numeric prototype table group (FW-53/56, `{N}-label`/`{N}-src` siblings) was
+  // deleted here 2026-09-01 (FW-79), per table-tag.md's REOPENED D1: it never shipped in any
+  // release and is scaffolding to delete, not a migration source — there is no "current" flat
+  // wire for {{table}} to preview. See the 'table — folded' group below for the live model.
 
   // ── FW-57 FOLDED slots (the proposed collapsed encoding) ────────────────────
   // Each slot = ONE `{N}:` value = chain + terminal read. Read forms:
@@ -998,8 +771,8 @@ const SCENARIO_GROUPS = [
   // multi-hop chains, entity-start roots, per-step limits, all of which the shipped wire simply
   // cannot spell — render an explicit "no shipped equivalent" line. That absence IS the argument
   // for the fold, so it is shown rather than hidden.
-  { tmpl:'text', title:'try_text — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'text', title:'try_text — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['folded','shipped'], foldClass:'try', scenarios:[
     {label:'2: key, key',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
@@ -1022,6 +795,13 @@ const SCENARIO_GROUPS = [
     {label:'Path A: new ctx, SAME read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'same'}}]},
     {label:'Path B: SAME ctx, new read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'same'}],read:{kind:'key',field:'$key2'}}]},
     {label:'Path C: both new',             slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'$key2'}}]},
+    // FW-71/#104 (largest measured gap, re-based 2026-09-01): Path B above only shows `same`
+    // inheriting an AMBIENT (empty) chain. `bws_fold_chain_join()` carries the WHOLE prior chain,
+    // not just a single hop — this row proves it: slot 2's `src(same)` inherits BOTH of slot 1's
+    // steps, then reads a different key off the same 2-hop context.
+    {label:'same inherits a MULTI-STEP chain (FW-71)',
+      slots:[{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}},
+             {chain:[{slug:'same'}],read:{kind:'key',field:'email'}}]},
     // longer chains (multi-hop + start-kind + limit) — stress the chain inside a slot value:
     {label:'2: key, 2-hop staff→dept→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
     {label:'2: key, post→ref limited→title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
@@ -1059,8 +839,8 @@ const SCENARIO_GROUPS = [
   // `{{join key:name_first|2-key:name_last}}`, slot 1 bare). Rows whose slots are HETEROGENEOUS
   // (a phone slot beside a title slot) have no shipped equivalent — join is text-only today, which
   // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
-  { title:'join — shipped ⟷ folded, heterogeneous (FW-57 Option R)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
+  { title:'join — folded (current, 1.17.0), heterogeneous ⟷ flat (legacy, FW-57 Option R)', isContrast:true,
+    variants:['folded','shipped'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
     {label:'plain field (text, no tag token)',
@@ -1102,7 +882,7 @@ const SCENARIO_GROUPS = [
   // bws_join_wire_format() maps both alphabets onto the same internal {N}, so every stored
   // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
   { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
+    variants:['folded','shipped'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name (nickname) — 2 slots', format:'%1 (%2)',
       shippedSlots:[[['key','name_first']],[['key','nickname']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'nickname'}}]},
@@ -1137,19 +917,23 @@ const SCENARIO_GROUPS = [
     {label:'title + phone in a format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
   ]},
-  // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
-  // AGNOSTIC columns → Option R type token per column (like join).
-  //
-  // PAIRED as CURRENT ⟷ folded (user 2026-07-31). The left line is NOT a shipped wire — {{table}}
-  // is an unreleased PROTOTYPE (1.17.0, branch feat/table-tag), so the honest comparison is
-  // current-implementation vs proposed, and the variant is labelled 'current' rather than
-  // 'shipped'. Rows using a per-column type token (email/phone) have no current equivalent: the
-  // prototype's columns are untyped, which is what Option R adds.
-  { title:'table — current ⟷ folded (FW-53/56/57)', isContrast:true,
-    variants:['current','folded'], foldClass:'table', scenarios:[
+  // TABLE — folded-only (re-based 2026-09-01, FW-79, per table-tag.md's REOPENED 2026-08-30
+  // pass, decisions D1-D4 + GRILLED Q1-Q8). {{table}} ships FOLDED-ONLY with no back-compat at
+  // either level (D1) — there is no flat wire to contrast against, so this is a single-variant
+  // group (`variants:['folded']`), reusing the contrast machinery only for its note-rendering.
+  // Row chain = the tag's own src chain, now offering `rows` in its step set (D2/Q6); there is
+  // NO tag-level `key`/repeater-field option any more (D2 retires it) and NO enumerated set of
+  // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
+  // all alike. Each column is a folded slot exactly like a join/try_ slot (letter-ordinal key,
+  // its own chain+read folded into one value) — Option R's per-slot type token applies the same
+  // way. The column HEADER text currently folds in under the shipped freeform token `label`
+  // (BWS_FOLD_FREEFORM); table-tag.md §GRILLED Q3 provisionally proposes renaming that token to
+  // `header` for table specifically, not yet in code — this page keeps `label` as the live
+  // default rather than pre-empting an unlocked rename (see PRESETS.label below).
+  { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
+    variants:['folded'], foldClass:'table', scenarios:[
     {label:'staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
-      cols:[{label:'Name',use:'title'},{label:'Office',key:'address',chain:[{slug:'refs',arg:'office'}]}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
     {label:'repeater rows: name + role + email',
@@ -1159,13 +943,20 @@ const SCENARIO_GROUPS = [
              {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
     {label:'terms rows + caption',
       rowChain:[{slug:'terms',arg:'category'}], caption:'Categories',
-      cols:[{label:'Term',use:'title'},{label:'Count',key:'post_count'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
     {label:'start post → limited ref, 2 cols',
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    // D2a (table-tag.md, 2026-08-30): a resolved source is a row, WHATEVER kind it is — three
+    // shapes is not the rule. This row is the plainest instance: a chain that resolves to exactly
+    // ONE post, with no fan-out step at all, still makes a valid (one-row) table. Not a special
+    // case — cardinality just falls out of the chain the way it always does.
+    {label:'single post, no fan-out (one-row table, D2a)',
+      rowChain:[{slug:'post',arg:'9999'}],
+      slots:[{label:'Title',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Note',tag:'text',read:{kind:'key',field:'internal_note'}}]},
     // BUILT-SRC in table (user 2026-07-31): rows and COLUMNS each carry their own refs/terms
     // chain. Terms as the ROW SET is the srcTermIn replacement at tag level; a column chain is
     // the per-cell hop the shipped wire has no form for at all.
@@ -1181,6 +972,19 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
+    // D4 decision (a) (table-tag.md, 2026-08-30): analog dispatch is SPECIFIED to refuse on a
+    // repeater row — `use(title)` and its siblings get no `try_row_fn` there by design, because
+    // (b)'s alternative would smuggle a source hop into `use`, the exact overload the fold
+    // removed everywhere else. This page only assembles wire strings and never executes PHP, so
+    // this is NOT a claim about what the tag renders (FW-74/{{table}} aren't built) — it is a
+    // note that the wire below is syntactically valid but targets a read the design does not
+    // wire up. The hop must be spelled explicitly instead: `rows,team_members;refs,lead_ref`
+    // then `use(title)` on THAT slot reads the linked post's title, per D4's own worked example.
+    {label:'analog on a repeater row (D4 decision a — see note)',
+      rowChain:[{slug:'rows',arg:'team_members'}],
+      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
+      note:'per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (rows,team_members;refs,lead_ref) before use(title) instead'},
   ]},
 
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
@@ -1239,8 +1043,6 @@ const SCENARIO_GROUPS = [
 
 // ── State ────────────────────────────────────────────────────────────────────
 const S = {
-  tmpl: 'text',
-  tryCount: 0,
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
@@ -1249,8 +1051,6 @@ const S = {
   // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(), since only a
   // non-array-index key can trail a tag-level option.
   slotKeySpelling: 'alpha',
-  order: [...DEFAULT_ORDER.text],
-  slotVals: [{}],
   fromKeyCombined: false,
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
   // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
@@ -1337,9 +1137,7 @@ const S = {
                         // decided 2026-07-31; see serializeStep. Not a knob either.
   valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  columns: [],          // table (FW-53) columns: [{label,use,key,chain:[{slug,arg,limit}]}]
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
-  snapshots: [],
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1429,32 +1227,13 @@ function checkTag(str, freeform) {
 }
 
 // Slot prefix LOCKED to `N-` for all slots incl 1 (user 2026-07-29). Used for the sibling/
-// non-folded Configure preview; the FOLDED value key is `N:` (see foldedSlotKey).
+// non-folded (legacy) permutation rows; the FOLDED value key is `N:` (see foldedSlotKey).
 function pfx(idx) { return `${idx + 1}-`; }
-
-function evalShowIf(cond, sv) {
-  if (!cond) return true;
-  for (const [id, rule] of Object.entries(cond)) {
-    const val = sv[id] ?? '';
-    if (!evalRule(val, rule)) return false;
-  }
-  return true;
-}
-function evalRule(val, rule) {
-  if (rule==='' || rule==='empty') return val==='';
-  if (rule==='not_empty') return val!=='';
-  if (rule.startsWith('not:')) return val!==rule.slice(4);
-  if (rule.startsWith('not_in:')) return !rule.slice(7).split(',').includes(val);
-  if (rule.startsWith('in:')) return rule.slice(3).split(',').includes(val);
-  return val===rule;
-}
 
 function tmplName(t) {
   if (t==='image_post'||t==='image_term') return 'image';
   return t;
 }
-function isImageTmpl() { return S.tmpl==='image_post'||S.tmpl==='image_term'; }
-
 // image as+size fold (FW-52 Phase 3): value = `<mode>[,<size>]`. Only the url mode
 // consumes a size; id/alt/caption are nullary → size dropped. Mirrors bws_parse_as_option.
 // Paired-bracket separator: wrap the arg in () or [] (both gb-constraints-safe non-brace
@@ -1489,47 +1268,11 @@ function foldAsSize(vals) {
   return AS_NULLARY.has(mode) ? mode : foldRender(mode, size);   // size = render modifier → flat
 }
 
-// ── Configurator tag builder ─────────────────────────────────────────────────
-function buildCfgTag() {
-  const slots = S.tryCount>0 ? S.tryCount : 1;
-  const parts = [];
-  for (let i=0; i<slots; i++) {
-    const sv = S.slotVals[i]||{};
-    const p = S.tryCount>0 ? pfx(i) : '';
-    const t2p = S.tryCount>0 && i>0;
-    for (const item of S.order) {
-      if (item==='source') { parts.push(...buildSrcParts(sv,p,t2p)); continue; }
-      const schema = (TMPL[S.tmpl]||[]).find(o=>o.id===item);
-      if (!schema) continue;
-      if (!evalShowIf(schema.showIf,sv)) continue;
-      // image as+size fold: as:<mode>[,<size>]; size folded in, no standalone size key.
-      // Only the url mode carries a size (id/alt/caption are nullary — size dropped).
-      if (isImageTmpl() && item==='as') { parts.push(`${p}${kn('as')}:${foldAsSize(sv)}`); continue; }
-      if (isImageTmpl() && item==='size') continue;  // folded into as above
-      // use+key combined
-      if (S.fromKeyCombined && item==='use') {
-        const fv=sv['use']||'', kv=sv['key']||'';
-        if (fv!==''||kv!=='') parts.push(`${p}${kn('use')}:${kv?foldJoin(fv||'key',kv):(fv||'key')}`);
-        continue;
-      }
-      if (S.fromKeyCombined && item==='key') continue;
-      const part = buildOptPart(schema,sv,p,t2p);
-      if (part!==null) parts.push(part);
-    }
-    // table columns (base slot only — try_ table not modeled)
-    if (S.tmpl==='table' && i===0) parts.push(...buildColumnParts());
-  }
-  const name = S.tryCount>0 ? `try_${tmplName(S.tmpl)}` : tmplName(S.tmpl);
-  const opts = parts.length ? ' '+parts.join('|') : '';
-  return `{{${name}${opts}}}`;
-}
-
 // FW-56 src-chain slug vocabulary (DECISION 3, grilled + locked 2026-07-27).
 //   hop family:   refs (ref field) / terms (taxonomy) / rows (repeater) → fan-out, arg = field/tax
 //   start family: post / term / user → kind,id ; only valid as the FIRST step
 const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',label:'terms (taxonomy)'},{value:'rows',label:'rows (repeater)'}];
 const CHAIN_STARTS = [{value:'post',label:'post (kind,id)'},{value:'term',label:'term (kind,id)'},{value:'user',label:'user (kind,id)'}];
-function chainSlugChoices(isFirst) { return isFirst ? [...CHAIN_STARTS,...CHAIN_HOPS] : CHAIN_HOPS; }
 
 // SUPERSEDED DRAFT (kept for the audit trail): RULE 2 of 2026-07-28 bracketed EVERY resolution
 // operand, so a step read `refs(field,5)` with limit inside the arg bracket. The 2026-07-29 FLAT
@@ -1813,50 +1556,6 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   return [labelTok, lead, ...toks].filter(Boolean).join(optSep);
 }
 
-// ── Configure-tab source parts (chain LOCKED to own src; use+key excluded) ──────
-// FW-56 value-side chain is always on now. The chain owns the `src:` string; `ref` folds into it.
-// The Configure tab is de-prioritized (Permutations is the focus) but must not throw.
-function buildSrcParts(sv, p, t2p) {
-  const out=[];
-  const chainVal = serializeChain(sv['srcChain']);
-  if (chainVal) { out.push(`${p}${kn('src')}:${chainVal}`); return out; }
-  // no chain built yet → legacy src/ref fallback for the Configure preview only
-  const src=sv['src']||'';
-  if (src) out.push(`${p}${kn('src')}:${src}`);
-  if (src==='ref'&&sv['ref']) out.push(`${p}${kn('ref')}:${sv['ref']}`);
-  return out;
-}
-
-// table (FW-53) columns → {N}-prefixed opts. Each column: label, its own mini src-chain
-// ({N}-src value = same grammar, one level down), and a cell reader (use/key).
-// Emit order per column mirrors the draft worked example: label, src, use, key.
-function buildColumnParts() {
-  const out=[];
-  S.columns.forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    if ((col.label||'')!=='') out.push(`${cp}${kn('label')}:${col.label}`);
-    const chainVal=serializeChain(col.chain);
-    if (chainVal) out.push(`${cp}${kn('src')}:${chainVal}`);
-    // cell reader: use combines with key when fromKeyCombined, else separate use + key
-    const uv=col.use||'', kv=col.key||'';
-    if (S.fromKeyCombined) {
-      if (uv!==''||kv!=='') out.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`);
-    } else {
-      if (uv!=='') out.push(`${cp}${kn('use')}:${uv}`);
-      if (kv!=='') out.push(`${cp}${kn('key')}:${kv}`);
-    }
-  });
-  return out;
-}
-
-function buildOptPart(schema, sv, p, t2p) {
-  const val=sv[schema.id]??'';
-  if (schema.type==='boolean') return val==='1' ? `${p}${kn(schema.id)}` : null;
-  if (schema.alwaysSerialize) return `${p}${kn(schema.id)}:${val}`;
-  if (val==='') return null;
-  return `${p}${kn(schema.id)}:${val}`;
-}
-
 // ── Permutation tag builder ──────────────────────────────────────────────────
 function resolveVal(v) {
   if (typeof v==='string'&&v.startsWith('$')) return S.dummies[v.slice(1)]??'';
@@ -1951,8 +1650,9 @@ function partOrderKey(id) {
 }
 
 // Canonical order for a permutation GROUP — its OWN template's DEFAULT_ORDER (the KEY_MAP
-// mirror in serialization-order-test.php), NOT the Configure tab's live S.order. Perms must
-// show canonical serialization order regardless of what template Configure has selected.
+// mirror in serialization-order-test.php). Every group shows canonical serialization order;
+// there is no live authoring state to diverge from it (the Configure tab, which had one, was
+// removed 2026-09-01 — FW-79).
 function groupOrder(group) {
   const t=group.tmpl;
   // The CONTAINER wins over the slot template: a join group carries `tmpl:'text'` to type its slots,
@@ -1981,16 +1681,22 @@ function groupOrder(group) {
 // NB `slots` is overloaded by shape: the SHIPPED multi-slot wire uses arrays of [key,val] parts
 // (`slots:[[['key','a']],[['key','b']]]`) while the FOLDED value uses objects
 // (`slots:[{read:…},{read:…}]`). A contrast scenario needs both at once, so the shipped side of a
-// multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. Same distinction for
-// table: `cols`/`rowChain` (current prototype) vs folded `slots`.
+// multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. {{table}} has no
+// shipped/flat side at all (folded-only per D1) — its scenarios carry only `rowChain` + `slots`.
+// Labels re-based 2026-09-01 (FW-79): the chain/fold side is what 1.17.0 actually ships now, so
+// it is labelled 'current' and shown first; the flat sibling wire is real but READ-ONLY —
+// `src-chain-control.js` converts it to chain wire on first touch and never writes it fresh
+// (confirmed against the tree), so it is labelled 'legacy' rather than 'shipped', and shown
+// second. The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) was
+// retired the same pass — table-tag.md's REOPENED D1 ships {{table}} folded-only with no
+// back-compat, so there is no "current" flat table wire this page could show.
 const CONTRAST_VARIANTS = {
-  shipped:  { label:'shipped',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
-  current:  { label:'current',  how:'table', cls:'',           needs:sc => !!sc.cols },
-  chain:    { label:'chain',    how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
-  folded:   { label:'folded',   how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  shipped:  { label:'legacy (flat, read-only)', how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
+  chain:    { label:'current (chain, 1.17.0)', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
+  folded:   { label:'current (folded, 1.17.0)', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
 };
 function variantsFor(group) {
-  return (group.variants || ['shipped','chain']).map(k =>
+  return (group.variants || ['chain','shipped']).map(k =>
     typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k
   );
 }
@@ -2029,8 +1735,6 @@ function buildContrastVariants(group, sc) {
       } else {
         str = wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
       }
-    } else if (v.how === 'table') {
-      str = buildTablePermTag(sc);           // current {{table}} prototype wire (1.17.0, unreleased)
     } else if (v.how === 'chain') {
       // src: leads the source group; the rest sort canonically behind it.
       const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
@@ -2047,7 +1751,6 @@ function buildContrastVariants(group, sc) {
 
 function buildPermTag(group, scenario) {
   if (group.foldClass) return buildFoldedTag(group, scenario);   // FW-57 folded slots
-  if (group.isTable) return buildTablePermTag(scenario);
   const name = group.isTry ? `try_${tmplName(group.tmpl)}` : tmplName(group.tmpl);
   const slots = scenario.slots || [scenario.parts];
   const parts=[];
@@ -2059,7 +1762,7 @@ function buildPermTag(group, scenario) {
     // caught 2026-07-31 when pairing put the two spellings on adjacent lines.
     const p = (group.isTry && i>0) ? pfx(i) : '';
     const t2p = group.isTry && i>0;
-    // Sort parts by the GROUP's canonical order (KEY_MAP mirror), not Configure's S.order.
+    // Sort parts by the GROUP's canonical order (KEY_MAP mirror).
     const order = groupOrder(group);
     const sorted = [...slotParts].sort((a,b)=>{
       const ai = order.indexOf(partOrderKey(a[0]));
@@ -2074,26 +1777,6 @@ function buildPermTag(group, scenario) {
   if (scenario.chainLink) parts.push(...renderSlotParts([['_link',scenario.chainLink]],'',false));
   const opts = parts.length ? ' '+parts.join('|') : '';
   return `{{${name}${opts}}}`;
-}
-
-// table permutation: row chain in global src + {N}- column mini-chains. Honors the same
-// key-name presets + fromKeyCombined toggle as the Configure tab.
-function buildTablePermTag(sc) {
-  const parts=[];
-  const rc=serializeChain(resolveChainArgs(sc.rowChain));
-  if (rc) parts.push(`${kn('src')}:${rc}`);
-  if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
-  (sc.cols||[]).forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    if ((col.label||'')!=='') parts.push(`${cp}${kn('label')}:${col.label}`);
-    const cc=serializeChain(resolveChainArgs(col.chain));
-    if (cc) parts.push(`${cp}${kn('src')}:${cc}`);
-    const uv=col.use||'', kv=col.key||'';
-    if (S.fromKeyCombined) { if(uv!==''||kv!=='') parts.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`); }
-    else { if(uv!=='') parts.push(`${cp}${kn('use')}:${uv}`); if(kv!=='') parts.push(`${cp}${kn('key')}:${kv}`); }
-  });
-  const opts = parts.length ? ' '+parts.join('|') : '';
-  return `{{table${opts}}}`;
 }
 
 // ── FW-57 folded-slot permutation builder ────────────────────────────────────
@@ -2116,8 +1799,10 @@ function foldedSlotKey(i) {
   // shipped unfolded wire keeps slot-1-bare until migration. (Table differs: its slot 1 IS the
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
   // SPELLING is SETTLED (2026-08-04) as 'alpha' — see the sidebar picker. Only the folded slot KEY
-  // varies; `N-` SIBLING keys (label/sep carriers, table columns) keep their ordinal, since
-  // nothing pins their order. The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
+  // varies; `N-` SIBLING keys (label/sep carriers) keep their digit ordinal, since nothing pins
+  // their order — table columns are NOT in this set (see the note above: a column is a folded
+  // `{N}:` value, not an `N-` sibling, since the old flat-numeric prototype retired 2026-09-01).
+  // The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
   // the cap is a CONTAINER property, so alphaOrdinal() encodes spreadsheet-style (27 → AA) and the
   // real parsers must match `^[A-Z]+$`, else a validator could reject wire its own encoder produced.
   const ord = i + 1;
@@ -2333,7 +2018,7 @@ function renderSbNames() {
 }
 
 function onNamesChanged() {
-  renderOrder(); renderCfgPreview(); renderPerms();
+  renderPerms();
 }
 
 // Reusable separator row: label + centered char input + preset dropdown (name-row shape).
@@ -2404,244 +2089,7 @@ function applySlotSchemaDefaults() {
   S.chainSep.hop = sch.stepSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
 }
 
-function onSepChanged() { renderCfgPreview(); renderPerms(); }
-
-// ── Render: order panel ──────────────────────────────────────────────────────
-function renderOrder() {
-  const el=document.getElementById('order-list');
-  el.innerHTML='';
-  S.order.forEach((item,idx)=>{
-    const row=document.createElement('div'); row.className='order-row';
-    const aw=document.createElement('div'); aw.className='arr-wrap';
-    const up=document.createElement('button'); up.className='arr-btn'; up.textContent='▲'; up.disabled=idx===0;
-    up.addEventListener('click',()=>{ [S.order[idx-1],S.order[idx]]=[S.order[idx],S.order[idx-1]]; renderOrder(); renderCfgPreview(); });
-    const dn=document.createElement('button'); dn.className='arr-btn'; dn.textContent='▼'; dn.disabled=idx===S.order.length-1;
-    dn.addEventListener('click',()=>{ [S.order[idx],S.order[idx+1]]=[S.order[idx+1],S.order[idx]]; renderOrder(); renderCfgPreview(); });
-    aw.appendChild(up); aw.appendChild(dn);
-    const lbl=document.createElement('span'); lbl.className='order-lbl';
-    if (item==='source') lbl.innerHTML='<span class="grp">[source block]</span>';
-    else { const cur=S.keyNames[item]||item; lbl.innerHTML=cur!==item ? `${esc(cur)} <span class="oid">(${esc(item)})</span>` : esc(cur); }
-    row.appendChild(aw); row.appendChild(lbl); el.appendChild(row);
-  });
-}
-
-// ── Render: slots ────────────────────────────────────────────────────────────
-function renderSlots() {
-  const el=document.getElementById('slots-container');
-  el.innerHTML='';
-  const count=S.tryCount>0?S.tryCount:1;
-  for (let i=0;i<count;i++) {
-    if (!S.slotVals[i]) S.slotVals[i]={};
-    const sv=S.slotVals[i];
-    const card=document.createElement('div'); card.className='card';
-    if (count>1) {
-      const h=document.createElement('h3');
-      h.textContent=`Slot ${i+1} — prefix: ${pfx(i)||'(none)'}`;
-      card.appendChild(h);
-    } else {
-      const h=document.createElement('h3'); h.textContent='Values'; card.appendChild(h);
-    }
-    // Source block
-    const sb=document.createElement('div'); sb.className='src-block';
-    const sbl=document.createElement('div'); sbl.className='src-block-lbl';
-    sbl.textContent = 'source (chain owns src when built)';
-    sb.appendChild(sbl);
-    // Legacy src select is the Configure-preview fallback when no chain is built.
-    appendSel(sb,i,'src','Source',[{value:'',label:'Current (unset)'},{value:'ref',label:'In Ref/Rel Field'},{value:'parent',label:'Parent'},{value:'ancestor',label:'Ancestor'},{value:'child',label:'Child(ren)'}],()=>{renderSlots();renderCfgPreview();});
-    const refRow=appendTxt(sb,i,'ref','Ref Key');
-    setDim(refRow,sv['src']!=='ref');
-    appendSrcChain(sb,i,sv);
-    appendInTerm(sb,i,sv);
-    card.appendChild(sb);
-    // Template opts
-    (TMPL[S.tmpl]||[]).forEach(schema=>{
-      if (S.fromKeyCombined&&schema.id==='key') return;
-      if (S.fromKeyCombined&&schema.id==='use') { appendFromKeyCombined(card,i,sv,schema); return; }
-      let row;
-      if (schema.type==='select') row=appendSel(card,i,schema.id,schema.label,schema.choices,()=>{renderSlots();renderCfgPreview();});
-      else if (schema.type==='boolean') row=appendBool(card,i,schema.id,schema.label);
-      else row=appendTxt(card,i,schema.id,schema.label);
-      setDim(row,!evalShowIf(schema.showIf,sv));
-    });
-    el.appendChild(card);
-    // table (FW-53): column repeater below the base slot card
-    if (S.tmpl==='table' && i===0) appendColumnsCard(el);
-  }
-}
-
-// table (FW-53) column repeater. Each column: label, its own mini src-chain (2-src value),
-// cell reader (use/key). Column N renders {N}-prefixed opts on the wire (buildColumnParts).
-function appendColumnsCard(container) {
-  const card=document.createElement('div'); card.className='card';
-  const h=document.createElement('h3'); h.textContent='Columns (each → {N}- prefix)'; card.appendChild(h);
-  S.columns.forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    const block=document.createElement('div'); block.className='src-block'; block.style.borderLeftColor='#c07ad9';
-    const bl=document.createElement('div'); bl.className='src-block-lbl'; bl.style.color='#c07ad9';
-    bl.textContent=`Column ${ci+1} — prefix ${cp}`;
-    block.appendChild(bl);
-    // label
-    const lr=document.createElement('div'); lr.className='opt-row';
-    const ll=document.createElement('span'); ll.className='opt-lbl'; ll.textContent=kn('label');
-    const li=document.createElement('input'); li.type='text'; li.value=col.label||''; li.style.width='100%';
-    li.addEventListener('input',()=>{ col.label=li.value; renderCfgPreview(); });
-    lr.appendChild(ll); lr.appendChild(li); block.appendChild(lr);
-    // mini src-chain
-    if (!Array.isArray(col.chain)) col.chain=[];
-    appendChainEditor(block, ()=>col.chain, cp+kn('src'), ()=>{ renderSlots(); renderCfgPreview(); });
-    // cell reader: use (select-ish free text) + key
-    const ur=document.createElement('div'); ur.className='opt-row';
-    const ul=document.createElement('span'); ul.className='opt-lbl'; ul.textContent=kn('use');
-    const ui=document.createElement('input'); ui.type='text'; ui.placeholder='title / blank(meta)'; ui.value=col.use||''; ui.style.width='100%';
-    ui.addEventListener('input',()=>{ col.use=ui.value; renderCfgPreview(); });
-    ur.appendChild(ul); ur.appendChild(ui); block.appendChild(ur);
-    if (!S.fromKeyCombined) {
-      const kr=document.createElement('div'); kr.className='opt-row';
-      const kl=document.createElement('span'); kl.className='opt-lbl'; kl.textContent=kn('key');
-      const ki=document.createElement('input'); ki.type='text'; ki.placeholder='meta key'; ki.value=col.key||''; ki.style.width='100%';
-      ki.addEventListener('input',()=>{ col.key=ki.value; renderCfgPreview(); });
-      kr.appendChild(kl); kr.appendChild(ki); block.appendChild(kr);
-    }
-    // remove column
-    const rm=document.createElement('button'); rm.textContent='× remove column'; rm.style.cssText='font-size:11px;margin-top:4px';
-    rm.addEventListener('click',()=>{ S.columns.splice(ci,1); renderSlots(); renderCfgPreview(); });
-    block.appendChild(rm);
-    card.appendChild(block);
-  });
-  const add=document.createElement('button'); add.textContent='+ column'; add.style.cssText='font-size:11px';
-  add.addEventListener('click',()=>{ S.columns.push({label:'',use:'',key:'',chain:[]}); renderSlots(); renderCfgPreview(); });
-  card.appendChild(add);
-  container.appendChild(card);
-}
-
-function appendSel(parent,si,id,label,choices,onChange) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const sel=document.createElement('select');
-  choices.forEach(c=>{ const o=document.createElement('option'); o.value=c.value; o.textContent=c.label; if((sv[id]??'')===c.value) o.selected=true; sel.appendChild(o); });
-  sel.addEventListener('change',()=>{ sv[id]=sel.value; if(onChange)onChange(); else renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(sel); parent.appendChild(row); return row;
-}
-function appendTxt(parent,si,id,label) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const inp=document.createElement('input'); inp.type='text'; inp.value=sv[id]||''; inp.style.width='100%';
-  inp.addEventListener('input',()=>{ sv[id]=inp.value; renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(inp); parent.appendChild(row); return row;
-}
-function appendBool(parent,si,id,label) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv[id]==='1';
-  cb.addEventListener('change',()=>{ sv[id]=cb.checked?'1':''; renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(cb); parent.appendChild(row); return row;
-}
-function appendInTerm(parent,si,sv) {
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='In Term';
-  const inner=document.createElement('div'); inner.className='interm-row';
-  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv['srcTerm']==='1';
-  const taxLbl=document.createElement('span'); taxLbl.className='interm-tax-lbl'; taxLbl.textContent=kn('tax')+':'; taxLbl.style.display=sv['srcTerm']==='1'?'':'none';
-  const taxInp=document.createElement('input'); taxInp.type='text'; taxInp.placeholder='taxonomy'; taxInp.value=sv['tax']||''; taxInp.style.cssText='width:80px;display:'+(sv['srcTerm']==='1'?'':'none');
-  taxInp.addEventListener('input',()=>{ sv['tax']=taxInp.value; renderCfgPreview(); });
-  cb.addEventListener('change',()=>{ sv['srcTerm']=cb.checked?'1':''; taxLbl.style.display=cb.checked?'':'none'; taxInp.style.display=cb.checked?'':'none'; renderCfgPreview(); });
-  inner.appendChild(cb); inner.appendChild(taxLbl); inner.appendChild(taxInp);
-  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row); return row;
-}
-function appendFromKeyCombined(parent,si,sv,schema) {
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='use + key';
-  const inner=document.createElement('div'); inner.style.cssText='display:flex;gap:5px;align-items:center;width:100%';
-  const inp=document.createElement('input'); inp.type='text'; inp.style.flex='1';
-  inp.placeholder='meta,field_key or title';
-  const fv=sv['use']||'', kv=sv['key']||'';
-  inp.value=kv?`${fv||'key'},${kv}`:(fv||'');
-  inp.addEventListener('input',()=>{
-    const v=inp.value.trim();
-    if(!v){sv['use']='';sv['key']='';}
-    else if(v.includes(',')){ const ci=v.indexOf(','); sv['use']=v.slice(0,ci).trim(); sv['key']=v.slice(ci+1).trim(); }
-    else{sv['use']=v;sv['key']='';}
-    renderCfgPreview();
-  });
-  const hint=document.createElement('span'); hint.style.cssText='font-size:11px;color:var(--muted);white-space:nowrap'; hint.textContent=`→ ${kn('use')}:type,key`;
-  inner.appendChild(inp); inner.appendChild(hint);
-  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row);
-  setDim(row,!evalShowIf(schema.showIf,sv)); return row;
-}
-// FW-56 src-chain editor: rows of {slug,arg,limit}. First step allows start-kinds (post/term/
-// user) + hops; later steps hops only. Reused for a slot's row-chain AND a table column's
-// mini-chain. `getChain` returns the mutable array; `labelText` names the row; `onMutate`
-// re-renders the owning UI (structure change) — arg/limit edits only re-render the preview.
-function appendChainEditor(parent, getChain, labelText, onMutate) {
-  if (!Array.isArray(getChain())) return;
-  const chain=getChain();
-  const wrap=document.createElement('div'); wrap.className='opt-row'; wrap.style.alignItems='flex-start';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=labelText;
-  const box=document.createElement('div'); box.style.cssText='flex:1;display:flex;flex-direction:column;gap:4px';
-  chain.forEach((step,hi)=>{
-    const isFirst=hi===0;
-    const choices=chainSlugChoices(isFirst);
-    if (!step.slug || !choices.some(c=>c.value===step.slug)) step.slug=choices[0].value;
-    const isStart=CHAIN_STARTS.some(c=>c.value===step.slug);
-    const r=document.createElement('div'); r.style.cssText='display:flex;gap:4px;align-items:center';
-    const idx=document.createElement('span'); idx.style.cssText='font-size:10px;color:var(--muted);width:14px'; idx.textContent=(hi+1)+'.';
-    const sel=document.createElement('select'); sel.style.width='130px';
-    choices.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=t.label; if(step.slug===t.value)o.selected=true; sel.appendChild(o); });
-    sel.addEventListener('change',()=>{ step.slug=sel.value; onMutate(); });
-    const arg=document.createElement('input'); arg.type='text'; arg.style.flex='1';
-    arg.placeholder = isStart ? 'id' : 'field key / taxonomy';
-    arg.value=step.arg||'';
-    arg.addEventListener('input',()=>{ step.arg=arg.value; renderCfgPreview(); });
-    // per-step sep is SPECULATIVE (see serializeStep) — present so a step can carry TWO kv tokens.
-    // Disabled unless its own toggle is on, so the field cannot silently shape a string the shipped
-    // single-sep model could not produce.
-    const sp=document.createElement('input'); sp.type='text'; sp.style.width='42px';
-    sp.placeholder='sep'; sp.value=step.sep||'';
-    sp.title = S.perStepSep ? 'per-step sep (SPECULATIVE — not a decided option)'
-                            : 'per-step sep — enable the toggle above';
-    sp.disabled=isStart||!S.perStepSep;   // starts are cardinality-1, nothing to join
-    sp.addEventListener('input',()=>{ step.sep=sp.value; renderCfgPreview(); });
-    const lim=document.createElement('input'); lim.type='text'; lim.style.width='42px';
-    lim.placeholder='lim'; lim.value=step.limit||''; lim.title='per-step limit (optional)';
-    lim.disabled=isStart;  // starts are cardinality-1, no fan-out to cap
-    lim.addEventListener('input',()=>{ step.limit=lim.value; renderCfgPreview(); });
-    const del=document.createElement('button'); del.textContent='×'; del.style.cssText='width:22px;padding:0';
-    del.addEventListener('click',()=>{ chain.splice(hi,1); onMutate(); });
-    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(sp); r.appendChild(lim); r.appendChild(del); box.appendChild(r);
-  });
-  const add=document.createElement('button'); add.textContent='+ step'; add.style.cssText='align-self:flex-start;font-size:11px';
-  add.addEventListener('click',()=>{ chain.push({slug:'',arg:'',sep:'',limit:''}); onMutate(); });
-  box.appendChild(add);
-  wrap.appendChild(lbl); wrap.appendChild(box); parent.appendChild(wrap);
-}
-
-// slot row-chain editor — shown in the source block when the src chain is on.
-function appendSrcChain(parent,si,sv) {
-  if (!Array.isArray(sv['srcChain'])) sv['srcChain']=[];
-  appendChainEditor(parent, ()=>sv['srcChain'], kn('src')+' chain', ()=>{ renderSlots(); renderCfgPreview(); });
-}
-function setDim(row,dim) { row.classList.toggle('dim',dim); }
-
-// ── Render: cfg preview ──────────────────────────────────────────────────────
-function renderCfgPreview() {
-  document.getElementById('cfg-preview').textContent=buildCfgTag();
-}
-
-// ── Render: snapshots ────────────────────────────────────────────────────────
-function renderSnaps() {
-  const el=document.getElementById('cfg-snaps'); el.innerHTML='';
-  S.snapshots.forEach((s,i)=>{
-    const row=document.createElement('div'); row.className='snap-item';
-    const num=document.createElement('span'); num.className='snap-num'; num.textContent=`${i+1}.`;
-    const str=document.createElement('span'); str.className='snap-str'; str.textContent=s;
-    const del=document.createElement('button'); del.className='snap-del'; del.textContent='×';
-    del.addEventListener('click',()=>{ S.snapshots.splice(i,1); renderSnaps(); });
-    row.appendChild(num); row.appendChild(str); row.appendChild(del); el.appendChild(row);
-  });
-}
+function onSepChanged() { renderPerms(); }
 
 // ── Render: permutations ─────────────────────────────────────────────────────
 // Harvest every FREE-FORM value a scenario feeds into its tag (labels, formats, fallbacks,
@@ -2651,7 +2099,6 @@ function scenarioFreeform(sc) {
   const out = [];
   const take = v => { if (typeof v === 'string' && v !== '') out.push(resolveVal(v)); };
   take(sc.caption);
-  (sc.cols || []).forEach(c => take(c.label));
   (sc.slots || []).forEach(s => {
     if (!s || typeof s !== 'object') return;
     take(s.label);
@@ -2730,26 +2177,8 @@ function renderIssueSummary(n) {
     : '✓ all rendered tags satisfy the locked wire invariants';
 }
 
-// ── Template/mode switches ───────────────────────────────────────────────────
-function switchTmpl(t) {
-  S.tmpl=t;
-  S.order=[...(DEFAULT_ORDER[t]||DEFAULT_ORDER.text)];
-  const n=S.tryCount>0?S.tryCount:1;
-  S.slotVals=Array.from({length:n},()=>({}));
-  // seed two example columns when entering table so the worked example is one click away
-  S.columns = t==='table'
-    ? [{label:'Name',use:'title',key:'',chain:[]},{label:'Office',use:'',key:'address',chain:[{slug:'refs',arg:'office',limit:''}]}]
-    : [];
-}
-function setTryCount(n) {
-  S.tryCount=n;
-  const count=n>0?n:1;
-  while(S.slotVals.length<count) S.slotVals.push({});
-  S.slotVals=S.slotVals.slice(0,count);
-}
-
 // ── Full re-render ────────────────────────────────────────────────────────────
-function fullRender() { renderSbNames(); renderSepControls(); renderValueSep(); renderSlotSep(); renderOrder(); renderSlots(); renderCfgPreview(); renderPerms(); }
+function fullRender() { renderSbNames(); renderSepControls(); renderValueSep(); renderSlotSep(); renderPerms(); }
 
 // ── Events ───────────────────────────────────────────────────────────────────
 // Sidebar drawer (narrow viewports only; CSS keeps it pinned open above the breakpoint).
@@ -2763,67 +2192,38 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=>{
-    setSidebar(false);
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(x=>x.classList.add('hidden'));
-    t.classList.add('active');
-    document.getElementById('tab-'+t.dataset.tab).classList.remove('hidden');
-    if (t.dataset.tab==='perms') renderPerms();
-  });
-});
-
-document.getElementById('tmpl-sel').addEventListener('change',e=>{ switchTmpl(e.target.value); fullRender(); });
-
-document.querySelectorAll('input[name="mode"]').forEach(r=>{
-  r.addEventListener('change',()=>{ setTryCount(parseInt(r.value)); renderSlots(); renderCfgPreview(); });
-});
-
 document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderCfgPreview(); renderPerms(); });
+  r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderPerms(); });
 });
 document.getElementById('cb-stepsep').addEventListener('change',e=>{
   // Independent of limitStyle on purpose — per-step sep would arrive whichever limit form wins.
-  S.perStepSep=e.target.checked; renderSlots(); renderCfgPreview(); renderPerms();
+  S.perStepSep=e.target.checked; renderPerms();
 });
 document.getElementById('cb-limitslash').addEventListener('change',e=>{
-  S.limitStyle = e.target.checked ? 'slash' : 'bracket-kv'; renderCfgPreview(); renderPerms();
+  S.limitStyle = e.target.checked ? 'slash' : 'bracket-kv'; renderPerms();
 });
 document.getElementById('cb-chainexplicitroot').addEventListener('change',e=>{
-  S.chainExplicitRoot=e.target.checked; renderCfgPreview(); renderPerms();
+  S.chainExplicitRoot=e.target.checked; renderPerms();
 });
 document.getElementById('cb-slotforcesrc').addEventListener('change',e=>{
-  S.slotForceSrc=e.target.checked; renderCfgPreview(); renderPerms();
+  S.slotForceSrc=e.target.checked; renderPerms();
 });
 document.getElementById('cb-readviause').addEventListener('change',e=>{
-  S.readViaUse=e.target.checked; renderCfgPreview(); renderPerms();
+  S.readViaUse=e.target.checked; renderPerms();
 });
 document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.valuePair=r.value; renderCfgPreview(); renderPerms(); });
+  r.addEventListener('change',()=>{ S.valuePair=r.value; renderPerms(); });
 });
 document.querySelectorAll('input[name="slotkey"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderCfgPreview(); renderPerms(); });
+  r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderPerms(); });
 });
 
 document.getElementById('cb-fromkey').addEventListener('change',e=>{
-  S.fromKeyCombined=e.target.checked;
-  const n=S.tryCount>0?S.tryCount:1;
-  S.slotVals=Array.from({length:n},()=>({}));
-  renderSlots(); renderCfgPreview(); renderPerms();
+  S.fromKeyCombined=e.target.checked; renderPerms();
 });
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
-  S.linkCombined=e.target.checked;
-  renderCfgPreview(); renderPerms();
+  S.linkCombined=e.target.checked; renderPerms();
 });
-
-document.getElementById('cfg-copy').addEventListener('click',()=>{
-  navigator.clipboard.writeText(buildCfgTag()).then(()=>{ const b=document.getElementById('cfg-copy'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1500); });
-});
-document.getElementById('cfg-snap').addEventListener('click',()=>{
-  const t=buildCfgTag(); if(!S.snapshots.includes(t)){ S.snapshots.push(t); renderSnaps(); }
-});
-document.getElementById('cfg-clear').addEventListener('click',()=>{ S.snapshots=[]; renderSnaps(); });
 
 // Dummy value inputs
 ['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
