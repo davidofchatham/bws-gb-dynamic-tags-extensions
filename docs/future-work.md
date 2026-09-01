@@ -141,7 +141,7 @@ Progress: The permalink soft gate — a non-ambient user source — is MET since
 
 Open: image — no clean intrinsic analog (parity with the #29 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source).
 
-Blocked by: `decision:image-avatar-analog` (the permalink soft gate is satisfied since 1.19.0; FW-48/FW-39 would add more non-ambient user sources)  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113, #123 (user loop items made the first non-ambient user source)
+Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113, #123 (user loop items made the first non-ambient user source)
 
 ### FW-67 — Retire the bws-term-hop control-type carrier (the last retired word)
 
@@ -417,7 +417,7 @@ Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool 
 
 Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66/#77's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
-Blocked by: decision:disclosure vs enumeration (reopened)  •  Interacts with: #99, #98, FW-66 (notice deferral)
+Blocked by: decision:disclosure vs enumeration  •  Interacts with: #99, #98, FW-66 (notice deferral, reopened)
 
 ### FW-85 — Per-item link wrapping for list-mode values
 
@@ -463,7 +463,7 @@ Detail home: `docs/design-history/deterministic-source-selection.md` §S20 corre
 
 Progress: Grounded in the one known consumer, Portal System's `VisibilityChecker::is_post_visible()`, which derives everything but the id from ambient context.
 
-Blocked by: `decision:a consumer needs it` (unshipped by design)  •  Interacts with: FW-88, ADR 0007, [I19]
+Blocked by: `decision:a consumer needs it`  •  Interacts with: FW-88, ADR 0007, [I19]
 
 ### FW-90 — The per-step limit HELP names the same noun its LABEL does
 
@@ -535,7 +535,7 @@ Progress: Filed so the gap is not rediscovered as a bug — the formatted headin
 
 Open: Designated home is the deferred search-format option (FW-9's option surface) set to a bare `%s`-style placeholder; a `{{search_query}}` companion tag stays the fallback if that option surface stalls.
 
-Blocked by: row:FW-9 (its option surface)  •  Interacts with: FW-9
+Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
 ### Testing & infrastructure
 
@@ -597,7 +597,7 @@ How a row reads, in three parts: row length, where prose goes when a row becomes
 
 Detail home: this row
 
-Progress: Narrowed 2026-08-28 — the taxonomy half of the original scope is done (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired, the in-flight-spec home landed as `.scratch/<feature-slug>/spec.md`). Addressed by the 2026-09-01 heading-block rewrite: rows now carry Description/Progress/Open in place of accreted narrative, and every "this row" home either got a new `.scratch/plans/*.md` file or was confirmed as a genuine self-reference (this row, and FW-79/FW-97, whose subject IS the tracker/fixture surface itself).
+Progress: Narrowed 2026-08-28 — the taxonomy half of the original scope is done (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired, the in-flight-spec home landed as `.scratch/<feature-slug>/spec.md`). Addressed by the 2026-09-01 heading-block rewrite: rows now carry Description/Progress/Open in place of accreted narrative; every "this row" home either got a new `.scratch/plans/*.md` file (including FW-79 and FW-97) or was confirmed as a genuine self-reference (this row, FW-82, and FW-76 — each a case where the subject IS the tracker/docs surface itself, so an external plan file would be less useful, not more).
 
 Open: Whether the Closed / Retired ledger belongs in this file at all.
 
@@ -833,7 +833,7 @@ Progress: The control question is largely answered by the FW-57 slot repeater, s
 
 Open: Whether the ceiling stays finite or the registration itself goes dynamic; applying the repeater to flat `{N}-src`/`{N}-use`/`{N}-key` join slots if the fold doesn't land first; reorder, which is strictly harder than removal since it re-points every intervening `same` reference rather than touching one immediate successor. The repeater would also serve FW-60's add-slot need if that lands, at no new control cost.
 
-Blocked by: `code:custom editor-control work` (docs/editor-controls.md owner)  •  Interacts with: FW-24, FW-57, FW-60
+Blocked by: `code:custom editor-control work`  •  Interacts with: FW-24, FW-57, FW-60, `docs/editor-controls.md` (owns the custom-control work this waits on)
 
 ### FW-46 — Name-format preset over join
 
