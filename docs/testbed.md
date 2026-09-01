@@ -80,13 +80,9 @@ string instead.
 
 ### The bytecode cache — quieter, and it invalidates whole experiments
 
-The container runs `opcache.revalidate_freq = 120`, so a front-end request within two minutes of a
-source edit runs STALE BYTECODE while the disk bytes are already correct — no cache-bust and no file
-check can see it.
+The container runs `opcache.revalidate_freq = 120`, so a front-end request within two minutes of a source edit runs STALE BYTECODE while the disk bytes are already correct — no cache-bust and no file check can see it.
 
-That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture
-section both read as "no change". Restart the container between arms (`docker restart
-wp-litespeed-litespeed-1`, ~6s to serve again) or wait the window out.
+That makes front-end MUTATION testing silently vacuous: two mutations that blank a whole fixture section both read as "no change". Recycle the lsphp workers between arms — `docker compose exec -T litespeed bash -c 'killall lsphp 2>/dev/null; true'` — instead of restarting the whole container or waiting the window out. Near-instant, and it's the fix this env's own docs already validate for the identical symptom (env repo `README.md:688-696`).
 
 WP-CLI is exempt (`opcache.enable_cli = Off`), so `render-tag` sweeps need none of this.
 
