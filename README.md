@@ -6,15 +6,21 @@ A [GenerateBlocks Pro](https://generatepress.com/blocks/) extension with advance
 
 ### Fewer tags, more sources
 
-Our tags currently work across post, loop item, and archive contexts. The same `{{text key:some_field}}` tag can be used in a post template, a repeater row query loop, or a taxonomy term archive, and it will return the local field of that name in each case!
+Rather than being prefixed and locked to particular contexts, our tags work across multiple contexts: a post template, a query loop item (post, term, user, or repeater row), a taxonomy term archive, or an author archive. `{{text key:some_field}}` returns the local field of that name in each case!
 
-On pages with no post of their own (blog home, search results, date and post-type archives, 404), `{{title}}` returns the same heading WordPress uses for the browser tab: the archive label, the date span, the search heading, or the site name. `{{content}}` returns the post type's description on a post-type archive and the theme's "not found" text on a 404. One `{{title}}` in a site-wide header element now covers every page type.
+- Where GenerateBlocks requires using `{{post_title}}` or `{{archive_title}}` depending on context, our `{{title}}` tag returns post titles, term names, author names, archive labels, date spans, search and 404 headings, or the site name (for a blog homepage). One `{{title}}` in a site-wide header covers every page type WordPress can render.
 
-> On those no-post pages, tags with no sensible value (permalink, image, date fields) render nothing. Author archives are supported for the `text`, `title`, `content`, and their `try_` variants, plus `join` tags; other tags render nothing there too.
+- Where GeneratePress's Post Content block is the only native way to output full post content, and GenerateBlocks' `{{archive_description}}` spans term, post type, and author descriptions but empty outside an archive and has no 404 branch, our `{{content}}` tag returns all of that, plus full post content and GeneratePress's own "not found" text on a 404, from one portable tag.
 
-Not only can you start from post, loop, and term contexts without changing tags, but you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than one step, so it's possible to output data via a path of two or more relationships.
+*Note:* On a blog homepage, search results, date and post-type archives, or 404 page, tags with no sensible value there (`permalink`, `image`, `datetime_`) output nothing (not wrong, just empty). On author archives, only `text`, `title`, `content` and their `try_` variants, plus `join`, output anything.
+
+#### Access fields via relationships
+
+Not only can you start from post, loop, term, and author contexts without changing tags, you can also pull from a source related to the current context via a reference/relational field (e.g. ACF Relationship fields), or from site-wide data (option fields, logo, and name), or from a post's taxonomy terms. And you can use more than one step, so it's possible to output data via a path of two or more relationships.
 
 Each step that can return several results carries its own optional limit, meaning at most that many *from each* incoming result. For example, limiting a taxonomy step to 1 gives you one term from the current post or each previous step's posts, not one term overall. Pick an ACF Relationship or Post Object field for a source step and you get a short note about its current configuration, including bidirectionality and entry limits, to help you decide whether and how to configure that step's limit. Leave it blank for all results.
+
+#### Extendable
 
 Another plugin can add its own starting point to the source options. Developers: [`docs/plugin-integration.md`](docs/plugin-integration.md) §1a covers both routes, a source class and a filter.
 
