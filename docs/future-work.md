@@ -4,7 +4,7 @@
 
 ## Row shape
 
-Each item is a `### FW-N — <title>` heading followed by a fixed set of labeled lines:
+Each item is a `#### FW-N — <title>` heading followed by a fixed set of labeled lines:
 
 - A **description** paragraph (1-3 sentences): what the item IS. Stable, rarely re-edited — not current state, not history.
 - **Detail home:** where the design/rationale + implicit certainty (concept vs planned) live — a GH issue, a `.scratch/plans/*.md` file, a `docs/design-history/*.md` file, or a memory note. Never duplicated here; open the link for the full story.
@@ -33,7 +33,7 @@ The old rule banned tracking phase, commit, or percent-done in a cell, because t
 
 Committed build work. **Pointer-only, like every other row** — the branch / plan / unreleased CHANGELOG own the real build state; a row here names only that the work is live, what it touches, where to read it, and its target version. A row lands here from a future section when build starts and leaves for Closed / Retired on ship. **A row may sit here with no Target** — no release carries a harness or an instrument fix, so `Target: —` is the honest statement ("no release carries this"), not a gap.
 
-### FW-78 — Migration-replay diff can't tell a repaired row from a vanished one
+#### FW-78 — Migration-replay diff can't tell a repaired row from a vanished one
 
 Pattern-cache repair removes stale shadow wire, so a migration run's B-side census legitimately holds fewer rows than the A side rendered — the diff reads every removed string as a hard failure rather than a repair.
 
@@ -47,7 +47,7 @@ Open: Render half needs a full two-clone replay re-run (replay-A, converter, rep
 
 Blocked by: —  •  Interacts with: FW-96
 
-### FW-96 — Dependency replay over the harvest corpus
+#### FW-96 — Dependency replay over the harvest corpus
 
 The third replay axis: our build and the wire both held fixed, one DEPENDENCY's version varied between the two renders (`tools/harvest-replay/README.md` §The replays).
 
@@ -63,7 +63,7 @@ Blocked by: —  •  Interacts with: FW-78 (the other half of the same change),
 
 ### Correctness, Consistency, Architecture
 
-### FW-3 — Route datetime through the L1/L2 seam
+#### FW-3 — Route datetime through the L1/L2 seam
 
 Route datetime reads through the same L1/L2 source-resolution seam as text/title, retiring the id-arg param-overload contradiction across the four datetime cores.
 
@@ -75,7 +75,7 @@ Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_v
 
 Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35
 
-### FW-7 — Collapse bws_read_field's internal loop/term-archive resolution
+#### FW-7 — Collapse bws_read_field's internal loop/term-archive resolution
 
 `bws_read_field()`'s internal loop/term-archive inference (`field-helpers.php:269-296`) duplicates resolution the source factory already does, for the four families still on the falsy-id path (content/text cores, image, datetime, try_'s arms).
 
@@ -87,7 +87,7 @@ Open: Deleting the inference is gated on FW-74 landing a `meta_row` base arm fir
 
 Blocked by: row:FW-74  •  Interacts with: FW-8, FW-74, #122
 
-### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
+#### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
 
 Two term-detection implementations coexist — a 5-tier one in taxonomy-helpers and the ambient-signal factory — and the factory is the intended single home.
 
@@ -97,7 +97,7 @@ Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` 
 
 Blocked by: row:FW-7  •  Interacts with: FW-33
 
-### FW-9 — Context-aware base tags — the deferred residue
+#### FW-9 — Context-aware base tags — the deferred residue
 
 The residue of the context-aware base-tag work after the five query-context kinds (date / search / PTA / 404 / latest-home) shipped: the deferred per-kind option surface and the datetime archive-context semantics.
 
@@ -109,7 +109,7 @@ Open: The deferred option surface (404 title/text override, search format — al
 
 Blocked by: decision:option surface scope  •  Interacts with: FW-33, FW-47, FW-105
 
-### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
+#### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
 Replace the callback-presence proxy that box-placement leans on today (plus its `prefix_removed` bolt-on) with explicit `registered_by` (internal vs external plugin id) and `lifecycle` (`active` | `deprecated` | `removed`) fields recorded at `register()` time.
 
@@ -119,7 +119,7 @@ Progress: Not started. Feeds portal-system coordination (external declares its o
 
 Blocked by: —  •  Interacts with: —
 
-### FW-43 — Selecting half of the shared value fold
+#### FW-43 — Selecting half of the shared value fold
 
 `bws_select_first_value()` — the first-non-empty-wins selecting half of the shared value fold, paired with the already-shipped combining half (`bws_collect_value_list()`).
 
@@ -131,7 +131,7 @@ Open: Un-hardcoding the `same`-use prepend. The shared emit the arms feed has no
 
 Blocked by: —  •  Interacts with: FW-49 (the combining half), FW-71
 
-### FW-47 — Author-kind permalink + image analogs
+#### FW-47 — Author-kind permalink + image analogs
 
 The 1.15.0 author kind shipped `title`/`content` only; `{{permalink}}`/`{{image}}` on an author archive render empty (honest gap) pending two design calls.
 
@@ -143,7 +143,7 @@ Open: image — no clean intrinsic analog (parity with the #29 term-image gap); 
 
 Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113, #123 (user loop items made the first non-ambient user source)
 
-### FW-67 — Retire the bws-term-hop control-type carrier (the last retired word)
+#### FW-67 — Retire the bws-term-hop control-type carrier (the last retired word)
 
 A control `type` string is a registered identifier the editor JS matches on, so `bws-term-hop` cannot simply be renamed like prose — it moves in lockstep with its file and every registration naming it, or it stays.
 
@@ -155,7 +155,7 @@ Open: The likely outcome is deletion, not rename — the carrier dies with `regi
 
 Blocked by: row:FW-70, row:FW-53  •  Interacts with: FW-33
 
-### FW-74 — A base-tag arm that consumes a REPEATER-ROW source
+#### FW-74 — A base-tag arm that consumes a REPEATER-ROW source
 
 `src(rows,<field>)` resolves to a repeater ROW, and no base-tag arm reads one — `bws_base_text_resolve_value()` dispatches on site / ambient-term / ambient-user / term / post and a `meta_row` kind falls through, rendering empty. Unimplemented wire, not inert wire (`CONTEXT.md` §Language) — `{{table}}` wants exactly this as its cell-read context.
 
@@ -167,7 +167,7 @@ Open: Rides the `{{table}}` finalization, where the kind gets a consumer worth h
 
 Blocked by: row:FW-53  •  Interacts with: FW-53, FW-71, FW-7, #105
 
-### FW-98 — The stated-fallback emit is written out ten times
+#### FW-98 — The stated-fallback emit is written out ten times
 
 `'' !== $fallback ? bws_gb_tag_output( $fallback, $options, $instance ) : ''` recurs verbatim at ten sites, though an owner for exactly that shape already exists (`bws_base_stated_fallback()`, extracted 1.17.0 for the same reason).
 
@@ -177,7 +177,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
-### FW-102 — Report the fallback re-application upstream to GB Query Enhancements and GB Pro
+#### FW-102 — Report the fallback re-application upstream to GB Query Enhancements and GB Pro
 
 An extension re-applying a tag's `fallback` when its output looks empty re-applies one the owning tag already consumed, and tests `empty()` rather than `'' ===` so a bare `0` is replaced too — a defect not unique to this plugin. GB Pro's `loop_item` carries the identical exposure.
 
@@ -187,7 +187,7 @@ Progress: This plugin's own output boundary (1.19.0) strips the consumed options
 
 Blocked by: —  •  Interacts with: FW-98
 
-### FW-104 — The deprecation-mode radio is dead UI, and wiring it up would disable externally-registered families
+#### FW-104 — The deprecation-mode radio is dead UI, and wiring it up would disable externally-registered families
 
 The settings page's Keep / Suppress / Disable radio stores a value nothing reads; finishing it is a content-blanking trap because the stored mode applies per GROUP, and since 1.17.0 an external plugin can enroll a live family into that group's pool (bws-portal-system's nine `view_*` tags already do).
 
@@ -199,7 +199,7 @@ Open: Which of the four directions (exempt externally-registered entries, go per
 
 Blocked by: decision:which of the four directions  •  Interacts with: FW-38 (`registered_by` — the registrar identity a gated version needs), FW-33
 
-### FW-106 — The resolved chain is re-derived, not passed
+#### FW-106 — The resolved chain is re-derived, not passed
 
 "Which entity does this wire read from" is answered repeatedly within one render, from the same string, by three differently-named, non-memoizing functions (`bws_base_src_resolution`, `bws_fold_src_root_token`, `bws_resolve_base_source`).
 
@@ -211,7 +211,7 @@ Open: Fix shape is parse-once-pass-down, with the three names becoming accessors
 
 Blocked by: —  •  Interacts with: FW-113 (removes dispatch sites that would otherwise each need threading), FW-107, ADR 0002 (scope, not conflict)
 
-### FW-107 — The try_ slot resolver has no seam under it
+#### FW-107 — The try_ slot resolver has no seam under it
 
 `BWS_TRY_SLOT_ARMS` is deep and mutation-verified; its only consumer is a large anonymous closure with no harness of its own, and one branch overwrites the table's refusal with the post arm, defeating the contract the table exists to state.
 
@@ -221,7 +221,7 @@ Progress: Not started. Fix shape: the arm carries a callable rather than a strin
 
 Blocked by: —  •  Interacts with: FW-106, FW-113
 
-### FW-108 — deprecated-tags.php: split the public API, declare the migration order
+#### FW-108 — deprecated-tags.php: split the public API, declare the migration order
 
 Seven unrelated concerns share one file, with three independently landable parts: (a) the documented third-party migration-root API forces eager loading of the whole legacy wire corpus; (b) `bws_register_option_migrations()` encodes a total order over its entries in comments only, with `TagConverter::scan()` independently re-deriving the same order; (c) a wide entry record with several mutually-exclusive shapes and rules the shape can't express.
 
@@ -231,7 +231,7 @@ Progress: Not started. A wrong migration order can silently downgrade an image o
 
 Blocked by: —  •  Interacts with: FW-38 (`registered_by`/`lifecycle` reshapes the same entry record)
 
-### FW-109 — The slot seam answers through three channels
+#### FW-109 — The slot seam answers through three channels
 
 `bws_fold_slot_chain_options()` holds real, single-owned rules behind an interface that leaks three ways — a return array, a `$skip_reason` out-param, and a `$limit_default` the caller must clamp and write back.
 
@@ -243,7 +243,7 @@ Open: Deletion test for any fix — the rules must stay, the out-params concentr
 
 Blocked by: —  •  Interacts with: FW-110 (both callers that drop the write-back are previews)
 
-### FW-110 — The base-tag preview re-derives what the render seam decides
+#### FW-110 — The base-tag preview re-derives what the render seam decides
 
 The container previews already walk the render seam and delegate skip wording to its owner; the base-tag preview never got that treatment and still re-derives several rules the seam already answers.
 
@@ -255,7 +255,7 @@ Open: Remaining — the datetime preview block duplicated verbatim within one fi
 
 Blocked by: —  •  Interacts with: FW-109
 
-### FW-111 — Three registration constructors, one panel, held only by a harness
+#### FW-111 — Three registration constructors, one panel, held only by a harness
 
 No "assemble a tag's panel" module exists; each of the three registration constructors open-codes the canonical order, and the contiguity property lives only in `control-order-test.php`.
 
@@ -267,7 +267,7 @@ Open: Touches every registered tag; FW-112 is the risk-free slice of the same su
 
 Blocked by: —  •  Interacts with: FW-112 (same surface, no risk), FW-115
 
-### FW-112 — Dead option-builder surface, kept alive by its own tests
+#### FW-112 — Dead option-builder surface, kept alive by its own tests
 
 Three helpers still produce a surface the slot fold made unreachable — `bws_slot_qualify_show_if()` has no live consumer at all, and `bws_build_slot_read_options()` / `bws_build_slot_traversal_options()` each return more dead surface than live.
 
@@ -277,7 +277,7 @@ Progress: Re-verified 2026-08-30. A deletion test run against every registration
 
 Blocked by: —  •  Interacts with: FW-111 (same surface)
 
-### FW-113 — Kind dispatch that never joined the ambient-analog seam
+#### FW-113 — Kind dispatch that never joined the ambient-analog seam
 
 `bws_base_ambient_analog()` (1.19.0, FW-9) is the one place a base callback should ask whether an ambient kind answers a tag; three sites still answer that question outside it.
 
@@ -287,7 +287,7 @@ Progress: `class-tag-template-registry.php:400-424` decides term-vs-post for all
 
 Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third site), FW-33, FW-3, FW-106
 
-### FW-114 — Two PHP↔JS twins, two standards of proof
+#### FW-114 — Two PHP↔JS twins, two standards of proof
 
 The fold-grammar PHP↔JS twin diffs its constants field by field with coverage floors; the serialization-order twin compares output only over a hand-picked corpus, never the `KEY_MAP` structurally.
 
@@ -297,7 +297,7 @@ Progress: Load-bearing gap in the fold twin — `chainRoot` answers one question
 
 Blocked by: —  •  Interacts with: FW-115 (both are "two languages agree by convention")
 
-### FW-115 — bws-* control type strings are interface with no census
+#### FW-115 — bws-* control type strings are interface with no census
 
 `bws-*` control types are declared in PHP and matched by string equality in JS, with nothing asserting every registered type has a control or every control's type is registered.
 
@@ -311,7 +311,7 @@ Blocked by: —  •  Interacts with: FW-114, FW-111
 
 ### Feature follow-ups & UX
 
-### FW-13 — Smart field selector v2/v3
+#### FW-13 — Smart field selector v2/v3
 
 Follow-on work to the shipped field-selector v1 (discovery-backed `bws-field-combo` control replacing GB's raw key/ref/linkKey/datetime-key text inputs).
 
@@ -323,7 +323,7 @@ Open: v2 type-priority (recommend-divider or multi-select Filter 2; `ref`→rela
 
 Blocked by: —  •  Interacts with: FW-14, FW-20
 
-### FW-14 — Field-selector post-v1 follow-ups
+#### FW-14 — Field-selector post-v1 follow-ups
 
 Three low-severity items from the v1 ultra review: FU-1 (location filter as structured data, not a parsed display string), FU-2 (a `bws_field_key_option()` factory for the ~14 hand-copied option flips), FU-3 (a shared filter set for the four stacked datetime_ key-control filter pairs).
 
@@ -333,7 +333,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-13, FW-81 (the datetime collapse more than halves FU-3's stacking), FW-53 ({{table}} lands FU-1 prior art + FU-3 second instance + FU-2 proposal)
 
-### FW-15 — {{phone}} follow-ups
+#### FW-15 — {{phone}} follow-ups
 
 Display format, ext/type affix, per-country rules, a `use` enum, per-tag `cc:`, lenient passthrough, vanity/spelled display.
 
@@ -343,7 +343,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
-### FW-16 — {{call}} v2 ergonomics cluster
+#### FW-16 — {{call}} v2 ergonomics cluster
 
 A cluster of non-breaking ergonomic additions to `{{call}}` — pretty `$meta['label']` in select/mirror, `post_id_arg` registration-repoint, a multi-arg `args:` single control, `arg:` enum-constraint, allowlist shape B/C, and a shortcode-replacement ambition.
 
@@ -353,7 +353,7 @@ Progress: Not started. All items are non-breaking, since v1 storage is already a
 
 Blocked by: —  •  Interacts with: FW-24 (multi-arg CSV shares the same technique)
 
-### FW-17 — Src-dynamic use-entry labels (V10a)
+#### FW-17 — Src-dynamic use-entry labels (V10a)
 
 Relabel a select's `options[]` by the tag's active source.
 
@@ -363,7 +363,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-18
 
-### FW-18 — Per-value show_if gating for select options[]
+#### FW-18 — Per-value show_if gating for select options[]
 
 Gate individual `options[]` entries visible/hidden by another option's value.
 
@@ -373,7 +373,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-17
 
-### FW-19 — Base-tag distinguishing suffixes
+#### FW-19 — Base-tag distinguishing suffixes
 
 A suffix such as "Text (cross-source)" to distinguish same-named base tags with different source reach.
 
@@ -383,7 +383,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
-### FW-55 — Warn + escape UI for tag-string-unsafe chars in free-text options
+#### FW-55 — Warn + escape UI for tag-string-unsafe chars in free-text options
 
 The separator/format free-text options (`{{join}}`'s `valueSep`/`sep`/`format`, datetime `format`, any future glue/subvalue delimiter) let an author type a value that silently corrupts on editor reopen — a second `:` in a pair loses its tail, `{`/`}` fail the render matcher outright.
 
@@ -395,7 +395,7 @@ Open: A help-text note naming the safe set on each free-text option, and extendi
 
 Blocked by: —  •  Interacts with: FW-20, FW-44, FW-15, FW-16
 
-### FW-58 — Title tag does not suppress GP's native content title
+#### FW-58 — Title tag does not suppress GP's native content title
 
 A DTE title tag inside a GP Page Hero / Page Header renders a duplicate, because GP self-suppresses only for its own literal `{{post_title}}` — a `strpos()` check against the raw stored element content that DTE's tag syntax never matches.
 
@@ -407,7 +407,7 @@ Open: Whether suppression should be opt-in per tag or unconditional (GLC's condi
 
 Blocked by: decision:opt-in vs unconditional suppression  •  Interacts with: FW-9 (query-context kinds shipped 1.19.0; the duplication pair arrived with them)
 
-### FW-73 — Converter coverage: enumerate unreachable tag wire, or keep disclosing the boundary
+#### FW-73 — Converter coverage: enumerate unreachable tag wire, or keep disclosing the boundary
 
 The Tag Converter reaches `post_content` and, with #99, the GB Pro pattern cache; tag wire in custom field values, other plugins' caches, and other page builders' stored data are unreachable by the scanner.
 
@@ -419,7 +419,7 @@ Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what 
 
 Blocked by: decision:disclosure vs enumeration  •  Interacts with: #99, #98, FW-66 (notice deferral, reopened)
 
-### FW-85 — Per-item link wrapping for list-mode values
+#### FW-85 — Per-item link wrapping for list-mode values
 
 A fanning tag's top-level link is gated on count (`bws_collect_value_list()` only returns a link when exactly one value rendered), so each value's own link identity is collected and then discarded — `CONTEXT.md` [I12] already names per-item wrapping as the intended successor.
 
@@ -431,7 +431,7 @@ Open: Which value receives the link once `sep` has joined several into one strin
 
 Blocked by: —  •  Interacts with: FW-49 (established the per-value payload this consumes), ADR 0003/0005, [I12]
 
-### FW-86 — Whether a fanning chain deduplicates its resolved sources
+#### FW-86 — Whether a fanning chain deduplicates its resolved sources
 
 Nothing on the fan path removes repeats, so two inputs sharing a target (e.g. two offices in the same region) yield that target twice — ordinary, not exotic, for shared terms like regions/brands/categories.
 
@@ -443,7 +443,7 @@ Open: Needs a design, not a patch. Revisit when a per-input bound is shipped and
 
 Blocked by: —  •  Interacts with: FW-85, ADR 0005, [I12]
 
-### FW-88 — Opt-in "search past empty fields" for collapsing tags
+#### FW-88 — Opt-in "search past empty fields" for collapsing tags
 
 The dormant "show me the picture, whichever candidate has one" behaviour, removed from source selection by the 2026-08-21 reversal — preserved as an unused optional read-predicate parameter on `bws_read_bounded_sources()` plus a pinned pure predicate function, awaiting a possible tag-level opt-in.
 
@@ -455,7 +455,7 @@ Open: Whether the option is useful at all (user, 2026-08-21); if so, the whole a
 
 Blocked by: decision:whether the option is useful at all  •  Interacts with: FW-87, ADR 0007 (§Why the read-based axis was reversed), [I19]
 
-### FW-89 — The source-visibility filter hook
+#### FW-89 — The source-visibility filter hook
 
 `bws_source_gate()` is filterable by construction, but the one-line `apply_filters` is deliberately unshipped until a real consumer asks — the contract is restrict-only and AND-composed so a filter can refuse a source and never admit one the gate already refused.
 
@@ -465,7 +465,7 @@ Progress: Grounded in the one known consumer, Portal System's `VisibilityChecker
 
 Blocked by: `decision:a consumer needs it`  •  Interacts with: FW-88, ADR 0007, [I19]
 
-### FW-90 — The per-step limit HELP names the same noun its LABEL does
+#### FW-90 — The per-step limit HELP names the same noun its LABEL does
 
 1.18.0 gave each step's limit control a label naming what that step produces, but its help text still says the generic "items" — a small seam, and closing it is not free (the control must not compose the string itself).
 
@@ -477,7 +477,7 @@ Open: Right shape is a second authored pair per slug (`limitHelp`/`limitHelpFann
 
 Blocked by: —  •  Interacts with: FW-88 (the same vocabulary), the deferred tag-description work
 
-### FW-91 — The two grey notes in the source group are visually indistinguishable
+#### FW-91 — The two grey notes in the source group are visually indistinguishable
 
 The field-configuration note (storage capability) and the group-end fanning advisory (this tag's read behaviour) render as byte-identical grey boxes, reading as one repeated element when they stack.
 
@@ -489,7 +489,7 @@ Open: A visual treatment that separates them (rule colour, icon, unboxed italic)
 
 Blocked by: —  •  Interacts with: FW-90 (the same copy pass), the deferred tag-description work
 
-### FW-92 — The try_ variants of the collapsing tags show no fanning advisory
+#### FW-92 — The try_ variants of the collapsing tags show no fanning advisory
 
 1.18.0 suppressed the per-step limit control on every `takes_first_usable` tag, base and `try_` alike (inherited off the base template record), but the replacement advisory lives on the base registration only, so a `try_` slot loses the control and gets nothing in its place.
 
@@ -501,7 +501,7 @@ Open: Placement — a `try_` tag has several slots each with its own chain, so t
 
 Blocked by: —  •  Interacts with: FW-90 (the same copy pass), FW-91 (a slot-level advisory turns the two-grey-notes collision into a three-way one)
 
-### FW-99 — A dependency-version record a released build can read
+#### FW-99 — A dependency-version record a released build can read
 
 A dependency-version record the Diagnostics section could read to tell a site owner their dependency versions differ from the ones last validated.
 
@@ -513,7 +513,7 @@ Open: Whether to carry a second version record outside `tools/` (a drift pair) o
 
 Blocked by: decision:second record vs generate from env-versions.php  •  Interacts with: FW-96 (the other consumer of the same version record)
 
-### FW-100 — Product-shaped loop items are unrecognized, and WooCommerce loops now render empty
+#### FW-100 — Product-shaped loop items are unrecognized, and WooCommerce loops now render empty
 
 Query-loop item-shape recognition (1.19.0) reads four shapes — post, term, user, repeater row — and refuses everything else, so a tag inside a WooCommerce product loop now renders nothing where it used to render something by coincidence.
 
@@ -525,7 +525,7 @@ Open: What marker identifies a product record, given a bare `id` is the weakest 
 
 Blocked by: decision:what marker identifies a product record  •  Interacts with: FW-97 (a Woo fixture would move every baseline it lands on), [I15]
 
-### FW-105 — The raw search query is unreachable on a core-only site
+#### FW-105 — The raw search query is unreachable on a core-only site
 
 Since 1.19.0 `{{title}}` on search results returns core's formatted heading rather than the bare query string, and no new tag route to the bare query shipped with that pass.
 
@@ -539,7 +539,7 @@ Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
 ### Testing & infrastructure
 
-### FW-79 — Re-base the tag-string preview tool on shipped chain wire
+#### FW-79 — Re-base the tag-string preview tool on shipped chain wire
 
 `tools/preview/tag-string-preview.html` was built contrasting shipped-flat wire against an FW-56/FW-57 proposal that has since shipped, so the contrast now reads as a live choice where none remains.
 
@@ -551,7 +551,7 @@ Open: Scope is a re-base, not a rebuild — emitters, toggle apparatus, slot-key
 
 Blocked by: —  •  Interacts with: FW-75 (both are "an artifact whose readers have changed"), FW-77, FW-61, FW-59, FW-39, FW-53
 
-### FW-97 — Fixture-page reorganization
+#### FW-97 — Fixture-page reorganization
 
 The fixture pages are cut by source-state (`matrix-post-meta`, `matrix-terms-*`, `matrix-content`, `matrix-gate`, `matrix-fixture-roots`) and tag families have accreted into them since, so which page a row group lands on is now part convention, part history.
 
@@ -567,7 +567,7 @@ Blocked by: —  •  Interacts with: FW-96, FW-103
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those rows had nothing in common with a fixture site beyond "not a feature and not a bug".
 
-### FW-75 — tag-reference.md navigability — trim rationale, index Part I, point trigger rows at sections
+#### FW-75 — tag-reference.md navigability — trim rationale, index Part I, point trigger rows at sections
 
 Trim rationale, index Part I, and point trigger rows at sections rather than at the whole ~1,300-line file, so an agent following a "see tag-reference.md" pointer reads a section instead of the whole doc.
 
@@ -579,7 +579,7 @@ Open: Order is trim rationale first, then index, then the three boundary moves, 
 
 Blocked by: —  •  Interacts with: FW-53 + `docs/editor-controls.md` (created 2026-08-19, still owes §Option layout & visibility once the `use`+`key` combine ships)
 
-### FW-76 — Repoint the dangling in-code SPEC §V<n> citations (both spellings)
+#### FW-76 — Repoint the dangling in-code SPEC §V<n> citations (both spellings)
 
 Roughly 81 in-code citations of the retired root `SPEC.md` artifact (`SPEC §V<n>` and `SPEC.md §V<n>`), across 12 source files and 3 harnesses, each needing to repoint to wherever that invariant actually lives now (a CONTEXT.md I-number, a PHPDoc, or a tag-reference.md section).
 
@@ -591,7 +591,7 @@ Open: Opportunistic, not a sweep — none is load-bearing, and each is cheapest 
 
 Blocked by: —  •  Interacts with: FW-75 (both are "a pointer that no longer resolves"; same habit, different artifact)
 
-### FW-77 — Reexamine the docs/future-work.md trackers themselves
+#### FW-77 — Reexamine the docs/future-work.md trackers themselves
 
 How a row reads, in three parts: row length, where prose goes when a row becomes a record with no detail home to push it into, and rows whose Detail home is "this row" itself.
 
@@ -603,7 +603,7 @@ Open: Whether the Closed / Retired ledger belongs in this file at all.
 
 Blocked by: —  •  Interacts with: FW-75 (same class of work, different doc), FW-38 (`registered_by`/`lifecycle` — the other place tracker rows stand in for structure that doesn't exist yet)
 
-### FW-82 — Whether README carries a "Recently added" section
+#### FW-82 — Whether README carries a "Recently added" section
 
 A recurring release-time debate, filed to stop it being re-argued from scratch each version. README's scope axis is CAPABILITIES ("can it do X?"), never authoring mechanics ("how do I write X?") — a "Recently added" section would be a discovery aid for a returning reader, not a home for new features (which the existing capability structure already houses).
 
@@ -615,7 +615,7 @@ Open: If built, needs a retention rule (how many versions before an entry drops,
 
 Blocked by: decision:recently-added vs nothing  •  Interacts with: FW-75 (the other "an artifact's readers have changed" row)
 
-### FW-93 — Whether "wire" becomes "tag string"
+#### FW-93 — Whether "wire" becomes "tag string"
 
 The largest remaining term of art after the 2026-08-22 vocabulary pass — 557 live sites (355 code, 202 docs).
 
@@ -625,7 +625,7 @@ Progress: "Tag string" is not a coinage — it is GB's own noun for the same art
 
 Blocked by: decision:which noun  •  Interacts with: FW-95
 
-### FW-95 — The remaining term-of-art inventory
+#### FW-95 — The remaining term-of-art inventory
 
 An unstarted inventory pass over `arm`, `seam`, and `absorber` (unassessed, undefined anywhere) against `fanning`/`fan` and `fold`/`flat` (probably keep — both defined in `CONTEXT.md` §Language).
 
@@ -635,7 +635,7 @@ Progress: Not started. Method: count live sites per term, check whether it's def
 
 Blocked by: —  •  Interacts with: FW-93, FW-67 (`hop`'s last carrier, not part of this inventory)
 
-### FW-101 — "Author" and "user" name three different relations and the docs blur them
+#### FW-101 — "Author" and "user" name three different relations and the docs blur them
 
 Author (a relation to content), user (a WordPress user record), and "user" as shorthand for "the logged-in viewer" are three different things sharing two overloaded plain-English words — the third reading is the dangerous one, since a reader could take per-row copy as describing a per-visitor value.
 
@@ -649,7 +649,7 @@ Blocked by: —  •  Interacts with: FW-47, FW-48, FW-93, FW-95
 
 ### Future possibilities
 
-### FW-20 — Combined option controls
+#### FW-20 — Combined option controls
 
 `use:key,field` serialization combine (selector+field fold) — the wire change, separate from FW-13's discovery work. The `link` cluster unification is the surviving scope after the serialization-order half shipped as FW-52.
 
@@ -659,7 +659,7 @@ Progress: Not started on the remaining `link` cluster.
 
 Blocked by: —  •  Interacts with: FW-13, FW-81
 
-### FW-21 — Add sources to GB core tags via JS filters
+#### FW-21 — Add sources to GB core tags via JS filters
 
 Extend GB's own core tags with additional sources through JS filters.
 
@@ -669,7 +669,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
-### FW-23 — Base text tag: treat '0' as empty (opt-in)
+#### FW-23 — Base text tag: treat '0' as empty (opt-in)
 
 An opt-in augmenting the site-wide preserve-zero guard, absorbed by `{{join}}` slots for free.
 
@@ -681,7 +681,7 @@ Open: Must be built in this plugin's own text read, before the replacement reach
 
 Blocked by: —  •  Interacts with: the site-wide '0' guard (`includes/hooks.php`)
 
-### FW-24 — Tag-in-slot composition
+#### FW-24 — Tag-in-slot composition
 
 Slots holding whole base tags for heterogeneous join/try composition. Nested-braces syntax can never ride the wire (GB kills any `}`), so encoding must stay flat.
 
@@ -693,7 +693,7 @@ Open: Remaining scope is narrow — per-type OPTION tokens inside a slot (a `dat
 
 Blocked by: —  •  Interacts with: FW-25, FW-16, FW-56, FW-57
 
-### FW-25 — Multislot-only field options
+#### FW-25 — Multislot-only field options
 
 Gate a `use` value to slot ≥2 only.
 
@@ -703,7 +703,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-24 (cheaper alternative)
 
-### FW-26 — {{if}} conditional tag
+#### FW-26 — {{if}} conditional tag
 
 A third composition verb (selecting = try, combining = join, conditional = if) as a separate tag set, branching a template/value on a read field value.
 
@@ -713,7 +713,7 @@ Progress: Parked in favor of FW-27 (user, 2026-08-01) — the `if` concept has s
 
 Blocked by: —  •  Interacts with: FW-27, FW-28
 
-### FW-27 — if: as a BASE-TAG OPTION
+#### FW-27 — if: as a BASE-TAG OPTION
 
 A lighter alternative to FW-26 — a `show_if`-style predicate grammar that self-gates one tag's output. `if` composes with the slot chain rather than replacing it: `try_` is functionally an if-has-value chain, so generalizing the predicate makes `if` a second, author-set condition per slot alongside the existing has-value check.
 
@@ -725,7 +725,7 @@ Open: The condition's subject — the useful cases test a DIFFERENT source/field
 
 Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26, FW-57, FW-56, FW-60, FW-43
 
-### FW-28 — Composition-of-composers
+#### FW-28 — Composition-of-composers
 
 Nesting {{join}}/{{try}}/{{if}}. Runtime nesting is trivial (a composer callback resolves children from its own options); an `@name` reference model is not viable since GB is stateless.
 
@@ -737,7 +737,7 @@ Open: True-recursive vs one-level authoring model.
 
 Blocked by: decision:authoring-UI model  •  Interacts with: FW-26, FW-29
 
-### FW-29 — Admin-built composite tag
+#### FW-29 — Admin-built composite tag
 
 A `{{custom}}` tag plus a template selector — build an over-complex tag in an admin UI, persist it server-side, and reference it via `{{custom tpl:name}}`, sidestepping the flat-options serialization wall. May be the authoring substrate for heterogeneous join/if/try via a `tpl:` option.
 
@@ -747,7 +747,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-28 (substrate)
 
-### FW-30 — Block editor sidebar migration tool
+#### FW-30 — Block editor sidebar migration tool
 
 A sidebar tool for migrating tags.
 
@@ -757,7 +757,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-31
 
-### FW-31 — GB ↔ BWS tag cross-converter
+#### FW-31 — GB ↔ BWS tag cross-converter
 
 A converter between GB core tags and BWS dynamic tags.
 
@@ -767,7 +767,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: FW-30
 
-### FW-33 — term_ deprecation path
+#### FW-33 — term_ deprecation path
 
 Subsumed by base tags + context-aware kinds (#19) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This row also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
 
@@ -777,7 +777,7 @@ Progress: `view_` now runs ahead of this row on its own path (FW-70) — registr
 
 Blocked by: row:FW-9, code:ID source lands  •  Interacts with: FW-8, FW-67, FW-70
 
-### FW-34 — Configurable default field keys per source × tag-type
+#### FW-34 — Configurable default field keys per source × tag-type
 
 Let an author configure the default field key read per source and tag type.
 
@@ -787,7 +787,7 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
-### FW-35 — datetime_ all-day affordance — a flag field, or midnight
+#### FW-35 — datetime_ all-day affordance — a flag field, or midnight
 
 One option holding a single exclusive predicate — `allDay:midnight` (00:00 means all-day) or `allDay:key,<field>` (a boolean field decides) — rather than a single boolean field option, because an ordered fallback needs `false` distinguishable from `absent` and the motivating Pie Calendar field can't supply that distinction.
 
@@ -799,7 +799,7 @@ Open: The whole row waits on FW-59/FW-61's bracketed free-form value escape disc
 
 Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-3, FW-81, FW-13 (the flag field is itself a discovered field)
 
-### FW-39 — ID source
+#### FW-39 — ID source
 
 A new source flavor where the author identifies one specific entity, its id serialized into the token — `<kind>,<ID>` (e.g. `post,9999`) as the first step of a chain.
 
@@ -811,7 +811,7 @@ Open: Ref-step decoupling (a per-`src` ref option). Home for the "specific-resou
 
 Blocked by: —  •  Interacts with: FW-33, FW-9
 
-### FW-44 — join per-slot inner list sep ({N}-sep)
+#### FW-44 — join per-slot inner list sep ({N}-sep)
 
 A list-mode join slot joins its own items with text's default `', '`; this would give each slot its own inner separator.
 
@@ -823,7 +823,7 @@ Open: Still an edge affordance; add only on evidence it's wanted, and decide tog
 
 Blocked by: —  •  Interacts with: FW-43, FW-61 (overlaps)
 
-### FW-45 — join dynamic slot count
+#### FW-45 — join dynamic slot count
 
 Drop the fixed `BWS_JOIN_MAX_SLOTS` (10) ceiling for an add-slot editor control, and support reordering slots.
 
@@ -835,7 +835,7 @@ Open: Whether the ceiling stays finite or the registration itself goes dynamic; 
 
 Blocked by: `code:custom editor-control work`  •  Interacts with: FW-24, FW-57, FW-60, `docs/editor-controls.md` (owns the custom-control work this waits on)
 
-### FW-46 — Name-format preset over join
+#### FW-46 — Name-format preset over join
 
 A canned "Full name" preset pre-filling `mode:template` plus the 7-part format and slot keys — pure config sugar, no new resolve path.
 
@@ -845,7 +845,7 @@ Progress: Not started. Leaned toward over a dedicated `{{name}}` tag, which is p
 
 Blocked by: —  •  Interacts with: FW-29 (preset-authoring substrate)
 
-### FW-48 — src:author — the current post's author as a user source
+#### FW-48 — src:author — the current post's author as a user source
 
 A new source reach to a USER source by post→author hop (`{{title src:author}}` → the post author's display name), distinct from the ambient FW-9 author kind (an author archive).
 
@@ -857,7 +857,7 @@ Open: Remaining scope is only the factory post→author hop itself, which makes 
 
 Blocked by: —  •  Interacts with: FW-47, FW-39, FW-9, FW-49
 
-### FW-53 — {{table}} repeater→HTML table tag
+#### FW-53 — {{table}} repeater→HTML table tag
 
 A repeater fold (`rows` step) into a `<table>` string. A table's row-set is whatever its source chain returns — not a flat/repeater/relationship "mode" — which hard-depends on the multi-step source-selection encoding (FW-56, shipped).
 
@@ -869,7 +869,7 @@ Open: v1 finalization detail lives entirely in the plan's §Roadmap. Flip the fi
 
 Blocked by: —  •  Interacts with: FW-13, FW-14 (#12 discovery scoping), FW-20, FW-54, FW-56, FW-69, FW-67
 
-### FW-54 — src:query — cross-tag post-query base source
+#### FW-54 — src:query — cross-tag post-query base source
 
 A base source running a `WP_Query` from author filters (post type, tax, meta, orderby, limit) and rooting the tag on the result set — a new fanning base source at L1, parallel to current/ref/site, ignoring ambient context.
 
@@ -881,7 +881,7 @@ Open: Three structural costs beyond the query-filter UI — every scalar tag con
 
 Blocked by: —  •  Interacts with: FW-53, FW-13
 
-### FW-59 — Bracket free-form values on BASE tags
+#### FW-59 — Bracket free-form values on BASE tags
 
 Wrap base-tag free-form option values in a bracket (`format[g:i A]`) so they're structurally isolated from option separators, matching the rule the FW-56/57 slot work already established, rather than relying only on `\:`/`\|` escaping.
 
@@ -893,7 +893,7 @@ Open: Which option keys count as free-form (the `RESPELL_FREEFORM` seed set); mi
 
 Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56, FW-57
 
-### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
+#### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
 
 Make "try another source" reachable as a control on a base tag (`{{text}}` growing slot 2) rather than a separate `try_` tag family, since switching tag type in the GB modal discards all options — the FW-57 fold ended the old hand-edit workaround that made this unnecessary before.
 
@@ -905,7 +905,7 @@ Open: Whether `try_` is structurally "base + N slots" or carries real structural
 
 Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57, FW-45, FW-27, FW-43, FW-24, FW-33
 
-### FW-61 — Per-step sep on a fanning chain
+#### FW-61 — Per-step sep on a fanning chain
 
 Split the single tag-level `sep` joiner per fanning STEP, so a two-fanning-step chain can render `A; B / C` — an ordinary bracket-kv token beside `limit`.
 
@@ -917,7 +917,7 @@ Open: Whether the authoring surface is worth it at all, and how it interacts wit
 
 Blocked by: `code:fan-out structure preservation — bws_run_traversal flattens rather than keeping a tree a per-step sep could join`  •  Interacts with: FW-44 (overlaps), FW-56, FW-57, FW-55, FW-20, FW-53
 
-### FW-62 — Move the fold control's remaining authored LABELS onto the option definition
+#### FW-62 — Move the fold control's remaining authored LABELS onto the option definition
 
 Four strings the fold control still authors itself (`__('Source')` x3, `__('Taxonomy')`) instead of reading them derived off the PHP option definition, the standing rule everything else in the control already follows.
 
@@ -929,7 +929,7 @@ Open: Do it with the surface that's already going to touch these strings — `bw
 
 Blocked by: —  •  Interacts with: FW-20 (the combine that re-touches this control), FW-45, FW-53
 
-### FW-64 — Composite field-group control (the option-group wrapper's successor)
+#### FW-64 — Composite field-group control (the option-group wrapper's successor)
 
 Whether the shipped presentation-only option-group wrapper (`_group`/`_group_lead` + CSS-joined boxes) should become a real `bws-field-group` control owning `use` + the field picker, the way the folded slot's read group does.
 
@@ -941,7 +941,7 @@ Open: Whether to build the real composite at all; if so, it also needs to read l
 
 Blocked by: —  •  Interacts with: FW-62 (the same control's authored labels), FW-20, FW-45, FW-13
 
-### FW-66 — Reusable advisory channel for disclosed behavior changes
+#### FW-66 — Reusable advisory channel for disclosed behavior changes
 
 A channel for telling authors a release CHANGED what a tag renders, distinct from telling them there is migration work to run — two surfaces (editor preview, upgrade-scan list) and two lifecycles (`standing`, self-resolving; `announcement`, dismissible and from-version gated).
 
@@ -953,7 +953,7 @@ Open: Entries need a `match_callback` beside declarative fields, and must contri
 
 Blocked by: —  •  Interacts with: #74, #75, #76
 
-### FW-80 — The default rename — per-tag analogs collapse to one default value
+#### FW-80 — The default rename — per-tag analogs collapse to one default value
 
 One consistent `default` value across every tag's own analog token (`title`/`content`/`permalink`/…), instead of each tag naming its own.
 
@@ -965,7 +965,7 @@ Open: Whether a `try_` slot ≥2 forces its analog with an explicit token; the v
 
 Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57, FW-34, FW-81
 
-### FW-81 — Collapse datetime_single + datetime_range into one tag
+#### FW-81 — Collapse datetime_single + datetime_range into one tag
 
 Absorbs FW-40/41/65/68 (all retired into it 2026-08-19). Two datetime tags is a catalog-level leak of the GB "switching tag type discards all options" constraint; the fix collapses to one tag whose mode is the read COUNT rather than a stated option, encoded with the same chain-shaped `use` grammar a source chain already uses (`use:key,event_date,start_time;key,end_time`) with position as ordinal meaning.
 
@@ -1024,7 +1024,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` rows deleted 
 
 ## Maintenance
 
-- New non-bug idea → add a `### FW-N` heading block with the next unused id — **(highest id in the live trackers ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker row.
+- New non-bug idea → add a `#### FW-N` heading block with the next unused id — **(highest id in the live trackers ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker row.
 - **Build starts** (branch + committed work) → **move the row to `### In flight`** and add a **Target:** line — the landing version, or `—` where no release carries the work (tooling, instruments). The row keeps its `FW-N`, its description, and all pointer/gate lines — only its section changes. Do NOT start recording phase/commit/remaining-tasks in the row; that state stays in the branch / plan / unreleased CHANGELOG (the FW-52 staleness rule). The section IS the lifecycle signal.
 - Item ships (or is cut/merged) → delete its heading block (from wherever it sits, In-flight included) once CHANGELOG records it, **and append a line to the Closed/Retired table** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it. Update any surviving row that referenced it (`row:FW-N` → satisfied gate can be dropped; `Interacts with` id removed).
 - Blocker clears or a new interaction surfaces → update the `Blocked by:` / `Interacts with:` line; that's the point of those lines. Certainty (concept → planned) is read from the detail home, not tracked here. **Lifecycle** (future → in-flight → shipped) is read from the section, not a line.
