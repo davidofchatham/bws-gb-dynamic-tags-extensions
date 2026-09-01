@@ -1306,8 +1306,10 @@ function bws_fold_empty_slot(): array {
  * lockstep, which is the tell.
  *
  * @since 1.17.0
- * @param string $default_read The template's stripped first `use` value, on a SELECTING
- *                             container that has a per-slot read axis. '' everywhere else.
+ * @param string $default_read The stripped first `use` value of the leaf the container's
+ *                             slots read through (bws_use_stripped_default()); '' on a
+ *                             container with no read axis. Every container states it —
+ *                             the seam writes no read default of its own.
  * @return array Carry accumulator.
  */
 function bws_fold_empty_carry( string $default_read = '' ): array {
@@ -1490,6 +1492,15 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 			default:
 				$use = (string) ( $read['slug'] ?? '' );
 				$key = '';
+				// AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's —
+				// which slot 1 seeds with the container's stripped default. `use()` is
+				// legal hand-written wire (ADR 0004) and parses to this shape; leaving
+				// the '' would hand a dispatcher the literal empty string, and a
+				// dispatcher's `?? '<default>'` does NOT fire on '' — that is the B6
+				// trap ([I3]), which this seam would otherwise re-open one layer down.
+				if ( '' === $use ) {
+					$use = $carry['use'];
+				}
 		}
 	}
 
@@ -1679,7 +1690,13 @@ function bws_fold_slot_chain_options( array $slot, array &$carry, bool $combinin
 		// value from the wrong entity rather than an empty one ([I15]).
 		'ref'       => '',
 		'srcTermIn' => '',
-		'use'       => '' === $use ? 'key' : $use,   // '' = the stripped `key` default (I3).
+		// The read is the CARRY's, seeded by the container with its template's stripped
+		// default (bws_fold_empty_carry) — this seam knows no tag, so it states no
+		// default of its own. It held a literal 'key' here through 1.18.x, which was
+		// right only because `content` (the one non-key default) always seeded its own;
+		// the CANONICALIZATION that literal was also doing is kept, at the read axis
+		// above, where it can use the carry instead of guessing a value.
+		'use'       => $use,
 		'key'       => $key,
 	);
 	if ( null !== $limit ) {

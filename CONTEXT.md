@@ -44,9 +44,11 @@ Enforced at: `bws_site_resolve_value` PHPDoc (base-tags.php). Detail: `tag-refer
 
 ## I3 — Empty `use` is the stripped default, not a third state
 
-A `use`-dispatcher MUST canonicalize an empty wire `use` to the tag's FIRST enum value before dispatching (`content`→`'content'`, text/image→`'key'`) — mirroring the callbacks' `?? 'key'` / `?? 'content'`. Dispatching on the literal `''` silently drops the option read for tags whose default IS key-mode. The stripped default MUST remain key-mode (never a named analog) until token authority can auto-unset a stale `key`.
+A `use`-dispatcher MUST canonicalize an empty wire `use` to the tag's FIRST enum value before dispatching — mirroring the callbacks' `?? 'key'` / `?? 'content'`. Dispatching on the literal `''` silently drops the option read for tags whose default IS key-mode. The stripped default MUST remain key-mode wherever key-mode and a named analog share one enum, until token authority can auto-unset a stale `key`.
 
-Enforced at: `bws_site_resolve_value` `@invariant` PHPDoc. Convention detail: `tag-reference.md` §Default serialization strategy.
+**The per-tag VALUE has one owner, and the reads that recover it are not duplication.** Registration blanks the first enum value so the wire never carries it; a `?? '<value>'` at the point of use is the honest spelling of "absent means the first option", and roughly twenty of them are the convention working, not a defect to extract. What the convention never covered is where the value is *stated* — that is `BWS_USE_STRIPPED_DEFAULTS`. **Absence from it is a statement:** a tag with no `use` enum (`title`, `permalink`, datetime, email, phone) has no read axis, so its default is `''` and nothing may assert one for it.
+
+Enforced at: `BWS_USE_STRIPPED_DEFAULTS` PHPDoc (`registration-helpers.php`) — the obligation, the value, and the key-mode constraint. `bws_site_resolve_value`'s PHPDoc carries the B6 regression that produced the rule, as a worked instance. Pinned by `tools/test/use-stripped-default-test.php` (map ⟷ leaves, plus a census of every read site). Convention detail: `tag-reference.md` §Default serialization strategy.
 
 ## I4 — Qualifying gate for a NEW `use:` value (two-sided)
 

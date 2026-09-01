@@ -96,11 +96,33 @@ run `php tools/test/control-order-test.php` and `php tools/test/registrar-plugin
 
 run `php tools/test/slot-options-build-test.php` (registration output — which rows each enum contains) + `php tools/test/traversal-pipeline-test.php` (resolution, unchanged, mutation-pinned against gating on the offering flag) + `php tools/test/preview-label-test.php` (a rooted tag names its source by label) + `tools/test/registered-roots-test-matrix.md` §FR1/§FR2 against the testbed, and §FR5 in the EDITOR — the enum itself is what an author picks from and no harness renders a control. The three harnesses share one registry bootstrap, `tools/test/lib-source-registry.php`, which loads the SHIPPED classes — a per-harness stub registry would be a second answer to the question under test. The offering-is-not-resolving + offering-is-stated-not-derived invariants are `CONTEXT.md` I18; the one-appender rule is PHPDoc on `bws_registered_root_rows()`
 
-## Text field-option or slot-read change
+## Field-option LEAF or slot-read change
 
-**Fires on:** Text field-option or slot-read change (`bws_get_text_field_options` = the text `use`+`key` LEAF, `bws_build_slot_read_options` = the slot READ twin, both `base-shared.php`; or any of their consumers — base `{{text}}` registration, the `text` modifier template, the try_ slot loop, `bws_get_join_options`)
+**Fires on:** Field-option leaf or slot-read change (`bws_get_text_field_options` / `bws_get_content_field_options` / `bws_get_image_field_options` = the three `use`+`key` LEAVES, `bws_build_slot_read_options` = the slot READ twin, all `base-shared.php`; or any of their consumers — the base `{{text}}`/`{{content}}`/`{{image}}` registrations, their modifier templates, the try_ slot loop, `bws_get_join_options`)
 
-run `php tools/test/slot-options-build-test.php` (leaf shape + twin derive, incl. the byte-exact combining case). See `bws_get_text_field_options()` / `bws_build_slot_read_options()` PHPDoc (`includes/tags/base-shared.php`) for why a consumer must never re-inline the enum.
+run `php tools/test/slot-options-build-test.php` (leaf shape + twin derive, incl. the byte-exact combining case) + `php tools/test/use-stripped-default-test.php` (a leaf's FIRST value is its tag's stripped default, and the map states it). See the leaves' PHPDoc (`includes/tags/base-shared.php`) for why a consumer must never re-inline the enum.
+
+**Reordering a leaf's `use` rows changes that tag's stripped default**, because the first value IS it. That is a wire-format change, not a UI one — every already-saved tag with no `use` token starts resolving differently. `use-stripped-default-test.php` §1 fails on it rather than letting it ship as a reorder.
+
+## Stripped-`use`-default change
+
+**Fires on:** `BWS_USE_STRIPPED_DEFAULTS` or `bws_use_stripped_default()` (`registration-helpers.php`); the first value of any leaf's `use` enum; or a read site that recovers an absent `use`.
+
+run `php tools/test/use-stripped-default-test.php`, then `php tools/test/preview-label-test.php` and `php tools/test/slot-fold-test.php` (both are driven with these values), and `tools/test/fold-test-matrix.md` §F-slot rows against the testbed if a value actually moved.
+
+**THE READ SITES ARE THE CONVENTION, NOT A DEFECT.** Registration blanks the first enum value (`bws_prepare_registration_options`) so the saved tag never carries it, and a `?? 'key'` at the point of use is how it comes back. There are around twenty and that is fine — do not "extract" them. The map exists because the VALUE had no owner, not because the reads are duplication. (A review that counts the reads and proposes a helper has misread the convention; this paragraph is here because that review happened.)
+
+**WHAT THE CENSUS PROVES, AND THE ONE THING IT CANNOT.** §2 walks every `.php` under `includes/`, strips comments through `token_get_all()` (four of the tree's nineteen matches are prose, and one docblock line matches both patterns at once), and checks each recovered literal against the map — so a read site added later is covered without anyone writing a case for it. **It reads the literal, not the tag it belongs to.** Nothing on a `?? 'key'` line names a tag, so a content-shaped function recovering `'key'` is a real bug this file passes. Per-site correctness rests on the render harnesses and the tag matrices; §1 is what makes the values themselves right.
+
+**§2 IS A ONE-PATTERN CENSUS ONLY BECAUSE SIX SITES WERE CONVERTED**, and §4 pins four of the six: a tag→default ternary, an inline tag=>default map (two sites, byte-identical, so one pattern covers both), the fold seam's `'' === $use` ternary, and a paired equality in a preview display path. The remaining shape — a `??` whose right operand is a variable — is deliberately unpinned, because it is not retired at all: it is how a site fed by the map spells itself. §4 also asserts each of its own patterns still matches a sample, since a typo'd regex that matches nothing passes forever while the shapes creep back.
+
+**A CARRY SEED IS A FIFTH SHAPE, AND IT WAS FOUND BY MUTATION RATHER THAN BY READING.** Since the fold seam stopped writing a read default of its own, what a read-less slot resolves to *is* `bws_fold_empty_carry()`'s argument — so a literal there states a tag's stripped default while no `use` appears on the line. Seeding `{{join}}` with `'content'` left the entire suite green until §4 grew a pattern for it. The lesson generalizes past this file: when a default moves from a branch into an argument, the census keyed on the branch stops seeing it.
+
+**The `paired-equality` pattern is DERIVED from the map, not hand-written.** The retired shape tested a template against its *own* default; a mode test pairing a tag with some *other* enum value is ordinary code, and a hand-written alternation flagged `preview-helpers.php`'s key-required block on its first run. Building the pattern from `BWS_USE_STRIPPED_DEFAULTS` means only the (tag, its-own-default) pairing matches, and a map edit moves the pattern with it.
+
+**`{{table}}` IS EXCLUDED BY FILE, WITH ITS COUNT PINNED.** Its per-column `{N}-use` is its own enum, and the option is being replaced by a source chain ending in a fanning step — enrolling it would tie a shipped map to a surface on its way out. The exclusion asserts `table-tags.php` still has exactly two such sites, so a third is a decision someone makes rather than a row that quietly joins the census.
+
+**NO ADR, DELIBERATELY.** The registration-time strip is not settled: if the `use`/`key` controls gain the ability to strip unneeded values themselves, that half of the contract moves to them, and a decision record written against today's mechanism would then describe one that no longer exists. The rule lives on the artifact that moves with it. `CONTEXT.md` I3 anticipates the same shift ("until token authority can auto-unset a stale `key`").
 
 ## `limit` interpretation change
 
