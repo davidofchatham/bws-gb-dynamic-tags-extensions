@@ -78,7 +78,11 @@ function bws_register_base_tags(): void {
 		),
 	);
 	$traversal_opts = bws_base_traversal_options();
+	// One field-option LEAF per tag with a read axis; the base registration and the
+	// modifier template below are two COMPOSITIONS of each, never two definitions.
 	$text_field     = bws_get_text_field_options();
+	$content_field  = bws_get_content_field_options();
+	$image_field    = bws_get_image_field_options();
 
 	// =========================================================
 	// text — ACF/meta field or entity title; supports_list
@@ -168,28 +172,18 @@ function bws_register_base_tags(): void {
 			$traversal_opts,
 			$fan_advisory,
 			array(
-				'use'      => array(
-					'type'           => 'select',
-					'label'          => __( 'Content Field', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-						array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-						array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
-					),
-					'_strip_default' => true,
-				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
-					'placeholder'  => 'field_name',
-					// Key-mode only (use:key). Under src:site, use:key reads a wp_options
-					// value (rich render); use:content default → '' (site has no content
-					// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
-					'show_if'      => array(
-						'use' => 'key',
-					),
+				// use/key from the content FIELD LEAF; show_if is the caller's overlay.
+				'use'      => $content_field['use'],
+				'key'      => array_merge(
+					$content_field['key'],
+					array(
+						// Key-mode only (use:key). Under src:site, use:key reads a wp_options
+						// value (rich render); use:content default → '' (site has no content
+						// analog — B7; tagline has no tag path, use GB {{site_tagline}}).
+						'show_if' => array(
+							'use' => 'key',
+						),
+					)
 				),
 				'fallback' => array(
 					'type'  => 'text',
@@ -277,25 +271,18 @@ function bws_register_base_tags(): void {
 			$traversal_opts,
 			$fan_advisory,
 			array(
-				'use'      => array(
-					'type'           => 'select',
-					'label'          => __( 'Image Field', 'generateblocks' ),
-					'options'        => array(
-						array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-						array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
-					),
-					'show_if'        => array( 'srcTermIn' => 'empty' ),
-					'_strip_default' => true,
+				// use/key from the image FIELD LEAF; both show_if are the caller's overlay.
+				'use'      => array_merge(
+					$image_field['use'],
+					array( 'show_if' => array( 'srcTermIn' => 'empty' ) )
 				),
-				'key'      => array(
-					'type'         => 'bws-field-combo',
-					'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-					'dynamicLabel' => true,
-					'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
-					'placeholder'  => 'image_field',
-					// use:key → custom-field (post/term) or wp_options (site) read.
-					// Hidden for use:featured, which under src:site → site logo (V9, resolver).
-					'show_if'      => array( 'use' => 'not:featured' ),
+				'key'      => array_merge(
+					$image_field['key'],
+					array(
+						// use:key → custom-field (post/term) or wp_options (site) read.
+						// Hidden for use:featured, which under src:site → site logo (V9, resolver).
+						'show_if' => array( 'use' => 'not:featured' ),
+					)
 				),
 				// Folded return-mode + size. The bws-as-size composite renders the mode
 				// dropdown + a size dropdown (url only) and owns the whole token.
@@ -432,29 +419,17 @@ function bws_register_base_tags(): void {
 	TagTemplateRegistry::register_modifier_template( array(
 		'key'                   => 'content',
 		'title'                 => __( 'Content', 'generateblocks' ),
-		'options'               => array(
-			'use'      => array(
-				'type'           => 'select',
-				'label'          => __( 'Content Field', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'content', 'label' => __( 'Post Content/Term Description', 'generateblocks' ) ),
-					array( 'value' => 'key',     'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'excerpt', 'label' => __( 'Post Excerpt', 'generateblocks' ) ),
+		'options'               => array_merge(
+			// Same LEAF the base {{content}} registration consumes; no `show_if` overlay
+			// here (try_ states it via try_use_no_key_values), same as the text template.
+			$content_field,
+			array(
+				'fallback' => array(
+					'type'  => 'text',
+					'label' => __( 'Fallback Text', 'generateblocks' ),
+					'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
 				),
-				'_strip_default' => true,
-			),
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key. A WYSIWYG or blocks field renders through the content pipeline (shortcodes and blocks execute).', 'generateblocks' ),
-				'placeholder'  => 'field_name',
-			),
-			'fallback' => array(
-				'type'  => 'text',
-				'label' => __( 'Fallback Text', 'generateblocks' ),
-				'help'  => __( 'Text to display if content is empty.', 'generateblocks' ),
-			),
+			)
 		),
 		'term_fn'               => 'bws_term_description_core',
 		'post_fn'               => 'bws_post_content_core',
@@ -541,22 +516,13 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
 			),
-			'use'      => array(
-				'type'           => 'select',
-				'label'          => __( 'Image Field', 'generateblocks' ),
-				'options'        => array(
-					array( 'value' => 'key',      'label' => __( 'Meta/Option Field', 'generateblocks' ) ),
-					array( 'value' => 'featured', 'label' => __( 'Featured Image/Site Logo', 'generateblocks' ) ),
-				),
-				'_strip_default' => true,
-			),
-			'key'      => array(
-				'type'         => 'bws-field-combo',
-				'label'        => __( 'Meta/Option Field Key', 'generateblocks' ),
-				'dynamicLabel' => true,
-				'help'         => __( 'ACF or meta field key holding an image (attachment ID or URL).', 'generateblocks' ),
-				'placeholder'  => 'image_field',
-				'show_if'      => array( 'use' => 'not:featured' ),
+			// Same LEAF the base {{image}} registration consumes. Unlike text/content,
+			// this template KEEPS the key's `show_if` overlay: register_modifier() reads
+			// these options for term_image, whose panel has no declarative equivalent.
+			'use'      => $image_field['use'],
+			'key'      => array_merge(
+				$image_field['key'],
+				array( 'show_if' => array( 'use' => 'not:featured' ) )
 			),
 			'fallback' => array(
 				'type'  => 'bws-media-picker',
@@ -1040,9 +1006,11 @@ function bws_get_join_options(): array {
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
 	// The accumulator's source axis is a CHAIN, not a token — `src(same)` inherits the
-	// prior slot's whole chain, hops and all (#104). Seeded by its owner, never a literal
-	// here: {{join}} has no tag-level read default, so it states none.
-	$carry  = bws_fold_empty_carry();
+	// prior slot's whole chain, hops and all (#104). The READ seeds the stripped default
+	// of the leaf {{join}}'s slots read through (the text leaf, per bws_get_join_options),
+	// so a slot that states no read resolves as the same read a bare {{text}} does: the
+	// seam carries the seed forward and writes no default of its own.
+	$carry  = bws_fold_empty_carry( bws_use_stripped_default( 'text' ) );
 
 	// Tag-level explicit post id — GB's editor preview REST route injects
 	// `id:<postId>` into the tag string so `get_id()` (whose post fallback is
@@ -1557,16 +1525,20 @@ function bws_site_allowlist_ok( string $key ): bool {
  * (NOT empty) — see bws_site_allowlist_ok and
  * docs/adr/0001-site-option-read-allowlist.md.
  *
- * @invariant (V11/B6) Empty wire `use` MUST be canonicalized to the tag's FIRST
- * enum value before dispatch (content → 'content', text/image → 'key'), never
- * treated as a distinct "no use" state. Dispatching on the literal empty string
- * drops the option read for key-mode-default tags (the B6 regression). The
- * stripped default MUST stay key-mode for text/image — the site logo is the
- * EXPLICIT use:featured value, not the implicit-mode tag — so the empty wire is an
- * unambiguous key-mode signal (no stale-key vs intended-analog ambiguity until
- * custom-control token authority exists; see SPEC §B6).
+ * THE B6 REGRESSION HAPPENED HERE, which is why the rule it produced is worth
+ * reading beside this function rather than only at its owner. This dispatcher
+ * branched on the literal empty string, and for every tag whose stripped default IS
+ * key-mode that silently dropped the option read: an unset `use` is the FIRST enum
+ * value, never a third "no use" state. So the canonicalization below runs before any
+ * branch, and it takes its value from BWS_USE_STRIPPED_DEFAULTS
+ * (registration-helpers.php), which owns both that obligation and the rule that the
+ * stripped default stays key-mode wherever key-mode and a named analog share an enum.
+ * Consequence worth stating here: title and permalink register no `use` enum, so they
+ * canonicalize to '' — the ternary this replaced gave them 'key', inertly, because
+ * every branch that could read it tests the tag name first.
  *
- * Per-tag site dispatch (V9 Model B; default = stripped first enum value):
+ * Per-tag site dispatch (V9 Model B; default = the tag's stripped first enum value,
+ * per BWS_USE_STRIPPED_DEFAULTS):
  *   - title     → site name (get_bloginfo('name'))       [tag has no use enum]
  *   - text      → DEFAULT 'key' → option (key:X); use:title → name; empty key → ''
  *   - content   → no site content analog (B7): DEFAULT 'content' and use:excerpt
@@ -1594,12 +1566,12 @@ function bws_site_resolve_value( string $tag, array $options, $instance ): strin
 
 	// Canonicalize `use` to the tag's stripped default (its FIRST enum value) when
 	// the wire value is empty — strip-default means an unset `use` IS the first
-	// option, NOT a third "no use" state (B6). Mirrors the per-callback defaults
-	// (text/image → 'key', content → 'content'); title/permalink have no enum.
-	$use_default = ( 'content' === $tag ) ? 'content' : 'key';
-	$use         = (string) ( $options['use'] ?? '' );
+	// option, NOT a third "no use" state (B6). The value is the map's, not restated
+	// here: title/permalink register no `use` enum and get '' from it, which the
+	// ternary this replaced had been reading as 'key'.
+	$use = (string) ( $options['use'] ?? '' );
 	if ( '' === $use ) {
-		$use = $use_default;
+		$use = bws_use_stripped_default( $tag );
 	}
 
 	// title base tag (no `use` enum) and text use:title → site name.

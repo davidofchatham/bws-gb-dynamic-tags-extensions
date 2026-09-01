@@ -443,6 +443,8 @@ Canonical defaults applied on read:
 | `use` | `text`, `image` | `'key'` | Default is ACF/meta field — only `key` value matters |
 | `use` | `content` | `'content'` | Default is post content / term description |
 
+The `use` rows restate what `BWS_USE_STRIPPED_DEFAULTS` ([`registration-helpers.php`](../includes/helpers/registration-helpers.php)) states; that constant is the owner, and a tag absent from it has no `use` enum and therefore no default. Tags with no read axis (`title`, `permalink`, `datetime_*`, `email`, `phone`, `call`) register no `use` and appear in neither.
+
 **Required for try_ slot 2+:** the slot-2+ "Same as Previous" semantic must be distinguishable from "explicit default". By stripping the slot-1 default to `''` and reserving an explicit `current` token, slot 2+ can use `''` for inherit and `current` for "override back to current".
 
 **Boolean presence-flag convention:** Boolean options designed so unset = false / default behavior, present (as bare key) = true / non-default. Fits GB's boolean serialization (true → bare key, false → dropped) and the no-serialize-defaults rule simultaneously. Examples: `showCurrentYear`, `showMidnight`, `srcTermIn` (checkbox half of the combined control).

@@ -222,7 +222,8 @@ function bws_build_join_preview_label( array $options ): string {
 	$source_parts  = array();
 	$slot_warnings = array();
 	$tag_warnings  = array();
-	$carry         = bws_fold_empty_carry();
+	// Same seed as bws_join_callback: the slots read through the text leaf.
+	$carry         = bws_fold_empty_carry( bws_use_stripped_default( 'text' ) );
 	for ( $n = 1; $n <= $max; $n++ ) {
 		$slot = function_exists( 'bws_fold_slot_struct' ) ? bws_fold_slot_struct( $n, $options, 'join' ) : null;
 		if ( null === $slot ) {
@@ -241,7 +242,7 @@ function bws_build_join_preview_label( array $options ): string {
 			continue;
 		}
 
-		$eff_use = $flat['use'];   // Already defaulted to `key` by the seam (I3).
+		$eff_use = $flat['use'];   // Already canonicalized by the seam ([I3]).
 		$key     = $flat['key'];
 
 		$inert              = array();
@@ -385,11 +386,10 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		return '';
 	}
 
-	// Per-template defaults (mirrors bws_build_preview_label). A non-empty default is
+	// The template's stripped default, read from its owner. A non-empty default is
 	// also exactly what "this template has a per-slot `use` axis" means: the three
-	// per_slot_use templates are the three with a default read token.
-	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
-	$use_default  = $use_defaults[ $base_template ] ?? '';
+	// per_slot_use templates are the three with a row in BWS_USE_STRIPPED_DEFAULTS.
+	$use_default  = bws_use_stripped_default( $base_template );
 	$per_slot_use = '' !== $use_default;
 
 	// Walk slots 1-5 through the SAME render seam the callback resolves with
@@ -544,8 +544,10 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 	// Applies to content/image only (text has no label to collapse to).
 	if ( 1 === count( $slots ) && '' !== $template_label ) {
 		$slot = $slots[0];
-		$is_template_default = ( 'content' === $base_template && 'content' === $slot['use'] )
-			|| ( 'image'   === $base_template && 'key'     === $slot['use'] && '' === $slot['key'] );
+		// At the template's stripped default, and — where that default is key-mode —
+		// with no key chosen, since a keyed read is a configuration, not the default.
+		$is_template_default = '' !== $use_default && $use_default === $slot['use']
+			&& ( 'key' !== $use_default || '' === $slot['key'] );
 		// (Image default would never hit this — empty key triggers warning above.)
 		if ( $is_template_default ) {
 			$inner = 'Try ' . $template_label;
@@ -1182,11 +1184,10 @@ function bws_build_preview_label( array $options, string $template ): string {
 	);
 	$context_part = implode( ' ', $ctx_segments );
 
-	$key          = $options['key'] ?? '';
-	$use_defaults = array( 'text' => 'key', 'image' => 'key', 'content' => 'content' );
-	$use_default  = $use_defaults[ $base_template ] ?? '';
-	$use          = $options['use'] ?? $use_default;
-	if ( '' === $use && '' !== $use_default ) {
+	$key         = $options['key'] ?? '';
+	$use_default = bws_use_stripped_default( $base_template );
+	$use         = $options['use'] ?? $use_default;
+	if ( '' === $use ) {
 		$use = $use_default;
 	}
 	// Image `as` may carry a folded `,<size>` arg (as+size fold, FW-52) — read the

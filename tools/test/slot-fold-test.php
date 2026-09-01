@@ -73,7 +73,17 @@ require __DIR__ . '/../../includes/classes/class-tag-template-registry.php';
 // bws_clamp_limit — the single limit INTERPRETER. §P13/§P14 compare what each era
 // RESOLVES rather than what it spells, so the walks below must clamp exactly as the
 // container arms do; re-inlining the rule here is what the extraction removed.
+// BWS_USE_STRIPPED_DEFAULTS — the try_ walks below are driven with each template's
+// stripped `use` default, and that value is DATA with an owner. A harness copy of
+// data is not an independent check, only a second thing to update.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+
+// The two templates the P13/P14 walks model, each driven with its OWN stripped `use`
+// default read from the owner rather than re-typed here — a walk seeded with the wrong
+// default compares two spellings of the same mistake and passes.
+$text_default    = bws_use_stripped_default( 'text' );
+$content_default = bws_use_stripped_default( 'content' );
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 // THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
 // inherited step is dropped only where its slug CANNOT repeat, and "can it repeat" is
@@ -967,6 +977,56 @@ check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) &&
 $same_analog = t_seam_walk( array( 'A' => 'use(title)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
+// P13.4b — AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's.
+//
+// `use()` is legal hand-written wire (ADR 0004) and parses to {kind:analog, slug:''}. The
+// seam must not pass that '' on: a dispatcher's `?? '<default>'` does not fire on the empty
+// string, only on an absent key, so a bare '' reaches the branch as a third state and drops
+// the read — the B6 trap ([I3]) one layer down. Through 1.18.x a hardcoded 'key' covered
+// this, which was right for the containers that reached it and wrong for content's own
+// default; the carry answers it per container instead.
+// Driven at the seam with an EXPLICIT seed, because that is the variable under test —
+// t_seam_walk seeds nothing, which models a container with no read axis and would answer
+// a different question.
+function t_empty_analog( string $container, string $seed ) {
+	$slot = bws_fold_slot_struct( 1, array( 'A' => 'use()' ), $container, 'try' === $container );
+	if ( null === $slot ) {
+		return 'NO SLOT';
+	}
+	$carry = bws_fold_empty_carry( $seed );
+	$skip  = '';
+	$flat  = bws_fold_slot_chain_options( $slot, $carry, 'try' !== $container, $skip );
+	return null === $flat ? "SKIP({$skip})" : $flat['use'];
+}
+// The parse really does produce the shape under test — without this the three checks
+// below could pass against a slot that never had an empty analog slug in it.
+$empty_slug_slot = bws_fold_slot_struct( 1, array( 'A' => 'use()' ), 'join', false );
+check(
+	'P13.4b use() parses to an EMPTY ANALOG SLUG (the shape under test exists)',
+	array( 'kind' => 'analog', 'slug' => '' ) === ( $empty_slug_slot['read'] ?? null ),
+	json_encode( $empty_slug_slot['read'] ?? null )
+);
+check(
+	'P13.4b combining: use() takes the carry seed, not a bare empty read',
+	$text_default === t_empty_analog( 'join', $text_default ),
+	var_export( t_empty_analog( 'join', $text_default ), true )
+);
+check(
+	'P13.4b selecting: use() takes the TEMPLATE default, not a container-blind literal',
+	$content_default === t_empty_analog( 'try', $content_default ),
+	var_export( t_empty_analog( 'try', $content_default ), true )
+);
+// The bound of the rule, stated rather than left to be discovered: a container that seeds
+// NO default still resolves '' here. That is safe only because such a container has no
+// `use` dispatch to drop a read from — the same reason the hardcoded 'key' this replaced
+// was correct for the containers that reached it. A container that grows a read axis must
+// seed the carry, and §8b of control-order-test.php is what catches one that does not.
+check(
+	'P13.4b an unseeded container still resolves empty, and that is the rule\'s bound',
+	'' === t_empty_analog( 'join', '' ),
+	var_export( t_empty_analog( 'join', '' ), true )
+);
+
 // P13.5 — THE FOUR INEXPRESSIBLE-CHAIN SKIPS, INVERTED (#104).
 //
 // These four asserted a SKIP through 1.16.x: the flat triple held one relationship step
@@ -1302,10 +1362,10 @@ $try_psu_cases = array(
 	'unset key mode slot 2'  => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key' ),
 );
 foreach ( $try_psu_cases as $name => $legacy ) {
-	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), 'key' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'title' ), 'key' );
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'title' ), $text_default );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'title' ), $text_default );
 	check( "P14.1 [psu: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
-	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), 'key' );
+	$dual = t_seam_try_walk( $legacy, true, true, array( 'title' ), $text_default );
 	check( "P14.1 [psu: $name] dual-read of unmigrated wire resolves identically", $shipped === $dual, 'legacy: ' . json_encode( $shipped ) . "\n      dual:   " . json_encode( $dual ) );
 }
 
@@ -1316,7 +1376,7 @@ foreach ( $try_psu_cases as $name => $legacy ) {
 // only from hand-written `same` sentinels, because the shipped UI strips them as the
 // slot ≥2 default; the fold's own control seeds exactly this shape for a new slot,
 // which is why the seam must resolve it rather than treat it as absent.
-$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' );
+$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default );
 check(
 	'P14.1 all-inherit slot 2 resolves as a duplicate of slot 1',
 	isset( $all_inherit[2] ) && $all_inherit[1] === $all_inherit[2],
@@ -1324,7 +1384,7 @@ check(
 );
 check(
 	'P14.1 …and the flat resolver skipped it, so output is unchanged either way',
-	array() === array_diff_key( t_shipped_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), 'key' ), array( 1 => null ) ),
+	array() === array_diff_key( t_shipped_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default ), array( 1 => null ) ),
 	''
 );
 
@@ -1336,11 +1396,11 @@ $content_cases = array(
 	'key then inherit'       => array( 'use' => 'key', 'key' => 'body', '2-src' => 'ref', '2-ref' => 'office' ),
 );
 foreach ( $content_cases as $name => $legacy ) {
-	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), 'content' );
-	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'content', 'excerpt' ), 'content' );
+	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), $content_default );
+	$folded  = t_seam_try_walk( t_migrate_try( $legacy, true, true ), true, true, array( 'content', 'excerpt' ), $content_default );
 	check( "P14.2 [content: $name] migrated folded wire resolves identically", $shipped === $folded, 'legacy:  ' . json_encode( $shipped ) . "\n      folded: " . json_encode( $folded ) );
 }
-$bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), 'content' );
+$bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt' ), $content_default );
 check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && '' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
 
 // P14.3 — psk shape (email/phone: per-slot key, NO `use` enum). An empty key at slot
@@ -1395,7 +1455,7 @@ check( 'P14.4 read-less container emits a bare chain (carrying the flat era defa
 // not a parameter of the source but part of what the source IS. The previous comment here
 // recorded the mechanism ("the flat resolver's own variable never carried it") rather than
 // the cause, which is why the decision read as unmotivated on re-reading.
-$stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), 'key' );
+$stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), $text_default );
 check( 'P14.5 a term hop carries to a slot that inherits its source', 'terms,category' === ( $stm_walk[1]['src'] ?? null ) && 'terms,category' === ( $stm_walk[2]['src'] ?? null ), json_encode( $stm_walk ) );
 
 // P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
@@ -1408,7 +1468,7 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 // P14.7 — what the FOLD adds over the flat wire: an explicit per-slot read at slot ≥2
 // with no source of its own. Legacy `2-key` alone was DROPPED (FW-51) because a bare
 // key could not say whether it meant "override" or "left blank"; `2:key(b)` says it.
-$explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), 'key' );
+$explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), $text_default );
 check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && '' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
 // ── P15 THE INHERITED LIMIT (#61) ───────────────────────────────────────────

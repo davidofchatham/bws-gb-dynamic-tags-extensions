@@ -77,6 +77,12 @@ if ( ! function_exists( 'sanitize_key' ) ) {
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
+// BWS_USE_STRIPPED_DEFAULTS + bws_use_stripped_default(): what an absent per-template
+// `use` means. The preview reads it UNGUARDED, so a missing require fatals here rather
+// than quietly rendering every template as having no read axis — which is what a
+// function_exists guard did instead, and it cost a real assertion (the content
+// default-collapse case) before the guard came out.
+require __DIR__ . '/../../includes/helpers/registration-helpers.php';
 require __DIR__ . '/../../includes/helpers/preview-helpers.php';
 
 $failures = 0;
