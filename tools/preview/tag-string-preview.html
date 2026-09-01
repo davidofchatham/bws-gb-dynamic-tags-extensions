@@ -725,7 +725,7 @@ const SCENARIO_GROUPS = [
   // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
   // `image`'s are featured + the as/size format options, which stay slot options under the fold.
   { tmpl:'content', title:'try_content — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
-    variants:['folded','shipped'], foldClass:'try', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: content, ACF',
       shippedSlots:[[],[['_content_key','$key1']]],
       slots:[{read:{kind:'analog',slug:'default'}},{read:{kind:'key',field:'$key1'}}]},
@@ -740,7 +740,7 @@ const SCENARIO_GROUPS = [
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
   { tmpl:'image', title:'try_image — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
-    variants:['folded','shipped'], foldClass:'try', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: key, featured',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'analog',slug:'featured'}}]},
@@ -772,7 +772,7 @@ const SCENARIO_GROUPS = [
   // cannot spell — render an explicit "no shipped equivalent" line. That absence IS the argument
   // for the fold, so it is shown rather than hidden.
   { tmpl:'text', title:'try_text — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
-    variants:['folded','shipped'], foldClass:'try', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: key, key',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
@@ -840,7 +840,7 @@ const SCENARIO_GROUPS = [
   // (a phone slot beside a title slot) have no shipped equivalent — join is text-only today, which
   // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
   { title:'join — folded (current, 1.17.0), heterogeneous ⟷ flat (legacy, FW-57 Option R)', isContrast:true,
-    variants:['folded','shipped'], foldClass:'join', tmpl:'text', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
     {label:'plain field (text, no tag token)',
@@ -882,7 +882,7 @@ const SCENARIO_GROUPS = [
   // bws_join_wire_format() maps both alphabets onto the same internal {N}, so every stored
   // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
   { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
-    variants:['folded','shipped'], foldClass:'join', tmpl:'text', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name (nickname) — 2 slots', format:'%1 (%2)',
       shippedSlots:[[['key','name_first']],[['key','nickname']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'nickname'}}]},
@@ -919,8 +919,10 @@ const SCENARIO_GROUPS = [
   ]},
   // TABLE — folded-only (re-based 2026-09-01, FW-79, per table-tag.md's REOPENED 2026-08-30
   // pass, decisions D1-D4 + GRILLED Q1-Q8). {{table}} ships FOLDED-ONLY with no back-compat at
-  // either level (D1) — there is no flat wire to contrast against, so this is a single-variant
-  // group (`variants:['folded']`), reusing the contrast machinery only for its note-rendering.
+  // either level (D1) — there is no flat wire to contrast against, so this group's `variants`
+  // omits 'shipped' entirely ('foldedCurrent' sits alongside 'folded' — current
+  // shows what 1.17.0's fold grammar actually spells, pinned regardless of the sidebar; 'folded'
+  // is the live preview, following whatever the reader has toggled).
   // Row chain = the tag's own src chain, now offering `rows` in its step set (D2/Q6); there is
   // NO tag-level `key`/repeater-field option any more (D2 retires it) and NO enumerated set of
   // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
@@ -931,7 +933,7 @@ const SCENARIO_GROUPS = [
   // `header` for table specifically, not yet in code — this page keeps `label` as the live
   // default rather than pre-empting an unlocked rename (see PRESETS.label below).
   { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
-    variants:['folded'], foldClass:'table', scenarios:[
+    variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
@@ -990,7 +992,7 @@ const SCENARIO_GROUPS = [
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
-  { title:'join — FOLDED datetime (multi-key pivot)', foldClass:'join', scenarios:[
+  { title:'join — FOLDED datetime (multi-key pivot)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
     {label:'name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
     {label:'name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
@@ -1003,7 +1005,7 @@ const SCENARIO_GROUPS = [
     {label:'template format + datetime slot format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
-  { title:'table — FOLDED datetime cols (multi-key)', foldClass:'table', scenarios:[
+  { title:'table — FOLDED datetime cols (multi-key)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -1019,7 +1021,7 @@ const SCENARIO_GROUPS = [
   // verbatim); balanced inner brackets survive our own balance-aware sub-parser. `{ }` are hard-
   // unsafe but ~never in these values. Eyeball: the `:` in `g:i A` / `Price: $5` must appear as `\:`,
   // and the balanced `(cm)` / `[TBD]` must survive; an UNBALANCED bracket is flagged in the label.
-  { title:'escape hazards — free-form values (\\: \\| + brackets)', foldClass:'join', scenarios:[
+  { title:'escape hazards — free-form values (\\: \\| + brackets)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'time format g:i A + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
     {label:'datetime l, F jS g:i A',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     {label:'fallback with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
@@ -1029,7 +1031,7 @@ const SCENARIO_GROUPS = [
     {label:'format with a colon (Price: …)', format:'Price: %1 (%2)',
       slots:[{tag:'text',read:{kind:'key',field:'price'}},{tag:'text',read:{kind:'key',field:'unit'}}]},
   ]},
-  { title:'escape hazards — table labels (brackets + colon)', foldClass:'table', scenarios:[
+  { title:'escape hazards — table labels (brackets + colon)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'balanced brackets + colon in labels',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
@@ -1683,22 +1685,54 @@ function groupOrder(group) {
 // (`slots:[{read:…},{read:…}]`). A contrast scenario needs both at once, so the shipped side of a
 // multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. {{table}} has no
 // shipped/flat side at all (folded-only per D1) — its scenarios carry only `rowChain` + `slots`.
-// Labels re-based 2026-09-01 (FW-79): the chain/fold side is what 1.17.0 actually ships now, so
-// it is labelled 'current' and shown first; the flat sibling wire is real but READ-ONLY —
-// `src-chain-control.js` converts it to chain wire on first touch and never writes it fresh
-// (confirmed against the tree), so it is labelled 'legacy' rather than 'shipped', and shown
-// second. The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) was
-// retired the same pass — table-tag.md's REOPENED D1 ships {{table}} folded-only with no
-// back-compat, so there is no "current" flat table wire this page could show.
+// Re-based 2026-09-01 (FW-79) — THREE lines, not two, and only one of them moves:
+//   'shipped'      — the pre-1.17 flat sibling wire. Its own emitter (`how:'parts'`) never reads
+//                     any sidebar toggle, so it was already fixed; kept the key name, relabelled
+//                     'legacy' since it's real but READ-ONLY (`src-chain-control.js` converts it
+//                     to chain wire on first touch and never writes it fresh — confirmed against
+//                     the tree).
+//   '*Current'     — what 1.17.0 actually ships, pinned to the SHIPPED grammar defaults via
+//                     `withShippedGrammar()` regardless of live sidebar state. A reader flipping a
+//                     look-back toggle (digit keys, slash limit, …) must NOT change what this line
+//                     shows — that was the bug in the first cut of this rebase (user caught it):
+//                     relabelling the toggle-driven line 'current' left it still toggle-driven, so
+//                     the accented default of e.g. the digit-key radio then MISLABELLED a rejected
+//                     spelling as shipped.
+//   'chain'/'folded' — the SAME toggle-driven line as before, now labelled 'preview': this is the
+//                     tool's whole exploration surface (candidate spellings, look-backs), and nothing
+//                     about that changes — it just isn't 'current' by itself any more.
+// Order (user, 2026-09-01): legacy → current → preview, applied via each group's `variants:[…]`.
+// The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
+// table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
 const CONTRAST_VARIANTS = {
-  shipped:  { label:'legacy (flat, read-only)', how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
-  chain:    { label:'current (chain, 1.17.0)', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
-  folded:   { label:'current (folded, 1.17.0)', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  shipped:       { label:'legacy (flat, read-only)',          how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
+  chainCurrent:  { label:'current (chain, 1.17.0)',            how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
+  chain:         { label:'preview (chain — toggle apparatus)', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
+  foldedCurrent: { label:'current (folded, 1.17.0)',           how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
+  folded:        { label:'preview (folded — toggle apparatus)',how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
 };
 function variantsFor(group) {
-  return (group.variants || ['chain','shipped']).map(k =>
+  return (group.variants || ['shipped','chainCurrent','chain']).map(k =>
     typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k
   );
+}
+// Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
+// shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
+// afterward (finally), including nested `chainSep`, so the live 'preview' variant computed right
+// after in the same `.map()` pass still reflects the reader's real toggle state.
+const SHIPPED_GRAMMAR = {
+  slotKeySpelling: 'alpha', limitStyle: 'bracket-kv', limitSep: '/', perStepSep: false,
+  slotSchema: 'bracket-kv', slotOptSep: SLOT_SCHEMAS['bracket-kv'].optSep, slotKvChar: SLOT_SCHEMAS['bracket-kv'].kvChar,
+  slotBracket: '[]', bracketMode: 'depth-alt', bracketL1: '()', chainExplicitRoot: false,
+  slotForceSrc: false, readViaUse: false, respellReadBracket: false, handlerMode: 'zone',
+  valueSep: ',', chainPair: 'off', valuePair: '()', linkCombined: false, fromKeyCombined: false,
+  chainSep: { hop: ';', step: ',' },
+};
+function withShippedGrammar(fn) {
+  const backup = {};
+  for (const k of Object.keys(SHIPPED_GRAMMAR)) backup[k] = S[k];
+  Object.assign(S, SHIPPED_GRAMMAR);
+  try { return fn(); } finally { Object.assign(S, backup); }
 }
 
 // Build every applicable variant for one scenario. Returns [{label, str, cls, missing}].
@@ -1716,37 +1750,42 @@ function buildContrastVariants(group, sc) {
 
   return variantsFor(group).map(v => {
     if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
-    let str = null;
-    if (v.how === 'parts') {
-      if (sc.shippedSlots) {
-        // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
-        // tools/test/join-test-matrix.md; try_ the same shape).
-        const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
-        // TAG-LEVEL parts are emitted ONCE, unprefixed. Scenario data lists `_asSize` inside every
-        // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
-        // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
-        const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
-        // Scenario-declared tag-level options (join's format/valueSep) LEAD — format group is rank 1
-        // in KEY_MAP, ahead of every axis the fold touches. One declaration feeds both sides of the
-        // row, so a scenario states its tag-level options once and the two wires cannot drift.
-        const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(tagLevel)], '', false);
-        perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
-        str = `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
-      } else {
-        str = wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
-      }
-    } else if (v.how === 'chain') {
-      // src: leads the source group; the rest sort canonically behind it.
-      const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
-      const parts = [];
-      if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
-      parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
-      str = wrap(parts);
-    } else if (v.how === 'fold') {
-      str = buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
-    }
+    const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
+    const str = v.frozen ? withShippedGrammar(build) : build();
     return { label:v.label, str, cls:v.cls, missing:false };
   });
+}
+function buildOneVariant(v, group, sc, sortParts, wrap) {
+  if (v.how === 'parts') {
+    if (sc.shippedSlots) {
+      // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
+      // tools/test/join-test-matrix.md; try_ the same shape).
+      const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
+      // TAG-LEVEL parts are emitted ONCE, unprefixed. Scenario data lists `_asSize` inside every
+      // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
+      // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
+      const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
+      // Scenario-declared tag-level options (join's format/valueSep) LEAD — format group is rank 1
+      // in KEY_MAP, ahead of every axis the fold touches. One declaration feeds both sides of the
+      // row, so a scenario states its tag-level options once and the two wires cannot drift.
+      const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(tagLevel)], '', false);
+      perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
+      return `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
+    }
+    return wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
+  }
+  if (v.how === 'chain') {
+    // src: leads the source group; the rest sort canonically behind it.
+    const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
+    const parts = [];
+    if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
+    parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
+    return wrap(parts);
+  }
+  if (v.how === 'fold') {
+    return buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
+  }
+  return null;
 }
 
 function buildPermTag(group, scenario) {
