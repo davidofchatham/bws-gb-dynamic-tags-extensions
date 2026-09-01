@@ -2,6 +2,20 @@
 
 **Not a roadmap for future work.** No committed timeline on anything below. One exception: an **In-flight** item names a target version, but even that holds no progress detail — the item points at the branch / plan / unreleased CHANGELOG, which own the real build state. This is a single visible index of non-bug work — future AND in-flight — one heading block per **`FW-N` id**.
 
+## Index
+
+- [Item shape](#item-shape)
+- [The no-status-column rule, revised](#the-no-status-column-rule-revised)
+- [Trackers](#trackers)
+  - [In flight](#in-flight)
+  - [Correctness, Consistency, Architecture](#correctness-consistency-architecture)
+  - [Feature follow-ups & UX](#feature-follow-ups--ux)
+  - [Testing & infrastructure](#testing--infrastructure)
+  - [Docs & vocabulary](#docs--vocabulary)
+  - [Future possibilities](#future-possibilities)
+- [Closed / Retired](#closed--retired)
+- [Maintenance](#maintenance)
+
 ## Item shape
 
 Each item is a `#### FW-N — <title>` heading followed by a fixed set of labeled lines:
@@ -81,11 +95,11 @@ Blocked by: decision:field-object formats through the seam  •  Interacts with:
 
 Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence
 
-Progress: 11 call sites in `includes/`, of which 4 families still depend on the inference. The factory already resolves both halves this would replace; deleting the inference before a `meta_row` base arm exists would blank the repeater-row path (§F9c.1 pins this). 1.18.0 turned this from tidiness into correctness — two resolvers now answer "which entity does this tag read" and only one is gated, producing a reachable bug on the un-migrated path (filed as #122).
+Progress: 11 call sites in `includes/`, of which 4 families still depend on the inference. The factory already resolves both halves this would replace; deleting the inference before a `meta_row` base arm exists would blank the repeater-row path (§F9c.1 pins this). 1.18.0 turned this from tidiness into correctness — two resolvers now answer "which entity does this tag read" and only one is gated, producing a reachable bug on the un-migrated path (filed as #122, closed 2026-08-28 by the loop-item source gate on `fix/loop-item-source-gate`).
 
 Open: Deleting the inference is gated on FW-74 landing a `meta_row` base arm first.
 
-Blocked by: row:FW-74  •  Interacts with: FW-8, FW-74, #122
+Blocked by: row:FW-74  •  Interacts with: FW-8, FW-74
 
 #### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
 
@@ -96,18 +110,6 @@ Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 converge
 Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor.
 
 Blocked by: row:FW-7  •  Interacts with: FW-33
-
-#### FW-9 — Context-aware base tags — the deferred residue
-
-The residue of the context-aware base-tag work after the five query-context kinds (date / search / PTA / 404 / latest-home) shipped: the deferred per-kind option surface and the datetime archive-context semantics.
-
-Detail home: GH #19 + `.scratch/plans/context-aware-base-tags.md`
-
-Progress: The five query-context kinds shipped 1.19.0 (term kind 1.14.0, author kind 1.15.0 — see FW-47 for its residue). The per-kind option-surface gate was dropped in the 2026-08-29 grilling and the kinds shipped on core's values.
-
-Open: The deferred option surface (404 title/text override, search format — also FW-105's home, taxonomy-label prefix, date format, latest-home title source) and the datetime archive-context semantics (`use:archive_range` era).
-
-Blocked by: decision:option surface scope  •  Interacts with: FW-33, FW-47, FW-105
 
 #### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
@@ -125,11 +127,11 @@ Blocked by: —  •  Interacts with: —
 
 Detail home: `docs/design-history/multi-step-slot-sources.md` §What FW-43 keeps; build-locality decision `docs/design-history/combine-text.md` §Build locality; memory `project_open_refactors.md`
 
-Progress: Shipped 1.18.0 as `bws_read_bounded_sources()` (field-helpers.php), extracted from try_'s emit loop; both the content/permalink/image term loops and the try_ slot emit consume it. The content callback's post-side collapse to one id is confirmed intentional (`{{content}}` is not list mode because a value carries no identity of its own — an assembly decision, not a resolver one; recorded on #118, a separate editor-surface concern). The #108 coverage gap is closed — arm wiring lives in `includes/helpers/try-slot-arms.php`, pinned under mutation by `try-slot-arms-test.php`.
+Progress: Shipped 1.18.0 as `bws_read_bounded_sources()` (field-helpers.php), extracted from try_'s emit loop; both the content/permalink/image term loops and the try_ slot emit consume it. The content callback's post-side collapse to one id is confirmed intentional (`{{content}}` is not list mode because a value carries no identity of its own — an assembly decision, not a resolver one; recorded on #118 (closed), a separate editor-surface concern). The #108 (closed) coverage gap is closed — arm wiring lives in `includes/helpers/try-slot-arms.php`, pinned under mutation by `try-slot-arms-test.php`.
 
 Open: Un-hardcoding the `same`-use prepend. The shared emit the arms feed has no pure-harness coverage of its own; pinned only by `fold-test-matrix.md` and `text-test-matrix.md` §T8.
 
-Blocked by: —  •  Interacts with: FW-49 (the combining half), FW-71
+Blocked by: —  •  Interacts with: FW-49 (closed; the combining half), FW-71 (closed)
 
 #### FW-47 — Author-kind permalink + image analogs
 
@@ -137,17 +139,17 @@ The 1.15.0 author kind shipped `title`/`content` only; `{{permalink}}`/`{{image}
 
 Detail home: `.scratch/plans/context-aware-base-tags.md` §Tag Dispatch (author rows) + `bws_base_user_analog_read` PHPDoc (the two deferred cases)
 
-Progress: The permalink soft gate — a non-ambient user source — is MET since 1.19.0: query-loop item recognition now reads a user item as a user (#123), and inside such a loop `{{permalink}}` is no longer circular (it used to resolve as the POST'S permalink instead, per loop-item-wins-over-ambient). The 1.19.0 ambient-analog collapse (`bws_base_ambient_analog`) also dropped the build cost for either analog to one reader case plus a carve-out flip in `bws_base_user_analog_read()`. **Why this item states the new fact rather than the old wait condition:** the doc/code drift here was resolved CODE-ward, and the code change WAS the decision — `3ed3ce1` deliberately made a user loop item resolve as a user, which is what satisfied the gate this item was written to wait on. Nothing was left unfinished against this row's text; `git log` answers the question the drift rule exists to ask.
+Progress: The permalink soft gate — a non-ambient user source — is MET since 1.19.0: query-loop item recognition now reads a user item as a user (#123, closed), and inside such a loop `{{permalink}}` is no longer circular (it used to resolve as the POST'S permalink instead, per loop-item-wins-over-ambient). The 1.19.0 ambient-analog collapse (`bws_base_ambient_analog`) also dropped the build cost for either analog to one reader case plus a carve-out flip in `bws_base_user_analog_read()`. **Why this item states the new fact rather than the old wait condition:** the doc/code drift here was resolved CODE-ward, and the code change WAS the decision — `3ed3ce1` deliberately made a user loop item resolve as a user, which is what satisfied the gate this item was written to wait on. Nothing was left unfinished against this row's text; `git log` answers the question the drift rule exists to ask.
 
 Open: image — no clean intrinsic analog (parity with the #29 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source).
 
-Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113, #123 (user loop items made the first non-ambient user source)
+Blocked by: `decision:image-avatar-analog`  •  Interacts with: FW-9, FW-48, FW-39, FW-101, FW-113
 
 #### FW-67 — Retire the bws-term-hop control-type carrier (the last retired word)
 
 A control `type` string is a registered identifier the editor JS matches on, so `bws-term-hop` cannot simply be renamed like prose — it moves in lockstep with its file and every registration naming it, or it stays.
 
-Detail home: GH #80 §Out of Scope (Phase C, parked); `docs/design-history/per-step-limit.md` §OPEN (`bws-term-hop` control type); vocabulary decision V1 in `docs/design-history/src-chain-encoding.md` §VOCABULARY
+Detail home: GH #80 (closed) §Out of Scope (Phase C, parked); `docs/design-history/per-step-limit.md` §OPEN (`bws-term-hop` control type); vocabulary decision V1 in `docs/design-history/src-chain-encoding.md` §VOCABULARY
 
 Progress: Every base tag has already retired the carrier. It survives only where the flat `srcTermIn` control still registers — the `term_`/`view_` modifier families and `{{table}}` — because they take `bws_base_traversal_options()` raw with no chain option to gate `bws_drop_chain_flat_options()` on.
 
@@ -161,11 +163,11 @@ Blocked by: row:FW-70, row:FW-53  •  Interacts with: FW-33
 
 Detail home: `.scratch/plans/table-tag.md` §FW-74 — the repeater-row arm
 
-Progress: The read layer already carries a live `case 'meta_row'` (`bws_read_resolved_source()`, `traversal-pipeline.php`); only the arm is missing. Design recorded ahead of the build: branch on the WIRE kind (`bws_fold_chain_resolution()`), never on `$base['kind']` — a resolved `meta_row` off the ambient context is GB Pro's flat repeater row and must keep falling through to the post arm; §F9c pins the distinction. #105 deliberately does not flag such a chain as broken, since the tag becomes correct without the warning needing to change.
+Progress: The read layer already carries a live `case 'meta_row'` (`bws_read_resolved_source()`, `traversal-pipeline.php`); only the arm is missing. Design recorded ahead of the build: branch on the WIRE kind (`bws_fold_chain_resolution()`), never on `$base['kind']` — a resolved `meta_row` off the ambient context is GB Pro's flat repeater row and must keep falling through to the post arm; §F9c pins the distinction. #105 (closed) deliberately does not flag such a chain as broken, since the tag becomes correct without the warning needing to change.
 
 Open: Rides the `{{table}}` finalization, where the kind gets a consumer worth having.
 
-Blocked by: row:FW-53  •  Interacts with: FW-53, FW-71, FW-7, #105
+Blocked by: row:FW-53  •  Interacts with: FW-53, FW-71 (closed), FW-7
 
 #### FW-98 — The stated-fallback emit is written out ten times
 
@@ -311,6 +313,18 @@ Blocked by: —  •  Interacts with: FW-114, FW-111
 
 ### Feature follow-ups & UX
 
+#### FW-9 — Context-aware base tags — the deferred residue
+
+The residue of the context-aware base-tag work after the five query-context kinds (date / search / PTA / 404 / latest-home) shipped: the deferred per-kind option surface and the datetime archive-context semantics.
+
+Detail home: GH #19 (closed) + `.scratch/plans/context-aware-base-tags.md`
+
+Progress: The five query-context kinds shipped 1.19.0 (term kind 1.14.0, author kind 1.15.0 — see FW-47 for its residue). The per-kind option-surface gate was dropped in the 2026-08-29 grilling and the kinds shipped on core's values.
+
+Open: The deferred option surface (404 title/text override, search format — also FW-105's home, taxonomy-label prefix, date format, latest-home title source) and the datetime archive-context semantics (`use:archive_range` era).
+
+Blocked by: decision:option surface scope  •  Interacts with: FW-33, FW-47, FW-105
+
 #### FW-13 — Smart field selector v2/v3
 
 Follow-on work to the shipped field-selector v1 (discovery-backed `bws-field-combo` control replacing GB's raw key/ref/linkKey/datetime-key text inputs).
@@ -383,6 +397,18 @@ Progress: Not started.
 
 Blocked by: —  •  Interacts with: —
 
+#### FW-20 — Combined option controls
+
+Includes serialization order; avoiding serializing stale or redundant options, e.g. stripping `use:key` when `key:some_field` is set and stripping `key` when `use` is not `key`; and folded options, e.g. `linkTo` cluster unification (the wire change, separate from FW-13's discovery work). `use:key,field` itself is decided against as a general serialization standard; it survives only as the folded multi-key/multi-field form FW-81's datetime collapse needs.
+
+Detail home: `.scratch/plans/combined-option-controls.md`
+
+Progress: `srcTermIn` shipped in v1.6.0; it was superseded by FW-56's src-chain control, shipped in 1.17.0. The serialization-order portion (FW-52) and `{{image}}`'s folded `as:url,<size>` shipped in 1.16.0.
+
+Open: `use`/`key` and the `linkTo` cluster.
+
+Blocked by: —  •  Interacts with: FW-13, FW-81
+
 #### FW-55 — Warn + escape UI for tag-string-unsafe chars in free-text options
 
 The separator/format free-text options (`{{join}}`'s `valueSep`/`sep`/`format`, datetime `format`, any future glue/subvalue delimiter) let an author type a value that silently corrupts on editor reopen — a second `:` in a pair loses its tail, `{`/`}` fail the render matcher outright.
@@ -409,7 +435,7 @@ Blocked by: decision:opt-in vs unconditional suppression  •  Interacts with: F
 
 #### FW-73 — Converter coverage: enumerate unreachable tag wire, or keep disclosing the boundary
 
-The Tag Converter reaches `post_content` and, with #99, the GB Pro pattern cache; tag wire in custom field values, other plugins' caches, and other page builders' stored data are unreachable by the scanner.
+The Tag Converter reaches `post_content` and, with #99 (closed), the GB Pro pattern cache; tag wire in custom field values, other plugins' caches, and other page builders' stored data are unreachable by the scanner.
 
 Detail home: GH #100
 
@@ -417,7 +443,7 @@ Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool 
 
 Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66/#77's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
-Blocked by: decision:disclosure vs enumeration  •  Interacts with: #99, #98, FW-66 (notice deferral, reopened)
+Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened)
 
 #### FW-85 — Per-item link wrapping for list-mode values
 
@@ -429,7 +455,7 @@ Progress: The limit-usable-results fix (FW-87) makes the loss more visible — a
 
 Open: Which value receives the link once `sep` has joined several into one string — per-value wrapping means the join must emit markup, which its grammar does not currently do.
 
-Blocked by: —  •  Interacts with: FW-49 (established the per-value payload this consumes), ADR 0003/0005, [I12]
+Blocked by: —  •  Interacts with: FW-49 (closed; established the per-value payload this consumes), ADR 0003/0005, [I12]
 
 #### FW-86 — Whether a fanning chain deduplicates its resolved sources
 
@@ -519,7 +545,7 @@ Query-loop item-shape recognition (1.19.0) reads four shapes — post, term, use
 
 Detail home: `.scratch/plans/product-loop-item-recognition.md` (new) + `bws_classify_loop_item()` PHPDoc (the axis)
 
-Progress: Accepted as a regression, not hidden: measured 2026-08-26 that `WooCommerce_Query` emits a bare anonymous `(object)['id' => …, 'name' => …]` record with no class or marker, satisfying no recognition arm. The old behaviour worked only because a WooCommerce product id happens to equal a post id — the same coincidence that hid the term-id leak (#123) — so an unrecognized shape must say nothing ([I15]). No fixture site carries WooCommerce, so no matrix row exists; `loop-item-classify-test.php` §C1.13 pins only that the shape is refused.
+Progress: Accepted as a regression, not hidden: measured 2026-08-26 that `WooCommerce_Query` emits a bare anonymous `(object)['id' => …, 'name' => …]` record with no class or marker, satisfying no recognition arm. The old behaviour worked only because a WooCommerce product id happens to equal a post id — the same coincidence that hid the term-id leak (#123, closed) — so an unrecognized shape must say nothing ([I15]). No fixture site carries WooCommerce, so no matrix row exists; `loop-item-classify-test.php` §C1.13 pins only that the shape is refused.
 
 Open: What marker identifies a product record, given a bare `id` is the weakest marker there is. Whatever ships must stay SHAPE-keyed, never vendor-keyed.
 
@@ -545,11 +571,11 @@ Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
 Detail home: `.scratch/plans/tag-string-preview-rebase.md` (new)
 
-Progress: Held, not archived, since 2026-08-05 — deliberately left un-rewritten only until 1.17.0 shipped so the re-base target would stop moving; 1.17.0 has shipped, so the re-base is startable. Measured staleness (2026-08-18): two of three "no shipped form" notes now have one; zero coverage of FW-71/#104's chain-wire-on-slots and `same` merge, the largest single gap.
+Progress: Held, not archived, since 2026-08-05 — deliberately left un-rewritten only until 1.17.0 shipped so the re-base target would stop moving; 1.17.0 has shipped, so the re-base is startable. Measured staleness (2026-08-18): two of three "no shipped form" notes now have one; zero coverage of FW-71/#104 (closed) chain-wire-on-slots and `same` merge, the largest single gap.
 
 Open: Scope is a re-base, not a rebuild — emitters, toggle apparatus, slot-key spelling, and the `%A` format-token rewrite still work; what moves is which side is the default and which notes are true. What stays behind a toggle divides into genuine open futures (FW-61, FW-59, FW-39, FW-24, FW-27, FW-53, FW-45, FW-81) and deliberately-kept rejected candidates (the `/` limit char, root-explicit chains, `use(...)` read parity) — label the axis so a reader can tell them apart.
 
-Blocked by: —  •  Interacts with: FW-75 (both are "an artifact whose readers have changed"), FW-61, FW-59, FW-39, FW-53
+Blocked by: —  •  Interacts with: FW-75 (both are "an artifact whose readers have changed"), FW-77 (closed), FW-61, FW-59, FW-39, FW-53
 
 #### FW-97 — Fixture-page reorganization
 
@@ -561,7 +587,7 @@ Progress: Reviewed 2026-08-28 — narrower than a failed cut: most `*-test-matri
 
 Open: Split the catch-all, or accept it — re-measure before acting. Any reorganization must land in the SAME commit as the page-snapshot re-capture, or the pages fail for a reason no diff explains.
 
-Blocked by: —  •  Interacts with: FW-96, FW-103
+Blocked by: —  •  Interacts with: FW-96, FW-103 (closed)
 
 ### Docs & vocabulary
 
@@ -637,16 +663,6 @@ Blocked by: —  •  Interacts with: FW-47, FW-48, FW-93, FW-95
 
 ### Future possibilities
 
-#### FW-20 — Combined option controls
-
-`use:key,field` serialization combine (selector+field fold) — the wire change, separate from FW-13's discovery work. The `link` cluster unification is the surviving scope after the serialization-order half shipped as FW-52.
-
-Detail home: `.scratch/plans/combined-option-controls.md` (srcTermIn part shipped v1.6.0)
-
-Progress: Not started on the remaining `link` cluster.
-
-Blocked by: —  •  Interacts with: FW-13, FW-81
-
 #### FW-21 — Add sources to GB core tags via JS filters
 
 Extend GB's own core tags with additional sources through JS filters.
@@ -673,13 +689,13 @@ Blocked by: —  •  Interacts with: the site-wide '0' guard (`includes/hooks.p
 
 Slots holding whole base tags for heterogeneous join/try composition. Nested-braces syntax can never ride the wire (GB kills any `}`), so encoding must stay flat.
 
-Detail home: memory `deferred_features.md` (north-star for #26); sandbox → `docs/design-history/src-chain-encoding.md` §2026-07-29
+Detail home: memory `deferred_features.md` (north-star for #26, closed); sandbox → `docs/design-history/src-chain-encoding.md` §2026-07-29
 
 Progress: Mostly satisfied by the approved FW-57 fold wire (2026-07-31 assessment, not a build) — the fold's slot value already carries a whole per-slot source chain plus its read, and Option R lets that read name its own processing tag on format-agnostic containers, which is heterogeneous-tag-per-slot arriving for free. The step splitter is confirmed bracket-aware, which this item's remaining scope depends on.
 
 Open: Remaining scope is narrow — per-type OPTION tokens inside a slot (a `datetime_single` slot cannot yet carry that tag's `format`, an image slot cannot carry `as`/`size`).
 
-Blocked by: —  •  Interacts with: FW-25, FW-16, FW-56, FW-57
+Blocked by: —  •  Interacts with: FW-25, FW-16, FW-56 (closed), FW-57 (closed)
 
 #### FW-25 — Multislot-only field options
 
@@ -711,7 +727,7 @@ Progress: Direction confirmed and sharpened (user, 2026-08-01): embedded option,
 
 Open: The condition's subject — the useful cases test a DIFFERENT source/field than the slot reads, which means a condition needs its own src-chain per slot on top of the read chain, roughly doubling per-slot state. A same-subject fallback (condition tests the slot's own read) covers has-value/simple truthiness with no second chain, at the cost of the cases that motivate the feature. Must decide before any wire work.
 
-Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26, FW-57, FW-56, FW-60, FW-43
+Blocked by: decision:condition subject — decoupled chain vs same-subject  •  Interacts with: FW-26, FW-57 (closed), FW-56 (closed), FW-60, FW-43
 
 #### FW-28 — Composition-of-composers
 
@@ -757,13 +773,13 @@ Blocked by: —  •  Interacts with: FW-30
 
 #### FW-33 — term_ deprecation path
 
-Subsumed by base tags + context-aware kinds (#19) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This item also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
+Subsumed by base tags + context-aware kinds (#19, closed) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This item also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
 
 Detail home: memory `project_term_deprecation_path.md`; the de-scoping decision `docs/design-history/multi-step-slot-sources.md` §History
 
-Progress: `view_` now runs ahead of this item on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The collapsed-fan gap (GH #63) resolves for free once migrated, since ADR 0005's per-step limits already apply to a base tag.
+Progress: `view_` now runs ahead of this item on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The collapsed-fan gap (GH #63, closed) resolves for free once migrated, since ADR 0005's per-step limits already apply to a base tag.
 
-Blocked by: row:FW-9, code:ID source lands  •  Interacts with: FW-8, FW-67, FW-70
+Blocked by: row:FW-9, code:ID source lands  •  Interacts with: FW-8, FW-67, FW-70 (closed)
 
 #### FW-34 — Configurable default field keys per source × tag-type
 
@@ -821,7 +837,7 @@ Progress: The control question is largely answered by the FW-57 slot repeater, s
 
 Open: Whether the ceiling stays finite or the registration itself goes dynamic; applying the repeater to flat `{N}-src`/`{N}-use`/`{N}-key` join slots if the fold doesn't land first; reorder, which is strictly harder than removal since it re-points every intervening `same` reference rather than touching one immediate successor. The repeater would also serve FW-60's add-slot need if that lands, at no new control cost.
 
-Blocked by: `code:custom editor-control work`  •  Interacts with: FW-24, FW-57, FW-60, `docs/editor-controls.md` (owns the custom-control work this waits on)
+Blocked by: `code:custom editor-control work`  •  Interacts with: FW-24, FW-57 (closed), FW-60, `docs/editor-controls.md` (owns the custom-control work this waits on)
 
 #### FW-46 — Name-format preset over join
 
@@ -839,11 +855,11 @@ A new source reach to a USER source by post→author hop (`{{title src:author}}`
 
 Detail home: `docs/design-history/traversal-convergence-fw49.md` (seam halves' record); readers exist (`bws_base_user_analog_read`), factory hop + seam user arm are the new code
 
-Progress: The seam halves shipped 1.16.0 (FW-49 build) — `case 'user':` in `bws_read_resolved_source` and the resolve-value user arm, so `{{text}}`/`{{join}}` slots resolve on author archives. `try_` slots followed in 1.17.0 (#108) with their own dispatcher cases. The 1.19.0 ambient-analog collapse means the remaining hop's output lands on one seam every former arm site already asks.
+Progress: The seam halves shipped 1.16.0 (FW-49 build) — `case 'user':` in `bws_read_resolved_source` and the resolve-value user arm, so `{{text}}`/`{{join}}` slots resolve on author archives. `try_` slots followed in 1.17.0 (#108, closed) with their own dispatcher cases. The 1.19.0 ambient-analog collapse means the remaining hop's output lands on one seam every former arm site already asks.
 
 Open: Remaining scope is only the factory post→author hop itself, which makes `src:author` user-facing. Opens the same permalink/image analog questions FW-47 tracks — out of scope here.
 
-Blocked by: —  •  Interacts with: FW-47, FW-39, FW-9, FW-49
+Blocked by: —  •  Interacts with: FW-47, FW-39, FW-9, FW-49 (closed)
 
 #### FW-53 — {{table}} repeater→HTML table tag
 
@@ -851,11 +867,11 @@ A repeater fold (`rows` step) into a `<table>` string. A table's row-set is what
 
 Detail home: `.scratch/plans/table-tag.md` §Roadmap
 
-Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_register_table_tag` filter (default false) since 2026-08-12, so no install gets it by default; the fixture blueprint enables it from its mu-plugin so matrix rows and fixture blocks keep running while v1 is built. Its blocker cleared 2026-08-20 when GH #55 (base-tag source chains) shipped — v1 can now assume both a chain source and registered roots (FW-69).
+Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_register_table_tag` filter (default false) since 2026-08-12, so no install gets it by default; the fixture blueprint enables it from its mu-plugin so matrix rows and fixture blocks keep running while v1 is built. Its blocker cleared 2026-08-20 when GH #55 (closed; base-tag source chains) shipped — v1 can now assume both a chain source and registered roots (FW-69).
 
 Open: v1 finalization detail lives entirely in the plan's §Roadmap. Flip the filter to unconditional when v1 ships.
 
-Blocked by: —  •  Interacts with: FW-13, FW-14 (#12 discovery scoping), FW-20, FW-54, FW-56, FW-69, FW-67
+Blocked by: —  •  Interacts with: FW-13, FW-14 (#12, closed; discovery scoping), FW-20, FW-54, FW-56 (closed), FW-69 (closed), FW-67
 
 #### FW-54 — src:query — cross-tag post-query base source
 
@@ -879,7 +895,7 @@ Progress: Validated in the 2026-07-29 sandbox — brackets are inert to GB, a ba
 
 Open: Which option keys count as free-form (the `RESPELL_FREEFORM` seed set); migration vs read-tolerant; interaction with `bws-format-input`'s existing escape control. Should land with or before FW-56/57 so base and slot free-form emission share one rule.
 
-Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56, FW-57
+Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56 (closed), FW-57 (closed)
 
 #### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
 
@@ -891,7 +907,7 @@ Progress: Assessed premature (user, 2026-08-01) — recorded as a possibility, n
 
 Open: Whether `try_` is structurally "base + N slots" or carries real structural difference (verify against `generate_base_try_tags()`'s inline resolve + `show_if_any` reveal, which FW-43 targets); the add-slot control (largely answered by FW-45's repeater spike); the slot-noun label ("Add fallback" rejected — collides with the shipped `fallback` option).
 
-Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57, FW-45, FW-27, FW-43, FW-24, FW-33
+Blocked by: `decision:premature — absorb try_ into base at all`  •  Interacts with: FW-57 (closed), FW-45, FW-27, FW-43, FW-24, FW-33
 
 #### FW-61 — Per-step sep on a fanning chain
 
@@ -903,7 +919,7 @@ Progress: Deferred 2026-08-01 (user) — modelled and rendered in the preview to
 
 Open: Whether the authoring surface is worth it at all, and how it interacts with the tag-level `sep` it would not replace.
 
-Blocked by: `code:fan-out structure preservation — bws_run_traversal flattens rather than keeping a tree a per-step sep could join`  •  Interacts with: FW-44 (overlaps), FW-56, FW-57, FW-55, FW-20, FW-53
+Blocked by: `code:fan-out structure preservation — bws_run_traversal flattens rather than keeping a tree a per-step sep could join`  •  Interacts with: FW-44 (overlaps), FW-56 (closed), FW-57 (closed), FW-55, FW-20, FW-53
 
 #### FW-62 — Move the fold control's remaining authored LABELS onto the option definition
 
@@ -935,11 +951,11 @@ A channel for telling authors a release CHANGED what a tag renders, distinct fro
 
 Detail home: GH #77
 
-Progress: Not a prerequisite for anything (user, 2026-08-19) — FW-69/FW-70 shipped without it. Known callers at filing: #74's taxonomy carry (`standing`) and the 1.6-era converter-dropped switches (`announcement`).
+Progress: Not a prerequisite for anything (user, 2026-08-19) — FW-69/FW-70 shipped without it. Known callers at filing: the taxonomy carry from #74 (closed) (`standing`) and the 1.6-era converter-dropped switches (`announcement`).
 
 Open: Entries need a `match_callback` beside declarative fields, and must contribute names to the scan's LIKE set or an advisory would be blind to its own tags.
 
-Blocked by: —  •  Interacts with: #74, #75, #76
+Blocked by: —  •  Interacts with: —
 
 #### FW-80 — The default rename — per-tag analogs collapse to one default value
 
@@ -951,7 +967,7 @@ Progress: Not definite (user, 2026-08-18) — filed to give it a tracked home, n
 
 Open: Whether a `try_` slot ≥2 forces its analog with an explicit token; the value `featured`/`logo`/`avatar` render under (a relabelled `featured` entry vs a neutral `default`).
 
-Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57, FW-34, FW-81
+Blocked by: decision:whether analogs unify at all  •  Interacts with: FW-20, FW-13, FW-57 (closed), FW-34, FW-81
 
 #### FW-81 — Collapse datetime_single + datetime_range into one tag
 
@@ -974,9 +990,9 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-1 | Deprecated tag removal | Shipped 1.14.0 | CHANGELOG 1.14.0; `deprecated-tags.php` PHPDoc; memory `project_deprecated_tags_no_migration_path` |
 | FW-2 | Datetime option-key cleanup | Shipped 1.15.0: single normalizer `bws_normalize_datetime_options()` — the ONLY parse point; mappers kept as portal-system compat wrappers | CHANGELOG 1.15.0; normalizer PHPDoc (datetime-tags.php); `tools/test/datetime-format-test.php` N-group |
 | FW-4 | `src:site` slot for the remaining `try_` tags | Shipped 1.15.0 — pure wiring: a `try_site_fn` descriptor leg, five thin closures over `bws_site_resolve_value`, single-result site link-wrap for I6/C9 parity | CHANGELOG 1.15.0; registry PHPDoc (`try_site_fn`); `src-site-test-matrix.md` R7 |
-| FW-5 | Collapse the `try_core_fn`/`try_term_fn` fork | Retired 2026-08-15 by #103 — the four hand-written `try_` arms collapsed onto one dispatch keyed by resolved source kind, through the pure table in `includes/helpers/try-slot-arms.php` | FW-71 |
+| FW-5 | Collapse the `try_core_fn`/`try_term_fn` fork | Retired 2026-08-15 by #103 (closed) — the four hand-written `try_` arms collapsed onto one dispatch keyed by resolved source kind, through the pure table in `includes/helpers/try-slot-arms.php` | FW-71 |
 | FW-6 | Datetime list mode | Shipped 1.15.0: `limit`/`sep` on both datetime tags, text/title V14 parity, `src:ref` plural fan-out | CHANGELOG 1.15.0; `tag-reference.md` §List mode; `tools/test/datetime-test-matrix.md` D4 |
-| FW-10 | `src:site` → ref | Shipped 1.17.0 — the engine's `ref` step accepts a site source; a site-rooted relationship is a CHAIN (`src:site;refs,x`), not a re-exposed control | CHANGELOG 1.17.0; `bws_run_step()` PHPDoc; GH #28 |
+| FW-10 | `src:site` → ref | Shipped 1.17.0 — the engine's `ref` step accepts a site source; a site-rooted relationship is a CHAIN (`src:site;refs,x`), not a re-exposed control | CHANGELOG 1.17.0; `bws_run_step()` PHPDoc; GH #28 (closed) |
 | FW-11 | Gate wrap-capable base tags on img/picture | Cut 2026-07-21 — inert, no code shipped. No editor-reachable GB block presents `tagName` img/picture to the picker's compare | GH #31 (closed inert); `gb-constraints.md` §visibility blind spot |
 | FW-12 | Custom time format on two-ended `as:time` range | Shipped 1.15.0: per-side format via the single-ended resolver chain | CHANGELOG 1.15.0; `bws_format_time_range()` PHPDoc; matrix D3 |
 | FW-22 | `{{join}}` tag | Shipped 1.15.0: standalone combining tag, 10 text slots, separator + template modes, %N wire tokens. Spawned FW-43/44/45/46 | CHANGELOG 1.15.0; `tag-reference.md` §join; plan archived `docs/design-history/combine-text.md` |
@@ -987,7 +1003,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-41 | Datetime key pair-combine | Overtaken by FW-81 2026-08-19 — FW-81 goes 6→1 at the same single parse site rather than 6→3 | FW-81; `.scratch/plans/datetime-tag-collapse.md` §Migration |
 | FW-42 | Fixture testbed (seeded WP site + render seam) | Shipped, retired 2026-08-28. Deliverable A landed with the `core-structures` blueprint and the `wp bws render-tag --url` seam; Deliverable B got no successor row (the visible-blocks trigger enforces the same need more strongly) | `docs/testbed.md`; `tools/fixtures/core-structures/`; `CLAUDE.md` §Development |
 | FW-49 | Base text/title list collection convergence + seam return-shape (link identity) | Shipped 1.16.0: shared L3 combining fold `bws_collect_value_list()` replaces four separate list loops; per-value link identity `{kind,id}\|null` + single-result link gate | CHANGELOG 1.16.0; CONTEXT.md I12; `docs/design-history/traversal-convergence-fw49.md` |
-| FW-50 | Remove the `fallback_text` active read path | Shipped 1.16.0: cores read `fallback` directly; both reverse-mappers deleted; also carried GH #51's fix | CHANGELOG 1.16.0; rename row `docs/deprecated-tags-options.md`; GH #51 |
+| FW-50 | Remove the `fallback_text` active read path | Shipped 1.16.0: cores read `fallback` directly; both reverse-mappers deleted; also carried the fix for GH #51 (closed) | CHANGELOG 1.16.0; rename row `docs/deprecated-tags-options.md`; GH #51 (closed) |
 | FW-51 | try_ slot 2+ silently empty without `use` | Closed by construction, 1.17.0 — FW-57's slot fold makes the broken shape unexpressible | CHANGELOG 1.17.0; closure rationale `docs/design-history/src-chain-encoding.md` §The FLAG surface |
 | FW-52 | Serialization-order decoupling (reorder normalizer + registration-unwind) | Shipped 1.16.0: canonical control order + canonical serialize order via a per-tag JS normalizer; as+size composite co-shipped | CHANGELOG 1.16.0; `serialization-order-normalizer.js` PHPDoc; `.scratch/plans/combined-option-controls.md` §Grill outcomes 2 |
 | FW-56 | Multi-step src-selection encoding + authoring model | Shipped 1.17.0: wire + compile (`slot-fold.php`/`slot-fold-compile.php`), then authoring + migration on every base tag (`bws-src-chain` control) | CHANGELOG 1.17.0; `docs/design-history/src-chain-encoding.md` §SETTLED index; ADR 0005 (limit semantics); `docs/tag-reference.md` §List mode |
@@ -995,9 +1011,9 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-63 | Verb-agnostic arm dispatch — base callbacks branch on resolved-source KIND, not flat src/srcTermIn tokens | Closed 2026-08-05, shipped 1.17.0: ~19 render-path arm sites across five files stopped comparing flat tokens; matrix coverage confirmed the swaps rather than assuming them. Gave BASE tags kind dispatch only — slot chains waited on FW-71 | CHANGELOG 1.17.0; `bws_fold_chain_resolution()` PHPDoc; `docs/design-history/per-step-limit.md` §Arm dispatch, sized |
 | FW-65 | Whether `datetime_range` wants an inner start/end split inside its field box | Dissolved into FW-81 2026-08-19, on this row's own reasoning — FW-81 collapses six key names to one, leaving nothing to subdivide | FW-81; `bws_option_visual_groups()` PHPDoc |
 | FW-68 | The five datetime keys under the slot fold | Retired into FW-81 2026-08-19, premise corrected — `try_datetime_*` has NO per-slot read axis at all (verified false that it folded source+key while four axes stayed flat); all six key axes are flat tag-level | FW-81; `.scratch/plans/datetime-tag-collapse.md` §Reframings |
-| FW-69 | External sources selectable as chain ROOTS (opt-in + registration filter) | Shipped 1.17.0 (2026-08-12): `is_selectable_root()` on the source contract (default false), the `bws_dynamic_tags_chain_roots` filter route, one appender feeding both the base root enum and the slot source enum | GH #80; `docs/design-history/external-source-roots.md` |
-| FW-70 | Migrate `view_*` modifier tags to `{{<base> src:view}}` | Shipped 1.17.0 (2026-08-12): `bws_migrate_modifier_root_chain()` as a WHOLE-STRING transform; registration never retires ahead of migration, so both spellings render indefinitely. External half shipped in bws-portal-system 5.7.0 | GH #80; `docs/deprecated-tags-options.md` §Modifier prefix → base tag; `docs/design-history/external-source-roots.md` |
-| FW-71 | Multi-step slot sources — a slot's SOURCE *is* a base tag's source | Shipped 1.17.0 (2026-08-15, #104): `bws_fold_slot_flat_options()` deleted, replaced by chain wire in `$slot_opts['src']`. Both containers converted in the same move. Two replay-driven catches beyond the design (a legacy term-step parity gap and an inherited-hop default) were fixed before ship; the full replay obligation (build + migration + #112) discharged 2026-08-18 with numbers matching prediction exactly | CHANGELOG 1.17.0; invariant `CONTEXT.md` I16; `docs/design-history/multi-step-slot-sources.md` |
+| FW-69 | External sources selectable as chain ROOTS (opt-in + registration filter) | Shipped 1.17.0 (2026-08-12): `is_selectable_root()` on the source contract (default false), the `bws_dynamic_tags_chain_roots` filter route, one appender feeding both the base root enum and the slot source enum | GH #80 (closed); `docs/design-history/external-source-roots.md` |
+| FW-70 | Migrate `view_*` modifier tags to `{{<base> src:view}}` | Shipped 1.17.0 (2026-08-12): `bws_migrate_modifier_root_chain()` as a WHOLE-STRING transform; registration never retires ahead of migration, so both spellings render indefinitely. External half shipped in bws-portal-system 5.7.0 | GH #80 (closed); `docs/deprecated-tags-options.md` §Modifier prefix → base tag; `docs/design-history/external-source-roots.md` |
+| FW-71 | Multi-step slot sources — a slot's SOURCE *is* a base tag's source | Shipped 1.17.0 (2026-08-15, #104 closed): `bws_fold_slot_flat_options()` deleted, replaced by chain wire in `$slot_opts['src']`. Both containers converted in the same move. Two replay-driven catches beyond the design (a legacy term-step parity gap and an inherited-hop default) were fixed before ship; the full replay obligation (build + migration + #112, closed) discharged 2026-08-18 with numbers matching prediction exactly | CHANGELOG 1.17.0; invariant `CONTEXT.md` I16; `docs/design-history/multi-step-slot-sources.md` |
 | FW-72 | Pure harness for the field-selector control | Shipped, closed 2026-08-28: `tools/test/field-combo-control-test.js` — 41 assertions over the display layer, reached with no new exports, mutation-checked | `tools/test/field-combo-control-test.js`; `docs/update-triggers.md` §Field-discovery change |
 | FW-77 | Reexamine the docs/future-work.md trackers themselves | Closed 2026-09-01. Taxonomy half done 2026-08-28 (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired). Format half shipped 2026-09-01: table rows became heading blocks with Description/Detail home/Progress/Open/Blocked by/Interacts with, `row:`-prose evicted, section/item heading levels corrected (h3/h4), and every "row" reference to a tracker entry renamed to "item". Last open question decided (user): the Closed / Retired ledger stays in this file | commits `46a73b3`, `267d9a2`, `0b6f563`, `5d0fdaf` |
 | FW-83 | `entries` carries two senses, and one has shipped | Decided 2026-08-22: the STEP slug renamed `entries`→`rows`, freeing the word for the relationship-field copy that shipped in 1.17.0. No CHANGELOG entry (no shipped control could write the old token, so the delta is zero) | `docs/deprecated-tags-options.md` §Option name renaming; `.scratch/plans/table-tag.md` §SETTLED 2026-08-22 |
