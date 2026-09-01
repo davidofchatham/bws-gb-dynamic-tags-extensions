@@ -1,14 +1,14 @@
 # Future work tracker
 
-**Not a roadmap for future work.** No committed timeline on anything below. One exception: an **In-flight** row names a target version, but even that holds no progress detail — the row points at the branch / plan / unreleased CHANGELOG, which own the real build state. This is a single visible index of non-bug work — future AND in-flight — one heading block per **`FW-N` id**.
+**Not a roadmap for future work.** No committed timeline on anything below. One exception: an **In-flight** item names a target version, but even that holds no progress detail — the item points at the branch / plan / unreleased CHANGELOG, which own the real build state. This is a single visible index of non-bug work — future AND in-flight — one heading block per **`FW-N` id**.
 
-## Row shape
+## Item shape
 
 Each item is a `#### FW-N — <title>` heading followed by a fixed set of labeled lines:
 
 - A **description** paragraph (1-3 sentences): what the item IS. Stable, rarely re-edited — not current state, not history.
 - **Detail home:** where the design/rationale + implicit certainty (concept vs planned) live — a GH issue, a `.scratch/plans/*.md` file, a `docs/design-history/*.md` file, or a memory note. Never duplicated here; open the link for the full story.
-- **Target:** *(In-flight rows only)* the version the work is landing in, or `—` where no release carries it (tooling/instrument work has no landing version).
+- **Target:** *(In-flight items only)* the version the work is landing in, or `—` where no release carries it (tooling/instrument work has no landing version).
 - **Progress:** fact-based, present-tense, permanent-once-true statements only — "half X shipped", "measured on Y", "condition Z is met". Always present, even if just "Not started."
 - **Open:** what's still undecided or unbuilt, when there's a real done/open split. Omitted when there's nothing beyond Progress worth stating separately.
 - **Blocked by: / Interacts with:** unchanged in meaning from the old table columns — see below.
@@ -17,21 +17,21 @@ Each item is a `#### FW-N — <title>` heading followed by a fixed set of labele
 
 The old rule banned tracking phase, commit, or percent-done in a cell, because that surface drifts — a phase name or a remaining-task count needs re-touching on every build session, and the FW-52 staleness this rule was written against is what happens when nobody does. **That reasoning still holds and still bans exactly that kind of statement.** What changes is the conclusion: a `Progress:` line is now allowed, but only for statements that are true FOREVER once true — a measurement taken, a threshold met, a half shipped. It may NOT hold a live estimate, a phase name, a percent-done figure, or a remaining-task count; those still drift, still need re-touching, and still belong in the branch / plan / unreleased CHANGELOG that owns the real build state. The crux: "half (a) shipped 1.15.0" is a fact that stays true forever — nothing about it goes stale. "Phase 2 of 3, ~60% done" is not — it goes stale the moment work continues, whether or not anyone edits the line. That distinction, not the presence of a Progress line, is what keeps this from repeating the FW-52 mistake.
 
-- **`FW-N` ids are permanent.** Cross-refs use the id, never prose, so a reworded row never orphans a reference. A shipped/cut row's id retires to the Closed/Retired ledger and is never reused or reassigned.
+- **`FW-N` ids are permanent.** Cross-refs use the id, never prose, so a reworded item never orphans a reference. A shipped/cut item's id retires to the Closed/Retired ledger and is never reused or reassigned.
 - **Bugs do NOT go here** → GitHub Issues (`bug` label).
-- **No detail duplication.** A row states that something exists, what gates it, what it touches, and where to read more — it does not carry the design itself. Certainty (concept vs planned) is read from the detail home, not stated here.
-- **Lifecycle is the SECTION, not a line.** A row starts in a future section, moves to `### In flight` when committed build work begins, and moves to Closed / Retired on ship. It keeps its `FW-N` and its Detail-home line through all three — only the section changes. This coarse move is the only progress signal a row's SECTION carries.
+- **No detail duplication.** An item states that something exists, what gates it, what it touches, and where to read more — it does not carry the design itself. Certainty (concept vs planned) is read from the detail home, not stated here.
+- **Lifecycle is the SECTION, not a line.** An item starts in a future section, moves to `### In flight` when committed build work begins, and moves to Closed / Retired on ship. It keeps its `FW-N` and its Detail-home line through all three — only the section changes. This coarse move is the only progress signal an item's SECTION carries.
 - Some homes are local/hidden (`.scratch/plans/` is gitignored, memory files sit outside the working dir). This tracker is the tracked, reviewable surface over them. Migrate detail into `docs/` opportunistically; until then the link still points home.
 
-> **Agent pickup:** a future-section row is startable when its `Blocked by:` line is `—` or every `row:`/`ship:` gate it names is satisfied. `decision:`/`code:` gates are human-resolved — don't auto-start those. `Interacts with:` never blocks. An **In-flight** row is already being built — do NOT pick it up as new work; read its Detail home for real state before touching it.
+> **Agent pickup:** a future-section item is startable when its `Blocked by:` line is `—` or every `row:`/`ship:` gate it names is satisfied. `decision:`/`code:` gates are human-resolved — don't auto-start those. `Interacts with:` never blocks. An **In-flight** item is already being built — do NOT pick it up as new work; read its Detail home for real state before touching it.
 
-`Blocked by:` uses the same typed vocabulary as before: `row:FW-N` (another row) · `ship:X.Y.Z` (a version — satisfied once shipped) · `decision:<what>` (an open choice) · `code:<condition>` (a code state) · `—` (unblocked). A blocker states a CODE FACT, never a scheduling preference — "this cannot land until X", not "do this after X" — so a rescan may re-derive one from the code and swap it without asking what the ordering was meant to achieve. `Interacts with:` is softer coupling (reshapes / reshaped-by / ship-near) as `FW-N` ids + external `#issue` refs — never a gate.
+`Blocked by:` uses the same typed vocabulary as before: `row:FW-N` (another item) · `ship:X.Y.Z` (a version — satisfied once shipped) · `decision:<what>` (an open choice) · `code:<condition>` (a code state) · `—` (unblocked). A blocker states a CODE FACT, never a scheduling preference — "this cannot land until X", not "do this after X" — so a rescan may re-derive one from the code and swap it without asking what the ordering was meant to achieve. `Interacts with:` is softer coupling (reshapes / reshaped-by / ship-near) as `FW-N` ids + external `#issue` refs — never a gate.
 
 ## Trackers
 
 ### In flight
 
-Committed build work. **Pointer-only, like every other row** — the branch / plan / unreleased CHANGELOG own the real build state; a row here names only that the work is live, what it touches, where to read it, and its target version. A row lands here from a future section when build starts and leaves for Closed / Retired on ship. **A row may sit here with no Target** — no release carries a harness or an instrument fix, so `Target: —` is the honest statement ("no release carries this"), not a gap.
+Committed build work. **Pointer-only, like every other item** — the branch / plan / unreleased CHANGELOG own the real build state; an item here names only that the work is live, what it touches, where to read it, and its target version. An item lands here from a future section when build starts and leaves for Closed / Retired on ship. **An item may sit here with no Target** — no release carries a harness or an instrument fix, so `Target: —` is the honest statement ("no release carries this"), not a gap.
 
 #### FW-78 — Migration-replay diff can't tell a repaired row from a vanished one
 
@@ -137,7 +137,7 @@ The 1.15.0 author kind shipped `title`/`content` only; `{{permalink}}`/`{{image}
 
 Detail home: `.scratch/plans/context-aware-base-tags.md` §Tag Dispatch (author rows) + `bws_base_user_analog_read` PHPDoc (the two deferred cases)
 
-Progress: The permalink soft gate — a non-ambient user source — is MET since 1.19.0: query-loop item recognition now reads a user item as a user (#123), and inside such a loop `{{permalink}}` is no longer circular (it used to resolve as the POST'S permalink instead, per loop-item-wins-over-ambient). The 1.19.0 ambient-analog collapse (`bws_base_ambient_analog`) also dropped the build cost for either analog to one reader case plus a carve-out flip in `bws_base_user_analog_read()`. **Why this row states the new fact rather than the old wait condition:** the doc/code drift here was resolved CODE-ward, and the code change WAS the decision — `3ed3ce1` deliberately made a user loop item resolve as a user, which is what satisfied the gate this row was written to wait on. Nothing was left unfinished against this row's text; `git log` answers the question the drift rule exists to ask.
+Progress: The permalink soft gate — a non-ambient user source — is MET since 1.19.0: query-loop item recognition now reads a user item as a user (#123), and inside such a loop `{{permalink}}` is no longer circular (it used to resolve as the POST'S permalink instead, per loop-item-wins-over-ambient). The 1.19.0 ambient-analog collapse (`bws_base_ambient_analog`) also dropped the build cost for either analog to one reader case plus a carve-out flip in `bws_base_user_analog_read()`. **Why this item states the new fact rather than the old wait condition:** the doc/code drift here was resolved CODE-ward, and the code change WAS the decision — `3ed3ce1` deliberately made a user loop item resolve as a user, which is what satisfied the gate this item was written to wait on. Nothing was left unfinished against this row's text; `git log` answers the question the drift rule exists to ask.
 
 Open: image — no clean intrinsic analog (parity with the #29 term-image gap); the avatar (`get_avatar_url`) candidate adds external Gravatar HTTP + privacy surface and isn't "featured-image" semantics (a `use:key` ACF user-image field already covers key-mode). permalink — whether a user query loop alone is enough to ship on, or it still waits for a user source the wire can NAME (FW-48's `src:author` hop, `src:ref`→user, or FW-39's ID source).
 
@@ -283,7 +283,7 @@ Blocked by: —  •  Interacts with: FW-111 (same surface)
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-113
 
-Progress: `class-tag-template-registry.php:400-424` decides term-vs-post for all nine modifier families and does not die with `term_` (`view_*` shares the constructor and is live in bws-portal-system 5.7.0); `datetime-tags.php:865`/`:1013` re-decide the reader after the seam has already answered; `base-shared.php:1742`'s user carve-out is a measured, deliberate (tag × kind) guard rather than a defect. Filed as one row because the three sites share a consequence.
+Progress: `class-tag-template-registry.php:400-424` decides term-vs-post for all nine modifier families and does not die with `term_` (`view_*` shares the constructor and is live in bws-portal-system 5.7.0); `datetime-tags.php:865`/`:1013` re-decide the reader after the seam has already answered; `base-shared.php:1742`'s user carve-out is a measured, deliberate (tag × kind) guard rather than a defect. Filed as one item because the three sites share a consequence.
 
 Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third site), FW-33, FW-3, FW-106
 
@@ -565,7 +565,7 @@ Blocked by: —  •  Interacts with: FW-96, FW-103
 
 ### Docs & vocabulary
 
-Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those rows had nothing in common with a fixture site beyond "not a feature and not a bug".
+Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".
 
 #### FW-75 — tag-reference.md navigability — trim rationale, index Part I, point trigger rows at sections
 
@@ -583,7 +583,7 @@ Blocked by: —  •  Interacts with: FW-53 + `docs/editor-controls.md` (created
 
 Roughly 81 in-code citations of the retired root `SPEC.md` artifact (`SPEC §V<n>` and `SPEC.md §V<n>`), across 12 source files and 3 harnesses, each needing to repoint to wherever that invariant actually lives now (a CONTEXT.md I-number, a PHPDoc, or a tag-reference.md section).
 
-Detail home: this row + `CLAUDE.md` §Spec lifecycle
+Detail home: this item + `CLAUDE.md` §Spec lifecycle
 
 Progress: Counted 2026-08-17 (largest concentrations: `traversal-pipeline.php` 26, `base-shared.php` 15, `base-tags.php` 10, `field-helpers.php` 9, `class-tag-template-registry.php` 6, `datetime-tags.php` 5). The citations already dangled before `SPEC.md` was deleted — it was truncated to a stub after 1.14.0.
 
@@ -593,27 +593,27 @@ Blocked by: —  •  Interacts with: FW-75 (both are "a pointer that no longer 
 
 #### FW-77 — Reexamine the docs/future-work.md trackers themselves
 
-How a row reads, in three parts: row length, where prose goes when a row becomes a record with no detail home to push it into, and rows whose Detail home is "this row" itself.
+How an item reads, in three parts: item length, where prose goes when an item becomes a record with no detail home to push it into, and items whose Detail home is "this item" itself.
 
-Detail home: this row
+Detail home: this item
 
-Progress: Narrowed 2026-08-28 — the taxonomy half of the original scope is done (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired, the in-flight-spec home landed as `.scratch/<feature-slug>/spec.md`). Addressed by the 2026-09-01 heading-block rewrite: rows now carry Description/Progress/Open in place of accreted narrative; every "this row" home either got a new `.scratch/plans/*.md` file (including FW-79 and FW-97) or was confirmed as a genuine self-reference (this row, FW-82, and FW-76 — each a case where the subject IS the tracker/docs surface itself, so an external plan file would be less useful, not more).
+Progress: Narrowed 2026-08-28 — the taxonomy half of the original scope is done (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired, the in-flight-spec home landed as `.scratch/<feature-slug>/spec.md`). Addressed by the 2026-09-01 heading-block rewrite: items now carry Description/Progress/Open in place of accreted narrative; every "this item" home either got a new `.scratch/plans/*.md` file (including FW-79 and FW-97) or was confirmed as a genuine self-reference (this item, FW-82, and FW-76 — each a case where the subject IS the tracker/docs surface itself, so an external plan file would be less useful, not more).
 
 Open: Whether the Closed / Retired ledger belongs in this file at all.
 
-Blocked by: —  •  Interacts with: FW-75 (same class of work, different doc), FW-38 (`registered_by`/`lifecycle` — the other place tracker rows stand in for structure that doesn't exist yet)
+Blocked by: —  •  Interacts with: FW-75 (same class of work, different doc), FW-38 (`registered_by`/`lifecycle` — the other place tracker items stand in for structure that doesn't exist yet)
 
 #### FW-82 — Whether README carries a "Recently added" section
 
 A recurring release-time debate, filed to stop it being re-argued from scratch each version. README's scope axis is CAPABILITIES ("can it do X?"), never authoring mechanics ("how do I write X?") — a "Recently added" section would be a discovery aid for a returning reader, not a home for new features (which the existing capability structure already houses).
 
-Detail home: this row + memory `feedback_user_facing_prose_style.md` (the scope axis it records)
+Detail home: this item + memory `feedback_user_facing_prose_style.md` (the scope axis it records)
 
 Progress: Deferred again 2026-08-19 (user: not today). The do-nothing option is coherent and ships today — release-fresh copy already lives in CHANGELOG Highlights.
 
 Open: If built, needs a retention rule (how many versions before an entry drops, what happens to one that never graduates into the capability prose) or it becomes a second changelog drifting from the first.
 
-Blocked by: decision:recently-added vs nothing  •  Interacts with: FW-75 (the other "an artifact's readers have changed" row)
+Blocked by: decision:recently-added vs nothing  •  Interacts with: FW-75 (the other "an artifact's readers have changed" item)
 
 #### FW-93 — Whether "wire" becomes "tag string"
 
@@ -687,7 +687,7 @@ Slots holding whole base tags for heterogeneous join/try composition. Nested-bra
 
 Detail home: memory `deferred_features.md` (north-star for #26); sandbox → `docs/design-history/src-chain-encoding.md` §2026-07-29
 
-Progress: Mostly satisfied by the approved FW-57 fold wire (2026-07-31 assessment, not a build) — the fold's slot value already carries a whole per-slot source chain plus its read, and Option R lets that read name its own processing tag on format-agnostic containers, which is heterogeneous-tag-per-slot arriving for free. The step splitter is confirmed bracket-aware, which this row's remaining scope depends on.
+Progress: Mostly satisfied by the approved FW-57 fold wire (2026-07-31 assessment, not a build) — the fold's slot value already carries a whole per-slot source chain plus its read, and Option R lets that read name its own processing tag on format-agnostic containers, which is heterogeneous-tag-per-slot arriving for free. The step splitter is confirmed bracket-aware, which this item's remaining scope depends on.
 
 Open: Remaining scope is narrow — per-type OPTION tokens inside a slot (a `datetime_single` slot cannot yet carry that tag's `format`, an image slot cannot carry `as`/`size`).
 
@@ -769,11 +769,11 @@ Blocked by: —  •  Interacts with: FW-30
 
 #### FW-33 — term_ deprecation path
 
-Subsumed by base tags + context-aware kinds (#19) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This row also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
+Subsumed by base tags + context-aware kinds (#19) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This item also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
 
 Detail home: memory `project_term_deprecation_path.md`; the de-scoping decision `docs/design-history/multi-step-slot-sources.md` §History
 
-Progress: `view_` now runs ahead of this row on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The collapsed-fan gap (GH #63) resolves for free once migrated, since ADR 0005's per-step limits already apply to a base tag.
+Progress: `view_` now runs ahead of this item on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The collapsed-fan gap (GH #63) resolves for free once migrated, since ADR 0005's per-step limits already apply to a base tag.
 
 Blocked by: row:FW-9, code:ID source lands  •  Interacts with: FW-8, FW-67, FW-70
 
@@ -793,9 +793,9 @@ One option holding a single exclusive predicate — `allDay:midnight` (00:00 mea
 
 Detail home: `.scratch/plans/all-day-flag.md` (design + the Pie Calendar evidence); GH #41
 
-Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean read is a different kind from a date read, so the two rows are independent. `showMidnight` does not retire: with an authoritative flag a 00:00 on a not-all-day event is a real midnight time and should still print. Zero migration either way (`allDay` absent = today exactly).
+Progress: Designed 2026-08-24. Not a position in FW-81's read fold — a boolean read is a different kind from a date read, so the two items are independent. `showMidnight` does not retire: with an authoritative flag a 00:00 on a not-all-day event is a real midnight time and should still print. Zero migration either way (`allDay` absent = today exactly).
 
-Open: The whole row waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
+Open: The whole item waits on FW-59/FW-61's bracketed free-form value escape discipline, since the note is a bracketed free-form value and blocks the whole feature (shipping `key,<field>` alone would need a migration once `midnight` later joins).
 
 Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-3, FW-81, FW-13 (the flag field is itself a discovered field)
 
@@ -971,7 +971,7 @@ Absorbs FW-40/41/65/68 (all retired into it 2026-08-19). Two datetime tags is a 
 
 Detail home: `.scratch/plans/datetime-tag-collapse.md`
 
-Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. No brackets needed inside the value, which is what beat four earlier candidates. Date inheritance for the common start-date-plus-time/end-time-only shape already ships independent of this row. Six options collapse to one, mechanically, with an ordinary migration (`key` on `datetime_range` is dead wire today). FW-35 confirmed independent (a boolean-flag option, not a third position). The third positional slot is closed (would reintroduce silent holes); future optional axes go named after the positional args, timezone being the plausible candidate.
+Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. No brackets needed inside the value, which is what beat four earlier candidates. Date inheritance for the common start-date-plus-time/end-time-only shape already ships independent of this item. Six options collapse to one, mechanically, with an ordinary migration (`key` on `datetime_range` is dead wire today). FW-35 confirmed independent (a boolean-flag option, not a third position). The third positional slot is closed (would reintroduce silent holes); future optional axes go named after the positional args, timezone being the plausible candidate.
 
 Open: Whether the verb enum (`key`/`modified`/`now`) also needs `published` — a scalar default can be stripped, but a list position with siblings may force a token; if so, whether that token appears only above cardinality 1 or always.
 
@@ -979,7 +979,7 @@ Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20
 
 ## Closed / Retired
 
-Append-only ledger of closed, shipped, or cut work — both `FW-N` rows deleted from the live trackers above AND pre-tracker refactors (the legacy `C#` / GitHub-`#issue` handles from the old `project_open_refactors` memory, folded in here so there is ONE closed record). IDs are **permanent** — a retired `FW-N` is never reused or reassigned. This ledger is the only record of the FW high-water mark once shipped rows are deleted; **"next unused id" = (max `FW-N` here ∪ max `FW-N` in the live trackers) + 1**. One line per item: outcome + where it landed. Not a tracker (no blockers/interactions) — just the closed record + a pointer to detail. Kept as a table, not heading blocks, since a closed row carries none of the fields (Blocked by / Interacts with / Open) that shape earns; the linked detail home (mostly `docs/design-history/*.md`, itself the committed rationale-of-record) already carries the full build story, so entries here stay to a sentence or two of durable outcome.
+Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted from the live trackers above AND pre-tracker refactors (the legacy `C#` / GitHub-`#issue` handles from the old `project_open_refactors` memory, folded in here so there is ONE closed record). IDs are **permanent** — a retired `FW-N` is never reused or reassigned. This ledger is the only record of the FW high-water mark once shipped items are deleted; **"next unused id" = (max `FW-N` here ∪ max `FW-N` in the live trackers) + 1**. One line per item: outcome + where it landed. Not a tracker (no blockers/interactions) — just the closed record + a pointer to detail. Kept as a table, not heading blocks, since a closed row carries none of the fields (Blocked by / Interacts with / Open) that shape earns; the linked detail home (mostly `docs/design-history/*.md`, itself the committed rationale-of-record) already carries the full build story, so entries here stay to a sentence or two of durable outcome.
 
 | ID | Item | Outcome | Landed / detail home |
 |---|---|---|---|
@@ -1024,8 +1024,8 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` rows deleted 
 
 ## Maintenance
 
-- New non-bug idea → add a `#### FW-N` heading block with the next unused id — **(highest id in the live trackers ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker row.
-- **Build starts** (branch + committed work) → **move the row to `### In flight`** and add a **Target:** line — the landing version, or `—` where no release carries the work (tooling, instruments). The row keeps its `FW-N`, its description, and all pointer/gate lines — only its section changes. Do NOT start recording phase/commit/remaining-tasks in the row; that state stays in the branch / plan / unreleased CHANGELOG (the FW-52 staleness rule). The section IS the lifecycle signal.
-- Item ships (or is cut/merged) → delete its heading block (from wherever it sits, In-flight included) once CHANGELOG records it, **and append a line to the Closed/Retired table** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it. Update any surviving row that referenced it (`row:FW-N` → satisfied gate can be dropped; `Interacts with` id removed).
+- New non-bug idea → add a `#### FW-N` heading block with the next unused id — **(highest id in the live trackers ∪ highest id in Retired IDs) + 1**; never reuse a retired id + put detail in its home (plan file / issue / memory). Don't let an item exist *only* in a hidden file with no tracker item.
+- **Build starts** (branch + committed work) → **move the item to `### In flight`** and add a **Target:** line — the landing version, or `—` where no release carries the work (tooling, instruments). The item keeps its `FW-N`, its description, and all pointer/gate lines — only its section changes. Do NOT start recording phase/commit/remaining-tasks in the item; that state stays in the branch / plan / unreleased CHANGELOG (the FW-52 staleness rule). The section IS the lifecycle signal.
+- Item ships (or is cut/merged) → delete its heading block (from wherever it sits, In-flight included) once CHANGELOG records it, **and append a line to the Closed/Retired table** (id + outcome + where it landed). Its `FW-N` retires — do not reassign it. Update any surviving item that referenced it (`row:FW-N` → satisfied gate can be dropped; `Interacts with` id removed).
 - Blocker clears or a new interaction surfaces → update the `Blocked by:` / `Interacts with:` line; that's the point of those lines. Certainty (concept → planned) is read from the detail home, not tracked here. **Lifecycle** (future → in-flight → shipped) is read from the section, not a line.
-- **A row may carry a COUNT only when the count IS the deliverable.** An *inventory* count is a worklist the row exists to hand over — FW-76's per-file citation tallies; you re-run the grep anyway, so a stale figure costs a re-count and nothing else. An *argument* count is evidence for a claim the row is making ("40 of 74 rows sit in one section, so the split has failed"), and it decays into a false statement that still reads as current — the same failure as the phase / percent-done lines the preamble bans, wearing different clothes. Strip the second kind. **Date-stamping does not rescue it:** both of the two counts FW-77 once carried were stamped, and both were read as current anyway.
+- **An item may carry a COUNT only when the count IS the deliverable.** An *inventory* count is a worklist the item exists to hand over — FW-76's per-file citation tallies; you re-run the grep anyway, so a stale figure costs a re-count and nothing else. An *argument* count is evidence for a claim the item is making ("40 of 74 items sit in one section, so the split has failed"), and it decays into a false statement that still reads as current — the same failure as the phase / percent-done lines the preamble bans, wearing different clothes. Strip the second kind. **Date-stamping does not rescue it:** both of the two counts FW-77 once carried were stamped, and both were read as current anyway.
