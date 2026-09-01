@@ -549,7 +549,7 @@ Progress: Held, not archived, since 2026-08-05 — deliberately left un-rewritte
 
 Open: Scope is a re-base, not a rebuild — emitters, toggle apparatus, slot-key spelling, and the `%A` format-token rewrite still work; what moves is which side is the default and which notes are true. What stays behind a toggle divides into genuine open futures (FW-61, FW-59, FW-39, FW-24, FW-27, FW-53, FW-45, FW-81) and deliberately-kept rejected candidates (the `/` limit char, root-explicit chains, `use(...)` read parity) — label the axis so a reader can tell them apart.
 
-Blocked by: —  •  Interacts with: FW-75 (both are "an artifact whose readers have changed"), FW-77, FW-61, FW-59, FW-39, FW-53
+Blocked by: —  •  Interacts with: FW-75 (both are "an artifact whose readers have changed"), FW-61, FW-59, FW-39, FW-53
 
 #### FW-97 — Fixture-page reorganization
 
@@ -590,18 +590,6 @@ Progress: Counted 2026-08-17 (largest concentrations: `traversal-pipeline.php` 2
 Open: Opportunistic, not a sweep — none is load-bearing, and each is cheapest to fix while already reading the function it sits in.
 
 Blocked by: —  •  Interacts with: FW-75 (both are "a pointer that no longer resolves"; same habit, different artifact)
-
-#### FW-77 — Reexamine the docs/future-work.md trackers themselves
-
-How an item reads, in three parts: item length, where prose goes when an item becomes a record with no detail home to push it into, and items whose Detail home is "this item" itself.
-
-Detail home: this item
-
-Progress: Narrowed 2026-08-28 — the taxonomy half of the original scope is done (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired, the in-flight-spec home landed as `.scratch/<feature-slug>/spec.md`). Addressed by the 2026-09-01 heading-block rewrite: items now carry Description/Progress/Open in place of accreted narrative; every "this item" home either got a new `.scratch/plans/*.md` file (including FW-79 and FW-97) or was confirmed as a genuine self-reference (this item, FW-82, and FW-76 — each a case where the subject IS the tracker/docs surface itself, so an external plan file would be less useful, not more).
-
-Open: Whether the Closed / Retired ledger belongs in this file at all.
-
-Blocked by: —  •  Interacts with: FW-75 (same class of work, different doc), FW-38 (`registered_by`/`lifecycle` — the other place tracker items stand in for structure that doesn't exist yet)
 
 #### FW-82 — Whether README carries a "Recently added" section
 
@@ -1011,6 +999,7 @@ Append-only ledger of closed, shipped, or cut work — both `FW-N` items deleted
 | FW-70 | Migrate `view_*` modifier tags to `{{<base> src:view}}` | Shipped 1.17.0 (2026-08-12): `bws_migrate_modifier_root_chain()` as a WHOLE-STRING transform; registration never retires ahead of migration, so both spellings render indefinitely. External half shipped in bws-portal-system 5.7.0 | GH #80; `docs/deprecated-tags-options.md` §Modifier prefix → base tag; `docs/design-history/external-source-roots.md` |
 | FW-71 | Multi-step slot sources — a slot's SOURCE *is* a base tag's source | Shipped 1.17.0 (2026-08-15, #104): `bws_fold_slot_flat_options()` deleted, replaced by chain wire in `$slot_opts['src']`. Both containers converted in the same move. Two replay-driven catches beyond the design (a legacy term-step parity gap and an inherited-hop default) were fixed before ship; the full replay obligation (build + migration + #112) discharged 2026-08-18 with numbers matching prediction exactly | CHANGELOG 1.17.0; invariant `CONTEXT.md` I16; `docs/design-history/multi-step-slot-sources.md` |
 | FW-72 | Pure harness for the field-selector control | Shipped, closed 2026-08-28: `tools/test/field-combo-control-test.js` — 41 assertions over the display layer, reached with no new exports, mutation-checked | `tools/test/field-combo-control-test.js`; `docs/update-triggers.md` §Field-discovery change |
+| FW-77 | Reexamine the docs/future-work.md trackers themselves | Closed 2026-09-01. Taxonomy half done 2026-08-28 (FW-66 moved section, §Docs & vocabulary split out of §Testing & infrastructure, FW-42 retired). Format half shipped 2026-09-01: table rows became heading blocks with Description/Detail home/Progress/Open/Blocked by/Interacts with, `row:`-prose evicted, section/item heading levels corrected (h3/h4), and every "row" reference to a tracker entry renamed to "item". Last open question decided (user): the Closed / Retired ledger stays in this file | commits `46a73b3`, `267d9a2`, `0b6f563`, `5d0fdaf` |
 | FW-83 | `entries` carries two senses, and one has shipped | Decided 2026-08-22: the STEP slug renamed `entries`→`rows`, freeing the word for the relationship-field copy that shipped in 1.17.0. No CHANGELOG entry (no shipped control could write the old token, so the delta is zero) | `docs/deprecated-tags-options.md` §Option name renaming; `.scratch/plans/table-tag.md` §SETTLED 2026-08-22 |
 | FW-84 | `src:site` slot for the two `datetime_` try_ tags | Shipped 1.18.0 as a FIX: 1.15.0's own CHANGELOG entry claimed this and silently omitted the two datetime `try_` tags. Byte-parity with the base tag confirmed on all five probed shapes | CHANGELOG 1.18.0; `src-site-test-matrix.md` §R8; `docs/design-history/src-site-stage-bc.md` |
 | FW-87 | Limits bound usable results — the remaining slices | Shipped 1.18.0, reshaped in the build: the 2026-08-21 determinism reversal redefined "usable" as a source property (resolvable × exists × visible, field population removed), retiring slice C outright and folding slice B in. Open residue went to FW-88/FW-89 | CHANGELOG 1.18.0; ADR 0007; [I19]; `docs/design-history/deterministic-source-selection.md` |
