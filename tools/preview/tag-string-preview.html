@@ -30,7 +30,7 @@ body {
   overflow: hidden;
 }
 
-/* ── Tabs ───────────────────────────────── */
+/* ── Header ─────────────────────────────── */
 header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -42,19 +42,6 @@ header {
   gap: 0;
 }
 header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: nowrap; }
-.tab {
-  padding: 0 14px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  user-select: none;
-}
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
 
 /* ── Layout ─────────────────────────────── */
 .layout {
@@ -71,7 +58,6 @@ header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: 
   padding: 12px;
 }
 .tab-content { flex: 1; overflow-y: auto; padding: 16px; }
-.tab-content.hidden { display: none; }
 
 /* ── Sidebar ────────────────────────────── */
 .sb-h {
@@ -91,7 +77,20 @@ header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: 
   align-items: center;
   padding: 2px 0;
 }
+.name-row.rw { grid-template-columns: 92px 1fr auto; }
 .name-id { font-size: 10px; color: var(--muted); font-family: ui-monospace, monospace; }
+select.name-id-sel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 3px;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  background: var(--surface2);
+  color: var(--text);
+  min-width: 0;
+}
+select.name-id-sel:focus { outline: none; border-color: var(--accent); }
+.name-rm-btn { padding: 1px 6px; font-size: 12px; line-height: 1; }
 input.name-inp {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -138,108 +137,16 @@ input.name-inp:focus { outline: none; border-color: var(--accent); }
 .toggle-desc { color: var(--muted); }
 .toggle-desc code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text); }
 
-.pfx-row {
-  display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
-  padding: 3px 0; font-size: 12px;
-}
-.pfx-row label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
-.pfx-row input[type=radio] { accent-color: var(--accent); }
-
-/* ── Configure tab ──────────────────────── */
-.cfg-bar {
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 14px; margin-bottom: 14px;
-}
-.cfg-bar label { display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
-.cfg-bar select {
-  border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px;
-  font-size: 13px; background: var(--surface); color: var(--text);
-}
-.cfg-bar select:focus { outline: none; border-color: var(--accent); }
-.cfg-div { width: 1px; height: 20px; background: var(--border); }
-.cfg-lbl { font-size: 12px; color: var(--muted); }
-.cfg-bar input[type=radio] { accent-color: var(--accent); }
-
-/* Order card holds the left column across both rows; slots then preview stack on the right. */
-.cfg-cols {
-  display: grid; grid-template-columns: 260px 1fr; gap: 12px;
-  grid-template-areas: "order slots" "order preview";
-  align-items: start;
-}
-.cfg-col-order { grid-area: order; }
-.cfg-col-slots { grid-area: slots; }
-.cfg-col-preview { grid-area: preview; }
-
-.card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 14px; margin-bottom: 12px;
-}
-.card h3 {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--muted); margin-bottom: 10px; font-weight: 600;
-}
-.opt-row {
-  display: grid; grid-template-columns: 110px 1fr;
-  gap: 8px; align-items: center;
-  padding: 4px 0; border-bottom: 1px solid var(--bg);
-  min-height: 26px;
-}
-.opt-row:last-child { border-bottom: none; }
-.opt-row.dim { opacity: 0.3; }
-.opt-lbl { font-size: 12px; color: var(--muted); }
-.opt-row select, .opt-row input[type=text] {
-  border: 1px solid var(--border); border-radius: 4px;
-  padding: 3px 7px; font-size: 13px;
-  background: var(--surface2); color: var(--text); width: 100%;
-}
-.opt-row select:focus, .opt-row input[type=text]:focus { outline: none; border-color: var(--accent); }
-.opt-row input[type=checkbox] { accent-color: var(--accent); }
-
-.src-block { border-left: 3px solid #4a90d9; padding-left: 10px; margin-bottom: 10px; }
-.src-block-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #4a90d9; margin-bottom: 5px; font-weight: 600; }
-.interm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.interm-tax-lbl { font-size: 11px; color: var(--muted); white-space: nowrap; }
-
-.order-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; border-bottom: 1px solid var(--bg); }
-.order-row:last-child { border-bottom: none; }
-.arr-wrap { display: flex; flex-direction: column; }
-.arr-btn {
-  background: none; border: none; color: var(--muted); cursor: pointer;
-  padding: 0; font-size: 9px; line-height: 1.4;
-}
-.arr-btn:hover { color: var(--accent); }
-.arr-btn:disabled { opacity: 0.25; cursor: default; }
-.arr-btn:disabled:hover { color: var(--muted); }
-.order-lbl { font-size: 12px; flex: 1; font-family: ui-monospace, monospace; color: var(--text); }
-.order-lbl .grp { color: var(--accent); }
-.order-lbl .oid { color: var(--muted); font-size: 10px; }
-
-/* Preview */
-.preview-tag {
-  font-family: var(--gb-font);
-  font-size: 13px; color: var(--text);
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 14px;
-  word-break: break-all; margin-bottom: 12px; min-height: 44px;
-  user-select: all;
-}
-.btn-row { display: flex; gap: 6px; margin-bottom: 10px; }
+/* ── Shared button base ──────────────────── */
+/* Used by the sidebar's mobile toggle (.sb-toggle) and the preset-menu button; the Configure tab's
+   own button styling (btn-row/snap-*/order-row/arr-*/card/opt-row/cfg-*) was removed with it
+   2026-09-01 (FW-79) since nothing outside that tab used it. */
 button {
   background: var(--surface); border: 1px solid var(--border2);
   color: var(--text); padding: 4px 10px; border-radius: 6px;
   cursor: pointer; font-size: 12px; font-family: inherit;
 }
 button:hover { border-color: var(--accent); color: var(--accent); }
-.snap-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--bg); }
-.snap-item:last-child { border-bottom: none; }
-.snap-num { font-size: 11px; color: var(--muted); min-width: 18px; padding-top: 2px; }
-.snap-str {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 13px; flex: 1; word-break: break-word; color: var(--text);
-}
-.snap-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0; }
-.snap-del:hover { color: var(--text); }
 
 /* ── Permutations tab ───────────────────── */
 /* Invariant-check surfacing: a per-row badge plus a header summary. Deliberately loud on
@@ -306,6 +213,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 }
 .perm-chain .perm-tagname { color: var(--accent); font-weight: 600; }
 .perm-chain .perm-str { border-color: var(--accent); background: var(--accent-light); }
+.perm-legacy .perm-str { opacity: 0.85; border-style: dashed; background: transparent; }
+.perm-legacy .perm-tagname { color: #6e6e73; }
+.perm-current .perm-tagname { color: var(--text); font-weight: 700; }
 .perm-none .perm-str { color: var(--muted); font-style: italic; user-select: none; }
 .perm-note { font-size: 11px; color: var(--muted); padding-left: 60px; }
 
@@ -343,22 +253,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
   .sidebar.open { transform: translateX(0); }
 
   .tab-content { padding: 10px; }
-
-  /* Two-column grids collapse; preview floats to the top, option order to the bottom. */
-  .cfg-cols { display: flex; flex-direction: column; }
-  .cfg-col-preview { order: 1; }
-  .cfg-col-slots   { order: 2; }
-  .cfg-col-order   { order: 3; }
-  .opt-row { grid-template-columns: 1fr; gap: 2px; padding: 6px 0; }
-  .opt-lbl { font-size: 11px; }
   .name-row { grid-template-columns: 64px 1fr auto; }
+  .name-row.rw { grid-template-columns: 78px 1fr auto; }
 
   /* iOS zooms any focused control under 16px — pin form text to 16px. */
-  .opt-row select, .opt-row input[type=text],
-  .cfg-bar select, .dummy-item input, input.name-inp { font-size: 16px; }
-  .opt-row select, .opt-row input[type=text], .cfg-bar select { min-height: 34px; }
-  button, .arr-btn, .snap-del, .preset-btn { min-height: 30px; }
-  .arr-btn { font-size: 11px; padding: 0 4px; }
+  .dummy-item input, input.name-inp { font-size: 16px; }
+  button, .preset-btn { min-height: 30px; }
 
   /* Permutation rows: label above the string instead of a 160px gutter. */
   .perm-row { flex-direction: column; align-items: stretch; gap: 3px; }
@@ -370,12 +270,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
   .dummy-item input { width: 100%; }
   .dummy-item { flex: 1 1 140px; }
-
-  /* Keep the serialized string on screen while editing options below it. */
-  #tab-configure .preview-tag {
-    position: sticky; top: 0; z-index: 5;
-    background: var(--surface2);
-  }
 }
 </style>
 </head>
@@ -383,9 +277,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
 <header>
   <button class="sb-toggle" id="sb-toggle" aria-label="Toggle settings sidebar" aria-expanded="false" aria-controls="sidebar">☰</button>
-  <h1>GB Tag String Preview</h1>
-  <div class="tab active" data-tab="configure">Configure</div>
-  <div class="tab" data-tab="perms">Permutations</div>
+  <h1>GB Tag String Preview — Permutations</h1>
 </header>
 
 <div class="layout">
@@ -394,206 +286,33 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <div class="sb-h">Option Key Names</div>
+    <div class="sb-h">Rename Options &amp; Values</div>
+    <div class="toggle-desc" style="margin-bottom:4px">
+      Repeater — pick any option key OR value slug (analog reads, chain-step verbs) and respell it.
+      Rows persist in this browser via localStorage. Removing a row resets that id to its shipped spelling.
+    </div>
     <div id="sb-names"></div>
+    <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">✅ SHIPPED 1.17.0 — this tool is no longer the authority</div>
-    <div class="toggle-desc" style="line-height:1.5">
-      The grammar SHIPPED (2026-08-03/04) and its owners are the authority now:
-      <code>includes/helpers/slot-fold.php</code> (PHP) and
-      <code>assets/js/slot-fold-grammar.js</code> (its tested twin). This page stays as the
-      EXPLORATION surface — comparing candidate spellings side by side is what it is for, and that
-      job outlives the decision.<br><br>
-      Three things shipped differently from the bullets below, so read them as design history:<br>
-      • <strong>No <code>N-</code> siblings in the shipped containers.</strong> Everything a slot
-      owns rides INSIDE its <code>N:</code> value — <code>label</code> folded in, link inlined,
-      <code>sep</code> HELD (still open). The sibling model here is a live option for later
-      carriers, not what join/<code>try_</code> emit.<br>
-      • <strong>Folded slot keys are CAPITALS</strong> (<code>A:</code>, <code>B:</code>, …),
-      and rank came back to the sort with them: <code>format</code> leads again, then the tag-level
-      source, then the slots ascending. Digits were the FIRST cut and never shipped in a release —
-      an all-digit key is a JS array-index property, which ECMAScript enumerates before every string
-      key, and GB serializes with <code>Object.entries()</code>, so digit slots were PINNED to the
-      front and no sort could move them. Escaping that pin is the whole reason the keys are letters.
-      The digit radio below stays as a look-back.<br>
-      • <code>+</code> and <code>/</code> are <strong>RESERVED, not merely rejected</strong>: they
-      are ordinary CONTENT inside a value and are NOT leniently accepted as grammar, because a
-      lenient class spends the char — binding one later would silently change what saved wires mean.
-      The pickers still offer them, as an exploration tool should.
-    </div>
-
-    <div class="sb-h">LOCKED decisions (as approved 2026-07-31)</div>
-    <div class="toggle-desc" style="line-height:1.5">
-      • Slot prefix: <code>N:</code> value, slot 1 included (<code>N-</code> siblings explored, NOT
-      shipped — see above)<br>
-      • <code>src</code> chain owns the source string (use+key excluded → the read)<br>
-      • Type token LEADS the slot value (primary format option, FW-52 order)
-    </div>
-
-    <div class="sb-h">Slot Schema: bracket-kv</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Sole schema. <code>name(value)</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
-      Type LEADS, options FW-52-ordered, FORMAT-SAFE. APPROVED 2026-07-31: flat src chain
-      (<code>refs,office</code>), hop-sep <code>;</code>, opt-sep <code>;</code>, step-sep
-      <code>,</code>, brackets ALTERNATE by nesting depth (L1 <code>()</code> → L2 <code>[]</code>,
-      no same-char nesting).
-      <br><code>3:src(refs,office;refs,region);key(name)</code>
-    </div>
-    <div id="slotsep-controls" style="margin-top:6px"></div>
-    <label class="toggle-row" style="margin-top:6px">
-      <input type="checkbox" id="cb-stepsep">
-      <span class="toggle-desc">[DEFERRED 2026-08-01 → FW-61; INDEPENDENT of the limit spelling] per-step <code>sep</code> — <code>terms,category,sep(; )</code>. Today ONE tag-level <code>sep</code> serves a whole fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it per-step is the obvious fix and is NOT a decided option. Ordinary bracket-kv token, so it obeys depth alternation (<code>sep(; )</code> at depth 0, <code>sep[; ]</code> inside a slot). Modelled here because a step carrying a SECOND kv token is the only case that separates the limit spellings — with one token they look identical. If per-step sep ever lands it lands whichever limit form wins, hence its own toggle.</span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-limitslash">
-      <span class="toggle-desc">[REJECTED 2026-08-01 — kept as a look-back; OFF is the decision] per-step <code>limit</code> via a DEDICATED char instead of the approved bracket-kv token: <code>refs,related_staff/3</code> vs <code>refs,related_staff,limit(3)</code>. Worth eyeballing at TWO+ hops, where the named token repeats per capped step — and with per-step <code>sep</code> ON, which is the only view where a step carries two kv tokens. Dissolves the <code>,,</code> interior-empty hole that killed the original positional form (limit becomes named-by-SEPARATOR, so an argless step is <code>rows/5</code> with no gap), and removes the depth question entirely — the bracket form alternates <code>limit(3)</code> at depth 0 to <code>limit[3]</code> inside a slot, the slash form is identical at both. The limit emits FIRST, bound to the arg it caps (<code>refs,rel_post/2,sep(; )</code>), so it does not float past later tokens and imposes no order rule. Both original costs are now spent: <code>/</code> leaves the lenient hop class under the approved-twins rule REGARDLESS of this candidate, and "limit must come last" was a property of the trailing position, not the char. What is left is glyph overlap with free-form values (<code>sep( / )</code>), flagged at readability strength. Spends the last UNSHIFTED separator but not the last one — <code>+</code> stays in reserve. <strong>REJECTED once per-step <code>sep</code> entered the picture:</strong> a step that can carry more than one option must spell them ONE way, and <code>refs,rel_post/2,sep(; )</code> mixes a dedicated char with kv while <code>refs,rel_post,limit(2),sep(; )</code> is uniform. The asymmetry is permanent — every future per-step option arrives as kv, so the slash stays the sole exception rather than becoming one member of a set. OFF is the approved form.</span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-chainexplicitroot">
-      <span class="toggle-desc">[rejected 2026-07-31] chain states its ambient ROOT: <code>src(current;terms,category)</code> vs the DECIDED implied form <code>src(terms,category)</code>. Reviewed here and cut as too noisy — <code>current</code> now serializes ONLY as an override/reset (slot 2+, where absent means inherit). Kept as a look-back toggle; OFF is the decision.</span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-slotforcesrc">
-      <span class="toggle-desc">[future look] always serialize <code>src</code> on slot 1 (join / try_) → <code>src:current</code></span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-readviause">
-      <span class="toggle-desc">[future look] read via <code>use(...)</code> parity: meta → <code>use(key,name)</code> (vs bare <code>key(name)</code>). Loved parity, but verbose — OFF for now.</span>
-    </label>
-
-    <div class="sb-h">Combined Options (slot inherits these)</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      Global combine schema. Slot reads INHERIT whatever these produce (future: the slot's own
-      use+key/link fold follows the global toggle, not a separate slot control).
-    </div>
+    <div class="sb-h">Option Combining (FW-20, FW-81)</div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fromkey">
-      <span class="toggle-desc">use + key → <code>use:key[sep]field</code></span>
+      <span class="toggle-desc">use + key → <code>use:key[sep]field</code> (FW-20; base tag only, folded slots not yet wired)</span>
     </label>
     <label class="toggle-row">
       <input type="checkbox" id="cb-linkcombined">
-      <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code></span>
+      <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
     </label>
-    <div class="pfx-row" style="margin-top:5px">
-      <span class="toggle-desc" style="width:100%;margin-bottom:2px">Combine bracket CHAR (use+key / link fold):</span>
-      <label><input type="radio" name="valuepair" value="off"> flat <code>use:key,field</code></label>
-      <label><input type="radio" name="valuepair" value="()" checked> ( ) <code>use:key(field)</code></label>
-      <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
-    </div>
-
-    <div class="sb-h">✅ SETTLED 2026-08-04 — folded slot KEY spelling</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Built first as <code>1:</code>, re-spelled to <code>A:</code> before 1.17.0 shipped. An
-      all-digit key is a JS <em>array index</em>, which ECMAScript enumerates ahead of every string
-      key, and GB serializes with <code>Object.entries()</code> — so digit slots were PINNED to the
-      front of the saved string and no sort could move them. A spelling that is not an array index
-      hands rank back to the canonical order, which is what 1.17.0 does: <code>format</code> leads
-      again. Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
-      <br><strong>Where to look:</strong> <em>join — TEMPLATE MODE</em> and the <em>table</em> groups.
-      Those are the folded scenarios that carry tag-level options (<code>format:</code>,
-      <code>valueSep:</code>, <code>src:</code>, <code>caption:</code>). Under digits those options are
-      FORCED behind the slots; under a non-index spelling they lead. Groups with no tag-level option
-      show only the key changing, which is why the ordering question was invisible on this page until
-      the join formats were added.
-    </div>
-    <div class="pfx-row">
-      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (first cut, pinned first — look-back)</label>
-      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (SHIPPED 1.17.0)</label>
-      <label><input type="radio" name="slotkey" value="s"> <code>s1:</code> prefixed (rejected)</label>
-    </div>
-    <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
-      <strong>Tokens follow the keys</strong> (user 2026-08-04). Template mode addresses slots as
-      <code>%1</code>…<code>%10</code> on the wire (brace tokens are impossible — GB's parser rejects
-      <code>}</code> inside options), and that ordinal was only ever the digit one, so it moves with the
-      spelling: under capitals the author reads <code>A:</code> beside <code>%A</code>, ONE alphabet
-      rather than two. Formats are authored in digit form and rewritten by <code>formatTokens()</code>,
-      so this picker moves keys and tokens together.<br>
-      Digit tokens stay readable as a FALLBACK, which is what makes the move migration-free:
-      <code>bws_join_wire_format()</code> maps both alphabets onto the same internal <code>{N}</code>,
-      so every stored <code>format:%1 (%2)</code> keeps rendering and no converter entry is needed. The
-      cost shows in the <code>%%</code> row — while both alphabets are live, the literal-percent escape
-      widens from "before a digit" to "before a digit or a SLOT LETTER". The letter class is
-      <code>A</code>-<code>Z</code>, not <code>A</code>-<code>J</code> (user 2026-08-04): the cap is a
-      CONTAINER property (join 10, <code>try_</code> 5), so baking today's join limit into the grammar
-      would mean re-cutting it whenever a container changes. The tokenizer still only rewrites as far as
-      that container's slot count, so <code>%K</code> stays literal in a 10-slot join.<br>
-      <code>s1:</code> is rejected twice over: <code>s</code> names nothing, and the word form it
-      implies (<code>slot1</code>…<code>slot10</code>) MIS-SORTS under any string comparator
-      (<code>slot1, slot10, slot2</code>), so it would need a numeric-aware sort in both
-      <code>serialization-order.php</code> and its JS port. <code>A</code>…<code>J</code> sort right for
-      free.<br>
-      <strong>Still not modelled here:</strong> panel LABELS — this page renders wires only. They
-      DID move with the keys (<code>"Slot B"</code>, <code>"Field B"</code>), because leaving them as
-      digits just relocates the mapping tax into the editor. <code>bws_slot_ordinal()</code> shipped as
-      the single owner of digit→letter for keys, labels and tokens alike; a <code>{N}-</code> SIBLING
-      key keeps its digit, and so does <code>{{table}}</code>'s <code>"Column 2 Header"</code>, since
-      nothing pins their order.
-    </div>
-
-    <div class="sb-h">Value Separator</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
-    </div>
-    <div id="valuesep-controls"></div>
-
-    <div class="sb-h">src Chain (FW-56) — FLAT (locked)</div>
-    <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
-      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code> (FLAT step body, no step
-      brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
-      <code>post</code>/<code>term</code>/<code>user</code>. Root IMPLIED (<code>current</code> only as
-      an override/reset). Per-step limit is BRACKET-KV, not positional (decided 2026-07-31):
-      <code>refs,rel_post,limit[5]</code> — the bracket char alternates with depth like every other,
-      so a chain nested in a slot emits <code>limit(5)</code>. Hop-sep + intra-step-sep still tunable:
-    </div>
-    <div id="sep-controls" style="margin-top:8px"></div>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-fw81">
+      <span class="toggle-desc">collapse datetime keys → <code>{{datetime …}}</code> (FW-81, parked/unshipped)</span>
+    </label>
   </div>
 
-  <!-- Configure tab -->
-  <div class="tab-content" id="tab-configure">
-    <div class="cfg-bar">
-      <label>Template:
-        <select id="tmpl-sel">
-          <option value="text">text</option>
-          <option value="image_post">image (post)</option>
-          <option value="image_term">image (term)</option>
-          <option value="content">content</option>
-          <option value="datetime_single">datetime_single</option>
-          <option value="datetime_range">datetime_range</option>
-          <option value="table">table (FW-53)</option>
-        </select>
-      </label>
-      <div class="cfg-div"></div>
-      <span class="cfg-lbl">Mode:</span>
-      <label><input type="radio" name="mode" value="0" checked> base</label>
-      <label><input type="radio" name="mode" value="2"> try_ 2</label>
-      <label><input type="radio" name="mode" value="3"> try_ 3</label>
-      <label><input type="radio" name="mode" value="4"> try_ 4</label>
-      <label><input type="radio" name="mode" value="5"> try_ 5</label>
-    </div>
-
-    <div class="cfg-cols">
-      <div class="cfg-col-order">
-        <div class="card" id="order-card">
-          <h3>Option Order</h3>
-          <div id="order-list"></div>
-        </div>
-      </div>
-      <div class="cfg-col-slots" id="slots-container"></div>
-      <div class="card cfg-col-preview">
-        <h3>Preview</h3>
-        <div class="preview-tag" id="cfg-preview"></div>
-        <div class="btn-row">
-          <button id="cfg-copy">Copy</button>
-          <button id="cfg-snap">Save Snapshot</button>
-          <button id="cfg-clear">Clear</button>
-        </div>
-        <div id="cfg-snaps"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Permutations tab -->
-  <div class="tab-content hidden" id="tab-perms">
+  <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
+       only the pre-fold flat wire, never grew the fold/chain grammar, and had gone unused across
+       several dev cycles the Permutations side kept up with. See tag-string-preview-rebase.md. -->
+  <div class="tab-content" id="tab-perms">
     <div class="dummy-bar">
       <div class="dummy-bar-h">Dummy Values</div>
       <div class="dummy-item"><label>key1</label><input id="d-key1" value="custom_field"></div>
@@ -620,6 +339,10 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 const PRESETS = {
   src:             ['src','source','via','from'],
   ref:             ['ref','rel'],
+  // `label` is the SHIPPED spelling of this reserved freeform slug (BWS_FOLD_FREEFORM) and stays
+  // the default — table-tag.md §GRILLED Q3 (2026-08-30) provisionally proposes renaming it to
+  // `header` for {{table}}'s column-header use, but that rename isn't in code yet, so this page
+  // doesn't pre-empt it. Add 'header' as a pickable alternate once the rename actually locks.
   label:           ['label','head','col'],
   caption:         ['caption'],
   // SHIPPED default first. `srcTerm` (the old boolean, paired with `tax`) is SUPERSEDED and kept
@@ -647,88 +370,36 @@ const PRESETS = {
   size:            ['size'],
 };
 
+// VALUE-slug presets — same rename mechanism as PRESETS, but for a wire VALUE token rather than
+// an option key: analog reads (bare `use:<slug>`) and FW-56/57 chain-step verbs (`src:<slug>,<arg>`).
+// Namespace is disjoint from PRESETS' option-key ids, so both live in one repeater keyed by id —
+// see idKind()/S.nameRows. Scope: SHIPPED slugs only (base-shared.php analog dispatch,
+// traversal-pipeline.php BWS_TRAVERSAL_STEP_ACCEPTS). The FW-81 verb slugs (key/now/modified/
+// published) are parked/unshipped and stay OUT of this list — they render under their own
+// hardcoded strings in the dtCollapse branch, since there's no shipped spelling to keep in sync.
+const VALUE_PRESETS = {
+  title:    ['title'],
+  excerpt:  ['excerpt'],
+  featured: ['featured','thumbnail','image'],
+  default:  ['default'],
+  same:     ['same','prev','carry'],
+  current:  ['current'],
+  refs:     ['refs','ref_of','via'],
+  terms:    ['terms','term_of','in_tax'],
+  rows:     ['rows','repeater','list'],
+  post:     ['post','post_id'],
+  term:     ['term','term_id'],
+};
+
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
 // characters: no `|` `:` `}` `{` `&` `<` `>` `"` `'`. (`>` and a 2nd `:` are UNSAFE — dropped.)
-// hop = between ordered chain steps; step = between kind,arg[,limit] inside one chain step.
-//
-// TYPEABLE ASCII ONLY. `»` and `·` were offered here through 5g and are now cut from every list:
-// ADR 0004 makes the wire hand-editable, so a separator an author cannot type on a US keyboard is a
-// dead candidate whatever it looks like. A picker that cannot produce an illegal option cannot lead
-// the next review astray — which is the only reason this page still exists. (A `·` sitting in a
-// scenario's `sep` VALUE stays: that is output content an author chose, not grammar we picked.)
-const SEP_PRESETS = {
-  hop:  ['/', '~', '+'],
-  step: [',', ';', '~'],
-};
-// General value-separator: the glue inside a composite OPTION VALUE (as:url,medium /
-// use:key,field / folded linkTo:key,field). Same safe pool. Applies across all folds.
-const VALUE_SEP_PRESETS = [',', ';', '~', '-', '_', '=', '+'];
-// FW-57 type-token separator (read ↔ processing-tag). Same safe pool; '/' leaned.
+// TYPEABLE ASCII ONLY — ADR 0004 makes the wire hand-editable, so a separator an author cannot
+// type on a US keyboard is a dead candidate whatever it looks like.
+// The hop/step/value-sep/opt-sep/kv-char PICKERS these once fed (Src Chain, Value Separator,
+// Slot Schema sidebar sections) were cut 2026-09-02 (user: settled, won't reopen) — those
+// separators are fixed constants now (see S.chainSep / S.valueSep / S.slotOptSep / S.slotKvChar).
+// FW-57 type-token separator (read ↔ processing-tag) is a separate, still-unused axis.
 const TYPE_SEP_PRESETS = ['/', ',', '~'];   // ':' excluded — gb-reserved
-// respell separators: option-sep (was '|') + key/value-sep (was ':'). All gb-safe.
-const RESPELL_OPT_PRESETS = ['/', '~', '+', ';'];
-const RESPELL_KV_PRESETS  = ['=', '~', '-'];      // ':' and '|' excluded — gb-reserved
-
-// ── Template schemas ─────────────────────────────────────────────────────────
-const TMPL = {
-  text: [
-    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'Meta/Custom Field'},{value:'title',label:'Title/Name'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
-    {id:'fallback',label:'Fallback',type:'text'},
-    {id:'limit',label:'Limit',type:'text'},
-    {id:'sep',label:'Separator',type:'text'},
-  ],
-  // as+size FOLDED: size rides inside as (as:url,<size>). size control shown only for the
-  // url mode (id/alt/caption are nullary — no size). Emit handled specially (foldAsSize).
-  image_post: [
-    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
-    {id:'use',label:'Field Mode',type:'select',choices:[{value:'',label:'ACF/Meta Field'},{value:'featured',label:'Featured Image'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:''}},
-    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
-  ],
-  image_term: [
-    {id:'as',label:'Return Type',type:'select',alwaysSerialize:true,choices:[{value:'url',label:'URL'},{value:'alt',label:'Alt Text'},{value:'id',label:'ID'},{value:'caption',label:'Caption'}]},
-    {id:'size',label:'Image Size (→ folds into as)',type:'select',showIf:{as:'not_in:id,alt,caption'},choices:[{value:'full',label:'Full Size'},{value:'large',label:'Large'},{value:'medium_large',label:'Medium Large'},{value:'medium',label:'Medium'},{value:'thumbnail',label:'Thumbnail'}]},
-    {id:'key',label:'Meta Key',type:'text'},
-    {id:'fallback',label:'Fallback (attachment ID/URL)',type:'text'},
-  ],
-  content: [
-    {id:'use',label:'Content Mode',type:'select',choices:[{value:'',label:'Content/Description'},{value:'excerpt',label:'Excerpt'},{value:'key',label:'ACF/Custom Field'}]},
-    {id:'key',label:'Meta Key',type:'text',showIf:{use:'key'}},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  datetime_single: [
-    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
-    {id:'format',label:'Format (PHP)',type:'text'},
-    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
-    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
-    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
-    {id:'key',label:'Date/Time Key',type:'text'},
-    {id:'timeKey',label:'Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  datetime_range: [
-    {id:'as',label:'Mode',type:'select',choices:[{value:'',label:'Datetime'},{value:'date',label:'Date'},{value:'time',label:'Time'}]},
-    {id:'rangeSep',label:'Range Sep',type:'text'},
-    {id:'format',label:'Format (PHP)',type:'text'},
-    {id:'timeSep',label:'Time Sep',type:'text',showIf:{as:'not_in:date,time',format:''}},
-    {id:'showCurrentYear',label:'Show Curr. Year',type:'boolean',showIf:{as:'not:time'}},
-    {id:'showMidnight',label:'Show Midnight',type:'boolean',showIf:{as:'not:date'}},
-    {id:'startKey',label:'Start Key',type:'text'},
-    {id:'startTimeKey',label:'Start Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'endKey',label:'End Key',type:'text'},
-    {id:'endTimeKey',label:'End Time Key',type:'text',showIf:{as:'not:date'}},
-    {id:'sep',label:'List Sep',type:'text'},
-    {id:'fallback',label:'Fallback',type:'text'},
-  ],
-  // table (FW-53): row-set = the global src chain; columns = a repeater, each column its
-  // own mini src-chain (2-src:…) + label + cell reader (use/key). Columns handled specially
-  // in renderSlots (not this flat opt list). caption is a plain tag-level opt.
-  table: [
-    {id:'caption',label:'Caption',type:'text'},
-  ],
-};
 
 const DEFAULT_ORDER = {
   // Canonical serialization order per tools/test/serialization-order-test.php KEY_MAP:
@@ -740,8 +411,10 @@ const DEFAULT_ORDER = {
   image_post:      ['as','source','use','key','fallback'],
   image_term:      ['as','source','key','fallback'],
   content:         ['source','use','key','fallback'],
-  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','key','timeKey','link','fallback'],
-  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
+  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','use','key','timeKey','link','fallback'],
+  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','use','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
+  // 'use' inserted at its FW-81 rank (KEY_MAP use=[1,5], ahead of key=[1,6]/startKey=[1,8]/etc) —
+  // needed only by the FW-81 collapsed variant; the six raw keys stay for the current-wire variant.
   // NB sep (source rank 4) precedes the datetime field keys (ranks 8-11) per KEY_MAP.
   table:           ['source','caption'],
   // join: its TAG-level options are the format group (`format` = the template string, `valueSep` =
@@ -758,28 +431,41 @@ const DEFAULT_ORDER = {
 // Value starting '$' = dummy ref. Value === true = boolean flag.
 
 const SCENARIO_GROUPS = [
-  { tmpl:'text', title:'text', scenarios:[
-    {label:'meta key',              parts:[['key','$key1']]},
-    {label:'title',                 parts:[['use','title']]},
-    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']]},
-    {label:'via ref → key',         parts:[['source','ref'],['ref','$ref'],['key','$key1']]},
-    {label:'key, in term',          parts:[['key','$key1'],['_inTerm','$tax']]},
-    {label:'via ref → key, in term',parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']]},
-    {label:'parent → key',          parts:[['source','parent'],['key','$key1']]},
-    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]]},
-    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
-    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
-    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
-  ]},
-  // ── BUILT src VALUES vs the SHIPPED wire (user 2026-07-31) ───────────────────
+  // TEXT — every {{text}} option, one deduped group (merged 2026-09-02: this used to be a plain
+  // option-coverage list with NO contrast columns, plus a separate 'built src values' group
+  // further down contrasting chain vs legacy source spellings — two rows ('via ref → key',
+  // 'key, in term') were literal duplicates once the two sat side by side. One group now, so
+  // every row gets Legacy/Current/Preview like the fold groups do — a toggle like "fold link" or
+  // "fold use+key" is visible on the whole catalog, not just the source-chain rows.
+  //
   // The FW-56 chain slugs REPLACE two shipped source constructs:
   //   src:ref | ref:<key>      →  src:refs,<key>[,<limit>]
   //   srcTermIn:<tax>          →  src:terms,<tax>[,<limit>]
   // isContrast groups render BOTH strings per row (shipped above, chain below) on a BASE tag —
   // no fold, so the substitution is isolated from the FW-57 slot question. `sep` stays a plain
   // tag option in both (it's a RENDER join of the list, not a traversal step); `limit` MOVES from
-  // a tag option into the step it limits — that's the visible cardinality win.
-  { tmpl:'text', title:'built src values — shipped wire ⟷ chain (FW-56)', isContrast:true, scenarios:[
+  // a tag option into the step it limits — that's the visible cardinality win. Rows with no
+  // source hop at all (meta key, title, link folds) carry no `chain` — Preview then renders the
+  // same options as Legacy (still live to non-chain toggles), not a "no equivalent" line; that
+  // line is reserved for a genuine wire gap (see the pinned-term row below, FW-39).
+  { tmpl:'text', title:'text — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'meta key',              parts:[['key','$key1']],
+      rest:[['key','$key1']]},
+    {label:'title',                 parts:[['use','title']],
+      rest:[['use','title']]},
+    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']],
+      rest:[['key','$key1'],['fallback','$fallback']]},
+    {label:'parent → key',          parts:[['source','parent'],['key','$key1']],
+      previewOnly:true, previewHow:'parts',
+      note:'src:parent is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
+    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
+      rest:[['key','$key1'],['_link',{to:'permalink'}]]},
+    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]],
+      rest:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
+    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]],
+      rest:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
+    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]],
+      rest:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
     {label:'ref hop → key',
       parts:[['source','ref'],['ref','$ref'],['key','$key1']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1']]},
@@ -801,6 +487,9 @@ const SCENARIO_GROUPS = [
     {label:'ref hop THEN term hop',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['use','title']],
       chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
+    {label:'ref hop THEN term hop → key',
+      parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']],
+      chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['key','$key1']]},
     {label:'ref+term hop, per-step limits',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['use','title']],
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
@@ -809,45 +498,21 @@ const SCENARIO_GROUPS = [
     // tokens, which is the case that separates the two limit spellings. Read them under both.
     {label:'ref+term hop, per-step limits AND per-step seps',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['sep',', '],['use','title']],
-      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']],
-      note:'SPECULATIVE sep — shipped has ONE tag-level sep for the whole fan-out'},
+      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']]},
     {label:'term hop, sep only (no limit)',
       parts:[['_inTerm','$tax'],['sep',' / '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — kv token with no limit neighbour'},
-    // MORE per-step sep samples — the shape of the VALUE is the interesting axis, not the count.
-    // Each of these is a joiner an author would plausibly type, and each stresses a different part
-    // of the emitter: a bare punctuation glyph with no padding, a value carrying the STEP separator,
-    // a value carrying the OPT separator, and a value carrying a GB-reserved char that must escape.
-    {label:'per-step sep: bare glyph, no padding',
-      parts:[['_inTerm','$tax'],['sep','·'],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:'·'}], rest:[['use','title']],
-      note:'SPECULATIVE sep — shortest possible value, no surrounding spaces'},
-    {label:'per-step sep CONTAINS the step sep (,)',
-      parts:[['_inTerm','$tax'],['sep',', and '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:', and '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — bracket must hold a value carrying the STEP separator'},
-    {label:'per-step sep CONTAINS the opt/hop sep (;)',
-      parts:[['_inTerm','$tax'],['sep','; '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:'; '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — same for the OPT/HOP separator; both are inert inside the bracket'},
+      chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']]},
+    // One retained VALUE-shape sample (2026-09-02: deleted the other five — bare glyph, step-sep
+    // char, opt/hop-sep char, kv-char, slash — as redundant duplicates of each other and of the two
+    // rows above, since none of them render distinguishably: S.perStepSep has no live toggle and
+    // sits hardcoded false, so no sep value ever reaches output in any of these rows).
     {label:'per-step sep CONTAINS a GB-reserved char (|)',
       parts:[['_inTerm','$tax'],['sep',' | '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — brackets are inert to GB; the escape is what protects this'},
-    {label:'per-step sep CONTAINS the kv char (:)',
-      parts:[['_inTerm','$tax'],['sep',': '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:': '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — escapes to \\: like every other free-form value'},
-    {label:'per-step sep = the limit char (/)',
-      parts:[['_inTerm','$tax'],['sep',' / '],['limit','3'],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' / ',limit:'3'}], rest:[['use','title']],
-      note:'glyph overlap under the rejected slash form — was no worse than , ; :'},
+      chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']]},
     {label:'3 hops, sep on each',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
-      rest:[['key','address']],
-      note:'SPECULATIVE sep — the case the shipped single tag-level sep cannot express at all'},
+      rest:[['key','address']]},
     // LIMIT 0 on an INTERMEDIATE step = UNLIMITED, following GB's editor-facing number-input
     // convention (user 2026-08-01) rather than the arithmetic "cap of zero" reading, which would
     // empty the chain and make the tag unresolvable. Our controls sit inside GB's editor, so an
@@ -865,50 +530,71 @@ const SCENARIO_GROUPS = [
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'0'},{slug:'refs',arg:'office',limit:'3'}],
       rest:[['key','address']],
       note:'0 = unlimited between two real caps'},
-    {label:'limit 0 + per-step sep on the same step',
-      parts:null,
-      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}],
-      rest:[['use','title']],
-      note:'0 = unlimited beside a kv token'},
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
-    // NO shipped equivalent — the chain is strictly more expressive here.
+    // NO flat/legacy equivalent — the chain is strictly more expressive here. (Re-measured
+    // 2026-09-01, FW-79: the first two rows below now DO have a current [chain] form — they
+    // couldn't be spelled at all before 1.17.0. Only the third remains unbuilt on both wires.)
     {label:'term hop THEN ref hop',
       parts:null,
       chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}], rest:[['key','address']],
-      note:'no shipped form: srcTermIn is terminal, nothing hops off the term'},
+      note:'no flat/legacy form: srcTermIn was terminal pre-1.17.0, nothing could hop off a term — the chain closes this'},
     {label:'2× ref hop (staff → dept)',
       parts:null,
       chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}], rest:[['use','title']],
-      note:'no shipped form: one ref key per tag'},
+      note:'no flat/legacy form: the flat wire allows only one ref key per tag — multiple refs hops now ship via the chain'},
     {label:'pinned term start → key',
       parts:null,
       chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
-      note:'no shipped form: no pinned-entity source (FW-32 sibling)'},
+      previewOnly:true, previewHow:'chain',
+      note:'no flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39, shown for shape only'},
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
-  { tmpl:'image', title:'image', scenarios:[
-    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
-    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
-    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
-    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
-    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
-    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']]},
-    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]},
-    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']]},
-    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
+  // Gets the same Legacy/Current/Preview treatment as `text` (2026-09-02): `parts` is the flat/
+  // legacy wire, `chain`+`rest` is the current 1.17.0 chain wire. Rows with no source hop carry
+  // no `chain` — Current then renders `rest` (identical to `parts`), same convention as text.
+  { tmpl:'image', title:'image — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
+    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
+    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
+    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
+    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']],
+      rest:[['_asSize',{mode:'id'}],['key','$imgKey']]},
+    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
   ]},
-  { tmpl:'content', title:'content', scenarios:[
-    {label:'post content',          parts:[]},
-    {label:'excerpt',               parts:[['use','excerpt']]},
-    {label:'ACF field',             parts:[['_content_key','$key1']]},
-    {label:'via ref',               parts:[['source','ref'],['ref','$ref']]},
-    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']]},
-    {label:'in term',               parts:[['_inTerm','$tax']]},
+  { tmpl:'content', title:'content — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'post content',          parts:[], rest:[]},
+    {label:'excerpt',               parts:[['use','excerpt']], rest:[['use','excerpt']]},
+    {label:'ACF field',             parts:[['_content_key','$key1']], rest:[['_content_key','$key1']]},
+    {label:'via ref',               parts:[['source','ref'],['ref','$ref']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[]},
+    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['_content_key','$key1']]},
+    {label:'in term',               parts:[['_inTerm','$tax']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[]},
   ]},
-  { tmpl:'datetime_single', title:'datetime_single', scenarios:[
+  // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
+  // collapsed line joins it only when the sidebar toggle is on. See datetimeCollapseFromParts() —
+  // the collapsed line is DERIVED from `parts`, not hand-duplicated, for the rows that have a
+  // six-key form at all. The collapsed line renders under the MERGED placeholder name `datetime`
+  // (S1 settled — one tag, mode = read count), not this group's own `tmpl` — see buildOneVariant's
+  // dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
+  // real, only-shipped name for the six-key variant on this row.
+  { tmpl:'datetime_single', title:'datetime_single ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
+    isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
     {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
     {label:'time',                  parts:[['as','time'],['key','$timeKey']]},
@@ -918,28 +604,31 @@ const SCENARIO_GROUPS = [
     {label:'date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
     {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
-  { tmpl:'datetime_range', title:'datetime_range', scenarios:[
+  { tmpl:'datetime_range', title:'datetime_range ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
+    isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
     {label:'date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'via ref → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
+    // No six-key form exists AT ALL — an open-ended range (end = "now") has nothing to hold it;
+    // the flat wire has no verb slot. S10 settles `now` itself; O7 (published) stays unmodelled.
+    {label:'range, ongoing (end = now)', parts:null,
+      collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
+      previewOnly:true,
+      note:'no six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
   ]},
-  // NB the unfolded `try_text` group was MERGED into the contrast group below (2026-07-31) — its
-  // scenarios now ride `shippedSlots` there so each shipped wire sits directly above its folded
-  // form. Two rows it carried that the fold does not yet model stay here:
-  { tmpl:'text', title:'try_text — shipped only (no folded model yet)', isTry:true, scenarios:[
-    {label:'3: key, ref key, term', slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]]},
-    // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
-    // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink below.
-    {label:'2: key, key + chain link', slots:[[['key','$key1']],[['key','$key2']]], chainLink:{to:'permalink',newTab:true}},
-  ]},
+  // The unfolded `try_text` group was MERGED into the contrast group below (2026-07-31); its
+  // two leftover shipped-only rows (a 3-slot ref+term chain, and chain-level `_link`) folded
+  // in clean 2026-09-01 — nothing here needed new emitter logic, both shapes already exist
+  // elsewhere in the contrast group. See '3: key, ref→key, in term' and '2: key, key + chain
+  // link' below.
   // try_content / try_image — PAIRED (user 2026-07-31: the fold applies to ALL multi-slot tags,
   // so these get folded counterparts rather than staying shipped-only). try_ is a format-FIXED
   // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
   // `image`'s are featured + the as/size format options, which stay slot options under the fold.
-  { tmpl:'content', title:'try_content — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'content', title:'try_content — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: content, ACF',
       shippedSlots:[[],[['_content_key','$key1']]],
       slots:[{read:{kind:'analog',slug:'default'}},{read:{kind:'key',field:'$key1'}}]},
@@ -953,8 +642,8 @@ const SCENARIO_GROUPS = [
       shippedSlots:[[['_content_key','$key1']],[['use','excerpt']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'excerpt'}}]},
   ]},
-  { tmpl:'image', title:'try_image — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'image', title:'try_image — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: key, featured',
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],[['_asSize',{mode:'url',size:'full'}],['use','featured']]],
       slots:[{read:{kind:'key',field:'$imgKey'}},{read:{kind:'analog',slug:'featured'}}]},
@@ -968,23 +657,10 @@ const SCENARIO_GROUPS = [
       shippedSlots:[[['_asSize',{mode:'url',size:'full'}],['use','featured']],[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['use','featured']]],
       slots:[{read:{kind:'analog',slug:'featured'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'analog',slug:'featured'}}]},
   ]},
-  // FW-53/FW-56 table: rowChain = the global src chain; cols = [{label,use,key,chain}].
-  // Chains here are literal step arrays [{slug,arg,limit?}] — the tag string shows the DECIDED
-  // value encoding (src:slug,arg/… + {N}-src column mini-chains).
-  // NB rows expressible in BOTH spellings moved to the 'table — current ⟷ folded' contrast group
-  // below (2026-07-31). What stays here is current-prototype-only: shapes the fold does not add
-  // anything to, kept so the prototype wire is still visible on its own terms.
-  { tmpl:'table', title:'table — current prototype only (FW-53/56)', isTable:true, scenarios:[
-    {label:'2-hop rows (staff→dept)',
-      rowChain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],
-      cols:[{label:'Dept',use:'title'}]},
-    {label:'start post → ref, limited',
-      rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
-      cols:[{label:'Name',use:'title'}]},
-    {label:'repeater rows',
-      rowChain:[{slug:'rows',arg:'staff_members'}],
-      cols:[{label:'Name',key:'name'},{label:'Role',key:'role'}]},
-  ]},
+  // The old flat-numeric prototype table group (FW-53/56, `{N}-label`/`{N}-src` siblings) was
+  // deleted here 2026-09-01 (FW-79), per table-tag.md's REOPENED D1: it never shipped in any
+  // release and is scaffolding to delete, not a migration source — there is no "current" flat
+  // wire for {{table}} to preview. See the 'table — folded' group below for the live model.
 
   // ── FW-57 FOLDED slots (the proposed collapsed encoding) ────────────────────
   // Each slot = ONE `{N}:` value = chain + terminal read. Read forms:
@@ -998,8 +674,8 @@ const SCENARIO_GROUPS = [
   // multi-hop chains, entity-start roots, per-step limits, all of which the shipped wire simply
   // cannot spell — render an explicit "no shipped equivalent" line. That absence IS the argument
   // for the fold, so it is shown rather than hidden.
-  { tmpl:'text', title:'try_text — shipped ⟷ folded (FW-57)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'try', scenarios:[
+  { tmpl:'text', title:'try_text — folded (current, 1.17.0) ⟷ flat (legacy, FW-57)', isContrast:true,
+    variants:['shipped','foldedCurrent','folded'], foldClass:'try', scenarios:[
     {label:'2: key, key',
       shippedSlots:[[['key','$key1']],[['key','$key2']]],
       slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}]},
@@ -1018,10 +694,26 @@ const SCENARIO_GROUPS = [
     {label:'3: key, ref→key, title',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+    {label:'3: key, ref→key, in term',
+      shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
+    // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink, format-agnostic.
+    {label:'2: key, key + chain link',
+      shippedSlots:[[['key','$key1']],[['key','$key2']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}],
+      chainLink:{to:'permalink',newTab:true}},
     // the three intent paths (2×2 of source[same|new] × read[same|new]):
     {label:'Path A: new ctx, SAME read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'same'}}]},
     {label:'Path B: SAME ctx, new read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'same'}],read:{kind:'key',field:'$key2'}}]},
     {label:'Path C: both new',             slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'$key2'}}]},
+    // FW-71/#104 (largest measured gap, re-based 2026-09-01): Path B above only shows `same`
+    // inheriting an AMBIENT (empty) chain. `bws_fold_chain_join()` carries the WHOLE prior chain,
+    // not just a single hop — this row proves it: slot 2's `src(same)` inherits BOTH of slot 1's
+    // steps, then reads a different key off the same 2-hop context.
+    {label:'same inherits a MULTI-STEP chain (FW-71)',
+      slots:[{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}},
+             {chain:[{slug:'same'}],read:{kind:'key',field:'email'}}]},
     // longer chains (multi-hop + start-kind + limit) — stress the chain inside a slot value:
     {label:'2: key, 2-hop staff→dept→key', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'related_staff'},{slug:'refs',arg:'department'}],read:{kind:'key',field:'phone'}}]},
     {label:'2: key, post→ref limited→title',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],read:{kind:'analog',slug:'title'}}]},
@@ -1044,7 +736,6 @@ const SCENARIO_GROUPS = [
     {label:'refs→terms, limits AND seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // limit 0 INSIDE a slot — same undecided semantics as the base-tag rows above, at L2 brackets.
     {label:'refs→terms, intermediate limit 0', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
-    {label:'refs→terms, limit 0 + seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
     // terminal modifier, no ref hop continues from it). Chain makes it expressible.
     {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
@@ -1059,8 +750,8 @@ const SCENARIO_GROUPS = [
   // `{{join key:name_first|2-key:name_last}}`, slot 1 bare). Rows whose slots are HETEROGENEOUS
   // (a phone slot beside a title slot) have no shipped equivalent — join is text-only today, which
   // is exactly what Option R's per-slot type token buys, so those render "no shipped equivalent".
-  { title:'join — shipped ⟷ folded, heterogeneous (FW-57 Option R)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
+  { title:'join — folded (current, 1.17.0), heterogeneous ⟷ flat (legacy, FW-57 Option R)', isContrast:true,
+    variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name + phone',           slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
     {label:'title + email + text',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'email',read:{kind:'key',field:'contact_email'}},{tag:'text',read:{kind:'key',field:'note'}}]},
     {label:'plain field (text, no tag token)',
@@ -1102,7 +793,7 @@ const SCENARIO_GROUPS = [
   // bws_join_wire_format() maps both alphabets onto the same internal {N}, so every stored
   // `format:%1 (%2)` keeps rendering with no converter entry. The `%%` row is what that costs.
   { title:'join — TEMPLATE MODE, format tokens (%N follows the key spelling)', isContrast:true,
-    variants:['shipped','folded'], foldClass:'join', tmpl:'text', scenarios:[
+    variants:['shipped','foldedCurrent','folded'], foldClass:'join', tmpl:'text', scenarios:[
     {label:'name (nickname) — 2 slots', format:'%1 (%2)',
       shippedSlots:[[['key','name_first']],[['key','nickname']]],
       slots:[{tag:'text',read:{kind:'key',field:'name_first'}},{tag:'text',read:{kind:'key',field:'nickname'}}]},
@@ -1137,19 +828,25 @@ const SCENARIO_GROUPS = [
     {label:'title + phone in a format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'phone',read:{kind:'key',field:'mobile'}}]},
   ]},
-  // TABLE — FW-53/56/57: row chain = tag-global src:; each column a folded {N}: value + {N}-label.
-  // AGNOSTIC columns → Option R type token per column (like join).
-  //
-  // PAIRED as CURRENT ⟷ folded (user 2026-07-31). The left line is NOT a shipped wire — {{table}}
-  // is an unreleased PROTOTYPE (1.17.0, branch feat/table-tag), so the honest comparison is
-  // current-implementation vs proposed, and the variant is labelled 'current' rather than
-  // 'shipped'. Rows using a per-column type token (email/phone) have no current equivalent: the
-  // prototype's columns are untyped, which is what Option R adds.
-  { title:'table — current ⟷ folded (FW-53/56/57)', isContrast:true,
-    variants:['current','folded'], foldClass:'table', scenarios:[
+  // TABLE — folded-only (re-based 2026-09-01, FW-79, per table-tag.md's REOPENED 2026-08-30
+  // pass, decisions D1-D4 + GRILLED Q1-Q8). {{table}} ships FOLDED-ONLY with no back-compat at
+  // either level (D1) — there is no flat wire to contrast against, so this group's `variants`
+  // omits 'shipped' entirely ('foldedCurrent' sits alongside 'folded' — current
+  // shows what 1.17.0's fold grammar actually spells, pinned regardless of the sidebar; 'folded'
+  // is the live preview, following whatever the reader has toggled).
+  // Row chain = the tag's own src chain, now offering `rows` in its step set (D2/Q6); there is
+  // NO tag-level `key`/repeater-field option any more (D2 retires it) and NO enumerated set of
+  // "valid" row kinds — ANY resolved kind is a row (D2a): term, site, single post, or repeater,
+  // all alike. Each column is a folded slot exactly like a join/try_ slot (letter-ordinal key,
+  // its own chain+read folded into one value) — Option R's per-slot type token applies the same
+  // way. The column HEADER text currently folds in under the shipped freeform token `label`
+  // (BWS_FOLD_FREEFORM); table-tag.md §GRILLED Q3 provisionally proposes renaming that token to
+  // `header` for table specifically, not yet in code — this page keeps `label` as the live
+  // default rather than pre-empting an unlocked rename (see PRESETS.label below).
+  { title:'table — folded, unreleased (REOPENED 2026-08-30)', isContrast:true,
+    variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'staff rows: name→link + office',
       rowChain:[{slug:'refs',arg:'related_staff'}],
-      cols:[{label:'Name',use:'title'},{label:'Office',key:'address',chain:[{slug:'refs',arg:'office'}]}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'},link:{to:'permalink'}},
              {label:'Office',tag:'text',chain:[{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
     {label:'repeater rows: name + role + email',
@@ -1159,13 +856,20 @@ const SCENARIO_GROUPS = [
              {label:'Email',tag:'email',read:{kind:'key',field:'email'}}]},
     {label:'terms rows + caption',
       rowChain:[{slug:'terms',arg:'category'}], caption:'Categories',
-      cols:[{label:'Term',use:'title'},{label:'Count',key:'post_count'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
     {label:'start post → limited ref, 2 cols',
       rowChain:[{slug:'post',arg:'9999'},{slug:'refs',arg:'related_staff',limit:'5'}],
       slots:[{label:'Name',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Phone',tag:'phone',read:{kind:'key',field:'mobile'}}]},
+    // D2a (table-tag.md, 2026-08-30): a resolved source is a row, WHATEVER kind it is — three
+    // shapes is not the rule. This row is the plainest instance: a chain that resolves to exactly
+    // ONE post, with no fan-out step at all, still makes a valid (one-row) table. Not a special
+    // case — cardinality just falls out of the chain the way it always does.
+    {label:'single post, no fan-out (one-row table, D2a)',
+      rowChain:[{slug:'post',arg:'9999'}],
+      slots:[{label:'Title',tag:'title',read:{kind:'analog',slug:'title'}},
+             {label:'Note',tag:'text',read:{kind:'key',field:'internal_note'}}]},
     // BUILT-SRC in table (user 2026-07-31): rows and COLUMNS each carry their own refs/terms
     // chain. Terms as the ROW SET is the srcTermIn replacement at tag level; a column chain is
     // the per-cell hop the shipped wire has no form for at all.
@@ -1181,12 +885,25 @@ const SCENARIO_GROUPS = [
       rowChain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}],
       slots:[{label:'Term',tag:'title',read:{kind:'analog',slug:'title'}},
              {label:'Count',tag:'text',read:{kind:'key',field:'post_count'}}]},
+    // D4 decision (a) (table-tag.md, 2026-08-30): analog dispatch is SPECIFIED to refuse on a
+    // repeater row — `use(title)` and its siblings get no `try_row_fn` there by design, because
+    // (b)'s alternative would smuggle a source hop into `use`, the exact overload the fold
+    // removed everywhere else. This page only assembles wire strings and never executes PHP, so
+    // this is NOT a claim about what the tag renders (FW-74/{{table}} aren't built) — it is a
+    // note that the wire below is syntactically valid but targets a read the design does not
+    // wire up. The hop must be spelled explicitly instead: `rows,team_members;refs,lead_ref`
+    // then `use(title)` on THAT slot reads the linked post's title, per D4's own worked example.
+    {label:'analog on a repeater row (D4 decision a — see note)',
+      rowChain:[{slug:'rows',arg:'team_members'}],
+      slots:[{label:'Name',tag:'text',read:{kind:'key',field:'name'}},
+             {label:'Lead title',tag:'title',read:{kind:'analog',slug:'title'}}],
+      note:'per table-tag.md §D4 decision (a), analog dispatch is specified to refuse on a repeater row — hop explicitly (rows,team_members;refs,lead_ref) before use(title) instead'},
   ]},
 
   // DATETIME folded slots — the multi-key pivot (user 2026-07-29). rule2 can only carry ONE
   // terminal key → these BREAK/lose keys in rule2, resolve fully in respell. dtKeys = the flat
   // option set (as/format + 1-4 keys). Shown in join (agnostic → type leads) + table columns.
-  { title:'join — FOLDED datetime (multi-key pivot)', foldClass:'join', scenarios:[
+  { title:'join — FOLDED datetime (multi-key pivot)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'name + 1 key single date',   slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
     {label:'name + 2 key single datetime',slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{key:'event_date',timeKey:'event_time'}}]},
     {label:'name + 2 key date range',    slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_range',read:{kind:'key',field:'start_date'},dtKeys:{as:'date',startKey:'start_date',endKey:'end_date'}}]},
@@ -1199,7 +916,7 @@ const SCENARIO_GROUPS = [
     {label:'template format + datetime slot format', format:'%1 - %2',
       slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_date'},dtKeys:{as:'date',key:'event_date',format:'F j, Y'}}]},
   ]},
-  { title:'table — FOLDED datetime cols (multi-key)', foldClass:'table', scenarios:[
+  { title:'table — FOLDED datetime cols (multi-key)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'event rows: name + date range',
       rowChain:[{slug:'refs',arg:'events'}],
       slots:[{label:'Event',tag:'title',read:{kind:'analog',slug:'title'}},
@@ -1215,7 +932,7 @@ const SCENARIO_GROUPS = [
   // verbatim); balanced inner brackets survive our own balance-aware sub-parser. `{ }` are hard-
   // unsafe but ~never in these values. Eyeball: the `:` in `g:i A` / `Price: $5` must appear as `\:`,
   // and the balanced `(cm)` / `[TBD]` must survive; an UNBALANCED bracket is flagged in the label.
-  { title:'escape hazards — free-form values (\\: \\| + brackets)', foldClass:'join', scenarios:[
+  { title:'escape hazards — free-form values (\\: \\| + brackets)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'join', scenarios:[
     {label:'time format g:i A + name', slots:[{tag:'title',read:{kind:'analog',slug:'title'}},{tag:'datetime_single',read:{kind:'key',field:'event_time'},dtKeys:{as:'time',key:'event_time',format:'g:i A'}}]},
     {label:'datetime l, F jS g:i A',   slots:[{tag:'datetime_single',read:{kind:'key',field:'event'},dtKeys:{key:'event',format:'l, F jS \\a\\t g:i A'}},{tag:'title',read:{kind:'analog',slug:'title'}}]},
     {label:'fallback with colon + name',slots:[{tag:'text',read:{kind:'key',field:'note'},dtKeys:null,fallback:'Status: (pending)'},{tag:'title',read:{kind:'analog',slug:'title'}}]},
@@ -1225,7 +942,7 @@ const SCENARIO_GROUPS = [
     {label:'format with a colon (Price: …)', format:'Price: %1 (%2)',
       slots:[{tag:'text',read:{kind:'key',field:'price'}},{tag:'text',read:{kind:'key',field:'unit'}}]},
   ]},
-  { title:'escape hazards — table labels (brackets + colon)', foldClass:'table', scenarios:[
+  { title:'escape hazards — table labels (brackets + colon)', isContrast:true, variants:['foldedCurrent','folded'], foldClass:'table', scenarios:[
     {label:'balanced brackets + colon in labels',
       rowChain:[{slug:'rows',arg:'products'}],
       slots:[{label:'Size (cm)',tag:'text',read:{kind:'key',field:'size'}},
@@ -1239,18 +956,18 @@ const SCENARIO_GROUPS = [
 
 // ── State ────────────────────────────────────────────────────────────────────
 const S = {
-  tmpl: 'text',
-  tryCount: 0,
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
-  // Folded slot KEY spelling — SETTLED 2026-08-04 (user): 'alpha' is what 1.17.0 ships, and is
-  // the default here. 'digit' (the first cut) and 's' are kept as look-backs. Drives
-  // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(), since only a
-  // non-array-index key can trail a tag-level option.
+  valNames: Object.fromEntries(Object.keys(VALUE_PRESETS).map(k=>[k,VALUE_PRESETS[k][0]])),
+  // Repeater rows for the "Rename Options & Values" sidebar — which ids currently show a row.
+  // Empty by default; loadNamesFromStorage() restores a returning user's own rows.
+  nameRows: [],
+  // Folded slot KEY spelling — SETTLED 2026-08-04 (user) as 'alpha', what 1.17.0 ships. Drives
+  // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(). The 'digit' look-back and
+  // its sidebar radio were cut 2026-09-02 (user): the Legacy contrast line's `N-` prefix already
+  // shows the digit style, so a separate toggle was redundant.
   slotKeySpelling: 'alpha',
-  order: [...DEFAULT_ORDER.text],
-  slotVals: [{}],
   fromKeyCombined: false,
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
   // (src:<chain>), EXCLUDING use+key — those are the read, kept as their own options so datetime's
@@ -1260,46 +977,16 @@ const S = {
   // steps and the lighter ',' divides tokens inside one step. Defaulting BOTH to ',' (the
   // pre-approval state) made a multi-hop chain read as undifferentiated commas — `refs,x,limit(3)`
   // looked like four peers instead of one step plus a limit — which is the same illegibility that
-  // got '+' rejected. SEP_PRESETS still offers alternates for look-back only.
+  // got '+' rejected. Fixed constant now — the sidebar's hop/step pickers were cut 2026-09-02
+  // (user: won't reopen), so nothing but withShippedGrammar() ever touches this again.
   chainSep: {hop:';', step:','},
-  // PER-STEP `limit` SPELLING — two live candidates, switchable for visual review (user 2026-08-01).
-  //   'bracket-kv' : refs,related_staff,limit(5)  — approved form; named token, depth-alternating
-  //                  bracket (limit(5) at depth 0, limit[5] inside a slot wrapper).
-  //   'slash'      : refs,related_staff/5         — DEDICATED CHAR, no bracket, no depth question.
-  // The slash candidate is worth eyeballing because it dissolves the `,,` interior-empty hole that
-  // killed the ORIGINAL positional form: with a dedicated separator the limit is named-by-separator
-  // rather than by position, so an argless step is `rows/5` — there is no gap to leave empty.
-  // Costs to weigh on review: (a) ~~`/` must be REMOVED from the lenient hop class~~ — NO LONGER A
-  // COST of this candidate (user, 2026-08-01, approved-twins-only rule): `/` was rejected as the
-  // canonical hop char, so accepting it leniently was an UNAPPROVED twin and comes out regardless.
-  // That frees `/` cleanly rather than making this proposal pay for it; (b) it binds visually to the
-  // ARG (`related_staff/5`)
-  // while being semantically a property of the STEP; (c) it spends the last UNSHIFTED ASCII
-  // separator — but NOT the last one: `+` stays available (user, 2026-08-01), since it was rejected
-  // as the HOP char on visual grounds, not consumed. It is a shift-key char, so the reserve is one
-  // step less typeable, not empty. NB `+`'s own suitability differs per axis: it failed hop because
-  // it pairs the text before+after rather than delimiting, and for a trailing limit it reads as
-  // ARITHMETIC (`related_staff+5` = "plus 5", wrong sense) — so it is a live reserve for some future
-  // axis, not a drop-in alternate here.
-  // ✖ REJECTED 2026-08-01 (user) once per-step `sep` was in the picture — the deciding reason is
-  // none of (a)/(b)/(c) above, all of which were spent: **a step that can carry more than one
-  // option must spell them ONE way.** `refs,rel_post/2,sep(; )` mixes a dedicated char with kv;
-  // `refs,rel_post,limit(2),sep(; )` is uniform. The asymmetry is permanent — every future per-step
-  // option arrives as kv (a dedicated char per option is not a grammar), so the slash stays the sole
-  // exception rather than becoming one member of a set. `sep` did not create this, it revealed it.
-  // Toggle KEPT as a look-back; 'bracket-kv' is the decision.
-  limitStyle: 'bracket-kv',
-  // Only consulted when limitStyle === 'slash'. Kept as its own key so the char is tunable on the
-  // same footing as hop/step rather than hard-coded into the emitter.
-  limitSep: '/',
-  // Per-step `sep` — SPECULATIVE, and DELIBERATELY INDEPENDENT of limitStyle (user, 2026-08-01).
-  // The two were introduced together because a step needs a SECOND kv token before the limit
-  // spellings can be told apart, but they are not coupled: today one TAG-level `sep` serves a whole
-  // fan-out, and splitting it per-step is a change that would arrive whichever limit form wins.
-  // Own toggle so the four combinations are all reachable. OFF = the shipped single-sep model.
-  // ⏸ DEFERRED 2026-08-01 (user) — tracked as FW-61. Its job here is done: it existed to give a step
-  // a SECOND kv token, which is what let the slash-`limit` candidate be judged and rejected. Wire
-  // shape + escaping are settled by the render; the authoring surface is not. Toggle stays.
+  // PER-STEP `limit` — bracket-kv, named token, depth-alternating bracket (user 2026-07-31,
+  // no longer a toggle): refs,related_staff,limit(5) at depth 0, limit[5] inside a slot wrapper.
+  // Per-step `sep` — SPECULATIVE (user 2026-08-01). Today one TAG-level `sep` serves a whole
+  // fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it
+  // per-step is the obvious fix and is NOT a decided option.
+  // ⏸ DEFERRED 2026-08-01 (user) — tracked as FW-61. Sidebar preview toggle cut 2026-09-02 along
+  // with Slot Schema; the scenario rows built to demonstrate it now always render with it off.
   perStepSep: false,
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
   // FW-52 canonical order. Type always LEADS (primary format option).
@@ -1310,8 +997,8 @@ const S = {
   //   'unsafe-lit'  → name=value , sep, FREE-FORM values wrapped: label=[Milestone],key=name
   //   'bracket-all' → [name=value] blocks, no sep, free-form quoted: [label="Milestone"][key=name]
   slotSchema: 'bracket-kv',
-  slotOptSep: ',',   // separator between option tokens (schema-driven default; switchable)
-  slotKvChar: '=',   // key/value char within a token (schema-driven default; switchable)
+  slotOptSep: ';',   // separator between option tokens (bracket-kv's default; picker cut 2026-09-02)
+  slotKvChar: '',    // key/value char within a token (bracket-kv uses none; picker cut 2026-09-02)
   slotBracket: '[]',    // (legacy — independent-mode slot char; retired with its radio, kept for refs)
   // BRACKET RULE (user 2026-07-29, LOCKED — no longer a toggle): brackets ALTERNATE by NESTING
   // DEPTH. Level 1 = bracketL1 ([]), level 2 = the opposite (()), guaranteeing no same-char nesting.
@@ -1319,7 +1006,6 @@ const S = {
   // e.g. slot `3:src[refs,office+refs,region],key[name]` — slot [] (L1); a nested read-target () (L2).
   bracketMode: 'depth-alt',
   bracketL1: '()',      // level-1 (outermost) bracket char; level 2 = the opposite. Frontrunner: L1=().
-  chainExplicitRoot: false, // lead every hop-only chain with its ambient root (current;refs,x) vs implied (refs,x).
   slotForceSrc: false,  // always serialize a src value (src:current) on slot 1 of join/try_.
   readViaUse: false,    // fold a slot's META read under use(key,field) for parity with use(same)/use(title).
   respellReadBracket: false, // read target: false → flat key=field; true → Rule-2 key(field).
@@ -1335,16 +1021,52 @@ const S = {
                         // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
                         // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
                         // decided 2026-07-31; see serializeStep. Not a knob either.
-  valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
+  valuePair: 'off',     // LOCKED FLAT (user 2026-09-02): resolution-read fold is bare-comma
+                        // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
+                        // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
-  columns: [],          // table (FW-53) columns: [{label,use,key,chain:[{slug,arg,limit}]}]
+  fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
-  snapshots: [],
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function kn(id) { return S.keyNames[id] || id; }
+// vn() is kn()'s twin for a VALUE slug (analog read / chain-step verb) instead of an option key —
+// same "renamed spelling, fall back to the id" contract, backed by S.valNames/VALUE_PRESETS.
+function vn(id) { return S.valNames[id] || id; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Rename repeater: id catalog + storage ───────────────────────────────────
+function idKind(id) { return PRESETS[id] ? 'option' : (VALUE_PRESETS[id] ? 'value' : null); }
+function idPresets(id) { return PRESETS[id] || VALUE_PRESETS[id] || [id]; }
+function idDefaultName(id) { return idPresets(id)[0]; }
+function nameFor(id) { return idKind(id)==='value' ? vn(id) : kn(id); }
+function setNameFor(id, val) {
+  const v = val.trim() || idDefaultName(id);
+  if (idKind(id)==='value') S.valNames[id]=v; else S.keyNames[id]=v;
+}
+function allNameIds() { return [...Object.keys(PRESETS), ...Object.keys(VALUE_PRESETS)]; }
+
+const NAMES_STORAGE_KEY = 'bws-tag-preview-names-v1';
+function saveNamesToStorage() {
+  try {
+    localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify({
+      keyNames: S.keyNames, valNames: S.valNames, rows: S.nameRows,
+    }));
+  } catch (e) { /* storage unavailable/full — rename UI still works for this page load */ }
+}
+function loadNamesFromStorage() {
+  let raw;
+  try { raw = localStorage.getItem(NAMES_STORAGE_KEY); } catch (e) { return; }
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch (e) { return; }
+  // Filter every id against the LIVE catalog — a name saved for an id that code has since
+  // dropped is exactly the drift this repeater replaced a hardcoded list to avoid.
+  if (data.keyNames) Object.keys(data.keyNames).forEach(id=>{ if (PRESETS[id]) S.keyNames[id]=data.keyNames[id]; });
+  if (data.valNames) Object.keys(data.valNames).forEach(id=>{ if (VALUE_PRESETS[id]) S.valNames[id]=data.valNames[id]; });
+  if (Array.isArray(data.rows)) S.nameRows = data.rows.filter(id=>PRESETS[id]||VALUE_PRESETS[id]);
+}
 
 // ── Wire INVARIANT CHECK ─────────────────────────────────────────────────────
 // Assert LOCKED grammar properties on a RENDERED tag string, independent of the emitter that
@@ -1402,25 +1124,6 @@ function checkTag(str, freeform) {
     }
   }
   if (stack.length) issues.push(`unbalanced: ${stack.length} unclosed ${stack.join('')}`);
-  // Under the SLASH limit candidate the limit char shares the in-chain level with hop and step, so
-  // all three must differ — the same "within one bracket level the CHAR fixes the role" rule that
-  // forced `;` out of the lenient step class (user, 2026-08-01).
-  if (S.limitStyle === 'slash') {
-    const ls = S.limitSep || '/';
-    if (ls === S.chainSep.hop)  issues.push(`ambiguous separators: limit and hop are both '${ls}'`);
-    if (ls === S.chainSep.step) issues.push(`ambiguous separators: limit and step are both '${ls}'`);
-    // ✂ REMOVED 2026-08-01 (user): a check that flagged the limit char inside a free-form value
-    // (`sep( / )`). The premise was wrong — **a separator char in a `sep` value is to be EXPECTED**,
-    // not exceptional. `sep` holds a joiner, and `/` is an ordinary one ("Sales / Marketing"), so
-    // the rule fired on correct, unremarkable authoring. A check that cries wolf on the common case
-    // is worse than no check: it trains the reader to ignore the column.
-    // The underlying observation survives, RE-CLASSIFIED — it is not a fault to detect per string
-    // but a standing characteristic of the slash candidate: its char overlaps with content authors
-    // routinely type into the one option most likely to hold a separator. Frequency, not severity.
-    // Recorded in the plan's §SLASH candidate ledger; deliberately NOT re-implemented as a check.
-    // (Two earlier cuts of this same rule were also wrong: depth-only, which condemned every
-    // correct `src(…/3)`; then free-form-scoped, which is the version cut here.)
-  }
   if (S.chainSep.hop === S.chainSep.step) {
     issues.push(`ambiguous separators: hop and step are both '${S.chainSep.hop}'`);
   }
@@ -1429,32 +1132,13 @@ function checkTag(str, freeform) {
 }
 
 // Slot prefix LOCKED to `N-` for all slots incl 1 (user 2026-07-29). Used for the sibling/
-// non-folded Configure preview; the FOLDED value key is `N:` (see foldedSlotKey).
+// non-folded (legacy) permutation rows; the FOLDED value key is `N:` (see foldedSlotKey).
 function pfx(idx) { return `${idx + 1}-`; }
-
-function evalShowIf(cond, sv) {
-  if (!cond) return true;
-  for (const [id, rule] of Object.entries(cond)) {
-    const val = sv[id] ?? '';
-    if (!evalRule(val, rule)) return false;
-  }
-  return true;
-}
-function evalRule(val, rule) {
-  if (rule==='' || rule==='empty') return val==='';
-  if (rule==='not_empty') return val!=='';
-  if (rule.startsWith('not:')) return val!==rule.slice(4);
-  if (rule.startsWith('not_in:')) return !rule.slice(7).split(',').includes(val);
-  if (rule.startsWith('in:')) return rule.slice(3).split(',').includes(val);
-  return val===rule;
-}
 
 function tmplName(t) {
   if (t==='image_post'||t==='image_term') return 'image';
   return t;
 }
-function isImageTmpl() { return S.tmpl==='image_post'||S.tmpl==='image_term'; }
-
 // image as+size fold (FW-52 Phase 3): value = `<mode>[,<size>]`. Only the url mode
 // consumes a size; id/alt/caption are nullary → size dropped. Mirrors bws_parse_as_option.
 // Paired-bracket separator: wrap the arg in () or [] (both gb-constraints-safe non-brace
@@ -1464,17 +1148,14 @@ const PAIR_OPEN  = { '()':'(', '[]':'[' };
 const PAIR_CLOSE = { '()':')', '[]':']' };
 function pairWrap(mode, arg) { return `${PAIR_OPEN[mode]}${arg}${PAIR_CLOSE[mode]}`; }
 
-// Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) splits the two folds:
-//   - RESOLUTION-read folds (use:key,field / linkTo:key,field) — the field is a READ TARGET
-//     → ALWAYS bracketed: use:key(field). Char knob S.valuePair picks () vs []; 'off' shows
-//     the rejected bare form for contrast only.
+// Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) split the two folds; the
+// RESOLUTION-read half (use:key,field / linkTo:key,field) briefly considered bracketing the read
+// target, but the bracket-CHAR picker was dropped 2026-09-02 — LOCKED FLAT instead, matching the
+// src chain's flat step bodies (S.chainPair) and the FW-81 collapse form: head<valueSep>tail.
 //   - RENDER-MODIFIER folds (as:url,medium) — size only TUNES the render → ALWAYS flat sep:
 //     as:url,medium. Never brackets (user: dislikes as:url(medium); it's not a resolution arg).
-function foldResolution(head, tail) {   // read target → bracket, OR flat when valuePair 'off'
-  // 'off' = the flat form (user 2026-07-29): head<valueSep>tail → use:key,field (bare comma, no
-  // bracket). Parallels the chain's flat mode. Bracketed forms use the '()'/'[]' char.
-  if (S.valuePair==='off') return `${head}${S.valueSep}${tail}`;
-  return `${head}${pairWrap(S.valuePair, tail)}`;
+function foldResolution(head, tail) {   // read target → flat sep, LOCKED (radio dropped 2026-09-02)
+  return `${head}${S.valueSep}${tail}`;
 }
 function foldRender(head, tail) {       // render modifier → flat sep, never bracket
   return `${head}${S.valueSep}${tail}`;
@@ -1488,48 +1169,6 @@ function foldAsSize(vals) {
   const size = vals['size'] || 'full';
   return AS_NULLARY.has(mode) ? mode : foldRender(mode, size);   // size = render modifier → flat
 }
-
-// ── Configurator tag builder ─────────────────────────────────────────────────
-function buildCfgTag() {
-  const slots = S.tryCount>0 ? S.tryCount : 1;
-  const parts = [];
-  for (let i=0; i<slots; i++) {
-    const sv = S.slotVals[i]||{};
-    const p = S.tryCount>0 ? pfx(i) : '';
-    const t2p = S.tryCount>0 && i>0;
-    for (const item of S.order) {
-      if (item==='source') { parts.push(...buildSrcParts(sv,p,t2p)); continue; }
-      const schema = (TMPL[S.tmpl]||[]).find(o=>o.id===item);
-      if (!schema) continue;
-      if (!evalShowIf(schema.showIf,sv)) continue;
-      // image as+size fold: as:<mode>[,<size>]; size folded in, no standalone size key.
-      // Only the url mode carries a size (id/alt/caption are nullary — size dropped).
-      if (isImageTmpl() && item==='as') { parts.push(`${p}${kn('as')}:${foldAsSize(sv)}`); continue; }
-      if (isImageTmpl() && item==='size') continue;  // folded into as above
-      // use+key combined
-      if (S.fromKeyCombined && item==='use') {
-        const fv=sv['use']||'', kv=sv['key']||'';
-        if (fv!==''||kv!=='') parts.push(`${p}${kn('use')}:${kv?foldJoin(fv||'key',kv):(fv||'key')}`);
-        continue;
-      }
-      if (S.fromKeyCombined && item==='key') continue;
-      const part = buildOptPart(schema,sv,p,t2p);
-      if (part!==null) parts.push(part);
-    }
-    // table columns (base slot only — try_ table not modeled)
-    if (S.tmpl==='table' && i===0) parts.push(...buildColumnParts());
-  }
-  const name = S.tryCount>0 ? `try_${tmplName(S.tmpl)}` : tmplName(S.tmpl);
-  const opts = parts.length ? ' '+parts.join('|') : '';
-  return `{{${name}${opts}}}`;
-}
-
-// FW-56 src-chain slug vocabulary (DECISION 3, grilled + locked 2026-07-27).
-//   hop family:   refs (ref field) / terms (taxonomy) / rows (repeater) → fan-out, arg = field/tax
-//   start family: post / term / user → kind,id ; only valid as the FIRST step
-const CHAIN_HOPS   = [{value:'refs',label:'refs (ref field)'},{value:'terms',label:'terms (taxonomy)'},{value:'rows',label:'rows (repeater)'}];
-const CHAIN_STARTS = [{value:'post',label:'post (kind,id)'},{value:'term',label:'term (kind,id)'},{value:'user',label:'user (kind,id)'}];
-function chainSlugChoices(isFirst) { return isFirst ? [...CHAIN_STARTS,...CHAIN_HOPS] : CHAIN_HOPS; }
 
 // SUPERSEDED DRAFT (kept for the audit trail): RULE 2 of 2026-07-28 bracketed EVERY resolution
 // operand, so a step read `refs(field,5)` with limit inside the arg bracket. The 2026-07-29 FLAT
@@ -1582,18 +1221,14 @@ function bracketAt(depth) {
 function serializeStep(h, depth) {
   // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, and 0 is a
   // MEANINGFUL value here (unlimited, per GB's editor convention), not an absent one.
-  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
-  const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
+  const slug=vn(h.slug||''), arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
+  const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: hardcoded off (S.perStepSep), no UI toggle since 2026-09-02 (FW-61)
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
   const br = bracketAt(depth + 1) || S.bracketL1 || '()';
   const bits = [];
   if (arg==='') bits.push(slug);          // argless step (nullary start / analog / same)
   else bits.push(slug, arg);
-  // SLASH candidate (REJECTED — look-back only, see S.limitStyle): dedicated char suffixed to the
-  // step BASE. No bracket → no depth question, and an argless step needs no placeholder
-  // (`rows/5`, not `rows,,5`).
-  if (S.limitStyle === 'slash') { if (lim!=='') bits[bits.length-1] += (S.limitSep || '/') + lim; }
-  else if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
+  if (lim!=='') bits.push(kn('limit') + br[0] + lim + br[1]);
   // A step sep is FREE-FORM author text, so it takes the same escape as every other free-form value
   // (`\:` / `\|`). The bracket is inert to GB — it delimits for OUR parser only, so a raw `|` inside
   // it still splits the option list. Caught on the first render of a ` | ` sep fixture, 2026-08-01.
@@ -1611,20 +1246,12 @@ function serializeStep(h, depth) {
 // the `same` carry-forward. Elsewhere it is the stripped default. (The "FW-32 will need the root
 // anyway" argument was withdrawn: FW-32's pick-primary-then-hop rides the entity-START roots
 // post/term/user, which state a DIFFERENT root — `current` is only ever the omittable value.)
-// This toggle is retained as a look-back; OFF is the decision.
-// Only HOP-first chains are affected — a chain already rooted at an entity-start (post/term/user)
-// or at `same` states its root, so there is nothing to make explicit.
-function chainNeedsRoot(chain) {
-  const first = (chain || []).filter(h => h.slug || h.arg)[0];
-  return !!first && CHAIN_HOPS.some(h => h.value === first.slug);
-}
 // `depth` = the level of the bracket that will ENCLOSE this chain (see serializeStep). Default 0 =
 // the COLON form `src:<chain>`, which has no enclosing bracket — that is every base-tag and
 // table-column emitter. Only serializeSlot, which wraps the chain in the L1 slot bracket, passes 1.
 function serializeChain(chain, depth) {
   if (depth === undefined) depth = 0;
   const steps = (chain||[]).filter(h=>h.slug||h.arg).map(h=>serializeStep(h, depth));
-  if (S.chainExplicitRoot && chainNeedsRoot(chain)) steps.unshift('current');
   return steps.join(S.chainSep.hop);
 }
 
@@ -1677,7 +1304,15 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
   if (chainStr) E.push({name:'src', val:chainStr, chainStr:true, rank:RESPELL_KEY_MAP.src});
   if (dtKeys) {
     if(dtKeys.as) push('as',dtKeys.as,false);
-    ['key','timeKey','startKey','startTimeKey','endKey','endTimeKey'].forEach(k=>{ if(dtKeys[k]) push(k,dtKeys[k],rb); });
+    if (S.fw81DtCollapse) {
+      // FW-81 toggle reaches a folded slot's own dtKeys too, not just the standalone datetime_single/
+      // datetime_range groups — same merge rule (datetimeCollapseFromParts), so a datetime slot inside
+      // join/table collapses to one `use:` read-list instead of always showing the pre-collapse keys.
+      const reads = datetimeCollapseFromParts(Object.entries(dtKeys).filter(([k])=>DT_KEY_IDS.has(k)));
+      if (reads) push('use', fw81CollapsedUseValue(reads), false);
+    } else {
+      ['key','timeKey','startKey','startTimeKey','endKey','endTimeKey'].forEach(k=>{ if(dtKeys[k]) push(k,dtKeys[k],rb); });
+    }
     if(dtKeys.format) push('format',dtKeys.format,false);
   }
   if (read && !dtKeys) {
@@ -1686,14 +1321,15 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
     // vs the default MIXED form: analog/same via use(...), meta as a bare key(field). The composite
     // `key,field` value glues with valueSep; base tag's `use:key,field` combine mirrors this.
     if (S.readViaUse) {
-      if (read.kind==='same') push('use','same',false);
+      if (read.kind==='same') push('use',vn('same'),false);
       else if (read.kind==='key') E.push({name:'use', val:`key${S.valueSep}${read.field||''}`, rank:RESPELL_KEY_MAP.use});
       // analog: still DROP when it equals the type token (type-lead already says it — no title;use(title)).
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+      // Comparisons stay against the RAW slug id — vn() renames only the emitted value.
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
     } else {
-      if (read.kind==='same') push('use','same',false);
+      if (read.kind==='same') push('use',vn('same'),false);
       else if (read.kind==='key') push('key',read.field||'',rb);
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
     }
   }
   if (link && link.to && S.handlerMode!=='sibling') {
@@ -1732,7 +1368,8 @@ function unbalancedBrackets(v, open, close) {
 }
 
 // Three folded-slot SCHEMAS (user 2026-07-29). Each is a preset of default separators + a token
-// emitter; chars stay switchable via S.slotOptSep / S.slotKvChar. Every schema:
+// emitter; S.slotOptSep / S.slotKvChar carry the chars (picker cut 2026-09-02 — fixed at the sole
+// surviving schema's values now). Every schema:
 //   - LEADS with the type token (primary format option; 'text' non-type dropped)
 //   - serializes options in FW-52 canonical order (respellEntries already sorted)
 //   - is FORMAT-SAFE: free-form values (date formats etc.) can't collide with a separator.
@@ -1746,9 +1383,10 @@ function unbalancedBrackets(v, open, close) {
 // schema-driven. NB '+' was the frontrunner hop and is now REJECTED (infix pairing — binds to
 // the tokens either side instead of reading as a boundary); '+' and '/' are both held RESERVED,
 // carrying no separator meaning, so neither may be re-admitted as a hop without changing what
-// already-saved wires parse as. The pickers still OFFER them — this tool is for exploration,
-// and a rejected-but-safe candidate must stay comparable (FW-59 and any future grammar change
-// need to re-examine why a char lost). The quote-freeform emit branch is retained but unreferenced.
+// already-saved wires parse as. The separator PICKERS that used to offer rejected-but-safe
+// candidates for comparison were cut 2026-09-02 (user: settled, won't reopen) — FW-59 or any
+// future grammar change re-examining why a char lost starts from this comment, not a live control.
+// The quote-freeform emit branch is retained but unreferenced.
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
@@ -1757,7 +1395,7 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
   // has no chain of its own, inject an explicit `src:current` so slot 1 declares its source.
   if (forceSrc && !serializeChain(chain)) {
-    entries.push({ name:'src', val:'current', chainStr:true, rank:RESPELL_KEY_MAP.src });
+    entries.push({ name:'src', val:vn('current'), chainStr:true, rank:RESPELL_KEY_MAP.src });
   }
   entries.forEach((e,i)=>e._i=i);   // STABLE sort by (group, within) — mirrors bws_serialization_order_sort.
   entries.sort((a,b)=> a.rank[0]-b.rank[0] || a.rank[1]-b.rank[1] || a._i-b._i);
@@ -1813,50 +1451,6 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   return [labelTok, lead, ...toks].filter(Boolean).join(optSep);
 }
 
-// ── Configure-tab source parts (chain LOCKED to own src; use+key excluded) ──────
-// FW-56 value-side chain is always on now. The chain owns the `src:` string; `ref` folds into it.
-// The Configure tab is de-prioritized (Permutations is the focus) but must not throw.
-function buildSrcParts(sv, p, t2p) {
-  const out=[];
-  const chainVal = serializeChain(sv['srcChain']);
-  if (chainVal) { out.push(`${p}${kn('src')}:${chainVal}`); return out; }
-  // no chain built yet → legacy src/ref fallback for the Configure preview only
-  const src=sv['src']||'';
-  if (src) out.push(`${p}${kn('src')}:${src}`);
-  if (src==='ref'&&sv['ref']) out.push(`${p}${kn('ref')}:${sv['ref']}`);
-  return out;
-}
-
-// table (FW-53) columns → {N}-prefixed opts. Each column: label, its own mini src-chain
-// ({N}-src value = same grammar, one level down), and a cell reader (use/key).
-// Emit order per column mirrors the draft worked example: label, src, use, key.
-function buildColumnParts() {
-  const out=[];
-  S.columns.forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    if ((col.label||'')!=='') out.push(`${cp}${kn('label')}:${col.label}`);
-    const chainVal=serializeChain(col.chain);
-    if (chainVal) out.push(`${cp}${kn('src')}:${chainVal}`);
-    // cell reader: use combines with key when fromKeyCombined, else separate use + key
-    const uv=col.use||'', kv=col.key||'';
-    if (S.fromKeyCombined) {
-      if (uv!==''||kv!=='') out.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`);
-    } else {
-      if (uv!=='') out.push(`${cp}${kn('use')}:${uv}`);
-      if (kv!=='') out.push(`${cp}${kn('key')}:${kv}`);
-    }
-  });
-  return out;
-}
-
-function buildOptPart(schema, sv, p, t2p) {
-  const val=sv[schema.id]??'';
-  if (schema.type==='boolean') return val==='1' ? `${p}${kn(schema.id)}` : null;
-  if (schema.alwaysSerialize) return `${p}${kn(schema.id)}:${val}`;
-  if (val==='') return null;
-  return `${p}${kn(schema.id)}:${val}`;
-}
-
 // ── Permutation tag builder ──────────────────────────────────────────────────
 function resolveVal(v) {
   if (typeof v==='string'&&v.startsWith('$')) return S.dummies[v.slice(1)]??'';
@@ -1867,8 +1461,9 @@ function renderSlotParts(parts, p, t2p) {
   const out=[];
   const hasExplicitUse = parts.some(([k])=>k==='use');
   const uk = kn('use');
-  // These are the SHIPPED-wire unfolded scenarios (base/try_ today) — they show the current wire,
-  // NOT the FW-56 chain (that's a folded-slot proposal). srcTerm shown in its shipped form.
+  // These are the LEGACY flat-wire unfolded scenarios (base/try_, pre-1.17.0 back-compat) — they
+  // show that wire, not the FW-56 chain (which ships as depth-0 `src` wire; see serializeChain /
+  // buildFoldedTag). srcTerm shown in its shipped form.
   for (const [id,val] of parts) {
     const rv = resolveVal(val);
     if (id==='source') {
@@ -1878,7 +1473,10 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (id==='use') {
       const sv2 = typeof rv==='string' ? rv : String(rv);
-      if (sv2!=='') out.push(`${p}${uk}:${sv2}`);
+      // vn() exact-matches a single analog slug (title/excerpt/featured/…); a composite value
+      // (the FW-81 dtCollapse read-list, or a hand-built 'key,field' string) never matches a
+      // VALUE_PRESETS id, so it passes through vn() unchanged — no need to special-case it here.
+      if (sv2!=='') out.push(`${p}${uk}:${vn(sv2)}`);
       continue;
     }
     if (id==='_inTerm') {
@@ -1951,8 +1549,9 @@ function partOrderKey(id) {
 }
 
 // Canonical order for a permutation GROUP — its OWN template's DEFAULT_ORDER (the KEY_MAP
-// mirror in serialization-order-test.php), NOT the Configure tab's live S.order. Perms must
-// show canonical serialization order regardless of what template Configure has selected.
+// mirror in serialization-order-test.php). Every group shows canonical serialization order;
+// there is no live authoring state to diverge from it (the Configure tab, which had one, was
+// removed 2026-09-01 — FW-79).
 function groupOrder(group) {
   const t=group.tmpl;
   // The CONTAINER wins over the slot template: a join group carries `tmpl:'text'` to type its slots,
@@ -1981,24 +1580,117 @@ function groupOrder(group) {
 // NB `slots` is overloaded by shape: the SHIPPED multi-slot wire uses arrays of [key,val] parts
 // (`slots:[[['key','a']],[['key','b']]]`) while the FOLDED value uses objects
 // (`slots:[{read:…},{read:…}]`). A contrast scenario needs both at once, so the shipped side of a
-// multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. Same distinction for
-// table: `cols`/`rowChain` (current prototype) vs folded `slots`.
+// multi-slot row lives on `shippedSlots` and the folded side keeps `slots`. {{table}} has no
+// shipped/flat side at all (folded-only per D1) — its scenarios carry only `rowChain` + `slots`.
+// Re-based 2026-09-01 (FW-79) — THREE lines, not two, and only one of them moves:
+//   'shipped'      — the pre-1.17 flat sibling wire. Its own emitter (`how:'parts'`) never reads
+//                     any sidebar toggle, so it was already fixed; kept the key name, relabelled
+//                     'legacy' since it's real but READ-ONLY (`src-chain-control.js` converts it
+//                     to chain wire on first touch and never writes it fresh — confirmed against
+//                     the tree).
+//   '*Current'     — what 1.17.0 actually ships, pinned to the SHIPPED grammar defaults via
+//                     `withShippedGrammar()` regardless of live sidebar state. A reader flipping a
+//                     look-back toggle (e.g. digit keys) must NOT change what this line
+//                     shows — that was the bug in the first cut of this rebase (user caught it):
+//                     relabelling the toggle-driven line 'current' left it still toggle-driven, so
+//                     the accented default of e.g. the digit-key radio then MISLABELLED a rejected
+//                     spelling as shipped.
+//   'chain'/'folded' — the SAME toggle-driven line as before, now labelled 'Preview': this is the
+//                     tool's whole exploration surface (candidate spellings, look-backs), and nothing
+//                     about that changes — it just isn't 'current' by itself any more.
+// Order (user, 2026-09-01): Legacy → Current → Preview, applied via each group's `variants:[…]`.
+// Labels are one word each (user 2026-09-02) — the row's own scenario label + the group title
+// already say what's being compared; the variant column only needs to say WHICH line it is.
+// The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
+// table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
+// FW-81 pair: no shipped/legacy split (nothing has shipped) — just today's six-key wire beside the
+// PARKED-but-SETTLED (S6/S1) collapsed, MERGED reading. Gating moved 2026-09-02 from its own
+// cb-fw81-only function to the single shared `previewActive()` (see variantsFor()); the collapsed
+// line renders under a placeholder tag name (O5 open); the merge itself is not the open part (S1).
+const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
+// Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
+// migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
+// when the scenario carries none of the six (nothing to collapse onto).
+function datetimeCollapseFromParts(parts) {
+  if (!parts) return null;
+  const get = id => { const p = parts.find(([k])=>k===id); return p ? p[1] : ''; };
+  const reads = [];
+  const single = [get('key'), get('timeKey')].filter(Boolean);
+  if (single.length) reads.push({ verb:'key', args:single });
+  const start = [get('startKey'), get('startTimeKey')].filter(Boolean);
+  if (start.length) reads.push({ verb:'key', args:start });
+  const end = [get('endKey'), get('endTimeKey')].filter(Boolean);
+  if (end.length) reads.push({ verb:'key', args:end });
+  return reads.length ? reads : null;
+}
+// FW-81 wire shape for a collapsed read-list: reads `;`-joined, each read's verb+args `,`-joined.
+// Fixed literal separators (S6 is LOCKED). ONE site so the standalone tag's dtCollapse variant and
+// a folded slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
+function fw81CollapsedUseValue(reads) {
+  return reads.map(r => [r.verb, ...(r.args||[]).map(a=>String(resolveVal(a)))].join(',')).join(';');
+}
 const CONTRAST_VARIANTS = {
-  shipped:  { label:'shipped',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
-  current:  { label:'current',  how:'table', cls:'',           needs:sc => !!sc.cols },
-  chain:    { label:'chain',    how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
-  folded:   { label:'folded',   how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  shipped:       { label:'Legacy',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
+  // needs here is deliberately permissive (chain OR rest OR parts): a row with no source hop at
+  // all (meta key, title, link folds) carries no `chain` field, and should still render Current/
+  // Preview from `rest` (or `parts`, its non-chain twin) rather than read as a wire gap. `missing`
+  // stays reserved for a row that states a genuine capability neither wire has (see the pinned-
+  // term row in the text group, FW-39) — merged 2026-09-02 alongside the text/built-src-values
+  // group merge.
+  chainCurrent:  { label:'Current', how:'chain', cls:'',           needs:sc => !!(sc.chain || sc.rest || sc.parts), frozen:true },
+  chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!(sc.chain || sc.rest || sc.parts) },
+  foldedCurrent: { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
+  folded:        { label:'Preview', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  sixKey:        { label:'Current', how:'parts',      cls:'',           needs:sc => !!sc.parts },
+  collapsed:     { label:'Preview', how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
 };
+// ONE shared Preview state (user 2026-09-02), not a per-group flag: every variant marked
+// cls:'perm-chain' is a Preview column, and Preview columns exist only while some toggle differs
+// from what 1.17.0 shipped. Flipping ANY toggle below reveals every group's Preview line at once —
+// there is no per-feature "this group's preview is on" concept any more (the FW-81 pair used to be
+// the only group with an appears-only-when-active line; that pattern is now the rule, not FW-81's
+// exception, so `group.variants` is always a plain array again).
+function previewActive() {
+  return S.fromKeyCombined || S.linkCombined || S.fw81DtCollapse;
+}
+function allVariantsFor(group) {
+  const keys = group.variants || ['shipped','chainCurrent','chain'];
+  return keys.map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k);
+}
 function variantsFor(group) {
-  return (group.variants || ['shipped','chain']).map(k =>
-    typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k
-  );
+  return allVariantsFor(group).filter(v => v.cls !== 'perm-chain' || previewActive());
+}
+// Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
+// shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
+// afterward (finally), including nested `chainSep`, so the live 'preview' variant computed right
+// after in the same `.map()` pass still reflects the reader's real toggle state.
+const SHIPPED_GRAMMAR = {
+  slotKeySpelling: 'alpha', perStepSep: false,
+  slotSchema: 'bracket-kv', slotOptSep: SLOT_SCHEMAS['bracket-kv'].optSep, slotKvChar: SLOT_SCHEMAS['bracket-kv'].kvChar,
+  slotBracket: '[]', bracketMode: 'depth-alt', bracketL1: '()',
+  slotForceSrc: false, readViaUse: false, respellReadBracket: false, handlerMode: 'zone',
+  valueSep: ',', chainPair: 'off', linkCombined: false, fromKeyCombined: false,
+  chainSep: { hop: ';', step: ',' },
+};
+function withShippedGrammar(fn) {
+  const backup = {};
+  for (const k of Object.keys(SHIPPED_GRAMMAR)) backup[k] = S[k];
+  Object.assign(S, SHIPPED_GRAMMAR);
+  try { return fn(); } finally { Object.assign(S, backup); }
 }
 
 // Build every applicable variant for one scenario. Returns [{label, str, cls, missing}].
 // `missing` marks a variant the group asks for but this scenario has no data for — rendered as
 // an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
 // unfolded form for a heterogeneous slot).
+//
+// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a Planned `src`
+// value, an unbuilt FW-39 chain root), included so the tool can show its intended spelling.
+// Rendering it as Legacy or Current would claim it works today; rendering it as a "missing" line
+// on the side that DOES exist would bury the one thing worth showing under filler about the side
+// that doesn't. So a previewOnly scenario skips straight to a single Preview line, always shown
+// (a proposal isn't gated behind the live-toggle-differs check every other Preview column uses)
+// — `sc.note` still carries the "why doesn't this exist yet" explanation underneath.
 function buildContrastVariants(group, sc) {
   const order = groupOrder(group);
   const sortParts = (arr) => [...arr].sort((a,b)=>{
@@ -2008,46 +1700,72 @@ function buildContrastVariants(group, sc) {
   const name = tmplName(group.tmpl);
   const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
 
+  if (sc.previewOnly) {
+    const base = allVariantsFor(group).find(v => v.cls === 'perm-chain') || { label:'Preview' };
+    const v = sc.previewHow ? { ...base, how:sc.previewHow } : base;
+    const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
+    const str = v.frozen ? withShippedGrammar(build) : build();
+    return [{ label: v.label || 'Preview', str, cls:'perm-chain', missing:false }];
+  }
+
   return variantsFor(group).map(v => {
     if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
-    let str = null;
-    if (v.how === 'parts') {
-      if (sc.shippedSlots) {
-        // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
-        // tools/test/join-test-matrix.md; try_ the same shape).
-        const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
-        // TAG-LEVEL parts are emitted ONCE, unprefixed. Scenario data lists `_asSize` inside every
-        // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
-        // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
-        const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
-        // Scenario-declared tag-level options (join's format/valueSep) LEAD — format group is rank 1
-        // in KEY_MAP, ahead of every axis the fold touches. One declaration feeds both sides of the
-        // row, so a scenario states its tag-level options once and the two wires cannot drift.
-        const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(tagLevel)], '', false);
-        perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
-        str = `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
-      } else {
-        str = wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
-      }
-    } else if (v.how === 'table') {
-      str = buildTablePermTag(sc);           // current {{table}} prototype wire (1.17.0, unreleased)
-    } else if (v.how === 'chain') {
-      // src: leads the source group; the rest sort canonically behind it.
-      const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
-      const parts = [];
-      if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
-      parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
-      str = wrap(parts);
-    } else if (v.how === 'fold') {
-      str = buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
-    }
+    const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
+    const str = v.frozen ? withShippedGrammar(build) : build();
     return { label:v.label, str, cls:v.cls, missing:false };
   });
+}
+function buildOneVariant(v, group, sc, sortParts, wrap) {
+  if (v.how === 'parts') {
+    if (sc.shippedSlots) {
+      // multi-slot shipped wire: `{N}-` prefixed siblings, slot 1 bare (join J1/J15 in
+      // tools/test/join-test-matrix.md; try_ the same shape).
+      const nm = group.foldClass === 'try' ? `try_${tmplName(group.tmpl)}` : (group.foldClass || tmplName(group.tmpl));
+      // TAG-LEVEL parts are emitted ONCE, unprefixed. Scenario data lists `_asSize` inside every
+      // image slot, which used to render `as:url,full|…|2-as:url,full` — a per-slot `as` the
+      // plugin does not register (try_image's real option set is `as, 1..5, fallback`).
+      const { tagLevel, perSlot } = splitTagLevelParts(sc.shippedSlots, group.foldClass);
+      // Scenario-declared tag-level options (join's format/valueSep) LEAD — format group is rank 1
+      // in KEY_MAP, ahead of every axis the fold touches. One declaration feeds both sides of the
+      // row, so a scenario states its tag-level options once and the two wires cannot drift.
+      const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(tagLevel)], '', false);
+      perSlot.forEach((slot,i)=>parts.push(...renderSlotParts(sortParts(slot), i?pfx(i):'', false)));
+      return `{{${nm}${parts.length?' '+parts.join('|'):''}}}`;
+    }
+    return wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(sc.parts||[])],'',false));
+  }
+  if (v.how === 'chain') {
+    // src: leads the source group; the rest sort canonically behind it.
+    const chainVal = serializeChain((sc.chain||[]).map(s=>({...s, arg:String(resolveVal(s.arg))})));
+    const parts = [];
+    if (chainVal) parts.push(`${kn('src')}:${chainVal}`);
+    parts.push(...renderSlotParts(sortParts(sc.rest||[]),'',false));
+    return wrap(parts);
+  }
+  if (v.how === 'fold') {
+    return buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
+  }
+  if (v.how === 'dtCollapse') {
+    // FW-81: fold the six flat keys into one `use:` read-list, joined `;` between reads / `,`
+    // inside one — fixed literal separators (S6 is LOCKED, unlike the still-toggle-driven chain/fold
+    // grammar elsewhere on this page, so nothing here rides a sidebar picker). Everything that ISN'T
+    // one of the six keys (as/format/source/link/fallback/…) passes through unchanged.
+    // NAME: NOT wrap() — wrap is bound to this GROUP's own tmpl (datetime_single/datetime_range),
+    // but S1 settles the merge itself (one tag, mode = read count), so the collapsed line renders
+    // under a MERGED placeholder name instead. Only the string 'datetime' is a placeholder (O5 is
+    // still open on the real name/catalog position) — the fact of ONE tag is not.
+    const reads = sc.collapsed || datetimeCollapseFromParts(sc.parts) || [];
+    const useVal = fw81CollapsedUseValue(reads);
+    const rest = (sc.parts||[]).filter(([id]) => !DT_KEY_IDS.has(id));
+    const combined = useVal ? [...rest, ['use', useVal]] : rest;
+    const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(combined)],'',false);
+    return `{{datetime${parts.length?' '+parts.join('|'):''}}}`;
+  }
+  return null;
 }
 
 function buildPermTag(group, scenario) {
   if (group.foldClass) return buildFoldedTag(group, scenario);   // FW-57 folded slots
-  if (group.isTable) return buildTablePermTag(scenario);
   const name = group.isTry ? `try_${tmplName(group.tmpl)}` : tmplName(group.tmpl);
   const slots = scenario.slots || [scenario.parts];
   const parts=[];
@@ -2059,7 +1777,7 @@ function buildPermTag(group, scenario) {
     // caught 2026-07-31 when pairing put the two spellings on adjacent lines.
     const p = (group.isTry && i>0) ? pfx(i) : '';
     const t2p = group.isTry && i>0;
-    // Sort parts by the GROUP's canonical order (KEY_MAP mirror), not Configure's S.order.
+    // Sort parts by the GROUP's canonical order (KEY_MAP mirror).
     const order = groupOrder(group);
     const sorted = [...slotParts].sort((a,b)=>{
       const ai = order.indexOf(partOrderKey(a[0]));
@@ -2074,26 +1792,6 @@ function buildPermTag(group, scenario) {
   if (scenario.chainLink) parts.push(...renderSlotParts([['_link',scenario.chainLink]],'',false));
   const opts = parts.length ? ' '+parts.join('|') : '';
   return `{{${name}${opts}}}`;
-}
-
-// table permutation: row chain in global src + {N}- column mini-chains. Honors the same
-// key-name presets + fromKeyCombined toggle as the Configure tab.
-function buildTablePermTag(sc) {
-  const parts=[];
-  const rc=serializeChain(resolveChainArgs(sc.rowChain));
-  if (rc) parts.push(`${kn('src')}:${rc}`);
-  if ((sc.caption||'')!=='') parts.push(`${kn('caption')}:${sc.caption}`);
-  (sc.cols||[]).forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    if ((col.label||'')!=='') parts.push(`${cp}${kn('label')}:${col.label}`);
-    const cc=serializeChain(resolveChainArgs(col.chain));
-    if (cc) parts.push(`${cp}${kn('src')}:${cc}`);
-    const uv=col.use||'', kv=col.key||'';
-    if (S.fromKeyCombined) { if(uv!==''||kv!=='') parts.push(`${cp}${kn('use')}:${kv?foldJoin(uv||'key',kv):(uv||'key')}`); }
-    else { if(uv!=='') parts.push(`${cp}${kn('use')}:${uv}`); if(kv!=='') parts.push(`${cp}${kn('key')}:${kv}`); }
-  });
-  const opts = parts.length ? ' '+parts.join('|') : '';
-  return `{{table${opts}}}`;
 }
 
 // ── FW-57 folded-slot permutation builder ────────────────────────────────────
@@ -2116,14 +1814,15 @@ function foldedSlotKey(i) {
   // shipped unfolded wire keeps slot-1-bare until migration. (Table differs: its slot 1 IS the
   // row SOURCE = `src:`, columns are `1:`+ — handled in buildFoldedTag's table branch.)
   // SPELLING is SETTLED (2026-08-04) as 'alpha' — see the sidebar picker. Only the folded slot KEY
-  // varies; `N-` SIBLING keys (label/sep carriers, table columns) keep their ordinal, since
-  // nothing pins their order. The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
+  // varies; `N-` SIBLING keys (label/sep carriers) keep their digit ordinal, since nothing pins
+  // their order — table columns are NOT in this set (see the note above: a column is a folded
+  // `{N}:` value, not an `N-` sibling, since the old flat-numeric prototype retired 2026-09-01).
+  // The letter class is A-Z with no cap in the grammar (user 2026-08-04) —
   // the cap is a CONTAINER property, so alphaOrdinal() encodes spreadsheet-style (27 → AA) and the
   // real parsers must match `^[A-Z]+$`, else a validator could reject wire its own encoder produced.
   const ord = i + 1;
   switch ( S.slotKeySpelling ) {
     case 'alpha': return alphaOrdinal( ord ) + ':';
-    case 's':     return 's' + ord + ':';
     default:      return pfx(i).replace(/-$/, ':');   // '1-' → '1:' (slot 1 included)
   }
 }
@@ -2148,8 +1847,8 @@ function alphaOrdinal(n) {
 // find_matches() captures options as `[^}]+`, so a `}` kills the tag — see bws_join_wire_format(),
 // includes/helpers/join-helpers.php). That ordinal was only ever the DIGIT one, so it moves with the
 // key spelling (user 2026-08-04: "the token format was strictly based on the digit system; if we
-// change to capitals, the tokens go with it"). Under `s1:` the slot ordinal is still the digit, so
-// only 'alpha' moves anything.
+// change to capitals, the tokens go with it"). Only 'alpha' moves anything; digit keys keep
+// digit tokens.
 function slotTokenOrdinal(n, spelling) { return spelling === 'alpha' ? alphaOrdinal(n) : String(n); }
 const FMT_MAX_SLOTS = 10;   // mirrors BWS_JOIN_MAX_SLOTS
 // Rewrite a DIGIT-authored format into the current token spelling. Mirrors bws_join_wire_format():
@@ -2285,40 +1984,52 @@ function buildFoldedTag(group, sc) {
   return `{{${name}${opts}}}`;
 }
 
-// ── Render: sidebar names ────────────────────────────────────────────────────
+// ── Render: sidebar names (repeater — any option key OR value slug) ─────────
 function renderSbNames() {
-  const allIds = ['src','ref','srcTermIn','tax','use','key','label','caption','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
-  const TRY_IDS = new Set([]);
   const el = document.getElementById('sb-names');
   el.innerHTML='';
-  allIds.forEach(id=>{
-    if (!PRESETS[id]) return;
+  S.nameRows.forEach((id, idx)=>{
     const row=document.createElement('div');
-    row.className='name-row';
-    const idSpan=document.createElement('span');
-    idSpan.className='name-id';
-    if (TRY_IDS.has(id)) {
-      idSpan.textContent=id.replace('_try','')+'›2';
-      idSpan.style.cssText='color:var(--accent);font-size:9px;';
-    } else {
-      idSpan.textContent=id;
-    }
+    row.className='name-row rw';
+
+    // Id picker — every id not already claimed by ANOTHER row, plus this row's own current id.
+    const usedElsewhere = new Set(S.nameRows.filter((_,i)=>i!==idx));
+    const sel=document.createElement('select');
+    sel.className='name-id-sel';
+    const addGroup=(label, ids)=>{
+      const avail = ids.filter(i=>i===id || !usedElsewhere.has(i));
+      if (!avail.length) return;
+      const og=document.createElement('optgroup'); og.label=label;
+      avail.forEach(i=>{
+        const opt=document.createElement('option'); opt.value=i; opt.textContent=i;
+        if (i===id) opt.selected=true;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    };
+    addGroup('option keys', Object.keys(PRESETS));
+    addGroup('values',      Object.keys(VALUE_PRESETS));
+    sel.addEventListener('change',()=>{ S.nameRows[idx]=sel.value; onNamesChanged(); renderSbNames(); });
+
     const inp=document.createElement('input');
-    inp.className='name-inp'; inp.value=S.keyNames[id]||id;
-    inp.addEventListener('input',()=>{ S.keyNames[id]=inp.value.trim()||id; onNamesChanged(); });
+    inp.className='name-inp'; inp.value=nameFor(id);
+    inp.addEventListener('input',()=>{ setNameFor(id, inp.value); onNamesChanged(); });
+
+    const actions=document.createElement('div');
+    actions.style.cssText='display:flex;gap:3px;align-items:center;';
     const wrap=document.createElement('div');
     wrap.className='preset-wrap';
     const btn=document.createElement('button');
     btn.className='preset-btn'; btn.textContent='▾';
     const menu=document.createElement('div');
     menu.className='preset-menu';
-    PRESETS[id].forEach(p=>{
+    idPresets(id).forEach(p=>{
       const item=document.createElement('div');
-      item.className='preset-item'+(p===S.keyNames[id]?' cur':'');
+      item.className='preset-item'+(p===nameFor(id)?' cur':'');
       item.textContent=p;
       item.addEventListener('click',e=>{
         e.stopPropagation();
-        inp.value=p; S.keyNames[id]=p;
+        inp.value=p; setNameFor(id,p);
         menu.classList.remove('open');
         onNamesChanged();
         renderSbNames();
@@ -2327,321 +2038,40 @@ function renderSbNames() {
     });
     btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
     wrap.appendChild(btn); wrap.appendChild(menu);
-    row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
+
+    const rm=document.createElement('button');
+    rm.className='name-rm-btn'; rm.textContent='×';
+    rm.title='Remove row (resets '+id+' to its shipped spelling)';
+    rm.addEventListener('click',()=>{
+      setNameFor(id, idDefaultName(id));
+      S.nameRows.splice(idx,1);
+      onNamesChanged();
+      renderSbNames();
+    });
+
+    actions.appendChild(wrap); actions.appendChild(rm);
+    row.appendChild(sel); row.appendChild(inp); row.appendChild(actions);
     el.appendChild(row);
   });
 }
 
+function addNameRow() {
+  const avail = allNameIds().filter(i=>!S.nameRows.includes(i));
+  if (!avail.length) return;
+  S.nameRows.push(avail[0]);
+  onNamesChanged();
+  renderSbNames();
+}
+
 function onNamesChanged() {
-  renderOrder(); renderCfgPreview(); renderPerms();
+  saveNamesToStorage();
+  renderPerms();
 }
 
-// Reusable separator row: label + centered char input + preset dropdown (name-row shape).
-// getVal/setVal read/write the backing state; presets = candidate chars; rerender re-renders
-// the owning control (to refresh the `cur` marker); onChange re-renders previews.
-function makeSepRow(container, label, getVal, setVal, presets, rerender) {
-  const row=document.createElement('div'); row.className='name-row';
-  const idSpan=document.createElement('span'); idSpan.className='name-id'; idSpan.textContent=label;
-  const inp=document.createElement('input'); inp.className='name-inp'; inp.value=getVal(); inp.style.textAlign='center';
-  inp.addEventListener('input',()=>{ setVal(inp.value); onSepChanged(); });
-  const wrap=document.createElement('div'); wrap.className='preset-wrap';
-  const btn=document.createElement('button'); btn.className='preset-btn'; btn.textContent='▾';
-  const menu=document.createElement('div'); menu.className='preset-menu';
-  presets.forEach(s=>{
-    const item=document.createElement('div');
-    item.className='preset-item'+(s===getVal()?' cur':'');
-    item.textContent=JSON.stringify(s).slice(1,-1);  // literal char
-    item.addEventListener('click',e=>{ e.stopPropagation(); setVal(s); inp.value=s; menu.classList.remove('open'); onSepChanged(); rerender(); });
-    menu.appendChild(item);
-  });
-  btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
-  wrap.appendChild(btn); wrap.appendChild(menu);
-  row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
-  container.appendChild(row);
-}
-
-// FW-56 chain separator pickers (hop + step). Only shown when the chain is on.
-function renderSepControls() {
-  const el=document.getElementById('sep-controls');
-  el.innerHTML='';
-  const DEFAULTS={hop:',',step:','};
-  [['hop','hop sep'],['step','step sep']].forEach(([which,label])=>{
-    makeSepRow(el, label,
-      ()=>S.chainSep[which],
-      v=>{ S.chainSep[which]=v||DEFAULTS[which]; },
-      SEP_PRESETS[which], renderSepControls);
-  });
-}
-
-// General value-separator picker (always visible — drives as:/use:/link folds).
-function renderValueSep() {
-  const el=document.getElementById('valuesep-controls');
-  if (!el) return;
-  el.innerHTML='';
-  makeSepRow(el, 'value sep',
-    ()=>S.valueSep,
-    v=>{ S.valueSep=v||','; },
-    VALUE_SEP_PRESETS, renderValueSep);
-}
-
-// FW-57 folded-slot separator pickers (opt-sep between tokens + kv char within a token).
-// bracket-kv/bracket-all use no kv char (the [] is the delimiter / block); the picker still shows
-// for the schemas that use it. Chars stay switchable off the schema default.
-function renderSlotSep() {
-  const el=document.getElementById('slotsep-controls');
-  if (!el) return;
-  el.innerHTML='';
-  makeSepRow(el, 'opt sep',
-    ()=>S.slotOptSep, v=>{ S.slotOptSep=v; }, RESPELL_OPT_PRESETS, renderSlotSep);
-  makeSepRow(el, 'kv char',
-    ()=>S.slotKvChar, v=>{ S.slotKvChar=v; }, RESPELL_KV_PRESETS, renderSlotSep);
-}
-// Apply a schema's default separators to S (called on schema switch + init).
-function applySlotSchemaDefaults() {
-  const sch = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
-  S.slotOptSep = sch.optSep;
-  S.slotKvChar = sch.kvChar;
-  S.chainSep.hop = sch.stepSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
-}
-
-function onSepChanged() { renderCfgPreview(); renderPerms(); }
-
-// ── Render: order panel ──────────────────────────────────────────────────────
-function renderOrder() {
-  const el=document.getElementById('order-list');
-  el.innerHTML='';
-  S.order.forEach((item,idx)=>{
-    const row=document.createElement('div'); row.className='order-row';
-    const aw=document.createElement('div'); aw.className='arr-wrap';
-    const up=document.createElement('button'); up.className='arr-btn'; up.textContent='▲'; up.disabled=idx===0;
-    up.addEventListener('click',()=>{ [S.order[idx-1],S.order[idx]]=[S.order[idx],S.order[idx-1]]; renderOrder(); renderCfgPreview(); });
-    const dn=document.createElement('button'); dn.className='arr-btn'; dn.textContent='▼'; dn.disabled=idx===S.order.length-1;
-    dn.addEventListener('click',()=>{ [S.order[idx],S.order[idx+1]]=[S.order[idx+1],S.order[idx]]; renderOrder(); renderCfgPreview(); });
-    aw.appendChild(up); aw.appendChild(dn);
-    const lbl=document.createElement('span'); lbl.className='order-lbl';
-    if (item==='source') lbl.innerHTML='<span class="grp">[source block]</span>';
-    else { const cur=S.keyNames[item]||item; lbl.innerHTML=cur!==item ? `${esc(cur)} <span class="oid">(${esc(item)})</span>` : esc(cur); }
-    row.appendChild(aw); row.appendChild(lbl); el.appendChild(row);
-  });
-}
-
-// ── Render: slots ────────────────────────────────────────────────────────────
-function renderSlots() {
-  const el=document.getElementById('slots-container');
-  el.innerHTML='';
-  const count=S.tryCount>0?S.tryCount:1;
-  for (let i=0;i<count;i++) {
-    if (!S.slotVals[i]) S.slotVals[i]={};
-    const sv=S.slotVals[i];
-    const card=document.createElement('div'); card.className='card';
-    if (count>1) {
-      const h=document.createElement('h3');
-      h.textContent=`Slot ${i+1} — prefix: ${pfx(i)||'(none)'}`;
-      card.appendChild(h);
-    } else {
-      const h=document.createElement('h3'); h.textContent='Values'; card.appendChild(h);
-    }
-    // Source block
-    const sb=document.createElement('div'); sb.className='src-block';
-    const sbl=document.createElement('div'); sbl.className='src-block-lbl';
-    sbl.textContent = 'source (chain owns src when built)';
-    sb.appendChild(sbl);
-    // Legacy src select is the Configure-preview fallback when no chain is built.
-    appendSel(sb,i,'src','Source',[{value:'',label:'Current (unset)'},{value:'ref',label:'In Ref/Rel Field'},{value:'parent',label:'Parent'},{value:'ancestor',label:'Ancestor'},{value:'child',label:'Child(ren)'}],()=>{renderSlots();renderCfgPreview();});
-    const refRow=appendTxt(sb,i,'ref','Ref Key');
-    setDim(refRow,sv['src']!=='ref');
-    appendSrcChain(sb,i,sv);
-    appendInTerm(sb,i,sv);
-    card.appendChild(sb);
-    // Template opts
-    (TMPL[S.tmpl]||[]).forEach(schema=>{
-      if (S.fromKeyCombined&&schema.id==='key') return;
-      if (S.fromKeyCombined&&schema.id==='use') { appendFromKeyCombined(card,i,sv,schema); return; }
-      let row;
-      if (schema.type==='select') row=appendSel(card,i,schema.id,schema.label,schema.choices,()=>{renderSlots();renderCfgPreview();});
-      else if (schema.type==='boolean') row=appendBool(card,i,schema.id,schema.label);
-      else row=appendTxt(card,i,schema.id,schema.label);
-      setDim(row,!evalShowIf(schema.showIf,sv));
-    });
-    el.appendChild(card);
-    // table (FW-53): column repeater below the base slot card
-    if (S.tmpl==='table' && i===0) appendColumnsCard(el);
-  }
-}
-
-// table (FW-53) column repeater. Each column: label, its own mini src-chain (2-src value),
-// cell reader (use/key). Column N renders {N}-prefixed opts on the wire (buildColumnParts).
-function appendColumnsCard(container) {
-  const card=document.createElement('div'); card.className='card';
-  const h=document.createElement('h3'); h.textContent='Columns (each → {N}- prefix)'; card.appendChild(h);
-  S.columns.forEach((col,ci)=>{
-    const cp=`${ci+1}-`;
-    const block=document.createElement('div'); block.className='src-block'; block.style.borderLeftColor='#c07ad9';
-    const bl=document.createElement('div'); bl.className='src-block-lbl'; bl.style.color='#c07ad9';
-    bl.textContent=`Column ${ci+1} — prefix ${cp}`;
-    block.appendChild(bl);
-    // label
-    const lr=document.createElement('div'); lr.className='opt-row';
-    const ll=document.createElement('span'); ll.className='opt-lbl'; ll.textContent=kn('label');
-    const li=document.createElement('input'); li.type='text'; li.value=col.label||''; li.style.width='100%';
-    li.addEventListener('input',()=>{ col.label=li.value; renderCfgPreview(); });
-    lr.appendChild(ll); lr.appendChild(li); block.appendChild(lr);
-    // mini src-chain
-    if (!Array.isArray(col.chain)) col.chain=[];
-    appendChainEditor(block, ()=>col.chain, cp+kn('src'), ()=>{ renderSlots(); renderCfgPreview(); });
-    // cell reader: use (select-ish free text) + key
-    const ur=document.createElement('div'); ur.className='opt-row';
-    const ul=document.createElement('span'); ul.className='opt-lbl'; ul.textContent=kn('use');
-    const ui=document.createElement('input'); ui.type='text'; ui.placeholder='title / blank(meta)'; ui.value=col.use||''; ui.style.width='100%';
-    ui.addEventListener('input',()=>{ col.use=ui.value; renderCfgPreview(); });
-    ur.appendChild(ul); ur.appendChild(ui); block.appendChild(ur);
-    if (!S.fromKeyCombined) {
-      const kr=document.createElement('div'); kr.className='opt-row';
-      const kl=document.createElement('span'); kl.className='opt-lbl'; kl.textContent=kn('key');
-      const ki=document.createElement('input'); ki.type='text'; ki.placeholder='meta key'; ki.value=col.key||''; ki.style.width='100%';
-      ki.addEventListener('input',()=>{ col.key=ki.value; renderCfgPreview(); });
-      kr.appendChild(kl); kr.appendChild(ki); block.appendChild(kr);
-    }
-    // remove column
-    const rm=document.createElement('button'); rm.textContent='× remove column'; rm.style.cssText='font-size:11px;margin-top:4px';
-    rm.addEventListener('click',()=>{ S.columns.splice(ci,1); renderSlots(); renderCfgPreview(); });
-    block.appendChild(rm);
-    card.appendChild(block);
-  });
-  const add=document.createElement('button'); add.textContent='+ column'; add.style.cssText='font-size:11px';
-  add.addEventListener('click',()=>{ S.columns.push({label:'',use:'',key:'',chain:[]}); renderSlots(); renderCfgPreview(); });
-  card.appendChild(add);
-  container.appendChild(card);
-}
-
-function appendSel(parent,si,id,label,choices,onChange) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const sel=document.createElement('select');
-  choices.forEach(c=>{ const o=document.createElement('option'); o.value=c.value; o.textContent=c.label; if((sv[id]??'')===c.value) o.selected=true; sel.appendChild(o); });
-  sel.addEventListener('change',()=>{ sv[id]=sel.value; if(onChange)onChange(); else renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(sel); parent.appendChild(row); return row;
-}
-function appendTxt(parent,si,id,label) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const inp=document.createElement('input'); inp.type='text'; inp.value=sv[id]||''; inp.style.width='100%';
-  inp.addEventListener('input',()=>{ sv[id]=inp.value; renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(inp); parent.appendChild(row); return row;
-}
-function appendBool(parent,si,id,label) {
-  const sv=S.slotVals[si];
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=label;
-  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv[id]==='1';
-  cb.addEventListener('change',()=>{ sv[id]=cb.checked?'1':''; renderCfgPreview(); });
-  row.appendChild(lbl); row.appendChild(cb); parent.appendChild(row); return row;
-}
-function appendInTerm(parent,si,sv) {
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='In Term';
-  const inner=document.createElement('div'); inner.className='interm-row';
-  const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=sv['srcTerm']==='1';
-  const taxLbl=document.createElement('span'); taxLbl.className='interm-tax-lbl'; taxLbl.textContent=kn('tax')+':'; taxLbl.style.display=sv['srcTerm']==='1'?'':'none';
-  const taxInp=document.createElement('input'); taxInp.type='text'; taxInp.placeholder='taxonomy'; taxInp.value=sv['tax']||''; taxInp.style.cssText='width:80px;display:'+(sv['srcTerm']==='1'?'':'none');
-  taxInp.addEventListener('input',()=>{ sv['tax']=taxInp.value; renderCfgPreview(); });
-  cb.addEventListener('change',()=>{ sv['srcTerm']=cb.checked?'1':''; taxLbl.style.display=cb.checked?'':'none'; taxInp.style.display=cb.checked?'':'none'; renderCfgPreview(); });
-  inner.appendChild(cb); inner.appendChild(taxLbl); inner.appendChild(taxInp);
-  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row); return row;
-}
-function appendFromKeyCombined(parent,si,sv,schema) {
-  const row=document.createElement('div'); row.className='opt-row';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent='use + key';
-  const inner=document.createElement('div'); inner.style.cssText='display:flex;gap:5px;align-items:center;width:100%';
-  const inp=document.createElement('input'); inp.type='text'; inp.style.flex='1';
-  inp.placeholder='meta,field_key or title';
-  const fv=sv['use']||'', kv=sv['key']||'';
-  inp.value=kv?`${fv||'key'},${kv}`:(fv||'');
-  inp.addEventListener('input',()=>{
-    const v=inp.value.trim();
-    if(!v){sv['use']='';sv['key']='';}
-    else if(v.includes(',')){ const ci=v.indexOf(','); sv['use']=v.slice(0,ci).trim(); sv['key']=v.slice(ci+1).trim(); }
-    else{sv['use']=v;sv['key']='';}
-    renderCfgPreview();
-  });
-  const hint=document.createElement('span'); hint.style.cssText='font-size:11px;color:var(--muted);white-space:nowrap'; hint.textContent=`→ ${kn('use')}:type,key`;
-  inner.appendChild(inp); inner.appendChild(hint);
-  row.appendChild(lbl); row.appendChild(inner); parent.appendChild(row);
-  setDim(row,!evalShowIf(schema.showIf,sv)); return row;
-}
-// FW-56 src-chain editor: rows of {slug,arg,limit}. First step allows start-kinds (post/term/
-// user) + hops; later steps hops only. Reused for a slot's row-chain AND a table column's
-// mini-chain. `getChain` returns the mutable array; `labelText` names the row; `onMutate`
-// re-renders the owning UI (structure change) — arg/limit edits only re-render the preview.
-function appendChainEditor(parent, getChain, labelText, onMutate) {
-  if (!Array.isArray(getChain())) return;
-  const chain=getChain();
-  const wrap=document.createElement('div'); wrap.className='opt-row'; wrap.style.alignItems='flex-start';
-  const lbl=document.createElement('span'); lbl.className='opt-lbl'; lbl.textContent=labelText;
-  const box=document.createElement('div'); box.style.cssText='flex:1;display:flex;flex-direction:column;gap:4px';
-  chain.forEach((step,hi)=>{
-    const isFirst=hi===0;
-    const choices=chainSlugChoices(isFirst);
-    if (!step.slug || !choices.some(c=>c.value===step.slug)) step.slug=choices[0].value;
-    const isStart=CHAIN_STARTS.some(c=>c.value===step.slug);
-    const r=document.createElement('div'); r.style.cssText='display:flex;gap:4px;align-items:center';
-    const idx=document.createElement('span'); idx.style.cssText='font-size:10px;color:var(--muted);width:14px'; idx.textContent=(hi+1)+'.';
-    const sel=document.createElement('select'); sel.style.width='130px';
-    choices.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=t.label; if(step.slug===t.value)o.selected=true; sel.appendChild(o); });
-    sel.addEventListener('change',()=>{ step.slug=sel.value; onMutate(); });
-    const arg=document.createElement('input'); arg.type='text'; arg.style.flex='1';
-    arg.placeholder = isStart ? 'id' : 'field key / taxonomy';
-    arg.value=step.arg||'';
-    arg.addEventListener('input',()=>{ step.arg=arg.value; renderCfgPreview(); });
-    // per-step sep is SPECULATIVE (see serializeStep) — present so a step can carry TWO kv tokens.
-    // Disabled unless its own toggle is on, so the field cannot silently shape a string the shipped
-    // single-sep model could not produce.
-    const sp=document.createElement('input'); sp.type='text'; sp.style.width='42px';
-    sp.placeholder='sep'; sp.value=step.sep||'';
-    sp.title = S.perStepSep ? 'per-step sep (SPECULATIVE — not a decided option)'
-                            : 'per-step sep — enable the toggle above';
-    sp.disabled=isStart||!S.perStepSep;   // starts are cardinality-1, nothing to join
-    sp.addEventListener('input',()=>{ step.sep=sp.value; renderCfgPreview(); });
-    const lim=document.createElement('input'); lim.type='text'; lim.style.width='42px';
-    lim.placeholder='lim'; lim.value=step.limit||''; lim.title='per-step limit (optional)';
-    lim.disabled=isStart;  // starts are cardinality-1, no fan-out to cap
-    lim.addEventListener('input',()=>{ step.limit=lim.value; renderCfgPreview(); });
-    const del=document.createElement('button'); del.textContent='×'; del.style.cssText='width:22px;padding:0';
-    del.addEventListener('click',()=>{ chain.splice(hi,1); onMutate(); });
-    r.appendChild(idx); r.appendChild(sel); r.appendChild(arg); r.appendChild(sp); r.appendChild(lim); r.appendChild(del); box.appendChild(r);
-  });
-  const add=document.createElement('button'); add.textContent='+ step'; add.style.cssText='align-self:flex-start;font-size:11px';
-  add.addEventListener('click',()=>{ chain.push({slug:'',arg:'',sep:'',limit:''}); onMutate(); });
-  box.appendChild(add);
-  wrap.appendChild(lbl); wrap.appendChild(box); parent.appendChild(wrap);
-}
-
-// slot row-chain editor — shown in the source block when the src chain is on.
-function appendSrcChain(parent,si,sv) {
-  if (!Array.isArray(sv['srcChain'])) sv['srcChain']=[];
-  appendChainEditor(parent, ()=>sv['srcChain'], kn('src')+' chain', ()=>{ renderSlots(); renderCfgPreview(); });
-}
-function setDim(row,dim) { row.classList.toggle('dim',dim); }
-
-// ── Render: cfg preview ──────────────────────────────────────────────────────
-function renderCfgPreview() {
-  document.getElementById('cfg-preview').textContent=buildCfgTag();
-}
-
-// ── Render: snapshots ────────────────────────────────────────────────────────
-function renderSnaps() {
-  const el=document.getElementById('cfg-snaps'); el.innerHTML='';
-  S.snapshots.forEach((s,i)=>{
-    const row=document.createElement('div'); row.className='snap-item';
-    const num=document.createElement('span'); num.className='snap-num'; num.textContent=`${i+1}.`;
-    const str=document.createElement('span'); str.className='snap-str'; str.textContent=s;
-    const del=document.createElement('button'); del.className='snap-del'; del.textContent='×';
-    del.addEventListener('click',()=>{ S.snapshots.splice(i,1); renderSnaps(); });
-    row.appendChild(num); row.appendChild(str); row.appendChild(del); el.appendChild(row);
-  });
-}
+// The separator-picker UI that used to live here (makeSepRow + renderSepControls/renderValueSep/
+// renderSlotSep/applySlotSchemaDefaults, for the Src Chain / Value Separator / Slot Schema sidebar
+// sections) was cut 2026-09-02 (user: settled, won't reopen) — S.chainSep/valueSep/slotOptSep/
+// slotKvChar are fixed constants now, set once in the S declaration.
 
 // ── Render: permutations ─────────────────────────────────────────────────────
 // Harvest every FREE-FORM value a scenario feeds into its tag (labels, formats, fallbacks,
@@ -2651,7 +2081,6 @@ function scenarioFreeform(sc) {
   const out = [];
   const take = v => { if (typeof v === 'string' && v !== '') out.push(resolveVal(v)); };
   take(sc.caption);
-  (sc.cols || []).forEach(c => take(c.label));
   (sc.slots || []).forEach(s => {
     if (!s || typeof s !== 'object') return;
     take(s.label);
@@ -2694,8 +2123,19 @@ function renderPerms() {
         const variants=buildContrastVariants(group,sc);
         const stack=document.createElement('div'); stack.className='perm-stack';
         const ff=scenarioFreeform(sc);
+        // Legacy earns no line when it says nothing: no wire for this row (`missing`), or the
+        // same string Current already shows. Data stays put (CONTRAST_VARIANTS, scenario `parts`)
+        // — this is a render-time skip, not a deletion, so a future scenario can still ask for
+        // Legacy and get it back the moment it actually differs.
+        const currentStr = variants.find(x=>x.label==='Current' && !x.missing)?.str;
         variants.forEach(v=>{
-          const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls);
+          if (v.label==='Legacy' && (v.missing || v.str===currentStr)) return;
+          // Preview earns no line either once it says nothing beyond Current — same "data stays,
+          // this is a render-time skip" rule as Legacy above, so a toggle that starts differing
+          // again brings the line straight back.
+          if (v.label==='Preview' && !v.missing && v.str===currentStr) return;
+          const labelCls = v.label==='Legacy' ? 'perm-legacy' : v.label==='Current' ? 'perm-current' : '';
+          const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls)+(labelCls?' '+labelCls:'');
           const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=v.label;
           const s=document.createElement('div'); s.className='perm-str';
           s.textContent = v.missing ? `— no ${v.label} equivalent —` : v.str;
@@ -2720,36 +2160,22 @@ function renderPerms() {
 }
 
 // Header banner: silent when clean, loud when not. Placed above the groups so a violation is
-// visible without scrolling the full permutation list.
+// visible without scrolling the full permutation list. Scope is narrow, and the wording says
+// so: checkTag() only walks bracket well-formedness (+ a dead hop/step separator check, since
+// chainSep is hardcoded), and only on Preview-class lines — Legacy/Current predate the locked
+// grammar and are never checked. With no toggle flipped, that's the 3 always-on `previewOnly`
+// rows; flipping a toggle widens it to every Preview line that differs from Current.
 function renderIssueSummary(n) {
   const bar = document.getElementById('perm-issue-summary');
   if (!bar) return;
   bar.className = n ? 'perm-summary bad' : 'perm-summary ok';
   bar.textContent = n
-    ? `⚠ ${n} invariant violation${n===1?'':'s'} in rendered tags — see flagged rows`
-    : '✓ all rendered tags satisfy the locked wire invariants';
-}
-
-// ── Template/mode switches ───────────────────────────────────────────────────
-function switchTmpl(t) {
-  S.tmpl=t;
-  S.order=[...(DEFAULT_ORDER[t]||DEFAULT_ORDER.text)];
-  const n=S.tryCount>0?S.tryCount:1;
-  S.slotVals=Array.from({length:n},()=>({}));
-  // seed two example columns when entering table so the worked example is one click away
-  S.columns = t==='table'
-    ? [{label:'Name',use:'title',key:'',chain:[]},{label:'Office',use:'',key:'address',chain:[{slug:'refs',arg:'office',limit:''}]}]
-    : [];
-}
-function setTryCount(n) {
-  S.tryCount=n;
-  const count=n>0?n:1;
-  while(S.slotVals.length<count) S.slotVals.push({});
-  S.slotVals=S.slotVals.slice(0,count);
+    ? `⚠ ${n} bracket-structure violation${n===1?'':'s'} in proposed-wire lines — see flagged rows`
+    : '✓ no bracket-structure violations in the proposed-wire lines checked';
 }
 
 // ── Full re-render ────────────────────────────────────────────────────────────
-function fullRender() { renderSbNames(); renderSepControls(); renderValueSep(); renderSlotSep(); renderOrder(); renderSlots(); renderCfgPreview(); renderPerms(); }
+function fullRender() { renderSbNames(); renderPerms(); }
 
 // ── Events ───────────────────────────────────────────────────────────────────
 // Sidebar drawer (narrow viewports only; CSS keeps it pinned open above the breakpoint).
@@ -2763,67 +2189,16 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=>{
-    setSidebar(false);
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(x=>x.classList.add('hidden'));
-    t.classList.add('active');
-    document.getElementById('tab-'+t.dataset.tab).classList.remove('hidden');
-    if (t.dataset.tab==='perms') renderPerms();
-  });
-});
-
-document.getElementById('tmpl-sel').addEventListener('change',e=>{ switchTmpl(e.target.value); fullRender(); });
-
-document.querySelectorAll('input[name="mode"]').forEach(r=>{
-  r.addEventListener('change',()=>{ setTryCount(parseInt(r.value)); renderSlots(); renderCfgPreview(); });
-});
-
-document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderCfgPreview(); renderPerms(); });
-});
-document.getElementById('cb-stepsep').addEventListener('change',e=>{
-  // Independent of limitStyle on purpose — per-step sep would arrive whichever limit form wins.
-  S.perStepSep=e.target.checked; renderSlots(); renderCfgPreview(); renderPerms();
-});
-document.getElementById('cb-limitslash').addEventListener('change',e=>{
-  S.limitStyle = e.target.checked ? 'slash' : 'bracket-kv'; renderCfgPreview(); renderPerms();
-});
-document.getElementById('cb-chainexplicitroot').addEventListener('change',e=>{
-  S.chainExplicitRoot=e.target.checked; renderCfgPreview(); renderPerms();
-});
-document.getElementById('cb-slotforcesrc').addEventListener('change',e=>{
-  S.slotForceSrc=e.target.checked; renderCfgPreview(); renderPerms();
-});
-document.getElementById('cb-readviause').addEventListener('change',e=>{
-  S.readViaUse=e.target.checked; renderCfgPreview(); renderPerms();
-});
-document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.valuePair=r.value; renderCfgPreview(); renderPerms(); });
-});
-document.querySelectorAll('input[name="slotkey"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderCfgPreview(); renderPerms(); });
-});
-
 document.getElementById('cb-fromkey').addEventListener('change',e=>{
-  S.fromKeyCombined=e.target.checked;
-  const n=S.tryCount>0?S.tryCount:1;
-  S.slotVals=Array.from({length:n},()=>({}));
-  renderSlots(); renderCfgPreview(); renderPerms();
+  S.fromKeyCombined=e.target.checked; renderPerms();
 });
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
-  S.linkCombined=e.target.checked;
-  renderCfgPreview(); renderPerms();
+  S.linkCombined=e.target.checked; renderPerms();
 });
-
-document.getElementById('cfg-copy').addEventListener('click',()=>{
-  navigator.clipboard.writeText(buildCfgTag()).then(()=>{ const b=document.getElementById('cfg-copy'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1500); });
+document.getElementById('cb-fw81').addEventListener('change',e=>{
+  S.fw81DtCollapse=e.target.checked; renderPerms();
 });
-document.getElementById('cfg-snap').addEventListener('click',()=>{
-  const t=buildCfgTag(); if(!S.snapshots.includes(t)){ S.snapshots.push(t); renderSnaps(); }
-});
-document.getElementById('cfg-clear').addEventListener('click',()=>{ S.snapshots=[]; renderSnaps(); });
+document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
 // Dummy value inputs
 ['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
@@ -2834,7 +2209,7 @@ document.getElementById('cfg-clear').addEventListener('click',()=>{ S.snapshots=
 document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-applySlotSchemaDefaults();
+loadNamesFromStorage();
 fullRender();
 </script>
 </body>
