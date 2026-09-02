@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.19.1] — unreleased
+
+### Fixed
+
+- **A try_ attempt's field key picker no longer stays hidden on a fresh slot.** A first attempt whose field defaults to the meta/option field reading (e.g. Try Image) needed the Field dropdown switched away and back before its key picker would appear; it now shows immediately, matching what the tag actually renders.
+
 ## [1.19.0] — 2026-09-01
 
 ### Highlights

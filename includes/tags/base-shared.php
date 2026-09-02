@@ -849,6 +849,13 @@ function bws_build_fold_slot_options( array $args ): array {
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
 		'readLabel'      => $base_read['label'] ?? '',
+		// The read an absent slot-1 value spells — the read-axis twin of `defaultRoot`
+		// above, same reason: a control that leaves the picker (and, for a `key` default,
+		// the field group) blank until the author touches something disagrees with what
+		// the render seam already assumes (`bws_fold_empty_carry( $default_use )`). A
+		// combining container's first row is the unset row itself, so this resolves to
+		// '' there automatically — no branch needed for "combining seeds the read UNSET".
+		'defaultRead'    => (string) ( $read_rows[0]['value'] ?? '' ),
 		'taxonomies'     => $tax_rows,
 		'refOption'      => bws_fold_picker_config( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold

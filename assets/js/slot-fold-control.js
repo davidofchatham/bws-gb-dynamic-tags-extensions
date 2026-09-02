@@ -115,6 +115,9 @@
 			// with the list the author picks from. See bws_build_src_chain_option() /
 			// bws_build_fold_slot_options().
 			defaultRoot: c.defaultRoot || '',
+			// The read-axis twin of defaultRoot: what slot 1's read spells when absent.
+			// See bws_build_fold_slot_options().
+			defaultRead: c.defaultRead || '',
 			// The full step vocabulary, one record per WIRE slug (#70): label, which arg
 			// key the step consumes, the kinds it accepts (the ENGINE's own refusal
 			// list) and the kind it produces. See bws_fold_wire_vocabulary(). Absent
@@ -1172,7 +1175,15 @@
 		var read = slot.read;
 		var keyOnly = ! conf.readRows.length && !! conf.keyOption;
 		if ( conf.readRows.length || keyOnly ) {
-			var readVal = '';
+			// Mirrors chainSteps' `implied` (line ~610): an absent read spells slot 1's
+			// stripped default in a selecting container, `same` on a later slot, and
+			// stays blank in a combining container (whose own unset row already sits at
+			// defaultRead[0] there). Without this, the picker AND the key-field group
+			// both read the unconfigured slot as "nothing selected" — disagreeing with
+			// the render seam, which resolves the same absence to the template's default
+			// `use` (bws_fold_empty_carry) — until the author touches the control once.
+			var impliedRead = ordinal >= 2 ? ( conf.combining ? '' : 'same' ) : ( conf.defaultRead || '' );
+			var readVal = read ? '' : impliedRead;
 			if ( read && 'key' === read.kind ) { readVal = 'key'; }
 			if ( read && 'analog' === read.kind ) { readVal = read.slug; }
 			if ( read && 'same' === read.kind ) { readVal = 'same'; }
@@ -1200,7 +1211,7 @@
 				__nextHasNoMarginBottom: true
 			} ) ];
 
-			if ( keyOnly || ( read && 'key' === read.kind ) ) {
+			if ( keyOnly || 'key' === readVal ) {
 				var keyCfg = conf.keyOption || {};
 				var commitField = keyOnly
 					// Clearing the field is how a keyOnly slot says "inherit" — there is
