@@ -137,13 +137,6 @@ input.name-inp:focus { outline: none; border-color: var(--accent); }
 .toggle-desc { color: var(--muted); }
 .toggle-desc code { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text); }
 
-.pfx-row {
-  display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
-  padding: 3px 0; font-size: 12px;
-}
-.pfx-row label { display: flex; align-items: center; gap: 3px; cursor: pointer; }
-.pfx-row input[type=radio] { accent-color: var(--accent); }
-
 /* ── Shared button base ──────────────────── */
 /* Used by the sidebar's mobile toggle (.sb-toggle) and the preset-menu button; the Configure tab's
    own button styling (btn-row/snap-*/order-row/arr-*/card/opt-row/cfg-*) was removed with it
@@ -301,51 +294,18 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">Folded slot KEY spelling</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Shipped as <code>A:</code> capitals. Digits are a look-back: an all-digit key is a JS array
-      index, which sorts ahead of every string key regardless of any ordering rule, pinning digit
-      slots to the front — letters escape that. Most visible in <em>join — TEMPLATE MODE</em> and
-      <em>table</em>, the groups with a tag-level option (<code>format:</code>, <code>src:</code>) to
-      rank against.
-    </div>
-    <div class="pfx-row">
-      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (look-back)</label>
-      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (shipped)</label>
-    </div>
-
-    <div class="sb-h">Combined Options (slot inherits these)</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      Global combine schema. Link fold already reaches a folded slot's own read (respellEntries) —
-      this toggle affects slot output today. Use+key fold does not yet: a slot's own use/key combine
-      still needs its own control (future).
-    </div>
+    <div class="sb-h">Option Combining (FW-20, FW-81)</div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fromkey">
-      <span class="toggle-desc">use + key → <code>use:key[sep]field</code></span>
+      <span class="toggle-desc">use + key → <code>use:key[sep]field</code> (FW-20; base tag only, folded slots not yet wired)</span>
     </label>
     <label class="toggle-row">
       <input type="checkbox" id="cb-linkcombined">
-      <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code></span>
+      <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code> (FW-20; already reaches folded slots)</span>
     </label>
-
-    <div class="sb-h">FW-81 — collapse datetime keys (PARKED, design SETTLED, unshipped)</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Design converged 2026-08-18, nothing committed, no ticket
-      (<code>.scratch/plans/datetime-tag-collapse.md</code>). Six flat options
-      (<code>key</code>/<code>timeKey</code>/<code>startKey</code>/<code>startTimeKey</code>/<code>endKey</code>/<code>endTimeKey</code>)
-      collapse into ONE <code>use:</code> read-list: <code>;</code> between reads, <code>,</code>
-      inside one read, leading verb slug (<code>key</code>/<code>now</code>/<code>modified</code>).
-      Position is ORDINAL (primary field, optional supplementary time), never nominal — no
-      <code>start</code>/<code>end</code> in the grammar. Zero new bracket depth. The MERGE itself is
-      SETTLED too (S1) — one tag, mode = read count, not a stated option — so the collapsed line below
-      renders as one tag, <code>{{datetime …}}</code>. That name is a PLACEHOLDER only: catalog
-      position + the actual name are O5, still open. NOT modelled: the <code>published</code> verb
-      (O7 still open — whether a list position can strip a default the way a scalar option can).
-    </div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fw81">
-      <span class="toggle-desc">show the collapsed, MERGED <code>{{datetime …}}</code> reading (placeholder name) alongside today's two six-key tags below</span>
+      <span class="toggle-desc">collapse datetime keys → <code>{{datetime …}}</code> (FW-81, parked/unshipped)</span>
     </label>
   </div>
 
@@ -1003,10 +963,10 @@ const S = {
   // Repeater rows for the "Rename Options & Values" sidebar — which ids currently show a row.
   // Empty by default; loadNamesFromStorage() restores a returning user's own rows.
   nameRows: [],
-  // Folded slot KEY spelling — SETTLED 2026-08-04 (user): 'alpha' is what 1.17.0 ships, and is
-  // the default here. 'digit' (the first cut) is kept as a look-back. Drives
-  // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(), since only a
-  // non-array-index key can trail a tag-level option.
+  // Folded slot KEY spelling — SETTLED 2026-08-04 (user) as 'alpha', what 1.17.0 ships. Drives
+  // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(). The 'digit' look-back and
+  // its sidebar radio were cut 2026-09-02 (user): the Legacy contrast line's `N-` prefix already
+  // shows the digit style, so a separate toggle was redundant.
   slotKeySpelling: 'alpha',
   fromKeyCombined: false,
   // FW-56 value-side src chain: LOCKED ON (user 2026-07-29). The chain OWNS the source string
@@ -1691,8 +1651,7 @@ const CONTRAST_VARIANTS = {
 // the only group with an appears-only-when-active line; that pattern is now the rule, not FW-81's
 // exception, so `group.variants` is always a plain array again).
 function previewActive() {
-  return S.slotKeySpelling !== 'alpha' || S.fromKeyCombined || S.linkCombined ||
-         S.fw81DtCollapse;
+  return S.fromKeyCombined || S.linkCombined || S.fw81DtCollapse;
 }
 function allVariantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
@@ -2201,14 +2160,18 @@ function renderPerms() {
 }
 
 // Header banner: silent when clean, loud when not. Placed above the groups so a violation is
-// visible without scrolling the full permutation list.
+// visible without scrolling the full permutation list. Scope is narrow, and the wording says
+// so: checkTag() only walks bracket well-formedness (+ a dead hop/step separator check, since
+// chainSep is hardcoded), and only on Preview-class lines — Legacy/Current predate the locked
+// grammar and are never checked. With no toggle flipped, that's the 3 always-on `previewOnly`
+// rows; flipping a toggle widens it to every Preview line that differs from Current.
 function renderIssueSummary(n) {
   const bar = document.getElementById('perm-issue-summary');
   if (!bar) return;
   bar.className = n ? 'perm-summary bad' : 'perm-summary ok';
   bar.textContent = n
-    ? `⚠ ${n} invariant violation${n===1?'':'s'} in rendered tags — see flagged rows`
-    : '✓ all rendered tags satisfy the locked wire invariants';
+    ? `⚠ ${n} bracket-structure violation${n===1?'':'s'} in proposed-wire lines — see flagged rows`
+    : '✓ no bracket-structure violations in the proposed-wire lines checked';
 }
 
 // ── Full re-render ────────────────────────────────────────────────────────────
@@ -2225,10 +2188,6 @@ function setSidebar(open){
 sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classList.contains('open')); });
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
-
-document.querySelectorAll('input[name="slotkey"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderPerms(); });
-});
 
 document.getElementById('cb-fromkey').addEventListener('change',e=>{
   S.fromKeyCombined=e.target.checked; renderPerms();
