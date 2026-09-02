@@ -424,14 +424,15 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       collapse into ONE <code>use:</code> read-list: <code>;</code> between reads, <code>,</code>
       inside one read, leading verb slug (<code>key</code>/<code>now</code>/<code>modified</code>).
       Position is ORDINAL (primary field, optional supplementary time), never nominal — no
-      <code>start</code>/<code>end</code> in the grammar. Zero new bracket depth. NOT modelled here:
-      the actual tag-merge/rename (O5 undecided — the two tags below keep their current names) and
-      the <code>published</code> verb (O7 still open — whether a list position can strip a default
-      the way a scalar option can).
+      <code>start</code>/<code>end</code> in the grammar. Zero new bracket depth. The MERGE itself is
+      SETTLED too (S1) — one tag, mode = read count, not a stated option — so the collapsed line below
+      renders as one tag, <code>{{datetime …}}</code>. That name is a PLACEHOLDER only: catalog
+      position + the actual name are O5, still open. NOT modelled: the <code>published</code> verb
+      (O7 still open — whether a list position can strip a default the way a scalar option can).
     </div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fw81">
-      <span class="toggle-desc">show the collapsed <code>use:</code> reading alongside today's six-key wire, on the two datetime groups below</span>
+      <span class="toggle-desc">show the collapsed, MERGED <code>{{datetime …}}</code> reading (placeholder name) alongside today's two six-key tags below</span>
     </label>
   </div>
 
@@ -701,10 +702,13 @@ const SCENARIO_GROUPS = [
     {label:'in term',               parts:[['_inTerm','$tax']]},
   ]},
   // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
-  // collapsed use: reading joins it only when the sidebar toggle is on. See datetimeCollapseFromParts()
-  // — the collapsed line is DERIVED from `parts`, not hand-duplicated, for the rows that have a
-  // six-key form at all.
-  { tmpl:'datetime_single', title:'datetime_single — six keys ⟷ FW-81 collapsed use: list (parked, unshipped)',
+  // collapsed line joins it only when the sidebar toggle is on. See datetimeCollapseFromParts() —
+  // the collapsed line is DERIVED from `parts`, not hand-duplicated, for the rows that have a
+  // six-key form at all. The collapsed line renders under the MERGED placeholder name `datetime`
+  // (S1 settled — one tag, mode = read count), not this group's own `tmpl` — see buildOneVariant's
+  // dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
+  // real, only-shipped name for the six-key variant on this row.
+  { tmpl:'datetime_single', title:'datetime_single ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
     isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
     {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
     {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
@@ -715,7 +719,7 @@ const SCENARIO_GROUPS = [
     {label:'date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
     {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
-  { tmpl:'datetime_range', title:'datetime_range — six keys ⟷ FW-81 collapsed use: list (parked, unshipped)',
+  { tmpl:'datetime_range', title:'datetime_range ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
     isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
     {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
@@ -1653,8 +1657,9 @@ function groupOrder(group) {
 // The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
 // table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
 // FW-81 pair: no shipped/legacy split (nothing has shipped) — just today's six-key wire beside the
-// PARKED-but-SETTLED (S6) collapsed reading, gated by the cb-fw81 sidebar toggle rather than by
-// group.variants being a plain array (see variantsFor()).
+// PARKED-but-SETTLED (S6/S1) collapsed, MERGED reading, gated by the cb-fw81 sidebar toggle rather
+// than by group.variants being a plain array (see variantsFor()). The collapsed line renders under
+// a placeholder tag name (O5 open); the merge itself is not the open part (S1).
 const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
 // Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
 // migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
@@ -1761,11 +1766,16 @@ function buildOneVariant(v, group, sc, sortParts, wrap) {
     // inside one — fixed literal separators (S6 is LOCKED, unlike the still-toggle-driven chain/fold
     // grammar elsewhere on this page, so nothing here rides a sidebar picker). Everything that ISN'T
     // one of the six keys (as/format/source/link/fallback/…) passes through unchanged.
+    // NAME: NOT wrap() — wrap is bound to this GROUP's own tmpl (datetime_single/datetime_range),
+    // but S1 settles the merge itself (one tag, mode = read count), so the collapsed line renders
+    // under a MERGED placeholder name instead. Only the string 'datetime' is a placeholder (O5 is
+    // still open on the real name/catalog position) — the fact of ONE tag is not.
     const reads = sc.collapsed || datetimeCollapseFromParts(sc.parts) || [];
     const useVal = reads.map(r => [r.verb, ...(r.args||[]).map(a=>String(resolveVal(a)))].join(',')).join(';');
     const rest = (sc.parts||[]).filter(([id]) => !DT_KEY_IDS.has(id));
     const combined = useVal ? [...rest, ['use', useVal]] : rest;
-    return wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(combined)],'',false));
+    const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(combined)],'',false);
+    return `{{datetime${parts.length?' '+parts.join('|'):''}}}`;
   }
   return null;
 }
