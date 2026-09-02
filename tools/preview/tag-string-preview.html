@@ -492,7 +492,7 @@ const SCENARIO_GROUPS = [
     {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']],
       rest:[['key','$key1'],['fallback','$fallback']]},
     {label:'parent → key',          parts:[['source','parent'],['key','$key1']],
-      rest:[['key','$key1']],
+      previewOnly:true, previewHow:'parts',
       note:'src:parent is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
     {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
       rest:[['key','$key1'],['_link',{to:'permalink'}]]},
@@ -612,7 +612,8 @@ const SCENARIO_GROUPS = [
     {label:'pinned term start → key',
       parts:null,
       chain:[{slug:'term',arg:'42'}], rest:[['key','$key1']],
-      note:'no flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39'},
+      previewOnly:true, previewHow:'chain',
+      note:'no flat/legacy form, and still no chain form either: a pinned-entity chain root is unbuilt — tracked as FW-39, shown for shape only'},
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
@@ -664,6 +665,7 @@ const SCENARIO_GROUPS = [
     // the flat wire has no verb slot. S10 settles `now` itself; O7 (published) stays unmodelled.
     {label:'range, ongoing (end = now)', parts:null,
       collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
+      previewOnly:true,
       note:'no six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
   ]},
   // The unfolded `try_text` group was MERGED into the contrast group below (2026-07-31); its
@@ -1703,11 +1705,12 @@ function previewActive() {
   return S.slotKeySpelling !== 'alpha' || S.fromKeyCombined || S.linkCombined ||
          S.fw81DtCollapse;
 }
-function variantsFor(group) {
+function allVariantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
-  return keys
-    .map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k)
-    .filter(v => v.cls !== 'perm-chain' || previewActive());
+  return keys.map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k);
+}
+function variantsFor(group) {
+  return allVariantsFor(group).filter(v => v.cls !== 'perm-chain' || previewActive());
 }
 // Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
 // shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
@@ -1732,6 +1735,14 @@ function withShippedGrammar(fn) {
 // `missing` marks a variant the group asks for but this scenario has no data for — rendered as
 // an explicit "no equivalent" line, which is itself information (e.g. join has no shipped
 // unfolded form for a heterogeneous slot).
+//
+// `sc.previewOnly` is the opposite case: a shape neither wire actually ships (a Planned `src`
+// value, an unbuilt FW-39 chain root), included so the tool can show its intended spelling.
+// Rendering it as Legacy or Current would claim it works today; rendering it as a "missing" line
+// on the side that DOES exist would bury the one thing worth showing under filler about the side
+// that doesn't. So a previewOnly scenario skips straight to a single Preview line, always shown
+// (a proposal isn't gated behind the live-toggle-differs check every other Preview column uses)
+// — `sc.note` still carries the "why doesn't this exist yet" explanation underneath.
 function buildContrastVariants(group, sc) {
   const order = groupOrder(group);
   const sortParts = (arr) => [...arr].sort((a,b)=>{
@@ -1740,6 +1751,14 @@ function buildContrastVariants(group, sc) {
   });
   const name = tmplName(group.tmpl);
   const wrap = (parts) => `{{${name}${parts.length?' '+parts.join('|'):''}}}`;
+
+  if (sc.previewOnly) {
+    const base = allVariantsFor(group).find(v => v.cls === 'perm-chain') || { label:'Preview' };
+    const v = sc.previewHow ? { ...base, how:sc.previewHow } : base;
+    const build = () => buildOneVariant(v, group, sc, sortParts, wrap);
+    const str = v.frozen ? withShippedGrammar(build) : build();
+    return [{ label: v.label || 'Preview', str, cls:'perm-chain', missing:false }];
+  }
 
   return variantsFor(group).map(v => {
     if (v.needs && !v.needs(sc)) return { label:v.label, str:null, cls:v.cls, missing:true };
