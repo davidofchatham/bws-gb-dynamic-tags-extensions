@@ -298,6 +298,23 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
+    <div class="sb-h">src Chain (FW-56)</div>
+    <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
+      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code>. Hops
+      <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
+      <code>post</code>/<code>term</code>/<code>user</code>. Root implied (<code>current</code> only as
+      an override/reset). Per-step <code>limit</code> is bracket-kv, not positional —
+      <code>refs,rel_post,limit[5]</code> — so it alternates bracket char with nesting depth like
+      every other token. Hop-sep + intra-step-sep still tunable:
+    </div>
+    <div id="sep-controls" style="margin-top:8px"></div>
+
+    <div class="sb-h">Value Separator</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
+      glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
+    </div>
+    <div id="valuesep-controls"></div>
+
     <div class="sb-h">Slot Schema: bracket-kv</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
       Sole schema. <code>name(value)</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
@@ -321,6 +338,19 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <span class="toggle-desc">[future look] read via <code>use(...)</code> parity: meta → <code>use(key,name)</code> (vs bare <code>key(name)</code>). Loved parity, but verbose — OFF for now.</span>
     </label>
 
+    <div class="sb-h">Folded slot KEY spelling</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
+      Shipped as <code>A:</code> capitals. Digits are a look-back: an all-digit key is a JS array
+      index, which sorts ahead of every string key regardless of any ordering rule, pinning digit
+      slots to the front — letters escape that. Most visible in <em>join — TEMPLATE MODE</em> and
+      <em>table</em>, the groups with a tag-level option (<code>format:</code>, <code>src:</code>) to
+      rank against.
+    </div>
+    <div class="pfx-row">
+      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (look-back)</label>
+      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (shipped)</label>
+    </div>
+
     <div class="sb-h">Combined Options (slot inherits these)</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
       Global combine schema. Slot reads INHERIT whatever these produce (future: the slot's own
@@ -340,36 +370,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <label><input type="radio" name="valuepair" value="()" checked> ( ) <code>use:key(field)</code></label>
       <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
     </div>
-
-    <div class="sb-h">Folded slot KEY spelling</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Shipped as <code>A:</code> capitals. Digits are a look-back: an all-digit key is a JS array
-      index, which sorts ahead of every string key regardless of any ordering rule, pinning digit
-      slots to the front — letters escape that. Most visible in <em>join — TEMPLATE MODE</em> and
-      <em>table</em>, the groups with a tag-level option (<code>format:</code>, <code>src:</code>) to
-      rank against.
-    </div>
-    <div class="pfx-row">
-      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (look-back)</label>
-      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (shipped)</label>
-    </div>
-
-    <div class="sb-h">Value Separator</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
-    </div>
-    <div id="valuesep-controls"></div>
-
-    <div class="sb-h">src Chain (FW-56)</div>
-    <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
-      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code>. Hops
-      <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
-      <code>post</code>/<code>term</code>/<code>user</code>. Root implied (<code>current</code> only as
-      an override/reset). Per-step <code>limit</code> is bracket-kv, not positional —
-      <code>refs,rel_post,limit[5]</code> — so it alternates bracket char with nesting depth like
-      every other token. Hop-sep + intra-step-sep still tunable:
-    </div>
-    <div id="sep-controls" style="margin-top:8px"></div>
 
     <div class="sb-h">FW-81 — collapse datetime keys (PARKED, design SETTLED, unshipped)</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
