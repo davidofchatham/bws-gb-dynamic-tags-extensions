@@ -324,12 +324,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <input type="checkbox" id="cb-linkcombined">
       <span class="toggle-desc">fold link → <code>linkTo:key[sep]field</code></span>
     </label>
-    <div class="pfx-row" style="margin-top:5px">
-      <span class="toggle-desc" style="width:100%;margin-bottom:2px">Combine bracket CHAR (use+key / link fold):</span>
-      <label><input type="radio" name="valuepair" value="off"> flat <code>use:key,field</code></label>
-      <label><input type="radio" name="valuepair" value="()" checked> ( ) <code>use:key(field)</code></label>
-      <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
-    </div>
 
     <div class="sb-h">FW-81 — collapse datetime keys (PARKED, design SETTLED, unshipped)</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
@@ -473,28 +467,41 @@ const DEFAULT_ORDER = {
 // Value starting '$' = dummy ref. Value === true = boolean flag.
 
 const SCENARIO_GROUPS = [
-  { tmpl:'text', title:'text', scenarios:[
-    {label:'meta key',              parts:[['key','$key1']]},
-    {label:'title',                 parts:[['use','title']]},
-    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']]},
-    {label:'via ref → key',         parts:[['source','ref'],['ref','$ref'],['key','$key1']]},
-    {label:'key, in term',          parts:[['key','$key1'],['_inTerm','$tax']]},
-    {label:'via ref → key, in term',parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']]},
-    {label:'parent → key',          parts:[['source','parent'],['key','$key1']]},
-    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]]},
-    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
-    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
-    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
-  ]},
-  // ── BUILT src VALUES vs the SHIPPED wire (user 2026-07-31) ───────────────────
+  // TEXT — every {{text}} option, one deduped group (merged 2026-09-02: this used to be a plain
+  // option-coverage list with NO contrast columns, plus a separate 'built src values' group
+  // further down contrasting chain vs legacy source spellings — two rows ('via ref → key',
+  // 'key, in term') were literal duplicates once the two sat side by side. One group now, so
+  // every row gets Legacy/Current/Preview like the fold groups do — a toggle like "fold link" or
+  // "fold use+key" is visible on the whole catalog, not just the source-chain rows.
+  //
   // The FW-56 chain slugs REPLACE two shipped source constructs:
   //   src:ref | ref:<key>      →  src:refs,<key>[,<limit>]
   //   srcTermIn:<tax>          →  src:terms,<tax>[,<limit>]
   // isContrast groups render BOTH strings per row (shipped above, chain below) on a BASE tag —
   // no fold, so the substitution is isolated from the FW-57 slot question. `sep` stays a plain
   // tag option in both (it's a RENDER join of the list, not a traversal step); `limit` MOVES from
-  // a tag option into the step it limits — that's the visible cardinality win.
-  { tmpl:'text', title:'built src values — chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+  // a tag option into the step it limits — that's the visible cardinality win. Rows with no
+  // source hop at all (meta key, title, link folds) carry no `chain` — Preview then renders the
+  // same options as Legacy (still live to non-chain toggles), not a "no equivalent" line; that
+  // line is reserved for a genuine wire gap (see the pinned-term row below, FW-39).
+  { tmpl:'text', title:'text — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'meta key',              parts:[['key','$key1']],
+      rest:[['key','$key1']]},
+    {label:'title',                 parts:[['use','title']],
+      rest:[['use','title']]},
+    {label:'meta key + fallback',   parts:[['key','$key1'],['fallback','$fallback']],
+      rest:[['key','$key1'],['fallback','$fallback']]},
+    {label:'parent → key',          parts:[['source','parent'],['key','$key1']],
+      rest:[['key','$key1']],
+      note:'src:parent is Planned, not implemented in either wire yet (tag-reference.md §src option values) — shown for shape only'},
+    {label:'key + link permalink',  parts:[['key','$key1'],['_link',{to:'permalink'}]],
+      rest:[['key','$key1'],['_link',{to:'permalink'}]]},
+    {label:'key + link permalink, new tab', parts:[['key','$key1'],['_link',{to:'permalink',newTab:true}]],
+      rest:[['key','$key1'],['_link',{to:'permalink',newTab:true}]]},
+    {label:'key + link url field',  parts:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]],
+      rest:[['key','$key1'],['_link',{to:'key',key:'$urlKey'}]]},
+    {label:'title + link, new tab', parts:[['use','title'],['_link',{to:'permalink',newTab:true}]],
+      rest:[['use','title'],['_link',{to:'permalink',newTab:true}]]},
     {label:'ref hop → key',
       parts:[['source','ref'],['ref','$ref'],['key','$key1']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1']]},
@@ -516,6 +523,9 @@ const SCENARIO_GROUPS = [
     {label:'ref hop THEN term hop',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['use','title']],
       chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['use','title']]},
+    {label:'ref hop THEN term hop → key',
+      parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_inTerm','$tax']],
+      chain:[{slug:'refs',arg:'$ref'},{slug:'terms',arg:'$tax'}], rest:[['key','$key1']]},
     {label:'ref+term hop, per-step limits',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['use','title']],
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'5'}], rest:[['use','title']],
@@ -1060,7 +1070,9 @@ const S = {
                         // `slug,arg`, no step brackets. (Radio dropped; 'off' is the decision.)
                         // NB `limit` is the one bracketed intra-step token — bracket-kv `limit[5]`,
                         // decided 2026-07-31; see serializeStep. Not a knob either.
-  valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
+  valuePair: 'off',     // LOCKED FLAT (user 2026-09-02): resolution-read fold is bare-comma
+                        // use:key,field / linkTo:key,field, no bracket. (Radio dropped; 'off' is
+                        // the decision — mirrors chainPair.)
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
   fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
@@ -1185,17 +1197,14 @@ const PAIR_OPEN  = { '()':'(', '[]':'[' };
 const PAIR_CLOSE = { '()':')', '[]':']' };
 function pairWrap(mode, arg) { return `${PAIR_OPEN[mode]}${arg}${PAIR_CLOSE[mode]}`; }
 
-// Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) splits the two folds:
-//   - RESOLUTION-read folds (use:key,field / linkTo:key,field) — the field is a READ TARGET
-//     → ALWAYS bracketed: use:key(field). Char knob S.valuePair picks () vs []; 'off' shows
-//     the rejected bare form for contrast only.
+// Join a folded token TAIL onto a head. RULE 2 (locked 2026-07-28) split the two folds; the
+// RESOLUTION-read half (use:key,field / linkTo:key,field) briefly considered bracketing the read
+// target, but the bracket-CHAR picker was dropped 2026-09-02 — LOCKED FLAT instead, matching the
+// src chain's flat step bodies (S.chainPair) and the FW-81 collapse form: head<valueSep>tail.
 //   - RENDER-MODIFIER folds (as:url,medium) — size only TUNES the render → ALWAYS flat sep:
 //     as:url,medium. Never brackets (user: dislikes as:url(medium); it's not a resolution arg).
-function foldResolution(head, tail) {   // read target → bracket, OR flat when valuePair 'off'
-  // 'off' = the flat form (user 2026-07-29): head<valueSep>tail → use:key,field (bare comma, no
-  // bracket). Parallels the chain's flat mode. Bracketed forms use the '()'/'[]' char.
-  if (S.valuePair==='off') return `${head}${S.valueSep}${tail}`;
-  return `${head}${pairWrap(S.valuePair, tail)}`;
+function foldResolution(head, tail) {   // read target → flat sep, LOCKED (radio dropped 2026-09-02)
+  return `${head}${S.valueSep}${tail}`;
 }
 function foldRender(head, tail) {       // render modifier → flat sep, never bracket
   return `${head}${S.valueSep}${tail}`;
@@ -1671,8 +1680,14 @@ function fw81CollapsedUseValue(reads) {
 }
 const CONTRAST_VARIANTS = {
   shipped:       { label:'Legacy',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
-  chainCurrent:  { label:'Current', how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
-  chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
+  // needs here is deliberately permissive (chain OR rest OR parts): a row with no source hop at
+  // all (meta key, title, link folds) carries no `chain` field, and should still render Current/
+  // Preview from `rest` (or `parts`, its non-chain twin) rather than read as a wire gap. `missing`
+  // stays reserved for a row that states a genuine capability neither wire has (see the pinned-
+  // term row in the text group, FW-39) — merged 2026-09-02 alongside the text/built-src-values
+  // group merge.
+  chainCurrent:  { label:'Current', how:'chain', cls:'',           needs:sc => !!(sc.chain || sc.rest || sc.parts), frozen:true },
+  chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!(sc.chain || sc.rest || sc.parts) },
   foldedCurrent: { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
   folded:        { label:'Preview', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
   sixKey:        { label:'Current', how:'parts',      cls:'',           needs:sc => !!sc.parts },
@@ -1686,7 +1701,7 @@ const CONTRAST_VARIANTS = {
 // exception, so `group.variants` is always a plain array again).
 function previewActive() {
   return S.slotKeySpelling !== 'alpha' || S.fromKeyCombined || S.linkCombined ||
-         S.valuePair !== '()' || S.fw81DtCollapse;
+         S.fw81DtCollapse;
 }
 function variantsFor(group) {
   const keys = group.variants || ['shipped','chainCurrent','chain'];
@@ -1703,7 +1718,7 @@ const SHIPPED_GRAMMAR = {
   slotSchema: 'bracket-kv', slotOptSep: SLOT_SCHEMAS['bracket-kv'].optSep, slotKvChar: SLOT_SCHEMAS['bracket-kv'].kvChar,
   slotBracket: '[]', bracketMode: 'depth-alt', bracketL1: '()',
   slotForceSrc: false, readViaUse: false, respellReadBracket: false, handlerMode: 'zone',
-  valueSep: ',', chainPair: 'off', valuePair: '()', linkCombined: false, fromKeyCombined: false,
+  valueSep: ',', chainPair: 'off', linkCombined: false, fromKeyCombined: false,
   chainSep: { hop: ';', step: ',' },
 };
 function withShippedGrammar(fn) {
@@ -2192,9 +2207,6 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.valuePair=r.value; renderPerms(); });
-});
 document.querySelectorAll('input[name="slotkey"]').forEach(r=>{
   r.addEventListener('change',()=>{ S.slotKeySpelling=r.value; renderPerms(); });
 });
