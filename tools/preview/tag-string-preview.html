@@ -415,6 +415,24 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       so a chain nested in a slot emits <code>limit(5)</code>. Hop-sep + intra-step-sep still tunable:
     </div>
     <div id="sep-controls" style="margin-top:8px"></div>
+
+    <div class="sb-h">FW-81 — collapse datetime keys (PARKED, design SETTLED, unshipped)</div>
+    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
+      Design converged 2026-08-18, nothing committed, no ticket
+      (<code>.scratch/plans/datetime-tag-collapse.md</code>). Six flat options
+      (<code>key</code>/<code>timeKey</code>/<code>startKey</code>/<code>startTimeKey</code>/<code>endKey</code>/<code>endTimeKey</code>)
+      collapse into ONE <code>use:</code> read-list: <code>;</code> between reads, <code>,</code>
+      inside one read, leading verb slug (<code>key</code>/<code>now</code>/<code>modified</code>).
+      Position is ORDINAL (primary field, optional supplementary time), never nominal — no
+      <code>start</code>/<code>end</code> in the grammar. Zero new bracket depth. NOT modelled here:
+      the actual tag-merge/rename (O5 undecided — the two tags below keep their current names) and
+      the <code>published</code> verb (O7 still open — whether a list position can strip a default
+      the way a scalar option can).
+    </div>
+    <label class="toggle-row">
+      <input type="checkbox" id="cb-fw81">
+      <span class="toggle-desc">show the collapsed <code>use:</code> reading alongside today's six-key wire, on the two datetime groups below</span>
+    </label>
   </div>
 
   <!-- Permutations (the only view — the Configure tab was removed 2026-09-01, FW-79: it built
@@ -510,8 +528,10 @@ const DEFAULT_ORDER = {
   image_post:      ['as','source','use','key','fallback'],
   image_term:      ['as','source','key','fallback'],
   content:         ['source','use','key','fallback'],
-  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','key','timeKey','link','fallback'],
-  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
+  datetime_single: ['as','format','timeSep','showCurrentYear','showMidnight','source','use','key','timeKey','link','fallback'],
+  datetime_range:  ['as','rangeSep','format','timeSep','showCurrentYear','showMidnight','source','sep','use','startKey','startTimeKey','endKey','endTimeKey','link','fallback'],
+  // 'use' inserted at its FW-81 rank (KEY_MAP use=[1,5], ahead of key=[1,6]/startKey=[1,8]/etc) —
+  // needed only by the FW-81 collapsed variant; the six raw keys stay for the current-wire variant.
   // NB sep (source rank 4) precedes the datetime field keys (ranks 8-11) per KEY_MAP.
   table:           ['source','caption'],
   // join: its TAG-level options are the format group (`format` = the template string, `valueSep` =
@@ -680,7 +700,12 @@ const SCENARIO_GROUPS = [
     {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']]},
     {label:'in term',               parts:[['_inTerm','$tax']]},
   ]},
-  { tmpl:'datetime_single', title:'datetime_single', scenarios:[
+  // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
+  // collapsed use: reading joins it only when the sidebar toggle is on. See datetimeCollapseFromParts()
+  // — the collapsed line is DERIVED from `parts`, not hand-duplicated, for the rows that have a
+  // six-key form at all.
+  { tmpl:'datetime_single', title:'datetime_single — six keys ⟷ FW-81 collapsed use: list (parked, unshipped)',
+    isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
     {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
     {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
     {label:'time',                  parts:[['as','time'],['key','$timeKey']]},
@@ -690,12 +715,18 @@ const SCENARIO_GROUPS = [
     {label:'date + link permalink',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'permalink'}]]},
     {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
-  { tmpl:'datetime_range', title:'datetime_range', scenarios:[
+  { tmpl:'datetime_range', title:'datetime_range — six keys ⟷ FW-81 collapsed use: list (parked, unshipped)',
+    isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
     {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
     {label:'date range + show year',parts:[['as','date'],['showCurrentYear',true],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'via ref → date range',  parts:[['as','date'],['source','ref'],['ref','$ref'],['startKey','$startKey'],['endKey','$endKey']]},
+    // No six-key form exists AT ALL — an open-ended range (end = "now") has nothing to hold it;
+    // the flat wire has no verb slot. S10 settles `now` itself; O7 (published) stays unmodelled.
+    {label:'range, ongoing (end = now)', parts:null,
+      collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
+      note:'no six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
   ]},
   // NB the unfolded `try_text` group was MERGED into the contrast group below (2026-07-31) — its
   // scenarios now ride `shippedSlots` there so each shipped wire sits directly above its folded
@@ -1092,6 +1123,7 @@ const S = {
                         // decided 2026-07-31; see serializeStep. Not a knob either.
   valuePair: '()',      // resolution-READ fold bracket CHAR: use:key(field) / linkTo:key(field). Default '()'.
   linkCombined: false,  // fold linkKey into linkTo value → linkTo:key,<field> (else separate keys)
+  fw81DtCollapse: false, // FW-81 (parked): show the collapsed use: reading beside today's six-key wire.
   dummies: {key1:'custom_field',key2:'other_field',imgKey:'image_field',dateKey:'event_date',timeKey:'event_time',startKey:'start_date',endKey:'end_date',ref:'rel_post',tax:'category',urlKey:'url_field',fallback:'N/A',rangeSep:' – ',format:'F j, Y'},
 };
 
@@ -1620,17 +1652,40 @@ function groupOrder(group) {
 // Order (user, 2026-09-01): legacy → current → preview, applied via each group's `variants:[…]`.
 // The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
 // table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
+// FW-81 pair: no shipped/legacy split (nothing has shipped) — just today's six-key wire beside the
+// PARKED-but-SETTLED (S6) collapsed reading, gated by the cb-fw81 sidebar toggle rather than by
+// group.variants being a plain array (see variantsFor()).
+const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
+// Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
+// migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
+// when the scenario carries none of the six (nothing to collapse onto).
+function datetimeCollapseFromParts(parts) {
+  if (!parts) return null;
+  const get = id => { const p = parts.find(([k])=>k===id); return p ? p[1] : ''; };
+  const reads = [];
+  const single = [get('key'), get('timeKey')].filter(Boolean);
+  if (single.length) reads.push({ verb:'key', args:single });
+  const start = [get('startKey'), get('startTimeKey')].filter(Boolean);
+  if (start.length) reads.push({ verb:'key', args:start });
+  const end = [get('endKey'), get('endTimeKey')].filter(Boolean);
+  if (end.length) reads.push({ verb:'key', args:end });
+  return reads.length ? reads : null;
+}
 const CONTRAST_VARIANTS = {
   shipped:       { label:'legacy (flat, read-only)',          how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
   chainCurrent:  { label:'current (chain, 1.17.0)',            how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
   chain:         { label:'preview (chain — toggle apparatus)', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
   foldedCurrent: { label:'current (folded, 1.17.0)',           how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
   folded:        { label:'preview (folded — toggle apparatus)',how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  sixKey:        { label:'current (six keys)',                          how:'parts',      cls:'',           needs:sc => !!sc.parts },
+  collapsed:     { label:'FW-81 (parked — collapsed use: list)',        how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
 };
+// `group.variants` may be the usual plain array, OR a zero-arg function for a group whose variant
+// SET depends on live toggle state (not just per-scenario `needs`) — the FW-81 pair uses this so
+// the collapsed line is entirely absent (not a "missing" placeholder) while the toggle is off.
 function variantsFor(group) {
-  return (group.variants || ['shipped','chainCurrent','chain']).map(k =>
-    typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k
-  );
+  const keys = typeof group.variants === 'function' ? group.variants() : (group.variants || ['shipped','chainCurrent','chain']);
+  return keys.map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k);
 }
 // Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
 // shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
@@ -1700,6 +1755,17 @@ function buildOneVariant(v, group, sc, sortParts, wrap) {
   }
   if (v.how === 'fold') {
     return buildFoldedTag({ ...group, foldClass: group.foldClass || v.foldClass }, sc);
+  }
+  if (v.how === 'dtCollapse') {
+    // FW-81: fold the six flat keys into one `use:` read-list, joined `;` between reads / `,`
+    // inside one — fixed literal separators (S6 is LOCKED, unlike the still-toggle-driven chain/fold
+    // grammar elsewhere on this page, so nothing here rides a sidebar picker). Everything that ISN'T
+    // one of the six keys (as/format/source/link/fallback/…) passes through unchanged.
+    const reads = sc.collapsed || datetimeCollapseFromParts(sc.parts) || [];
+    const useVal = reads.map(r => [r.verb, ...(r.args||[]).map(a=>String(resolveVal(a)))].join(',')).join(';');
+    const rest = (sc.parts||[]).filter(([id]) => !DT_KEY_IDS.has(id));
+    const combined = useVal ? [...rest, ['use', useVal]] : rest;
+    return wrap(renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(combined)],'',false));
   }
   return null;
 }
@@ -2170,6 +2236,9 @@ document.getElementById('cb-fromkey').addEventListener('change',e=>{
 });
 document.getElementById('cb-linkcombined').addEventListener('change',e=>{
   S.linkCombined=e.target.checked; renderPerms();
+});
+document.getElementById('cb-fw81').addEventListener('change',e=>{
+  S.fw81DtCollapse=e.target.checked; renderPerms();
 });
 
 // Dummy value inputs
