@@ -313,8 +313,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
     <div class="sb-h">Combined Options (slot inherits these)</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      Global combine schema. Slot reads INHERIT whatever these produce (future: the slot's own
-      use+key/link fold follows the global toggle, not a separate slot control).
+      Global combine schema. Link fold already reaches a folded slot's own read (respellEntries) —
+      this toggle affects slot output today. Use+key fold does not yet: a slot's own use/key combine
+      still needs its own control (future).
     </div>
     <label class="toggle-row">
       <input type="checkbox" id="cb-fromkey">
@@ -534,45 +535,21 @@ const SCENARIO_GROUPS = [
     // tokens, which is the case that separates the two limit spellings. Read them under both.
     {label:'ref+term hop, per-step limits AND per-step seps',
       parts:[['source','ref'],['ref','$ref'],['_inTerm','$tax'],['limit','5'],['sep',', '],['use','title']],
-      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']],
-      note:'SPECULATIVE sep — shipped has ONE tag-level sep for the whole fan-out'},
+      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}], rest:[['use','title']]},
     {label:'term hop, sep only (no limit)',
       parts:[['_inTerm','$tax'],['sep',' / '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — kv token with no limit neighbour'},
-    // MORE per-step sep samples — the shape of the VALUE is the interesting axis, not the count.
-    // Each of these is a joiner an author would plausibly type, and each stresses a different part
-    // of the emitter: a bare punctuation glyph with no padding, a value carrying the STEP separator,
-    // a value carrying the OPT separator, and a value carrying a GB-reserved char that must escape.
-    {label:'per-step sep: bare glyph, no padding',
-      parts:[['_inTerm','$tax'],['sep','·'],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:'·'}], rest:[['use','title']],
-      note:'SPECULATIVE sep — shortest possible value, no surrounding spaces'},
-    {label:'per-step sep CONTAINS the step sep (,)',
-      parts:[['_inTerm','$tax'],['sep',', and '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:', and '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — bracket must hold a value carrying the STEP separator'},
-    {label:'per-step sep CONTAINS the opt/hop sep (;)',
-      parts:[['_inTerm','$tax'],['sep','; '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:'; '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — same for the OPT/HOP separator; both are inert inside the bracket'},
+      chain:[{slug:'terms',arg:'$tax',sep:' / '}], rest:[['use','title']]},
+    // One retained VALUE-shape sample (2026-09-02: deleted the other five — bare glyph, step-sep
+    // char, opt/hop-sep char, kv-char, slash — as redundant duplicates of each other and of the two
+    // rows above, since none of them render distinguishably: S.perStepSep has no live toggle and
+    // sits hardcoded false, so no sep value ever reaches output in any of these rows).
     {label:'per-step sep CONTAINS a GB-reserved char (|)',
       parts:[['_inTerm','$tax'],['sep',' | '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — brackets are inert to GB; the escape is what protects this'},
-    {label:'per-step sep CONTAINS the kv char (:)',
-      parts:[['_inTerm','$tax'],['sep',': '],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:': '}], rest:[['use','title']],
-      note:'SPECULATIVE sep — escapes to \\: like every other free-form value'},
-    {label:'per-step sep = a slash (/)',
-      parts:[['_inTerm','$tax'],['sep',' / '],['limit','3'],['use','title']],
-      chain:[{slug:'terms',arg:'$tax',sep:' / ',limit:'3'}], rest:[['use','title']],
-      note:'SPECULATIVE sep — / is ordinary content here, no different from , ; :'},
+      chain:[{slug:'terms',arg:'$tax',sep:' | '}], rest:[['use','title']]},
     {label:'3 hops, sep on each',
       parts:null,
       chain:[{slug:'refs',arg:'$ref',sep:'; '},{slug:'terms',arg:'$tax',sep:', '},{slug:'refs',arg:'office',sep:' / '}],
-      rest:[['key','address']],
-      note:'SPECULATIVE sep — the case the shipped single tag-level sep cannot express at all'},
+      rest:[['key','address']]},
     // LIMIT 0 on an INTERMEDIATE step = UNLIMITED, following GB's editor-facing number-input
     // convention (user 2026-08-01) rather than the arithmetic "cap of zero" reading, which would
     // empty the chain and make the tag unresolvable. Our controls sit inside GB's editor, so an
@@ -590,11 +567,6 @@ const SCENARIO_GROUPS = [
       chain:[{slug:'refs',arg:'$ref',limit:'2'},{slug:'terms',arg:'$tax',limit:'0'},{slug:'refs',arg:'office',limit:'3'}],
       rest:[['key','address']],
       note:'0 = unlimited between two real caps'},
-    {label:'limit 0 + per-step sep on the same step',
-      parts:null,
-      chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'5'}],
-      rest:[['use','title']],
-      note:'0 = unlimited beside a kv token'},
     {label:'ref hop → key + fallback + link',
       parts:[['source','ref'],['ref','$ref'],['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']],
       chain:[{slug:'refs',arg:'$ref'}], rest:[['key','$key1'],['_link',{to:'permalink'}],['fallback','$fallback']]},
@@ -617,24 +589,39 @@ const SCENARIO_GROUPS = [
   ]},
   // _asSize part = {mode,size}; folded at render via foldAsSize so the value separator drives
   // the comma (as:url<sep>medium). Nullary modes (alt/id/caption) drop size.
-  { tmpl:'image', title:'image', scenarios:[
-    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
-    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
-    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
-    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
-    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
-    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']]},
-    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']]},
-    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']]},
-    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
+  // Gets the same Legacy/Current/Preview treatment as `text` (2026-09-02): `parts` is the flat/
+  // legacy wire, `chain`+`rest` is the current 1.17.0 chain wire. Rows with no source hop carry
+  // no `chain` — Current then renders `rest` (identical to `parts`), same convention as text.
+  { tmpl:'image', title:'image — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'url, meta key',           parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, meta key, medium',   parts:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'medium'}],['key','$imgKey']]},
+    {label:'url, meta key, thumb',    parts:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'url',size:'thumbnail'}],['key','$imgKey']]},
+    {label:'url, featured',           parts:[['_asSize',{mode:'url',size:'full'}],['use','featured']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['use','featured']]},
+    {label:'alt, meta key',           parts:[['_asSize',{mode:'alt'}],['key','$imgKey']],
+      rest:[['_asSize',{mode:'alt'}],['key','$imgKey']]},
+    {label:'id, meta key',            parts:[['_asSize',{mode:'id'}], ['key','$imgKey']],
+      rest:[['_asSize',{mode:'id'}],['key','$imgKey']]},
+    {label:'url, via ref → key',      parts:[['_asSize',{mode:'url',size:'full'}],['source','ref'],['ref','$ref'],['key','$imgKey']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, key, in term',       parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['_inTerm','$tax']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey']]},
+    {label:'url, key + fallback',     parts:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']],
+      rest:[['_asSize',{mode:'url',size:'full'}],['key','$imgKey'],['fallback','$fallback']]},
   ]},
-  { tmpl:'content', title:'content', scenarios:[
-    {label:'post content',          parts:[]},
-    {label:'excerpt',               parts:[['use','excerpt']]},
-    {label:'ACF field',             parts:[['_content_key','$key1']]},
-    {label:'via ref',               parts:[['source','ref'],['ref','$ref']]},
-    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']]},
-    {label:'in term',               parts:[['_inTerm','$tax']]},
+  { tmpl:'content', title:'content — options + built src chain (current, 1.17.0) ⟷ flat (legacy, FW-56)', isContrast:true, scenarios:[
+    {label:'post content',          parts:[], rest:[]},
+    {label:'excerpt',               parts:[['use','excerpt']], rest:[['use','excerpt']]},
+    {label:'ACF field',             parts:[['_content_key','$key1']], rest:[['_content_key','$key1']]},
+    {label:'via ref',               parts:[['source','ref'],['ref','$ref']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[]},
+    {label:'via ref → ACF',         parts:[['source','ref'],['ref','$ref'],['_content_key','$key1']],
+      chain:[{slug:'refs',arg:'$ref'}], rest:[['_content_key','$key1']]},
+    {label:'in term',               parts:[['_inTerm','$tax']],
+      chain:[{slug:'terms',arg:'$tax'}], rest:[]},
   ]},
   // isContrast + a dynamic `variants` fn (toggle cb-fw81): six-key wire always shows; the FW-81
   // collapsed line joins it only when the sidebar toggle is on. See datetimeCollapseFromParts() —
@@ -786,7 +773,6 @@ const SCENARIO_GROUPS = [
     {label:'refs→terms, limits AND seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'2'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // limit 0 INSIDE a slot — same undecided semantics as the base-tag rows above, at L2 brackets.
     {label:'refs→terms, intermediate limit 0', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',limit:'0'},{slug:'terms',arg:'$tax',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
-    {label:'refs→terms, limit 0 + seps', slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref',sep:'; ',limit:'0'},{slug:'terms',arg:'$tax',sep:', ',limit:'3'}],read:{kind:'key',field:'$key2'}}]},
     // reverse order — terms then refs off the TERM (unreachable on the shipped wire: srcTermIn is a
     // terminal modifier, no ref hop continues from it). Chain makes it expressible.
     {label:'terms→refs (NEW: unreachable today)',slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'},{slug:'refs',arg:'office'}],read:{kind:'key',field:'address'}}]},
@@ -1273,7 +1259,7 @@ function serializeStep(h, depth) {
   // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, and 0 is a
   // MEANINGFUL value here (unlimited, per GB's editor convention), not an absent one.
   const slug=vn(h.slug||''), arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
-  const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
+  const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: hardcoded off (S.perStepSep), no UI toggle since 2026-09-02 (FW-61)
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
   const br = bracketAt(depth + 1) || S.bracketL1 || '()';
   const bits = [];
