@@ -77,7 +77,20 @@ header h1 { font-size: 13px; font-weight: 600; margin-right: 20px; white-space: 
   align-items: center;
   padding: 2px 0;
 }
+.name-row.rw { grid-template-columns: 92px 1fr auto; }
 .name-id { font-size: 10px; color: var(--muted); font-family: ui-monospace, monospace; }
+select.name-id-sel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 3px;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  background: var(--surface2);
+  color: var(--text);
+  min-width: 0;
+}
+select.name-id-sel:focus { outline: none; border-color: var(--accent); }
+.name-rm-btn { padding: 1px 6px; font-size: 12px; line-height: 1; }
 input.name-inp {
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -245,6 +258,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
   .tab-content { padding: 10px; }
   .name-row { grid-template-columns: 64px 1fr auto; }
+  .name-row.rw { grid-template-columns: 78px 1fr auto; }
 
   /* iOS zooms any focused control under 16px — pin form text to 16px. */
   .dummy-item input, input.name-inp { font-size: 16px; }
@@ -276,8 +290,13 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <div class="sb-h">Option Key Names</div>
+    <div class="sb-h">Rename Options &amp; Values</div>
+    <div class="toggle-desc" style="margin-bottom:4px">
+      Repeater — pick any option key OR value slug (analog reads, chain-step verbs) and respell it.
+      Rows persist in this browser via localStorage. Removing a row resets that id to its shipped spelling.
+    </div>
     <div id="sb-names"></div>
+    <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
     <div class="sb-h">✅ SHIPPED 1.17.0 — this tool is no longer the authority</div>
     <div class="toggle-desc" style="line-height:1.5">
@@ -495,6 +514,27 @@ const PRESETS = {
   format:          ['format'],
   sep:             ['sep'],
   size:            ['size'],
+};
+
+// VALUE-slug presets — same rename mechanism as PRESETS, but for a wire VALUE token rather than
+// an option key: analog reads (bare `use:<slug>`) and FW-56/57 chain-step verbs (`src:<slug>,<arg>`).
+// Namespace is disjoint from PRESETS' option-key ids, so both live in one repeater keyed by id —
+// see idKind()/S.nameRows. Scope: SHIPPED slugs only (base-shared.php analog dispatch,
+// traversal-pipeline.php BWS_TRAVERSAL_STEP_ACCEPTS). The FW-81 verb slugs (key/now/modified/
+// published) are parked/unshipped and stay OUT of this list — they render under their own
+// hardcoded strings in the dtCollapse branch, since there's no shipped spelling to keep in sync.
+const VALUE_PRESETS = {
+  title:    ['title'],
+  excerpt:  ['excerpt'],
+  featured: ['featured','thumbnail','image'],
+  default:  ['default'],
+  same:     ['same','prev','carry'],
+  current:  ['current'],
+  refs:     ['refs','ref_of','via'],
+  terms:    ['terms','term_of','in_tax'],
+  rows:     ['rows','repeater','list'],
+  post:     ['post','post_id'],
+  term:     ['term','term_id'],
 };
 
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
@@ -1069,6 +1109,10 @@ const S = {
   // Slot prefix LOCKED (user 2026-07-29): fold value = `N:` (all slots incl 1, no bare-slot-1
   // exception); outside-token siblings = `N-` (matches serialization-order.php's `\d+-` parser).
   keyNames: Object.fromEntries(Object.keys(PRESETS).map(k=>[k,PRESETS[k][0]])),
+  valNames: Object.fromEntries(Object.keys(VALUE_PRESETS).map(k=>[k,VALUE_PRESETS[k][0]])),
+  // Repeater rows for the "Rename Options & Values" sidebar — which ids currently show a row.
+  // Empty by default; loadNamesFromStorage() restores a returning user's own rows.
+  nameRows: [],
   // Folded slot KEY spelling — SETTLED 2026-08-04 (user): 'alpha' is what 1.17.0 ships, and is
   // the default here. 'digit' (the first cut) is kept as a look-back. Drives
   // foldedSlotKey() AND the tag-vs-slot part order in buildFoldedTag(), since only a
@@ -1133,7 +1177,42 @@ const S = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function kn(id) { return S.keyNames[id] || id; }
+// vn() is kn()'s twin for a VALUE slug (analog read / chain-step verb) instead of an option key —
+// same "renamed spelling, fall back to the id" contract, backed by S.valNames/VALUE_PRESETS.
+function vn(id) { return S.valNames[id] || id; }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── Rename repeater: id catalog + storage ───────────────────────────────────
+function idKind(id) { return PRESETS[id] ? 'option' : (VALUE_PRESETS[id] ? 'value' : null); }
+function idPresets(id) { return PRESETS[id] || VALUE_PRESETS[id] || [id]; }
+function idDefaultName(id) { return idPresets(id)[0]; }
+function nameFor(id) { return idKind(id)==='value' ? vn(id) : kn(id); }
+function setNameFor(id, val) {
+  const v = val.trim() || idDefaultName(id);
+  if (idKind(id)==='value') S.valNames[id]=v; else S.keyNames[id]=v;
+}
+function allNameIds() { return [...Object.keys(PRESETS), ...Object.keys(VALUE_PRESETS)]; }
+
+const NAMES_STORAGE_KEY = 'bws-tag-preview-names-v1';
+function saveNamesToStorage() {
+  try {
+    localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify({
+      keyNames: S.keyNames, valNames: S.valNames, rows: S.nameRows,
+    }));
+  } catch (e) { /* storage unavailable/full — rename UI still works for this page load */ }
+}
+function loadNamesFromStorage() {
+  let raw;
+  try { raw = localStorage.getItem(NAMES_STORAGE_KEY); } catch (e) { return; }
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch (e) { return; }
+  // Filter every id against the LIVE catalog — a name saved for an id that code has since
+  // dropped is exactly the drift this repeater replaced a hardcoded list to avoid.
+  if (data.keyNames) Object.keys(data.keyNames).forEach(id=>{ if (PRESETS[id]) S.keyNames[id]=data.keyNames[id]; });
+  if (data.valNames) Object.keys(data.valNames).forEach(id=>{ if (VALUE_PRESETS[id]) S.valNames[id]=data.valNames[id]; });
+  if (Array.isArray(data.rows)) S.nameRows = data.rows.filter(id=>PRESETS[id]||VALUE_PRESETS[id]);
+}
 
 // ── Wire INVARIANT CHECK ─────────────────────────────────────────────────────
 // Assert LOCKED grammar properties on a RENDERED tag string, independent of the emitter that
@@ -1291,7 +1370,7 @@ function bracketAt(depth) {
 function serializeStep(h, depth) {
   // NB `!= null` not `||` — a NUMERIC 0 limit is falsy and would vanish silently, and 0 is a
   // MEANINGFUL value here (unlimited, per GB's editor convention), not an absent one.
-  const slug=h.slug||'', arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
+  const slug=vn(h.slug||''), arg=h.arg||'', lim=(h.limit!=null && h.limit!=='') ? String(h.limit) : '';
   const sep=(S.perStepSep && (h.sep||'')!=='') ? String(h.sep) : '';   // gated: own toggle, see S.perStepSep
   // kv tokens sit one level INSIDE the enclosing wrapper → their own level is depth+1.
   const br = bracketAt(depth + 1) || S.bracketL1 || '()';
@@ -1383,14 +1462,15 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
     // vs the default MIXED form: analog/same via use(...), meta as a bare key(field). The composite
     // `key,field` value glues with valueSep; base tag's `use:key,field` combine mirrors this.
     if (S.readViaUse) {
-      if (read.kind==='same') push('use','same',false);
+      if (read.kind==='same') push('use',vn('same'),false);
       else if (read.kind==='key') E.push({name:'use', val:`key${S.valueSep}${read.field||''}`, rank:RESPELL_KEY_MAP.use});
       // analog: still DROP when it equals the type token (type-lead already says it — no title;use(title)).
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+      // Comparisons stay against the RAW slug id — vn() renames only the emitted value.
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
     } else {
-      if (read.kind==='same') push('use','same',false);
+      if (read.kind==='same') push('use',vn('same'),false);
       else if (read.kind==='key') push('key',read.field||'',rb);
-      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',read.slug,false);
+      else if (read.slug && read.slug!=='default' && read.slug!==typeTag) push('use',vn(read.slug),false);
     }
   }
   if (link && link.to && S.handlerMode!=='sibling') {
@@ -1454,7 +1534,7 @@ function serializeSlot(typeTag, chain, read, link, dtKeys, label, forceSrc, fall
   // Slot-1 forced src (user 2026-07-29): when the always-serialize-src toggle is on AND this slot
   // has no chain of its own, inject an explicit `src:current` so slot 1 declares its source.
   if (forceSrc && !serializeChain(chain)) {
-    entries.push({ name:'src', val:'current', chainStr:true, rank:RESPELL_KEY_MAP.src });
+    entries.push({ name:'src', val:vn('current'), chainStr:true, rank:RESPELL_KEY_MAP.src });
   }
   entries.forEach((e,i)=>e._i=i);   // STABLE sort by (group, within) — mirrors bws_serialization_order_sort.
   entries.sort((a,b)=> a.rank[0]-b.rank[0] || a.rank[1]-b.rank[1] || a._i-b._i);
@@ -1531,7 +1611,10 @@ function renderSlotParts(parts, p, t2p) {
     }
     if (id==='use') {
       const sv2 = typeof rv==='string' ? rv : String(rv);
-      if (sv2!=='') out.push(`${p}${uk}:${sv2}`);
+      // vn() exact-matches a single analog slug (title/excerpt/featured/…); a composite value
+      // (the FW-81 dtCollapse read-list, or a hand-built 'key,field' string) never matches a
+      // VALUE_PRESETS id, so it passes through vn() unchanged — no need to special-case it here.
+      if (sv2!=='') out.push(`${p}${uk}:${vn(sv2)}`);
       continue;
     }
     if (id==='_inTerm') {
@@ -2000,40 +2083,52 @@ function buildFoldedTag(group, sc) {
   return `{{${name}${opts}}}`;
 }
 
-// ── Render: sidebar names ────────────────────────────────────────────────────
+// ── Render: sidebar names (repeater — any option key OR value slug) ─────────
 function renderSbNames() {
-  const allIds = ['src','ref','srcTermIn','tax','use','key','label','caption','as','size','fallback','timeKey','startKey','endKey','startTimeKey','endTimeKey','rangeSep','timeSep','showCurrentYear','showMidnight','format','sep'];
-  const TRY_IDS = new Set([]);
   const el = document.getElementById('sb-names');
   el.innerHTML='';
-  allIds.forEach(id=>{
-    if (!PRESETS[id]) return;
+  S.nameRows.forEach((id, idx)=>{
     const row=document.createElement('div');
-    row.className='name-row';
-    const idSpan=document.createElement('span');
-    idSpan.className='name-id';
-    if (TRY_IDS.has(id)) {
-      idSpan.textContent=id.replace('_try','')+'›2';
-      idSpan.style.cssText='color:var(--accent);font-size:9px;';
-    } else {
-      idSpan.textContent=id;
-    }
+    row.className='name-row rw';
+
+    // Id picker — every id not already claimed by ANOTHER row, plus this row's own current id.
+    const usedElsewhere = new Set(S.nameRows.filter((_,i)=>i!==idx));
+    const sel=document.createElement('select');
+    sel.className='name-id-sel';
+    const addGroup=(label, ids)=>{
+      const avail = ids.filter(i=>i===id || !usedElsewhere.has(i));
+      if (!avail.length) return;
+      const og=document.createElement('optgroup'); og.label=label;
+      avail.forEach(i=>{
+        const opt=document.createElement('option'); opt.value=i; opt.textContent=i;
+        if (i===id) opt.selected=true;
+        og.appendChild(opt);
+      });
+      sel.appendChild(og);
+    };
+    addGroup('option keys', Object.keys(PRESETS));
+    addGroup('values',      Object.keys(VALUE_PRESETS));
+    sel.addEventListener('change',()=>{ S.nameRows[idx]=sel.value; onNamesChanged(); renderSbNames(); });
+
     const inp=document.createElement('input');
-    inp.className='name-inp'; inp.value=S.keyNames[id]||id;
-    inp.addEventListener('input',()=>{ S.keyNames[id]=inp.value.trim()||id; onNamesChanged(); });
+    inp.className='name-inp'; inp.value=nameFor(id);
+    inp.addEventListener('input',()=>{ setNameFor(id, inp.value); onNamesChanged(); });
+
+    const actions=document.createElement('div');
+    actions.style.cssText='display:flex;gap:3px;align-items:center;';
     const wrap=document.createElement('div');
     wrap.className='preset-wrap';
     const btn=document.createElement('button');
     btn.className='preset-btn'; btn.textContent='▾';
     const menu=document.createElement('div');
     menu.className='preset-menu';
-    PRESETS[id].forEach(p=>{
+    idPresets(id).forEach(p=>{
       const item=document.createElement('div');
-      item.className='preset-item'+(p===S.keyNames[id]?' cur':'');
+      item.className='preset-item'+(p===nameFor(id)?' cur':'');
       item.textContent=p;
       item.addEventListener('click',e=>{
         e.stopPropagation();
-        inp.value=p; S.keyNames[id]=p;
+        inp.value=p; setNameFor(id,p);
         menu.classList.remove('open');
         onNamesChanged();
         renderSbNames();
@@ -2042,12 +2137,33 @@ function renderSbNames() {
     });
     btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
     wrap.appendChild(btn); wrap.appendChild(menu);
-    row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
+
+    const rm=document.createElement('button');
+    rm.className='name-rm-btn'; rm.textContent='×';
+    rm.title='Remove row (resets '+id+' to its shipped spelling)';
+    rm.addEventListener('click',()=>{
+      setNameFor(id, idDefaultName(id));
+      S.nameRows.splice(idx,1);
+      onNamesChanged();
+      renderSbNames();
+    });
+
+    actions.appendChild(wrap); actions.appendChild(rm);
+    row.appendChild(sel); row.appendChild(inp); row.appendChild(actions);
     el.appendChild(row);
   });
 }
 
+function addNameRow() {
+  const avail = allNameIds().filter(i=>!S.nameRows.includes(i));
+  if (!avail.length) return;
+  S.nameRows.push(avail[0]);
+  onNamesChanged();
+  renderSbNames();
+}
+
 function onNamesChanged() {
+  saveNamesToStorage();
   renderPerms();
 }
 
@@ -2250,6 +2366,7 @@ document.getElementById('cb-linkcombined').addEventListener('change',e=>{
 document.getElementById('cb-fw81').addEventListener('change',e=>{
   S.fw81DtCollapse=e.target.checked; renderPerms();
 });
+document.getElementById('add-name-row').addEventListener('click', addNameRow);
 
 // Dummy value inputs
 ['key1','key2','imgKey','dateKey','timeKey','startKey','endKey','ref','tax','fallback','rangeSep','format'].forEach(id=>{
@@ -2260,6 +2377,7 @@ document.getElementById('cb-fw81').addEventListener('change',e=>{
 document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); });
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+loadNamesFromStorage();
 applySlotSchemaDefaults();
 fullRender();
 </script>
