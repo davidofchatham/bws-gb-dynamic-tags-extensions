@@ -887,15 +887,15 @@ Blocked by: —  •  Interacts with: FW-53, FW-13
 
 #### FW-59 — Bracket free-form values on BASE tags
 
-Wrap base-tag free-form option values in a bracket (`format[g:i A]`) so they're structurally isolated from option separators, matching the rule the FW-56/57 slot work already established, rather than relying only on `\:`/`\|` escaping.
+Two separate justifications were bundled under one row (found 2026-09-01, splitting them). (1) A plain base-tag `|`-pair (`format:g:i A`) already round-trips fine through GB's real parser — PHP `explode(':', $pair, 2)` keeps everything after the first colon, so a second colon in the value is safe today; the JS editor-side reopen bug (`split(regex,2)` truncating the tail past the 2nd colon) is fixed by `\:` escaping alone, and brackets don't touch it — brackets are visual-only to GB (`gb-constraints.md` §Separator-safe), so an unescaped colon inside one still triggers the split. Bracket-wrapping here buys uniformity with the slot spelling and lets the preview tool's balanced-bracket flag sanity-check a hand-edited value — not new GB-side safety. (2) A free-form value sitting beside OUR OWN structural separators — the folded/chain-step context FW-61's `sep(...)` lives in — is where the bracket is real: OUR sub-parser splits on comma/semicolon WE own, and a balance-aware bracket scope lets a value like `F j, Y g:i A` survive without escaping every comma. Either way the wire form keeps the mandatory first colon — `format:[g\:i A]`, not `format[g:i A]` — GB always splits a pair on it; the bracket only wraps the value that follows.
 
 Detail home: `docs/design-history/src-chain-encoding.md` (escape-hazard finding); `gb-constraints.md` §Tag string escape syntax + §Separator-safe
 
 Progress: Validated in the 2026-07-29 sandbox — brackets are inert to GB, a balance-aware sub-parser handles balanced inner brackets, `\:`/`\|` still escapes the two GB-structural characters, `{`/`}` remain hard-unsafe.
 
-Open: Which option keys count as free-form (the `RESPELL_FREEFORM` seed set); migration vs read-tolerant; interaction with `bws-format-input`'s existing escape control. Should land with or before FW-56/57 so base and slot free-form emission share one rule.
+Open: Which option keys count as free-form (the `RESPELL_FREEFORM` seed set); migration vs read-tolerant; interaction with `bws-format-input`'s existing escape control; whether justification (1) ships at all given it adds no GB-side safety, or only (2) does. Should land with or before FW-56/57 so base and slot free-form emission share one rule.
 
-Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56 (closed), FW-57 (closed)
+Blocked by: decision:migration-vs-read-tolerant  •  Interacts with: FW-56 (closed), FW-57 (closed), FW-61
 
 #### FW-60 — Absorb try_ into base tags via an add-slot control (one-way fold)
 
