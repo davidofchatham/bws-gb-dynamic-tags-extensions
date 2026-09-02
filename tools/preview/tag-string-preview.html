@@ -772,15 +772,11 @@ const SCENARIO_GROUPS = [
       collapsed:[{verb:'key',args:['$startKey','$timeKey']},{verb:'now'}],
       note:'no six-key equivalent: the flat wire has no verb position, so "ongoing" is unspellable today'},
   ]},
-  // NB the unfolded `try_text` group was MERGED into the contrast group below (2026-07-31) — its
-  // scenarios now ride `shippedSlots` there so each shipped wire sits directly above its folded
-  // form. Two rows it carried that the fold does not yet model stay here:
-  { tmpl:'text', title:'try_text — shipped only (no folded model yet)', isTry:true, scenarios:[
-    {label:'3: key, ref key, term', slots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]]},
-    // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
-    // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink below.
-    {label:'2: key, key + chain link', slots:[[['key','$key1']],[['key','$key2']]], chainLink:{to:'permalink',newTab:true}},
-  ]},
+  // The unfolded `try_text` group was MERGED into the contrast group below (2026-07-31); its
+  // two leftover shipped-only rows (a 3-slot ref+term chain, and chain-level `_link`) folded
+  // in clean 2026-09-01 — nothing here needed new emitter logic, both shapes already exist
+  // elsewhere in the contrast group. See '3: key, ref→key, in term' and '2: key, key + chain
+  // link' below.
   // try_content / try_image — PAIRED (user 2026-07-31: the fold applies to ALL multi-slot tags,
   // so these get folded counterparts rather than staying shipped-only). try_ is a format-FIXED
   // container, so no type token in the folded value; `content`'s analog reads are content/excerpt,
@@ -852,6 +848,15 @@ const SCENARIO_GROUPS = [
     {label:'3: key, ref→key, title',
       shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['use','title']]],
       slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{read:{kind:'analog',slug:'title'}}]},
+    {label:'3: key, ref→key, in term',
+      shippedSlots:[[['key','$key1']],[['source','ref'],['ref','$ref'],['key','$key1']],[['_inTerm','$tax']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'$ref'}],read:{kind:'key',field:'$key1'}},{chain:[{slug:'terms',arg:'$tax'}],read:{kind:'analog',slug:'title'}}]},
+    // try_ link is CHAIN-LEVEL (one unprefixed linkTo for the winning slot's entity —
+    // link-helpers.php:184), NOT per-slot. Modeled via scenario.chainLink, format-agnostic.
+    {label:'2: key, key + chain link',
+      shippedSlots:[[['key','$key1']],[['key','$key2']]],
+      slots:[{read:{kind:'key',field:'$key1'}},{read:{kind:'key',field:'$key2'}}],
+      chainLink:{to:'permalink',newTab:true}},
     // the three intent paths (2×2 of source[same|new] × read[same|new]):
     {label:'Path A: new ctx, SAME read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'refs',arg:'office'}],read:{kind:'same'}}]},
     {label:'Path B: SAME ctx, new read',   slots:[{read:{kind:'key',field:'$key1'}},{chain:[{slug:'same'}],read:{kind:'key',field:'$key2'}}]},
@@ -1600,8 +1605,9 @@ function renderSlotParts(parts, p, t2p) {
   const out=[];
   const hasExplicitUse = parts.some(([k])=>k==='use');
   const uk = kn('use');
-  // These are the SHIPPED-wire unfolded scenarios (base/try_ today) — they show the current wire,
-  // NOT the FW-56 chain (that's a folded-slot proposal). srcTerm shown in its shipped form.
+  // These are the LEGACY flat-wire unfolded scenarios (base/try_, pre-1.17.0 back-compat) — they
+  // show that wire, not the FW-56 chain (which ships as depth-0 `src` wire; see serializeChain /
+  // buildFoldedTag). srcTerm shown in its shipped form.
   for (const [id,val] of parts) {
     const rv = resolveVal(val);
     if (id==='source') {
