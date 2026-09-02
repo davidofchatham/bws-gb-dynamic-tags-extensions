@@ -5,7 +5,7 @@
 > §Spec lifecycle owns that rule). Cite it for PROVENANCE — never as a statement of how the tool
 > works now. For current state, read `tools/preview/tag-string-preview.html` itself.
 
-**Closed 2026-09-01, commit `afe9fe7`.** Every task below shipped in that one commit: the
+**Closed 2026-09-01, [PR #131](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/131).** Every task below shipped in that one PR: the
 Configure tab (unused across several dev cycles, confirmed no other doc referenced it) was
 removed entirely; the Permutations contrast groups were re-labelled so chain/folded wire reads as
 current and the pre-1.17 flat sibling wire (confirmed read-only via `src-chain-control.js` —
@@ -35,7 +35,7 @@ Re-base it: shipped chain wire becomes the baseline column, and the toggle/contr
 
 **What stays behind a toggle** is the non-shipped set, and it is not one kind of thing: genuine futures (FW-61 per-step `sep`, FW-59 bracket free-form on base tags, FW-39 the pinned-entity source, FW-24 per-type option tokens in a slot, FW-27 `if:`, FW-53 table v1, FW-45 reorder, FW-81 the datetime tag collapse) and REJECTED look-backs kept deliberately (the `/` limit char, root-explicit chains, `use(...)` read parity) — both are non-shipped, but only one is a candidate, and a reader who cannot tell them apart will re-litigate a closed call. Label the axis, do not merge them.
 
-## Task list — ALL DONE, commit `afe9fe7` (2026-09-01)
+## Task list — ALL DONE, [PR #131](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/pull/131) (2026-09-01)
 
 - [x] Re-measure current staleness against the tree (the above is the 2026-08-18 reading).
 - [x] Swap the baseline column to shipped chain wire.
