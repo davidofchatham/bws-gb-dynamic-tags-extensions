@@ -2156,7 +2156,13 @@ function renderPerms() {
         const variants=buildContrastVariants(group,sc);
         const stack=document.createElement('div'); stack.className='perm-stack';
         const ff=scenarioFreeform(sc);
+        // Legacy earns no line when it says nothing: no wire for this row (`missing`), or the
+        // same string Current already shows. Data stays put (CONTRAST_VARIANTS, scenario `parts`)
+        // — this is a render-time skip, not a deletion, so a future scenario can still ask for
+        // Legacy and get it back the moment it actually differs.
+        const currentStr = variants.find(x=>x.label==='Current' && !x.missing)?.str;
         variants.forEach(v=>{
+          if (v.label==='Legacy' && (v.missing || v.str===currentStr)) return;
           const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls);
           const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=v.label;
           const s=document.createElement('div'); s.className='perm-str';
