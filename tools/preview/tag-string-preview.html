@@ -1344,7 +1344,15 @@ function respellEntries(chain, read, link, dtKeys, typeTag, fallback) {
   if (chainStr) E.push({name:'src', val:chainStr, chainStr:true, rank:RESPELL_KEY_MAP.src});
   if (dtKeys) {
     if(dtKeys.as) push('as',dtKeys.as,false);
-    ['key','timeKey','startKey','startTimeKey','endKey','endTimeKey'].forEach(k=>{ if(dtKeys[k]) push(k,dtKeys[k],rb); });
+    if (S.fw81DtCollapse) {
+      // FW-81 toggle reaches a folded slot's own dtKeys too, not just the standalone datetime_single/
+      // datetime_range groups — same merge rule (datetimeCollapseFromParts), so a datetime slot inside
+      // join/table collapses to one `use:` read-list instead of always showing the pre-collapse keys.
+      const reads = datetimeCollapseFromParts(Object.entries(dtKeys).filter(([k])=>DT_KEY_IDS.has(k)));
+      if (reads) push('use', fw81CollapsedUseValue(reads), false);
+    } else {
+      ['key','timeKey','startKey','startTimeKey','endKey','endTimeKey'].forEach(k=>{ if(dtKeys[k]) push(k,dtKeys[k],rb); });
+    }
     if(dtKeys.format) push('format',dtKeys.format,false);
   }
   if (read && !dtKeys) {
@@ -1655,6 +1663,12 @@ function datetimeCollapseFromParts(parts) {
   if (end.length) reads.push({ verb:'key', args:end });
   return reads.length ? reads : null;
 }
+// FW-81 wire shape for a collapsed read-list: reads `;`-joined, each read's verb+args `,`-joined.
+// Fixed literal separators (S6 is LOCKED). ONE site so the standalone tag's dtCollapse variant and
+// a folded slot's dtKeys collapse (respellEntries) can't drift apart on how a merge renders.
+function fw81CollapsedUseValue(reads) {
+  return reads.map(r => [r.verb, ...(r.args||[]).map(a=>String(resolveVal(a)))].join(',')).join(';');
+}
 const CONTRAST_VARIANTS = {
   shipped:       { label:'Legacy',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
   chainCurrent:  { label:'Current', how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
@@ -1759,7 +1773,7 @@ function buildOneVariant(v, group, sc, sortParts, wrap) {
     // under a MERGED placeholder name instead. Only the string 'datetime' is a placeholder (O5 is
     // still open on the real name/catalog position) — the fact of ONE tag is not.
     const reads = sc.collapsed || datetimeCollapseFromParts(sc.parts) || [];
-    const useVal = reads.map(r => [r.verb, ...(r.args||[]).map(a=>String(resolveVal(a)))].join(',')).join(';');
+    const useVal = fw81CollapsedUseValue(reads);
     const rest = (sc.parts||[]).filter(([id]) => !DT_KEY_IDS.has(id));
     const combined = useVal ? [...rest, ['use', useVal]] : rest;
     const parts = renderSlotParts([...scenarioTagParts(sc,'digit'), ...sortParts(combined)],'',false);
