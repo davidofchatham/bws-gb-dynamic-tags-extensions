@@ -298,39 +298,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">✅ SHIPPED 1.17.0 — this tool is no longer the authority</div>
-    <div class="toggle-desc" style="line-height:1.5">
-      The grammar SHIPPED (2026-08-03/04) and its owners are the authority now:
-      <code>includes/helpers/slot-fold.php</code> (PHP) and
-      <code>assets/js/slot-fold-grammar.js</code> (its tested twin). This page stays as the
-      EXPLORATION surface — comparing candidate spellings side by side is what it is for, and that
-      job outlives the decision.<br><br>
-      Three things shipped differently from the bullets below, so read them as design history:<br>
-      • <strong>No <code>N-</code> siblings in the shipped containers.</strong> Everything a slot
-      owns rides INSIDE its <code>N:</code> value — <code>label</code> folded in, link inlined,
-      <code>sep</code> HELD (still open). The sibling model here is a live option for later
-      carriers, not what join/<code>try_</code> emit.<br>
-      • <strong>Folded slot keys are CAPITALS</strong> (<code>A:</code>, <code>B:</code>, …),
-      and rank came back to the sort with them: <code>format</code> leads again, then the tag-level
-      source, then the slots ascending. Digits were the FIRST cut and never shipped in a release —
-      an all-digit key is a JS array-index property, which ECMAScript enumerates before every string
-      key, and GB serializes with <code>Object.entries()</code>, so digit slots were PINNED to the
-      front and no sort could move them. Escaping that pin is the whole reason the keys are letters.
-      The digit radio below stays as a look-back.<br>
-      • <code>+</code> and <code>/</code> are <strong>RESERVED, not merely rejected</strong>: they
-      are ordinary CONTENT inside a value and are NOT leniently accepted as grammar, because a
-      lenient class spends the char — binding one later would silently change what saved wires mean.
-      The pickers still offer them, as an exploration tool should.
-    </div>
-
-    <div class="sb-h">LOCKED decisions (as approved 2026-07-31)</div>
-    <div class="toggle-desc" style="line-height:1.5">
-      • Slot prefix: <code>N:</code> value, slot 1 included (<code>N-</code> siblings explored, NOT
-      shipped — see above)<br>
-      • <code>src</code> chain owns the source string (use+key excluded → the read)<br>
-      • Type token LEADS the slot value (primary format option, FW-52 order)
-    </div>
-
     <div class="sb-h">Slot Schema: bracket-kv</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
       Sole schema. <code>name(value)</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
@@ -374,48 +341,26 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <label><input type="radio" name="valuepair" value="[]"> [ ] <code>use:key[field]</code></label>
     </div>
 
-    <div class="sb-h">✅ SETTLED 2026-08-04 — folded slot KEY spelling</div>
+    <div class="sb-h">Folded slot KEY spelling</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Built first as <code>1:</code>, re-spelled to <code>A:</code> before 1.17.0 shipped. An
-      all-digit key is a JS <em>array index</em>, which ECMAScript enumerates ahead of every string
-      key, and GB serializes with <code>Object.entries()</code> — so digit slots were PINNED to the
-      front of the saved string and no sort could move them. A spelling that is not an array index
-      hands rank back to the canonical order, which is what 1.17.0 does: <code>format</code> leads
-      again. Verified NOT blocked: GB's <code>parse_options()</code> preserves key case verbatim.
-      <br><strong>Where to look:</strong> <em>join — TEMPLATE MODE</em> and the <em>table</em> groups.
-      Those are the folded scenarios that carry tag-level options (<code>format:</code>,
-      <code>valueSep:</code>, <code>src:</code>, <code>caption:</code>). Under digits those options are
-      FORCED behind the slots; under a non-index spelling they lead. Groups with no tag-level option
-      show only the key changing, which is why the ordering question was invisible on this page until
-      the join formats were added.
+      Shipped as <code>A:</code> capitals. Digits are a look-back: an all-digit key is a JS array
+      index, which sorts ahead of every string key regardless of any ordering rule, pinning digit
+      slots to the front — letters escape that. Most visible in <em>join — TEMPLATE MODE</em> and
+      <em>table</em>, the groups with a tag-level option (<code>format:</code>, <code>src:</code>) to
+      rank against.
     </div>
     <div class="pfx-row">
-      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (first cut, pinned first — look-back)</label>
-      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (SHIPPED 1.17.0)</label>
+      <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (look-back)</label>
+      <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (shipped)</label>
     </div>
     <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
-      <strong>Tokens follow the keys</strong> (user 2026-08-04). Template mode addresses slots as
-      <code>%1</code>…<code>%10</code> on the wire (brace tokens are impossible — GB's parser rejects
-      <code>}</code> inside options), and that ordinal was only ever the digit one, so it moves with the
-      spelling: under capitals the author reads <code>A:</code> beside <code>%A</code>, ONE alphabet
-      rather than two. Formats are authored in digit form and rewritten by <code>formatTokens()</code>,
-      so this picker moves keys and tokens together.<br>
-      Digit tokens stay readable as a FALLBACK, which is what makes the move migration-free:
-      <code>bws_join_wire_format()</code> maps both alphabets onto the same internal <code>{N}</code>,
-      so every stored <code>format:%1 (%2)</code> keeps rendering and no converter entry is needed. The
-      cost shows in the <code>%%</code> row — while both alphabets are live, the literal-percent escape
-      widens from "before a digit" to "before a digit or a SLOT LETTER". The letter class is
-      <code>A</code>-<code>Z</code>, not <code>A</code>-<code>J</code> (user 2026-08-04): the cap is a
-      CONTAINER property (join 10, <code>try_</code> 5), so baking today's join limit into the grammar
-      would mean re-cutting it whenever a container changes. The tokenizer still only rewrites as far as
-      that container's slot count, so <code>%K</code> stays literal in a 10-slot join.<br>
-      <strong>Still not modelled here:</strong> panel LABELS — this page renders wires only. They
-      DID move with the keys (<code>"Slot B"</code>, <code>"Field B"</code>), because leaving them as
-      digits just relocates the mapping tax into the editor. <code>bws_slot_ordinal()</code> shipped as
-      the single owner of digit→letter for keys, labels and tokens alike; a <code>{N}-</code> SIBLING
-      key keeps its digit, since nothing pins its order. (<code>{{table}}</code> is no longer an
-      example of this — its old flat-numeric prototype was retired 2026-09-01, FW-79, before any
-      release; a table column is a folded slot like any other, so it gets a letter key too.)
+      <strong>Tokens follow the keys.</strong> Template-mode <code>%1</code>…<code>%10</code>
+      tokens move with the spelling (<code>%A</code> under capitals), so the author reads one
+      alphabet, not two. Digit tokens stay readable as a fallback — <code>bws_join_wire_format()</code>
+      maps both onto the same internal index, so stored <code>format:%1 (%2)</code> keeps rendering.
+      The letter class is <code>A</code>-<code>Z</code> (a container's own slot count caps how far
+      the tokenizer rewrites, not the alphabet itself). Panel labels move with the keys too —
+      <code>bws_slot_ordinal()</code> owns digit→letter for keys, labels and tokens alike.
     </div>
 
     <div class="sb-h">Value Separator</div>
@@ -424,14 +369,14 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     </div>
     <div id="valuesep-controls"></div>
 
-    <div class="sb-h">src Chain (FW-56) — FLAT (locked)</div>
+    <div class="sb-h">src Chain (FW-56)</div>
     <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
-      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code> (FLAT step body, no step
-      brackets — locked). Hops <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
-      <code>post</code>/<code>term</code>/<code>user</code>. Root IMPLIED (<code>current</code> only as
-      an override/reset). Per-step limit is BRACKET-KV, not positional (decided 2026-07-31):
-      <code>refs,rel_post,limit[5]</code> — the bracket char alternates with depth like every other,
-      so a chain nested in a slot emits <code>limit(5)</code>. Hop-sep + intra-step-sep still tunable:
+      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code>. Hops
+      <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
+      <code>post</code>/<code>term</code>/<code>user</code>. Root implied (<code>current</code> only as
+      an override/reset). Per-step <code>limit</code> is bracket-kv, not positional —
+      <code>refs,rel_post,limit[5]</code> — so it alternates bracket char with nesting depth like
+      every other token. Hop-sep + intra-step-sep still tunable:
     </div>
     <div id="sep-controls" style="margin-top:8px"></div>
 
