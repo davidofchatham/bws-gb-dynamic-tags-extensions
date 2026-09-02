@@ -353,12 +353,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
       <label><input type="radio" name="slotkey" value="digit"> <code>1:</code> digits (look-back)</label>
       <label><input type="radio" name="slotkey" value="alpha" checked> <code>A:</code> capitals (shipped)</label>
     </div>
-    <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
-      <strong>Tokens follow the keys.</strong> Template-mode <code>%1</code>…<code>%10</code>
-      tokens move with the spelling (<code>%A</code> under capitals), one alphabet not two. Digit
-      form still renders as a fallback — both map to the same internal index. Panel labels move the
-      same way, via <code>bws_slot_ordinal()</code>.
-    </div>
 
     <div class="sb-h">Value Separator</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
