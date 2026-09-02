@@ -220,6 +220,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 }
 .perm-chain .perm-tagname { color: var(--accent); font-weight: 600; }
 .perm-chain .perm-str { border-color: var(--accent); background: var(--accent-light); }
+.perm-legacy .perm-str { opacity: 0.85; border-style: dashed; background: transparent; }
+.perm-legacy .perm-tagname { color: #6e6e73; }
+.perm-current .perm-tagname { color: var(--text); font-weight: 700; }
 .perm-none .perm-str { color: var(--muted); font-style: italic; user-select: none; }
 .perm-note { font-size: 11px; color: var(--muted); padding-left: 60px; }
 
@@ -2168,7 +2171,12 @@ function renderPerms() {
         const currentStr = variants.find(x=>x.label==='Current' && !x.missing)?.str;
         variants.forEach(v=>{
           if (v.label==='Legacy' && (v.missing || v.str===currentStr)) return;
-          const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls);
+          // Preview earns no line either once it says nothing beyond Current — same "data stays,
+          // this is a render-time skip" rule as Legacy above, so a toggle that starts differing
+          // again brings the line straight back.
+          if (v.label==='Preview' && !v.missing && v.str===currentStr) return;
+          const labelCls = v.label==='Legacy' ? 'perm-legacy' : v.label==='Current' ? 'perm-current' : '';
+          const line=document.createElement('div'); line.className='perm-line '+(v.missing?'perm-none':v.cls)+(labelCls?' '+labelCls:'');
           const t=document.createElement('span'); t.className='perm-tagname'; t.textContent=v.label;
           const s=document.createElement('div'); s.className='perm-str';
           s.textContent = v.missing ? `— no ${v.label} equivalent —` : v.str;
