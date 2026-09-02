@@ -298,46 +298,6 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     <div id="sb-names"></div>
     <button id="add-name-row" style="margin-top:4px;width:100%">+ add rename</button>
 
-    <div class="sb-h">src Chain (FW-56)</div>
-    <div class="toggle-desc" style="margin:0 0 6px;line-height:1.45">
-      One <code>src</code> key; value = sep-joined steps <code>slug,arg</code>. Hops
-      <code>refs</code>/<code>terms</code>/<code>rows</code>; starts
-      <code>post</code>/<code>term</code>/<code>user</code>. Root implied (<code>current</code> only as
-      an override/reset). Per-step <code>limit</code> is bracket-kv, not positional —
-      <code>refs,rel_post,limit[5]</code> — so it alternates bracket char with nesting depth like
-      every other token. Hop-sep + intra-step-sep still tunable:
-    </div>
-    <div id="sep-controls" style="margin-top:8px"></div>
-
-    <div class="sb-h">Value Separator</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.4">
-      glue inside composite values: <code>as:url[sep]medium</code>, <code>use:key[sep]field</code>.
-    </div>
-    <div id="valuesep-controls"></div>
-
-    <div class="sb-h">Slot Schema: bracket-kv</div>
-    <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
-      Sole schema. <code>name(value)</code> — the slot bracket IS the kv delimiter, no <code>=</code>.
-      Type LEADS, options FW-52-ordered, FORMAT-SAFE. APPROVED 2026-07-31: flat src chain
-      (<code>refs,office</code>), hop-sep <code>;</code>, opt-sep <code>;</code>, step-sep
-      <code>,</code>, brackets ALTERNATE by nesting depth (L1 <code>()</code> → L2 <code>[]</code>,
-      no same-char nesting).
-      <br><code>3:src(refs,office;refs,region);key(name)</code>
-    </div>
-    <div id="slotsep-controls" style="margin-top:6px"></div>
-    <label class="toggle-row" style="margin-top:6px">
-      <input type="checkbox" id="cb-stepsep">
-      <span class="toggle-desc">[DEFERRED 2026-08-01 → FW-61; INDEPENDENT of the limit spelling] per-step <code>sep</code> — <code>terms,category,sep(; )</code>. Today ONE tag-level <code>sep</code> serves a whole fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it per-step is the obvious fix and is NOT a decided option. Ordinary bracket-kv token, so it obeys depth alternation (<code>sep(; )</code> at depth 0, <code>sep[; ]</code> inside a slot). Modelled here because a step carrying a SECOND kv token is the only case that separates the limit spellings — with one token they look identical. If per-step sep ever lands it lands whichever limit form wins, hence its own toggle.</span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-slotforcesrc">
-      <span class="toggle-desc">[future look] always serialize <code>src</code> on slot 1 (join / try_) → <code>src:current</code></span>
-    </label>
-    <label class="toggle-row" style="margin-top:4px">
-      <input type="checkbox" id="cb-readviause">
-      <span class="toggle-desc">[future look] read via <code>use(...)</code> parity: meta → <code>use(key,name)</code> (vs bare <code>key(name)</code>). Loved parity, but verbose — OFF for now.</span>
-    </label>
-
     <div class="sb-h">Folded slot KEY spelling</div>
     <div class="toggle-desc" style="margin-bottom:4px;line-height:1.45">
       Shipped as <code>A:</code> capitals. Digits are a look-back: an all-digit key is a JS array
@@ -475,25 +435,13 @@ const VALUE_PRESETS = {
 
 // Separator candidates — ALL gb-constraints-safe per gb-constraints.md §Separator-safe
 // characters: no `|` `:` `}` `{` `&` `<` `>` `"` `'`. (`>` and a 2nd `:` are UNSAFE — dropped.)
-// hop = between ordered chain steps; step = between kind,arg[,limit] inside one chain step.
-//
-// TYPEABLE ASCII ONLY. `»` and `·` were offered here through 5g and are now cut from every list:
-// ADR 0004 makes the wire hand-editable, so a separator an author cannot type on a US keyboard is a
-// dead candidate whatever it looks like. A picker that cannot produce an illegal option cannot lead
-// the next review astray — which is the only reason this page still exists. (A `·` sitting in a
-// scenario's `sep` VALUE stays: that is output content an author chose, not grammar we picked.)
-const SEP_PRESETS = {
-  hop:  ['/', '~', '+'],
-  step: [',', ';', '~'],
-};
-// General value-separator: the glue inside a composite OPTION VALUE (as:url,medium /
-// use:key,field / folded linkTo:key,field). Same safe pool. Applies across all folds.
-const VALUE_SEP_PRESETS = [',', ';', '~', '-', '_', '=', '+'];
-// FW-57 type-token separator (read ↔ processing-tag). Same safe pool; '/' leaned.
+// TYPEABLE ASCII ONLY — ADR 0004 makes the wire hand-editable, so a separator an author cannot
+// type on a US keyboard is a dead candidate whatever it looks like.
+// The hop/step/value-sep/opt-sep/kv-char PICKERS these once fed (Src Chain, Value Separator,
+// Slot Schema sidebar sections) were cut 2026-09-02 (user: settled, won't reopen) — those
+// separators are fixed constants now (see S.chainSep / S.valueSep / S.slotOptSep / S.slotKvChar).
+// FW-57 type-token separator (read ↔ processing-tag) is a separate, still-unused axis.
 const TYPE_SEP_PRESETS = ['/', ',', '~'];   // ':' excluded — gb-reserved
-// respell separators: option-sep (was '|') + key/value-sep (was ':'). All gb-safe.
-const RESPELL_OPT_PRESETS = ['/', '~', '+', ';'];
-const RESPELL_KV_PRESETS  = ['=', '~', '-'];      // ':' and '|' excluded — gb-reserved
 
 const DEFAULT_ORDER = {
   // Canonical serialization order per tools/test/serialization-order-test.php KEY_MAP:
@@ -685,7 +633,7 @@ const SCENARIO_GROUPS = [
   // dtCollapse branch. `tmpl` stays `datetime_single`/`datetime_range` because that is still the
   // real, only-shipped name for the six-key variant on this row.
   { tmpl:'datetime_single', title:'datetime_single ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
-    isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
+    isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'date',                  parts:[['as','date'],['key','$dateKey']]},
     {label:'datetime',              parts:[['key','$dateKey'],['timeKey','$timeKey']]},
     {label:'time',                  parts:[['as','time'],['key','$timeKey']]},
@@ -696,7 +644,7 @@ const SCENARIO_GROUPS = [
     {label:'date + link url field',  parts:[['as','date'],['key','$dateKey'],['_link',{to:'key',key:'$urlKey',newTab:true}]]},
   ]},
   { tmpl:'datetime_range', title:'datetime_range ⟷ merged {{datetime}} (FW-81, parked/unshipped)',
-    isContrast:true, variants:()=>S.fw81DtCollapse?['sixKey','collapsed']:['sixKey'], scenarios:[
+    isContrast:true, variants:['sixKey','collapsed'], scenarios:[
     {label:'date range',            parts:[['as','date'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'date range + sep',      parts:[['as','date'],['rangeSep','$rangeSep'],['startKey','$startKey'],['endKey','$endKey']]},
     {label:'datetime range',        parts:[['startKey','$startKey'],['startTimeKey','$timeKey'],['endKey','$endKey'],['endTimeKey','$timeKey']]},
@@ -1068,14 +1016,16 @@ const S = {
   // steps and the lighter ',' divides tokens inside one step. Defaulting BOTH to ',' (the
   // pre-approval state) made a multi-hop chain read as undifferentiated commas — `refs,x,limit(3)`
   // looked like four peers instead of one step plus a limit — which is the same illegibility that
-  // got '+' rejected. SEP_PRESETS still offers alternates for look-back only.
+  // got '+' rejected. Fixed constant now — the sidebar's hop/step pickers were cut 2026-09-02
+  // (user: won't reopen), so nothing but withShippedGrammar() ever touches this again.
   chainSep: {hop:';', step:','},
   // PER-STEP `limit` — bracket-kv, named token, depth-alternating bracket (user 2026-07-31,
   // no longer a toggle): refs,related_staff,limit(5) at depth 0, limit[5] inside a slot wrapper.
   // Per-step `sep` — SPECULATIVE (user 2026-08-01). Today one TAG-level `sep` serves a whole
   // fan-out, so a chain with two multiplying hops has a single joiner for both; splitting it
   // per-step is the obvious fix and is NOT a decided option.
-  // ⏸ DEFERRED 2026-08-01 (user) — tracked as FW-61.
+  // ⏸ DEFERRED 2026-08-01 (user) — tracked as FW-61. Sidebar preview toggle cut 2026-09-02 along
+  // with Slot Schema; the scenario rows built to demonstrate it now always render with it off.
   perStepSep: false,
   // FW-57 folded-slot ENCODING (user 2026-07-29). The slot value = type + options, serialized in
   // FW-52 canonical order. Type always LEADS (primary format option).
@@ -1086,8 +1036,8 @@ const S = {
   //   'unsafe-lit'  → name=value , sep, FREE-FORM values wrapped: label=[Milestone],key=name
   //   'bracket-all' → [name=value] blocks, no sep, free-form quoted: [label="Milestone"][key=name]
   slotSchema: 'bracket-kv',
-  slotOptSep: ',',   // separator between option tokens (schema-driven default; switchable)
-  slotKvChar: '=',   // key/value char within a token (schema-driven default; switchable)
+  slotOptSep: ';',   // separator between option tokens (bracket-kv's default; picker cut 2026-09-02)
+  slotKvChar: '',    // key/value char within a token (bracket-kv uses none; picker cut 2026-09-02)
   slotBracket: '[]',    // (legacy — independent-mode slot char; retired with its radio, kept for refs)
   // BRACKET RULE (user 2026-07-29, LOCKED — no longer a toggle): brackets ALTERNATE by NESTING
   // DEPTH. Level 1 = bracketL1 ([]), level 2 = the opposite (()), guaranteeing no same-char nesting.
@@ -1450,7 +1400,8 @@ function unbalancedBrackets(v, open, close) {
 }
 
 // Three folded-slot SCHEMAS (user 2026-07-29). Each is a preset of default separators + a token
-// emitter; chars stay switchable via S.slotOptSep / S.slotKvChar. Every schema:
+// emitter; S.slotOptSep / S.slotKvChar carry the chars (picker cut 2026-09-02 — fixed at the sole
+// surviving schema's values now). Every schema:
 //   - LEADS with the type token (primary format option; 'text' non-type dropped)
 //   - serializes options in FW-52 canonical order (respellEntries already sorted)
 //   - is FORMAT-SAFE: free-form values (date formats etc.) can't collide with a separator.
@@ -1464,9 +1415,10 @@ function unbalancedBrackets(v, open, close) {
 // schema-driven. NB '+' was the frontrunner hop and is now REJECTED (infix pairing — binds to
 // the tokens either side instead of reading as a boundary); '+' and '/' are both held RESERVED,
 // carrying no separator meaning, so neither may be re-admitted as a hop without changing what
-// already-saved wires parse as. The pickers still OFFER them — this tool is for exploration,
-// and a rejected-but-safe candidate must stay comparable (FW-59 and any future grammar change
-// need to re-examine why a char lost). The quote-freeform emit branch is retained but unreferenced.
+// already-saved wires parse as. The separator PICKERS that used to offer rejected-but-safe
+// candidates for comparison were cut 2026-09-02 (user: settled, won't reopen) — FW-59 or any
+// future grammar change re-examining why a char lost starts from this comment, not a live control.
+// The quote-freeform emit branch is retained but unreferenced.
 const SLOT_SCHEMAS = {
   'bracket-kv': { optSep: ';', kvChar: '', wrap: 'bracket-val', readBr: false, stepSep: ';' },
 };
@@ -1675,16 +1627,18 @@ function groupOrder(group) {
 //                     relabelling the toggle-driven line 'current' left it still toggle-driven, so
 //                     the accented default of e.g. the digit-key radio then MISLABELLED a rejected
 //                     spelling as shipped.
-//   'chain'/'folded' — the SAME toggle-driven line as before, now labelled 'preview': this is the
+//   'chain'/'folded' — the SAME toggle-driven line as before, now labelled 'Preview': this is the
 //                     tool's whole exploration surface (candidate spellings, look-backs), and nothing
 //                     about that changes — it just isn't 'current' by itself any more.
-// Order (user, 2026-09-01): legacy → current → preview, applied via each group's `variants:[…]`.
+// Order (user, 2026-09-01): Legacy → Current → Preview, applied via each group's `variants:[…]`.
+// Labels are one word each (user 2026-09-02) — the row's own scenario label + the group title
+// already say what's being compared; the variant column only needs to say WHICH line it is.
 // The OLD {{table}} flat-numeric prototype (`how:'table'`, `needs: sc=>!!sc.cols`) stays retired —
 // table-tag.md's REOPENED D1 ships {{table}} folded-only, so 'shipped' never applies to it.
 // FW-81 pair: no shipped/legacy split (nothing has shipped) — just today's six-key wire beside the
-// PARKED-but-SETTLED (S6/S1) collapsed, MERGED reading, gated by the cb-fw81 sidebar toggle rather
-// than by group.variants being a plain array (see variantsFor()). The collapsed line renders under
-// a placeholder tag name (O5 open); the merge itself is not the open part (S1).
+// PARKED-but-SETTLED (S6/S1) collapsed, MERGED reading. Gating moved 2026-09-02 from its own
+// cb-fw81-only function to the single shared `previewActive()` (see variantsFor()); the collapsed
+// line renders under a placeholder tag name (O5 open); the merge itself is not the open part (S1).
 const DT_KEY_IDS = new Set(['key','timeKey','startKey','startTimeKey','endKey','endTimeKey']);
 // Derive the FW-81 read-list from today's six flat keys — mechanical, mirrors the plan's own
 // migration mapping (§Migration): key[,timeKey] → one read; start*/end* → two reads. Returns null
@@ -1702,20 +1656,29 @@ function datetimeCollapseFromParts(parts) {
   return reads.length ? reads : null;
 }
 const CONTRAST_VARIANTS = {
-  shipped:       { label:'legacy (flat, read-only)',          how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
-  chainCurrent:  { label:'current (chain, 1.17.0)',            how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
-  chain:         { label:'preview (chain — toggle apparatus)', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
-  foldedCurrent: { label:'current (folded, 1.17.0)',           how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
-  folded:        { label:'preview (folded — toggle apparatus)',how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
-  sixKey:        { label:'current (six keys)',                          how:'parts',      cls:'',           needs:sc => !!sc.parts },
-  collapsed:     { label:'FW-81 (parked — collapsed use: list)',        how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
+  shipped:       { label:'Legacy',  how:'parts', cls:'',           needs:sc => !!(sc.parts || sc.shippedSlots) },
+  chainCurrent:  { label:'Current', how:'chain', cls:'',           needs:sc => !!sc.chain, frozen:true },
+  chain:         { label:'Preview', how:'chain', cls:'perm-chain', needs:sc => !!sc.chain },
+  foldedCurrent: { label:'Current', how:'fold',  cls:'',           needs:sc => !!sc.slots, frozen:true },
+  folded:        { label:'Preview', how:'fold',  cls:'perm-chain', needs:sc => !!sc.slots },
+  sixKey:        { label:'Current', how:'parts',      cls:'',           needs:sc => !!sc.parts },
+  collapsed:     { label:'Preview', how:'dtCollapse', cls:'perm-chain', needs:sc => !!(sc.collapsed || datetimeCollapseFromParts(sc.parts)) },
 };
-// `group.variants` may be the usual plain array, OR a zero-arg function for a group whose variant
-// SET depends on live toggle state (not just per-scenario `needs`) — the FW-81 pair uses this so
-// the collapsed line is entirely absent (not a "missing" placeholder) while the toggle is off.
+// ONE shared Preview state (user 2026-09-02), not a per-group flag: every variant marked
+// cls:'perm-chain' is a Preview column, and Preview columns exist only while some toggle differs
+// from what 1.17.0 shipped. Flipping ANY toggle below reveals every group's Preview line at once —
+// there is no per-feature "this group's preview is on" concept any more (the FW-81 pair used to be
+// the only group with an appears-only-when-active line; that pattern is now the rule, not FW-81's
+// exception, so `group.variants` is always a plain array again).
+function previewActive() {
+  return S.slotKeySpelling !== 'alpha' || S.fromKeyCombined || S.linkCombined ||
+         S.valuePair !== '()' || S.fw81DtCollapse;
+}
 function variantsFor(group) {
-  const keys = typeof group.variants === 'function' ? group.variants() : (group.variants || ['shipped','chainCurrent','chain']);
-  return keys.map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k);
+  const keys = group.variants || ['shipped','chainCurrent','chain'];
+  return keys
+    .map(k => typeof k === 'string' ? { key:k, ...CONTRAST_VARIANTS[k] } : k)
+    .filter(v => v.cls !== 'perm-chain' || previewActive());
 }
 // Render a frozen variant's string with the grammar toggles pinned to what 1.17.0 actually
 // shipped, independent of whatever the sidebar is currently set to. Restores every pinned key
@@ -2109,75 +2072,10 @@ function onNamesChanged() {
   renderPerms();
 }
 
-// Reusable separator row: label + centered char input + preset dropdown (name-row shape).
-// getVal/setVal read/write the backing state; presets = candidate chars; rerender re-renders
-// the owning control (to refresh the `cur` marker); onChange re-renders previews.
-function makeSepRow(container, label, getVal, setVal, presets, rerender) {
-  const row=document.createElement('div'); row.className='name-row';
-  const idSpan=document.createElement('span'); idSpan.className='name-id'; idSpan.textContent=label;
-  const inp=document.createElement('input'); inp.className='name-inp'; inp.value=getVal(); inp.style.textAlign='center';
-  inp.addEventListener('input',()=>{ setVal(inp.value); onSepChanged(); });
-  const wrap=document.createElement('div'); wrap.className='preset-wrap';
-  const btn=document.createElement('button'); btn.className='preset-btn'; btn.textContent='▾';
-  const menu=document.createElement('div'); menu.className='preset-menu';
-  presets.forEach(s=>{
-    const item=document.createElement('div');
-    item.className='preset-item'+(s===getVal()?' cur':'');
-    item.textContent=JSON.stringify(s).slice(1,-1);  // literal char
-    item.addEventListener('click',e=>{ e.stopPropagation(); setVal(s); inp.value=s; menu.classList.remove('open'); onSepChanged(); rerender(); });
-    menu.appendChild(item);
-  });
-  btn.addEventListener('click',e=>{ e.stopPropagation(); document.querySelectorAll('.preset-menu.open').forEach(m=>m.classList.remove('open')); menu.classList.toggle('open'); });
-  wrap.appendChild(btn); wrap.appendChild(menu);
-  row.appendChild(idSpan); row.appendChild(inp); row.appendChild(wrap);
-  container.appendChild(row);
-}
-
-// FW-56 chain separator pickers (hop + step). Only shown when the chain is on.
-function renderSepControls() {
-  const el=document.getElementById('sep-controls');
-  el.innerHTML='';
-  const DEFAULTS={hop:',',step:','};
-  [['hop','hop sep'],['step','step sep']].forEach(([which,label])=>{
-    makeSepRow(el, label,
-      ()=>S.chainSep[which],
-      v=>{ S.chainSep[which]=v||DEFAULTS[which]; },
-      SEP_PRESETS[which], renderSepControls);
-  });
-}
-
-// General value-separator picker (always visible — drives as:/use:/link folds).
-function renderValueSep() {
-  const el=document.getElementById('valuesep-controls');
-  if (!el) return;
-  el.innerHTML='';
-  makeSepRow(el, 'value sep',
-    ()=>S.valueSep,
-    v=>{ S.valueSep=v||','; },
-    VALUE_SEP_PRESETS, renderValueSep);
-}
-
-// FW-57 folded-slot separator pickers (opt-sep between tokens + kv char within a token).
-// bracket-kv/bracket-all use no kv char (the [] is the delimiter / block); the picker still shows
-// for the schemas that use it. Chars stay switchable off the schema default.
-function renderSlotSep() {
-  const el=document.getElementById('slotsep-controls');
-  if (!el) return;
-  el.innerHTML='';
-  makeSepRow(el, 'opt sep',
-    ()=>S.slotOptSep, v=>{ S.slotOptSep=v; }, RESPELL_OPT_PRESETS, renderSlotSep);
-  makeSepRow(el, 'kv char',
-    ()=>S.slotKvChar, v=>{ S.slotKvChar=v; }, RESPELL_KV_PRESETS, renderSlotSep);
-}
-// Apply a schema's default separators to S (called on schema switch + init).
-function applySlotSchemaDefaults() {
-  const sch = SLOT_SCHEMAS[S.slotSchema] || SLOT_SCHEMAS['bracket-kv'];
-  S.slotOptSep = sch.optSep;
-  S.slotKvChar = sch.kvChar;
-  S.chainSep.hop = sch.stepSep;   // schema drives the chain hop-sep (';' as approved 2026-07-31)
-}
-
-function onSepChanged() { renderPerms(); }
+// The separator-picker UI that used to live here (makeSepRow + renderSepControls/renderValueSep/
+// renderSlotSep/applySlotSchemaDefaults, for the Src Chain / Value Separator / Slot Schema sidebar
+// sections) was cut 2026-09-02 (user: settled, won't reopen) — S.chainSep/valueSep/slotOptSep/
+// slotKvChar are fixed constants now, set once in the S declaration.
 
 // ── Render: permutations ─────────────────────────────────────────────────────
 // Harvest every FREE-FORM value a scenario feeds into its tag (labels, formats, fallbacks,
@@ -2266,7 +2164,7 @@ function renderIssueSummary(n) {
 }
 
 // ── Full re-render ────────────────────────────────────────────────────────────
-function fullRender() { renderSbNames(); renderSepControls(); renderValueSep(); renderSlotSep(); renderPerms(); }
+function fullRender() { renderSbNames(); renderPerms(); }
 
 // ── Events ───────────────────────────────────────────────────────────────────
 // Sidebar drawer (narrow viewports only; CSS keeps it pinned open above the breakpoint).
@@ -2280,18 +2178,6 @@ sbBtn.addEventListener('click',e=>{ e.stopPropagation(); setSidebar(!sbEl.classL
 sbScrim.addEventListener('click',()=>setSidebar(false));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') setSidebar(false); });
 
-document.querySelectorAll('input[name="slotschema"]').forEach(r=>{
-  r.addEventListener('change',()=>{ S.slotSchema=r.value; applySlotSchemaDefaults(); renderSlotSep(); renderPerms(); });
-});
-document.getElementById('cb-stepsep').addEventListener('change',e=>{
-  S.perStepSep=e.target.checked; renderPerms();
-});
-document.getElementById('cb-slotforcesrc').addEventListener('change',e=>{
-  S.slotForceSrc=e.target.checked; renderPerms();
-});
-document.getElementById('cb-readviause').addEventListener('change',e=>{
-  S.readViaUse=e.target.checked; renderPerms();
-});
 document.querySelectorAll('input[name="valuepair"]').forEach(r=>{
   r.addEventListener('change',()=>{ S.valuePair=r.value; renderPerms(); });
 });
@@ -2320,7 +2206,6 @@ document.addEventListener('click',()=>{ document.querySelectorAll('.preset-menu.
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 loadNamesFromStorage();
-applySlotSchemaDefaults();
 fullRender();
 </script>
 </body>
