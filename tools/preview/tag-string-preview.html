@@ -355,12 +355,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
     </div>
     <div class="toggle-desc" style="margin-top:4px;line-height:1.4">
       <strong>Tokens follow the keys.</strong> Template-mode <code>%1</code>…<code>%10</code>
-      tokens move with the spelling (<code>%A</code> under capitals), so the author reads one
-      alphabet, not two. Digit tokens stay readable as a fallback — <code>bws_join_wire_format()</code>
-      maps both onto the same internal index, so stored <code>format:%1 (%2)</code> keeps rendering.
-      The letter class is <code>A</code>-<code>Z</code> (a container's own slot count caps how far
-      the tokenizer rewrites, not the alphabet itself). Panel labels move with the keys too —
-      <code>bws_slot_ordinal()</code> owns digit→letter for keys, labels and tokens alike.
+      tokens move with the spelling (<code>%A</code> under capitals), one alphabet not two. Digit
+      form still renders as a fallback — both map to the same internal index. Panel labels move the
+      same way, via <code>bws_slot_ordinal()</code>.
     </div>
 
     <div class="sb-h">Value Separator</div>
