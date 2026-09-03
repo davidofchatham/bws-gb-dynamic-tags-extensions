@@ -79,10 +79,12 @@ that lost its bound prints two values rather than looking unchanged.
 than the real external source being used here: that one reads request context, so a row through it
 could not state its own expected value.
 
-**No row reads `use:title` on a `fixture_` tag.** A modifier template's text core reads `key` and
-ignores `use` entirely, so `use:title` renders empty on `fixture_`, `term_` and `view_` alike
-(pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)).
-Rows read field keys so an equivalence pair cannot pass by comparing two empties.
+**§FR1-§FR4 read field keys, not `use:title`, on purpose.** Through 1.19.1 a modifier template's
+text core read `key` and ignored `use` entirely, so `use:title` rendered empty on `fixture_`,
+`term_` and `view_` alike (pre-existing, [#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88)) —
+an equivalence pair built on it would have passed by comparing two empties. Fixed in the same
+release; §FR7 below is the dedicated row this fix earned, once an equivalence pair could mean
+something again.
 
 ---
 
@@ -202,3 +204,16 @@ After a run, re-reading §FR3 shows base tags: FR3.1's block now holds FR4.1's w
 condition, not a fault. The limit spelling differs from §FR4's hand-written wire as described there
 (`src:fixture;refs,related_staff,limit(1)`); the render is what must match. **Any §FR3 row read against an unreseeded site is reading post-conversion
 wire** — check the seed before filing a failure.
+
+## §FR7 — modifier `use` dispatch, both field-read families ([#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
+
+Not a §FR3/§FR4 equivalence pair — `register_modifier()`'s dispatch fix, not the root/migration
+property this page otherwise tests. Lives here anyway because `fixture_` is the one live modifier
+prefix this repo can render outside a term-archive context, and the two entities §FR1-§FR4 already
+use are exactly what these rows need. `term_`'s twin rows are render-tag-only (`text-test-matrix.md`
+§T10, `content-test-matrix.md` §CT7 — a term-archive ambient context, same exception as `text`'s T4).
+
+| Row | Tag | Expected | Property |
+|---|---|---|---|
+| FR7.1 | `{{fixture_text use:title}}` | `Fixture Root Entity` | `text` family — before the fix, empty (`use` never read) |
+| FR7.2 | `{{fixture_content use:key\|key:role}}` | `Fixture Root Role` | `content` family — before the fix, empty (the modifier read `type`, never `use`, so this fell to the description/content branch, which is empty for this entity) |

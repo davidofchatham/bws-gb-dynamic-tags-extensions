@@ -233,6 +233,18 @@ class TagTemplateRegistry {
 			$fallback_part = array_intersect_key( $tpl_options, [ 'fallback' => null, 'fallback_text' => null ] );
 			$tpl_options   = array_diff_key( $tpl_options, $fallback_part );
 
+			// The `key` control is meaningless whenever `use` selects one of the
+			// template's no-key values — the same fact try_'s own per-slot key
+			// picker already qualifies on (try_use_no_key_values, read by the
+			// folded-slot control). Derived here rather than hand-typed on each
+			// template's `key` definition, so a template can't drift the way
+			// text/content did (#88): a `use` value existed with nothing wired to
+			// read it AND nothing hiding the now-inert `key` control either.
+			$no_key_values = $tpl['try_use_no_key_values'] ?? [];
+			if ( $no_key_values && isset( $tpl_options['key'] ) ) {
+				$tpl_options['key']['show_if'] = array( 'use' => 'not_in:' . implode( ',', $no_key_values ) );
+			}
+
 			if ( $is_image && isset( $tpl_options['as'] ) ) {
 				$as_opt = [ 'as' => $tpl_options['as'] ];
 				unset( $tpl_options['as'] );

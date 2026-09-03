@@ -956,6 +956,85 @@ assert_same( 'the yield message names who held the name', true, false !== strpos
 assert_same( 'the yield message says our tag does not exist', true, false !== strpos( (string) $yield_notice[1], 'does not exist on this site' ) );
 assert_same( 'the yield message does not claim we registered over anyone', false, false !== strpos( (string) $yield_notice[1], 'has registered over it' ) );
 
+// --- C2. every modifier template's dispatch wiring matches its try_ twin ----
+//
+// #88: register_modifier()'s term_fn/post_fn were wired straight to a raw core on the
+// text and content templates, which never read `use` — so a `use` value existed
+// (title/key/excerpt) with nothing to dispatch it, on every term_/view_/fixture_ tag.
+// The try_ family's own per-slot dispatchers (try_term_fn/try_core_fn) already did this
+// correctly; the fix reused them rather than duplicating the logic a second time.
+//
+// This is a CENSUS, not a fixed list of templates, for the same reason 95984b9's
+// ambient-kind guard reads its cases off the live switch rather than a hand-kept copy:
+// a future template that gets a `use` axis (a non-empty try_use_no_key_values) and is
+// wired to a bare core again would ship the identical bug unnoticed otherwise.
+//
+// Scope: only templates with a `use` axis (try_use_no_key_values non-empty) are in
+// play — title/permalink take one value, have nothing to dispatch, and image already
+// matched its try_ twin before #88 (its post-side dispatch lives in a local closure
+// in make_modifier_callback(), not in post_fn itself; term-side has nothing to
+// dispatch, `featured` being a post-only concept).
+foreach ( \BWS\DynamicTags\TagTemplateRegistry::get_modifier_templates() as $census_tpl ) {
+	if ( empty( $census_tpl['try_use_no_key_values'] ) ) {
+		continue;
+	}
+	$tpl_key = $census_tpl['key'] ?? '?';
+	// image is the one MEASURED exception: make_modifier_callback() carries its own
+	// local dispatch closure ($image_post_dispatch) ahead of calling post_fn, so
+	// post_fn staying the bare core (bws_custom_image_core) is correct, not a
+	// relapse of #88. No such closure exists on the term-entity arm, so term_fn
+	// still gets the full check below.
+	if ( empty( $census_tpl['is_image'] ) ) {
+		assert_same(
+			"census: '{$tpl_key}' modifier post_fn matches its try_ dispatch twin",
+			$census_tpl['try_core_fn'] ?? null,
+			$census_tpl['post_fn'] ?? null
+		);
+	}
+	assert_same(
+		"census: '{$tpl_key}' modifier term_fn matches its try_ dispatch twin",
+		$census_tpl['try_term_fn'] ?? null,
+		$census_tpl['term_fn'] ?? null
+	);
+}
+
+// --- C3. the derived `key` show_if carries the VALUE #88 promises, not just the fn --
+//
+// C2 above pins that the DISPATCH functions are wired correctly; it says nothing about
+// whether the `key` control's `show_if` (derived from try_use_no_key_values in
+// register_modifier(), replacing a hand-typed literal) actually renders the right
+// condition. Read off the REAL `term_*` tags bws_register_base_tags() registered at this
+// file's bootstrap (line ~155) — not the §C yield-probe family: its `_text` member is
+// the one that YIELDS on purpose (the probe prefix's first template name is deliberately
+// pre-taken, §C's own subject), so it never registers and carries no options at all.
+$live_tags = \GenerateBlocks_Register_Dynamic_Tag::get_tags();
+assert_same(
+	"census: 'term_text' key control hides on use:title",
+	array( 'use' => 'not_in:title' ),
+	$live_tags['term_text']['options']['key']['show_if'] ?? null
+);
+assert_same(
+	"census: 'term_content' key control hides on use:content or use:excerpt",
+	array( 'use' => 'not_in:content,excerpt' ),
+	$live_tags['term_content']['options']['key']['show_if'] ?? null
+);
+// image is folded INTO 'options' at registration (is_image path), so it is reachable
+// the same way. Same derivation, single no-key value — the one case that collapses to
+// the same string the old hand-typed `use:not:featured` used, which is exactly why
+// removing that literal (#88) was safe.
+assert_same(
+	"census: 'term_image' key control hides on use:featured",
+	array( 'use' => 'not_in:featured' ),
+	$live_tags['term_image']['options']['key']['show_if'] ?? null
+);
+// title/permalink carry no `use` axis at all — no derivation should have run, so no
+// show_if should exist on either (neither even has a `key` option).
+assert_same(
+	"census: 'term_title' has no key option to gate",
+	false,
+	isset( $live_tags['term_title']['options']['key'] )
+);
+
 // --- D. the late re-read is quiet while every name is still ours ------------
 
 // The negative arm for the reverse direction, run over the whole real registration rather

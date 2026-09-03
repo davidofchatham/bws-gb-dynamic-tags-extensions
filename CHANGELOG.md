@@ -4,14 +4,18 @@
 
 ### Fixed
 
-- **Turning on "Show time at midnight" no longer drops AM/PM consolidation from a time range.** A range whose two ends share a meridiem renders as `9:00–11:30 AM` in both settings; previously enabling the option silently expanded it to `9:00 AM–11:30 AM`. The option now governs midnight display only, which is what its label says.
-- **An all-day range stored as 12:00 AM to 11:59 PM now renders as a date, with no stray end time.** Both a same-day range (previously `August 24, 11:59 PM`) and a multi-day one (previously `August 24 – August 26 11:59 PM`) are affected. `11:59 PM` on the END of a range is now read as an unset end time, mirroring how `12:00 AM` has always been read as an unset start time. Turning on "Show time at midnight" still displays both ends in full.
-- **A time range whose start and end are the same moment renders that time once**, instead of repeating it either side of a dash.
+- **Turning on "Show time at midnight" no longer drops AM/PM consolidation from a time range.** A range whose two ends share a meridiem renders as `9:00–11:30 AM` in both settings; previously enabling the option silently expanded it to `9:00 AM–11:30 AM`. The option now governs midnight display only, as its label says.
+- **An all-day range stored as 12:00 AM to 11:59 PM now renders as a date, with no stray end time.** `11:59 PM` on the END of a range is now read as an unset end time, mirroring how `12:00 AM` is read as an unset start time, unless "Show time at midnight" is enabled. Both a same-day range (previously `August 24, 11:59 PM`) and a multi-day one (previously `August 24 – August 26 11:59 PM`) are affected.
+- **A time range whose start and end time are the same now renders the time once**, instead of repeating it as if it were a range.
 
-- **A try_ attempt's field key picker no longer stays hidden on a fresh slot.** A first attempt whose field defaults to the meta/option field reading (e.g. Try Image) needed the Field dropdown switched away and back before its key picker would appear; it now shows immediately, matching what the tag actually renders.
 - **`{{image}}`'s configured fallback now renders on archive, search, 404 and home-page contexts.** It previously rendered nothing on those pages even with a Media Library fallback set, though the fallback still worked correctly on individual posts, terms and author archives.
 - **`{{try_image}}`'s fallback now resolves the configured Media Library image, instead of printing the raw attachment ID as text.** This affected every `as` mode (URL, alt text, ID, caption), including a nonexistent attachment ID, which previously printed too instead of correctly rendering empty.
 - **`{{content}}`, `{{datetime_single}}` and `{{datetime_range}}`'s configured fallbacks now render on the same archive, search, 404 and home-page contexts** where they previously rendered nothing, for the same underlying reason as the `{{image}}` fix above.
+
+- **`use:title` now works on every context-modifier text tag** (e.g. `{{term_text use:title}}`). It previously rendered empty; the base `{{text}}` tag was unaffected.
+- **`use:key` now works on every context-modifier content tag** (e.g. `{{term_content use:key}}`), and **`use:excerpt` now works on the post-entity ones** (e.g. `{{fixture_content use:excerpt}}`). Both previously rendered the post content or term description instead of the field or excerpt — silently wrong, not empty. A term entity has no excerpt of its own, so `use:excerpt` there is unchanged: it still renders the term description, same as the default.
+
+- **The field key picker now shows immediately in a `try_` tag's Attempt A controls.** Previously, try tags which default to a meta/option field (e.g. Try Text and Image) needed the Field selector switched away and back before its key picker would appear.
 
 ### Changed
 

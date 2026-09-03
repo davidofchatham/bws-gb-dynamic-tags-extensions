@@ -595,10 +595,11 @@ function bws_get_content_field_options(): array {
 /**
  * The image `use` + `key` field-option LEAF — bws_get_text_field_options()'s sibling.
  *
- * Same contract. Both image consumers overlay `show_if` on `key` (`use:not:featured`),
- * and the base registration additionally gates `use` itself on `srcTermIn:empty`; the
- * leaf carries neither, because which conditions apply is the consumer's composition,
- * not the enum's.
+ * Same contract. The base registration overlays `show_if` on `key` (`use:not:featured`)
+ * literally and additionally gates `use` itself on `srcTermIn:empty`; the modifier
+ * consumer (register_modifier(), #88) derives the same `key` overlay generically from
+ * `try_use_no_key_values` instead of a second hand-typed copy. The leaf carries neither,
+ * because which conditions apply is the consumer's composition, not the enum's.
  *
  * @since 1.19.0
  * @return array { 'use' => array, 'key' => array } — definitions WITHOUT `show_if`.

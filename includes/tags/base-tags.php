@@ -388,9 +388,10 @@ function bws_register_base_tags(): void {
 		'supports_link_wrap'    => true,
 		'options'               => array_merge(
 			// Same LEAF the base {{text}} registration consumes — the template is a
-			// different COMPOSITION, not a second definition. No `show_if` overlay
-			// here: try_ encodes the identical fact declaratively below
-			// (try_use_no_key_values) and re-qualifies it per slot.
+			// different COMPOSITION, not a second definition. No LITERAL `show_if`
+			// here: register_modifier() derives the `key` control's show_if from
+			// try_use_no_key_values below (#88), the same fact try_'s per-slot
+			// picker already qualifies on — one source, not a third hand-typed copy.
 			$text_field,
 			array(
 				'fallback' => array(
@@ -400,8 +401,12 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		'term_fn'               => 'bws_term_custom_text_core',
-		'post_fn'               => 'bws_post_custom_text_core',
+		// term_fn/post_fn dispatch on `use` (#88): a bare core never read it, so
+		// `use:title` rendered empty on every term_/view_/fixture_ text tag. The
+		// try_ family's own per-slot dispatchers already do this correctly —
+		// reused here rather than duplicated.
+		'term_fn'               => 'bws_try_text_term_dispatch',
+		'post_fn'               => 'bws_try_text_post_dispatch',
 		'try_core_fn'           => 'bws_try_text_post_dispatch',
 		'try_term_fn'           => 'bws_try_text_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'text', (array) $opts, $inst ),
@@ -420,8 +425,9 @@ function bws_register_base_tags(): void {
 		'key'                   => 'content',
 		'title'                 => __( 'Content', 'generateblocks' ),
 		'options'               => array_merge(
-			// Same LEAF the base {{content}} registration consumes; no `show_if` overlay
-			// here (try_ states it via try_use_no_key_values), same as the text template.
+			// Same LEAF the base {{content}} registration consumes; no LITERAL `show_if`
+			// overlay here — register_modifier() derives it from try_use_no_key_values
+			// below (#88), same as the text template.
 			$content_field,
 			array(
 				'fallback' => array(
@@ -431,8 +437,13 @@ function bws_register_base_tags(): void {
 				),
 			)
 		),
-		'term_fn'               => 'bws_term_description_core',
-		'post_fn'               => 'bws_post_content_core',
+		// term_fn/post_fn dispatch on `use` (#88): bare cores read `type`, never `use`
+		// (a different key content's own base registration wires but the modifier
+		// template never did), so use:key/use:excerpt silently rendered the post
+		// content instead of empty or the right value on every term_/view_/fixture_
+		// content tag. Reuses the try_ family's own per-slot dispatchers.
+		'term_fn'               => 'bws_try_content_term_dispatch',
+		'post_fn'               => 'bws_try_content_post_dispatch',
 		'try_core_fn'           => 'bws_try_content_post_dispatch',
 		'try_term_fn'           => 'bws_try_content_term_dispatch',
 		'try_site_fn'           => static fn( $opts, $inst ) => bws_site_resolve_value( 'content', (array) $opts, $inst ),
@@ -516,19 +527,24 @@ function bws_register_base_tags(): void {
 					array( 'value' => 'caption', 'label' => __( 'Caption', 'generateblocks' ) ),
 				),
 			),
-			// Same LEAF the base {{image}} registration consumes. Unlike text/content,
-			// this template KEEPS the key's `show_if` overlay: register_modifier() reads
-			// these options for term_image, whose panel has no declarative equivalent.
+			// Same LEAF the base {{image}} registration consumes. No literal `show_if`
+			// here either (#88): register_modifier() derives it from
+			// try_use_no_key_values below, same as text/content.
 			'use'      => $image_field['use'],
-			'key'      => array_merge(
-				$image_field['key'],
-				array( 'show_if' => array( 'use' => 'not:featured' ) )
-			),
+			'key'      => $image_field['key'],
 			'fallback' => array(
 				'type'  => 'bws-media-picker',
 				'label' => __( 'Fallback Image', 'generateblocks' ),
 			),
 		),
+		// post_fn is deliberately NOT bws_try_image_post_dispatch, unlike text/content
+		// (#88): make_modifier_callback() already carries its own `use`-dispatch closure
+		// ($image_post_dispatch) ahead of calling post_fn, predating #88, so post_fn
+		// staying the bare core is correct here, not a relapse. term_fn has no such
+		// closure and needs none — `featured` is a post-only concept, so it already
+		// equals try_term_fn with nothing to dispatch. Do not "fix" this to match
+		// text/content without first removing $image_post_dispatch; the census guard
+		// in control-order-test.php carries the same exception for the same reason.
 		'term_fn'               => 'bws_term_custom_image_core',
 		'post_fn'               => 'bws_custom_image_core',
 		'try_core_fn'           => 'bws_try_image_post_dispatch',

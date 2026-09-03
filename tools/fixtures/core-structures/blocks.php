@@ -1336,6 +1336,14 @@ function bws_fixture_page_content_matrix_fixture_roots() {
 		bws_fixture_gb_row( 'FR4.6 what FR3.6 becomes — sidecars DROPPED (-> info@example.test)', '{{text src:site|use:key|key:organization_email}}' ),
 	) );
 
+	// FR7 (#88) — register_modifier()'s `use` dispatch, not the root/migration property
+	// FR1-FR4 test. Lives here because `fixture_` is the one live modifier prefix this
+	// repo can render outside a term-archive context, reusing FR3's own entity.
+	$sections[] = bws_fixture_gb_section( 'FR7 - modifier use dispatch (#88)', array(
+		bws_fixture_gb_row( 'FR7.1 text family, use:title (-> Fixture Root Entity)', '{{fixture_text use:title}}' ),
+		bws_fixture_gb_row( 'FR7.2 content family, use:key (-> Fixture Root Role)', '{{fixture_content use:key|key:role}}' ),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 

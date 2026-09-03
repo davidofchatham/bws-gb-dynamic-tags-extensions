@@ -165,6 +165,27 @@ extraction is noted on FW-43's row. The same gap covers the `try_query_fn` leg (
 
 Verified 2026-08-29 via `render-tag`. The `try_` half lives in `fold-test-matrix.md` §F19.
 
+## T10 — modifier family (`term_`/`view_`/`fixture_`) `use` dispatch ([#88](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/88))
+
+Different code path from the rest of this file — `register_modifier()`/`make_modifier_callback()`
+(class-tag-template-registry.php), not `bws_base_text_resolve_value()`/`bws_base_text_callback()`.
+Lives here rather than a third file for the same reason `content-test-matrix.md` §CT7 does: same
+tag family this matrix already covers, defect reproduces identically across `term_`/`view_`/
+`fixture_` (`term_`/`fixture_` are the two live in this repo). `content-test-matrix.md` §CT7 is
+the sibling row set for `{{content}}`'s modifier family — same fix, same commit, same cause.
+
+Through 1.19.1, `register_modifier()` wired `term_text`'s `post_fn`/`term_fn` straight to
+`bws_post_custom_text_core`/`bws_term_custom_text_core`, which read `$options['key']` only and
+never `$options['use']` — so `use:title` rendered empty on every `term_`/`view_`/`fixture_` text
+tag, though the base `{{text}}` tag (which dispatches through the seam this file covers) was
+unaffected. Fixed by pointing `term_fn`/`post_fn` at the same `try_text_term_dispatch`/
+`try_text_post_dispatch` functions the `try_` family already used correctly.
+
+| # | Tag | Expected |
+|---|---|---|
+| T10.1 | `{{term_text use:title}}` on `/department/support/` | `Support` — the term's own title. **Before the fix: empty.** Render-tag-only: a term-archive ambient context, same exception as T4 above |
+| T10.2 | `{{fixture_text use:title}}` on `/matrix-fixture-roots/` | `Fixture Root Entity` — same defect, the class route. **Before the fix: empty.** **Visible** — [`registered-roots-test-matrix.md`](registered-roots-test-matrix.md) §FR7.1, `blocks.php`'s `matrix_fixture_roots` builder |
+
 ## Fail triage
 
 - **T1.2/T3.3/T4.2/T7.4 value right but unlinked:** shell wrap gate — `link_id`/`link_type` not
