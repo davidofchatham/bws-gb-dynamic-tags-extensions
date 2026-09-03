@@ -32,6 +32,18 @@ function bws_fixture_gb_uid( $seed ) {
 /** Shape 2 — text row. Body may be a tag string, label text, or both. */
 function bws_fixture_gb_text_block( $body, $seed = '' ) {
 	$uid = bws_fixture_gb_uid( $seed !== '' ? $seed : $body );
+
+	// `<` ONLY, and after the uid is seeded off the raw body so no id moves.
+	// A row label naming markup it expects (`<caption id>`, `<th>`) writes a real tag into
+	// the block's saved HTML, and the editor's saved-vs-parsed check then fails the block
+	// with "unexpected or invalid content" -- an error that renders on the LABEL block ABOVE
+	// the row it describes, so it reads as a defect in the row before it.
+	//
+	// NOT `>`, measured: dozens of labels use `->` as a prose arrow, and escaping it moved 16
+	// of 17 pages in the snapshot baseline for a defect a lone `>` does not cause -- it is
+	// valid literal text in HTML and the committed baseline carries it raw. NOT esc_html()
+	// either, which would additionally entity-encode every label's quotes.
+	$body = str_replace( '<', '&lt;', $body );
 	return sprintf(
 		"<!-- wp:generateblocks/text {\"uniqueId\":\"%s\",\"tagName\":\"p\",\"className\":\"\"} -->\n<p class=\"gb-text\">%s</p>\n<!-- /wp:generateblocks/text -->",
 		$uid,
