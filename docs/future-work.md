@@ -279,25 +279,29 @@ Progress: Re-verified 2026-08-30. A deletion test run against every registration
 
 Blocked by: —  •  Interacts with: FW-111 (same surface)
 
-#### FW-113 — Kind dispatch that never joined the ambient-analog seam
+#### FW-113 — Kind dispatch that duplicates the ambient-analog seam without using it (no live behavior gap)
 
-`bws_base_ambient_analog()` (1.19.0, FW-9) is the one place a base callback should ask whether an ambient kind answers a tag; three sites still answer that question outside it.
+`bws_base_ambient_analog()` (1.19.0, FW-9) is the one place a base callback should ask whether an ambient kind answers a tag. Two sites still answer a version of that question outside it, but neither is a correctness gap — verified 2026-09-02.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-113
 
-Progress: `class-tag-template-registry.php:400-424` decides term-vs-post for all nine modifier families and does not die with `term_` (`view_*` shares the constructor and is live in bws-portal-system 5.7.0); `datetime-tags.php:865`/`:1013` re-decide the reader after the seam has already answered; `base-shared.php:1742`'s user carve-out is a measured, deliberate (tag × kind) guard rather than a defect. Filed as one item because the three sites share a consequence.
+Progress: `class-tag-template-registry.php:400-424` (in `make_modifier_callback()`, part of `register_modifier()`) reimplements term-vs-post dispatch inline instead of calling the seam — but `$base_kind` there is a binary ternary off `get_context_type()`, whose interface contract is closed to `'post'`/`'term'` codebase-wide (every implementer, including `CallbackRoot`, coerces to that pair), so the seam's `user`/`query_context` arms are structurally unreachable from this call site. Pure DRY/unreachable-arm cleanup, not a bug. `datetime-tags.php:865`/`:1013` call the seam but only for link-identity/kind-branching, not value — no reader case exists for `datetime_single`/`datetime_range`, so the seam's `value` is always `''` there and is discarded, never compared; this is partial, intentional adoption (identity via seam, value via the term core), not a re-decision that could diverge. `base-shared.php:1824-1827`'s user carve-out remains a measured, deliberate (tag × kind) guard, not a defect. Filed as one item because the two remaining sites share a root cause (nobody calls the seam), not because either is broken.
 
-Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third site), FW-33, FW-3, FW-106
+Open: Neither remaining site should be fixed standalone. Site 1 sits inside `register_modifier()`, itself pending retirement (FW-67, blocked by FW-70/FW-53) — fixing it now risks throwaway work if that lands first. Site 2's two callbacks are the exact ones FW-81 collapses into one — joining the seam there before FW-81 means redoing the join on the merged callback. Expected to resolve for free as a side effect of FW-67/FW-70/FW-53 (site 1) and FW-81 (site 2) rather than needing its own PR — re-check after either lands.
 
-#### FW-114 — Two PHP↔JS twins, two standards of proof
+Blocked by: —  •  Interacts with: FW-47 (widening the user arm dissolves the third, already-excluded site), FW-33, FW-3, FW-106, FW-67 (site 1 rides `register_modifier()`'s retirement), FW-81 (site 2's callbacks are the ones it merges — sequence after)
 
-The fold-grammar PHP↔JS twin diffs its constants field by field with coverage floors; the serialization-order twin compares output only over a hand-picked corpus, never the `KEY_MAP` structurally.
+#### FW-114 — Fold-grammar PHP↔JS twin checks the wrong constant for `chainRoot`
+
+`bws_fold_chain_root()` (PHP) derives its answer from `BWS_FOLD_STEP_TYPES` (`slot-fold-compile.php:80-84`), but the twin test (`slot-fold-twin-test.php`) instead asserts a *different*, redundant PHP constant — `BWS_FOLD_FANNING_SLUGS` (`slot-fold.php:103`) — against JS's `FANNING_SLUGS`. All three currently hold `{refs, terms, rows}`, so the check passes today, but it proves nothing about the constant `chainRoot` actually reads: a slug added to `BWS_FOLD_STEP_TYPES` alone, with no new twin-corpus case, would diverge PHP/JS silently. `slotKeyRe` is exported by the JS grammar (`slot-fold-grammar.js:821`) but never compared; `chainFanningSteps` has no comparison axis at all.
 
 Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114
 
-Progress: Load-bearing gap in the fold twin — `chainRoot` answers one question off two different lists (PHP reads `BWS_FOLD_STEP_TYPES`, JS reads `FANNING_SLUGS`), so a fourth step slug added to one makes PHP call it a step and JS call it a root; `slotKeyRe` is exported but never compared; `chainFanningSteps` is never compared directly. The `show_if` DSL is one-sided — PHP authors condition strings a JS-only grammar reads, with no enum and no validator — `registration-helpers.php:171-174` already records a shipped failure from exactly that.
+Progress: Verified 2026-09-02 — latent, not live: today's corpus slugs are covered by all three declarations, so no test currently fails. `chainRoot`'s OWN output is corpus-compared and passes; it is the constant-identity check that is misdirected. (Was bundled with the serialization-order twin and the `show_if` DSL gap under one item; split 2026-09-02 into FW-117/FW-118 — different harnesses, different fix shapes.)
 
-Blocked by: —  •  Interacts with: FW-115 (both are "two languages agree by convention")
+Open: Fix shape — delete the redundant `BWS_FOLD_FANNING_SLUGS` constant and have the twin compare JS `FANNING_SLUGS` directly against `BWS_FOLD_STEP_TYPES`'s keys (collapses 3 declarations to 2 genuinely-compared ones, rather than adding a 4th declaration asserting the other two agree). Add `slotKeyRe` and `chainFanningSteps` as new comparison axes in the same pass.
+
+Blocked by: —  •  Interacts with: FW-115 (both are "two languages agree by convention"), FW-117, FW-118 (split siblings)
 
 #### FW-115 — bws-* control type strings are interface with no census
 
@@ -310,6 +314,18 @@ Progress: `base-shared.php:486-489` already names the hazard. The same shape has
 Open: Fix shape is a tree census in the mould of `control-order-test.php` §9. Lowest confidence of the ten review candidates — it adds an instrument rather than deepening a module.
 
 Blocked by: —  •  Interacts with: FW-114, FW-111
+
+#### FW-116 — `bws_base_ambient_analog()`'s empty-triple-vs-null contract is a per-tag carve-out, not a rule
+
+The seam wraps an analog-less (tag, kind) read in an empty-VALUE triple, which every caller's tail treats as "stop here" — even when the value inside is empty and the tag owns a core with its own self-contained stated-fallback emit (image, content, datetime_single/range) that a fallthrough would have let run. Two kinds (`user`, `query_context`) now carry a per-tag `image` carve-out (`return null` instead of the triple) fixing the two live instances found 2026-09-02; `content`/`datetime_single`/`datetime_range` needed the identical fix but at the CALLER's tail instead, since their cores are reached through different routes. A structural fix — return `null` whenever the reader's answer is `''`, for every tag, not just image — would close the whole defect class at the one seam instead of per-tag; considered and deliberately deferred (see Open).
+
+Detail home: `memory/project_open_refactors.md` (Claude Code's per-project memory, outside this repo) — the session that found and fixed the two live instances (2026-09-02) is the record; no `.scratch/` plan exists because the structural version was never started, only proposed and rejected for that session's scope.
+
+Progress: Two per-tag carve-outs shipped 1.19.1 (`base-shared.php`'s `user` and `query_context` cases, `image` only). A census guard (`traversal-pipeline-test.php`, reads the seam's own `case` labels off disk) pins that both existing carve-outs stay present, so a THIRD ad hoc copy of the same fix doesn't ship unnoticed the way the second one did. `content`/`datetime_single`/`datetime_range` fixed the same session at their own callback tails — not testable through this seam's return value at all, since their fix isn't IN the seam; their regression protection is the page-snapshot baseline instead (`context-test-matrix.md` C-C2/C-DT1/C-DT2).
+
+Open: Whether to do the structural version — flip the seam's OWN contract so `''` always means `null` (fall through), for every tag. Smaller diff, closes the class by construction, but touches all 7 call sites including `title`/`permalink` (no fallback mechanism, currently safe only because a fallthrough would be a no-op — unverified for every kind, only checked for `query_context`/`user`) and changes behavior the seam's docblock currently states as deliberate policy (a query-context fallthrough is "the leak class this kind exists to stop" for tags OTHER than image). Needs the same leak-safety check this session did for image, generalized to every (tag, kind) pair, before it's safe to land.
+
+Blocked by: decision:structural-vs-per-tag  •  Interacts with: FW-113 (three OTHER sites bypass this seam entirely — a different defect, same function)
 
 ### Feature follow-ups & UX
 
@@ -576,6 +592,30 @@ Progress: Reviewed 2026-08-28 — narrower than a failed cut: most `*-test-matri
 Open: Split the catch-all, or accept it — re-measure before acting. Any reorganization must land in the SAME commit as the page-snapshot re-capture, or the pages fail for a reason no diff explains.
 
 Blocked by: —  •  Interacts with: FW-96, FW-103 (closed)
+
+#### FW-117 — Serialization-order twin proves a corpus, not the `KEY_MAP` itself
+
+`serialization-order-test.php` diffs PHP against Node output over a hand-picked 12-case corpus; nothing structurally diffs PHP's `bws_serialization_order_key_map()` against JS's `KEY_MAP` (`serialization-order-normalizer.js:48`) directly, so a key added to one and not the other only fails if the corpus happens to exercise it.
+
+Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114 (split out 2026-09-02 — was bundled with the fold-grammar twin under one item; different harness, different fix shape)
+
+Progress: Verified 2026-09-02 — confirmed no structural comparison exists anywhere in the repo (`KEY_MAP` only declared in the JS file, never read back from PHP's side for a set diff).
+
+Open: Fix shape — assert key-set equality between the two maps directly, in addition to (not instead of) the existing corpus cases; the corpus still proves ORDER, which a key-set diff alone can't.
+
+Blocked by: —  •  Interacts with: FW-114 (same "twin proof" family, split for independent landing)
+
+#### FW-118 — `show_if` condition strings are a one-sided DSL with no validator
+
+PHP option definitions author `show_if`/`show_if_any` condition strings that only a JS-only grammar (`editor-conditional-options.js`) interprets — no enum, no schema, nothing that fails if PHP writes a string the JS grammar can't parse. One incident already shipped this way (`registration-helpers.php:171-174`: a legacy `show_if src:'ref'` literal-equality check silently missed chain-wire `src` values, so a flat control kept rendering duplicated beside its chain replacement) — worked around by deleting the option (`bws_drop_chain_flat_options()`), not by making the DSL self-checking. Not filed as a GitHub issue: the one known incident is already resolved and not currently reproducible by a plugin user; what's missing is test/validator coverage, not an outstanding user-facing defect, so it tracks here per the bug-vs-coverage-gap split.
+
+Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-114 (split out 2026-09-02, same reasoning as FW-117)
+
+Progress: Verified 2026-09-02 — no enum, schema, or validator exists for the `show_if` grammar anywhere in PHP or JS today.
+
+Open: Fix shape — likely a PHP-side enum/whitelist of recognized condition forms, plus a lint/test asserting every registered `show_if` string parses under the JS grammar (mirrors the FW-114/FW-117 twin-proof pattern, applied to a DSL instead of a constant list).
+
+Blocked by: —  •  Interacts with: FW-114 (same underlying incident, `registration-helpers.php`)
 
 ### Docs & vocabulary
 
@@ -967,7 +1007,7 @@ Progress: Design converged 2026-08-18, parked — nothing committed, no ticket. 
 
 Open: Whether the verb enum (`key`/`modified`/`now`) also needs `published` — a scalar default can be stripped, but a list position with siblings may force a token; if so, whether that token appears only above cardinality 1 or always.
 
-Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35
+Blocked by: —  •  Interacts with: FW-60, FW-13, FW-14 (FU-3 stacking), FW-20, FW-24, FW-64, FW-35, FW-113 (its site 2 seam-join should land on the merged callback, not before)
 
 ## Closed / Retired
 
