@@ -165,9 +165,11 @@ Detail home: `.scratch/plans/table-tag.md` §FW-74 — the repeater-row arm
 
 Progress: The read layer already carries a live `case 'meta_row'` (`bws_read_resolved_source()`, `traversal-pipeline.php`); only the arm is missing. Design recorded ahead of the build: branch on the WIRE kind (`bws_fold_chain_resolution()`), never on `$base['kind']` — a resolved `meta_row` off the ambient context is GB Pro's flat repeater row and must keep falling through to the post arm; §F9c pins the distinction. #105 (closed) deliberately does not flag such a chain as broken, since the tag becomes correct without the warning needing to change.
 
-Open: Rides the `{{table}}` finalization, where the kind gets a consumer worth having.
+Open: Whether the arm's `use:`-dispatch half shares the analog seam `{{table}}` needs (a per-kind analog reader over the same five kinds the keyed seam switches on), or builds its own per-template route.
 
-Blocked by: row:FW-53  •  Interacts with: FW-53, FW-71 (closed), FW-7
+Ships as its OWN change, ahead of `{{table}}` — a COMMIT-ordering preference, not a prerequisite. The earlier "rides the `{{table}}` finalization" framing was inverted and is retired: repeater-row support lands generally and `{{table}}` consumes it. Nothing in `{{table}}` waits on this arm — its keyed columns read through the kind-complete `bws_read_resolved_source()` and its analog columns through the analog seam above, neither of which is this arm. Going first is worth it anyway: this has its own testable surface, is independently user-visible, and keeps the `branchable: false` regression risk off a diff that is simultaneously introducing a new tag.
+
+Blocked by: —  (was `row:FW-53`, i.e. blocked by `{{table}}` itself; that is the inversion D4 corrected)  •  Interacts with: FW-53, FW-71 (closed), FW-7
 
 #### FW-98 — The stated-fallback emit is written out ten times
 
@@ -911,7 +913,9 @@ Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_regi
 
 Open: v1 finalization detail lives entirely in the plan's §Roadmap. Flip the filter to unconditional when v1 ships.
 
-Blocked by: —  •  Interacts with: FW-13, FW-14 (#12, closed; discovery scoping), FW-20, FW-54, FW-56 (closed), FW-69 (closed), FW-67
+Does NOT wait on FW-74 (decided 2026-09-03): keyed columns read through the kind-complete `bws_read_resolved_source()`, and analog columns through a per-kind analog seam that is table's to build and FW-74's to reuse. FW-74 going first is a commit-ordering preference.
+
+Blocked by: —  •  Interacts with: FW-13, FW-14 (#12, closed; discovery scoping), FW-20, FW-54, FW-56 (closed), FW-69 (closed), FW-67, FW-74
 
 #### FW-54 — src:query — cross-tag post-query base source
 
