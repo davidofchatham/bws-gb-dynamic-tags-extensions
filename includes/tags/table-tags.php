@@ -40,11 +40,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Max column slots offered by {{table}}. Distinct from BWS_JOIN_MAX_SLOTS (whose
  * NAME does not travel — grill decision); a table's column count is a separate
- * global constraint, tunable here. Provisional value; revisit with the option-name
- * pass (handoff §11 deferred).
+ * global constraint, tunable here.
+ *
+ * THE DRIVER IS REGISTRATION WEIGHT, NOT ADDRESSING. GB options are static, so a
+ * container registers its slots to a ceiling and renders one iff it holds a value;
+ * the ceiling is how many option definitions ride in the editor payload, one per
+ * slot. The slot ORDINAL has no ceiling to inherit — bws_slot_ordinal() encodes
+ * spreadsheet-style (27 → `AA`) and every consumer routes through it — so no value
+ * here is forced by the wire, and raising it costs one option definition per column.
+ *
+ * The value matches BWS_JOIN_MAX_SLOTS by independent judgment, not derivation:
+ * nothing about a table argues for fewer columns than join allows slots, one ceiling
+ * across the plugin is one number for an author to meet, and a table-specific outlier
+ * would be the straggler if FW-45 ever lifts ceilings globally.
+ *
+ * @since 1.17.0
  */
 if ( ! defined( 'BWS_TABLE_MAX_COLS' ) ) {
-	define( 'BWS_TABLE_MAX_COLS', 6 );
+	define( 'BWS_TABLE_MAX_COLS', 10 );
 }
 
 /**
