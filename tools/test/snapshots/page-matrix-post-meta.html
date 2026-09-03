@@ -470,6 +470,24 @@
 </div>
 
 <div>
+<h2 class="wp-block-heading">Datetime D8 &#8211; all-day range + consolidation (#125/#126)</h2>
+
+<p class="gb-text">D8.1 expect &#8220;August 12, 2030&#8221; (no stray 11:59 PM): August 12, 2030</p>
+
+<p class="gb-text">D8.2 expect &#8220;August 12-August 14, 2030&#8221; (multi-day, both ends bare): August 12–August 14, 2030</p>
+
+<p class="gb-text">D8.3 expect EMPTY (as:time on an all-day span has no time to show):</p>
+
+<p class="gb-text">D8.4 expect &#8220;12:00 am-11:59 pm&#8221; (showMidnight opts back in to both ends): 12:00 am–11:59 pm</p>
+
+<p class="gb-text">D8.5 expect &#8220;9:00-11:30 am&#8221; consolidated EVEN WITH showMidnight on (#125): 9:00–11:30 am</p>
+
+<p class="gb-text">D8.6 expect &#8220;9:00 am-5:00 pm&#8221; (cross-meridiem stays full under showMidnight): 9:00 am–5:00 pm</p>
+
+<p class="gb-text">D8.7 expect &#8220;09:00-11:30&#8221; (24-hour format gate still blocks consolidation): 09:00–11:30</p>
+</div>
+
+<div>
 <h2 class="wp-block-heading">Datetime D4 &#8211; src:ref list mode (#30)</h2>
 
 <p class="gb-text">D4.6: May 1, 2030 10:00 AM, June 1, 2030 11:00 AM</p>

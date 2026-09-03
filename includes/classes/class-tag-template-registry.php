@@ -595,7 +595,8 @@ class TagTemplateRegistry {
 			// too, where these DO lead. On try_ they no longer do (canonical control order,
 			// 1.17.0), so the local name states what they are rather than where they sit.
 			$format_options  = $tpl['leading_options'] ?? [];
-			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! empty( $tpl['is_image'] ) === false;
+			$is_image        = ! empty( $tpl['is_image'] );
+			$supports_link   = ! empty( $tpl['supports_link_wrap'] ) && ! $is_image;
 
 			if ( ! $try_core_fn ) {
 				continue;
@@ -764,7 +765,7 @@ class TagTemplateRegistry {
 
 			$tpl_key = $tpl['key'];
 
-			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $qf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse ) {
+			$callback = static function ( $opts, $b, $inst ) use ( $cf, $tcf, $sf, $uf, $qf, $psk, $psu, $nku, $slnk, $media_guard, $default_use, $tpl_key, $collapse, $is_image ) {
 				if ( $media_guard && function_exists( 'bws_tag_blocked_on_media_block' ) && bws_tag_blocked_on_media_block( $b ) ) {
 					return '';
 				}
@@ -1104,7 +1105,18 @@ class TagTemplateRegistry {
 				}
 
 				// All slots exhausted — apply the fallback, then label if in preview.
-				if ( '' !== $fallback ) {
+				// Image templates: `fallback` is a media-picker attachment id/URL, not
+				// literal text — route it through the same resolver the base `{{image}}`
+				// arm uses (bws_image_stated_fallback, shared owner per image-tags.php),
+				// so `as`/size are honored instead of the raw id being echoed verbatim.
+				if ( $is_image ) {
+					if ( function_exists( 'bws_image_stated_fallback' ) ) {
+						$img_fallback = bws_image_stated_fallback( $opts, $inst );
+						if ( '' !== $img_fallback ) {
+							return $img_fallback;
+						}
+					}
+				} elseif ( '' !== $fallback ) {
 					return bws_gb_tag_output( $fallback, $opts, $inst );
 				}
 

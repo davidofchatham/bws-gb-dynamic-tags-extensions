@@ -44,6 +44,26 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C16 | 404 (default arm) | `/no-such-page-xyz/` | GP's own default through the borrow: `It looks like nothing was found at this location. Maybe try searching?` (no fixture callback on `generate_404_text` — §C5 below). Without GP: empty | empty | **PASS (1.19.0)** |
 | C17 | Term archive (control) | `/department/sales/` | Sales term description | — | **PASS (1.15.0 fixture)** |
 
+## C-rows — content/datetime WITH a configured `fallback` (regression fix, 1.19.1)
+
+`bws_base_ambient_analog()`'s `query_context` case claimed `content`/`datetime_single`/`datetime_range` unconditionally on all five query-context kinds, and its reader has no analog for most (tag, kind) pairs — so a configured `fallback` never got a chance to run, and the tag rendered bare empty instead. Fixed by falling through to the post route (content) / widening the outer fallback gate (datetime) so each tag's own self-contained fallback mechanism fires. `{{image}}`'s twin of this fix is C-I1 below — render-tag-only, since its fallback needs a seeded Media Library id these two don't. Author archive is not a regression for content OR datetime: content's `user`-kind claim already answers with the real bio (C13, unaffected); datetime is not claimed by the `user` kind at all (only title/content/text are, per `bws_base_ambient_analog()`'s PHPDoc carve-out), so it was already reaching the post route's self-contained fallback before this fix.
+
+| # | Context | URL | Before (empty, the bug) | After (this session) | Why |
+|---|---|---|---|---|---|
+| C-C2.1 | Date archive | `/2026/07/` | empty | `No description available` | no content analog on this sub-kind |
+| C-C2.2 | Post type archive | `/staff/` | *(not a regression)* | the staff type's description (C12, unchanged) | a real, non-empty analog — the fallback never gets a turn |
+| C-C2.3 | Author archive | `/author/fixture-author/` | *(not a regression)* | the author bio (C13, unchanged) | real analog, same reasoning |
+| C-C2.4 | Search | `/?s=searchpin` | empty | `No description available` | no analog. **Front-end row only** (header note) |
+| C-C2.5 | Latest-posts home | `/` | empty | `No description available` | no analog |
+| C-C2.6 | 404 | `/no-such-page-xyz/` | *(not a regression)* | GP's default borrow text (C16, unchanged) | a real analog on this GP testbed |
+| C-DT1/C-DT2.1 | Date archive | `/2026/07/` | empty | `TBA` | datetime has no analog on ANY query-context sub-kind |
+| C-DT1/C-DT2.2 | Post type archive | `/staff/` | empty | `TBA` | same |
+| C-DT1/C-DT2.3 | Author archive | `/author/fixture-author/` | `TBA` (already correct) | `TBA` | not claimed by the `user` kind at all — always reached the post route |
+| C-DT1/C-DT2.4 | Search | `/?s=searchpin` | empty | `TBA` | no analog. **Front-end row only** |
+| C-DT1/C-DT2.5 | Latest-posts home | `/` | empty | `TBA` | no analog |
+| C-DT1/C-DT2.6 | 404 | `/no-such-page-xyz/` | empty | `TBA` | no analog (datetime has no 404 borrow, unlike content) |
+| C-I1 | Date archive | `/2026/07/` | empty | the fallback IMAGE renders | **`render-tag` only, exception stated per the visible-rows rule** — `fallback` is a Media Library id assigned at seed time, so no static string in `blocks.php` can name it, same reasoning as F11b.3. Pass the seeded `fixture-photo` attachment's id (`wp post list --post_type=attachment`); repeat against `/staff/`, `/?s=searchpin`, `/`, `/no-such-page-xyz/` — image has no analog on any of the five, so all five were broken and all five are fixed the same way |
+
 ## Author-kind detail
 
 Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's author-archive dispatch rows). text/permalink/image/datetime author analogs are future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA query-context kind this section used to point at as "next" shipped 1.19.0 (C2/C12 above).

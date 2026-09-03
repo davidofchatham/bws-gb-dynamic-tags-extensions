@@ -555,10 +555,12 @@ For wp_options arrays, the **root** key is what's allowlisted (`my_plugin_settin
 | Function | Purpose |
 |----------|---------|
 | `bws_parse_acf_date_value()` | Parse ACF date values with timezone handling |
-| `bws_format_single_date_time()` | Format single date/time with year omission, smart time |
+| `bws_format_single_date_time()` | Format single date/time with year omission and midnight suppression |
 | `bws_format_date_range()` | Smart range formatting with redundancy removal |
 | `bws_format_time_range()` | Time range with AM/PM consolidation |
 | `bws_handle_date_time_fallback()` | Fallback text handling for date tags |
+
+**BREAKING in v1.19.1 — the midnight-suppression option key is `hide_midnight`, was `smart_time`, no alias.** It reaches `bws_format_single_date_time()` and `bws_format_date_range()` in their `$options` array, and `bws_format_time_range()` as its third positional argument. Same value, same meaning: `true` hides a time that carries no information. The old name described two behaviors that have since been separated — AM/PM consolidation no longer rides this flag at all ([#125](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/125)) — so a `smart_time` key is now silently ignored rather than misread. Author-facing surfaces are unaffected: the `showMidnight` tag option and every tag string keep their spelling.
 
 ### Taxonomy helpers (`includes/helpers/taxonomy-helpers.php`)
 

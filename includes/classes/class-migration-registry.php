@@ -634,8 +634,8 @@ class MigrationRegistry {
 	 * reports keys literally present (docs/gb-constraints.md §Option Default Serialization),
 	 * so the option definition's `'default' => true` never reached the callback. Absent, `''`
 	 * and `'0'` therefore ALL rendered smart-time OFF (midnight shown), while the modern
-	 * default is the opposite: absent `showMidnight` maps to `smart_time = true`, which HIDES
-	 * midnight (bws_normalize_datetime_options). Holding output steady means injecting the
+	 * default is the opposite: absent `showMidnight` maps to `hide_midnight = true`, which
+	 * HIDES midnight (bws_normalize_datetime_options). Holding output steady means injecting the
 	 * modern flag exactly where the old read was falsy. Same rule, same reason, for
 	 * `omit_current_year` → `showCurrentYear`.
 	 *
@@ -691,7 +691,7 @@ class MigrationRegistry {
 		//    absent, '' or '0' all rendered midnight SHOWN, which is not the modern default.
 		//    A bare key parses as PHP true and is simply dropped: hidden then, hidden now.
 		//    Skipped on a date-only tag, where the flag would render nothing (both date cores
-		//    force smart_time => false) but would read as a live setting in hand-edited wire.
+		//    force hide_midnight => false) but would read as a live setting in hand-edited wire.
 		$show_midnight = $legacy_era && empty( $options['smart_time'] ) && 'date' !== $as;
 		unset( $options['smart_time'] );
 

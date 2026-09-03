@@ -647,6 +647,26 @@ function bws_fixture_core_structures_register_acf() {
 					'display_format' => 'F j, Y g:i A',
 				),
 				array(
+					// END of the all-day encoding: 23:59 paired with event_midnight as
+					// the start (#126). Same-day pair — D8 rows.
+					'key'            => 'field_bwsfx_event_allday_end',
+					'name'           => 'event_allday_end',
+					'label'          => 'Event All-Day End (same day)',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
+					// Same encoding, two days later — the MULTI-DAY half of #126, which
+					// bws_format_multi_day_range() handles on a separate code path.
+					'key'            => 'field_bwsfx_event_allday_end_multi',
+					'name'           => 'event_allday_end_multi',
+					'label'          => 'Event All-Day End (multi-day)',
+					'type'           => 'date_time_picker',
+					'return_format'  => 'F j, Y g:i A',
+					'display_format' => 'F j, Y g:i A',
+				),
+				array(
 					// Value seeded in the CURRENT year — showCurrentYear rows.
 					'key'            => 'field_bwsfx_event_thisyear',
 					'name'           => 'event_thisyear',

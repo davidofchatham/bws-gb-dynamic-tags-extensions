@@ -722,7 +722,7 @@ function bws_format_single_date_time( $date, $format, $options ) {
     }
 
     $omit_current_year = ! empty( $options['omit_current_year'] );
-    $smart_time = ! empty( $options['smart_time'] );
+    $hide_midnight = ! empty( $options['hide_midnight'] );
     $current_year = wp_date( 'Y' );
     $utils = bws_format_utils();
 
@@ -731,8 +731,8 @@ function bws_format_single_date_time( $date, $format, $options ) {
         $format = $utils['remove_year']( $format );
     }
 
-    // Smart time formatting - hide midnight
-    if ( $smart_time && $utils['has_time']( $format ) && $date->format( 'H:i' ) === '00:00' ) {
+    // Hide the time when it's midnight.
+    if ( $hide_midnight && $utils['has_time']( $format ) && $date->format( 'H:i' ) === '00:00' ) {
         $format = $utils['remove_time']( $format );
     }
 
@@ -759,13 +759,13 @@ function bws_format_date_range( $start_date, $end_date, $format, $options ) {
 
     $separator = $options['separator'] ?? '–';
     $omit_current_year = ! empty( $options['omit_current_year'] );
-    $smart_time = ! empty( $options['smart_time'] );
+    $hide_midnight = ! empty( $options['hide_midnight'] );
     $current_year = wp_date( 'Y' );
     $utils = bws_format_utils();
 
     // Single date case
     if ( ! $end_date ) {
-        return bws_format_single_date( $start_date, $format, $omit_current_year, $smart_time, $current_year, $utils );
+        return bws_format_single_date( $start_date, $format, $omit_current_year, $hide_midnight, $current_year, $utils );
     }
 
     // Cross-year override: when the two endpoints fall in different years, the
@@ -778,11 +778,11 @@ function bws_format_date_range( $start_date, $end_date, $format, $options ) {
 
     // Same day with time range
     if ( $start_date->format( 'Y-m-d' ) === $end_date->format( 'Y-m-d' ) ) {
-        return bws_format_same_day_range( $start_date, $end_date, $format, $omit_current_year, $smart_time, $current_year, $utils );
+        return bws_format_same_day_range( $start_date, $end_date, $format, $omit_current_year, $hide_midnight, $current_year, $utils );
     }
 
     // Different days - build smart range
-    return bws_format_multi_day_range( $start_date, $end_date, $format, $separator, $omit_current_year, $smart_time, $current_year, $utils );
+    return bws_format_multi_day_range( $start_date, $end_date, $format, $separator, $omit_current_year, $hide_midnight, $current_year, $utils );
 }
 }
 
@@ -793,13 +793,13 @@ function bws_format_date_range( $start_date, $end_date, $format, $options ) {
  * @param DateTime $date Date object
  * @param string $format Date format
  * @param bool $omit_current_year Whether to omit current year
- * @param bool $smart_time Whether to use smart time formatting
+ * @param bool $hide_midnight Whether to hide a midnight time
  * @param string $current_year Current year
  * @param array $utils Utility functions
  * @return string Formatted date
  */
 if ( ! function_exists( 'bws_format_single_date' ) ) {
-function bws_format_single_date( $date, $format, $omit_current_year, $smart_time, $current_year, $utils ) {
+function bws_format_single_date( $date, $format, $omit_current_year, $hide_midnight, $current_year, $utils ) {
     // Safety check - must have valid date
     if ( ! $date || ! is_a( $date, 'DateTime' ) ) {
         return '';
@@ -810,8 +810,8 @@ function bws_format_single_date( $date, $format, $omit_current_year, $smart_time
         $format = $utils['remove_year']( $format );
     }
 
-    // Smart time formatting - hide midnight
-    if ( $smart_time && $utils['has_time']( $format ) && $date->format( 'H:i' ) === '00:00' ) {
+    // Hide the time when it's midnight.
+    if ( $hide_midnight && $utils['has_time']( $format ) && $date->format( 'H:i' ) === '00:00' ) {
         $format = $utils['remove_time']( $format );
     }
 
@@ -827,13 +827,13 @@ function bws_format_single_date( $date, $format, $omit_current_year, $smart_time
  * @param DateTime $end End date
  * @param string $format Date format
  * @param bool $omit_current_year Whether to omit current year
- * @param bool $smart_time Whether to use smart time formatting
+ * @param bool $hide_midnight Whether to hide a midnight time
  * @param string $current_year Current year
  * @param array $utils Utility functions
  * @return string Formatted date range
  */
 if ( ! function_exists( 'bws_format_same_day_range' ) ) {
-function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $smart_time, $current_year, $utils ) {
+function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $hide_midnight, $current_year, $utils ) {
     // Safety checks - must have valid dates
     if ( ! $start || ! is_a( $start, 'DateTime' ) || ! $end || ! is_a( $end, 'DateTime' ) ) {
         return '';
@@ -855,7 +855,7 @@ function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $
     // format's own time tokens (#25) — extract_time falls back to 'g:i A' when
     // the format carries no recognizable time pattern.
     if ( $has_time && $start->format( 'H:i' ) !== $end->format( 'H:i' ) ) {
-        $time_range = bws_format_time_range( $start, $end, $smart_time, $utils['extract_time']( $format ) );
+        $time_range = bws_format_time_range( $start, $end, $hide_midnight, $utils['extract_time']( $format ) );
 
         if ( $time_range ) {
             return trim( $date_part . ', ' . $time_range );
@@ -863,7 +863,7 @@ function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $
     }
 
     // Single date with potential time
-    if ( $smart_time && $has_time && $start->format( 'H:i' ) === '00:00' ) {
+    if ( $hide_midnight && $has_time && $start->format( 'H:i' ) === '00:00' ) {
         return $date_part; // Hide midnight time
     }
 
@@ -875,55 +875,75 @@ function bws_format_same_day_range( $start, $end, $format, $omit_current_year, $
  * Format time range with smart AM/PM consolidation
  *
  * Format-aware (#25): renders both sides in $time_format. AM/PM consolidation
- * (the shared-meridiem collapse, `9:00–11:30 AM`) applies ONLY in smart mode
- * AND only when the format is 12-hour (an hour token g/h plus a meridiem token
- * A/a) — a meridiem-less or 24-hour format renders both sides fully.
- * Midnight suppression (smart mode) is independent of the format.
+ * (the shared-meridiem collapse, `9:00–11:30 AM`) applies whenever the format
+ * is 12-hour (an hour token g/h plus a meridiem token A/a) — a meridiem-less
+ * or 24-hour format renders both sides fully. Unlike midnight suppression,
+ * consolidation runs regardless of $hide_midnight (#125): it collapses a
+ * redundant meridiem token, not a value the author asked to hide.
+ *
+ * $hide_midnight also treats `23:59`/`23:59:59` on the END side as "no end
+ * time known", the mirror of `00:00` meaning "no start time known" (#126):
+ * a same-day `00:00`-`23:59` range is the all-day encoding, and both ends
+ * are the day's own midnight boundary.
+ *
+ * A start and end that are the same instant never need a range at all (an
+ * outlier reachable only via direct calls to this documented helper — the
+ * one production caller never passes equal instants) and collapse to a
+ * single formatted value; under $hide_midnight a midnight instant collapses
+ * to nothing, same as the two-sided case above.
  *
  * @since 3.0.0
  * @since 1.15.0 $time_format param — custom/ACF/WP-default chain honored
  *               two-ended (issue #25); previously hardcoded 'g:i A'.
+ * @since 1.19.1 Consolidation ungated from $hide_midnight (#125); `23:59`
+ *               end sentinel (#126); same-instant collapse; param renamed
+ *               from $smart_time.
  * @param DateTime $start Start time
  * @param DateTime $end End time
- * @param bool $smart_time Whether to use smart formatting
+ * @param bool $hide_midnight Whether to hide a midnight/unset time.
  * @param string $time_format Time-only PHP date format for both sides.
  * @return string Formatted time range
  */
 if ( ! function_exists( 'bws_format_time_range' ) ) {
-function bws_format_time_range( $start, $end, $smart_time, $time_format = 'g:i A' ) {
+function bws_format_time_range( $start, $end, $hide_midnight, $time_format = 'g:i A' ) {
     // Safety checks - must have valid dates
     if ( ! $start || ! is_a( $start, 'DateTime' ) || ! $end || ! is_a( $end, 'DateTime' ) ) {
         return '';
     }
 
-    // Skip midnight times in smart mode (independent of the format).
-    if ( $smart_time ) {
-        $start_is_midnight = $start->format( 'H:i' ) === '00:00';
-        $end_is_midnight   = $end->format( 'H:i' ) === '00:00';
+    // Same instant: nothing to range.
+    if ( $start->getTimestamp() === $end->getTimestamp() ) {
+        if ( $hide_midnight && $start->format( 'H:i' ) === '00:00' ) {
+            return '';
+        }
+        return $start->format( $time_format );
+    }
 
-        if ( $start_is_midnight && $end_is_midnight ) {
-            return ''; // Both midnight
+    if ( $hide_midnight ) {
+        $start_is_midnight = $start->format( 'H:i' ) === '00:00';
+        $end_has_no_time   = in_array( $end->format( 'H:i' ), array( '00:00', '23:59' ), true );
+
+        if ( $start_is_midnight && $end_has_no_time ) {
+            return ''; // Neither end has a known time — all-day.
         }
         if ( $start_is_midnight ) {
             return $end->format( $time_format ); // Only end time
         }
-        if ( $end_is_midnight ) {
+        if ( $end_has_no_time ) {
             return $start->format( $time_format ); // Only start time
         }
-
-        // Consolidation gate: 12-hour formats only.
-        $is_twelve_hour = preg_match( '/[gh]/', $time_format ) && preg_match( '/[Aa]/', $time_format );
-
-        if ( $is_twelve_hour && $start->format( 'A' ) === $end->format( 'A' ) ) {
-            // Shared meridiem: the start side sheds its meridiem token.
-            $bare = trim( preg_replace( '/\s*[Aa]\s*/', ' ', $time_format ) );
-            return $start->format( $bare ) . '–' . $end->format( $time_format );
-        }
-
-        return $start->format( $time_format ) . '–' . $end->format( $time_format );
     }
 
-    // Non-smart formatting: both sides full, no consolidation.
+    // Consolidation: 12-hour formats only, applies whether or not midnight
+    // suppression is on (#125).
+    $is_twelve_hour = preg_match( '/[gh]/', $time_format ) && preg_match( '/[Aa]/', $time_format );
+
+    if ( $is_twelve_hour && $start->format( 'A' ) === $end->format( 'A' ) ) {
+        // Shared meridiem: the start side sheds its meridiem token.
+        $bare = trim( preg_replace( '/\s*[Aa]\s*/', ' ', $time_format ) );
+        return $start->format( $bare ) . '–' . $end->format( $time_format );
+    }
+
     return $start->format( $time_format ) . '–' . $end->format( $time_format );
 }
 }
@@ -931,19 +951,25 @@ function bws_format_time_range( $start, $end, $smart_time, $time_format = 'g:i A
 /**
  * Format multi-day range with smart redundancy removal
  *
+ * Each end drops its time independently. `00:00` means "no start time known";
+ * `23:59`/`23:59:59` on the END side is its mirror, so a `00:00`-`23:59`
+ * multi-day span renders as bare dates (#126) — the same sentinel pair
+ * bws_format_time_range() applies to a same-day span.
+ *
  * @since 3.0.0
+ * @since 1.19.1 `23:59` end sentinel (#126); param renamed from $smart_time.
  * @param DateTime $start Start date
  * @param DateTime $end End date
  * @param string $format Original format
  * @param string $separator Separator between dates
  * @param bool $omit_current_year Whether to omit current year
- * @param bool $smart_time Whether to use smart time formatting
+ * @param bool $hide_midnight Whether to hide a midnight/unset time
  * @param string $current_year Current year
  * @param array $utils Utility functions
  * @return string Formatted date range
  */
 if ( ! function_exists( 'bws_format_multi_day_range' ) ) {
-function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_current_year, $smart_time, $current_year, $utils ) {
+function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_current_year, $hide_midnight, $current_year, $utils ) {
     // Safety checks - must have valid dates
     if ( ! $start || ! is_a( $start, 'DateTime' ) || ! $end || ! is_a( $end, 'DateTime' ) ) {
         return '';
@@ -989,12 +1015,13 @@ function bws_format_multi_day_range( $start, $end, $format, $separator, $omit_cu
         }
     }
 
-    // Apply smart time formatting
-    if ( $smart_time ) {
+    // Drop each end's time when it carries no real value. `23:59` is the END-side
+    // sentinel only — as a START it is a genuine time (#126).
+    if ( $hide_midnight ) {
         if ( $utils['has_time']( $start_format ) && $start->format( 'H:i' ) === '00:00' ) {
             $start_format = $utils['remove_time']( $start_format );
         }
-        if ( $utils['has_time']( $end_format ) && $end->format( 'H:i' ) === '00:00' ) {
+        if ( $utils['has_time']( $end_format ) && in_array( $end->format( 'H:i' ), array( '00:00', '23:59' ), true ) ) {
             $end_format = $utils['remove_time']( $end_format );
         }
     }

@@ -849,6 +849,13 @@ function bws_build_fold_slot_options( array $args ): array {
 		'readRows'       => $read_rows,
 		'readRowsInherit' => $read_rows_inherit,
 		'readLabel'      => $base_read['label'] ?? '',
+		// The read an absent slot-1 value spells — the read-axis twin of `defaultRoot`
+		// above, same reason: a control that leaves the picker (and, for a `key` default,
+		// the field group) blank until the author touches something disagrees with what
+		// the render seam already assumes (`bws_fold_empty_carry( $default_use )`). A
+		// combining container's first row is the unset row itself, so this resolves to
+		// '' there automatically — no branch needed for "combining seeds the read UNSET".
+		'defaultRead'    => (string) ( $read_rows[0]['value'] ?? '' ),
 		'taxonomies'     => $tax_rows,
 		'refOption'      => bws_fold_picker_config( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold
@@ -1761,14 +1768,17 @@ function bws_base_query_context_analog_read( string $tag, array $base, array $op
  *
  * Both readers end in a bare `return '';`, so a (tag, kind) pair a reader does
  * not handle renders empty through the seam — which is what those pairs render
- * today through the callbacks' post-route fallthrough. ONE measured exception:
- * the user kind is claimed only for the tags bws_base_user_analog_read()
- * handles (title/content/text), because {{image}} on an author archive reaches
- * bws_custom_image_core() through the post route today and a configured Media
- * Library fallback still renders there (the cores own the stated-fallback emit,
- * which the seam's '' would silently drop). {{permalink}} is byte-equal either
- * way ('' both ways) and stays out with it: the user arm claims exactly what
- * the reader answers, and widens when FW-47 gives the reader those analogs.
+ * today through the callbacks' post-route fallthrough. TWO measured exceptions,
+ * same shape: the user kind is claimed only for the tags
+ * bws_base_user_analog_read() handles (title/content/text), and the
+ * query_context kind is claimed for every tag EXCEPT image — in both cases
+ * because {{image}} on that ambient (an author archive, or a post-type/date/
+ * search/404/front-page archive) reaches bws_custom_image_core() through the
+ * post route today and a configured Media Library fallback still renders there
+ * (the cores own the stated-fallback emit, which the seam's '' would silently
+ * drop). {{permalink}} is byte-equal either way ('' both ways) and stays out
+ * with the user carve-out: that arm claims exactly what the reader answers,
+ * and widens when FW-47 gives the reader those analogs.
  *
  * Link identity is DERIVED, not decided here: bws_source_link_identity() is the
  * one owner (CONTEXT.md I12), and a null identity on an entity kind (id 0)
@@ -1826,14 +1836,24 @@ function bws_base_ambient_analog( string $tag, array $base, array $options, $ins
 			);
 
 		case 'query_context':
-			// Entity-LESS kind (#19 / FW-9): claimed for EVERY tag, because the
-			// fallthrough would hand a query-context base to the post route and a
-			// falsy-id core read — the leak class this kind exists to stop, one
-			// layer down. The reader answers '' for a tag it has no analog for
+			// Entity-LESS kind (#19 / FW-9): claimed for EVERY tag but `image` —
+			// the same measured carve-out as the 'user' case above, and for the
+			// identical reason: a query-context ambient (post-type archive, date
+			// archive, search, 404, front page) reaches bws_custom_image_core()
+			// through the post route today, and a configured Media Library
+			// fallback still renders there on a falsy post id (the cores own the
+			// stated-fallback emit, which this seam's '' would silently drop).
+			// Every other tag keeps the unconditional claim: the fallthrough
+			// would hand a query-context base to the post route and a falsy-id
+			// core read — the leak class this kind exists to stop, one layer
+			// down. The reader answers '' for a tag it has no analog for
 			// (empty, not wrong). Identity is DERIVED here too, not decided:
 			// bws_source_link_identity() refuses this kind by name (null), and its
 			// null translates to the refused arms' no-wrap pair — so if the owner
 			// ever grants this kind an identity, the seam follows automatically.
+			if ( 'image' === $tag ) {
+				return null;
+			}
 			$identity = bws_source_link_identity( $base );
 			return array(
 				'value'     => bws_base_query_context_analog_read( $tag, $base, $options, $instance ),

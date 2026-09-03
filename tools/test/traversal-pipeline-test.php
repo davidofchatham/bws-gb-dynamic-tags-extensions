@@ -906,14 +906,23 @@ eq( 'user x permalink -> null (claim-what-you-answer)', null, bws_base_ambient_a
 
 // ── #19 / FW-9 — the seam's query-context arm ─────────────────────────────────
 //
-// The OPPOSITE claiming rule from the user arm, on purpose: query_context is
-// claimed for EVERY tag, because a fallthrough would hand the entity-less base
-// to the post route and a falsy-id core read — the leak class the kind exists
-// to stop, one layer down. The reader answers '' for a tag with no analog
-// (empty, not wrong). Rows use the 404 sub-kind: without GENERATE_VERSION its
-// title is core's msgid through the __() shim, so no further WP surface is
-// touched (the other sub-kinds call live primitives and are pinned by the
-// C-rows on the testbed).
+// Mostly the OPPOSITE claiming rule from the user arm, on purpose: query_context
+// is claimed for every tag but `image`, because a fallthrough would hand the
+// entity-less base to the post route and a falsy-id core read — the leak class
+// the kind exists to stop, one layer down. The reader answers '' for a tag with
+// no analog (empty, not wrong). Rows use the 404 sub-kind: without
+// GENERATE_VERSION its title is core's msgid through the __() shim, so no
+// further WP surface is touched (the other sub-kinds call live primitives and
+// are pinned by the C-rows on the testbed).
+//
+// `image` is the SAME carve-out as the user arm above, for the same reason: a
+// query-context archive (post-type/date/search/404/front-page) reaches
+// bws_custom_image_core() through the post route today, and a configured Media
+// Library fallback still renders there off the falsy-id read — a seam claim's
+// '' would silently drop it. Measured live 2026-09-02: a standalone {{image}}
+// on a post-type-archive template rendered nothing despite a valid `fallback`,
+// because this arm's unconditional claim reached the seam's bare '' before the
+// post route's stated-fallback emit ever ran.
 $qc_404 = array( 'kind' => 'query_context', 'sub' => '404', 'payload' => array() );
 eq(
 	'FW-9 query context claims title (404 -> core msgid, no-wrap identity)',
@@ -921,8 +930,13 @@ eq(
 	bws_base_ambient_analog( 'title', $qc_404, array(), null )
 );
 eq(
-	'FW-9 query context claims an analog-less tag with an EMPTY value',
+	'FW-9 query context claims an analog-less tag with an EMPTY value (permalink stays claimed)',
 	array( 'value' => '', 'link_id' => 0, 'link_type' => 'post' ),
+	bws_base_ambient_analog( 'permalink', $qc_404, array(), null )
+);
+eq(
+	'FW-9 query context x image -> null (post route keeps the stated-fallback emit)',
+	null,
 	bws_base_ambient_analog( 'image', $qc_404, array(), null )
 );
 eq(
@@ -937,6 +951,64 @@ eq(
 );
 // The FW-63 gate binds this arm too: a chain that states a hop is not ambient.
 eq( 'FW-9 chain hop on a query-context base -> null', null, bws_base_ambient_analog( 'title', $qc_404, array( 'src' => 'refs,related' ), null ) );
+
+// ── census guard — every ambient KIND this seam switches on carries an `image`
+// carve-out, or a stated reason it does not need one ───────────────────────────
+//
+// {{image}}'s cores (bws_featured_image_core/bws_custom_image_core) own a
+// self-contained stated-fallback emit on a falsy post id — the SAME shape
+// bws_post_content_core and the datetime cores use. Twice now (`user` kind,
+// pre-existing; `query_context` kind, this session) a kind's unconditional
+// claim on `image` reached this seam's own bare '' before that emit ever got a
+// turn, silently dropping a configured Media Library fallback. Both are pinned
+// above as ordinary assertions, which is exactly what let the second instance
+// ship unnoticed for a release cycle — nothing forced a REVIEWER to re-check
+// image's carve-out when a kind was touched. This section is the fix for that:
+// it reads the seam's OWN switch cases off disk (not a hand-kept copy, which
+// would drift the same way a third per-tag copy of the rule would) and fails
+// if a kind arrives — or one of the two already listed above is removed —
+// without a matching row here.
+//
+// SCOPE, stated once rather than assumed: this census covers exactly the shape
+// where the FIX lives IN THE SEAM (image's `return null` carve-out). The
+// content/datetime_single/datetime_range instances found and fixed the same
+// session have the identical consequence but a DIFFERENT mechanism — their fix
+// is in the CALLBACK's own tail (falling through to the post route / widening
+// the outer fallback gate), which this seam's return value cannot distinguish
+// from the pre-fix behaviour, so it is not testable by calling this function
+// alone. Their regression protection is the page-snapshot baseline instead
+// (`tools/test/context-test-matrix.md` C-C2/C-DT1/C-DT2, `tools/test/snapshots/
+// ctx-*.html`) — a WP-dependent instrument, because the fix itself is.
+// \R (not \n): base-shared.php is CRLF, and a literal \n here silently matches
+// nothing rather than failing loud — measured, not assumed, per the file's own
+// rule on what a runtime claim may rest on.
+$ambient_source = file_get_contents( __DIR__ . '/../../includes/tags/base-shared.php' );
+preg_match( '/^function bws_base_ambient_analog\(.*?\{\R(.*?)\R\}\R/ms', $ambient_source, $fn_match );
+preg_match_all( "/case '([a-z_]+)':/", $fn_match[1] ?? '', $case_match );
+$ambient_kinds = $case_match[1] ?? array();
+
+eq(
+	'census: bws_base_ambient_analog() switches on exactly these kinds',
+	array( 'term', 'user', 'query_context' ),
+	$ambient_kinds
+);
+
+// The `image` carve-out, per kind. `term` is deliberately skipped rather than
+// asserted either way: {{image}}'s term case never reaches this seam's
+// real-analog branch at all (base-tags.php routes term-kind image reads
+// through its own bws_term_custom_image_core arm, which owns the identical
+// no-key -> fallback shape directly — CONTEXT.md I9's term paragraph states
+// it), so there is no seam-level claim here to carve out or pin.
+foreach ( array_diff( $ambient_kinds, array( 'term' ) ) as $kind ) {
+	$base = 'query_context' === $kind
+		? array( 'kind' => 'query_context', 'sub' => 'date', 'payload' => array() )
+		: array( 'kind' => $kind, 'id' => 7 );
+	eq(
+		"census: '{$kind}' kind x image -> null (carve-out present)",
+		null,
+		bws_base_ambient_analog( 'image', $base, array(), null )
+	);
+}
 
 // ── §V5 — modifier ref hop off a base source (T7 pipeline assembly) ───────────
 //

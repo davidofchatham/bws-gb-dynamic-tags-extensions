@@ -101,6 +101,12 @@ $check( 'page field event_datetime seeded', get_post_meta( $page->ID, 'event_dat
 $check( 'page field event_thisyear in current year', 0 === strpos( (string) get_post_meta( $page->ID, 'event_thisyear', true ), wp_date( 'Y' ) ), var_export( get_post_meta( $page->ID, 'event_thisyear', true ), true ) );
 $check( 'term event_date seeded', $term && get_term_meta( $term->term_id, 'event_date', true ) === '20301005', $term ? var_export( get_term_meta( $term->term_id, 'event_date', true ), true ) : '' );
 
+// The all-day encoding's two ends (manifest v19, #126). Asserting the SECONDS is
+// the point: the sentinel matches on H:i, so a seeder that rounded 23:59:00 to the
+// next hour would leave the D8 rows passing for the wrong reason.
+$check( 'page field event_allday_end seeded at 23:59', get_post_meta( $page->ID, 'event_allday_end', true ) === '2030-08-12 23:59:00', var_export( get_post_meta( $page->ID, 'event_allday_end', true ), true ) );
+$check( 'page field event_allday_end_multi seeded at 23:59, two days on', get_post_meta( $page->ID, 'event_allday_end_multi', true ) === '2030-08-14 23:59:00', var_export( get_post_meta( $page->ID, 'event_allday_end_multi', true ), true ) );
+
 $out5 = GenerateBlocks_Register_Dynamic_Tag::replace_tags( '{{datetime_single key:event_datetime}}', [], $instance );
 $check( 'render {{datetime_single key:event_datetime}} on /matrix-post-meta/', strpos( (string) $out5, '2030' ) !== false, 'out=' . var_export( $out5, true ) );
 

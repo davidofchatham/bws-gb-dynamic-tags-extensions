@@ -135,3 +135,27 @@ seeded — no new fixture state).
 | D7.5 | support | `{{datetime_range startKey:event_date}}` | `October 5, 2030` (single-ended range off the term) | empty |
 | D7.6 | warehouse | `{{datetime_single key:event_date|fallback:Date TBA}}` | `Date TBA` (empty term field stays honest-empty → fallback) | `Date TBA` |
 | D7.7 | support | `{{datetime_single key:event_date|as:time}}` | empty (date-only term field has no time portion; midnight suppressed by smart default — same as the post-source rule) | empty |
+
+## D8 — all-day range + ungated consolidation (`/matrix-post-meta/`) — #125 / #126
+
+Two independent defects, both in the time-range formatters, both fixed 1.19.1.
+
+**#125** — `showMidnight` gated AM/PM consolidation as well as midnight suppression, so turning it on silently expanded `9:00–11:30 AM` to `9:00 AM–11:30 AM`. The approved row in `deprecated-tags-options.md` had called for consolidation to be always-on since 1.6.0; the rename and converter shipped then, the ungating did not. Consolidation is now independent of the flag and gated only by the format being 12-hour (that gate is deliberate — #25 / FW-12).
+
+**#126** — `23:59`/`23:59:59` on the END of a range is now read as "no end time known", mirroring `00:00` on the start side, so the all-day encoding `00:00`–`23:59` renders as bare dates. The asymmetry is deliberate: `23:59` as a START is a real time. Both spans were affected — same-day through `bws_format_time_range()` and multi-day through `bws_format_multi_day_range()`, which strips each end independently but recognised `00:00` only. #126's own body claimed the multi-day half was already correct; it was not.
+
+Fixture: `event_allday_end` = `2030-08-12 23:59` and `event_allday_end_multi` = `2030-08-14 23:59`, both paired with the existing `event_midnight` = `2030-08-12 00:00` as the start (blueprint v19 — NEW fixture state, reseed required). Lowercase meridiem in the `as:time` expectations follows the testbed's WP `time_format` of `g:i a`, same as D2.5/D2.6.
+
+| # | Tag | Expected (post-fix) | Pre-fix |
+|---|---|---|---|
+| D8.1 | `{{datetime_range startKey:event_midnight|endKey:event_allday_end}}` | `August 12, 2030` | `August 12, 2030, 11:59 PM` |
+| D8.2 | `{{datetime_range startKey:event_midnight|endKey:event_allday_end_multi}}` | `August 12–August 14, 2030` (day-collapse still blocked by the format's time token, as D2.3/R11) | `August 12–August 14, 2030 11:59 PM` |
+| D8.3 | `… |endKey:event_allday_end|as:time` | empty (no time part on either end) | `11:59 pm` |
+| D8.4 | `… |endKey:event_allday_end|as:time|showMidnight` | `12:00 am–11:59 pm` (the flag opts both ends back in) | `12:00 am–11:59 pm` (unchanged) |
+| D8.5 | `{{datetime_range startKey:event_time|endKey:event_end_time|as:time|showMidnight}}` | `9:00–11:30 am` (**consolidates despite showMidnight** — the #125 fix) | `9:00 am–11:30 am` |
+| D8.6 | `…startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight` | `9:00 am–5:00 pm` (cross-meridiem, both sides full either way) | `9:00 am–5:00 pm` (unchanged) |
+| D8.7 | `…startKey:event_time|endKey:event_end_time|as:time|format:H:i|showMidnight` | `09:00–11:30` (24-hour: the format gate still blocks consolidation) | `09:00–11:30` (unchanged) |
+
+D8.4/D8.6/D8.7 are pinned-unchanged rows, and they carry the load here: they are what separates "consolidation was ungated" from "the format gate or the sentinel was widened too far".
+
+Also worth knowing when reading D8.1: the same-instant case (`start === end`) now collapses to one value instead of rendering `X–X`. No row covers it, because the one production caller (`bws_format_same_day_range()`) only calls the time formatter when the two ends differ — it is reachable only through a direct call to the documented helper, and `datetime-format-test.php` §T23–T25 pins it there.

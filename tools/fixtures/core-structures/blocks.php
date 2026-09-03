@@ -585,6 +585,18 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'D3.4', '{{datetime_range startKey:event_midnight|endKey:event_end_datetime|as:time|format:H:i}}' ),
 	) );
 
+	// #125 / #126. Labels state the EXPECTED output: every row here rendered
+	// something different before the fix, so an id alone would not show which.
+	$sections[] = bws_fixture_gb_section( 'Datetime D8 - all-day range + consolidation (#125/#126)', array(
+		bws_fixture_gb_row( 'D8.1 expect "August 12, 2030" (no stray 11:59 PM)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end}}' ),
+		bws_fixture_gb_row( 'D8.2 expect "August 12-August 14, 2030" (multi-day, both ends bare)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end_multi}}' ),
+		bws_fixture_gb_empty_row( 'D8.3 expect EMPTY (as:time on an all-day span has no time to show)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time}}' ),
+		bws_fixture_gb_row( 'D8.4 expect "12:00 am-11:59 pm" (showMidnight opts back in to both ends)', '{{datetime_range startKey:event_midnight|endKey:event_allday_end|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.5 expect "9:00-11:30 am" consolidated EVEN WITH showMidnight on (#125)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.6 expect "9:00 am-5:00 pm" (cross-meridiem stays full under showMidnight)', '{{datetime_range startKey:event_datetime|endKey:event_end_datetime|as:time|showMidnight}}' ),
+		bws_fixture_gb_row( 'D8.7 expect "09:00-11:30" (24-hour format gate still blocks consolidation)', '{{datetime_range startKey:event_time|endKey:event_end_time|as:time|format:H:i|showMidnight}}' ),
+	) );
+
 	$sections[] = bws_fixture_gb_section( 'Datetime D4 - src:ref list mode (#30)', array(
 		bws_fixture_gb_row( 'D4.6', '{{datetime_single src:ref|ref:related_staff|key:event_datetime|limit:5}}' ),
 		bws_fixture_gb_row( 'D4.7', '{{datetime_range src:ref|ref:related_staff|startKey:event_datetime|endKey:event_end_datetime|limit:3|sep:; }}' ),
@@ -1611,7 +1623,15 @@ function bws_fixture_build_page_content( $builder ) {
  * label down with it, so a one-block row would read as missing fixture rather than as the
  * asserted empty.
  *
+ * C-C2/C-DT1/C-DT2 pin a regression (this session): `bws_base_ambient_analog()`'s query_context
+ * case claimed content/datetime_single/datetime_range unconditionally on every context here,
+ * and its reader has no analog for most of them, so a CONFIGURED `fallback` never got a chance
+ * to fire — the tag rendered bare empty instead. Unlike C-I1 (image's twin of this row, still
+ * render-tag-only — see `context-test-matrix.md`), these three need no seeded Media Library id:
+ * `fallback` is plain text, stable across every reseed, so they are fully visible here.
+ *
  * @since 1.19.0
+ * @since 1.19.1 C-C2/C-DT1/C-DT2 added
  * @return string
  */
 function bws_fixture_element_content_context_header() {
@@ -1633,6 +1653,18 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-X2 try_text key-first -> a custom heading where an author set one, else this context\'s canonical title -> SAME value as C-T1 here (no post carries the key on these URLs; I6: slot == standalone)',
 				'{{try_text 1-key:context_custom_heading|2-use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-C2 content WITH a fallback - fires on the three analog-less contexts (date/search/latest-home -> No description available), stays out of the way of a real analog on the other three (PTA/author/404, unchanged from C12/C13/C16). context-test-matrix.md has the per-context table',
+				'{{content fallback:No description available}}'
+			),
+			bws_fixture_gb_row(
+				'C-DT1 datetime_single WITH a fallback (-> TBA on every context here - none carries a datetime analog)',
+				'{{datetime_single fallback:TBA}}'
+			),
+			bws_fixture_gb_row(
+				'C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1)',
+				'{{datetime_range fallback:TBA}}'
 			),
 		)
 	);
