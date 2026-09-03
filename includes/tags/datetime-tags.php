@@ -930,8 +930,13 @@ function bws_base_datetime_single_callback( $options, $block, $instance ): strin
 	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
 	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans: the
 	// fallback it would otherwise have got is the one the core emits, and the core is
-	// exactly what a refusal must not run.
-	if ( '' === $value && ( $res['fans'] || $refused ) ) {
+	// exactly what a refusal must not run. An ambient claim joins it too, for the
+	// same reason: a non-term claim (line ~877) carries the seam's own '' straight
+	// through without ever calling bws_datetime_single_core(), and a term claim
+	// routes through the term core instead of the post one — either way the core
+	// whose falsy-entity branch normally self-applies this SAME fallback (line 476)
+	// never ran, so nothing else would apply it.
+	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'single' );
 		$link_id = 0;
 	}
@@ -1069,9 +1074,9 @@ function bws_base_datetime_range_callback( $options, $block, $instance ): string
 
 	// List-mode all-empty → the fallback fires once, unwrapped. A chain that FANS
 	// is exactly the old ( srcTermIn || src:ref ) test, stated on the wire instead
-	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans — see
-	// bws_base_datetime_single_callback().
-	if ( '' === $value && ( $res['fans'] || $refused ) ) {
+	// of on two tokens (FW-63). A REFUSED tag joins it whether or not it fans, and
+	// so does an ambient claim — see bws_base_datetime_single_callback().
+	if ( '' === $value && ( $res['fans'] || $refused || null !== $ambient ) ) {
 		$value   = bws_handle_date_time_fallback( $mapped, $instance, 'range' );
 		$link_id = 0;
 	}

@@ -5,6 +5,9 @@
 ### Fixed
 
 - **A try_ attempt's field key picker no longer stays hidden on a fresh slot.** A first attempt whose field defaults to the meta/option field reading (e.g. Try Image) needed the Field dropdown switched away and back before its key picker would appear; it now shows immediately, matching what the tag actually renders.
+- **`{{image}}`'s configured fallback now renders on archive, search, 404 and home-page contexts.** It previously rendered nothing on those pages even with a Media Library fallback set, though the fallback still worked correctly on individual posts, terms and author archives.
+- **`{{try_image}}`'s fallback now resolves the configured Media Library image, instead of printing the raw attachment ID as text.** This affected every `as` mode (URL, alt text, ID, caption), including a nonexistent attachment ID, which previously printed too instead of correctly rendering empty.
+- **`{{content}}`, `{{datetime_single}}` and `{{datetime_range}}`'s configured fallbacks now render on the same archive, search, 404 and home-page contexts** where they previously rendered nothing, for the same underlying reason as the `{{image}}` fix above.
 
 ## [1.19.0] — 2026-09-01
 

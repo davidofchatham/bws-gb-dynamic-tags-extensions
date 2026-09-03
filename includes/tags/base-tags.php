@@ -1135,13 +1135,21 @@ function bws_base_content_callback( $options, $block, $instance ): string {
 	}
 
 	// Ambient dispatch (term description/key analog §V7; author bio, #19) through
-	// the one kind-dispatching seam; this arm's own tail stays here.
+	// the one kind-dispatching seam; this arm's own tail stays here. An EMPTY claim
+	// does NOT terminate here (unlike the other ambient-reading tags): `content`'s
+	// cores (bws_post_content_core, both branches) own a self-contained
+	// stated-fallback emit on a falsy post id, the same shape image's cores use —
+	// falling through to the term/post route below (rather than returning bare ''
+	// or a preview label) gives a configured `fallback` its chance to run there,
+	// on a term-ambient, user-ambient, or query-context-ambient empty read alike.
 	$ambient = bws_base_ambient_analog( 'content', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		if ( '' !== $ambient['value'] ) {
 			return $ambient['value']; // content is not link-wrapped (parity with post path below).
 		}
-		return $is_preview && function_exists( 'bws_build_preview_label' ) ? bws_build_preview_label( $options, 'content' ) : '';
+		if ( $is_preview && function_exists( 'bws_build_preview_label' ) ) {
+			return bws_build_preview_label( $options, 'content' );
+		}
 	}
 	if ( 'term' === $res['kind'] ) {
 		// takes_first_usable (ADR 0007): search the WHOLE fan — every step limit is
@@ -1394,9 +1402,10 @@ function bws_base_image_callback( $options, $block, $instance ): string {
 
 	// Ambient dispatch (term image field by key, or the configured Media Library
 	// fallback — see the §V7 note above) through the one kind-dispatching seam. The
-	// seam does NOT claim the user kind for image (its PHPDoc has the measurement):
-	// an author archive falls through to the post route below, where the image
-	// cores' stated-fallback emit still applies.
+	// seam does NOT claim the user or query_context kinds for image (its PHPDoc
+	// has the measurement): an author archive, or a query-context archive
+	// (post-type/date/search/404/front-page), falls through to the post route
+	// below, where the image cores' stated-fallback emit still applies.
 	$ambient = bws_base_ambient_analog( 'image', $base, $options, $instance );
 	if ( null !== $ambient ) {
 		if ( '' !== $ambient['value'] ) {

@@ -1611,7 +1611,15 @@ function bws_fixture_build_page_content( $builder ) {
  * label down with it, so a one-block row would read as missing fixture rather than as the
  * asserted empty.
  *
+ * C-C2/C-DT1/C-DT2 pin a regression (this session): `bws_base_ambient_analog()`'s query_context
+ * case claimed content/datetime_single/datetime_range unconditionally on every context here,
+ * and its reader has no analog for most of them, so a CONFIGURED `fallback` never got a chance
+ * to fire — the tag rendered bare empty instead. Unlike C-I1 (image's twin of this row, still
+ * render-tag-only — see `context-test-matrix.md`), these three need no seeded Media Library id:
+ * `fallback` is plain text, stable across every reseed, so they are fully visible here.
+ *
  * @since 1.19.0
+ * @since 1.19.1 C-C2/C-DT1/C-DT2 added
  * @return string
  */
 function bws_fixture_element_content_context_header() {
@@ -1633,6 +1641,18 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-X2 try_text key-first -> a custom heading where an author set one, else this context\'s canonical title -> SAME value as C-T1 here (no post carries the key on these URLs; I6: slot == standalone)',
 				'{{try_text 1-key:context_custom_heading|2-use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-C2 content WITH a fallback - fires on the three analog-less contexts (date/search/latest-home -> No description available), stays out of the way of a real analog on the other three (PTA/author/404, unchanged from C12/C13/C16). context-test-matrix.md has the per-context table',
+				'{{content fallback:No description available}}'
+			),
+			bws_fixture_gb_row(
+				'C-DT1 datetime_single WITH a fallback (-> TBA on every context here - none carries a datetime analog)',
+				'{{datetime_single fallback:TBA}}'
+			),
+			bws_fixture_gb_row(
+				'C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1)',
+				'{{datetime_range fallback:TBA}}'
 			),
 		)
 	);

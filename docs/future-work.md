@@ -325,7 +325,7 @@ Progress: Two per-tag carve-outs shipped 1.19.1 (`base-shared.php`'s `user` and 
 
 Open: Whether to do the structural version — flip the seam's OWN contract so `''` always means `null` (fall through), for every tag. Smaller diff, closes the class by construction, but touches all 7 call sites including `title`/`permalink` (no fallback mechanism, currently safe only because a fallthrough would be a no-op — unverified for every kind, only checked for `query_context`/`user`) and changes behavior the seam's docblock currently states as deliberate policy (a query-context fallthrough is "the leak class this kind exists to stop" for tags OTHER than image). Needs the same leak-safety check this session did for image, generalized to every (tag, kind) pair, before it's safe to land.
 
-Blocked by: decision:structural-vs-per-tag  •  Interacts with: FW-113 (three OTHER sites bypass this seam entirely — a different defect, same function)
+Blocked by: decision:structural-vs-per-tag  •  Interacts with: FW-113 (its two remaining sites duplicate the seam's dispatch question without calling it — a different defect, same function; its own `user`-carve-out row confirms the carve-out pattern this item's per-tag fixes use is deliberate, not a defect)
 
 ### Feature follow-ups & UX
 
