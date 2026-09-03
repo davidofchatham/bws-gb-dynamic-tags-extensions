@@ -84,7 +84,7 @@ function bws_get_datetime_single_leading_options(): array {
 		'showMidnight'    => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show time at midnight', 'generateblocks' ),
-			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
+			'help'  => __( 'Show the time component even when it marks the start or end of the day (12:00 AM, or 11:59 PM as a range end).', 'generateblocks' ),
 		),
 	);
 }
@@ -233,7 +233,7 @@ function bws_get_datetime_range_leading_options(): array {
 		'showMidnight'    => array(
 			'type'  => 'checkbox',
 			'label' => __( 'Show time at midnight', 'generateblocks' ),
-			'help'  => __( 'Show the time component even when it is 12:00 AM.', 'generateblocks' ),
+			'help'  => __( 'Show the time component even when it marks the start or end of the day (12:00 AM, or 11:59 PM as a range end).', 'generateblocks' ),
 		),
 	);
 }
@@ -319,10 +319,10 @@ function bws_date_single_core( $target, $options, $instance ) {
 
 	// Force date_only mode — no time handling.
 	$date_options = array_merge( $options, array(
-		'date_only'  => true,
-		'time_only'  => false,
-		'smart_time' => false,
-		'time_field' => '',
+		'date_only'     => true,
+		'time_only'     => false,
+		'hide_midnight' => false,
+		'time_field'    => '',
 	) );
 
 	$result = bws_parse_combined_date_time( $source, $date_field, '', 'datetime', null, $date_options, $instance );
@@ -366,7 +366,7 @@ function bws_date_range_core( $target, $options, $instance ) {
 	$date_options = array_merge( $options, array(
 		'date_only'        => true,
 		'time_only'        => false,
-		'smart_time'       => false,
+		'hide_midnight'    => false,
 		'start_time_field' => '',
 		'end_time_field'   => '',
 	) );
@@ -573,9 +573,9 @@ function bws_datetime_range_core( $target, $options, $instance ) {
 				// Two-ended time range (#25): resolve the format via the same chain
 				// the single-ended case uses (custom token → ACF time format → WP
 				// default); consolidation applies only for 12-hour formats.
-				$smart_time  = ! empty( $options['smart_time'] );
-				$time_format = bws_resolve_time_only_format( $options, $start_result );
-				$time_range  = bws_format_time_range( $start_dt, $end_dt, $smart_time, $time_format );
+				$hide_midnight = ! empty( $options['hide_midnight'] );
+				$time_format   = bws_resolve_time_only_format( $options, $start_result );
+				$time_range    = bws_format_time_range( $start_dt, $end_dt, $hide_midnight, $time_format );
 				return bws_gb_tag_output( $time_range, $options, $instance );
 			}
 			// Single-ended time: honor custom format (time tokens only), then the
@@ -676,7 +676,7 @@ function bws_term_datetime_range_core( $term_id, $options, $instance ) {
  * showCurrentYear, showMidnight, fallback) map to the canonical keys the core
  * functions, format builders, and formatters read (date_time_field, time_field,
  * start_field/end_field, date_only/time_only, format_type/custom_format,
- * date_time_separator, separator, omit_current_year, smart_time). `fallback`
+ * date_time_separator, separator, omit_current_year, hide_midnight). `fallback`
  * is already canonical and passes through untouched.
  *
  * INVARIANT: this function is the ONLY place public datetime keys are parsed.
@@ -723,9 +723,9 @@ function bws_normalize_datetime_options( array $options, bool $range = false ): 
 	// Absent showCurrentYear → omit_current_year true (default: omit year).
 	$mapped['omit_current_year'] = empty( $options['showCurrentYear'] );
 
-	// showMidnight (true = show midnight) → smart_time (true = hide midnight) — inverted.
-	// Absent showMidnight → smart_time true (default: smart-hide midnight).
-	$mapped['smart_time'] = empty( $options['showMidnight'] );
+	// showMidnight (true = show midnight) → hide_midnight — inverted.
+	// Absent showMidnight → hide_midnight true (the default).
+	$mapped['hide_midnight'] = empty( $options['showMidnight'] );
 
 	if ( ! $range ) {
 		// key → date_time_field, timeKey → time_field.

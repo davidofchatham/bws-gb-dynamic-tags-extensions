@@ -137,7 +137,7 @@ $modern_read = static function ( string $tag_string ): array {
 	[ , $o ] = MigrationRegistry::parse_tag_string( $tag_string );
 	$n       = bws_normalize_datetime_options( $o );
 	return array(
-		'hides_midnight' => ! empty( $n['smart_time'] ),
+		'hides_midnight' => ! empty( $n['hide_midnight'] ),
 		'omits_year'     => ! empty( $n['omit_current_year'] ),
 	);
 };
@@ -145,7 +145,7 @@ $modern_read = static function ( string $tag_string ): array {
 /**
  * Compare only the axes the tag actually renders. A date-only tag deliberately carries no
  * showMidnight (D3) and its midnight axis is inert either way — both datetime cores force
- * smart_time => false before formatting — so comparing it would assert a difference that
+ * hide_midnight => false before formatting — so comparing it would assert a difference that
  * cannot reach output.
  */
 $equivalent = static function ( string $legacy_wire, callable $migrate, array $axes ) use ( $legacy_read, $modern_read ): array {

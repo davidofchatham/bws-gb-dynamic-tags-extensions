@@ -130,12 +130,12 @@ assert_same(
 		'date_only'       => false,
 		'time_only'       => false,
 		'omit_current_year' => true,
-		'smart_time'      => true,
+		'hide_midnight'   => true,
 		'fallback'        => '(unset)',
 	),
 	pick( norm_single( array() ), array(
 		'date_time_field', 'time_field', 'format_type', 'custom_format',
-		'date_only', 'time_only', 'omit_current_year', 'smart_time', 'fallback',
+		'date_only', 'time_only', 'omit_current_year', 'hide_midnight', 'fallback',
 	) )
 );
 
@@ -148,7 +148,7 @@ assert_same(
 		'custom_format'       => 'Y-m-d',
 		'date_time_separator' => ' @ ',
 		'omit_current_year'   => false,
-		'smart_time'          => false,
+		'hide_midnight'       => false,
 		'fallback'            => 'TBA',
 	),
 	pick( norm_single( array(
@@ -161,7 +161,7 @@ assert_same(
 		'fallback'        => 'TBA',
 	) ), array(
 		'date_time_field', 'time_field', 'format_type', 'custom_format',
-		'date_time_separator', 'omit_current_year', 'smart_time', 'fallback',
+		'date_time_separator', 'omit_current_year', 'hide_midnight', 'fallback',
 	) )
 );
 
@@ -206,12 +206,12 @@ assert_same(
 		'format_type'       => 'custom',
 		'custom_format'     => 'g:i',
 		'omit_current_year' => false,
-		'smart_time'        => true,
+		'hide_midnight'     => true,
 	),
 	pick( norm_range( array(
 		'format'          => 'g:i',
 		'showCurrentYear' => '1',
-	) ), array( 'format_type', 'custom_format', 'omit_current_year', 'smart_time' ) )
+	) ), array( 'format_type', 'custom_format', 'omit_current_year', 'hide_midnight' ) )
 );
 
 // ===========================================================================
@@ -251,32 +251,32 @@ assert_same( 'F6 no custom, no ACF format → WP time_format default',
 echo "\nT — bws_format_time_range (two-ended time; #25 baseline)\n";
 // ===========================================================================
 
-assert_same( 'T1 non-smart: both sides full 12-hour',
+assert_same( 'T1 showing midnight, cross meridiem: both sides full 12-hour',
 	'9:00 AM–5:00 PM',
 	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), false )
 );
-assert_same( 'T2 smart, same meridiem → consolidated single AM/PM',
+assert_same( 'T2 hiding midnight, same meridiem → consolidated single AM/PM',
 	'9:00–11:30 AM',
 	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), true )
 );
-assert_same( 'T3 smart, cross meridiem → both sides carry AM/PM',
+assert_same( 'T3 hiding midnight, cross meridiem → both sides carry AM/PM',
 	'9:00 AM–5:00 PM',
 	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), true )
 );
-assert_same( 'T4 smart, both midnight → empty',
+assert_same( 'T4 hiding midnight, both midnight → empty',
 	'',
 	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 00:00' ), true )
 );
-assert_same( 'T5 smart, start midnight → end only',
+assert_same( 'T5 hiding midnight, start midnight → end only',
 	'2:00 PM',
 	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 14:00' ), true )
 );
-assert_same( 'T6 smart, end midnight → start only',
+assert_same( 'T6 hiding midnight, end midnight → start only',
 	'9:00 AM',
 	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 00:00' ), true )
 );
-assert_same( 'T7 non-smart, both midnight → rendered verbatim',
-	'12:00 AM–12:00 AM',
+assert_same( 'T7 showing midnight, both midnight (same instant) → single value, no range',
+	'12:00 AM',
 	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 00:00' ), false )
 );
 
@@ -301,9 +301,71 @@ assert_same( 'T12 midnight suppression independent of custom format (#25)',
 	'17:00',
 	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 17:00' ), true, 'H:i' )
 );
-assert_same( 'T13 non-smart custom format: both sides full (#25)',
+assert_same( 'T13 showing midnight, 24-hour format: both sides full (#25)',
 	'09:00–17:00',
 	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), false, 'H:i' )
+);
+
+// #125 — consolidation is independent of midnight suppression. The defect's own
+// combination (showing midnight + shared meridiem + 12-hour + non-midnight) was
+// reachable by no row above: T1/T13 are cross-meridiem or 24-hour, so the gate
+// blocked them and the welded-together branch never showed.
+assert_same( 'T14 showing midnight, same meridiem → still consolidates (#125)',
+	'9:00–11:30 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), false )
+);
+assert_same( 'T15 showing midnight, same meridiem, custom 12-hour → consolidates (#125)',
+	'09:00–11:30 am',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), false, 'h:i a' )
+);
+assert_same( 'T16 showing midnight, 24-hour, same meridiem: format gate still blocks (#125)',
+	'09:00–11:30',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 11:30' ), false, 'H:i' )
+);
+
+// #126 — `23:59` is the END-side "no end time" sentinel, mirroring `00:00` on the
+// start side. `00:00`–`23:59` is the all-day encoding and yields no time part.
+assert_same( 'T17 hiding midnight, 00:00→23:59 → empty, the all-day encoding (#126)',
+	'',
+	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 23:59' ), true )
+);
+assert_same( 'T18 hiding midnight, 23:59:59 end reads the same as 23:59 (#126)',
+	'',
+	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 23:59:59' ), true )
+);
+assert_same( 'T19 hiding midnight, real start + 23:59 end → start only (#126)',
+	'9:00 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 23:59' ), true )
+);
+assert_same( 'T20 hiding midnight, real start + 23:59:59 end → start only (#126)',
+	'9:00 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 23:59:59' ), true )
+);
+// ASYMMETRY: only `00:00` is a start sentinel and only `23:59` an end sentinel.
+// Were `23:59` also read as a start sentinel, both ends would qualify and this
+// would collapse to '' instead of keeping the start value.
+assert_same( 'T21 hiding midnight, 23:59 as a START is a real time, not a sentinel (#126)',
+	'11:59 PM',
+	bws_format_time_range( dt( '2030-08-12 23:59' ), dt( '2030-08-12 23:59:30' ), true )
+);
+// The sentinel rides the midnight gate: asking to see midnight shows both ends.
+assert_same( 'T22 showing midnight, 00:00→23:59 → both sides full (#126)',
+	'12:00 AM–11:59 PM',
+	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 23:59' ), false )
+);
+
+// Same instant: nothing to range, whichever way the midnight flag is set.
+assert_same( 'T23 same instant, non-midnight → single value',
+	'9:00 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 09:00' ), true )
+);
+assert_same( 'T24 same instant, non-midnight, showing midnight → single value',
+	'9:00 AM',
+	bws_format_time_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 09:00' ), false )
+);
+assert_same( 'T25 same instant, midnight, hiding midnight → empty',
+	'',
+	bws_format_time_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 00:00' ), true )
 );
 
 // ===========================================================================
@@ -324,22 +386,22 @@ assert_same( 'S3 current year kept when omit off (showCurrentYear)',
 );
 assert_same( 'S4 smart time hides midnight',
 	'August 12, 2030',
-	bws_format_single_date_time( dt( '2030-08-12 00:00' ), 'F j, Y g:i A', array( 'smart_time' => true ) )
+	bws_format_single_date_time( dt( '2030-08-12 00:00' ), 'F j, Y g:i A', array( 'hide_midnight' => true ) )
 );
 assert_same( 'S5 smart off keeps midnight (showMidnight)',
 	'August 12, 2030 12:00 AM',
-	bws_format_single_date_time( dt( '2030-08-12 00:00' ), 'F j, Y g:i A', array( 'smart_time' => false ) )
+	bws_format_single_date_time( dt( '2030-08-12 00:00' ), 'F j, Y g:i A', array( 'hide_midnight' => false ) )
 );
 assert_same( 'S6 smart time leaves non-midnight alone',
 	'August 12, 2030 3:30 PM',
-	bws_format_single_date_time( dt( '2030-08-12 15:30' ), 'F j, Y g:i A', array( 'smart_time' => true ) )
+	bws_format_single_date_time( dt( '2030-08-12 15:30' ), 'F j, Y g:i A', array( 'hide_midnight' => true ) )
 );
 
 // ===========================================================================
 echo "\nR — bws_format_date_range (redundancy removal, separators)\n";
 // ===========================================================================
 
-$opts_plain = array( 'separator' => '–', 'omit_current_year' => true, 'smart_time' => true );
+$opts_plain = array( 'separator' => '–', 'omit_current_year' => true, 'hide_midnight' => true );
 
 assert_same( 'R1 no end date → single-date render',
 	'August 12, 2030',
@@ -376,7 +438,7 @@ assert_same( 'R8 cross-year suppresses current-year omission',
 assert_same( 'R9 custom separator joins the two sides',
 	'August 30 to September 2, 2030',
 	bws_format_date_range( dt( '2030-08-30 12:00' ), dt( '2030-09-02 12:00' ), 'F j, Y',
-		array( 'separator' => ' to ', 'omit_current_year' => true, 'smart_time' => true ) )
+		array( 'separator' => ' to ', 'omit_current_year' => true, 'hide_midnight' => true ) )
 );
 assert_same( 'R10 day-name token blocks same-month day collapse',
 	'Thu, August 1–Fri, August 9, 2030',
@@ -389,6 +451,44 @@ assert_same( 'R11 time token blocks day collapse; per-side times kept',
 assert_same( 'R12 same-day custom 24-hour: time range in the format\'s tokens (#25)',
 	'August 12, 2030, 09:00–17:00',
 	bws_format_date_range( dt( '2030-08-12 09:00' ), dt( '2030-08-12 17:00' ), 'F j, Y H:i', $opts_plain )
+);
+
+// #126 — the all-day encoding, both routes through bws_format_date_range: same-day
+// reaches bws_format_time_range(), multi-day reaches bws_format_multi_day_range().
+// The multi-day half stripped only `00:00` before this fix, so the end side kept a
+// stray 11:59 PM while the start side went bare.
+assert_same( 'R13 same-day 00:00→23:59 → bare date, no stray end time (#126)',
+	'August 12, 2030',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 23:59' ), 'F j, Y g:i A', $opts_plain )
+);
+assert_same( 'R14 same-day 00:00→23:59:59 reads the same as 23:59 (#126)',
+	'August 12, 2030',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-12 23:59:59' ), 'F j, Y g:i A', $opts_plain )
+);
+// The day-collapse to `August 12–14` stays blocked by the format's time token
+// (R10/R11) — the fix strips the VALUES, not the tokens the collapse reads.
+assert_same( 'R15 multi-day 00:00→23:59 → both sides bare (#126)',
+	'August 12–August 14, 2030',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 23:59' ), 'F j, Y g:i A', $opts_plain )
+);
+assert_same( 'R16 multi-day 00:00→23:59:59 reads the same as 23:59 (#126)',
+	'August 12–August 14, 2030',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 23:59:59' ), 'F j, Y g:i A', $opts_plain )
+);
+// The all-day encoding now renders identically to the both-midnight encoding it
+// has always been a spelling of — the point of the #126 fix.
+assert_same( 'R16b multi-day 00:00→00:00 matches the 23:59 spelling exactly (#126)',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 23:59' ), 'F j, Y g:i A', $opts_plain ),
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 00:00' ), 'F j, Y g:i A', $opts_plain )
+);
+assert_same( 'R17 multi-day, real end time is untouched by the sentinel (#126)',
+	'August 12–August 14, 2030 5:00 PM',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 17:00' ), 'F j, Y g:i A', $opts_plain )
+);
+assert_same( 'R18 multi-day 23:59 end, showing midnight → end time renders (#126)',
+	'August 12 12:00 AM–August 14, 2030 11:59 PM',
+	bws_format_date_range( dt( '2030-08-12 00:00' ), dt( '2030-08-14 23:59' ), 'F j, Y g:i A',
+		array( 'separator' => '–', 'omit_current_year' => true, 'hide_midnight' => false ) )
 );
 
 // ===========================================================================

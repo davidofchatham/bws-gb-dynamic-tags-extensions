@@ -81,7 +81,7 @@ return array(
 	// the baseline was taken WITHOUT would assert the opposite of the truth. They are absent
 	// from `active` for the same reason. What changed is that a future toggle is now REPORTED
 	// rather than reconstructed after the fact.
-	'captured' => '2026-08-28',
+	'captured' => '2026-09-03',
 
 	// EVERY PLUGIN THAT WAS RUNNING, not only the four this record requires. The version
 	// list below answers "were the dependencies the same"; this answers "what else was in

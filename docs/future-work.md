@@ -617,6 +617,18 @@ Open: Fix shape — likely a PHP-side enum/whitelist of recognized condition for
 
 Blocked by: —  •  Interacts with: FW-114 (same underlying incident, `registration-helpers.php`)
 
+#### FW-119 — `seed.php` attachment-metadata regeneration ignores the file's actual date
+
+`seed.php`'s attachment upsert re-runs `wp_generate_attachment_metadata()` on every reseed, and that regeneration derives the target upload path from the CURRENT date rather than the attachment's actual `_wp_attached_file` location. Discovered 2026-09-03 while re-capturing the page-snapshot baseline for the #125/#126 datetime fix: a reseed corrupted the fixture photo's `_wp_attachment_metadata` (`file` pointed at a nonexistent `2026/09/fixture-photo.png`, `sizes` came back empty because the write failed — `Permission denied`, the September upload directory isn't writable the way July's is) while `_wp_attached_file` stayed correctly pointed at `2026/07/fixture-photo.png`. `wp media regenerate 128` repaired the DATA on that run; `seed.php` itself is untouched, so the next reseed reproduces it. Not filed as a GitHub issue: this is fixture/test infrastructure a plugin user never runs, not a user-reachable defect, and nothing pins it today (no test catches it, per the bug-vs-coverage-gap split), so it tracks here.
+
+Detail home: none yet — the fix shape (skip regeneration when `_wp_attached_file` already resolves, or pin the regenerate to the attachment's existing path instead of "now") hasn't been designed.
+
+Progress: Reproduced and worked around 2026-09-03 (data repaired via `wp media regenerate`, `seed.php` logic not touched).
+
+Open: Fix shape — undecided. Whether every attachment upsert needs this or only ones seeded with a fixed historical date (this fixture) is also open.
+
+Blocked by: —  •  Interacts with: —
+
 ### Docs & vocabulary
 
 Repairs to the documentation corpus itself: prose that has outgrown its reader, pointers that no longer resolve, and vocabulary the docs use inconsistently. Split out of §Testing & infrastructure 2026-08-28 — those items had nothing in common with a fixture site beyond "not a feature and not a bug".

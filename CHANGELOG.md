@@ -4,10 +4,19 @@
 
 ### Fixed
 
+- **Turning on "Show time at midnight" no longer drops AM/PM consolidation from a time range.** A range whose two ends share a meridiem renders as `9:00–11:30 AM` in both settings; previously enabling the option silently expanded it to `9:00 AM–11:30 AM`. The option now governs midnight display only, which is what its label says.
+- **An all-day range stored as 12:00 AM to 11:59 PM now renders as a date, with no stray end time.** Both a same-day range (previously `August 24, 11:59 PM`) and a multi-day one (previously `August 24 – August 26 11:59 PM`) are affected. `11:59 PM` on the END of a range is now read as an unset end time, mirroring how `12:00 AM` has always been read as an unset start time. Turning on "Show time at midnight" still displays both ends in full.
+- **A time range whose start and end are the same moment renders that time once**, instead of repeating it either side of a dash.
+
 - **A try_ attempt's field key picker no longer stays hidden on a fresh slot.** A first attempt whose field defaults to the meta/option field reading (e.g. Try Image) needed the Field dropdown switched away and back before its key picker would appear; it now shows immediately, matching what the tag actually renders.
 - **`{{image}}`'s configured fallback now renders on archive, search, 404 and home-page contexts.** It previously rendered nothing on those pages even with a Media Library fallback set, though the fallback still worked correctly on individual posts, terms and author archives.
 - **`{{try_image}}`'s fallback now resolves the configured Media Library image, instead of printing the raw attachment ID as text.** This affected every `as` mode (URL, alt text, ID, caption), including a nonexistent attachment ID, which previously printed too instead of correctly rendering empty.
 - **`{{content}}`, `{{datetime_single}}` and `{{datetime_range}}`'s configured fallbacks now render on the same archive, search, 404 and home-page contexts** where they previously rendered nothing, for the same underlying reason as the `{{image}}` fix above.
+
+### Changed
+
+- **Custom code calling `bws_format_single_date_time()` or `bws_format_date_range()` directly must rename the `smart_time` key in the options array it passes to `hide_midnight`.** The value and its meaning are unchanged, and there is no compatibility alias. The old name had come to describe two unrelated behaviors; only midnight suppression remains. This does not affect tags placed in the editor, tag strings, or the `showMidnight` option, none of which change.
+- **The "Show time at midnight" help text** now mentions that the setting also covers a `11:59 PM` range end.
 
 ## [1.19.0] — 2026-09-01
 
