@@ -16,6 +16,16 @@ GB's own `WP_Query` hook does not depend on the context object, so this is speci
 
 **Our response** is that our callback returns an identity-stable object; [`editor-preview-context.js`](../../assets/js/editor-preview-context.js)'s docblock owns that rule and [`editor-preview-context-test.js`](../../tools/test/editor-preview-context-test.js) pins it for every file registering on the hook. Shipped 1.6.0, fixed 2026-09-04. **Worth reporting upstream:** comparing `context` by value the way they already compare `query` would make their hooks immune to any filter on GB's, ours included.
 
+## It resolves `current` through GB's query-args filter, and plants three context keys
+
+Both query types hook `generateblocks_query_wp_query_args` at priority 10 and resolve the literal string `current` out of a NESTED query's arguments, reading it from block context (enumerated 2026-09-04). `Term_Query::update_wp_query_args()` swaps `current` inside a `tax_query` clause's `terms` for `$context['termId']`, which is what lets a post query nested inside a Term Query loop select the outer row's term. Its mirror is in the term query's own argument builder: `Term_Query::get_term_query_args()` resolves `current` inside `object_ids` from `$context['postId'] ?? get_the_ID()`, which lets a Term Query nested inside a post loop select the outer row's terms. Both directions of nesting therefore work, and both are reachable from the editor with no code.
+
+**Both inherit a GB limitation that reads as a defect in ours.** That filter is applied inside `GenerateBlocks_Query_Utils::get_wp_query_args()`, which GB skips entirely when the block's `inheritQuery` attribute is set — see [`gb-constraints.md`](../gb-constraints.md#inheritquery-replaces-the-blocks-own-query-and-takes-every-query-args-filter-with-it). On an inheriting block the substitution never happens, the block's saved query is discarded with it, and the loop iterates the ambient page's main-query rows instead. A tag of ours inside that loop then reads the containing page, once per outer row, correctly. Measured 2026-09-04 on a live site; nothing of ours is involved in producing it and there is nothing for us to fix.
+
+**Each loop item's context carries the item's id in a POST-shaped key.** `Term_Query::render_loop_items()` sets `termId` and ALSO sets bare `postId` to the same term id; `User_Query::render_loop_items()` sets `userId` and bare `postId` to the user id (both read 2026-09-04). A term id sitting in a key named `postId` is the wrong-entity-plausible-value shape one key over from where it usually appears, and it is inherited by every descendant block until an inner loop overwrites it.
+
+We read bare `postId` at exactly one site — `bws_resolve_acf_object_id()` ([`field-helpers.php`](../../includes/helpers/field-helpers.php)) — and that read is reached only under a query type neither of these sets, which is what keeps a term id out of an ACF object id today. The condition deciding it is stated at that function; widening it is the change to watch.
+
 ## It filters tag rendering in PHP, on every render
 
 Three hooks, enumerated 2026-09-04 (`add_filter`/`add_action` registrations under `includes/`):

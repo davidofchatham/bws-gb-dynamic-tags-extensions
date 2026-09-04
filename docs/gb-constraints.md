@@ -317,6 +317,24 @@ child of the innerblocks container, which matters for any `element` `tagName` wh
 rejects a `<div>` child. That platform behavior is out of scope for this doc — see
 `.scratch/plans/structured-output-tags-handoff.md` §4.
 
+## The query block renders its inner blocks once before it iterates, and discards that render
+
+WordPress renders a block's inner blocks into the `$block_content` string BEFORE calling that block's `render_callback`. GB's query and looper callbacks build their output from `$block->parsed_block['innerBlocks']` and never use that string, so **every dynamic tag inside a query loop runs once against the AMBIENT page before the first row exists**. The v1 block states it outright — `GenerateBlocks_Block_Query_Loop::render_block()` assigns `$content = ''` and then re-renders per post.
+
+Measured on GB 2.4.1 (2026-09-04): a two-row `WP_Query` loop containing one `{{title}}`, driven through `do_blocks()` with a counter on `generateblocks_dynamic_tag_replacement`, produced FOUR calls — two resolving the surrounding page, then one per row. The pre-render's output is discarded, so nothing wrong is printed.
+
+**What is not discarded is what a tag DOES.** A callback that only returns a string costs a wasted resolve; a callback with a side effect performs that side effect against the wrong entity, and the side effect outlives the string. That is the shape of [#133](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/133), where `{{content}}` queues the ambient page's extracted inline CSS from a render nobody sees. Our response is `bws_is_query_loop_setup_phase()` ([`content-helpers.php`](../includes/helpers/content-helpers.php)), which is currently ineffective for the reason that issue records.
+
+## `inheritQuery` replaces the block's own query, and takes every query-args filter with it
+
+`GenerateBlocks_Block_Query::get_query_data()` (GB 2.4.1, `includes/blocks/class-query.php`): when the block's `inheritQuery` attribute is set, GB clones the global `$wp_query`, takes `$data->query_vars` as its args, and **skips the branch that calls `GenerateBlocks_Query_Utils::get_wp_query_args()` entirely**.
+
+Two consequences, and the second is the one that surprises. The block's own saved query — post type, `tax_query`, ordering — is discarded, which is what the setting says it does. And `generateblocks_query_wp_query_args` **never fires**, because that filter is applied inside `get_wp_query_args()`: every plugin extending query arguments through it is silently inert on an inheriting block, with no error and no empty result to notice.
+
+The v1 block is NOT the same and the two are easy to conflate: `GenerateBlocks_Block_Query_Loop::render_block()` MERGES the global query vars into the block's own (`wp_parse_args( $wp_query->query_vars, $query_args )`) and still applies its own `generateblocks_query_loop_args` filter afterward.
+
+Nothing of ours reads `inheritQuery` and there is no response to make. It is recorded because of how the failure presents: an inheriting loop nested inside another loop iterates the ambient page's main-query rows, so a tag of ours reads the containing page once per outer row and renders it faithfully. **A tag correctly reporting the wrong entity is indistinguishable from a broken tag**, and the cause is three levels up in another plugin's block attribute. Measured 2026-09-04 on a live site, where a `post_meta`-less nested post query under a GB Query Enhancements Term Query rendered the containing page once per term; the co-resident half is in [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-resolves-current-through-gbs-query-args-filter-and-plants-three-context-keys).
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).
