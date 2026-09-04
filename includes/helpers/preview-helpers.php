@@ -79,7 +79,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  *     un-hopped read, so silence would leave the author hunting for why a fully-sourced
  *     slot vanished. The SLUG comes from the seam — this maps it to author vocabulary and
  *     never re-derives which step was unfinished.
- *   - `'inherit'` → a `same` root with nothing to be the same AS (no earlier slot
+ *   - `'same'` → a `same` root with nothing to be the same AS (no earlier slot
  *     resolved). Flagged, and worded for what the author can DO about it: the chain is
  *     expressible, so "source not supported" would send them after the wrong thing.
  *   - `'read'`  → an unconfigured slot: a normal in-progress state. SILENT.
@@ -90,7 +90,7 @@ function bws_wrap_preview_label_with_link( string $bracket_label, array $options
  * that arrived pre-labelled would have to be taken apart again to group it.
  *
  * @since 1.17.0
- * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'inherit'` added with the
+ * @since 1.17.0 Takes the reason; `'step:<slug>'` and `'same'` added with the
  *               ambient-fallback skips (#74).
  * @since 1.17.0 #104: `'chain'` retired with the flatten; `'step:rows'` named.
  * @since 1.17.0 #105: returns the bare detail; the slot letter belongs to the composer.
@@ -106,7 +106,7 @@ function bws_fold_skip_warning( string $reason = '' ): string {
 		'step:refs'    => 'no ref',
 		'step:terms'   => 'no taxonomy',
 		'step:rows' => 'no repeater field',
-		'inherit'      => 'no previous source',
+		'same'         => 'no previous source',
 	);
 	return $phrases[ $reason ] ?? '';
 }
@@ -357,7 +357,7 @@ function bws_join_preview_format( string $format, array $parts, int $max ): stri
 /**
  * Build a structured editor preview label for a try_ tag's slot fallback chain.
  *
- * Walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's
+ * Walks slots 1-5, applies carry-forward (slot ≥2 empty fields resolve `same` against the prior slot's
  * canonical value), then renders a comma-separated summary keyed off the template's
  * field-part shape. Image excluded for output-attribute modes (url/id) where the
  * bracket string would break HTML attributes.
@@ -413,7 +413,7 @@ function bws_build_try_preview_label( array $options, string $base_template ): s
 		$skip = '';
 		$flat = bws_fold_slot_chain_options( $slot, $carry, false, $skip );
 		if ( null === $flat ) {
-			// 'read' cannot happen here (an absent read INHERITS in a selecting
+			// 'read' cannot happen here (an absent read CARRIES OVER in a selecting
 			// container); every other reason speaks — bws_fold_skip_warning() owns which
 			// and in what words, so a new reason is added there and not tested here.
 			$detail = bws_fold_skip_warning( $skip );

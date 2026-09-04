@@ -70,7 +70,7 @@ default; a row that renders one value with no `<a>` has broken the count-based g
 | L1.7 | `{{try_text srcTermIn:department\|use:title}}` | ONE dept name, no `, ` separator | try_ dispatch |
 | L1.8 | `{{email src:ref\|ref:related_staff\|key:contact_email}}` | ONE `mailto:` anchor (jane@example.test) | seam |
 | L1.9 | `{{phone src:ref\|ref:related_staff\|key:main_line}}` | ONE `tel:` anchor (jane's line) | seam |
-| L1.10 | `{{join srcTermIn:department\|use:title\|2-key:blurb}}` | `Sales, Sales handles quotes, renewals and the annual customer roadshow.` — slot 1 = ONE dept name, joined to THAT SAME term's blurb | seam (per-slot). The key must exist on the INHERITED source: this read `2-key:role` until 2026-08-21 and could never have joined anything, because `role` is post meta and slot 2 inherits slot 1's TERM. It passed for months on a bare `Sales` looking plausible |
+| L1.10 | `{{join srcTermIn:department\|use:title\|2-key:blurb}}` | `Sales, Sales handles quotes, renewals and the annual customer roadshow.` — slot 1 = ONE dept name, joined to THAT SAME term's blurb | seam (per-slot). The key must exist on the CARRIED source: this read `2-key:role` until 2026-08-21 and could never have joined anything, because `role` is post meta and slot 2 carries over slot 1's TERM. It passed for months on a bare `Sales` looking plausible |
 
 **email / phone read differently and that is correct:** both wrap EVERY value in its own
 `mailto:`/`tel:` anchor, so link presence there is not count-gated. L1.8/L1.9 are still count
@@ -166,7 +166,7 @@ several values stops being wrappable.
 | L4a.1 | `{{try_text srcTermIn:department\|use:title\|linkTo:permalink}}` | ONE dept name, in `<a>` | FLAT slot, unset — the floor, unchanged |
 | L4a.2 | `{{try_text A:src(terms,department);use(title)\|linkTo:permalink}}` | `Sales, Support`, **NO** `<a>` | CHAIN slot, unset — unlimited, and the anchor legitimately gone. The slot twin of L4.2 |
 | L4a.3 | `{{try_text A:src(terms,department,limit[1]);use(title)\|linkTo:permalink}}` | ONE dept name, in `<a>` | what MIGRATION writes for L4a.1 — identical output, anchor included |
-| L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by INHERITING keeps the flat default: the slot it inherits from stated its own bound, and a limit does not carry forward |
+| L4a.4 | `{{join A:src(same);key(x)}}` after a fanning slot 1 | see §F7a.6 | a slot that fans only by CARRYING OVER keeps the flat default: the slot it carries over from stated its own bound, and a limit does not carry forward |
 
 ## L5 — the author conversion (editor only)
 

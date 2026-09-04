@@ -121,35 +121,35 @@ const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 );
 
 /**
- * Trim an INHERITED chain back to the point where another chain can run off it.
+ * Trim a CARRIED chain back to the point where another chain can run off it.
  *
  * The `same` merge's whole content (bws_fold_slot_chain_options). `src(same)` copies the
  * prior slot's resolved chain, and this slot's own steps then run off the end of it — but
  * only where the engine can actually make that join. A `terms` step accepts a POST input
- * and produces TERMS, so an inherited chain ending in `terms` followed by a slot's own
+ * and produces TERMS, so a carried chain ending in `terms` followed by a slot's own
  * `terms` step states something the wire can spell and the engine can never resolve. The
  * author meant the same source in a different taxonomy, which is what the flat wire they
- * came from said, so the inherited tail gives way.
+ * came from said, so the carried tail gives way.
  *
  * TWO CRUDER SHAPES WERE TRIED AND REJECTED BEFORE THIS ONE. Do not reintroduce either:
- * - Append `$own` after the whole of `$inherited` with no trim at all. Behind a chain that
+ * - Append `$own` after the whole of `$carried` with no trim at all. Behind a chain that
  *   already ends where an own step would run again, that repeats a step the engine can't
  *   take twice off the same input and resolves empty, silently dropping the slot.
- * - Displace every inherited step that shares a slug with an own step, wherever it sits.
+ * - Displace every carried step that shares a slug with an own step, wherever it sits.
  *   See below for why this reads right on every legacy shape and is wrong the moment a
  *   slot states more than one step.
  *
  * THE TEST IS THE JOIN, NOT THE SLUG, and the difference is not academic. The rejected cut
- * above dropped an inherited step wherever this slot stated one with the same slug and the
+ * above dropped a carried step wherever this slot stated one with the same slug and the
  * slug could not repeat, which reads the same on every legacy shape and is wrong the moment a
- * slot states more than one step: inherited `terms,department` plus an own
- * `refs,x;terms,y` lost the inherited step, even though `refs` ACCEPTS a term input and the
+ * slot states more than one step: a carried `terms,department` plus an own
+ * `refs,x;terms,y` lost the carried step, even though `refs` ACCEPTS a term input and the
  * chain would have run exactly as written. Asking whether the two ends MEET answers both
  * cases from one rule.
  *
  * Trimming is from the TAIL and stops at the first step that fits, so it gives way by as
  * little as possible. It never touches the ROOT — a root is not a step (see the header) and
- * the source a slot inherits is the source it inherits.
+ * the source a slot carries over is the source it carries over.
  *
  * DERIVED from the two shipped maps, never a list of slugs: BWS_FOLD_STEP_KINDS says what a
  * step produces, BWS_TRAVERSAL_STEP_INPUT_KINDS what it accepts. Widen what the engine takes
@@ -167,33 +167,33 @@ const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
  * "no chain". A fix there should read exactly like the guard below.
  *
  * @since 1.17.0
- * @param array $inherited Parsed chain copied from the carry (may include a leading ROOT).
+ * @param array $carried Parsed chain copied from the carry (may include a leading ROOT).
  * @param array $own       Parsed steps this slot states of its own (never a root).
- * @return array The inherited chain, trimmed to where `$own` can run off it.
+ * @return array The carried chain, trimmed to where `$own` can run off it.
  */
-function bws_fold_chain_join( array $inherited, array $own ): array {
-	$inherited = array_values( $inherited );
+function bws_fold_chain_join( array $carried, array $own ): array {
+	$carried = array_values( $carried );
 	$first     = reset( $own );
 	if ( ! is_array( $first ) || ! defined( 'BWS_FOLD_STEP_KINDS' ) || ! defined( 'BWS_TRAVERSAL_STEP_INPUT_KINDS' ) ) {
-		return $inherited;
+		return $carried;
 	}
 	$accepts = BWS_TRAVERSAL_STEP_INPUT_KINDS[ (string) ( $first['slug'] ?? '' ) ] ?? array();
 	if ( ! $accepts ) {
-		return $inherited;   // unknown vocabulary: the chain short-circuits, it does not rewrite.
+		return $carried;   // unknown vocabulary: the chain short-circuits, it does not rewrite.
 	}
 
 	// The ROOT is never trimmed, so stop while one step is left to be a step rather than a
 	// root — position 0 is only a root when its slug is not a step type, which the loop's
 	// own `produces` lookup answers for free (a root has no entry and ends the trim).
-	while ( $inherited ) {
-		$last     = end( $inherited );
+	while ( $carried ) {
+		$last     = end( $carried );
 		$produces = BWS_FOLD_STEP_KINDS[ (string) ( $last['slug'] ?? '' ) ] ?? '';
 		if ( '' === $produces || in_array( $produces, $accepts, true ) ) {
 			break;   // a root, unknown vocabulary, or a tail this chain can run off.
 		}
-		array_pop( $inherited );
+		array_pop( $carried );
 	}
-	return array_values( $inherited );
+	return array_values( $carried );
 }
 
 /**

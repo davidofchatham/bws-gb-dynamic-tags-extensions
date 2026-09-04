@@ -60,7 +60,7 @@ class TagTemplateRegistry {
 	 *                    The PAIR names the slot's READ SHAPE, which is what the folded
 	 *                    slot control renders and what an absent read means: both →
 	 *                    enum + key picker; key only → picker alone (an empty picker is
-	 *                    the inherit); neither → no per-slot read at all, the tag-level
+	 *                    the carry-over); neither → no per-slot read at all, the tag-level
 	 *                    `use`/`key` govern every slot.
 	 *   try_use_no_key_values array    use values where key is not required (e.g. ['featured'] for image).
 	 *   is_image              bool     Image template — custom as/size/fallback controls; register_modifier() builds own option set.
@@ -535,13 +535,13 @@ class TagTemplateRegistry {
 	 * of canonical order does not just look wrong — it splits a group into two boxes, or
 	 * strands one member in a box of its own with nothing to name it.
 	 *
-	 * RESOLUTION runs through the shared render seam, so the inherit rules live in one
+	 * RESOLUTION runs through the shared render seam, so the carry-over rules live in one
 	 * place for every container (bws_fold_slot_chain_options):
-	 *   - An axis left unset INHERITS from the previous resolving slot. Slot 1 seeds the
+	 *   - An axis left unset CARRIES OVER from the previous resolving slot. Slot 1 seeds the
 	 *     accumulator: ambient source, and the template's stripped first `use` value.
 	 *   - A slot that does NOT resolve never feeds the accumulator, so a half-configured
-	 *     slot cannot re-point a later slot's inherit.
-	 *   - A `same` source inherits the prior attempt's WHOLE CHAIN, hops and all: the
+	 *     slot cannot re-point a later slot's carry-over.
+	 *   - A `same` source carries over the prior attempt's WHOLE CHAIN, hops and all: the
 	 *     source IS a chain, so what it is travels with it (#104).
 	 *   - Wire era is decided PER SLOT — a folded value parses, an absent one is
 	 *     recovered from that slot's legacy keys — so a half-migrated tag resolves.
@@ -792,10 +792,10 @@ class TagTemplateRegistry {
 				$new_tab  = $slnk && ! empty( $opts['newTab'] );
 
 				// ONE carry-forward accumulator for the whole chain, threaded through the
-				// fold seam (bws_fold_slot_chain_options), which owns the inherit rules for
+				// fold seam (bws_fold_slot_chain_options), which owns the `same` rules for
 				// every container. Seeded with what slot 1's ABSENT axes mean here: an EMPTY
 				// CHAIN is the ambient entity, and the read seeds the template's stripped
-				// first `use` value, so an unset slot-1 read inherits the same token the flat
+				// first `use` value, so an unset slot-1 read carries over the same token the flat
 				// resolver derived at slot 1 — and so does a later `use(same)` that reaches
 				// back past a slot which never set one.
 				//
@@ -805,9 +805,9 @@ class TagTemplateRegistry {
 				// `$psu ?` guard this replaced left the seam holding a literal 'key' for
 				// the case it never reached.
 				//
-				// The source axis is a CHAIN and not a token (#104): `src(same)` inherits the
+				// The source axis is a CHAIN and not a token (#104): `src(same)` carries over the
 				// prior attempt's whole chain, hops included, which is what deleted the
-				// inherited-taxonomy special case the flat triple needed.
+				// carried-taxonomy special case the flat triple needed.
 				$carry = bws_fold_empty_carry( $default_use );
 
 				foreach ( range( 1, 5 ) as $n ) {
@@ -824,7 +824,7 @@ class TagTemplateRegistry {
 					$limit_default = 1;
 					$slot_read     = bws_fold_slot_chain_options( $slot, $carry, false, $skip_reason, $limit_default );
 					if ( null === $slot_read ) {
-						continue;   // unconfigured, nothing to inherit, or an unfinished step.
+						continue;   // unconfigured, nothing to carry over, or an unfinished step.
 					}
 
 					$last_key = $slot_read['key'];
@@ -896,7 +896,7 @@ class TagTemplateRegistry {
 					$slot_opts['limit'] = (string) $slot_max;
 
 					// A collapsing template's attempt wants ONE result, whatever any
-					// limit says — pinned, tag-level or inherited alike (ADR 0007,
+					// limit says — pinned, tag-level or carried alike (ADR 0007,
 					// same rule as its base tag). The stored wire keeps its number.
 					if ( $collapse ) {
 						$slot_max           = 1;

@@ -49,7 +49,7 @@ values](tag-reference.md#src-option-values).
 
 | Option label | Option value | Base / Slot 1 | Slot 2+ | Context segment in editor preview label | Notes |
 |---|---|---|---|---|---|
-| Same as Previous Source | `same` | Current entity — not serialized | Inherit slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
+| Same as Previous Source | `same` | Current entity — not serialized | Carry over slot N−1 | N/A | Slot 2+: prepended entry, not in template definition |
 | Current | `current` | stripped → unset | `current` | *(omitted)* | Slot 2+ only: explicit override back to current |
 | In Reference/Relational Field | `ref` | `ref` | `ref` | `Ref 'X'` where X = `ref` field value | Triggers `ref` sub-option |
 | Parent | `parent` | `parent` | `parent` | — | Future |
@@ -423,7 +423,7 @@ container's control reads. `bws_fold_slot_struct()` / `bws_fold_slot_chain_optio
   that spelling, and the legacy `N-` sibling prefixes stay DIGITS. Folded keys registered against a
   flat resolver render nothing. (Also stated at `tools/test/fold-test-matrix.md`'s Era note, which
   pins it as an assertion.)
-- **Carry-forward lives ONCE, in the seam.** Before it existed, the source chain a slot inherits was
+- **Carry-forward lives ONCE, in the seam.** Before it existed, the source chain a slot carries over was
   computed four times — join's loop, `try_`'s loop, and both preview walks — and the preview copies
   had already drifted from each other.
 - **A selecting container is not one thing.** The `try_per_slot_use`/`try_per_slot_key` pair

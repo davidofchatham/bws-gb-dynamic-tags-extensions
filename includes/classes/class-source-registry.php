@@ -109,7 +109,7 @@ class SourceRegistry {
 	 *
 	 * Two ways a key fails. It can COLLIDE with the chain grammar's own step vocabulary —
 	 * `refs`/`terms`/`rows` parse as fanning steps wherever they appear, and `same` is
-	 * the slot inherit sentinel — in which case selecting the row authors wire that reads
+	 * the slot carry-over sentinel — in which case selecting the row authors wire that reads
 	 * back as a step, resolves the ambient entity, and never runs the source. Or it can
 	 * carry a grammar CHARACTER (`;` `,` `(` `)` `[` `]` `:` `|`), which either splits the
 	 * value or ends the option.

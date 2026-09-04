@@ -708,7 +708,7 @@ function renderSteps( conf ) {
 		conf: conf,
 		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'terms', 'category', 2 ) ],
 		onChange: function () {},
-		inheritOnEmpty: false,
+		sameOnEmpty: false,
 		slotNoun: 'tag',
 		stepContext: function () {
 			return { state: {}, setState: function () {} };
@@ -775,7 +775,7 @@ function renderRefsStep( extra ) {
 		conf: stepsConf( extra ),
 		chain: [ repeaterX.step( 'current' ), repeaterX.step( 'refs', 'partner_staff', null ) ],
 		onChange: function () {},
-		inheritOnEmpty: false,
+		sameOnEmpty: false,
 		slotNoun: 'tag',
 		stepContext: function () {
 			return { state: {}, setState: function () {} };
@@ -827,7 +827,7 @@ const advFan = advise( { src: 'refs,office' } );
 check( 'a fanning chain shows the advisory, boxed into the source group', isMemberBox( advFan ), JSON.stringify( advFan && advFan.type ) );
 check( 'a taxonomy-step chain shows it too (no field key involved)', isMemberBox( advise( { src: 'terms,category' } ) ) );
 check( 'legacy flat wire counts as its chain (src:ref + ref)', isMemberBox( advise( { src: 'ref', ref: 'office' } ) ) );
-// An argless fanning step fans only by inheritance and resolves nothing here.
+// An argless fanning step fans only by carry-over and resolves nothing here.
 check( 'an ARGLESS fanning step does not trigger it', null === advise( { src: 'refs' } ) );
 
 // The advisory renders ONCE per chain, however many steps fan.

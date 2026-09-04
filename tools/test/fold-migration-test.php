@@ -252,12 +252,12 @@ check( 'M5.1 legacy slot keys are gone', array() === array_intersect( array_keys
 // The TAG-LEVEL `limit` reaches a FANNING slot (#60). It is not a bound across attempts —
 // it was each attempt's own default — so it has to land where that attempt states its
 // source, or the flat era's materialized 1 overwrites the author's number. Slot B gets
-// nothing: it fans only by inheriting A's source, so it has no list of its own to bound —
+// nothing: it fans only by carrying over A's source, so it has no list of its own to bound —
 // the seam carries A's bound to it along with A's source (slot-fold-test.php §P15), which
 // is what lets the tag-level key itself be retired here (#61, §M10).
 check( 'M5.2 folded values arrive, carrying the tag-level limit into the FANNING attempt', 'src(refs,office,limit[3]);key(name)' === ( $t5['A'] ?? null ) && 'src(same);key(role)' === ( $t5['B'] ?? null ), json_encode( $t5 ) );
 // …and with NO tag-level limit it is the flat era's implied 1 that lands, on the fanning
-// step only — a slot that fans by inheritance states no bound of its own.
+// step only — a slot that fans by carry-over states no bound of its own.
 $t5b = bws_fold_migrate_slots(
 	array(
 		'src'   => 'ref',
@@ -826,11 +826,11 @@ check(
 check( 'M10.2 …and the tag-level key goes with it', ! array_key_exists( 'limit', (array) $m10 ), json_encode( $m10 ) );
 
 // A slot with NO fanning step had nothing to bound, so it takes nothing — and a slot
-// that fans only by INHERITING gets the bound through the seam's carry instead
+// that fans only by CARRYING OVER gets the bound through the seam's carry instead
 // (slot-fold-test.php §P15), which is what keeps this rewrite output-neutral.
 $m10 = bws_fold_migrate_slots( array( 'A' => 'key(a)', 'B' => 'src(same);key(b)', 'limit' => '3' ), $text_cfg );
 check(
-	'M10.3 a non-fanning and an INHERITING slot are both left as written',
+	'M10.3 a non-fanning and an CARRYING OVER slot are both left as written',
 	'key(a)' === ( $m10['A'] ?? null ) && 'src(same);key(b)' === ( $m10['B'] ?? null ) && ! array_key_exists( 'limit', (array) $m10 ),
 	json_encode( $m10 )
 );

@@ -571,7 +571,7 @@ check(
 	),
 	"[Try 'sku', 'alt_sku']"
 );
-// Carry-forward: B omits key (use=same hides key), inherits slot 1.
+// Carry-forward: B omits key (use=same hides key), carries over slot 1.
 // Only a source override on slot 2 → uniform field, varying source.
 check(
 	'carry-forward field',
@@ -794,7 +794,7 @@ check(
 	"[Join 'name_first']"
 );
 // MIXED era (half-applied migration): folded slot 2 between legacy slots 1 and 3, with
-// slot 3 inheriting slot 2's folded source through the shared accumulator.
+// slot 3 carrying over slot 2's folded source through the shared accumulator.
 check(
 	'folded: mixed-era wire previews with one carry-forward',
 	bws_build_join_preview_label( [ 'key' => 'a', 'B' => 'src(refs,rel_post);key(b)', '3-key' => 'c' ] ),
@@ -805,7 +805,7 @@ check(
 echo "\nbuild_try_preview_label — FOLDED wire (FW-56/57)\n";
 // The selecting twin of the block above. Same expected strings as the legacy cases
 // earlier in this file: the try_ preview now walks the SAME seam the callback resolves
-// with, so a label must not change when a tag migrates. It also inherits the seam's
+// with, so a label must not change when a tag migrates. It also carries over the seam's
 // container rules, which is what the last three cases pin.
 check(
 	'folded: single text slot',
@@ -827,12 +827,12 @@ check(
 	bws_build_try_preview_label( [], 'text' ),
 	'[⚠ Try: A no key]'
 );
-// A read-less slot INHERITS in a selecting container (the mirror of join's skip), so
+// A read-less slot CARRIES OVER in a selecting container (the mirror of join's skip), so
 // slot 2 previews with slot 1's field rather than vanishing — here with its own term
 // hop, which does NOT carry forward. Asserted at the legacy twin's exact string
 // (`2-srcTermIn:category` with no read of its own).
 check(
-	'folded: read-less slot 2 inherits the field, keeps its own term hop',
+	'folded: read-less slot 2 carries over the field, keeps its own term hop',
 	bws_build_try_preview_label( [ 'A' => 'key(sku)', 'B' => 'src(terms,category)' ], 'text' ),
 	"[Try 'sku' from Current, Current → Category Term]"
 );

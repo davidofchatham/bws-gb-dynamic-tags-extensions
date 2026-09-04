@@ -195,8 +195,8 @@
 		// #61 — the SELECTING container's tag-level `limit` stops existing. Mirrors
 		// bws_fold_migrate_slots(): a LEGACY slot takes the number through the mapper view
 		// above, an ALREADY-FOLDED one takes it onto its own chain here, and a slot that
-		// fans only by INHERITING takes nothing (the render seam carries the bound with the
-		// source it inherits). NUMERIC only — an uninterpretable value is not a number to
+		// fans only by CARRY-OVER takes nothing (the render seam carries the bound with the
+		// source it carries). NUMERIC only — an uninterpretable value is not a number to
 		// push anywhere, and deleting an author's text on that basis is a bigger move than
 		// this rewrite is entitled to.
 		var tagLimit = null;

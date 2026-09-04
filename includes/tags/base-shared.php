@@ -631,7 +631,7 @@ function bws_get_image_field_options(): array {
  * (source axis) — same derive-don't-copy contract, same `$n` duties.
  *
  * Derivation rules:
- *   - options: base `use.options` verbatim. Slot ≥2 prepends the `same` (inherit)
+ *   - options: base `use.options` verbatim. Slot ≥2 prepends the `same` (carry-over)
  *     row when $allow_same — the read-axis counterpart of "Same as Previous Source".
  *   - label: the NOUN comes off the base definition's own label ("Text Field",
  *     "Image Field", …), emitted as "N: <noun>". Never hand-author a per-container
@@ -650,7 +650,7 @@ function bws_get_image_field_options(): array {
  * @since 1.17.0
  * @param int   $n           Slot ordinal (1-based).
  * @param array $base_read   Base `use` definition (e.g. bws_get_text_field_options()['use']).
- * @param bool  $allow_same  When true, slot ≥2 gets the inherit row. FALSE for
+ * @param bool  $allow_same  When true, slot ≥2 gets the `same` row. FALSE for
  *                           COMBINING containers ({{join}}) because per-slot
  *                           handlers are NOT BUILT YET, not because same-read is
  *                           degenerate there: `use(same)` is legal in combining and
@@ -704,7 +704,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     choosing a field IS the configuration act there; SELECTING (`try_*`) seeds
  *     `use(same)`. The control reads this flag; the renderer reads it again for what
  *     an absent read MEANS (bws_fold_slot_chain_options).
- *   - `allow_same_read` follows the read twin's flag, so the inherit row appears in
+ *   - `allow_same_read` follows the read twin's flag, so the `same` row appears in
  *     exactly the containers whose resolver honors it.
  *   - `steps` names which traversal steps this container OFFERS. It is a CAPABILITY
  *     list, not decoration: a step no arm consumes authors a chain that renders nothing
@@ -723,7 +723,7 @@ function bws_build_slot_read_options( int $n, array $base_read, bool $allow_same
  *     @type bool   $combining       True for join/table. Default true.
  *     @type bool   $per_slot_use    Container gives each slot its own read axis. Default true.
  *     @type bool   $allow_site      Keep `site` in the source enum. Default true.
- *     @type bool   $allow_same_read Offer the read inherit row at slot ≥2. Default false.
+ *     @type bool   $allow_same_read Offer the read `same` row at slot ≥2. Default false.
  *     @type array  $steps            WIRE step slugs offered as steps, in offer order. Default ['terms'].
  *     @type array  $tag_level       Legacy axes this container owns at TAG level, never per
  *                                   slot (e.g. a try_ template's `limit`). Ships to the
@@ -776,8 +776,8 @@ function bws_build_fold_slot_options( array $args ): array {
 	$offer     = bws_fold_step_offer( $steps, $vocab );
 
 	// Source enum — through the SLOT twin, so the `site` filter and the "Same as
-	// Previous Source" inherit row are the shipped ones rather than new copies. Slot 1
-	// gets the plain list, slot ≥2 the list with the inherit row.
+	// Previous Source" carry-over row are the shipped ones rather than new copies. Slot 1
+	// gets the plain list, slot ≥2 the list with the `same` row.
 	//
 	// The twin's `ref` row is RESPELLED to the wire slug `refs`: on a slot the
 	// relationship is a fanning STEP at position 0, and that row has always been its
@@ -794,14 +794,14 @@ function bws_build_fold_slot_options( array $args ): array {
 		return $rows;
 	};
 	$src_rows         = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
-	$src_rows_inherit = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
+	$src_rows_with_same = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
 	// Registered roots (#83), through the SAME appender the base tag's root enum reads —
 	// so a root offered on `{{text}}` is offered in a `{{join}}` field and a `try_` attempt
 	// too. Ungated: `$allow_site` filters an ENTITY-BLIND source, which a registered entity
 	// root is not. Appended, so `defaultRoot` still derives from `current`.
 	$registered_roots = bws_registered_root_rows();
 	$src_rows         = array_merge( $src_rows, $registered_roots );
-	$src_rows_inherit = array_merge( $src_rows_inherit, $registered_roots );
+	$src_rows_with_same = array_merge( $src_rows_with_same, $registered_roots );
 
 	// Read enum — through the read twin (its `['options']` rows only; the fold supplies
 	// its own slot heading). A COMBINING container needs an explicit unset row: there,
@@ -809,11 +809,11 @@ function bws_build_fold_slot_options( array $args ): array {
 	// row means. In a selecting container absent IS the first row's stripped default,
 	// so no extra row — the flat UI's behaviour, unchanged.
 	$read_rows         = bws_build_slot_read_options( 1, $base_read, false )['options'] ?? array();
-	$read_rows_inherit = bws_build_slot_read_options( 2, $base_read, $allow_same_read )['options'] ?? array();
+	$read_rows_with_same = bws_build_slot_read_options( 2, $base_read, $allow_same_read )['options'] ?? array();
 	if ( $combining ) {
 		$unset_row         = array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) );
 		$read_rows         = array_merge( array( $unset_row ), $read_rows );
-		$read_rows_inherit = array_merge( array( $unset_row ), $read_rows_inherit );
+		$read_rows_with_same = array_merge( array( $unset_row ), $read_rows_with_same );
 	}
 
 	// Taxonomy rows for a `terms` step. Mirrors what the shipped bws-term-hop control
@@ -837,7 +837,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		'max'            => $max,
 		'noun'           => $noun,
 		'srcRows'        => $src_rows,
-		'srcRowsInherit' => $src_rows_inherit,
+		'srcRowsWithSame' => $src_rows_with_same,
 		// The root an absent chain SPELLS on slot 1 — derived from the very row the
 		// enum leads with, so the two cannot disagree. The control DISPLAYS it rather
 		// than rendering an empty picker: a picker whose value is `''` matches no row,
@@ -848,7 +848,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		'defaultRoot'    => (string) ( $src_rows[0]['value'] ?? '' ),
 		'offer'          => $offer,
 		'readRows'       => $read_rows,
-		'readRowsInherit' => $read_rows_inherit,
+		'readRowsWithSame' => $read_rows_with_same,
 		'readLabel'      => $base_read['label'] ?? '',
 		// The read an absent slot-1 value spells — the read-axis twin of `defaultRoot`
 		// above, same reason: a control that leaves the picker (and, for a `key` default,
@@ -1033,7 +1033,7 @@ function bws_try_join_items( array $items, $sep, int $limit ): string {
  *     guard — the generic try_ slot resolver had no site arm). Per-template
  *     opt-in via $allow_site=true re-allows it (email/phone — once the slot
  *     resolver site arm landed, SPEC §32 V7/V8): site is the canonical contact
- *     fallback slot. Slot ≥2 prepends the `same` (inherit) row. `_strip_default`
+ *     fallback slot. Slot ≥2 prepends the `same` (carry-over) row. `_strip_default`
  *     preserved (V5). Label overlaid as "N: Source" (V10).
  *   - ref / srcTermIn: base definitions verbatim (label body / placeholder / help
  *     from base — V10), show_if re-qualified via bws_slot_qualify_show_if, label

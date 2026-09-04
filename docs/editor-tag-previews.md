@@ -272,7 +272,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 
 ## try_ tag previews
 
-`bws_build_try_preview_label()` walks slots 1-5, applies carry-forward (slot ≥2 empty fields inherit prior slot's canonical value), then detects uniformity across two dimensions (field-part, source-part) and renders one of four shapes.
+`bws_build_try_preview_label()` walks slots 1-5, applies carry-forward (slot ≥2 empty fields resolve `same` against the prior slot's canonical value), then detects uniformity across two dimensions (field-part, source-part) and renders one of four shapes.
 
 **Conventions** (consistent with base previews):
 - Template-name labels: `text` has no label (default). `content`/`image`/`email`/`phone` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name. `email`/`phone` use bare `Email` / `Phone`.
@@ -309,7 +309,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 
 `{{join}}` is the standalone COMBINING tag (up to `BWS_JOIN_MAX_SLOTS` text slots, all non-empty values assembled into one string). Unlike `try_` (a fallback chain — first non-empty wins), join combines **every** slot, so its preview lists all configured slot fields rather than describing a chain. Built by `bws_build_join_preview_label()`.
 
-**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' inherits the prior resolved source), `key`/`use` never inherit. Each real slot contributes a quoted key (`'name_first'`) or `Title`; a non-current source is appended per-slot (` from Ref 'rel'`).
+**Slot walk** matches `bws_join_callback()`: a slot is "real" iff it has a `key` OR a non-default `use`; `src`/`ref` carry forward (`same`/'' takes the prior resolved source), `key`/`use` never do. Each real slot contributes a quoted key (`'name_first'`) or `Title`; a non-current source is appended per-slot (` from Ref 'rel'`).
 
 **Assembly annotation.** The `Join` prefix leads. Then:
 

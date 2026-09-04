@@ -528,7 +528,7 @@
 		}
 
 		// An explicitly key-moded selecting slot ≥2 with NO key of its own BORROWED the
-		// carried key under the flat resolver — read it as the inherit it was (the PHP
+		// carried key under the flat resolver — read it as the `same` it was (the PHP
 		// owner's docblock carries the reasoning).
 		if ( ! combining && perSlotUse && n >= 2 && 'key' === use && '' === key ) {
 			use = '';
@@ -552,7 +552,7 @@
 			// that rather than inventing a source.
 			chain.push( step( 'refs', '' !== ref ? ref : null ) );
 		} else if ( 'same' === src || ( '' === src && n >= 2 ) ) {
-			// Legacy absence at slot ≥2 already MEANT inherit, in both containers —
+			// Legacy absence at slot ≥2 already MEANT `same`, in both containers —
 			// only the read axis diverges. Materialize the sentinel.
 			chain.push( step( 'same' ) );
 		} else if ( '' !== src ) {
@@ -589,7 +589,7 @@
 		} else if ( combining ) {
 			slotRead = null;   // UNCONFIGURED — the shipped resolver skips this slot.
 		} else {
-			// Selecting: absent read inherits either way, so materialize the sentinel
+			// Selecting: absent read carries over either way, so materialize the sentinel
 			// only where a read axis exists to show it (PHP owner's docblock).
 			slotRead = ( n >= 2 && perSlotUse ) ? { kind: 'same' } : null;
 		}
@@ -599,8 +599,8 @@
 		// shadows the author's number. Combining containers own `limit` per slot, so an
 		// absent one there means the slot states none. Read AFTER the emptiness test, never
 		// before: a tag-level limit is not content — and only where THIS slot's chain fans,
-		// so a slot with nothing to bound gets no limit. A slot that fans by INHERITING is
-		// handed the bound with the source it inherits, on the render seam PHP owns alone
+		// so a slot with nothing to bound gets no limit. A slot that fans by CARRY-OVER is
+		// handed the bound with the source it carries, on the render seam PHP owns alone
 		// (bws_fold_slot_chain_options), which is what let the key be retired (#61). See the
 		// PHP owner's comment.
 		if ( '' === limit && ! combining && chainFanningSteps( chain ).length ) {
@@ -722,7 +722,7 @@
 	/**
 	 * Which steps of a chain FAN — twin of bws_fold_chain_fanning_steps(), which owns the
 	 * reasoning. An argless fanning step does not count: the compiler drops it, so it fans
-	 * only by inheriting an earlier slot's source, and that slot stated its own bound.
+	 * only by carrying over an earlier slot's source, and that slot stated its own bound.
 	 *
 	 * @param {Array} chain Parsed chain.
 	 * @return {number[]} Indexes of the fanning steps, in chain order.

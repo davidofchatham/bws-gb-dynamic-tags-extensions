@@ -107,7 +107,7 @@
 			max: c.max || 5,
 			noun: c.noun || '',
 			srcRows: c.srcRows || [],
-			srcRowsInherit: c.srcRowsInherit || [],
+			srcRowsWithSame: c.srcRowsWithSame || [],
 			// The root an absent source spells. On a base tag that is the tag's ambient
 			// entity; on a SLOT it is slot 1's `current` (a slot ≥2 spells its absence
 			// `same`, which chainSteps holds rather than reading from here). Both are
@@ -135,7 +135,7 @@
 			// derived config exists to remove. See bws_fold_wire_vocabulary().
 			limitOption: c.limitOption || {},
 			readRows: c.readRows || [],
-			readRowsInherit: c.readRowsInherit || [],
+			readRowsWithSame: c.readRowsWithSame || [],
 			readLabel: c.readLabel || '',
 			taxonomies: c.taxonomies || [],
 			refOption: c.refOption || null,
@@ -428,13 +428,13 @@
 	 * Remove slot n and CLOSE THE HOLE — out-of-order removal must not leave a gap.
 	 *
 	 * THE HAZARD compaction introduces: `same` is a POSITIONAL backreference, so
-	 * sliding a slot down re-points its inheritance at a DIFFERENT neighbour, silently
-	 * changing meaning. So the survivor's inherited axes are MATERIALIZED against the
+	 * sliding a slot down re-points its carry-over at a DIFFERENT neighbour, silently
+	 * changing meaning. So the survivor's carried axes are MATERIALIZED against the
 	 * slot being removed BEFORE any renumbering. Only the immediate successor can be
 	 * affected (only it referenced the removed slot), so this is one fixup, not a
 	 * cascade.
 	 *
-	 * Position 1 cannot hold an inherit (no predecessor), so any `same` that lands
+	 * Position 1 cannot hold a carry-over (no predecessor), so any `same` that lands
 	 * there after the slide is dropped to a plain unset axis.
 	 *
 	 * One whole-object setState, so no intermediate gap state is ever committed. Every
@@ -492,7 +492,7 @@
 
 	/**
 	 * ADVISORY ONLY — never a gate. Describes what this slot varies against its
-	 * predecessor, by pure read of the wire. The all-inherit state is called out
+	 * predecessor, by pure read of the wire. The all-carry-over state is called out
 	 * because it resolves identically to the previous slot, so it is always a
 	 * "not configured yet" state rather than a resting one.
 	 */
@@ -580,9 +580,9 @@
 	 * @param {Object}   props.conf           Derived fold/chain config (foldConfig shape).
 	 * @param {Array}    props.chain          Parsed chain (grammar shape).
 	 * @param {Function} props.onChange       fn( nextChain ) — the ONLY way out.
-	 * @param {boolean}  props.inheritOnEmpty Emptying the chain falls back to an
+	 * @param {boolean}  props.sameOnEmpty Emptying the chain falls back to an
 	 *                                        explicit `same` rather than to absence.
-	 *                                        True for a slot ≥2 (losing an inherit to
+	 *                                        True for a slot ≥2 (losing a carry-over to
 	 *                                        a step deletion is a silent meaning
 	 *                                        change); false where empty legitimately
 	 *                                        means the ambient entity.
@@ -610,7 +610,7 @@
 		// slot 1's default root is stripped back to absence at the caller, so the wire
 		// is byte-identical to what an untouched slot already serializes.
 		if ( ! chain.length ) {
-			var implied = props.inheritOnEmpty ? 'same' : ( conf.defaultRoot || '' );
+			var implied = props.sameOnEmpty ? 'same' : ( conf.defaultRoot || '' );
 			if ( implied ) {
 				chain = [ step( implied ) ];
 			}
@@ -626,13 +626,13 @@
 			} else {
 				next[ idx ] = newStep;
 			}
-			// Emptying the chain on slot ≥2 falls back to EXPLICIT inherit, never to
+			// Emptying the chain on slot ≥2 falls back to an EXPLICIT carry-over, never to
 			// absence: the renderer resolves a bare empty chain against the ambient
-			// entity (a RESET, not an inherit — legacy absence migrates to an explicit
-			// `src(same)`, so absence means what it says), and losing an inherit to a
+			// entity (a RESET, not a carry-over — legacy absence migrates to an explicit
+			// `src(same)`, so absence means what it says), and losing a carry-over to a
 			// step deletion would be a silent meaning change.
 			// Slot 1 has no predecessor, so empty there is legitimately `current`.
-			if ( props.inheritOnEmpty && ! next.length ) {
+			if ( props.sameOnEmpty && ! next.length ) {
 				next = [ step( 'same' ) ];
 			}
 			props.onChange( next );
@@ -704,7 +704,7 @@
 			if ( idx > 0 ) {
 				rows = offerableSteps( idx, held );
 			} else {
-				var roots = props.inheritOnEmpty ? conf.srcRowsInherit : conf.srcRows;
+				var roots = props.sameOnEmpty ? conf.srcRowsWithSame : conf.srcRows;
 				rows = roots.concat( offerableSteps( 0, held ) );
 			}
 			if ( held && ! rows.some( function ( r ) { return r.value === held; } ) ) {
@@ -719,7 +719,7 @@
 			var stepKids = [];
 
 			// Step header (ordinal + inline remove) only for real multi-step chains: a
-			// lone step needs no ordinal, and a `same` chain is an inherit marker rather
+			// lone step needs no ordinal, and a `same` chain is a carry-over marker rather
 			// than a step. Its collision with the slot-level Remove is resolved by
 			// PLACEMENT — slot remove sits above the box, step remove inside it. COLOR
 			// stays semantic: both removes red, both adds blue.
@@ -919,7 +919,7 @@
 		// which cannot happen from a shipped registration (the field derives from the
 		// enum's own first row) and would mean the enum itself is empty.
 
-		// Append-a-step: only off a real (non-inherit) chain, and only once the last
+		// Append-a-step: only off a real (non-carry-over) chain, and only once the last
 		// step is complete, so a half-built step is never serialized. Lives INSIDE the
 		// source box because it appends to THIS chain — unlike Add slot, which sits at
 		// the slot's outer edge.
@@ -984,8 +984,8 @@
 
 		// UNCONFIGURED-SLOT DEFAULT is position-aware. A blanket empty struct gave the
 		// floor-visible slot 2 an empty chain, which is the silent-RESET shape (it
-		// resolves against ambient context instead of inheriting) — the renderer treats
-		// it as malformed. So slot ≥2 mounts as the same all-inherit state the add
+		// resolves against ambient context instead of carrying over) — the renderer treats
+		// it as malformed. So slot ≥2 mounts as the same all-carry-over state the add
 		// button seeds, and an untouched slot 2 reads identically however it arrived.
 		// Slot 1 keeps the empty default: with no predecessor, `current` genuinely IS
 		// its unset state.
@@ -1034,7 +1034,7 @@
 		 * previously held nothing, so merely LOOKING at a slot could change its wire.
 		 *
 		 * Slot 1 only. A slot ≥2's `same` is written on purpose — absence there is a
-		 * RESET rather than an inherit, so an explicit inherit has to be stated (see
+		 * RESET rather than a carry-over, so an explicit carry-over has to be stated (see
 		 * writeChainAt). Stripping it would silently convert one into the other.
 		 */
 		function stripDefaultRoot( chain ) {
@@ -1117,18 +1117,18 @@
 			if ( ! hasRead ) {
 				advisory = 'both' === intent
 					? __( 'Varies: source', 'generateblocks' )
-					: __( 'Inherits the previous source — this slot repeats it until you change the source.', 'generateblocks' );
+					: __( 'The previous source carries over until you change it.', 'generateblocks' );
 			} else {
 				advisory = {
-					context: __( 'Varies: source (field inherited)', 'generateblocks' ),
-					field: __( 'Varies: field (source inherited)', 'generateblocks' ),
+					context: __( 'Varies: source (field carries over)', 'generateblocks' ),
+					field: __( 'Varies: field (source carries over)', 'generateblocks' ),
 					both: __( 'Varies: source and field', 'generateblocks' )
 				}[ intent ];
 			}
 			if ( ! advisory ) {
 				advisory = conf.combining
-					? __( 'Inherits the previous source — pick a field for this slot.', 'generateblocks' )
-					: __( 'Inherits both axes — this slot duplicates the previous one until you change something.', 'generateblocks' );
+					? __( 'The previous source carries over. Pick a field for this slot.', 'generateblocks' )
+					: __( 'Both the source and the field carry over until you change one of them.', 'generateblocks' );
 			}
 			// Nested INSIDE the header container: the modal column's row-gap applies
 			// between children, so a standalone advisory sits a full gap from the title
@@ -1150,7 +1150,7 @@
 			conf: conf,
 			chain: chain,
 			onChange: writeChain,
-			inheritOnEmpty: ordinal >= 2,
+			sameOnEmpty: ordinal >= 2,
 			slotNoun: slotNoun,
 			stepContext: stepContext
 		} );
@@ -1170,7 +1170,7 @@
 		// a picker ALONE (`keyOnly`: a per-slot key with no `use` enum — try_email /
 		// try_phone, whose only read is "that field"), and NOTHING (neither — the read
 		// is a tag-level option, as on try_permalink). In keyOnly there is no row to
-		// select `same` with, so an EMPTY field is the inherit: it writes an absent
+		// select `same` with, so an EMPTY field is the carry-over: it writes an absent
 		// read, which a selecting container already resolves by carry-forward.
 		var read = slot.read;
 		var keyOnly = ! conf.readRows.length && !! conf.keyOption;
@@ -1196,7 +1196,7 @@
 				label: conf.readLabel || __( 'Field', 'generateblocks' ),
 				hideLabelFromVision: true,
 				value: readVal,
-				options: ( ordinal >= 2 && conf.readRowsInherit.length ) ? conf.readRowsInherit : conf.readRows,
+				options: ( ordinal >= 2 && conf.readRowsWithSame.length ) ? conf.readRowsWithSame : conf.readRows,
 				onChange: function ( v ) {
 					if ( 'same' === v ) {
 						writeRead( { kind: 'same' } );
@@ -1214,7 +1214,7 @@
 			if ( keyOnly || 'key' === readVal ) {
 				var keyCfg = conf.keyOption || {};
 				var commitField = keyOnly
-					// Clearing the field is how a keyOnly slot says "inherit" — there is
+					// Clearing the field is how a keyOnly slot says "carry over" — there is
 					// no enum row to say it with. An empty `key()` would instead be an
 					// explicit read of nothing, which skips the slot.
 					? function ( field ) {
@@ -1251,7 +1251,7 @@
 
 				// A keyed read with no field reads nothing — the read-axis twin of the
 				// step's dead-step warning, in the same words for the same reason. Only
-				// where the kind was CHOSEN: in keyOnly an empty field IS the inherit
+				// where the kind was CHOSEN: in keyOnly an empty field IS the carry-over
 				// (no enum row exists to say it with), so it is a resting state, not a
 				// hole.
 				if ( ! keyOnly && read && ! read.field ) {

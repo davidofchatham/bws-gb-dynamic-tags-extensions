@@ -48,7 +48,7 @@
  *                     present and not `key`. Hand-edit-only, so the round-trip
  *                     property cannot reach it (the control never emits both).
  *   P12 LEGACY      — bws_fold_from_flat(): the six-key input surface, and the
- *                     read-axis CONTAINER divergence (selecting inherits, combining
+ *                     read-axis CONTAINER divergence (selecting carries over, combining
  *                     leaves unset because a skipped combining slot must not start
  *                     rendering or re-point a later slot's `src(same)`).
  *
@@ -86,7 +86,7 @@ $text_default    = bws_use_stripped_default( 'text' );
 $content_default = bws_use_stripped_default( 'content' );
 require __DIR__ . '/../../includes/helpers/field-helpers.php';
 // THE ENGINE'S INPUT-KIND LIST, because the seam's `same` merge derives from it: an
-// inherited step is dropped only where its slug CANNOT repeat, and "can it repeat" is
+// carried step is dropped only where its slug CANNOT repeat, and "can it repeat" is
 // answered from BWS_TRAVERSAL_STEP_INPUT_KINDS + BWS_FOLD_STEP_KINDS rather than from a
 // literal. Without this require the predicate degrades to "everything repeats", which is
 // the SAFE direction (no drop) and would make §P16.4 fail rather than pass vacuously —
@@ -189,7 +189,7 @@ $corpus = array(
 	array( 'try', 'key(custom_field)' ),
 	array( 'try', 'src(terms,category);use(title)' ),
 	array( 'try', 'src(refs,office;refs,region);key(name)' ),
-	array( 'try', 'src(refs,office);use(same)' ),                       // new source, inherited read
+	array( 'try', 'src(refs,office);use(same)' ),                       // new source, carried read
 	array( 'try', 'src(same);key(second)' ),                            // same source, new read
 	array( 'try', 'src(refs,office);key(second)' ),                     // both new
 	array( 'try', 'src(post,9999;refs,related_staff,limit[5]);use(title)' ),
@@ -617,7 +617,7 @@ foreach ( $orderings as $i => $in ) {
 	check( "P11.$i use wins over key: $in", array( 'kind' => 'analog', 'slug' => 'title' ) === ( $slot['read'] ?? null ), var_export( $slot['read'] ?? null, true ) );
 }
 check( 'P11.2 both orderings agree (order is never semantic)', $reads[0] === $reads[1], var_export( $reads, true ) );
-// `use(same)` beside a stale key: inherit wins, the key is inert.
+// `use(same)` beside a stale key: carry over wins, the key is inert.
 $stale = bws_fold_parse_slot( 'src(refs,office);use(same);key(old)', 'try' );
 check( 'P11.3 use(same) wins over a stale key', array( 'kind' => 'same' ) === ( $stale['read'] ?? null ), var_export( $stale, true ) );
 check( 'P11.4 emit is exclusive (never both tokens)', 'src(refs,office);use(same)' === bws_fold_emit_slot( $stale ), 'got: ' . bws_fold_emit_slot( $stale ) );
@@ -665,7 +665,7 @@ check( 'P12.4 srcTermIn → terms step, carrying the flat era default', 'src(ter
 check( 'P12.5 ref + srcTermIn compound in order', 'src(refs,office,limit[1];terms,category,limit[1]);use(title)' === t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'ref', 'ref' => 'office', 'srcTermIn' => 'category', 'use' => 'title' ) ), true ) );
 check( 'P12.6 src:site is a chain step', 'src(site);key(phone)' === t_legacy_wire( 1, array( 'src' => 'site', 'key' => 'phone' ) ), var_export( t_legacy_wire( 1, array( 'src' => 'site', 'key' => 'phone' ) ), true ) );
 
-// Slot ≥2, src axis — absence and the `same` sentinel both mean inherit, in BOTH
+// Slot ≥2, src axis — absence and the `same` sentinel both mean carry over, in BOTH
 // containers (the src axis is NOT container-sensitive).
 check( 'P12.7 selecting slot 2, src absent → src(same)', 'src(same);use(title)' === t_legacy_wire( 2, array( '2-use' => 'title' ) ), var_export( t_legacy_wire( 2, array( '2-use' => 'title' ) ), true ) );
 check( 'P12.8 combining slot 2, src absent → src(same)', 'src(same);key(alt)' === t_legacy_wire( 2, array( '2-key' => 'alt' ), true ), var_export( t_legacy_wire( 2, array( '2-key' => 'alt' ), true ), true ) );
@@ -820,7 +820,7 @@ function t_seam_walk( $options, $container = 'join', $max = 5, $per_slot_use = t
  * The flat option set shipped {{join}} built for one slot, transcribed from base-tags.php.
  *
  * One DELIBERATE departure from what shipped through 1.16.x: `srcTermIn` carries to a slot
- * that inherits its source (#74). The shipped loop read it fresh per slot, so an inheriting
+ * that carries over its source (#74). The shipped loop read it fresh per slot, so an carrying over
  * slot behind a term hop resolved against the ambient entity — the defect this model would
  * otherwise pin in place. Everything else is the shipped walk verbatim, so the equivalence
  * checks below still compare two independent implementations rather than one with itself.
@@ -841,16 +841,16 @@ function t_shipped_join_walk( $options, $max = 5 ) {
 		if ( '' === $key && '' === $use ) {
 			continue;
 		}
-		// The hop travels WITH the source (#74): a slot inherits it only when it inherits
+		// The hop travels WITH the source (#74): a slot carries over it only when it carries over
 		// the source, and a slot stating its own hop replaces the carried one.
-		$inherits_src = ( '' === $src || 'same' === $src );
+		$carries_src = ( '' === $src || 'same' === $src );
 		if ( '' !== $src && 'same' !== $src ) {
 			$last_src = $src;
 		}
 		if ( '' !== $ref ) {
 			$last_ref = $ref;
 		}
-		if ( '' === $stm && $inherits_src ) {
+		if ( '' === $stm && $carries_src ) {
 			$stm = $last_stm;
 		}
 		$last_stm = $stm;
@@ -910,7 +910,7 @@ function t_norm_walk( $walk ) {
 $legacy_join_cases = array(
 	'plain two-slot'          => array( 'key' => 'first_name', '2-key' => 'last_name' ),
 	'title + key'            => array( 'use' => 'title', '2-key' => 'role' ),
-	'ref hop then inherit'   => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', '2-key' => 'phone' ),
+	'ref hop then carry over'   => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', '2-key' => 'phone' ),
 	'term hop with limit'    => array( 'srcTermIn' => 'category', 'use' => 'title', 'limit' => '3', '2-key' => 'blurb' ),
 	'site slot'              => array( 'key' => 'a', '2-src' => 'site', '2-key' => 'org_phone' ),
 	'explicit same sentinel' => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'a', '2-src' => 'same', '2-key' => 'b' ),
@@ -938,7 +938,7 @@ foreach ( $legacy_join_cases as $name => $legacy ) {
 }
 
 // P13.2 — THE MIXED-ERA CASE the spike could not reach: folded slot 2 between legacy
-// slots 1 and 3. Slot 3 inherits, so it must see slot 2's FOLDED source through the
+// slots 1 and 3. Slot 3 carries over, so it must see slot 2's FOLDED source through the
 // one shared accumulator.
 $mixed = array(
 	'src'   => 'ref',
@@ -950,32 +950,32 @@ $mixed = array(
 $walk = t_seam_walk( $mixed, 'join' );
 check( 'P13.2 mixed era: legacy slot 1 resolves', array( 'src' => 'refs,office', 'ref' => '', 'srcTermIn' => '', 'use' => 'key', 'key' => 'a', 'limit' => '1' ) === ( $walk[1] ?? null ), json_encode( $walk[1] ?? null ) );
 check( 'P13.2 mixed era: folded slot 2 resolves', array( 'src' => 'site', 'ref' => '', 'srcTermIn' => '', 'use' => 'key', 'key' => 'org_phone', 'limit' => '1' ) === ( $walk[2] ?? null ), json_encode( $walk[2] ?? null ) );
-check( 'P13.2 mixed era: legacy slot 3 inherits the FOLDED slot 2 source', 'site' === ( $walk[3]['src'] ?? '' ), json_encode( $walk[3] ?? null ) );
-// The reverse threading: a FOLDED slot inheriting from a LEGACY predecessor.
+check( 'P13.2 mixed era: legacy slot 3 carries over the FOLDED slot 2 source', 'site' === ( $walk[3]['src'] ?? '' ), json_encode( $walk[3] ?? null ) );
+// The reverse threading: a FOLDED slot carrying over from a LEGACY predecessor.
 $mixed_rev = array(
 	'2-src' => 'site',
 	'2-key' => 'org_phone',
 	'C'     => 'src(same);key(c)',
 );
 $walk_rev = t_seam_walk( $mixed_rev, 'join' );
-check( 'P13.2 mixed era: folded slot 3 inherits a LEGACY slot 2 source', 'site' === ( $walk_rev[3]['src'] ?? '' ), json_encode( $walk_rev[3] ?? null ) );
+check( 'P13.2 mixed era: folded slot 3 carries over a LEGACY slot 2 source', 'site' === ( $walk_rev[3]['src'] ?? '' ), json_encode( $walk_rev[3] ?? null ) );
 
 // P13.3 — SKIP BEFORE CARRY. A combining slot with no read is unconfigured: it
-// renders nothing AND must not feed the accumulator, or a later slot's inherit
+// renders nothing AND must not feed the accumulator, or a later slot's carry over
 // re-points at a source the author never chose.
 $skip = array( 'A' => 'key(a)', 'B' => 'src(site)', 'C' => 'src(same);key(c)' );
 $walk = t_seam_walk( $skip, 'join' );
 check( 'P13.3 combining: read-less slot 2 is skipped', ! isset( $walk[2] ), json_encode( $walk[2] ?? null ) );
-check( 'P13.3 combining: slot 3 inherits slot 1, NOT the skipped slot 2', '' === ( $walk[3]['src'] ?? 'X' ), json_encode( $walk[3] ?? null ) );
-// Selecting reads absence as inherit, and DOES resolve the slot.
+check( 'P13.3 combining: slot 3 carries over slot 1, NOT the skipped slot 2', '' === ( $walk[3]['src'] ?? 'X' ), json_encode( $walk[3] ?? null ) );
+// Selecting reads absence as carry over, and DOES resolve the slot.
 $walk_sel = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(site)' ), 'try' );
-check( 'P13.3 selecting: read-less slot 2 inherits the read and resolves', isset( $walk_sel[2] ) && 'a' === $walk_sel[2]['key'] && 'site' === $walk_sel[2]['src'], json_encode( $walk_sel[2] ?? null ) );
+check( 'P13.3 selecting: read-less slot 2 carries over the read and resolves', isset( $walk_sel[2] ) && 'a' === $walk_sel[2]['key'] && 'site' === $walk_sel[2]['src'], json_encode( $walk_sel[2] ?? null ) );
 
-// P13.4 — explicit `use(same)` inherits in BOTH containers (only ABSENCE diverges).
+// P13.4 — explicit `use(same)` carries over in BOTH containers (only ABSENCE diverges).
 $same_join = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(site);use(same)' ), 'join' );
 check( 'P13.4 combining honors an explicit use(same)', isset( $same_join[2] ) && 'a' === $same_join[2]['key'] && 'key' === $same_join[2]['use'], json_encode( $same_join[2] ?? null ) );
 $same_analog = t_seam_walk( array( 'A' => 'use(title)', 'B' => 'src(site);use(same)' ), 'join' );
-check( 'P13.4 an inherited ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
+check( 'P13.4 a carried ANALOG read carries too', 'title' === ( $same_analog[2]['use'] ?? '' ), json_encode( $same_analog[2] ?? null ) );
 
 // P13.4b — AN EMPTY ANALOG SLUG NAMES NO READ, so it resolves as the carry's.
 //
@@ -1078,7 +1078,7 @@ check( 'P13.5b a RESOLVING slot clears the reason (reused variable, no leak)', '
 // argument, so the shape did not exist before. Flattening it is worse than skipping —
 // an empty `srcTermIn` is exactly how NO term hop is spelled, so the slot would read the
 // un-hopped entity and return a plausible WRONG value instead of nothing. `refs` is the
-// deliberate contrast: argless there means "inherit the carried relationship field".
+// deliberate contrast: argless there means "take the carried relationship field".
 foreach ( array(
 	'leading, argless'   => 'src(terms);key(role)',
 	'after a real src'   => 'src(post,9;terms);key(role)',
@@ -1094,11 +1094,11 @@ bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(terms);key(role)' ), $sr_
 check( 'P13.5c an incomplete step reports reason `step:terms`, not `chain`', 'step:terms' === $sr, var_export( $sr, true ) );
 $argless_ref = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(refs);key(b)' ), 'join' );
 check(
-	'P13.5c an argless `refs` hop still INHERITS rather than skipping',
+	'P13.5c an argless `refs` hop still CARRIES OVER rather than skipping',
 	'refs,office' === ( $argless_ref[2]['src'] ?? null ),
 	json_encode( $argless_ref[2] ?? null )
 );
-// …but an argless `refs` with NOTHING CARRIED is incomplete, not inherited (#74). The
+// …but an argless `refs` with NOTHING CARRIED is incomplete, not carried (#74). The
 // distinction is the whole of it: the step is complete when the carry supplies its field,
 // and only unfinished when nothing ever did. Skipping is what the seam docblock always
 // CLAIMED happened here ("the step is dead"); what actually happened is that the flat
@@ -1169,7 +1169,7 @@ check( 'P13.6c final step unbounded → the slot-level token governs', '4' === (
 // A:src(terms,department);use(title)}}` → one.
 //
 // The predicate is the slot's OWN chain fanning, shared with the migrator's stamp
-// (bws_fold_chain_fanning_steps). A slot that only fans by INHERITING an earlier slot's
+// (bws_fold_chain_fanning_steps). A slot that only fans by CARRYING OVER an earlier slot's
 // source keeps the flat default — see the seam's docblock for why a limit must not carry
 // forward — and the mutation that matters is the one that flips `src(same)` to 0, since
 // that is what silently unbounds a migrated join slot.
@@ -1180,8 +1180,8 @@ $era_cases = array(
 	array( 'src(rows,rows);key(a)', 'table', 0, 'a repeater step fans (its container refuses the kind, era still reported)' ),
 	array( 'src(site);key(org_phone)', 'join', 1, 'a singular chain states no list to bound' ),
 	array( 'key(a)', 'join', 1, 'no chain at all' ),
-	array( 'src(same);key(b)', 'join', 1, 'inherits a source, so states no bound of its own' ),
-	array( 'src(refs);key(b)', 'join', 1, 'an ARGLESS refs step fans only by inheritance' ),
+	array( 'src(same);key(b)', 'join', 1, 'carries over a source, so states no bound of its own' ),
+	array( 'src(refs);key(b)', 'join', 1, 'an ARGLESS refs step fans only by carry-over' ),
 );
 foreach ( $era_cases as $i => $case ) {
 	list( $wire, $container, $want, $why ) = $case;
@@ -1210,15 +1210,15 @@ check( 'P13.6b a SKIPPED slot still reports its default (no leak into the next s
 $bad = t_seam_walk( array( 'A' => 'key(a', '1-key' => 'ignored', 'key' => 'stale' ), 'join' );
 check( 'P13.7 malformed folded wire skips the slot', ! isset( $bad[1] ), json_encode( $bad[1] ?? null ) );
 
-// P13.8 — an empty chain at slot ≥2 is a RESET to the ambient entity, not an inherit
+// P13.8 — an empty chain at slot ≥2 is a RESET to the ambient entity, not a carry-over
 // (legacy absence migrates to an explicit `src(same)`, so absence is unambiguous).
 $reset = t_seam_walk( array( 'A' => 'src(site);key(a)', 'B' => 'key(b)' ), 'join' );
-check( 'P13.8 empty chain at slot 2 resets to current, not inherit', '' === ( $reset[2]['src'] ?? 'X' ), json_encode( $reset[2] ?? null ) );
+check( 'P13.8 empty chain at slot 2 resets to current, not carry over', '' === ( $reset[2]['src'] ?? 'X' ), json_encode( $reset[2] ?? null ) );
 
 // ── P14 SELECTING CONTAINER (`try_*`) ───────────────────────────────────────
 //
 // The same migration-equivalence property as P13.1, for the container whose ABSENCE
-// rules are the mirror image: an absent read INHERITS instead of skipping the slot,
+// rules are the mirror image: an absent read CARRIES OVER instead of skipping the slot,
 // and slot 1 with every axis unset is still an attempt. Three READ SHAPES exist and
 // each resolves differently, so each is walked separately:
 //   psu  — per-slot `use` enum + key   (text / content / image)
@@ -1228,7 +1228,7 @@ check( 'P13.8 empty chain at slot 2 resets to current, not inherit', '' === ( $r
 /**
  * The flat option set the shipped try_ resolver built for one slot, transcribed from
  * class-tag-template-registry.php before the flip. Models the loop's own variables —
- * NOT the `$eval_opts` inheritance around them, which additionally leaked slot 1's
+ * NOT the `$eval_opts` carry-over around them, which additionally leaked slot 1's
  * bare `srcTermIn` into every later slot's core call (P14.5 covers that fix).
  */
 function t_shipped_try_walk( $options, $psk, $psu, $nku = array(), $default_use = '', $max = 5 ) {
@@ -1353,10 +1353,10 @@ function t_migrate_try( $options, $psk, $psu, $max = 5 ) {
 $try_psu_cases = array(
 	'two keyed slots'        => array( 'key' => 'a', '2-use' => 'key', '2-key' => 'b' ),
 	'analog then keyed'      => array( 'use' => 'title', '2-use' => 'key', '2-key' => 'role' ),
-	'ref hop then inherit'   => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', '2-src' => 'current', '2-use' => 'key', '2-key' => 'phone' ),
+	'ref hop then carry over'   => array( 'src' => 'ref', 'ref' => 'office', 'key' => 'name', '2-src' => 'current', '2-use' => 'key', '2-key' => 'phone' ),
 	'term hop at slot 1'     => array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ),
 	'site slot'              => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key', '2-key' => 'org_phone' ),
-	'slot 2 inherits read'   => array( 'key' => 'a', '2-src' => 'site' ),
+	'slot 2 carries over read'   => array( 'key' => 'a', '2-src' => 'site' ),
 	'key-only slot 2 drops'  => array( 'key' => 'a', '2-key' => 'b' ),
 	'bare tag'               => array(),
 	'unset key mode slot 2'  => array( 'key' => 'a', '2-src' => 'site', '2-use' => 'key' ),
@@ -1369,18 +1369,18 @@ foreach ( $try_psu_cases as $name => $legacy ) {
 	check( "P14.1 [psu: $name] dual-read of unmigrated wire resolves identically", $shipped === $dual, 'legacy: ' . json_encode( $shipped ) . "\n      dual:   " . json_encode( $dual ) );
 }
 
-// The ONE shape where the walks legitimately differ: a slot that inherits on BOTH
+// The ONE shape where the walks legitimately differ: a slot that carries over on BOTH
 // axes. The flat resolver skipped it (nothing new), the seam resolves it as a
 // DUPLICATE of its predecessor — output-identical either way, since a duplicate
 // returns what the previous slot already returned (or is empty like it). Reachable
 // only from hand-written `same` sentinels, because the shipped UI strips them as the
 // slot ≥2 default; the fold's own control seeds exactly this shape for a new slot,
 // which is why the seam must resolve it rather than treat it as absent.
-$all_inherit = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default );
+$all_carry = t_seam_try_walk( array( 'key' => 'a', '2-src' => 'same', '2-use' => 'same' ), true, true, array( 'title' ), $text_default );
 check(
-	'P14.1 all-inherit slot 2 resolves as a duplicate of slot 1',
-	isset( $all_inherit[2] ) && $all_inherit[1] === $all_inherit[2],
-	json_encode( $all_inherit )
+	'P14.1 all-carry-over slot 2 resolves as a duplicate of slot 1',
+	isset( $all_carry[2] ) && $all_carry[1] === $all_carry[2],
+	json_encode( $all_carry )
 );
 check(
 	'P14.1 …and the flat resolver skipped it, so output is unchanged either way',
@@ -1393,7 +1393,7 @@ check(
 $content_cases = array(
 	'bare tag reads content' => array(),
 	'excerpt then key'       => array( 'use' => 'excerpt', '2-use' => 'key', '2-key' => 'body' ),
-	'key then inherit'       => array( 'use' => 'key', 'key' => 'body', '2-src' => 'ref', '2-ref' => 'office' ),
+	'key then carry over'       => array( 'use' => 'key', 'key' => 'body', '2-src' => 'ref', '2-ref' => 'office' ),
 );
 foreach ( $content_cases as $name => $legacy ) {
 	$shipped = t_shipped_try_walk( $legacy, true, true, array( 'content', 'excerpt' ), $content_default );
@@ -1404,10 +1404,10 @@ $bare_content = t_seam_try_walk( array(), true, true, array( 'content', 'excerpt
 check( 'P14.2 a bare selecting tag still ATTEMPTS slot 1', isset( $bare_content[1] ) && '' === $bare_content[1]['src'] && 'content' === $bare_content[1]['use'], json_encode( $bare_content ) );
 
 // P14.3 — psk shape (email/phone: per-slot key, NO `use` enum). An empty key at slot
-// ≥2 inherits, and no `use(same)` is written for an axis the tag does not have.
+// ≥2 carries over, and no `use(same)` is written for an axis the tag does not have.
 $psk_cases = array(
 	'two keyed slots'      => array( 'key' => 'a', '2-key' => 'b' ),
-	'inherit the key'      => array( 'key' => 'a', '2-src' => 'site' ),
+	'carry over the key'      => array( 'key' => 'a', '2-src' => 'site' ),
 	'ref hop'              => array( 'key' => 'a', '2-src' => 'ref', '2-ref' => 'office' ),
 	'bare tag drops'       => array(),
 );
@@ -1441,22 +1441,22 @@ foreach ( $none_cases as $name => $legacy ) {
 $none_wire = bws_fold_emit_slot( bws_fold_from_flat( 3, array( '3-src' => 'ref', '3-ref' => 'office' ), false, false )['slot'] );
 check( 'P14.4 read-less container emits a bare chain (carrying the flat era default)', 'src(refs,office,limit[1])' === $none_wire, var_export( $none_wire, true ) );
 
-// P14.5 — `srcTermIn` DOES carry forward to a slot that inherits its source (#74).
+// P14.5 — `srcTermIn` DOES carry forward to a slot that carries over its source (#74).
 //
 // INVERTED from what shipped through 1.16.x, where a term hop stayed on its own slot and
-// an inheriting slot silently read the AMBIENT entity: a leading `terms` step leaves `src`
-// unset by design, so the inheriting slot inherited an empty source plus no taxonomy and
+// a slot that carries over silently read the AMBIENT entity: a leading `terms` step leaves `src`
+// unset by design, so the carrying over slot carried an empty source plus no taxonomy and
 // landed on the page.
 //
 // The old rule was a UI ARTIFACT, which is the part worth recording. `srcTermIn` was a
-// SEPARATE control beside the source, and inheriting a standalone control's state across
+// SEPARATE control beside the source, and carrying over a standalone control's state across
 // slots in the editor caused problems of its own. With `terms` as a step INSIDE the source
 // chain, that constraint is gone: `src(same)` names the same source, and a taxonomy step is
 // not a parameter of the source but part of what the source IS. The previous comment here
 // recorded the mechanism ("the flat resolver's own variable never carried it") rather than
 // the cause, which is why the decision read as unmotivated on re-reading.
 $stm_walk = t_seam_try_walk( array( 'srcTermIn' => 'category', 'use' => 'title', '2-use' => 'key', '2-key' => 'b' ), true, true, array( 'title' ), $text_default );
-check( 'P14.5 a term hop carries to a slot that inherits its source', 'terms,category' === ( $stm_walk[1]['src'] ?? null ) && 'terms,category' === ( $stm_walk[2]['src'] ?? null ), json_encode( $stm_walk ) );
+check( 'P14.5 a term hop carries to a slot that carries over its source', 'terms,category' === ( $stm_walk[1]['src'] ?? null ) && 'terms,category' === ( $stm_walk[2]['src'] ?? null ), json_encode( $stm_walk ) );
 
 // P14.6 — slot 1 is never ABSENT in a selecting container, and a combining container
 // needs no such exception (its unconfigured read skips the slot one step later).
@@ -1471,18 +1471,18 @@ check( 'P14.6 combining with no keys resolves nothing', array() === $empty_join,
 $explicit = t_seam_try_walk( array( 'A' => 'key(a)', 'B' => 'key(b)' ), true, true, array( 'title' ), $text_default );
 check( 'P14.7 folded key-only slot 2 resolves (the FW-51 ambiguity is gone)', 'b' === ( $explicit[2]['key'] ?? null ) && '' === ( $explicit[2]['src'] ?? null ), json_encode( $explicit ) );
 
-// ── P15 THE INHERITED LIMIT (#61) ───────────────────────────────────────────
+// ── P15 THE CARRIED LIMIT (#61) ───────────────────────────────────────────
 //
 // `src(same)` means the SAME SOURCE, and a limit is one of that source's parameters.
-// A slot that inherits its source therefore inherits its bound — which is what lets
+// A slot that carries over its source therefore carries over its bound — which is what lets
 // the try_ tag-level `limit` be retired without moving output: the number it used to
-// supply to every attempt now reaches an inheriting attempt through the carry.
+// supply to every attempt now reaches an attempt that carries over, through the carry.
 //
 // CONTAINER-SENSITIVE, and the gate is the one the file already draws twice: a
 // COMBINING container registered `limit` per slot (`{N}-limit`), so an absent one
 // there genuinely means "this slot states none" and must take the default. A
 // SELECTING container never had a per-slot limit at all, so absence there can only
-// mean inherit. Getting this uniform breaks {{join}} — P13.1's `term hop with limit`
+// mean carry over. Getting this uniform breaks {{join}} — P13.1's `term hop with limit`
 // is the case that says so.
 
 /** Walk a container's slots through the seam, returning [ n => resolved limit ]. */
@@ -1505,33 +1505,33 @@ function t_limit_walk( $options, $container = 'try', $per_slot_use = true, $max 
 	return $out;
 }
 
-$inherit_try = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(same);use(name)' ) );
-check( 'P15.1 a selecting slot that inherits its SOURCE inherits its LIMIT', array( 1 => 3, 2 => 3 ) === $inherit_try, json_encode( $inherit_try ) );
+$carry_try = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(same);use(name)' ) );
+check( 'P15.1 a selecting slot that carries over its SOURCE carries over its LIMIT', array( 1 => 3, 2 => 3 ) === $carry_try, json_encode( $carry_try ) );
 
-// An argless fanning step inherits the same way: it re-states the step but takes its
+// An argless fanning step carries over the same way: it re-states the step but takes its
 // relationship field from the carried source, so the bound it fans under is that
 // source's. bws_fold_chain_fanning_steps() already treats the two as one shape.
-$inherit_argless = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(refs);use(name)' ) );
-check( 'P15.2 …and so does an ARGLESS fanning step', array( 1 => 3, 2 => 3 ) === $inherit_argless, json_encode( $inherit_argless ) );
+$carry_argless = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(refs);use(name)' ) );
+check( 'P15.2 …and so does an ARGLESS fanning step', array( 1 => 3, 2 => 3 ) === $carry_argless, json_encode( $carry_argless ) );
 
-// A slot that states its own source states its own bound — inheriting there would
+// A slot that states its own source states its own bound — carrying over there would
 // silently bound a list the earlier slot knows nothing about.
 $own_src = t_limit_walk( array( 'A' => 'src(refs,office,limit[3]);use(title)', 'B' => 'src(terms,category);use(name)' ) );
 check( 'P15.3 a slot that states its OWN fanning source takes the chain default, not the carry', array( 1 => 3, 2 => 0 ) === $own_src, json_encode( $own_src ) );
 
 // What is carried is the QUANTITY the earlier slot resolved, including where that slot
-// stated nothing — an attempt inheriting `src(refs,office)` reads every office because
-// that is what the slot it inherits from reads. Falling back to a default chosen for the
+// stated nothing — an attempt carrying over `src(refs,office)` reads every office because
+// that is what the slot it carries over from reads. Falling back to a default chosen for the
 // FLAT wire this slot does not have is the #60 defect one level down.
 $no_carry = t_limit_walk( array( 'A' => 'src(refs,office);use(title)', 'B' => 'src(same);use(name)' ) );
-check( 'P15.4 an inheriting slot takes the resolved quantity, not its own default', array( 1 => 0, 2 => 0 ) === $no_carry, json_encode( $no_carry ) );
+check( 'P15.4 a slot that carries over takes the resolved quantity, not its own default', array( 1 => 0, 2 => 0 ) === $no_carry, json_encode( $no_carry ) );
 
-// The same, one era down: the flat spelling's implied 1 is what an inheriting slot gets,
+// The same, one era down: the flat spelling's implied 1 is what a slot that carries over gets,
 // which is what the shipped legacy walk resolved (P14) and must keep resolving.
 $flat_carry = t_limit_walk( array( 'src' => 'ref', 'ref' => 'office', 'use' => 'title', '2-src' => 'same', '2-use' => 'key', '2-key' => 'name' ) );
 check( 'P15.4b …and a FLAT-spelled slot carries its implied 1', array( 1 => 1, 2 => 1 ) === $flat_carry, json_encode( $flat_carry ) );
 
-// The guard is literally "my chain does not fan", which is WIDER than inheritance: a slot
+// The guard is literally "my chain does not fan", which is WIDER than carry-over: a slot
 // stating its own NON-FANNING root takes the carried number too. Pinned rather than left
 // to the comment, because the reason it is harmless is a property rather than an accident
 // — a non-fanning source resolves one entity, so any limit over it is inert.
@@ -1540,8 +1540,8 @@ check( 'P15.7 a slot stating its own NON-fanning root also takes the carry (iner
 
 // COMBINING is the deliberate contrast — and P13.1 `term hop with limit` is the
 // shipped-legacy case that would otherwise move.
-$inherit_join = t_limit_walk( array( 'A' => 'src(terms,category,limit[3]);use(title)', 'B' => 'src(same);key(blurb)' ), 'join' );
-check( 'P15.5 a COMBINING slot does NOT inherit the limit (it owns one per slot)', array( 1 => 3, 2 => 1 ) === $inherit_join, json_encode( $inherit_join ) );
+$carry_join = t_limit_walk( array( 'A' => 'src(terms,category,limit[3]);use(title)', 'B' => 'src(same);key(blurb)' ), 'join' );
+check( 'P15.5 a COMBINING slot does NOT carry over the limit (it owns one per slot)', array( 1 => 3, 2 => 1 ) === $carry_join, json_encode( $carry_join ) );
 
 // #61's own equivalence, end to end: the legacy wire the tag-level key served, and the
 // migrated wire that no longer has it, must resolve the same quantity at every slot.
@@ -1552,11 +1552,11 @@ check(
 	'legacy: ' . json_encode( t_limit_walk( $legacy_tag_level ) ) . "\n      migrated: " . json_encode( t_limit_walk( t_migrate_try( $legacy_tag_level, true, true ) ) )
 );
 
-// ── P16 THE INHERITED TAXONOMY (#74) ────────────────────────────────────────
+// ── P16 THE CARRIED TAXONOMY (#74) ────────────────────────────────────────
 //
 // `src(same)` names the same SOURCE, and a taxonomy step is part of what the source IS
 // (unlike `limit`, which is a parameter OF a source — hence §P15's container split).
-// A slot that inherits its source therefore inherits the hop.
+// A slot that carries over its source therefore carries the hop too.
 //
 // NOT CONTAINER-SENSITIVE, and §P15 is the test that tells them apart: the `limit` and
 // read-axis splits are both about what ABSENCE means, and exist only because the two
@@ -1599,7 +1599,7 @@ function t_tax_walk( $options, $container = 'join', $per_slot_use = true, $max =
 // P16.1 — the reported repro. Every department term carries a `phone`, so slot B was not
 // reading an empty field: it was reading a different entity (the page).
 $tax_join = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same);key(phone)' ) );
-check( 'P16.1 a COMBINING slot inherits the term hop', array( 1 => 'department', 2 => 'department' ) === $tax_join, json_encode( $tax_join ) );
+check( 'P16.1 a COMBINING slot carries over the term hop', array( 1 => 'department', 2 => 'department' ) === $tax_join, json_encode( $tax_join ) );
 
 $tax_try = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same);use(key);key(phone)' ), 'try' );
 check( 'P16.1 …and so does a SELECTING attempt (uniform, not container-sensitive)', array( 1 => 'department', 2 => 'department' ) === $tax_try, json_encode( $tax_try ) );
@@ -1612,12 +1612,12 @@ check( 'P16.1 …and so does a SELECTING attempt (uniform, not container-sensiti
 $tax_legacy_wire = array( 'srcTermIn' => 'department', 'use' => 'title', 'limit' => '2', '2-src' => 'same', '2-key' => 'phone' );
 $tax_legacy = t_tax_walk( $tax_legacy_wire );
 $tax_folded = t_tax_walk( array( 'A' => 'src(terms,department,limit[2]);use(title)', 'B' => 'src(same);key(phone)' ) );
-check( 'P16.1b legacy wire and its folded twin inherit the hop identically (no era gate)', $tax_legacy === $tax_folded && array( 1 => 'department', 2 => 'department' ) === $tax_legacy, 'legacy: ' . json_encode( $tax_legacy ) . ' folded: ' . json_encode( $tax_folded ) );
+check( 'P16.1b legacy wire and its folded twin carry over the hop identically (no era gate)', $tax_legacy === $tax_folded && array( 1 => 'department', 2 => 'department' ) === $tax_legacy, 'legacy: ' . json_encode( $tax_legacy ) . ' folded: ' . json_encode( $tax_folded ) );
 
 // P16.2 — CARRY DISCIPLINE: the taxonomy follows `src`, not `ref`.
 //
 // `ref` is init-carried on EVERY slot and survives a non-ref source, which is deliberate:
-// a second construct reads it (an argless `refs` step inherits the carried field). Nothing
+// a second construct reads it (an argless `refs` step takes the carried field). Nothing
 // but `same` can consume a carried taxonomy — an argless `terms` step is refused outright —
 // so init-carrying it would only ever hand an intervening slot a hop it never asked for.
 $tax_cleared = t_tax_walk( array(
@@ -1626,14 +1626,14 @@ $tax_cleared = t_tax_walk( array(
 	'C' => 'src(same);key(x)',
 ) );
 check( 'P16.2 a slot stating its OWN root does not acquire the carried hop', '' === ( $tax_cleared[2] ?? 'X' ), json_encode( $tax_cleared ) );
-check( 'P16.2 …and a later inherit takes THAT slot\'s source, hop and all', '' === ( $tax_cleared[3] ?? 'X' ), json_encode( $tax_cleared ) );
+check( 'P16.2 …and a later carry over takes THAT slot\'s source, hop and all', '' === ( $tax_cleared[3] ?? 'X' ), json_encode( $tax_cleared ) );
 
-// P16.3 — the hop travels WITH the source, so a slot inheriting a ref-rooted source
-// inherits no taxonomy from further back.
+// P16.3 — the hop travels WITH the source, so a slot carrying over a ref-rooted source
+// carries over no taxonomy from further back.
 $tax_ref = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(refs,office);key(a)', 'C' => 'src(same);key(b)' ) );
-check( 'P16.3 an inherited relationship source carries no stale taxonomy', array( 1 => 'department', 2 => '', 3 => '' ) === $tax_ref, json_encode( $tax_ref ) );
+check( 'P16.3 a carried relationship source carries no stale taxonomy', array( 1 => 'department', 2 => '', 3 => '' ) === $tax_ref, json_encode( $tax_ref ) );
 
-// P16.4 — a slot that states its own hop keeps it; inheriting one that already hopped and
+// P16.4 — a slot that states its own hop keeps it; carrying over one that already hopped and
 // hopping again is a SECOND term step, which the flat triple cannot express.
 //
 // KNOW THE LEGACY SHAPE SPACE BEFORE TREATING A GREEN LEGACY CORPUS AS A COVERED ONE — the
@@ -1643,18 +1643,18 @@ check( 'P16.3 an inherited relationship source carries no stale taxonomy', array
 // `ref` (#44). So the ONE adjacency flat wire can spell is `refs → terms`, which is a join
 // that RUNS, and a slot's own step under `same` is only ever a `terms` (a `2-ref` there is
 // §P17 residue and is dropped). Four merge cases total —
-//   inherited ∈ { ∅, refs, terms, refs;terms }  ×  own = terms
+//   carried ∈ { ∅, refs, terms, refs;terms }  ×  own = terms
 // — of which blind APPEND is wrong on two (the two whose tail is already `terms`). What
-// decides how much of the inherited chain gives way is bws_fold_chain_join()'s PHPDoc.
+// decides how much of the carried chain gives way is bws_fold_chain_join()'s PHPDoc.
 $tax_own = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(terms,office);key(a)' ) );
 check( 'P16.4 a slot states its own hop over any carried one', array( 1 => 'department', 2 => 'office' ) === $tax_own, json_encode( $tax_own ) );
-// An inherited hop is a DEFAULT, not a step this chain took, so a slot that inherits and
+// A carried hop is a DEFAULT, not a step this chain took, so a slot that carries over and
 // then states its own `terms` REPLACES it rather than colliding with it. This shape is
 // reachable flat wire — `2-src:same|2-srcTermIn:office`, since srcTermIn shows under every
 // non-site source — and migrates to exactly this chain, so reading it as a second term step
 // would skip a slot that renders today.
 $tax_double = t_tax_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ) );
-check( 'P16.4 an inherited hop is REPLACED by the slot\'s own, not collided with', array( 1 => 'department', 2 => 'office' ) === $tax_double, json_encode( $tax_double ) );
+check( 'P16.4 a carried hop is REPLACED by the slot\'s own, not collided with', array( 1 => 'department', 2 => 'office' ) === $tax_double, json_encode( $tax_double ) );
 // …AND THE ROW ABOVE CANNOT SEE THE DIFFERENCE ON ITS OWN. t_tax_walk reports the LAST term
 // step, so `terms,department;terms,office` answers `office` too — it sat green through the
 // first draft of #104, which appended. The CHAIN is what says which happened, and the
@@ -1663,11 +1663,11 @@ check( 'P16.4 an inherited hop is REPLACED by the slot\'s own, not collided with
 // {{join}} that rendered it (measured on the testbed, both eras).
 $tax_double_wire = t_seam_walk( array( 'A' => 'src(terms,department);use(title)', 'B' => 'src(same;terms,office);key(a)' ), 'join' );
 check( 'P16.4 …asserted on the CHAIN, which is the only place replace and append differ', 'terms,office' === ( $tax_double_wire[2]['src'] ?? null ), json_encode( $tax_double_wire[2] ?? null ) );
-// A DIFFERENT slug appends, because it is not refining the same axis — an inherited
+// A DIFFERENT slug appends, because it is not refining the same axis — a carried
 // relationship source that this slot then drops into a taxonomy is two steps and means it.
 $tax_other_slug = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
-check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
-// …AND THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join). The inherited tail gives
+check( 'P16.4 …while a step on a DIFFERENT axis appends to the carried chain', 'refs,office;terms,category' === ( $tax_other_slug[2]['src'] ?? null ), json_encode( $tax_other_slug[2] ?? null ) );
+// …AND THE TEST IS THE JOIN, NOT THE SLUG (bws_fold_chain_join). The carried tail gives
 // way only where this slot's first step cannot RUN off it, and by as little as possible.
 // `refs` accepts a post input and produces one, so `src(same;refs,manager)` behind
 // `src(refs,office)` is office → manager — the two-relationships-away chain FW-56 exists
@@ -1675,15 +1675,15 @@ check( 'P16.4 …while a step on a DIFFERENT axis appends to the inherited chain
 // entity: a plausible value from the wrong entity ([I15]), and the very capability #104
 // shipped, broken by its own fix.
 $ref_repeat = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;refs,manager);key(b)' ), 'join' );
-check( 'P16.4 …and a REPEATABLE slug is NOT dropped: an inherited ref hop keeps hopping', 'refs,office;refs,manager' === ( $ref_repeat[2]['src'] ?? null ), json_encode( $ref_repeat[2] ?? null ) );
+check( 'P16.4 …and a REPEATABLE slug is NOT dropped: a carried ref hop keeps hopping', 'refs,office;refs,manager' === ( $ref_repeat[2]['src'] ?? null ), json_encode( $ref_repeat[2] ?? null ) );
 // THE CASE THAT SEPARATES "the JOIN cannot run" FROM "the SLUG cannot repeat", and the
-// reason the second reading had to go. An inherited `terms` step in front of an own
+// reason the second reading had to go. A carried `terms` step in front of an own
 // `refs;terms` pair conflicts on the SLUG — both chains state `terms` — but not on the
 // JOIN: `refs` ACCEPTS a term input, so the chain runs exactly as written and nothing
-// should give way. The slug reading deleted the inherited step and rooted the slot at the
+// should give way. The slug reading deleted the carried step and rooted the slot at the
 // ambient entity.
 $join_ok = t_seam_walk( array( 'A' => 'src(terms,department);key(a)', 'B' => 'src(same;refs,x;terms,y);key(b)' ), 'join' );
-check( 'P16.4 an inherited step that this slot CAN run off is kept, same slug or not', 'terms,department;refs,x;terms,y' === ( $join_ok[2]['src'] ?? null ), json_encode( $join_ok[2] ?? null ) );
+check( 'P16.4 a carried step that this slot CAN run off is kept, same slug or not', 'terms,department;refs,x;terms,y' === ( $join_ok[2]['src'] ?? null ), json_encode( $join_ok[2] ?? null ) );
 
 // NON-VACUITY for the derive itself. WHAT bws_fold_chain_join() DERIVES FROM is stated at the
 // owner and not here: the four rows above pin its ANSWERS case by case, but nothing below pins
@@ -1700,7 +1700,7 @@ check( 'P16.4 the join derive is LIVE: a terms tail cannot feed a terms step', a
 check( 'P16.4 …a terms tail CAN feed a refs step (nothing trimmed)', $j_terms === bws_fold_chain_join( $j_terms, $j_refs ), json_encode( bws_fold_chain_join( $j_terms, $j_refs ) ) );
 check( 'P16.4 …a refs tail can feed a terms step (nothing trimmed)', $j_refs === bws_fold_chain_join( $j_refs, $j_terms ), json_encode( bws_fold_chain_join( $j_refs, $j_terms ) ) );
 check( 'P16.4 …and UNKNOWN vocabulary trims nothing: the chain short-circuits, it does not rewrite', $j_terms === bws_fold_chain_join( $j_terms, $j_junk ), json_encode( bws_fold_chain_join( $j_terms, $j_junk ) ) );
-// The ROOT is not a step and is never trimmed — a slot inherits the SOURCE, whatever this
+// The ROOT is not a step and is never trimmed — a slot carries over the SOURCE, whatever this
 // slot then fails to run off it.
 $j_rooted = array( array( 'slug' => 'site', 'arg' => null, 'limit' => null, 'extra' => array() ) );
 check( 'P16.4 …and the ROOT is never trimmed', $j_rooted === bws_fold_chain_join( $j_rooted, $j_terms ), json_encode( bws_fold_chain_join( $j_rooted, $j_terms ) ) );
@@ -1716,11 +1716,11 @@ check( 'P16.4 …and two REAL term steps now resolve, ending in the LAST one', a
 // ── P16.5 AMBIENT MUST BE SPELLED (#74) ─────────────────────────────────────
 //
 // At slot 1 an ABSENT source legitimately means the ambient entity. At slot ≥2 absence
-// means INHERIT, so ambient is not a default a slot can fall back to — it has to be
-// spelled, or inherited from something that spelled it.
+// means CARRY-OVER, so ambient is not a default a slot can fall back to — it has to be
+// spelled, or carried from something that spelled it.
 //
 // The accumulator initialises to `{src:''}`, which reads as "ambient", and a SKIPPED slot
-// never feeds it. So when every preceding slot skipped, `src(same)` inherited the
+// never feeds it. So when every preceding slot skipped, `src(same)` carried the
 // INITIALISER and resolved against the ambient entity while the only source on screen said
 // something else.
 $never_carried = t_tax_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ) );
@@ -1728,19 +1728,19 @@ check( 'P16.5 `same` skips when NOTHING was ever carried', ! isset( $never_carri
 // Its OWN reason, not `chain`. That one means the flat read cannot EXPRESS the wire; this
 // chain is expressible and simply has nothing yet to be the same as, so telling the author
 // "source not supported" would send them after the wrong thing.
-$inh_carry = array( '_fed' => false );
-bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(same);key(x)' ), $inh_carry, true, $isr );
+$same_carry = array( '_fed' => false );
+bws_fold_slot_chain_options( bws_fold_parse_slot( 'src(same);key(x)' ), $same_carry, true, $isr );
 // The WORDING for it is the preview's to own (preview-label-test.php §skip warnings).
-check( 'P16.5 …reporting `inherit`, which is not the inexpressible-wire reason', 'inherit' === $isr, var_export( $isr, true ) );
+check( 'P16.5 …reporting `same`, which is not the inexpressible-wire reason', 'same' === $isr, var_export( $isr, true ) );
 $never_carried_flat = t_seam_walk( array( 'A' => 'src(site)', 'B' => 'src(same);key(x)' ), 'join' );
 check( 'P16.5 …and does not silently read the ambient entity instead', ! isset( $never_carried_flat[2] ), json_encode( $never_carried_flat[2] ?? null ) );
 
-// Inheriting an AMBIENT slot 1 is legitimate — slot 1 spelled it, by being slot 1.
-$ambient_inherit = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(same);key(b)' ), 'join' );
+// Carrying over an AMBIENT slot 1 is legitimate — slot 1 spelled it, by being slot 1.
+$ambient_carry = t_seam_walk( array( 'A' => 'key(a)', 'B' => 'src(same);key(b)' ), 'join' );
 check(
-	'P16.5 inheriting an ambient slot 1 still resolves (absence there IS the spelling)',
-	isset( $ambient_inherit[2] ) && '' === $ambient_inherit[2]['src'],
-	json_encode( $ambient_inherit[2] ?? null )
+	'P16.5 carrying over an ambient slot 1 still resolves (absence there IS the spelling)',
+	isset( $ambient_carry[2] ) && '' === $ambient_carry[2]['src'],
+	json_encode( $ambient_carry[2] ?? null )
 );
 
 // ── P17 A DELIBERATE DIVERGENCE: the stale hidden `ref` (#74) ───────────────
@@ -1821,13 +1821,13 @@ foreach ( $fixed_point as $why => $wire ) {
 // P18.1b — …SEEDED WITH `same`-RESOLVED SYNTHETIC CHAINS, which is the part the corpus
 // above cannot supply. The chain a `same` slot hands on is one NO AUTHOR EVER WROTE: it is
 // slot 1's chain spliced under slot 2's own steps, so the shapes most at risk of an emit
-// bug (a bound inherited from another slot, a hop appended behind an inherited hop) exist
+// bug (a bound carried from another slot, a hop appended behind a carried hop) exist
 // only here.
 $synth = array(
-	'inherits a bounded ref hop'   => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same);key(b)' ),
-	'inherits, then hops again'    => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same;refs,manager);key(b)' ),
-	'inherits, then drops to terms' => array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category,limit[2]);key(b)' ),
-	'inherits an inherit'          => array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)', 'C' => 'src(same);key(c)' ),
+	'carries over a bounded ref hop'   => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same);key(b)' ),
+	'carries over, then hops again'    => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(same;refs,manager);key(b)' ),
+	'carries over, then drops to terms' => array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category,limit[2]);key(b)' ),
+	'carries over a carry-over'          => array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)', 'C' => 'src(same);key(c)' ),
 	'argless refs takes the field' => array( 'A' => 'src(refs,office,limit[3]);key(a)', 'B' => 'src(refs);key(b)' ),
 );
 foreach ( $synth as $why => $options ) {
@@ -1847,14 +1847,14 @@ foreach ( $synth as $why => $options ) {
 	}
 }
 
-// P18.2 — the CARRY is chain-shaped, so an inheriting slot takes the prior slot's HOPS and
+// P18.2 — the CARRY is chain-shaped, so a slot that carries over takes the prior slot's HOPS and
 // not merely its root. That deletes the `$tax_inherit` special case the flat triple needed:
-// a triple could carry one taxonomy and no relationship step at all, so a slot inheriting a
+// a triple could carry one taxonomy and no relationship step at all, so a slot carrying over a
 // two-step source landed somewhere the wire never said.
-$inh_chain = t_seam_walk( array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)' ), 'join' );
-check( 'P18.2 `same` inherits the WHOLE chain, root and hops', 'site;refs,partner' === ( $inh_chain[2]['src'] ?? null ), json_encode( $inh_chain[2] ?? null ) );
-$inh_then = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
-check( 'P18.2 …and a slot\'s own step APPENDS to what it inherited', 'refs,office;terms,category' === ( $inh_then[2]['src'] ?? null ), json_encode( $inh_then[2] ?? null ) );
+$carry_chain = t_seam_walk( array( 'A' => 'src(site;refs,partner);key(a)', 'B' => 'src(same);key(b)' ), 'join' );
+check( 'P18.2 `same` carries over the WHOLE chain, root and hops', 'site;refs,partner' === ( $carry_chain[2]['src'] ?? null ), json_encode( $carry_chain[2] ?? null ) );
+$carry_then = t_seam_walk( array( 'A' => 'src(refs,office);key(a)', 'B' => 'src(same;terms,category);key(b)' ), 'join' );
+check( 'P18.2 …and a slot\'s own step APPENDS to what it carried', 'refs,office;terms,category' === ( $carry_then[2]['src'] ?? null ), json_encode( $carry_then[2] ?? null ) );
 
 // P18.3 — THE LEAK, NAMED. bws_fold_chain_from_options() APPENDS a `terms` step for any
 // surviving `srcTermIn`, so a tag-level one left in the options a container merges the

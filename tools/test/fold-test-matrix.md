@@ -87,7 +87,7 @@ stated.
 | F1.1 | `{{join key:name_first\|2-key:name_last}}` | `{{join A:key(name_first)\|B:key(name_last)}}` | `Jane` here; `Jane, Johnson` on jane; `Tom, Smith` on tom |
 | F1.2 | `{{join use:title\|2-use:key\|2-key:role\|valueSep: / }}` | `{{join A:use(title)\|B:use(key);key(role)\|valueSep: / }}` | `Matrix: Post Meta / Captain` |
 | F1.3 | `{{join key:main_line\|2-src:same\|2-key:booking_line}}` | `{{join A:key(main_line)\|B:src(same);key(booking_line)}}` | `(987) 654-3210, 987.654.3210` |
-| F1.4 | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)\|B:src(same);key(contact_email)}}` | `(555) 200-3000, jane@example.test` — slot 2 INHERITS the ref hop. **The folded column is what MIGRATION writes** (#60): a chain-spelled slot returns everything, so the flat era's implied 1 has to be stated or the pair stops being one — see §F7a |
+| F1.4 | `{{join src:ref\|ref:related_staff\|use:key\|key:main_line\|2-src:same\|2-key:contact_email}}` | `{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)\|B:src(same);key(contact_email)}}` | `(555) 200-3000, jane@example.test` — slot 2 CARRIES OVER the ref hop. **The folded column is what MIGRATION writes** (#60): a chain-spelled slot returns everything, so the flat era's implied 1 has to be stated or the pair stops being one — see §F7a |
 | F1.5 | `{{join key:name_first\|2-src:ref\|2-ref:related_staff\|2-use:title}}` | `{{join A:key(name_first)\|B:src(refs,related_staff,limit[1]);use(title)}}` | `Jane, Jane Partner`. Drop the `limit[1]` and the folded side reads `Jane, Jane Partner, Tom Associate` — measured, and the point of §F7a |
 | F1.6 | `{{join key:name_first\|2-src:site\|2-key:organization_email}}` | `{{join A:key(name_first)\|B:src(site);key(organization_email)}}` | `Jane, info@example.test` |
 | F1.7 | `{{join srcTermIn:department\|use:title\|limit:2}}` | `{{join A:src(terms,department);use(title);limit(2)}}` | `Sales, Support` — the term hop WORKS in a slot (contrast §F9.1) |
@@ -108,8 +108,8 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 
 | # | Tag | Expected |
 |---|---|---|
-| F2.1 | `{{join A:key(main_line)\|2-src:same\|2-key:booking_line}}` | `(987) 654-3210, 987.654.3210` — folded slot 1, legacy slot 2 inheriting from it |
-| F2.2 | `{{join key:main_line\|B:src(same);key(booking_line)}}` | same — legacy slot 1, folded slot 2 inheriting from it |
+| F2.1 | `{{join A:key(main_line)\|2-src:same\|2-key:booking_line}}` | `(987) 654-3210, 987.654.3210` — folded slot 1, legacy slot 2 carrying over from it |
+| F2.2 | `{{join key:main_line\|B:src(same);key(booking_line)}}` | same — legacy slot 1, folded slot 2 carrying over from it |
 
 ## §F3 — try_: enum + picker read shape
 
@@ -121,13 +121,13 @@ Era is per SLOT, not per tag. Both directions, `/matrix-post-meta/`.
 | F3.2 | `{{try_text A:key(role)\|B:key(name_first)}}` | `Captain` — slot 1 resolves, slot 2 never runs |
 | F3.3 | `{{try_text A:key(missing_field)\|B:src(site);key(organization_email)}}` | `info@example.test` |
 | F3.4 | `{{try_text A:key(missing_field)\|B:src(refs,related_staff);use(title)}}` | `Jane Partner` |
-| F3.5 | `{{try_text A:src(refs,related_staff);key(missing_field)\|B:src(same);key(main_line)}}` | `(555) 200-3000` — slot 2 inherits slot 1's hop |
+| F3.5 | `{{try_text A:src(refs,related_staff);key(missing_field)\|B:src(same);key(main_line)}}` | `(555) 200-3000` — slot 2 carries over slot 1's hop |
 | F3.6 | `{{try_text key:missing_field\|2-use:key\|2-key:role}}` | `Captain` — legacy twin of F3.1 |
 | F3.7 | `{{try_content A:key(missing_field)\|B:key(role)}}` | `Captain` |
 
 ## §F4 — try_: picker-alone read shape
 
-`try_email` / `try_phone` — no `use` axis exists; an EMPTY picker is the inherit.
+`try_email` / `try_phone` — no `use` axis exists; an EMPTY picker is the carry-over.
 
 | # | Tag | Context | Expected |
 |---|---|---|---|
@@ -153,17 +153,17 @@ TAG-level option; a slot is a bare source chain.
 | F5.6 | `{{try_datetime_single src:ref\|ref:missing_rel\|2-src:current\|key:event_datetime}}` | post-meta | legacy twin of F5.4 |
 | F5.7 | `{{try_permalink A:src(current)\|B:src(site)}}` | jane | `https://testbed.test/staff/jane-partner/` |
 
-## §F6 — carry-forward, inherit, and reset
+## §F6 — carry-forward, carry over, and reset
 
-An absent chain at slot ≥2 is a **RESET to the ambient entity**, not an inherit — absence in folded
+An absent chain at slot ≥2 is a **RESET to the ambient entity**, not a carry-over — absence in folded
 wire means what it says, because legacy absence MATERIALIZES to `src(same)` through the mapper.
 
 | # | Tag | Context | Expected |
 |---|---|---|---|
 | F6.1 | `{{try_text A:src(refs,related_staff);key(missing)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` — slot 2 RESET to the page, NOT jane |
-| F6.2 | `{{try_text A:src(refs,related_staff);key(missing)\|B:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` — explicit `same` inherits jane |
+| F6.2 | `{{try_text A:src(refs,related_staff);key(missing)\|B:src(same);key(main_line)}}` | post-meta | `(555) 200-3000` — explicit `same` carries over jane |
 | F6.3 | `{{join A:src(refs,related_staff);use(key);key(main_line)\|B:key(contact_email)}}` | post-meta | `(555) 200-3000, (555) 200-4000` — slot 1 is chain-spelled and unbounded, so it returns BOTH staff numbers (#60; it read one before). Slot 2 still resets to the page, which has no `contact_email`, so it drops out — which is what the row is for |
-| F6.4 | `{{join A:src(refs,related_staff);use(title)\|B:src(same);use(same)}}` | post-meta | `Jane Partner, Tom Associate, Jane Partner` — slot 1 unbounded (#60), slot 2 inherits BOTH axes and reads the same datum once, because a slot that fans only by inheritance keeps the flat default of 1. That asymmetry is the row's new content. The control's `inferIntent` advisory DESCRIBES it; it does not block it |
+| F6.4 | `{{join A:src(refs,related_staff);use(title)\|B:src(same);use(same)}}` | post-meta | `Jane Partner, Tom Associate, Jane Partner` — slot 1 unbounded (#60), slot 2 carries over BOTH axes and reads the same datum once, because a slot that fans only by carry-over keeps the flat default of 1. That asymmetry is the row's new content. The control's `inferIntent` advisory DESCRIBES it; it does not block it |
 | F6.5 | `{{try_phone A:src(refs,related_staff);key(unused_line)\|B:key(main_line)}}` | post-meta | `(987) 654-3210` — reset, on the picker-alone shape |
 
 ## §F7 — slot-level `limit`, and the pairs that CROSS
@@ -172,7 +172,7 @@ A legacy `limit` with no fanning step stays a slot-level token; with one, the ma
 the LAST fanning step. Both spellings are lossless.
 
 **The legacy↔folded pairing crosses on the source axis, and it is the easiest thing in the fold to
-get wrong.** Legacy ABSENCE means inherit (it materializes to `src(same)` through the mapper);
+get wrong.** Legacy ABSENCE means carry over (it materializes to `src(same)` through the mapper);
 folded absence means RESET to the ambient entity. So:
 
 | folded | legacy twin |
@@ -181,19 +181,19 @@ folded absence means RESET to the ambient entity. So:
 | `N:src(same);key(x)` | `N-key:x` |
 
 jane carries no `role`, which makes the two readings differ VISIBLY rather than academically —
-reset reads the page (`Captain`), inherit reads jane (nothing). All four rows, `/matrix-post-meta/`:
+reset reads the page (`Captain`), carry over reads jane (nothing). All four rows, `/matrix-post-meta/`:
 
 | # | Tag | Expected |
 |---|---|---|
 | F7.1 | `{{join A:src(refs,related_staff);use(title);limit(2)\|B:key(role)}}` | `Jane Partner, Tom Associate, Captain` — slot 2 RESETS to the page |
 | F7.1b | `{{join src:ref\|ref:related_staff\|use:title\|limit:2\|2-src:current\|2-key:role}}` | same — the legacy twin needs the EXPLICIT `2-src:current` |
-| F7.2 | `{{join src:ref\|ref:related_staff\|use:title\|limit:2\|2-key:role}}` | `Jane Partner, Tom Associate` — legacy absence INHERITS jane, who has no `role`, so slot 2 drops. **This is the shape the shipped join UI writes** |
-| F7.2b | `{{join A:src(refs,related_staff);use(title);limit(2)\|B:src(same);key(role)}}` | same — `src(same)` is how the fold spells that inherit |
+| F7.2 | `{{join src:ref\|ref:related_staff\|use:title\|limit:2\|2-key:role}}` | `Jane Partner, Tom Associate` — legacy absence CARRIES OVER jane, who has no `role`, so slot 2 drops. **This is the shape the shipped join UI writes** |
+| F7.2b | `{{join A:src(refs,related_staff);use(title);limit(2)\|B:src(same);key(role)}}` | same — `src(same)` is how the fold spells that carry over |
 | F7.3 | `{{join A:src(terms,department);use(title);limit(2)\|B:key(role)}}` | `Sales, Support, Captain` |
 
 > Caught by eyeballing the visible fixture rows, not by the harness: F7.1 and F7.2 were first
 > written into this matrix as a legacy/folded PAIR, and they are not one — they differ by exactly
-> the reset-vs-inherit rule §F6 states. The pure harness could not have caught it (both spellings
+> the reset-vs-carry-over rule §F6 states. The pure harness could not have caught it (both spellings
 > resolve correctly; only the PAIRING claim was wrong), which is the argument for the visible rows.
 
 ## §F7a — a slot's own spelling decides its own limit (#60)
@@ -212,7 +212,7 @@ Context `/matrix-terms-valid/` for the `terms` rows, `/matrix-post-meta/` for th
 | F7a.3 | `{{join A:src(terms,department);use(title)}}` | `Sales, Support` — same, in the combining container |
 | F7a.4 | `{{join A:src(refs,related_staff);use(key);key(main_line)}}` | `(555) 200-3000, (555) 200-4000` — the `refs`-spelled twin of F7a.3 |
 | F7a.5 | `{{try_text srcTermIn:department\|use:title}}` | `Sales` — the FLAT spelling still bounds at 1. This row is what makes the four above non-vacuous |
-| F7a.6 | `{{join A:src(same);key(b)}}` after a fanning slot 1 | see §F6.4 — a slot that fans only by INHERITING keeps the flat default, because the slot it inherits from stated its own bound. A limit does not carry forward, and never did |
+| F7a.6 | `{{join A:src(same);key(b)}}` after a fanning slot 1 | see §F6.4 — a slot that fans only by CARRYING OVER keeps the flat default, because the slot it carries over from stated its own bound. A limit does not carry forward, and never did |
 
 **Migration states what the old spelling implied**, so no stored tag changes output. Each pair below
 was run on the testbed and renders identically; the folded column is the shipped migrator's actual
@@ -256,11 +256,11 @@ migrator's actual output. Context `/matrix-terms-valid/` unless noted.
 | F7b.5 | `{{join A:src(terms,department);use(title)\|limit:3}}` | unchanged wire; the migrator only DROPS the bare `limit` as slot 1's legacy sibling | `Sales, Support` both ways — the COMBINING contrast. The bare key is slot 1's own axis, never pushed into a folded slot, and join's arm has no tag-level fallback to read it with, so the folded slot is unlimited before and after |
 
 **What the front end cannot show, and why that is not a gap.** The one shape where output could have
-moved is a slot that fans only by INHERITING (`src(same)`, or an argless `refs`): it has no fanning
+moved is a slot that fans only by CARRYING OVER (`src(same)`, or an argless `refs`): it has no fanning
 step of its own to take the number. It does not move, because `src(same)` means the same SOURCE and a
 limit is one of a source's parameters — `bws_fold_slot_chain_options()` carries the bound along with
 the source, on a selecting container only. That is unobservable here for a structural reason worth
-recording: `srcTermIn` does not carry forward in a selecting container (§P14.5), so an inheriting
+recording: `srcTermIn` does not carry forward in a selecting container (§P14.5), so an carrying over
 slot after a `terms` slot reads the ambient entity rather than the terms; and the `refs` arm is
 first-only (the note above). So the evidence is `slot-fold-test.php` §P15, which walks the resolved
 quantity slot by slot, plus the pairs above. Both spellings measured identical either way:
@@ -268,7 +268,7 @@ quantity slot by slot, plus the pairs above. Both spellings measured identical e
 | # | Legacy | Migrated | Measured |
 |---|---|---|---|
 | F7b.6 | `{{try_text src:ref\|ref:related_staff\|use:key\|key:no_such\|2-src:same\|2-use:title\|limit:2}}` | `{{try_text A:src(refs,related_staff,limit[2]);key(no_such)\|B:src(same);use(title)}}` | `Jane Partner` both, on `/matrix-post-meta/` — first-only arm, so the carried bound is invisible until FW-63 |
-| F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support, Sales handles quotes, renewals and the annual customer roadshow.` both — slot B inherits the HOP (#74) but not the BOUND, so it reads one term's blurb rather than two. Before #74 it read the page and contributed nothing, so this row did not exercise the property its label claimed |
+| F7b.7 | `{{join srcTermIn:department\|use:title\|limit:2\|2-key:blurb}}` | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(blurb)}}` | `Sales, Support, Sales handles quotes, renewals and the annual customer roadshow.` both — slot B carries over the HOP (#74) but not the BOUND, so it reads one term's blurb rather than two. Before #74 it read the page and contributed nothing, so this row did not exercise the property its label claimed |
 
 ## §F7c — the tag-level Result Limit CONTROL is gone; the VALUE is not (#62)
 
@@ -300,11 +300,11 @@ registration side — that no panel offers the control, and that `sep` stayed �
 `php tools/test/control-order-test.php` §5, because the ABSENCE of a control is not visible in
 rendered output.
 
-## §F7d — `src(same)` inherits the TERM HOP (#74)
+## §F7d — `src(same)` carries over the TERM HOP (#74)
 
 `src(same)` names the same SOURCE, and a taxonomy step is part of what the source IS — unlike
 `limit`, which is a parameter *of* a source and stays container-sensitive (§F7b/§F7c). Before #74 a
-leading `terms` step left `src` unset, so an inheriting slot inherited an empty source and read the
+leading `terms` step left `src` unset, so a slot that carries over carried an empty source and read the
 AMBIENT entity: a plausible value from the wrong place, which is why nothing looked broken.
 
 Run on `/matrix-terms-mixed/`. The `Before` column is what shipped through 1.16.x, kept because the
@@ -315,7 +315,7 @@ whole point is that it rendered something rather than nothing.
 | F7d.1 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);key(phone)}}` | `Sales, Support` — slot B silently contributed nothing | `Sales, Support, (987) 333-4444` |
 | F7d.2 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(same);use(same)}}` | `Sales, Support, Matrix: Terms (mixed junk)` — the PAGE title, which is what named the bug | `Sales, Support, Sales` |
 | F7d.3 | `{{join A:src(terms,department,limit[2]);use(title)\|B:src(current);key(phone)}}` | — | `Sales, Support` — a slot stating its OWN root does not acquire the carried hop, and the page has no `phone` |
-| F7d.4 | `{{join A:src(terms,department);use(title)\|B:src(same;terms,office);use(title)}}` | — | `Sales, Support, Warehouse` — an inherited hop is a DEFAULT: slot B's own `terms` REPLACES it rather than colliding, so this is a term read of `office`, not a skipped slot |
+| F7d.4 | `{{join A:src(terms,department);use(title)\|B:src(same;terms,office);use(title)}}` | — | `Sales, Support, Warehouse` — a carried hop is a DEFAULT: slot B's own `terms` REPLACES it rather than colliding, so this is a term read of `office`, not a skipped slot |
 
 The legacy twin of F7d.1/.2 is `{{join srcTermIn:department|use:title|limit:2|2-src:same|2-key:phone}}`
 and renders identically — the fix is uniform across both eras, so there is no era gate and the
@@ -574,9 +574,9 @@ tell "resolved correctly" from "resolved plausibly".
 | F10.4 | `{{join A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `{{text src:rows,team_members\|use:key\|key:name}}` | `Captain` / empty. `rows` still returns nothing on both — **not implemented yet (FW-74), not unsupported** (§F9.5 carries the full reason). The refusal MOVED out of the flattening and into the container that consumes the kind (`try-slot-arms.php`), which is why it survived the inversion. When the arm lands this row stops being an empty one |
 | F10.5 | `{{join A:src(refs,related_staff;terms,department);use(title)\|B:key(role)}}` | — | `Captain` — the row that was the negative control and is now just a row. Expressible before, resolved before, empty because jane and tom carry no department terms |
 | F10.6 | `{{join src:site\|srcTermIn:department\|key:org_phone}}` | `{{phone src:site\|srcTermIn:department\|key:org_phone}}` | the site number, on BOTH. A site root never takes the legacy term step, which is what §F9b.5 closed one release earlier — and #104 briefly re-opened from the other side, because the mapping that builds a slot's chain from its flat keys appended the step and the retired flatten used to drop it again. `slot-fold-test.php` §P18.6 is the pin, mutation-verified |
-| F10.6b | `{{join srcTermIn:department\|use:title\|2-src:same\|2-srcTermIn:portal_visibility\|2-use:title}}` | — | on `/matrix-terms-valid/`: `Sales, All Users`. **An inherited hop is a DEFAULT, so slot 2's own hop REPLACES it rather than following it** — and this pair is what the old editor authored directly (leave slot 2's source alone, pick a different taxonomy). #104's first draft appended: `terms,department;terms,office` hops off a TERM input, which has no post to read, so slot 2 resolved EMPTY and vanished from the join. Measured both ways; the folded twin `A:src(terms,department);use(title)\|B:src(same;terms,portal_visibility);use(title)` reads `Sales, Support, All Users` and must move with it. **The COUNTS differ on purpose** — flat wire bounds at 1 and chain wire does not (`bws_limit_default`), so slot 1 contributes one term in the legacy spelling and both in the folded one. What must match is that slot 2 RESOLVES in each; a row read as a count comparison fails for the wrong reason |
-| F10.6c | `{{join src:ref\|ref:related_staff\|srcTermIn:department\|use:title\|2-src:same\|2-srcTermIn:portal_visibility\|2-use:title}}` | — | `All Users`, unchanged. **The shape §F10.6b's rule exists for**: a rooted BASE plus two different taxonomies, the second slot inheriting. Slot 2 must resolve `refs,related_staff;terms,portal_visibility` — the inherited base kept, the inherited taxonomy replaced. It needs no duplication of the base in the wire, which is the alternative encoding that was considered: the migrator writes `src(same;terms,portal_visibility)` and the rule supplies the base |
-| F10.6d | `{{join A:src(refs,related_staff);use(title)\|B:src(same;refs,reports_to);use(title)}}` | `{{text src:refs,related_staff;refs,reports_to\|use:title}}` | `Jane Partner, Tom Associate, Jane Partner` — slot B is the base twin's chain and must equal it (`Jane Partner`). **The row that bounds §F10.6b's rule**: the inherited tail gives way only where this slot's first step cannot RUN off it, and `refs` accepts a post input, so the inherited hop stays and the chain is two relationships deep. `bws_fold_chain_join()`, derived from the engine's own input-kind list — not a slug test, which would drop this. Slot B rendered NOTHING before #104 (two ref steps had no flat spelling) |
+| F10.6b | `{{join srcTermIn:department\|use:title\|2-src:same\|2-srcTermIn:portal_visibility\|2-use:title}}` | — | on `/matrix-terms-valid/`: `Sales, All Users`. **A carried hop is a DEFAULT, so slot 2's own hop REPLACES it rather than following it** — and this pair is what the old editor authored directly (leave slot 2's source alone, pick a different taxonomy). #104's first draft appended: `terms,department;terms,office` hops off a TERM input, which has no post to read, so slot 2 resolved EMPTY and vanished from the join. Measured both ways; the folded twin `A:src(terms,department);use(title)\|B:src(same;terms,portal_visibility);use(title)` reads `Sales, Support, All Users` and must move with it. **The COUNTS differ on purpose** — flat wire bounds at 1 and chain wire does not (`bws_limit_default`), so slot 1 contributes one term in the legacy spelling and both in the folded one. What must match is that slot 2 RESOLVES in each; a row read as a count comparison fails for the wrong reason |
+| F10.6c | `{{join src:ref\|ref:related_staff\|srcTermIn:department\|use:title\|2-src:same\|2-srcTermIn:portal_visibility\|2-use:title}}` | — | `All Users`, unchanged. **The shape §F10.6b's rule exists for**: a rooted BASE plus two different taxonomies, the second slot carrying over. Slot 2 must resolve `refs,related_staff;terms,portal_visibility` — the carried base kept, the carried taxonomy replaced. It needs no duplication of the base in the wire, which is the alternative encoding that was considered: the migrator writes `src(same;terms,portal_visibility)` and the rule supplies the base |
+| F10.6d | `{{join A:src(refs,related_staff);use(title)\|B:src(same;refs,reports_to);use(title)}}` | `{{text src:refs,related_staff;refs,reports_to\|use:title}}` | `Jane Partner, Tom Associate, Jane Partner` — slot B is the base twin's chain and must equal it (`Jane Partner`). **The row that bounds §F10.6b's rule**: the carried tail gives way only where this slot's first step cannot RUN off it, and `refs` accepts a post input, so the carried hop stays and the chain is two relationships deep. `bws_fold_chain_join()`, derived from the engine's own input-kind list — not a slug test, which would drop this. Slot B rendered NOTHING before #104 (two ref steps had no flat spelling) |
 | F10.7 | `{{join A:src(site;terms,department);key(org_phone)}}` | `{{phone src:site;terms,department\|key:org_phone}}` | EMPTY on both, and that is the deliberate contrast to F10.6: hand-written chain wire SAYS the term step, so it keeps it and resolves nothing (a term step needs a post input). Wire means what it says (ADR 0004); what F10.6's rule protects is the flat KEYS |
 
 > **A SKIP IS STILL INDISTINGUISHABLE FROM AN EMPTY READ on the front end**, which is why F10.3/F10.4
@@ -734,8 +734,8 @@ rows are the fastest way in) and check each.
 |---|---|---|
 | F14.1 | Open a folded `{{join}}` tag's modal | ONE control per live slot, not ten. "Add field" appends; remove compacts. The BUTTON and the panel HEADER come from one registered noun (`+ Add field` / `Field A`; `try_*` reads `+ Add attempt` / `Attempt A`) — two strings for one unit is how the header said "Slot A" over an "Add attempt" button. Registered keys run to the ceiling; the control renders only up to the live count |
 | F14.2 | Add a slot on `{{join}}` (combining) | the new slot seeds with the READ UNSET — choosing a field IS the configuration act in a combining container. The advisory reads "pick a field for this slot" |
-| F14.3 | Add a slot on `try_text` (selecting) | the new slot seeds `src(same);use(same)` — the inherit is the useful default for a later attempt |
-| F14.4 | Remove a middle slot whose successor inherits | the successor's inherit is MATERIALIZED to a real value before compaction renumbers, so removal never silently re-points a slot. A residual inherit at position 1 is stripped |
+| F14.3 | Add a slot on `try_text` (selecting) | the new slot seeds `src(same);use(same)` — the carry-over is the useful default for a later attempt |
+| F14.4 | Remove a middle slot whose successor carries over | the successor's carry over is MATERIALIZED to a real value before compaction renumbers, so removal never silently re-points a slot. A residual carry over at position 1 is stripped |
 | F14.5 | Open a LEGACY (unfolded) join or `try_*` tag, then commit any slot | the legacy `{N}-src`/`-ref`/`-srcTermIn`/`-use`/`-key`/`-limit` keys are deleted and replaced by folded values — EXCEPT the container's tag-level axes (F13.4). Both migration paths must agree: the mount migrator and the converter are twins over one corpus |
 | F14.6 | Open a legacy tag, make NO change, close | no spurious diff. The mount migration writes through a function updater, and returning `prev` unchanged is the loop guard |
 | F14.7 | Save a folded tag and read the tag string | the slot keys rank as their SLOT'S SOURCE: `format` group first, then any TAG-level (slot 0) source key, then `A`, `B`, … ascending, then `link`/`fallback`. **This is the regression the capitals bought** — while the keys were digits they were JS array-index properties, which ECMAScript enumerates before every string key, and GB serializes with `Object.entries()`, so the slots were PINNED ahead of `format` and neither the JS normalizer nor the PHP sort could move them. A digit-led save here means the spelling regressed |
@@ -744,7 +744,7 @@ rows are the fastest way in) and check each.
 | F14.8 | Check the field picker inside a slot | the picker is scoped by the `scopeKey` PROP, not by the outward `state.key`. An unmatched repeater key degrades to the full pool rather than stranding the author |
 | F14.9 | Read the editor tag configuration preview text on a folded tag | it matches what the tag renders, because both preview builders walk the SAME seam. A slot the renderer SKIPS is flagged rather than shown as if it resolves — four reasons speak since #104 (`no ref`, `no taxonomy`, `no repeater field`, `no previous source`) and the fifth, `source not supported`, retired with the flatten that produced it (§F10). A slot is named by LETTER since #105, and several slots with different problems collapse to the letters alone. What replaced `source not supported` is a NARROWER and differently-shaped signal — the inert-chain warning, F14.18–22 below, which reaches base tags too. See `docs/editor-tag-previews.md` |
 | F14.10 | Hand-edit a slot value to a shape with a per-step `limit` | it round-trips, and the step's own Limit field shows it. Placeholder `0 (all)`; typing `0` or `-1` normalizes back to absence, so the field reads `0 (all)` before and after and nothing is silently lost |
-| F14.11 | In any slot, pick the read kind "Meta/Option Field" and pick nothing else | the select STAYS on it and the field picker appears. The control re-parses the value it just wrote to drive that select, so the pending state needs a wire spelling: `use(key)` with no `key(…)`. It is written only while the field is empty — once a field is picked the canonical bare `key(x)` is what saves. Picking an analog row (Title/Name) was never affected, which is what the bug looked like from outside. The empty picker also warns, in the hop warning's words: "This *&lt;noun&gt;* will be skipped unless a field is set". NOT shown on a picker-alone (`keyOnly`) container — there an empty field IS the inherit |
+| F14.11 | In any slot, pick the read kind "Meta/Option Field" and pick nothing else | the select STAYS on it and the field picker appears. The control re-parses the value it just wrote to drive that select, so the pending state needs a wire spelling: `use(key)` with no `key(…)`. It is written only while the field is empty — once a field is picked the canonical bare `key(x)` is what saves. Picking an analog row (Title/Name) was never affected, which is what the bug looked like from outside. The empty picker also warns, in the hop warning's words: "This *&lt;noun&gt;* will be skipped unless a field is set". NOT shown on a picker-alone (`keyOnly`) container — there an empty field IS the carry-over |
 | F14.12 | Add a `terms` hop to a slot and leave the Taxonomy on "Select…" | it warns in the same words as the field warnings — "This *&lt;noun&gt;* will be skipped unless a taxonomy is set" — and the seam keeps that promise: `{{join A:src(terms);key(role)|B:key(name_first)}}` on `/matrix-post-meta/` renders `Jane`, NOT `Captain, Jane`. **`Captain` is the pre-fix answer** (the post's own `role`, read through a hop that silently vanished), so a row that renders it means the incomplete-step skip regressed. The preview says `[⚠ Join: A no taxonomy]` — flagged, unlike an unconfigured read, because the author configured a source and would otherwise hunt for the missing slot |
 | F14.13 | Open a legacy BASE tag (`{{text src:ref\|ref:related_staff\|use:title}}`) and commit | the mount migrator rewrites it to `src:refs,related_staff,limit(1)` — the limit on the STEP, no tag-level `limit` written, the flat `ref` gone. The wire must match byte-for-byte what the converter writes for the same tag (`fold-migration-corpus.json` §baseSrc holds the pair): a divergence stores one tag two ways depending on which path reached it first, and neither path is wrong in isolation |
 | F14.14 | Open a FLAT-wire tag that stores a `limit` (any §F7c row) | NO "Result Limit" control anywhere in the panel (#62). The open MIGRATES it, exactly as F14.13 says: the number lands on the fanning step and shows in that step's own **Limit** field, or, for an explicit `0`/`-1`, is deleted outright — chain wire already means unlimited and there is no field left to see the key in (§F7c.3). "Result Separator" is unchanged; on a `try_*` it renders BARE (no box), the attempts being that tag's source and drawing their own boxes. **VERIFIED, user 2026-08-07** |

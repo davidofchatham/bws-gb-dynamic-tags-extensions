@@ -7,7 +7,7 @@
  * post content and rewrites them in bulk; the editor mount path (5f) is the second,
  * complementary path for content the scanner cannot reach (block widgets).
  *
- * ONE MAPPING, NOT A SECOND ONE. The legacy→folded rules — which absences mean inherit,
+ * ONE MAPPING, NOT A SECOND ONE. The legacy→folded rules — which absences mean carry-over,
  * where a legacy `limit` attaches, which shapes map to nothing — live in
  * bws_fold_from_flat() (slot-fold.php) and are shared with the render dual-read and the
  * editor. This file is only the WIRE-LEVEL adapter around it: pick the container's
@@ -240,8 +240,8 @@ function bws_fold_migrate_slots( array $options, array $cfg ) {
 	// NUMERIC ONLY. An uninterpretable value is not a number to push anywhere, and
 	// deleting an author's text on the strength of bws_clamp_limit's is_numeric guard is a
 	// bigger move than this rewrite is entitled to (the depth-0 half declines it for the
-	// same reason). A slot that fans only by INHERITING takes nothing here and needs
-	// nothing: bws_fold_slot_chain_options() carries the bound with the source it inherits.
+	// same reason). A slot that fans only by CARRY-OVER takes nothing here and needs
+	// nothing: bws_fold_slot_chain_options() carries the bound with the source it carries.
 	$tag_limit = null;
 	if ( empty( $cfg['combining'] ) ) {
 		$raw = trim( (string) ( $options['limit'] ?? '' ) );

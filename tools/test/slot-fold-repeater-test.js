@@ -10,9 +10,9 @@
  * Porting the cases to PHP would test a reimplementation instead of the shipping
  * logic, which is the opposite of the point.
  *
- * THE PROPERTY: `same` is a POSITIONAL backreference ("inherit from the previous
+ * THE PROPERTY: `same` is a POSITIONAL backreference ("carry over from the previous
  * slot"). Sliding a slot down re-points it at a DIFFERENT neighbour, silently
- * changing what the tag resolves to. So compaction must MATERIALIZE an inherited
+ * changing what the tag resolves to. So compaction must MATERIALIZE a carried
  * axis against the slot being removed BEFORE renumbering. Hop removal carries no
  * such hazard (a hop holds no backreference), which is why the hop pattern could
  * not simply be copied across.
@@ -134,19 +134,19 @@ function show( state, conf ) {
 // ── Removal + compaction ───────────────────────────────────────────────────
 // [ name, conf, beforeState, removeOrdinal, expectedAfter ]
 const CASES = [
-	[ 'plain compaction — remove middle of 4, no inheritance anywhere', SELECTING,
+	[ 'plain compaction — remove middle of 4, no carry-over anywhere', SELECTING,
 		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);key(name)', 'D': 'src(post,9999);use(title)' }, 2,
 		'A:key(staff_name) | B:src(refs,region);key(name) | C:src(post,9999);use(title)' ],
 
-	[ 'MATERIALIZE src — successor inherited the removed slot\'s source', SELECTING,
+	[ 'MATERIALIZE src — successor carried the removed slot\'s source', SELECTING,
 		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(same);key(region_name)' }, 2,
 		'A:key(staff_name) | B:src(refs,office);key(region_name)' ],
 
-	[ 'MATERIALIZE read — successor inherited the removed slot\'s read', SELECTING,
+	[ 'MATERIALIZE read — successor carried the removed slot\'s read', SELECTING,
 		{ 'A': 'key(staff_name)', 'B': 'src(refs,office);key(city)', 'C': 'src(refs,region);use(same)' }, 2,
 		'A:key(staff_name) | B:src(refs,region);key(city)' ],
 
-	[ 'PROMOTION — an all-inherit slot 2 promoted to position 1 drops its illegal `same`', SELECTING,
+	[ 'PROMOTION — an all-carry-over slot 2 promoted to position 1 drops its illegal `same`', SELECTING,
 		{ 'A': 'src(refs,office);key(city)', 'B': 'src(same);use(same)' }, 1,
 		'A:src(refs,office);key(city)' ],
 
@@ -158,7 +158,7 @@ const CASES = [
 		{ 'A': 'key(a)', 'B': 'src(refs,office;refs,region);key(city)', 'C': 'src(same);key(zip)' }, 2,
 		'A:key(a) | B:src(refs,office;refs,region);key(zip)' ],
 
-	[ 'chained inherit — only the IMMEDIATE successor referenced the removed slot', SELECTING,
+	[ 'chained carry over — only the IMMEDIATE successor referenced the removed slot', SELECTING,
 		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same);key(c)', 'D': 'src(same);key(d)' }, 2,
 		'A:key(a) | B:src(refs,office);key(c) | C:src(same);key(d)' ],
 
@@ -181,19 +181,19 @@ const CASES = [
 
 	// The position-1 strip is a SEPARATE guard from materialization, and only these
 	// two cases isolate it: materialization normally REPLACES the successor's `same`
-	// with a real value, so a residual inherit reaches position 1 only when the
-	// REMOVED slot was itself inheriting (a hand-edited slot 1). Position 1 has no
+	// with a real value, so a residual carry over reaches position 1 only when the
+	// REMOVED slot was itself carrying over (a hand-edited slot 1). Position 1 has no
 	// predecessor, so `same` there is illegal and must drop to a plain unset axis.
-	[ 'POSITION-1 STRIP (src) — removed slot was itself inheriting', SELECTING,
+	[ 'POSITION-1 STRIP (src) — removed slot was itself carrying over', SELECTING,
 		{ 'A': 'src(same);key(a)', 'B': 'src(same);key(b)' }, 1,
 		'A:key(b)' ],
 
-	[ 'POSITION-1 STRIP (read) — removed slot inherited its read', SELECTING,
+	[ 'POSITION-1 STRIP (read) — removed slot carried its read', SELECTING,
 		{ 'A': 'src(refs,x);use(same)', 'B': 'src(refs,y);use(same)' }, 1,
 		'A:src(refs,y)' ],
 
-	// Combining materialization: the successor's inherited SOURCE still carries, and
-	// its unset read stays unset (there is no read to inherit in a combining slot).
+	// Combining materialization: the successor's carried SOURCE still carries, and
+	// its unset read stays unset (there is no read to carry over in a combining slot).
 	[ 'COMBINING — materialize src; an unset read stays unset', COMBINING,
 		{ 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same)' }, 2,
 		'A:key(a) | B:src(refs,office)' ],
@@ -210,15 +210,15 @@ CASES.forEach( function ( c ) {
 check( 'SELECTING seed = src(same);use(same)', fold.emitSlot( rep.seedSlot( SELECTING ) ), 'src(same);use(same)' );
 check( 'COMBINING seed = src(same) with the read UNSET', fold.emitSlot( rep.seedSlot( COMBINING ) ), 'src(same)' );
 // Not a third container, a third READ SHAPE: selecting with no `use` axis. An absent
-// read already inherits in a selecting container, so the sentinel would only add a
+// read already carries over in a selecting container, so the sentinel would only add a
 // token naming an axis with no control — and the renderer resolves both the same way.
 check( 'KEY-ONLY seed omits the read sentinel', fold.emitSlot( rep.seedSlot( KEY_ONLY ) ), 'src(same)' );
 check( 'CHAIN-ONLY seed omits the read sentinel', fold.emitSlot( rep.seedSlot( CHAIN_ONLY ) ), 'src(same)' );
 
 // Compaction is read-shape blind — it materializes whatever axes the wire holds. A
-// key-only successor inheriting its key must still carry it across a removal.
+// key-only successor carrying over its key must still carry it across a removal.
 check(
-	'KEY-ONLY compaction materializes an inherited key',
+	'KEY-ONLY compaction materializes a carried key',
 	show( rep.removeSlotFrom( 2, { 'A': 'key(a)', 'B': 'src(refs,office);key(b)', 'C': 'src(same)' }, 3, KEY_ONLY ), KEY_ONLY ),
 	'A:key(a) | B:src(refs,office)'
 );
@@ -239,7 +239,7 @@ check( 'cardinality never exceeds the ceiling scan', rep.slotCount( { 'E': 'key(
 // and cannot be called headlessly), so this pins the RULE: slot 1 unconfigured is
 // empty/current; slot ≥2 unconfigured is the container's seed. A blanket empty
 // struct on slot 2 is the silent-RESET shape (resolves against ambient context
-// instead of inheriting), which the renderer treats as malformed.
+// instead of carrying over), which the renderer treats as malformed.
 function mountDefault( ordinal, conf ) {
 	const slot = ordinal >= 2
 		? rep.seedSlot( conf )
@@ -270,7 +270,7 @@ const HOP_CASES = [
 	[ 'remove hop 2 of 2 keeps hop 1', 'refs,office;refs,region', 1, 1, 'src(refs,office)' ],
 	[ 'remove middle hop of 3', 'post,9999;refs,a;refs,b', 1, 1, 'src(post,9999;refs,b)' ],
 	[ 'empty a 1-step chain on slot 1 — legitimately unset (current)', 'refs,office', 0, 1, '(empty chain — slot 1 falls to current)' ],
-	[ 'empty a 1-step chain on slot ≥2 — MUST fall back to explicit inherit', 'refs,office', 0, 2, 'src(same)' ],
+	[ 'empty a 1-step chain on slot ≥2 — MUST fall back to explicit carry over', 'refs,office', 0, 2, 'src(same)' ],
 	[ 'hop removal preserves a per-step limit on the survivor', 'refs,a;terms,category,limit[3]', 0, 1, 'src(terms,category,limit[3])' ],
 ];
 HOP_CASES.forEach( function ( c ) {
@@ -281,7 +281,7 @@ HOP_CASES.forEach( function ( c ) {
 // ── Advisory is DESCRIPTIVE — it must never gate ───────────────────────────
 // inferIntent is the residue of a cut intent radio that also drove axis visibility.
 // These rows pin that it is a pure read of the wire: every cell, plus the
-// all-inherit case that must report "unset" rather than a variation.
+// all-carry-over case that must report "unset" rather than a variation.
 const INTENT = [
 	[ 'src(refs,office);use(same)', 'context' ],
 	[ 'src(same);key(x)', 'field' ],
@@ -410,7 +410,7 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 		{ value: 'current', label: 'Current' },
 		{ value: 'refs', label: 'In Reference/Relational Field' }
 	],
-	srcRowsInherit: [
+	srcRowsWithSame: [
 		{ value: 'same', label: 'Same as Previous Source' },
 		{ value: 'current', label: 'Current' }
 	],
@@ -470,12 +470,12 @@ function hasAddStep( nodes ) {
 	return found;
 }
 
-function renderChain( chain, inheritOnEmpty ) {
+function renderChain( chain, sameOnEmpty ) {
 	return rep.chainSteps( {
 		conf: CHAIN_CONF,
 		chain: chain,
 		onChange: function () {},
-		inheritOnEmpty: !! inheritOnEmpty,
+		sameOnEmpty: !! sameOnEmpty,
 		slotNoun: 'attempt',
 		stepContext: function () { return { state: {}, setState: function () {} }; }
 	} );
@@ -494,10 +494,10 @@ check( 'slot 1, no chain: Add step is reachable', hasAddStep( empty1 ), true );
 
 const empty2 = renderChain( [], true );
 const sel2   = selectsIn( empty2 );
-check( 'slot ≥2, no chain: shows the INHERIT row, not `current`', sel2[ 0 ] && sel2[ 0 ].value, 'same' );
-// An inherit is not a chain to continue — appending to it would state a step off a
+check( 'slot ≥2, no chain: shows the CARRY-OVER row, not `current`', sel2[ 0 ] && sel2[ 0 ].value, 'same' );
+// A carry-over is not a chain to continue — appending to it would state a step off a
 // source this slot has not chosen.
-check( 'slot ≥2, no chain: Add step is NOT offered off an inherit', hasAddStep( empty2 ), false );
+check( 'slot ≥2, no chain: Add step is NOT offered off a carry-over', hasAddStep( empty2 ), false );
 
 // A real chain is untouched by the display rule. The picker's value is the stored
 // step's OWN slug — nothing translates between the wire and the row any more.
@@ -515,7 +515,7 @@ const switchable = rep.chainSteps( {
 	conf: CHAIN_CONF,
 	chain: [ { slug: 'refs', arg: 'office', limit: 3, extra: [] } ],
 	onChange: function ( next ) { committed = next; },
-	inheritOnEmpty: false,
+	sameOnEmpty: false,
 	slotNoun: 'attempt',
 	stepContext: function () { return { state: {}, setState: function () {} }; }
 } );
@@ -592,7 +592,7 @@ const TERMS_ONLY = rep.foldConfig( { fold: Object.assign( {}, {
 	combining: false,
 	perSlotUse: true,
 	srcRows: [ { value: 'current', label: 'Current' }, { value: 'site', label: 'Site' } ],
-	srcRowsInherit: [],
+	srcRowsWithSame: [],
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
@@ -606,7 +606,7 @@ const siteTermsOnly = rep.chainSteps( {
 	conf: TERMS_ONLY,
 	chain: [ { slug: 'site', arg: null, limit: null } ],
 	onChange: function () {},
-	inheritOnEmpty: false,
+	sameOnEmpty: false,
 	slotNoun: 'attempt',
 	stepContext: function () { return { state: {}, setState: function () {} }; }
 } );
@@ -708,7 +708,7 @@ function sentinelLimits( chain ) {
 		conf: SENTINEL,
 		chain: chain,
 		onChange: function () {},
-		inheritOnEmpty: false,
+		sameOnEmpty: false,
 		slotNoun: 'attempt',
 		stepContext: function () { return { state: {}, setState: function () {} }; }
 	} ) );
@@ -739,7 +739,7 @@ const perKind = limitsIn( rep.chainSteps( {
 		{ slug: 'terms', arg: 'department', limit: null }
 	],
 	onChange: function () {},
-	inheritOnEmpty: false,
+	sameOnEmpty: false,
 	slotNoun: 'attempt',
 	stepContext: function () { return { state: {}, setState: function () {} }; }
 } ) );
@@ -755,7 +755,7 @@ const NO_LIMIT_CFG = limitsIn( rep.chainSteps( {
 	conf: rep.foldConfig( { fold: Object.assign( {}, CHAIN_CONF, { limitOption: null } ) } ),
 	chain: [ { slug: 'refs', arg: 'office', limit: null } ],
 	onChange: function () {},
-	inheritOnEmpty: false,
+	sameOnEmpty: false,
 	slotNoun: 'attempt',
 	stepContext: function () { return { state: {}, setState: function () {} }; }
 } ) );
@@ -938,7 +938,7 @@ const noted = withEnvelope( envWith( [ { name: 'partners', type: 'relationship',
 		conf: CHAIN_CONF,
 		chain: [ { slug: 'refs', arg: 'partners', limit: 3, extra: [] } ],
 		onChange: function ( next ) { out = next; },
-		inheritOnEmpty: false,
+		sameOnEmpty: false,
 		slotNoun: 'attempt',
 		stepContext: function () { return { state: {}, setState: function () {} }; }
 	} );

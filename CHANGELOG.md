@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.
+
 ## [1.19.1] — 2026-09-03
 
 ### Fixed

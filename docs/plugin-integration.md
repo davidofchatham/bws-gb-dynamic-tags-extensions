@@ -140,7 +140,7 @@ Each spec is adapted into a registered source and registered normally, so it lan
 - **The filter fires at registry initialisation**, not when the editor builds its dropdown. A row added at enum-build time would exist for the editor and not for the renderer, and the token would quietly fall through to the ambient entity.
 - **A key that collides with an already-registered source is ignored**, never merged over it. Class-route registrations win.
 - **A spec with no label, or a non-callable `resolve`, is skipped** rather than registered half-formed.
-- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `rows`), the slot inherit sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
+- **The key has to be writable as a `src` token**, so a spec is also skipped when its key is a chain step slug (`refs`, `terms`, `rows`), the slot carry-over sentinel (`same`), or carries a grammar character (`; , ( ) [ ] : |` or whitespace). Any of those would parse back as something other than a root, which would break the guarantee that an offered root resolves. Use a plain identifier — your plugin's own slug is the obvious choice.
 - **No `$context` argument.** No tag, block or container exists when this fires. (WordPress passes arguments positionally by registered arity, so one can be added later without breaking existing listeners.)
 
 ### What the opt-in does and does not govern

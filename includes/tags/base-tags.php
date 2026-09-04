@@ -884,7 +884,7 @@ function bws_base_text_callback( $options, $block, $instance ): string {
  * The slot definitions come from bws_build_fold_slot_options(), which derives every
  * enum and label from the shipped builders and hands them to the `bws-slot-fold`
  * repeater control. Join supplies the container facts: combining, site arm allowed,
- * one term step, no read-inherit row, and the slot noun.
+ * one term step, no read `same` row, and the slot noun.
  *
  * WHAT THE FOLD REPLACED, and why the reveal machinery went with it: through 1.16.x
  * this registered SIX flat keys per slot (`{N}-src`/`ref`/`srcTermIn`/`use`/`key`/
@@ -931,7 +931,7 @@ function bws_get_join_options(): array {
 				// Site arm allowed: join is standalone, so the base source list passes
 				// through whole (the try_ site filter is a modifier-only concern).
 				'allow_site'      => true,
-				// No read inherit row yet — per-slot HANDLERS are not built, which is
+				// No read `same` row yet — per-slot HANDLERS are not built, which is
 				// also why bws_build_slot_read_options() is called at $allow_same=false
 				// (see its PHPDoc; `use(same)` is legal in combining and the renderer
 				// honors a hand-written one, it just has no UI row until handlers ship).
@@ -1007,8 +1007,8 @@ function bws_get_join_options(): array {
  * hand-edit can leave slot 2 folded between legacy slots 1 and 3, and both feed the
  * ONE carry-forward accumulator this loop holds.
  *
- * Carry-forward semantics are unchanged and now live in the seam: source inherits
- * ('' / `same` src = prior resolved source), the read never inherits unless the wire
+ * Carry-forward semantics are unchanged and now live in the seam: the source resolves `same`
+ * ('' / `same` src = prior resolved source), the read never does unless the wire
  * says `use(same)`, a read-less slot is unconfigured and is skipped BEFORE it can feed
  * the accumulator, and a carried `ref` survives a non-ref source override (inert
  * there, but a later slot stepping back to the same relationship needs it).
@@ -1021,7 +1021,7 @@ function bws_get_join_options(): array {
  */
 function bws_join_callback( $options, $block, $instance ): string {
 	$values = array(); // 1-based; $values[$n] = finished slot string or ''.
-	// The accumulator's source axis is a CHAIN, not a token — `src(same)` inherits the
+	// The accumulator's source axis is a CHAIN, not a token — `src(same)` carries over the
 	// prior slot's whole chain, hops and all (#104). The READ seeds the stripped default
 	// of the leaf {{join}}'s slots read through (the text leaf, per bws_get_join_options),
 	// so a slot that states no read resolves as the same read a bare {{text}} does: the

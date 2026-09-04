@@ -313,9 +313,9 @@ Detail home: `.scratch/plans/architecture-review-2026-08.md` §FW-115
 
 Progress: `base-shared.php:486-489` already names the hazard. The same shape has already fired one level down — the fold config's camelCase keys are written in PHP and read from a hardcoded list in `foldConfig()`, and the control's own comment records two consumers silently reverting to the non-collapsing branch while the feeding config was correct end to end.
 
-Open: Fix shape is a tree census in the mould of `control-order-test.php` §9. Lowest confidence of the ten review candidates — it adds an instrument rather than deepening a module.
+Open: Fix shape is a tree census in the mould of `control-order-test.php` §9. Lowest confidence of the ten review candidates — it adds an instrument rather than deepening a module. The fold-config half has a cheaper shape than the control-type half and can land alone: the twin driver already exports a `grammar` surface whose PHP-only/JS-only field diff is asserted (`slot-fold-twin-test.php:88`), and the same treatment applied to `foldConfig` — PHP emitting `array_keys( $fold )`, JS emitting `Object.keys( foldConfig( cfg ) )`, set equality — closes it in ~20 lines touching no runtime code. Priced 2026-09-04 while grilling FW-121; deliberately NOT bundled into that rename, so the rename stays reviewable as a pure word swap.
 
-Blocked by: —  •  Interacts with: FW-114, FW-111
+Blocked by: —  •  Interacts with: FW-114, FW-111, FW-121 (renames two fold-config keys across this seam — the last such rename that could slip if the key-set axis lands first)
 
 #### FW-116 — `bws_base_ambient_analog()`'s empty-triple-vs-null contract is a per-tag carve-out, not a rule
 
@@ -583,7 +583,7 @@ Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
 #### FW-120 — A tag-level source for `{{join}}`, with slots inheriting it
 
-`{{join}}` has no tag-level source: every slot states its own, and a slot that states none inherits from the previous resolving SIBLING — the shape carried over from `try_`. `{{table}}` is being built on the opposite model, where a bare column roots at the tag's own resolved source (`src(inherit)`), and this item brings `{{join}}` onto it.
+`{{join}}` has no tag-level source: every slot states its own, and a slot that states none carries over from the previous resolving SIBLING — the shape carried over from `try_`. `{{table}}` is being built on the opposite model, where a bare column roots at the tag's own resolved source (`src(inherit)`), and this item brings `{{join}}` onto it.
 
 Detail home: `.scratch/plans/join-rebuild.md`
 
@@ -721,11 +721,23 @@ Inheriting from a PARENT and borrowing from a SIBLING are different relations, a
 
 Detail home: `.scratch/plans/table-tag.md` §H (the naming decision + the five drafted strings)
 
-Progress: Censused 2026-09-04. Identifiers are `props.inheritOnEmpty`, `conf.srcRowsInherit` and `conf.readRowsInherit`, the last two riding the PHP-derived option config so both sides move together; §H's five-string price missed two PHP prose sites (`class-source-registry.php:112`, `class-tag-template-registry.php:538`). Replacement copy is drafted and settled (keeps/kept); the identifier stem is `same`, because an identifier naming the WIRE TOKEN stays checkable while one naming the prose verb goes stale at the next rewording. Wire cost is zero — `same` keeps its slug, nothing migrates. Datetime's `inherit_date` is a third sense and deliberately out of scope.
+Progress: Re-censused 2026-09-04 — **~140 sibling-axis sites across ~15 files** under `includes/`+`assets/`, plus ~27 live-doc sites, correcting an earlier "roughly twenty comment sites across six files" price. FOUR identifiers, not three: `conf.srcRowsInherit`/`conf.readRowsInherit` (→ `srcRowsWithSame`/`readRowsWithSame`), `props.inheritOnEmpty` (→ `sameOnEmpty`), `$inherited` (→ `$carried`, aligned to the shipped `&$carry` param), and the missed one — the `'inherit'` SKIP-REASON token (→ `'same'`), whose three sites are the producer, the `preview-helpers.php` map key feeding the author-facing `no previous source`, and a test literal. The identifier stem is `same` because an identifier naming the WIRE TOKEN stays checkable while one naming the prose verb goes stale at the next rewording — a rule stress-tested in the same session, where the prose verb moved twice (`inherit` → keeps/kept → carries over) and `same` never moved. Prose verb is **carries over**, one word across wire, code and screen; keeps/kept was reconsidered and dropped. Wire cost is zero — `same` keeps its slug, nothing migrates. Datetime's `inherit_date` is a third sense and out of scope.
 
-Open: Nothing in the design. It ships STANDALONE and FIRST, ahead of the `src(inherit)` root rather than with it, so no window exists where the wire says `inherit` for one relation and the file implementing it says `inherit` for the other. User-visible copy change landing alone, so it takes its own CHANGELOG entry; a pure rename, but it trips both the Folded-slot REGISTRATION and Folded-slot CONTROL update triggers.
+Open: Nothing in the design. It ships STANDALONE and FIRST, ahead of the `src(inherit)` root rather than with it, so no window exists where the wire says `inherit` for one relation and the file implementing it says `inherit` for the other. User-visible copy change landing alone, so it takes its own CHANGELOG entry; a pure rename, but it trips the Folded-slot REGISTRATION and Folded-slot CONTROL update triggers, plus `preview-label-test.php` and `slot-fold-test.php` via the skip-reason token. **DEFERRED, deliberately:** `tools/fixtures/core-structures/blocks.php`'s ~20 fixture row labels still say `inherit`. They reach the committed page-snapshot baseline (measured — `page-matrix-post-meta.html` contains "INHERITS the ref hop"), so moving them forces a same-commit re-capture and destroys the empty-snapshot-diff proof that this rename moved nothing. They belong in a later commit whose re-capture has an obvious cause.
 
-Blocked by: —  •  Interacts with: FW-53 (which introduces `src(inherit)`, the word this frees), FW-120, FW-93, FW-95
+Blocked by: —  •  Interacts with: FW-53 (which introduces `src(inherit)`, the word this frees), FW-115 (two of the three identifiers are fold-config keys — the exact hazard that item's Progress already names; each side is pinned by its own harness, nothing compares the key SETS), FW-120, FW-122 (the `carry` stem's second axis, which this item creates and deliberately declines to fix), FW-93, FW-95
+
+#### FW-122 — the slot-walk accumulator has two names for one concept, and FW-121 gives it a third neighbour
+
+The structure threaded through a container's slot walk — the `&$carry` parameter holding `{chain,ref,use,key,limit}` — is called **`carry-forward`** at 15 comment sites and **"the carry"** at 12 more, for one thing. That is standing debt on its own. FW-121 adds a second axis to it: once the SIBLING RELATION's prose verb is "carries over", the `carry` stem names both the author-level relation and the implementation that delivers it, which is a milder instance of the one-word-two-relations defect FW-121 exists to remove.
+
+Detail home: none yet — the fix shape is undesigned, and the naming question (what the mechanism becomes) has no candidate that survives review yet.
+
+Progress: Censused 2026-09-04 while grilling FW-121 — 15 `carry-forward`, 12 "the carry", 0 "carry over" across `includes/`, `assets/` and the live docs. Almost every `carry-forward` names the MECHANISM ("carry-forward accumulator", "precedes the carry-forward"), not the relation, so the two senses are currently distinguished only because the relation used a different word. Rejected as part of FW-121's own commit: renaming the mechanism cannot stop at the 15 comments, because they document a parameter literally named `$carry` — it pulls `&$carry`, `$carried` and the `bws_fold_slot_chain_options()` signature with it, which is a seam-signature change that would be invisible inside that item's ~170 word swaps.
+
+Open: Everything. Whether the mechanism renames at all, or the two spellings simply collapse onto one of themselves. No candidate survives yet — `accumulator` loses the directionality, `hand-off` collides with CLAUDE.md's own "SLOT SOURCE HAND-OFF" trigger (which names the very function holding `$carry`), and `propagation` is jargon the repo uses nowhere.
+
+Blocked by: —  •  Interacts with: FW-121 (which creates the second axis and deliberately declined to fix it), FW-93, FW-95
 
 ### Future possibilities
 
@@ -936,6 +948,8 @@ Detail home: `.scratch/plans/table-tag.md` §Roadmap
 Progress: Prototype built and committed, gated behind the `bws_dynamic_tags_register_table_tag` filter (default false) since 2026-08-12, so no install gets it by default; the fixture blueprint enables it from its mu-plugin so matrix rows and fixture blocks keep running while v1 is built. Its blocker cleared 2026-08-20 when GH #55 (closed; base-tag source chains) shipped — v1 can now assume both a chain source and registered roots (FW-69).
 
 Open: v1 finalization detail lives entirely in the plan's §Roadmap. Flip the filter to unconditional when v1 ships.
+
+Carries a `CONTEXT.md` §Language obligation from FW-121 (decided 2026-09-04): the entry defining PARENT inheritance against SIBLING carry lands with `src(inherit)`, not with the rename that frees the word — defining a token nobody can author yet would put a forward-looking claim in the file whose whole reading posture is "these bind NOW".
 
 Does NOT wait on FW-74 (decided 2026-09-03): keyed columns read through the kind-complete `bws_read_resolved_source()`, and analog columns through a per-kind analog seam that is table's to build and FW-74's to reuse. FW-74 going first is a commit-ordering preference.
 

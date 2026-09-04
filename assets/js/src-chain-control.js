@@ -276,9 +276,9 @@
 			conf: conf,
 			chain: chain,
 			onChange: writeChain,
-			// A base tag has no predecessor to inherit from, so an emptied chain
-			// legitimately means the ambient entity rather than an inherit.
-			inheritOnEmpty: false,
+			// A base tag has no predecessor to carry over from, so an emptied chain
+			// legitimately means the ambient entity rather than a carry-over.
+			sameOnEmpty: false,
 			slotNoun: __( 'tag', 'generateblocks' ),
 			stepContext: function ( stepObj, commitArg ) {
 				return {

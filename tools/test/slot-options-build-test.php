@@ -124,7 +124,7 @@ assert_same(
 // ============ Slot 2 ============
 $s2 = bws_build_slot_traversal_options( 2, $base_src, $base_trav );
 
-// V1: slot ≥2 prepends 'same' inherit row.
+// V1: slot ≥2 prepends 'same' `same` row.
 assert_same(
 	'slot2 src options = same,current,ref',
 	array(
@@ -256,20 +256,20 @@ assert_same( 'leaf key carries no show_if', false, isset( $leaf['key']['show_if'
 
 echo "\nbws_build_slot_read_options\n";
 
-// --- Slot 1: base enum verbatim, no inherit row regardless of $allow_same. ---
+// --- Slot 1: base enum verbatim, no `same` row regardless of $allow_same. ---
 $r1 = bws_build_slot_read_options( 1, $leaf['use'], true );
 assert_same( 'slot1 read options = key,title (no same)', array( 'key', 'title' ), array_column( $r1['options'], 'value' ) );
 assert_same( 'slot1 read label "1: Text Field"', '1: Text Field', $r1['label'] );
 assert_same( 'slot1 read type select', 'select', $r1['type'] );
 assert_same( 'slot1 read _strip_default derived from base', true, $r1['_strip_default'] );
 
-// --- Slot ≥2 SELECTING (try_): inherit row prepended, shipped string. ---
+// --- Slot ≥2 SELECTING (try_): `same` row prepended, shipped string. ---
 $r2 = bws_build_slot_read_options( 2, $leaf['use'], true );
 assert_same( 'slot2 selecting prepends same', array( 'same', 'key', 'title' ), array_column( $r2['options'], 'value' ) );
 assert_same( 'slot2 same row label', 'Same as Previous Field', $r2['options'][0]['label'] );
 assert_same( 'slot2 read label "2: Text Field"', '2: Text Field', $r2['label'] );
 
-// --- Slot ≥2 COMBINING ({{join}}): NO inherit row. Byte-for-byte the literal the
+// --- Slot ≥2 COMBINING ({{join}}): NO `same` row. Byte-for-byte the literal the
 // twin replaced — join's rejoin is a behavioral no-op. Not-built-yet (per-slot
 // handlers), NOT degenerate: flipping the flag is the whole change when they ship.
 $j2 = bws_build_slot_read_options( 2, $leaf['use'], false );
@@ -351,8 +351,8 @@ assert_same( 'per-slot label carries the ordinal spelling, not the number', 'Fie
 
 $fold = $joins['A']['fold'];
 
-// Source enum: DERIVED through the slot twin, so the `site` arm and the inherit row
-// are the shipped ones. Slot 1 has no inherit row; slot ≥2 does. The twin's `ref` row
+// Source enum: DERIVED through the slot twin, so the `site` arm and the `same` row
+// are the shipped ones. Slot 1 has no `same` row; slot ≥2 does. The twin's `ref` row
 // is respelled to the wire slug `refs` (#70): that row is the relationship STEP's UI,
 // and with the slugMap retired the picker's value must BE the stored step's slug.
 $respell_ref = static function ( array $rows ): array {
@@ -369,9 +369,9 @@ assert_same(
 	$fold['srcRows']
 );
 assert_same(
-	'srcRowsInherit derive from the slot twin at slot 2 (same-row included)',
+	'srcRowsWithSame derive from the slot twin at slot 2 (same-row included)',
 	$respell_ref( bws_build_slot_traversal_options( 2, $base_src, $base_trav, true )['src']['options'] ),
-	$fold['srcRowsInherit']
+	$fold['srcRowsWithSame']
 );
 assert_same( 'the respelled row keeps its label (only the value moves)', true, in_array( 'refs', array_column( $fold['srcRows'], 'value' ), true ) );
 assert_same( '...and no legacy `ref` value survives in the enum', false, in_array( 'ref', array_column( $fold['srcRows'], 'value' ), true ) );
@@ -379,7 +379,7 @@ assert_same( 'site arm present when allowed', true, in_array( 'site', array_colu
 
 // Read enum: the twin's rows, with a COMBINING container's explicit unset row in front
 // — absent there means unconfigured (slot skipped), which is not what the first enum
-// row means. `allow_same_read` false ⇒ no inherit row, matching the resolver.
+// row means. `allow_same_read` false ⇒ no `same` row, matching the resolver.
 assert_same(
 	'readRows = unset row + the read twin rows (combining)',
 	array_merge(
@@ -388,7 +388,7 @@ assert_same(
 	),
 	$fold['readRows']
 );
-assert_same( 'no read inherit row while allow_same_read is false', false, in_array( 'same', array_column( $fold['readRowsInherit'], 'value' ), true ) );
+assert_same( 'no read `same` row while allow_same_read is false', false, in_array( 'same', array_column( $fold['readRowsWithSame'], 'value' ), true ) );
 assert_same( 'readLabel is the base read noun, not a container copy', 'Text Field', $fold['readLabel'] );
 
 // The OFFER is a CAPABILITY list: only what the container's resolver can express,
@@ -499,7 +499,7 @@ assert_same( 'floor + ceiling are carried', array( 2, 3 ), array( $fold['min'], 
 assert_same( 'noun is carried for the add affordance', 'field', $fold['noun'] );
 
 // A SELECTING container: no unset read row (absent there IS the stripped default), and
-// the inherit row appears when the caller allows it.
+// the `same` row appears when the caller allows it.
 $sel = bws_build_fold_slot_options(
 	array(
 		'container'       => 'try',
@@ -521,7 +521,7 @@ assert_same(
 	bws_build_slot_read_options( 1, $text['use'], false )['options'],
 	$sel_fold['readRows']
 );
-assert_same( 'selecting slot ≥2 offers the read inherit row', true, in_array( 'same', array_column( $sel_fold['readRowsInherit'], 'value' ), true ) );
+assert_same( 'selecting slot ≥2 offers the read `same` row', true, in_array( 'same', array_column( $sel_fold['readRowsWithSame'], 'value' ), true ) );
 assert_same( 'site arm filtered when not allowed', false, in_array( 'site', array_column( $sel_fold['srcRows'], 'value' ), true ) );
 assert_same( 'combining flag reflects the container', false, $sel_fold['combining'] );
 assert_same(
@@ -536,7 +536,7 @@ assert_same(
 //
 // KEY-ONLY (try_email / try_phone: a per-slot key with no `use` enum). No read rows, a
 // key definition present: the control renders the picker alone, and an empty field is
-// how that slot says "inherit".
+// how that slot says "carry over".
 $key_only = bws_build_fold_slot_options(
 	array(
 		'container'    => 'try',
@@ -551,7 +551,7 @@ $key_only = bws_build_fold_slot_options(
 );
 $key_fold = $key_only['A']['fold'];
 assert_same( 'key-only: no read enum', array(), $key_fold['readRows'] );
-assert_same( 'key-only: no read enum at slot ≥2 either', array(), $key_fold['readRowsInherit'] );
+assert_same( 'key-only: no read enum at slot ≥2 either', array(), $key_fold['readRowsWithSame'] );
 assert_same( 'key-only: the key picker is still configured', $text['key']['label'], $key_fold['keyOption']['label'] );
 assert_same( 'key-only: perSlotUse false reaches the control', false, $key_fold['perSlotUse'] );
 assert_same( 'key-only: readLabel is empty, so the control falls back to the key noun', '', $key_fold['readLabel'] );
@@ -790,7 +790,7 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	$roots['noresolve'] = array( 'label' => 'No Resolver' );
 	// Keys that cannot BE a root token. `refs` is a chain STEP slug, so selecting such a
 	// row would author wire that parses as a step off the ambient entity and never runs
-	// the source; `same` is the slot inherit sentinel; the third carries grammar
+	// the source; `same` is the slot carry over sentinel; the third carries grammar
 	// characters that split the value. Each would be an offered root that cannot resolve
 	// — the one guarantee this route exists to keep.
 	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
@@ -880,9 +880,9 @@ assert_same(
 	$root_values( $rooted_fold['srcRows'] )
 );
 assert_same(
-	'...and so does a slot ≥2, behind its inherit row',
+	'...and so does a slot ≥2, behind its `same` row',
 	array( 'same', 'current', 'refs', 'site', 'testroot', 'filterroot' ),
-	$root_values( $rooted_fold['srcRowsInherit'] )
+	$root_values( $rooted_fold['srcRowsWithSame'] )
 );
 // APPENDED, never prepended: `defaultRoot` is derived from the first row and stands for
 // what an absent `src` means, which is `current` on every tag whatever is registered.
