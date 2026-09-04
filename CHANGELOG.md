@@ -6,6 +6,10 @@
 
 - **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.
 
+### Fixed
+
+- **A GB Query Enhancements Term Query or User Query loop no longer flickers in the editor while this plugin is active**, with the browser console filling with `useSelect` warnings about values that differ when nothing changed. The loop was refetching its own preview data on every render. No dynamic tag had to be present for it to happen, saved content was never affected, and the front end always rendered correctly.
+
 ## [1.19.1] — 2026-09-03
 
 ### Fixed

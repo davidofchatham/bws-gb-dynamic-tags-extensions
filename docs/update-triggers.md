@@ -64,6 +64,20 @@ What a run of `as-size-fold-test.php` does and does not prove for this trigger:
 
 run `node tools/test/editor-filter-chain-test.js` (loads the shipping files against a priority-honouring `wp.hooks` stub and asserts every invisible control still FIRES). Wrapper-keying (`{ key: element.key }`), node-lessness (#68), and which templates lead with a folded slot and why that causes contention → [`docs/editor-controls.md` §Wrapper mechanics](editor-controls.md#wrapper-mechanics--invisible-per-tag-controls). Priority-20 ties break on ENQUEUE order, so the harness loads in enqueue order too. **Verify by MUTATION** (make a wrap keyless, confirm the suite fails): the mechanism check sweeps EVERY anchor, not just the contested one, because a wrap that is load-bearing for nobody today is exactly the one a reachability-only test lets rot. **So the mutation that proves the node-lessness rule is a PRIORITY change, not a `Fragment`→`div` change** — #68 named the latter and it PASSES 99/99, correctly. The check is conservative about a late `Fragment` carrying a null-rendering sibling (it fails, though React would emit no node): nothing static can tell a null-rendering component from any other, and a wrap behind the group wrapper has an unbroken place to go
 
+## Editor preview-CONTEXT change
+
+**Fires on:** `assets/js/editor-preview-context.js`, or any new filter registered on `generateblocks.editor.preview.context`
+
+run `node tools/test/editor-preview-context-test.js`. It is a CENSUS, not a test of one file: every `.js` under `assets/js/` mentioning the hook is discovered by reading the tree, loaded against a `wp.hooks` stub, and held to the same rules — so a second callback added later is covered by a case nobody wrote. A registrar needing more `wp` surface than the stub provides FAILS the run rather than skipping it; extend the stub.
+
+**What it proves:** that a callback returns the SAME object for the same input context (the property GB Query Enhancements' term/user query hooks depend on — see [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-adds-query-types-through-generateblockseditorlooperquery)), that a CHANGED context still produces a changed object rather than a frozen first render, that the input is not mutated, and that an absent context neither throws nor destabilizes.
+
+**What it does not prove, and cannot:** that GB still applies the filter during render, or that any consumer still treats the result as a React dependency. Both are foreign facts, measured at GB 2.4.1 / GBQE 1.3.0 and dated where they are recorded. The harness stays right if they change, because a filter returning a new object for an unchanged input is a defect on its own terms.
+
+**No other instrument here can see this at all.** It is a REFERENCE property: the flagged context is byte-identical either way, every rendered output agrees, and the whole symptom lives in the editor. A green page-snapshot run, a clean replay and every PHP harness say exactly nothing about it — which is why the pin is a JS harness and why the bug shipped in 1.6.0 and survived until 1.19.x.
+
+**Verify by MUTATION:** put the plain `{ ...context, bwsEditorPreview: true }` back and confirm the suite fails (measured 2026-09-04: 4 of 12 checks, including the chain-level one). A caching fix that is not actually caching passes every other check in the file.
+
 ## Serialization-order change
 
 **Fires on:** Serialization-order change (`bws_serialization_order_sort` or its map-shaped sibling `bws_serialization_order_sort_map` in `includes/helpers/serialization-order.php`, its JS port `serialization-order-normalizer.js`, or the canonical KEY_MAP/group ranks)
