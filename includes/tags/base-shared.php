@@ -793,26 +793,26 @@ function bws_build_fold_slot_options( array $args ): array {
 		}
 		return $rows;
 	};
-	$src_rows         = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
-	$src_rows_with_same = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
+	$src_rows            = $respell( bws_build_slot_traversal_options( 1, $base_src, $base_trav, $allow_site )['src']['options'] );
+	$src_rows_with_same  = $respell( bws_build_slot_traversal_options( 2, $base_src, $base_trav, $allow_site )['src']['options'] );
 	// Registered roots (#83), through the SAME appender the base tag's root enum reads —
 	// so a root offered on `{{text}}` is offered in a `{{join}}` field and a `try_` attempt
 	// too. Ungated: `$allow_site` filters an ENTITY-BLIND source, which a registered entity
 	// root is not. Appended, so `defaultRoot` still derives from `current`.
-	$registered_roots = bws_registered_root_rows();
-	$src_rows         = array_merge( $src_rows, $registered_roots );
-	$src_rows_with_same = array_merge( $src_rows_with_same, $registered_roots );
+	$registered_roots    = bws_registered_root_rows();
+	$src_rows            = array_merge( $src_rows, $registered_roots );
+	$src_rows_with_same  = array_merge( $src_rows_with_same, $registered_roots );
 
 	// Read enum — through the read twin (its `['options']` rows only; the fold supplies
 	// its own slot heading). A COMBINING container needs an explicit unset row: there,
 	// absent means UNCONFIGURED (the slot is skipped), which is not what the first enum
 	// row means. In a selecting container absent IS the first row's stripped default,
 	// so no extra row — the flat UI's behaviour, unchanged.
-	$read_rows         = bws_build_slot_read_options( 1, $base_read, false )['options'] ?? array();
+	$read_rows           = bws_build_slot_read_options( 1, $base_read, false )['options'] ?? array();
 	$read_rows_with_same = bws_build_slot_read_options( 2, $base_read, $allow_same_read )['options'] ?? array();
 	if ( $combining ) {
-		$unset_row         = array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) );
-		$read_rows         = array_merge( array( $unset_row ), $read_rows );
+		$unset_row           = array( 'value' => '', 'label' => __( 'Select…', 'generateblocks' ) );
+		$read_rows           = array_merge( array( $unset_row ), $read_rows );
 		$read_rows_with_same = array_merge( array( $unset_row ), $read_rows_with_same );
 	}
 
@@ -830,14 +830,14 @@ function bws_build_fold_slot_options( array $args ): array {
 	}
 
 	$fold = array(
-		'container'      => $container,
-		'combining'      => $combining,
-		'perSlotUse'     => $per_slot_use,
-		'min'            => $min,
-		'max'            => $max,
-		'noun'           => $noun,
-		'srcRows'        => $src_rows,
-		'srcRowsWithSame' => $src_rows_with_same,
+		'container'        => $container,
+		'combining'        => $combining,
+		'perSlotUse'       => $per_slot_use,
+		'min'              => $min,
+		'max'              => $max,
+		'noun'             => $noun,
+		'srcRows'          => $src_rows,
+		'srcRowsWithSame'  => $src_rows_with_same,
 		// The root an absent chain SPELLS on slot 1 — derived from the very row the
 		// enum leads with, so the two cannot disagree. The control DISPLAYS it rather
 		// than rendering an empty picker: a picker whose value is `''` matches no row,
@@ -845,26 +845,26 @@ function bws_build_fold_slot_options( array $args ): array {
 		// nothing is selected — the row on screen cannot then be picked, because
 		// selecting it fires no change event. Slot ≥2 spells its absence `same`
 		// instead, which the control holds (writeChainAt already materializes it).
-		'defaultRoot'    => (string) ( $src_rows[0]['value'] ?? '' ),
-		'offer'          => $offer,
-		'readRows'       => $read_rows,
+		'defaultRoot'      => (string) ( $src_rows[0]['value'] ?? '' ),
+		'offer'            => $offer,
+		'readRows'         => $read_rows,
 		'readRowsWithSame' => $read_rows_with_same,
-		'readLabel'      => $base_read['label'] ?? '',
+		'readLabel'        => $base_read['label'] ?? '',
 		// The read an absent slot-1 value spells — the read-axis twin of `defaultRoot`
 		// above, same reason: a control that leaves the picker (and, for a `key` default,
 		// the field group) blank until the author touches something disagrees with what
 		// the render seam already assumes (`bws_fold_empty_carry( $default_use )`). A
 		// combining container's first row is the unset row itself, so this resolves to
 		// '' there automatically — no branch needed for "combining seeds the read UNSET".
-		'defaultRead'    => (string) ( $read_rows[0]['value'] ?? '' ),
-		'taxonomies'     => $tax_rows,
-		'refOption'      => bws_fold_picker_config( $base_trav['ref'] ),
+		'defaultRead'      => (string) ( $read_rows[0]['value'] ?? '' ),
+		'taxonomies'       => $tax_rows,
+		'refOption'        => bws_fold_picker_config( $base_trav['ref'] ),
 		// The LEGACY per-slot axes, so the editor's mount migrator and the control fold
 		// and delete exactly the keys the converter does. Derived through the single owner
 		// of the tag-level subtraction (bws_fold_slot_flat_axes) — a hand-kept list in
 		// the control is what deleted a try_ template's TAG-level `limit`/`key` the first
 		// time an author touched slot 1.
-		'flatAxes'       => function_exists( 'bws_fold_slot_flat_axes' )
+		'flatAxes'         => function_exists( 'bws_fold_slot_flat_axes' )
 			? bws_fold_slot_flat_axes( (array) ( $args['tag_level'] ?? array() ) )
 			: array(),
 	);

@@ -794,7 +794,7 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 	// characters that split the value. Each would be an offered root that cannot resolve
 	// — the one guarantee this route exists to keep.
 	$roots['refs']      = array( 'label' => 'Step Slug', 'resolve' => static function () { return 1; } );
-	$roots['same']      = array( 'label' => 'Inherit Sentinel', 'resolve' => static function () { return 1; } );
+	$roots['same']      = array( 'label' => 'Carry Over Sentinel', 'resolve' => static function () { return 1; } );
 	$roots['a;b,c']     = array( 'label' => 'Grammar Chars', 'resolve' => static function () { return 1; } );
 	return $roots;
 } );

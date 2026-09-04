@@ -188,7 +188,7 @@ The internal tokens `current`, `site`, `ref`, `post` and `term` never flag eithe
 slot that states a source and no read is UNCONFIGURED, and the seam skips it before anything looks
 at its chain — so `{{join A:src(bogus,x)}}` says nothing at all. That is the in-progress silence
 holding, and the same slot warns the moment a read is stated. A SELECTING container has no such
-state (an absent read inherits), so `try_text` flags it immediately.
+state (an absent read carries over), so `try_text` flags it immediately.
 
 **Detection sits OUTSIDE every display switch**, including `roots`. That switch means "do not
 *name* a registered root", not "do not *check* one", and the slot door turns it off — a check
@@ -297,7 +297,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 | All slots empty | `[⚠ Try: no slots configured]` | same |
 | Per-slot warnings | `[⚠ Try: A, C misconfigured]` | same |
 | Slot with an incomplete step | `[⚠ Try: B no taxonomy]` / `[⚠ Try: B no ref]` / `[⚠ Try: B no repeater field]` (1.17.0 — a step with no argument; the seam skips it rather than reading the un-stepped entity, and names which step is unfinished). When it is the ONLY slot, the reason replaces `no slots configured`, which would otherwise be actively misleading | same |
-| Slot inheriting with nothing to inherit | `[⚠ Try: B no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
+| Slot carrying over with nothing to carry over | `[⚠ Try: B no previous source]` (1.17.0 — a `same` root where no earlier slot resolved) | same |
 | Image `as:url` / `as:id` | *(no preview — excluded)* | — |
 | `try_permalink` | *(no preview — excluded)* | — |
 
@@ -327,7 +327,7 @@ Trailing `(fallback: "X")` appended whenever `fallback` option is set, matching 
 | key-mode slot, no `key` | `<L> no key` |
 | Template mode, no `format` | `no format set` |
 | Slot with an INCOMPLETE `terms` step (no taxonomy) | `<L> no taxonomy` (1.17.0) |
-| Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried to inherit one from) | `<L> no ref` (1.17.0) |
+| Slot with an INCOMPLETE `refs` step (no relationship field, and nothing carried over to take one from) | `<L> no ref` (1.17.0) |
 | Slot with an INCOMPLETE `rows` step (no repeater field) | `<L> no repeater field` (1.17.0) |
 | Slot whose source is `same` with no earlier slot resolved | `<L> no previous source` (1.17.0) |
 
@@ -393,7 +393,7 @@ promise.
 One asymmetry between the two, and it is the reason the seam reports the step's SLUG rather than a
 bare `step`: an argless `refs` step is COMPLETE when the carry supplies its field (`3-src:ref` with
 no `3-ref` steps through an earlier slot's relationship), so it is flagged only when nothing was ever
-carried. An argless `terms` step has no such inheritance and is always unfinished. Deriving which
+carried. An argless `terms` step has no such carry-over and is always unfinished. Deriving which
 noun to print from the slot's chain would be a second copy of the skip rule, which is what routing
 both previews through the seam exists to prevent.
 
