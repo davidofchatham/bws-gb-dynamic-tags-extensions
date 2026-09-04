@@ -161,7 +161,7 @@ Blocked by: row:FW-70, row:FW-53  •  Interacts with: FW-33
 
 `src(rows,<field>)` resolves to a repeater ROW, and no base-tag arm reads one — `bws_base_text_resolve_value()` dispatches on site / ambient-term / ambient-user / term / post and a `meta_row` kind falls through, rendering empty. Unimplemented wire, not inert wire (`CONTEXT.md` §Language).
 
-Detail home: `.scratch/plans/repeater-row-arm.md`
+Detail home: `.scratch/repeater-row-arm/spec.md`
 
 Progress: The read layer already carries a live `case 'meta_row'`; only the arm is missing. Scoped 2026-09-04 — reach, the read seam's decomposition, and the four provenance keys the producer records are all settled in the detail home, as is the one design rule (branch on the WIRE kind, never `$base['kind']`) and the mutation that proves it.
 
