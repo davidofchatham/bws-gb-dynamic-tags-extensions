@@ -329,6 +329,16 @@ Open: Whether to do the structural version — flip the seam's OWN contract so `
 
 Blocked by: decision:structural-vs-per-tag  •  Interacts with: FW-113 (its two remaining sites duplicate the seam's dispatch question without calling it — a different defect, same function; its own `user`-carve-out row confirms the carve-out pattern this item's per-tag fixes use is deliberate, not a defect)
 
+#### FW-123 — Report the context-identity dependency upstream to GB Query Enhancements
+
+GBQE's term-query and user-query hooks list GB's filtered editor preview context in a `useEffect` dependency array, comparing it by identity while comparing `query` beside it by value. That makes their two query types refetch without end whenever any plugin filters `generateblocks.editor.preview.context` into a new object — ours did, from 1.6.0 until 1.19.x. Stringifying `context` the way they already stringify `query` would make them immune to every filter on that hook, ours included. The measured facts are in `docs/coresident/gb-query-enhancements.md`; the report itself is the one thing here nobody but the maintainer can send.
+
+Detail home: `docs/coresident/gb-query-enhancements.md` §It adds query types through `generateblocks.editor.looper.query`
+
+Progress: Not started. Our side is fixed and pinned (1.19.x, `editor-preview-context-test.js`), so nothing here blocks or is blocked on the report going out.
+
+Blocked by: —  •  Interacts with: FW-102 (a separate defect, same recipient — the two reports can travel together but neither waits on the other)
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue

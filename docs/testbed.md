@@ -147,13 +147,7 @@ instead of skipping, so deactivating one is enough to stop a verification.
 
 **A plugin toggle no longer moves the baseline.** The document head is not captured (bar `<title>`, the two description metas and any `bws-*` `<style>`), which is where co-resident stylesheet links live; `docs/update-triggers.md` owns what that costs. The practical consequence for operating this: you can activate and deactivate unrelated plugins on the fixture site without invalidating the committed baseline, and the warning line above is how you find out it happened.
 
-**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no
-fixture row's content; it is a co-resident extension that filters our tag rendering itself, from
-three PHP hooks that run on every tag render —
-[`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-filters-tag-rendering-in-php-on-every-render)
-enumerates them and owns that half. Every baseline below was therefore captured with them in the
-chain, and the defect that made that visible is GitHub
-[#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
+**All four must be ACTIVE on the fixture site, GB Query Enhancements included.** It supplies no fixture row's content; it is a co-resident extension that filters our tag rendering itself, from three PHP hooks that run on every tag render — [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-filters-tag-rendering-in-php-on-every-render) enumerates them and owns that half. Every baseline below was therefore captured with them in the chain, and the defect that made that visible is GitHub [#123](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/123).
 
 What makes the declaration load-bearing is that **nothing else in the tree notices if it goes**:
 measured 2026-08-24, with it deactivated all nine snapshot pages still matched the baseline and the

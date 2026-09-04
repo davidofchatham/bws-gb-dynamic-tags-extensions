@@ -574,7 +574,7 @@ type. Anything that needs to know what an entity id *is* has to establish it som
 
 In the Looper the filtered object does not stop there. It is passed straight on as the `context` argument of `generateblocks.editor.looper.query`, the hook a third-party plugin uses to contribute its own query types — so what a callback here returns becomes an input to somebody else's React code, which is free to treat it as a value or as an identity. GB's own `WP_Query` hook reads it as neither: that effect depends on the stringified query, the post id and the author id, and never on the context object.
 
-A co-resident plugin's hook can and does depend on its identity, which makes a fresh object per call an every-render change downstream. GB Query Enhancements 1.3.0 is the measured case and [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-adds-query-types-through-generateblockseditorlooperquery) has it. What our own callback holds itself to is owned by [`editor-preview-context.js`](../assets/js/editor-preview-context.js)'s docblock and pinned by [`editor-preview-context-test.js`](../tools/test/editor-preview-context-test.js).
+A co-resident plugin's hook can and does depend on its identity, which makes a fresh object per call an every-render change downstream. GB Query Enhancements is the measured case, and [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-adds-query-types-through-generateblockseditorlooperquery) holds it, with the version it was measured at. What our own callback holds itself to is owned by [`editor-preview-context.js`](../assets/js/editor-preview-context.js)'s docblock and pinned by [`editor-preview-context-test.js`](../tools/test/editor-preview-context-test.js).
 
 ### Type values
 

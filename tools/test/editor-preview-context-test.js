@@ -2,16 +2,18 @@
  * Standalone harness for the `generateblocks.editor.preview.context` filter — that what we
  * hand back is IDENTITY-STABLE for a given input context.
  *
- * WHY THIS EXISTS. GB applies that filter inside the Looper's render
- * (`dist/blocks/looper/index.js`, GB 2.x) and passes the filtered object straight on as the
- * `context` argument of `generateblocks.editor.looper.query`. A consumer of that hook may
- * use it as a React dependency: GB Query Enhancements 1.3.0's term-query and user-query
- * hooks both do, with `useEffect( …, [ JSON.stringify( query ), enabled, attributes,
- * context, selectedBlock ] )`. A filter returning a newly built object per call therefore
- * changes that dependency on EVERY render, and the consumer refetches → sets state →
- * renders → refetches, without end. Measured symptom on the fixture site: a Term Query or
- * User Query loop flickering in the editor and console filling with `@wordpress/data`'s
- * "useSelect hook returns different values when called with the same state and parameters".
+ * WHY THIS EXISTS. GB applies that filter inside a block's render and passes the filtered
+ * object on to consumers, one of which may use it as a React dependency — so a filter
+ * returning a newly built object per call changes that dependency on EVERY render, and the
+ * consumer refetches → sets state → renders → refetches, without end. Measured symptom on
+ * the fixture site: a Term Query or User Query loop flickering in the editor and console
+ * filling with `@wordpress/data`'s "useSelect hook returns different values when called
+ * with the same state and parameters".
+ *
+ * The GB half of that is docs/gb-constraints.md §The editor preview context is filtered
+ * during render; the consumer half — which plugin, which hook, which dependency array, at
+ * which version — is docs/coresident/gb-query-enhancements.md. Neither is restated here,
+ * because both are somebody else's code and have to be re-dated together.
  *
  * `{ ...context, bwsEditorPreview: true }` shipped from 1.6.0 and is exactly that shape.
  * Nothing in the tag corpus is involved — no BWS tag need be present in the loop, because
@@ -22,16 +24,18 @@
  * object identity across two calls tells the two apart, which is what this asserts.
  *
  * IT IS A CENSUS, not a test of one file. Every `.js` under `assets/js/` that registers on
- * the hook is discovered by reading the tree, loaded, and held to the same rule — so a
- * second filter added on that hook later is covered by a case nobody wrote. A file needing
- * more of a `wp` surface than the stub below provides FAILS the run rather than skipping;
- * extend the stub.
+ * the hook is discovered by reading the tree — recursively, so a registrar in a
+ * subdirectory cannot escape it — loaded, and held to the same rule, so a second filter
+ * added on that hook later is covered by a case nobody wrote. A registrar whose load THROWS
+ * against the stub below (calling a `wp` function it does not define) fails the run; one
+ * that merely reads an absent property loads quietly, so extending the stub is on whoever
+ * adds the file.
  *
- * WHAT THIS DOES NOT COVER: that GB still applies the filter where it does, or that GBQE
- * still uses the result as a dependency. Both are other plugins' internals, measured at
- * GB 2.x / GBQE 1.3.0 and recorded in docs/gb-constraints.md. If GB stops passing the
- * filtered context into `looper.query`, this stays green and stays right — a filter that
- * returns a new object for an unchanged input is a defect on its own terms.
+ * WHAT THIS DOES NOT COVER: that GB still applies the filter where it does, or that any
+ * consumer still uses the result as a dependency. Both are other plugins' internals, held
+ * at the two docs named above. If GB stops passing the filtered context on, this stays
+ * green and stays right — a filter that returns a new object for an unchanged input is a
+ * defect on its own terms.
  *
  * Run:  node tools/test/editor-preview-context-test.js   (exit 0 = pass, 1 = fail)
  *
@@ -81,7 +85,7 @@ global.wp = {
 global.window.wp = global.wp;
 
 // ── Census: every file that registers on the hook, found by reading the tree ──
-const registrars = fs.readdirSync( jsDir )
+const registrars = fs.readdirSync( jsDir, { recursive: true } )
 	.filter( f => f.endsWith( '.js' ) )
 	.filter( f => fs.readFileSync( path.join( jsDir, f ), 'utf8' ).includes( HOOK ) );
 
@@ -141,6 +145,8 @@ hookFilters.forEach( function ( f ) {
 	}
 	check( f.ns + ': an absent context does not throw', ! threw );
 	check( f.ns + ': an absent context is stable too', ! threw && bare1 === bare2 );
+	// The stability of that path says nothing about it still doing the filter's job.
+	check( f.ns + ': an absent context still carries the preview flag', ! threw && true === bare1.bwsEditorPreview );
 } );
 
 // ── The chain, which is what GB actually calls ──────────────────────────────
