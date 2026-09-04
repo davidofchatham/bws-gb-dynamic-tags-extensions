@@ -64,6 +64,8 @@ now gate on is `bws_loop_item_is_post_or_row()`, pinned in `loop-item-classify-t
 Baselines captured 2026-08-25, flipped 2026-08-26, against GenerateBlocks 2.4.1 / GB Pro 2.7.0 /
 GB Query Enhancements 1.3.0 (the set `env-versions.php` records).
 
+**§QL4 and §QL5 are a second axis, added 2026-09-04: loops NESTED inside loops.** Every group above stands on its own, so what they measure is a loop item; those two measure what a loop item's context does to the loop inside it. They were not staged expected-fail — both directions were already correct when the rows were written, and the rows exist to keep them that way.
+
 ## QL1 — a query loop over TERMS
 
 Two loops, because the leak had two appearances. The first is over the default `category` term,
@@ -122,3 +124,29 @@ the guard working; a column of nothing is a loop that did not run.
 |---|---|---|---|
 | QL3.1 | `{{title src:term}}` | `Sales`, `Support`, `Warehouse`, `Workshop` — the identity for the count beside each | **PASS** |
 | QL3.2 | `{{term_count}}` | real counts for the three staffed departments, then `0` for `Workshop`, which is assigned to no post. The zero survives GB's block-kill only because of the guard; without it the whole row disappears | **PASS** |
+
+## QL4 — a POST query nested inside a TERM query loop
+
+The factory's precedence is already pinned without a site: `traversal-pipeline-test.php`'s `V1 loop item wins over ambient term` drives the same branch with injected signals. What that harness cannot reach is what WordPress and GB actually PUT in `$instance->context` when loops nest — block context is inherited, and the co-resident extension plants `termId` plus a post-shaped `postId` on every term item ([`coresident/gb-query-enhancements.md`](../../docs/coresident/gb-query-enhancements.md#it-resolves-current-through-gbs-query-args-filter-and-plants-three-context-keys)). These rows are that composition, and only a real block render produces it.
+
+The inner query selects on the extension's `current` token in a `tax_query` clause, which the extension substitutes from the outer row's `termId`. That substitution rides `generateblocks_query_wp_query_args`, which GB skips entirely under `inheritQuery` — neither block here sets that attribute, and one gaining it would empty these rows rather than fail them ([`gb-constraints.md`](../../docs/gb-constraints.md#inheritquery-replaces-the-blocks-own-query-and-takes-every-query-args-filter-with-it)).
+
+**The corpus is the #85 contrast pair, and the CROSSING is the assertion.** Fixture Root Entity carries Sales alone, Fixture Ref Target carries Warehouse alone, so no expected value on this page repeats. A nested read that resolved its container therefore prints THE SAME VALUE TWICE, which is visible; a corpus of equal values would pass whichever entity the inner loop resolved. `manifest.php`'s `post_terms` carries the note saying so.
+
+| # | Tag (on `/matrix-loops/`) | Expected | Status |
+|---|---|---|---|
+| QL4.1 | `{{title}}`, in the OUTER term item beside the nested query | `Sales`, `Warehouse` — the outer loop ran, and nesting did not move its own reads | **PASS** |
+| QL4.2 | `{{title}}`, inside the INNER post loop | `Fixture Root Entity` under Sales, `Fixture Ref Target` under Warehouse — the inner loop's own item. The outer department name here would be the inherited-context leak | **PASS** |
+
+## QL5 — a TERM query nested inside a POST query loop
+
+Not QL4 inverted for symmetry's sake: the threat is a different one. The outer post loop has called `the_post()`, so `get_the_ID()` inside the inner term loop returns a REAL, PLAUSIBLE post. QL4's container is a term, which no post-shaped fallback can answer with — so a regression there prints something obviously wrong, while a regression here prints a staff name where a department belongs and looks like working output. That is the [I15] shape, and it is why both directions are pinned rather than one.
+
+The inner query selects with the extension's `current` token in `object_ids`, resolved from `postId` context — the mirror of QL4's `tax_query` substitution, and the only other place the token is exercised by any fixture.
+
+The outer loop is restricted by `post_name`, not by id: the ids are whatever the seed produced, the names are the blueprint's. Same rule as QL1.1's slug restriction and for the same reason.
+
+| # | Tag (on `/matrix-loops/`) | Expected | Status |
+|---|---|---|---|
+| QL5.1 | `{{title}}`, in the OUTER post item beside the nested query | `Fixture Ref Target`, `Fixture Root Entity` — the non-vacuity control, and why the inner values below are crossed against QL4's rather than repeated | **PASS** |
+| QL5.2 | `{{title}}`, inside the INNER term loop | `Warehouse` under Fixture Ref Target, `Sales` under Fixture Root Entity — the inner loop's own term. The outer staff name here would be the live `get_the_ID()` fallback winning | **PASS** |

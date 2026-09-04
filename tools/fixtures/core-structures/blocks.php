@@ -1597,6 +1597,98 @@ function bws_fixture_page_content_matrix_loops() {
 		),
 	) );
 
+
+	// QL4 / QL5 — NESTED loops, both directions. What every group above tests is a
+	// loop standing on its own; these two test what a loop item's context does to the
+	// loop INSIDE it, which is the one thing no unit harness can reach. The factory's
+	// precedence is already pinned pure (traversal-pipeline-test.php "V1 loop item
+	// wins over ambient term"); what is NOT pure is what WordPress and GB actually put
+	// in $instance->context when loops nest, since block context is inherited and the
+	// co-resident extension plants termId/userId AND a post-shaped postId on every
+	// item (docs/coresident/gb-query-enhancements.md).
+	//
+	// THE TWO CORPORA ARE THE SAME PAIR, MIRRORED, and that is the whole design: the
+	// #85 contrast pair carries one department each (Fixture Root Entity → Sales,
+	// Fixture Ref Target → Warehouse), so QL4 walks term → staff and QL5 walks staff →
+	// term over the same two links in opposite directions. Every expected value is
+	// therefore DISTINCT from every other on the page, and a nested read that leaked
+	// its container prints THE SAME VALUE TWICE rather than a plausible near-miss. A
+	// corpus of equal values would pass whichever entity the inner loop resolved.
+	//
+	// QL5's outer loop is restricted by post_name rather than by id, the QL1.1 rule:
+	// the ids are whatever the seed produced, the names are the blueprint's.
+	//
+	// The inner queries use the extension's own 'current' token in both directions —
+	// tax_query terms for QL4, object_ids for QL5 — so these rows also happen to be
+	// the only fixture exercising that substitution at all. It rides
+	// generateblocks_query_wp_query_args, which GB skips entirely under inheritQuery;
+	// neither block here sets that attribute and neither should gain one.
+	$sections[] = bws_fixture_gb_section( 'Loops QL4 - a POST query nested inside a TERM query loop', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'taxonomy'       => 'department',
+				'slug'           => array( 'sales', 'warehouse' ),
+				'posts_per_page' => 5,
+				'orderby'        => 'name',
+				'order'          => 'ASC',
+				'hide_empty'     => false,
+			),
+			bws_fixture_gb_row( 'QL4.1 the OUTER term item, beside the nested query (-> Sales then Warehouse; proves the outer loop ran and that nesting did not move its own reads)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_query_loop_blocks(
+					array(
+						'post_type'      => array( 'staff' ),
+						'posts_per_page' => 5,
+						'orderby'        => 'title',
+						'order'          => 'ASC',
+						'tax_query'      => array(
+							array(
+								'taxonomy'        => 'department',
+								'terms'           => array( 'current' ),
+								'operator'        => 'IN',
+								'includeChildren' => false,
+							),
+						),
+					),
+					bws_fixture_gb_row( 'QL4.2 THE ASSERTION - a bare tag in the INNER post loop reads that loop item, not the term it is nested inside (-> Fixture Root Entity under Sales, Fixture Ref Target under Warehouse; the outer department name repeated here would be the inherited-context leak)', '{{title}}' ),
+					'ql4-inner-post-loop'
+				),
+			'ql4-outer-term-loop',
+			'WP_Term_Query'
+		),
+	) );
+
+	// QL5 — the inverse, and NOT a duplicate of QL4. The threat is different: the outer
+	// post loop has called the_post(), so get_the_ID() inside the inner term loop
+	// returns a REAL, PLAUSIBLE post. QL4's container is a term, which no post-shaped
+	// fallback can answer with. A regression here therefore prints a staff name where a
+	// department belongs — a value that looks like working output — while the same
+	// regression in QL4 prints something obviously wrong.
+	$sections[] = bws_fixture_gb_section( 'Loops QL5 - a TERM query nested inside a POST query loop', array(
+		bws_fixture_gb_query_loop_blocks(
+			array(
+				'post_type'      => array( 'staff' ),
+				'post_name__in'  => array( 'fixture-ref', 'fixture-root' ),
+				'posts_per_page' => 5,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			),
+			bws_fixture_gb_row( 'QL5.1 the OUTER post item, beside the nested query (-> Fixture Ref Target then Fixture Root Entity; the non-vacuity control, and the reason the inner values below are crossed against QL4 rather than repeated)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_query_loop_blocks(
+					array(
+						'taxonomy'       => 'department',
+						'object_ids'     => array( 'current' ),
+						'posts_per_page' => 5,
+						'orderby'        => 'name',
+						'order'          => 'ASC',
+						'hide_empty'     => false,
+					),
+					bws_fixture_gb_row( 'QL5.2 THE ASSERTION - a bare tag in the INNER term loop reads that term, not the post it is nested inside (-> Warehouse under Fixture Ref Target, Sales under Fixture Root Entity; the outer staff name repeated here would be the live get_the_ID() fallback winning)', '{{title}}' ),
+					'ql5-inner-term-loop',
+					'WP_Term_Query'
+				),
+			'ql5-outer-post-loop'
+		),
+	) );
 	return implode( "\n\n", $sections );
 }
 

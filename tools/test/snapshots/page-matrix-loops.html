@@ -148,6 +148,58 @@
 </li>
 </ol></div>
 </div>
+
+<div>
+<h2 class="wp-block-heading">Loops QL4 &#8211; a POST query nested inside a TERM query loop</h2>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">QL4.1 the OUTER term item, beside the nested query (-> Sales then Warehouse; proves the outer loop ran and that nesting did not move its own reads): Sales</p>
+
+<div><ol >
+<li class="gb-loop-item post-277 staff type-staff status-publish hentry department-sales">
+<p class="gb-text">QL4.2 THE ASSERTION &#8211; a bare tag in the INNER post loop reads that loop item, not the term it is nested inside (-> Fixture Root Entity under Sales, Fixture Ref Target under Warehouse; the outer department name repeated here would be the inherited-context leak): Fixture Root Entity</p>
+</li>
+</ol></div>
+</li>
+
+<li class="gb-loop-item">
+<p class="gb-text">QL4.1 the OUTER term item, beside the nested query (-> Sales then Warehouse; proves the outer loop ran and that nesting did not move its own reads): Warehouse</p>
+
+<div><ol >
+<li class="gb-loop-item post-278 staff type-staff status-publish hentry department-warehouse">
+<p class="gb-text">QL4.2 THE ASSERTION &#8211; a bare tag in the INNER post loop reads that loop item, not the term it is nested inside (-> Fixture Root Entity under Sales, Fixture Ref Target under Warehouse; the outer department name repeated here would be the inherited-context leak): Fixture Ref Target</p>
+</li>
+</ol></div>
+</li>
+</ol></div>
+</div>
+
+<div>
+<h2 class="wp-block-heading">Loops QL5 &#8211; a TERM query nested inside a POST query loop</h2>
+
+<div><ol >
+<li class="gb-loop-item post-278 staff type-staff status-publish hentry department-warehouse">
+<p class="gb-text">QL5.1 the OUTER post item, beside the nested query (-> Fixture Ref Target then Fixture Root Entity; the non-vacuity control, and the reason the inner values below are crossed against QL4 rather than repeated): Fixture Ref Target</p>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">QL5.2 THE ASSERTION &#8211; a bare tag in the INNER term loop reads that term, not the post it is nested inside (-> Warehouse under Fixture Ref Target, Sales under Fixture Root Entity; the outer staff name repeated here would be the live get_the_ID() fallback winning): Warehouse</p>
+</li>
+</ol></div>
+</li>
+
+<li class="gb-loop-item post-277 staff type-staff status-publish hentry department-sales">
+<p class="gb-text">QL5.1 the OUTER post item, beside the nested query (-> Fixture Ref Target then Fixture Root Entity; the non-vacuity control, and the reason the inner values below are crossed against QL4 rather than repeated): Fixture Root Entity</p>
+
+<div><ol >
+<li class="gb-loop-item">
+<p class="gb-text">QL5.2 THE ASSERTION &#8211; a bare tag in the INNER term loop reads that term, not the post it is nested inside (-> Warehouse under Fixture Ref Target, Sales under Fixture Root Entity; the outer staff name repeated here would be the live get_the_ID() fallback winning): Sales</p>
+</li>
+</ol></div>
+</li>
+</ol></div>
+</div>
 		</div>
 
 			</div>

@@ -482,6 +482,14 @@ return array(
 		'page-matrix-fixture-roots' => array( 'department-support' ),
 		'staff-fixture-root'        => array( 'department-sales' ),
 		'staff-fixture-ref'         => array( 'department-warehouse' ),
+		// SECOND CONSUMER, ADDED AFTER #85: the loop matrix's nested-loop groups
+		// (QL4/QL5 on /matrix-loops/) walk these same two links in OPPOSITE
+		// directions — term → staff and staff → term — and it is the CROSSING that
+		// detects a leak: every expected value on that page is distinct, so a nested
+		// read resolving its container prints the same value twice. Giving either
+		// staff a second department, or giving both the same one, makes such a read
+		// print something that still looks right. If #85 ever needs this pair changed,
+		// re-derive those rows in the same edit rather than after.
 	),
 
 	// ACF field values per post fixture slug (applied via update_field).
