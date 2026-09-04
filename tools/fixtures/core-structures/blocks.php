@@ -650,7 +650,7 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F1.2 folded (-> same)', '{{join A:use(title)|B:use(key);key(role)|valueSep: / }}' ),
 		bws_fixture_gb_row( 'F1.3 legacy (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|2-src:same|2-key:booking_line}}' ),
 		bws_fixture_gb_row( 'F1.3 folded (-> same)', '{{join A:key(main_line)|B:src(same);key(booking_line)}}' ),
-		bws_fixture_gb_row( 'F1.4 legacy (-> (555) 200-3000, jane@example.test; slot 2 INHERITS the ref hop)', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
+		bws_fixture_gb_row( 'F1.4 legacy (-> (555) 200-3000, jane@example.test; slot 2 CARRIES OVER the ref hop)', '{{join src:ref|ref:related_staff|use:key|key:main_line|2-src:same|2-key:contact_email}}' ),
 		bws_fixture_gb_row( 'F1.4 folded, as MIGRATION writes it - limit[1] states what the flat spelling implied (-> same)', '{{join A:src(refs,related_staff,limit[1]);use(key);key(main_line)|B:src(same);key(contact_email)}}' ),
 		bws_fixture_gb_row( 'F1.5 legacy (-> Jane, Jane Partner)', '{{join key:name_first|2-src:ref|2-ref:related_staff|2-use:title}}' ),
 		bws_fixture_gb_row( 'F1.5 folded, as MIGRATION writes it (-> same; drop the limit[1] and it reads Jane, Jane Partner, Tom Associate)', '{{join A:key(name_first)|B:src(refs,related_staff,limit[1]);use(title)}}' ),
@@ -662,8 +662,8 @@ function bws_fixture_page_content_matrix_post_meta() {
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F2 - mixed-era wire (era is per SLOT, not per tag)', array(
-		bws_fixture_gb_row( 'F2.1 folded slot 1 + legacy slot 2 inheriting from it (-> (987) 654-3210, 987.654.3210)', '{{join A:key(main_line)|2-src:same|2-key:booking_line}}' ),
-		bws_fixture_gb_row( 'F2.2 legacy slot 1 + folded slot 2 inheriting from it (-> same)', '{{join key:main_line|B:src(same);key(booking_line)}}' ),
+		bws_fixture_gb_row( 'F2.1 folded slot 1 + legacy slot 2 carrying over from it (-> (987) 654-3210, 987.654.3210)', '{{join A:key(main_line)|2-src:same|2-key:booking_line}}' ),
+		bws_fixture_gb_row( 'F2.2 legacy slot 1 + folded slot 2 carrying over from it (-> same)', '{{join key:main_line|B:src(same);key(booking_line)}}' ),
 	) );
 
 	$sections[] = bws_fixture_gb_section( 'Fold F3-F5 - try_ slots, all three read shapes', array(
@@ -681,11 +681,11 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F5.6 legacy twin of F5.4 - slot 1 hop misses, slot 2 reads current (-> August 12, 2030 9:00 AM)', '{{try_datetime_single src:ref|ref:missing_rel|2-src:current|key:event_datetime}}' ),
 	) );
 
-	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - inherit vs RESET, and slot-level limit', array(
-		bws_fixture_gb_row( 'F6.1 absent chain at slot 2 = RESET to the page, NOT an inherit (-> (987) 654-3210)', '{{try_text A:src(refs,related_staff);key(missing)|B:key(main_line)}}' ),
-		bws_fixture_gb_row( 'F6.2 explicit src(same) inherits jane (-> (555) 200-3000)', '{{try_text A:src(refs,related_staff);key(missing)|B:src(same);key(main_line)}}' ),
+	$sections[] = bws_fixture_gb_section( 'Fold F6-F7 - carry-over vs RESET, and slot-level limit', array(
+		bws_fixture_gb_row( 'F6.1 absent chain at slot 2 = RESET to the page, NOT a carry-over (-> (987) 654-3210)', '{{try_text A:src(refs,related_staff);key(missing)|B:key(main_line)}}' ),
+		bws_fixture_gb_row( 'F6.2 explicit src(same) carries over jane (-> (555) 200-3000)', '{{try_text A:src(refs,related_staff);key(missing)|B:src(same);key(main_line)}}' ),
 		bws_fixture_gb_row( 'F6.3 slot 2 RESETS to the page, which has no contact_email, so it drops (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)|B:key(contact_email)}}' ),
-		bws_fixture_gb_row( 'F6.4 slot 1 chain-spelled = UNBOUNDED, slot 2 inherits both axes and keeps the flat 1 (-> Jane Partner, Tom Associate, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F6.4 slot 1 chain-spelled = UNBOUNDED, slot 2 carries over both axes and keeps the flat 1 (-> Jane Partner, Tom Associate, Jane Partner)', '{{join A:src(refs,related_staff);use(title)|B:src(same);use(same)}}' ),
 		// F7a - a slot's own spelling decides its own limit (#60). The refs half; the
 		// terms half lives on the term-hop pages, where the fixture has real terms.
 		bws_fixture_gb_row( 'F7a.4 a refs-spelled slot returns EVERY target - no limit anywhere (-> (555) 200-3000, (555) 200-4000)', '{{join A:src(refs,related_staff);use(key);key(main_line)}}' ),
@@ -694,21 +694,21 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F7b.3 MIGRATED twin - nothing to bound, so nothing is pushed and the tag-level key still goes (-> same)', '{{try_text A:key(role)}}' ),
 		bws_fixture_gb_row( 'F7a.13 join legacy: join owns limit PER SLOT, so slot 1 bare key IS its own (-> (987) 654-3210, 987.654.3210)', '{{join key:main_line|limit:4|2-key:booking_line}}' ),
 		bws_fixture_gb_row( 'F7a.13b MIGRATED twin - it stays a slot-level token (-> same)', '{{join A:limit(4);key(main_line)|B:src(same);key(booking_line)}}' ),
-		// F7b (#61) - the refs half of the inheriting-slot pair. Both sides render
+		// F7b (#61) - the refs half of the carrying-slot pair. Both sides render
 		// `Jane Partner` because the try_ refs arm is first-only, so the carried bound
 		// is invisible here until FW-63; the row exists to show the pair does not MOVE.
-		bws_fixture_gb_row( 'F7b.6 legacy: slot 1 fans on refs and misses, slot 2 inherits the source (-> Jane Partner)', '{{try_text src:ref|ref:related_staff|use:key|key:no_such|2-src:same|2-use:title|limit:2}}' ),
-		bws_fixture_gb_row( 'F7b.6b MIGRATED twin - the tag-level key is gone and slot 2 inherits the bound with the source (-> same)', '{{try_text A:src(refs,related_staff,limit[2]);key(no_such)|B:src(same);use(title)}}' ),
+		bws_fixture_gb_row( 'F7b.6 legacy: slot 1 fans on refs and misses, slot 2 carries over the source (-> Jane Partner)', '{{try_text src:ref|ref:related_staff|use:key|key:no_such|2-src:same|2-use:title|limit:2}}' ),
+		bws_fixture_gb_row( 'F7b.6b MIGRATED twin - the tag-level key is gone and slot 2 carries the bound with the source (-> same)', '{{try_text A:src(refs,related_staff,limit[2]);key(no_such)|B:src(same);use(title)}}' ),
 		// The PAIRS CROSS here, and these four rows are the cheapest way to see it:
-		// legacy absence means INHERIT (it materializes to src(same) through the
+		// legacy absence means CARRY-OVER (it materializes to src(same) through the
 		// mapper), folded absence means RESET. So folded `2:key(x)` twins legacy
 		// `2-src:current|2-key:x`, and folded `2:src(same);key(x)` twins legacy
 		// `2-key:x`. jane carries no `role`, so the two readings differ VISIBLY:
-		// reset reads the page (Captain), inherit reads jane (nothing).
+		// reset reads the page (Captain), carry-over reads jane (nothing).
 		bws_fixture_gb_row( 'F7.1 folded, slot-level limit(2), slot 2 RESETS to the page (-> Jane Partner, Tom Associate, Captain)', '{{join A:src(refs,related_staff);use(title);limit(2)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F7.1 legacy twin - needs an EXPLICIT 2-src:current to mean reset (-> same)', '{{join src:ref|ref:related_staff|use:title|limit:2|2-src:current|2-key:role}}' ),
-		bws_fixture_gb_row( 'F7.2 legacy absence = INHERIT jane, who has no role -> slot 2 drops (-> Jane Partner, Tom Associate)', '{{join src:ref|ref:related_staff|use:title|limit:2|2-key:role}}' ),
-		bws_fixture_gb_row( 'F7.2 folded twin - src(same) is how the fold spells that inherit (-> same)', '{{join A:src(refs,related_staff);use(title);limit(2)|B:src(same);key(role)}}' ),
+		bws_fixture_gb_row( 'F7.2 legacy absence = CARRY OVER jane, who has no role -> slot 2 drops (-> Jane Partner, Tom Associate)', '{{join src:ref|ref:related_staff|use:title|limit:2|2-key:role}}' ),
+		bws_fixture_gb_row( 'F7.2 folded twin - src(same) is how the fold spells that carry-over (-> same)', '{{join A:src(refs,related_staff);use(title);limit(2)|B:src(same);key(role)}}' ),
 	) );
 
 	// F7c (#62) - the tag-level Result Limit CONTROL is unregistered on every
@@ -962,14 +962,14 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_row( 'F10.5 ref+term on department - expressible before #104 too, empty then and now (-> Captain)', '{{join A:src(refs,related_staff;terms,department);use(title)|B:key(role)}}' ),
 		bws_fixture_gb_row( 'F10.6 a SITE root never takes the legacy term step, on the slot as on the base tag (-> the org number)', '{{join src:site|srcTermIn:department|key:org_phone}}' ),
 		// F10.6b - the shape #104's first draft deleted. The old editor authored this pair
-		// directly: leave slot 2's source alone, pick a different taxonomy. An inherited hop
+		// directly: leave slot 2's source alone, pick a different taxonomy. A carried hop
 		// is a DEFAULT, so slot 2 REPLACES it; appending hops off a TERM input, which has no
 		// post to read, and the slot vanishes from the join. This page carries no department
 		// terms, hence the pair reads on /matrix-terms-valid/ - the rows below are the
 		// FOLDED twin, which is the one that renders here.
-		bws_fixture_gb_row( 'F10.6b an inherited hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users)', '{{join A:src(terms,department);use(title)|B:src(same;terms,portal_visibility);use(title)}}' ),
-		bws_fixture_gb_row( 'F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 inheriting (-> All Users; slot 2 keeps the inherited base and replaces only the taxonomy, so the wire needs no duplicate of the base)', '{{join src:ref|ref:related_staff|srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
-		bws_fixture_gb_row( 'F10.6d the row that BOUNDS the rule: refs is post-to-post, so an inherited ref hop must NOT be dropped (-> Jane Partner, Tom Associate, Jane Partner; slot B equals the base twin below)', '{{join A:src(refs,related_staff);use(title)|B:src(same;refs,reports_to);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.6b a carried hop is REPLACED by the slot own hop, not followed by it (-> Sales, Support, All Users)', '{{join A:src(terms,department);use(title)|B:src(same;terms,portal_visibility);use(title)}}' ),
+		bws_fixture_gb_row( 'F10.6c the shape the rule exists for: a rooted BASE plus two different taxonomies, slot 2 carrying over (-> All Users; slot 2 keeps the carried base and replaces only the taxonomy, so the wire needs no duplicate of the base)', '{{join src:ref|ref:related_staff|srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
+		bws_fixture_gb_row( 'F10.6d the row that BOUNDS the rule: refs is post-to-post, so a carried ref hop must NOT be dropped (-> Jane Partner, Tom Associate, Jane Partner; slot B equals the base twin below)', '{{join A:src(refs,related_staff);use(title)|B:src(same;refs,reports_to);use(title)}}' ),
 		bws_fixture_gb_row( 'F10.6d BASE twin for slot B (-> Jane Partner)', '{{text src:refs,related_staff;refs,reports_to|use:title}}' ),
 		bws_fixture_gb_row( 'F10.6b LEGACY twin - the pair the old editor authored (-> Sales, All Users; ONE department term, because flat wire bounds at 1 and chain wire does not - the SLOT, not the count, is what must match)', '{{join srcTermIn:department|use:title|2-src:same|2-srcTermIn:portal_visibility|2-use:title}}' ),
 		bws_fixture_gb_row( 'F10.6 BASE twin (-> the same number)', '{{phone src:site|srcTermIn:department|key:org_phone}}' ),
@@ -1155,15 +1155,15 @@ function bws_fixture_page_content_matrix_term_hop() {
 		bws_fixture_gb_row( 'F7b.2 already-folded slot beside the retiring key - pre-#61 storage (-> two terms)', '{{try_text A:src(terms,department);use(title)|limit:2}}' ),
 		bws_fixture_gb_row( 'F7b.2b MIGRATED twin - the number moved onto the slot own last fanning step (-> same as F7b.2)', '{{try_text A:src(terms,department,limit[2]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7b.5 join CONTRAST - a bare limit is slot 1 own axis, never pushed into a folded slot, and join has no tag-level fallback to read it with (-> every term)', '{{join A:src(terms,department);use(title)|limit:3}}' ),
-		bws_fixture_gb_row( 'F7b.7 join inheriting slot - inherits the HOP but not the BOUND, so ONE blurb after the two titles', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
-		// F7d (#74) - `src(same)` inherits the term hop. Before the fix slot B inherited
+		bws_fixture_gb_row( 'F7b.7 join carrying slot - carries the HOP but not the BOUND, so ONE blurb after the two titles', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(blurb)}}' ),
+		// F7d (#74) - `src(same)` carries over the term hop. Before the fix slot B carried
 		// an empty source (a leading `terms` step leaves `src` unset) and read the PAGE,
 		// which is why .2 rendered the page title and looked like a working tag.
-		bws_fixture_gb_row( 'F7d.1 join inheriting slot reads the TERM phone, not the page (-> two titles then (987) 333-4444)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(phone)}}' ),
-		bws_fixture_gb_row( 'F7d.2 same-read inheriting slot reads the TERM title, not the page title (-> Sales, Support, Sales)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);use(same)}}' ),
+		bws_fixture_gb_row( 'F7d.1 join carrying slot reads the TERM phone, not the page (-> two titles then (987) 333-4444)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);key(phone)}}' ),
+		bws_fixture_gb_row( 'F7d.2 same-read carrying slot reads the TERM title, not the page title (-> Sales, Support, Sales)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(same);use(same)}}' ),
 		bws_fixture_gb_row( 'F7d.2b LEGACY twin of F7d.2 - the fix is uniform across eras (-> same as F7d.2)', '{{join srcTermIn:department|use:title|limit:2|2-src:same|2-use:same}}' ),
 		bws_fixture_gb_row( 'F7d.3 a slot stating its OWN root does not acquire the carried hop (-> two titles only, page has no phone)', '{{join A:src(terms,department,limit[2]);use(title)|B:src(current);key(phone)}}' ),
-		bws_fixture_gb_row( 'F7d.4 an inherited hop is a DEFAULT - the slot own terms step REPLACES it (-> Sales, Support, Warehouse)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
+		bws_fixture_gb_row( 'F7d.4 a carried hop is a DEFAULT - the slot own terms step REPLACES it (-> Sales, Support, Warehouse)', '{{join A:src(terms,department);use(title)|B:src(same;terms,office);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.9 join legacy (-> ONE term)', '{{join srcTermIn:department|use:title}}' ),
 		bws_fixture_gb_row( 'F7a.9b join MIGRATED twin (-> same as F7a.9)', '{{join A:src(terms,department,limit[1]);use(title)}}' ),
 		bws_fixture_gb_row( 'F7a.10 join legacy limit:2 - join owns limit PER SLOT, so it is slot 1 own (-> two terms)', '{{join srcTermIn:department|use:title|limit:2}}' ),
