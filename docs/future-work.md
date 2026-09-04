@@ -89,17 +89,17 @@ Open: Full seam routing (datetime VALUE reads going through `bws_resolve_field_v
 
 Blocked by: decision:field-object formats through the seam  •  Interacts with: FW-43, FW-35
 
-#### FW-7 — Collapse bws_read_field's internal loop/term-archive resolution
+#### FW-7 — Collapse bws_read_field's internal term-archive resolution
 
-`bws_read_field()`'s internal loop/term-archive inference (`field-helpers.php:269-296`) duplicates resolution the source factory already does, for the four families still on the falsy-id path (content/text cores, image, datetime, try_'s arms).
+`bws_read_field()`'s internal term-archive inference duplicates resolution the source factory already does, for the four families still entering on a falsy id (content/text cores, image, datetime, try_'s arms).
 
 Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence
 
-Progress: 11 call sites in `includes/`, of which 4 families still depend on the inference. The factory already resolves both halves this would replace; deleting the inference before a `meta_row` base arm exists would blank the repeater-row path (§F9c.1 pins this). 1.18.0 turned this from tidiness into correctness — two resolvers now answer "which entity does this tag read" and only one is gated, producing a reachable bug on the un-migrated path (filed as #122, closed 2026-08-28 by the loop-item source gate on `fix/loop-item-source-gate`).
+Progress: 11 call sites in `includes/`, of which 4 families still depend on the inference. 1.18.0 turned this from tidiness into correctness — two resolvers answered "which entity does this tag read" and only one was gated, producing a reachable bug on the un-migrated path (#122, closed 2026-08-28 by the loop-item source gate). **The LOOP half of this item is closed by that same fix, in the opposite direction from the one this row assumed.** `bws_loop_item_gated_post_id()`'s PHPDoc states that the factory route and the read route must NOT be unified: both call `bws_source_gate()` so the criterion is single-owned, but a refusal costs a different thing at each layer — at the factory a refused post leaves the FAN, changing WHICH ARM RUNS and dropping into the `meta_row` fallthrough the repeater-row rendering depends on, while here the arm is already chosen and a refusal only stops the read. Branches 2 and 3 of `bws_read_field()` are therefore load-bearing by decision, not duplication awaiting collapse.
 
-Open: Deleting the inference is gated on FW-74 landing a `meta_row` base arm first.
+Open: The term-archive branch only. Deleting it means the four falsy-id families reach the term arm through the factory instead, which is a change to the cores' signatures rather than to this function — hence the `decision:` gate below.
 
-Blocked by: row:FW-74  •  Interacts with: FW-8, FW-74
+Blocked by: decision:cores take a resolved base  •  Interacts with: FW-8, FW-74
 
 #### FW-8 — Fold bws_reliable_term_context_detection into bws_capture_ambient_signals
 
@@ -159,17 +159,17 @@ Blocked by: row:FW-70, row:FW-53  •  Interacts with: FW-33
 
 #### FW-74 — A base-tag arm that consumes a REPEATER-ROW source
 
-`src(rows,<field>)` resolves to a repeater ROW, and no base-tag arm reads one — `bws_base_text_resolve_value()` dispatches on site / ambient-term / ambient-user / term / post and a `meta_row` kind falls through, rendering empty. Unimplemented wire, not inert wire (`CONTEXT.md` §Language) — `{{table}}` wants exactly this as its cell-read context.
+`src(rows,<field>)` resolves to a repeater ROW, and no base-tag arm reads one — `bws_base_text_resolve_value()` dispatches on site / ambient-term / ambient-user / term / post and a `meta_row` kind falls through, rendering empty. Unimplemented wire, not inert wire (`CONTEXT.md` §Language).
 
-Detail home: `.scratch/plans/table-tag.md` §FW-74 — the repeater-row arm
+Detail home: `.scratch/plans/repeater-row-arm.md`
 
-Progress: The read layer already carries a live `case 'meta_row'` (`bws_read_resolved_source()`, `traversal-pipeline.php`); only the arm is missing. Design recorded ahead of the build: branch on the WIRE kind (`bws_fold_chain_resolution()`), never on `$base['kind']` — a resolved `meta_row` off the ambient context is GB Pro's flat repeater row and must keep falling through to the post arm; §F9c pins the distinction. #105 (closed) deliberately does not flag such a chain as broken, since the tag becomes correct without the warning needing to change.
+Progress: The read layer already carries a live `case 'meta_row'`; only the arm is missing. Scoped 2026-09-04 — reach, the read seam's decomposition, and the four provenance keys the producer records are all settled in the detail home, as is the one design rule (branch on the WIRE kind, never `$base['kind']`) and the mutation that proves it.
 
-Open: Whether the arm's `use:`-dispatch half shares the analog seam `{{table}}` needs (a per-kind analog reader over the same five kinds the keyed seam switches on), or builds its own per-template route.
+Open: Nothing in the design. The field-object read a wire row needs for ACF return formats is FW-3's, not this — datetime on a wire row ships format-agnostic until that closes.
 
-Ships as its OWN change, ahead of `{{table}}` — a COMMIT-ordering preference, not a prerequisite. The earlier "rides the `{{table}}` finalization" framing was inverted and is retired: repeater-row support lands generally and `{{table}}` consumes it. Nothing in `{{table}}` waits on this arm — its keyed columns read through the kind-complete `bws_read_resolved_source()` and its analog columns through the analog seam above, neither of which is this arm. Going first is worth it anyway: this has its own testable surface, is independently user-visible, and keeps the `branchable: false` regression risk off a diff that is simultaneously introducing a new tag.
+Ships as its OWN change, ahead of `{{table}}` — commit ordering, not a prerequisite. Nothing in `{{table}}` waits on this arm; the earlier "rides the `{{table}}` finalization" framing was inverted and is retired.
 
-Blocked by: —  (was `row:FW-53`, i.e. blocked by `{{table}}` itself; that is the inversion D4 corrected)  •  Interacts with: FW-53, FW-71 (closed), FW-7
+Blocked by: —  •  Interacts with: FW-53, FW-71 (closed), FW-7, FW-3
 
 #### FW-98 — The stated-fallback emit is written out ten times
 
@@ -581,6 +581,18 @@ Open: Designated home is the deferred search-format option (FW-9's option surfac
 
 Blocked by: row:FW-9  •  Interacts with: FW-9 (its option surface)
 
+#### FW-120 — A tag-level source for `{{join}}`, with slots inheriting it
+
+`{{join}}` has no tag-level source: every slot states its own, and a slot that states none inherits from the previous resolving SIBLING — the shape carried over from `try_`. `{{table}}` is being built on the opposite model, where a bare column roots at the tag's own resolved source (`src(inherit)`), and this item brings `{{join}}` onto it.
+
+Detail home: `.scratch/plans/join-rebuild.md`
+
+Progress: Not started, and DEFERRED behind `{{table}}` by decision (2026-09-04) — `{{table}}` ships `src(inherit)` and the root-grammar reservation first, and how much of `{{join}}` is rebuilt is decided after that lands. The design was grilled to a close on 2026-09-04 and the decisions are recorded in the detail home rather than re-derived later: outer list mode with `sep` for the outer axis, per-iteration `inherit` binding, `try_` excluded, `defaultRoot` unchanged so absence keeps its meaning, and `current` and `same` must not change meaning.
+
+Open: When, and how much. The resolved-source dispatch this rides on is the feature's MECHANISM, not a separable improvement — priced 2026-09-04, the two payoffs previously claimed for it standalone (retiring the #104 `limit` write-back and the `id` threading) do not survive: the first carries a wire-ERA fact that travels regardless, the second collapses only once a single tag-level resolution exists to thread into. What is left standalone is reuse of a repeated `src(same)` traversal, which is a cache.
+
+Blocked by: row:FW-53  •  Interacts with: FW-53, FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed)
+
 ### Testing & infrastructure
 
 #### FW-97 — Fixture-page reorganization
@@ -702,6 +714,18 @@ Progress: Raised 2026-08-28 while holding FW-47 — its soft gate being met by u
 Open: Whether the repair is a definition pair in `CONTEXT.md` §Language, a rename, or disambiguation only where the docs currently blur them.
 
 Blocked by: —  •  Interacts with: FW-47, FW-48, FW-93, FW-95
+
+#### FW-121 — "inherit" names the sibling relation everywhere it ships, and the parent relation needs the word
+
+Inheriting from a PARENT and borrowing from a SIBLING are different relations, and the grammar has one word doing both jobs. Every shipped use of the stem on this axis — three user-facing strings, three identifiers, roughly twenty comment sites across six files — means the SIBLING carry that `same` already names correctly.
+
+Detail home: `.scratch/plans/table-tag.md` §H (the naming decision + the five drafted strings)
+
+Progress: Censused 2026-09-04. Identifiers are `props.inheritOnEmpty`, `conf.srcRowsInherit` and `conf.readRowsInherit`, the last two riding the PHP-derived option config so both sides move together; §H's five-string price missed two PHP prose sites (`class-source-registry.php:112`, `class-tag-template-registry.php:538`). Replacement copy is drafted and settled (keeps/kept); the identifier stem is `same`, because an identifier naming the WIRE TOKEN stays checkable while one naming the prose verb goes stale at the next rewording. Wire cost is zero — `same` keeps its slug, nothing migrates. Datetime's `inherit_date` is a third sense and deliberately out of scope.
+
+Open: Nothing in the design. It ships STANDALONE and FIRST, ahead of the `src(inherit)` root rather than with it, so no window exists where the wire says `inherit` for one relation and the file implementing it says `inherit` for the other. User-visible copy change landing alone, so it takes its own CHANGELOG entry; a pure rename, but it trips both the Folded-slot REGISTRATION and Folded-slot CONTROL update triggers.
+
+Blocked by: —  •  Interacts with: FW-53 (which introduces `src(inherit)`, the word this frees), FW-120, FW-93, FW-95
 
 ### Future possibilities
 

@@ -444,7 +444,7 @@ family with no list mode takes a different branch from one that has. One `refs` 
 
 | # | Tag | Renders | Cause |
 |---|---|---|---|
-| F9.5 | `{{text src:rows,team_members\|use:key\|key:name}}` | empty | **NOT IMPLEMENTED YET — FW-74 — rather than unsupported** (reason rewritten 2026-08-15, #105). The wire is well formed, the chain compiles, the engine runs the step and `bws_fold_chain_resolution()` answers kind `meta_row`; both `bws_read_resolved_source()` and `traversal-pipeline.php` already carry a live `case 'meta_row'`. What is missing is the ARM — `bws_base_text_resolve_value()` dispatches on `site`/ambient-term/ambient-user/`term`/`post` and this kind falls through. `{{table}}` wants a repeater row as its cells' read CONTEXT and a fanning tag would concatenate it like any other step, so nothing here is an author error, which is why the inert-chain warning deliberately does NOT flag it. `rows` stays off the base chain control's step enum until the arm lands; authoring it requires a hand edit. Design: `.scratch/plans/table-tag.md` §FW-74 |
+| F9.5 | `{{text src:rows,team_members\|use:key\|key:name}}` | empty | **NOT IMPLEMENTED YET — FW-74 — rather than unsupported** (reason rewritten 2026-08-15, #105). The wire is well formed, the chain compiles, the engine runs the step and `bws_fold_chain_resolution()` answers kind `meta_row`; both `bws_read_resolved_source()` and `traversal-pipeline.php` already carry a live `case 'meta_row'`. What is missing is the ARM — `bws_base_text_resolve_value()` dispatches on `site`/ambient-term/ambient-user/`term`/`post` and this kind falls through. `{{table}}` wants a repeater row as its cells' read CONTEXT and a fanning tag would concatenate it like any other step, so nothing here is an author error, which is why the inert-chain warning deliberately does NOT flag it. `rows` stays off the base chain control's step enum until the arm lands; authoring it requires a hand edit. Design: `.scratch/plans/repeater-row-arm.md` |
 | F9.6 | `{{text src:ref\|ref:related_staff\|srcTermIn:portal_visibility\|use:title\|limit:0}}` | `All Users, All Users` (was `All Users`) | **A flat-wire behaviour change, stated rather than hidden — and MEASURED, both sides.** The term arm used to collapse the relationship step to its FIRST post (`bws_get_srcterm_terms` took one post id) and read that post's terms; it now runs the whole compiled chain, which fans (§V6). Reachable ONLY with an explicit `limit` above one: drop the `limit:0` and both `main` and this branch render `All Users`, which is the compatibility floor holding. The surveyed corpus contains **zero** explicit `limit` values. Accepted because the alternative is keeping a first-only collapse the plural source model already calls a defect, in the one arm still performing it. **`department` will NOT do for this row** — jane and tom carry none, so the pair is empty either way and asserts nothing; `portal_visibility` is the taxonomy the blueprint actually puts on them |
 
 **The contrast this matrix used to draw** — F9.1 and F1.7 as one term hop with two answers, decided
@@ -518,6 +518,15 @@ seeded `team_members` repeater.
 | F9c.3 | `{{try_text A:key(nope)\|B:key(role)}}` | `Engineering` / `Operations` — the attempt chain still advances inside a row: slot 1 takes the fallthrough and finds nothing, slot 2 takes it and hits |
 | F9c.4 | `{{try_text A:src(rows,team_members);use(key);key(name)\|B:key(role)}}` | `Engineering` / `Operations` — **the row where both arrival routes meet and stay apart.** Slot 1 states a repeater source ON THE WIRE while STANDING IN a repeater row: refused as a chain kind. Slot 2's silent wire takes the fallthrough and resolves |
 | F9c.5 | `{{try_text A:src(refs,lead_ref);use(title)}}` | `Jane Partner`, then EMPTY — a relationship sub-field still hops out of the row. Row 2 leaves `lead_ref` blank, and GB hides the empty block, so only one row shows |
+
+> **F9c.4 STOPS PINNING ITS STATED REASON WHEN FW-74 LANDS, and it must be rewritten in that
+> commit.** `BWS_TRAVERSAL_STEP_INPUT_KINDS['rows']` accepts `meta_row`, so slot 1 here is legal
+> wire meaning a NESTED repeater. Today it is refused as a chain kind and the row passes for that
+> reason; once the repeater-row arm exists slot 1 becomes a real attempt, finds no nested
+> `team_members`, and the row passes for a different one. The output never moves, so nothing goes
+> red — which is exactly why this note exists rather than a test. A row exercising a genuine nested
+> repeater lands with the arm, and takes over what F9c.4 is claiming here.
+
 
 > **VERIFIED BY MUTATION, and the first attempt was an ARTIFACT.** Two were run and both blank the
 > section: deleting the fallthrough gate (F9c.2/3/4 render nothing; F9c.1 survives, which is what
