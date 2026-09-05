@@ -105,12 +105,15 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/hooks.php';
 
 	// Load helper functions.
-	// The two GB BOUNDARIES first — one per GB entry point we cross. Output: the allowlist
+	// The three GB BOUNDARIES first — one per GB entry point we cross. Output: the allowlist
 	// of options GB's output pipeline consumes, which every tag file's render path ends in.
 	// Registration: the single wrapper over GB's tag registrar, which every tag file's
-	// registration goes through, including the two template constructors.
+	// registration goes through, including the two template constructors. Trust: the single
+	// place we ask GB whether the current user may author dynamic data, which the site
+	// option reads and the field-discovery surfaces gate on.
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-output-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-registration-boundary.php';
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/gb-trust-boundary.php';
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/helpers/image-helpers.php';
 	// Traversal pipeline engine + source factory (L1-full) — must load before the
 	// seam (field-helpers) and modifier registry that call bws_resolve_base_source /
