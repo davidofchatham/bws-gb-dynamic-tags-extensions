@@ -477,6 +477,195 @@ $check(
 		: 'No `workshop` term in the `department` taxonomy. Reseed; QL3 has nothing to read without it.'
 );
 
+// ---------------------------------------------------------------------------
+// GB 2.4 TRUST MODEL — what GenerateBlocks already enforces for our tags.
+// ---------------------------------------------------------------------------
+// THESE PINS MEASURE GENERATEBLOCKS, NOT THIS PLUGIN. GB 2.4 guards dynamic data in
+// two layers: a save gate (a convenience layer that stops a restricted user
+// persisting marker content) and a render-time post-source taint model, which GB's
+// own class doc names as the security boundary the gate is explicitly not. Our tags
+// inherit BOTH without registering anything — the gate's `applies` predicate keys on
+// `{{` plus a dynamic-tag-enabled GB block rather than on tag names, and the taint
+// layer enumerates the whole tag registry — which is why this plugin registers no
+// save-gate rule of its own.
+//
+// That inheritance is a property of someone else's code. It was stated in prose in
+// docs/gb-constraints.md from 1.19.0 and run against one of our tags for the first
+// time here; a claim about an instrument is measured or pinned, never inferred.
+//
+// A FAILURE HERE USUALLY MEANS GB MOVED. Read GB's diff before reading it as a
+// regression in this plugin, and do NOT change our code to make it green — on this
+// surface that is how a gate gets quietly removed. docs/update-triggers.md
+// §GB trust-model consumption change owns the rule.
+//
+// THE DEPENDENCY IS REQUIRED, NOT OPTIONAL: a missing class FAILS rather than skips.
+// A skipped security pin is indistinguishable from a passing one in the summary,
+// which is the whole failure mode this section exists over.
+$trust_ready = class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )
+	&& method_exists( 'GenerateBlocks_Dynamic_Tag_Security', 'should_validate_content' )
+	&& method_exists( 'GenerateBlocks_Dynamic_Tag_Security', 'save_is_restricted' )
+	&& method_exists( 'GenerateBlocks_Dynamic_Tag_Security', 'render_with_content_source' );
+$check(
+	'GB 2.4 trust model is reachable (save gate + taint model)',
+	$trust_ready,
+	'GB ' . ( defined( 'GENERATEBLOCKS_VERSION' ) ? GENERATEBLOCKS_VERSION : 'version unknown' )
+);
+
+if ( $trust_ready ) {
+	// P1 — the save gate's `applies` predicate SEES our tags. Asserted against the
+	// seeded page's own content so the markup is real rather than hand-built to pass.
+	$check(
+		'P1 applies: GB scans a GB block carrying one of our tags',
+		true === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( $page->post_content )
+	);
+
+	// The two negative controls are what make P1 mean something — a predicate that
+	// returned true unconditionally would satisfy the assert above on its own. They
+	// also pin WHY we are covered: the BLOCK, not the tag name. If GB ever narrows
+	// this to a name list, our tags leave the gate silently and the first control flips.
+	$check(
+		'P1 control: one of our tags OUTSIDE a GB block is not scanned',
+		false === GenerateBlocks_Dynamic_Tag_Security::should_validate_content( '<p>{{phone key:main_line}}</p>' )
+	);
+	$check(
+		'P1 control: a GB block carrying no tag is not scanned',
+		false === GenerateBlocks_Dynamic_Tag_Security::should_validate_content(
+			"<!-- wp:generateblocks/text {\"tagName\":\"p\"} -->\n<p>plain</p>\n<!-- /wp:generateblocks/text -->"
+		)
+	);
+
+	// P2 — the whole conjunction, which P1 cannot reach. GB blocks a save only on
+	// `enforced && applies && ! user_can && ! exempt`, so P1 pins one conjunct and
+	// says nothing about who is stopped. post_id 0 states a NEW page: the shared
+	// no-new-exposure exemption compares against a stored row, so with no stored row
+	// it cannot apply and the answer turns on the user alone. (Passing the page's own
+	// id and content instead would be byte-identical, exempt, and false for everyone.)
+	$trust_content    = $page->post_content;
+	$prev_trust_user  = get_current_user_id();
+	$trust_admins     = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+	$trust_admin_id   = (int) ( $trust_admins[0] ?? 0 );
+	$check( 'an administrator exists to run the trusted arm as', $trust_admin_id > 0, 'user=' . $trust_admin_id );
+
+	wp_set_current_user( $trust_admin_id );
+	$check(
+		'P2 trusted: an administrator may save a new page carrying our tags',
+		false === GenerateBlocks_Dynamic_Tag_Security::save_is_restricted( $trust_content, 0, 'page' )
+	);
+
+	// Arm one of untrusted, via the filter GB ships for exactly this. Using the
+	// documented seam rather than a seeded role keeps the arm deterministic and
+	// independent of which capabilities a role happens to carry on this install.
+	$trust_deny = static function () {
+		return false;
+	};
+	add_filter( 'generateblocks_user_can_author_dynamic_data', $trust_deny, PHP_INT_MAX );
+	$check(
+		'P2 untrusted (predicate filtered false): the same save is refused',
+		true === GenerateBlocks_Dynamic_Tag_Security::save_is_restricted( $trust_content, 0, 'page' )
+	);
+	remove_filter( 'generateblocks_user_can_author_dynamic_data', $trust_deny, PHP_INT_MAX );
+
+	// Arm two, via a REAL role. The filter arm proves the wiring; GB's own DEFAULT is
+	// what an actual contributor meets, and only a real user measures it. fixture-author
+	// is an Author: no unfiltered_html, no manage_options, so untrusted by that default.
+	// Note this arm would pass vacuously if the filter above failed to unhook, which is
+	// why the trusted arm runs first and separately.
+	$trust_author = get_user_by( 'login', 'fixture-author' );
+	$check( 'fixture-author exists for the real-role arm', $trust_author instanceof WP_User );
+
+	if ( $trust_author instanceof WP_User ) {
+		wp_set_current_user( (int) $trust_author->ID );
+		$check(
+			'P2 untrusted (real Author role, GB default): the same save is refused',
+			true === GenerateBlocks_Dynamic_Tag_Security::save_is_restricted( $trust_content, 0, 'page' )
+		);
+	}
+
+	wp_set_current_user( $prev_trust_user );
+
+	// P3 — the AUTHORITATIVE layer. A tainted source frame suppresses every registered
+	// dynamic tag in the descendant render tree, ours included, at the lowest
+	// replacement layer (GenerateBlocks_Register_Dynamic_Tag::replace_tags itself).
+	//
+	// A SCRATCH POST rather than a fixture one, for two independent reasons. GB caches
+	// the taint answer per post id for the request, so a fixture post already read
+	// earlier in this script would answer from a stale false and the assert would
+	// measure nothing. And a stamp left behind by a killed run would silently blank
+	// that page's tags for every later snapshot capture — a fixture corruption that
+	// diffs clean against itself forever.
+	//
+	// TWO scratch posts, not one reused. The clean-frame arm below has to run against a
+	// post id whose taint answer was never read, because the per-request cache would
+	// otherwise hand the stamped read the `false` the clean read just cached — and the
+	// suppression assert would fail for a reason that has nothing to do with suppression.
+	$taint_new = static function ( $title ) {
+		$id = wp_insert_post(
+			array(
+				'post_type'    => 'page',
+				'post_status'  => 'draft',
+				'post_title'   => $title,
+				'post_content' => '',
+			)
+		);
+
+		return is_wp_error( $id ) ? 0 : (int) $id;
+	};
+
+	$taint_id  = $taint_new( 'bws-verify taint scratch' );
+	$clean_id  = $taint_new( 'bws-verify clean scratch' );
+	$check( 'P3 scratch posts created (one to stamp, one to leave clean)', $taint_id > 0 && $clean_id > 0 );
+
+	if ( $taint_id > 0 && $clean_id > 0 ) {
+		update_post_meta(
+			$taint_id,
+			GenerateBlocks_Dynamic_Tag_Security::UNTRUSTED_DYNAMIC_CONTENT_META_KEY,
+			array( 'user_id' => 0, 'time' => time() )
+		);
+
+		$taint_tag    = '{{phone key:main_line}}';
+		$taint_render = static function ( $post_id ) use ( $taint_tag, $instance ) {
+			return trim(
+				(string) GenerateBlocks_Dynamic_Tag_Security::render_with_content_source(
+					$post_id,
+					static function () use ( $taint_tag, $instance ) {
+						return GenerateBlocks_Register_Dynamic_Tag::replace_tags( $taint_tag, [], $instance );
+					}
+				)
+			);
+		};
+
+		$taint_free  = trim( (string) GenerateBlocks_Register_Dynamic_Tag::replace_tags( $taint_tag, [], $instance ) );
+		$taint_clean = $taint_render( $clean_id );
+		$taint_out   = $taint_render( $taint_id );
+
+		// TWO controls, because the suppression assert is satisfiable two ways that have
+		// nothing to do with the taint model. An empty render for an unrelated reason —
+		// no ambient post, an unseeded field, a renamed key — satisfies it on its own;
+		// so does a frame that suppresses unconditionally, which would make the pin read
+		// as a working security boundary while measuring only that frames exist. The
+		// first control rules out the former, the second the latter. Only the three
+		// together say the STAMP is what suppressed.
+		$check(
+			'P3 control: the tag renders with no source frame at all',
+			'' !== $taint_free,
+			'out=' . var_export( $taint_free, true )
+		);
+		$check(
+			'P3 control: the tag still renders inside an UNTAINTED source frame',
+			'' !== $taint_clean,
+			'out=' . var_export( $taint_clean, true )
+		);
+		$check(
+			'P3 suppression: the same tag renders EMPTY inside a tainted source frame',
+			'' === $taint_out,
+			'out=' . var_export( $taint_out, true )
+		);
+
+		wp_delete_post( $taint_id, true );
+		wp_delete_post( $clean_id, true );
+	}
+}
+
 /* ---------------------------------------------------------------------------
  * PAGE SNAPSHOTS + the dependency-version record.
  *
