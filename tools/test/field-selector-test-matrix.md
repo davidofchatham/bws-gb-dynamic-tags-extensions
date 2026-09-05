@@ -36,6 +36,7 @@ field/group names in the rows are that blueprint's fixture names (`schema.php` /
 | M0.3 | Network tab on editor load | NO runtime request to `/bws-dynamic-tags/v1/fields`; `window.bwsFieldEnvelope` present in page source |
 | M0.4 | Direct GET `/wp-json/bws-dynamic-tags/v1/fields` logged OUT | 401 `rest_forbidden` (the `edit_posts` capability, V6) |
 | M0.5 | Force the REST fallback (unset `window.bwsFieldEnvelope` in console, reopen a tag) under **plain permalinks** (`?rest_route=`) | Combobox still populates; `apiFetch` path has a leading slash (`/bws-dynamic-tags/v1/fields`), so no 404 to an empty picker |
+| M0.6 | As a user who can `edit_posts` but NOT author dynamic data (Author or Contributor role, or an admin with `generateblocks_user_can_author_dynamic_data` filtered false), load the block editor | Page source carries `window.bwsFieldEnvelope = {};` — present and EMPTY, never absent. A direct GET of `/wp-json/bws-dynamic-tags/v1/fields` as that user is 403. No `apiFetch` to that route fires on load: the empty global is what stops the fallback turning the gate into a console error on every editor load (the route's own PHPDoc carries the reachability measurement, and `docs/gb-constraints.md` §Dynamic data is suppressed by POST SOURCE the GB facts behind it). GB itself gives this user no tag builder, so no picker is reachable to populate |
 
 ## M1 — free-text + clear (V11)
 

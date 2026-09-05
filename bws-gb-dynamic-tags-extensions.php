@@ -444,10 +444,24 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 	// dynamic-tag-replacement swarm (which was the 30-40s head-of-line block). The
 	// assembly is ~13ms and runs once per editor load, so the list stays current.
 	// Guarded by function_exists so it no-ops if the discovery include is absent.
+	//
+	// A USER WHO MAY NOT AUTHOR DYNAMIC DATA GETS AN EMPTY ENVELOPE, NOT A MISSING ONE.
+	// GB gates its own dynamic-data UI on the same predicate, and such a user cannot reach
+	// the tag builder our controls mount inside — so the field taxonomy buys them nothing
+	// and is not shipped (the REST route carries the same gate; its PHPDoc has the
+	// measurement). It has to be PRESENT and empty rather than omitted, because the
+	// control treats an absent global as "inline failed" and falls back to a live fetch of
+	// that now-gated route — a guaranteed 403 on every editor load. `{}` is a shape the
+	// control already handles and the field-selector matrix already pins (M8.1, the
+	// JSON-encode-failure emission).
 	if ( function_exists( 'bws_field_discovery_get_envelope_json' ) ) {
+		$bws_envelope_json = ( ! function_exists( 'bws_gb_user_can_author_dynamic_data' ) || bws_gb_user_can_author_dynamic_data() )
+			? bws_field_discovery_get_envelope_json()
+			: '{}';
+
 		wp_add_inline_script(
 			'bws-dynamic-tags-field-combo-control',
-			'window.bwsFieldEnvelope = ' . bws_field_discovery_get_envelope_json() . ';',
+			'window.bwsFieldEnvelope = ' . $bws_envelope_json . ';',
 			'before'
 		);
 	}

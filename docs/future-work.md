@@ -349,31 +349,19 @@ Progress: Not started. Five sites enumerated and the reachable ones identified (
 
 Open: Whether the two list-shaped traversal sites want the handler at all — they read relationship/repeater shapes with `single_only=false` and already try ACF first, so the handler may be the wrong route for them even where it is right for the two scalar ones.
 
-Blocked by: —  •  Interacts with: FW-125 (same GB security surface, independent halves — and this row is the cheaper half of it: `GenerateBlocks_Meta_Handler` consults `user_can_author_dynamic_data()` at four sites, so routing user-kind reads through it consumes the predicate for free)
+Blocked by: —  •  Interacts with: FW-126 (a user-kind fixture serves both). The rest of the GB security surface shipped in 1.19.2 (`docs/design-history/dynamic-data-trust-predicate.md`) and left this row untouched on purpose — but note it is the cheap half of the same thing: `GenerateBlocks_Meta_Handler` consults `user_can_author_dynamic_data()` at four sites, so routing user-kind reads through it consumes the predicate for free.
 
-#### FW-125 — consume GB 2.4's dynamic-data trust model at the surfaces GB cannot reach
+#### FW-126 — no untrusted-user fixture, so the per-user gates are measured by hand
 
-GB 2.4.0 built a trust model for dynamic data and this plugin consumes none of it. The model is bigger than the predicate the row was originally named for: `GenerateBlocks_Save_Gate` is a rule registry that names partner plugins as registrants, `user_can_author_dynamic_data()` is one rule's `user_can` callback, and `generateBlocksEditor.canAuthorDynamicData` is a third surface (a localized JS flag GB's own editor gates its Dynamic Data panel on). Two of ours need a response — the `src:site` option read under REST, which is measurably diverged from what GB Pro 2.7 does, and the field-discovery envelope, inlined on every editor load for a user GB has decided may not author dynamic data.
+The two per-user gates FW-125 shipped are only observable as a specific user under REST, and nothing in either test layer can drive that. `verify.php` cannot define `REST_REQUEST` without poisoning every later check in the same run, and the blueprint has no seeded user whose role makes them untrusted by GB's default (`fixture-author` happens to be an Author and therefore works, but nothing states that it must stay one, and nothing fails if it stops). Both gates were confirmed by a throwaway three-arm probe recorded in their commit bodies — a measurement, not a regression test.
 
-Detail home: `.scratch/plans/dynamic-data-trust-predicate.md`
+Detail home: `docs/design-history/dynamic-data-trust-predicate.md` (D10, D16 — the decision to use the filter rather than a seeded role, and why the two leftovers are one row)
 
-Progress: Not started; scope and approach decided 2026-09-05, 16 decisions and three commits in the detail home. Four things measured against GB 2.4.1 / Pro 2.7.1 — GB's save-gate rule already covers our tags (its `applies` keys on `{{` plus a GB block, not on tag names), `src:site` is NOT at parity (Pro blanks ACF option values for an untrusted `edit_posts` user under REST; we return them), an untrusted user can never reach the tag builder our editor controls mount inside, and our envelope carries definitions with no values. The taint model — the layer GB itself calls authoritative — turned out to be pinned nowhere, so the first commit is three `verify.php` pins before any gate lands.
+Progress: Not started. The shape is known: a fixture user whose untrustedness is a stated property rather than a coincidence, plus a driver that can present a REST request. The `generateblocks_user_can_author_dynamic_data` filter covers the predicate half already and is what the shipped `verify.php` P2 pin uses; what it cannot reach is `REST_REQUEST`.
 
-Open: Nothing on scope. The version number is the user's call (patch by this repo's precedent).
+Open: Also the home for **telling an author why a preview blanked**. A gated read returns empty and says nothing; GB's own editor messaging is the honest place for it, so this may well close as "GB already says it" — but the two are gated on the same missing fixture, and a row per idea is over-tracking.
 
-Blocked by: —  •  Interacts with: FW-124 (routing user-kind reads through `GenerateBlocks_Meta_Handler` consumes the predicate for free — the handler calls it at four sites — so FW-124 delivers part of this row's intent without deciding anything here)
-
-#### FW-126 — two uncalled 1.2.0 thin wrappers over `ContentProcessor` in `content-helpers.php`
-
-`bws_output_queued_inline_css()` and `bws_extract_and_queue_inline_styles()` are the surviving pair of a three-wrapper set added in 1.2.0 to give the `{{content}}` inline-CSS queue a `bws_`-prefixed public surface. Both define correctly and both have zero callers anywhere — the class methods they forward to are called in-class. The third wrapper of the set (`bws_queue_inline_css( $css )`) was deleted with #133 because it was additionally UNREACHABLE, shadowed since 1.17.0 by a same-named id-keyed helper; these two are not broken, only unused, which is why they were left standing rather than swept in that change.
-
-Detail home: the deletion comment at the head of the inline-CSS queue block in `includes/helpers/content-helpers.php`, which states the split and names this item
-
-Progress: Not started. Call-site census run 2026-09-05 across `includes/`, `tools/` and the docs: zero callers of either, and both are listed as public API in `docs/post-content-processing-reference.md` §Function reference.
-
-Open: Whether a documented-but-unused `bws_`-prefixed affordance is worth keeping as an extension point for an external plugin driving the content pipeline, or is a Middle Man to delete on the `rel`/`rel_2` precedent in the same file. Deleting takes the two doc rows with it.
-
-Blocked by: decision:keep as extension point or delete  •  Interacts with: —
+Blocked by: —  •  Interacts with: FW-124 (a user-kind fixture serves both; that row's reads are the other half of the same GB security surface)
 
 ### Feature follow-ups & UX
 

@@ -6,6 +6,8 @@
 
 - **Site option values are no longer resolved in the editor preview of a user who cannot author dynamic data.** A contributor or author previewing `{{text src:site|key:...}}` against a custom options-page field now sees the tag's configured fallback instead of the stored value. Common WordPress options (site title, tagline, home URL, site URL, time format, user count) still resolve for them, published pages are unaffected, and nothing changes for a user who can author dynamic data. This matches what GenerateBlocks Pro 2.7 does with its own `{{option}}` tag; this plugin's site reads had not been following it.
 
+- **The field key picker's data is no longer sent to editors who cannot use it.** A user who can edit posts but is not permitted to author dynamic data now loads the editor without the list of registered field keys and labels. GenerateBlocks already gives that user no way to add or edit a dynamic tag, so no picker was reachable for them in the first place; nothing changes for anyone who can author dynamic data.
+
 ### Changed
 
 - **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.

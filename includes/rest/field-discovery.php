@@ -18,7 +18,8 @@
  *   `$wpdb DISTINCT meta_key` scan is label-less/type-less key-soup and is
  *   rejected on quality. Unregistered-key gap is covered by the control's
  *   free-text entry (+ future Pie-Calendar injection).
- * - V6: offered ⟺ resolvable. The `edit_posts` capability gates the route; output is
+ * - V6: offered ⟺ resolvable. The `edit_posts` capability gates the route, since 1.19.2
+ *   alongside GB's dynamic-data trust predicate (see the permission callback); output is
  *   filtered through the SAME DISALLOWED_KEYS gate `bws_read_field` enforces
  *   (field-helpers.php:235), so the endpoint never offers a key the resolver
  *   would refuse. It does NOT hide general `_`-protected meta (the resolver
@@ -66,17 +67,41 @@ function bws_register_field_discovery_route() {
 }
 
 /**
- * Permission callback — the `edit_posts` capability (V6).
+ * Permission callback — `edit_posts` (V6), plus GB's dynamic-data trust predicate.
  *
- * Field discovery exposes only field DEFINITIONS (never values), but the list of
- * registered fields is still author-only editor tooling, so it is gated to users
- * who can edit content. Matches the audience of the block editor itself.
+ * Field discovery exposes only field DEFINITIONS (never values), which is where GB Pro
+ * 2.7 landed too — its `get_acf_option_fields_for_current_user()` keeps option field
+ * KEYS and blanks their VALUES. So the second gate is NOT about a value leak; on that
+ * axis this envelope was already at parity.
+ *
+ * IT IS ABOUT REACHABILITY. GB gates its own dynamic-data editor UI on the same
+ * predicate, and a user who fails it cannot reach the tag BUILDER by any path — with no
+ * tags in the content GB's modal renders nothing, and with tags present it renders a
+ * remove-only list. `generateblocks.editor.tagSpecificControls` is applied inside that
+ * builder, so no control of ours ever mounts for such a user, and the envelope those
+ * controls read is a field-key-and-label taxonomy shipped to somebody who has no way to
+ * use it. Measured against GB 2.4.1, recorded in docs/gb-constraints.md §Dynamic data is
+ * suppressed by POST SOURCE.
+ *
+ * THE ENQUEUE MUST STAY IN STEP WITH THIS. It emits an EMPTY envelope rather than
+ * omitting the global, because the control falls back to a live fetch of this route when
+ * `window.bwsFieldEnvelope` is absent — and with this gate in place that fallback is a
+ * guaranteed 403 on every editor load. See the enqueue in the plugin bootstrap.
  *
  * @since 1.13.0
- * @return bool True when the current user may edit posts.
+ * @since 1.19.2 Also requires GB's dynamic-data trust predicate.
+ * @return bool True when the current user may edit posts AND may author dynamic data.
  */
 function bws_field_discovery_permission_check() {
-	return current_user_can( 'edit_posts' );
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return false;
+	}
+
+	if ( ! function_exists( 'bws_gb_user_can_author_dynamic_data' ) ) {
+		return true;
+	}
+
+	return bws_gb_user_can_author_dynamic_data();
 }
 
 /**

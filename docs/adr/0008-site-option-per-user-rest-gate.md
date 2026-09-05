@@ -1,6 +1,6 @@
 # Site option VALUES are withheld from untrusted users under REST
 
-**Status:** accepted (v1.19.2). Hardened against the FW-125 pass that measured the divergence this closes — see [`future-work.md`](../future-work.md) FW-125 for the measurements. That pass's build record commits to `docs/design-history/` when the row closes, and this line repoints to it in the same edit; it is named here as a row rather than a path because the path does not exist yet, and an ADR whose evidence cannot be opened is an accepted decision nobody can check.
+**Status:** accepted (v1.19.2). Hardened against [`design-history/dynamic-data-trust-predicate.md`](../design-history/dynamic-data-trust-predicate.md), the build record of the FW-125 pass that measured the divergence this closes.
 
 `src:site` option reads carry two independent gates. [ADR 0001](0001-site-option-read-allowlist.md) owns the first — **which keys** may ever be read, via a GB-Pro-parity allowlist. This ADR owns the second — **which user** may be shown a value, and when. Both apply at every option-read site; neither substitutes for the other.
 
