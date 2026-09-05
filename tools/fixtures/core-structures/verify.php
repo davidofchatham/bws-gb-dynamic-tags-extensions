@@ -566,19 +566,81 @@ if ( $trust_ready ) {
 	remove_filter( 'generateblocks_user_can_author_dynamic_data', $trust_deny, PHP_INT_MAX );
 
 	// Arm two, via a REAL role. The filter arm proves the wiring; GB's own DEFAULT is
-	// what an actual contributor meets, and only a real user measures it. fixture-author
-	// is an Author: no unfiltered_html, no manage_options, so untrusted by that default.
-	// Note this arm would pass vacuously if the filter above failed to unhook, which is
-	// why the trusted arm runs first and separately.
+	// what an actual contributor meets, and only a real user measures it. Note this arm
+	// would pass vacuously if the filter above failed to unhook, which is why the trusted
+	// arm runs first and separately.
 	$trust_author = get_user_by( 'login', 'fixture-author' );
 	$check( 'fixture-author exists for the real-role arm', $trust_author instanceof WP_User );
 
 	if ( $trust_author instanceof WP_User ) {
 		wp_set_current_user( (int) $trust_author->ID );
+
+		// THE ROLE'S UNTRUSTEDNESS IS ASSERTED, NOT ASSUMED. GB's default predicate is
+		// `unfiltered_html || manage_options`, and on single-site WP the Editor role holds
+		// unfiltered_html — so "a non-admin fixture user" is NOT automatically untrusted, and
+		// this arm would silently invert into a second trusted arm if the fixture's role ever
+		// changed. Asserting the two capabilities makes the arm's premise a checked property
+		// rather than a coincidence of how the blueprint happens to seed users.
+		$check(
+			'fixture-author is untrusted by GB\'s DEFAULT (holds neither capability)',
+			! current_user_can( 'unfiltered_html' ) && ! current_user_can( 'manage_options' ),
+			'unfiltered_html=' . var_export( current_user_can( 'unfiltered_html' ), true )
+				. ' manage_options=' . var_export( current_user_can( 'manage_options' ), true )
+		);
 		$check(
 			'P2 untrusted (real Author role, GB default): the same save is refused',
 			true === GenerateBlocks_Dynamic_Tag_Security::save_is_restricted( $trust_content, 0, 'page' )
 		);
+
+		// P2b — THE ENTRY POINT, which save_is_restricted() cannot reach. That helper answers
+		// `applies && ! user_can && ! exempt`; it does NOT tell you the rule is still
+		// REGISTERED with the gate, that `enforced` is true, or that the gate is wired to any
+		// path WordPress actually saves through. All three could break with every assertion
+		// above still green. REST is the only drivable entry point here: the classic
+		// wp_insert_post_data path answers a block by calling wp_die(), which would kill this
+		// script mid-run, while rest_pre_insert_{post_type} returns a WP_Error that can be read.
+		//
+		// A POST THIS USER OWNS, NOT A PAGE. An Author cannot edit pages at all, so a page
+		// scratch is refused with `rest_cannot_edit` before the save gate is ever consulted —
+		// which the second assertion below caught on the first run, and which the first
+		// assertion alone would have reported as a pass. The capability has to succeed for the
+		// gate to be what refuses.
+		$p2b_id = wp_insert_post(
+			array(
+				'post_type'    => 'post',
+				'post_status'  => 'draft',
+				'post_title'   => 'bws-verify save-gate scratch',
+				'post_content' => '',
+				'post_author'  => (int) $trust_author->ID,
+			)
+		);
+		$p2b_id = is_wp_error( $p2b_id ) ? 0 : (int) $p2b_id;
+		$check( 'P2b scratch post created, owned by the untrusted user', $p2b_id > 0 );
+
+		if ( $p2b_id > 0 ) {
+			$p2b_request = new WP_REST_Request( 'POST', '/wp/v2/posts/' . $p2b_id );
+			$p2b_request->set_param( 'content', $trust_content );
+			$p2b_response = rest_do_request( $p2b_request );
+			$p2b_error    = $p2b_response->as_error();
+
+			$check(
+				'P2b entry point: a REST save carrying our tags is refused for this user',
+				$p2b_error instanceof WP_Error,
+				'status=' . $p2b_response->get_status()
+					. ' code=' . ( $p2b_error instanceof WP_Error ? $p2b_error->get_error_code() : 'none' )
+			);
+
+			// The refusal must be the DYNAMIC-DATA rule's, not an unrelated REST failure —
+			// a bad route, a capability check, or a validation error would all produce a
+			// WP_Error and satisfy the assertion above while measuring nothing.
+			$check(
+				'P2b and the refusal is the dynamic-data rule, not an unrelated REST error',
+				$p2b_error instanceof WP_Error && 'generateblocks_restricted_dynamic_content' === $p2b_error->get_error_code(),
+				'code=' . ( $p2b_error instanceof WP_Error ? $p2b_error->get_error_code() : 'none' )
+			);
+
+			wp_delete_post( $p2b_id, true );
+		}
 	}
 
 	wp_set_current_user( $prev_trust_user );

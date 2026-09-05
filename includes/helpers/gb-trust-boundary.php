@@ -27,6 +27,17 @@
  * than asserting it. This file exists only for the surfaces that suppression cannot reach,
  * because they are ours and are not a rendered tag.
  *
+ * CALLERS FAIL OPEN WHEN THIS FILE IS ABSENT, AND THAT IS ONE POLICY STATED ONCE HERE.
+ * Every consumer guards its call with function_exists() and, on a miss, behaves as it did
+ * before this file existed — the site read resolves, the REST route answers on edit_posts
+ * alone, the editor gets its envelope. The guards are the house pattern over an
+ * unconditionally-required file (a partial deploy or a .distignore'd path failing to land is
+ * a real failure mode, and a guard turns a fatal into a degraded page), so their miss means a
+ * BROKEN INSTALL, never an untrusted user. Failing closed there would blank an
+ * administrator's editor because a file did not copy, which protects nobody and looks exactly
+ * like data loss. Note this is a different question from the last-resort branch INSIDE
+ * bws_gb_user_can_author_dynamic_data(), which is about GB being absent rather than us.
+ *
  * @package BWS_Dynamic_Tags
  * @since 1.19.2
  */
@@ -103,6 +114,15 @@ function bws_gb_user_can_author_dynamic_data(): bool {
  * changes what it subtracts. Its list-returning sibling
  * `get_allowed_options_for_current_user()` is not used, because taking the key-shaped
  * question leaves the root-segment split at Pro too.
+ *
+ * THE SEED BELOW IS A THIRD COPY OF SIX KEYS, AND IT STAYS ONE ON PURPOSE. ADR 0001's
+ * bws_site_allowlist_ok() holds the same six today, and sharing them would look like the
+ * de-duplication this file exists to do. It is not: the two answer different questions that
+ * agree only by coincidence. Ours is ADR 0001's parity seed, governing which keys this plugin
+ * will ever read; this one is imitating GB PRO's get_allowed_options() so the fallback answers
+ * the way Pro would. Coupling them would let a future Pro change silently drag our allowlist
+ * with it, or the reverse. What the copy owes instead is a DATE, which is what
+ * BWS_GB_TRUST_FALLBACK_READ_FROM above is — re-read both against Pro when that version moves.
  *
  * THE FALLBACK MIRRORS PRO'S RULE for a Pro too old to have the method: the shared allowlist
  * minus every registered ACF options-page key, then Pro's own per-user filter. Registration

@@ -6,7 +6,7 @@
 
 ## The rule
 
-Under a REST request, for a user who can `edit_posts` but may not author dynamic data, a site option read resolves to empty unless the key is one GB Pro would still disclose to that user. Enforced at `bws_site_option_user_gated()` ([`includes/helpers/field-helpers.php`](../../includes/helpers/field-helpers.php)), consulted by both option-read paths: `bws_site_read_option()` (key-mode plus site `linkTo:key`) and the datetime `'option'` branch of `bws_read_field()`, which reads an ACF field rather than a wp_options row and therefore restates both gates instead of inheriting them.
+Under a REST request, for a user who can `edit_posts` but may not author dynamic data, a site option read resolves to empty unless the key is one GB Pro would still disclose to that user. Enforced at `bws_site_option_withheld_from_user()` ([`includes/helpers/field-helpers.php`](../../includes/helpers/field-helpers.php)), consulted by both option-read paths: `bws_site_read_option()` (key-mode plus site `linkTo:key`) and the datetime `'option'` branch of `bws_read_field()`, which reads an ACF field rather than a wp_options row and therefore restates both gates instead of inheriting them.
 
 The per-user question is asked through `bws_gb_option_allowed_for_current_user()` ([`includes/helpers/gb-trust-boundary.php`](../../includes/helpers/gb-trust-boundary.php)) — the one place this plugin asks GenerateBlocks anything about the current user. That seam calls GB Pro's own `is_option_allowed_for_current_user()` where it exists, so the *content* of the carve-out is Pro's and not ours: the shared allowlist minus every registered ACF options-page key, with Pro's `generateblocks_dynamic_tags_allowed_options_for_current_user` filter as the way back for a specific key.
 

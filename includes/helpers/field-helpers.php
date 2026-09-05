@@ -69,7 +69,7 @@ function bws_field_key_disallowed( string $key ): bool {
  * @invariant TWO INDEPENDENT GATES, both required, neither substituting for the
  * other. WHICH KEYS may ever be read is the allowlist — bws_site_allowlist_ok(),
  * axis owned by docs/adr/0001-site-option-read-allowlist.md. WHICH USER may be
- * shown a value under REST is bws_site_option_user_gated(), axis owned by
+ * shown a value under REST is bws_site_option_withheld_from_user(), axis owned by
  * docs/adr/0008-site-option-per-user-rest-gate.md. An allowlisted key is still a
  * cross-boundary read in an untrusted user's editor preview; a key nobody may read
  * stays unreadable however trusted the viewer.
@@ -84,7 +84,7 @@ function bws_site_read_option( string $key ): string {
 	if ( '' === $key
 		|| ! function_exists( 'bws_site_allowlist_ok' )
 		|| ! bws_site_allowlist_ok( $key )
-		|| bws_site_option_user_gated( $key )
+		|| bws_site_option_withheld_from_user( $key )
 		|| ! class_exists( 'GenerateBlocks_Meta_Handler' )
 	) {
 		return '';
@@ -116,12 +116,19 @@ function bws_site_read_option( string $key ): string {
  * Pro's full conjunction (`! can_author && ! key_allowed_for_user`) with the first half
  * folded into the seam.
  *
+ * THE POLARITY IS DELIBERATE AND IS WHY THE NAME SAYS "withheld". Its neighbour
+ * bws_gb_option_allowed_for_current_user() is true-for-ALLOW; this is true-for-REFUSE, and
+ * two adjacent predicates of opposite sense is how a call site ends up missing a negation.
+ * Both call sites therefore read `if ( bws_site_option_withheld_from_user( $key ) ) return '';`
+ * with no `!` next to the empty return — the refusal is in the name, not in an operator a
+ * reader can skip.
+ *
  * @since 1.19.2
  * @param string $key Option key, optionally dot-notated.
  * @return bool True when the value must be withheld and the caller returns ''.
  */
-if ( ! function_exists( 'bws_site_option_user_gated' ) ) {
-function bws_site_option_user_gated( string $key ): bool {
+if ( ! function_exists( 'bws_site_option_withheld_from_user' ) ) {
+function bws_site_option_withheld_from_user( string $key ): bool {
 	if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
 		return false;
 	}
@@ -701,7 +708,7 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
 			return '';
 		}
-		if ( bws_site_option_user_gated( $key ) ) {
+		if ( bws_site_option_withheld_from_user( $key ) ) {
 			return '';
 		}
 		return get_field( $key, 'option' );
