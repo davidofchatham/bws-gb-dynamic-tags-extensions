@@ -349,19 +349,19 @@ Progress: Not started. Five sites enumerated and the reachable ones identified (
 
 Open: Whether the two list-shaped traversal sites want the handler at all — they read relationship/repeater shapes with `single_only=false` and already try ACF first, so the handler may be the wrong route for them even where it is right for the two scalar ones.
 
-Blocked by: —  •  Interacts with: FW-125 (same GB security surface, independent halves)
+Blocked by: —  •  Interacts with: FW-125 (same GB security surface, independent halves — and this row is the cheaper half of it: `GenerateBlocks_Meta_Handler` consults `user_can_author_dynamic_data()` at four sites, so routing user-kind reads through it consumes the predicate for free)
 
-#### FW-125 — nothing in this plugin consults `generateblocks_user_can_author_dynamic_data`
+#### FW-125 — consume GB 2.4's dynamic-data trust model at the surfaces GB cannot reach
 
-GB 2.4.0 made one predicate the trust boundary for dynamic data, and GB Pro 2.7 gates its own REST-time option and ACF-field exposure on it. This plugin has no reference to it. The taint model covers our rendered output without our help (it suppresses by post source, above the callback layer), so the open question is only about the surfaces GB's suppression does not reach: our field-discovery REST envelope and the `src:site` option read under REST.
+GB 2.4.0 built a trust model for dynamic data and this plugin consumes none of it. The model is bigger than the predicate the row was originally named for: `GenerateBlocks_Save_Gate` is a rule registry that names partner plugins as registrants, `user_can_author_dynamic_data()` is one rule's `user_can` callback, and `generateBlocksEditor.canAuthorDynamicData` is a third surface (a localized JS flag GB's own editor gates its Dynamic Data panel on). Two of ours need a response — the `src:site` option read under REST, which is measurably diverged from what GB Pro 2.7 does, and the field-discovery envelope, inlined on every editor load for a user GB has decided may not author dynamic data.
 
 Detail home: `.scratch/plans/dynamic-data-trust-predicate.md`
 
-Progress: Not started. Both candidate surfaces identified and their current gates read — field discovery is `edit_posts` and returns definitions with no values; `src:site` reads carry the ADR 0001 allowlist, which is stricter than GB's blocklist but is not per-user.
+Progress: Not started; scope and approach decided 2026-09-05, 16 decisions and three commits in the detail home. Four things measured against GB 2.4.1 / Pro 2.7.1 — GB's save-gate rule already covers our tags (its `applies` keys on `{{` plus a GB block, not on tag names), `src:site` is NOT at parity (Pro blanks ACF option values for an untrusted `edit_posts` user under REST; we return them), an untrusted user can never reach the tag builder our editor controls mount inside, and our envelope carries definitions with no values. The taint model — the layer GB itself calls authoritative — turned out to be pinned nowhere, so the first commit is three `verify.php` pins before any gate lands.
 
-Open: Whether either surface owes anything. A definitions-only envelope may already be at parity with Pro 2.7, which blanks option VALUES and keeps the keys — in which case the outcome is a recorded finding, not code.
+Open: Nothing on scope. The version number is the user's call (patch by this repo's precedent).
 
-Blocked by: decision:does either surface owe a gate  •  Interacts with: FW-124
+Blocked by: —  •  Interacts with: FW-124 (routing user-kind reads through `GenerateBlocks_Meta_Handler` consumes the predicate for free — the handler calls it at four sites — so FW-124 delivers part of this row's intent without deciding anything here)
 
 #### FW-126 — two uncalled 1.2.0 thin wrappers over `ContentProcessor` in `content-helpers.php`
 
