@@ -363,6 +363,18 @@ Open: Whether either surface owes anything. A definitions-only envelope may alre
 
 Blocked by: decision:does either surface owe a gate  •  Interacts with: FW-124
 
+#### FW-126 — two uncalled 1.2.0 thin wrappers over `ContentProcessor` in `content-helpers.php`
+
+`bws_output_queued_inline_css()` and `bws_extract_and_queue_inline_styles()` are the surviving pair of a three-wrapper set added in 1.2.0 to give the `{{content}}` inline-CSS queue a `bws_`-prefixed public surface. Both define correctly and both have zero callers anywhere — the class methods they forward to are called in-class. The third wrapper of the set (`bws_queue_inline_css( $css )`) was deleted with #133 because it was additionally UNREACHABLE, shadowed since 1.17.0 by a same-named id-keyed helper; these two are not broken, only unused, which is why they were left standing rather than swept in that change.
+
+Detail home: the deletion comment at the head of the inline-CSS queue block in `includes/helpers/content-helpers.php`, which states the split and names this item
+
+Progress: Not started. Call-site census run 2026-09-05 across `includes/`, `tools/` and the docs: zero callers of either, and both are listed as public API in `docs/post-content-processing-reference.md` §Function reference.
+
+Open: Whether a documented-but-unused `bws_`-prefixed affordance is worth keeping as an extension point for an external plugin driving the content pipeline, or is a Middle Man to delete on the `rel`/`rel_2` precedent in the same file. Deleting takes the two doc rows with it.
+
+Blocked by: decision:keep as extension point or delete  •  Interacts with: —
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue

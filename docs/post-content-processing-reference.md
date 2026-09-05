@@ -295,8 +295,9 @@ Procedural API in `includes/helpers/content-helpers.php` (guarded with `function
 | `bws_has_sufficient_memory()` | `bool` | Below `bws_content_memory_threshold` (default 0.80) of `memory_limit`. |
 | `bws_is_query_loop_setup_phase( $instance )` | `bool` | Detect parent-page-context calls during GB query loop setup. |
 | `bws_safe_content_output( $content, $options, $instance )` | `string` | Final output stage; strips destructive GB options before `output()`. |
-| `bws_queue_inline_css( $css )` | `void` | Append CSS to `wp_footer`-deferred buffer. |
-| `bws_extract_and_queue_inline_styles( $content )` | `string` | Pull `<style>` from content; queue via above. |
+| `bws_queue_inline_css( $id, $css )` | `void` | **(v1.17.0)** Queue STATIC, plugin-authored CSS keyed by a stable id; each id prints at most once, in its own `<style id="…">` at `wp_footer:5`. A DIFFERENT sink from the content queue below — the 1-arg `bws_queue_inline_css( $css )` documented here through 1.19.1 was a wrapper over that other sink, was shadowed by this signature from 1.17.0 onward, and is deleted. |
+| `bws_output_queued_inline_css()` | `void` | Print the content queue — every `<style>` harvested from processed post content, concatenated without dedupe into one `<style id="bws-dynamic-content-inline-css">` at `wp_footer:5`. Wrapper over `ContentProcessor::output_queued_inline_css()`; the class registers that method itself, so nothing calls this. |
+| `bws_extract_and_queue_inline_styles( $content )` | `string` | Pull `<style>` from content; queue into the content sink above. Wrapper over `ContentProcessor::extract_and_queue_inline_styles()`, which the pipeline calls directly; nothing calls this. |
 | `bws_sanitize_rich_content( $content )` | `string` | `wp_kses_post` with GB's expanded allowed HTML temporarily filtered. |
 | `bws_content_debug( $message )` | `void` | Gated by benchmark-logging admin toggle. |
 | `bws_content_debug_start( $cache_key )` | `array` | Capture timing/memory baseline. |

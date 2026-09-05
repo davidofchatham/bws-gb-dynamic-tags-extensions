@@ -268,20 +268,27 @@ function bws_content_debug_end( $cache_key, $start_data ) {
 // POST CONTENT: INLINE CSS QUEUE (thin wrappers over ContentProcessor)
 // ===============================================
 
-/**
- * Queue CSS for output via wp_footer.
- *
- * @since 1.2.0
- * @param string $css CSS rules to queue.
- */
-if ( ! function_exists( 'bws_queue_inline_css' ) ) {
-function bws_queue_inline_css( $css ) {
-	\BWS\DynamicTags\Content\ContentProcessor::queue_inline_css( (string) $css );
-}
-}
+// bws_queue_inline_css( $css ) -- REMOVED (#133).
+//
+// The 1.2.0 wrapper over ContentProcessor::queue_inline_css() had been UNREACHABLE
+// since 1.17.0: bws_queue_inline_css( string $id, string $css ) took the same name
+// higher up this file, and the function_exists() guard here meant this body never
+// defined. Nothing called it -- a 1-arg call would have been an ArgumentCountError
+// against the 2-arg definition that wins -- so nothing changes by deleting it.
+//
+// Deleted rather than renamed: the sink it wrapped is not orphaned. The two live
+// queues are separate BY DESIGN and the id-keyed helper's docblock says so --
+// ContentProcessor::queue_inline_css() takes harvested per-post CSS and concatenates
+// without dedupe, bws_queue_inline_css( $id, $css ) takes static plugin-authored CSS
+// keyed for print-once. Both print at wp_footer:5, into different <style> elements.
+// The content sink has never had an external caller and is reached in-class.
+//
+// bws_output_queued_inline_css() and bws_extract_and_queue_inline_styles() below are
+// the other two 1.2.0 wrappers and are ALSO uncalled -- but they define fine and are
+// a different case from this one, which was broken. Tracked as FW-126, not swept here.
 
 /**
- * Output CSS queued by bws_queue_inline_css() as a single <style> element.
+ * Output CSS queued by ContentProcessor::queue_inline_css() as a single <style> element.
  *
  * Hooked to wp_footer at priority 5 (registered on first queue call).
  *
