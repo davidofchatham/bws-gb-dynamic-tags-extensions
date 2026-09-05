@@ -12,6 +12,8 @@
 
 ### Fixed
 
+- **`{{content}}` inside a query loop no longer processes the surrounding page before the loop starts, or duplicates that page's inline styles in the footer.** GenerateBlocks renders a query loop's inner blocks once against the surrounding page before it begins iterating, and throws that render away. The plugin has always had a guard meant to skip it, but the guard checked for the loop under a name GenerateBlocks does not use, so it never took effect. On a page whose content carries its own styles, those styles were being added to the page footer once per loop, on top of each row's, while contributing nothing visible. Rendered output is unchanged: the work being skipped was already discarded.
+
 - **A GB Query Enhancements Term Query or User Query loop no longer flickers in the editor while this plugin is active**, with the browser console filling with `useSelect` warnings about values that differ when nothing changed. The loop was refetching its own preview data on every render. No dynamic tag had to be present for it to happen, saved content was never affected, and the front end always rendered correctly.
 
 ## [1.19.1] — 2026-09-03

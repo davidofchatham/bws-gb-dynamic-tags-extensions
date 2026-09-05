@@ -203,26 +203,13 @@ Called once at the top of `render()`. There is no per-step recheck — once prim
 
 ## Query loop setup phase detection
 
-GB query loops execute their template multiple times per page render. The first call(s) carry the **parent page's** `postId` in `$instance->context`, not the loop item. Rendering content during setup would output the parent page's content as if it were the loop item.
+WordPress renders a block's inner blocks before that block's own `render_callback` runs, so a `generateblocks/query` subtree renders once against the **surrounding page** and GB discards the result. `bws_is_query_loop_setup_phase( $instance ): bool` reports that render, and `bws_post_content_core()` returns `''` on it rather than processing the ambient page.
 
-`bws_is_query_loop_setup_phase( $instance ): bool`:
+The discarded output costs nothing; the work of producing it does. A `{{content}}` in the setup phase runs the full `bws_process_post_content()` pipeline over the surrounding page and queues whatever inline CSS it extracts into the footer buffer below, which concatenates without dedupe. Measured on GB 2.4.1: a two-row loop on a page carrying one `<style>` queued that CSS twice while contributing zero bytes of visible output (#133).
 
-```php
-if ( ! isset( $instance->context['queryId'] ) ) {
-    return false; // Not in a query loop at all.
-}
-$context_post_id = $instance->context['postId'] ?? null;
-if ( null === $context_post_id ) {
-    return true;  // queryId set, postId not — setup.
-}
-return (int) $context_post_id === (int) get_the_ID();
-```
+**What decides it is stated once, in the function's own PHPDoc** (`includes/helpers/content-helpers.php`) — including why the post-id comparison is safe and why the loop-item key cannot answer the question. Don't restate the predicate here; two copies of it is how the original defect survived from 1.1.0 to 1.19.1 unnoticed.
 
-Returns `true` (skip processing) when:
-- We're in a query (`queryId` present) AND
-- `postId` is missing OR matches the global post (the outer page).
-
-Callers short-circuit with `return ''` when this returns `true`. The "real iteration" calls always have a `postId` distinct from the outer page's `get_the_ID()` and pass through.
+The number of setup renders is **not fixed**: a single loop produces two, and nesting multiplies (a loop inside a loop produced eight across eighteen renders). GB's side of this is `docs/gb-constraints.md` §The query block renders its inner blocks once before it iterates. Pinned by `tools/test/block-context-keys-test.php`.
 
 ---
 
@@ -349,8 +336,14 @@ WP_Block {
     name: string              // e.g., 'generateblocks/text'
     parsed_block: array       // Raw block data
     context: array {
-        postId: int|null      // Current post in context
-        queryId: int|null     // Query loop ID if present
+        // GB namespaces every key it provides. A bare spelling of one of these is
+        // not an error -- isset() just answers false forever. See #133.
+        'generateblocks/queryId'   : string|null  // present ONLY in a query block's
+                                                  // discarded pre-render; the looper
+                                                  // drops it for real iterations
+        'generateblocks/queryType' : string|null  // 'WP_Query', 'post_meta', ...
+        'generateblocks/loopItem'  : mixed|null   // set per iteration by the looper
+        'postId'                   : int|null     // WP core key, bare by convention
     }
     inner_blocks: array
 }

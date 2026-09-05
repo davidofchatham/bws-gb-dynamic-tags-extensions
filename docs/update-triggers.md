@@ -78,6 +78,22 @@ run `node tools/test/editor-preview-context-test.js`. It is a CENSUS, not a test
 
 **Verify by MUTATION:** put the plain `{ ...context, bwsEditorPreview: true }` back and confirm the suite fails (measured 2026-09-04: 4 of 13 checks, including the chain-level one). A caching fix that is not actually caching passes every other check in the file. The absent-context branch takes its own mutation — empty its shared object and the flag check fails alone (1 of 13), because stability and doing the filter's job are separate properties on that path.
 
+## Block-CONTEXT key change
+
+**Fires on:** `bws_is_query_loop_setup_phase()` (`includes/helpers/content-helpers.php`), or ANY new read of a key off `$instance->context` anywhere in shipped PHP
+
+run `php tools/test/block-context-keys-test.php`. Two halves: it drives the setup-phase guard against context shapes captured off a real GB render, and it CENSUSES the tree for every literal `->context['…']` subscript, failing on a key the file has not recorded a provenance for.
+
+**What it proves:** that the guard answers correctly for the query block's own pre-render, the looper's pre-render, a real iteration, a nested inner query's pre-render, and a tag outside any loop — and that no shipped file reads a GB-provided key under a bare spelling.
+
+**The census is the half that matters, and it is a census for a reason.** The defect it exists over (#133) was a guard that read `context['queryId']` where GB provides `generateblocks/queryId`. A misspelled context key is not an error in PHP: `isset()` on the wrong spelling is a legal expression whose answer is indistinguishable from a real negative, so the guard returned `false` for eighteen releases and nothing anywhere noticed. That failure decays by ADDITION — the next wrong key is in a function nobody has written yet — so a per-function test would pin one spelling and miss the class. Adding a row to `$vocabulary` is the intended response to a failure, not a way around it: the row is where the author has to say whether the key is GB's, WP's, or ours, which is what decides its spelling.
+
+**What it does not prove, and cannot:** that GB still provides `generateblocks/queryId`, or still discards a pre-render at all. Both halves are static — fabricated context arrays and source text — so if a future GB renames the key or stops providing it, every assertion passes and the guard is dead again in the original way. That case belongs to the dependency-version trigger; re-drive the probe recorded on #133 when GB moves.
+
+**Verify by MUTATION:** put the bare `queryId` back and confirm the suite fails (measured 2026-09-05: 6 of 11 checks — four in the guard, two in the census). Both halves must fire. A repair that added the namespaced key BESIDE the old one would leave the guard's checks green while the census still failed, which is why the census names the bare spelling specifically rather than only checking for an unrecorded one.
+
+**The page snapshots cannot see this.** The setup render's output is discarded by GB either way, so suppressing it moves no rendered byte — a full 17-page run passed unchanged across the fix (2026-09-05). What the fix removes is invisible to that instrument: wasted `bws_process_post_content()` passes and the footer CSS they queue.
+
 ## Serialization-order change
 
 **Fires on:** Serialization-order change (`bws_serialization_order_sort` or its map-shaped sibling `bws_serialization_order_sort_map` in `includes/helpers/serialization-order.php`, its JS port `serialization-order-normalizer.js`, or the canonical KEY_MAP/group ranks)

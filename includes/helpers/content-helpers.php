@@ -166,24 +166,47 @@ function bws_has_sufficient_memory() {
 /**
  * Detect if we're in a GB query loop setup phase (not a real iteration).
  *
- * During setup, queryId is present in context but postId is missing or
- * still matches the outer page ID. Processing content at this stage would
- * show the wrong post's content or cause unnecessary overhead.
+ * WordPress renders a block's inner blocks before the block's own render_callback
+ * runs, so a `generateblocks/query` subtree renders once against the SURROUNDING
+ * page and GB discards that output. See docs/gb-constraints.md for GB's side of it.
+ * The output being discarded is not the problem; the side effects of producing it
+ * are, and {{content}} has one -- it queues the surrounding page's extracted inline
+ * CSS into a footer buffer that does not dedupe, once per setup render.
+ *
+ * THE AXIS IS `generateblocks/queryId`'S PRESENCE, AND NOTHING ELSE DISCRIMINATES.
+ * GB provides the key namespaced (`providesContext` on the query block, and
+ * `provides_context` on the v1 query-loop), while the looper builds each row's inner
+ * block from a FRESH context that carries no queryId at all. So the key is present
+ * during exactly the discarded renders and absent during every real one. Two
+ * consequences worth naming, because both look like defects on a first read:
+ *
+ *   - `$context_post_id === get_the_ID()` is TRUE on every genuine iteration too --
+ *     the looper sets postId from the row it has just made current. That comparison
+ *     is safe here only because an iteration never reaches it.
+ *   - `generateblocks/loopItem` can be PRESENT during a setup phase (a nested query
+ *     block pre-rendering inside an outer row), so the plugin's usual loop
+ *     discriminator does not answer this question.
+ *
+ * Both arms are load-bearing: the query block's own pre-render carries the ambient
+ * page's postId, the looper's carries none.
  *
  * @since 1.1.0
+ * @since 1.19.2 Reads `generateblocks/queryId`. It read a bare `queryId` from 1.1.0,
+ *               which GB has never set, so the guard returned false unconditionally
+ *               and had never fired (#133). Pinned by tools/test/block-context-keys-test.php.
  * @param object|null $instance Block instance.
  * @return bool True if in setup phase (should skip processing).
  */
 if ( ! function_exists( 'bws_is_query_loop_setup_phase' ) ) {
 function bws_is_query_loop_setup_phase( $instance ) {
-	if ( ! isset( $instance->context['queryId'] ) ) {
-		return false; // Not in a query loop.
+	if ( ! isset( $instance->context['generateblocks/queryId'] ) ) {
+		return false; // Not inside a query block's subtree.
 	}
 
 	$context_post_id = $instance->context['postId'] ?? null;
 
 	if ( null === $context_post_id ) {
-		return true; // queryId set but no postId — setup phase.
+		return true; // The looper's own pre-render: query context, no post to render against.
 	}
 
 	return (int) $context_post_id === (int) get_the_ID();
