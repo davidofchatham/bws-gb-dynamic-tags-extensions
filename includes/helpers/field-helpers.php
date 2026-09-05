@@ -66,7 +66,16 @@ function bws_field_key_disallowed( string $key ): bool {
  * in raw get_option. The datetime path reads ACF FIELDS via
  * get_field($key,'option') — a different datum, separate reader, same gate.
  *
+ * @invariant TWO INDEPENDENT GATES, both required, neither substituting for the
+ * other. WHICH KEYS may ever be read is the allowlist — bws_site_allowlist_ok(),
+ * axis owned by docs/adr/0001-site-option-read-allowlist.md. WHICH USER may be
+ * shown a value under REST is bws_site_option_user_gated(), axis owned by
+ * docs/adr/0008-site-option-per-user-rest-gate.md. An allowlisted key is still a
+ * cross-boundary read in an untrusted user's editor preview; a key nobody may read
+ * stays unreadable however trusted the viewer.
+ *
  * @since 1.9.0
+ * @since 1.19.2 Per-user REST gate (ADR 0008).
  * @param string $key Option key (may contain a dot-path for wp_options arrays).
  * @return string Resolved string value, or '' on disallow / miss / non-string.
  */
@@ -75,12 +84,57 @@ function bws_site_read_option( string $key ): string {
 	if ( '' === $key
 		|| ! function_exists( 'bws_site_allowlist_ok' )
 		|| ! bws_site_allowlist_ok( $key )
+		|| bws_site_option_user_gated( $key )
 		|| ! class_exists( 'GenerateBlocks_Meta_Handler' )
 	) {
 		return '';
 	}
 	$value = GenerateBlocks_Meta_Handler::get_option( $key, true, '' );
 	return is_string( $value ) ? $value : '';
+}
+}
+
+/**
+ * Whether this REST request must withhold one option's VALUE from the current user.
+ *
+ * THE SECOND AXIS on every site option read. ADR 0001's allowlist asks which KEYS may
+ * ever be read and is silent on who is reading; this asks whether the current user may
+ * be shown a value at all right now. Both apply at every option-read site — see the
+ * @invariant on bws_site_read_option(). The axis is owned by
+ * docs/adr/0008-site-option-per-user-rest-gate.md; this function is where it is enforced.
+ *
+ * SCOPED TO REST + edit_posts, MIRRORING GB PRO 2.7 EXACTLY, and both halves of that
+ * scope are load-bearing. Only edit_posts+ users reach REST routes that render UNSAVED
+ * content (the dynamic-tag preview endpoint, core's block-renderer), which is the
+ * disclosure this closes; a front-end render of SAVED content is already public, and
+ * anonymous REST is left alone deliberately because blanking it would break headless
+ * parity for sites reading their own published pages over the API.
+ *
+ * The per-user question itself is not asked here — bws_gb_option_allowed_for_current_user()
+ * is the one place this plugin asks GB anything about the current user, and it already
+ * short-circuits true for a user who may author dynamic data. So the negation below is
+ * Pro's full conjunction (`! can_author && ! key_allowed_for_user`) with the first half
+ * folded into the seam.
+ *
+ * @since 1.19.2
+ * @param string $key Option key, optionally dot-notated.
+ * @return bool True when the value must be withheld and the caller returns ''.
+ */
+if ( ! function_exists( 'bws_site_option_user_gated' ) ) {
+function bws_site_option_user_gated( string $key ): bool {
+	if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+		return false;
+	}
+
+	if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'edit_posts' ) ) {
+		return false;
+	}
+
+	if ( ! function_exists( 'bws_gb_option_allowed_for_current_user' ) ) {
+		return false;
+	}
+
+	return ! bws_gb_option_allowed_for_current_user( $key );
 }
 }
 
@@ -634,11 +688,20 @@ function bws_read_field( string $key, $instance, $post_id, bool $single_only = t
 	// DT-1: src:site datetime — ACF options-page field value read. The 'option'
 	// sentinel reaches here only from bws_datetime_single_core('option', ...) (site
 	// datetime path); all other callers pass int/loop ids and never hit this branch,
-	// so behavior is unchanged for them. Gated through the SAME allowlist as use:option
-	// and site linkTo:key (V2). ACF field keys are flat — no dot-path split.
-	// See docs/adr/0001-site-option-read-allowlist.md.
+	// so behavior is unchanged for them. Gated through the SAME TWO gates as use:option
+	// and site linkTo:key (V2) — the key allowlist and the per-user REST gate. ACF field
+	// keys are flat — no dot-path split. This branch does NOT route through
+	// bws_site_read_option() (it reads an ACF FIELD via get_field, a different datum), so
+	// both gates are restated here rather than inherited — which is the whole reason
+	// ADR 0001's "option reads are option reads regardless of which control triggers
+	// them" is worth having as a sentence.
+	// See docs/adr/0001-site-option-read-allowlist.md and
+	// docs/adr/0008-site-option-per-user-rest-gate.md.
 	if ( 'option' === $post_id && function_exists( 'get_field' ) ) {
 		if ( function_exists( 'bws_site_allowlist_ok' ) && ! bws_site_allowlist_ok( $key ) ) {
+			return '';
+		}
+		if ( bws_site_option_user_gated( $key ) ) {
 			return '';
 		}
 		return get_field( $key, 'option' );

@@ -22,6 +22,8 @@ $allowed = apply_filters( 'generateblocks_dynamic_tags_allowed_options', $seed )
 
 So out of the box: the six common WP options **and every ACF options-page field** read without any manual filter. Arbitrary *non-ACF, non-default* wp_options keys still require an explicit `add_filter`.
 
+**A SECOND, INDEPENDENT GATE LIVES AT THE SAME READS.** This ADR owns WHICH KEYS may ever be read. [ADR 0008](0008-site-option-per-user-rest-gate.md) owns WHICH USER may be shown a value, and when — a per-user REST gate added in 1.19.2 mirroring GB Pro 2.7. The two do not trade off: being stricter than Pro on keys buys nothing against an untrusted user previewing an allowlisted one. Read both before changing either.
+
 ## Why a gate at all
 
 - **Options are global; an open read surface is information disclosure.** Unlike post meta (entity-scoped), `wp_options` holds settings from every plugin, some sensitive. An ungated read (even into an `href` via `linkTo:key`) would leak them. The allowlist keeps the *arbitrary-key* surface closed.
