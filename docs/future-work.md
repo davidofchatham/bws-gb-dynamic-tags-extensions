@@ -339,6 +339,30 @@ Progress: Not started. Our side is fixed and pinned (1.19.x, `editor-preview-con
 
 Blocked by: —  •  Interacts with: FW-102 (a separate defect, same recipient — the two reports can travel together but neither waits on the other)
 
+#### FW-124 — user-kind field reads bypass `GenerateBlocks_Meta_Handler`
+
+Post and term field reads route through `bws_meta_handler_read()`, and so inherit whatever GB's handler enforces and whatever `generateblocks_get_meta_pre_value` supplies. The user kind never joined them: five sites call `get_user_meta()` (or `get_field( …, 'user_N' )`) directly. GB treats user meta as its most restricted class — a safe-key allowlist gated on `list_users`, plus own-record access — and none of that is in the path, nor is GB Pro's ACF filter at the two sites that make no `get_field()` attempt of their own.
+
+Detail home: `.scratch/plans/user-kind-meta-handler.md`
+
+Progress: Not started. Five sites enumerated and the reachable ones identified (the `{{text}}`/`{{content}}`/`{{title}}` user arm is live via `try_user_fn`); GB's own gating read in 2.4.1 and recorded in `docs/gb-constraints.md` §Dynamic data is suppressed by POST SOURCE.
+
+Open: Whether the two list-shaped traversal sites want the handler at all — they read relationship/repeater shapes with `single_only=false` and already try ACF first, so the handler may be the wrong route for them even where it is right for the two scalar ones.
+
+Blocked by: —  •  Interacts with: FW-125 (same GB security surface, independent halves)
+
+#### FW-125 — nothing in this plugin consults `generateblocks_user_can_author_dynamic_data`
+
+GB 2.4.0 made one predicate the trust boundary for dynamic data, and GB Pro 2.7 gates its own REST-time option and ACF-field exposure on it. This plugin has no reference to it. The taint model covers our rendered output without our help (it suppresses by post source, above the callback layer), so the open question is only about the surfaces GB's suppression does not reach: our field-discovery REST envelope and the `src:site` option read under REST.
+
+Detail home: `.scratch/plans/dynamic-data-trust-predicate.md`
+
+Progress: Not started. Both candidate surfaces identified and their current gates read — field discovery is `edit_posts` and returns definitions with no values; `src:site` reads carry the ADR 0001 allowlist, which is stricter than GB's blocklist but is not per-user.
+
+Open: Whether either surface owes anything. A definitions-only envelope may already be at parity with Pro 2.7, which blanks option VALUES and keeps the keys — in which case the outcome is a recorded finding, not code.
+
+Blocked by: decision:does either surface owe a gate  •  Interacts with: FW-124
+
 ### Feature follow-ups & UX
 
 #### FW-9 — Context-aware base tags — the deferred residue

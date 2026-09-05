@@ -161,12 +161,14 @@ Two consequences the plugin depends on:
 
 GB hooks WP's `render_block` at priority 10 (`includes/dynamic-tags/class-dynamic-tags.php:25`), so
 the callback fires for **every** block on the page — including core blocks. It then gates
-immediately on block name alone (`:374-382`):
+immediately on block name alone (`:374-392`, re-read on GB 2.4.1):
 
 ```php
 public function replace_tags( $content, $block, $instance ) {
     $block_name = $block['blockName'] ?? '';
     if ( $block_name && in_array( $block_name, $this->get_allowed_blocks(), true ) ) {
+        // …then a second gate, on the post the markup came from, not on the block:
+        // see §Dynamic data is suppressed by POST SOURCE.
         return GenerateBlocks_Register_Dynamic_Tag::replace_tags( $content, $block, $instance );
     }
     return $content;   // every non-GB block exits here, untouched
@@ -187,6 +189,41 @@ Whether a given core block can actually *hold* a tag is a WP-core question, not 
 Caveats when extending: the tag must be a **registered** GB dynamic tag (the pattern is built from
 `array_keys( $availableTags )`), dynamic-tag security/context still applies, and a non-GB block
 supplies **no loop context** — only ambient-entity tags resolve there.
+
+## Dynamic data is suppressed by POST SOURCE, not by tag name (GB 2.4.0+)
+
+GB 2.4.0 added a second gate under the block-name one above, and it is the reason this plugin's tags are covered by GB's newest security work without registering anything. Where the 2.2.0 per-key rules it REPLACED singled out `{{post_meta}}` / `{{term_meta}}` / `{{user_meta}}` **by name** (the last three blocks of this section, which is also where 2.4.0's removal of them is recorded), this model asks only who last saved the post the markup came from. Every registered dynamic tag is in scope, GB's and ours alike.
+
+Read in GB **2.4.1** source on the fixture site (`includes/class-dynamic-tag-security.php`, `includes/class-save-gate.php`, `includes/dynamic-tags/class-dynamic-tags.php`, `includes/dynamic-tags/class-register-dynamic-tag.php`), 2026-09-04. **Read, not measured** — nothing here drives a restricted user through the gate, so treat the behavior as GB's stated design rather than an observation.
+
+**Three layers, in save order.**
+
+| Layer | Where | What it does |
+|---|---|---|
+| **Save gate** | `GenerateBlocks_Save_Gate`, rule id `dynamic_data` registered at `class-dynamic-tag-security.php:146` | Refuses the save outright when a user who cannot author dynamic data submits content the rule `applies` to. Covers classic `wp_insert_post_data`, REST `rest_pre_insert_*`, and the autosave route. |
+| **Taint stamp** | `update_untrusted_dynamic_content_meta()` on `wp_after_insert_post` priority 0 (`:119`, body `:458`) | Writes post meta `_generateblocks_untrusted_dynamic_content` = `{user_id, time}` when a restricted user's save **changed the content**; a trusted user's save **clears** it. Revisions and autosaves are skipped so an autosave cannot flip the parent's state. |
+| **Render suppression** | `should_suppress_dynamic_data()` (`:1080`) → `replace_dynamic_tags_with_empty()` (`:1101`) | While a tainted post is the innermost content source, every dynamic tag in the output is replaced with `''`. |
+
+**The `applies` predicate never looks at tag names.** It is `should_validate_content()` (`:180`): `strpos( $content, '{{' )` plus `has_block()` against `get_dynamic_tag_enabled_blocks()` — the same allow-list §Replacement is gated on block NAME quotes. Legacy v1 dynamic attributes match independently of `{{`. So a restricted user saving a `{{text}}` of ours inside a `generateblocks/text` block is blocked exactly as a `{{post_meta}}` would be.
+
+**The blanker enumerates the registry, not a pattern.** `replace_dynamic_tags_with_empty()` builds its replacement set from `GenerateBlocks_Register_Dynamic_Tag::find_matches( $block_html, GenerateBlocks_Register_Dynamic_Tag::get_tags() )` — `get_tags()` is the whole registry, which is where our tags live too.
+
+**Both suppression checks sit ABOVE the per-tag callback layer**, so no callback of ours runs inside a suppressed frame and there is nothing for a tag author to opt into:
+
+- `GenerateBlocks_Dynamic_Tags::replace_tags()` (`class-dynamic-tags.php:378-387`) — blanks on `should_suppress_dynamic_data()` **or** `is_non_trusted_block_renderer_rest_request()` (a `/wp/v2/block-renderer` request from a user who cannot author dynamic data), before it delegates.
+- `GenerateBlocks_Register_Dynamic_Tag::replace_tags()` (`class-register-dynamic-tag.php:124-131`) — the same `should_suppress_dynamic_data()` check again, at the lowest replacement layer, so direct callers that resolve an attribute value without passing through `render_block` are covered too.
+
+**How a source frame gets pushed.** `the_content` at `-PHP_INT_MAX` / `PHP_INT_MAX` and `render_block_data` / `render_block` push and pop frames (`:122-125`); `render_with_content_source( $post_id, $callback )` (`:1061`) declares one around a raw `do_blocks()` of stored content — GB Pro 2.7 wraps its overlay, form, classic-menu and pattern-preview renders in it via `generateblocks_pro_render_with_content_source()`. A frame with no known post is neutral: it resolves unless a tainted **parent** frame is on the stack, and `should_suppress_dynamic_data()` returns true if **any** frame in the stack is tainted.
+
+**The trust predicate is one filterable call.** `GenerateBlocks_Dynamic_Tag_Security::user_can_author_dynamic_data()` (`:345`) defaults to `current_user_can( 'unfiltered_html' ) || current_user_can( 'manage_options' )` and is filtered by `generateblocks_user_can_author_dynamic_data`. GB's own docblock calls returning `true` a disclosure of protected meta, other users' meta, options and cross-post data — grant it deliberately. Enforcement of the whole save gate is separately filterable via `generateblocks_enforce_dynamic_data_save_gate`.
+
+**Existing content is grandfathered by construction, and recovery is a re-save.** The taint is post meta that only a restricted user's content-changing save writes, so nothing saved before 2.4.0 carries it. A trusted user re-saving a tainted post clears the marker — that is the documented way back, and it is why a no-op touch by a restricted user is deliberately made not to re-taint.
+
+**What replaced the 2.2.0 per-key rules, and why there is nothing left to inherit.** 2.2.0 validated meta KEYS NAMED INSIDE TAG STRINGS at save time: a rule table keyed on literal tag names (`/\{\{post_meta…key:([^|}]+)…}}/i` and its `term_meta` / `user_meta|author_meta` siblings), each regex feeding the captured key to a validator — underscore-protected keys refused for post and term, and for user additionally `DISALLOWED_KEYS` plus anything outside `get_safe_user_meta_keys()`, that whole rule bypassed by `list_users`. A `link:post_meta,<field>`-shaped option inside ANY tag was scanned too. Violations were counted by a `type:field` signature and grandfathered against what the saved post already held, so an existing violation could be re-saved but not joined by a new one.
+
+**2.4.0 removed that model rather than extending it.** `validate_content()` is now `unset( $content ); return true;`, carrying `@deprecated 2.4.0 No-op stub` — as do `validate_content_with_existing_signatures()`, `get_restricted_reference_signatures()`, `should_validate_user_meta_fields()` and `register_rest_validation_for_post_types()` (empty body). The rule table, the signature scanner and the `generateblocks_dynamic_tag_validation_rules` filter are gone from free; GB Pro 2.7 registers its `option` rule on that filter ONLY when free is 2.3.x or older, guarded by a `method_exists()` probe for the taint model. The three `validate_*_field_name()` methods survive with no caller. **`get_safe_user_meta_keys()` is the one piece still live**, and it moved to the read side: `Meta_Handler`'s REST-time user gate and `GenerateBlocks_Dynamic_Tags`' user-record REST field both consult it.
+
+**So the name-scoping never mattered on this version.** It is worth stating anyway, because it is the reason a 2.2.x-era or 2.3.x-era GB gives this plugin's tags a different save-time treatment than GB's own: no pattern in that table could match a tag of ours, so `validate_content()` never scanned this plugin's output on any version — it declined to on the old ones and does not exist to on the new. Our read-layer response to the same exposure is enforced at `bws_field_key_disallowed()` ([`includes/helpers/field-helpers.php`](../includes/helpers/field-helpers.php)), whose PHPDoc states what it covers; post and term reads additionally inherit `GenerateBlocks_Meta_Handler::get_meta()`'s own REST-time checks by routing through it. The user kind does not route through it — [`future-work.md` FW-124](future-work.md).
 
 ## No escaping anywhere in the replacement path — tags may return raw HTML
 
