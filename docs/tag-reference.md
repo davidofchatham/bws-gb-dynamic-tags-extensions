@@ -480,6 +480,16 @@ All other image options follow the standard rule. `as` is the documented excepti
 
 ---
 
+## Response to GB's dynamic-data trust model
+
+GB 2.4 guards dynamic data with a save gate and a render-time post-source taint model, and GB Pro 2.7 gates its own REST-time option and ACF exposure on one trust predicate (the GB facts, and which layer GB itself calls authoritative: [`gb-constraints.md` §Dynamic data is suppressed by POST SOURCE](gb-constraints.md#dynamic-data-is-suppressed-by-post-source-not-by-tag-name-gb-240)). The plugin's response has three parts.
+
+**No save-gate rule of our own.** GB's `dynamic_data` rule already applies to our tags — its predicate keys on `{{` plus a dynamic-tag-enabled GB block, never on tag names — so a rule of ours would be a second rule over identical content. Because a registrant's absence is undetectable by construction, what stands in for the rule is a pin rather than a comment: `verify.php`'s P1 pair asserts both that a GB block carrying one of our tags IS scanned and that one of our tags outside a GB block is NOT, so "we are covered by GB's predicate" breaks loudly if GB ever narrows it to a name list.
+
+**Site option reads take a per-user gate.** Under REST, an `edit_posts` user who may not author dynamic data reads the tag's fallback instead of the value, for keys GB Pro would also withhold. Stated with the source it governs, in [§Site Source (`src:site`)](#site-source-srcsite) above.
+
+**Field discovery is not sent to a user who cannot use it.** The field-key envelope is inlined on editor load and served by a REST route; both now require the same predicate. This is not a value gate — the envelope carries field definitions and never values, which is already where GB Pro 2.7 landed. It is a reachability one: GB gives a user who fails the predicate no tag builder, and our editor controls mount only inside that builder, so the envelope reaches somebody with no way to use it. An untrusted editor load gets an empty envelope rather than none, because the control treats a missing one as "inline failed" and falls back to fetching the now-gated route.
+
 ## Falsy replacement: the `'0'` and empty-`alt` pads
 
 GB kills the containing block when a tag's replacement is falsy, and PHP counts `'0'` as falsy

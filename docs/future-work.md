@@ -349,9 +349,21 @@ Progress: Not started. Five sites enumerated and the reachable ones identified (
 
 Open: Whether the two list-shaped traversal sites want the handler at all — they read relationship/repeater shapes with `single_only=false` and already try ACF first, so the handler may be the wrong route for them even where it is right for the two scalar ones.
 
-Blocked by: —  •  Interacts with: FW-126 (a user-kind fixture serves both). The rest of the GB security surface shipped in 1.19.2 (`docs/design-history/dynamic-data-trust-predicate.md`) and left this row untouched on purpose — but note it is the cheap half of the same thing: `GenerateBlocks_Meta_Handler` consults `user_can_author_dynamic_data()` at four sites, so routing user-kind reads through it consumes the predicate for free.
+Blocked by: —  •  Interacts with: FW-127 (a user-kind fixture serves both). The rest of the GB security surface shipped in 1.19.2 (`docs/design-history/dynamic-data-trust-predicate.md`) and left this row untouched on purpose — but note it is the cheap half of the same thing: `GenerateBlocks_Meta_Handler` consults `user_can_author_dynamic_data()` at four sites, so routing user-kind reads through it consumes the predicate for free.
 
-#### FW-126 — no untrusted-user fixture, so the per-user gates are measured by hand
+#### FW-126 — two uncalled 1.2.0 thin wrappers over `ContentProcessor` in `content-helpers.php`
+
+`bws_output_queued_inline_css()` and `bws_extract_and_queue_inline_styles()` are the surviving pair of a three-wrapper set added in 1.2.0 to give the `{{content}}` inline-CSS queue a `bws_`-prefixed public surface. Both define correctly and both have zero callers anywhere — the class methods they forward to are called in-class. The third wrapper of the set (`bws_queue_inline_css( $css )`) was deleted with #133 because it was additionally UNREACHABLE, shadowed since 1.17.0 by a same-named id-keyed helper; these two are not broken, only unused, which is why they were left standing rather than swept in that change.
+
+Detail home: the deletion comment at the head of the inline-CSS queue block in `includes/helpers/content-helpers.php`, which states the split and names this item
+
+Progress: Not started. Call-site census run 2026-09-05 across `includes/`, `tools/` and the docs: zero callers of either, and both are listed as public API in `docs/post-content-processing-reference.md` §Function reference.
+
+Open: Whether a documented-but-unused `bws_`-prefixed affordance is worth keeping as an extension point for an external plugin driving the content pipeline, or is a Middle Man to delete on the `rel`/`rel_2` precedent in the same file. Deleting takes the two doc rows with it.
+
+Blocked by: decision:keep as extension point or delete  •  Interacts with: —
+
+#### FW-127 — no untrusted-user fixture, so the per-user gates are measured by hand
 
 The two per-user gates FW-125 shipped are only observable as a specific user under REST, and nothing in either test layer can drive that. `verify.php` cannot define `REST_REQUEST` without poisoning every later check in the same run, and the blueprint has no seeded user whose role makes them untrusted by GB's default (`fixture-author` happens to be an Author and therefore works, but nothing states that it must stay one, and nothing fails if it stops). Both gates were confirmed by a throwaway three-arm probe recorded in their commit bodies — a measurement, not a regression test.
 
