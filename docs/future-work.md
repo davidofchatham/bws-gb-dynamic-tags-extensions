@@ -507,7 +507,7 @@ Progress: Settled for #99 as DISCLOSURE, not enumeration — the Migration Tool 
 
 Open: The enumeration half (a sweep of postmeta/options/termmeta reporting what unreachable wire it finds) stays deferred as undesigned. Whether the deferred notice rides FW-66/#77's `announcement` lifecycle is undecided — its remit (a release CHANGED output) does not cleanly cover "there is maintenance work to run".
 
-Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened)
+Blocked by: decision:disclosure vs enumeration  •  Interacts with: FW-66 (notice deferral, reopened), FW-128 (the report half of the same instrument — this row is where the walk REACHES, that one is what a walk can answer; whether the enumeration half lands there instead is open on both rows)
 
 #### FW-85 — Per-item link wrapping for list-mode values
 
@@ -638,6 +638,18 @@ Progress: Not started, and DEFERRED behind `{{table}}` by decision (2026-09-04) 
 Open: When, and how much. The resolved-source dispatch this rides on is the feature's MECHANISM, not a separable improvement — priced 2026-09-04, the two payoffs previously claimed for it standalone (retiring the #104 `limit` write-back and the `id` threading) do not survive: the first carries a wire-ERA fact that travels regardless, the second collapses only once a single tag-level resolution exists to thread into. What is left standalone is reuse of a repeated `src(same)` traversal, which is a cache.
 
 Blocked by: row:FW-53  •  Interacts with: FW-53, FW-106 (the parse half of the same re-derivation; whether its parse-once record also carries the resolved-source BINDING is FW-106's own scope call), FW-71 (closed)
+
+#### FW-128 — A multi-purpose content scanner: one walk, several reports
+
+The scanner today walks `post_content` to answer ONE question — which strings a registered migration entry can rewrite — and its report is shaped entirely by that. The walk itself is general, and other questions want the same pass: **validity** (wire naming an entity, field key or relationship that no longer exists), **tags in use** (what this site actually authors, per tag and per option shape), and plausibly more. This item is the generalization: a walk that classifies every BWS tag string once, with migration demoted to one report over it rather than the reason the walk exists.
+
+Detail home: this row (raised in the FW-39 grilling, 2026-09-07; the per-block handling a site-wide report complements is decided in `.scratch/fw-39-id-source/spec.md`)
+
+Progress: Not started. Two consumers already exist and are recorded elsewhere, which is what distinguishes this from a nice-to-have. **Validity:** FW-39 settles what happens without it — a dangling `src:term,34` renders silent-empty per the §V2 rule and the editor's tag configuration preview marks it `(missing)` — so an author only learns of a broken pin by opening the block that holds it, and there is no site-wide answer. **Tags in use:** the deprecation progression gates step 3 (unregistering a family) on the unreachable surfaces being EMPTY rather than on elapsed releases, because an unregistered tag renders LITERALLY — see `docs/design-history/external-source-roots.md` Q7. An inventory report is what could answer that; today nothing can, which is part of why FW-33 and FW-67 defer removal indefinitely.
+
+Open: Whether the generalized scanner SUBSUMES the migration scan (one walk, migration becomes a report) or sits beside it — the existing walk is driven by registered migration entries, so a general walk inverts the relationship. Whether FW-73's enumeration half (a sweep of postmeta / options / termmeta for wire `post_content` cannot reach) folds in here as the reach dimension, or stays its own row: reports and reach are separable, and FW-73 is already settled as DISCLOSURE for the migration reader specifically. What the report SURFACE is, given the current one has a migration audience and these questions have a maintenance audience. And which validity classes are decidable by inspection at all — a deleted term is, a field key that ACF supplies conditionally is not.
+
+Blocked by: row:FW-39 (for the validity half — it creates the first class a scan can decide)  •  Interacts with: FW-73 (the reach half of the same instrument), FW-33 and FW-67 (a tags-in-use report is what their removal step waits on), FW-13 (a field-key validity check would read the same discovery envelope)
 
 ### Testing & infrastructure
 
@@ -887,11 +899,13 @@ Blocked by: —  •  Interacts with: FW-30
 
 Subsumed by base tags + context-aware kinds (#19, closed) + the ID source (FW-39); registry-only re-add expected after. `view_` does not follow this path — it is external and may stay even when `src:view` lands. This item also homes `term_`'s collapsed-fan gap (a `term_` tag with a fanning source silently returns one result).
 
-Detail home: memory `project_term_deprecation_path.md`; the de-scoping decision `docs/design-history/multi-step-slot-sources.md` §History
+Detail home: `.scratch/fw-39-id-source/spec.md` (the deprecation half is designed there beside the capability that gates it); memory `project_term_deprecation_path.md`; the de-scoping decision `docs/design-history/multi-step-slot-sources.md` §History
 
-Progress: `view_` now runs ahead of this item on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The collapsed-fan gap (GH #63, closed) resolves for free once migrated, since ADR 0005's per-step limits already apply to a base tag.
+Progress: `view_` now runs ahead of this item on its own path (FW-70) — registrations never retire (an unregistered tag stops rendering entirely), so `view_*` wire migrates to `src:view` while `term_*` wire does not. Both families keep the flat `srcTermIn` control until `register_modifier()` itself retires (FW-67). The family's one remaining capability is PINNING A SPECIFIC TERM, which it gets from GB's own picker via `gb_type:'term'` — established 2026-09-06; every other `term_*` shape has a base-tag equivalent today, which is why FW-9 is no longer a gate. Closure is one release carrying all three of parity, converter entries, and `term_*` re-registered through `MigrationRegistry` `type:'tag'` (which stamps `gb_type='deprecated'`); only REMOVAL is deferred, and the availability window sits before that rather than before deprecation. The collapsed-fan gap (GH #63, closed) does NOT resolve for free: migration is output-neutral, so a migrated tag carries the materialized flat-era number and the gap closes when the author deletes it.
 
-Blocked by: row:FW-9, code:ID source lands  •  Interacts with: FW-8, FW-67, FW-70 (closed)
+Open: The ownership guard the converter needs. Measured on portals.test 2026-09-06 — `term_title` and `term_description` there are GB Query Enhancements' tags (we yielded the names), GBQE registers them with the same `type:'term'` + `source` support, and so the wire carries the same `id`/`tax` keys ours would: option vocabulary cannot tell the two plugins' strings apart. The yield record gates by default and means "cannot prove ownership", with a per-tag-name admin opt-in to lift it.
+
+Blocked by: code:ID source lands  •  Interacts with: FW-39 (the gate), FW-8, FW-67, FW-70 (closed)
 
 #### FW-34 — Configurable default field keys per source × tag-type
 
@@ -919,13 +933,13 @@ Blocked by: row:FW-59, row:FW-61  •  Interacts with: FW-3, FW-81, FW-13 (the f
 
 A new source flavor where the author identifies one specific entity, its id serialized into the token — `<kind>,<ID>` (e.g. `post,9999`) as the first step of a chain.
 
-Detail home: CONTEXT.md §Language "Source binding" (concept + two-axis model); no plan/issue yet
+Detail home: `.scratch/fw-39-id-source/spec.md` (design decided end to end, 2026-09-07); CONTEXT.md §Language "Source binding" for the concept + two-axis model
 
-Progress: Encoding decided via FW-56 Decision 3 (2026-07-27) — the kind is forced onto the wire by the editor-UX static-computability floor (no live ID resolution in Patterns/Elements), matching the engine's `{kind,id}` shape 1:1. A parser-recovery affordance is designed: on `term,<arg>`, a non-numeric `<arg>` recovers as a `terms` step, since term IDs and taxonomy slugs are disjoint value-spaces.
+Progress: Encoding decided via FW-56 Decision 3 (2026-07-27) — the kind is forced onto the wire by the editor-UX static-computability floor (no live ID resolution in Patterns/Elements), matching the engine's `{kind,id}` shape 1:1. Designed in full 2026-09-07: `term` is ONE root (bare = ambient, `term,34` = pinned) and a real chain root, since `refs`/`rows` already accept a `term` input; the root keeps its bare slug and a single opaque argument travels beside it, declared on the source contract so external roots can take one too. Measured on portals.test 2026-09-06 — resolution of a pinned term ALREADY works on a base tag (`src:term` → `TaxonomyTerm::resolve_id()` → GB's `id`), so what this row builds is authoring, not engine. The picker follows GB's specific-post picker (terms grouped by taxonomy heading, id shown, optional taxonomy filter above, unserialized), over one REST route with a browse/search mode and a resolve-by-id mode. The FW-56 slug-recovery affordance is DROPPED: no parity precedent exists, and V9 retired exactly that kind of near-miss reinterpretation.
 
-Open: Ref-step decoupling (a per-`src` ref option). Home for the "specific-resource + site fallback" case as a `try_` attempt (`try_allow_site_slot`), not a `try_term_` form.
+Open: Term is built, `post,<ID>` and `user,<ID>` designed into the same seam. Ref-step decoupling (a per-`src` ref option). Home for the "specific-resource + site fallback" case as a `try_` attempt (`try_allow_site_slot`), not a `try_term_` form.
 
-Blocked by: —  •  Interacts with: FW-33, FW-9
+Blocked by: —  •  Interacts with: FW-33 (this is its last capability gate), FW-13 (a taxonomy-scope nibble rides this ship), FW-9
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
