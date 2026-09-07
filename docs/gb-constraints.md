@@ -380,6 +380,47 @@ The v1 block is NOT the same and the two are easy to conflate: `GenerateBlocks_B
 
 Nothing of ours reads `inheritQuery` and there is no response to make. It is recorded because of how the failure presents: an inheriting loop nested inside another loop iterates the ambient page's main-query rows, so a tag of ours reads the containing page once per outer row and renders it faithfully. **A tag correctly reporting the wrong entity is indistinguishable from a broken tag**, and the cause is three levels up in another plugin's block attribute. Measured 2026-09-04 on a live site, where a `post_meta`-less nested post query under a GB Query Enhancements Term Query rendered the containing page once per term; the co-resident half is in [`coresident/gb-query-enhancements.md`](coresident/gb-query-enhancements.md#it-resolves-current-through-gbs-query-args-filter-and-plants-three-context-keys).
 
+## `GenerateBlocks_Meta_Handler::get_value()` drops a SCALAR once `single_only` is false
+
+`get_meta( $id, $key, $single_only, $callable )` (`class-meta-handler.php`, GB 2.4.1) always fetches
+with the native `single` flag hardcoded `true` (`call_user_func( $callable, $id, $parent_name, true )`
+— the `$single_only` PARAMETER plays no part in the fetch itself), then hands the raw value to
+`get_value( $sub_key, $meta, $single_only, $fallback, $gate_objects )` for formatting. There, with no
+dot-notated sub-key and `$single_only` false:
+
+```php
+if ( ! self::is_array_or_object( $parent_value ) ) {
+    return $fallback;   // '' by default
+}
+```
+
+**A scalar value is discarded as though it were absent.** `single_only => false` is written for
+retrieving an array/object-shaped meta value whole (a repeater, a multi-value relationship field);
+a `post_object` ACF field storing a bare id fails that shape test and returns `''` even though the
+id is right there, stored correctly, and `get_term_meta()`/`get_post_meta()` return it fine on their
+own. `single_only => true` never hits this branch and reads the same scalar correctly — the defect
+is specific to the `false` path, which only matters when the caller explicitly wants the raw
+structure rather than a formatted leaf value.
+
+**Where this bites us:** `bws_read_term_field( $key, $term_id, false )`
+([`includes/helpers/field-helpers.php`](../includes/helpers/field-helpers.php)) is the "preserve the
+relationship array" read a `refs` step takes off a TERM-kind source (`traversal-pipeline.php`'s
+`refs` reader, term arm) — the ONE reader in this plugin that ever passes `single_only => false` to
+a term read. A relationship-typed field (array storage even for one selection) passes through fine;
+a `post_object` field on the same term meta group reads silently empty. Measured 2026-09-07 building
+the FW-39 `term,<ID>;refs,<field>` fixture row (`fold-test-matrix.md` §F20.7):
+`GenerateBlocks_Meta_Handler::get_meta( 7, 'dept_lead', false, 'get_term_meta' )` returned `''` for a
+correctly-stored id, while the identical call with `true` returned it.
+
+**Our response is at the fixture, not the read seam**: `bws_read_term_field()` is unchanged, because
+every OTHER call site already uses an array-shaped field for this exact reason (`related_staff`,
+`related_staff_obj`) — the constraint was simply never named until a `post_object` field met this
+path for the first time. `tools/fixtures/core-structures/schema.php`'s `dept_lead` field carries the
+measurement and is typed `relationship` (`max: 1`) rather than `post_object` as the practical rule:
+**a term-meta field a `refs` step will read must be array-shaped, never a bare scalar `post_object`
+or `page_link` field.** No code-side workaround was written; GB's own `single_only => true` path is
+unaffected and remains this plugin's only OTHER term-meta reader.
+
 ## Upstream-documented affordances
 
 Pulled from the [upstream registration doc](https://learn.generatepress.com/developer-doc/dynamic-tag-registration/). Facts here are GB-owned API surface — if upstream changes, that doc wins. Listed here as known extension points; most are not exercised in this plugin (the exception is `visibility`, first used by `{{email}}` in 1.9.0 — see below).

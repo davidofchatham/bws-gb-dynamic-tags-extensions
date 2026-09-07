@@ -730,19 +730,12 @@ function bws_fixture_core_structures_register_acf() {
 					// the REVERSE hop (term → post) expressible off a term that is
 					// itself a chain ROOT rather than a step's landing spot.
 					//
-					// TYPE IS `relationship`, NOT `post_object`, and that is load-
-					// bearing rather than a style choice: bws_read_term_field()'s
-					// single_only=false read (traversal-pipeline.php, "canonical term
-					// read") goes through GenerateBlocks_Meta_Handler::get_value(),
-					// which returns its $fallback ('') for any SCALAR value once
-					// single_only is false — it is written for array/object-shaped
-					// meta specifically, and a `post_object` field stores a bare
-					// scalar id. `relationship` stores an array even for one
-					// selection, which is the shape that reader actually handles;
-					// `related_staff` above proves the same rule for the post-hop
-					// direction. MEASURED live 2026-09-07 against the wp-litespeed
-					// testbed: `post_object` silently read empty here, `relationship`
-					// does not.
+					// TYPE IS `relationship`, NOT `post_object` — load-bearing, not a
+					// style choice. See docs/gb-constraints.md
+					// §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once
+					// single_only is false, which owns the measurement and the rule;
+					// `related_staff` above already follows it for the post-hop
+					// direction.
 					'key'           => 'field_bwsfx_dept_lead',
 					'name'          => 'dept_lead',
 					'label'         => 'Department Lead',
