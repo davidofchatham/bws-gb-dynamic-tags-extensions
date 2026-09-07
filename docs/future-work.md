@@ -107,9 +107,9 @@ Two term-detection implementations coexist — a 5-tier one in taxonomy-helpers 
 
 Detail home: `docs/design-history/traversal-pipeline.md` §Post-Phase-1 convergence
 
-Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor.
+Progress: Not started; excluded from Phase 1 because `TaxonomyTerm::resolve_id` and the `term_` modifiers depend on it, which would have widened the blast radius mid-refactor. Read in full 2026-09-07 for FW-39, with two findings for whoever takes this: **tier 5 ("first term of the current post") is an implicit `terms` hop**, guarded on a taxonomy read from the tag's own options, so the chain grammar already spells it better and a truly bare tag never reaches it; and **tiers 3-4 give the same answer a bare base tag has given since the term kind shipped in 1.14.0**, which is what lets FW-39 migrate an unpinned `term_*` to a bare base tag by equivalence. FW-39 leaves this item's surface unchanged: bare `term` is never offered there, so no new authored wire depends on the detector.
 
-Blocked by: row:FW-7  •  Interacts with: FW-33
+Blocked by: row:FW-7  •  Interacts with: FW-33, FW-39
 
 #### FW-38 — Explicit registered_by + lifecycle entry fields (retire the callback proxy)
 
@@ -153,7 +153,7 @@ Detail home: GH #80 (closed) §Out of Scope (Phase C, parked); `docs/design-hist
 
 Progress: Every base tag has already retired the carrier. It survives only where the flat `srcTermIn` control still registers — the `term_`/`view_` modifier families and `{{table}}` — because they take `bws_base_traversal_options()` raw with no chain option to gate `bws_drop_chain_flat_options()` on.
 
-Open: The likely outcome is deletion, not rename — the carrier dies with `register_modifier()` (FW-70's phase C) or with `{{table}}` taking a chain source (FW-53).
+Open: The likely outcome is deletion, not rename — the carrier dies with `register_modifier()` (FW-70's phase C) or with `{{table}}` taking a chain source (FW-53). Also open, added 2026-09-07: the carrier's taxonomy list is PUBLIC-ONLY, while FW-39's pin picker lists every REGISTERED taxonomy behind a capability check, so a private editorial taxonomy is pinnable and not hoppable. The divergence was accepted rather than reconciled — reconciling it changes a shipped control's offering on every existing tag, and this carrier is slated for deletion here.
 
 Blocked by: row:FW-70, row:FW-53  •  Interacts with: FW-33
 
@@ -935,11 +935,11 @@ A new source flavor where the author identifies one specific entity, its id seri
 
 Detail home: `.scratch/fw-39-id-source/spec.md` (design decided end to end, 2026-09-07); CONTEXT.md §Language "Source binding" for the concept + two-axis model
 
-Progress: Encoding decided via FW-56 Decision 3 (2026-07-27) — the kind is forced onto the wire by the editor-UX static-computability floor (no live ID resolution in Patterns/Elements), matching the engine's `{kind,id}` shape 1:1. Designed in full 2026-09-07: `term` is ONE root (bare = ambient, `term,34` = pinned) and a real chain root, since `refs`/`rows` already accept a `term` input; the root keeps its bare slug and a single opaque argument travels beside it, declared on the source contract so external roots can take one too. Measured on portals.test 2026-09-06 — resolution of a pinned term ALREADY works on a base tag (`src:term` → `TaxonomyTerm::resolve_id()` → GB's `id`), so what this row builds is authoring, not engine. The picker follows GB's specific-post picker (terms grouped by taxonomy heading, id shown, optional taxonomy filter above, unserialized), over one REST route with a browse/search mode and a resolve-by-id mode. The FW-56 slug-recovery affordance is DROPPED: no parity precedent exists, and V9 retired exactly that kind of near-miss reinterpretation.
+Progress: Encoding decided via FW-56 Decision 3 (2026-07-27) — the kind is forced onto the wire by the editor-UX static-computability floor (no live ID resolution in Patterns/Elements), matching the engine's `{kind,id}` shape 1:1. Designed in full over two grilling sessions, 2026-09-06/07, and the second reversed the first's central framing. **Ambient is `current`, which is kind-agnostic and always was** (`bws_resolve_base_source()` normalizes the token to `''`), so an entity-kind root is a PINNING root: `term,<ID>` and `post,<ID>` are pin-only and their bare forms refuse rather than degrading to ambient ([I15] at the root layer). The root keeps its bare slug and a single opaque argument travels beside it, declared on the source contract — with a second axis saying what argless MEANS (`refuse` by default, `owner-resolves` for a root like Site Views' `view`, which ships argless today and will gain an argument). Measured on portals.test 2026-09-06 — resolution of a pinned term ALREADY works on a base tag (`src:term` → `TaxonomyTerm::resolve_id()` → GB's `id`), so what this row builds is authoring, not engine. The picker follows GB's specific-post picker (grouped by taxonomy or post-type heading, id shown, optional filter above, unserialized), over one kind-generic REST route with a browse/search mode and a resolve-by-id mode — deliberately NOT the field-discovery envelope, since fields are bounded and entities are not. The FW-56 slug-recovery affordance is DROPPED: no parity precedent exists, and V9 retired exactly that kind of near-miss reinterpretation.
 
-Open: Term is built, `post,<ID>` and `user,<ID>` designed into the same seam. Ref-step decoupling (a per-`src` ref option). Home for the "specific-resource + site fallback" case as a `try_` attempt (`try_allow_site_slot`), not a `try_term_` form.
+Open: `user,<ID>` and its `role` grouping — designed only, and deliberately absent from the shipped kind list rather than gated off. Ref-step decoupling (a per-`src` ref option). Home for the "specific-resource + site fallback" case as a `try_` attempt (`try_allow_site_slot`), not a `try_term_` form.
 
-Blocked by: —  •  Interacts with: FW-33 (this is its last capability gate), FW-13 (a taxonomy-scope nibble rides this ship), FW-9
+Blocked by: —  •  Interacts with: FW-33 (this is its last capability gate), FW-13 (a scope-filter nibble for both kinds rides this ship), FW-67 (the pin picker's registered+capability taxonomy list diverges from `bws-term-hop`'s public-only one), FW-8 (measured 2026-09-07: the 5-tier detector's tier 5 is an implicit `terms` hop, and this ship leaves FW-8's surface unchanged because bare `term` is never offered). **FW-9 is NOT an interaction** — the term kind shipped in 1.14.0 and FW-9's open residue is the per-kind option surface, which gates nothing here.
 
 #### FW-44 — join per-slot inner list sep ({N}-sep)
 
