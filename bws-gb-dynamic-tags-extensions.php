@@ -162,6 +162,11 @@ function bws_dynamic_tags_init() {
 	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/field-discovery.php';
 	add_action( 'rest_api_init', 'bws_register_field_discovery_route' );
 
+	// Entity-lookup REST service (backs the bws-entity-picker control, FW-39). Shares
+	// field-discovery's namespace const, so it must load after the require above.
+	require_once BWS_DYNAMIC_TAGS_PATH . 'includes/rest/entity-lookup.php';
+	add_action( 'rest_api_init', 'bws_register_entity_lookup_route' );
+
 	// Dev/testing CLI commands (never part of shipped runtime). Registered on
 	// cli_init so it lands after tags register at init:20.
 	if ( defined( 'WP_CLI' ) && WP_CLI ) {
@@ -465,6 +470,17 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// The pinned-entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
+	// key, so it is exposed for composition rather than self-registering (see the
+	// file header). Loads before the slot-fold CONTROL, which mounts it at a chain's
+	// position 0 the same way it already mounts the field-combo control mid-chain.
+	wp_enqueue_script(
+		'bws-dynamic-tags-entity-picker-control',
+		BWS_DYNAMIC_TAGS_URL . 'assets/js/entity-picker-control.js',
+		array( 'wp-hooks', 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
+		BWS_DYNAMIC_TAGS_VERSION,
+		true
+	);
 	// Folded slot wire (FW-56/57). The GRAMMAR is the tested twin of
 	// includes/helpers/slot-fold.php and carries no decisions of its own; the CONTROL
 	// is the repeater that owns one folded slot value. The control must load after the
@@ -502,6 +518,7 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'bws-dynamic-tags-slot-fold-grammar',
 			'bws-dynamic-tags-slot-fold-migrate',
 			'bws-dynamic-tags-field-combo-control',
+			'bws-dynamic-tags-entity-picker-control',
 			'bws-dynamic-tags-option-group',
 		),
 		BWS_DYNAMIC_TAGS_VERSION,

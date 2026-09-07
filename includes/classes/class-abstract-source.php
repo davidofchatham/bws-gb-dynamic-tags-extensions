@@ -13,7 +13,7 @@
  * @since 1.5.0 Removed related-variant method defaults; added needs_relationship_field(), get_ui_group().
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() default (false) (#83).
- * @since 1.20.0 Added get_root_argument() default (none) (FW-39).
+ * @since 1.20.0 Added get_root_argument() default (none) + resolve_root_argument() default (FW-39).
  */
 
 namespace BWS\DynamicTags;
@@ -128,6 +128,25 @@ abstract class AbstractSource implements SourceInterface {
 	 */
 	public function get_root_argument(): array {
 		return array();
+	}
+
+	/**
+	 * A source that declares no argument is never asked to resolve one (FW-39).
+	 *
+	 * FALSE rather than a fallback to resolve_id(), for the reason the seam exists: a
+	 * declared-but-unimplemented argument would otherwise resolve the AMBIENT entity while
+	 * the wire says a pinned one, which is the degradation [I15] prohibits and the hardest
+	 * kind to notice — the page renders something plausible. Refusing gives the author the
+	 * blank a half-configured root is supposed to produce.
+	 *
+	 * @since 1.20.0
+	 * @param string $arg      The root argument as authored.
+	 * @param array  $options  Tag options.
+	 * @param object $instance GB tag instance.
+	 * @return int|string|false
+	 */
+	public function resolve_root_argument( string $arg, array $options, $instance ) {
+		return false;
 	}
 
 }

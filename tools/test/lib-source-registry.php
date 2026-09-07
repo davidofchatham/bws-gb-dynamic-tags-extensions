@@ -178,6 +178,36 @@ class BWS_Test_Pinned_Root_Source extends \BWS\DynamicTags\AbstractSource {
 }
 
 /**
+ * A PINNING root that actually RESOLVES its argument — a TERM-context stand-in for
+ * `term,<ID>` that never calls out to WordPress (FW-39, D3/D8).
+ *
+ * The shipped TaxonomyTerm resolves through `get_term()`, and per this ticket's Testing
+ * Decisions that live resolution rides testbed matrix rows, not a pure harness. What IS
+ * pure is step admission off a pinned root's KIND — traversal-pipeline-test.php's D3/D8
+ * coverage needs a term-kind pinning root that resolves deterministically without WP, so
+ * this stands in for TaxonomyTerm the same way the fixtures above stand in for an
+ * integrator's plugin.
+ *
+ * A NUMERIC argument resolves (id = the argument, doubled, so a wrong id is easy to spot
+ * in a failing assertion); anything else refuses, matching D8's terminal rule that a pin
+ * naming nothing does not fall back to resolve_id().
+ */
+class BWS_Test_Pinned_Term_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'pinnedterm'; }
+	public function get_source_label(): string { return 'Pinned Term'; }
+	public function get_context_type(): string { return 'term'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Term', 'control' => 'bws-test-picker' );
+	}
+	public function resolve_root_argument( string $arg, array $options, $instance ) {
+		return is_numeric( $arg ) ? (int) $arg * 2 : false;
+	}
+	public function resolve_id( array $options, $instance ) { return false; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
  * A root that answers a bare token BY ITS OWN RULE — the second argless policy.
  *
  * Stands in for a sister plugin's Site Views `view`, which ships argless today and gains

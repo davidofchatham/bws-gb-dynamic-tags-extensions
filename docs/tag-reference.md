@@ -59,6 +59,7 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 | unset (default) | Current entity (post or term per template context) | Implemented |
 | `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
+| `term,<ID>` | **Pinned term root** (1.20.0, FW-39). Roots the chain at ONE specific term, whatever the page is about. `<ID>` is required — a bare `term` resolves nothing (see below). Steps run off it like any other root (`term,34;refs,rel` is legal; `terms` is refused — no term→term edge). | Implemented |
 | *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
@@ -78,9 +79,16 @@ deliberately not the same rule.
   precondition for opting in is that the source **resolves its own id from ambient context**.
 - **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by
   policy and never sheds them (a `register_source()` call is never deleted for lacking resolve
-  logic), so the four retired traversal-substitute sources and the internal `post`/`term` keys are
+  logic), so the four retired traversal-substitute sources and the internal `post` key are
   registered right now and must stay out. A registry that keeps its dead is the wrong shape to
-  derive an authoring enum from.
+  derive an authoring enum from. **`term` is the one exception, and it changed rather than
+  broke this rule** (1.20.0, FW-39): a bare `term` root is still exactly what a bare base tag
+  does and stays unofferable, but `term` now also offers a PINNING argument (`term,<ID>`), and
+  the root row it offers carries that argument's declaration (`arg: { label, control, argless,
+  kind }`, from `SourceInterface::get_root_argument()`). An argless `term` root REFUSES at the
+  factory seam rather than degrading to the ambient term — see the root-argument seam's own
+  PHPDoc (`bws_factory_registry_source()`, `includes/helpers/traversal-pipeline.php`) for the
+  full rule, which this doc does not restate per the axis-ownership convention.
 - **Offering is not resolving.** The flag governs the dropdown alone; the factory's registry
   delegation is untouched, so wire naming any registered source resolves either way. Load-bearing
   rather than incidental: wire is hand-editable by decision (ADR 0004), and an integrator flipping

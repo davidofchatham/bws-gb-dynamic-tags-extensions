@@ -197,6 +197,32 @@
 		} );
 	}
 
+	/**
+	 * The ROOT ARGUMENT declaration for one root slug, or null (FW-39, D5/D6).
+	 *
+	 * Read off the SAME `srcRows`/`srcRowsWithSame` rows the root's own SelectControl
+	 * offers from — `bws_registered_root_rows()`'s one appender is what both authoring
+	 * surfaces already read their root enum through, so a root offered with a picker on
+	 * a base tag is offered with the same picker in a `{{join}}` field and a `try_`
+	 * attempt (D11, D15) with no second lookup here.
+	 *
+	 * @param {Object} conf The fold config.
+	 * @param {string} slug A root slug (position-0 only; a step slug never matches).
+	 * @return {Object|null} `{ label, control, argless, kind }`, or null when this slug
+	 *                       takes no argument.
+	 */
+	function rootArgOf( conf, slug ) {
+		var pools = [ conf.srcRows || [], conf.srcRowsWithSame || [] ];
+		for ( var p = 0; p < pools.length; p++ ) {
+			for ( var i = 0; i < pools[ p ].length; i++ ) {
+				if ( pools[ p ][ i ].value === slug && pools[ p ][ i ].arg ) {
+					return pools[ p ][ i ].arg;
+				}
+			}
+		}
+		return null;
+	}
+
 	// ── Incomplete-step / incomplete-read warnings ──────────────────────────
 	//
 	// One shape, one voice, one place: "This <noun> will be skipped unless …". The
@@ -771,9 +797,60 @@
 				__nextHasNoMarginBottom: true
 			} ) );
 
+			// A PINNED ROOT's argument (FW-39) — position 0 only, and answered from the
+			// SAME row the root's own SelectControl reads, never a second declaration.
+			// Checked BEFORE the step vocabulary below: a root slug is never `known`
+			// there (BWS_FOLD_STEP_TYPES has no root in it), so without this branch a
+			// pinning root would render its SelectControl and nothing to fill it with —
+			// exactly the "declared argument, no control" shape D5/D6 exist to prevent.
+			var rootArg = ( 0 === i ) ? rootArgOf( conf, stepObj.slug ) : null;
+			if ( rootArg ) {
+				var commitRootArg = function ( v ) {
+					writeChainAt( i, step( stepObj.slug, v || null, stepObj.limit ) );
+				};
+				// KEYED ON THE DECLARED CONTROL NAME, not on which script happens to be
+				// loaded — a future root declaring a DIFFERENT control (an integrator's
+				// own picker, or a later `bws-post-picker`) must never silently mount
+				// this one just because it is present, and a root naming a control that
+				// never loaded must fall back to plain text rather than guess.
+				var EntityPicker = ( window.bwsRootArgControls || {} )[ rootArg.control || '' ] || null;
+				stepKids.push( el( 'div', { key: 'rootarg', style: STACKED },
+					EntityPicker
+						? el( EntityPicker, {
+							kind:  rootArg.kind || '',
+							label: rootArg.label,
+							value: stepObj.arg || '',
+							onChange: commitRootArg
+						} )
+						: el( TextControl, {
+							label: rootArg.label,
+							value: stepObj.arg || '',
+							help: __( 'Entity picker unavailable — enter an id.', 'generateblocks' ),
+							onChange: commitRootArg,
+							__nextHasNoMarginBottom: true
+						} )
+				) );
+				if ( ! stepObj.arg ) {
+					// D2/D8: an argless pinning root REFUSES — it does not fall back to
+					// the ambient entity. Same voice as every other incomplete-step
+					// warning in this file ("will be skipped"), because that is exactly
+					// what happens: the factory refuses it and the whole chain reads empty.
+					stepKids.push( warnNode( 'rootargwarn', fmt(
+						/* translators: %s: the container's slot noun (attempt, field, column). */
+						__( 'This %s will be skipped until one is selected.', 'generateblocks' ),
+						slotNoun
+					) ) );
+				}
+			}
+
 			// Which arg control a step renders is the SLUG's to answer; whether it is a
 			// step at all is presence in the vocabulary. Two questions the retired
 			// argKind() answered with one engine-spelled string.
+			//
+			// No `! rootArg &&` guard needed here: a root token can never collide with a
+			// step slug (`SourceRegistry::is_expressible_root_key()` refuses `refs` /
+			// `terms` / `rows` / `same` at REGISTRATION), so `stepDef()` is already
+			// falsy for any slug `rootArgOf()` matched.
 			var known = !! stepDef( conf, stepObj.slug );
 			if ( known && ( 'refs' === stepObj.slug || 'rows' === stepObj.slug ) ) {
 				var argCfg = ( 'rows' === stepObj.slug ? conf.rowsOption : conf.refOption ) || {};
@@ -929,7 +1006,17 @@
 		// instead would offer an Add that can only produce a dead step.
 		var last = chain.length ? chain[ chain.length - 1 ] : null;
 		var nextSteps = offerableSteps( chain.length, '' );
-		var canAppend = ! isSameChain && last && ( ! stepArg( conf, last.slug ) || last.arg ) && nextSteps.length;
+		// A PINNING ROOT at the last position (only possible at chain.length 1 — a root
+		// is never anywhere but position 0) is complete ONLY when its argument is filled
+		// (FW-39, D8's editor-side mirror). `stepArg()` answers '' for ANY slug absent
+		// from the step vocabulary, and a root slug is never IN it (roots and steps are
+		// disjoint namespaces) — so without this branch a pinning root reads as
+		// "complete" the instant it is selected, by the same test an UNKNOWN step slug
+		// trivially passes, and Add step appears beside the "will be skipped" warning
+		// for a chain the factory will unconditionally refuse.
+		var lastRootArg = ( 1 === chain.length && last ) ? rootArgOf( conf, last.slug ) : null;
+		var lastComplete = lastRootArg ? !! ( last && last.arg ) : ( ! last || ! stepArg( conf, last.slug ) || last.arg );
+		var canAppend = ! isSameChain && last && lastComplete && nextSteps.length;
 		if ( canAppend ) {
 			stepNodes.push( el( 'div', { key: 'addstep', style: { marginTop: '8px' } },
 				el( Button, {

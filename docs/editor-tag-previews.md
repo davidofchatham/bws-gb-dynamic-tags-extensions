@@ -163,6 +163,7 @@ source sends the author to the wrong repair first. Fallback still appends. Wordi
 | Unknown step slug, any position (first one named) | `⚠ Unknown source step 'bogus'` | `B unknown source step 'bogus'` |
 | Unregistered root token | `⚠ Unknown source 'currnet'` | `B unknown source 'currnet'` |
 | Retired source token (`BWS_FOLD_RETIRED_SRC_TOKENS`) | `⚠ Source 'related_post' is no longer supported — run the Tag Converter` | `B source no longer supported — run the Tag Converter` |
+| A PINNING root with no argument (1.20.0, FW-39) — e.g. bare `src:term`, hand-wire only | `⚠ Term: nothing pinned` | `B nothing pinned` |
 
 A root outranks a step behind it: the factory consumes the root first, so a chain with both
 fails there, and naming the step would send the author past the fault. On a slot the inert

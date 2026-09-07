@@ -11,6 +11,7 @@
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() (#83).
  * @since 1.20.0 Added get_root_argument() + the argless-policy constants (FW-39).
+ * @since 1.20.0 Added resolve_root_argument() (FW-39).
  */
 
 namespace BWS\DynamicTags;
@@ -232,4 +233,40 @@ interface SourceInterface {
 	 * @return array Empty when this root takes no argument (the default).
 	 */
 	public function get_root_argument(): array;
+
+	/**
+	 * Resolve this root's ARGUMENT to the entity it pins (FW-39).
+	 *
+	 * The counterpart of get_root_argument(): that method declares an argument exists and
+	 * says which control fills it, and this one is where the token finally MEANS
+	 * something. Everything between the two — the grammar, the compiler, the root rows,
+	 * both authoring surfaces, the picker's own value — carries the token opaquely,
+	 * because it is not always an ID (a sister Site Views plugin wants
+	 * `view,<dimension-slug>`) and a numeric assumption in the carry path would be wrong
+	 * the first time one shipped. The DECLARING SOURCE is the only thing that knows.
+	 *
+	 * Called ONLY with a non-empty argument, and only on a source that declared one, so an
+	 * implementation never has to distinguish "no argument" from "an argument naming
+	 * nothing". Both of those are answered before it is reached — the first by the argless
+	 * policy at the factory seam (bws_factory_registry_source), the second by this method
+	 * returning false.
+	 *
+	 * SEPARATE FROM resolve_id(), not a third parameter on it. resolve_id() answers from
+	 * AMBIENT CONTEXT and has callers that must keep doing exactly that forever — the
+	 * `term_*` modifier family reaches TaxonomyTerm::resolve_id() on every request. A
+	 * pinned read is a different question with a different input, and widening the ambient
+	 * method's signature would put both behind one implementation that has to tell them
+	 * apart.
+	 *
+	 * A FALSE RETURN IS TERMINAL. The factory does not then fall back to resolve_id():
+	 * a pin naming a deleted entity renders nothing, it does not quietly become the
+	 * current page's entity (CONTEXT.md I15 at the root layer).
+	 *
+	 * @since 1.20.0
+	 * @param string $arg      The root argument as authored, verbatim.
+	 * @param array  $options  Tag options.
+	 * @param object $instance GB tag instance.
+	 * @return int|string|false The pinned entity id, or false when the argument names none.
+	 */
+	public function resolve_root_argument( string $arg, array $options, $instance );
 }

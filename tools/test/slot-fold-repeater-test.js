@@ -397,7 +397,14 @@ check( 'stepArg: an absent vocabulary yields no arg at all (registration bug)', 
 // The assertions are on the RENDERED tree because that is where the bug was: the value
 // and the enum were each individually correct.
 
-const CHAIN_CONF = rep.foldConfig( { fold: {
+// The RAW fold literal, kept as its own const — CHAIN_CONF below is what
+// rep.foldConfig() RETURNS (its fields live at the TOP LEVEL: `.offer`, `.steps`,
+// `.roots`, never `.fold`), so a fixture wanting "the same config with one row
+// overridden" has to re-derive from THIS literal, never from `CHAIN_CONF.fold`
+// (undefined — the bug PIN_CONF shipped with once, caught by #1's own review: it
+// silently dropped `offer`/`steps`/`roots`, which is why an unfilled pinned root's
+// "Add step" gap did not fail here the first time this section was written).
+const CHAIN_FOLD = {
 	container: 'try',
 	combining: false,
 	perSlotUse: true,
@@ -435,7 +442,8 @@ const CHAIN_CONF = rep.foldConfig( { fold: {
 		help: 'Maximum number of results. Leave blank for all.',
 		helpFanning: 'Maximum number of results for each previous-step result. Leave blank for all.'
 	}
-} } );
+};
+const CHAIN_CONF = rep.foldConfig( { fold: CHAIN_FOLD } );
 
 /**
  * The STEP pickers in a rendered tree, in order.
@@ -952,6 +960,124 @@ check( '...Add step is still reachable', hasAddStep( noted.nodes ), true );
 check( '...and a slug switch commits exactly what it would without one', noted.committed[ 0 ].slug, 'rows' );
 check( '...carrying the same field', noted.committed[ 0 ].arg, 'partners' );
 check( '...and the same limit', noted.committed[ 0 ].limit, 3 );
+
+// =========================================================================
+// A PINNED ROOT's argument control (FW-39, D5/D6/D11) — mounted at position 0,
+// off the SAME `srcRows` row the root's own SelectControl reads. `slot-fold-control.js`
+// is the ONE place a chain's root and its steps both render, so this is the seam that
+// makes "the same picker on a base tag, a {{join}} field and a try_ attempt" (D11, D15)
+// true by construction rather than by three copies staying in sync.
+// =========================================================================
+console.log( '\npinned root argument (FW-39)' );
+
+const PIN_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	srcRows: [
+		{ value: 'current', label: 'Current' },
+		{ value: 'refs', label: 'In Reference/Relational Field' },
+		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } }
+	],
+	srcRowsWithSame: [
+		{ value: 'same', label: 'Same as Previous Source' },
+		{ value: 'current', label: 'Current' },
+		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } }
+	]
+} ) } );
+
+function renderPinChain( chain, EntityPicker, sameOnEmpty ) {
+	// KEYED ON THE CONTROL NAME (`bws-entity-picker`), matching how the control looks
+	// itself up in the shipped code — `window.bwsRootArgControls[ rootArg.control ]`,
+	// never a bare global whose mere presence would mount the wrong picker for a root
+	// declaring a different control name.
+	const prior = global.window.bwsRootArgControls;
+	if ( EntityPicker ) {
+		global.window.bwsRootArgControls = { 'bws-entity-picker': EntityPicker };
+	} else {
+		delete global.window.bwsRootArgControls;
+	}
+	try {
+		return rep.chainSteps( {
+			conf: PIN_CONF,
+			chain: chain,
+			onChange: function () {},
+			sameOnEmpty: !! sameOnEmpty,
+			slotNoun: 'attempt',
+			stepContext: function () { return { state: {}, setState: function () {} }; }
+		} );
+	} finally {
+		if ( prior === undefined ) {
+			delete global.window.bwsRootArgControls;
+		} else {
+			global.window.bwsRootArgControls = prior;
+		}
+	}
+}
+
+/** The mounted entity-picker element in a rendered chain, or null. */
+function pickerIn( nodes, PickerType ) {
+	let found = null;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === PickerType ) { found = n; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+const ENTITY_PICKER_STUB = {};
+const pinNoArg = renderPinChain( [ { slug: 'term', arg: null, limit: null } ], ENTITY_PICKER_STUB );
+const pinPicker = pickerIn( pinNoArg, ENTITY_PICKER_STUB );
+
+check( 'the root row\'s declared control mounts at position 0', !! pinPicker, true );
+check( 'it is handed the DERIVED kind off the row\'s own `arg.kind`', pinPicker && pinPicker.props.kind, 'term' );
+check( 'and the row\'s own label, verbatim', pinPicker && pinPicker.props.label, 'Term' );
+function hasKey( nodes, key ) {
+	let found = false;
+	( function walk( n ) {
+		if ( ! n || found ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.props && key === n.props.key ) { found = true; return; }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+check( 'an EMPTY pin is warned — it will be skipped, not silently ambient (D8)', hasKey( pinNoArg, 'rootargwarn' ), true );
+// D8's editor-side mirror: an UNFILLED pin must not ALSO offer "Add step" beside that
+// warning. `stepArg()` answers '' for any slug outside the step vocabulary — which a
+// root slug always is, roots and steps being disjoint namespaces — so without a
+// root-aware completeness test this button would appear on a chain the factory
+// unconditionally refuses (traversal-pipeline.php's argless-root decline).
+check( '...and "Add step" does NOT appear beside it — the chain is not buildable yet', hasKey( pinNoArg, 'addstep' ), false );
+
+const pinWithArg = renderPinChain( [ { slug: 'term', arg: '34', limit: null } ], ENTITY_PICKER_STUB );
+check( 'a FILLED pin carries its stored value through to the control', pickerIn( pinWithArg, ENTITY_PICKER_STUB ).props.value, '34' );
+// ...and NOW "Add step" is offered — a pinning root that IS filled is a complete,
+// buildable chain, exactly as a `refs`/`rows` step with its field set already is.
+check( '...and a FILLED pin DOES offer "Add step" — the chain is complete', hasKey( pinWithArg, 'addstep' ), true );
+check( '...and carries no "will be skipped" warning', hasKey( pinWithArg, 'rootargwarn' ), false );
+
+// No entity-picker component loaded (a partial deploy, or a harness that never stubs
+// it) DEGRADES to a plain text input rather than rendering nothing — the same
+// FieldCombo-or-TextControl fallback pattern the refs/rows arg control already takes.
+const pinFallback = renderPinChain( [ { slug: 'term', arg: '34', limit: null } ], null );
+check(
+	'with no entity-picker component available, the control falls back to plain text',
+	!! pickerIn( pinFallback, global.wp.components.TextControl ),
+	true
+);
+
+// A NON-PINNING root (no `arg` on its row) renders no root-argument control at all —
+// this branch must not fire for `current`/`refs`, or every ordinary chain would sprout
+// an entity picker nobody asked for.
+const noPin = renderPinChain( [ { slug: 'current' } ], ENTITY_PICKER_STUB );
+check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pickerIn( noPin, ENTITY_PICKER_STUB ), false );
+
+// A pinned root behind a `same` carry (slot ≥2, `sameOnEmpty: true`) is offered on the
+// SAME terms — position 0's row lookup reads BOTH `srcRows` and `srcRowsWithSame`
+// (rootArgOf checks both pools), so a slot ≥2 picking `term` gets the identical control
+// slot 1 does.
+const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
+check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );

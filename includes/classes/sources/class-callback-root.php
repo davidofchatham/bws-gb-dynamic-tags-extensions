@@ -125,6 +125,28 @@ class CallbackRoot extends AbstractSource {
 	}
 
 	/**
+	 * Resolve a declared argument through the SAME resolver the ambient read uses (FW-39).
+	 *
+	 * The argument is appended as a third parameter rather than routed to a second
+	 * callback on the spec. A filter-declared root is the cheap case by construction — it
+	 * states an entity and nothing else — and a resolver written before this shipped
+	 * takes two parameters and ignores the extra, which is what keeps an argless root
+	 * declared through the filter working unchanged.
+	 *
+	 * PASSED THROUGH, never interpreted here, for the reason the whole carry path is
+	 * opaque: the integrator's root is the only thing that knows what its own token means.
+	 *
+	 * @since 1.20.0
+	 * @param string $arg      The root argument as authored.
+	 * @param array  $options  Tag options.
+	 * @param object $instance Block instance.
+	 * @return int|string|false
+	 */
+	public function resolve_root_argument( string $arg, array $options, $instance ) {
+		return call_user_func( $this->resolver, $options, $instance, $arg );
+	}
+
+	/**
 	 * No per-tag options. A filter-declared root is the CHEAP case by construction: it
 	 * states an entity and nothing else. A source needing its own options writes a class.
 	 *

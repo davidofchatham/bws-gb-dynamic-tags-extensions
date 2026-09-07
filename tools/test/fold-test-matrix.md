@@ -929,6 +929,44 @@ The staff ids come from `wp post list --post_type=staff --post_status=publish,dr
 
 Verified 2026-08-29 via `render-tag`. Arm-table membership, columns and branchability are pinned pure in `try-slot-arms-test.php` (§A1–§A5); the WIRING (which template carries a `try_query_fn`, the fn-absent fallthrough) shares the accepted coverage gap `text-test-matrix.md` T8's note records — these rows are its only pins.
 
+## §F20 — a PINNED TERM root, end to end (FW-39, ticket 02)
+
+**render-tag rows on `/` and `/matrix-post-meta/`** — the pin's whole promise is that it resolves
+the SAME on both, since a pinned root is deliberately not the ambient entity. `31` is the seeded
+`BWSUT Alpha` category term. Verified 2026-09-07.
+
+**NO VISIBLE GB BLOCK YET.** Per `docs/testbed.md`'s mandatory rule, a new matrix row group is also
+generated as a visible block on the fixture site; that page (a `matrix_pinned_roots` content
+builder in `tools/fixtures/core-structures/blocks.php`, plus its manifest entry and a re-seed) is
+NOT built in this pass — these rows were run ad hoc against existing fixture content
+(`category` is a core taxonomy; no blueprint change was needed to exercise them) and the front-end
+eyeball + page-snapshot recapture this trigger requires are still open. Track that as follow-up
+before this ships; the render-tag rows below are real, but the editor/eyeball half of this section
+is not yet built.
+
+| # | Tag | Page | Expected |
+|---|---|---|---|
+| F20.1 | `{{text src:term,31\|use:title}}` | `/` (front page — has nothing to do with any term) | `BWSUT Alpha` — the tracer bullet: pinned, not ambient |
+| F20.2 | same tag | `/matrix-post-meta/` | `BWSUT Alpha` — identical to F20.1, proving the pin ignores the page |
+| F20.3 | `{{text src:term\|use:title}}` (bare, no pin — D2/D33; hand-wire only, nothing offers this) | `/` | **empty** — an argless declaring root refuses at the factory seam, it does not read the page's own entity. The editor's own preview of the same tag reads `[⚠ Term: nothing pinned]` rather than looking like a healthy bare tag (D8), verified via `wp eval` |
+| F20.4 | `{{text src:term,999999\|use:title}}` | `/` | **empty** — a pin naming a nonexistent term refuses; the editor's own preview marks this `term,999999 (missing)` (`preview-label-test.php`) |
+| F20.5 | `{{try_text A:src(term,31);use(title)}}` | `/matrix-post-meta/` | `BWSUT Alpha` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
+| F20.6 | `{{join mode:template\|A:src(term,31);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `/matrix-post-meta/` | `BWSUT Alpha / Matrix: Post Meta` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
+
+**Also verified live** (`wp eval`, admin user, 2026-09-07): the entity-lookup REST route's two
+modes against real term data — `bws_entity_lookup_browse_terms()` returns every `category` term
+grouped and ID-prefixed exactly as D15 specifies; `bws_entity_lookup_resolve_term()` answers a real
+term's row and `null` for a nonexistent id; and `bws_build_preview_label()` on `src:term,31|key:sku`
+reads `['sku' from Term: BWSUT Alpha]` — D20's namer, live. The REST route itself is confirmed
+registered (`GET /wp-json/bws-dynamic-tags/v1/entities`) and correctly returns `401` to an
+unauthenticated request.
+
+**Not yet re-verified here**: a relationship step running off a pinned root (`term,31;refs,<field>`)
+— the seeded `category` taxonomy carries no ACF relationship field on its terms to exercise one
+against, so D3's "steps run off a pinned root" is pinned pure in `traversal-pipeline-test.php`
+(§D3/§D8) rather than end to end. Add a term-meta relationship field to the `core-structures`
+blueprint the next time this section is touched, and this row moves up from that gap.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

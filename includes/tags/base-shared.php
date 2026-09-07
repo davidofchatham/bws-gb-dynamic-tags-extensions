@@ -79,9 +79,10 @@ function bws_base_source_option(): array {
  * so an integrator names their own concept and there is no second label method to drift.
  *
  * A root that takes an ARGUMENT (FW-39) carries its declaration on the row as `arg`,
- * normalized by bws_root_argument_row(). Both surfaces pass the key through to their
- * control untouched — neither knows what the argument means, which is what lets a root
- * declared through `bws_dynamic_tags_chain_roots` carry one on the same terms.
+ * normalized by bws_root_argument_row() and carrying the source's own context type as
+ * `kind`. Both surfaces pass the key through to their control untouched — neither knows
+ * what the argument means, which is what lets a root declared through
+ * `bws_dynamic_tags_chain_roots` carry one on the same terms.
  *
  * @since 1.17.0
  * @since 1.20.0 Rows carry a declared root `arg` (FW-39).
@@ -101,7 +102,15 @@ function bws_registered_root_rows(): array {
 		);
 		$arg = bws_root_argument_row( $source->get_root_argument() );
 		if ( array() !== $arg ) {
-			$row['arg'] = $arg;
+			// The entity KIND the argument's control browses, DERIVED from the source's own
+			// context type rather than declared beside the control. A declared kind could
+			// come to disagree with what the source resolves — an author picking from a
+			// list of terms for a root that answers posts — and nothing would report it.
+			// Opaque here exactly as the rest of the declaration is: this function does not
+			// know that a kind is what a picker wants, only that the control asked for the
+			// source's own word for what it resolves.
+			$arg['kind'] = $source->get_context_type();
+			$row['arg']  = $arg;
 		}
 		$rows[] = $row;
 	}
