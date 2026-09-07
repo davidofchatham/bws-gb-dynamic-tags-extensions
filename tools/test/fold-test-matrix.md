@@ -931,41 +931,54 @@ Verified 2026-08-29 via `render-tag`. Arm-table membership, columns and branchab
 
 ## §F20 — a PINNED TERM root, end to end (FW-39, ticket 02)
 
-**render-tag rows on `/` and `/matrix-post-meta/`** — the pin's whole promise is that it resolves
-the SAME on both, since a pinned root is deliberately not the ambient entity. `31` is the seeded
-`BWSUT Alpha` category term. Verified 2026-09-07.
+**VISIBLE at `/matrix-pinned-roots/`** (blueprint v20 — `matrix_pinned_roots` content builder,
+`tools/fixtures/core-structures/blocks.php`). The pin's whole promise is that it resolves the SAME
+wherever it is authored, so the page's own field values (its title, "Matrix: Pinned Entity Roots")
+are deliberately unlike the pinned term's ("Sales") — a row that happened to match ambient content
+would pass whether the pin resolved or not. The seeded `department` taxonomy's `sales` term is
+resolved by SLUG at fixture build time (`bws_fixture_seeded_term_id()`), never hand-typed, since a
+pin is authored by numeric ID (D9) and a fresh install's term is not guaranteed any particular one.
 
-**NO VISIBLE GB BLOCK YET.** Per `docs/testbed.md`'s mandatory rule, a new matrix row group is also
-generated as a visible block on the fixture site; that page (a `matrix_pinned_roots` content
-builder in `tools/fixtures/core-structures/blocks.php`, plus its manifest entry and a re-seed) is
-NOT built in this pass — these rows were run ad hoc against existing fixture content
-(`category` is a core taxonomy; no blueprint change was needed to exercise them) and the front-end
-eyeball + page-snapshot recapture this trigger requires are still open. Track that as follow-up
-before this ships; the render-tag rows below are real, but the editor/eyeball half of this section
-is not yet built.
+| # | Tag | Expected |
+|---|---|---|
+| F20.1 | `{{text src:term,<sales-id>\|use:title}}` | `Sales` — the tracer bullet: pinned, not ambient |
+| F20.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
+| F20.3 | `{{text src:term\|use:title}}` (bare, no pin — D2/D8/D33; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam. The editor's own preview of the same tag reads `[⚠ Term: nothing pinned]` rather than looking like a healthy bare tag (D8) |
+| F20.4 | `{{text src:term,999999\|use:title}}` | **empty** — a pin naming a nonexistent term refuses too; the editor's own preview marks this `term,999999 (missing)` |
+| F20.5 | `{{try_text A:src(term,<sales-id>);use(title)}}` | `Sales` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
+| F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
+| F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a pinned term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
 
-| # | Tag | Page | Expected |
-|---|---|---|---|
-| F20.1 | `{{text src:term,31\|use:title}}` | `/` (front page — has nothing to do with any term) | `BWSUT Alpha` — the tracer bullet: pinned, not ambient |
-| F20.2 | same tag | `/matrix-post-meta/` | `BWSUT Alpha` — identical to F20.1, proving the pin ignores the page |
-| F20.3 | `{{text src:term\|use:title}}` (bare, no pin — D2/D33; hand-wire only, nothing offers this) | `/` | **empty** — an argless declaring root refuses at the factory seam, it does not read the page's own entity. The editor's own preview of the same tag reads `[⚠ Term: nothing pinned]` rather than looking like a healthy bare tag (D8), verified via `wp eval` |
-| F20.4 | `{{text src:term,999999\|use:title}}` | `/` | **empty** — a pin naming a nonexistent term refuses; the editor's own preview marks this `term,999999 (missing)` (`preview-label-test.php`) |
-| F20.5 | `{{try_text A:src(term,31);use(title)}}` | `/matrix-post-meta/` | `BWSUT Alpha` — the SAME picker's offering resolves identically inside a `try_` attempt (D11, D18) |
-| F20.6 | `{{join mode:template\|A:src(term,31);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `/matrix-post-meta/` | `BWSUT Alpha / Matrix: Post Meta` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
+**F20.7's field TYPE is load-bearing, not incidental** — measured live 2026-09-07: a `post_object`
+field (bare scalar storage) silently read EMPTY through this exact path.
+`bws_read_term_field($key, $id, false)` — the "preserve the relationship array" read a term-rooted
+`refs` step takes — delegates to `GenerateBlocks_Meta_Handler::get_value()`, which returns its
+fallback (`''`) for any value that is not array/object-shaped once `single_only` is false; a scalar
+`post_object` id fails that shape test and a `relationship` field's array does not. See the field's
+own comment in `schema.php` for the measurement. This is a fact about GB's own meta reader, not
+about anything this plugin owns — record it here rather than restate the axis, per
+`docs/coresident/` posture for foreign-plugin facts (no `coresident/generateblocks.md` file exists
+yet for GB CORE itself, only for GB Query Enhancements; this note is the seed of one if the pattern
+recurs).
 
-**Also verified live** (`wp eval`, admin user, 2026-09-07): the entity-lookup REST route's two
-modes against real term data — `bws_entity_lookup_browse_terms()` returns every `category` term
-grouped and ID-prefixed exactly as D15 specifies; `bws_entity_lookup_resolve_term()` answers a real
-term's row and `null` for a nonexistent id; and `bws_build_preview_label()` on `src:term,31|key:sku`
-reads `['sku' from Term: BWSUT Alpha]` — D20's namer, live. The REST route itself is confirmed
-registered (`GET /wp-json/bws-dynamic-tags/v1/entities`) and correctly returns `401` to an
-unauthenticated request.
+**A SECOND, MORE CONSEQUENTIAL DISCOVERY** surfaced building this section: an EXPLICIT, HAND-TYPED
+`src:term` (no argument) used to reach `TaxonomyTerm::resolve_id()` — which is loop- and
+ambient-context-aware — and therefore correctly resolved a query loop's own term item
+(`loop-test-matrix.md` QL1.2, "correct today" through 1.20.0-pre). D8's factory-seam refusal now
+intercepts BEFORE `resolve_id()` is ever reached for ANY argless declaring root, so that read is now
+EMPTY too. **This was put to the user as an explicit choice** (D2's "bare `term` already does what a
+bare base tag does" vs D8's literal "an argless root refuses, full stop") and the answer was to keep
+D8's rule as written — QL1.2 and QL1.4b were updated to the new behavior (v20) rather than treated
+as a regression to revert. See `loop-test-matrix.md` §QL1's own note and CONTEXT.md I15's fifth
+shape.
 
-**Not yet re-verified here**: a relationship step running off a pinned root (`term,31;refs,<field>`)
-— the seeded `category` taxonomy carries no ACF relationship field on its terms to exercise one
-against, so D3's "steps run off a pinned root" is pinned pure in `traversal-pipeline-test.php`
-(§D3/§D8) rather than end to end. Add a term-meta relationship field to the `core-structures`
-blueprint the next time this section is touched, and this row moves up from that gap.
+**Verified live** (`wp eval` + `render-tag`, admin user, 2026-09-07, blueprint v20): every row above
+against real seeded content; the entity-lookup REST route's two modes (`bws_entity_lookup_browse_terms()`
+returns every `department` term grouped and ID-prefixed per D15, `bws_entity_lookup_resolve_term()`
+answers a real term's row and `null` for a nonexistent id, registered and correctly `401`s an
+unauthenticated request); `bws_build_preview_label()` on a pinned tag reads `['sku' from Term:
+Sales]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one)
+against the reseeded testbed, all green.
 
 ## Fail triage
 

@@ -203,7 +203,14 @@ class BWS_Test_Pinned_Term_Source extends \BWS\DynamicTags\AbstractSource {
 	public function resolve_root_argument( string $arg, array $options, $instance ) {
 		return is_numeric( $arg ) ? (int) $arg * 2 : false;
 	}
-	public function resolve_id( array $options, $instance ) { return false; }
+	// TRUTHY, deliberately — not `false`. The point of the D8 refusal is that it never
+	// REACHES this method for an argless declaring root, whatever it would have
+	// answered; a fixture whose ambient path always fails could not tell "refused before
+	// asking" apart from "asked and got nothing", which is exactly the shape a query
+	// loop's own term item takes (FW-39, discovered building fold-test-matrix.md §F20 —
+	// an explicit, argless `src:term` used to reach TaxonomyTerm::resolve_id() and
+	// correctly read a loop's term; D8 now refuses before it is ever called).
+	public function resolve_id( array $options, $instance ) { return 555; }
 	public function get_source_options(): array { return array(); }
 }
 

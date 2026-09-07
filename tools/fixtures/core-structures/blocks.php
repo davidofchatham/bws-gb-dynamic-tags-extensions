@@ -1515,8 +1515,20 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => false,
 			),
-			bws_fixture_gb_row( 'QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the two rows under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post)', '{{title}}' )
-				. "\n\n" . bws_fixture_gb_row( 'QL1.2 the same read with an EXPLICIT source, correct today (-> the loop term name)', '{{title src:term}}' )
+			bws_fixture_gb_row( 'QL1.1 BARE tag, and the row the whole page exists for (-> the loop term name, matching the row under it; before item-shape recognition it rendered the post that shares the term id, which on a WordPress install is the first post)', '{{title}}' )
+				. "\n\n" . bws_fixture_gb_empty_row(
+					// D8/FW-39 (v20): `term` DECLARING a pinning argument moved this row's
+					// answer. An EXPLICIT `src:term` with no argument now REFUSES at the
+					// factory seam rather than falling through to resolve_id()'s own
+					// loop-aware detection -- the same refusal a hand-typed, argument-less
+					// PIN gets, because the wire cannot tell the two intents apart. Before
+					// v20 this read the SAME loop term QL1.1 does ("correct today" was the
+					// row's own label); a MEASURED, DELIBERATE choice (not an oversight) --
+					// D8's literal rule was kept over D2's narrower equivalence claim once the
+					// conflict surfaced here. See CONTEXT.md I15's fifth shape.
+					'QL1.2 the SAME read with an EXPLICIT `src:term` -- EMPTY since v20 (was the loop term name through 1.20.0-pre; D8 now refuses an argless declaring root unconditionally, even where resolve_id() would have found the loop\'s own term)',
+					'{{title src:term}}'
+				)
 				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
@@ -1534,7 +1546,13 @@ function bws_fixture_page_content_matrix_loops() {
 				'hide_empty'     => true,
 			),
 			bws_fixture_gb_row( 'QL1.4 the SAME bare tag on fixture terms whose ids no post carries (-> the loop term name, matching the row under it; before item-shape recognition it rendered nothing at all, which was the leak with nowhere to land)', '{{title}}' )
-				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term name)', '{{title src:term}}' ),
+				// NON-VACUITY switched off `{{title src:term}}` in v20 (FW-39): that
+				// explicit-source read is what D8 now REFUSES unconditionally (see QL1.2's
+				// own note above), so it can no longer prove the loop ran -- refusing and
+				// "the loop never rendered this section" would read identically. The query
+				// extension's OWN term tag (already proven independent, QL1.3) takes over
+				// the same non-vacuity role for this SECOND loop.
+				. "\n\n" . bws_fixture_gb_row( 'QL1.4b NON-VACUITY for the row above, and the proof the loop ran (-> the loop term archive URL)', '{{term_archive_url}}' ),
 			'ql1-term-loop-no-collision',
 			'WP_Term_Query'
 		),
@@ -1692,6 +1710,54 @@ function bws_fixture_page_content_matrix_loops() {
 	return implode( "\n\n", $sections );
 }
 
+/**
+ * matrix-pinned-roots — PINNED ENTITY ROOTS corpus (v20, FW-39, §F20).
+ *
+ * The whole point of a pin is that it resolves the SAME wherever it is authored, so this
+ * page's own field values are deliberately unlike the pinned term's ("Matrix: Pinned
+ * Entity Roots" the page title, "Sales" / "Tom Associate" the pinned answers) — a row
+ * that happened to match ambient content would pass whether the pin resolved or not.
+ *
+ * The Sales department term's real id is resolved at BUILD TIME
+ * (bws_fixture_seeded_term_id()), never hand-typed: a pin is authored by ID (D9), and a
+ * fresh install's `sales` term is not guaranteed to land on any particular number.
+ *
+ * @return string
+ */
+function bws_fixture_page_content_matrix_pinned_roots() {
+	$sales_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
+	if ( ! $sales_id ) {
+		// The term does not exist yet (a partial/out-of-order seed run) — render a
+		// single visible flag rather than a page of tags naming a bogus id, which
+		// would misreport as "the pin doesn't resolve" instead of "reseed first".
+		return bws_fixture_gb_text_block(
+			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term was not found. Reseed terms before pages.',
+			'pinned-roots-missing-term'
+		);
+	}
+
+	$sections = array();
+
+	$sections[] = bws_fixture_gb_section( 'F20 - a PINNED TERM resolves the same wherever it is authored', array(
+		bws_fixture_gb_row( "F20.1 base tag pinned at term,{$sales_id} (-> Sales)", "{{text src:term,{$sales_id}|use:title}}" ),
+		bws_fixture_gb_row( 'F20.2 the ambient contrast, same key, no root (-> Matrix: Pinned Entity Roots, THIS page)', '{{text use:title}}' ),
+		bws_fixture_gb_empty_row( 'F20.3 bare `src:term`, no argument - D2/D8 refusal, hand-wire only (nothing offers this in the UI) - EMPTY, never the page\'s own entity', '{{text src:term|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F20.4 pinned at a term id that does not exist - EMPTY, a deleted pin does not fall back either', '{{text src:term,999999|use:title}}' ),
+		bws_fixture_gb_row( "F20.5 the SAME pin inside a try_ attempt (-> Sales)", "{{try_text A:src(term,{$sales_id});use(title)}}" ),
+		bws_fixture_gb_row(
+			"F20.6 the SAME pin composed inside a join with the ambient title (-> Sales / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(term,{$sales_id});use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// D3 - a RELATIONSHIP STEP running OFF a pinned term root. `dept_lead` (v20) is
+		// the one term-meta field in the blueprint that resolves a POST reference, so
+		// this is the only page that can express "the term this page is pinned to, then
+		// hop to a post" rather than the reverse (a post hopping INTO a term).
+		bws_fixture_gb_row( "F20.7 a relationship step off the pinned root (-> Tom Associate, the Sales dept_lead)", "{{text src:term,{$sales_id};refs,dept_lead|use:title}}" ),
+	) );
+
+	return implode( "\n\n", $sections );
+}
+
 /** Dispatcher: manifest content_builder name → page content. */
 function bws_fixture_build_page_content( $builder ) {
 	$map = array(
@@ -1702,6 +1768,7 @@ function bws_fixture_build_page_content( $builder ) {
 		'matrix_fixture_roots' => 'bws_fixture_page_content_matrix_fixture_roots',
 		'matrix_gate'          => 'bws_fixture_page_content_matrix_gate',
 		'matrix_loops'         => 'bws_fixture_page_content_matrix_loops',
+		'matrix_pinned_roots'  => 'bws_fixture_page_content_matrix_pinned_roots',
 		'pattern_legacy_wire'  => 'bws_fixture_pattern_content_legacy_wire',
 		'context_header'       => 'bws_fixture_element_content_context_header',
 		'home_lead'            => 'bws_fixture_page_content_home_lead',

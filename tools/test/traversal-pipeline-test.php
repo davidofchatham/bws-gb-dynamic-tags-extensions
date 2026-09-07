@@ -1459,9 +1459,23 @@ eq(
 // every OTHER row in this file (no ambient signal names 'pinnedterm') and only this row
 // would catch it.
 eq(
-	'D8: an argless declaring root refuses — it does not degrade to resolve_id()',
+	'D8: an argless declaring root refuses — it does not degrade to resolve_id(), EVEN WHEN resolve_id() would have answered something (the fixture always returns 555)',
 	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
 	bws_resolve_base_source( array( 'src' => 'pinnedterm' ), null, sig() )
+);
+// The QL1.2 discovery, pinned directly: an explicit, argless `src:term` used to reach
+// resolve_id() and correctly answer whatever the AMBIENT/LOOP context was — this row
+// proves the refusal fires even with a live ambient TERM signal present, not merely when
+// there is nothing there to find. See fold-test-matrix.md §F20's own note and
+// loop-test-matrix.md §QL1 (the fixture row this measurement changed).
+eq(
+	'D8: the refusal holds even with an ambient TERM signal present — the QL1.2 regression, pinned',
+	array( 'kind' => BWS_SOURCE_KIND_UNRESOLVED ),
+	bws_resolve_base_source(
+		array( 'src' => 'pinnedterm' ),
+		null,
+		sig( array( 'queried_kind' => 'term', 'queried_id' => 34, 'is_tax' => true ) )
+	)
 );
 // A pin naming NOTHING resolvable is equally terminal — resolve_root_argument() returning
 // false does not fall back to resolve_id() either.
