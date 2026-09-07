@@ -10,6 +10,7 @@
  * @since 1.5.0 Removed related-variant methods; added needs_relationship_field(), get_ui_group().
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() (#83).
+ * @since 1.20.0 Added get_root_argument() + the argless-policy constants (FW-39).
  */
 
 namespace BWS\DynamicTags;
@@ -19,6 +20,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 interface SourceInterface {
+
+	/**
+	 * A declared root argument is REQUIRED: an argless root resolves nothing (FW-39).
+	 *
+	 * The default, and what `term,<ID>` / `post,<ID>` declare. Bare `term` is already what
+	 * a bare base tag does and bare `post` would be `current` under another name, so
+	 * neither has an argless meaning left to carry.
+	 *
+	 * @since 1.20.0
+	 * @var string
+	 */
+	public const ROOT_ARGLESS_REFUSE = 'refuse';
+
+	/**
+	 * The SOURCE answers a bare root by a rule it states (FW-39).
+	 *
+	 * The only other value, and it exists for a root that ships ARGLESS TODAY and gains an
+	 * argument later — a sister plugin's Site Views `view`, which answers a bare `view`
+	 * from its own priority ranking. Declaring it is not permission to fall back to the
+	 * ambient entity: an argless root never degrades to whatever the page is about
+	 * (CONTEXT.md I15 at the root layer), it resolves by the owner's stated rule or not at
+	 * all.
+	 *
+	 * @since 1.20.0
+	 * @var string
+	 */
+	public const ROOT_ARGLESS_OWNER_RESOLVES = 'owner-resolves';
 
 	/**
 	 * Get the unique source key (e.g. 'post', 'term', 'portal').
@@ -168,4 +196,40 @@ interface SourceInterface {
 	 * @return bool
 	 */
 	public function is_selectable_root(): bool;
+
+	/**
+	 * This root's ARGUMENT, if it takes one (FW-39).
+	 *
+	 * A root that pins an entity needs an author to say WHICH — `term,34`, `post,1692`.
+	 * The token stays the source's bare key and the argument travels beside it, so every
+	 * registry-name lookup and is_selectable_root() check stays a comparison rather than
+	 * becoming a parse.
+	 *
+	 * ONE argument, arity fixed at one, and OPAQUE to everything that carries it. This
+	 * declaration says what it means and which control edits it; nothing between here and
+	 * that control interprets the value. It is not always an ID — a sister Site Views
+	 * plugin wants `view,<dimension-slug>` — so a numeric assumption anywhere in the carry
+	 * path would be wrong the first time it is used. Plural arguments would be a grammar
+	 * change touching every step type and the twin JS port, and nothing needs them.
+	 *
+	 * ON THE CONTRACT, not on a lookup table beside the roots enum, so a root registered
+	 * through `bws_dynamic_tags_chain_roots` can declare one too. FW-69/70 made that route
+	 * public integration surface, and an argument only in-repo sources could use would
+	 * make it second-class.
+	 *
+	 * The returned shape, normalized for both authoring surfaces by
+	 * bws_registered_root_rows() — which is where a malformed declaration is dropped:
+	 *
+	 *   label    string  what the argument MEANS, author-facing ("Term", "View").
+	 *   control  string  the `bws-*` control that edits it. Required: a declared argument
+	 *                    an author cannot fill is a root that can only refuse.
+	 *   argless  string  ROOT_ARGLESS_REFUSE (the default) or
+	 *                    ROOT_ARGLESS_OWNER_RESOLVES. STATED rather than inferred from
+	 *                    whether some method exists — callback-presence as a proxy is the
+	 *                    pattern FW-38 is retiring.
+	 *
+	 * @since 1.20.0
+	 * @return array Empty when this root takes no argument (the default).
+	 */
+	public function get_root_argument(): array;
 }

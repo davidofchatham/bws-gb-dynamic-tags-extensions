@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- **A chain root registered by another plugin can now declare an ARGUMENT**: one opaque token an author fills in, so a root can name one specific entity rather than only "whatever this page is about". A source class declares it from the new `get_root_argument()`, and a `bws_dynamic_tags_chain_roots` spec from a new optional `arg` key; both say what the argument means, which control edits it, and what a bare root with no argument means. On the wire the argument travels beside the root, so `view,north-campus` roots at `view` and hands `north-campus` to the declaring plugin's control. Nothing this plugin ships takes an argument yet and no control for one ships either, so no tag renders differently and no editor screen changes. See [Plugin integration §1a](docs/plugin-integration.md#1a-offering-your-source-as-a-chain-root).
+
+  **Upgrade note for integrators:** `get_root_argument()` is declared on `SourceInterface`, so a class implementing that interface **directly** must add it. A class extending `AbstractSource`, which is the documented recommendation, inherits the no-argument default and needs no change.
+
 ### Changed
 
 - **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.

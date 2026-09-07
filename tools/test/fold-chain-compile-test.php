@@ -12,6 +12,7 @@
  * SCOPE:
  *   §C1  bws_fold_chain_is_wire()        chain-vs-token detection (conservative)
  *   §C2  bws_fold_chain_root()           the factory token; ROOT is not a step
+ *   §C2a bws_fold_chain_root_arg()       the root's argument, beside the bare slug
  *   §C3  bws_fold_chain_to_steps()       slug→type map, argless drop, unknown slug
  *   §C4  per-step `limit`                emitted only when it BOUNDS (0/-1 = unlimited)
  *   §C5  bws_fold_chain_from_options()   depth-0 chain: chain wire OR legacy triple
@@ -125,6 +126,36 @@ assert_same( 'registry root passes through', 'portal_resource', bws_fold_chain_r
 // Slot sentinels are resolved by the container BEFORE compile; the root reader must
 // not interpret one (it would have to know the accumulator to do so).
 assert_same( 'same sentinel is returned verbatim', 'same', bws_fold_chain_root( chain_of( 'same' ) ) );
+
+echo "\n§C2a bws_fold_chain_root_arg — the argument travels BESIDE the bare slug (FW-39)\n";
+
+// The pair, on the same chain: the slug the factory looks up, and the argument the
+// declaring source's control owns. Reading `term,34` whole as the factory's src token was
+// the rejected alternative, and this pair is what makes it unnecessary — every
+// registry-name lookup stays a comparison rather than becoming a parse.
+assert_same( 'pinned term root → bare slug', 'term', bws_fold_chain_root( chain_of( 'term,34' ) ) );
+assert_same( '...and the argument beside it', '34', bws_fold_chain_root_arg( chain_of( 'term,34' ) ) );
+assert_same( 'pinned post root → bare slug', 'post', bws_fold_chain_root( chain_of( 'post,1692' ) ) );
+assert_same( '...and the argument beside it', '1692', bws_fold_chain_root_arg( chain_of( 'post,1692' ) ) );
+// OPAQUE — not every root argument is an ID. A Site Views root wants a dimension slug, and
+// anything here that assumed numeric would be wrong the first time one shipped.
+assert_same( 'a NON-NUMERIC argument passes through verbatim', 'north-campus', bws_fold_chain_root_arg( chain_of( 'view,north-campus' ) ) );
+assert_same( '...and its root is still the bare slug', 'view', bws_fold_chain_root( chain_of( 'view,north-campus' ) ) );
+// The argument survives a chain that goes on to hop — a pinning root is a REAL root.
+assert_same( 'argument survives a following hop', '34', bws_fold_chain_root_arg( chain_of( 'term,34;refs,office' ) ) );
+// ARGLESS answers '' — and so does every chain with no root at all. One answer on purpose:
+// what an argless root MEANS is the declaring source's to state (ROOT_ARGLESS_REFUSE or
+// _OWNER_RESOLVES), and this function reads the wire rather than deciding policy on it.
+assert_same( 'argless root → no argument', '', bws_fold_chain_root_arg( chain_of( 'site' ) ) );
+assert_same( 'legacy current root → no argument', '', bws_fold_chain_root_arg( chain_of( 'current' ) ) );
+assert_same( 'empty chain → no argument', '', bws_fold_chain_root_arg( array() ) );
+// A LEADING HOP's own argument is not the root's. The hop applies to the ambient entity, so
+// there is no root to argue about; returning 'office' here would hand the factory a pin
+// nobody authored.
+assert_same( 'leading refs hop → its arg is NOT a root argument', '', bws_fold_chain_root_arg( chain_of( 'refs,office' ) ) );
+assert_same( 'leading terms hop likewise', '', bws_fold_chain_root_arg( chain_of( 'terms,category' ) ) );
+// A pinned root's `limit` is a NAMED token, so it never reads as the argument.
+assert_same( 'a limit beside the pin does not become the argument', '34', bws_fold_chain_root_arg( chain_of( 'term,34,limit(2)' ) ) );
 
 echo "\n§C2b bws_fold_src_root_token — the token every UNMIGRATED tag still hands the factory\n";
 

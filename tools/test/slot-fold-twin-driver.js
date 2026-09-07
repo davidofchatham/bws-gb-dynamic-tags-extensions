@@ -173,6 +173,7 @@ const doc = {
 			isWire: fold.chainIsWire( raw ),
 			chain: canonChain( chain ),
 			root: fold.chainRoot( chain ),
+			rootArg: fold.chainRootArg( chain ),
 			fans: fold.chainFans( chain )
 		};
 	} )

@@ -13,6 +13,7 @@
  * @since 1.5.0 Removed related-variant method defaults; added needs_relationship_field(), get_ui_group().
  * @since 1.6.0 Removed get_title_prefix() and get_traversal_options().
  * @since 1.17.0 Added is_selectable_root() default (false) (#83).
+ * @since 1.20.0 Added get_root_argument() default (none) (FW-39).
  */
 
 namespace BWS\DynamicTags;
@@ -113,6 +114,20 @@ abstract class AbstractSource implements SourceInterface {
 	 */
 	public function is_selectable_root(): bool {
 		return false;
+	}
+
+	/**
+	 * No root argument unless a source declares one (FW-39).
+	 *
+	 * NONE is the default for the same reason `false` is the default above: nearly every
+	 * source resolves its own id from ambient context and has nothing for an author to
+	 * pin. A root that takes an argument is the exception, and it says so.
+	 *
+	 * @since 1.20.0
+	 * @return array
+	 */
+	public function get_root_argument(): array {
+		return array();
 	}
 
 }

@@ -686,6 +686,24 @@
 	}
 
 	/**
+	 * The ROOT's argument — twin of bws_fold_chain_root_arg() (FW-39).
+	 *
+	 * '' when the chain has no root (empty, or leading with a hop) and when the root
+	 * carries no argument. OPAQUE: returned as authored, because a root argument is not
+	 * always an ID.
+	 *
+	 * @param {Array} chain Parsed chain.
+	 * @return {string}
+	 */
+	function chainRootArg( chain ) {
+		if ( '' === chainRoot( chain ) ) {
+			return '';
+		}
+		var arg = chain[ 0 ].arg;
+		return ( arg === null || arg === undefined ) ? '' : String( arg );
+	}
+
+	/**
 	 * Whether a chain HOPS — the `fans` half of bws_fold_chain_resolution().
 	 *
 	 * CAPACITY read from the wire ("this chain may resolve more than one source"),
@@ -849,6 +867,7 @@
 		// editor surfaces that need them share ONE copy of each rule.
 		chainIsWire: chainIsWire,
 		chainRoot: chainRoot,
+		chainRootArg: chainRootArg,
 		chainFans: chainFans,
 		// Which steps FAN. Exported for the chain editor, whose per-step limit help says
 		// something different once an EARLIER step fans (#95). Not `chainFans`, which is

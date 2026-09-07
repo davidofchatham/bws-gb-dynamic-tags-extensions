@@ -15,6 +15,7 @@
  *
  * @package BWS_Dynamic_Tags
  * @since 1.17.0
+ * @since 1.20.0 Carries a declared root argument (FW-39).
  */
 
 namespace BWS\DynamicTags\Sources;
@@ -39,18 +40,23 @@ class CallbackRoot extends AbstractSource {
 	/** @var callable */
 	private $resolver;
 
+	/** @var array Root-argument declaration, empty when this root takes none. */
+	private array $root_arg;
+
 	/**
 	 * @since 1.17.0
 	 * @param string   $key      Source key — the `src` token authors get in their wire.
 	 * @param string   $label    Author-facing dropdown label.
 	 * @param string   $context  'post' or 'term' — decides the resolved-source KIND.
 	 * @param callable $resolver callable( array $options, $instance ): int|string|false.
+	 * @param array    $root_arg Root-argument declaration, or empty for none (FW-39).
 	 */
-	public function __construct( string $key, string $label, string $context, callable $resolver ) {
+	public function __construct( string $key, string $label, string $context, callable $resolver, array $root_arg = array() ) {
 		$this->key      = $key;
 		$this->label    = $label;
 		$this->context  = ( 'term' === $context ) ? 'term' : 'post';
 		$this->resolver = $resolver;
+		$this->root_arg = $root_arg;
 	}
 
 	public function get_source_key(): string {
@@ -89,6 +95,23 @@ class CallbackRoot extends AbstractSource {
 	 */
 	public function is_selectable_root(): bool {
 		return true;
+	}
+
+	/**
+	 * The declaration passed through from the filter spec, VERBATIM (FW-39).
+	 *
+	 * Not validated here. bws_registered_root_rows() is the one reader of every source's
+	 * declaration and drops a malformed one there, so validating a second time in the
+	 * filter route's adapter would put the same rule at two sites — and the class route
+	 * would still reach the first one. The resolver and label ARE checked before
+	 * construction, because a spec failing either has no row to be at all; a bad argument
+	 * declaration leaves a perfectly good argless root.
+	 *
+	 * @since 1.20.0
+	 * @return array
+	 */
+	public function get_root_argument(): array {
+		return $this->root_arg;
 	}
 
 	/**

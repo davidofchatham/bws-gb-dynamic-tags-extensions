@@ -276,6 +276,18 @@
 		{
 			"chain": "refs,x,y,z",
 			"enclosingLevel": 1
+		},
+		{
+			"chain": "term,34",
+			"enclosingLevel": 1
+		},
+		{
+			"chain": "term,34;refs,office",
+			"enclosingLevel": 0
+		},
+		{
+			"chain": "view,north-campus,limit[3]",
+			"enclosingLevel": 1
 		}
 	],
 	"_emitStructsReadme": [
@@ -860,6 +872,36 @@
 		{
 			"options": {
 				"src": "refs,office;;["
+			}
+		},
+		{
+			"options": {
+				"src": "term,34"
+			}
+		},
+		{
+			"options": {
+				"src": "post,1692"
+			}
+		},
+		{
+			"options": {
+				"src": "view,north-campus"
+			}
+		},
+		{
+			"options": {
+				"src": "term,34;refs,office"
+			}
+		},
+		{
+			"options": {
+				"src": "term,34,limit(2)"
+			}
+		},
+		{
+			"options": {
+				"src": "post,1692;terms,department"
 			}
 		}
 	]

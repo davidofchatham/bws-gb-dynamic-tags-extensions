@@ -78,9 +78,16 @@ function bws_base_source_option(): array {
  * The label is the source's OWN — get_source_label(), the accessor that already exists —
  * so an integrator names their own concept and there is no second label method to drift.
  *
+ * A root that takes an ARGUMENT (FW-39) carries its declaration on the row as `arg`,
+ * normalized by bws_root_argument_row(). Both surfaces pass the key through to their
+ * control untouched — neither knows what the argument means, which is what lets a root
+ * declared through `bws_dynamic_tags_chain_roots` carry one on the same terms.
+ *
  * @since 1.17.0
- * @return array[] `{ value, label }` rows, in registration order. Empty when the registry
- *                 is absent (a harness loading this file alone) or nothing has opted in.
+ * @since 1.20.0 Rows carry a declared root `arg` (FW-39).
+ * @return array[] `{ value, label }` rows, plus `arg` where the root declares one, in
+ *                 registration order. Empty when the registry is absent (a harness
+ *                 loading this file alone) or nothing has opted in.
  */
 function bws_registered_root_rows(): array {
 	if ( ! class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
@@ -88,12 +95,65 @@ function bws_registered_root_rows(): array {
 	}
 	$rows = array();
 	foreach ( \BWS\DynamicTags\SourceRegistry::get_selectable_roots() as $key => $source ) {
-		$rows[] = array(
+		$row = array(
 			'value' => (string) $key,
 			'label' => $source->get_source_label(),
 		);
+		$arg = bws_root_argument_row( $source->get_root_argument() );
+		if ( array() !== $arg ) {
+			$row['arg'] = $arg;
+		}
+		$rows[] = $row;
 	}
 	return $rows;
+}
+
+/**
+ * Normalize a source's root-argument declaration into the row shape (FW-39).
+ *
+ * THE ONE READER of SourceInterface::get_root_argument()'s raw return, so a malformed
+ * declaration is dropped at a single site rather than reaching two authoring surfaces and
+ * a control in three different broken shapes. The filter route makes this an integrator's
+ * array, not only ours.
+ *
+ * A declaration missing its `label` or its `control` is DROPPED WHOLE, not repaired: the
+ * fallbacks available here are both wrong. Defaulting the label to the source's own would
+ * caption the picker with the root's name instead of the argument's meaning, and there is
+ * no default control at all — a declared argument an author cannot fill is a root whose
+ * only behaviour is refusing, which is worse than a root that never claimed to take one.
+ * The row then reads exactly as an argless root, which is a shape everything downstream
+ * already handles.
+ *
+ * An unrecognized `argless` normalizes to REFUSE rather than being dropped, because the
+ * two axes are independent: a typo in the policy must not silently delete the argument
+ * the author is being asked to fill. Refuse is the conservative answer — the root
+ * resolves nothing until it is pinned, which is what a pinning root does anyway.
+ *
+ * @since 1.20.0
+ * @param array $decl Raw declaration.
+ * @return array{label:string,control:string,argless:string} Empty when there is none.
+ */
+function bws_root_argument_row( array $decl ): array {
+	// SCALAR-CHECKED before the cast, not cast and hoped for. This gate reads an
+	// integrator's array, so a value that is not a string is a shape to expect rather than
+	// a shape to rule out: an array would cast to the literal 'Array' and pass as a label,
+	// and an object with no __toString throws an uncaught Error that takes down the option
+	// build for every base tag and every folded slot on the site. Both land on the same
+	// answer the missing-key case gets, which is the answer this function exists to give.
+	$label   = is_scalar( $decl['label'] ?? null ) ? trim( (string) $decl['label'] ) : '';
+	$control = is_scalar( $decl['control'] ?? null ) ? trim( (string) $decl['control'] ) : '';
+	if ( '' === $label || '' === $control ) {
+		return array();
+	}
+	$argless = is_scalar( $decl['argless'] ?? null ) ? (string) $decl['argless'] : '';
+	if ( \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES !== $argless ) {
+		$argless = \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_REFUSE;
+	}
+	return array(
+		'label'   => $label,
+		'control' => $control,
+		'argless' => $argless,
+	);
 }
 
 /**

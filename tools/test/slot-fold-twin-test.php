@@ -128,14 +128,14 @@ foreach ( $corpus['legacy'] as $i => $case ) {
 // chain. But the base-tag chain control does have to READ one, and it writes the
 // wire the renderer reads back, so this half of the compiler IS twinned:
 // bws_fold_chain_from_options / _resolution / _is_wire against chainFromOptions
-// plus the grammar's chainIsWire / chainRoot / chainFans.
+// plus the grammar's chainIsWire / chainRoot / chainRootArg / chainFans.
 //
 // The input is an OPTION MAP rather than a chain string, which is the point: the
 // legacy flat triple is half the rule, and the site-root guard on `srcTermIn` is
 // invisible from a chain string alone.
 foreach ( $corpus['srcOptions'] as $i => $case ) {
 	$label = "srcOptions[$i]: " . json_encode( $case['options'], JSON_UNESCAPED_SLASHES );
-	foreach ( array( 'isWire', 'chain', 'root', 'fans' ) as $axis ) {
+	foreach ( array( 'isWire', 'chain', 'root', 'rootArg', 'fans' ) as $axis ) {
 		twin_same(
 			"$label — $axis",
 			$php_doc['srcOptions'][ $i ][ $axis ] ?? 'MISSING',

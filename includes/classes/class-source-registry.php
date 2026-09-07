@@ -6,6 +6,7 @@
  * @since 1.0.0
  * @since 1.17.0 Chain roots: get_selectable_roots() + the `bws_dynamic_tags_chain_roots`
  *               filter route (#83).
+ * @since 1.20.0 Filter-route specs may declare a root argument (FW-39).
  */
 
 namespace BWS\DynamicTags;
@@ -163,6 +164,11 @@ class SourceRegistry {
 		 *             'label'   => __( 'View', 'my-plugin' ),      // required, author-facing
 		 *             'context' => 'post',                         // 'post'|'term', default 'post'
 		 *             'resolve' => 'my_plugin_current_view_id',    // callable( $options, $instance )
+		 *             'arg'     => array(                          // optional (FW-39)
+		 *                 'label'   => __( 'View', 'my-plugin' ),   //   what the argument means
+		 *                 'control' => 'my-plugin-view-picker',     //   the control that edits it
+		 *                 'argless' => 'owner-resolves',            //   or 'refuse' (the default)
+		 *             ),
 		 *         );
 		 *         return $roots;
 		 *     } );
@@ -172,7 +178,8 @@ class SourceRegistry {
 		 * uses the `bws_dynamic_tags_register_sources` action instead.
 		 *
 		 * @since 1.17.0
-		 * @param array $roots Source key => { label, context, resolve } spec.
+		 * @since 1.20.0 Specs may declare a root argument (FW-39).
+		 * @param array $roots Source key => { label, context, resolve, arg } spec.
 		 */
 		$specs = apply_filters( 'bws_dynamic_tags_chain_roots', array() );
 		if ( ! is_array( $specs ) ) {
@@ -203,11 +210,15 @@ class SourceRegistry {
 			if ( ! self::is_expressible_root_key( $key ) ) {
 				continue;
 			}
+			// The `arg` declaration passes through UNVALIDATED — bws_registered_root_rows()
+			// is the one reader of every source's declaration and drops a malformed one
+			// there, on the same terms as a class-route source's (FW-39).
 			self::register_source( new Sources\CallbackRoot(
 				$key,
 				$label,
 				(string) ( $spec['context'] ?? 'post' ),
-				$resolve
+				$resolve,
+				is_array( $spec['arg'] ?? null ) ? $spec['arg'] : array()
 			) );
 		}
 	}

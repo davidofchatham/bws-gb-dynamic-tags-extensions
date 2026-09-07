@@ -777,6 +777,22 @@ add_filter( 'bws_dynamic_tags_chain_roots', static function ( $roots ) {
 		'context' => 'post',
 		'resolve' => static function ( $options, $instance ) { return 5150; },
 	);
+	// ROOT ARGUMENTS through the filter route (FW-39). An argument only in-repo sources
+	// could declare would make the public route second-class, and FW-69/70 made it
+	// integration surface.
+	$roots['argfilterroot'] = array(
+		'label'   => 'Arg Filter Root',
+		'resolve' => static function ( $options, $instance ) { return 1; },
+		'arg'     => array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves' ),
+	);
+	// A spec whose declaration names no control meets the same rule a class does: the
+	// route hands it through unvalidated and the ONE reader drops it, rather than the
+	// rule living at two sites that can come to disagree.
+	$roots['argfilterhalf'] = array(
+		'label'   => 'Arg Filter Half',
+		'resolve' => static function ( $options, $instance ) { return 1; },
+		'arg'     => array( 'control' => 'bws-test-view-picker' ),
+	);
 	// COLLIDES with the class-route source registered above. Must be ignored, not
 	// overwrite it: a plugin shipping a real source class must not have it shadowed by a
 	// spec someone else declared.
@@ -809,12 +825,12 @@ $root_values = static function ( array $rows ): array {
 $appended = bws_registered_root_rows();
 assert_same(
 	'the appender offers the opted-in source and the filter-declared root, in registration order',
-	array( 'testroot', 'filterroot' ),
+	array( 'testroot', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $appended )
 );
 assert_same(
 	'...labelled by the source\'s OWN accessor, so an integrator names their concept',
-	array( 'Test Root', 'Filter Root' ),
+	array( 'Test Root', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
 	array_map( static function ( $row ) { return $row['label']; }, $appended )
 );
 // The collision rule, stated as an outcome rather than as an absence: the key resolves to
@@ -871,17 +887,17 @@ $rooted_fold = bws_build_fold_slot_options(
 
 assert_same(
 	'BASE root enum = built-ins then the appended roots',
-	array( 'current', 'site', 'testroot', 'filterroot' ),
+	array( 'current', 'site', 'testroot', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_base['src']['fold']['srcRows'] )
 );
 assert_same(
 	'SLOT source enum carries the same roots (a root offered on a tag is offered in a field)',
-	array( 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	array( 'current', 'refs', 'site', 'testroot', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRows'] )
 );
 assert_same(
 	'...and so does a slot ≥2, behind its `same` row',
-	array( 'same', 'current', 'refs', 'site', 'testroot', 'filterroot' ),
+	array( 'same', 'current', 'refs', 'site', 'testroot', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRowsWithSame'] )
 );
 // APPENDED, never prepended: `defaultRoot` is derived from the first row and stands for
@@ -932,6 +948,108 @@ assert_same(
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = true;
 
 echo "\n";
+// ── The ROOT ARGUMENT declaration, carried (FW-39) ───────────────────────────────────
+//
+// A root that PINS an entity needs an author to say which one, and the declaration of
+// that argument rides the same row the label does. The class-route fixtures register HERE,
+// after the enum-order block above, so that block keeps asserting the order it was
+// written for; the filter-route pair had to be declared before init and is in the enum
+// order above for the same reason.
+//
+// Both surfaces carry the declaration WITHOUT KNOWING WHAT IT MEANS — one opaque token,
+// interpreted only by the control it names. That is the property that lets a filter-route
+// root take one on the same terms as a class.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Pinned_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Owner_Resolves_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Half_Declared_Root_Source() );
+
+$row_arg = static function ( array $rows, string $value ) {
+	foreach ( $rows as $row ) {
+		if ( $value === $row['value'] ) {
+			return $row['arg'] ?? null;
+		}
+	}
+	return 'NO SUCH ROW';
+};
+$arg_of = static function ( string $value ) use ( $row_arg ) {
+	return $row_arg( bws_registered_root_rows(), $value );
+};
+
+assert_same(
+	'a declaring root carries its argument on the row, argless defaulting to REFUSE',
+	array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse' ),
+	$arg_of( 'pinroot' )
+);
+assert_same(
+	'...and the second policy is carried as STATED, never inferred from what exists',
+	array( 'label' => 'Dimension', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves' ),
+	$arg_of( 'ownerroot' )
+);
+// ABSENT rather than empty on a root that takes no argument: the key's presence IS the
+// claim that this root takes one, so an empty array would say the opposite of what it
+// means and every surface would have to test emptiness instead of presence.
+assert_same( 'a root that declares nothing carries no `arg` key at all', null, $arg_of( 'testroot' ) );
+// DROPPED WHOLE, not repaired. There is no default control to fall back to, and a
+// declared argument an author cannot fill leaves a root whose only behaviour is refusing.
+assert_same( 'a declaration naming no control is dropped', null, $arg_of( 'halfroot' ) );
+assert_same(
+	'...and the root itself is still offered — a bad optional declaration retires nothing',
+	true,
+	in_array( 'halfroot', $root_values( bws_registered_root_rows() ), true )
+);
+
+// THE FILTER ROUTE, on the same terms. The route hands its spec's declaration through
+// UNVALIDATED and the one reader drops a bad one, rather than the rule living at two
+// sites that can come to disagree — which is why the half-declared spec answers exactly
+// as the half-declared class does.
+assert_same(
+	'a filter-declared root carries an argument on the same terms as a class',
+	array( 'label' => 'View', 'control' => 'bws-test-view-picker', 'argless' => 'owner-resolves' ),
+	$arg_of( 'argfilterroot' )
+);
+assert_same( '...and a half-declared spec is dropped by that same one reader', null, $arg_of( 'argfilterhalf' ) );
+
+// Both surfaces, one appender — the enum-order block's property, re-asked for the
+// argument. A root offered on a base tag with a picker and offered in a `{{join}}` field
+// without one is exactly the asymmetry the single appender exists to remove.
+// A declaration of the WRONG SHAPE lands where a missing key does. The gate reads an
+// integrator's array, so a non-string is a shape to EXPECT: cast without checking, an
+// array passes as the literal "Array" and captions a picker with it, and an object with
+// no `__toString` throws an uncaught Error that takes down the option build for every
+// base tag and folded slot on the site.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Nonscalar_Arg_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Nonscalar_Policy_Root_Source() );
+assert_same( 'a non-scalar label or control is dropped, not stringified', null, $arg_of( 'nonscalarroot' ) );
+assert_same(
+	'...leaving that root offered too',
+	true,
+	in_array( 'nonscalarroot', $root_values( bws_registered_root_rows() ), true )
+);
+// The two axes stay independent: a broken POLICY must not delete the argument an author
+// is being asked to fill, so it lands on the conservative value an unrecognized string
+// gets.
+assert_same(
+	'a non-scalar argless policy falls back to REFUSE, keeping the argument',
+	array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse' ),
+	$arg_of( 'badpolicyroot' )
+);
+
+$argued_base = bws_build_src_chain_option()['src']['fold']['srcRows'];
+$argued_fold = bws_build_fold_slot_options(
+	array(
+		'container'  => 'join',
+		'max'        => 2,
+		'base_read'  => $text['use'],
+		'base_key'   => $text['key'],
+		'allow_site' => true,
+		'noun'       => 'field',
+	)
+)['A']['fold'];
+$expected_pin = array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => 'refuse' );
+assert_same( 'BASE root enum carries the declaration', $expected_pin, $row_arg( $argued_base, 'pinroot' ) );
+assert_same( 'SLOT source enum carries the same declaration', $expected_pin, $row_arg( $argued_fold['srcRows'], 'pinroot' ) );
+assert_same( '...and so does a slot 2 and up, behind its `same` row', $expected_pin, $row_arg( $argued_fold['srcRowsWithSame'], 'pinroot' ) );
+
 if ( $failures > 0 ) {
 	echo "FAILED: {$failures}/{$count}\n";
 	exit( 1 );

@@ -157,3 +157,99 @@ class BWS_Test_Term_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	public function resolve_id( array $options, $instance ) { return 99; }
 	public function get_source_options(): array { return array(); }
 }
+
+/**
+ * A PINNING root — it declares a root argument (FW-39).
+ *
+ * The declaration is what the seam carries; nothing here resolves off the argument yet,
+ * which is the ticket's own boundary (no root in the plugin offers one). Its `argless`
+ * is OMITTED deliberately, so the normalizer's default (refuse) is exercised by absence
+ * rather than by a value that happens to match it.
+ */
+class BWS_Test_Pinned_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'pinroot'; }
+	public function get_source_label(): string { return 'Pinned Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One', 'control' => 'bws-test-picker' );
+	}
+	public function resolve_id( array $options, $instance ) { return 4242; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root that answers a bare token BY ITS OWN RULE — the second argless policy.
+ *
+ * Stands in for a sister plugin's Site Views `view`, which ships argless today and gains
+ * an argument later. It is not a licence to fall back to the ambient entity; it means the
+ * SOURCE decides, which is why the policy is stated rather than inferred.
+ */
+class BWS_Test_Owner_Resolves_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'ownerroot'; }
+	public function get_source_label(): string { return 'Owner Resolves Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array(
+			'label'   => 'Dimension',
+			'control' => 'bws-test-view-picker',
+			'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES,
+		);
+	}
+	public function resolve_id( array $options, $instance ) { return 11; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root whose declaration NAMES NO CONTROL — the load-bearing malformed case.
+ *
+ * It must still be an offered root, with no argument. Dropping the row entirely would
+ * retire a working source over a bad optional declaration; keeping the argument would
+ * paint a picker with no control behind it, leaving a root whose only behaviour is
+ * refusing.
+ */
+class BWS_Test_Half_Declared_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'halfroot'; }
+	public function get_source_label(): string { return 'Half Declared Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One' );
+	}
+	public function resolve_id( array $options, $instance ) { return 12; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A root whose declaration is the WRONG SHAPE — an array where a string belongs, and an
+ * object with no `__toString` beside it.
+ *
+ * The gate reads an integrator's array, so this is a shape to expect rather than one to
+ * rule out. Cast without checking, the array passes as the literal "Array" and paints a
+ * picker captioned that; the object throws an uncaught Error and takes the option build
+ * down for every base tag and every folded slot on the site.
+ */
+class BWS_Test_Nonscalar_Arg_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'nonscalarroot'; }
+	public function get_source_label(): string { return 'Nonscalar Arg Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => array( 'Which One' ), 'control' => new \stdClass() );
+	}
+	public function resolve_id( array $options, $instance ) { return 13; }
+	public function get_source_options(): array { return array(); }
+}
+
+/**
+ * A declaration whose ARGLESS POLICY is the wrong shape. The two axes are independent:
+ * a broken policy must not delete the argument the author is being asked to fill, so it
+ * lands on the conservative value exactly as an unrecognized string does.
+ */
+class BWS_Test_Nonscalar_Policy_Root_Source extends \BWS\DynamicTags\AbstractSource {
+	public function get_source_key(): string { return 'badpolicyroot'; }
+	public function get_source_label(): string { return 'Bad Policy Root'; }
+	public function is_selectable_root(): bool { return true; }
+	public function get_root_argument(): array {
+		return array( 'label' => 'Which One', 'control' => 'bws-test-picker', 'argless' => array( 'owner-resolves' ) );
+	}
+	public function resolve_id( array $options, $instance ) { return 14; }
+	public function get_source_options(): array { return array(); }
+}
