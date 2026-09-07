@@ -949,11 +949,7 @@ pin is authored by numeric ID (D9) and a fresh install's term is not guaranteed 
 | F20.6 | `{{join mode:template\|A:src(term,<sales-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Sales / Matrix: Pinned Entity Roots` — one composed string names the pinned term AND the ambient page, proving they are two independent reads |
 | F20.7 | `{{text src:term,<sales-id>;refs,dept_lead\|use:title}}` | `Tom Associate` — D3: a RELATIONSHIP STEP running off a pinned term root. `dept_lead` (v20, a `relationship` field, max 1) is the one term-meta field in the blueprint answering a POST reference rather than the reverse hop every other term field here carries |
 
-**F20.7's field TYPE is load-bearing, not incidental** — a `post_object` field silently read EMPTY
-through this exact path (a `refs` step off a term-kind source), and `relationship` does not. The GB
-fact, the measurement and the rule live at
-[`docs/gb-constraints.md` §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once single_only is false](../../docs/gb-constraints.md#generateblocks_meta_handlerget_value-drops-a-scalar-once-single_only-is-false) —
-not restated here.
+**F20.7's field TYPE is load-bearing, not incidental** — a `post_object` field silently read EMPTY through this exact path (a `refs` step off a term-kind source), and `relationship` does not. The GB fact, the measurement and the rule live at [`docs/gb-constraints.md` §GenerateBlocks_Meta_Handler::get_value() drops a SCALAR once single_only is false](../../docs/gb-constraints.md#generateblocks_meta_handlerget_value-drops-a-scalar-once-single_only-is-false) — not restated here.
 
 **A SECOND, MORE CONSEQUENTIAL DISCOVERY** surfaced building this section: an EXPLICIT, HAND-TYPED
 `src:term` (no argument) used to reach `TaxonomyTerm::resolve_id()` — which is loop- and
