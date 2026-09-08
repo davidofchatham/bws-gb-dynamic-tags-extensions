@@ -566,6 +566,14 @@
 	 * `refs` is deliberately NOT preset: the step target's post type is not reliably
 	 * known until ref-step parity, so presetting would falsely assert a kind. Leaving
 	 * it unmapped matches shipped behaviour and is not an omission.
+	 *
+	 * A PINNED ROOT hands over its ARGUMENT as well, spelled the way the base tag's own
+	 * `src` spells it (`term,34`) — the picker's pinned-root narrowing (FW-39 D22) reads
+	 * the sibling `src` through the chain grammar, so a folded slot presenting only the
+	 * bare slug would narrow on the base tag and not under the fold, for no reason an
+	 * author could see. It stays a one-step wire because that is what the terminal IS
+	 * here; a chain that hops past the pin reaches the `refs` arm above and presets
+	 * nothing, which is the same answer for the same reason.
 	 */
 	function fieldContext( slot, commitField ) {
 		var terminal = slot.chain.length ? slot.chain[ slot.chain.length - 1 ] : null;
@@ -576,7 +584,7 @@
 			} else if ( 'terms' === terminal.slug ) {
 				synth.srcTermIn = terminal.arg || '1';
 			} else if ( 'same' !== terminal.slug && 'refs' !== terminal.slug ) {
-				synth.src = terminal.slug;
+				synth.src = terminal.slug + ( terminal.arg ? ',' + terminal.arg : '' );
 			}
 		}
 		var read = slot.read;
@@ -662,6 +670,36 @@
 				next = [ step( 'same' ) ];
 			}
 			props.onChange( next );
+		}
+
+		/**
+		 * Hand a step's field picker the PIN its argument is read off, when there is one
+		 * (FW-39 D22).
+		 *
+		 * Only position 1 qualifies, and for the reason `fieldContext()` states: the
+		 * entity a step's field is read off is whatever the chain resolved to just
+		 * BEFORE it, and only at position 1 is that the root itself. The picker does its
+		 * own recognizing from the `src` token — this only makes sure the token is there
+		 * and spelled as the wire spells it, which is what keeps ONE narrowing rule
+		 * serving the base tag and both fold containers.
+		 *
+		 * `rootArgOf()` is the test for pinning-ness, not a slug list: a root declares
+		 * its own argument, so an integrator's pinning root narrows here without this
+		 * file knowing its name.
+		 *
+		 * @param {Object} ctx The synthetic context the caller built.
+		 * @param {number} idx This step's position in the chain.
+		 * @return {Object} The same context, or one carrying the pin's `src` token.
+		 */
+		function pinnedContext( ctx, idx ) {
+			var root = ( 1 === idx ) ? chain[ 0 ] : null;
+			if ( ! root || ! root.arg || ! rootArgOf( conf, root.slug ) ) {
+				return ctx;
+			}
+			return {
+				state: Object.assign( {}, ctx.state, { src: root.slug + ',' + root.arg } ),
+				setState: ctx.setState
+			};
 		}
 
 		/**
@@ -865,7 +903,7 @@
 							help: argCfg.help,
 							placeholder: argCfg.placeholder,
 							typeDefault: argCfg.typeDefault,
-							context: stepContext( stepObj, commitArg )
+							context: pinnedContext( stepContext( stepObj, commitArg ), i )
 						} )
 						: el( TextControl, {
 							label: argCfg.label,

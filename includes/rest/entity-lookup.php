@@ -331,7 +331,7 @@ function bws_entity_lookup_kind_functions( string $kind ): array {
  * @since 1.20.0
  * @param string $search Free-text filter, '' = none.
  * @param string $tax    Narrow to one taxonomy slug, '' = every readable one.
- * @return array[] `{ id, label, group }` rows. `label` is "#<id> <name>" (D15).
+ * @return array[] `{ id, label, group, scope }` rows. `label` is "#<id> <name>" (D15).
  */
 function bws_entity_lookup_browse_terms( string $search = '', string $tax = '' ): array {
 	if ( ! function_exists( 'get_taxonomies' ) ) {
@@ -386,7 +386,7 @@ function bws_entity_lookup_browse_terms( string $search = '', string $tax = '' )
  *
  * @since 1.20.0
  * @param int $id Term id.
- * @return array|null `{ id, label, group }`, or null when the term does not exist or its
+ * @return array|null `{ id, label, group, scope }`, or null when the term does not exist or its
  *                    taxonomy is not readable by the current user.
  */
 function bws_entity_lookup_resolve_term( int $id ) {
@@ -407,16 +407,23 @@ function bws_entity_lookup_resolve_term( int $id ) {
 /**
  * The ONE shaper of a term into a picker row — "#34 Support" (D15), grouped by taxonomy.
  *
+ * `scope` is the taxonomy SLUG, and it is a different fact from `group`: `group` is a
+ * translated heading an author reads, `scope` is the machine handle the field picker
+ * matches against the discovery envelope's per-field `scope` (D22). Deriving it from the
+ * term itself rather than taking it as a parameter keeps it true for the resolve path,
+ * which reaches this shaper with no browse loop above it to hand one down.
+ *
  * @since 1.20.0
  * @param WP_Term $term  A term.
  * @param string  $group The taxonomy's singular label, for the group heading.
- * @return array{id:int,label:string,group:string}
+ * @return array{id:int,label:string,group:string,scope:string}
  */
 function bws_entity_lookup_term_row( $term, string $group ): array {
 	return array(
 		'id'    => (int) $term->term_id,
 		'label' => '#' . $term->term_id . ' ' . $term->name,
 		'group' => $group,
+		'scope' => (string) $term->taxonomy,
 	);
 }
 
@@ -439,7 +446,7 @@ function bws_entity_lookup_term_row( $term, string $group ): array {
  * @since 1.20.0
  * @param string $search    Free-text filter, '' = none.
  * @param string $post_type_filter Narrow to one post type slug, '' = every readable one.
- * @return array[] `{ id, label, group }` rows. `label` is "#<id> <title>" with a
+ * @return array[] `{ id, label, group, scope }` rows. `label` is "#<id> <title>" with a
  *                 ` — <status>` suffix on anything not published (D18).
  */
 function bws_entity_lookup_browse_posts( string $search = '', string $post_type_filter = '' ): array {
@@ -491,7 +498,7 @@ function bws_entity_lookup_browse_posts( string $search = '', string $post_type_
  *
  * @since 1.20.0
  * @param int $id Post id.
- * @return array|null `{ id, label, group }`, or null when the post does not exist, its
+ * @return array|null `{ id, label, group, scope }`, or null when the post does not exist, its
  *                     post type is not readable, or its status is outside the current
  *                     status set for that post type.
  */
@@ -518,10 +525,14 @@ function bws_entity_lookup_resolve_post( int $id ) {
  * type, with a ` (<status>)` suffix on anything not published (D18: "pinning a draft is a
  * real authoring case; doing it unknowingly is not").
  *
+ * `scope` is the post-type SLUG — the machine handle the field picker matches against the
+ * discovery envelope's per-field `scope` (D22), as opposed to `group`'s translated
+ * heading. Same derivation as the term shaper's, and for the same reason.
+ *
  * @since 1.20.0
  * @param WP_Post $post  A post.
  * @param string  $group The post type's singular label, for the group heading.
- * @return array{id:int,label:string,group:string}
+ * @return array{id:int,label:string,group:string,scope:string}
  */
 function bws_entity_lookup_post_row( $post, string $group ): array {
 	$label = '#' . $post->ID . ' ' . $post->post_title;
@@ -532,5 +543,6 @@ function bws_entity_lookup_post_row( $post, string $group ): array {
 		'id'    => (int) $post->ID,
 		'label' => $label,
 		'group' => $group,
+		'scope' => (string) $post->post_type,
 	);
 }

@@ -470,6 +470,27 @@ function bws_dynamic_tags_enqueue_editor_assets() {
 			'before'
 		);
 	}
+	// WHICH ROOT SLUGS PIN AN ENTITY, and of what kind (FW-39 D22) — the field picker
+	// narrows its list to a pinned entity's taxonomy or post type, and to do that it has
+	// to recognize `term,34` in the sibling `src` as a pin rather than as any other
+	// two-part root token. Derived from bws_registered_root_rows(), the one appender both
+	// authoring surfaces already read their root enum through, so a root contributed via
+	// `bws_dynamic_tags_chain_roots` narrows on the same terms as ours and an argless root
+	// is simply absent from the map. `(object)` so an empty map emits `{}` rather than the
+	// array literal `[]`, which reads as no map at all on the JS side.
+	if ( function_exists( 'bws_registered_root_rows' ) ) {
+		$bws_root_arg_kinds = array();
+		foreach ( bws_registered_root_rows() as $bws_root_row ) {
+			if ( ! empty( $bws_root_row['arg']['kind'] ) ) {
+				$bws_root_arg_kinds[ (string) $bws_root_row['value'] ] = (string) $bws_root_row['arg']['kind'];
+			}
+		}
+		wp_add_inline_script(
+			'bws-dynamic-tags-field-combo-control',
+			'window.bwsRootArgKinds = ' . wp_json_encode( (object) $bws_root_arg_kinds ) . ';',
+			'before'
+		);
+	}
 	// The pinned-entity picker (FW-39) — backs a chain root's ARGUMENT, not an option
 	// key, so it is exposed for composition rather than self-registering (see the
 	// file header). Loads before the slot-fold CONTROL, which mounts it at a chain's

@@ -17,8 +17,8 @@
  *   bws_entity_lookup_taxonomy_readable()  (D19 per-taxonomy narrowing)
  *   bws_entity_lookup_post_type_readable() (D19 per-post-type narrowing, FW-39 ticket 03)
  *   bws_entity_lookup_post_type_statuses() (D18 query-level status derivation, ticket 03)
- *   bws_entity_lookup_term_row()           (the one row shaper — D15)
- *   bws_entity_lookup_post_row()           (the one row shaper for posts — D15/D18)
+ *   bws_entity_lookup_term_row()           (the one row shaper — D15; `scope` slug, D22)
+ *   bws_entity_lookup_post_row()           (the one row shaper for posts — D15/D18; `scope` slug, D22)
  *   bws_entity_lookup_browse_terms()       (browse/search mode — D17 no-gate, D15 grouping)
  *   bws_entity_lookup_browse_posts()       (browse/search mode for posts, ticket 03)
  *   bws_entity_lookup_resolve_term()       (resolve-by-id mode)
@@ -296,8 +296,17 @@ check(
 echo "\nbws_entity_lookup_term_row — the one shaper (D15)\n";
 check(
 	'"#<id> <name>", grouped by the taxonomy\'s singular label',
-	array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Benefit Tier' ),
+	array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Benefit Tier', 'scope' => 'benefit_tier' ),
 	bws_entity_lookup_term_row( bws_test_term( 34, 'Support', 'benefit_tier' ), 'Benefit Tier' )
+);
+// `scope` is the field picker's machine handle (D22) and `group` is a heading an author
+// reads; the two are separate because a taxonomy's label and its slug are separate, and a
+// shaper that handed the label over as the scope would match no discovery group at all.
+// Driven with a label that is NOT the slug so the distinction cannot pass by coincidence.
+check(
+	'`scope` is the taxonomy SLUG, derived from the term itself rather than from the group label',
+	'benefit_tier',
+	bws_entity_lookup_term_row( bws_test_term( 34, 'Support', 'benefit_tier' ), 'Benefit Tier' )['scope']
 );
 
 echo "\nbws_entity_lookup_browse_terms — browse/search mode (D15, D17)\n";
@@ -305,36 +314,36 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 check(
 	'opens BROWSABLE with no search — every readable taxonomy, alphabetical within group (D17)',
 	array(
-		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category' ),
-		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ),
+		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category', 'scope' => 'category' ),
+		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 	),
 	bws_entity_lookup_browse_terms()
 );
 check(
 	'a taxonomy the user cannot read is silently absent, not an error',
 	array(
-		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category' ),
-		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ),
+		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category', 'scope' => 'category' ),
+		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 	),
 	bws_entity_lookup_browse_terms( '', '' )
 );
 check(
 	'typing narrows the list (D17)',
-	array( array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ) ),
+	array( array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ) ),
 	bws_entity_lookup_browse_terms( 'new' )
 );
 check(
 	'the taxonomy FILTER narrows to one group — never serialized, UI state only (D16)',
-	array( array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ) ),
+	array( array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ) ),
 	bws_entity_lookup_browse_terms( 'news', 'category' )
 );
 $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true, 'assign_benefit_tier' => true );
 check(
 	'a second taxonomy the user CAN read joins the list',
 	array(
-		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category' ),
-		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ),
-		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Benefit Tier' ),
+		array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category', 'scope' => 'category' ),
+		array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
+		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Benefit Tier', 'scope' => 'benefit_tier' ),
 	),
 	bws_entity_lookup_browse_terms()
 );
@@ -343,7 +352,7 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 echo "\nbws_entity_lookup_resolve_term — resolve-by-id mode\n";
 check(
 	'a real, readable term resolves',
-	array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ),
+	array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 	bws_entity_lookup_resolve_term( 5 )
 );
 check( 'a deleted term resolves to null (the picker\'s "(missing)" case)', null, bws_entity_lookup_resolve_term( 999 ) );
@@ -391,12 +400,18 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 echo "\nbws_entity_lookup_post_row — the one shaper (D15, D18)\n";
 check(
 	'"#<id> <title>", grouped by the post type\'s singular label — no status suffix when published',
-	array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
+	array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 	bws_entity_lookup_post_row( bws_test_post( 5, 'Hello World', 'post', 'publish' ), 'Post' )
+);
+// The post half of the same distinction — slug, not label (D22).
+check(
+	'`scope` is the post-type SLUG, derived from the post itself rather than from the group label',
+	'landing_page',
+	bws_entity_lookup_post_row( bws_test_post( 34, 'Support', 'landing_page', 'publish' ), 'Landing Page' )['scope']
 );
 check(
 	'a non-published status is shown in the row (D18: "pinning a draft is a real authoring case")',
-	array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
+	array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
 	bws_entity_lookup_post_row( bws_test_post( 3, 'A Draft', 'post', 'draft' ), 'Post' )
 );
 
@@ -405,36 +420,36 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 check(
 	'opens BROWSABLE with no search — draft included (edit_posts held), private excluded, alphabetical (D17)',
 	array(
-		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
-		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
+		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 	),
 	bws_entity_lookup_browse_posts()
 );
 check(
 	'a post type the user cannot read is silently absent, not an error',
 	array(
-		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
-		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
+		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 	),
 	bws_entity_lookup_browse_posts( '', '' )
 );
 check(
 	'typing narrows the list (D17)',
-	array( array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ) ),
+	array( array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ) ),
 	bws_entity_lookup_browse_posts( 'hello' )
 );
 check(
 	'the post-type FILTER narrows to one group — never serialized, UI state only (D16)',
-	array( array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ) ),
+	array( array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ) ),
 	bws_entity_lookup_browse_posts( 'hello', 'post' )
 );
 $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true, 'edit_landing_pages' => true );
 check(
 	'a second post type the user CAN read joins the list',
 	array(
-		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
-		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
-		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Landing Page' ),
+		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Landing Page', 'scope' => 'landing_page' ),
 	),
 	bws_entity_lookup_browse_posts()
 );
@@ -442,10 +457,10 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true, 'edit_landing_pages' =>
 check(
 	'read_private_posts additionally surfaces the private post — NO PER-POST CHECK, the status set widened at query level (D18)',
 	array(
-		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
-		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
-		array( 'id' => 7, 'label' => '#7 Secret (private)', 'group' => 'Post' ),
-		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Landing Page' ),
+		array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 7, 'label' => '#7 Secret (private)', 'group' => 'Post', 'scope' => 'post' ),
+		array( 'id' => 34, 'label' => '#34 Support', 'group' => 'Landing Page', 'scope' => 'landing_page' ),
 	),
 	bws_entity_lookup_browse_posts()
 );
@@ -454,12 +469,12 @@ $GLOBALS['bws_test_caps'] = array( 'edit_posts' => true );
 echo "\nbws_entity_lookup_resolve_post — resolve-by-id mode (ticket 03)\n";
 check(
 	'a real, readable, published post resolves',
-	array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
+	array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 	bws_entity_lookup_resolve_post( 5 )
 );
 check(
 	'a draft resolves too — a pin is not disturbed by the status it was made against (edit_posts held)',
-	array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
+	array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
 	bws_entity_lookup_resolve_post( 3 )
 );
 check(
@@ -505,30 +520,30 @@ check(
 	'mode=browse (default) returns rows',
 	array(
 		'rows' => array(
-			array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category' ),
-			array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ),
+			array( 'id' => 3, 'label' => '#3 Announcements', 'group' => 'Category', 'scope' => 'category' ),
+			array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ),
 		),
 	),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term' ) ) )
 );
 check(
 	'mode=resolve returns a single row',
-	array( 'row' => array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category' ) ),
+	array( 'row' => array( 'id' => 5, 'label' => '#5 News', 'group' => 'Category', 'scope' => 'category' ) ),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'term', 'mode' => 'resolve', 'id' => 5 ) ) )
 );
 check(
 	'mode=browse for kind=post returns rows too (ticket 03)',
 	array(
 		'rows' => array(
-			array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post' ),
-			array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ),
+			array( 'id' => 3, 'label' => '#3 A Draft (draft)', 'group' => 'Post', 'scope' => 'post' ),
+			array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ),
 		),
 	),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'post' ) ) )
 );
 check(
 	'mode=resolve for kind=post returns a single row',
-	array( 'row' => array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post' ) ),
+	array( 'row' => array( 'id' => 5, 'label' => '#5 Hello World', 'group' => 'Post', 'scope' => 'post' ) ),
 	bws_entity_lookup_rest_response( new BWS_Test_Request( array( 'kind' => 'post', 'mode' => 'resolve', 'id' => 5 ) ) )
 );
 check(

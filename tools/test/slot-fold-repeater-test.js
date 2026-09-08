@@ -991,7 +991,7 @@ const PIN_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
 	]
 } ) } );
 
-function renderPinChain( chain, EntityPicker, sameOnEmpty ) {
+function renderPinChain( chain, EntityPicker, sameOnEmpty, stepContext ) {
 	// KEYED ON THE CONTROL NAME (`bws-entity-picker`), matching how the control looks
 	// itself up in the shipped code — `window.bwsRootArgControls[ rootArg.control ]`,
 	// never a bare global whose mere presence would mount the wrong picker for a root
@@ -1009,7 +1009,7 @@ function renderPinChain( chain, EntityPicker, sameOnEmpty ) {
 			onChange: function () {},
 			sameOnEmpty: !! sameOnEmpty,
 			slotNoun: 'attempt',
-			stepContext: function () { return { state: {}, setState: function () {} }; }
+			stepContext: stepContext || function () { return { state: {}, setState: function () {} }; }
 		} );
 	} finally {
 		if ( prior === undefined ) {
@@ -1170,6 +1170,86 @@ check(
 	'...and its own row is in its own list',
 	pinLastValues( pinStoredDead ).indexOf( 'terms' ) !== -1,
 	true
+);
+
+// ── THE PIN REACHES THE STEP'S FIELD PICKER (FW-39 ticket 05, D22) ──────────
+//
+// The picker narrows its own list; what this control owes it is the pin, spelled the way
+// the base tag's `src` spells it, so ONE narrowing rule serves the base tag and both fold
+// containers rather than three. The picker is stubbed here because the subject is the
+// hand-off, not the narrowing — `field-combo-control-test.js` §F13 holds the other side.
+//
+// POSITION 1 ONLY. The entity a step's field is read off is whatever the chain resolved
+// to just before it, and only at position 1 is that the root; handing the pin further
+// down would narrow a list against an entity two hops away from the field being picked.
+const FIELD_COMBO_STUB = {};
+
+function renderPinChainWithPicker( chain ) {
+	const prior = global.window.bwsFieldComboControl;
+	global.window.bwsFieldComboControl = FIELD_COMBO_STUB;
+	try {
+		// The container's own synthetic context, as `chainSteps`' two real callers build
+		// it: the step's field key, which the pin hand-off must CARRY rather than replace.
+		return renderPinChain( chain, ENTITY_PICKER_STUB, false, function ( stepObj ) {
+			return { state: { key: stepObj.arg || '' }, setState: function () {} };
+		} );
+	} finally {
+		if ( prior === undefined ) {
+			delete global.window.bwsFieldComboControl;
+		} else {
+			global.window.bwsFieldComboControl = prior;
+		}
+	}
+}
+
+/** Every mounted field-picker element in a rendered chain, in order. */
+function fieldPickersIn( nodes ) {
+	const found = [];
+	( function walk( n ) {
+		if ( ! n ) { return; }
+		if ( Array.isArray( n ) ) { n.forEach( walk ); return; }
+		if ( n.type === FIELD_COMBO_STUB ) { found.push( n ); }
+		( n.children || [] ).forEach( walk );
+	}( nodes ) );
+	return found;
+}
+
+const pinnedRefsArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null }
+] ) );
+check(
+	'a step at position 1 gets the pin as a `src` token, spelled as the wire spells it',
+	pinnedRefsArg.length === 1 && pinnedRefsArg[ 0 ].props.context.state.src,
+	'term,34'
+);
+// The caller's own synthetic context is CARRIED, not replaced — the field key the picker
+// round-trips lives there, and a hand-off that dropped it would blank the stored field.
+check(
+	"...alongside the field key the caller's own context already carried",
+	pinnedRefsArg[ 0 ].props.context.state.key,
+	'dept_lead'
+);
+
+const deepStepArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'term', arg: '34', limit: null },
+	{ slug: 'refs', arg: 'dept_lead', limit: null },
+	{ slug: 'rows', arg: 'team_members', limit: null }
+] ) );
+check(
+	'a step at position 2 gets NO pin — its input is the step before it, not the root',
+	deepStepArg.length === 2 && deepStepArg[ 1 ].props.context.state.src,
+	undefined
+);
+
+const unpinnedStepArg = fieldPickersIn( renderPinChainWithPicker( [
+	{ slug: 'current' },
+	{ slug: 'refs', arg: 'dept_lead', limit: null }
+] ) );
+check(
+	'an ARGLESS root hands over no pin — `current` has no entity to narrow against',
+	unpinnedStepArg[ 0 ].props.context.state.src,
+	undefined
 );
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
