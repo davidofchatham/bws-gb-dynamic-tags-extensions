@@ -92,6 +92,26 @@
 
 <p class="gb-text">F21.7 a relationship step off the pinned root (-> Jane Partner, Tom&#8217;s reports_to): Jane Partner</p>
 </div>
+
+<div>
+<h2 class="wp-block-heading">F22 &#8211; STEPS run off a pinned root, exactly as off any other root (FW-39 ticket 04)</h2>
+
+<p class="gb-text">F22.1 TWO steps off the pin: Sales -> its dept_lead (Tom) -> Tom&#8217;s reports_to (-> Jane Partner): Jane Partner</p>
+
+<p class="gb-text">F22.2 the D3 shape term->post->term: the pin, its dept_lead, then that post&#8217;s visibility terms (-> All Users): All Users</p>
+
+<p class="gb-text">F22.3 the SAME two-step chain inside a try_ attempt (-> Jane Partner, identical to F22.1): Jane Partner</p>
+
+<p class="gb-text">F22.4 the SAME two-step chain inside a join slot, composed with the ambient title (-> Jane Partner / Matrix: Pinned Entity Roots): Jane Partner / Matrix: Pinned Entity Roots</p>
+
+<p class="gb-text">F22.5 a `terms` step off the pinned TERM root &#8211; EMPTY: there is no term-to-term edge, and F20.1 already proves the pin itself resolves:</p>
+
+<p class="gb-text">F22.5b the SAME step type off a pinned POST root (-> All Users) &#8211; F22.5 is a KIND refusal, not a broken step: All Users</p>
+
+<p class="gb-text">F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations):</p>
+
+<div class="gb-text"><table><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div>
+</div>
 		</div>
 
 			</div>

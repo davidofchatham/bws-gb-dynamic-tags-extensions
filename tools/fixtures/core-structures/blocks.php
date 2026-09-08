@@ -1756,12 +1756,15 @@ function bws_fixture_page_content_matrix_loops() {
 function bws_fixture_page_content_matrix_pinned_roots() {
 	$sales_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
 	$tom_id   = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'tom-associate', 'staff' ) : false;
-	if ( ! $sales_id || ! $tom_id ) {
+	// F22.6 pins the page that OWNS the `team_members` repeater, so a `rows` step can run
+	// off a pin from a page that is not that one. Resolved the same way, for the same reason.
+	$meta_id  = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'matrix-post-meta', 'page' ) : false;
+	if ( ! $sales_id || ! $tom_id || ! $meta_id ) {
 		// Either seed is missing (a partial/out-of-order seed run) — render a single
 		// visible flag rather than a page of tags naming a bogus id, which would
 		// misreport as "the pin doesn't resolve" instead of "reseed first".
 		return bws_fixture_gb_text_block(
-			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term or the "tom-associate" staff post was not found. Reseed terms + staff before pages.',
+			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term, the "tom-associate" staff post or the "matrix-post-meta" page was not found. Reseed terms + staff + pages before this page.',
 			'pinned-roots-missing-term'
 		);
 	}
@@ -1800,6 +1803,35 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 		// to one) - `reports_to` is Tom's existing staff->staff link (v7), reused rather
 		// than seeded new: pinning `post` needed no purpose-built state to demonstrate.
 		bws_fixture_gb_row( "F21.7 a relationship step off the pinned root (-> Jane Partner, Tom's reports_to)", "{{text src:post,{$tom_id};refs,reports_to|use:title}}" ),
+	) );
+
+	// F22 (FW-39 ticket 04) - STEPS off a pinned root. F20.7/F21.7 above are the ONE-STEP
+	// half and are not repeated here; these add the two-step chains, the same chain in all
+	// three containers, and the step the engine refuses.
+	$two_step = "src:term,{$sales_id};refs,dept_lead;refs,reports_to";
+	$sections[] = bws_fixture_gb_section( 'F22 - STEPS run off a pinned root, exactly as off any other root (FW-39 ticket 04)', array(
+		bws_fixture_gb_row( "F22.1 TWO steps off the pin: Sales -> its dept_lead (Tom) -> Tom's reports_to (-> Jane Partner)", "{{text {$two_step}|use:title}}" ),
+		// The literal D3 shape, term -> post -> term. `portal_visibility` and NOT
+		// `department`: jane and tom carry no department terms (F9.3), so that taxonomy
+		// would render empty here for a reason having nothing to do with pins.
+		bws_fixture_gb_row( "F22.2 the D3 shape term->post->term: the pin, its dept_lead, then that post's visibility terms (-> All Users)", "{{text src:term,{$sales_id};refs,dept_lead;terms,portal_visibility|use:title}}" ),
+		bws_fixture_gb_row( "F22.3 the SAME two-step chain inside a try_ attempt (-> Jane Partner, identical to F22.1)", "{{try_text A:src(term,{$sales_id};refs,dept_lead;refs,reports_to);use(title)}}" ),
+		bws_fixture_gb_row(
+			"F22.4 the SAME two-step chain inside a join slot, composed with the ambient title (-> Jane Partner / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(term,{$sales_id};refs,dept_lead;refs,reports_to);use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// THE REFUSED STEP: a `terms` step off a TERM source renders nothing, whether that
+		// term came from a pin or from anywhere else. What decides that is not this file's
+		// to state - see BWS_TRAVERSAL_STEP_INPUT_KINDS in traversal-pipeline.php. Hand-wire
+		// only: the editor does not offer this step off a term-kind root.
+		bws_fixture_gb_empty_row( 'F22.5 a `terms` step off the pinned TERM root - EMPTY: there is no term-to-term edge, and F20.1 already proves the pin itself resolves', "{{text src:term,{$sales_id};terms,department|use:title}}" ),
+		// ...and its NON-VACUITY partner: the same step type off a pinned POST root DOES
+		// run. Without this row, F22.5 reads identically to "the terms step is broken".
+		bws_fixture_gb_row( "F22.5b the SAME step type off a pinned POST root (-> All Users) - F22.5 is a KIND refusal, not a broken step", "{{text src:post,{$tom_id};terms,portal_visibility|use:title}}" ),
+		// A `rows` step off a pin, shown through {{table}} because no base/join/try_ arm
+		// assembles a repeater row (F9.5/F10.4 - a decided divergence, not a gap here). The
+		// pinned page is matrix-post-meta, which OWNS the repeater; this page does not.
+		bws_fixture_gb_block_host_row( "F22.6 a `rows` step off a pinned POST root: the team_members repeater read off matrix-post-meta, from this page (-> 2-row table: Alice Adams/Engineering, Bob Brown/Operations)", "{{table src:post,{$meta_id}|key:team_members|1-label:Name|1-key:name|2-label:Role|2-key:role}}" ),
 	) );
 
 	return implode( "\n\n", $sections );

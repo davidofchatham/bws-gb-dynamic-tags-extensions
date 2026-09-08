@@ -1453,6 +1453,47 @@ eq(
 	)
 );
 
+// The THIRD step type, and the other side of the refusal (ticket 04). `rows` accepts every
+// entity kind, so it runs off either pin; `terms` accepts a POST input, so the SAME step
+// the term pin refuses is admitted off the post pin. The pair is what makes the refusal a
+// KIND rule rather than a rule about pinned roots — a "pinned roots are terminal" shortcut
+// would pass the row above and fail both of these.
+eq(
+	'D3: a `rows` step is admitted off a pinned TERM root (rows accepts every entity kind)',
+	array( array( 'kind' => 'meta_row', 'row' => array( 'name' => 'Alice' ) ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array( array( 'type' => 'rows', 'field' => 'team_members' ) ),
+		function ( $step, $source ) { return array( array( 'name' => 'Alice' ) ); }
+	)
+);
+eq(
+	'D3: a `terms` step IS admitted off a pinned POST root — the refusal above is the KIND, not the pin',
+	array( array( 'kind' => 'term', 'id' => 7 ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'post', 'id' => 1692 ) ),
+		array( array( 'type' => 'terms', 'slug' => 'department' ) ),
+		function ( $step, $source ) { return array( new WP_Term( 7 ) ); }
+	)
+);
+// The D3 headline shape end to end through the engine: term → post → term, two hops off a
+// pin, each admitted on the kind the previous one produced. Pure here (the reader is
+// injected); the live values ride fold-test-matrix.md §F22.
+eq(
+	'D3: `term,<id>;refs,<rel>;terms,<tax>` runs both hops off the pin',
+	array( array( 'kind' => 'term', 'id' => 9 ) ),
+	bws_run_traversal(
+		array( array( 'kind' => 'term', 'id' => 68 ) ),
+		array(
+			array( 'type' => 'refs', 'field' => 'dept_lead' ),
+			array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+		),
+		function ( $step, $source ) {
+			return 'refs' === ( $step['type'] ?? '' ) ? array( 5 ) : array( new WP_Term( 9 ) );
+		}
+	)
+);
+
 // D8: an ARGLESS declaring root REFUSES at the factory seam — it never falls back to
 // resolve_id()'s ambient read, which is [I15] applied at the root layer. Verified by
 // MUTATION: an accidental `?? $source->resolve_id(...)` on the argless branch would pass

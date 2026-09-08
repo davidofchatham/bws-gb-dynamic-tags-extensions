@@ -157,6 +157,67 @@ assert_same( 'leading terms hop likewise', '', bws_fold_chain_root_arg( chain_of
 // A pinned root's `limit` is a NAMED token, so it never reads as the argument.
 assert_same( 'a limit beside the pin does not become the argument', '34', bws_fold_chain_root_arg( chain_of( 'term,34,limit(2)' ) ) );
 
+// ── D3: A PINNED ROOT IS A REAL ROOT — hops COMPILE off it (FW-39 ticket 04) ──
+//
+// The pair above says the root and its argument are read apart. These say the rest of the
+// chain is then compiled exactly as it is off any other root: the root is CONSUMED by the
+// factory and never becomes a step, and the pin never leaks into one. That is the whole
+// content of "pinning belongs on base tags rather than a separate tag family" — a second
+// compile path for pinned chains is what this asserts does not exist.
+assert_same(
+	'D3: two hops compile off a pinned term root — the root is consumed, not stepped',
+	array(
+		array( 'type' => 'refs', 'field' => 'dept_lead' ),
+		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+	),
+	bws_fold_chain_to_steps( chain_of( 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+);
+assert_same(
+	'...and the same chain through the base arms assembler, unchanged',
+	array(
+		array( 'type' => 'refs', 'field' => 'dept_lead' ),
+		array( 'type' => 'terms', 'slug' => 'portal_visibility' ),
+	),
+	bws_field_values_assemble_steps( array( 'src' => 'term,34;refs,dept_lead;terms,portal_visibility' ) )
+);
+assert_same(
+	'D3: a `rows` hop compiles off a pinned POST root the same way',
+	array( array( 'type' => 'rows', 'field' => 'team_members' ) ),
+	bws_field_values_assemble_steps( array( 'src' => 'post,1692;rows,team_members' ) )
+);
+// The REFUSED step still COMPILES: this compiler emits it like any other. A compiler that
+// dropped it here would make the refusal look like a grammar error and hide that the wire
+// says something that is declined elsewhere (§F22.5 is the rendered row).
+//
+// WHAT decides admission, and WHEN, is NOT this file's to state — the axis lives at
+// BWS_TRAVERSAL_STEP_INPUT_KINDS (traversal-pipeline.php), and nothing below this line
+// would break if that sentence went stale, so it takes a pointer rather than a restatement
+// (CLAUDE.md §Documentation ownership, the per-CLAUSE harness exemption). The step's actual
+// refusal is driven in traversal-pipeline-test.php's own D3 rows.
+assert_same(
+	'D3: a `terms` hop off a pinned TERM root still COMPILES — this file owns only that half',
+	array( array( 'type' => 'terms', 'slug' => 'department' ) ),
+	bws_fold_chain_to_steps( chain_of( 'term,34;terms,department' ) )
+);
+// What the EDITOR reads to offer steps off the pin, with no render having occurred: the
+// chain's resolution. Root-only answers the pin's own kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS),
+// and a hopped chain answers the last step's, exactly as off any other root.
+assert_same(
+	'D3: a root-only pinned chain resolves to the pinned KIND at PARSE time (no render)',
+	array( 'root' => 'term', 'kind' => 'term', 'fans' => false ),
+	bws_fold_chain_resolution( chain_of( 'term,34' ) )
+);
+assert_same(
+	'...and the pinned POST root likewise',
+	array( 'root' => 'post', 'kind' => 'post', 'fans' => false ),
+	bws_fold_chain_resolution( chain_of( 'post,1692' ) )
+);
+assert_same(
+	'...and once it hops, the LAST STEP owns the kind — a pin starts a chain, it does not answer it',
+	array( 'root' => 'term', 'kind' => 'post', 'fans' => true ),
+	bws_fold_chain_resolution( chain_of( 'term,34;refs,dept_lead' ) )
+);
+
 echo "\n§C2b bws_fold_src_root_token — the token every UNMIGRATED tag still hands the factory\n";
 
 // Identity for every legacy shape whose `src` names a ROOT…

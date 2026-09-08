@@ -986,6 +986,26 @@ against the reseeded testbed, all green.
 
 **Verified live** (`wp eval` + `render-tag`, admin user, 2026-09-07/08, blueprint v20): every row above against real seeded content; `bws_entity_lookup_browse_posts()` returns every readable `staff` post grouped and ID-prefixed per D15, with a draft's and a private post's row correctly suffixed ` (draft)` / ` (private)` (D18) when browsed as an administrator and both ABSENT for an anonymous request (D19, no per-post check — the status set is derived once per post type); `bws_entity_lookup_resolve_post()` answers a real post's row and `null` for a nonexistent id; `bws_build_preview_label()` on a pinned tag reads `['title' from Post: Tom Associate]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one) against the reseeded testbed, all green (one unrelated pre-existing failure — GB's own P3 taint-suppression check — reproduces identically on the pre-ticket-03 commit and is not this ticket's regression).
 
+## §F22 — STEPS run off a pinned root (FW-39, ticket 04)
+
+**Same page as §F20/§F21** (`/matrix-pinned-roots/`). D3: a pinning root is a REAL chain root, so hops run off it exactly as off any other root — which is the whole reason pinning belongs on base tags rather than staying a separate tag family. **No engine change was needed for any legal case**: `refs` and `rows` already accept a `term` input, and the refusals below are what `bws_run_step()` already declines — the rule deciding that lives with `BWS_TRAVERSAL_STEP_INPUT_KINDS` in [`traversal-pipeline.php`](../../includes/helpers/traversal-pipeline.php), which is where to read it, not here. The ONE-STEP half is §F20.7 / §F21.7 and is not repeated here; these rows are the two-step chains, the same chain in all three containers, and the refused step with its non-vacuity partner.
+
+The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_fixture_seeded_post_id()`), never hand-typed, for the reason §F20 states.
+
+| # | Tag | Expected |
+|---|---|---|
+| F22.1 | `{{text src:term,<sales-id>;refs,dept_lead;refs,reports_to\|use:title}}` | `Jane Partner` — TWO steps off the pin: Sales → its `dept_lead` (Tom) → Tom's `reports_to`. Each hop is admitted on the kind the previous one produced, and the pin is only where the chain starts |
+| F22.2 | `{{text src:term,<sales-id>;refs,dept_lead;terms,portal_visibility\|use:title}}` | `All Users` — the literal D3 shape, term → post → term. `portal_visibility` and NOT `department`: jane and tom carry no department terms (§F9.3), so that taxonomy would render empty for a reason having nothing to do with pins |
+| F22.3 | `{{try_text A:src(term,<sales-id>;refs,dept_lead;refs,reports_to);use(title)}}` | `Jane Partner` — identical to F22.1 inside a `try_` attempt |
+| F22.4 | `{{join mode:template\|A:src(term,<sales-id>;refs,dept_lead;refs,reports_to);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Jane Partner / Matrix: Pinned Entity Roots` — the same chain inside a `{{join}}` field, composed with the ambient title. F22.1/F22.3/F22.4 together are the "same chain on a base tag, in a `{{join}}` field and in a `try_` attempt" criterion |
+| F22.5 | `{{text src:term,<sales-id>;terms,department\|use:title}}` (hand-wire only — the editor does not offer this step off a term-kind root) | **empty** — there is no term→term edge. §F20.1 already proves the pin itself resolves, so this row is the STEP being refused, not the pin failing |
+| F22.5b | `{{text src:post,<tom-id>;terms,portal_visibility\|use:title}}` | `All Users` — F22.5's non-vacuity partner: the SAME step type off a pinned POST root runs. Without it F22.5 reads identically to "the `terms` step is broken" |
+| F22.6 | `{{table src:post,<matrix-post-meta-id>\|key:team_members\|1-label:Name\|1-key:name\|2-label:Role\|2-key:role}}` | a 2-row table (`Alice Adams`/`Engineering`, `Bob Brown`/`Operations`) — a `rows` step off a pinned POST root, reading a repeater that lives on a DIFFERENT page. Through `{{table}}` because no base/join/try_ arm assembles a repeater row (§F9.5/§F10.4, a decided divergence rather than a gap here) |
+
+**The editor half is pinned PURE, not here.** That the offer off a pin is computed with no render having occurred is exactly what makes it unobservable on a rendered page: `slot-fold-repeater-test.js` drives the control off the shipped config alone (no query, no resolver) and asserts `refs` offered off a pinned term root, `terms` NOT offered off it, `terms` offered off a pinned POST root, and `terms` offered one `refs` hop later — the F22.1/F22.2 chain, offered a step at a time. `fold-chain-compile-test.php` holds the other side: the refused step still COMPILES, so the refusal stays the engine's answer at run rather than a grammar error at parse.
+
+**Verified live** (`render-tag`, admin user, 2026-09-08, blueprint v20): every row above against real seeded content, each string measured rather than predicted.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

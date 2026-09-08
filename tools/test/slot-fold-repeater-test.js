@@ -424,7 +424,9 @@ const CHAIN_FOLD = {
 	// Shaped exactly as bws_fold_wire_vocabulary() ships it: one record per WIRE
 	// slug — label declared once, `arg` from the compiler seam, `accepts` from the
 	// engine's own refusal list, `produces` the step's output kind — plus the per-
-	// container ordered OFFER and the parse-time root kinds (only `site` has one).
+	// container ordered OFFER and the parse-time root kinds (BWS_FOLD_PARSE_TIME_ROOT_KINDS
+	// owns which roots have one; this fixture declares only `site`, and PIN_CONF below
+	// declares the two pinning roots).
 	steps: {
 		refs: { label: 'In Reference/Relational Field', arg: 'field', accepts: [ 'post', 'term', 'user', 'meta_row', 'site' ], produces: 'post' },
 		terms: { label: 'In Taxonomy Term', arg: 'slug', accepts: [ 'post' ], produces: 'term' },
@@ -971,10 +973,16 @@ check( '...and the same limit', noted.committed[ 0 ].limit, 3 );
 console.log( '\npinned root argument (FW-39)' );
 
 const PIN_CONF = rep.foldConfig( { fold: Object.assign( {}, CHAIN_FOLD, {
+	// Both pinning roots declare a PARSE-TIME kind, which is the whole mechanism behind
+	// "the editor offers steps off a pinned root with no render having occurred" (ticket
+	// 04): the offer is a function of `roots` + `steps`, both shipped in the config, so
+	// nothing below queries anything.
+	roots: { site: 'site', term: 'term', post: 'post' },
 	srcRows: [
 		{ value: 'current', label: 'Current' },
 		{ value: 'refs', label: 'In Reference/Relational Field' },
-		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } }
+		{ value: 'term', label: 'Term', arg: { label: 'Term', control: 'bws-entity-picker', argless: 'refuse', kind: 'term' } },
+		{ value: 'post', label: 'Post', arg: { label: 'Post', control: 'bws-entity-picker', argless: 'refuse', kind: 'post' } }
 	],
 	srcRowsWithSame: [
 		{ value: 'same', label: 'Same as Previous Source' },
@@ -1078,6 +1086,91 @@ check( 'an ordinary (non-pinning) root mounts no entity-picker control', !! pick
 // slot 1 does.
 const pinSlot2 = renderPinChain( [ { slug: 'term', arg: '5', limit: null } ], ENTITY_PICKER_STUB, true );
 check( 'slot ≥2 offers the same pinned-root control (D11 — base and slot ship together)', !! pickerIn( pinSlot2, ENTITY_PICKER_STUB ), true );
+
+// ── STEPS OFF A PINNED ROOT (FW-39 ticket 04, D3) ────────────────────────────
+//
+// A pinned root is a REAL chain root, so the step offer off it is the engine's own
+// admission list and nothing else — the same derive that already narrows the offer off
+// `site`. What makes the PIN different from `current` is only that its kind is known at
+// PARSE time (`conf.roots`), so this whole section runs with no render, no query and no
+// resolver: the offer is computed from the shipped config alone. That is the acceptance
+// criterion, stated as the way these rows are able to exist.
+/** Option values of the LAST picker in a rendered pinned chain — the step-slug offer. */
+function pinLastValues( nodes ) {
+	const sels = selectsIn( nodes );
+	return ( sels[ sels.length - 1 ].options || [] ).map( function ( r ) { return r.value; } );
+}
+
+const afterPinnedTerm = renderPinChain(
+	[ { slug: 'term', arg: '34', limit: null }, { slug: 'refs', arg: 'dept_lead', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check(
+	'a `refs` step IS offered off a pinned TERM root (refs accepts a term input)',
+	pinLastValues( afterPinnedTerm ).indexOf( 'refs' ) !== -1,
+	true
+);
+// `rows` is absent from that offer too — but for the CONTAINER's reason, not the pin's: no
+// join/try_ arm assembles a repeater row, so `rows` is on no slot offer at all
+// (fold-test-matrix.md §F10.4). Said here so the absence is never read back as a kind
+// refusal alongside the `terms` row below. The engine's own admission of `rows` off a term
+// is pinned in traversal-pipeline-test.php; its RENDER off a pin rides {{table}} in §F22.
+check( '`rows` is absent off the pin for the CONTAINER reason — it is on no slot offer', CHAIN_FOLD.offer.indexOf( 'rows' ), -1 );
+check(
+	'...so that absence is NOT a kind refusal — the engine accepts a term input for `rows`',
+	CHAIN_FOLD.steps.rows.accepts.indexOf( 'term' ) !== -1,
+	true
+);
+check(
+	'a `terms` step is NOT offered off a pinned TERM root — there is no term→term edge',
+	pinLastValues( afterPinnedTerm ).indexOf( 'terms' ),
+	-1
+);
+
+// The POST pin is the contrast that makes the row above a KIND rule rather than a rule
+// about pinned roots: the SAME step the term pin refuses is offered off the post pin.
+const afterPinnedPost = renderPinChain(
+	[ { slug: 'post', arg: '1692', limit: null }, { slug: 'refs', arg: 'partner_staff', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check(
+	'a `terms` step IS offered off a pinned POST root',
+	pinLastValues( afterPinnedPost ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// A SECOND step is offered on what the FIRST step produced, not on the pin — `refs`
+// produces a post, so `terms` becomes offerable one hop after the pin refused it. This is
+// the `term,34;refs,<rel>;terms,<tax>` chain, offered a step at a time.
+// (`rows` is the HELD slug at that position on purpose — a held `terms` would be included
+// as `keep` whatever the filter said, and the row would pass while asserting nothing.)
+const afterPinThenRefs = renderPinChain(
+	[
+		{ slug: 'term', arg: '34', limit: null },
+		{ slug: 'refs', arg: 'dept_lead', limit: null },
+		{ slug: 'rows', arg: 'team_members', limit: null }
+	],
+	ENTITY_PICKER_STUB
+);
+check(
+	'...and `terms` IS offered after a `refs` hop off that same pin (the D3 headline chain)',
+	pinLastValues( afterPinThenRefs ).indexOf( 'terms' ) !== -1,
+	true
+);
+
+// Stored-but-refused paints its own row here as everywhere: a hand-authored
+// `term,34;terms,department` is shown as authored and resolves to nothing at render
+// (fold-test-matrix.md §F22.5), never repainted as a different step.
+const pinStoredDead = renderPinChain(
+	[ { slug: 'term', arg: '34', limit: null }, { slug: 'terms', arg: 'department', limit: null } ],
+	ENTITY_PICKER_STUB
+);
+check( 'a hand-authored refused step off a pin still shows its own value', selectsIn( pinStoredDead )[ 1 ].value, 'terms' );
+check(
+	'...and its own row is in its own list',
+	pinLastValues( pinStoredDead ).indexOf( 'terms' ) !== -1,
+	true
+);
 
 console.log( '\n' + ( total - fail ) + '/' + total + ' passed' );
 process.exit( fail ? 1 : 0 );
