@@ -16,6 +16,10 @@
 
 - **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.
 
+### Deprecated
+
+- **Registering a context modifier is deprecated, and the option will be removed.** `TagTemplateRegistry::register_modifier()` creates a prefixed family of tags (`example_text`, `example_image`, and so on) that duplicates the base tags, so every capability added to the base tags has to be built a second time to reach it. Offering your source as a chain root does the same job and gives it the whole base-tag surface for free: source paths, per-step limits, field pickers and previews. No known external plugin registers a modifier any more; if yours does, see [Plugin integration §2](docs/plugin-integration.md#2-registering-a-context-modifier) for the move, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. Nothing renders differently in this release.
+
 ### Removed
 
 - **`bws_queue_inline_css( $css )`, the one-argument form.** It was documented as a public helper but had been unreachable since 1.17.0, when a same-named two-argument helper (`bws_queue_inline_css( $id, $css )`, for static plugin-authored CSS) was added higher in the same file and won the `function_exists()` guard. No call was possible and none existed. The two-argument helper is unaffected, as is the `{{content}}` inline-CSS queue the deleted wrapper forwarded to.

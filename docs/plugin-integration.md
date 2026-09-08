@@ -84,7 +84,7 @@ Base tags (`text`, `image`, `content`, `title`, `permalink`, `datetime_single`, 
 To let authors choose it, opt in as a chain root (below). The older routes remain:
 
 1. **Chain root** (preferred) — one row in the Source control on every base tag and in every folded slot. See [§1a Offering your source as a chain root](#1a-offering-your-source-as-a-chain-root).
-2. **Context modifier** — call `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Mints a parallel tag family that duplicates the base tags; prefer a chain root unless you need per-tag options of your own. See [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
+2. **Context modifier** (*deprecated — do not build on this*) — calls `TagTemplateRegistry::register_modifier()` to create a prefixed tag group (`example_text`, `example_image`, etc.) backed by your source. Superseded by the chain root, which gives your source the whole base-tag surface instead of a copy of it. Scheduled for removal; see [§2 Registering a Context Modifier](#2-registering-a-context-modifier).
 3. **Manual registration** — register individual GB tags directly and call your source's `resolve_id()` in the callback. See [§4 Plugin-Specific Tags](#4-plugin-specific-tags-no-built-in-template).
 4. **Deprecated wrappers only** — if you only need backward-compat wrappers for legacy tag names, `register_source()` makes the source available to `DeprecatedTagRegistry` callbacks without creating any new GB tags. See [§7 Registering Deprecated Tag Wrappers](#7-registering-deprecated-tag-wrappers).
 
@@ -189,6 +189,8 @@ Where a rooted tag cannot resolve in the editor (common when your source reads r
 ---
 
 ## 2. Registering a Context Modifier
+
+> **Deprecated as of 2026-09-08 — this route is being removed.** Register a [chain root](#1a-offering-your-source-as-a-chain-root) instead. A modifier family is a second copy of the base tags that every additional capability has to be built into by hand. `register_modifier()` has no known external caller remaining and the public method is expected to go in a future release; the built-in `term_` family, its only remaining caller, is on its own deprecation path. If your plugin calls this, move to §1a and use [§9](#9-migrating-a-modifier-family-to-a-base-tag) to convert stored tags before you retire your prefix. The section below stays as reference for existing integrations.
 
 A context modifier creates a prefixed group of GB tags (`example_text`, `example_image`, etc.) backed by a specific entity resolution strategy. The built-in `term_` modifier is registered this way; external plugins can register their own.
 
@@ -694,6 +696,8 @@ function oldname_deprecated_post_meta_callback( $options, $block, $instance ) {
 
 When an external plugin renames its context modifier prefix (e.g., from `oldname_` to `newname_`), existing post content still contains the old tag names. The converter handles migration: for each old tag name that maps to a new one, register a deprecated wrapper and the **Convert** button will rewrite stored tags.
 
+Renaming a prefix keeps you on a route that is [deprecated](#2-registering-a-context-modifier). If you are choosing between a rename and an exit, [§9](#9-migrating-a-modifier-family-to-a-base-tag) takes stored tags to base tags rooted at your source in the same single converter run, and older prefixes chain into it automatically.
+
 ### Pattern
 
 For each template your modifier generates, register one deprecated wrapper mapping the old prefixed name to the new prefixed name:
@@ -793,6 +797,7 @@ After conversion, the retired flat controls (`ref`, `srcTermIn`, the legacy `sou
 ### What it does not do, and what stays true
 
 - **Your tags stay registered.** Migrating is not retiring. Keep `register_modifier()` exactly as it is; retire on your own schedule, and pass `prefix_removed => true` then (see [§8](#alias-status-and-retiring-a-prefix)).
+- **Deleting the registration is not the same as retiring it.** If you remove the `register_modifier()` call, any stored tag you did not convert stops being a tag: GenerateBlocks has no name to dispatch and the literal `{{oldname_text}}` string appears in the rendered page. Deleting your `bws_register_modifier_root_migrations()` call in the same release also removes the entries the **Convert** button needs, so those tags can no longer be repaired from the admin screen either. Convert first, confirm nothing is left, then delete — and note that this plugin has no site-wide "where is this tag still used" report to confirm with today, so that confirmation rests on your own knowledge of the content.
 - **Nothing is a deadline.** Tags that are never converted go on rendering indefinitely.
 - **The converter's reach is the posts table** — every non-revision, non-trashed post, which does include reusable blocks, template parts and theme-element post types. Tags stored in the **options table** (block widgets) are out of its reach and are simply not rewritten.
 - **It never overwrites an entry you registered yourself.** A tag name that already has *any* entry is skipped whole, so a hand-written entry for one template keeps its own rules and the generator covers the rest.
