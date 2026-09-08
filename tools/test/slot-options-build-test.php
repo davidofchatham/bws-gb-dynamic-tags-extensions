@@ -81,7 +81,7 @@ $s1 = bws_build_slot_traversal_options( 1, $base_src, $base_trav );
 assert_same(
 	'slot1 src options = current,ref (site filtered, no same)',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$s1['src']['options']
@@ -129,7 +129,7 @@ assert_same(
 	'slot2 src options = same,current,ref',
 	array(
 		array( 'value' => 'same',    'label' => 'Same as Previous Source' ),
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$s2['src']['options']
@@ -169,7 +169,7 @@ $mod_src = bws_filter_site_from_src( $base_src );
 assert_same(
 	'rooting-modifier src = current,ref (site filtered)',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$mod_src['src']['options']
@@ -189,7 +189,7 @@ $picked = bws_pick_src_values( bws_base_source_option(), array( 'current', 'ref'
 assert_same(
 	'pick current,ref → exactly those rows, base labels',
 	array(
-		array( 'value' => 'current', 'label' => 'Current' ),
+		array( 'value' => 'current', 'label' => 'Current Context' ),
 		array( 'value' => 'ref',     'label' => 'In Reference/Relational Field' ),
 	),
 	$picked['src']['options']

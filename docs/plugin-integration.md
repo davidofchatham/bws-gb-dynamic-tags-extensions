@@ -92,7 +92,7 @@ To let authors choose it, opt in as a chain root (below). The older routes remai
 
 ## 1a. Offering your source as a chain root
 
-A **chain root** is where a tag's source path starts — `Current`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
+A **chain root** is where a tag's source path starts — `Current Context`, `Site`, a relationship step, and now any registered source that opts in. Once yours does, an author sees it in the Source control on every base tag and in every folded slot (`{{join}}` fields, `try_*` attempts), named by your source label, and the whole base-tag surface applies unchanged: further steps, per-step limits, field pickers, previews.
 
 Two routes, one registry.
 

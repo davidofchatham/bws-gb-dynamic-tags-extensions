@@ -124,10 +124,10 @@
 	 * `_strip_default`, so an unset base tag holds no `src` at all and chainFromOptions()
 	 * — faithfully, as the twin of the PHP reader — answers with an empty chain. The step
 	 * editor then rendered its "no chain yet" seed picker, whose value is `''`: no option
-	 * matches it, so the browser DISPLAYS the first row ("Current") while the control
+	 * matches it, so the browser DISPLAYS the first row ("Current Context") while the control
 	 * believes nothing is selected. Two reported bugs came out of that one gap. Picking
 	 * the row already on screen fires no change event, so the source could not be set to
-	 * Current at all until something else had been chosen first; and with no step in hand
+	 * Current Context at all until something else had been chosen first; and with no step in hand
 	 * there was nothing to append to, so Add step never appeared on a fresh tag.
 	 *
 	 * Showing the root the tag actually resolves against fixes both and is the honest

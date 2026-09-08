@@ -964,6 +964,15 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// an absent root: a chain LEADING with a step has no root token either, and naming that
 	// would ANCHOR the hop it makes ("Current Ref 'x'"), when the entity a relationship step
 	// starts from is not the source the segment describes.
+	//
+	// THE WORD stays bare `Current` while the Source dropdown's row reads "Current
+	// Context" (1.20.0). What decides it is the NEIGHBOURS the string is read against, not
+	// which surface it appears on: this segment sits inline in a `from` list beside its
+	// siblings ("from Current, Ref 'rel_post'"), where the qualifier buys no clarity and
+	// costs width on every slot carrying one; a menu row is read against the other rows of
+	// its own dropdown, where "Current" alone read as "the current post". Different
+	// neighbours, different word. Reviewed as a deliberate divergence, and pinned by
+	// preview-label-test.php's `ambient named` case; do not "fix" it into agreement.
 	if ( $named_current && 'current' === $root ) {
 		$segments[] = 'Current';
 	}

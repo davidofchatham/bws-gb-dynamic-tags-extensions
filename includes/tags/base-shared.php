@@ -47,7 +47,7 @@ function bws_base_source_option(): array {
 			'type'           => 'select',
 			'label'          => __( 'Source', 'generateblocks' ),
 			'options'        => array(
-				array( 'value' => 'current', 'label' => __( 'Current', 'generateblocks' ) ),
+				array( 'value' => 'current', 'label' => __( 'Current Context', 'generateblocks' ) ),
 				array( 'value' => 'ref',     'label' => __( 'In Reference/Relational Field', 'generateblocks' ) ),
 				array( 'value' => 'site',    'label' => __( 'Site', 'generateblocks' ) ),
 			),
@@ -911,7 +911,7 @@ function bws_build_fold_slot_options( array $args ): array {
 		// The root an absent chain SPELLS on slot 1 — derived from the very row the
 		// enum leads with, so the two cannot disagree. The control DISPLAYS it rather
 		// than rendering an empty picker: a picker whose value is `''` matches no row,
-		// so the browser paints the first one ("Current") while the control believes
+		// so the browser paints the first one ("Current Context") while the control believes
 		// nothing is selected — the row on screen cannot then be picked, because
 		// selecting it fires no change event. Slot ≥2 spells its absence `same`
 		// instead, which the control holds (writeChainAt already materializes it).

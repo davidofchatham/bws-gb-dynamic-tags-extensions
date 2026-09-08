@@ -633,7 +633,7 @@
 
 		// DISPLAY the root that absence spells, rather than rendering an empty picker.
 		// A SelectControl whose value is `''` matches no row, so the browser paints the
-		// first one — "Current" on slot 1, "Same as Previous Source" on slot ≥2 — while
+		// first one — "Current Context" on slot 1, "Same as Previous Source" on slot ≥2 — while
 		// the control believes nothing is selected. The row on screen then cannot be
 		// chosen (selecting the displayed value fires no change event), and with no step
 		// in hand there is nothing for `+ Add step` to append to, so it never appears.
@@ -1155,7 +1155,7 @@
 		 * Drop a lone root that only RESTATES what an absent chain already spells.
 		 *
 		 * Reachable now that the default root is displayed: picking another source and
-		 * picking `Current` back would otherwise serialize `src(current)` where the slot
+		 * picking `Current Context` back would otherwise serialize `src(current)` where the slot
 		 * previously held nothing, so merely LOOKING at a slot could change its wire.
 		 *
 		 * Slot 1 only. A slot ≥2's `same` is written on purpose — absence there is a

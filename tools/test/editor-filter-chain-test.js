@@ -395,8 +395,8 @@ function convert( state, chain ) {
 }
 
 // THE DEFAULT ROOT round-trip. `src` is _strip_default, so absence IS `current` — the
-// control shows that root (otherwise its step select displays "Current" while holding
-// nothing, which is what made picking Current fire no change event and left Add step
+// control shows that root (otherwise its step select displays "Current Context" while
+// holding nothing, which is what made picking it fire no change event and left Add step
 // with no step to append to) and convertUpdate writes it back as absence. Both halves
 // are asserted, because either alone is a different bug: display without the strip puts
 // `src:current` on every tag an author opens, and the strip without the display leaves

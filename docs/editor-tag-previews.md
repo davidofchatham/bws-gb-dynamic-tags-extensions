@@ -280,7 +280,7 @@ Datetime tags compute a live preview from the current time rather than a static 
 - Template-name labels: `text` has no label (default). `content`/`image`/`email`/`phone` always include label. `image` appends ` Alt Text` / ` Caption` per `as`. `title`/`permalink` use bare template name. `email`/`phone` use bare `Email` / `Phone`.
 - Mode-value keywords capitalized: `Title`, `Excerpt`, `Content`, `Featured`.
 - User-supplied identifiers wrapped in straight single quotes: `'meta_key'`, `'rel_post'`.
-- `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor.
+- `from` precedes source segments. `Current` rendered explicitly only when source list contains a varying mix that needs the anchor. The anchor stays the bare word `Current` even though the Source dropdown's row reads "Current Context" (1.20.0); why the two surfaces take different words is stated at the emit site, `bws_preview_source_segments()` in [`preview-helpers.php`](../includes/helpers/preview-helpers.php).
 - Datetime templates render base shape (`<Date|Time|Date-Time> like "X"`) then optional source list.
 - Single slot at template default for `content`/`image` collapses to bare `[Try Content]` / `[Try Image Alt Text]`.
 - Image excluded for `as:url` / `as:id` (bracket string would break HTML attribute). Permalink excluded entirely (URL context).
