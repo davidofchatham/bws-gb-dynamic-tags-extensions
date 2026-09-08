@@ -212,7 +212,7 @@ an editor-side control notice could reach it, which is a different mechanism.
 
 ### Invalid-combo warning (`src:site` on a modifier tag)
 
-Distinct from the missing-input warnings: a hand-typed `src:site` on a rooting modifier (`term_*`, `view_*`) is **invalid, not missing**. The `src` dropdown filters `site` out ([tag-reference §Qualifying test](tag-reference.md#qualifying-test-for-new-use-values)), but a hand-typed value slips the UI. A site read is entity-blind, so the runtime resolves **empty** — the preview warns to match, instead of showing a normal label. Checked before the missing-input pass; fallback still appends. (See [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
+Distinct from the missing-input warnings: a hand-typed `src:site` on a rooting modifier (`term_*`, or an externally registered one) is **invalid, not missing**. The `src` dropdown filters `site` out ([tag-reference §Qualifying test](tag-reference.md#qualifying-test-for-new-use-values)), but a hand-typed value slips the UI. A site read is entity-blind, so the runtime resolves **empty** — the preview warns to match, instead of showing a normal label. Checked before the missing-input pass; fallback still appends. (See [#37](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/37).)
 
 | Condition | Warning |
 |---|---|
