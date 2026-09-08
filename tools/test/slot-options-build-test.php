@@ -469,12 +469,14 @@ assert_same(
 	BWS_FOLD_STEP_KINDS,
 	array_combine( array_keys( $fold['steps'] ), array_column( $fold['steps'], 'produces' ) )
 );
-// Only `site` has a parse-time root kind. Every other root resolves at render, so
-// the editor must offer everything there rather than guess whether `current` is a post
-// or a term — a guess would hide the taxonomy step on every ordinary tag. `roots` is
-// its own top-level key: a fact about roots, not about steps.
+// A root ABSENT from BWS_FOLD_PARSE_TIME_ROOT_KINDS resolves at render — the editor must
+// offer everything there rather than guess whether `current` is a post or a term, a guess
+// that would hide the taxonomy step on every ordinary tag. `roots` is its own top-level
+// key: a fact about roots, not about steps. The const OWNS which roots have a parse-time
+// kind (see its own PHPDoc); this assertion pins the count and content mechanically
+// rather than restating the axis in prose that could drift from it.
 assert_same(
-	'roots is its own key and only `site` has a parse-time kind',
+	'roots is its own key, straight off the const that owns which roots have a parse-time kind',
 	BWS_FOLD_PARSE_TIME_ROOT_KINDS,
 	$fold['roots']
 );
@@ -821,16 +823,18 @@ $root_values = static function ( array $rows ): array {
 	return array_map( static function ( $row ) { return $row['value']; }, $rows );
 };
 
-// The appender is the single answer both surfaces take their rows from.
+// The appender is the single answer both surfaces take their rows from. `post` now sits
+// between `testroot` and `term` because CurrentPost registers before TaxonomyTerm in
+// SourceRegistry::init() (FW-39 ticket 03) — both are now selectable pinning roots.
 $appended = bws_registered_root_rows();
 assert_same(
 	'the appender offers the opted-in source and the filter-declared root, in registration order',
-	array( 'testroot', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
+	array( 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $appended )
 );
 assert_same(
 	'...labelled by the source\'s OWN accessor, so an integrator names their concept',
-	array( 'Test Root', 'Term', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
+	array( 'Test Root', 'Post', 'Term', 'Filter Root', 'Arg Filter Root', 'Arg Filter Half' ),
 	array_map( static function ( $row ) { return $row['label']; }, $appended )
 );
 // The collision rule, stated as an outcome rather than as an absence: the key resolves to
@@ -861,14 +865,16 @@ assert_same(
 	in_array( 'quietsource', $root_values( $appended ), true )
 );
 // The registry keeps its dead by policy — four traversal-substitute classes retired when
-// the generic relationship step subsumed them, plus `post`, which would promote to a root
-// that duplicates Current. Every one of them is a registered source right now.
+// the generic relationship step subsumed them. Every one of them is a registered source
+// right now, and none is offerable: nothing here resolves its own id from ambient context
+// in a way an author could usefully pin, and no argument seam changes that.
 //
-// `term` USED TO BE ON THIS LIST and is the pinning root now (FW-39). What changed is not
-// that the objection was wrong: a bare `term` root really would duplicate what a bare base
-// tag does. It is that `term,<ID>` is a different offering, and the argument is REQUIRED —
-// asserted just below, and enforced at the factory seam rather than here.
-foreach ( array( 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post', 'post' ) as $never ) {
+// `term` AND `post` USED TO BE ON THIS LIST and are pinning roots now (FW-39, tickets 02
+// and 03). What changed is not that the objection was wrong: a bare `term`/`post` root
+// really would duplicate what a bare base tag does. It is that `term,<ID>`/`post,<ID>` is
+// a different offering, and the argument is REQUIRED — asserted just below, and enforced
+// at the factory seam rather than here.
+foreach ( array( 'related_post', 'second_related_post', 'post_term_related_post', 'term_related_post' ) as $never ) {
 	assert_same(
 		"the registry's own `{$never}` stays out of the root enum",
 		array( true, false ),
@@ -910,6 +916,35 @@ assert_same(
 	BWS_FOLD_PARSE_TIME_ROOT_KINDS['term'] ?? null
 );
 
+// The SECOND pinning root (FW-39 ticket 03) — same appender, same declaration shape,
+// different kind. `post` has no legacy `id`-carrying modifier family (D13), so unlike
+// `term` there is no compatibility constraint to note here; the declaration itself is
+// identical in shape.
+$post_row = null;
+foreach ( $appended as $row ) {
+	if ( 'post' === $row['value'] ) { $post_row = $row; }
+}
+assert_same(
+	'`post` is offered as a PINNING root — declared argument, refuse when bare',
+	array(
+		'label'   => 'Post',
+		'control' => 'bws-entity-picker',
+		'argless' => \BWS\DynamicTags\SourceInterface::ROOT_ARGLESS_REFUSE,
+		'kind'    => 'post',
+	),
+	$post_row['arg'] ?? null
+);
+assert_same(
+	'...and its kind is the source\'s own context type too',
+	\BWS\DynamicTags\SourceRegistry::get_source( 'post' )->get_context_type(),
+	$post_row['arg']['kind'] ?? null
+);
+assert_same(
+	'`post` answers its kind at PARSE TIME too',
+	'post',
+	BWS_FOLD_PARSE_TIME_ROOT_KINDS['post'] ?? null
+);
+
 // ── The parse-time root CENSUS (FW-39) ───────────────────────────────────────────────
 //
 // Every root that DECLARES AN ARGUMENT pins one entity, so its kind is knowable from the
@@ -924,7 +959,7 @@ foreach ( \BWS\DynamicTags\SourceRegistry::get_selectable_roots() as $root_key =
 	if ( array() === bws_root_argument_row( $root_source->get_root_argument() ) ) {
 		continue;
 	}
-	if ( ! in_array( $root_key, array( 'term' ), true ) ) {
+	if ( ! in_array( $root_key, array( 'term', 'post' ), true ) ) {
 		continue; // Fixture roots stand in for an integrator's; they own no constant here.
 	}
 	assert_same(
@@ -949,17 +984,17 @@ $rooted_fold = bws_build_fold_slot_options(
 
 assert_same(
 	'BASE root enum = built-ins then the appended roots',
-	array( 'current', 'site', 'testroot', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
+	array( 'current', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_base['src']['fold']['srcRows'] )
 );
 assert_same(
 	'SLOT source enum carries the same roots (a root offered on a tag is offered in a field)',
-	array( 'current', 'refs', 'site', 'testroot', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
+	array( 'current', 'refs', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRows'] )
 );
 assert_same(
 	'...and so does a slot ≥2, behind its `same` row',
-	array( 'same', 'current', 'refs', 'site', 'testroot', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
+	array( 'same', 'current', 'refs', 'site', 'testroot', 'post', 'term', 'filterroot', 'argfilterroot', 'argfilterhalf' ),
 	$root_values( $rooted_fold['srcRowsWithSame'] )
 );
 // APPENDED, never prepended: `defaultRoot` is derived from the first row and stands for

@@ -10,11 +10,12 @@
  * `wp.apiFetch`, and reading the tree AND THE REQUESTED PATHS it produces — the same
  * posture field-combo-control-test.js takes for the same reason.
  *
- * KIND-TABLE-DRIVEN would be the eventual shape once a second kind (post) ships;
- * scoped to `term` alone here because that is the only kind this ticket wires (D13:
- * post has no picker yet). Adding `post` later is a fixture row and a loop, not a
- * rewrite — the assertions below already read the kind off `props.kind` rather than
- * hard-coding 'term' into the request-path checks.
+ * KIND-TABLE-DRIVEN (FW-39 ticket 03): `term` and `post` are both rows in the same
+ * table, driven by the same loop — adding `post` was exactly the fixture row and loop
+ * the ticket-02 header predicted, not a rewrite, because every assertion below already
+ * read the kind off `props.kind` rather than hard-coding 'term' into the request-path
+ * checks. `user` (D12) has no row: it is designed, not built, and adding a row for a
+ * kind the control does not yet serve would assert behavior nothing backs.
  *
  * WHAT THIS DOES NOT COVER: the REST route itself (entity-lookup-test.php owns
  * that), ComboboxControl's own rendering/keyboard behaviour, and anything needing a
@@ -221,9 +222,8 @@ function check( label, got, want, extra ) {
 	}
 }
 
-// One fixture row table, driving every kind this control serves today — just `term`
-// (D13, post has no picker). Structured so a second kind is a second row here plus a
-// loop over KINDS below, not a rewrite of the assertions.
+// One fixture row table, driving every kind this control serves today. A third kind
+// (`user`, D12) is a third row here plus nothing else, not a rewrite.
 const KINDS = [
 	{
 		kind: 'term',
@@ -231,6 +231,14 @@ const KINDS = [
 			{ id: 5, label: '#5 News', group: 'Category' },
 			{ id: 3, label: '#3 Announcements', group: 'Category' },
 			{ id: 34, label: '#34 Support', group: 'Benefit Tier' },
+		],
+	},
+	{
+		kind: 'post',
+		rows: [
+			{ id: 5, label: '#5 Hello World', group: 'Post' },
+			{ id: 3, label: '#3 A Draft (draft)', group: 'Post' },
+			{ id: 34, label: '#34 Support', group: 'Landing Page' },
 		],
 	},
 ];
@@ -277,10 +285,11 @@ async function main() {
 			selects( tree ).length,
 			1
 		);
+		const expectedGroups = Array.from( new Set( fixture.rows.map( function ( r ) { return r.group; } ) ) ).sort();
 		check(
 			`${fixture.kind}: …with an "All" row plus one per distinct group, alphabetical`,
 			labels( selects( tree )[ 0 ].options ),
-			[ 'All', 'Benefit Tier', 'Category' ]
+			[ 'All' ].concat( expectedGroups )
 		);
 
 		// D16: selecting the taxonomy filter narrows the SHOWN list without a second
@@ -292,12 +301,13 @@ async function main() {
 			label: 'Term',
 			onChange: function () {},
 		};
-		selects( tree )[ 0 ].onChange( 'Category' );
+		const targetGroup = expectedGroups[ 0 ];
+		selects( tree )[ 0 ].onChange( targetGroup );
 		const filtered = await rerender( EntityPickerControl, filterProps );
 		check(
 			`${fixture.kind}: D16 — the taxonomy filter narrows client-side…`,
 			labels( combo( filtered ).options ),
-			fixture.rows.filter( function ( r ) { return 'Category' === r.group; } ).map( function ( r ) { return r.label; } )
+			fixture.rows.filter( function ( r ) { return targetGroup === r.group; } ).map( function ( r ) { return r.label; } )
 		);
 		check(
 			`${fixture.kind}: …and is NEVER sent as a request parameter`,

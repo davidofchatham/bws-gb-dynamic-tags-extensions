@@ -970,6 +970,22 @@ unauthenticated request); `bws_build_preview_label()` on a pinned tag reads `['s
 Sales]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one)
 against the reseeded testbed, all green.
 
+## §F21 — a PINNED POST root, end to end (FW-39, ticket 03)
+
+**Same page as §F20** (`/matrix-pinned-roots/`) — the tracer bullet's twin for the second pinning kind, proving the seam §F20 built is genuinely kind-generic rather than term-shaped, exactly as ticket 03 stated. Reuses EXISTING staff fixture state rather than seeding anything new: `staff-tom-associate` (real id resolved at BUILD TIME via `bws_fixture_seeded_post_id( 'tom-associate', 'staff' )`, D9 — a pin is authored by numeric id) and its own `reports_to` field (→ `staff-jane-partner`, v7) stand in for the "relationship step off the pinned root" row, where §F20.7 needed a purpose-built term-meta field (`dept_lead`) that did not already exist. `post` has no migration half (D13), so there is no converter/`fixture_` corpus equivalent to add here.
+
+| # | Tag | Expected |
+|---|---|---|
+| F21.1 | `{{text src:post,<tom-id>\|use:title}}` | `Tom Associate` — the tracer bullet: pinned, not ambient |
+| F21.2 | `{{text use:title}}` | `Matrix: Pinned Entity Roots` — the ambient contrast, same page |
+| F21.3 | `{{text src:post\|use:title}}` (bare, no pin — D2/D8; hand-wire only, nothing offers this) | **empty** — an argless declaring root refuses at the factory seam, same as §F20.3. The editor's own preview reads `[⚠ Post: nothing pinned]` |
+| F21.4 | `{{text src:post,999999\|use:title}}` | **empty** — a pin naming a nonexistent post refuses too; the editor's own preview marks this `post,999999 (missing)` |
+| F21.5 | `{{try_text A:src(post,<tom-id>);use(title)}}` | `Tom Associate` — the SAME picker's offering resolves identically inside a `try_` attempt |
+| F21.6 | `{{join mode:template\|A:src(post,<tom-id>);use(title)\|B:src(current);use(title)\|format:%A / %B}}` | `Tom Associate / Matrix: Pinned Entity Roots` — one composed string names the pinned post AND the ambient page |
+| F21.7 | `{{text src:post,<tom-id>;refs,reports_to\|use:title}}` | `Jane Partner` — D3: a RELATIONSHIP STEP running off a pinned POST root, the mirror direction of §F20.7 (a post hopping to a post, rather than a term hopping to one) |
+
+**Verified live** (`wp eval` + `render-tag`, admin user, 2026-09-07/08, blueprint v20): every row above against real seeded content; `bws_entity_lookup_browse_posts()` returns every readable `staff` post grouped and ID-prefixed per D15, with a draft's and a private post's row correctly suffixed ` (draft)` / ` (private)` (D18) when browsed as an administrator and both ABSENT for an anonymous request (D19, no per-post check — the status set is derived once per post type); `bws_entity_lookup_resolve_post()` answers a real post's row and `null` for a nonexistent id; `bws_build_preview_label()` on a pinned tag reads `['title' from Post: Tom Associate]`; and the full `verify.php` + `page-snapshots.php` suite (18 pages, including this one) against the reseeded testbed, all green (one unrelated pre-existing failure — GB's own P3 taint-suppression check — reproduces identically on the pre-ticket-03 commit and is not this ticket's regression).
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

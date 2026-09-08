@@ -33,6 +33,30 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $key Meta/ACF resolution key.
  * @return bool True if the key is on the DISALLOWED_KEYS list.
  */
+/**
+ * Whether a root-argument token is a STRICT digit string — an id an author actually typed,
+ * not merely something PHP happens to consider numeric (FW-39, ticket 03).
+ *
+ * THE ONE VALIDATOR both pinning roots' `resolve_root_argument()` call
+ * (`TaxonomyTerm`, `CurrentPost`) before trusting an argument enough to look it up. Shared
+ * so a future pinning root with a numeric id (a third kind, or an integrator's own) reaches
+ * the same rule rather than a third hand-copy.
+ *
+ * `ctype_digit()`, NOT `is_numeric()` + cast: "34.9", "3e1" and " 34" are all PHP-numeric
+ * and would silently TRUNCATE under `(int)` rather than round-trip (`(int) "34.9"` is 34,
+ * `(int) "3e1"` is 3, neither being what was authored) — the shape is verified here, not
+ * merely cast and trusted.
+ *
+ * @since 1.20.0
+ * @param string $arg The root argument as authored, verbatim.
+ * @return bool
+ */
+if ( ! function_exists( 'bws_strict_digit_id' ) ) {
+function bws_strict_digit_id( string $arg ): bool {
+	return ctype_digit( $arg ) && '0' !== $arg;
+}
+}
+
 if ( ! function_exists( 'bws_field_key_disallowed' ) ) {
 function bws_field_key_disallowed( string $key ): bool {
 	return class_exists( 'GenerateBlocks_Dynamic_Tag_Security' )

@@ -147,12 +147,9 @@ class TaxonomyTerm extends AbstractSource {
 	 * @return int|false
 	 */
 	public function resolve_root_argument( string $arg, array $options, $instance ) {
-		// STRICT digit-string, not merely is_numeric(): "34.9", "3e1" and " 34" are all
-		// PHP-numeric and would silently TRUNCATE under (int) rather than round-trip
-		// (`(int) "34.9"` is 34, `(int) "3e1"` is 3, neither being what was authored) —
-		// the shape gets verified here, not merely cast and trusted, same posture as
-		// the existence check below.
-		if ( ! ctype_digit( $arg ) || '0' === $arg ) {
+		// bws_strict_digit_id() (field-helpers.php) is the one validator both pinning
+		// roots share — see its own PHPDoc for why is_numeric()+cast is not enough.
+		if ( ! function_exists( 'bws_strict_digit_id' ) || ! bws_strict_digit_id( $arg ) ) {
 			return false;
 		}
 		if ( ! function_exists( 'bws_get_validated_term' ) ) {

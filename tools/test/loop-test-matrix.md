@@ -124,7 +124,7 @@ the guard working; a column of nothing is a loop that did not run.
 
 | # | Tag (on `/matrix-loops/`) | Expected | Status |
 |---|---|---|---|
-| QL3.1 | `{{title src:term}}` | `Sales`, `Support`, `Warehouse`, `Workshop` — the identity for the count beside each | **PASS** |
+| QL3.1 | `{{title src:term}}` | **EMPTY since 1.20.0** (FW-39, D8) — was `Sales`, `Support`, `Warehouse`, `Workshop` (the identity for the count beside each) through 1.20.0-pre. Same cause as QL1.2: `term` now declares a pinning argument, so this argument-less `src:term` REFUSES at the factory seam. Left unfixed rather than given QL1.4b's `{{term_archive_url}}` fix: TRIED, and it does not carry over because this is the SECOND `department`-taxonomy term loop on the page and GBQE's own tag needs a `taxonomy` key its loop item does not carry here — a discovered, unexplained GBQE gap on a second same-taxonomy loop, not a D8 consequence. The row is split (label/tag) so it stays visible with nothing after the colon, rather than vanishing whole; QL3.2's own counts remain the non-vacuity control, though a tied count (6, 6) can no longer say which department it belongs to | **PASS** |
 | QL3.2 | `{{term_count}}` | real counts for the three staffed departments, then `0` for `Workshop`, which is assigned to no post. The zero survives GB's block-kill only because of the guard; without it the whole row disappears | **PASS** |
 
 ## QL4 — a POST query nested inside a TERM query loop

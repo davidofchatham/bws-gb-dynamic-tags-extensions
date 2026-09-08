@@ -216,9 +216,10 @@ function bws_fold_picker_config( array $def ): array {
  *                           Display only — a stored step is always shown in its own
  *                           picker; an absent list means "offer it", never "refuse it".
  *                produces — the kind the step's output carries (BWS_FOLD_STEP_KINDS).
- *   roots      root token → parse-time resolved kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS). A fact
- *              about roots, not steps — only `site` has a parse-time kind; every other root is the
- *              factory's to resolve at render, so the editor filters nothing off it.
+ *   roots      root token → parse-time resolved kind (BWS_FOLD_PARSE_TIME_ROOT_KINDS, the
+ *              axis's owner — restated here as a consequence, not renamed). A fact about
+ *              roots, not steps — a root ABSENT from that const is the factory's to
+ *              resolve at render, so the editor filters nothing off it.
  *   retiredSrc the retired source tokens the mount migrator must DECLINE rather than
  *              fold (#56), read from the same constant the converter's guard reads.
  *   limitOption the per-step LIMIT control's whole vocabulary — label, placeholder and

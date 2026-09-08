@@ -60,6 +60,7 @@ Traversal selector on every base tag. Serializes as `src:<value>` in the tag str
 | `ref` | Reference/relational field step — requires `ref` sub-option (field key) | Implemented |
 | `site` | Site-wide data (no entity) — an implicit-mode tag resolves the site analog, `key` reads an option. See [§Site Source](#site-source-srcsite). | Implemented (v1.9.0, Stage A) |
 | `term,<ID>` | **Pinned term root** (1.20.0, FW-39). Roots the chain at ONE specific term, whatever the page is about. `<ID>` is required — a bare `term` resolves nothing (see below). Steps run off it like any other root (`term,34;refs,rel` is legal; `terms` is refused — no term→term edge). | Implemented |
+| `post,<ID>` | **Pinned post root** (1.20.0, FW-39). Roots the chain at ONE specific post, whatever the page is about. `<ID>` is required — a bare `post` resolves nothing (see below); it would be `current` under another name. Authoring-only: unlike `term`, `post` has no legacy modifier family to stay compatible with (no `post_*` tags exist), so there is no converter/migration half. | Implemented |
 | *(a registered source key)* | Whatever that source's `resolve_id()` returns — post or term per its context type. Resolves whether or not the source is OFFERED (below). | Implemented |
 | `parent` | WP parent post/term | Planned |
 | `ancestor` | WP top-level ancestor | To be considered |
@@ -77,18 +78,7 @@ deliberately not the same rule.
   `is_selectable_root()` returns true (default false) *and* `is_source_enabled()` passes — the
   latter is the settings gate, so a term-context root follows the `term_` modifier toggle. The
   precondition for opting in is that the source **resolves its own id from ambient context**.
-- **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by
-  policy and never sheds them (a `register_source()` call is never deleted for lacking resolve
-  logic), so the four retired traversal-substitute sources and the internal `post` key are
-  registered right now and must stay out. A registry that keeps its dead is the wrong shape to
-  derive an authoring enum from. **`term` is the one exception, and it changed rather than
-  broke this rule** (1.20.0, FW-39): a bare `term` root is still exactly what a bare base tag
-  does and stays unofferable, but `term` now also offers a PINNING argument (`term,<ID>`), and
-  the root row it offers carries that argument's declaration (`arg: { label, control, argless,
-  kind }`, from `SourceInterface::get_root_argument()`). An argless `term` root REFUSES at the
-  factory seam rather than degrading to the ambient term — see the root-argument seam's own
-  PHPDoc (`bws_factory_registry_source()`, `includes/helpers/traversal-pipeline.php`) for the
-  full rule, which this doc does not restate per the axis-ownership convention.
+- **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by policy and never sheds them (a `register_source()` call is never deleted for lacking resolve logic), so the four retired traversal-substitute sources are registered right now and must stay out — none resolves its own id from ambient context in a way an author could usefully pin. A registry that keeps its dead is the wrong shape to derive an authoring enum from. **`term` and `post` are the exceptions, and each changed rather than broke this rule** (1.20.0, FW-39, tickets 02/03): a bare `term`/`post` root is still exactly what a bare base tag does and stays unofferable, but each now also offers a PINNING argument (`term,<ID>`, `post,<ID>`), and the root row it offers carries that argument's declaration (`arg: { label, control, argless, kind }`, from `SourceInterface::get_root_argument()`). An argless root of either kind REFUSES at the factory seam rather than degrading to the ambient entity — see the root-argument seam's own PHPDoc (`bws_factory_registry_source()`, `includes/helpers/traversal-pipeline.php`) for the full rule, which this doc does not restate per the axis-ownership convention.
 - **Offering is not resolving.** The flag governs the dropdown alone; the factory's registry
   delegation is untouched, so wire naming any registered source resolves either way. Load-bearing
   rather than incidental: wire is hand-editable by decision (ADR 0004), and an integrator flipping
@@ -104,9 +94,11 @@ deliberately not the same rule.
   derived families (`term_*`, `try_*`, `{{table}}`, `{{call}}`) build their own surfaces from its
   rows, so a leak there would offer a root inside its own modifier family's Source dropdown and
   widen `{{call}}`'s deliberate allowlist.
-- **Registered roots declare no parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` stays as it is (only
-  `site` has one); a chain rooted at a registered source resolves to the kind the factory
-  determines at render, and the editor's step-offer filter stays permissive there.
+- **Registered roots offered through the `bws_dynamic_tags_chain_roots` filter route declare no
+  parse-time kind.** `BWS_FOLD_PARSE_TIME_ROOT_KINDS` is scoped to sources this repo ships
+  (`site`, `term`, `post`); a chain rooted at an integrator's registered source resolves to the
+  kind the factory determines at render, and the editor's step-offer filter stays permissive
+  there.
 - **A root key must be writable as a `src` token.** The filter route refuses a key that is a chain
   step slug (`refs`/`terms`/`rows`, read from `BWS_FOLD_STEP_TYPES` rather than re-typed), the
   slot carry-over sentinel `same`, or one carrying a grammar character — each would parse back as

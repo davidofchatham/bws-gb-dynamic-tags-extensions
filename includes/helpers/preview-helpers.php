@@ -901,6 +901,13 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 	// OWNER-RESOLVES ROOTS ARE EXEMPT: an argless root that ANSWERS one by its own rule
 	// (SourceInterface::ROOT_ARGLESS_OWNER_RESOLVES) is not unfinished, it is doing
 	// exactly what its declaration says an absent argument means.
+	//
+	// NOT bws_root_argument_row() (base-shared.php) — TRIED, and reverted: it would add
+	// a cross-file dependency this pure preview file does not otherwise have, on a
+	// function the OTHER authoring surface owns, for a normalization this narrow inline
+	// check already gets right. The two guards below and the naming branch further down
+	// read the same declaration independently on purpose — see the header note on why a
+	// second falsy/WP_Error-shaped check stays inline rather than centralized here.
 	if ( '' === $root_arg && '' !== $root && class_exists( '\BWS\DynamicTags\SourceRegistry' ) ) {
 		$pin_check = \BWS\DynamicTags\SourceRegistry::get_source( $root );
 		if ( $pin_check ) {
@@ -999,29 +1006,16 @@ function bws_preview_source_segments( array $chain, array $params = array(), arr
 		//
 		// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons,
 		// or the preview would name in author terms exactly what the authoring surface is
-		// written to keep out of an author's vocabulary: `post`/`term` are INTERNAL
-		// spellings of the ambient entity (`{{text src:post}}` would read "from Post",
-		// which is what a bare tag already is), and the four retired
-		// traversal-substitute tokens are what the `related_post` migration exists to
-		// REMOVE from wire — naming one dresses a token on its way out as a configured
-		// source.
-		// standing rule for user-facing text. This is the whole editor experience for a
-		// tag rooted at a source that needs request context: it cannot resolve in the
-		// editor, so it previews rather than renders.
-		//
-		// OFFERED or not is irrelevant: the tag is stored, so the preview describes what
-		// it says, and a source an integrator stopped offering still renders. Reading the
-		// label off the registry (rather than a copy) is what keeps the preview naming a
-		// source the same way the dropdown that authored it did.
-		//
-		// The keys the ROOT ENUM refuses are refused HERE TOO, and for the same reasons,
-		// or the preview would name in author terms exactly what the authoring surface is
-		// written to keep out of an author's vocabulary: `post`/`term` are INTERNAL
-		// spellings of the ambient entity (`{{text src:post}}` would read "from Post",
-		// which is what a bare tag already is), and the four retired
-		// traversal-substitute tokens are what the `related_post` migration exists to
-		// REMOVE from wire — naming one dresses a token on its way out as a configured
-		// source.
+		// written to keep out of an author's vocabulary: `post`/`term` are the INTERNAL
+		// spellings of the ambient entity, and BOTH are now also PINNING roots (FW-39) —
+		// a bare one never reaches the `if` just below at all, because the `unpinned` inert
+		// check above already flagged it and $segments already holds a warning, not a plain
+		// label. This branch's exclusion still matters for what it prevents: a bare
+		// `post`/`term` naming itself here on top of that warning would repeat the same fact
+		// twice in two different tones. The four retired traversal-substitute tokens are
+		// excluded for a different reason — they are what the `related_post` migration
+		// exists to REMOVE from wire, and naming one here would dress a token on its way out
+		// as a configured source.
 		$internal = array_merge( $internal_roots, $retired_roots );
 		if ( ! in_array( $root, $internal, true ) ) {
 			$root_source = \BWS\DynamicTags\SourceRegistry::get_source( $root );
@@ -1334,8 +1328,15 @@ function bws_build_preview_label( array $options, string $template ): string {
 				// `bws_get_validated_term()` (taxonomy-helpers.php), not bare `get_term`:
 				// the plugin's one "is this term real" rule, already the answer every
 				// other term-existence read in this codebase takes, rather than a second
-				// falsy/WP_Error check owned only by the preview.
-				'entity_resolvers' => array( 'term' => 'bws_get_validated_term' ),
+				// falsy/WP_Error check owned only by the preview. `post` has no equivalent
+				// "is this post real" helper to route through (D13: no legacy read path to
+				// keep compatible with, unlike term's), so it takes bare `get_post` — D20's
+				// own stated default, and `bws_preview_pinned_entity_segment()` already
+				// treats a null return as "missing" without a WP_Error check to make.
+				'entity_resolvers' => array(
+					'term' => 'bws_get_validated_term',
+					'post' => 'get_post',
+				),
 			),
 			$src_missing,
 			$src_inert

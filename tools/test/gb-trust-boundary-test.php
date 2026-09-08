@@ -20,6 +20,14 @@
  * DIRECTLY on purpose — a pin routed through our own helper stops measuring GB — and the
  * exemption list is where that intent is recorded rather than inferred.
  *
+ * §T6 IS A SECOND, UNRELATED CENSUS living in the same file for the same reason §T5 does:
+ * a structural fact a behavior test cannot see. FW-39 ticket 03 (D19) requires the
+ * entity-lookup REST route to DISPATCH to a per-kind capability predicate rather than
+ * branch inside one callback, and this section pins that it still does, not merely that it
+ * still answers right — a callback that inlines both kinds' logic could pass every
+ * behavior assertion in entity-lookup-test.php while being exactly the collapse D19
+ * forbids.
+ *
  * Run: php tools/test/gb-trust-boundary-test.php
  *
  * @package BWS_Dynamic_Tags
@@ -367,6 +375,47 @@ if ( $offenders ) {
 	echo "       above WITH the reason written out.\n";
 	echo "       ({$files_scanned} php files scanned.)\n";
 }
+
+echo "\n§T6 — the entity-lookup route's per-kind predicates are TWO SITES, not one branch\n";
+
+// A DIFFERENT question from §T5's, censused in the same file because it is the same shape:
+// D19 (FW-39 ticket 03) requires includes/rest/entity-lookup.php to DISPATCH to a named
+// predicate function per kind (term, post) rather than branch on `$kind` inside one
+// callback — "two capability models, two census sites" is the ticket's own framing, and
+// this section is that census. It has nothing to do with GB's trust symbols (§T5's
+// subject); it lives here because the file's whole reason to exist is holding structural
+// facts about capability gates that a behavior assertion alone cannot see — a branching
+// callback can answer every §5-style test case correctly while still being the collapse
+// this section exists to catch.
+$entity_lookup_path = $root . '/includes/rest/entity-lookup.php';
+$entity_lookup_src   = (string) file_get_contents( $entity_lookup_path );
+preg_match_all( '~^function\s+(bws_entity_lookup_\w+_kind_readable)\s*\(~m', $entity_lookup_src, $predicate_matches );
+$predicate_fns = $predicate_matches[1] ?? array();
+
+assert_same(
+	'the route declares exactly TWO per-kind readability predicates today (term, post)',
+	2,
+	count( $predicate_fns )
+);
+assert_same(
+	'...named for the kinds this ticket ships, not a placeholder pair',
+	array( 'bws_entity_lookup_post_kind_readable', 'bws_entity_lookup_term_kind_readable' ),
+	( function ( array $fns ) { sort( $fns ); return $fns; } )( $predicate_fns )
+);
+// The dispatch table is what makes them SITES a route reads rather than dead code beside a
+// switch — asserted structurally: bws_entity_lookup_kind_readable() itself must contain no
+// per-kind branching (`case`/`if ( 'term' ===` etc.) of its own, only the one-line dispatch.
+preg_match(
+	'~function bws_entity_lookup_kind_readable\([^)]*\)\s*:\s*bool\s*\{(.*?)\n\}~s',
+	$entity_lookup_src,
+	$dispatcher_match
+);
+$dispatcher_body = $dispatcher_match[1] ?? '';
+assert_same(
+	'bws_entity_lookup_kind_readable() itself contains no per-kind branch — it only dispatches',
+	false,
+	(bool) preg_match( '~\bcase\s+[\'"]|\'term\'|\'post\'~', $dispatcher_body )
+);
 
 echo "\n";
 if ( $failures ) {

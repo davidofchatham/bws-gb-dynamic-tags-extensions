@@ -1595,6 +1595,28 @@ function bws_fixture_page_content_matrix_loops() {
 	// and deliberate: the row disappearing IS the signal, and QL3.1 beside it keeps
 	// the term visible so a reader can see WHICH row went.
 	//
+	// QL3.1 IS NOW EMPTY, since 1.20.0 (FW-39, D8) — the SAME cause as QL1.2 above,
+	// and left UNFIXED here rather than given QL1.4b's fix, for a reason worth
+	// recording. `term` now declares a pinning argument, so this row's explicit,
+	// argument-less `src:term` REFUSES at the factory seam instead of reaching the
+	// loop-aware TaxonomyTerm::resolve_id() it relied on, and GB hides a text block
+	// whose tag resolves empty — taking this row's own label down with it, silently.
+	//
+	// `{{term_archive_url}}` — QL1.4b's OWN fix for the identical shape — was TRIED
+	// here first and does NOT carry over: this is the SECOND `department`-taxonomy
+	// WP_Term_Query loop on this page (QL1.4's is the first), and GBQE's own
+	// get_term_archive_url() (gb-query-enhancements/includes/Dynamic_Tags.php,
+	// read 2026-09-08) additionally requires `Utils::get_key( $loop_item,
+	// 'taxonomy' )`, which comes back empty for every item of this SECOND
+	// same-taxonomy loop while the id getter `{{term_count}}` also uses (and QL3.2
+	// proves resolves correctly per item here) does not. Bare `{{title}}` — OUR
+	// OWN item-shape recognition, proven correct in a term loop by QL1.1/QL1.4 —
+	// was tried too and empties identically, so whatever GBQE's second-loop gap
+	// is, it is not confined to GBQE's own tags. Left as a discovered, unexplained
+	// GBQE second-same-taxonomy-loop gap rather than chasing a third tag; QL3.2's
+	// own counts (6, 6, 3, 0) remain the non-vacuity control, though they can no
+	// longer disambiguate WHICH staffed department a tied count (6, 6) belongs to.
+	//
 	// `hide_empty` OFF here, which is what reaches the unstaffed Workshop term at
 	// all. The staffed departments loop with it and are the non-vacuity control: a
 	// zero beside real counts is the guard working, while a column of nothing is a
@@ -1608,7 +1630,7 @@ function bws_fixture_page_content_matrix_loops() {
 				'order'          => 'ASC',
 				'hide_empty'     => false,
 			),
-			bws_fixture_gb_row( 'QL3.1 term (the identity for the count beside it)', '{{title src:term}}' )
+			bws_fixture_gb_empty_row( 'QL3.1 the identity for the count beside it, EMPTY since 1.20.0 (FW-39, D8) — see the note above; was `Sales`/`Support`/`Warehouse`/`Workshop` through 1.20.0-pre', '{{title src:term}}' )
 				. "\n\n" . bws_fixture_gb_row( 'QL3.2 count (expect real counts for the staffed departments and a bare 0 for Workshop, which is assigned to no post; this whole row goes with the zero if the guard stops covering the tag)', '{{term_count}}' ),
 			'ql3-term-count-zero',
 			'WP_Term_Query'
@@ -1711,27 +1733,35 @@ function bws_fixture_page_content_matrix_loops() {
 }
 
 /**
- * matrix-pinned-roots — PINNED ENTITY ROOTS corpus (v20, FW-39, §F20).
+ * matrix-pinned-roots — PINNED ENTITY ROOTS corpus (v20, FW-39, §F20 + §F21).
  *
  * The whole point of a pin is that it resolves the SAME wherever it is authored, so this
- * page's own field values are deliberately unlike the pinned term's ("Matrix: Pinned
- * Entity Roots" the page title, "Sales" / "Tom Associate" the pinned answers) — a row
- * that happened to match ambient content would pass whether the pin resolved or not.
+ * page's own field values are deliberately unlike the pinned entities' ("Matrix: Pinned
+ * Entity Roots" the page title, "Sales" / "Tom Associate" / "Jane Partner" the pinned
+ * answers) — a row that happened to match ambient content would pass whether the pin
+ * resolved or not.
  *
- * The Sales department term's real id is resolved at BUILD TIME
- * (bws_fixture_seeded_term_id()), never hand-typed: a pin is authored by ID (D9), and a
- * fresh install's `sales` term is not guaranteed to land on any particular number.
+ * The Sales department term's and Tom's staff post's real ids are resolved at BUILD TIME
+ * (bws_fixture_seeded_term_id() / bws_fixture_seeded_post_id()), never hand-typed: a pin
+ * is authored by ID (D9), and a fresh install's ids are not guaranteed to land on any
+ * particular number.
+ *
+ * §F21 (FW-39 ticket 03) reuses EXISTING staff fixture state — `staff-tom-associate`'s own
+ * `reports_to` (-> `staff-jane-partner`, v7) — rather than seeding anything new: `post`'s
+ * pinning offering needed no new manifest data to demonstrate, only a wire and a page to
+ * show it on, unlike `dept_lead` above which v20 added purpose-built.
  *
  * @return string
  */
 function bws_fixture_page_content_matrix_pinned_roots() {
 	$sales_id = function_exists( 'bws_fixture_seeded_term_id' ) ? bws_fixture_seeded_term_id( 'sales', 'department' ) : false;
-	if ( ! $sales_id ) {
-		// The term does not exist yet (a partial/out-of-order seed run) — render a
-		// single visible flag rather than a page of tags naming a bogus id, which
-		// would misreport as "the pin doesn't resolve" instead of "reseed first".
+	$tom_id   = function_exists( 'bws_fixture_seeded_post_id' ) ? bws_fixture_seeded_post_id( 'tom-associate', 'staff' ) : false;
+	if ( ! $sales_id || ! $tom_id ) {
+		// Either seed is missing (a partial/out-of-order seed run) — render a single
+		// visible flag rather than a page of tags naming a bogus id, which would
+		// misreport as "the pin doesn't resolve" instead of "reseed first".
 		return bws_fixture_gb_text_block(
-			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term was not found. Reseed terms before pages.',
+			'PINNED-ROOTS FIXTURE ERROR: the "sales" department term or the "tom-associate" staff post was not found. Reseed terms + staff before pages.',
 			'pinned-roots-missing-term'
 		);
 	}
@@ -1753,6 +1783,23 @@ function bws_fixture_page_content_matrix_pinned_roots() {
 		// this is the only page that can express "the term this page is pinned to, then
 		// hop to a post" rather than the reverse (a post hopping INTO a term).
 		bws_fixture_gb_row( "F20.7 a relationship step off the pinned root (-> Tom Associate, the Sales dept_lead)", "{{text src:term,{$sales_id};refs,dept_lead|use:title}}" ),
+	) );
+
+	$sections[] = bws_fixture_gb_section( 'F21 - a PINNED POST resolves the same wherever it is authored (FW-39 ticket 03)', array(
+		bws_fixture_gb_row( "F21.1 base tag pinned at post,{$tom_id} (-> Tom Associate)", "{{text src:post,{$tom_id}|use:title}}" ),
+		bws_fixture_gb_row( 'F21.2 the ambient contrast, same key, no root (-> Matrix: Pinned Entity Roots, THIS page)', '{{text use:title}}' ),
+		bws_fixture_gb_empty_row( 'F21.3 bare `src:post`, no argument - D2/D8 refusal, hand-wire only (nothing offers this in the UI) - EMPTY, never the page\'s own entity', '{{text src:post|use:title}}' ),
+		bws_fixture_gb_empty_row( 'F21.4 pinned at a post id that does not exist - EMPTY, a deleted pin does not fall back either', '{{text src:post,999999|use:title}}' ),
+		bws_fixture_gb_row( "F21.5 the SAME pin inside a try_ attempt (-> Tom Associate)", "{{try_text A:src(post,{$tom_id});use(title)}}" ),
+		bws_fixture_gb_row(
+			"F21.6 the SAME pin composed inside a join with the ambient title (-> Tom Associate / Matrix: Pinned Entity Roots)",
+			"{{join mode:template|A:src(post,{$tom_id});use(title)|B:src(current);use(title)|format:%A / %B}}"
+		),
+		// D3 - a RELATIONSHIP STEP running OFF a pinned POST root, the twin of F20.7 in
+		// the other direction (a post hopping to another post rather than a term hopping
+		// to one) - `reports_to` is Tom's existing staff->staff link (v7), reused rather
+		// than seeded new: pinning `post` needed no purpose-built state to demonstrate.
+		bws_fixture_gb_row( "F21.7 a relationship step off the pinned root (-> Jane Partner, Tom's reports_to)", "{{text src:post,{$tom_id};refs,reports_to|use:title}}" ),
 	) );
 
 	return implode( "\n\n", $sections );

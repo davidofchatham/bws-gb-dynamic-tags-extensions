@@ -112,8 +112,11 @@ const BWS_FOLD_STEP_KINDS = array(
  *
  * CENSUSED (tools/test/slot-options-build-test.php): a pinning root that fails to declare
  * its kind here produces no error anywhere — just an editor that quietly stops offering
- * hops off it, which is the hazard block-context-keys-test.php exists for. Two entries is
- * where a list stops being self-evidently complete, and `post` is the third.
+ * hops off it, which is the hazard block-context-keys-test.php exists for. Three entries
+ * is where a list stops being self-evidently complete, and a FOURTH (a sister plugin's own
+ * pinning root, declared through the `bws_dynamic_tags_chain_roots` filter route) is the
+ * integrator's own to declare — this const is scoped to sources this repo ships, per the
+ * census's own comment.
  *
  * A map rather than the inline ternary it replaces, because there are TWO readers and
  * they read it in opposite directions: bws_fold_chain_resolution() answers what a
@@ -123,10 +126,12 @@ const BWS_FOLD_STEP_KINDS = array(
  * renders — the class of drift the whole derive exists to prevent.
  *
  * @since 1.17.0
+ * @since 1.20.0 `post` (FW-39 ticket 03) — the second pinning root, alongside `term`.
  */
 const BWS_FOLD_PARSE_TIME_ROOT_KINDS = array(
 	'site' => 'site',
 	'term' => 'term',
+	'post' => 'post',
 );
 
 /**
