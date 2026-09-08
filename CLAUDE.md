@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) for project overview and architecture.
+A WordPress plugin extending GenerateBlocks & GB Pro's Dynamic Tags with a concise set of tags for power users. See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) for project overview and architecture.
 
 ## Dependencies
 
@@ -13,26 +13,17 @@ See [README.md](README.md) and [`docs/tag-reference.md`](docs/tag-reference.md) 
 
 No build pipeline or linter. Edit PHP directly, test in a WordPress environment.
 
-**Two test layers — run the pure harness always, route integration through the testbed.**
+**Two test layers — run the pure harness always, route integration through the testbed.** Pure
+harnesses under `tools/test/` run via `php tools/test/<name>.php`; no CI runs these, run them
+locally before commit. WordPress integration runs through a seeded WP site, the **testbed**, on the
+local wp-litespeed OpenLiteSpeed/Docker env — the two entrypoints are `bin/wp.sh testbed bws
+render-tag` and `bin/seed.sh testbed core-structures`. **Prefer routing integration smoke tests
+through it over hand-built pages or live-site probes.**
 
-1. **Pure harnesses** under `tools/test/` — no framework, no autoload; each runs via `php tools/test/<name>.php`, exiting non-zero on failure. Older ones copy the pure functions they exercise inline (house pattern); newer ones **require the real file** when it is pure, because a test-local copy of the rule is the exact drift the extraction removed (`limit-clamp-test.php`, `slot-options-build-test.php`, `slot-fold-test.php`, `fold-migration-test.php`, `related-post-src-migration-test.php`, `pattern-cache-test.php`, `gb-output-boundary-test.php`, `gb-trust-boundary-test.php`, `replay-verdict-test.php`); one reads a sibling script's SOURCE rather than calling it, because the script under test executes a replay on load (`replay-source-identity-test.php`); three require the real file AND then scan every `.php` in the repo, because half of what each holds is a census rather than a property of any one file — `gb-output-boundary-test.php` (call sites; it requires two real files), `block-context-keys-test.php` (the block-context key vocabulary, censused because a misspelled key is a legal read with a plausible answer, never an error) and `gb-trust-boundary-test.php` (the sites allowed to ask GenerateBlocks about the current user; it is the only census that scans `tools/` too, so the pins that ask GB directly are written down as exemptions rather than invisible). Run the one whose domain you touched — see §Update triggers for the key→harness map, or `ls tools/test/` for the full set. No CI runs these; run them locally before commit.
-
-   **Three are not pure, for three different reasons.** `control-order-test.php` runs against no world at all but is the only harness that sees all three registration constructors at once. `page-snapshots.php` needs a SERVED fixture site, which nothing else under `tools/test/` does. `replay-vacuity-test.php` SHELLS OUT to a sibling script (`diff-replays.php`) and reads its exit status, because the property it holds — that no attestation can fail open — is a property of the whole run rather than of any function; the same treatment is unsafe for `replay-tags.php`, which executes a replay on load, and `replay-source-identity-test.php` reads that file's SOURCE for exactly that reason. Each file's own header carries its rationale; `page-snapshot-normalize-test.php` covers the second one's pure half (normalization, diffing, deriving the page set) with no site at all, and `replay-verdict-test.php` covers the third's.
-
-   **Some run under `node`, not `php`** — `slot-fold-repeater-test.js`, `editor-filter-chain-test.js`, `field-combo-control-test.js`, `editor-preview-context-test.js` (pure JS, reach editor-only logic no PHP harness can), and three PHP harnesses that shell out to `node` for a twin-language check (`slot-fold-twin-test.php`, `serialization-order-test.php`, `fold-migration-test.php`) — a missing `node` FAILS these rather than skipping, since a silent pass would hide exactly the drift each exists to catch. Each file's own header has its mechanism.
-
-2. **WordPress integration — the fixture testbed.** The pure harnesses can't reach anything
-WP-dependent (ambient context, ACF/meta reads, GB render, the editor React controls). For that
-there is a seeded WP site on the local **wp-litespeed** OpenLiteSpeed/Docker env, site `testbed`.
-**Prefer routing integration smoke tests through it over hand-built pages or live-site probes.**
-The two entrypoints are `bin/wp.sh testbed bws render-tag` (renders against real ambient context —
-the cheap what-if engine) and `bin/seed.sh testbed core-structures` (reseeds fixture state).
-
-   **[`docs/testbed.md`](docs/testbed.md) owns operating it, and reading it is not optional before
-   an integration run.** Two layers of staleness sit between an edit and what you read (the page
-   cache, and a bytecode cache that makes front-end mutation testing silently vacuous), the
-   `bin/*.sh` commands live in the ENV repo rather than here, and the **mandatory rule that every
-   new matrix row group is also generated as VISIBLE GB blocks** is stated there.
+Full harness catalog (which harness is pure vs. requires-the-real-file, the three impure ones, the
+node-based ones): [`docs/testing.md`](docs/testing.md). Operating the testbed (the two staleness
+layers, seeding, the visible-row mandate, running page snapshots): [`docs/testbed.md`](docs/testbed.md),
+and reading it is not optional before an integration run.
 
 ## Documentation ownership
 
@@ -102,10 +93,13 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 | Post-content pipeline (helpers + history) | `docs/post-content-processing-reference.md` | Implementation + standalone-era history |
 | Harvest/replay verification instrument (what it is, how a run is driven, what a clean diff proves) | `tools/harvest-replay/README.md` | Read FIRST when touching any of the three scripts. `docs/update-triggers.md` states the rules a run rides on; the CHANGELOG-facing outcome is not its business. `bin/harvest-tags.sh` + the harvest fixture live in the ENV repo. |
 | Update-trigger RULES (what a harness run does and does not prove, per trigger) | `docs/update-triggers.md` | One section per trigger. **`CLAUDE.md` §Update triggers is the INDEX** — trigger + harnesses to run + link; a trigger is at full length in exactly one of the two, never both. A trigger with nothing to say past "update that doc" has no section here. |
+| Full test-harness catalog (which is pure vs. requires-the-real-file, the three impure ones, the node-based ones) | `docs/testing.md` | `CLAUDE.md` §Development keeps the one-paragraph summary and the two-layer rule, points here for the catalog |
 | Operating the fixture testbed (entrypoints, the two staleness layers, seeding, visible-row mandate, running page snapshots) | `docs/testbed.md` | `CLAUDE.md` §Development owns the two-LAYER rule and points here; this owns the operation. `bin/*.sh` live in the ENV repo. Blueprint specifics stay in `tools/fixtures/core-structures/README.md`. |
 | Shipped versions | `CHANGELOG.md` | Append-only |
 | Non-bug future-work TRACKER (visible index: item + blockers + interactions + pointer to detail home) | `docs/future-work.md` | Tracked/reviewable surface over hidden detail homes. Indexes, never duplicates detail. Columns: **Blocked by** (hard prereq), **Interacts with** (soft coupling), **Detail home** (design + implicit certainty). No status column — certainty is read from the detail home. **Bugs → GitHub Issues only, never here.** Avoid one GH issue per speculative enhancement. When unsure where work belongs, ASK. |
 | SPEC for one in-flight piece of work (problem, interfaces, invariants, tasks, scope) | `.scratch/<feature-slug>/spec.md` | Gitignored, dies at merge; the PR body publishes it. Bugs are GitHub Issues and never a spec file. Split + conventions: `docs/agents/issue-tracker.md`. Lifecycle + post-ship migration: §Spec lifecycle. |
+| Spec-lifecycle RULES (post-ship migration, plan-commits-when-finished / retirement mechanics, §SETTLED index practice, bug-filing criteria) | `docs/spec-lifecycle.md` | `CLAUDE.md` §Spec lifecycle keeps the one-paragraph summary, points here for the rules |
+| Cross-link RULES (README-paraphrase limits, MEMORY.md one-liners, ADR-unverifiable-evidence rationale, detail-home exemption, bare-`#N` rule, design-history dangling-path exemption) | `docs/cross-link-rules.md` | `CLAUDE.md` §Cross-link rules keeps the summary + the hook pointer, points here for the rules |
 | Pending-plan / enhancement DETAIL (homes the tracker points at) | `.scratch/plans/*.md`, GitHub `enhancement` issues, or `memory/` (cross-cutting concepts) | Not under `docs/` (except when migrated). Every item also gets a `docs/future-work.md` tracker row — don't leave work tracked only in a hidden file. |
 | Rationale of record for a SHIPPED or RETIRED decision ("design history") | `docs/design-history/*.md` | Committed, historical, and **never corrected** — §Spec lifecycle owns that rule; the per-file banner restates it. An archived plan MOVES here the first time a committed file cites it (see §Cross-link rules); the rest stay private under `.scratch/plans/archive/`. **Cite one with a provenance verb** — "hardened against", "build record", "the decision that produced" — never "see X for how this works". That phrasing is the whole line between a record and a false current-state source, and it is the only one of these guards a diff can catch. |
 | Claude session prefs / cross-session pointers | `memory/MEMORY.md` (external — Claude Code's per-project config dir, not in this repo) | Pointer index; don't duplicate doc content |
@@ -144,144 +138,34 @@ a number:
 
 ### Cross-link rules
 
-- Reference by **link + section anchor**, never copy.
-- README may paraphrase technical detail for end-user framing — must not contradict `tag-reference.md`.
-- MEMORY.md entries pointing at `docs/` are one-liners only.
-- When a doc is no longer authoritative for a topic, replace the content with a forward-reference rather than leaving stale text.
-- **MOVING A PLAN REPOINTS WHAT CITES IT, IN THE SAME EDIT.** Archiving is the usual mover
-  (a live plan moves to the archive, or out to `docs/design-history/`), renaming the other. Both leave
-  every existing citation pointing at nothing, and nothing fails when they do — the pointer
-  is prose. An ADR is why this is a rule rather than tidiness: its `Status:` line cites the plan the
-  decision was **hardened against**, so an unresolvable pointer is an accepted decision whose
-  evidence cannot be checked. `git grep '<old-path>'` before the move; repoint what it finds.
-- **SHIPPED CODE CITES IDS, NOT PRIVATE PATHS.** A comment under `includes/` or `assets/` may name an
-  ADR, an `FW-N` row, a GitHub `#N`, another code site, or a `docs/` path — never a path under
-  `.claude/` or `.scratch/`, which no reader but the author can open. And **a bare `#N` in code means
-  the GitHub issue**: a plan's own internal item numbering is a third sequence, and must be resolved
-  to a committed handle before it is cited, or the reader resolves it against the wrong one and lands
-  somewhere real and unrelated.
-- **A COMMITTED FILE MAY POINT AT A PRIVATE PLAN ONLY AS A DETAIL HOME.** A detail home is a visible
-  surface naming where the design lives — the tracker's own shape, and legitimate wherever a doc plays
-  that role. What may NOT cite a private plan is anything that becomes **unverifiable** without it:
-  shipped code under `includes/` or `assets/` (own bullet above), an ADR `Status:` line — whose whole
-  job is to name what a decision was hardened against, so an unresolvable pointer is an accepted
-  decision whose evidence cannot be checked — and `README.md` / `CHANGELOG.md`, whose reader is the
-  one guaranteed not to have `.scratch/`. Those fail silently and have no other source; a prose detail
-  home in `CONTEXT.md` has the doc itself. The plan commits when it is FINISHED (§Spec lifecycle), and
-  its citations repoint in that same edit.
-  `git grep '\.scratch/plans/' -- includes assets docs/adr README.md CHANGELOG.md` lists the violations.
-  Scoping the grep to the forbidden zones is what lets it drop the filename requirement — the earlier
-  `[a-z0-9./-]*\.md` pattern silently missed a bare `.scratch/plans/archive/` citation.
-- **`docs/design-history/` IS OUT OF THAT GREP'S SCOPE, AND ITS DANGLING PATHS ARE NOT DEFECTS.** Those
-  files name the paths that were live when they were written; a record saying "was
-  `.claude/plans/verb-agnostic-slot-resolver.md`" is the record WORKING (that spelling is the point —
-  the tree moved to `.scratch/plans/` on 2026-08-20 and the record still names where it was). Publishing a record makes
-  its dead paths grep-visible all at once, and the tidying reflex reads history as staleness.
-  Repointing them deletes what they exist to say. Leave them.
+Reference by link + section anchor, never copy; a doc no longer authoritative for a topic gets a
+forward-reference, not stale text; moving a plan repoints every citation to it in the same edit.
+Shipped code cites IDs, not private `.scratch/`/`.claude/` paths — mechanically enforced by
+[`.claude/hooks/block-private-path-citation.sh`](.claude/hooks/block-private-path-citation.sh) for
+`includes/`, `assets/`, `docs/adr/`, `README.md` and `CHANGELOG.md`; that hook is now the axis for
+the exact scope, this section states the consequence.
+
+Full rules (README-paraphrase limits, MEMORY.md one-liners, the ADR-unverifiable-evidence rationale,
+the detail-home exemption, the bare-`#N`-means-GitHub-issue rule the hook can't check, the
+design-history dangling-path exemption): [`docs/cross-link-rules.md`](docs/cross-link-rules.md).
 
 ## Spec lifecycle
 
 **A SPEC IS A LOCAL FILE — `.scratch/<feature-slug>/spec.md`.** It owns the problem statement, the
 interfaces, the invariants, the tasks and the scope for one in-flight piece of work. One per piece
-of work, not per release: several can be open, each dying when its own work merges. The PR body is
-where the decided spec becomes public — `.scratch/` is gitignored and nothing under it is committed.
-Bugs stay GitHub Issues; `docs/agents/issue-tracker.md` owns the split, the ticket conventions, and
-why a `.scratch/` directory is not the retired root `SPEC.md` returning.
-
-**A spec issue closed before the tracker changed stays on GitHub.** It is already the record of how
-something came to be — migrating it would rewrite that record, not preserve it.
+of work, not per release. The PR body is where the decided spec becomes public — `.scratch/` is
+gitignored and nothing under it is committed. Bugs stay GitHub Issues; `docs/agents/issue-tracker.md`
+owns the split and the ticket conventions.
 
 **The root `SPEC.md` artifact is RETIRED.** Do not create one. In-code citations of the form
-`SPEC §V<n>` predate the retirement and dangle — repoint them to a real home when you touch one;
-none is load-bearing. Two spellings exist (`SPEC §V<n>` and `SPEC.md §V<n>`) — grep BOTH when
-sweeping.
+`SPEC §V<n>` (or `SPEC.md §V<n>`) predate the retirement and dangle — repoint them to a real home
+when you touch one; none is load-bearing.
 
-**AN ARCHIVED PLAN IS NOT CORRECTED WHEN POLICY CHANGES.** `.scratch/plans/archive/` records what was
-true when it was written — `handoff-3-state-and-pickup.md` says "SPEC.md at repo root is the live
-spec" and that is EVIDENCE of how the repo used to work, not a stale pointer to fix. Editing it
-deletes the record. Same posture this section already takes on a closed spec issue: a record of how
-something came to be, not a statement of how it currently works. A LIVE plan is the opposite case and
-gets corrected, present tense being a claim about now.
-
-**Post-ship migration is mandatory and is UNCHANGED by that** — it never depended on the artifact:
-
-- **Load-bearing invariants** migrate to:
-  - **PHPDoc on the class/method that enforces them** (primary — for any invariant a single class/method enforces), OR
-  - **`CONTEXT.md`** (for cross-cutting invariants / design models spanning many callbacks — the source-analog model, dispatch rules, qualifying gate; principles, not schemas), OR
-  - **`docs/tag-reference.md`** (for current-state schema detail an invariant references).
-  - A migrating invariant typically lands a one-line principle in CONTEXT.md that links its schema in tag-reference and its rationale in the plan — `.scratch/plans/<feature>.md` while that plan is live, `docs/design-history/` once it is finished, and the citation repoints in the same edit as the move. Per §Documentation ownership, an invariant's AXIS lands at ONE of these and the others state its consequence.
-- Closed/deferred task rows: delete them from the spec's task list, or delete the spec directory (on GitHub, close the issue).
-- Bugs found on the way: file per the rule below, cross-referencing the invariant they produced if one was added.
-
-### A PLAN COMMITS WHEN IT IS FINISHED, NOT WHEN IT SHIPS
-
-A plan that ships in phases is not finished; committing it whole at a phase boundary freezes a draft
-as a record and states in-progress design as history. Two events, two moves — and nothing is judged,
-because the event says which applies:
-
-| Event | Move | Where it lands |
-|---|---|---|
-| **A phase ships**, plan continues | Lift that phase out. The boundary is clean by construction — the phase is done and the rest is not. | The lifted file commits to `docs/design-history/` **immediately**: it is a finished record on its own. The live plan stays private. |
-| **The plan retires** — every phase done, or abandoned, or superseded | **Extract what is still OPEN into a new live plan; commit the ORIGINAL whole.** | `docs/design-history/`. |
-
-**The retirement split runs backwards from the old archive rhythm, deliberately.** Lifting the
-SHIPPED half assembles a NEW file by pulling prose out, and lifting is where a record gets falsified —
-someone decides what to take. Extracting the OPEN half instead leaves the record byte-for-byte
-original, so nothing can be lifted wrong. It is also the bounded side: what is open is enumerated by
-the plan's own §OPEN index, while what shipped is everything else. Entanglement then never has to be
-resolved — it stays together, which is where entangled reasoning belongs — and a §SETTLED index
-survives whole instead of being shredded across two files. `docs/design-history/src-chain-encoding.md`
-is the build record of this working on the one plan that resisted splitting.
-
-**Migration is copy-and-own, so the committed record is NOT drained first.** Load-bearing substance
-lands at its owner per the list above and the plan text stays put; what makes the record safe is a
-header pointer naming that owner ("check THOSE first — this file is decision history"), not a
-disentangling operation.
-
-**A spec is source of truth only while the work is in flight.** Once merged it is a record of how
-something came to be, not a statement of how it currently works — the same reading posture
-`CONTEXT.md` opens with, and the same one `docs/design-history/` carries in its banner. This holds
-whichever carrier the spec had: a deleted `.scratch/` directory leaves the PR body as the record, a
-closed spec issue is that record already.
-
-**Bugs:** there is no in-repo bug file, and a bug never becomes a row in `docs/future-work.md`.
-A bug that needs TRACKING is a GitHub Issue (`bug` label). **A bug found and FIXED in the same
-change does NOT need one** — the CHANGELOG carries the user-visible delta, the commit body the
-cause, and the regression pin the rule; an issue opened and closed in one motion is a fourth copy
-of a record three places already hold, and the one least likely to stay accurate. File one when the
-record must OUTLIVE the change:
-
-- the fix is deferred or partial;
-- someone outside is waiting on status;
-- **nothing pins it** — if no test fails when it regresses, the issue is the only memory;
-- it is the **SECOND instance of a defect class**. The class is then what wants tracking, not the
-  instance: no comment at either enforcing site can see the other, and only a tracked row makes the
-  third instance recognisable as one. Live example: [#119](https://github.com/davidofchatham/bws-gb-dynamic-tags-extensions/issues/119),
-  opened over #111, #116 and the 1.17.1 as+size over-match — three doors into "the scan reports what
-  the run declines".
-
-The rule that was here through 1.17.0 said "always", and the cost of that spelling is why it
-changed: a rule broken routinely stops carrying signal, and a review that flags every same-session
-fix trains you to stop reading its flags.
-
-**A RECURRENCE WHOSE INSTANCES ARE ALL FIXED WANTS A GUARD, NOT A ROW.** The second-instance bullet above routes a repeated defect to an issue, and that is right wherever something remains to be done. It is wrong where every instance is already fixed and what recurs is the way the mistake gets made — because filing a bug says a fix is owed, and none is. **Two failures can share a CONSEQUENCE without sharing a cause:** `8714324` was a path argument that did not follow a file move, `d12a1b3` was a seam that reduced three recorded facts to a yes/no, and the only thing they have in common is that a tripwire failed open. An issue for "that class" would be tracking a resemblance, and the bullet's own justification assumes a reader who can recognize the third instance as one — where the causes differ, nobody can, and the row ages into a curiosity. **The artifact that carries the memory is then a test keyed on the shared consequence**, which needs no shared cause and fires at the moment of recurrence instead of waiting to be noticed. `tools/test/replay-vacuity-test.php` is the standing example: it drives every attestation in its subject to failure, then CENSUSES the source so a check added later is covered by a case nobody wrote. Build the guard; where one genuinely cannot be built, say so in the commit body rather than opening an issue to stand in for it.
-
-### Long-lived plan files — the §SETTLED index
-
-A plan that accrues decisions across many passes fails a specific way: **supersession in place.** Live
-decisions and withdrawn drafts sit interleaved, and both read as authoritative unless the reader
-catches the banner. Length is not the mechanism — discoverability is. Symptom to watch for: an agent
-re-deriving from code a question the plan already closed.
-
-When a plan reaches that state, give it a **§SETTLED index at the top**: one row per decision, with
-the section title as the anchor (line numbers drift on every edit — record them as a convenience
-only, never as the identifier), a container-sensitivity column where the domain has one, and a
-**separate OPEN table**, which matters as much as the settled one — treating undecided things as
-decided is the more common failure.
-
-The index is pointers, never content; the sections stay authoritative. On archive, the index goes
-with the plan and its trigger row in §Update triggers is deleted — this section stays, because the
-practice is reusable and the next long-lived plan will need it.
+Post-ship migration rules (where a finished plan's load-bearing invariants land), the
+plan-commits-when-finished / retirement-split mechanics, the §SETTLED index practice for long-lived
+plans, and the bug-filing criteria (deferred fix, external waiter, unpinned regression, second
+instance of a defect class — never a same-session fix) are all in
+[`docs/spec-lifecycle.md`](docs/spec-lifecycle.md).
 
 ## Agent skills
 
@@ -360,4 +244,4 @@ has nothing to add beyond what it says here.
 | GB trust-model consumption change — anything in `includes/helpers/gb-trust-boundary.php` (`bws_gb_user_can_author_dynamic_data` = THE one place we ask GB whether the current user may author dynamic data, `bws_gb_option_allowed_for_current_user` = the key-scoped second axis, `BWS_GB_TRUST_FALLBACK_READ_FROM`), a call site moving on or off it, the `verify.php` GB-trust-model section (P1 `applies` / P2 restricted save / P3 taint suppression) or its census exemptions, or the per-user gates riding the seam (`bws_site_read_option`, the datetime `'option'` branch in `bws_read_field`, the field-discovery REST `permission_callback` + envelope enqueue) | `gb-trust-boundary-test.php`, then against the testbed `verify.php`'s GB-trust-model section | [rules](docs/update-triggers.md#gb-trust-model-consumption-change) |
 | GB output-BOUNDARY change — `BWS_GB_TAG_OUTPUT_OPTIONS` (the option keys GB's own output pipeline consumes), its recorded `BWS_GB_TAG_OUTPUT_OPTIONS_READ_FROM`, or `bws_gb_tag_output()` in `includes/helpers/gb-output-boundary.php`; also a call site moving on or off it, or a change to `bws_safe_content_output()` in `content-helpers.php` (the one caller that LAYERS its own unsets on top of the boundary) | `gb-output-boundary-test.php`, then against the testbed `fold-test-matrix.md` §F11b (visible row F11b.3b) and `text-test-matrix.md` §T5 (visible row T5.1b, the zero-plus-fallback pin), both on `/matrix-post-meta/` | — |
 | Collapsing-capability change — `takes_first_usable` on a template record, the selector (`bws_read_bounded_sources` in `field-helpers.php`) or a consumer swap, the `$ignore_limits` thread (`bws_fold_chain_to_steps` → both assemblers → `bws_base_source_ids_of_kind`), the editor suppression conditional, or the `bws-fanning-advisory` control | `read-bounded-sources-test.php`, `fold-chain-compile-test.php`, `control-order-test.php`, `editor-filter-chain-test.js`, `fold-test-matrix.md` §F15 | — |
-| Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See §Long-lived plan files under §Spec lifecycle | — |
+| Decision recorded in a plan file that carries a §SETTLED index (closed OR reopened) | add/flip its row in that plan's §SETTLED index **in the same edit**; rows are pointers, never content. See [`docs/spec-lifecycle.md`](docs/spec-lifecycle.md) §Long-lived plan files | — |
