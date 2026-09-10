@@ -59,6 +59,10 @@
 <p class="gb-text">C-DT1 datetime_single WITH a fallback (-> TBA on every context here - none carries a datetime analog): TBA</p>
 
 <p class="gb-text">C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1): TBA</p>
+
+<p class="gb-text">C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users:</p>
+
+<p class="gb-text">C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere: Support</p>
 </div>
 
 	<div class="site grid-container container hfeed" id="page">

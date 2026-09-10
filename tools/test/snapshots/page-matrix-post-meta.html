@@ -1010,6 +1010,16 @@
 
 <div class="gb-text"><div role="region" tabindex="0" aria-labelledby="bws-table-caption-3"><table><caption id="bws-table-caption-3">Our Team</caption><thead><tr><th>Name</th><th>Role</th></tr></thead><tbody><tr><td>Alice Adams</td><td>Engineering</td></tr><tr><td>Bob Brown</td><td>Operations</td></tr></tbody></table></div></div>
 </div>
+
+<div>
+<h2 class="wp-block-heading">Term ambient guard CT &#8211; a term_ tag on a page that is NOT about a term (1.20.0)</h2>
+
+<p class="gb-text">CT-A unpinned term_text on this PAGE -> EMPTY. Before 1.20.0 it read this page&#8217;s own id as a term id and rendered whichever term happened to carry that number (mc_flag:Priority on the reference site):</p>
+
+<p class="gb-text">CT-B the same tag NAMING term 6 -> Support. Non-vacuity for CT-A: without this, CT-A passes on a term_text that resolves nothing anywhere: Support</p>
+
+<p class="gb-text">CT-C term_text with a TAXONOMY -> the first department term on this page, its phone field ((987) 333-4444). Unreachable before 1.20.0: the unchecked ambient read answered first, so this tier never ran: (987) 333-4444</p>
+</div>
 		</div>
 
 			</div>

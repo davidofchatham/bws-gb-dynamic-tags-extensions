@@ -1063,6 +1063,37 @@ function bws_fixture_page_content_matrix_post_meta() {
 		bws_fixture_gb_block_host_row( 'TB4 (caption "Our Team" -> <caption id> + wrapper aria-labelledby that id, role=region tabindex=0)', '{{table key:team_members|caption:Our Team|1-label:Name|1-key:name|2-label:Role|2-key:role}}' ),
 	) );
 
+	// The ambient-term guard on a SINGULAR page (1.20.0). The C-TERM rows on the context
+	// element cover the archives; a singular page is the other half, and it is where the
+	// old behaviour was least visible: `get_queried_object_id()` here is THIS PAGE'S id,
+	// and it was read straight back as a term id.
+	//
+	// CT-A IS THE ONE ROW ON THIS PAGE WHOSE MEANING DEPENDS ON A NUMBER NOBODY CHOSE.
+	// It only DEMONSTRATED the old bug while some term happened to carry this page's id
+	// (on the reference site, page 22 and the `mc_flag:Priority` term). It does not depend
+	// on that to be CORRECT — empty is the right answer whether or not a term collides —
+	// so it is written as the assertion, with the coincidence named as history rather than
+	// relied on. Do not "fix" it by pinning the page id.
+	//
+	// CT-C is the tier the old read starved. `tax` means "the first term of the current
+	// post in this taxonomy", and the unchecked ambient read answered before the detector
+	// could ever reach that tier, so the option described a behaviour it could not deliver
+	// on any page. It works now, and that is a behaviour change, not only a bug fix.
+	$sections[] = bws_fixture_gb_section( 'Term ambient guard CT - a term_ tag on a page that is NOT about a term (1.20.0)', array(
+		bws_fixture_gb_empty_row(
+			'CT-A unpinned term_text on this PAGE -> EMPTY. Before 1.20.0 it read this page\'s own id as a term id and rendered whichever term happened to carry that number (mc_flag:Priority on the reference site)',
+			'{{term_text use:title}}'
+		),
+		bws_fixture_gb_row(
+			'CT-B the same tag NAMING term 6 -> Support. Non-vacuity for CT-A: without this, CT-A passes on a term_text that resolves nothing anywhere',
+			'{{term_text id:6|use:title}}'
+		),
+		bws_fixture_gb_row(
+			'CT-C term_text with a TAXONOMY -> the first department term on this page, its phone field ((987) 333-4444). Unreachable before 1.20.0: the unchecked ambient read answered first, so this tier never ran',
+			'{{term_text tax:department|key:phone}}'
+		),
+	) );
+
 	return implode( "\n\n", $sections );
 }
 
@@ -1529,7 +1560,20 @@ function bws_fixture_page_content_matrix_loops() {
 					'QL1.2 the SAME read with an EXPLICIT `src:term` -- EMPTY since v20 (was the loop term name through 1.20.0-pre; D8 now refuses an argless declaring root unconditionally, even where resolve_id() would have found the loop\'s own term)',
 					'{{title src:term}}'
 				)
-				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' ),
+				. "\n\n" . bws_fixture_gb_row( 'QL1.3 the query extension own term tag, correct today (-> the loop term archive URL)', '{{term_archive_url}}' )
+				// QL1.5 guards the 1.20.0 ambient-term guard from the direction it was
+				// actually got wrong. That guard refuses an ambient term read off a page
+				// that is not about a term, and a query loop IS such a page -- the loop
+				// hands its row's term down through `generateblocks_dynamic_tag_id`, not
+				// through the queried object. The first cut refused the loop too and blanked
+				// this read; nothing on any fixture page caught it, because no term_* tag
+				// stood inside a loop. This row is that missing witness.
+				//
+				// It reads the same entity QL1.1 does, by a different route: QL1.1 is a base
+				// tag taking the loop item through bws_resolve_base_source(), this is the
+				// term_* family taking it through TaxonomyTerm::resolve_id(). Two routes to
+				// one term is the point -- they must agree, and only one of them has a guard.
+				. "\n\n" . bws_fixture_gb_row( 'QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one)', '{{term_text use:title}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
 		),
@@ -1888,8 +1932,16 @@ function bws_fixture_build_page_content( $builder ) {
  * render-tag-only — see `context-test-matrix.md`), these three need no seeded Media Library id:
  * `fallback` is plain text, stable across every reseed, so they are fully visible here.
  *
+ * C-TERM1/C-TERM2 pin the 1.20.0 ambient-term guard. They are on THIS element and not on a
+ * singular page because the guard's subject is the ambient entity's KIND, and only a
+ * non-singular query varies it. The pair is deliberate: C-TERM1 alone is satisfied by a tag
+ * that resolves nowhere at all, since it asserts empty on six of the seven contexts, so
+ * C-TERM2 pins a term the tag NAMES and must keep rendering everywhere. `/department/sales/`
+ * joins the context pages for the same reason — the positive arm needs a term archive.
+ *
  * @since 1.19.0
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
+ * @since 1.20.0 C-TERM1/C-TERM2 added
  * @return string
  */
 function bws_fixture_element_content_context_header() {
@@ -1923,6 +1975,14 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-DT2 datetime_range WITH a fallback (-> TBA, same reasoning as C-DT1)',
 				'{{datetime_range fallback:TBA}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-TERM1 unpinned term_text -> the queried term name (Sales) on a TERM archive, EMPTY on every other context here (author, PTA, date, search, 404, latest-home). Before 1.20.0 it read whatever id the page had queried as if it were a term id, so /author/fixture-author/ (user 2) rendered the term All Users',
+				'{{term_text use:title}}'
+			),
+			bws_fixture_gb_row(
+				'C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere',
+				'{{term_text id:6|use:title}}'
 			),
 		)
 	);

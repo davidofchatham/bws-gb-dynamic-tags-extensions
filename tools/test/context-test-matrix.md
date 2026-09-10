@@ -64,6 +64,33 @@ Baselines captured 2026-07-18, **re-measured on the front end 2026-08-29** when 
 | C-DT1/C-DT2.6 | 404 | `/no-such-page-xyz/` | empty | `TBA` | no analog (datetime has no 404 borrow, unlike content) |
 | C-I1 | Date archive | `/2026/07/` | empty | the fallback IMAGE renders | **`render-tag` only, exception stated per the visible-rows rule** — `fallback` is a Media Library id assigned at seed time, so no static string in `blocks.php` can name it, same reasoning as F11b.3. Pass the seeded `fixture-photo` attachment's id (`wp post list --post_type=attachment`); repeat against `/staff/`, `/?s=searchpin`, `/`, `/no-such-page-xyz/` — image has no analog on any of the five, so all five were broken and all five are fixed the same way |
 
+## C-TERM / CT rows — the ambient-term guard (1.20.0)
+
+An unpinned `{{term_*}}` tag resolved through `TaxonomyTerm::resolve_id()`, which handed back `get_queried_object_id()` without checking what kind of thing WP had queried. Post, term and user ids share one number space, so wherever the queried object's id collided with a real term the tag rendered that term's data as though it were the answer. `bws_queried_object_is_term()` now owns the rule; that function's PHPDoc is where it is stated.
+
+**The rows come in pairs on purpose.** The guard's correct behaviour is "empty" on six of seven contexts, and a set of all-empty rows cannot distinguish a working guard from a tag that stopped resolving anywhere. Every ambient row therefore has a pinned-term twin that must keep rendering.
+
+| # | Context | URL | Before 1.20.0 | Expect | Surface |
+|---|---|---|---|---|---|
+| C-TERM1.1 | Term archive (the positive arm) | `/department/sales/` | `Sales` | `Sales` — unchanged | C-element, `ctx-term` baseline |
+| C-TERM1.2 | Author archive | `/author/fixture-author/` | `All Users` — the `portal_visibility` term carrying user 2's id | empty | C-element, `ctx-author` |
+| C-TERM1.3 | Post type archive | `/staff/` | empty (nothing queried an id) | empty | C-element, `ctx-pta-staff` |
+| C-TERM1.4 | Date archive | `/2026/07/` | empty | empty | C-element, `ctx-date-202607` |
+| C-TERM1.5 | Search | `/?s=searchpin` | empty | empty | C-element, `ctx-search` |
+| C-TERM1.6 | 404 | `/no-such-page-xyz/` | empty | empty | C-element, `ctx-404` |
+| C-TERM1.7 | Latest-posts home | `/` | empty | empty | C-element, `ctx-home-latest` |
+| C-TERM2 | all seven above | — | `Support` | `Support` — a tag naming its own term is not an ambient read and the guard must not touch it | C-element, every context baseline |
+| CT-A | Singular page | `/matrix-post-meta/` | `Priority` — the `mc_flag` term carrying this page's own id | empty | page content |
+| CT-B | Singular page | `/matrix-post-meta/` | `Support` | `Support` — non-vacuity for CT-A | page content |
+| CT-C | Singular page | `/matrix-post-meta/` | empty | `(987) 333-4444` — `tax` reaches the first-term-of-this-post tier at last | page content |
+| QL1.5 | Term query loop | `/matrix-loops/` | the loop's term name | the loop's term name — unchanged | page content, inside QL1's loop |
+
+**QL1.5 is the row that would have caught the mistake this fix made on its first cut.** The guard's first version refused every arm of GB's `get_id()`, including the `generateblocks_dynamic_tag_id` filter a query loop uses to hand down its row's term. Nothing on any fixture page saw it, because no `term_*` tag stood inside a loop; the page snapshots were green. It reads the same entity QL1.1 does by the other route — QL1.1 is a base tag through `bws_resolve_base_source()`, QL1.5 is the `term_` family through `TaxonomyTerm::resolve_id()` — and only one of those routes has a guard on it.
+
+**CT-A does not depend on the collision it names.** Empty is the right answer on a singular page whether or not some term carries this page's id; the `mc_flag:Priority` coincidence is what made the OLD behaviour visibly wrong, and it is recorded as history, not relied on. Do not pin the page id to "strengthen" the row.
+
+**`/department/sales/` joins the context pages** (`ctx-term`) so C-TERM1.1 has a captured baseline. It asserts `body_class` `tax-department` rather than the generic `archive`: the guard's entire subject is which KIND of archive a page is, so the row must fail if the page degrades into a different one.
+
 ## Author-kind detail
 
 Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's author-archive dispatch rows). text/permalink/image/datetime author analogs are future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA query-context kind this section used to point at as "next" shipped 1.19.0 (C2/C12 above).

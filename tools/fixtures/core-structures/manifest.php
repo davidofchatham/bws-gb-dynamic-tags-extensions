@@ -439,6 +439,18 @@ return array(
 			'path'       => '/author/fixture-author/',
 			'body_class' => 'author',
 		),
+		'ctx-term'        => array(
+			// The one context where an ambient term read is SUPPOSED to answer, and the
+			// only page here that can hold the C-TERM rows' positive arm. Every other
+			// context asserts empty, and a set of all-empty rows cannot tell a working
+			// guard from a tag that stopped resolving anywhere.
+			//
+			// `tax-department` and not `archive`: the guard's whole subject is WHICH KIND
+			// of archive this is, so the row has to fail if the page degrades into some
+			// other archive rather than pass on the generic class they all share.
+			'path'       => '/department/sales/',
+			'body_class' => 'tax-department',
+		),
 	),
 
 	// GP ELEMENTS — the visible surface for contexts that cannot carry page content.
