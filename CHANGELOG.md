@@ -22,6 +22,10 @@
 
 - **Registering a context modifier is deprecated, and the option will be removed.** `TagTemplateRegistry::register_modifier()` creates a prefixed family of tags (`example_text`, `example_image`, and so on) that duplicates the base tags, so every capability added to the base tags has to be built a second time to reach it. Offering your source as a chain root does the same job and gives it the whole base-tag surface for free: source paths, per-step limits, field pickers and previews. No known external plugin registers a modifier any more; if yours does, see [Plugin integration §2](docs/plugin-integration.md#2-registering-a-context-modifier) for the move, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. Nothing renders differently in this release.
 
+### Fixed
+
+- **A `{{term_*}}` tag no longer reads an unrelated term when the page is not about a term.** With no term picked, these tags fell back to the ID of whatever the page had queried and used it as a term ID, without checking that the queried thing was a term at all. Post IDs, term IDs and user IDs share one numbering, so on a page whose ID happened to match a real term the tag rendered that term's data as though it were the right answer: a page with ID 22 read a "Priority" flag term, and an author archive for user 2 read an "All Users" term. There was nothing on the page to show it was wrong. These tags now render nothing outside a term archive unless the tag names its own term or a query loop supplies one, which is what they already did whenever the numbers did not happen to collide. Picking a term explicitly, and reading a term inside a term loop, are unchanged. One knock-on improvement: a `{{term_*}}` tag set to a taxonomy now falls through to the first matching term on the current post, which is what that setting always described but could not reach, because the unchecked fallback answered first.
+
 ## [1.19.2] — 2026-09-10
 
 ### Changed

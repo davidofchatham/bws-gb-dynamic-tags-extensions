@@ -57,6 +57,31 @@ class TaxonomyTerm extends AbstractSource {
 	 * Uses GB's canonical term resolver first (consistent with GB Pro's term_meta),
 	 * then falls back to our multi-method detection for broader context support.
 	 *
+	 * GB'S ANSWER IS NOT SELF-VALIDATING, AND ONLY ONE OF ITS ARMS IS DOUBTED.
+	 * GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers from three places: an
+	 * explicit `id` option, whatever the `generateblocks_dynamic_tag_id` filter supplies
+	 * (this is how a query loop hands down the row's term — GB Query Enhancements uses it),
+	 * and failing both, a bare `get_queried_object_id()`. The first two are somebody
+	 * STATING a term. The third is a raw id for whatever WP queried, of whatever kind, and
+	 * it is the one that must be checked — see bws_queried_object_is_term(), which owns the
+	 * rule this site applies.
+	 *
+	 * WHICH ARM ANSWERED IS READ OFF THE VALUE, not off the context. An answer that differs
+	 * from `get_queried_object_id()` cannot have come from the bare arm, so it was stated
+	 * and is honoured. That keeps this guard out of the business of knowing which foreign
+	 * plugin sets which context key — a term loop is recognised by what it produces.
+	 *
+	 * ponytail: a stated term id that COINCIDES with the queried object's id reads as the
+	 * ambient arm and is refused on a non-term page. Narrow, and it fails to empty rather
+	 * than to another entity's data. Closing it means reading loop context keys directly,
+	 * which is a block-context census obligation (CLAUDE.md) for a numeric coincidence.
+	 *
+	 * FAILING THIS GUARD IS NOT THE END OF RESOLUTION — it falls through to the detector
+	 * below, whose tiers still answer from the tag's own options (`term_id`, `id`) and from
+	 * `tax` + the current post. That last tier was previously unreachable in most contexts,
+	 * because the unguarded read above returned first.
+	 *
+	 * @since 1.20.0 The ambient arm gates on the queried object's TYPE.
 	 * @param array  $options  Tag options from GenerateBlocks.
 	 * @param object $instance Block instance.
 	 * @return int|false Term ID or false if unresolvable.
@@ -64,7 +89,11 @@ class TaxonomyTerm extends AbstractSource {
 	public function resolve_id( array $options, $instance ) {
 		if ( class_exists( 'GenerateBlocks_Dynamic_Tags' ) ) {
 			$id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'term', $instance );
-			if ( $id ) {
+
+			$stated  = ! empty( $options['id'] ) || (int) $id !== (int) get_queried_object_id();
+			$trusted = $stated || ( function_exists( 'bws_queried_object_is_term' ) && bws_queried_object_is_term() );
+
+			if ( $id && $trusted && function_exists( 'bws_get_validated_term' ) && bws_get_validated_term( (int) $id ) ) {
 				return (int) $id;
 			}
 		}
