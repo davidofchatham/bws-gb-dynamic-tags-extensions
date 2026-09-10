@@ -1,29 +1,23 @@
 # Changelog
 
-## [Unreleased]
+## [1.19.2] — 2026-09-10
 
 ### Changed
 
-- **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected. The wording was freed up because "inherit" is being reserved for a different relationship — taking a value from a parent, rather than from the slot before.
-
-### Deprecated
-
-- **Registering a context modifier is deprecated, and the option will be removed.** `TagTemplateRegistry::register_modifier()` creates a prefixed family of tags (`example_text`, `example_image`, and so on) that duplicates the base tags, so every capability added to the base tags has to be built a second time to reach it. Offering your source as a chain root does the same job and gives it the whole base-tag surface for free: source paths, per-step limits, field pickers and previews. No known external plugin registers a modifier any more; if yours does, see [Plugin integration §2](docs/plugin-integration.md#2-registering-a-context-modifier) for the move, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. Nothing renders differently in this release.
+- **The editor now says a slot "carries over" the previous slot's source or field, instead of "inherits" it.** Five advisory messages on slots 2 and up are reworded; the "Same as Previous Source" and "Same as Previous Field" options are unchanged. Nothing about how tags resolve or render changes, and no saved tag is affected.
 
 ### Removed
 
-- **`bws_queue_inline_css( $css )`, the one-argument form.** It was documented as a public helper but had been unreachable since 1.17.0, when a same-named two-argument helper (`bws_queue_inline_css( $id, $css )`, for static plugin-authored CSS) was added higher in the same file and won the `function_exists()` guard. No call was possible and none existed. The two-argument helper is unaffected, as is the `{{content}}` inline-CSS queue the deleted wrapper forwarded to.
+- **`bws_queue_inline_css( $css )`, the one-argument form.** It was documented as a public helper but had been unreachable since 1.17.0, when a same-named two-argument helper (`bws_queue_inline_css( $id, $css )`, for static plugin-authored CSS) was added higher in the same file and won the `function_exists()` guard. The two-argument helper is unaffected, as is the `{{content}}` inline-CSS queue the deleted wrapper forwarded to.
 
 ### Fixed
 
-- **`{{content}}` inside a query loop no longer processes the surrounding page before the loop starts, or duplicates that page's inline styles in the footer.** GenerateBlocks renders a query loop's inner blocks once against the surrounding page before it begins iterating, and throws that render away. The plugin has always had a guard meant to skip it, but the guard checked for the loop under a name GenerateBlocks does not use, so it never took effect. On a page whose content carries its own styles, those styles were being added to the page footer once per loop, on top of each row's, while contributing nothing visible. Rendered output is unchanged: the work being skipped was already discarded.
-
-- **A GB Query Enhancements Term Query or User Query loop no longer flickers in the editor while this plugin is active**, with the browser console filling with `useSelect` warnings about values that differ when nothing changed. The loop was refetching its own preview data on every render. No dynamic tag had to be present for it to happen, saved content was never affected, and the front end always rendered correctly.
+- **`{{content}}` inside a query loop no longer processes the surrounding page before the loop starts, or duplicates that page's inline styles in the footer.** WordPress renders a query loop's inner blocks against the surrounding page before the loop begins iterating, then GenerateBlocks throws that render away. This plugin had a guard meant to skip processing the discarded render, but it was ineffectual because it did not correctly target GenerateBlocks' loop name. On a page whose content carries its own styles, those styles were being added to the page footer multiple times while contributing nothing visible. Rendered output is unchanged.
+- **A GB Query Enhancements Term Query or User Query loop no longer flickers in the editor while this plugin is active**, with the browser console filling with `useSelect` warnings about values that differ when nothing changed. The loop was refetching its own preview data on every render. Saved content was never affected, and the front end always rendered correctly.
 
 ### Security
 
 - **Site option values are no longer resolved in the editor preview of a user who cannot author dynamic data.** A contributor or author previewing `{{text src:site|key:...}}` against a custom options-page field now sees the tag's configured fallback instead of the stored value. Common WordPress options (site title, tagline, home URL, site URL, time format, user count) still resolve for them, published pages are unaffected, and nothing changes for a user who can author dynamic data. This matches what GenerateBlocks Pro 2.7 does with its own `{{option}}` tag; this plugin's site reads had not been following it.
-
 - **The field key picker's data is no longer sent to editors who cannot use it.** A user who can edit posts but is not permitted to author dynamic data now loads the editor without the list of registered field keys and labels. GenerateBlocks already gives that user no way to add or edit a dynamic tag, so no picker was reachable for them in the first place; nothing changes for anyone who can author dynamic data.
 
 ## [1.19.1] — 2026-09-03
