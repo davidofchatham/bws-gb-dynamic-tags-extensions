@@ -58,23 +58,35 @@ class TaxonomyTerm extends AbstractSource {
 	 * then falls back to our multi-method detection for broader context support.
 	 *
 	 * GB'S ANSWER IS NOT SELF-VALIDATING, AND ONLY ONE OF ITS ARMS IS DOUBTED.
-	 * GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers from three places: an
-	 * explicit `id` option, whatever the `generateblocks_dynamic_tag_id` filter supplies
-	 * (this is how a query loop hands down the row's term — GB Query Enhancements uses it),
-	 * and failing both, a bare `get_queried_object_id()`. The first two are somebody
-	 * STATING a term. The third is a raw id for whatever WP queried, of whatever kind, and
-	 * it is the one that must be checked — see bws_queried_object_is_term(), which owns the
-	 * rule this site applies.
+	 * GenerateBlocks_Dynamic_Tags::get_id( …, 'term' ) answers from an explicit `id` option,
+	 * from the `generateblocks_dynamic_tag_id` filter (how a query loop hands down the row's
+	 * term), or failing both from a bare `get_queried_object_id()` — and nothing in the
+	 * answer says which of the three replied. That GB fact, and the measurement behind it,
+	 * are docs/gb-constraints.md §"`generateblocks_dynamic_tag_id` is not told WHICH entity
+	 * the id was a fallback for". The first two arms are somebody STATING a term and are
+	 * honoured. The third is a raw id for whatever WP queried, of whatever kind, and it is
+	 * the one that must be checked — see bws_queried_object_is_term(), which owns the rule
+	 * this site applies.
 	 *
 	 * WHICH ARM ANSWERED IS READ OFF THE VALUE, not off the context. An answer that differs
 	 * from `get_queried_object_id()` cannot have come from the bare arm, so it was stated
 	 * and is honoured. That keeps this guard out of the business of knowing which foreign
 	 * plugin sets which context key — a term loop is recognised by what it produces.
 	 *
-	 * ponytail: a stated term id that COINCIDES with the queried object's id reads as the
-	 * ambient arm and is refused on a non-term page. Narrow, and it fails to empty rather
-	 * than to another entity's data. Closing it means reading loop context keys directly,
-	 * which is a block-context census obligation (CLAUDE.md) for a numeric coincidence.
+	 * ponytail: reading the arm off the value is a SHORTCUT, and it was taken knowingly. A
+	 * stated term id that COINCIDES with the queried object's id reads as the ambient arm
+	 * and is refused on a non-term page. Narrow, and it fails to empty rather than to
+	 * another entity's data. The exact fix is to stop inferring and read the loop's context
+	 * keys directly — priced and declined twice over: it is a block-context census
+	 * obligation (CLAUDE.md) taken on for a numeric coincidence, and this whole method goes
+	 * away with the `term_*` family (FW-129). DO NOT close it; it is scheduled for deletion,
+	 * not repair.
+	 *
+	 * EXISTENCE IS CHECKED TOO, as a SECOND and independent condition. A trusted id still has
+	 * to name a term that is there, and the old unguarded `if ( $id )` never asked. It is not
+	 * what closed the collision and it is not a cheaper stand-in for the gate above — both
+	 * colliding ids named real terms — so it is stated here rather than folded into the type
+	 * rule. bws_get_validated_term() owns what valid means.
 	 *
 	 * FAILING THIS GUARD IS NOT THE END OF RESOLUTION — it falls through to the detector
 	 * below, whose tiers still answer from the tag's own options (`term_id`, `id`) and from
@@ -91,19 +103,15 @@ class TaxonomyTerm extends AbstractSource {
 			$id = \GenerateBlocks_Dynamic_Tags::get_id( $options, 'term', $instance );
 
 			$stated  = ! empty( $options['id'] ) || (int) $id !== (int) get_queried_object_id();
-			$trusted = $stated || ( function_exists( 'bws_queried_object_is_term' ) && bws_queried_object_is_term() );
+			$trusted = $stated || bws_queried_object_is_term();
 
-			if ( $id && $trusted && function_exists( 'bws_get_validated_term' ) && bws_get_validated_term( (int) $id ) ) {
+			if ( $id && $trusted && bws_get_validated_term( (int) $id ) ) {
 				return (int) $id;
 			}
 		}
 
 		// Fallback: our multi-method detection (handles term_id option, queried object, taxonomy+post).
-		if ( function_exists( 'bws_reliable_term_context_detection' ) ) {
-			return bws_reliable_term_context_detection( $options );
-		}
-
-		return false;
+		return bws_reliable_term_context_detection( $options );
 	}
 
 	/**
@@ -116,10 +124,12 @@ class TaxonomyTerm extends AbstractSource {
 	 * already does (the ambient term on a term archive), so there is no second meaning for
 	 * it to carry, and the factory refuses it rather than resolving one.
 	 *
-	 * resolve_id() below is untouched by that refusal, and must stay that way: the
-	 * `term_*` modifier family calls it on every request and reads the ambient term
+	 * THAT REFUSAL DOES NOT REACH resolve_id() BELOW, and must not be moved into it: the
+	 * `term_*` modifier family calls that method on every request and reads the ambient term
 	 * forever. The root policy is enforced at the factory seam, which the modifier family
-	 * does not go through.
+	 * does not go through. This says where the ROOT policy lives — it is not a claim that
+	 * resolve_id() never changes, and since 1.20.0 it has: its ambient arm gates on the
+	 * queried object's TYPE, a different axis, owned by bws_queried_object_is_term().
 	 *
 	 * @since 1.20.0
 	 * @return bool
