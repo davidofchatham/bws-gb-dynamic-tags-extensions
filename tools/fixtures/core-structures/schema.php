@@ -905,6 +905,12 @@ function bws_fixture_core_structures_register_modifier() {
 	// The family stays REGISTERED after migrating. Retiring it is the owner's decision on
 	// the owner's schedule (`prefix_removed`), and the FR3 corpus needs the tags rendering
 	// to be a migration corpus at all — a reseed puts the pre-conversion wire back.
+	//
+	// AFTER the registration above, deliberately — the opposite of the built-in `term_`
+	// family's order. A prefix owner who registers entries first hands the constructor a
+	// deprecated stamp for every tag and the family moves into GB's deprecated group; this
+	// fixture is rehearsing the MIGRATION, not the deprecation, and its tags need to stay
+	// in their own group where the seeded rows read them. See docs/plugin-integration.md §9.
 	if ( function_exists( 'bws_register_modifier_root_migrations' ) ) {
 		bws_register_modifier_root_migrations( 'fixture', 'fixture', array( 'since' => '1.17.0' ) );
 	}

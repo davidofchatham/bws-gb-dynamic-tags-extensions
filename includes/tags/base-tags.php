@@ -669,10 +669,19 @@ function bws_register_base_tags(): void {
 		bws_register_phone_template();
 	}
 
-	// =========================================================
-	// Generate term_ modifier tags (term_text, term_image, etc.)
-	// =========================================================
+}
 
+/**
+ * Generate the term_ modifier tags (term_text, term_image, etc.).
+ *
+ * SEPARATE FROM bws_register_base_tags() SO IT CAN RUN LATER. The constructor reads each
+ * tag's `gb_type` off the migration registry, so the family's converter entries have to be
+ * registered first — and those are generated from the modifier TEMPLATES this function's
+ * former host registers. Templates, then converter entries, then this. [FW-39 D25]
+ *
+ * @since 1.20.0 Split out of bws_register_base_tags().
+ */
+function bws_register_term_modifier_tags() {
 	TagTemplateRegistry::register_modifier( array(
 		'prefix'               => 'term',
 		'gb_type'              => 'term',

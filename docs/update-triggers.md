@@ -108,6 +108,14 @@ run `php tools/test/serialization-order-test.php` (pure sort **+ a JS-port twin 
 
 run `php tools/test/control-order-test.php` (stubs GB, registers every tag, reads the arrays as one). Control order IS registration order, and — since 1.17.0 — a correctness property, not taste: a group boxes as one box only where its members register CONTIGUOUSLY. The rationale (why contiguity is a span over the full option list, why it also polices which options a family registers at all, why the bare-by-design list is asserted exercised) is pinned in the harness's own docblock and §1/§4/§5 comments — read there, not here
 
+## Modifier-family registration gate or GB-type stamp
+
+**Fires on:** Modifier-family REGISTRATION GATE or GB-TYPE STAMP change — the settings gate and the migration-registry `gb_type` read at the top of `TagTemplateRegistry::register_modifier()`, the ORDER of `bws_register_modifier_root_migrations()` against `bws_register_term_modifier_tags()` in the init pass, or the `modifiers` array in `bws_dynamic_tags_activate()`'s seed
+
+run `php tools/test/control-order-test.php` (§C4 reads every `term_` tag's registered type back and compares it to the stamp on that tag's own migration entry, so a second producer of the stamp inside the constructor fails there rather than on a page), then measure the two arms no harness can reach, on the testbed.
+
+**What a green run does NOT prove, and the two failures look identical from inside the harness.** A family whose entries never ran registers under the type its own config named, and every assertion about its options still passes — §C4 exists for that case alone, and it is why the harness's bootstrap runs the generator before the constructor rather than beside it. It says nothing about the ORDER in the shipped init pass: a reordering there fails nothing here. And no harness reaches `register_activation_hook` or can vary the settings row (`SettingsPage::$settings` caches on first read, with no reset), so BOTH seed arms are testbed-only — activate against a site with the option row deleted and read the checkbox, then restore a row with no `modifiers.term` key and confirm the family still registers. The absent-key default of `true` in `is_modifier_enabled()` is the whole reason an untouched old install keeps rendering; changing it is not a way to pass either arm.
+
 ## Registration-pass change
 
 **Fires on:** Registration-pass change (`bws_prepare_registration_options` in `registration-helpers.php` and the two rules riding it — `bws_option_visual_groups` = which options share a visual box, `bws_drop_chain_flat_options` = which flat controls a chain source retires)

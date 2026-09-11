@@ -30,6 +30,8 @@
 
 ### Deprecated
 
+- **The `{{term_*}}` tags are deprecated.** They now sit in GenerateBlocks' Deprecated group in the tag picker rather than in a group of their own, so an author browsing for a tag is steered away from them. Every `{{term_*}}` tag you already have keeps rendering exactly what it rendered before, and none of them has been removed: removal is a separate decision for a later release, and it will not be made without warning. The replacement is an ordinary base tag with its source set to a term, which the tag scanner can now do for you in one pass. On sites installed from this release onward the family arrives switched off, and the `term_ tags` toggle on the settings page turns it back on; a site that already has the plugin is untouched, whether or not it ever opened that page.
+
 - **Registering a context modifier is deprecated, and the option will be removed.** `TagTemplateRegistry::register_modifier()` creates a prefixed family of tags (`example_text`, `example_image`, and so on) that duplicates the base tags, so every capability added to the base tags has to be built a second time to reach it. Offering your source as a chain root does the same job and gives it the whole base-tag surface for free: source paths, per-step limits, field pickers and previews. No known external plugin registers a modifier any more; if yours does, see [Plugin integration §2](docs/plugin-integration.md#2-registering-a-context-modifier) for the move, and [§9](docs/plugin-integration.md#9-migrating-a-modifier-family-to-a-base-tag) to convert tags already saved in content before you retire your prefix. Nothing renders differently in this release.
 
 ### Fixed

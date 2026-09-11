@@ -93,9 +93,11 @@ Properly registered functions will appear in the tag's **Function** dropdown for
 
 A security gate blocks adding PHP built-ins (`system`, `unlink`, `eval`, and the like) or anything that isn't a real function. All functions registered via the filter are shown, along with their security-gate status, on the admin settings page. Manually inserting an unregistered or blocked function will cause the tag to return its fallback text or return empty.
 
-## `term_` tags
+## `term_` tags (deprecated)
 
 The `term_*` modifier wraps base tags, allowing term-context resolution using GenerateBlock's built-in taxonomy/term selector.
+
+Deprecated as of 1.20.0. Set a base tag's source to a term instead: it does the same job and gets source paths, per-step limits, the field picker and the configuration preview along with it. The tag scanner converts saved `{{term_*}}` tags for you. Existing tags keep rendering and nothing has been removed, but the family now appears in GenerateBlocks' Deprecated group, and it is switched off by default on sites installed from 1.20.0 onward (the `term_ tags` toggle on the settings page turns it back on).
 
 ## Requirements
 

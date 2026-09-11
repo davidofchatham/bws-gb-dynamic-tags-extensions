@@ -597,7 +597,7 @@ class SettingsPage {
 								<td>
 									<label for="bws-modifier-term"><?php esc_html_e( 'term_ tags', 'generateblocks' ); ?></label>
 									<code class="bws-tag-name">term_</code>
-									<p class="description"><?php esc_html_e( 'Term-context tags (term_text, term_image, term_title, etc.).', 'generateblocks' ); ?></p>
+									<p class="description"><?php esc_html_e( 'Deprecated. Term-context tags (term_text, term_image, term_title, etc.). Use a base tag with its source set to a term instead. These tags keep working, and the Tag Converter rewrites them for you, but they are planned for removal in a later release. New sites have them switched off.', 'generateblocks' ); ?></p>
 								</td>
 							</tr>
 							<tr class="bws-tag-row">

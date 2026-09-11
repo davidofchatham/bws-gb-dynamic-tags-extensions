@@ -775,6 +775,8 @@ That registers one migration entry per **registered modifier template** — the 
 
 **Your prefix is supplied, never derived.** Nothing in this plugin knows your family exists; you name it. The root key is usually your source key, but it does not have to be.
 
+**Call order decides where your tags appear in the editor.** `register_modifier()` reads each tag's GB type off that tag's migration entry when it has one. So calling this registrar *before* `register_modifier()` moves the whole family into GenerateBlocks' deprecated group; calling it *after* leaves the family under the `gb_type` you passed and registers only the conversion. Both are supported — pick the one that matches whether you are telling authors to stop reaching for the family yet. The built-in `term_` family registers entries first, for that reason.
+
 ### What a converted tag looks like
 
 The rewrite is a whole-string transform, one row per stored shape:
