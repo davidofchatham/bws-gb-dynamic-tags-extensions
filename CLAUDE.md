@@ -108,13 +108,9 @@ already disagree, resolve it as drift; this clause is about not writing the sent
 
 ### Line wrapping
 
-**Markdown prose is NOT hard-wrapped. One paragraph, one line.** Blank lines separate blocks; table rows, list items and code blocks keep their own lines. This is a readability and diff convention, not a rendering one — no renderer is claimed to break on wrapped repo files. A fixed wrap column fights every window that is not that width, and editing one word inside a wrapped paragraph rewrites every line after it, so the diff shows a paragraph changing where a word did.
+**Markdown prose is NOT hard-wrapped — one paragraph, one line.** Table rows, list items and code blocks keep their own lines. No exceptions by destination: a repo doc and a GitHub issue body take the same treatment. Commit messages are the one surface that stays wrapped (not Markdown, never reflowed, `git log` does not soft-wrap). What the rule costs on a POSTED surface is in `docs/agents/issue-tracker.md`.
 
-**One rule, no exceptions by destination.** A per-surface split was considered and rejected: it depends on remembering where a file is headed, and the case that motivated the rule is exactly a draft written to be read as a file and then posted verbatim. `docs/agents/issue-tracker.md` states what the same rule costs on a POSTED surface, where GitHub's line-break extension turns the wrap into visible mid-sentence breaks.
-
-**Commit messages are the one surface that stays wrapped, confirmed 2026-08-28.** They are not Markdown, git never reflows them, and `git log` does not soft-wrap — so the reason the rule exists inverts there. "No exceptions by destination" is about where a Markdown file is HEADED, which is what a reader cannot be relied on to remember; a commit message is a different kind of artifact, not a destination a doc might travel to.
-
-**Going forward only, decided 2026-08-28.** 44 of 58 tracked `.md` files were hard-wrapped when the rule was set; converting them in one pass would rewrite nearly every prose line in the repo and point `git blame` for the whole doc corpus at that commit. Unwrap a file's prose when you are already editing it, and leave the rest alone.
+**Going forward only.** Unwrap a file's prose when you are already editing it; a whole-repo sweep only when asked.
 
 ### This file's own budget
 
