@@ -1666,7 +1666,8 @@ function bws_modifier_skip_reason( array $options, string $root ): string {
  *                         the ambient one, so the root is the faithful reading and
  *                         carrying the token through would re-point the tag at the post.
  *   `src:ref` + `ref:f` → root, then a fanning `refs,f` step
- *   `srcTermIn:t`       → root, then a `terms,t` step
+ *   `srcTermIn:t`       → root, then a `terms,t` step — EXCEPT off a term-context root,
+ *                         where the step is inert and the key is dropped with it (below).
  *   both                → root, `refs`, `terms` — wire order is the #44 order (a term
  *                         step needs a post input), which the modifier callback also had.
  *   `src:site`          → the SITE root, with `ref` and `srcTermIn` DROPPED DELIBERATELY.
@@ -1795,7 +1796,20 @@ function bws_modifier_base_options( array $options, string $root ) {
 		if ( 'ref' === $src ) {
 			$chain[] = $step( 'refs', '' !== $ref ? $ref : null );
 		}
-		if ( '' !== $tax ) {
+		// A TERM-CONTEXT ROOT NEVER TAKES THE LEGACY TERM STEP WITHOUT THE REF HOP — the
+		// third arm of a rule the `site` root above and bws_fold_chain_from_options()
+		// already carry. The step needs a POST input, and this family's dispatch supplies
+		// one only through `ref`: make_modifier_callback() gates srcTermIn on
+		// `'term' !== $base_kind`, so at any other source the stored tag ignores the
+		// taxonomy and reads the ambient term. Measured on the testbed 2026-09-10 —
+		// `{{term_text srcTermIn:department|key:phone}}` on a term archive renders the
+		// term's own value, `terms,department` off the same context renders empty. Folding
+		// it in is value→empty, which D40's exemption does not cover; dropping the inert
+		// key converts the tag to the ambient shape it already renders.
+		//
+		// `term_context` rather than `pins`, matching the dispatch gate's own axis: on a
+		// post-context root the step is live at any source and stays.
+		if ( '' !== $tax && ! ( $facts['term_context'] && 'ref' !== $src ) ) {
 			$chain[] = $step( 'terms', $tax );
 		}
 	}

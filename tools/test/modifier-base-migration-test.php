@@ -587,9 +587,21 @@ assert_eq( 'V6.6 src:ref + ref → a ROOTLESS chain, the step leading',
 	'{{text src:refs,office|key:bio}}',
 	$pin( '{{pin_text src:ref|ref:office|key:bio}}' ) );
 
-assert_eq( 'V6.7 srcTermIn → a rootless terms step',
-	'{{text src:terms,genre|key:bio}}',
+// A `terms` step needs a POST input, and a term-context root supplies one only through the
+// ref hop — so off this family's own entity the stored tag ignores the taxonomy and reads
+// the ambient term. Folding the inert key in would render empty where the tag renders a
+// value, so it goes with the source axis it belonged to. Same rule the `site` root carries
+// two rows down and bws_fold_chain_from_options() carries for flat base wire.
+assert_eq( 'V6.7 an INERT srcTermIn is dropped, not folded into a rootless terms step',
+	'{{text key:bio}}',
 	$pin( '{{pin_text srcTermIn:genre|key:bio}}' ) );
+
+// The other side of the same axis, and the row that says which axis it is: `pinroot` PINS
+// exactly as `pinnedterm` does — so the root step drops here too — but it is not
+// term-context, its entity is a post, and the step runs. Same pinning, opposite outcome.
+assert_eq( 'V6.7b a non-term pinning root keeps the step at the same source',
+	'{{text src:terms,genre|key:bio}}',
+	bws_migrate_modifier_root_chain( '{{pr_text srcTermIn:genre|key:bio}}', 'pr', 'pinroot' ) );
 
 assert_eq( 'V6.8 both, in the #44 order',
 	'{{text src:refs,office;terms,genre|key:bio}}',

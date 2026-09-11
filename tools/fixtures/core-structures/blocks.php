@@ -2029,6 +2029,14 @@ function bws_fixture_element_content_context_header() {
 				'C-CONV7 what C-CONV6 would convert to if it were converted -> EMPTY on the term archive (a terms hop needs a post input) and (987) 333-4444 on nothing here. Value->empty is why C-CONV6 is skipped, and this row is what shows it',
 				'{{text src:terms,department|key:phone|limit:1}}'
 			),
+			bws_fixture_gb_empty_row(
+				'C-CONV8 an INERT srcTermIn, the before half -> (987) 333-4444 on the Sales archive (the term this page is about; the stated taxonomy is ignored, because a terms step needs a post input this family only supplies through ref), EMPTY on every other context',
+				'{{term_text srcTermIn:department|key:phone}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV9 what C-CONV8 converts to -> (987) 333-4444 on the Sales archive, EQUAL to C-CONV8 on all seven contexts. The inert key leaves with the source axis it belonged to; folding it into a terms step instead rendered empty here, which is C-CONV7 one root over',
+				'{{text key:phone}}'
+			),
 		)
 	);
 }
