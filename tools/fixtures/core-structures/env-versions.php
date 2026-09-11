@@ -99,6 +99,7 @@ return array(
 	'active'   => array(
 		'acf-extended/acf-extended.php',
 		'acf-quickedit-fields/index.php',
+		'admin-site-enhancements-pro/admin-site-enhancements.php',
 		'advanced-custom-fields-pro/acf.php',
 		'block-visibility/block-visibility.php',
 		'bws-block-visibility-acf-datetime-extension/bws-block-visibility-acf-datetime-extension.php',
@@ -145,7 +146,7 @@ return array(
 		),
 		'advanced-custom-fields-pro/acf.php' => array(
 			'label'    => 'ACF Pro',
-			'version'  => '6.8.8',
+			'version'  => '6.8.9',
 			'required' => true,
 		),
 	),

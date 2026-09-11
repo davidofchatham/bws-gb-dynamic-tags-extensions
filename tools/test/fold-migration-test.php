@@ -1015,5 +1015,80 @@ check(
 	'match_any_options for bws_migrate_base_src_chain must be ref + srcTermIn + limit'
 );
 
+// ===========================================================================
+echo "\n§M13 — the SKIP channel's reason enum is closed and covered (FW-39)\n";
+// ===========================================================================
+// A skip is a migration entry declining a shape it cannot express faithfully, so the
+// vocabulary belongs beside the entries — this harness. What it guards is a REPORT: the
+// scan surface has one line of wording per reason, and a reason that reaches it with no
+// wording prints nothing at all, which reads exactly like a tag that converted.
+//
+// BY SOURCE SCAN, for §M12.5's reason one file over: bws_modifier_skip_reason() lives in
+// deprecated-tags.php beside registrations this harness does not stub, and driving it needs
+// a live source registry it has no other use for. The three checks below are the whole
+// census — what the function can return, what the list says, and whether anything drives
+// each member — and each fails on the edit that matters rather than on reformatting.
+$dep_src = file_get_contents( __DIR__ . '/../../includes/tags/deprecated-tags.php' );
+
+preg_match( '/const BWS_MODIFIER_SKIP_REASONS = array\((.*?)\);/s', $dep_src, $const_m );
+preg_match_all( "/'([a-z_]+)'/", $const_m[1] ?? '', $listed_m );
+$listed = $listed_m[1] ?? array();
+
+// Every `return '…';` in the function body, which is every value a caller can meet.
+preg_match( '/function bws_modifier_skip_reason\(.*?\n\}/s', $dep_src, $fn_m );
+preg_match_all( "/return '([a-z_]+)';/", $fn_m[0] ?? '', $returned_m );
+$returned = array_values( array_filter( $returned_m[1] ?? array() ) );
+
+check(
+	'M13.1 the enum is non-empty and the function returns only members of it',
+	array() !== $listed && array() !== $returned && array() === array_diff( $returned, $listed ),
+	'listed: ' . implode( ',', $listed ) . '  returned: ' . implode( ',', $returned )
+);
+
+// The other direction. A member nothing returns is wording for a shape that cannot happen,
+// which is how a report grows a section no run ever fills.
+check(
+	'M13.2 every listed reason is one the function can actually return',
+	array() === array_diff( $listed, $returned ),
+	'unreachable: ' . implode( ',', array_diff( $listed, $returned ) )
+);
+
+// THE CENSUS PROPER: a reason added without a case fails here. The cases live in
+// modifier-base-migration-test.php §V6, which is the harness with the live registry the
+// predicate needs; this asserts that each member is named there, not that it is named
+// anywhere at all.
+$cases_src = file_get_contents( __DIR__ . '/modifier-base-migration-test.php' );
+$uncovered = array();
+foreach ( $listed as $reason ) {
+	if ( false === strpos( $cases_src, "'" . $reason . "'" ) ) {
+		$uncovered[] = $reason;
+	}
+}
+
+check(
+	'M13.3 every reason is driven by a case in modifier-base-migration-test.php',
+	array() === $uncovered,
+	'no case for: ' . implode( ',', $uncovered )
+);
+
+// THE EDITOR MOUNT STAYS SILENT ON A `term_*` BLOCK, skipped or not, and this is what says
+// so structurally rather than by inspection. The mount anchors on the chain CONTROL, and a
+// modifier tag keeps the flat select — so the tag never reaches baseSrcState() at all, which
+// is the same `null` decline it gives any tag with nothing to migrate. A `term_*` name
+// appearing in this list is what would break that, and it would break it by rewriting a
+// tag's source into wire its own control cannot edit.
+$term_in_list = array_filter(
+	bws_fold_migration_base_tags(),
+	static function ( $tag ) {
+		return 0 === strpos( $tag, 'term_' );
+	}
+);
+
+check(
+	'M13.4 no modifier tag is on the base-src migration list, so the mount never fires on one',
+	array() === $term_in_list,
+	implode( ',', $term_in_list )
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

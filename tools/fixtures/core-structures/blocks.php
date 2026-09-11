@@ -1573,7 +1573,17 @@ function bws_fixture_page_content_matrix_loops() {
 				// tag taking the loop item through bws_resolve_base_source(), this is the
 				// term_* family taking it through TaxonomyTerm::resolve_id(). Two routes to
 				// one term is the point -- they must agree, and only one of them has a guard.
-				. "\n\n" . bws_fixture_gb_row( 'QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one)', '{{term_text use:title}}' ),
+				. "\n\n" . bws_fixture_gb_row( 'QL1.5 the term_ family reading the SAME loop term as QL1.1, by the other route (-> the loop term name; the 1.20.0 ambient guard must not mistake a loop-supplied term for an ambient one)', '{{term_text use:title}}' )
+					// QL1.6 is QL1.5's CONVERT-SIDE TWIN (FW-39). The migration rewrites QL1.5
+					// into exactly this tag, and a query loop is the one context where the two
+					// reach the row's term by different code entirely: QL1.5 through GB's
+					// `generateblocks_dynamic_tag_id` filter into TaxonomyTerm::resolve_id(),
+					// QL1.6 through bws_resolve_base_source()'s loop-item classification. The
+					// bare-tag sweep that measured the rewrite could not see this route at all
+					// -- a term loop cannot be faked under `render-tag` at any flag combination
+					// -- so this row is the only thing standing under it, which is the same gap
+					// QL1.5 exists to fill one guard over.
+					. "\n\n" . bws_fixture_gb_row( 'QL1.6 what QL1.5 CONVERTS to, in the loop (-> the same loop term name as QL1.5 and QL1.1; three routes, one term, and the migration is only allowed to leave the first two agreeing)', '{{text use:title}}' ),
 			'ql1-term-loop-leak',
 			'WP_Term_Query'
 		),
@@ -1940,8 +1950,15 @@ function bws_fixture_build_page_content( $builder ) {
  * joins the context pages for the same reason — the positive arm needs a term archive.
  *
  * @since 1.19.0
+ * C-CONV1..7 are the MIGRATION half of the same question, and they are PAIRS on purpose: an
+ * unpinned `term_*` tag beside the base tag it converts to, on all seven contexts at once.
+ * What they measure is a DIRECTION — every difference must run empty→value — and a single
+ * row cannot show a direction. C-CONV6/7 are the pair that runs the other way, which is why
+ * that shape is skipped rather than converted; keeping the refused shape visible beside the
+ * allowed ones is what stops the exemption reading as "term_ tags may change".
+ *
  * @since 1.19.1 C-C2/C-DT1/C-DT2 added
- * @since 1.20.0 C-TERM1/C-TERM2 added
+ * @since 1.20.0 C-TERM1/C-TERM2 added, then C-CONV1..7 (FW-39)
  * @return string
  */
 function bws_fixture_element_content_context_header() {
@@ -1983,6 +2000,34 @@ function bws_fixture_element_content_context_header() {
 			bws_fixture_gb_row(
 				'C-TERM2 term_text NAMING its own term -> Support on EVERY context, term archive included. A pin is not an ambient read, so the guard must not touch it; this row is what says so, and it is also what stops C-TERM1 passing on a tag that resolves nowhere',
 				'{{term_text id:6|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV1 the CONVERTED form of C-TERM1, unpinned -> read the two together: EQUAL on the term archive (Sales), and empty-vs-value everywhere else. This is C-X1 above under a second name, and the duplicate is the point - the PAIR is the measurement',
+				'{{text use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV2 unpinned term_content, the BEFORE half of the collapsing template -> the Sales term description on the term archive, EMPTY on all six others',
+				'{{term_content}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV3 what C-CONV2 converts to -> the SAME term description on the term archive; on the six others it renders the page own analog (PTA description, author bio, 404 borrow) where C-CONV2 renders nothing. Empty->value, never value->value: that direction is the whole exemption',
+				'{{content}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV4 the CHAINED unpinned arm, before -> Tom Associate on the term archive (the Sales term dept_lead relationship), EMPTY on all six others',
+				'{{term_text src:ref|ref:dept_lead|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV5 what C-CONV4 converts to -> Tom Associate on the term archive, EMPTY on all six others. Identical to C-CONV4 in BOTH directions on every context: the ambient root is the only thing that moved, and a chained tag states its own steps',
+				'{{text src:refs,dept_lead,limit(1)|use:title}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV6 a SKIPPED shape, `tax` with no `id` -> the phone of the term the page is about ((987) 333-4444 on the Sales archive; the stated taxonomy is ignored), EMPTY elsewhere. The converter leaves it byte-identical: its only faithful rewrite renders empty here, which is the direction the exemption does not cover',
+				'{{term_text tax:department|key:phone}}'
+			),
+			bws_fixture_gb_empty_row(
+				'C-CONV7 what C-CONV6 would convert to if it were converted -> EMPTY on the term archive (a terms hop needs a post input) and (987) 333-4444 on nothing here. Value->empty is why C-CONV6 is skipped, and this row is what shows it',
+				'{{text src:terms,department|key:phone|limit:1}}'
 			),
 		)
 	);

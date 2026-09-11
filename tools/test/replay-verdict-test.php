@@ -412,5 +412,77 @@ $check(
 	false === bws_replay_upgrade_reconcile_consumed( $status( 'upgrade', $running ), '?' )
 );
 
+// ---------------------------------------------------------------------------
+echo "\n§R6 — the unpinned `term_*` exemption: what it forgives, and what it must not\n";
+// ---------------------------------------------------------------------------
+// This is the only rule in the file that lets a CHANGED pair through, so every assertion
+// below is a way of getting it wrong. The gate's whole value is that a real regression on
+// the same wire still fails, and the shapes that could slip past are neighbours of the
+// forgiven one — same tag family, other direction; right direction, other family.
+
+$side = static function ( $output, $error = '' ) {
+	return array( $output, $error );
+};
+
+$check( 'R6.1 empty → value on an unpinned term_ tag is the exemption',
+	true === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( '<p>A post body</p>' ) ) );
+
+$check( 'R6.2 …with options, and with the family\'s other templates',
+	true === bws_replay_migration_exempt_row( '{{term_text use:title|limit:1}}', $side( '' ), $side( 'Matrix: Post Meta' ) ) );
+
+// THE REGRESSION THIS MUST STILL CATCH. Same family, same wire shape, but the tag rendered
+// something before — so the rewrite moved a value, which no exemption covers.
+$check( 'R6.3 value → different value on the SAME wire is NOT forgiven',
+	false === bws_replay_migration_exempt_row( '{{term_text use:title}}', $side( 'Support' ), $side( 'Matrix: Post Meta' ) ) );
+
+$check( 'R6.4 value → empty is not forgiven either — that is the direction that loses a page',
+	false === bws_replay_migration_exempt_row( '{{term_text use:title}}', $side( 'Support' ), $side( '' ) ) );
+
+// A PINNED tag names its own term on every context. Nothing about it was ambient, so an
+// empty side is a failure rather than the capability difference.
+$check( 'R6.5 a PINNED term_ tag is not exempt, even empty → value',
+	false === bws_replay_migration_exempt_row( '{{term_text id:34|use:title}}', $side( '' ), $side( 'Support' ) ) );
+
+$check( 'R6.6 …including when `id` is the first option, behind the separating space',
+	false === bws_replay_migration_exempt_row( '{{term_content id:34}}', $side( '' ), $side( 'A body' ) ) );
+
+// An option whose NAME ends in `id` is not the `id` key, and a value containing it is not
+// either. Getting this wrong refuses rows that should be forgiven, which is the safe
+// direction — but it would refuse them for a reason nobody could find.
+$check( 'R6.7 a look-alike option key does not read as a pin',
+	true === bws_replay_migration_exempt_row( '{{term_text key:staff_id}}', $side( '' ), $side( 'x' ) ) );
+
+$check( 'R6.8 another family is never exempt, whatever the direction',
+	false === bws_replay_migration_exempt_row( '{{view_text key:bio}}', $side( '' ), $side( 'A bio' ) ) );
+
+$check( 'R6.9 a base tag is not exempt — the rewrite does not touch one',
+	false === bws_replay_migration_exempt_row( '{{text use:title}}', $side( '' ), $side( 'A title' ) ) );
+
+// A SIDE THAT ERRORED HAS NOT RENDERED EMPTY. Reading the two alike would forgive exactly
+// the pair where the migration broke the render and the page went blank behind it.
+$check( 'R6.10 an error on the A side is not an empty render',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '', 'fatal: something' ), $side( 'A body' ) ) );
+
+$check( 'R6.11 an error on the B side is not a value',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( 'A body', 'notice: something' ) ) );
+
+$check( 'R6.12 empty → empty is not a change and is not classified as one',
+	false === bws_replay_migration_exempt_row( '{{term_content}}', $side( '' ), $side( '' ) ) );
+
+// Wire the rule cannot read is never forgiven: an unparseable string proves nothing about
+// which family it belongs to.
+$check( 'R6.13 a malformed tag string is not exempt',
+	false === bws_replay_migration_exempt_row( 'term_content', $side( '' ), $side( 'A body' ) ) );
+
+// THE CALL-SITE GATE, asserted against the differ's SOURCE — the rule itself cannot see
+// whether a mapping was supplied, and without one there is no migration in the run, so the
+// same shape is an ordinary regression. Prior art: §R5's source-read of a sibling script.
+$differ_src = file_get_contents( __DIR__ . '/../harvest-replay/diff-replays.php' );
+$check(
+	'R6.14 the differ calls it under --map only',
+	1 === preg_match( '/if \(\s*\$map && bws_replay_migration_exempt_row\(/', $differ_src ),
+	'exemption must be gated on $map at the call site'
+);
+
 echo $fail ? "\nREPLAY VERDICT TEST FAILED ({$fail})\n" : "\nREPLAY VERDICT TEST PASSED\n";
 exit( $fail ? 1 : 0 );

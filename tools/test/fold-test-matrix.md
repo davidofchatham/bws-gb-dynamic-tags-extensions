@@ -1006,6 +1006,8 @@ The ids below are resolved at BUILD TIME (`bws_fixture_seeded_term_id()` / `bws_
 
 **Verified live** (`render-tag`, admin user, 2026-09-08, blueprint v20): every row above against real seeded content, each string measured rather than predicted.
 
+**The `term_*` MIGRATION's rows are not here.** Converting an unpinned `{{term_*}}` tag to a base tag emits chain wire every section above already covers; what the migration has to show is something else entirely — that the old tag and the tag it becomes differ in ONE DIRECTION, across every page context. That is a context-indexed measurement, so it lives with the context rows: [`context-test-matrix.md`](context-test-matrix.md) §C-CONV.
+
 ## Fail triage
 
 1. **A §F1/§F2/§F8 pair diverges** → the fold seam or the compiler. Run `slot-fold-test.php` +

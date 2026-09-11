@@ -331,6 +331,18 @@ function bws_dynamic_tags_register_all() {
 	// Register option-key migrations for base tags with deprecated option names.
 	bws_register_option_migrations();
 
+	// The `term_` family's modifier → base entries (FW-39). Through the same generator an
+	// external prefix owner calls, with no per-family rule: the shared transform reads the
+	// root's own contract, and `term` declares a required argument, so an unpinned tag
+	// converts to a bare base tag rather than to a root that would refuse.
+	//
+	// AFTER bws_register_option_migrations(), and the order is load-bearing in one
+	// direction only: the generator skips any tag name a `type:'tag'` entry already claims,
+	// so a hand-written `term_*` entry registered earlier keeps governing its own tag. The
+	// converter's own cascade (renames first, then every option entry) is what carries a
+	// migrated tag on into the base-tag chain entry, not this position.
+	bws_register_modifier_root_migrations( 'term', 'term', array( 'since' => '1.20.0' ) );
+
 	// Deprecated wrappers registered last (old tag names pointing to new core functions).
 	bws_register_deprecated_tags();
 }

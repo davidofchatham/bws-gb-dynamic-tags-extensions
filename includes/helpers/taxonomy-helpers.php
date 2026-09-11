@@ -111,7 +111,12 @@ function bws_reliable_term_context_detection( $options = array() ) {
 		}
 	}
 
-	// Tertiary: Direct taxonomy queries (archive pages).
+	// Tertiary: Direct taxonomy queries (archive pages). A STATED `tax` IS DISCARDED HERE,
+	// and the order is deliberate rather than an oversight: on a term archive "the term this
+	// page is about" outranks a taxonomy hint, so the queried term answers even when it
+	// belongs to another taxonomy and tier 5 never runs. Reachable only from wire no editor
+	// offers (`tax` is not registered on the `term_` family), and the family is on a removal
+	// path — measured 2026-09-10, left alone deliberately (FW-39).
 	if ( is_tax() || is_category() || is_tag() ) {
 		$queried_object = get_queried_object();
 		if ( $queried_object && isset( $queried_object->term_id ) ) {

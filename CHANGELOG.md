@@ -14,6 +14,12 @@
 
   **Upgrade note for integrators:** `get_root_argument()` is declared on `SourceInterface`, so a class implementing that interface **directly** must add it. A class extending `AbstractSource`, which is the documented recommendation, inherits the no-argument default and needs no change.
 
+- **The tag scanner can now convert a `{{term_*}}` tag that has no term picked into an ordinary base tag.** `{{term_content}}` becomes `{{content}}`, `{{term_text}}` becomes `{{text}}`, and a tag that walked a relationship field or a taxonomy comes out reading the same way, written as a source path. What it gains is the whole base-tag surface: source paths, per-step limits, the field picker, the configuration preview, and every capability added to the base tags from here on. A tag that names its own term is left alone in this release. Nothing converts until you run the scanner, and the old tag names keep rendering either way.
+
+  **One change you will see on the page.** A `{{term_*}}` tag can only address a term, so it renders nothing on a page that is not about one. The base tag it becomes addresses whatever the page is about, so a converted tag can begin showing a value where it showed nothing before: on a post, an author archive, a post type archive or a 404. It never runs the other way, and a tag that renders a value today renders the same value after. This was measured on all seven page contexts before it was allowed.
+
+  **Two hand-typed shapes are skipped rather than converted**, and keep rendering exactly as they do now: a `{{term_*}}` tag set to a taxonomy with no term picked, and one written as `src:term` with no id. Neither has ever been offered in the editor, and the only faithful rewrite of either would render nothing.
+
 ### Changed
 
 - **The default source is now labelled "Current Context" instead of "Current."** A tag with no source set follows whatever the page is about, which since 1.14.0 has meant a post, a term, a user or a query context, but the old label still read as though it meant the current post. The row is renamed everywhere it appears: a base tag's source dropdown, a `{{join}}` field's source and a `try_` attempt's source. Label only, so the saved tag string is unchanged, no stored tag moves, and nothing renders differently.

@@ -468,6 +468,7 @@ $buckets = array(
 	'unclassified' => array(),
 );
 $missing  = array();
+$exempt   = array();
 $volatile = 0;
 $rescued  = 0;
 $same     = 0;
@@ -523,6 +524,21 @@ foreach ( $keys as $key ) {
 	}
 
 	list( $url, $tag ) = explode( "\x00", $key, 2 );
+
+	// THE ONE FORGIVEN CHANGE (FW-39). An unpinned `term_*` tag rewritten to a base tag
+	// renders the ambient entity where it used to render nothing, and only in that
+	// direction. Recognized off the MAPPING'S OWN WIRE — `$tag` here is the A side, which
+	// is the mapping's `old` — so the rule reads runs that predate it. Under --map only:
+	// with no migration in the run, this shape is a plain regression.
+	if ( $map && bws_replay_migration_exempt_row( $tag, $oa, $ob ) ) {
+		$exempt[] = array(
+			'url' => $url,
+			'tag' => $tag,
+			'b'   => $rb['output'],
+		);
+		continue;
+	}
+
 	$bucket = $census_path
 		? ( isset( $attested[ $key ] ) ? 'attested' : 'synthetic' )
 		: 'unclassified';
@@ -574,9 +590,25 @@ if ( $map ) {
 	}
 }
 
+// REPORTED, NEVER FOLDED INTO `identical`. The rows did change; what the rule says is that
+// the change is the one this migration was allowed to make, and a reviewer is entitled to
+// see every row resting on that.
+if ( $exempt ) {
+	$line( sprintf( '[i] %d pair(s) are the unpinned `term_*` exemption: empty before, the ambient entity after. Any other direction on the same wire is still a failure below.', count( $exempt ) ) );
+	foreach ( array_slice( $exempt, 0, $max ) as $e ) {
+		$line( "      exempt: {$e['tag']}  @ {$e['url']}" );
+		$line( '        now: ' . var_export( $e['b'], true ) );
+	}
+	if ( count( $exempt ) > $max ) {
+		$line( sprintf( '      ... %d more', count( $exempt ) - $max ) );
+	}
+	$line();
+}
+
 $changed = count( $buckets['attested'] ) + count( $buckets['synthetic'] ) + count( $buckets['unclassified'] );
 
 $line( sprintf( 'identical : %d', $same ) );
+$line( sprintf( 'exempt    : %d  (unpinned `term_*` → base tag, empty→value only)', count( $exempt ) ) );
 $line( sprintf( 'rescued   : %d  (equal only after entity decode — antispambot randomises {{email}} per render)', $rescued ) );
 $line( sprintf( 'volatile  : %d  (excluded — did not render the same twice in one process)', $volatile ) );
 $line( sprintf( 'CHANGED   : %d', $changed ) );

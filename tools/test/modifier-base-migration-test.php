@@ -49,6 +49,14 @@
 
 error_reporting( E_ALL & ~E_DEPRECATED );
 
+// A LIVE SOURCE REGISTRY, for §V6 only. The transform reads a family's root off the source
+// contract (bws_modifier_root_facts), so the pinning-root arm cannot be driven without one —
+// and the shared bootstrap is the registry every other root-facing harness uses, so a
+// second stub here would be a second answer to the question under test. Sections V1–V5 root
+// at `view`, which nothing registers, so they see exactly the registry-less answer they
+// always did.
+require_once __DIR__ . '/lib-source-registry.php';
+
 define( 'ABSPATH', __DIR__ );
 
 // The WP surface the loaded files touch when CALLED (nothing runs at load time).
@@ -66,6 +74,10 @@ if ( ! function_exists( 'apply_filters' ) ) {
 }
 
 require __DIR__ . '/../../includes/helpers/serialization-order.php';
+// bws_root_argument_row() — the normalizer bws_modifier_root_facts() reads a declaration
+// through. Loading the real one rather than a stand-in is the point: "does this root pin"
+// must have one answer, and a malformed declaration's meaning is that function's to state.
+require __DIR__ . '/../../includes/tags/base-shared.php';
 require __DIR__ . '/../../includes/helpers/slot-fold.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-compile.php';
 require __DIR__ . '/../../includes/helpers/slot-fold-migrate.php';
@@ -519,6 +531,162 @@ assert_eq( 'V5.13 prefix_removed files the family under Removed instead',
 assert_eq( 'V5.14 a generated entry survives both converter steps, limit absorbed',
 	'{{text src:fixture;refs,office,limit(3)|key:bio}}',
 	$both_steps( 'fixture_text', '{{fixture_text src:ref|rel:office|limit:3|key:bio}}' ) );
+
+// ===========================================================================
+echo "\nV6 — a PINNING root: the family whose root is only half a source (FW-39)\n";
+
+// The `term_` family in miniature. Root `pinnedterm` is the shared bootstrap's term-context
+// pinning fixture: it declares a root argument and refuses without one, exactly as the
+// shipped `term` root does. The harness never names `term` — the transform reads the
+// CONTRACT, so the fixture is the same rule seen from an integrator's side.
+// Three fixtures, one per axis the transform reads: a term-context REFUSING pin, a pin that
+// is not term-context, and a declaring root whose policy is owner-resolves.
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Pinned_Term_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Pinned_Root_Source() );
+\BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Owner_Resolves_Root_Source() );
+
+$pin = static function ( string $tag_string ): string {
+	return bws_migrate_modifier_root_chain( $tag_string, 'pin', 'pinnedterm' );
+};
+
+foreach ( array( 'text', 'content', 'permalink' ) as $key ) {
+	// content/permalink are the collapsing (takes_first_usable) templates. They convert like
+	// every other one — the capability is inherited from the base template either way, so the
+	// rewrite touches nothing it reads.
+	TagTemplateRegistry::register_modifier_template( array( 'key' => $key ) );
+}
+
+assert_eq( 'V6.1 the root DECLARES an argument and refuses without one',
+	array( 'pins' => true, 'term_context' => true ), bws_modifier_root_facts( 'pinnedterm' ) );
+
+// THE HEADLINE ROW. A bare tag becomes a bare tag: no `src`, not `src:pinnedterm` (which
+// would refuse at the factory seam) and not `src:current` (which names a source of its own).
+assert_eq( 'V6.2 an unpinned bare tag → the base tag with NO source at all',
+	'{{content}}',
+	$pin( '{{pin_content}}' ) );
+
+assert_eq( 'V6.3 …and the collapsing sibling the same way',
+	'{{permalink}}',
+	$pin( '{{pin_permalink}}' ) );
+
+assert_eq( 'V6.4 field options survive; still no source',
+	'{{text use:meta|key:bio}}',
+	$pin( '{{pin_text use:meta|key:bio}}' ) );
+
+// On THIS family `current` named the tag's own entity, which with nothing pinned was the
+// ambient one — so the token leaves rather than being carried onto a base tag where it
+// names the current POST.
+assert_eq( 'V6.5 src:current → the ambient reading, spelled as no source',
+	'{{text key:bio}}',
+	$pin( '{{pin_text src:current|key:bio}}' ) );
+
+// A chain LEADING WITH A STEP is how the grammar already spells an ambient root, and it is
+// what bws_fold_chain_from_options() writes for a flat base tag's own `src:ref` — so the
+// converted wire is the wire a base tag with the same triple already stores.
+assert_eq( 'V6.6 src:ref + ref → a ROOTLESS chain, the step leading',
+	'{{text src:refs,office|key:bio}}',
+	$pin( '{{pin_text src:ref|ref:office|key:bio}}' ) );
+
+assert_eq( 'V6.7 srcTermIn → a rootless terms step',
+	'{{text src:terms,genre|key:bio}}',
+	$pin( '{{pin_text srcTermIn:genre|key:bio}}' ) );
+
+assert_eq( 'V6.8 both, in the #44 order',
+	'{{text src:refs,office;terms,genre|key:bio}}',
+	$pin( '{{pin_text src:ref|ref:office|srcTermIn:genre|key:bio}}' ) );
+
+// The SITE root is a root in its own right and is stated. Nothing about the family's own
+// root being unfilled changes what a different root means.
+assert_eq( 'V6.9 src:site still states the site root',
+	'{{text src:site|key:bio}}',
+	$pin( '{{pin_text src:site|ref:office|key:bio}}' ) );
+
+// THE IDENTITY THAT MAKES THE REWRITE HONEST: the converted wire is byte-identical to what
+// the flat BASE route produces for the same source triple, limit included. Stated as an
+// equality rather than as a literal — a site holding both shapes must not store one read two
+// ways. Compare after the option cascade, since that is where the limit lands.
+assert_eq( 'V6.10 the unpinned route and the flat base route agree, limit included',
+	$after_entries( '{{text src:ref|ref:office|limit:3|key:bio}}' ),
+	$after_entries( $pin( '{{pin_text src:ref|ref:office|limit:3|key:bio}}' ) ) );
+
+// ---------------------------------------------------------------------------
+// The SKIPS. Each is a shape whose faithful rewrite renders something the stored tag does
+// not — measured value→empty on the testbed — so the tag is left byte-identical.
+
+assert_eq( 'V6.11 `tax` with no `id` is skipped WHOLE, not stripped',
+	'{{pin_text tax:genre|key:bio}}',
+	$pin( '{{pin_text tax:genre|key:bio}}' ) );
+
+assert_eq( 'V6.12 …and the skip channel names it',
+	'tax_without_id',
+	bws_modifier_skip_reason( array( 'tax' => 'genre', 'key' => 'bio' ), 'pinnedterm' ) );
+
+// The `taxonomy` spelling is the same axis (bws_reliable_term_context_detection reads both).
+assert_eq( 'V6.13 the legacy `taxonomy` spelling is the same shape',
+	'tax_without_id',
+	bws_modifier_skip_reason( array( 'taxonomy' => 'genre' ), 'pinnedterm' ) );
+
+assert_eq( 'V6.14 the root\'s own token, hand-typed and argument-less, is skipped whole',
+	'{{pin_text src:pinnedterm|key:bio}}',
+	$pin( '{{pin_text src:pinnedterm|key:bio}}' ) );
+
+assert_eq( 'V6.15 …and the skip channel names that one differently',
+	'bare_pinning_root',
+	bws_modifier_skip_reason( array( 'src' => 'pinnedterm' ), 'pinnedterm' ) );
+
+assert_eq( 'V6.16 a converting shape has no skip reason',
+	'', bws_modifier_skip_reason( array( 'src' => 'ref', 'ref' => 'office' ), 'pinnedterm' ) );
+
+// ---------------------------------------------------------------------------
+// The PINNED arm is DECLINED, not converted — it is the sibling ticket's build. Declining
+// leaves the tag rendering as it does now; emitting the rootless chain would silently unpin
+// it, which is the one outcome worse than doing nothing.
+assert_eq( 'V6.17 a PINNED tag is left byte-identical (its rewrite is the sibling half)',
+	'{{pin_text id:34|key:bio}}',
+	$pin( '{{pin_text id:34|key:bio}}' ) );
+
+// …and `tax` beside an `id` is NOT the skip above: it is part of the pinned shape.
+assert_eq( 'V6.18 `tax` beside an `id` is the pinned shape, not the skip',
+	'', bws_modifier_skip_reason( array( 'id' => '34', 'tax' => 'genre' ), 'pinnedterm' ) );
+
+// ---------------------------------------------------------------------------
+// THE OTHER SIDE OF EACH AXIS — both facts are read per root, and neither generalizes.
+
+// `ownerroot` declares an argument AND states that it answers a bare token by its own rule.
+// That is a root that stands alone, so its tags keep stating it.
+assert_eq( 'V6.19 an owner-resolves root is NOT a pinning root; the root is still stated',
+	'{{text src:ownerroot|key:bio}}',
+	bws_migrate_modifier_root_chain( '{{own_text key:bio}}', 'own', 'ownerroot' ) );
+
+// `pinroot` pins but is not term-context, so `tax` means nothing to it and is carried
+// through as the dead key it already is rather than blocking the whole rewrite.
+assert_eq( 'V6.20 a non-term pinning root does not skip on `tax`',
+	'', bws_modifier_skip_reason( array( 'tax' => 'genre' ), 'pinroot' ) );
+
+assert_eq( 'V6.21 an UNREGISTERED root pins nothing and reads as it did before FW-39',
+	array( 'pins' => false, 'term_context' => false ), bws_modifier_root_facts( 'view' ) );
+
+// ---------------------------------------------------------------------------
+// Through the registry's own door, generated by the shared generator — the shape the plugin
+// ships. Report and run must agree here as they do for a rooted family.
+$pin_made = bws_register_modifier_root_migrations( 'pinfam', 'pinnedterm', array( 'since' => '1.20.0' ) );
+
+assert_eq( 'V6.22 the generator produces one entry per template for a pinning family',
+	true, in_array( 'pinfam_content', $pin_made, true ) );
+
+assert_eq( 'V6.23 the generated entry rewrites to a SOURCELESS base tag',
+	'{{content}}',
+	MigrationRegistry::transform_tag( 'pinfam_content', '{{pinfam_content}}' ) );
+
+// #111's bare-tag shape on this family too: the chain loop re-reads a tag name with no
+// options after the rewrite, and the rewrite here REMOVES the only option there was.
+assert_eq( 'V6.24 an option-less tag reaches the base tag in ONE converter run',
+	'{{content}}',
+	TagConverter::resolve_full_chain( 'pinfam_content', '{{pinfam_content}}' ) );
+
+assert_eq( 'V6.25 a skipped tag comes back byte-identical through the converter',
+	'{{pinfam_text tax:genre|key:bio}}',
+	TagConverter::resolve_full_chain( 'pinfam_text', '{{pinfam_text tax:genre|key:bio}}' ) );
 
 // ===========================================================================
 echo "\n";

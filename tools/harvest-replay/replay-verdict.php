@@ -176,6 +176,60 @@ function bws_replay_split_missing( array $missing, array $removed ): array {
 }
 
 /**
+ * Whether a changed pair is the FW-39 unpinned `term_*` exemption rather than a regression.
+ *
+ * THE AXIS, and both halves are required: the pair's OLD wire is an unpinned `term_*` tag,
+ * AND the change runs EMPTY → VALUE. Either alone forgives too much — an unpinned `term_*`
+ * tag whose value merely changed is a regression, and an empty A side under any other wire
+ * is the ordinary shape of a migration that broke something on one context.
+ *
+ * WHY THE OLD WIRE AND NOT A MARKER. The converter emits nothing that says "this row is
+ * exempt", and adding one would make the rule true only for runs that postdate it — a
+ * corpus harvested last month would be re-triaged by hand for a property its own wire
+ * already states. `term_`-prefixed with no `id` is exactly the population the rewrite
+ * changes (a pinned tag keeps its entity; every other family keeps its root), it is
+ * readable off the mapping file the run already loads, and it was true before this function
+ * existed.
+ *
+ * WHAT IT IS FORGIVING. A `term_*` tag addresses a term and nothing else, so off a term page
+ * it renders empty; the base tag it converts to addresses whatever the page is about. The
+ * difference is the capability the migration exists to grant, it is bound to this one
+ * direction, and it is disclosed in the scan report before anything is rewritten. The
+ * migration's own decision record owns why a rewrite may do that at all — this only
+ * recognizes the shape, and refuses every other one.
+ *
+ * ERRORS ARE NEVER FORGIVEN. A side that errored has not rendered empty, it has failed, and
+ * the two must not read alike.
+ *
+ * CALL IT ONLY UNDER `--map`. Without a mapping there is no migration in the run, and this
+ * exact shape is then a plain regression.
+ *
+ * @param string $old_tag  The A-side (pre-migration) tag string — the mapping's `old`.
+ * @param array  $a_side   array( output, error ) as the A render recorded them.
+ * @param array  $b_side   array( output, error ) as the B render recorded them.
+ * @return bool True when the pair is the exemption and must not fail the gate.
+ */
+function bws_replay_migration_exempt_row( string $old_tag, array $a_side, array $b_side ): bool {
+	if ( '' !== (string) ( $a_side[1] ?? '' ) || '' !== (string) ( $b_side[1] ?? '' ) ) {
+		return false;
+	}
+
+	if ( '' !== (string) ( $a_side[0] ?? '' ) || '' === (string) ( $b_side[0] ?? '' ) ) {
+		return false;
+	}
+
+	if ( ! preg_match( '/^\{\{\s*(term_[A-Za-z0-9_]+)(.*)\}\}$/s', trim( $old_tag ), $parts ) ) {
+		return false;
+	}
+
+	// PINNED IS NOT EXEMPT. A tag naming its own term reads that term on every context, so
+	// nothing about it was ambient and nothing about the rewrite may move it. `id` is GB's
+	// key and arrives after the tag name — first behind the separating space, thereafter
+	// behind a pipe.
+	return 1 !== preg_match( '/(?:^|\|)\s*id\s*:/', ltrim( $parts[2] ) );
+}
+
+/**
  * Findings for a DEPENDENCY replay — the one where our build is the held-fixed half.
  *
  * THE AXIS: the environment must have MOVED and our build must NOT have. That is the exact

@@ -91,6 +91,32 @@ An unpinned `{{term_*}}` tag resolved through `TaxonomyTerm::resolve_id()`, whic
 
 **`/department/sales/` joins the context pages** (`ctx-term`) so C-TERM1.1 has a captured baseline. It asserts `body_class` `tax-department` rather than the generic `archive`: the guard's entire subject is which KIND of archive a page is, so the row must fail if the page degrades into a different one.
 
+## §C-CONV — an unpinned `term_*` tag beside the base tag it converts to (FW-39)
+
+The C-TERM rows above measure ONE tag against its own past. These measure a tag against its REPLACEMENT: the migration rewrites an unpinned `term_*` tag into a base tag, and what has to be shown is not that either side is right but that every difference between them runs in ONE DIRECTION — empty→value, never value→anything-else. A single row cannot show a direction, so every row here is half of a pair and is useless read alone.
+
+The rewrite is not output-neutral, which is why this section exists at all: a `term_*` tag addresses a term and nothing else, a base tag addresses whatever the page is about ([CONTEXT.md I20]), and off a term page the first renders nothing where the second renders the page. Whether a migration may do that is FW-39's decision, recorded with the ship; this table is the measurement it rests on.
+
+Measured 2026-09-10 via `bws render-tag --porcelain` on all seven contexts. Search is the one context `render-tag` cannot reach (header note) and is front-end only.
+
+| # | Arm | Before (`term_*`) | After (base) | Term archive `/department/sales/` | The other six |
+|---|---|---|---|---|---|
+| C-CONV1 | bare title read | `{{term_text use:title}}` | `{{text use:title}}` | `Sales` / `Sales` — EQUAL | empty / this context's own heading — **empty→value** |
+| C-CONV2/3 | bare collapsing template | `{{term_content}}` | `{{content}}` | the Sales term description, both sides | empty / the PTA description, author bio or 404 borrow — **empty→value**; on date and latest-home both are empty |
+| — | chain-only collapsing template | `{{term_permalink}}` | `{{permalink}}` | the term archive URL, both sides | empty / the singular page's own URL — **empty→value**; empty on both everywhere else. `render-tag` rows only, no fixture pair (its value is a URL that moves with every reseed) |
+| C-CONV4/5 | CHAINED, unpinned | `{{term_text src:ref\|ref:dept_lead\|use:title}}` | `{{text src:refs,dept_lead,limit(1)\|use:title}}` | `Tom Associate`, both sides | empty on both sides, every context — **IDENTICAL in both directions** |
+| — | chained, two steps | `{{term_text src:ref\|ref:dept_lead\|srcTermIn:portal_visibility\|use:title}}` | `{{text src:refs,dept_lead;terms,portal_visibility,limit(1)\|use:title}}` | `All Users`, both sides | `render-tag` row only; the visible pair is C-CONV4/5, whose one step is the shape a stored tag actually has |
+| C-CONV6/7 | SKIPPED: `tax`, no `id` | `{{term_text tax:department\|key:phone}}` | *(not converted)* | `(987) 333-4444` / empty — **value→empty**, which is why it is skipped | empty on both sides on all six; `(987) 333-4444` on both on the singular `/matrix-post-meta/`, which is where the two agree and is not a context page |
+| — | SKIPPED: bare `src:term` | `{{term_text src:term\|use:title}}` | *(not converted)* | `Sales` / empty — **value→empty**. The base tag REFUSES an argless declaring root (D8), the `term_*` family falls through to its own ambient read | empty on both |
+| — | converts: `src:site` | `{{term_text src:site\|use:title}}` | `{{text src:site\|use:title}}` | empty / `BWS Testbed` — **empty→value**, so it converts through the shared mapping like every other family's | same, every context |
+| QL1.5/QL1.6 | TERM QUERY LOOP | `{{term_text use:title}}` | `{{text use:title}}` | — | the loop row's term name, both sides, `/matrix-loops/` — see below |
+
+**The `src:site` row is the one D33 predicted would be unconvertible, and the measurement refuted it.** A modifier tag returns EMPTY under `src:site` by an explicit guard (`register_modifier()`'s callback, #37) — for every family, not just this one — so the arm is empty→value, inside the exemption, and skipping it here would be a rule that applies to one family for no reason the code states. The shared mapping has made exactly this rewrite since 1.17.0 (`modifier-base-migration-test.php` §V1.6).
+
+**QL1.6 is the convert-side twin of QL1.5, and it is a fixture row because it cannot be anything else.** A term query loop hands its row's term down through GB's `generateblocks_dynamic_tag_id` filter, and `render-tag` cannot fake a term loop at any flag combination — so the two routes to one term (QL1.5 through `TaxonomyTerm::resolve_id()`, QL1.6 through `bws_resolve_base_source()`'s loop-item classification) are comparable on the page and nowhere else. That is the same gap QL1.5 itself was added to fill, one guard over.
+
+**Vacuity, and how it was ruled out.** An earlier sweep compared `{{term_text use:name}}` on both sides; `name` is not a registered `use` value (`bws_get_text_field_options()` offers `key` and `title`, whose LABEL reads "Title/Name"), so both sides rendered empty on every context and the table proved nothing. Every row above renders a value on at least one side.
+
 ## Author-kind detail
 
 Author kind shipped 1.15.0 = `{{title}}`/`{{content}}` ONLY (the plan's author-archive dispatch rows). text/permalink/image/datetime author analogs are future work (FW-47) — deliberately unhandled, render empty not wrong. The PTA query-context kind this section used to point at as "next" shipped 1.19.0 (C2/C12 above).
