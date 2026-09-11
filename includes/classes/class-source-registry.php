@@ -61,44 +61,31 @@ class SourceRegistry {
 	}
 
 	/**
-	 * Check if a source is enabled.
-	 *
-	 * Term-context sources are gated on the term_ modifier toggle.
-	 * All other sources are always enabled.
-	 *
-	 * @since 1.6.0 Delegates term-context check to is_modifier_enabled('term').
-	 * @param string $key Source key.
-	 * @return bool
-	 */
-	public static function is_source_enabled( string $key ): bool {
-		$source = self::get_source( $key );
-		if ( $source && 'term' === $source->get_context_type() ) {
-			return Admin\SettingsPage::is_modifier_enabled( 'term' );
-		}
-		return true;
-	}
-
-	/**
 	 * The registered sources an author may CHOOSE as a chain root (#83).
 	 *
 	 * The ONE answer both authoring surfaces take their rows from — the base tag's root
 	 * enum and the folded slot's source enum, via bws_registered_root_rows(). One accessor
 	 * so a root cannot be offered in one surface and absent from the other.
 	 *
-	 * TWO gates, and they are different questions. `is_selectable_root()` is the source's
-	 * own claim that it may be chosen; `is_source_enabled()` is this site's settings
-	 * saying whether that whole context is switched on — a term-context root disappears
-	 * with the term_ modifier toggle exactly as every other term surface does. Neither
-	 * gate reaches RESOLUTION: wire naming any registered source resolves through
-	 * bws_factory_registry_source() whichever way both answer.
+	 * ONE gate, and it is the source's own: `is_selectable_root()` is the source claiming
+	 * it may be chosen. No settings gate sits beside it. Until 1.20.0 a second one did —
+	 * `is_source_enabled()`, which answered the `term_` modifier toggle for every
+	 * term-context source — and it was removed when that toggle came to mean the `term_`
+	 * TAG FAMILY alone (FW-39/D39: the family is deprecated and its toggle seeds off on a
+	 * new install, which would otherwise have taken the `term` chain root away from every
+	 * fresh site). A source's CONTEXT TYPE no longer decides whether it is offered.
+	 *
+	 * The gate does not reach RESOLUTION: wire naming any registered source resolves
+	 * through bws_factory_registry_source() whichever way it answers.
 	 *
 	 * @since 1.17.0
+	 * @since 1.20.0 Settings gate removed; offering follows is_selectable_root() alone.
 	 * @return SourceInterface[] Keyed by source key, in registration order.
 	 */
 	public static function get_selectable_roots(): array {
 		$roots = array();
 		foreach ( self::$sources as $key => $source ) {
-			if ( $source->is_selectable_root() && self::is_source_enabled( $key ) ) {
+			if ( $source->is_selectable_root() ) {
 				$roots[ $key ] = $source;
 			}
 		}

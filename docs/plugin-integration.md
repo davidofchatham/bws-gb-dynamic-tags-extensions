@@ -178,7 +178,7 @@ Each spec is adapted into a registered source and registered normally, so it lan
 Two further consequences worth knowing:
 
 - **Your rows reach base tags and slots, and nothing else.** They are appended at the chain-root layer, so `term_*`, `try_*`'s own source lists, `{{table}}` and `{{call}}` are unaffected.
-- **A term-context root follows the `term_` modifier toggle** in the plugin settings — switching that off hides it from the dropdown, exactly as it hides every other term surface. Resolution is unaffected.
+- **Your opt-in is the only gate.** No plugin setting sits beside it, and your source's context type does not decide whether it is offered. Through 1.19.x a term-context root also followed the `term_` modifier toggle; since 1.20.0 that toggle governs the deprecated `term_` tag family alone, and no longer reaches the dropdown.
 
 Where a rooted tag cannot resolve in the editor (common when your source reads request state), the preview names it by your registered label:
 

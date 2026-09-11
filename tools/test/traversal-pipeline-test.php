@@ -1394,11 +1394,13 @@ eq(
 	)
 );
 
-// The settings gate is an OFFERING gate too — it hides a term-context root from the
-// dropdown, and a tag already naming one keeps rendering.
+// The term_ toggle reaches NEITHER offering nor resolution. Until 1.20.0 it reached
+// offering (a term-context root was hidden from the dropdown with the family switched
+// off); that gate is gone — `slot-options-build-test.php` pins the offering half. This
+// pins the half that was never gated: what a tag already names goes on resolving.
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
 eq(
-	'registry: a DISABLED term root still resolves for a tag that already names it',
+	'registry: a term root resolves with the term_ family switched off',
 	array( 'kind' => 'term', 'id' => 99 ),
 	bws_resolve_base_source( array( 'src' => 'testtermroot' ), null, sig() )
 );

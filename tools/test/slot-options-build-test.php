@@ -1019,12 +1019,13 @@ assert_same(
 	$root_values( bws_build_slot_traversal_options( 1, bws_base_source_option(), $base_trav, false )['src']['options'] )
 );
 
-// ── The settings gate ────────────────────────────────────────────────────────────────
+// ── The term_ toggle does NOT gate offering (1.20.0, FW-39/D39) ──────────────────────
 //
-// Two different questions: `is_selectable_root()` is the source's claim that it MAY be
-// chosen, `is_source_enabled()` is this site saying whether that context is switched on
-// at all. A term-context root follows the term_ modifier toggle exactly as every other
-// term surface does. Neither gate reaches resolution.
+// ONE gate on an offered root: `is_selectable_root()`, the source's own claim that it MAY
+// be chosen. The settings gate that stood beside it until 1.20.0 read a source's CONTEXT
+// TYPE and answered the term_ modifier toggle, which now means the term_ TAG FAMILY alone
+// — deprecated, seeded off on a new install, and a fresh site must still be able to author
+// the `term` chain root. So a TERM-context root is offered with the toggle either way.
 \BWS\DynamicTags\SourceRegistry::register_source( new BWS_Test_Term_Root_Source() );
 assert_same(
 	'a term-context root is offered while the term_ modifier toggle is ON',
@@ -1033,12 +1034,12 @@ assert_same(
 );
 \BWS\DynamicTags\Admin\SettingsPage::$modifiers_enabled = false;
 assert_same(
-	'...and disappears with the toggle, like every other term surface',
-	false,
+	'...and is STILL offered with the toggle off — offering is decoupled from the family',
+	true,
 	in_array( 'testtermroot', $root_values( bws_registered_root_rows() ), true )
 );
 assert_same(
-	'...while a post-context root is unaffected by it',
+	'...as is a post-context root, which never answered the toggle',
 	true,
 	in_array( 'testroot', $root_values( bws_registered_root_rows() ), true )
 );

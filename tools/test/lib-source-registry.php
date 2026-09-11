@@ -82,9 +82,10 @@ if ( ! function_exists( 'do_action' ) ) {
 
 // ── The registry's one WP-facing dependency ──────────────────────────────────────────
 //
-// register_source() logs through it, and is_source_enabled() asks it whether the term_
-// modifier is switched on — the second gate on an offered root. Declared through eval so
-// this file can stay in the global namespace like every other harness.
+// register_source() logs through it. `$modifiers_enabled` is still driveable because the
+// term_ toggle's NON-effect on an offered root is itself pinned (1.20.0, FW-39/D39) —
+// nothing in the registry reads it any more. Declared through eval so this file can stay
+// in the global namespace like every other harness.
 if ( ! class_exists( '\BWS\DynamicTags\Admin\SettingsPage' ) ) {
 	eval( 'namespace BWS\DynamicTags\Admin; class SettingsPage {
 		public static $modifiers_enabled = true;
@@ -146,8 +147,9 @@ class BWS_Test_Absent_Source extends \BWS\DynamicTags\AbstractSource {
 }
 
 /**
- * A TERM-context opted-in root, for the settings gate: it is offered while the term_
- * modifier toggle is on and disappears with it, exactly as every other term surface does.
+ * A TERM-context opted-in root. Its context type used to decide whether it was offered;
+ * since 1.20.0 it does not, and the fixture exists to hold that line — offered with the
+ * term_ modifier toggle either way.
  */
 class BWS_Test_Term_Root_Source extends \BWS\DynamicTags\AbstractSource {
 	public function get_source_key(): string { return 'testtermroot'; }

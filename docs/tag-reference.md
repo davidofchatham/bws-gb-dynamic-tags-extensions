@@ -75,9 +75,13 @@ What an author can CHOOSE as a root is a shorter list than what RESOLVES as one,
 deliberately not the same rule.
 
 - **Offering is stated, never inferred.** A registered source appears in the root enum iff
-  `is_selectable_root()` returns true (default false) *and* `is_source_enabled()` passes — the
-  latter is the settings gate, so a term-context root follows the `term_` modifier toggle. The
-  precondition for opting in is that the source **resolves its own id from ambient context**.
+  `is_selectable_root()` returns true (default false) — that claim is the only gate, and a
+  source's context type does not decide the question. The precondition for opting in is that
+  the source **resolves its own id from ambient context**. Through 1.19.x a second, settings
+  gate stood beside it (`is_source_enabled()`, which answered the `term_` modifier toggle for
+  every term-context source); 1.20.0 removed it when that toggle became the deprecated `term_`
+  tag family's own switch, which seeds OFF on a new install — a fresh site must still be able
+  to author the `term` root the pinning feature above is built on.
 - **Opt-in rather than derived, permanently.** The registry accumulates non-offerable entries by policy and never sheds them (a `register_source()` call is never deleted for lacking resolve logic), so the four retired traversal-substitute sources are registered right now and must stay out — none resolves its own id from ambient context in a way an author could usefully pin. A registry that keeps its dead is the wrong shape to derive an authoring enum from. **`term` and `post` are the exceptions, and each changed rather than broke this rule** (1.20.0, FW-39, tickets 02/03): a bare `term`/`post` root is still exactly what a bare base tag does and stays unofferable, but each now also offers a PINNING argument (`term,<ID>`, `post,<ID>`), and the root row it offers carries that argument's declaration (`arg: { label, control, argless, kind }`, from `SourceInterface::get_root_argument()`). An argless root of either kind REFUSES at the factory seam rather than degrading to the ambient entity — see the root-argument seam's own PHPDoc (`bws_factory_registry_source()`, `includes/helpers/traversal-pipeline.php`) for the full rule, which this doc does not restate per the axis-ownership convention.
 - **Offering is not resolving.** The flag governs the dropdown alone; the factory's registry
   delegation is untouched, so wire naming any registered source resolves either way. Load-bearing

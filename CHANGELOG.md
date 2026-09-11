@@ -26,6 +26,8 @@
 
 ### Changed
 
+- **A chain root offered by another plugin is no longer hidden by the `term_ tags` setting.** A root whose source reads a term used to disappear from the source dropdowns when that setting was switched off. The setting now means the deprecated `{{term_*}}` tag family and nothing else, so a plugin's root stays offered either way, and a source's context type no longer has any say in whether it is offered. No saved tag is affected, because the setting never reached rendering.
+
 - **The default source is now labelled "Current Context" instead of "Current."** A tag with no source set follows whatever the page is about, which since 1.14.0 has meant a post, a term, a user or a query context, but the old label still read as though it meant the current post. The row is renamed everywhere it appears: a base tag's source dropdown, a `{{join}}` field's source and a `try_` attempt's source. Label only, so the saved tag string is unchanged, no stored tag moves, and nothing renders differently.
 
 ### Deprecated
